@@ -250,16 +250,34 @@ function looksBinary(content: string): boolean {
   return bad / sample.length > 0.1;
 }
 
-function lineColAt(content: string, index: number): { line: number; col: number } {
-  let line = 1;
-  let lastNl = -1;
-  for (let i = 0; i < index && i < content.length; i++) {
-    if (content.charCodeAt(i) === 10) {
-      line++;
-      lastNl = i;
-    }
+/**
+ * Offsets of every newline, so match→line is a binary search instead of a
+ * rescan from the top of the file for each of up to 500 matches.
+ * Mirrors the pattern in `import-extractor.ts`.
+ */
+function newlineOffsets(content: string): number[] {
+  const offsets: number[] = [];
+  for (let i = 0; i < content.length; i++) {
+    if (content.charCodeAt(i) === 10) offsets.push(i);
   }
-  return { line, col: index - lastNl };
+  return offsets;
+}
+
+/**
+ * 1-based {line, col} for a character offset, using binary search over
+ * precomputed newline offsets. O(log n) per lookup instead of O(n).
+ */
+function lineColAt(offsets: number[], index: number): { line: number; col: number } {
+  let low = 0;
+  let high = offsets.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if ((offsets[mid] ?? 0) < index) low = mid + 1;
+    else high = mid;
+  }
+  // low = number of newlines before index; line is 1-based
+  const lastNl = low > 0 ? offsets[low - 1]! : -1;
+  return { line: low + 1, col: index - lastNl };
 }
 
 /** Soft default: enough for normal sources without runaway regex on minified blobs. */
@@ -294,6 +312,9 @@ export function parseGeneric(opts: {
   const patterns = patternsFor(lang);
   const symbols: IndexSymbol[] = [];
   const seen = new Set<string>();
+  // Precompute newline offsets once per file — O(file_length) scan instead of
+  // O(symbols × file_length) with the per-match linear scan.
+  const nlOffsets = newlineOffsets(content);
 
   for (const pattern of patterns) {
     // Clone flags so lastIndex never leaks across files.
@@ -314,7 +335,7 @@ export function parseGeneric(opts: {
         continue;
       }
 
-      const { line, col } = lineColAt(content, match.index);
+      const { line, col } = lineColAt(nlOffsets, match.index ?? 0);
       const key = `${name}\0${line}\0${pattern.kind}`;
       if (seen.has(key)) continue;
       seen.add(key);

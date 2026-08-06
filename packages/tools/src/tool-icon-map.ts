@@ -119,6 +119,9 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   // Task management
   todo: 'todo',
   todos: 'todo',
+  // After-task suggestions — same family as the todo board, so it reuses the
+  // icon rather than widening ToolIconId (every UI maps that union by hand).
+  nextsteps: 'todo',
 
   // Planning
   plan: 'plan',

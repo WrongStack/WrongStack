@@ -50,6 +50,13 @@ export const HOST_PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = [
     canDisable: true,
   },
   {
+    name: 'wstack-cloud-config-sync',
+    risk: 'medium',
+    summary: 'my.wrongstack.com config synchronization over the namespaced sync API.',
+    defaultState: 'active',
+    canDisable: true,
+  },
+  {
     name: 'wstack-chimera',
     risk: 'medium',
     summary: 'Spawns a post-session code review subagent when explicitly enabled.',

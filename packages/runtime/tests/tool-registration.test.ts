@@ -97,6 +97,35 @@ describe('canonical host tool registration', () => {
     expect(registry.get('coordination-test')).toBe(coordinationTool);
   });
 
+  it('leaves the nextsteps tool unregistered by default', () => {
+    const registry = new ToolRegistry();
+
+    registerCanonicalHostTools({ registry, tier: 'minimal' });
+
+    // Opt-in: an omitted `nextSteps` option must behave exactly like `off`, so
+    // the existing `<nextsteps>` block stays the only route for every host that
+    // has not been updated.
+    expect(registry.get('nextsteps')).toBeUndefined();
+  });
+
+  it('leaves the nextsteps tool unregistered when explicitly disabled', () => {
+    const registry = new ToolRegistry();
+
+    registerCanonicalHostTools({ registry, tier: 'minimal', nextSteps: { enabled: false } });
+
+    expect(registry.get('nextsteps')).toBeUndefined();
+  });
+
+  it('registers the nextsteps tool when enabled, regardless of tier', () => {
+    const registry = new ToolRegistry();
+
+    registerCanonicalHostTools({ registry, tier: 'minimal', nextSteps: { enabled: true } });
+
+    // Not part of any tier list — the toggle alone decides, so a token-saving
+    // tier cannot silently drop a tool the user turned on.
+    expect(registry.get('nextsteps')?.name).toBe('nextsteps');
+  });
+
   it('keeps memory disabled when enabled without a store', () => {
     const result = registerCanonicalHostTools({
       registry: new ToolRegistry(),

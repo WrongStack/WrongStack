@@ -88,4 +88,135 @@ describe('patchTool', () => {
     const result = await patchTool.execute({ patch: evilPatch, strip: 0 }, ctx, makeOpts());
     expect(result.applied).toBe(0);
   });
+
+  it('rejects targets where GNU patch -pN yields a ../ escape (leading-slash divergence)', async () => {
+    // GNU patch counts "slashes along with the directory names between them"
+    // where adjacent slashes count as one. For /../etc/passwd with -p1, GNU
+    // patch strips the leading slash and yields ../etc/passwd — which escapes
+    // root. The old preflight filtered empty segments from the split, yielding
+    // etc/passwd (in-root) — a containment bypass.
+    const ctx = makeCtx();
+    const evilPatch = '--- a/foo\n+++ /../etc/passwd\n@@ -1 @@\n-old\n+new';
+    const result = await patchTool.execute({ patch: evilPatch }, ctx, makeOpts());
+    expect(result.applied).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.message).toMatch(/outside project root/);
+  });
+
+  it('rejects out-of-root target after a hunk ending with a stripped-blank context line', async () => {
+    // A blank context line that lost its leading space (line[0] === undefined)
+    // used to skip both counter decrements, leaving inHunk=true. The next
+    // file's ---/+++ headers were then consumed as hunk content and never
+    // reached the file-header matcher — defeating the path-containment
+    // pre-flight so GNU patch could write outside the project root.
+    const ctx = makeCtx();
+    const evilPatch =
+      '--- a/foo.txt\n' +
+      '+++ b/foo.txt\n' +
+      '@@ -1,2 +1,2 @@\n' +
+      ' line1\n' +
+      '-old\n' +
+      '+new\n' +
+      '\n' + // stripped-blank context line (no leading space)
+      '--- a/bar.txt\n' +
+      '+++ b/../../etc/passwd\n' +
+      '@@ -1 @@\n-old\n+evil';
+    const result = await patchTool.execute({ patch: evilPatch }, ctx, makeOpts());
+    expect(result.applied).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.message).toMatch(/outside project root/);
+  });
+
+  it('does not misparse hunk-body content lines as file headers', async () => {
+    // An added line whose content is "++ ../../etc/passwd" appears in the
+    // diff as "+++ ../../etc/passwd". The old parser matched ^\+\+\+ outside
+    // hunk-tracking and created a phantom target that, after strip, escaped
+    // root — a spurious refusal of a valid patch. Hunk-state tracking ensures
+    // the line is consumed as content.
+    const ctx = makeCtx();
+    const patchBody =
+      '--- a/code.txt\n' +
+      '+++ b/code.txt\n' +
+      '@@ -1,2 +1,3 @@\n' +
+      ' line1\n' +
+      '+++ ../../etc/passwd\n' +
+      ' line2\n';
+    const result = await patchTool.execute({ patch: patchBody }, ctx, makeOpts());
+    expect(result.message).not.toMatch(/outside project root/);
+  });
+});
+
+describe('patchTool — bookkeeping on every outcome', () => {
+  const makeTrackingCtx = () => {
+    const changes: Array<{ path: string; action: string; before: string | null }> = [];
+    const ctx = {
+      cwd: tmpDir,
+      tools: [],
+      projectRoot: tmpDir,
+      session: {
+        recordFileChange: (c: { path: string; action: string; before: string | null }) =>
+          changes.push(c),
+      },
+      recordRead: () => {},
+    } as any;
+    return { ctx, changes };
+  };
+
+  // `+++ /dev/null` is how a unified diff spells a deletion. `extractDiffTargets`
+  // skipped it, so the target list came back EMPTY: no containment check, no
+  // before-snapshot, no rewind record — while `applied` was still reported from
+  // GNU patch's stdout. The file was gone and rewind could not bring it back.
+  it('records a deletion diff so rewind can restore the file', async () => {
+    const file = path.join(tmpDir, 'gone.txt');
+    await fs.writeFile(file, 'line1\n');
+    const { ctx, changes } = makeTrackingCtx();
+
+    await patchTool.execute(
+      {
+        patch:
+          '--- a/gone.txt\n' +
+          '+++ /dev/null\n' +
+          '@@ -1 +0,0 @@\n' +
+          '-line1\n',
+      },
+      ctx,
+      makeOpts(),
+    );
+
+    const deletion = changes.find((c) => c.action === 'deleted');
+    expect(deletion).toBeDefined();
+    expect(deletion?.before).toBe('line1\n');
+    expect(path.resolve(deletion!.path)).toBe(path.resolve(file));
+  });
+
+  // `--merge` writes conflict markers INTO the file and exits non-zero. The
+  // early return used to sit ABOVE the bookkeeping block, so the file was
+  // corrupted on disk with no rewind record and the model was told `applied: 0`.
+  it('records the change when a --merge conflict modifies the file anyway', async () => {
+    const file = path.join(tmpDir, 'conflict.txt');
+    await fs.writeFile(file, 'line1\nDIVERGED\nline3\n');
+    const { ctx, changes } = makeTrackingCtx();
+
+    const result = await patchTool.execute(
+      {
+        patch:
+          '--- a/conflict.txt\n' +
+          '+++ b/conflict.txt\n' +
+          '@@ -1,3 +1,3 @@\n' +
+          ' line1\n' +
+          '-line2\n' +
+          '+CHANGED\n' +
+          ' line3\n',
+      },
+      ctx,
+      makeOpts(),
+    );
+
+    const after = await fs.readFile(file, 'utf8');
+    if (after !== 'line1\nDIVERGED\nline3\n') {
+      // GNU patch touched the file — the tool must have said so.
+      expect(changes.length).toBeGreaterThan(0);
+      expect(result.files.length).toBeGreaterThan(0);
+    }
+  });
 });

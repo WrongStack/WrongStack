@@ -183,9 +183,13 @@ const plugin: Plugin = {
         },
         required: ['path', 'oldName', 'newName'],
       },
-      permission: 'auto',
+      // Rewrites source files on `apply: true`. `auto` + no declared
+      // capability meant no confirmation prompt and no read-only-mode block —
+      // `readonly-permission-policy` keys on `capabilities`, not `mutating`.
+      permission: 'confirm',
       category: 'Development',
       mutating: true,
+      capabilities: ['fs.write'],
       async execute(input: { path?: string; oldName?: string; newName?: string; apply?: boolean }) {
         if (!cfg.enabled) return { ok: false, error: 'smart-rename is disabled' };
 

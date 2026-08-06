@@ -356,11 +356,24 @@ function buildArgs(input: GitInput): string[] {
           ]
         : ['branch'];
     case 'checkout':
-      return [
-        'checkout',
-        ...(input.branch ? ['--', input.branch] : []),
-        ...(files.length ? ['--', ...files] : []),
-      ];
+      // Everything AFTER `--` is a pathspec, so `['checkout', '--', branch]`
+      // never switched a branch — it restored that path from the index.
+      // `git checkout -- packages` exits 0 while silently discarding every
+      // uncommitted change under `packages/`, and the tool reported success.
+      //
+      // A trailing `--` with nothing after it is the other half of the fix: it
+      // declares "no pathspecs follow", which disables git's DWIM fallback.
+      // Verified against git 2.x — `git checkout docs` with a `docs/` directory
+      // and no `docs` branch prints "Updated 1 path from the index" and
+      // discards the working-tree change, while `git checkout docs --` exits
+      // 128 with `fatal: invalid reference: docs` and touches nothing.
+      //
+      // The two modes are mutually exclusive: passing both used to emit TWO
+      // `--` separators, which git rejects outright. When both are supplied
+      // the file restore wins — it is the narrower, explicitly-addressed
+      // operation.
+      if (files.length) return ['checkout', '--', ...files];
+      return input.branch ? ['checkout', input.branch, '--'] : ['checkout'];
     case 'stash':
       return input.message ? ['stash', 'push', '-m', input.message] : ['stash', 'push'];
     case 'push':

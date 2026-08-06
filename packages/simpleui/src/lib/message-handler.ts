@@ -582,8 +582,25 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         setMessages((current) => {
           const last = current.at(-1);
           if (last?.role === 'assistant' && last.streaming) {
+            // The canonical response can legitimately extend what was streamed:
+            // the runtime appends a tool-produced <nextsteps> block to the
+            // turn-ending response, and that block never arrives as a delta.
+            // Adopt the canonical text when it is a strict extension of the
+            // streamed text — same rule the WebUI applies (protocol parity).
+            const streamedText = last.text.trim();
+            const extended =
+              streamedText.length > 0 &&
+              responseText.length > streamedText.length &&
+              responseText.startsWith(streamedText);
             return current.map((item, index) =>
-              index === current.length - 1 ? { ...item, streaming: false, final } : item,
+              index === current.length - 1
+                ? {
+                    ...item,
+                    ...(extended ? { text: boundSimpleChatText(responseText) } : {}),
+                    streaming: false,
+                    final,
+                  }
+                : item,
             );
           }
           return responseText

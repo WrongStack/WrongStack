@@ -151,6 +151,57 @@ function validateRelativeTemplatePath(field: string, value: string): string | nu
   return null;
 }
 
+/**
+ * Destinations this tool may never write, even though they are inside the
+ * project.
+ *
+ * "Inside the project" was the whole write policy, and these paths are all
+ * inside it: `.git/hooks/pre-commit` and `.husky/pre-commit` execute on the
+ * user's next commit, `.github/workflows/*` executes in CI, and the config
+ * directories carry credentials and plugin/hook definitions. `path-guard`
+ * protects `.git/**`, but its PreToolUse matcher keys on the tool NAMES
+ * `write|edit|bash|exec`, so it never sees a tool this package registers —
+ * which is exactly why the check has to live here.
+ */
+const PROTECTED_WRITE_PREFIXES = [
+  '.git/',
+  '.husky/',
+  '.github/workflows/',
+  '.wrongstack/',
+  '.claude/',
+  'node_modules/',
+];
+const PROTECTED_WRITE_FILES = new Set([
+  'package.json',
+  'pnpm-workspace.yaml',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  '.npmrc',
+  '.gitattributes',
+]);
+
+/** `validateRelativeTemplatePath` plus the protected-destination denylist. */
+function validateWritableTemplateTarget(field: string, value: string): string | null {
+  const baseError = validateRelativeTemplatePath(field, value);
+  if (baseError) return baseError;
+  const norm = value.replace(/\\/g, '/').replace(/^\.\//, '').toLowerCase();
+  const base = norm.slice(norm.lastIndexOf('/') + 1);
+  if (
+    PROTECTED_WRITE_PREFIXES.some((p) => norm.startsWith(p)) ||
+    PROTECTED_WRITE_FILES.has(base) ||
+    base === '.env' ||
+    base.startsWith('.env.')
+  ) {
+    return (
+      `${field} "${value}" is a protected path (VCS hooks, CI workflows, ` +
+      `dependency manifests, or agent configuration). Write it with the ` +
+      `\`write\` tool instead, which prompts for confirmation.`
+    );
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
@@ -211,7 +262,14 @@ const plugin: Plugin = {
         },
         required: ['template', 'variables'],
       },
-      permission: 'auto',
+      // Writes caller-supplied content to a caller-supplied path. `auto` +
+      // no declared capability meant no confirmation prompt, no read-only-mode
+      // block (`readonly-permission-policy` keys on `capabilities`, not
+      // `mutating`), and no PreToolUse hook — plugin tools reach the executor
+      // through `plugin_manager action:'use'`, which bypasses it.
+      permission: 'confirm',
+      capabilities: ['fs.write'],
+      riskTier: 'destructive',
       category: 'Project',
       mutating: true,
       async execute(input: Record<string, unknown>) {
@@ -239,9 +297,15 @@ const plugin: Plugin = {
         /* v8 ignore stop */
 
         if (output_path) {
-          const pathError = validateRelativeTemplatePath('output_path', output_path);
+          const pathError = validateWritableTemplateTarget('output_path', output_path);
           if (pathError) return { ok: false, error: pathError };
-          await writeFile(output_path, result, 'utf-8');
+          // Every other failure in this tool returns `{ok:false}`; an EACCES /
+          // ENOSPC here used to reject out of `execute` instead.
+          try {
+            await writeFile(output_path, result, 'utf-8');
+          } catch (err: unknown) {
+            return { ok: false, error: `Could not write ${output_path}: ${String(err)}` };
+          }
           return {
             ok: true,
             output_path,
@@ -280,7 +344,10 @@ const plugin: Plugin = {
         },
         required: ['template_path', 'variables'],
       },
-      permission: 'auto',
+      // Same reasoning as `template_expand` above.
+      permission: 'confirm',
+      capabilities: ['fs.write'],
+      riskTier: 'destructive',
       mutating: true,
       async execute(input: Record<string, unknown>) {
         const template_path = input['template_path'];
@@ -316,9 +383,13 @@ const plugin: Plugin = {
         /* v8 ignore stop */
 
         if (output_path) {
-          const pathError = validateRelativeTemplatePath('output_path', output_path);
+          const pathError = validateWritableTemplateTarget('output_path', output_path);
           if (pathError) return { ok: false, error: pathError };
-          await writeFile(output_path, result, 'utf-8');
+          try {
+            await writeFile(output_path, result, 'utf-8');
+          } catch (err: unknown) {
+            return { ok: false, error: `Could not write ${output_path}: ${String(err)}` };
+          }
           return {
             ok: true,
             template_path,

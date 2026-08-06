@@ -7,6 +7,17 @@
 const K1 = 1.5;
 const B = 0.75;
 
+/**
+ * Precompiled tokeniser regex. Hoisted to module scope so `tokenise` does not
+ * recompile it on every call — it runs once per query term AND once per
+ * indexed document, so per-call allocation is wasteful.
+ *
+ * Preserves Unicode letters, digits, dollar signs, and apostrophes; everything
+ * else (including underscores) becomes a separator. Built via the RegExp
+ * constructor to avoid quoting fragility in automated edit tooling.
+ */
+const TOKENISE_RE = new RegExp('[^\\p{L}\\p{N}$\']', 'gu');
+
 interface Bm25Doc {
   id: number;
   tokens: string[];
@@ -14,11 +25,15 @@ interface Bm25Doc {
   len: number;
 }
 
-/** Tokenise a string into lowercase word tokens. */
+/**
+ * Tokenise a string into lowercase word tokens.
+ *
+ * Preserves apostrophes so that identifiers like `can't` or `user's`
+ * remain a single token. Underscores are treated as separators (they
+ * conventionally split words in snake_case identifiers).
+ */
 export function tokenise(text: string): string[] {
-  // Preserve all Unicode letters + digits + $ + '. Split on everything else.
-  const sanitised = text.replace(/[^\p{L}\p{N}$'_]/gu, ' ').replace(/_/g, ' ');
-  return sanitised.toLowerCase().split(' ').filter(Boolean);
+  return text.replace(TOKENISE_RE, ' ').toLowerCase().trim().split(/\s+/).filter(Boolean);
 }
 
 export interface IndexableDoc {

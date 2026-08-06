@@ -290,13 +290,24 @@ export class SimpleSocket {
       this.options.onMessage(message);
       for (const fn of this.listeners) fn(message);
     });
-    socket.addEventListener('close', (event) => {
+    socket.addEventListener('close', () => {
       if (this.socket === socket) this.socket = null;
+      // A LOCAL teardown is already covered by the `stopped` flag one line
+      // below (`stop()` sets it before closing), so the close code tells us
+      // nothing we need: every close that reaches past this guard is REMOTE.
+      //
+      // Treating code 1000 as "stop for good" therefore fired on exactly the
+      // case that must reconnect — the server's own graceful shutdown, which
+      // calls `ws.close()` with no arguments (webui-server lifecycle.ts:58),
+      // i.e. code 1000. The UI kept `connection === 'open'`: the topbar showed
+      // the green LIVE chip, the outage overlay never opened, and the composer
+      // stayed enabled, so a typed message was appended to the transcript and
+      // queued onto a socket that would never flush. Endless "Thinking…",
+      // recoverable only with F5 — restarting the server did not help.
+      //
+      // `webui/src/lib/ws-client.ts:380` reconnects unconditionally and uses
+      // the code only to decide whether to record an error string.
       if (this.connectionState.stopped) return;
-      if (event.code === 1000) {
-        this.connectionState = stopConnection(this.connectionState);
-        return;
-      }
       this.options.onState('closed');
       const reconnect = planConnectionReconnect(this.connectionState, SIMPLE_CONNECTION_CONFIG);
       this.connectionState = reconnect.state;
@@ -304,6 +315,9 @@ export class SimpleSocket {
         this.timer = setTimeout(() => void this.connect(), reconnect.plan.delayMs);
       }
     });
+    // Closing with no code produces a clean 1000 handshake, which is why a
+    // transient error on an otherwise healthy socket used to land in the dead
+    // branch above too.
     socket.addEventListener('error', () => socket.close());
   }
 

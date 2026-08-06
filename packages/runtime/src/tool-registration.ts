@@ -14,6 +14,7 @@ import {
   rememberTool,
   searchMemoryTool,
 } from '@wrongstack/tools/memory';
+import { nextStepsTool } from '@wrongstack/tools';
 import { registerBuiltinToolTier } from '@wrongstack/tools/tool-tier';
 
 export interface CanonicalHostToolRegistrationOptions {
@@ -27,6 +28,12 @@ export interface CanonicalHostToolRegistrationOptions {
         store?: MemoryPort | null | undefined;
       }
     | undefined;
+  /**
+   * Opt-in `nextsteps` tool (`tools.nextsteps.enabled`). Off unless the host
+   * explicitly enables it, so the default surface is unchanged and the leader
+   * keeps producing `<nextsteps>` the way it always has.
+   */
+  nextSteps?: { enabled: boolean } | undefined;
   descriptionMode?: ToolDescriptionModeConfig | undefined;
   resultRenderMode?: ToolResultRenderModeConfig | undefined;
   disabledTools?: readonly string[] | undefined;
@@ -72,6 +79,8 @@ export function registerCanonicalHostTools(
       memoryBackend = 'legacy';
     }
   }
+
+  if (options.nextSteps?.enabled) options.registry.register(nextStepsTool);
 
   for (const tool of options.coordinationTools ?? []) options.registry.register(tool);
 

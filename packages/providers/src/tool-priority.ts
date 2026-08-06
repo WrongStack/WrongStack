@@ -48,6 +48,9 @@ const STANDARD_TOOLS = new Set([
   'typecheck',
   'format',
   'todo',
+  // Opt-in and leader-only: a user who turned it on wants it, so it must not
+  // be pruned ahead of the task-management tools it belongs with.
+  'nextsteps',
   'plan',
   'task',
   'kanban',

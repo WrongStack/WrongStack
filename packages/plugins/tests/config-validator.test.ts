@@ -41,17 +41,26 @@ function getHook(api: MockApi): (input: unknown) => HookResult {
 }
 
 let tmp: string;
+/** An OS-temp path, i.e. deliberately OUTSIDE the project root. */
+let outsideTmp: string;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  tmp = mkdtempSync(join(tmpdir(), 'config-validator-'));
+  // Fixtures live INSIDE the project: the hook is sandboxed to it, and this
+  // suite used to place them in the OS temp dir — which meant every "reads a
+  // file from disk" assertion was really asserting that the hook read a path
+  // outside the sandbox, pinning the escape as intended behaviour.
+  tmp = mkdtempSync(join(process.cwd(), 'config-validator-'));
+  outsideTmp = mkdtempSync(join(tmpdir(), 'config-validator-outside-'));
 });
 
 afterEach(() => {
-  try {
-    rmSync(tmp, { recursive: true, force: true });
-  } catch {
-    // best-effort on Windows
+  for (const dir of [tmp, outsideTmp]) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // best-effort on Windows
+    }
   }
 });
 
@@ -131,6 +140,42 @@ describe('config-validator plugin', () => {
     const result = hook({ toolName: 'write', toolInput: { path: file } });
     expect(result?.additionalContext).toContain('config-validator');
     expect(result?.additionalContext).toContain('JSON parse error');
+  });
+
+  it('never reads a path outside the project root', () => {
+    const api = makeApi();
+    configValidatorPlugin.setup(api as never);
+    const hook = getHook(api);
+    const file = join(outsideTmp, 'broken.json');
+    writeFileSync(file, '{"a": }');
+    // The model can name any path in a `write` call; the hook must not stat or
+    // read one that resolves outside the sandbox.
+    expect(hook({ toolName: 'write', toolInput: { path: file } })).toBeUndefined();
+  });
+
+  it('does not run when the originating write itself failed', () => {
+    const api = makeApi();
+    configValidatorPlugin.setup(api as never);
+    const hook = getHook(api);
+    const file = join(tmp, 'broken.json');
+    writeFileSync(file, '{"a": }');
+    // A refused write must not become a working read: without this gate a
+    // rejected tool call still reported the file's contents back to the model.
+    expect(
+      hook({ toolName: 'write', toolInput: { path: file }, toolResult: { isError: true } }),
+    ).toBeUndefined();
+  });
+
+  it('does not echo file contents in the reported parse error', () => {
+    const api = makeApi();
+    configValidatorPlugin.setup(api as never);
+    const hook = getHook(api);
+    const file = join(tmp, 'secretish.json');
+    writeFileSync(file, '{"token": "SUPER_SECRET_VALUE", }');
+    const result = hook({ toolName: 'write', toolInput: { path: file } });
+    expect(result?.additionalContext).toContain('JSON parse error');
+    // V8's parse message embeds a verbatim slice of the source.
+    expect(result?.additionalContext).not.toContain('SUPER_SECRET_VALUE');
   });
 
   it('stays silent for a valid file', () => {

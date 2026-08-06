@@ -113,6 +113,7 @@ export { lintTool } from './lint.js';
 export { logsTool } from './logs.js';
 export { forgetTool, relatedMemoryTool, rememberTool, searchMemoryTool } from './memory.js';
 export { createModeTool } from './mode.js';
+export { nextStepsTool } from './next-steps-tool.js';
 export { outdatedTool } from './outdated.js';
 export { builtinToolsPack } from './pack.js';
 export { patchTool } from './patch.js';

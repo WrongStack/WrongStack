@@ -71,6 +71,7 @@ export {
   refreshCodexAccessToken,
   extractAccountId,
   resolveCodexUrl,
+  resolveCodexModelsUrl,
 } from './openai-codex.js';
 export {
   AnthropicOAuthProvider,

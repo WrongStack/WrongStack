@@ -51,12 +51,26 @@ import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { createSseLineFoldingTransform, parseSSE } from './sse.js';
 import { messagesToResponsesInput, toolsToResponses } from './tool-format/to-responses.js';
+import { redirectSafeFetch } from './redirect-safe-fetch.js';
 import type { BuildBodyContext } from './model-output-limits.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 // ── OAuth refresh (shared protocol — see ./oauth/codex-protocol.ts) ──────────
 
 const DEFAULT_CODEX_BASE = CODEX_BASE_URL;
+const CODEX_MODELS_CLIENT_VERSION = 'wrongstack';
+const CODEX_MODELS_FAILURE_COOLDOWN_MS = 5_000;
+const CODEX_MODELS_TIMEOUT_MS = 3_000;
+
+interface CodexModelMetadata {
+  slug?: unknown;
+  context_window?: unknown;
+  max_context_window?: unknown;
+}
+
+interface CodexModelsResponse {
+  models?: unknown;
+}
 
 /**
  * Token shape returned by a refresh. Structurally the shared
@@ -161,6 +175,10 @@ export class OpenAICodexProvider extends WireAdapter {
     NonNullable<OpenAICodexProviderOptions['onRefresh']> extends (p: infer P) => void ? P : never
   >;
   private readonly reasoningEffort: ReasoningEffort;
+  private contextLimits = new Map<string, number>();
+  private contextLimitsEtag: string | undefined;
+  private contextLimitsRefresh: Promise<void> | undefined;
+  private contextLimitsRetryAfter = 0;
 
   constructor(opts: OpenAICodexProviderOptions) {
     super(
@@ -213,9 +231,83 @@ export class OpenAICodexProvider extends WireAdapter {
     this.capabilities = capabilitiesForFamily('openai-codex', { ...opts.capabilities });
   }
 
+  /**
+   * Re-check the ChatGPT Codex model catalog at request boundaries. The
+   * official Codex client uses the same authenticated `/models` endpoint; its
+   * `context_window` is the provider's effective send ceiling (which can be
+   * lower than the public API model catalog). A conditional GET runs before
+   * every request so a changed ETag is observed before the provider call.
+   */
+  async refreshContextLimit(
+    model: string,
+    opts: { signal: AbortSignal },
+  ): Promise<{ maxContext: number; source: 'provider' } | undefined> {
+    await this.ensureFreshToken(opts.signal);
+    if (Date.now() < this.contextLimitsRetryAfter) {
+      const cached = this.contextLimits.get(model);
+      return cached ? { maxContext: cached, source: 'provider' } : undefined;
+    }
+    this.contextLimitsRefresh ??= this.fetchContextLimits(opts.signal).finally(() => {
+      this.contextLimitsRefresh = undefined;
+    });
+    await this.contextLimitsRefresh;
+    const maxContext = this.contextLimits.get(model);
+    return maxContext ? { maxContext, source: 'provider' } : undefined;
+  }
+
+  private async fetchContextLimits(signal: AbortSignal): Promise<void> {
+    const url = `${resolveCodexModelsUrl(this.baseUrl)}?client_version=${encodeURIComponent(CODEX_MODELS_CLIENT_VERSION)}`;
+    const timeout = AbortSignal.timeout(CODEX_MODELS_TIMEOUT_MS);
+    const probeSignal = AbortSignal.any([signal, timeout]);
+    try {
+      const headers = this.buildHeaders({ model: '', messages: [] });
+      if (this.contextLimitsEtag) headers['if-none-match'] = this.contextLimitsEtag;
+      const response = await redirectSafeFetch(this.fetchImpl, url, {
+        method: 'GET',
+        headers,
+        signal: probeSignal,
+      });
+      if (response.status === 304) {
+        this.contextLimitsRetryAfter = 0;
+        return;
+      }
+      if (!response.ok) {
+        this.contextLimitsRetryAfter = Date.now() + CODEX_MODELS_FAILURE_COOLDOWN_MS;
+        return;
+      }
+      const payload = safeParse<CodexModelsResponse>(await response.text());
+      if (!payload.ok || !Array.isArray(payload.value?.models)) {
+        this.contextLimitsRetryAfter = Date.now() + CODEX_MODELS_FAILURE_COOLDOWN_MS;
+        return;
+      }
+      const next = new Map<string, number>();
+      for (const raw of payload.value.models) {
+        if (!raw || typeof raw !== 'object') continue;
+        const entry = raw as CodexModelMetadata;
+        if (typeof entry.slug !== 'string') continue;
+        const limit =
+          positiveContextLimit(entry.context_window) ??
+          positiveContextLimit(entry.max_context_window);
+        if (limit) next.set(entry.slug, limit);
+      }
+      if (next.size === 0) {
+        this.contextLimitsRetryAfter = Date.now() + CODEX_MODELS_FAILURE_COOLDOWN_MS;
+        return;
+      }
+      this.contextLimits = next;
+      this.contextLimitsEtag = response.headers?.get?.('etag') ?? undefined;
+      this.contextLimitsRetryAfter = 0;
+    } catch {
+      // Keep the last verified catalog. The awaited probe is deliberately
+      // bounded: knowing the new ceiling before send is the safety guarantee;
+      // a failed probe may delay one request by at most the timeout above.
+      this.contextLimitsRetryAfter = Date.now() + CODEX_MODELS_FAILURE_COOLDOWN_MS;
+    }
+  }
+
   override async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
     await this.ensureFreshToken(opts.signal);
-    try {
+    try { 
       yield* super.stream(req, opts);
     } catch (err) {
       // A 401 means the token went stale between the pre-flight check and the
@@ -316,6 +408,17 @@ export function resolveCodexUrl(baseUrl: string | undefined): string {
   if (normalized.endsWith('/codex/responses')) return normalized;
   if (normalized.endsWith('/codex')) return `${normalized}/responses`;
   return `${normalized}/codex/responses`;
+}
+
+/** Resolve the authenticated Codex model-catalog endpoint beside `/responses`. */
+export function resolveCodexModelsUrl(baseUrl: string | undefined): string {
+  return resolveCodexUrl(baseUrl).replace(/\/responses$/, '/models');
+}
+
+function positiveContextLimit(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : undefined;
 }
 
 function mapToolChoice(

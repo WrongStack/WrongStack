@@ -101,6 +101,37 @@ describe('makeSkillTool', () => {
     );
   });
 
+  // The lexical check above only proves the STRING stays under the skill dir.
+  // Skill dirs are not confined to the project root (they must reach
+  // ~/.claude/skills), so this containment is the ENTIRE boundary — and the
+  // tool runs at permission:'auto', so nothing prompts. A symlink placed in a
+  // cloned repo's .claude/skills/<name>/ satisfied every check and was read.
+  it('rejects a resource that is a symlink pointing outside the skill dir', async () => {
+    const dir = path.join(tmp, 'res-link');
+    await fs.mkdir(path.join(dir, 'references'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'SKILL.md'), '---\nname: res4\ndescription: d\n---\nbody');
+
+    const secret = path.join(tmp, 'outside-secret.txt');
+    await fs.writeFile(secret, 'AKIA_SUPER_SECRET');
+
+    const link = path.join(dir, 'references', 'env.md');
+    try {
+      await fs.symlink(secret, link, 'file');
+    } catch {
+      return; // Windows without developer mode: symlink creation needs privilege.
+    }
+
+    const tool = makeSkillTool(
+      loader(
+        [{ name: 'res4', description: 'd', path: path.join(dir, 'SKILL.md'), source: 'project' }],
+        { res4: 'body' },
+      ),
+    );
+    await expect(
+      tool.execute({ name: 'res4', resource: 'references/env.md' }),
+    ).rejects.toThrow(/resolves outside the skill directory/);
+  });
+
   it('throws on unknown skill name', async () => {
     const tool = makeSkillTool(loader([], {}));
     await expect(tool.execute({ name: 'ghost' })).rejects.toThrow(/not found/);

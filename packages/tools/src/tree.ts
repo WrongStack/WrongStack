@@ -6,7 +6,14 @@ import { safeResolve } from './_util.js';
 
 // Shared artifact/dependency dirs, plus tree-specific privacy dirs — tree can
 // be pointed at $HOME, where listing key material is never wanted.
-const DEFAULT_IGNORE = [...DEFAULT_WALK_IGNORE_DIRS, '.wrongstack', '.ssh', '.gnupg', '.aws'];
+/** Set-backed for O(1) `has()` in the per-entry walk loop. */
+const DEFAULT_IGNORE: ReadonlySet<string> = new Set([
+  ...DEFAULT_WALK_IGNORE_DIRS,
+  '.wrongstack',
+  '.ssh',
+  '.gnupg',
+  '.aws',
+]);
 const DEFAULT_MAX_ENTRIES = 5_000;
 const MAX_TREE_OUTPUT_BYTES = 256 * 1024;
 
@@ -234,8 +241,14 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
   });
 
   if (depth > 0) {
-    const dirCount = filtered.filter((e) => e.isDirectory()).length;
-    const fileCount = filtered.filter((e) => e.isFile()).length;
+    // Single pass: count dirs and files simultaneously instead of two
+    // separate .filter() scans over the same array.
+    let dirCount = 0;
+    let fileCount = 0;
+    for (const e of filtered) {
+      if (e.isDirectory()) dirCount++;
+      else if (e.isFile()) fileCount++;
+    }
     opts.totalDirs.value += dirCount;
     opts.totalFiles.value += fileCount;
     opts.onProgress?.();

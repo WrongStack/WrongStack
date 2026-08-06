@@ -30,6 +30,7 @@ describe('tool-icon-map', () => {
       expect(getToolIcon('document')).toBe('document');
       expect(getToolIcon('scaffold')).toBe('scaffold');
       expect(getToolIcon('todo')).toBe('todo');
+      expect(getToolIcon('nextsteps')).toBe('todo');
       expect(getToolIcon('plan')).toBe('plan');
       expect(getToolIcon('task')).toBe('task');
       expect(getToolIcon('kanban')).toBe('task');

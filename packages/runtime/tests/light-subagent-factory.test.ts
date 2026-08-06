@@ -252,6 +252,33 @@ describe('makeLightSubagentFactory', () => {
     ).toEqual(['read', 'write']);
   });
 
+  it('never hands a subagent the leader-only nextsteps tool', async () => {
+    const deps = makeDeps();
+    deps.toolRegistry.register({
+      name: 'nextsteps',
+      description: 'record after-task suggestions',
+      inputSchema: { type: 'object', properties: {} },
+      permission: 'auto',
+      mutating: false,
+      capabilities: ['session.nextsteps'],
+      async execute() {
+        return 'ok';
+      },
+    });
+    const factory = makeLightSubagentFactory(deps);
+
+    // Unrestricted default slice: everything else comes through, nextsteps does not.
+    const unrestricted = await factory({ id: 's1' });
+    expect(unrestricted.agent.tools.list().map((t) => t.name)).not.toContain('nextsteps');
+    expect(unrestricted.agent.tools.list().map((t) => t.name)).toContain('read');
+
+    // An explicit allowlist naming it must not smuggle it back in — the tool
+    // would be a silent no-op there (the runtime only folds a recorded block
+    // into a leader turn).
+    const requested = await factory({ id: 's2', tools: ['read', 'nextsteps'] });
+    expect(requested.agent.tools.list().map((t) => t.name)).toEqual(['read']);
+  });
+
   it('throws a clear error when the provider is not registered', async () => {
     const factory = makeLightSubagentFactory(makeDeps(false));
     await expect(factory({ id: 's1' })).rejects.toThrow(/No provider factory registered/);

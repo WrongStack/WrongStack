@@ -35,7 +35,16 @@ describe('scoreTool', () => {
   });
 
   it('scores standard tools at priority 2', () => {
-    for (const name of ['test', 'lint', 'typecheck', 'format', 'todo', 'kanban', 'replace']) {
+    for (const name of [
+      'test',
+      'lint',
+      'typecheck',
+      'format',
+      'todo',
+      'nextsteps',
+      'kanban',
+      'replace',
+    ]) {
       expect(scoreTool(makeTool(name))).toBe(2);
     }
   });

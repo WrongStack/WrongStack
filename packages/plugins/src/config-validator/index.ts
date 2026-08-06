@@ -39,6 +39,7 @@
 
 import { readFileSync, statSync } from 'node:fs';
 import type { Plugin } from '@wrongstack/core/types';
+import { withinProject } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -160,6 +161,17 @@ function positionToLineCol(text: string, pos: number): { line: number; col: numb
   return { line, col };
 }
 
+/**
+ * Strip the verbatim file slice V8 embeds in a JSON parse error.
+ *
+ * `JSON.parse` failures read `Unexpected token 'x', "…40 bytes of the file…"
+ * is not valid JSON`. This hook reports into `additionalContext`, so that
+ * slice is file content flowing back to the model.
+ */
+function redactParseSnippet(message: string): string {
+  return message.replace(/"[\s\S]{0,200}?"(?= is not valid JSON)/g, '"…"');
+}
+
 export function validateJson(text: string, isJsonc: boolean, fileName: string): string[] {
   const source = isJsonc ? stripJsonc(text) : text;
   try {
@@ -198,10 +210,13 @@ export function validateJson(text: string, isJsonc: boolean, fileName: string): 
       const idx = source.indexOf(snippetMatch[1]);
       if (idx >= 0) {
         const { line } = positionToLineCol(source, idx);
-        return [`JSON parse error near line ${line}: ${message.split('\n')[0]}`];
+        // Deliberately NOT the raw V8 message: it embeds a verbatim slice of
+        // the file, which this hook then hands back to the model as
+        // `additionalContext`. The line number is the useful part.
+        return [`JSON parse error near line ${line}`];
       }
     }
-    return [`JSON parse error: ${message.split('\n')[0]}`];
+    return [`JSON parse error: ${redactParseSnippet(message.split('\n')[0] ?? '')}`];
   }
 }
 
@@ -360,12 +375,26 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['config-validator']);
 
-    const hook = (input: { toolName?: string | undefined; toolInput?: unknown }) => {
+    const hook = (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { isError?: boolean | undefined } | undefined;
+    }) => {
       if (!cfg.enabled) return;
+      // Skip if the write/edit itself errored — otherwise a write core REFUSED
+      // (outside the project root, blocked by a guard) still reached the read
+      // below, turning a rejected tool call into a working read oracle. Every
+      // sibling PostToolUse hook in this package checks this: type-gate:343,
+      // auto-i18n-extractor, code-metrics, test-coverage-gate.
+      if (input.toolResult?.isError) return;
       state.invocations += 1;
       const ti = (input.toolInput ?? {}) as Record<string, unknown>;
       const raw = ti['path'] ?? ti['file_path'] ?? ti['filePath'];
       if (typeof raw !== 'string' || raw.length === 0) return;
+      // This was the only plugin in the package that never imported the
+      // sandbox helper: `raw` came straight off the tool call and went into
+      // statSync/readFileSync, so the model could name any path on the host.
+      if (!withinProject(raw)) return;
       const lower = raw.toLowerCase();
       if (!cfg.extensions.some((ext) => lower.endsWith(ext))) return;
 

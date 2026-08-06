@@ -286,8 +286,24 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Tools a subagent never receives, even in the unrestricted default slice.
+ *
+ * `nextsteps` records the leader's after-task suggestions: the runtime only
+ * folds a recorded block into a LEADER turn (see `next-steps-slot.ts`), and the
+ * subagent permission allowlist does not carry `session.nextsteps`. Leaving it
+ * visible would spend a tool definition, an iteration, and a permission
+ * rejection to accomplish nothing.
+ *
+ * The CLI fleet host hides a wider set (`DEFAULT_SUBAGENT_HIDDEN_TOOLS`,
+ * including the director's orchestration tools). This factory is the
+ * dependency-light path used by the WebUI server, which cannot import from
+ * `@wrongstack/cli`; only the entry that must hold on both paths lives here.
+ */
+const HIDDEN_FROM_SUBAGENTS = new Set(['nextsteps']);
+
 function filterToolList(registry: ToolRegistry, allow?: string[]): Tool[] {
-  const all = registry.list();
+  const all = registry.list().filter((t) => !HIDDEN_FROM_SUBAGENTS.has(t.name));
   if (!allow || allow.length === 0) return all;
   const allowSet = new Set(allow);
   return all.filter((t) => allowSet.has(t.name));

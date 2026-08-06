@@ -85,6 +85,31 @@ describe('patchTool (faked patch process)', () => {
     expect(result.files).toEqual(['foo.txt']);
   });
 
+  it('reports rejected=1 in dry-run when patch would conflict (non-zero exit)', async () => {
+    // GNU patch --dry-run exits non-zero when the patch would conflict.
+    // Previously the dry-run path fell through to the success return and
+    // reported rejected: 0 for a patch that would actually fail.
+    cfg.stdout = 'checking file foo.txt\n';
+    cfg.stderr = '1 out of 1 hunk FAILED';
+    cfg.code = 1;
+    const result = await patchTool.execute({ patch: goodPatch, dry_run: true }, ctx(), opts());
+    expect(result.dry_run).toBe(true);
+    expect(result.rejected).toBe(1);
+    expect(result.files).toEqual(['foo.txt']);
+    expect(result.message).toMatch(/would conflict/);
+  });
+
+  it('parses "checking file" output in dry-run (realistic GNU patch)', async () => {
+    // GNU patch prints "checking file X" (not "patching file X") in --dry-run.
+    // The old regex only matched "patching file", so dry-run always returned
+    // applied: 0 and files: [].
+    cfg.stdout = 'checking file foo.txt\nchecking file bar.txt\n';
+    cfg.code = 0;
+    const result = await patchTool.execute({ patch: goodPatch, dry_run: true }, ctx(), opts());
+    expect(result.applied).toBe(2);
+    expect(result.files).toEqual(['foo.txt', 'bar.txt']);
+  });
+
   it('honours an explicit directory', async () => {
     await fs.mkdir(path.join(tmpDir, 'sub'));
     cfg.stdout = 'patching file foo.txt\n';

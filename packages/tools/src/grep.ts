@@ -11,7 +11,7 @@ import {
 } from '@wrongstack/core/utils';
 import { mapWithConcurrency } from './_concurrency.js';
 import { capSubject, compileUserRegex } from './_regex.js';
-import { isBinaryBuffer, safeResolve } from './_util.js';
+import { isBinaryBuffer, safeResolveReal } from './_util.js';
 import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 
 interface GrepInput {
@@ -31,7 +31,8 @@ interface GrepOutput {
   used: 'rg' | 'native';
 }
 
-const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
+/** Set-backed for O(1) `has()` in the per-entry native walk loop. */
+const DEFAULT_IGNORE: ReadonlySet<string> = new Set(DEFAULT_WALK_IGNORE_DIRS);
 const NATIVE_SCAN_CONCURRENCY = 32;
 const NATIVE_READ_CHUNK_BYTES = 64 * 1024;
 const NATIVE_MAX_FILE_BYTES = 1_000_000;
@@ -115,7 +116,15 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
         field: 'pattern',
       });
     }
-    const base = input.path ? safeResolve(input.path, ctx) : ctx.cwd;
+    // `safeResolveReal`, not `safeResolve`: the syntactic check passes a
+    // junction/symlink that lands inside the project as a STRING while
+    // resolving outside it, and both search paths then read through it —
+    // `readdirSync` enumerates the outside directory and `rg` is handed the
+    // same base. The walk's per-entry `isSymbolicLink()` skip protects
+    // entries found DURING the walk, not the walk root. `glob.ts:69` was
+    // upgraded and carries a regression test for exactly this case
+    // (glob.test.ts:183); grep was missed.
+    const base = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
     const mode = input.output_mode ?? 'content';
     const limit = Math.max(1, Math.min(input.limit ?? 200, 2000));
     const validation = compileUserRegex(input.pattern, input.case_insensitive ? 'i' : '');
@@ -503,7 +512,7 @@ async function runNative(
     const subdirs: Array<{ full: string; rel: string }> = [];
     for (const e of entries) {
       if (stopped) return;
-      if (DEFAULT_IGNORE.includes(e.name)) continue;
+      if (DEFAULT_IGNORE.has(e.name)) continue;
       if (e.isSymbolicLink()) continue;
       const rel = relPrefix ? `${relPrefix}/${e.name}` : e.name;
       const full = path.join(dir, e.name);

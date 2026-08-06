@@ -582,3 +582,66 @@ describe('gitTool runGit stdout/stderr MAX_OUTPUT cap', () => {
     expect(result.stderr.length).toBeLessThanOrEqual(100000);
   });
 });
+
+describe('gitTool — checkout must not destroy uncommitted work', () => {
+  let repo: string;
+
+  const run = (...args: string[]) =>
+    execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+
+  beforeEach(async () => {
+    repo = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'git-checkout-')));
+    run('init', '-q');
+    run('config', 'user.email', 't@t');
+    run('config', 'user.name', 't');
+    await fs.mkdir(path.join(repo, 'docs'));
+    await fs.writeFile(path.join(repo, 'docs', 'f.txt'), 'committed\n');
+    run('add', '-A');
+    run('commit', '-qm', 'init');
+  });
+
+  afterEach(async () => {
+    await fs.rm(repo, { recursive: true, force: true }).catch(() => {});
+  });
+
+  // The argv used to be ['checkout', '--', branch]. Everything after `--` is a
+  // PATHSPEC, so this never switched a branch — it restored the path from the
+  // index, silently discarding every uncommitted change under it, and returned
+  // exitCode 0.
+  it('switches branches and keeps working-tree changes', async () => {
+    run('branch', 'docs');
+    await fs.writeFile(path.join(repo, 'docs', 'f.txt'), 'UNCOMMITTED\n');
+
+    const result = await gitTool.execute({ command: 'checkout', branch: 'docs' }, makeCtx(repo), makeOpts());
+
+    expect(result.exitCode).toBe(0);
+    expect(await fs.readFile(path.join(repo, 'docs', 'f.txt'), 'utf8')).toBe('UNCOMMITTED\n');
+  });
+
+  // Removing `--` alone is not enough: with no matching ref git DWIMs to a
+  // pathspec restore ("Updated 1 path from the index", exit 0) and the change
+  // is gone anyway. The trailing `--` declares "no pathspecs follow".
+  it('fails instead of restoring when the branch name collides with a path', async () => {
+    await fs.writeFile(path.join(repo, 'docs', 'f.txt'), 'UNCOMMITTED\n');
+
+    const result = await gitTool.execute({ command: 'checkout', branch: 'docs' }, makeCtx(repo), makeOpts());
+
+    expect(result.exitCode).not.toBe(0);
+    expect(await fs.readFile(path.join(repo, 'docs', 'f.txt'), 'utf8')).toBe('UNCOMMITTED\n');
+  });
+
+  it('still restores files when `files` is given', async () => {
+    await fs.writeFile(path.join(repo, 'docs', 'f.txt'), 'UNCOMMITTED\n');
+
+    const result = await gitTool.execute(
+      { command: 'checkout', files: 'docs/f.txt' },
+      makeCtx(repo),
+      makeOpts(),
+    );
+
+    expect(result.exitCode).toBe(0);
+    // Git may rewrite the EOL on checkout (core.autocrlf on Windows).
+    const restored = await fs.readFile(path.join(repo, 'docs', 'f.txt'), 'utf8');
+    expect(restored.replace(/\r\n/g, '\n')).toBe('committed\n');
+  });
+});

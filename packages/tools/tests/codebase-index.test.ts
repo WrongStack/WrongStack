@@ -89,6 +89,17 @@ describe('BM25', () => {
       expect(tokens).toContain('café');
       expect(tokens).toContain('résumé');
     });
+
+    it('preserves apostrophes and dollar signs, splits underscores', async () => {
+      // Regression: a refactor accidentally dropped apostrophe from the
+      // preserved character set, splitting "can't" into "can" + "t".
+      expect(tokenise("can't")).toEqual(["can't"]);
+      expect(tokenise("user's")).toEqual(["user's"]);
+      // Dollar signs are preserved (common in JS/PHP identifiers).
+      expect(tokenise('$apply')).toEqual(['$apply']);
+      // Underscores are separators (snake_case → split).
+      expect(tokenise('foo_bar_baz')).toEqual(['foo', 'bar', 'baz']);
+    });
   });
 
   describe('buildBm25Index', () => {

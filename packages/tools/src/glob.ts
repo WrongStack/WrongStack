@@ -17,7 +17,8 @@ interface GlobOutput {
   truncated: boolean;
 }
 
-const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
+/** Set-backed for O(1) `has()` in the per-entry walk loop. */
+const DEFAULT_IGNORE: ReadonlySet<string> = new Set(DEFAULT_WALK_IGNORE_DIRS);
 const WALK_CONCURRENCY = 16;
 
 export const globTool: Tool<GlobInput, GlobOutput> = {
@@ -121,7 +122,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
       const matchedFiles: string[] = [];
       for (const e of entries) {
         const name = e.name;
-        if (DEFAULT_IGNORE.includes(name)) continue;
+        if (DEFAULT_IGNORE.has(name)) continue;
         const rel = relPrefix ? `${relPrefix}/${name}` : name;
         const full = path.join(dir, name);
         if (e.isDirectory()) {

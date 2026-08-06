@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import templateEnginePlugin from '../src/template-engine';
 
 const mockApi = {
@@ -52,8 +55,13 @@ describe('template-engine plugin', () => {
     )?.[0];
 
     expect(tool.description).toBe('Expand a template string with variable substitution. Supports {{variable}}, {{#if var}}...{{/if}} conditionals, and {{#each items}}...{{/each}} loops.');
-    expect(tool.permission).toBe('auto');
+    // Writes caller-supplied content to a caller-supplied path. `auto` with no
+    // declared capability meant no prompt, no read-only-mode block (that
+    // policy keys on `capabilities`, not `mutating`) and no PreToolUse hook.
+    expect(tool.permission).toBe('confirm');
     expect(tool.mutating).toBe(true);
+    expect(tool.capabilities).toContain('fs.write');
+    expect(tool.riskTier).toBe('destructive');
   });
 
   it('template_render should have correct properties', () => {
@@ -63,8 +71,67 @@ describe('template-engine plugin', () => {
     )?.[0];
 
     expect(tool.description).toBe('Read a template file from disk and expand it with the given variables.');
-    expect(tool.permission).toBe('auto');
+    expect(tool.permission).toBe('confirm');
     expect(tool.mutating).toBe(true);
+    expect(tool.capabilities).toContain('fs.write');
+    expect(tool.riskTier).toBe('destructive');
+  });
+
+  describe('protected write targets', () => {
+    // `template_expand` calls `writeFile(output_path, …)` with a RELATIVE path
+    // and no project root, so it writes under `process.cwd()`. When this suite
+    // ran from the repo root while the guard was temporarily absent from the
+    // working tree, the payload below landed in the repository's real
+    // `package.json` and `.env` — 20 bytes of `#!/bin/sh` + `echo pwned`,
+    // executable bit and all.
+    //
+    // A security test must not be able to damage the tree it is testing. The
+    // cwd swap is the containment: the assertions prove the guard refuses, and
+    // the temp directory means a REGRESSION in the guard fails this test
+    // instead of overwriting the developer's manifest.
+    let previousCwd: string;
+    let sandbox: string;
+
+    beforeEach(() => {
+      previousCwd = process.cwd();
+      sandbox = mkdtempSync(path.join(os.tmpdir(), 'wstack-template-engine-'));
+      process.chdir(sandbox);
+    });
+
+    afterEach(() => {
+      process.chdir(previousCwd);
+      rmSync(sandbox, { recursive: true, force: true });
+    });
+
+    it.each([
+      '.git/hooks/pre-commit',
+      '.husky/pre-commit',
+      '.github/workflows/ci.yml',
+      'package.json',
+      '.env',
+      '.wrongstack/config.json',
+    ])('template_expand refuses to write the protected path %s', async (target) => {
+      templateEnginePlugin.setup(mockApi as any);
+      const tool = mockApi.tools.register.mock.calls.find(
+        ([tool]: any[]) => tool.name === 'template_expand'
+      )?.[0];
+
+      // All of these are INSIDE the project, so "must resolve inside the
+      // project directory" let them through — and they are code-execution or
+      // credential sinks. path-guard could not cover them either: its matcher
+      // keyed on the tool names write|edit|bash|exec, so it never saw a
+      // plugin-registered tool.
+      const res = await tool.execute({
+        template: '#!/bin/sh\necho pwned',
+        variables: {},
+        raw: true,
+        output_path: target,
+      });
+      expect(res.ok).toBe(false);
+      expect(String(res.error)).toContain('protected path');
+      // Belt and braces: nothing reached the filesystem either.
+      expect(existsSync(path.join(sandbox, target))).toBe(false);
+    });
   });
 
   it('template_create should have correct properties', () => {

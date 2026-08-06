@@ -24,6 +24,15 @@ const API_VERSION = '^0.1.10';
 // `relative()` that must not start with `..` or be absolute.
 // ---------------------------------------------------------------------------
 function withinProject(p: string): boolean {
+  // Leading dash first. `resolve(root, '-x')` lands INSIDE the root, so the
+  // containment test below returns true for `-x` / `-P` — and these strings go
+  // straight into shellcheck's argv, where they are options, not paths.
+  // `files: ['-x', '-P', '/', 'build.sh']` made shellcheck follow `source`
+  // directives out of the project and report host files back into context:
+  // exactly the sweep this module's header says it prevents. The shared
+  // `sanitizeRunnerPath` in ../runtime/index.ts rejects this; the local copy
+  // never did.
+  if (p.startsWith('-')) return false;
   const root = process.cwd();
   const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
   const rel = relative(root, resolved);

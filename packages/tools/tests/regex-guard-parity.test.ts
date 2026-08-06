@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { compileSafeRegex, MAX_SUBJECT_LEN as KANBAN_MAX_SUBJECT } from '@wrongstack/kanban';
+import {
+  capSubject as coreCapSubject,
+  compileUserRegex as coreCompileUserRegex,
+  MAX_SUBJECT_LEN as CORE_MAX_SUBJECT,
+} from '@wrongstack/core/utils';
 import { capSubject, compileUserRegex, MAX_SUBJECT_LEN } from '../src/_regex.js';
 
 /**
@@ -19,6 +24,30 @@ import { capSubject, compileUserRegex, MAX_SUBJECT_LEN } from '../src/_regex.js'
  * place that can hold them to the same verdicts. If you change either
  * implementation, change both — this test is the alarm.
  */
+/** Shared by every parity block below. */
+const CORPUS = [
+  // classic catastrophic forms
+  '(a+)+$',
+  '(?:a+)+$',
+  '(a|a)**',
+  'a++',
+  'a**',
+  '(.*)+',
+  '(?!.*a+)x',
+  '(x+x+)+y',
+  // ordinary patterns a check might legitimately use
+  'TODO',
+  '^export function \\w+',
+  'foo|bar',
+  '\\d{3}-\\d{4}',
+  '[A-Za-z_][A-Za-z0-9_]*',
+  'const .* = require\\(',
+  '',
+  '(unclosed',
+  '[z-a]',
+  '\\',
+];
+
 describe('regex guard parity — tools/_regex.ts vs kanban/safe-regex.ts', () => {
   /**
    * Parity corpus. The point is that both implementations return the SAME
@@ -29,28 +58,6 @@ describe('regex guard parity — tools/_regex.ts vs kanban/safe-regex.ts', () =>
    * fail the day someone legitimately tunes it. Tuning it in ONE package is
    * exactly what this test exists to catch.
    */
-  const CORPUS = [
-    // classic catastrophic forms
-    '(a+)+$',
-    '(?:a+)+$',
-    '(a|a)**',
-    'a++',
-    'a**',
-    '(.*)+',
-    '(?!.*a+)x',
-    '(x+x+)+y',
-    // ordinary patterns a check might legitimately use
-    'TODO',
-    '^export function \\w+',
-    'foo|bar',
-    '\\d{3}-\\d{4}',
-    '[A-Za-z_][A-Za-z0-9_]*',
-    'const .* = require\\(',
-    '',
-    '(unclosed',
-    '[z-a]',
-    '\\',
-  ];
 
   it('returns identical verdicts across the whole corpus', () => {
     for (const pattern of CORPUS) {
@@ -91,5 +98,57 @@ describe('regex guard parity — tools/_regex.ts vs kanban/safe-regex.ts', () =>
     expect(KANBAN_MAX_SUBJECT).toBe(MAX_SUBJECT_LEN);
     const long = 'x'.repeat(MAX_SUBJECT_LEN + 10);
     expect(capSubject(long).length).toBe(MAX_SUBJECT_LEN);
+  });
+});
+
+/**
+ * The THIRD copy: `@wrongstack/core/src/utils/regex-guard.ts`.
+ *
+ * Core sits below tools, so it cannot import the canonical helper either. Its
+ * header said "keep both copies in sync" — unaware that kanban carried a third
+ * — and it had drifted the furthest of the three: 2 of the 5 heuristics, a
+ * 512-character pattern cap instead of 256, and no subject cap at all, so its
+ * callers bounded the pattern and never the subject. It was also the one copy
+ * the parity test above did not cover, which is precisely why it drifted.
+ */
+describe('regex guard parity — tools/_regex.ts vs core/utils/regex-guard.ts', () => {
+  it('returns the same verdict for every pattern in the corpus', () => {
+    for (const pattern of CORPUS) {
+      const canonical = compileUserRegex(pattern, '');
+      const copy = coreCompileUserRegex(pattern, '');
+      expect(copy.ok, `verdict diverged for ${JSON.stringify(pattern)}`).toBe(canonical.ok);
+    }
+  });
+
+  it('rejects every heuristic the canonical copy rejects', () => {
+    // Forms core's two-rule list used to ADMIT, plus the two it already had.
+    //
+    // Note: `(?!.*a+)x` is deliberately absent. The canonical guard's fifth
+    // heuristic is commented "Greedy quantifier inside lookahead/lookbehind —
+    // (?!.*a+)" but does not in fact match that pattern, so pinning it here
+    // would assert a reach the guard does not have. The corpus test above
+    // still covers it — for that pattern the property under test is that all
+    // three copies AGREE, whatever the shared verdict is.
+    for (const pattern of ['a++', '(ab|cd)++', '(a+)+$', '(?:a+)+$', '(.*)+']) {
+      expect(compileUserRegex(pattern, '').ok, `canonical: ${pattern}`).toBe(false);
+      expect(coreCompileUserRegex(pattern, '').ok, `core copy: ${pattern}`).toBe(false);
+    }
+  });
+
+  it('uses the same pattern-length cap', () => {
+    // Core allowed 512, so a 300-character pattern passed there and failed here.
+    const overLong = 'a'.repeat(257);
+    expect(compileUserRegex(overLong, '').ok).toBe(false);
+    expect(coreCompileUserRegex(overLong, '').ok).toBe(false);
+
+    const atLimit = 'a'.repeat(256);
+    expect(compileUserRegex(atLimit, '').ok).toBe(true);
+    expect(coreCompileUserRegex(atLimit, '').ok).toBe(true);
+  });
+
+  it('ships the same subject cap', () => {
+    expect(CORE_MAX_SUBJECT).toBe(MAX_SUBJECT_LEN);
+    const long = 'x'.repeat(MAX_SUBJECT_LEN + 10);
+    expect(coreCapSubject(long).length).toBe(MAX_SUBJECT_LEN);
   });
 });

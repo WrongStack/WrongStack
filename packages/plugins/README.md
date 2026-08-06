@@ -725,7 +725,9 @@ warning depending on `mode`.
 
 Protects sensitive paths from accidental writes/edits and destructive shell
 commands. Defaults cover lockfiles, `.env`, `.git`, and migration-like paths;
-use `mode: "warn"` for advisory-only enforcement.
+use `mode: "warn"` for advisory-only enforcement. Writer globs are blocked when
+their unresolved scope overlaps a protected path; narrow the target or add an
+`allow` glob to exempt an intentional scope.
 
 ```jsonc
 {

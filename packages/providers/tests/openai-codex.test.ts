@@ -5,6 +5,7 @@ import {
   codexOutputCap,
   extractAccountId,
   OpenAICodexProvider,
+  resolveCodexModelsUrl,
   resolveCodexUrl,
 } from '../src/openai-codex.js';
 
@@ -86,6 +87,111 @@ describe('resolveCodexUrl', () => {
     expect(resolveCodexUrl('https://example.com/backend-api/codex')).toBe(
       'https://example.com/backend-api/codex/responses',
     );
+  });
+
+  it.each([
+    [undefined, 'https://chatgpt.com/backend-api/codex/models'],
+    ['https://example.com/backend-api', 'https://example.com/backend-api/codex/models'],
+    ['https://example.com/backend-api/codex/', 'https://example.com/backend-api/codex/models'],
+    [
+      'https://example.com/backend-api/codex/responses',
+      'https://example.com/backend-api/codex/models',
+    ],
+  ])('resolves the live model catalog beside %s', (baseUrl, expected) => {
+    expect(resolveCodexModelsUrl(baseUrl)).toBe(expected);
+  });
+});
+
+describe('OpenAICodexProvider live context limit', () => {
+  it('reads context_window and conditionally re-checks the provider catalog', async () => {
+    const calls: Array<{ url: string; headers: RequestInit['headers'] }> = [];
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(input), headers: init?.headers });
+      const requestNo = calls.length;
+      const responseInit: ResponseInit =
+        requestNo === 1 ? { status: 200, headers: { etag: '"ctx-v1"' } } : { status: 304 };
+      return new Response(
+        requestNo === 1
+          ? JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', context_window: 272_000 }] })
+          : null,
+        responseInit,
+      );
+    }) as typeof fetch;
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl,
+    });
+
+    await expect(
+      provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
+    ).resolves.toEqual({ maxContext: 272_000, source: 'provider' });
+    await expect(
+      provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
+    ).resolves.toEqual({ maxContext: 272_000, source: 'provider' });
+
+    expect(calls[0]?.url).toContain('/codex/models?client_version=wrongstack');
+    expect(new Headers(calls[1]?.headers).get('if-none-match')).toBe('"ctx-v1"');
+  });
+
+  it('validates catalog limits and maps each slug to its usable integer ceiling', async () => {
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          models: [
+            { slug: 'fractional', context_window: 272_000.75 },
+            { slug: 'fallback', context_window: 0, max_context_window: 128_000 },
+            { slug: 'string-limit', context_window: '272000' },
+            { slug: 'zero-limit', context_window: 0 },
+          ],
+        }),
+        { status: 200 },
+      )) as typeof fetch;
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl,
+    });
+    const signal = new AbortController().signal;
+
+    await expect(provider.refreshContextLimit('fractional', { signal })).resolves.toEqual({
+      maxContext: 272_000,
+      source: 'provider',
+    });
+    await expect(provider.refreshContextLimit('fallback', { signal })).resolves.toEqual({
+      maxContext: 128_000,
+      source: 'provider',
+    });
+    await expect(provider.refreshContextLimit('string-limit', { signal })).resolves.toBeUndefined();
+    await expect(provider.refreshContextLimit('zero-limit', { signal })).resolves.toBeUndefined();
+  });
+
+  it('keeps the last verified limit and backs off after a catalog check fails', async () => {
+    let requestNo = 0;
+    const fetchImpl = (async () => {
+      requestNo += 1;
+      if (requestNo === 1) {
+        return new Response(
+          JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', max_context_window: 272_000 }] }),
+          { status: 200 },
+        );
+      }
+      throw new Error('metadata unavailable');
+    }) as typeof fetch;
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl,
+    });
+    const signal = new AbortController().signal;
+
+    await provider.refreshContextLimit('gpt-5.6-sol', { signal });
+    await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
+      maxContext: 272_000,
+      source: 'provider',
+    });
+    await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
+      maxContext: 272_000,
+      source: 'provider',
+    });
+    expect(requestNo).toBe(2);
   });
 });
 

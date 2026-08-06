@@ -100,6 +100,32 @@ function readConfig(raw: unknown): TestGeneratorConfig {
 // Path helpers
 // ---------------------------------------------------------------------------
 
+/** Extensions this tool may read. See the guard in `generate_unit_tests`. */
+const SOURCE_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.mts',
+  '.cts',
+  '.py',
+  '.go',
+  '.rs',
+  '.java',
+  '.kt',
+  '.rb',
+  '.php',
+  '.cs',
+  '.swift',
+  '.c',
+  '.h',
+  '.cc',
+  '.cpp',
+  '.hpp',
+] as const;
+
 function withinProject(p: string): boolean {
   if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
   const root = process.cwd();
@@ -394,6 +420,22 @@ const plugin: Plugin = {
         }
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'path is outside the project root' };
+        }
+        // Containment was the ONLY filter, and this tool reads the file and —
+        // when `use_llm` is set, which is a model-controlled input that
+        // overrides the config — embeds up to `maxSourceChars` of it in a
+        // prompt sent to the provider. `.env` is inside the project, so
+        // `generate_unit_tests({path:'.env', use_llm:true})` shipped the
+        // user's secrets out. `prompt-firewall` cannot catch it: it wraps the
+        // main agent loop's provider runner, and `api.llm` is a separate path.
+        // A test generator only ever needs source files.
+        if (!SOURCE_EXTENSIONS.some((ext) => rawPath.toLowerCase().endsWith(ext))) {
+          return {
+            ok: false,
+            error:
+              `test generation only reads source files (${SOURCE_EXTENSIONS.join(', ')}); ` +
+              `refusing "${rawPath}"`,
+          };
         }
 
         const resolved = resolve(process.cwd(), rawPath);

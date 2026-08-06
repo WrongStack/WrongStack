@@ -171,9 +171,36 @@ async function loadResource(skillDir: string, rel: string): Promise<LoadedResour
       field: 'resource',
     });
   }
+
+  // The check above only proves the STRING stays under the skill directory. A
+  // symlink placed inside `<repo>/.claude/skills/<name>/` satisfies it and
+  // still resolves anywhere on the host. Skill directories are deliberately
+  // not confined to the project root — they have to reach `~/.claude/skills`
+  // and `~/.wrongstack/skills` — so this containment is the ENTIRE boundary,
+  // and `skill` runs at `permission: 'auto'`, so nothing prompts the user.
+  // Resolve both sides and re-check, then open the resolved path: validating
+  // one path and opening another is the hole WS-048 closed elsewhere.
+  let realPath: string;
+  let realRoot: string;
+  try {
+    realRoot = await fs.realpath(root);
+    realPath = await fs.realpath(absPath);
+  } catch {
+    throw new ToolValidationError({
+      message: `skill: resource "${rel}" not readable`,
+      field: 'resource',
+    });
+  }
+  if (realPath !== realRoot && !realPath.startsWith(realRoot + path.sep)) {
+    throw new ToolValidationError({
+      message: `skill: resource "${rel}" resolves outside the skill directory`,
+      field: 'resource',
+    });
+  }
+
   let buf: Buffer;
   try {
-    buf = await fs.readFile(absPath);
+    buf = await fs.readFile(realPath);
   } catch {
     throw new ToolValidationError({
       message: `skill: resource "${rel}" not readable`,
@@ -184,7 +211,9 @@ async function loadResource(skillDir: string, rel: string): Promise<LoadedResour
   const truncated = raw.length > MAX_RESOURCE_CHARS;
   return {
     rel: norm,
-    absPath,
+    // The canonical path — the one actually opened, and the one a follow-up
+    // `bash` invocation should use.
+    absPath: realPath,
     content: truncated ? raw.slice(0, MAX_RESOURCE_CHARS) : raw,
     bytes: buf.length,
     truncated,

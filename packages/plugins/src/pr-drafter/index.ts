@@ -370,9 +370,15 @@ const plugin: Plugin = {
           },
         },
       },
-      permission: 'auto',
+      // Writes the draft to disk (`writeFile` below), so `mutating: false` was
+      // not just a missing capability — it actively LIED, letting even a gate
+      // that reads `mutating` correctly through. It also flipped the tool onto
+      // the wrong side of `smoke.test.ts`, which skips `mutating: true` tools:
+      // this one was exercised by the suite and wrote to the repo during it.
+      permission: 'confirm',
       category: 'Workflow',
-      mutating: false,
+      mutating: true,
+      capabilities: ['fs.write'],
       async execute(input: { preview?: boolean | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'pr-drafter is disabled' };
         const draft = await buildDraft(cfg, api.llm);
