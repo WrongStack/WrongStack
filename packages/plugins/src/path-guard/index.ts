@@ -237,7 +237,10 @@ function staticPrefix(pattern: string): string {
   const normalized = normalizePath(pattern);
   if (normalized === '.') return '';
   const wildcardIndex = normalized.search(/[*?]/);
-  return (wildcardIndex === -1 ? normalized : normalized.slice(0, wildcardIndex)).replace(/\/$/, '');
+  return (wildcardIndex === -1 ? normalized : normalized.slice(0, wildcardIndex)).replace(
+    /\/$/,
+    '',
+  );
 }
 
 interface WriteTarget {
@@ -300,12 +303,18 @@ function targetIntersectsPatterns(
   if (!isUnresolvedPathScope(normalized)) {
     if (normalized === '.' || normalized === '') return patternTexts.length > 0;
     const descendantScope = `${normalized}/**`;
-    return patternTexts.some((pattern) => scopesMayOverlap(descendantScope, normalizePath(pattern)));
+    return patternTexts.some((pattern) =>
+      scopesMayOverlap(descendantScope, normalizePath(pattern)),
+    );
   }
   return patternTexts.some((pattern) => scopesMayOverlap(normalized, normalizePath(pattern)));
 }
 
-function targetFullyAllowed(target: WriteTarget, allowTexts: string[], allowRes: RegExp[]): boolean {
+function targetFullyAllowed(
+  target: WriteTarget,
+  allowTexts: string[],
+  allowRes: RegExp[],
+): boolean {
   if (target.kind === 'file') return matchesAny(target.path, allowRes);
   const normalized = normalizePath(target.path).replace(/\/$/, '');
   if (isUnresolvedPathScope(normalized)) {
@@ -351,6 +360,7 @@ const LEGACY_WRITE_TOOLS = new Set([
   'format',
   'replace',
   'design',
+  'install',
 ]);
 
 /**
@@ -464,7 +474,15 @@ const PATH_FIELDS = [
 ] as const;
 const PATH_LIST_FIELDS = ['files', 'paths'] as const;
 
-const SOURCE_PATH_FIELDS = ['source', 'from', 'src', 'input_path', 'inputPath', 'old_path', 'oldPath'] as const;
+const SOURCE_PATH_FIELDS = [
+  'source',
+  'from',
+  'src',
+  'input_path',
+  'inputPath',
+  'old_path',
+  'oldPath',
+] as const;
 const MOVE_TOOL_NAME = /(?:^|[_.-])(move|rename)(?:$|[_.-])/i;
 const DIRECTORY_DELETE_TOOL_NAME =
   /(?:^|[_.-])(?:rmdir|(?:delete|remove)[_.-](?:dir|directory))(?:$|[_.-])/i;
@@ -615,6 +633,10 @@ function pathsFromToolInput(
     );
   }
 
+  if (toolName === 'install') {
+    appendTarget(targets, effectiveCwd ?? invocationCwd ?? '.', 'scope');
+  }
+
   if (toolName === 'git') {
     const command = toolInput['command'];
     if (
@@ -645,6 +667,8 @@ function pathsFromToolInput(
 
   if (isMoveToolName(toolName)) {
     for (const field of SOURCE_PATH_FIELDS) {
+      // A move/rename tool name cannot prove whether its source is a file or
+      // directory (for example, MCP filesystem move_file accepts both).
       appendTarget(targets, toolInput[field], 'deletion-scope', effectiveCwd);
     }
   }
@@ -657,7 +681,9 @@ function pathsFromToolInput(
       typeof directory === 'string' && directory.length > 0 ? directory : invocationCwd;
     if (baseValue) {
       const base = normalizePath(baseValue).replace(/\/$/, '');
-      targets.push(...patchTargets.map((target) => ({ path: `${base}/${target}`, kind: 'file' as const })));
+      targets.push(
+        ...patchTargets.map((target) => ({ path: `${base}/${target}`, kind: 'file' as const })),
+      );
     } else {
       targets.push(...patchTargets.map((path) => ({ path, kind: 'file' as const })));
     }
@@ -699,18 +725,39 @@ function operationLabel(toolName: string): string {
  * grep …) never trigger the guard, even if they mention a protected
  * path.
  */
+function commandDeletesImplicitScope(command: string): boolean {
+  // These Git forms can emit `.` as a synthetic target meaning the entire
+  // working tree. A literal `.` emitted by cp/mv is only their destination and
+  // must not be widened to every descendant in the repository.
+  return /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?(?:sudo|env)\s+.*\bgit\b[^;&|)`]*\b(?:clean|restore|checkout|switch|reset)\b/i.test(
+    command,
+  ) || /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b[^;&|)`]*\b(?:clean|restore|checkout|switch|reset)\b/i.test(
+    command,
+  );
+}
+
+function stripTransparentLaunchers(command: string): string {
+  let stripped = command;
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped
+      .replace(
+        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?sudo(?:\s+-u\s+\S+|\s+-[A-Za-z]|\s+--|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s+/gi,
+        '$1',
+      )
+      .replace(
+        /(^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?env(?:\s+(?:-[A-Za-z]+(?:=)?\S*|--|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
+        '$1',
+      );
+  } while (stripped !== previous);
+  return stripped;
+}
+
 function commandRecursivelyDeletes(command: string): boolean {
   // Apply the same launcher stripping as destructiveTargets so env/sudo
   // wrappers don't hide recursive flags from the detection below.
-  const stripped = command
-    .replace(
-      /(^|[;&|\r\n]\s*)(?:sudo)(?:\s+(?:-[A-Za-z]+(?:\s+\S+)?|--\s*|\S+))*\s+/gi,
-      '$1',
-    )
-    .replace(
-      /(^|[;&|\r\n]\s*)(?:env)(?:\s+(?:-[A-Za-z]+(?:=)?\S*|--\s*|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
-      '$1',
-    );
+  const stripped = stripTransparentLaunchers(command);
   const destructive =
     /(?:^|[;&|\r\n]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(rm|rmdir|del)\s+([^;&|\r\n]+)/gi;
   let match: RegExpExecArray | null = destructive.exec(stripped);
@@ -718,10 +765,9 @@ function commandRecursivelyDeletes(command: string): boolean {
     const tool = match[1]?.toLowerCase();
     if (tool === 'rmdir') return true;
 
-    const tokens =
-      (match[2]?.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? []).map((arg) =>
-        arg.replace(/^["']|["']$/g, ''),
-      );
+    const tokens = (match[2]?.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? []).map((arg) =>
+      arg.replace(/^["']|["']$/g, ''),
+    );
     let recursive = false;
     for (const token of tokens) {
       if (token === '--') break;
@@ -747,11 +793,7 @@ function quoteIsEscaped(command: string, index: number): boolean {
   return backslashes % 2 === 1;
 }
 
-function isQuoteBoundary(
-  command: string,
-  index: number,
-  activeQuote: "'" | '"' | null,
-): boolean {
+function isQuoteBoundary(command: string, index: number, activeQuote: "'" | '"' | null): boolean {
   const char = command[index];
   if (char !== "'" && char !== '"') return false;
   // POSIX backslashes remain literal inside single quotes, so `\\'` still
@@ -759,6 +801,96 @@ function isQuoteBoundary(
   if (activeQuote === "'") return char === "'";
   if (activeQuote !== null && char !== activeQuote) return false;
   return !quoteIsEscaped(command, index);
+}
+
+function executableCommandSubstitutions(command: string): string[] {
+  const bodies: string[] = [];
+  let outerQuote: "'" | '"' | null = null;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (isQuoteBoundary(command, index, outerQuote)) {
+      outerQuote = outerQuote === char ? null : char === "'" ? "'" : '"';
+      continue;
+    }
+    if (outerQuote === "'" || quoteIsEscaped(command, index)) continue;
+
+    if (char === '\x60') {
+      let end = index + 1;
+      while (end < command.length && (command[end] !== '\x60' || quoteIsEscaped(command, end))) {
+        end += 1;
+      }
+      if (end < command.length) {
+        bodies.push(command.slice(index + 1, end));
+        index = end;
+      }
+      continue;
+    }
+
+    if (char !== '$' || command[index + 1] !== '(') continue;
+    let depth = 1;
+    let innerQuote: "'" | '"' | null = null;
+    let end = index + 2;
+    for (; end < command.length; end += 1) {
+      const innerChar = command[end];
+      if (isQuoteBoundary(command, end, innerQuote)) {
+        innerQuote = innerQuote === innerChar ? null : innerChar === "'" ? "'" : '"';
+        continue;
+      }
+      if (innerQuote !== null) continue;
+      if ((innerChar === '(' || innerChar === ')') && quoteIsEscaped(command, end)) continue;
+      if (innerChar === '(') depth += 1;
+      else if (innerChar === ')') {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    if (depth === 0) {
+      bodies.push(command.slice(index + 2, end));
+      index = end;
+    }
+  }
+  return bodies;
+}
+
+function maskNonExecutingHeredocBodies(command: string): string {
+  const lines = command.split(/(?<=\n)/);
+  let heredoc: { delimiter: string; quoted: boolean; stripTabs: boolean } | null = null;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    if (heredoc !== null) {
+      const content = line.replace(/\r?\n$/, '');
+      const terminator = heredoc.stripTabs ? content.replace(/^\t+/, '') : content;
+      if (terminator === heredoc.delimiter) {
+        heredoc = null;
+      } else if (heredoc.quoted) {
+        lines[index] = line.replace(/[^\r\n]/g, ' ');
+      } else {
+        const substitutions = executableCommandSubstitutions(content);
+        const newline = line.endsWith('\r\n') ? '\r\n' : line.endsWith('\n') ? '\n' : '';
+        lines[index] = substitutions.length > 0 ? `${substitutions.join(';')}${newline}` : newline;
+      }
+      continue;
+    }
+    const marker = /<<(-?)(?!<)\s*(?:'([^']+)'|"([^"]+)"|([^\s;&|'"<>]+))/.exec(line);
+    if (!marker) continue;
+    const prefix = line.slice(0, marker.index).trim();
+    const suffix = line.slice(marker.index + marker[0].length).trim();
+    if (
+      !/^(?:(?:sudo|env)(?:\s+[^;&|]+)*\s+)?(?:[^\s;&|]+[\\/])?cat(?:\s|$)/i.test(prefix) ||
+      /^(?:\||;|&|\(|\{)/.test(suffix)
+    ) {
+      continue;
+    }
+    const delimiter = marker[2] ?? marker[3] ?? marker[4];
+    if (delimiter) {
+      heredoc = {
+        delimiter,
+        quoted: marker[2] !== undefined || marker[3] !== undefined,
+        stripTabs: marker[1] === '-',
+      };
+    }
+  }
+  return lines.join('');
 }
 
 export function destructiveTargets(command: string): string[] {
@@ -769,19 +901,7 @@ export function destructiveTargets(command: string): string[] {
   //  - `env -i`, `env -uVAR`, `env -C/tmp`, `env -S 'string'` (short opts)
   //  - `env -- command` (explicit end-of-options)
   //  - `sudo -i`, `sudo -E`, `sudo -u root`, `sudo --` (sudo opts)
-  const normalizedCommand = command
-    // sudo [opts] → strip sudo, its short options (`-x`, `-E`, `-i`),
-    // and `-u <user>` pairs. Consume the trailing space too so the
-    // remaining command starts cleanly at position 0.
-    .replace(
-      /(^|[;&|\r\n]\s*)(?:sudo)(?:\s+-u\s+\S+|\s+-[A-Za-z]|\s+[A-Za-z_][A-Za-z0-9_]*=\S+)*\s*/gi,
-      '$1',
-    )
-    // env [opts] [NAME=value ...] → strip env and its options/assignments
-    .replace(
-      /(^|[;&|\r\n]\s*)(?:env)(?:\s+(?:-[A-Za-z]+(?:=)?\S*|--\s*|[A-Za-z_][A-Za-z0-9_]*=\S+))*\s+/gi,
-      '$1',
-    );
+  const normalizedCommand = stripTransparentLaunchers(maskNonExecutingHeredocBodies(command));
   const targets: string[] = [];
   const quotedIndexes = new Uint8Array(normalizedCommand.length);
   let activeQuote: "'" | '"' | null = null;
@@ -799,9 +919,7 @@ export function destructiveTargets(command: string): string[] {
     return offset >= 0 && quotedIndexes[match.index + offset] === 1;
   };
   const shellTokens = (raw: string): string[] =>
-    (raw.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? []).map((arg) =>
-      arg.replace(/^['"]|['"]$/g, ''),
-    );
+    (raw.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? []).map((arg) => arg.replace(/^['"]|['"]$/g, ''));
   const shellOperandTokens = (raw: string): string[] => {
     const tokens = shellTokens(raw);
     const redirectIndex = tokens.findIndex((token) => /^(?:\d*(?:<>|>>?|<)|&>>?)/.test(token));
@@ -810,9 +928,17 @@ export function destructiveTargets(command: string): string[] {
   const shellArgs = (raw: string): string[] =>
     shellOperandTokens(raw).filter((arg) => arg.length > 0 && !arg.startsWith('-'));
 
+  for (const body of executableCommandSubstitutions(normalizedCommand)) {
+    let executableBody = body.trim();
+    while (executableBody.startsWith('(') && executableBody.endsWith(')')) {
+      executableBody = executableBody.slice(1, -1).trim();
+    }
+    targets.push(...destructiveTargets(executableBody));
+  }
+
   // rm/rmdir/del/unlink/truncate/mv/shred <args...>, including xargs wrappers.
   const destructive =
-    /(?:^|[;&|\r\n]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|unlink|truncate|shred|mv)\s+([^;&|\r\n]+)/gi;
+    /(?:^|[;&|\r\n]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|unlink|truncate|shred|mv)\s+([^;&|\r\n)]+)/gi;
   let m: RegExpExecArray | null = destructive.exec(normalizedCommand);
   while (m !== null) {
     // For `mv src dst` both sides are candidates (overwrite either way).
@@ -901,16 +1027,153 @@ export function destructiveTargets(command: string): string[] {
     x = xargsPipeline.exec(normalizedCommand);
   }
 
-  // Destructive commands whose targets are implicit in their working scope.
-  const gitClean = /(?:^|[;&|\r\n]\s*|\$\(\s*|\(\s*|`\s*)git\s+clean\b([^;&|)`]*)/gi;
-  let g: RegExpExecArray | null = gitClean.exec(normalizedCommand);
+  // Git subcommands that mutate or remove working-tree files. Tokenize the
+  // invocation so arbitrary boolean global options do not bypass detection.
+  const gitInvocation = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b([^;&|)`\r\n]*)/gi;
+  const destructiveGitCommands = new Set([
+    'clean',
+    'rm',
+    'restore',
+    'checkout',
+    'switch',
+    'reset',
+  ]);
+  const allGitSubcommands = new Set([
+    ...destructiveGitCommands,
+    'add',
+    'commit',
+    'tag',
+    'log',
+    'status',
+    'diff',
+    'branch',
+    'stash',
+    'push',
+    'pull',
+    'fetch',
+    'merge',
+    'rebase',
+    'clone',
+    'init',
+    'config',
+    'remote',
+    'show',
+    'reflog',
+    'blame',
+    'bisect',
+    'cherry-pick',
+    'describe',
+    'format-patch',
+    'fsck',
+    'gc',
+    'grep',
+    'help',
+    'instaweb',
+    'ls-files',
+    'ls-remote',
+    'notes',
+    'range-diff',
+    'revert',
+    'shortlog',
+    'submodule',
+    'var',
+    'verify-commit',
+    'verify-tag',
+    'whatchanged',
+    'worktree',
+  ]);
+  const valueTakingGitOptions = new Set([
+    '-C',
+    '-c',
+    '--git-dir',
+    '--work-tree',
+    '--namespace',
+    '--super-prefix',
+    '--exec-path',
+    '--config-env',
+  ]);
+  let g: RegExpExecArray | null = gitInvocation.exec(normalizedCommand);
   while (g !== null) {
-    const operands = shellArgs(g[1] ?? '');
-    targets.push(...(operands.length > 0 ? operands : ['.']));
-    g = gitClean.exec(normalizedCommand);
+    if (!tokenIsQuoted(g, 'git')) {
+      // Shell redirections are not Git operands. Strip them so commands such as
+      // `git clean -fdx > /dev/null` retain the implicit working-tree target.
+      const invocationTokens = shellOperandTokens(g[1] ?? '');
+      let commandIndex = -1;
+      for (let index = 0; index < invocationTokens.length; index += 1) {
+        const token = invocationTokens[index] ?? '';
+        if (token === '--') continue;
+        if (allGitSubcommands.has(token.toLowerCase())) {
+          if (destructiveGitCommands.has(token.toLowerCase())) commandIndex = index;
+          break;
+        }
+        if (!token.startsWith('-')) break;
+        const optionName = token.split('=', 1)[0] ?? token;
+        if (valueTakingGitOptions.has(optionName) && !token.includes('=')) index += 1;
+      }
+      const subcommand =
+        commandIndex >= 0 ? invocationTokens[commandIndex]?.toLowerCase() : undefined;
+      const tokens = commandIndex >= 0 ? invocationTokens.slice(commandIndex + 1) : [];
+      if (subcommand === 'clean') {
+        const dryRun = tokens.some((t) => t === '--dry-run' || /^-[^-]*n/.test(t));
+        if (!dryRun) {
+          const operands: string[] = [];
+          for (let i = 0; i < tokens.length; i += 1) {
+            const t = tokens[i] ?? '';
+            if (t === '-e' || t === '--exclude' || t === '--exclude-from') {
+              i += 1;
+              continue;
+            }
+            if (
+              t.startsWith('--exclude=') ||
+              t.startsWith('--exclude-from=') ||
+              /^-e.+/.test(t) ||
+              t.startsWith('-')
+            )
+              continue;
+            operands.push(t);
+          }
+          targets.push(...(operands.length ? operands : ['.']));
+        }
+      } else if (subcommand === 'rm') {
+        const writes = !tokens.includes('--cached') || tokens.includes('--worktree');
+        if (writes) {
+          const recursive = tokens.some((t) => t === '--recursive' || /^-[^-]*r/.test(t));
+          const operands = tokens.filter((t) => t !== '--' && !t.startsWith('-'));
+          targets.push(...operands.map((o) => (recursive ? `${o}/**` : o)));
+        }
+      } else if (subcommand === 'restore') {
+        const staged = tokens.includes('--staged') || tokens.some((t) => /^-[^-]*S/.test(t));
+        const worktree = tokens.includes('--worktree') || tokens.some((t) => /^-[^-]*W/.test(t));
+        if (!staged || worktree)
+          targets.push(...tokens.filter((t) => t !== '--' && !t.startsWith('-')));
+      } else if (subcommand === 'checkout' || subcommand === 'switch') {
+        const separator = tokens.indexOf('--');
+        if (separator >= 0) {
+          const paths = tokens.slice(separator + 1);
+          targets.push(...paths.map((path) => (path.endsWith('/') ? `${path}**` : path)));
+        } else {
+          const createFlags =
+            subcommand === 'checkout'
+              ? new Set(['-b', '-B', '--branch', '--orphan'])
+              : new Set(['-c', '-C', '--create', '--force-create']);
+          const createIndex = tokens.findIndex((token) => createFlags.has(token));
+          const branchNameIndex = createIndex >= 0 ? createIndex + 1 : -1;
+          const operands = tokens.filter(
+            (token, index) => !token.startsWith('-') && index !== branchNameIndex,
+          );
+          if (operands.length > 0) targets.push('.');
+        }
+      } else if (
+        subcommand === 'reset' &&
+        tokens.some((t) => t === '--hard' || t === '--merge' || t === '--keep')
+      )
+        targets.push('.');
+    }
+    g = gitInvocation.exec(normalizedCommand);
   }
 
-  const findDelete = /(?:^|[;&|\r\n]\s*|\$\(\s*|\(\s*|`\s*)find\b([^;&|)`]*\s-delete(?:\s|$)[^;&|)`]*)/gi;
+  const findDelete =
+    /(?:^|[;&|\r\n]\s*|\$\(\s*|\(\s*|`\s*)find\b([^;&|)`]*\s-delete(?:\s|$)[^;&|)`]*)/gi;
   let f: RegExpExecArray | null = findDelete.exec(normalizedCommand);
   while (f !== null) {
     const tokens = shellTokens(f[1] ?? '');
@@ -938,7 +1201,7 @@ export function destructiveTargets(command: string): string[] {
   // Heredoc bodies are literal stdin, so redirect-looking lines inside them
   // must not be classified as writes.
   const heredocBodyLines = new Set<number>();
-  const commandLines = command.split(/\r?\n/);
+  const commandLines = normalizedCommand.split(/\r?\n/);
   let activeHeredoc: string | null = null;
   for (let lineIndex = 0; lineIndex < commandLines.length; lineIndex += 1) {
     const line = commandLines[lineIndex] ?? '';
@@ -953,32 +1216,39 @@ export function destructiveTargets(command: string): string[] {
 
   let quote: "'" | '"' | null = null;
   let lineIndex = 0;
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
+  for (let index = 0; index < normalizedCommand.length; index += 1) {
+    const char = normalizedCommand[index];
     if (char === '\n') {
       lineIndex += 1;
       quote = null;
       continue;
     }
     if (heredocBodyLines.has(lineIndex)) continue;
-    if (isQuoteBoundary(command, index, quote)) {
+    if (isQuoteBoundary(normalizedCommand, index, quote)) {
       quote = quote === char ? null : char === "'" ? "'" : '"';
       continue;
     }
     if (quote !== null || char !== '>') continue;
-    const redirectsBothStreams = command[index + 1] === '&';
-    if (redirectsBothStreams || command[index + 1] === '>') index += 1;
-    while (command[index + 1] === ' ' || command[index + 1] === '\t') index += 1;
-    const targetQuote = command[index + 1];
+    const redirectsBothStreams = normalizedCommand[index + 1] === '&';
+    const overridesNoclobber = normalizedCommand[index + 1] === '|';
+    if (redirectsBothStreams || overridesNoclobber || normalizedCommand[index + 1] === '>') {
+      index += 1;
+    }
+    while (normalizedCommand[index + 1] === ' ' || normalizedCommand[index + 1] === '\t') {
+      index += 1;
+    }
+    const targetQuote = normalizedCommand[index + 1];
     let end = index + 1;
     let target: string;
     if (targetQuote === "'" || targetQuote === '"') {
-      end = command.indexOf(targetQuote, index + 2);
+      end = normalizedCommand.indexOf(targetQuote, index + 2);
       if (end === -1) continue;
-      target = command.slice(index + 2, end);
+      target = normalizedCommand.slice(index + 2, end);
     } else {
-      while (end < command.length && !/[\s;&|>]/.test(command[end] ?? '')) end += 1;
-      target = command.slice(index + 1, end);
+      while (end < normalizedCommand.length && !/[\s;&|>]/.test(normalizedCommand[end] ?? '')) {
+        end += 1;
+      }
+      target = normalizedCommand.slice(index + 1, end);
     }
     // `2>&1` and `>&-` duplicate/close descriptors; Bash's `>& path`
     // and `>&path` forms instead open a file and redirect both streams.
@@ -1117,11 +1387,16 @@ const plugin: Plugin = {
         const shellTargets = destructiveTargets(commandForInspection);
         const effectiveCwd = effectiveToolCwd(ti['cwd'], input.cwd);
         const recursivelyDeletes = commandRecursivelyDeletes(commandForInspection);
+        const deletesImplicitScope = commandDeletesImplicitScope(commandForInspection);
         for (const path of shellTargets) {
           const target: WriteTarget = {
             path: relativeToInvocationCwd(resolveTargetPath(path, effectiveCwd), input.cwd),
             kind:
-              isUnresolvedPathScope(path) || recursivelyDeletes ? 'deletion-scope' : 'file',
+              (isRootPathScope(path) && deletesImplicitScope) ||
+              isUnresolvedPathScope(path) ||
+              recursivelyDeletes
+                ? 'deletion-scope'
+                : 'file',
           };
           if (targetFullyAllowed(target, cfg.allow, allowRes)) continue;
           const protectedShellTarget =
@@ -1142,12 +1417,19 @@ const plugin: Plugin = {
         // declares `fs.write` falls through as a pathless writer and invents a
         // repository-root scope. Dual-capability wrappers with output/path or
         // patch fields must still continue into structured target inspection.
+        const writes = writesToDisk({ ...input, toolInput: ti });
         const hasStructuredTarget =
           [...PATH_FIELDS, ...PATH_LIST_FIELDS].some((field) => ti[field] !== undefined) ||
           typeof ti['patch'] === 'string';
+        const needsImplicitWriteScope =
+          writes &&
+          (input.toolCapabilities?.some((capability) =>
+            DISK_MUTATING_CAPABILITIES.has(capability),
+          ) ??
+            false);
         if (
-          !writesToDisk({ ...input, toolInput: ti }) ||
-          (shellTargets.length === 0 && !hasStructuredTarget)
+          !writes ||
+          (shellTargets.length === 0 && !hasStructuredTarget && !needsImplicitWriteScope)
         ) {
           return;
         }
