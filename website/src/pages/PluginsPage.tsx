@@ -64,7 +64,7 @@ const catalogStats = {
 const sourceDetails = {
   Core: {
     title: 'Core first-party plugins',
-    body: 'Seven host-level feature plugins composed by WrongStack itself: prompts, sync, Git, observability, security, Chimera, skills and strategic plans.',
+    body: 'Five host-level feature plugins composed by WrongStack itself: prompts, sync, Chimera, skills and mid-session auto-review.',
   },
   Suite: {
     title: '@wrongstack/plugins suite',

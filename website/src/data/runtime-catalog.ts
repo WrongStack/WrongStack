@@ -477,20 +477,6 @@ export const pluginCatalog = [
     source: 'Core',
   },
   {
-    name: 'wstack-git',
-    risk: 'high',
-    summary: 'Git commands for commit, status checks, and push.',
-    defaultState: 'active',
-    source: 'Core',
-  },
-  {
-    name: 'wstack-observability',
-    risk: 'low',
-    summary: 'Runtime metrics and health slash commands.',
-    defaultState: 'active',
-    source: 'Core',
-  },
-  {
     name: 'wstack-chimera',
     risk: 'medium',
     summary: 'Spawns a post-session code review subagent when explicitly enabled.',
@@ -505,10 +491,10 @@ export const pluginCatalog = [
     source: 'Core',
   },
   {
-    name: 'wstack-plan',
+    name: 'wstack-auto-review',
     risk: 'medium',
-    summary: 'Strategic plan board slash command.',
-    defaultState: 'active',
+    summary: 'Tracks changed files and requests bounded mid-session Chimera reviews.',
+    defaultState: 'inactive',
     source: 'Core',
   },
   {

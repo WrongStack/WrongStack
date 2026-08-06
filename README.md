@@ -28,7 +28,7 @@ Brain-governed policy decisions, and collaborative debugging — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban/task boards** with atomic verification, an **inter-agent mailbox** that
 links every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **61 built-in tools**, **29 bundled skills**, **73 managed first-party
+It ships with **61 built-in tools**, **29 bundled skills**, **71 managed first-party
 plugin rows**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
@@ -343,7 +343,7 @@ implement one at a time, and validate against the spec before closing.
 
 ### Plugin ecosystem
 
-**73 managed first-party plugin rows** (9 host-owned + 64 in `@wrongstack/plugins`)
+**71 managed first-party plugin rows** (7 host-owned + 64 in `@wrongstack/plugins`)
 extend the agent with focused, single-purpose capabilities. See
 [plugin management](docs/plugin-management.md) and the
 [plugin author guide](docs/plugin-author-guide.md).

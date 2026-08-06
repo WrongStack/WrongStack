@@ -28,6 +28,15 @@ const llmProfiles: Record<string, DeclaredLlmProfile> = {
     fallback:
       'No review is spawned when disabled, outside Git, or when the session changed no files.',
   },
+  'wstack-auto-review': {
+    mode: 'core-orchestrated',
+    summary:
+      'A mid-session file-change watcher asks the host to dispatch a bounded review subagent.',
+    routing:
+      'Provider and model can be configured for the review without changing the leader model.',
+    fallback:
+      'No review fires when disabled, outside Git, or when the quiet window sees no changes.',
+  },
   'wstack-skills': {
     mode: 'core-orchestrated',
     summary:
