@@ -141,12 +141,9 @@
   <url><loc>https://wrongstack.com/features/customization</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-prompts</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-sync</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/plugins/wstack-git</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/plugins/wstack-observability</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/plugins/wstack-security</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-chimera</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-skills</loc><priority>0.8</priority></url>
-  <url><loc>https://wrongstack.com/plugins/wstack-plan</loc><priority>0.8</priority></url>
+  <url><loc>https://wrongstack.com/plugins/wstack-auto-review</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/agent-handoff</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/auto-doc</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/auto-i18n-extractor</loc><priority>0.8</priority></url>
