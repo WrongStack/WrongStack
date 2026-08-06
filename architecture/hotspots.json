@@ -251,7 +251,7 @@
       "relativeImports": 17
     },
     "packages/plugins/src/path-guard/index.ts": {
-      "lines": 1113,
+      "lines": 1128,
       "relativeImports": 0
     },
     "packages/plugins/src/secret-scanner/index.ts": {
