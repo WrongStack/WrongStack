@@ -57,7 +57,7 @@ function makeApi(autoReviewConfig: Record<string, unknown> = {}) {
     onConfigChange: vi.fn(),
     onEvent: (
       type: string,
-      handler: (payload?: { ctx?: { todos?: never[] } }) => Promise<void>,
+      handler: (event?: Record<string, unknown> | undefined) => Promise<void>,
     ) => {
       events[type] = handler;
     },
