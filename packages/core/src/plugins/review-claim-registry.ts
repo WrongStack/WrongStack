@@ -142,7 +142,9 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
  * simply keep waiting on the winner's fresh lock.
  */
 async function breakLockAtomically(lockPath: string): Promise<boolean> {
-  const tombstone = `${lockPath}.stale-${randomUUID()}`;
+  // `.tmp` suffix so any store-level tmp pruner can reclaim a tombstone left
+  // by a breaker that died before its fire-and-forget cleanup ran.
+  const tombstone = `${lockPath}.stale-${randomUUID()}.tmp`;
   try {
     await fsp.rename(lockPath, tombstone);
   } catch {
