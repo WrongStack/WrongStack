@@ -214,6 +214,22 @@ function inferKind(event: VizEvent, isTarget = false): VizNode['kind'] {
   }
 }
 
+/** Hard ceilings on the live graph — see the note in `pushEvent`. */
+const MAX_VIZ_NODES = 400;
+const MAX_VIZ_EDGES = 1200;
+
+/**
+ * Drop the least-recently-active entries until the map fits `max`.
+ * Mirrors `capMap` in `coordinator-monitor-store`, which is the reference
+ * implementation for bounded stores in this package.
+ */
+function capByRecency<V>(map: Map<string, V>, max: number, recency: (v: V) => number): Map<string, V> {
+  if (map.size <= max) return map;
+  const byAge = [...map.entries()].sort((a, b) => recency(a[1]) - recency(b[1]));
+  for (const [id] of byAge.slice(0, map.size - max)) map.delete(id);
+  return map;
+}
+
 /** Map an event kind to a node status. */
 function inferStatus(kind: VizEventKind): VizNode['status'] {
   switch (kind) {
@@ -428,6 +444,23 @@ export const useVizStore = create<VizState>()((set, _get) => ({
       edges.set(edgeId, mergedEdge);
     }
 
+    // Bound the graph at INGEST.
+    //
+    // `events` and `toolEvents` are capped above; `nodes` and `edges` were not.
+    // Every distinct `event.source`/`event.target` string ever seen became a
+    // permanent node — and those include per-spawn agent ids, session ids, tool
+    // names and `model ?? persona` for council votes — so an 8-hour run that
+    // spawned 400 subagents left 400+ nodes and O(n²) edges resident, all of
+    // them rendered by OfficeMapCanvas.
+    //
+    // The store already ships `decayActivity`/`prunesStale` for this, but
+    // NOTHING called them (their only references were two test files), and
+    // even wired they would not have helped: `prunesStale` skipped anything
+    // whose status was not 'active', and `inferStatus` returns 'active' by
+    // default. A cap here is independent of any consumer or timer.
+    if (nodes !== state.nodes) nodes = capByRecency(nodes, MAX_VIZ_NODES, (n) => n.lastSeenAt);
+    if (edges !== state.edges) edges = capByRecency(edges, MAX_VIZ_EDGES, (e) => e.lastActiveAt);
+
     return { events, toolEvents, nodes, edges };
   }),
 
@@ -507,7 +540,12 @@ export const useVizStore = create<VizState>()((set, _get) => ({
     const cutoff = Date.now() - olderThan;
     const nodes = new Map(state.nodes);
     for (const [id, node] of nodes) {
-      if (node.lastSeenAt < cutoff && node.status !== undefined && node.status !== 'active') nodes.delete(id);
+      // Staleness alone. The old `status !== 'active'` condition made most
+      // nodes immortal, because `inferStatus` returns 'active' as its DEFAULT
+      // — mailbox:send, agent:spawned, agent:ctx, memory:event,
+      // brain:council_vote and fleet:snapshot all land there. A node not seen
+      // since the cutoff is stale whatever status string it last carried.
+      if (node.lastSeenAt < cutoff) nodes.delete(id);
     }
     const edges = new Map(state.edges);
     for (const [id, edge] of edges) {

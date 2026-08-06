@@ -146,13 +146,36 @@ export function boundChatField(text: string, maxChars = MAX_CHAT_FIELD_CHARS): s
   return text.slice(0, head) + marker + text.slice(text.length - (available - head));
 }
 
+/**
+ * Serialized-size estimate for a structured value, memoized on the value.
+ *
+ * `retainWebChatMessages` runs on EVERY `addMessage` and walks up to
+ * `MAX_CHAT_MESSAGES` (1000) retained messages, calling this on each one's
+ * `toolInput`. In a long session carrying a few hundred `Write`/`Edit` tool
+ * messages that is megabytes of `JSON.stringify` per store write — per tool
+ * bubble, per thinking-log flush, per system notice. It never shows up in a
+ * render profile because it happens in the store, not in React.
+ *
+ * `toolInput` is immutable once a message is committed, so a WeakMap keyed on
+ * it is exact and holds nothing alive on its own.
+ */
+const unknownBytesCache = new WeakMap<object, number>();
+
 function estimateUnknownBytes(value: unknown): number {
   if (value === undefined) return 0;
-  try {
-    return JSON.stringify(value).length * 2;
-  } catch {
-    return MAX_CHAT_FIELD_CHARS * 2;
+  const cacheable = typeof value === 'object' && value !== null;
+  if (cacheable) {
+    const cached = unknownBytesCache.get(value as object);
+    if (cached !== undefined) return cached;
   }
+  let bytes: number;
+  try {
+    bytes = JSON.stringify(value).length * 2;
+  } catch {
+    bytes = MAX_CHAT_FIELD_CHARS * 2;
+  }
+  if (cacheable) unknownBytesCache.set(value as object, bytes);
+  return bytes;
 }
 
 function normalizeRetainedMessage(message: ChatMessage, maxFieldChars: number): ChatMessage {

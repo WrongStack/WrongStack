@@ -3179,7 +3179,9 @@
     "autoCollapse": "↕️ Recolher auto",
     "reasoning": "🧠 Raciocínio",
     "groupTools": "🔧 Agrupar ferramentas",
-    "compact": "📦 Compacto"
+    "compact": "📦 Compacto",
+    "providerLimit": "Limite do provedor {{limit}}",
+    "providerLimitDecreased": "A janela de contexto do provedor foi reduzida de {{previous}} para {{current}} tokens."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Alocação de tokens",
@@ -3196,6 +3198,7 @@
     "loadingContextSnapshot": "Carregando o snapshot do contexto…",
     "repairPreviewWillRemove": "Prévia do reparo: removerá",
     "agentRunningApplyDisabled": "Agente em execução — aplicar desativado",
+    "providerLimitDecreased": "A janela de contexto do provedor foi reduzida de {{previous}} para {{current}} tokens. A recuperação agora usa esse limite antes da próxima solicitação.",
     "clear": "Limpar"
   },
   "kanbanInspector": {

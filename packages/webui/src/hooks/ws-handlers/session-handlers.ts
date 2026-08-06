@@ -907,8 +907,31 @@ export function handleContextPct(msg: WSServerMessage) {
 
 export function handleContextMaxContext(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
-  const p = msg.payload as { maxContext: number };
-  useSessionStore.getState().setEnv({ maxContext: p.maxContext });
+  const p = msg.payload as {
+    providerId?: string | undefined;
+    modelId?: string | undefined;
+    maxContext: number;
+    previousMaxContext?: number | undefined;
+    source?: 'configured' | 'provider' | 'provider_overflow' | undefined;
+    decreased?: boolean | undefined;
+  };
+  const store = useSessionStore.getState();
+  store.setEnv({ maxContext: p.maxContext });
+  if (
+    p.source === 'provider' &&
+    p.decreased === true &&
+    typeof p.previousMaxContext === 'number' &&
+    p.previousMaxContext > p.maxContext
+  ) {
+    store.setContextLimitWarning({
+      previousMaxContext: p.previousMaxContext,
+      maxContext: p.maxContext,
+      providerId: p.providerId ?? store.session?.provider ?? 'provider',
+      modelId: p.modelId ?? store.session?.model ?? 'model',
+    });
+  } else if (p.decreased === false || p.source === 'configured') {
+    store.setContextLimitWarning(null);
+  }
 }
 
 export function handleTokenThreshold(msg: WSServerMessage) {
@@ -983,7 +1006,18 @@ export function handleInFlightEnded(msg: WSServerMessage) {
 }
 
 export function handleSessionEnd() {
-  useConfigStore.getState().setWsConnected(false);
+  // Deliberately does NOT touch `wsConnected`.
+  //
+  // That flag means "is the SOCKET up", and `setWsStatus` derives it from
+  // `wsStatus.state === 'open'` — transport truth. Writing `false` here on a
+  // server *message*, with the socket perfectly healthy, latched it forever:
+  // `setStatus` only fires on socket transitions, so on a live connection no
+  // further status event ever arrives to undo it. The moment an agent run
+  // finished, SidePanel stopped loading the file tree, SessionPanel stopped
+  // refreshing `sessions.list`, the activity bar showed a grey "disconnected"
+  // dot, and CheckpointTimeline / ProcessMonitor / SessionsDashboard /
+  // SessionInspectView all went inert until an F5.
+
   // Signal ChatView to expand the input so next-steps selections land in a
   // visible textarea instead of a collapsed bar.
   if (typeof document !== 'undefined') {

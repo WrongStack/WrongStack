@@ -3179,7 +3179,9 @@
     "autoCollapse": "↕️ Auto-collapse",
     "reasoning": "🧠 Reasoning",
     "groupTools": "🔧 Group Tools",
-    "compact": "📦 Compact"
+    "compact": "📦 Compact",
+    "providerLimit": "Provider limit {{limit}}",
+    "providerLimitDecreased": "Provider context window decreased from {{previous}} to {{current}} tokens."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Token Allocation",
@@ -3196,6 +3198,7 @@
     "loadingContextSnapshot": "Loading context snapshot…",
     "repairPreviewWillRemove": "Repair preview: will remove",
     "agentRunningApplyDisabled": "Agent running — apply disabled",
+    "providerLimitDecreased": "Provider context window decreased from {{previous}} to {{current}} tokens. Context recovery now uses the provider limit before the next request.",
     "clear": "Clear"
   },
   "kanbanInspector": {

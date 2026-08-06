@@ -70,6 +70,11 @@ export function registerSetupEventsProviderHandlers({
         providerId: e.providerId,
         modelId: e.modelId,
         maxContext: e.maxContext,
+        ...(e.previousMaxContext !== undefined
+          ? { previousMaxContext: e.previousMaxContext }
+          : {}),
+        ...(e.source !== undefined ? { source: e.source } : {}),
+        ...(e.decreased !== undefined ? { decreased: e.decreased } : {}),
       }),
     });
   });

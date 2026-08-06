@@ -483,7 +483,9 @@
     "maxConcurrentLabel": "Max concurrent subagents",
     "maxConcurrentHint": "Maximum number of subagents that can run simultaneously.",
     "nextPredictionLabel": "Next-step prediction",
-    "nextPredictionHint": "After a turn completes, predict likely next steps."
+    "nextPredictionHint": "After a turn completes, predict likely next steps.",
+    "nextStepsToolLabel": "Nextsteps tool",
+    "nextStepsToolHint": "Let the agent record its follow-up suggestions with a tool call instead of writing the block by hand. Applies to the next session."
   },
   "integrations": {
     "heading": "Integrations",

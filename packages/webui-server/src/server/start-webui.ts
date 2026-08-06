@@ -568,7 +568,19 @@ export async function startWebUI(
   // HTTP server via {server: httpServer}, so a single listen() binds both the
   // HTTP frontend and the WS upgrade handler on the same port.
   httpServer.listen(httpPort, wsHost, () => {
-    console.log(`[WebUI] HTTP server running on http://${wsHost}:${httpPort}`);
+    // The URL must carry the token.
+    //
+    // `requireAccessToken` is hard-`true` (http-server.ts) and
+    // `resolveAuthToken` mints a fresh random token per process when
+    // `WEBUI_TOKEN` is unset — so the banner's bare `http://host:port` was a
+    // URL that always answered 401. The token was in scope right here (it is
+    // handed to `formatExternalAccessUrls` two lines down) but that helper
+    // returns `[]` for any non-wildcard bind, so on the DEFAULT loopback bind
+    // the operator was never shown the token at all and had no way to open
+    // the UI. `requestToken` already accepts `?token=` from a loopback peer;
+    // it simply was never printed.
+    const tokenQuery = accessToken ? `/?token=${encodeURIComponent(accessToken)}` : '';
+    console.log(`[WebUI] HTTP server running on http://${wsHost}:${httpPort}${tokenQuery}`);
     // For wildcard binds, enumerate external network addresses so the
     // operator can see Tailscale/LAN URLs without manual lookup.
     const extraUrls = formatExternalAccessUrls({
@@ -623,12 +635,21 @@ export async function startWebUI(
       httpServer.emit('upgrade', req, socket, head),
     );
     companionServer.on('error', (err: NodeJS.ErrnoException) => {
-      if (
-        err.code !== 'EAFNOSUPPORT' &&
-        err.code !== 'EADDRNOTAVAIL' &&
-        err.code !== 'EADDRINUSE'
-      ) {
-        throw err;
+      // Throwing from an EventEmitter handler becomes an `uncaughtException`
+      // and kills the process. This listener is explicitly best-effort — the
+      // primary is already bound and serving by now — so an unexpected errno
+      // must not take the whole WebUI down after the "server running" banner
+      // has already printed. On Windows a socket held with
+      // SO_EXCLUSIVEADDRUSE, or an AppContainer/firewall restriction, surfaces
+      // as EACCES, which is not in the allow-list below. The WS secondary
+      // handler (server-runtime.ts:337) already only logs.
+      const expected =
+        err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL' || err.code === 'EADDRINUSE';
+      if (!expected) {
+        console.warn(
+          `[WebUI] companion listener on ${companionLabel} failed (${err.code ?? 'unknown'}): ` +
+            `${err.message}. The primary address is unaffected.`,
+        );
       }
     });
     companionServer.listen(httpPort, companion, () => {
@@ -938,8 +959,15 @@ export async function startWebUI(
     clients,
     pendingConfirms,
     onSecurityRejection: (ev) => {
-      try {
-        void mailbox.send({
+      // `try/catch` around a `void`-ed promise only catches a SYNCHRONOUS
+      // throw. `mailbox.send` is IPC to the per-project daemon, so a rejection
+      // (daemon down, zombie Windows named pipe) escaped as an unhandled
+      // rejection and — under Node 22's `--unhandled-rejections=throw` —
+      // killed the server. The trigger is one decoder tripwire, i.e. a single
+      // frame containing `{"__proto__":{}}`: the security alarm became a
+      // one-frame remote DoS. Siblings do it right: client-presence.ts:106.
+      void mailbox
+        .send({
           from: context.agentId,
           to: '*',
           type: 'note',
@@ -953,11 +981,12 @@ export async function startWebUI(
             `projectRoot: ${ev.projectRoot ?? '?'}`,
           priority: 'high',
           senderSessionId: session.id,
+        })
+        .catch((err: unknown) => {
+          // Best-effort — a failure here must not crash the message handler
+          // or block future messages.
+          console.warn(`[WebUI] security-rejection mailbox note failed: ${String(err)}`);
         });
-      } catch {
-        // Mailbox send is best-effort — a failure here must not crash
-        // the message handler or block future messages.
-      }
     },
     goalHandler,
     specsHandler,

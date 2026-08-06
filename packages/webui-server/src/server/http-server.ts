@@ -535,7 +535,16 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
         return;
       }
 
-      const providedAccessToken = requestToken(req, url);
+      // `allowQuery` for the HTML page load — the second of the two places
+      // `requestToken`'s own doc reserves for a URL token, and the one it was
+      // never actually granted. Off-loopback the query token was therefore
+      // discarded, resolution fell through to a header/cookie a first-time
+      // browser does not have, and the 401 below fired BEFORE the cookie-seed
+      // at the bottom of this block could run — so the very URL this server
+      // prints for a wildcard bind (`▸ Tailscale: http://100.x.y.z:3456/?token=…`)
+      // could never work. `shouldSetAuthCookie` was already reading the raw
+      // query param for exactly this flow; the gate above it just refused first.
+      const providedAccessToken = requestToken(req, url, { allowQuery: true });
       const accessTokenOk =
         Boolean(opts.apiToken) && tokenMatches(providedAccessToken, opts.apiToken ?? '');
       // The page load from the operator's printed access URL is the one place a

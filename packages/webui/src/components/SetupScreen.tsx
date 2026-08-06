@@ -242,7 +242,15 @@ export function SetupScreen() {
       off3?.();
       off4?.();
     };
-  }, [wsConnected, wsUrl, model, reloadNonce]);
+    // `selectedProvider` is READ by the `provider.models` handler above to
+    // drop stale replies, so it has to be a dependency — without it the
+    // handler closure kept the value from the last effect run (initially
+    // `null`) and dropped EVERY reply. On a fresh install that meant: save an
+    // Anthropic key → `handleKeySaved` sets `selectedProvider` (no listed dep
+    // changes, so the effect never re-runs) → the server's model list is
+    // discarded → `setIsLoadingModels(false)` never fires → the "Choose model"
+    // pane spins forever and setup cannot be completed.
+  }, [wsConnected, wsUrl, model, reloadNonce, selectedProvider]);
 
   // Retry catalog fetch
   const handleRetryCatalog = useCallback(() => {

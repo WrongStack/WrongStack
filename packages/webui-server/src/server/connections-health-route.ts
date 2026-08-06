@@ -14,6 +14,8 @@ import {
   isKanbanServerAvailable,
 } from '@wrongstack/kanban';
 import * as net from 'node:net';
+import type { TrustBoundary } from '@wrongstack/core/security';
+import { authorizeWebUIAction } from './privileged-actions.js';
 import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import {
@@ -69,6 +71,14 @@ export interface ConnectionsHealthContext {
   send(ws: WebSocket, message: WSServerMessage): void;
   backend: ConnectionsHealthReport['backend'];
   collect?: (() => Promise<ConnectionsHealthReport>) | undefined;
+  /**
+   * Policy authority for `connections.service_action`. Optional so the
+   * read-only `connections.health` route keeps working without one, but the
+   * action route REFUSES when it is absent rather than proceeding unchecked —
+   * a missing boundary must not read as "allowed".
+   */
+  trustBoundary?: TrustBoundary | undefined;
+  logger?: Parameters<typeof authorizeWebUIAction>[2];
 }
 
 /** One read-only health report for every per-project backend connection. */
@@ -544,6 +554,51 @@ export async function handleConnectionsServiceAction(
   }
 
   const action = rawAction;
+
+  // Trust boundary. This route kills per-project daemons — kanban, sage,
+  // chronicle, codebase-index, mailbox — and `restart` additionally SPAWNS
+  // them, yet it was the one privileged route in the package that never asked.
+  // `authorizeWebUIAction` is opt-in per handler and seven files call it; this
+  // one, the most destructive, did not. A deployment could deny
+  // `codebase-index.server.shutdown` (checked by
+  // codebase-index-server-control.ts:32) and still have the same client kill
+  // the same server through here, with no audit record.
+  if (!context.trustBoundary) {
+    context.send(ws, {
+      type: 'connections.service_action_result',
+      payload: {
+        serviceId: serviceId as ConnectionHealthService['id'],
+        action: action as 'shutdown' | 'restart',
+        success: false,
+        message: 'Service control is unavailable: no policy authority is configured.',
+      } satisfies ServiceActionResult,
+    });
+    return true;
+  }
+  const projectRootForAuth = context.getProjectRoot();
+  const authorization = await authorizeWebUIAction(
+    context.trustBoundary,
+    {
+      capability: `connections.service.${action}`,
+      subject: { kind: 'process', id: `${serviceId}@${projectRootForAuth}` },
+      risk: 'elevated',
+      cwd: projectRootForAuth,
+      metadata: { transport: 'websocket', serviceId, action },
+    },
+    context.logger,
+  );
+  if (!authorization.allowed) {
+    context.send(ws, {
+      type: 'connections.service_action_result',
+      payload: {
+        serviceId: serviceId as ConnectionHealthService['id'],
+        action: action as 'shutdown' | 'restart',
+        success: false,
+        message: authorization.reason ?? 'Refused by policy.',
+      } satisfies ServiceActionResult,
+    });
+    return true;
+  }
 
   // 'webui' cannot kill itself
   if (serviceId === 'webui') {

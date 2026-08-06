@@ -438,7 +438,9 @@
     "maxConcurrentLabel": "Sous-agents simultanés max",
     "maxConcurrentHint": "Nombre maximum de sous-agents pouvant tourner simultanément.",
     "nextPredictionLabel": "Prédiction des prochaines étapes",
-    "nextPredictionHint": "Après un tour, prédire les prochaines étapes probables."
+    "nextPredictionHint": "Après un tour, prédire les prochaines étapes probables.",
+    "nextStepsToolLabel": "Outil nextsteps",
+    "nextStepsToolHint": "Permet à l'agent d'enregistrer ses suggestions via un appel d'outil au lieu d'écrire le bloc à la main. Effectif à la prochaine session."
   },
   "integrations": {
     "hqHeading": "Client HQ",

@@ -6,6 +6,7 @@ import {
   type KanbanTask,
 } from '@wrongstack/kanban';
 import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
+import { kanbanBoardMessage } from './kanban-broadcast.js';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 import { send } from './ws-utils.js';
@@ -226,10 +227,7 @@ export async function handleKanbanTaskDispatch(
           payload: { success: true, data: { boardId: board.id, task: completedTask } },
         });
         if (completedBoard) {
-          ctx.broadcast?.({
-            type: 'kanban.get',
-            payload: { success: true, data: { board: completedBoard } },
-          });
+          ctx.broadcast?.(kanbanBoardMessage(completedBoard));
         }
         ctx.broadcast?.({
           type: 'kanban.list',
@@ -257,7 +255,7 @@ export async function handleKanbanTaskDispatch(
       payload: { success: true, data: { boardId: board.id, task: runningTask } },
     });
     if (started?.board) {
-      ctx.broadcast?.({ type: 'kanban.get', payload: { success: true, data: { board: started.board } } });
+      ctx.broadcast?.(kanbanBoardMessage(started.board));
     }
     reply(ws, 'kanban.task.dispatch', true, { boardId: board.id, task: runningTask, summary });
   } catch (error) {

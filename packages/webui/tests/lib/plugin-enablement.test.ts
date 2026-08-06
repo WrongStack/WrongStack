@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { resolveOnePlugin, resolvePluginEnablement } from '../../src/lib/plugin-enablement.js';
+import { resolveOnePlugin, resolvePluginToggleStates } from '../../src/lib/plugin-enablement.js';
 
-describe('resolvePluginEnablement', () => {
+describe('resolvePluginToggleStates', () => {
   it('returns an empty list when no plugins are configured and no overrides exist', () => {
-    expect(resolvePluginEnablement(undefined, undefined)).toEqual([]);
-    expect(resolvePluginEnablement([], undefined)).toEqual([]);
+    expect(resolvePluginToggleStates(undefined, undefined)).toEqual([]);
+    expect(resolvePluginToggleStates([], undefined)).toEqual([]);
   });
 
   it('marks string entries as enabled and object entries with enabled:false as disabled', () => {
-    const out = resolvePluginEnablement(
+    const out = resolvePluginToggleStates(
       ['wstack-chimera', { name: 'telegram', enabled: false }, 'cost-tracker'],
       undefined,
     );
@@ -35,7 +35,7 @@ describe('resolvePluginEnablement', () => {
   });
 
   it('treats a missing `enabled` key on a plugin object as enabled (default)', () => {
-    const out = resolvePluginEnablement(
+    const out = resolvePluginToggleStates(
       [{ name: 'injection-shield' /* enabled omitted */ }],
       undefined,
     );
@@ -50,7 +50,7 @@ describe('resolvePluginEnablement', () => {
   });
 
   it('uses the local override when present, ignoring the canonical state', () => {
-    const out = resolvePluginEnablement(['wstack-chimera'], { 'wstack-chimera': false });
+    const out = resolvePluginToggleStates(['wstack-chimera'], { 'wstack-chimera': false });
     expect(out[0]).toEqual({
       name: 'wstack-chimera',
       configuredEnabled: true,
@@ -60,7 +60,7 @@ describe('resolvePluginEnablement', () => {
   });
 
   it('lets a local override re-enable a plugin that the canonical config disabled', () => {
-    const out = resolvePluginEnablement([{ name: 'telegram', enabled: false }], { telegram: true });
+    const out = resolvePluginToggleStates([{ name: 'telegram', enabled: false }], { telegram: true });
     expect(out[0]).toEqual({
       name: 'telegram',
       configuredEnabled: false,
@@ -70,7 +70,7 @@ describe('resolvePluginEnablement', () => {
   });
 
   it('preserves the canonical entry order (the WebUI list ordering depends on it)', () => {
-    const out = resolvePluginEnablement(
+    const out = resolvePluginToggleStates(
       ['first', { name: 'second', enabled: false }, 'third'],
       undefined,
     );

@@ -14,6 +14,7 @@
  *   - Auto-reconnects when the daemon restarts
  */
 import { bridgeKanbanSupervisor, getServerKanbanStore } from '@wrongstack/kanban';
+import { kanbanBoardMessage, kanbanDeletedMessage } from './kanban-broadcast.js';
 import type { WSServerMessage } from './types.js';
 
 export function subscribeKanbanDaemonEvents(
@@ -26,10 +27,7 @@ export function subscribeKanbanDaemonEvents(
 
   const broadcastDeleted = (boardId: string): void => {
     knownRevisions.delete(boardId);
-    broadcastMessage({
-      type: 'kanban.delete',
-      payload: { success: true, data: { removed: true, boardId } },
-    });
+    broadcastMessage(kanbanDeletedMessage(boardId));
   };
 
   const broadcastBoard = async (boardId: string): Promise<void> => {
@@ -39,10 +37,7 @@ export function subscribeKanbanDaemonEvents(
       return;
     }
     knownRevisions.set(boardId, board.updatedAt);
-    broadcastMessage({
-      type: 'kanban.get',
-      payload: { success: true, data: { board } },
-    } as WSServerMessage);
+    broadcastMessage(kanbanBoardMessage(board));
   };
 
   const reconcileAfterConnect = async (): Promise<void> => {

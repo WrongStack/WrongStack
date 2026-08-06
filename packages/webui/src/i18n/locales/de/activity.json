@@ -3179,7 +3179,9 @@
     "autoCollapse": "↕️ Auto-Einklappen",
     "reasoning": "🧠 Reasoning",
     "groupTools": "🔧 Tools gruppieren",
-    "compact": "📦 Kompakt"
+    "compact": "📦 Kompakt",
+    "providerLimit": "Anbieterlimit {{limit}}",
+    "providerLimitDecreased": "Das Kontextfenster des Anbieters wurde von {{previous}} auf {{current}} Token reduziert."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Token-Zuteilung",
@@ -3196,6 +3198,7 @@
     "loadingContextSnapshot": "Kontext-Snapshot wird geladen…",
     "repairPreviewWillRemove": "Reparatur-Vorschau: wird entfernt",
     "agentRunningApplyDisabled": "Agent läuft – Anwenden deaktiviert",
+    "providerLimitDecreased": "Das Kontextfenster des Anbieters wurde von {{previous}} auf {{current}} Token reduziert. Die Wiederherstellung verwendet nun vor der nächsten Anfrage dieses Anbieterlimit.",
     "clear": "Leeren"
   },
   "kanbanInspector": {

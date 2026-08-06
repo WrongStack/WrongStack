@@ -7,6 +7,7 @@ import {
   type KanbanDecompositionSubtask,
 } from '@wrongstack/kanban';
 import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
+import { kanbanBoardMessage, publishKanbanBoard } from './kanban-broadcast.js';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 import { fail, ok } from './kanban-route-helpers.js';
@@ -81,14 +82,12 @@ async function handleDecompositionResolution(
       type: 'kanban.decomposition.applied',
       payload: { success: true, data: { board: resolved.board } },
     });
-    ctx.broadcast?.({
-      type: 'kanban.get',
-      payload: { success: true, data: { board: resolved.board } },
-    });
-    ctx.broadcast?.({
-      type: 'kanban.list',
-      payload: { success: true, data: await listBoards(ctx.projectRoot) },
-    });
+    // Decomposition can add a board, so the list really does change here.
+    await publishKanbanBoard(
+      (message) => ctx.broadcast?.(message),
+      resolved.board,
+      () => listBoards(ctx.projectRoot),
+    );
   } else {
     ctx.broadcast?.({
       type: 'kanban.decomposition.resolved',
@@ -128,10 +127,7 @@ async function handleTaskVerification(
       payload: { success: true, data: { boardId, task: freshTask } },
     });
     if (persisted) {
-      ctx.broadcast?.({
-        type: 'kanban.get',
-        payload: { success: true, data: { board: persisted } },
-      });
+      ctx.broadcast?.(kanbanBoardMessage(persisted));
     }
   } catch (err) {
     ctx.broadcast?.({

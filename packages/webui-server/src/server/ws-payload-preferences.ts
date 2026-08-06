@@ -34,6 +34,7 @@ const BOOLEAN_PREF_KEYS = new Set([
   'chime',
   'confirmExit',
   'nextPrediction',
+  'nextStepsTool',
   'titleAnimation',
   'enhanceEnabled',
   'featureMcp',

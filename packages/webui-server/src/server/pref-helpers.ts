@@ -33,6 +33,7 @@ export const PREF_KEYS = [
   'chime',
   'confirmExit',
   'nextPrediction',
+  'nextStepsTool',
   'enhanceEnabled',
   'enhanceDelayMs',
   'enhanceLanguage',
@@ -420,6 +421,13 @@ export async function persistPrefsToConfig(
       if (typeof payload['maxIterations'] === 'number') {
         const toolsCfg = (decrypted.tools as Record<string, unknown>) ?? {};
         toolsCfg.maxIterations = payload['maxIterations'];
+        decrypted.tools = toolsCfg;
+      }
+      if (typeof payload['nextStepsTool'] === 'boolean') {
+        // Read at boot by registerCanonicalHostTools, so the toggle is
+        // persisted now and the tool appears in the next session.
+        const toolsCfg = (decrypted.tools as Record<string, unknown>) ?? {};
+        toolsCfg.nextsteps = { enabled: payload['nextStepsTool'] };
         decrypted.tools = toolsCfg;
       }
 

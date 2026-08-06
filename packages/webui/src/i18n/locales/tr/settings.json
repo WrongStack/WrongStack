@@ -438,7 +438,9 @@
     "maxConcurrentLabel": "Maks eşzamanlı alt-ajan",
     "maxConcurrentHint": "Aynı anda çalışabilecek maks alt-ajan sayısı.",
     "nextPredictionLabel": "Sonraki adım tahmini",
-    "nextPredictionHint": "Bir tur tamamlandıktan sonra olası sonraki adımları tahmin et."
+    "nextPredictionHint": "Bir tur tamamlandıktan sonra olası sonraki adımları tahmin et.",
+    "nextStepsToolLabel": "Nextsteps aracı",
+    "nextStepsToolHint": "Ajan, öneri bloğunu elle yazmak yerine bir araç çağrısıyla kaydedebilsin. Sonraki oturumda geçerli olur."
   },
   "integrations": {
     "hqHeading": "HQ İstemcisi",

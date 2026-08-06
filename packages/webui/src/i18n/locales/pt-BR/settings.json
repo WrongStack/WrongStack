@@ -438,7 +438,9 @@
     "maxConcurrentLabel": "Sub-agentes concorrentes máx",
     "maxConcurrentHint": "Número máximo de sub-agentes que podem rodar simultaneamente.",
     "nextPredictionLabel": "Previsão do próximo passo",
-    "nextPredictionHint": "Após um turno, prevê os prováveis próximos passos."
+    "nextPredictionHint": "Após um turno, prevê os prováveis próximos passos.",
+    "nextStepsToolLabel": "Ferramenta nextsteps",
+    "nextStepsToolHint": "Permite que o agente registre as sugestões com uma chamada de ferramenta em vez de escrever o bloco manualmente. Vale na próxima sessão."
   },
   "integrations": {
     "hqHeading": "Cliente HQ",

@@ -42,6 +42,7 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['enhanceDelayMs'] = (autonomyCfg['enhanceDelayMs'] as number) ?? 60_000;
   meta['enhanceLanguage'] = (autonomyCfg['enhanceLanguage'] as string) ?? 'original';
   meta['nextPrediction'] = config.nextPrediction ?? false;
+  meta['nextStepsTool'] = config.tools?.nextsteps?.enabled === true;
   meta['fallbackModels'] = config.fallbackModels ?? [];
   meta['fallbackBridge'] = config.fallbackBridge ?? '';
   meta['fallbackProfiles'] = config.fallbackProfiles ?? {};

@@ -24,7 +24,10 @@ import type { ClientTransportRouteHandlers } from './client-transport-routes.js'
 import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
 import type { CompletionRouteHandlers } from './completion-routes.js';
-import { handleConnectionsHealthRoute } from './connections-health-route.js';
+import {
+  handleConnectionsHealthRoute,
+  handleConnectionsServiceAction,
+} from './connections-health-route.js';
 import { createConversationOperations } from './conversation-operations.js';
 import { handleGoalGet } from './goal-handlers.js';
 import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
@@ -361,6 +364,24 @@ export function createMessageDispatcher(
         ws,
         msg,
       )
+    )
+      return;
+    // Registered here too. Only the CLI-embedded router had it, so on the
+    // standalone server the browser sent `connections.service_action`, nothing
+    // handled it, no `connections.service_action_result` ever came back, and
+    // the Settings → Connections row sat in its pending state forever.
+    if (
+      await handleConnectionsServiceAction(ws, msg, {
+        trustBoundary: deps.trustBoundary,
+        logger: deps.logger,
+        getProjectRoot: state.getProjectRoot,
+        getIndexDir: () =>
+          typeof deps.context.meta['codebaseIndexDir'] === 'string'
+            ? deps.context.meta['codebaseIndexDir']
+            : undefined,
+        send,
+        backend: 'standalone',
+      })
     )
       return;
     if (

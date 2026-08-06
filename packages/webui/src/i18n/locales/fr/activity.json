@@ -3179,7 +3179,9 @@
     "autoCollapse": "↕️ Repli auto",
     "reasoning": "🧠 Raisonnement",
     "groupTools": "🔧 Grouper les outils",
-    "compact": "📦 Compact"
+    "compact": "📦 Compact",
+    "providerLimit": "Limite fournisseur {{limit}}",
+    "providerLimitDecreased": "La fenêtre de contexte du fournisseur est passée de {{previous}} à {{current}} tokens."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Répartition des tokens",
@@ -3196,6 +3198,7 @@
     "loadingContextSnapshot": "Chargement de l'instantané du contexte…",
     "repairPreviewWillRemove": "Aperçu de réparation : va supprimer",
     "agentRunningApplyDisabled": "Agent en cours — application désactivée",
+    "providerLimitDecreased": "La fenêtre de contexte du fournisseur est passée de {{previous}} à {{current}} tokens. La récupération utilise désormais cette limite avant la prochaine requête.",
     "clear": "Effacer"
   },
   "kanbanInspector": {

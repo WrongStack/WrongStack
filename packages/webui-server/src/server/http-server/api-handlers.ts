@@ -271,13 +271,32 @@ export async function handleApiSessionEvents(
     const store = new DefaultSessionStore({ dir: paths.projectSessions });
     const reader = new DefaultSessionReader({ store });
 
-    const rawEntries: WatchEntry[] = [];
+    // Bounded tail fold.
+    //
+    // This used to materialise EVERY event of the session — including the
+    // structured `input`/`output` of every tool call — and only then apply
+    // `limit` (1..500). `correlateToolEvents` then built a second full array
+    // plus a Map keyed by every tool-use id. Fleet HQ polls this endpoint
+    // while watching long-running sessions whose JSONL runs to hundreds of MB,
+    // so each poll allocated two full copies of a corpus the client never
+    // renders. Keep a ring generous enough that a tool `start` is still
+    // present when its `end` arrives, and drop everything older.
+    const RING = Math.max(limit * 4, 2000);
+    const ring: WatchEntry[] = [];
+    let totalRaw = 0;
+    let dropped = false;
     for await (const ev of reader.replay(sessionId)) {
       const mapped = mapWatchEntry(ev as never as Record<string, unknown>);
-      if (mapped) rawEntries.push(mapped);
+      if (!mapped) continue;
+      totalRaw += 1;
+      ring.push(mapped);
+      if (ring.length > RING) {
+        ring.shift();
+        dropped = true;
+      }
     }
     // Correlate paired tool call start+end events for rich combined rendering
-    const all = correlateToolEvents(rawEntries);
+    const all = correlateToolEvents(ring);
     const tail = all.slice(-limit);
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -287,7 +306,12 @@ export async function handleApiSessionEvents(
         status: entry.status,
         clientType: entry.clientType,
         projectName: entry.projectName,
-        total: all.length,
+        // Exact when the whole session fit in the ring (the previous
+        // behaviour). Past that, correlation never ran over the dropped
+        // prefix, so report the raw event count — an upper bound — and say so
+        // rather than silently understating the session's size.
+        total: dropped ? totalRaw : all.length,
+        ...(dropped ? { truncated: true } : {}),
         entries: tail,
       }),
     );

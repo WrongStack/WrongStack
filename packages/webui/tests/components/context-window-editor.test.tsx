@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContextWindowEditor } from '../../src/components/context-editor/ContextWindowEditor';
 import { useContextEditorStore } from '../../src/stores/context-editor-store';
+import { useSessionStore } from '../../src/stores/session-store';
 
 const wsMock = vi.hoisted(() => {
   const handlers = new Map<string, (message: { type: string; payload?: unknown }) => void>();
@@ -112,6 +113,7 @@ describe('ContextWindowEditor', () => {
     wsMock.applyContextEditor.mockClear();
     wsMock.on.mockClear();
     wsMock.off.mockClear();
+    useSessionStore.setState({ contextLimitWarning: null });
     useContextEditorStore.setState({
       phase: 'closed',
       revision: null,
@@ -141,6 +143,22 @@ describe('ContextWindowEditor', () => {
     render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(await screen.findByText(/Loading context snapshot/i)).toBeTruthy();
+  });
+
+  it('shows a live provider context-limit decrease in the editor', async () => {
+    useSessionStore.setState({
+      contextLimitWarning: {
+        providerId: 'openai-codex',
+        modelId: 'gpt-5.6-sol',
+        previousMaxContext: 1_050_000,
+        maxContext: 272_000,
+      },
+    });
+    render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+    loadSnapshot();
+
+    expect(await screen.findByText(/Provider context window decreased/i)).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toContain('272.0k');
   });
 
   it('renders message list after snapshot loads', async () => {

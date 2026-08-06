@@ -63,7 +63,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
   beforeEach(() => {
     for (const fn of Object.values(toast)) fn.mockReset();
     useChatStore.setState({ messages: [], isLoading: false } as never);
-    useSessionStore.setState({ session: null } as never);
+    useSessionStore.setState({ session: null, contextLimitWarning: null } as never);
     useVizStore.setState({ events: [], isActive: false } as never);
     useFallbackStore.setState({ pending: null, selected: 0 });
   });
@@ -592,6 +592,39 @@ describe('session ws-handlers — provider / delegate / context', () => {
   it('context.max_context updates the window size', () => {
     handleContextMaxContext(msg('context.max_context', { maxContext: 200_000 }));
     expect(useSessionStore.getState().maxContext).toBe(200_000);
+  });
+
+  it('records a live provider-limit decrease for warning surfaces', () => {
+    handleContextMaxContext(
+      msg('ctx.max_context', {
+        providerId: 'openai-codex',
+        modelId: 'gpt-5.6-sol',
+        previousMaxContext: 1_050_000,
+        maxContext: 272_000,
+        source: 'provider',
+        decreased: true,
+      }),
+    );
+    expect(useSessionStore.getState().contextLimitWarning).toEqual({
+      providerId: 'openai-codex',
+      modelId: 'gpt-5.6-sol',
+      previousMaxContext: 1_050_000,
+      maxContext: 272_000,
+    });
+  });
+
+  it('does not warn for configured limits or increases', () => {
+    handleContextMaxContext(
+      msg('ctx.max_context', {
+        providerId: 'openai-codex',
+        modelId: 'gpt-5.6-sol',
+        previousMaxContext: 272_000,
+        maxContext: 1_050_000,
+        source: 'provider',
+        decreased: false,
+      }),
+    );
+    expect(useSessionStore.getState().contextLimitWarning).toBeNull();
   });
 
   it('context_mode.changed updates the active mode', () => {

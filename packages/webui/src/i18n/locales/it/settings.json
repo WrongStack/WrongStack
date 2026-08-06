@@ -438,7 +438,9 @@
     "maxConcurrentLabel": "Sub-agent simultanei max",
     "maxConcurrentHint": "Numero massimo di sub-agent che possono girare simultaneamente.",
     "nextPredictionLabel": "Predizione prossimo passo",
-    "nextPredictionHint": "Dopo un turno, predici i probabili passi successivi."
+    "nextPredictionHint": "Dopo un turno, predici i probabili passi successivi.",
+    "nextStepsToolLabel": "Strumento nextsteps",
+    "nextStepsToolHint": "Consente allo strumento di registrare i suggerimenti con una chiamata invece di scrivere il blocco a mano. Attivo dalla prossima sessione."
   },
   "integrations": {
     "hqHeading": "Client HQ",

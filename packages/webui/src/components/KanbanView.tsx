@@ -508,7 +508,19 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         </div>
       </main>
 
+      {/*
+        Keyed on the task ID so the inspector remounts only when the SELECTED
+        task changes. Its form-hydration effect depends on `boards` and `task`
+        by object identity, and the store hands out a fresh `activeBoard` on
+        every `{board}` push plus a fresh `boards` array on every kanban
+        result — so with a 5 s poll running unconditionally, the effect
+        re-fired every five seconds and wiped `description`, `changeReason`,
+        `newNote` and `newCheck` mid-typing. Authoring a multi-sentence
+        description was impossible. `SddBoardView` mounts its drawer the same
+        way (`key={selectedTask.id}`).
+      */}
       <KanbanTaskInspector
+        key={selectedTask?.id ?? 'none'}
         boards={boards}
         board={activeBoard}
         task={selectedTask}

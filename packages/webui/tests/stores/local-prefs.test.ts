@@ -357,3 +357,25 @@ describe('persistence', () => {
 
 // Migration is tested via store behavior in the set/reset tests above.
 // The migration function is a Zustand persist internal — covered indirectly.
+
+// ── credentials must never reach localStorage ──────────────────────
+
+describe('hqToken is not persisted', () => {
+  beforeEach(() => {
+    clearPersisted();
+  });
+
+  it('keeps the HQ token in memory but out of storage', () => {
+    useLocalPrefs.getState().set({ hqToken: 's3cr3t-token', hqUrl: 'http://hq.lan:3499' });
+
+    // Usable for the session…
+    expect(useLocalPrefs.getState().hqToken).toBe('s3cr3t-token');
+    // …but a bearer credential must not survive in localStorage, where any
+    // same-origin script or DevTools can read it until site data is cleared.
+    // `config-store` drops `apiKey` for the same reason (WS-069).
+    const persisted = getPersisted();
+    expect(persisted?.state?.hqUrl).toBe('http://hq.lan:3499');
+    expect(persisted?.state?.hqToken).toBeUndefined();
+    expect(JSON.stringify(persisted)).not.toContain('s3cr3t-token');
+  });
+});

@@ -56,7 +56,7 @@ export function registerSetupEventsClientStatusWriter(
   return on('client.status', async (e) => {
     broadcast(clients, { type: 'client.status_update', payload: e });
 
-    if (wpaths?.projectStatus) {
+    if (wpaths?.projectStatus && e.projectHash !== 'unknown') {
       try {
         const statusFile = wpaths.projectStatus(e.projectHash);
         const dir = path.dirname(statusFile);

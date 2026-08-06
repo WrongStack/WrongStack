@@ -55,12 +55,21 @@ export function FleetSection({ syncPref }: FleetSectionProps) {
             />
           </div>
 
-          <div className="pt-3">
+          <div className="py-3">
             <PreferenceToggle
               label={t('settings:fleet.nextPredictionLabel')}
               hint={t('settings:fleet.nextPredictionHint')}
               value={localPrefs.nextPrediction}
               onChange={() => syncPref('nextPrediction', !localPrefs.nextPrediction)}
+            />
+          </div>
+
+          <div className="pt-3">
+            <PreferenceToggle
+              label={t('settings:fleet.nextStepsToolLabel')}
+              hint={t('settings:fleet.nextStepsToolHint')}
+              value={localPrefs.nextStepsTool}
+              onChange={() => syncPref('nextStepsTool', !localPrefs.nextStepsTool)}
             />
           </div>
         </div>

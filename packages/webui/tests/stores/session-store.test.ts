@@ -24,6 +24,7 @@ function resetStore() {
     cost: 0,
     startTime: null,
     maxContext: 0,
+    contextLimitWarning: null,
     inputCost: 0,
     outputCost: 0,
     cacheReadCost: 0,
@@ -78,6 +79,20 @@ describe('setSession', () => {
     const session = makeSession();
     useSessionStore.getState().setSession(session);
     expect(useSessionStore.getState().session).toEqual(session);
+  });
+
+  it('clears a provider-limit warning when the route changes', () => {
+    useSessionStore.setState({
+      session: makeSession(),
+      contextLimitWarning: {
+        providerId: 'anthropic',
+        modelId: 'anthropic-test-model',
+        previousMaxContext: 1_000_000,
+        maxContext: 200_000,
+      },
+    });
+    useSessionStore.getState().setSession(makeSession({ provider: 'openai-codex', model: 'gpt-5.6-sol' }));
+    expect(useSessionStore.getState().contextLimitWarning).toBeNull();
   });
 
   it('can set session to null', () => {

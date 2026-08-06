@@ -28,6 +28,13 @@ export interface LocalPrefs {
   fleetChatVerbosity: FleetChatVerbosity;
   /** Predict next steps after turn completes */
   nextPrediction: boolean;
+  /**
+   * Register the leader's agent-callable `nextsteps` tool alongside the
+   * `<nextsteps>` block it can already write. Persisted to
+   * `tools.nextsteps.enabled`; the tool registry is built at boot, so the
+   * change takes effect in the next session.
+   */
+  nextStepsTool: boolean;
   /** Global fallback model chain (entries: `model` or `provider/model`). */
   fallbackModels: string[];
   /** Named fallback chains selectable by setmodel/model routing. */
@@ -229,6 +236,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   confirmExit: true,
   fleetChatVerbosity: 'off',
   nextPrediction: false,
+  nextStepsTool: false,
   fallbackModels: [],
   fallbackProfiles: {},
   favoriteModels: [],
@@ -540,6 +548,28 @@ export const useLocalPrefs = create<LocalPrefs>()(
           p.multiDiffSummaryThreshold = 5;
         }
         return p as never as LocalPrefs;
+      },
+      // `hqToken` is a bearer credential for the HQ control plane. The whole
+      // prefs object was persisted with no `partialize`, so it sat in
+      // `localStorage` under `wrongstack-local-prefs` in cleartext — readable
+      // from DevTools or any same-origin script, and surviving until the user
+      // clears site data. `config-store.ts:73-88` (WS-069) already removed
+      // `apiKey` from its own persist for exactly this reason; the same rule
+      // has to cover the HQ token.
+      //
+      // The value still lives in memory for the session, so Settings →
+      // Integrations keeps working; it just no longer outlives the tab.
+      partialize: (state) => {
+        const { hqToken: _omitted, ...rest } = state;
+        return rest as unknown as LocalPrefs;
+      },
+      // Builds before this change wrote a token; dropping it from `partialize`
+      // alone would leave that value in storage and rehydrate it on every
+      // load. Strip on read so the next persist clears it from disk too.
+      merge: (persisted, current) => {
+        const { hqToken: _discardedLegacyHqToken, ...rest } =
+          (persisted as Partial<LocalPrefs> | undefined) ?? {};
+        return { ...current, ...rest, hqToken: '' };
       },
     },
   ),

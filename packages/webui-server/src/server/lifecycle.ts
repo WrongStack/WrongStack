@@ -20,7 +20,12 @@ export interface LifecycleResources {
    * snapshot) so shutdown closes whoever is connected *at signal time*, not
    * whoever was connected when the handler was registered.
    */
-  clients: () => Iterable<{ close: () => void }>;
+  /**
+   * Live client sockets. `terminate` is optional so a test double can supply
+   * `close` alone, but a real `ws` socket has it — and the shutdown path needs
+   * it: `close()` only starts a handshake the peer may never answer.
+   */
+  clients: () => Iterable<{ close: () => void; terminate?: (() => void) | undefined }>;
   /** Servers to stop (HTTP + WS). `null`/`undefined` entries are skipped. */
   servers: Array<{ close: () => void } | null | undefined>;
   /**
@@ -55,7 +60,21 @@ export function createShutdown(res: LifecycleResources): () => Promise<void> {
     } catch (e) {
       log(`[WebUI] Error closing session: ${e instanceof Error ? e.message : String(e)}`);
     }
-    for (const ws of res.clients()) ws.close();
+    // Destroy, then close. `ws.close()` starts a CLOSE handshake — the socket
+    // only goes away once the peer replies, or after `ws`'s internal 30 s
+    // timeout — while `net.Server.close()` waits for every open connection.
+    // A client behind a dropped VPN or a half-open TCP connection never
+    // acknowledges, so the pair could hang the whole teardown. `exit(0)` below
+    // currently papers over it; any caller that injects a non-exiting `exit`
+    // seam, or a future refactor that awaits the close callbacks, would block.
+    for (const ws of res.clients()) {
+      try {
+        ws.close();
+        ws.terminate?.();
+      } catch {
+        // Already gone.
+      }
+    }
     for (const server of res.servers) server?.close();
     if (res.onShutdown) {
       try {

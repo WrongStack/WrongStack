@@ -186,7 +186,10 @@ export function KanbanTaskInspector({
     setNewActivityKind('observation');
     setNewActivityOutcome('unknown');
     setChangeReason('');
-  }, [board?.id, boards, task]);
+    // Hydrate on IDENTITY, not on object churn. The mount site keys this
+    // component on the task id, so a fresh `boards`/`task` object for the same
+    // task no longer resets the form the user is typing into.
+  }, [board?.id, task?.id]);
 
   const payload = (action: 'assign' | 'dispatch') => ({
     boardId: board?.id,

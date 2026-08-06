@@ -9,6 +9,11 @@
 // browser would mean a second, drifting copy, which is exactly the bug that
 // let a plugin run while every report called it disabled.
 //
+// RENAMED away from core's `resolvePluginEnablement`: sharing that name across
+// two packages with different signatures and different semantics is a trap —
+// the next contributor autocompletes it inside a panel and silently gets the
+// weaker one, reproducing the exact drift this header warns about.
+//
 // What survives here is the P2 gate's contract evidence for the local-override
 // join, kept because the browser can hold an override the server has not seen
 // yet. Two rules if this is ever wired into the UI: it must not import
@@ -63,7 +68,7 @@ function pluginNameOf(entry: PluginEntry): string {
  * behaviour. The local override map may be missing, in which case only
  * the canonical config is consulted.
  */
-export function resolvePluginEnablement(
+export function resolvePluginToggleStates(
   configuredPlugins: readonly PluginEntry[] | undefined,
   localOverrides: Readonly<Record<string, boolean>> | undefined,
 ): ResolvedPluginState[] {
@@ -89,6 +94,6 @@ export function resolveOnePlugin(
   localOverrides: Readonly<Record<string, boolean>> | undefined,
   name: string,
 ): ResolvedPluginState | undefined {
-  const all = resolvePluginEnablement(configuredPlugins, localOverrides);
+  const all = resolvePluginToggleStates(configuredPlugins, localOverrides);
   return all.find((p) => p.name === name);
 }

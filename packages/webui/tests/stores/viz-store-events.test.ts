@@ -233,7 +233,13 @@ describe('prunesStale', () => {
     expect(nodes.has('new')).toBe(true);
   });
 
-  it('keeps a stale node that is still active', () => {
+  // `status` is the mapping of the LAST event kind, not a liveness signal —
+  // and `inferStatus` returns 'active' as its DEFAULT (mailbox:send,
+  // agent:spawned, agent:ctx, memory:event, brain:council_vote,
+  // fleet:snapshot all land there). Exempting 'active' therefore made the
+  // majority of nodes immortal, i.e. it disabled the pruner it was written to
+  // refine. `lastSeenAt < cutoff` is the whole staleness criterion.
+  it('drops a stale node even if its last status was active', () => {
     useVizStore.setState({
       nodes: new Map([
         [
@@ -245,12 +251,10 @@ describe('prunesStale', () => {
       events: [],
     });
     useVizStore.getState().prunesStale(5_000);
-    expect(useVizStore.getState().nodes.has('busy')).toBe(true);
+    expect(useVizStore.getState().nodes.has('busy')).toBe(false);
   });
 
-  it('keeps a stale node whose status was never set', () => {
-    // The guard requires an explicit non-active status, so an un-statused
-    // node survives pruning rather than vanishing mid-layout.
+  it('drops a stale node whose status was never set', () => {
     useVizStore.setState({
       nodes: new Map([
         ['bare', { id: 'bare', kind: 'agent', label: 'bare', lastSeenAt: now - 10_000 }],
@@ -259,7 +263,19 @@ describe('prunesStale', () => {
       events: [],
     });
     useVizStore.getState().prunesStale(5_000);
-    expect(useVizStore.getState().nodes.has('bare')).toBe(true);
+    expect(useVizStore.getState().nodes.has('bare')).toBe(false);
+  });
+
+  it('keeps a node seen within the window regardless of status', () => {
+    useVizStore.setState({
+      nodes: new Map([
+        ['fresh', { id: 'fresh', kind: 'agent', label: 'fresh', lastSeenAt: now, status: 'idle' }],
+      ] as never),
+      edges: new Map(),
+      events: [],
+    });
+    useVizStore.getState().prunesStale(5_000);
+    expect(useVizStore.getState().nodes.has('fresh')).toBe(true);
   });
 
   it('drops edges that have gone quiet', () => {
@@ -289,5 +305,27 @@ describe('prunesStale', () => {
     });
     useVizStore.getState().prunesStale(5_000);
     expect(useVizStore.getState().events.map((e) => e.id)).toEqual(['a']);
+  });
+});
+
+describe('graph is bounded at ingest', () => {
+  // `events`/`toolEvents` were capped; `nodes`/`edges` were not. Every distinct
+  // source/target string ever seen — per-spawn agent ids, session ids, tool
+  // names — became a permanent node, and the two pruning actions that were
+  // supposed to handle it had ZERO production callers.
+  it('caps nodes no matter how many distinct sources arrive', () => {
+    useVizStore.setState({ nodes: new Map(), edges: new Map(), events: [] });
+    for (let i = 0; i < 1200; i += 1) {
+      useVizStore.getState().pushEvent({
+        kind: 'agent:spawned',
+        source: `agent-${i}`,
+        label: `spawn ${i}`,
+      } as never);
+    }
+    const { nodes } = useVizStore.getState();
+    expect(nodes.size).toBeGreaterThan(0);
+    expect(nodes.size).toBeLessThanOrEqual(400);
+    // Eviction is least-recently-active first, so the newest survives.
+    expect(nodes.has('agent-1199')).toBe(true);
   });
 });

@@ -10,17 +10,17 @@
 // exist is reproducible.
 //
 // Determinism: every test is pure (no I/O, no timers, no fetch). The
-// config-classifier inputs are const literals; the resolvePluginEnablement
+// config-classifier inputs are const literals; the resolvePluginToggleStates
 // reads are in-memory only.
 // ---------------------------------------------------------------------------
 
 import { describe, expect, it } from 'vitest';
-import { resolveOnePlugin, resolvePluginEnablement } from '../../src/lib/plugin-enablement.js';
+import { resolveOnePlugin, resolvePluginToggleStates } from '../../src/lib/plugin-enablement.js';
 import { diffConfigKeys } from '../../../telegram/src/config-classifier.js';
 
 describe('P2.1 — WebUI toggle is a pure projection of canonical config.plugins', () => {
   it('renders every canonical plugin entry as a toggle row', () => {
-    const out = resolvePluginEnablement(
+    const out = resolvePluginToggleStates(
       ['telegram', { name: 'telegram-tools', enabled: false }, 'telegram-bot'],
       undefined,
     );
@@ -62,7 +62,7 @@ describe('P2.1 — WebUI toggle is a pure projection of canonical config.plugins
   });
 
   it('defaults to enabled when canonical entry omits the enabled key', () => {
-    const out = resolvePluginEnablement(
+    const out = resolvePluginToggleStates(
       [{ name: 'telegram-extra' /* enabled omitted */ }],
       undefined,
     );
@@ -111,8 +111,8 @@ describe('P2 Gate dependency-blocked evidence', () => {
     // Total pinned here: 11 acceptance assertions. Locking them here
     // means a regression in either surface blocks the gate signal
     // independent of whether the larger P2.3/4/6 work has landed.
-    // resolvePluginEnablement is a pure projection of canonical config:
-    const out = resolvePluginEnablement(['telegram'], undefined);
+    // resolvePluginToggleStates is a pure projection of canonical config:
+    const out = resolvePluginToggleStates(['telegram'], undefined);
     expect(out).toHaveLength(1);
     expect(out[0]?.resolved).toBe(true);
   });
@@ -126,10 +126,10 @@ describe('P2.1 ↔ P2.2 — combined cross-surface contract', () => {
     expect(diff).toEqual([{ key: 'maxMessageLength', classification: 'hot' }]);
   });
 
-  it('reuses the resolvePluginEnablement output to drive a status-bar of effective enablement', () => {
+  it('reuses the resolvePluginToggleStates output to drive a status-bar of effective enablement', () => {
     const canonical = ['telegram-bot', { name: 'telegram-tools', enabled: false }];
     const overrides = { 'telegram-tools': true };
-    const resolved = resolvePluginEnablement(canonical, overrides);
+    const resolved = resolvePluginToggleStates(canonical, overrides);
     expect(resolved.find((p) => p.name === 'telegram-bot')?.resolved).toBe(true);
     expect(resolved.find((p) => p.name === 'telegram-tools')?.resolved).toBe(true);
   });

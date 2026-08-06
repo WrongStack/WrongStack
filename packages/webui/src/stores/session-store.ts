@@ -15,8 +15,15 @@ interface SessionState {
   lastInputTokens: number;
   cost: number;
   startTime: number | null;
-  /** Model max context window, from models.dev catalog. 0 = unknown. */
+  /** Active effective context window. 0 = unknown. */
   maxContext: number;
+  /** Live provider-reported decrease, shown until the session/model changes. */
+  contextLimitWarning: {
+    previousMaxContext: number;
+    maxContext: number;
+    providerId: string;
+    modelId: string;
+  } | null;
   /** USD per 1M tokens — used to compute cost deltas on every provider.response. */
   inputCost: number;
   outputCost: number;
@@ -86,6 +93,7 @@ interface SessionState {
   }) => void;
   setIteration: (it: { index: number; max: number } | null) => void;
   setContextUsage: (tokens: number, maxContext?: number | undefined) => void;
+  setContextLimitWarning: (warning: SessionState['contextLimitWarning']) => void;
   setModes: (modes: Array<{ id: string; name: string; description: string }>) => void;
   setContextModes: (modes: SessionState['contextModes']) => void;
   setTodos: (todos: SessionState['todos']) => void;
@@ -110,6 +118,7 @@ export const useSessionStore = create<SessionState>()(
       cost: 0,
       startTime: null,
       maxContext: 0,
+      contextLimitWarning: null,
       inputCost: 0,
       outputCost: 0,
       cacheReadCost: 0,
@@ -131,7 +140,18 @@ export const useSessionStore = create<SessionState>()(
       updateAvailable: false,
       droppedTools: 0,
 
-      setSession: (session) => set({ session, lastVisitedAt: Date.now() }),
+      setSession: (session) =>
+        set((state) => {
+          const sessionOrRouteChanged =
+            state.session?.id !== session?.id ||
+            state.session?.provider !== session?.provider ||
+            state.session?.model !== session?.model;
+          return {
+            session,
+            lastVisitedAt: Date.now(),
+            ...(sessionOrRouteChanged ? { contextLimitWarning: null } : {}),
+          };
+        }),
 
       updateUsage: (usage) =>
         set((state) => {
@@ -161,6 +181,7 @@ export const useSessionStore = create<SessionState>()(
           cost: 0,
           lastVisitedAt: Date.now(),
           droppedTools: 0,
+          contextLimitWarning: null,
         }),
 
       endSession: () =>
@@ -169,6 +190,7 @@ export const useSessionStore = create<SessionState>()(
           startTime: null,
           iteration: null,
           droppedTools: 0,
+          contextLimitWarning: null,
           // Note: we intentionally do NOT clear lastVisitedAt here. The
           // verifier view uses it to show "previous activity at …" even
           // when the user explicitly ended a session.
@@ -193,6 +215,7 @@ export const useSessionStore = create<SessionState>()(
           lastInputTokens: tokens,
           maxContext: maxContext ?? state.maxContext,
         })),
+      setContextLimitWarning: (contextLimitWarning) => set({ contextLimitWarning }),
       setModes: (modes) => set({ modes }),
       setContextModes: (contextModes) => set({ contextModes }),
       setTodos: (todos) => set({ todos }),

@@ -235,6 +235,7 @@ export async function createPreContextServices(
       registry: toolRegistry,
       tier: normalizeTokenSavingTier(config.features.tokenSavingMode),
       memory: { enabled: config.features.memory, store: memoryStore },
+      nextSteps: { enabled: config.tools?.nextsteps?.enabled === true },
       coordinationTools: [
         makeMailboxTool({ projectDir: wpaths.projectDir, events }),
         makeMailSendTool({ projectDir: wpaths.projectDir, events }),

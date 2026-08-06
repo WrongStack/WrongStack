@@ -3,6 +3,7 @@ import type { ContextEditorContentBlock } from '@/types/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useContextEditorStore } from '@/stores/context-editor-store';
 import { useChatStore } from '@/stores';
+import { useSessionStore } from '@/stores/session-store';
 import { useAppTranslation, i18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 import {
@@ -263,6 +264,7 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
 
   const store = useContextEditorStore;
   const isLoading = useChatStore((s) => s.isLoading);
+  const contextLimitWarning = useSessionStore((s) => s.contextLimitWarning);
 
   // Load snapshot on open
   useEffect(() => {
@@ -385,6 +387,21 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {contextLimitWarning && (
+          <div
+            role="status"
+            className="mx-4 mt-3 flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {t('activity:ctxEditor.providerLimitDecreased', {
+                previous: fmtTok(contextLimitWarning.previousMaxContext),
+                current: fmtTok(contextLimitWarning.maxContext),
+              })}
+            </span>
+          </div>
+        )}
 
         {/* Read-only context summary */}
         {readonlyContext && (

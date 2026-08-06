@@ -529,6 +529,8 @@ export {
   resolveAuthToken,
   send,
   sendResult,
+  sendSerialized,
+  WEBUI_WS_MAX_BUFFERED_BYTES,
 } from './ws-utils.js';
 export { formatExternalAccessUrls, getExternalAddresses, type NetworkAddress } from './network-info.js';
 export { createZipBuffer, readZipEntries, type ZipEntryInput } from './zip.js';

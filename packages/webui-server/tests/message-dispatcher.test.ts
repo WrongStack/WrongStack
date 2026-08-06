@@ -9,6 +9,11 @@ vi.mock('ws', () => {
 
 vi.mock('../src/server/connections-health-route.js', () => ({
   handleConnectionsHealthRoute: vi.fn(async () => false),
+  // Also wired into the standalone dispatcher's pre-dispatch chain — only the
+  // CLI-embedded router had it, so `connections.service_action` went
+  // unanswered here. A mock missing an export throws at ACCESS time, which is
+  // why this omission surfaced as three unrelated dispatch failures.
+  handleConnectionsServiceAction: vi.fn(async () => false),
 }));
 vi.mock('../src/server/codebase-index-server-control.js', () => ({
   handleCodebaseIndexServerControl: vi.fn(async () => false),

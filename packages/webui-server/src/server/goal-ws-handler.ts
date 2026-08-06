@@ -486,12 +486,12 @@ export class GoalWebSocketHandler {
         ...maybeVerify,
         onPhaseComplete: (phase) => {
           this.logger.info(`[Goal] Phase completed: ${phase.name}`);
-          void this.store.save(graph);
+          this.persistDetached(graph);
           this.broadcastState();
         },
         onPhaseFail: (phase, error) => {
           this.logger.error(`[Goal] Phase failed: ${phase.name} — ${error.message}`);
-          void this.store.save(graph);
+          this.persistDetached(graph);
           this.broadcastState();
         },
       },
@@ -516,7 +516,7 @@ export class GoalWebSocketHandler {
       .start()
       .then(() => {
         this.orchestrator?.stop(); // clear the autonomous tick interval
-        void this.store.save(graph);
+        this.persistDetached(graph);
         this.stopBroadcast();
         const failed = graph.failedPhaseIds.length > 0;
         this.broadcast(
@@ -746,9 +746,28 @@ export class GoalWebSocketHandler {
     }
   }
 
+  /**
+   * Fire-and-forget persist.
+   *
+   * Every detached `store.save()` used to be a bare `void`, so a rejection
+   * became an unhandled rejection and — under Node 22's default
+   * `--unhandled-rejections=throw` — killed the process mid-run. On Windows an
+   * AV scanner or indexer holding the `.wrongstack/phases/<id>.json` rename
+   * target for a few hundred ms is enough (EPERM from `atomicWrite`), and in
+   * `--webui` mode that takes the CLI session down with it. `handleStop` at
+   * `:549` already had the `.catch`; these call sites did not.
+   */
+  private persistDetached(graph: Parameters<typeof this.store.save>[0]): void {
+    void this.store.save(graph).catch((err: unknown) => {
+      this.logger.warn(
+        `[Goal] Failed to persist phase graph: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+  }
+
   /** Persist + broadcast after an interactive board mutation. */
   private afterBoardMutation(): void {
-    if (this.graph) void this.store.save(this.graph);
+    if (this.graph) this.persistDetached(this.graph);
     this.broadcastState();
   }
 

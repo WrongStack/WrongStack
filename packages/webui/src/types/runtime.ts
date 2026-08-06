@@ -309,6 +309,9 @@ export interface WSContextMaxContext {
     providerId: string;
     modelId: string;
     maxContext: number;
+    previousMaxContext?: number | undefined;
+    source?: 'configured' | 'provider' | 'provider_overflow' | undefined;
+    decreased?: boolean | undefined;
   };
 }
 

@@ -1,4 +1,4 @@
-import { resolveProviderModelList } from '@wrongstack/core/models';
+import { hasProviderCredential, resolveProviderModelList } from '@wrongstack/core/models';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
@@ -176,7 +176,12 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     }
     try {
       const providers = await deps.modelsRegistry.listProviders();
-      const savedIds = new Set(Object.keys(await loadConfigProviders()));
+      // `savedIds.has(id)` used to stand in for "has a key". It means "appears
+      // in the saved config at all", so a provider saved with only a `baseUrl`
+      // reported `hasApiKey: true` and the panel offered it as ready to use.
+      // Same rule as the CLI picker and `/modelcaps` now — see
+      // `core/src/models/provider-credentials.ts`.
+      const savedProviders = await loadConfigProviders();
       sendMessage(ws, {
         type: 'provider.catalog',
         payload: {
@@ -187,8 +192,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
             apiBase: provider.apiBase,
             envVars: provider.envVars,
             modelCount: provider.models.length,
-            hasApiKey:
-              savedIds.has(provider.id) || provider.envVars.some((name) => !!process.env[name]),
+            hasApiKey: hasProviderCredential(provider, { providers: savedProviders }),
           })),
         },
       });

@@ -1,3 +1,4 @@
+import type { TrustBoundary } from '@wrongstack/core/security';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 import {
@@ -253,6 +254,17 @@ describe('connections health mailbox service', () => {
   });
 });
 
+/**
+ * Allow-everything boundary, so a test can exercise the logic BELOW the
+ * authorization gate. Never use this shape in production wiring: the absent
+ * boundary is a refusal, not a pass (see the test at the bottom of this file).
+ */
+function allowAllTrustBoundary(): TrustBoundary {
+  return {
+    evaluate: async () => ({ kind: 'allow', reason: 'test' }) as const,
+  };
+}
+
 describe('connections health governance service', () => {
   async function collectWithFakeGovernance(result: unknown) {
     vi.resetModules();
@@ -349,6 +361,10 @@ describe('connections health governance service', () => {
         getIndexDir: () => undefined,
         backend: 'cli-embedded',
         send: (_ws, message) => sent.push(message),
+        // The route now asks the trust boundary before it touches a daemon.
+        // Pass an allow-everything one so this case still reaches — and pins —
+        // the governance-specific refusal underneath it.
+        trustBoundary: allowAllTrustBoundary(),
       },
     );
 
@@ -365,5 +381,68 @@ describe('connections health governance service', () => {
         },
       },
     ]);
+  });
+});
+
+/**
+ * This route kills per-project daemons — kanban, sage, chronicle,
+ * codebase-index, mailbox — and `restart` spawns them again. It was the one
+ * privileged route in the package that never consulted `authorizeWebUIAction`,
+ * so a deployment could deny `codebase-index.server.shutdown` on the dedicated
+ * control route and still have the same client kill the same server through
+ * here, unaudited.
+ *
+ * Absent authority must therefore FAIL CLOSED. A host that forgets to thread
+ * the boundary should lose the feature, not the guard.
+ */
+describe('connections service actions require a policy authority', () => {
+  it('refuses when no trust boundary is wired', async () => {
+    const sent: WSServerMessage[] = [];
+    const handled = await handleConnectionsServiceAction(
+      {} as WebSocket,
+      {
+        type: 'connections.service_action',
+        payload: { serviceId: 'kanban', action: 'shutdown' },
+      },
+      {
+        getProjectRoot: () => '/project',
+        getIndexDir: () => undefined,
+        backend: 'cli-embedded',
+        send: (_ws, message) => sent.push(message),
+      },
+    );
+
+    expect(handled).toBe(true);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual(
+      expect.objectContaining({ type: 'connections.service_action_result' }),
+    );
+    const payload = (sent[0] as { payload: { success: boolean; message: string } }).payload;
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain('no policy authority');
+  });
+
+  it('relays the boundary reason when the action is denied', async () => {
+    const sent: WSServerMessage[] = [];
+    await handleConnectionsServiceAction(
+      {} as WebSocket,
+      {
+        type: 'connections.service_action',
+        payload: { serviceId: 'kanban', action: 'restart' },
+      },
+      {
+        getProjectRoot: () => '/project',
+        getIndexDir: () => undefined,
+        backend: 'cli-embedded',
+        send: (_ws, message) => sent.push(message),
+        trustBoundary: {
+          evaluate: async () => ({ kind: 'deny', reason: 'daemon control is off' }) as const,
+        },
+      },
+    );
+
+    const payload = (sent[0] as { payload: { success: boolean; message: string } }).payload;
+    expect(payload.success).toBe(false);
+    expect(payload.message).toBe('daemon control is off');
   });
 });

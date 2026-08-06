@@ -53,7 +53,20 @@ export class SpecsWebSocketHandler {
     this.clients.add(client);
     ws.on('close', () => this.clients.delete(client));
     ws.on('error', () => this.clients.delete(client));
-    void this.sendList(client);
+    // Best-effort: `sendList` reads and parses the on-disk spec + graph
+    // stores, so one truncated/corrupt file turned the next browser refresh
+    // into an unhandled rejection — and under Node 22 that kills the server.
+    // No message is needed to trigger it; merely CONNECTING is enough.
+    // Same shape as sdd-board-ws-handler.ts:140, which already guards.
+    void this.sendList(client).catch((err: unknown) => {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'specs.initial_send_failed',
+          message: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    });
   }
 
   dispose(): void {

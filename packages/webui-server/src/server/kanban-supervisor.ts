@@ -12,6 +12,7 @@ import {
   recoverStaleTaskAssignments,
   resolveGateEnforcement,
 } from '@wrongstack/kanban';
+import { publishKanbanBoard } from './kanban-broadcast.js';
 
 export interface KanbanSupervisorDispatchOptions {
   provider?: string | undefined;
@@ -168,14 +169,10 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
 
     const changedBoard = recovered?.board ?? gateSwept ?? reconciled?.board;
     if (changedBoard) {
-      deps.broadcast({
-        type: 'kanban.get',
-        payload: { success: true, data: { board: changedBoard } },
-      });
-      deps.broadcast({
-        type: 'kanban.list',
-        payload: { success: true, data: await listBoards(deps.projectRoot) },
-      });
+      // The sweep can retire a board, so the list is genuinely stale here.
+      await publishKanbanBoard(deps.broadcast, changedBoard, () =>
+        listBoards(deps.projectRoot),
+      );
     }
 
     if (config.mode === 'agentic' && anomalyCount > 0) {

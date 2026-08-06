@@ -3179,7 +3179,9 @@
     "autoCollapse": "↕️ Otomatik daralt",
     "reasoning": "🧠 Akıl yürütme",
     "groupTools": "🔧 Araçları grupla",
-    "compact": "📦 Sıkışık"
+    "compact": "📦 Sıkışık",
+    "providerLimit": "Sağlayıcı sınırı {{limit}}",
+    "providerLimitDecreased": "Sağlayıcı bağlam penceresi {{previous}} tokendan {{current}} tokene düşürüldü."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Token Dağılımı",
@@ -3196,6 +3198,7 @@
     "loadingContextSnapshot": "Bağlam anlık görüntüsü yükleniyor…",
     "repairPreviewWillRemove": "Onarım önizlemesi: kaldırılacak",
     "agentRunningApplyDisabled": "Ajan çalışıyor — uygulama devre dışı",
+    "providerLimitDecreased": "Sağlayıcı bağlam penceresi {{previous}} tokendan {{current}} tokene düşürüldü. Kurtarma artık sonraki istekten önce bu sağlayıcı sınırını kullanıyor.",
     "clear": "Temizle"
   },
   "kanbanInspector": {

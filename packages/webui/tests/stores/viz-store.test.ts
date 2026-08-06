@@ -444,7 +444,7 @@ describe('decayActivity', () => {
 describe('prunesStale', () => {
   beforeEach(() => resetStore());
 
-  it('removes nodes inactive before cutoff (except active ones)', () => {
+  it('removes every node not seen since the cutoff', () => {
     const now = Date.now();
     useVizStore.getState().upsertNode({ id: 'stale', kind: 'agent', label: 'A', lastSeenAt: now - 10000, status: 'idle' } as any);
     useVizStore.getState().upsertNode({ id: 'recent', kind: 'agent', label: 'B', lastSeenAt: now - 1000, status: 'idle' } as any);
@@ -453,7 +453,9 @@ describe('prunesStale', () => {
     const nodes = useVizStore.getState().nodes;
     expect(nodes.has('stale')).toBe(false);
     expect(nodes.has('recent')).toBe(true);
-    expect(nodes.has('active')).toBe(true); // active status is exempt
+    // No status exemption: `inferStatus` returns 'active' by DEFAULT, so
+    // exempting it kept most nodes forever — the pruner never pruned.
+    expect(nodes.has('active')).toBe(false);
   });
 
   it('removes edges inactive before cutoff', () => {

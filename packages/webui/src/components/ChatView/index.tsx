@@ -1,5 +1,6 @@
 import {
   Activity,
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   Bot,
@@ -191,12 +192,13 @@ export function ChatView() {
   // here re-rendered ChatView on every unrelated session-store write (todos,
   // modes, env, …). The shallow slice only changes when one of these five
   // fields actually flips.
-  const { totalTokens, startTime, lastInputTokens, maxContext, iteration } = useSessionStore(
+  const { totalTokens, startTime, lastInputTokens, maxContext, contextLimitWarning, iteration } = useSessionStore(
     useShallow((s) => ({
       totalTokens: s.totalTokens,
       startTime: s.startTime,
       lastInputTokens: s.lastInputTokens,
       maxContext: s.maxContext,
+      contextLimitWarning: s.contextLimitWarning,
       iteration: s.iteration,
     })),
   );
@@ -804,6 +806,21 @@ export function ChatView() {
                   maxTokens={maxContext > 0 ? maxContext : undefined}
                   onClick={() => setBreakdownOpen(true)}
                 />
+              )}
+              {contextLimitWarning && (
+                <span
+                  role="status"
+                  className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-2 py-0.5 font-medium text-warning"
+                  title={t('activity:chatView.providerLimitDecreased', {
+                    previous: contextLimitWarning.previousMaxContext.toLocaleString(),
+                    current: contextLimitWarning.maxContext.toLocaleString(),
+                  })}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  {t('activity:chatView.providerLimit', {
+                    limit: fmtTok(contextLimitWarning.maxContext),
+                  })}
+                </span>
               )}
               <button
                 type="button"

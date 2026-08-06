@@ -470,17 +470,41 @@ class WrongStackWebSocketClientBase {
     );
   }
 
+  /**
+   * Drain the offline queue onto a freshly-opened socket.
+   *
+   * Two hazards, both fatal before this guard:
+   *
+   * 1. `send()` calls `this.ws.send(...)` unguarded. The socket can race
+   *    OPEN → CLOSING between the readyState check and the actual write (a
+   *    normal server restart does it), which throws `InvalidStateError`. This
+   *    runs from `onopen` BEFORE `resolve()`, so the throw skipped the
+   *    resolve, the connect promise never settled, `.finally()` never cleared
+   *    `connectPromise`, and every later `connect()` — including
+   *    `attemptReconnect` and `retryNow` — returned that dead promise. The tab
+   *    was offline for good with the banner stuck on "reconnecting".
+   * 2. If the socket is not OPEN, `send()` re-queues the message it was handed
+   *    while this loop keeps shifting — an infinite loop on the main thread.
+   *    Draining into a local array first makes the loop finite by construction.
+   */
   private flushMessageQueue() {
-    while (this.messageQueue.length > 0) {
-      const msg = this.messageQueue.shift();
-      if (msg) {
-        const weight = this.messageQueueWeights.get(msg as object) ?? JSON.stringify(msg).length;
-        this.messageQueueChars = Math.max(0, this.messageQueueChars - weight);
-        this.messageQueueWeights.delete(msg as object);
+    const pending = this.messageQueue.splice(0);
+    this.messageQueueChars = 0;
+    // `messageQueueWeights` is a WeakMap keyed by the message objects; once
+    // the queue no longer references them the entries drop on their own.
+    for (const msg of pending) {
+      try {
         this.send(msg);
+      } catch (err) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'ws.flush_failed',
+            message: err instanceof Error ? err.message : String(err),
+          }),
+        );
       }
     }
-    this.messageQueueChars = 0;
   }
 
   private handleMessage(msg: WSServerMessage) {

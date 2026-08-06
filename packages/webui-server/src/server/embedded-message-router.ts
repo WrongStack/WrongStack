@@ -523,6 +523,8 @@ export function createEmbeddedMessageRouter(
       return;
     if (
       await handleConnectionsServiceAction(ws, message, {
+        trustBoundary: deps.trustBoundary,
+        logger: deps.logger,
         getProjectRoot: projectRoot,
         getIndexDir: () =>
           typeof opts.agent.ctx.meta['codebaseIndexDir'] === 'string'

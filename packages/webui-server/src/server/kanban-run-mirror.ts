@@ -36,6 +36,7 @@ import {
   updateTaskAssignment,
 } from '@wrongstack/kanban';
 import type { SddBoardSnapshot, SddBoardTask } from '@wrongstack/sdd';
+import { kanbanBoardMessage, kanbanListMessage } from './kanban-broadcast.js';
 
 type Engine = 'sdd' | 'goal';
 
@@ -197,12 +198,9 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
 
   async function publish(board: KanbanBoard | null): Promise<void> {
     if (board) {
-      broadcast({ type: 'kanban.get', payload: { success: true, data: { board } } });
+      broadcast(kanbanBoardMessage(board));
     }
-    broadcast({
-      type: 'kanban.list',
-      payload: { success: true, data: await listBoards(projectRoot) },
-    });
+    broadcast(kanbanListMessage(await listBoards(projectRoot)));
   }
 
   // ── SDD ────────────────────────────────────────────────────────────────

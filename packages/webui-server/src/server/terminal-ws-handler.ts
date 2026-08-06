@@ -186,6 +186,20 @@ export class TerminalWebSocketHandler {
       return;
     }
 
+    // The client may have disconnected during the `await` on the trust
+    // boundary above. `disposeClient` iterates whatever `this.sessions` holds
+    // and then DELETES the entry, so writing into `map` now would write into
+    // an object no cleanup path can still reach: the shell (and on Windows its
+    // conhost/ConPTY tree) would survive `close`, `disposeClient` and the
+    // server-wide `dispose()`, leaking one orphan per open/close cycle.
+    if (this.sessions.get(ws) !== map) {
+      this.logger.info?.(
+        `terminal.create raced a disconnect (id=${payload.id}) — killing the orphan`,
+      );
+      this.killPty(pty, 'terminal create after disconnect');
+      return;
+    }
+
     map.set(payload.id, pty);
     this.logger.info?.(`terminal.create spawned (id=${payload.id}, pid=${pty.pid ?? '?'}) in ${cwd}`);
 
