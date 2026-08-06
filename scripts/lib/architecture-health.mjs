@@ -360,6 +360,117 @@ export function stronglyConnectedComponents(nodes, adjacency) {
   return components.sort((a, b) => a.join('|').localeCompare(b.join('|')));
 }
 
+/**
+ * Runtime symbols a file exports.
+ *
+ * Types are excluded on purpose: an unused type costs nothing at runtime, and
+ * including them buried the signal this check exists for — code that ships,
+ * carries coverage, and never runs.
+ *
+ * Re-exports (`export { x } from './y.js'`) are NOT collected here. A barrel
+ * forwarding a name is not the name's definition, and counting it as one would
+ * report the same symbol from every layer that passes it along.
+ *
+ * Known blind spot: methods on an exported object are not module exports, so
+ * `viz-store`'s `decayActivity`/`prunesStale` — the audit's own headline case,
+ * zustand store actions with tests and no caller — do not appear. Reaching them
+ * needs member-level analysis, which is a different tool. The four other cases
+ * from that list (`tui/input-validation`, `settings-panel-reducers`,
+ * `cli/config-history`, `subcommands/handlers/config-history`) are all caught.
+ */
+const EXPORT_DECLARATION =
+  /\bexport\s+(?:declare\s+)?(?:async\s+)?(?:abstract\s+)?(?:function\s*\*?|const|let|var|class|enum)\s+([A-Za-z_$][\w$]*)/g;
+const EXPORT_LIST = /\bexport\s*\{([^}]*)\}(\s*from\s*['"][^'"]+['"])?/g;
+const IDENTIFIER = /[A-Za-z_$][\w$]*/g;
+
+export function collectRuntimeExports(sourceText) {
+  const text = stripSourceComments(sourceText);
+  const names = new Set();
+  for (const match of text.matchAll(EXPORT_DECLARATION)) {
+    if (match[1]) names.add(match[1]);
+  }
+  for (const match of text.matchAll(EXPORT_LIST)) {
+    if (match[2]) continue; // `export { … } from` — a re-export, not a definition
+    for (const part of (match[1] ?? '').split(',')) {
+      const segment = part.trim();
+      if (!segment || /^type\s/.test(segment)) continue;
+      const aliased = /\bas\s+([A-Za-z_$][\w$]*)\s*$/.exec(segment);
+      const name = aliased ? aliased[1] : segment;
+      if (/^[A-Za-z_$][\w$]*$/.test(name)) names.add(name);
+    }
+  }
+  return names;
+}
+
+/** Distinct identifiers appearing anywhere in a file. */
+export function collectIdentifiers(sourceText) {
+  return new Set(stripSourceComments(sourceText).match(IDENTIFIER) ?? []);
+}
+
+/**
+ * Exports that only tests ever mention.
+ *
+ * Matching is by NAME, across every file in the workspace, rather than by
+ * resolved module graph. That is deliberate: the graph this script builds
+ * covers relative imports only, so a symbol consumed cross-package through a
+ * barrel (`import { capSubject } from '@wrongstack/core/utils'`) would look
+ * unreachable. Name matching cannot miss that consumer. It can only err the
+ * other way — a name that collides with an unrelated symbol elsewhere reads as
+ * "used" and is silently dropped from the report. For a gate, under-reporting
+ * is the safe direction.
+ *
+ * Occurrences inside the defining file itself do not count. A symbol exported
+ * for a test, used nowhere else, is what this looks for.
+ */
+export function findTestOnlyExports({ exportsByFile, sourceIdentifiers, testIdentifiers }) {
+  const found = [];
+  for (const [file, names] of exportsByFile) {
+    for (const name of names) {
+      const usage = sourceIdentifiers.get(name);
+      // Seen in ≥2 source files, or in exactly one that is not the definer.
+      if (usage && (usage.files > 1 || usage.firstFile !== file)) continue;
+      if (!testIdentifiers.has(name)) continue;
+      found.push({ file, name });
+    }
+  }
+  found.sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
+  return found;
+}
+
+/**
+ * Ratchet, not a cleanup order. The workspace carries hundreds of these — many
+ * are `*Coverage` handles minted by the coverage initiative — so failing on the
+ * whole set would just be turned off. The baseline freezes today's list; the
+ * check fires when a NEW export lands that only a test consumes, which is the
+ * moment it is cheapest to ask whether the code is wired at all.
+ */
+export function validateTestOnlyExportBaseline(current, baseline) {
+  const errors = [];
+  const expected = new Map(
+    Object.entries(baseline.files ?? {}).map(([file, names]) => [file, new Set(names)]),
+  );
+  const seen = new Map();
+  for (const item of current) {
+    if (!seen.has(item.file)) seen.set(item.file, new Set());
+    seen.get(item.file).add(item.name);
+    if (!expected.get(item.file)?.has(item.name)) {
+      errors.push(
+        `${item.file}: "${item.name}" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json`,
+      );
+    }
+  }
+  for (const [file, names] of expected) {
+    for (const name of names) {
+      if (!seen.get(file)?.has(name)) {
+        errors.push(
+          `${file}: "${name}" is no longer test-only; remove it from architecture/test-only-exports.json in the same change`,
+        );
+      }
+    }
+  }
+  return { errors };
+}
+
 export function validateHotspotBaseline(sourceMetrics, baseline) {
   const errors = [];
   const current = new Map(sourceMetrics.map((item) => [item.file, item]));
@@ -562,6 +673,7 @@ export async function buildArchitectureHealth({
   registry,
   exceptions,
   hotspots,
+  testOnlyExports = { schemaVersion: 1, files: {} },
   now = new Date(),
 }) {
   const sourceExtensions = new Set(registry.sourceExtensions);
@@ -627,9 +739,20 @@ export async function buildArchitectureHealth({
   const selfImports = [];
   const unresolvedRelativeImports = [];
   const sourceMetrics = [];
+  // Inputs for the test-only-export check, gathered in the pass that already
+  // reads every source file rather than in a second walk.
+  const exportsByFile = new Map();
+  const sourceIdentifiers = new Map();
   for (const file of allSourceFiles) {
     const sourceText = await readFile(file, 'utf8');
     const relativeFile = repoRelative(repoRoot, file);
+    const runtimeExports = collectRuntimeExports(sourceText);
+    if (runtimeExports.size > 0) exportsByFile.set(relativeFile, runtimeExports);
+    for (const identifier of collectIdentifiers(sourceText)) {
+      const entry = sourceIdentifiers.get(identifier);
+      if (entry) entry.files += 1;
+      else sourceIdentifiers.set(identifier, { files: 1, firstFile: relativeFile });
+    }
     const specifiers = collectModuleSpecifiers(sourceText, file);
     sourceMetrics.push({
       file: relativeFile,
@@ -714,6 +837,19 @@ export async function buildArchitectureHealth({
   );
   const hotspotResult = validateHotspotBaseline(sourceMetrics, hotspots);
 
+  const testIdentifiers = new Set();
+  for (const file of allTestFiles) {
+    for (const identifier of collectIdentifiers(await readFile(file, 'utf8'))) {
+      testIdentifiers.add(identifier);
+    }
+  }
+  const testOnlyExportList = findTestOnlyExports({
+    exportsByFile,
+    sourceIdentifiers,
+    testIdentifiers,
+  });
+  const testOnlyExportResult = validateTestOnlyExportBaseline(testOnlyExportList, testOnlyExports);
+
   sourceMetrics.sort((a, b) => b.lines - a.lines || a.file.localeCompare(b.file));
   const errors = [];
   if (packageCycles.length > 0) errors.push(`${packageCycles.length} workspace package cycle(s)`);
@@ -734,6 +870,7 @@ export async function buildArchitectureHealth({
     errors.push(`${exceptionResult.unexcepted.length} unexcepted module cycle(s)`);
   errors.push(...exceptionResult.errors);
   errors.push(...hotspotResult.errors);
+  errors.push(...testOnlyExportResult.errors);
 
   return {
     schemaVersion: 1,
@@ -754,6 +891,7 @@ export async function buildArchitectureHealth({
       typeModuleCycles: typeCycles.length,
       testsWithoutTypecheck: testsWithoutTypecheck.length,
       testsWithMultipleTypechecks: testsWithMultipleTypechecks.length,
+      testOnlyExports: testOnlyExportList.length,
     },
     errors,
     packageCycles,
@@ -797,6 +935,7 @@ export async function buildArchitectureHealth({
     nonCommandSlashImports,
     hotspotCandidates: hotspotResult.candidates,
     hotspots: sourceMetrics.slice(0, 50),
+    testOnlyExports: testOnlyExportList,
   };
 }
 
@@ -857,6 +996,12 @@ export function renderArchitectureHealthMarkdown(report) {
 
   lines.push('## Largest production files', '', '| Lines | File |', '|---:|---|');
   for (const hotspot of report.hotspots) lines.push(`| ${hotspot.lines} | \`${hotspot.file}\` |`);
+  lines.push('', '## Exports only tests reference', '');
+  lines.push(
+    `- ${report.summary.testOnlyExports} runtime exports are referenced by tests and by no other production file.`,
+    '- Green coverage on one of these proves the function works, not that anything calls it.',
+    '- The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.',
+  );
   lines.push('', '## TypeScript test coverage debt', '');
   lines.push(
     `- ${report.testOwnership.withoutTypecheck.length} test files are not included in a package TypeScript test project.`,
@@ -896,5 +1041,12 @@ export async function loadArchitectureInputs(repoRoot) {
   const registry = await readJson(path.join(repoRoot, 'architecture/registry.json'));
   const exceptions = await readJson(path.join(repoRoot, 'architecture/exceptions.json'));
   const hotspots = await readJson(path.join(repoRoot, 'architecture/hotspots.json'));
-  return { registry, exceptions, hotspots };
+  const testOnlyExportsPath = path.join(repoRoot, 'architecture/test-only-exports.json');
+  // Absent on a first run (and in any checkout predating the baseline): treat
+  // that as "nothing recorded yet" so `--write-hotspot-baseline` can create it,
+  // rather than failing the whole report on a missing file.
+  const testOnlyExports = (await pathExists(testOnlyExportsPath))
+    ? await readJson(testOnlyExportsPath)
+    : { schemaVersion: 1, files: {} };
+  return { registry, exceptions, hotspots, testOnlyExports };
 }

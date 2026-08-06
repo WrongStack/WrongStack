@@ -25,8 +25,15 @@ for (const arg of args) {
 }
 
 const repoRoot = process.cwd();
-const { registry, exceptions, hotspots } = await loadArchitectureInputs(repoRoot);
-const report = await buildArchitectureHealth({ repoRoot, registry, exceptions, hotspots });
+const { registry, exceptions, hotspots, testOnlyExports } =
+  await loadArchitectureInputs(repoRoot);
+const report = await buildArchitectureHealth({
+  repoRoot,
+  registry,
+  exceptions,
+  hotspots,
+  testOnlyExports,
+});
 
 const hotspotBaseline = {
   schemaVersion: 1,
@@ -39,10 +46,27 @@ const hotspotBaseline = {
   ),
 };
 
+/**
+ * Both ratchets refresh together. `check:architecture:sync` is the one command
+ * that re-baselines, and a flag that silently refreshed only half of them would
+ * leave the other half failing with no obvious way to accept the new state.
+ */
+const testOnlyExportFiles = {};
+for (const item of report.testOnlyExports) {
+  if (!testOnlyExportFiles[item.file]) testOnlyExportFiles[item.file] = [];
+  testOnlyExportFiles[item.file].push(item.name);
+}
+const testOnlyExportBaseline = { schemaVersion: 1, files: testOnlyExportFiles };
+
 if (args.has('--write-hotspot-baseline')) {
   await writeFile(
     path.join(repoRoot, 'architecture/hotspots.json'),
     `${JSON.stringify(hotspotBaseline, null, 2)}\n`,
+    'utf8',
+  );
+  await writeFile(
+    path.join(repoRoot, 'architecture/test-only-exports.json'),
+    `${JSON.stringify(testOnlyExportBaseline, null, 2)}\n`,
     'utf8',
   );
 }

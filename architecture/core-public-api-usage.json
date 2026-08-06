@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 244,
+      "files": 246,
       "typeOnly": 197,
-      "runtimeOrMixed": 68
+      "runtimeOrMixed": 70
     },
     "@wrongstack/core/agent-catalog": {
       "files": 8,
@@ -106,7 +106,7 @@
     "@wrongstack/core/plugin": {
       "files": 21,
       "typeOnly": 14,
-      "runtimeOrMixed": 17
+      "runtimeOrMixed": 18
     },
     "@wrongstack/core/registry": {
       "files": 96,
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 119,
-      "typeOnly": 20,
-      "runtimeOrMixed": 102
+      "files": 122,
+      "typeOnly": 22,
+      "runtimeOrMixed": 103
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -144,8 +144,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 852,
-      "typeOnly": 810,
+      "files": 854,
+      "typeOnly": 811,
       "runtimeOrMixed": 215
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 472,
+      "files": 474,
       "typeOnly": 51,
-      "runtimeOrMixed": 477
+      "runtimeOrMixed": 479
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -1078,6 +1078,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/next-steps-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/read.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 4
@@ -1207,6 +1213,12 @@
       "file": "packages/tools/tests/lint.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/next-steps-tool.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -5748,7 +5760,7 @@
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/plugins.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 7
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -6946,6 +6958,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/tools/tests/mutating-tools-readonly-parity.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/tools/tests/permission-mutating-invariant.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6979,6 +6997,12 @@
       "file": "packages/webui-server/src/server/config-doctor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/connections-health-route.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -7085,6 +7109,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/tests/codebase-index-server-control.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/tests/connections-health-route.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9149,7 +9179,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/plugins.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -11764,6 +11794,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/next-steps-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/outdated.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11927,6 +11963,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/tests/mutating-tool-subjects.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/tests/mutating-tools-readonly-parity.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15449,6 +15491,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/tests/project-index-server-endpoint.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/tests/regex-guard-parity.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/app-key-handler.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
