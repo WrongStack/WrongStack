@@ -295,6 +295,23 @@ describe('TUI settings adapter', () => {
     expect(settings['showAgentSwarmPanel']).toBe('off');
   });
 
+  it(
+    'nextStepsTool-only saves update disk and the live config store',
+    { timeout: 5000 },
+    async () => {
+      const { adapter, configStore, globalConfig } = makeAdapter();
+
+      const err = await adapter.saveSettings({ nextStepsTool: true });
+
+      expect(err).toBeNull();
+      expect(JSON.parse(readFileSync(globalConfig, 'utf8')).tools.nextsteps).toEqual({
+        enabled: true,
+      });
+      expect(configStore.get().tools?.nextsteps).toEqual({ enabled: true });
+      expect(adapter.getSettings().nextStepsTool).toBe(true);
+    },
+  );
+
   it('restrictFsToRoot=true alone keeps both fs-access keys consistent', async () => {
     // Regression: the previous implementation wrote `tools.restrictToProjectRoot`
     // and `features.allowOutsideProjectRoot` from three separate sites and

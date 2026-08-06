@@ -82,6 +82,11 @@ export interface LiveSettingsInput {
    * file content. Persisted as `autonomy.readAdvancedMode`.
    */
   readSymbols?: boolean | undefined;
+  /**
+   * Register the leader's agent-callable `nextsteps` tool. Persisted to
+   * `tools.nextsteps.enabled`; read at boot, so it applies next session.
+   */
+  nextStepsTool?: boolean | undefined;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
   sageMemoryInjectThreshold?: number | undefined;
 }

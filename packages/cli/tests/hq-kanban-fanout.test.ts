@@ -1,9 +1,15 @@
 /**
  * C2 — Kanban snapshot fanout test.
  *
- * Verifies the post-merge `hq.kanban_snapshot` envelope is broadcast to:
- *  - every client whose `projectId` matches, and
- *  - every browser in the `browsers` set.
+ * Verifies the post-merge `hq.kanban_snapshot` envelope is broadcast to every
+ * client whose `projectId` matches — and to nobody else.
+ *
+ * This file used to assert "notifies every browser regardless of project
+ * scope", which was true of the code and useless in practice: no browser
+ * consumer for `hq.kanban_snapshot` has ever existed, so the assertion pinned
+ * bandwidth the SPA parsed and threw away, while reading like proof that
+ * browsers were served. See `hq-browser-protocol-parity.test.ts` for the guard
+ * that now catches the whole class.
  *
  * The fanout is implemented by `fanoutKanbanDelta` in `hq-server/ws.ts`.
  * Extracted as a pure function so this test can drive the contract
@@ -109,7 +115,7 @@ describe('C2 — Kanban snapshot fanout', () => {
     expect(other.ws.send).not.toHaveBeenCalled();
   });
 
-  it('notifies every browser regardless of project scope', () => {
+  it('does not send the delta to browsers, which have no handler for it', () => {
     const browser1 = makeFakeWs();
     const browser2 = makeFakeWs();
     const browsers = new Set<WebSocket>([browser1.ws, browser2.ws]);
@@ -118,12 +124,12 @@ describe('C2 — Kanban snapshot fanout', () => {
     const result = fanoutKanbanDelta(MESSAGE, clients, browsers, 'p1');
 
     expect(result.clientsNotified).toBe(0);
-    expect(result.browsersNotified).toBe(2);
-    expect(browser1.ws.send).toHaveBeenCalledWith(MESSAGE);
-    expect(browser2.ws.send).toHaveBeenCalledWith(MESSAGE);
+    expect(result.browsersNotified).toBe(0);
+    expect(browser1.ws.send).not.toHaveBeenCalled();
+    expect(browser2.ws.send).not.toHaveBeenCalled();
   });
 
-  it('notifies both clients and browsers in the same call', () => {
+  it('serves the matching client while leaving a connected browser untouched', () => {
     const c = makeClient('p1');
     const browser = makeFakeWs();
     const clients = new Map<WebSocket, ConnectedClient>([[c.ws, c.client]]);
@@ -132,9 +138,9 @@ describe('C2 — Kanban snapshot fanout', () => {
     const result = fanoutKanbanDelta(MESSAGE, clients, browsers, 'p1');
 
     expect(result.clientsNotified).toBe(1);
-    expect(result.browsersNotified).toBe(1);
+    expect(result.browsersNotified).toBe(0);
     expect(c.ws.send).toHaveBeenCalledWith(MESSAGE);
-    expect(browser.ws.send).toHaveBeenCalledWith(MESSAGE);
+    expect(browser.ws.send).not.toHaveBeenCalled();
   });
 
   it('returns zero counts when both maps are empty', () => {

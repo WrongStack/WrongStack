@@ -1,3 +1,4 @@
+import { restoreFlags } from '../flags.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { DefaultSessionReader } from '@wrongstack/core/storage';
@@ -5,6 +6,17 @@ import { expectDefined } from '@wrongstack/core/utils';
 import type { SubcommandHandler } from '../index.js';
 import { toErrorMessage } from '@wrongstack/core/utils';
 export const exportCmd: SubcommandHandler = async (args, deps) => {
+  // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
+  // Without them `export s1 --format json --out r.json` dumped markdown to
+  // stdout, wrote no file, and reported success.
+  args = restoreFlags(args, deps, [
+    'format',
+    'f',
+    'out',
+    'o',
+    'no-tools',
+    'no-diagnostics',
+  ]);
   if (!deps.sessionStore) {
     deps.renderer.writeError('No session store configured.');
     return 1;

@@ -54,12 +54,15 @@ import {
   resolveAuthToken,
   SddBoardWebSocketHandler,
   SddWizardWebSocketHandler,
+  sendSerialized,
   type SkillsContext,
   SpecsWebSocketHandler,
   TerminalWebSocketHandler,
   WorktreeWebSocketHandler,
 } from '@wrongstack/webui-server';
-import { WebSocket, WebSocketServer } from 'ws';
+// `WebSocket` is now type-only: the backpressure-aware `sendSerialized` owns
+// the runtime `readyState` check that used to live here.
+import { type WebSocket, WebSocketServer } from 'ws';
 import { createWebuiClientRegistration } from './webui-server/client-registration.js';
 import type {
   WSClientMessage as EmbeddedWSClientMessage,
@@ -1061,24 +1064,22 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     registerWebuiSignalHandlers(signalShutdown);
   });
 
+  // Both go through `sendSerialized` (imported from the package this file
+  // already depends on) rather than open-coding `readyState === OPEN &&
+  // ws.send(...)`. That open-coded form skipped the `bufferedAmount` cap, so a
+  // backgrounded or devtools-paused tab kept `readyState === OPEN` while `ws`
+  // buffered every `text.delta`, `tool.progress` and board update it could not
+  // flush — RSS grew unbounded for the life of the tab and nothing ever
+  // disconnected the offender. Every sibling handler in webui-server uses this
+  // helper, and HQ keeps its own copy for the same reason
+  // (hq-server/snapshot.ts:60).
   function send(ws: WebSocket, msg: WSServerMessage): void {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(msg));
-    }
+    sendSerialized(ws, JSON.stringify(msg));
   }
 
   function broadcast(msg: WSServerMessage): void {
     const data = JSON.stringify(msg);
-    for (const [ws] of clients) {
-      if (ws.readyState === WebSocket.OPEN) {
-        try {
-          ws.send(data);
-        } catch {
-          // Client disconnected between the readyState check and the send
-          // — let the 'close' handler remove it from the map naturally.
-        }
-      }
-    }
+    for (const [ws] of clients) sendSerialized(ws, data);
   }
 
   // ---- Config I/O helpers (delegated to webui-server/provider-config) ----

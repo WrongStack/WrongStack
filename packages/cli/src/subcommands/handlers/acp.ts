@@ -233,7 +233,15 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
         return;
       }
       transport.receive(msg as never);
-      void handler.handleMessage(msg);
+      // One rejecting frame (unknown method, bad `cwd`, EACCES on a store
+      // write) used to become an unhandled rejection and, under Node 22's
+      // `--unhandled-rejections=throw`, take down the whole ACP server —
+      // along with every OTHER editor session connected to it.
+      void handler.handleMessage(msg).catch((err: unknown) => {
+        deps.renderer.writeWarning(
+          `ACP: failed to handle message: ${err instanceof Error ? err.message : String(err)}\n`,
+        );
+      });
     });
     const teardown = (): void => {
       handler.close();
@@ -253,6 +261,17 @@ async function runACPWebSocketServer(deps: SubcommandDeps, port: number): Promis
   await new Promise<void>((resolve) => {
     const shutdown = (): void => {
       deps.renderer.writeWarning('\nShutting down ACP WebSocket server...');
+      // Destroy THEN close. `wss.close()` only stops accepting new
+      // connections; an editor still attached keeps its socket — and the
+      // event loop — alive, so Ctrl+C printed this message, returned 0, and
+      // the process hung until SIGKILL.
+      for (const client of wss.clients) {
+        try {
+          client.terminate();
+        } catch {
+          // Already gone.
+        }
+      }
       wss.close();
       resolve();
     };

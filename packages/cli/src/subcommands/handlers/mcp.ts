@@ -1,3 +1,4 @@
+import { restoreFlags } from '../flags.js';
 import { expectDefined } from '@wrongstack/core/utils';
 import {
   jsonObjectFileExists,
@@ -14,6 +15,9 @@ import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 const BUILT_IN_MCP = allServers();
 
 export const mcpCmd: SubcommandHandler = async (args, deps) => {
+  // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
+  // Without them `mcp add filesystem --enable` wrote `enabled: false`.
+  args = restoreFlags(args, deps, ['enable', 'e', 'transport', 'url', 'command']);
   const sub = args[0];
   if (sub === 'serve') {
     // Run WrongStack as an MCP server over stdio. Blocks until stdin closes.

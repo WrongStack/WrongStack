@@ -12,6 +12,7 @@ const pluginsRoot = path.resolve(testDir, '..', '..', 'plugins');
 const NON_PACKAGE_AUDIT_NAMES = new Set([
   'wstack-prompts',
   'wstack-sync',
+  'wstack-cloud-config-sync',
   'wstack-chimera',
   'wstack-auto-review',
   'wstack-skills',

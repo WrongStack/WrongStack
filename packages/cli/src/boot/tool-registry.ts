@@ -22,6 +22,7 @@ interface RegisterBuiltinToolsDeps {
           descriptionMode?: ToolDescriptionModeConfig | undefined;
           resultRenderMode?: ToolResultRenderModeConfig | undefined;
           disabledTools?: string[] | undefined;
+          nextsteps?: { enabled?: boolean | undefined } | undefined;
           exec?:
             | {
                 allow?: string[] | undefined;
@@ -48,6 +49,7 @@ export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
     tier,
     contextTool: createContextManagerTool({ compactor: deps.compactor as never }),
     memory: { enabled: deps.config.features.memory, store: deps.memoryStore },
+    nextSteps: { enabled: deps.config.tools?.nextsteps?.enabled === true },
     coordinationTools: [
       makeMailboxTool({ projectDir: deps.wpaths.projectDir, events: deps.events }),
       makeMailSendTool({ projectDir: deps.wpaths.projectDir, events: deps.events }),

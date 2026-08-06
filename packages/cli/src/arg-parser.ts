@@ -75,6 +75,23 @@ export const BOOLEAN_FLAGS = new Set([
   'all-models',
   'plan',
   'json',
+  // Destructive-preview switch (`wstack chronicle prune --dry-run`). It is
+  // boolean at every call site, and leaving it out let it consume the next
+  // positional — on a command whose whole purpose is to NOT delete.
+  'dry-run',
+  // Subcommand booleans. A boolean flag missing from this set makes `parseArgs`
+  // swallow the FOLLOWING positional as its value (`rewind --all sess123` lost
+  // the session id, `export --no-tools out.md` lost the output path), on top of
+  // the handler never seeing the flag at all.
+  'all',
+  'list',
+  'latest',
+  'disabled',
+  'enable',
+  'no-tools',
+  'no-diagnostics',
+  'unsupported',
+  'ws',
 ]);
 
 // ------------------------------------------------------------------ main args

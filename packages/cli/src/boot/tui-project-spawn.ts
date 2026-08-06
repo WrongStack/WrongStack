@@ -71,17 +71,27 @@ export async function handleProjectSwitchSpawn(
   // (we exit right after). A previous AbortSignal.timeout(30_000)
   // on this spawn killed the successor 30 seconds in whenever the
   // parent lingered.
-  // Use stdio: 'ignore' + detached: true so the child truly outlives
-  // the parent — stdio: 'inherit' would pipe the child's stdin to
-  // the parent's, and when the parent exits the pipes close, crashing
-  // a child that is still initializing (module load, provider connect).
-  spawn(nodeExe, spawnArgs, {
+  // Use stdio: 'ignore' + detached so the child truly outlives the parent —
+  // stdio: 'inherit' would pipe the child's stdin to the parent's, and when
+  // the parent exits the pipes close, crashing a child that is still
+  // initializing (module load, provider connect).
+  //
+  // `windowsHide` was missing here while every sibling long-lived spawn sets
+  // it (mailbox-serve.ts, mailbox-bridge-bootstrap.ts, the four daemon
+  // clients). See `core/tests/architecture/spawn-convention.test.ts` — the
+  // flag pair is the convention, and this was the one site outside it.
+  const child = spawn(nodeExe, spawnArgs, {
     cwd: root,
     stdio: 'ignore',
     detached: true,
-  }).on('error', (err: Error) => {
+    windowsHide: true,
+  });
+  child.on('error', (err: Error) => {
     console.error(color.red(`Failed to spawn wstack: ${err.message}`));
   });
+  // Drop the parent's handle: we exit immediately after printing, and an
+  // un-unref'd child handle keeps the event loop alive past that point.
+  child.unref();
 
   console.log(
     [

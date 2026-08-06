@@ -33,6 +33,14 @@ describe('parseArgs', () => {
     expect(r.flags.name).toBe('bar');
   });
 
+  it('preserves the session id consumed by the value-taking --resume flag', () => {
+    expect(BOOLEAN_FLAGS.has('resume')).toBe(false);
+    expect(parseArgs(['--resume', 'sess1'])).toEqual({
+      flags: { resume: 'sess1' },
+      positional: [],
+    });
+  });
+
   it('treats non-boolean flag at end of argv as true', () => {
     const r = parseArgs(['--label']);
     expect(r.flags.label).toBe(true);

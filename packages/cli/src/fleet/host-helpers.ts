@@ -101,6 +101,21 @@ export const DEFAULT_SUBAGENT_HIDDEN_TOOLS = new Set([
   'fleet_emit',
 ]);
 
+/**
+ * Tools a subagent can never receive — not even through an explicit
+ * `tools: [...]` allowlist.
+ *
+ * This is stricter than {@link DEFAULT_SUBAGENT_HIDDEN_TOOLS}, which only hides
+ * orchestration controls from the unrestricted default slice and still hands
+ * them over when a spawn asks for them by name. `nextsteps` records the
+ * leader's after-task suggestions: the runtime folds a recorded block into a
+ * LEADER turn only (`next-steps-slot.ts`), and `WIDE_SUBAGENT_CAPABILITIES`
+ * does not carry `session.nextsteps`. Granting it would produce either a
+ * permission rejection or a silent no-op, so asking for it by name is a
+ * mistake to correct rather than an intent to honor.
+ */
+export const NEVER_SUBAGENT_TOOLS = new Set(['nextsteps']);
+
 export function selectSubagentTools(
   allTools: readonly Tool[],
   directorToolsByName: ReadonlyMap<string, Tool>,
@@ -109,7 +124,10 @@ export function selectSubagentTools(
   if (!allow || allow.length === 0) {
     const visible = new Map(
       allTools
-        .filter((tool) => !DEFAULT_SUBAGENT_HIDDEN_TOOLS.has(tool.name))
+        .filter(
+          (tool) =>
+            !DEFAULT_SUBAGENT_HIDDEN_TOOLS.has(tool.name) && !NEVER_SUBAGENT_TOOLS.has(tool.name),
+        )
         .map((tool) => [tool.name, tool] as const),
     );
     visible.set('submit_result', makeSubagentResultTool());
@@ -118,9 +136,10 @@ export function selectSubagentTools(
   const allowSet = new Set(allow);
   const result = new Map<string, Tool>();
   for (const tool of allTools) {
-    if (allowSet.has(tool.name)) result.set(tool.name, tool);
+    if (allowSet.has(tool.name) && !NEVER_SUBAGENT_TOOLS.has(tool.name)) result.set(tool.name, tool);
   }
   for (const name of allowSet) {
+    if (NEVER_SUBAGENT_TOOLS.has(name)) continue;
     const directorTool = directorToolsByName.get(name);
     if (directorTool && !result.has(name)) result.set(name, directorTool);
   }

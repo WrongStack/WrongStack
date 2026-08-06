@@ -1,3 +1,4 @@
+import { restoreFlags } from '../flags.js';
 import { color, resolveWstackPaths } from '@wrongstack/core/utils';
 import { ReplayLogStore } from '@wrongstack/core/storage';
 import type { SubcommandHandler } from '../index.js';
@@ -12,6 +13,7 @@ import type { SubcommandHandler } from '../index.js';
  * expecting it to exist.
  */
 export const replayCmd: SubcommandHandler = async (args, deps) => {
+  args = restoreFlags(args, deps, ['list', 'l']);
   const wpaths = resolveWstackPaths({
     projectRoot: deps.projectRoot,
     userHome: deps.userHome,

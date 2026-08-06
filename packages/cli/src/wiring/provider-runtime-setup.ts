@@ -255,11 +255,53 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     // Active profile name from the merged config (bootstrap + layers).
     const activeProfile =
       typeof cfg.activeProfile === 'string' && cfg.activeProfile ? cfg.activeProfile : 'default';
-    const configLayers: { path: string; priority: number }[] = [
-      { path: wpaths.profileConfig(activeProfile), priority: 1 },
-      { path: wpaths.projectLocalConfig, priority: 2 },
-      { path: wpaths.inProjectConfig, priority: 3 },
+    // `trusted: false` marks a layer the user does not own. `inProjectConfig`
+    // (<project>/.wrongstack/config.json) is repo-committed, so cloning a
+    // repository is enough to author it — exactly the boundary
+    // `ConfigLoader` draws by running that one file (and only that one)
+    // through `stripUnsafeInProjectFields` at boot (config-loader.ts:193).
+    // This watcher re-reads the same layers on every config write, so without
+    // the same filter the boot-time strip is undone by the first routine save.
+    const configLayers: { path: string; priority: number; trusted: boolean }[] = [
+      { path: wpaths.profileConfig(activeProfile), priority: 1, trusted: true },
+      { path: wpaths.projectLocalConfig, priority: 2, trusted: true },
+      { path: wpaths.inProjectConfig, priority: 3, trusted: false },
     ];
+
+    /**
+     * Drop the credential-bearing slice of a snapshot read from an untrusted
+     * layer, keeping the routing fields that layer is allowed to set.
+     *
+     * `providers`, `apiKey` and `baseUrl` are precisely the three snapshot
+     * fields that appear in `KNOWN_DENIED_IN_PROJECT` ("Redirects provider
+     * endpoint; leaks real API key."); every other field on
+     * `ProviderConfigSnapshot` — uiLocale, fallback*, favoriteModels,
+     * modelMatrix, modelAvailabilitySchedule — is in
+     * `IN_PROJECT_ALLOWED_KEYS`, so a repo may still express those.
+     *
+     * `snapshotHasProviders` is cleared with them: it exists to tell the merge
+     * "a layer really did define providers", and an untrusted layer's claim to
+     * that must not survive either. The merge carries the flag forward from
+     * lower-priority trusted layers.
+     */
+    const sanitizeUntrustedSnapshot = (
+      snap: ProviderConfigSnapshot,
+      path: string,
+    ): ProviderConfigSnapshot => {
+      const { providers, apiKey, baseUrl, ...rest } = snap;
+      const dropped = [
+        ...(Object.keys(providers ?? {}).length > 0 ? ['providers'] : []),
+        ...(apiKey !== undefined ? ['apiKey'] : []),
+        ...(baseUrl !== undefined ? ['baseUrl'] : []),
+      ];
+      if (dropped.length > 0) {
+        logger.warn(
+          `Config watcher: ignored credential field(s) from the repo-committed config ` +
+            `"${path}": ${dropped.join(', ')}. Only your profile config may set these.`,
+        );
+      }
+      return { ...rest, providers: {}, snapshotHasProviders: false };
+    };
 
     /**
      * Re-read ALL config layers and merge their credential/routing fields
@@ -271,10 +313,11 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       let merged: ProviderConfigSnapshot | undefined;
       // Read layers in priority order so each higher layer overrides the last.
       for (const layer of configLayers.sort((a, b) => a.priority - b.priority)) {
-        const snap = await readProviderSnapshot(layer.path, vault, (msg: string) =>
+        const raw = await readProviderSnapshot(layer.path, vault, (msg: string) =>
           logger.warn(`Config watcher (${layer.path}): ${msg}`),
         );
-        if (!snap) continue;
+        if (!raw) continue;
+        const snap = layer.trusted ? raw : sanitizeUntrustedSnapshot(raw, layer.path);
         if (!merged) {
           // Deep-clone the first layer's providers to avoid future mutation.
           merged = {

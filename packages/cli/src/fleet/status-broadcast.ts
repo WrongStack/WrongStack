@@ -23,8 +23,8 @@
  * @module fleet/status-broadcast
  */
 
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { Mailbox } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { FleetConfig } from '@wrongstack/core/types';
 
 export interface FleetStatusBroadcasterOptions {
@@ -42,6 +42,13 @@ export interface FleetStatusBroadcasterOptions {
 const DEFAULT_MIN_INTERVAL_MS = 15_000;
 const DEFAULT_GLOBAL_PER_MINUTE = 20;
 const BODY_MAX = 200;
+
+function isSilentInfrastructureAgent(name: string): boolean {
+  // Chimera has its own durable report mail plus chimera.report_available.
+  // Re-broadcasting its ephemeral reviewer lifecycle only adds duplicate
+  // "joined the fleet" / "task success" noise to every project session.
+  return name.trim().toLowerCase() === 'chimera-review';
+}
 
 interface PendingBroadcast {
   subject: string;
@@ -72,11 +79,15 @@ export function createFleetStatusBroadcaster(opts: FleetStatusBroadcasterOptions
 
   // ── throttling state ────────────────────────────────────────────────
   const lastSentAt = new Map<string, number>(); // subagentId → ts
-  const coalesced = new Map<string, { pending: PendingBroadcast; timer: ReturnType<typeof setTimeout> }>();
+  const coalesced = new Map<
+    string,
+    { pending: PendingBroadcast; timer: ReturnType<typeof setTimeout> }
+  >();
   const sentTimestamps: number[] = []; // sliding 60s window
   let droppedSinceLastSend = 0;
   const announcedSpawn = new Set<string>();
   const announcedBudget = new Set<string>(); // `${subagentId}|${kind}`
+  const silentInfrastructureAgents = new Set<string>();
   const disposers: Array<() => void> = [];
   let stopped = false;
 
@@ -161,9 +172,14 @@ export function createFleetStatusBroadcaster(opts: FleetStatusBroadcasterOptions
         opts.events.on('subagent.spawned', (e) => {
           if (announcedSpawn.has(e.subagentId)) return;
           announcedSpawn.add(e.subagentId);
+          const name = e.name ?? nameOf(e.subagentId);
+          if (isSilentInfrastructureAgent(name)) {
+            silentInfrastructureAgents.add(e.subagentId);
+            return;
+          }
           broadcast(e.subagentId, {
-            subject: `[${e.name ?? nameOf(e.subagentId)}] joined the fleet`,
-            body: `${e.name ?? nameOf(e.subagentId)} spawned${e.model ? ` on ${e.model}` : ''}${
+            subject: `[${name}] joined the fleet`,
+            body: `${name} spawned${e.model ? ` on ${e.model}` : ''}${
               e.description ? ` — ${e.description.slice(0, 80)}` : ''
             }`,
             priority: 'low',
@@ -181,6 +197,9 @@ export function createFleetStatusBroadcaster(opts: FleetStatusBroadcasterOptions
         opts.events.on('subagent.task_completed', (e) => {
           heartbeat({ agentId: e.subagentId, status: 'idle' });
           const name = nameOf(e.subagentId);
+          if (silentInfrastructureAgents.has(e.subagentId) || isSilentInfrastructureAgent(name)) {
+            return;
+          }
           const ok = e.status === 'success';
           const secs = Math.round(e.durationMs / 1000);
           broadcast(e.subagentId, {
@@ -193,6 +212,12 @@ export function createFleetStatusBroadcaster(opts: FleetStatusBroadcasterOptions
         }),
         opts.events.on('subagent.budget_warning', (e) => {
           if (!broadcastBudgetWarnings) return;
+          if (
+            silentInfrastructureAgents.has(e.subagentId) ||
+            isSilentInfrastructureAgent(nameOf(e.subagentId))
+          ) {
+            return;
+          }
           const key = `${e.subagentId}|${e.kind}`;
           if (announcedBudget.has(key)) return;
           announcedBudget.add(key);
@@ -222,6 +247,7 @@ export function createFleetStatusBroadcaster(opts: FleetStatusBroadcasterOptions
               /* best-effort — a broken mailbox must never affect the fleet */
             });
           announcedSpawn.delete(e.subagentId);
+          silentInfrastructureAgents.delete(e.subagentId);
           lastSentAt.delete(e.subagentId);
           for (const key of announcedBudget) {
             if (key.startsWith(`${e.subagentId}|`)) announcedBudget.delete(key);

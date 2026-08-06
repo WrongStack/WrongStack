@@ -479,3 +479,62 @@ describe('audit report agrees with the loader about extensions-enabled plugins',
     expect(row).toContain('config');
   });
 });
+
+/**
+ * `toggle` decides "is it on right now?" and then writes the opposite. That
+ * question has one answer — `resolvePluginEnablement` — and getting there took
+ * two corrections worth pinning:
+ *
+ *  1. The inline form it replaced consulted `config.plugins` alone, so with
+ *     `extensions.<name>.enabled: false` and no `plugins[]` entry, `toggle`
+ *     computed "enabled", wrote `{enabled: false}` and printed "Disabled" —
+ *     the user who meant to ENABLE it had to toggle twice.
+ *  2. Routing it through the resolver against `deps.config` then broke the
+ *     ordinary case: `toggle` reads, mutates and writes the config FILE, and
+ *     the in-memory snapshot the CLI passes does not carry `plugins` at all,
+ *     so every toggle read a stale "on" and wrote a disable override.
+ *
+ * The resolver is asked about the file, with the in-memory config supplying
+ * only the layers the file omits.
+ */
+describe('toggle resolves enablement from the file it is about to rewrite', () => {
+  it('honours extensions.<name>.enabled when the file has no plugins entry', async () => {
+    await fs.writeFile(configPath, JSON.stringify({ features: { plugins: true } }));
+
+    // Extensions layer says OFF; there is no `plugins[]` entry to contradict
+    // it. Toggling must therefore turn it ON.
+    const result = await runPluginManagementCommand(['toggle', 'cost-tracker'], {
+      config: config({
+        extensions: { 'cost-tracker': { enabled: false } },
+      } as Partial<Config>),
+      configPath,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.message).toContain('Enabled');
+    // cost-tracker is default-active, so "on" is expressed by the ABSENCE of a
+    // disable override, not by an entry.
+    expect(result.patch?.plugins).toEqual([]);
+  });
+
+  it('reads the file, not the in-memory snapshot, when the two disagree', async () => {
+    // File: explicitly disabled. Snapshot: silent (as the CLI's own callers
+    // pass it). The file wins, so toggling turns it ON.
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({
+        features: { plugins: true },
+        plugins: [{ name: 'cost-tracker', enabled: false }],
+      }),
+    );
+
+    const result = await runPluginManagementCommand(['toggle', 'cost-tracker'], {
+      config: config(),
+      configPath,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.message).toContain('Enabled');
+    expect(result.patch?.plugins).toEqual([]);
+  });
+});

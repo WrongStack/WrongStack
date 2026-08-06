@@ -6,8 +6,9 @@
  * with drop accounting, spawn/budget one-shots, heartbeat enrichment on
  * task start/stop, and stop() teardown.
  */
-import { EventBus } from '@wrongstack/core/kernel';
+
 import type { Mailbox } from '@wrongstack/core/coordination';
+import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFleetStatusBroadcaster } from '../src/fleet/status-broadcast.js';
 
@@ -65,12 +66,18 @@ describe('createFleetStatusBroadcaster', () => {
     vi.useRealTimers();
   });
 
-  function build(config?: { enabled?: boolean; minIntervalMsPerAgent?: number; globalPerMinuteCap?: number; budgetWarnings?: boolean }) {
+  function build(config?: {
+    enabled?: boolean;
+    minIntervalMsPerAgent?: number;
+    globalPerMinuteCap?: number;
+    budgetWarnings?: boolean;
+  }) {
     broadcaster = createFleetStatusBroadcaster({
       events,
       mailboxFactory: () => fake.mailbox,
       sessionTag: () => 'abcd1234',
-      subagentName: (id) => (id === 'sub-1' ? 'Einstein' : undefined),
+      subagentName: (id) =>
+        id === 'sub-1' ? 'Einstein' : id === 'chimera-1' ? 'chimera-review' : undefined,
       config,
     });
     broadcaster.start();
@@ -85,7 +92,9 @@ describe('createFleetStatusBroadcaster', () => {
     expect(fake.sent[0]).toMatchObject({ to: '*', type: 'status', priority: 'low' });
     expect(fake.sent[0]?.subject).toBe('[Einstein] task success');
     expect(fake.sent[0]?.body).toContain('3 iter, 10 tools, 42s');
-    expect((fake.mailbox.send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]?.from).toBe('fleet@abcd1234');
+    expect((fake.mailbox.send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]?.from).toBe(
+      'fleet@abcd1234',
+    );
   });
 
   it('failure completions carry the error kind at normal priority', async () => {
@@ -107,7 +116,13 @@ describe('createFleetStatusBroadcaster', () => {
     events.emit('subagent.task_completed', completedEvent('sub-1'));
     await vi.advanceTimersByTimeAsync(1_000);
     // Two more completions inside the window → coalesce to the newest.
-    events.emit('subagent.task_completed', completedEvent('sub-1', { status: 'failed', error: { kind: 'timeout', message: 't', retryable: true } }));
+    events.emit(
+      'subagent.task_completed',
+      completedEvent('sub-1', {
+        status: 'failed',
+        error: { kind: 'timeout', message: 't', retryable: true },
+      }),
+    );
     events.emit('subagent.task_completed', completedEvent('sub-1', { status: 'stopped' }));
     expect(fake.sent).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(15_000);
@@ -132,31 +147,90 @@ describe('createFleetStatusBroadcaster', () => {
 
   it('keeps recoverable budget warnings out of peer mailboxes by default', async () => {
     build({ minIntervalMsPerAgent: 0 });
-    events.emit('subagent.budget_warning', { subagentId: 'sub-1', kind: 'timeout', used: 850, limit: 1000 });
+    events.emit('subagent.budget_warning', {
+      subagentId: 'sub-1',
+      kind: 'timeout',
+      used: 850,
+      limit: 1000,
+    });
     await vi.runAllTimersAsync();
     expect(fake.sent).toHaveLength(0);
   });
 
   it('announces spawn and opted-in budget pressure once each', async () => {
     build({ minIntervalMsPerAgent: 0, budgetWarnings: true });
-    events.emit('subagent.spawned', { subagentId: 'sub-1', taskId: 't1', name: 'Einstein', model: 'gpt-x' });
+    events.emit('subagent.spawned', {
+      subagentId: 'sub-1',
+      taskId: 't1',
+      name: 'Einstein',
+      model: 'gpt-x',
+    });
     events.emit('subagent.spawned', { subagentId: 'sub-1', taskId: 't2', name: 'Einstein' });
-    events.emit('subagent.budget_warning', { subagentId: 'sub-1', kind: 'iterations', used: 10, limit: 10 });
-    events.emit('subagent.budget_warning', { subagentId: 'sub-1', kind: 'iterations', used: 12, limit: 12 });
+    events.emit('subagent.budget_warning', {
+      subagentId: 'sub-1',
+      kind: 'iterations',
+      used: 10,
+      limit: 10,
+    });
+    events.emit('subagent.budget_warning', {
+      subagentId: 'sub-1',
+      kind: 'iterations',
+      used: 12,
+      limit: 12,
+    });
     await vi.runAllTimersAsync();
     const subjects = fake.sent.map((m) => m.subject);
     expect(subjects.filter((s) => s.includes('joined the fleet'))).toHaveLength(1);
     expect(subjects.filter((s) => s.includes('budget pressure'))).toHaveLength(1);
-    expect(fake.sent.find((m) => m.subject.includes('budget pressure'))?.body).toContain('extension threshold');
+    expect(fake.sent.find((m) => m.subject.includes('budget pressure'))?.body).toContain(
+      'extension threshold',
+    );
+  });
+
+  it('keeps Chimera reviewer lifecycle chatter out of the mailbox', async () => {
+    build({ minIntervalMsPerAgent: 0, budgetWarnings: true });
+    events.emit('subagent.spawned', {
+      subagentId: 'chimera-1',
+      taskId: 'review-1',
+      name: 'chimera-review',
+      model: 'deepseek-v4-flash',
+    });
+    events.emit('subagent.task_started', {
+      subagentId: 'chimera-1',
+      taskId: 'review-1',
+      description: 'review changed files',
+    });
+    events.emit('subagent.budget_warning', {
+      subagentId: 'chimera-1',
+      kind: 'iterations',
+      used: 10,
+      limit: 10,
+    });
+    events.emit('subagent.task_completed', completedEvent('chimera-1'));
+    await vi.runAllTimersAsync();
+
+    expect(fake.sent).toHaveLength(0);
+    expect(fake.heartbeats).toEqual([
+      expect.objectContaining({ agentId: 'chimera-1', status: 'running' }),
+      expect.objectContaining({ agentId: 'chimera-1', status: 'idle' }),
+    ]);
   });
 
   it('pushes rich heartbeats on task start/stop (currentTask + status)', async () => {
     build();
-    events.emit('subagent.task_started', { subagentId: 'sub-1', taskId: 't1', description: 'refactor the auth module end to end because reasons that make this long'.repeat(3) });
+    events.emit('subagent.task_started', {
+      subagentId: 'sub-1',
+      taskId: 't1',
+      description: 'refactor the auth module end to end because reasons that make this long'.repeat(
+        3,
+      ),
+    });
     events.emit('subagent.task_completed', completedEvent('sub-1'));
     await vi.runAllTimersAsync();
     expect(fake.heartbeats[0]).toMatchObject({ agentId: 'sub-1', status: 'running' });
-    expect((fake.heartbeats[0] as { currentTask: string }).currentTask.length).toBeLessThanOrEqual(80);
+    expect((fake.heartbeats[0] as { currentTask: string }).currentTask.length).toBeLessThanOrEqual(
+      80,
+    );
     expect(fake.heartbeats[1]).toMatchObject({ agentId: 'sub-1', status: 'idle' });
   });
 

@@ -47,6 +47,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
     '  /settings context-strategy hybrid|intelligent|selective   Compactor strategy',
     '  /settings context-auto-compact on|off   Auto-compact context when thresholds crossed',
     '  /settings token-saving off|minimal|light|medium|aggressive   Token-saving mode',
+    '  /settings nextsteps-tool on|off   Give the leader a `nextsteps` tool alongside the <nextsteps> block (next session)',
     '  /settings mcp on|off            Load MCP servers declared in config',
     '  /settings plugins on|off        Load npm plugins declared in config',
     '  /settings memory on|off         Register remember/forget tools',
@@ -111,6 +112,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
       | Record<string, unknown>
       | undefined;
     const tokenSavingTier = (features?.tokenSavingMode as string) ?? 'off';
+    const nextStepsToolEnabled = opts.configStore.get().tools?.nextsteps?.enabled === true;
     const maxConcurrent = opts.configStore.get().maxConcurrent ?? 4;
     const titleAnimation =
       (autonomy as { terminalTitleAnimation?: boolean } | undefined)?.terminalTitleAnimation !==
@@ -173,6 +175,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
       `  context strategy:           ${color.cyan(contextStrategy)}   ${color.dim('change: /settings context-strategy hybrid|intelligent|selective')}`,
       `  context auto-compact:       ${contextAutoCompact ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings context-auto-compact on|off')}`,
       `  token-saving:               ${color.cyan(tokenSavingTier)}   ${color.dim('change: /settings token-saving off|minimal|light|medium|aggressive')}`,
+      `  nextsteps tool:             ${nextStepsToolEnabled ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings nextsteps-tool on|off')}`,
       `  MCP features:               ${feats?.mcp !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings mcp on|off')}`,
       `  plugin features:            ${feats?.plugins !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings plugins on|off')}`,
       `  memory features:            ${feats?.memory !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings memory on|off')}`,
@@ -666,6 +669,22 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
           });
           return {
             message: `${color.green('✓')} context auto-compact → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('auto-compact context when thresholds crossed')}`,
+          };
+        }
+
+        if (sub === 'nextsteps-tool') {
+          const raw = (rest[0] ?? '').toLowerCase();
+          if (!['on', 'off'].includes(raw)) {
+            return { message: `${color.amber('Usage:')} /settings nextsteps-tool on|off` };
+          }
+          const on = raw === 'on';
+          await persistConfigSetting(persistDeps, (cfg) => {
+            const tools = (cfg.tools as Record<string, unknown>) ?? {};
+            tools.nextsteps = { enabled: on };
+            cfg.tools = tools;
+          });
+          return {
+            message: `${color.green('✓')} nextsteps tool → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('takes effect in the next session')}`,
           };
         }
 

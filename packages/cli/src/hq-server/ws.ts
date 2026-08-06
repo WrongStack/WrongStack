@@ -242,11 +242,22 @@ function nextPeerEventSeq(eventLog?: readonly HqEventEnvelope[]): number {
 /**
  * Server-side fanout of a `hq.kanban_snapshot` envelope after a merge.
  *
- * C2 — broadcasts the post-merge `delta` payload to:
- *  - every client whose `projectId` matches `projectId`, and
- *  - every browser in `browsers` (browsers are not project-scoped at the
- *    WS level; the browser-side projection filters by project when it
- *    applies the snapshot).
+ * C2 — broadcasts the post-merge `delta` payload to every client whose
+ * `projectId` matches `projectId`.
+ *
+ * BROWSERS ARE DELIBERATELY NOT NOTIFIED. They used to be — unscoped, so
+ * every browser received every project's deltas — on the strength of a
+ * comment claiming "the browser-side projection filters by project when it
+ * applies the snapshot". No such projection exists: `hq.kanban_snapshot` is
+ * absent from `HqBrowserMessage` and from the SPA's dispatch chain, so
+ * `HqWsClient` parsed each frame and dropped it. The board view learns about
+ * changes from the `kanban.snapshot` HQ *event* and refetches over HTTP
+ * (`views/kanban.tsx`), which is why the drift was invisible.
+ *
+ * `browsers` stays in the signature: the fan-out is the natural place to wire
+ * a real browser consumer, and the parity test in
+ * `tests/hq-browser-protocol-parity.test.ts` now fails the moment a
+ * browser-bound frame has no handler.
  *
  * The `delta` payload is the same touched-only payload the merge handler
  * builds (full-set broadcasts drive V8 heap exhaustion on long-lived
@@ -257,7 +268,7 @@ function nextPeerEventSeq(eventLog?: readonly HqEventEnvelope[]): number {
 export function fanoutKanbanDelta(
   message: string,
   clients: Map<WebSocket, ConnectedClient>,
-  browsers: Set<WebSocket>,
+  _browsers: Set<WebSocket>,
   projectId: string,
 ): { clientsNotified: number; browsersNotified: number } {
   let clientsNotified = 0;
@@ -267,12 +278,7 @@ export function fanoutKanbanDelta(
       clientsNotified++;
     }
   }
-  let browsersNotified = 0;
-  for (const browserWs of browsers) {
-    sendGuarded(browserWs, message);
-    browsersNotified++;
-  }
-  return { clientsNotified, browsersNotified };
+  return { clientsNotified, browsersNotified: 0 };
 }
 
 /**

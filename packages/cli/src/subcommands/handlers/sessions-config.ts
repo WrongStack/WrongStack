@@ -1,3 +1,4 @@
+import { restoreFlags } from '../flags.js';
 import { color, expectDefined } from '@wrongstack/core/utils';
 import {
   getHistoryEntry,
@@ -10,6 +11,10 @@ import { redactKeys } from './helpers.js';
 import { sessionsFleetCmd } from './sessions-fleet.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 export const sessionsCmd: SubcommandHandler = async (args, deps) => {
+  // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
+  // Without them `sessions fork abc --to 3` forked at the LATEST boundary and
+  // still reported success.
+  args = restoreFlags(args, deps, ['to', 'id', 'latest', 'l']);
   const sub = args[0];
   // `wrongstack sessions fleet [runId]` — fleet run inspection
   if (sub === 'fleet') {
@@ -81,6 +86,7 @@ export const sessionsCmd: SubcommandHandler = async (args, deps) => {
 };
 
 export const configCmd: SubcommandHandler = async (args, deps) => {
+  args = restoreFlags(args, deps, ['id', 'latest', 'l']);
   const sub = args[0];
   if (!sub || sub === 'show') {
     deps.renderer.write(JSON.stringify(redactKeys(deps.config), null, 2) + '\n');

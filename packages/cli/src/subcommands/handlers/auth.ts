@@ -1,9 +1,11 @@
+import { restoreFlags } from '../flags.js';
 import { color } from '@wrongstack/core/utils';
 import { parseAuthFlags } from '../../arg-parser.js';
 import {
   type AuthMenuDeps,
   resolveOAuthKind,
   runAuthDirect,
+  runAuthLocal,
   runAuthMenu,
   runOAuthLoginKind,
 } from '../../auth-menu/index.js';
@@ -15,8 +17,29 @@ import {
 } from '../../provider-config-utils.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import type { SubcommandHandler } from '../index.js';
+import { renderAuthLocalHelpToString, wantsLocalHelp } from './auth-local-help.js';
 
 export const authCmd: SubcommandHandler = async (args, deps) => {
+  // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
+  // Without them `auth my-proxy --family openai-compatible --base-url ...`
+  // exited 1 with "Pass --family ..." — naming the flag just passed.
+  args = restoreFlags(args, deps, [
+    'label',
+    'family',
+    'base-url',
+    'env',
+    // `auth local` flags — see the `local` branch below.
+    'name',
+    'no-key',
+    'skip-key',
+    'no-probe',
+    'skip-probe',
+    'probe-only',
+    'model',
+    'm',
+    'help',
+    'h',
+  ]);
   const flags = parseAuthFlags(args);
   const profileConfigPath = activeProfileConfigPath(deps.paths, deps.config);
   const menuDeps: AuthMenuDeps = {
@@ -37,6 +60,41 @@ export const authCmd: SubcommandHandler = async (args, deps) => {
   // `wstack auth list` / `wstack auth ls` — quick listing
   if (first === 'list' || first === 'ls') {
     return runAuthList(menuDeps);
+  }
+
+  // `wstack auth local` — quick-add Ollama / vLLM / LM Studio.
+  //
+  // There was NO dispatch branch for this at all: `auth local` fell through to
+  // `runAuthDirect({providerId: 'local'})` and exited 1 with
+  // `Provider "local" not in catalog`, and `auth local --help` printed the same
+  // error instead of the help block that `wstack --help` advertises and
+  // `init.ts` recommends. `runAuthLocal` was reachable only from the
+  // interactive menu and the WebUI panel service, so every documented
+  // `LOCAL_AUTH_FLAGS` switch was unreachable from the CLI.
+  if (first === 'local') {
+    if (wantsLocalHelp(args)) {
+      deps.renderer.write(`${renderAuthLocalHelpToString()}\n`);
+      return 0;
+    }
+    const value = (name: string): string | undefined => {
+      const i = args.indexOf(`--${name}`);
+      return i >= 0 ? args[i + 1] : undefined;
+    };
+    const has = (...names: string[]): boolean => names.some((n) => args.includes(`--${n}`));
+    const modelIdx = args.indexOf('--model') >= 0 ? args.indexOf('--model') : args.indexOf('-m');
+    return runAuthLocal(menuDeps, {
+      name: flags.positional[1] ?? value('name'),
+      baseUrl: flags.baseUrl ?? value('base-url'),
+      label: flags.label,
+      skipKey: has('no-key', 'skip-key'),
+      noProbe: has('no-probe', 'skip-probe'),
+      probeOnly: has('probe-only'),
+      // Bare `--model` (no value, or followed by another flag) clears the
+      // allowlist, which is why an empty string is meaningful here.
+      ...(modelIdx >= 0
+        ? { models: args[modelIdx + 1]?.startsWith('-') ? '' : (args[modelIdx + 1] ?? '') }
+        : {}),
+    });
   }
 
   // `wstack auth status <provider>` — detailed view

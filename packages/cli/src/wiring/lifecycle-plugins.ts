@@ -374,6 +374,15 @@ export async function setupLifecycleAndPlugins(
     statusTracker,
     modelRouter: createLiveModelRouter(getLiveConfig),
     logger,
+    // Route plugin completions through the same extension chain the agent loop
+    // uses. `prompt-firewall` (credential redaction), `llm-cache`,
+    // `model-router` and the token budgeter all live on `wrapProviderRunner`,
+    // and `api.llm` reached the provider without any of them. Resolved per
+    // call so a plugin enabled mid-session joins the chain.
+    wrapProviderCall: (request, inner) =>
+      agent.extensions.wrapProviderRunner((_ctx, req) => inner(req), {
+        exclude: ['fallback-model'],
+      })(agent.ctx, request),
   });
   const pluginCouncil = new CouncilOrchestrator({
     caller: pluginOneShot,

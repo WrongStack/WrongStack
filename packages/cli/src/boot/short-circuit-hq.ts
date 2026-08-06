@@ -8,11 +8,14 @@
  * when the flag was absent (caller should proceed to boot()).
  */
 
-import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
-import * as path from 'node:path';
+import {
+  HQ_CLI_DEFAULT_HOST,
+  isLoopbackHost,
+  readHqRuntimeFileSync,
+  resolveHqDataDir,
+} from '@wrongstack/core/hq';
 import { color, isPidAlive } from '@wrongstack/core/utils';
-import { HQ_CLI_DEFAULT_HOST, isLoopbackHost, resolveHqDataDir } from '@wrongstack/core/hq';
 import { DEFAULT_PORT } from '../hq-server.js';
 import type { HqQuickTunnelHandle } from '../hq-tunnel.js';
 
@@ -27,23 +30,24 @@ interface HqRuntimeMarker {
  * (runtime.json exists and its PID is still alive).
  */
 async function isHqAlreadyRunning(dataDir: string): Promise<HqRuntimeMarker | null> {
-  const markerPath = path.join(dataDir, 'runtime.json');
-  let fd;
-  try {
-    fd = await fs.open(markerPath, 'r');
-    const content = await fd.read().then(({ buffer }) => buffer.toString('utf8'));
-    const marker = JSON.parse(content) as HqRuntimeMarker;
-    // A live pid means an HQ is already up and we should attach to it. The
-    // inline `process.kill` this replaced treated EPERM as dead, so an HQ
-    // owned by another user would be missed and a second one started on top.
-    if (marker.pid && isPidAlive(marker.pid)) return marker;
-    return null;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    return null;
-  } finally {
-    if (fd) await fd.close();
-  }
+  // Reads through core's parser rather than opening `runtime.json` here.
+  //
+  // The two used to disagree about the same file. Core required a non-empty
+  // `url` and rejected a DEAD pid but accepted a marker with NO pid; this
+  // function ignored `url` and rejected a marker with no pid. So for a marker
+  // carrying a url and no pid, core said "an HQ is running, attach to it"
+  // while boot said "nothing is running, start one" — from the same bytes.
+  //
+  // Core's reader is the single parse. The extra `pid && isPidAlive` here is
+  // this caller's stricter question: "may I skip starting a server?" needs
+  // PROOF of life, and a marker without a pid cannot supply it. That
+  // distinction is now visible instead of accidental.
+  const marker = readHqRuntimeFileSync(dataDir);
+  if (!marker) return null;
+  // `isPidAlive` treats EPERM as alive: an HQ owned by another user must not
+  // read as dead, or we start a second one on top of it.
+  if (marker.pid && isPidAlive(marker.pid)) return marker;
+  return null;
 }
 
 /**

@@ -116,7 +116,16 @@ export interface HqRouterMailboxGateway {
 export interface HqRouterDeps {
   trustBoundary: TrustBoundary;
   host: string;
-  listeningPort: number;
+  /**
+   * Getter, not a value. The router is constructed BEFORE `listen()`
+   * resolves, so a copied number froze the REQUESTED port. When the default
+   * is busy and `strictPort` is off, the scan binds `port+1` and the banner
+   * prints it — but the origin guard kept comparing against the old number and
+   * answered `403 forbidden: untrusted request origin` to the dashboard and
+   * every `/api/*` call. (The WS upgrade handler read the live local, so the
+   * failure looked like "the socket connects but the page won't load".)
+   */
+  listeningPort: () => number;
   trustedPublicOrigins: Set<string>;
   /** Trust `Origin: file://`. Off by default — see StartHqServerOptions (WS-081). */
   allowFileOrigin?: boolean | undefined;
@@ -201,7 +210,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 
   return async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     try {
-      const url = new URL(req.url ?? '/', `http://${host}:${listeningPort}`);
+      const url = new URL(req.url ?? '/', `http://${host}:${listeningPort()}`);
       setHqSecurityHeaders(res);
 
       // ── Origin guard (DNS-rebinding / CSRF boundary) ───────────────
@@ -209,7 +218,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         !hasTrustedBrowserOrigin(
           req,
           host,
-          listeningPort,
+          listeningPort(),
           trustedPublicOrigins,
           allowFileOrigin,
         )

@@ -277,3 +277,55 @@ describe('restoreLast', () => {
     expect(await readJson(cfgPath())).toEqual({ model: 'previous' });
   });
 });
+
+describe('restoreFromHistory — credentials must survive', () => {
+  // History deliberately never stores secrets, so `snapshotMasked` holds the
+  // literal "[REDACTED]" wherever a credential was. Writing that snapshot back
+  // verbatim replaced every live API key with that string; the next boot read
+  // it as a plaintext key and every request 401'd, recoverable only from a
+  // .bak the user is never told about.
+  it('keeps the live API key instead of writing [REDACTED] over it', async () => {
+    const live = {
+      provider: 'anthropic',
+      model: 'claude-opus-5',
+      apiKey: 'sk-ant-REAL-KEY',
+      providers: {
+        anthropic: {
+          apiKey: 'sk-ant-REAL-KEY',
+          apiKeys: [{ id: 'default', apiKey: 'sk-ant-REAL-ARRAY-KEY', isActive: true }],
+        },
+      },
+    };
+    await fs.writeFile(cfgPath(), JSON.stringify(live, null, 2));
+
+    // A history entry taken when the model was different.
+    const id = await appendHistory({}, { ...live, model: 'claude-sonnet-5' }, 'switched model', homeFn);
+
+    const res = await restoreFromHistory(id, homeFn);
+    expect(res.ok).toBe(true);
+
+    const after = await readJson(cfgPath());
+    expect(after['model']).toBe('claude-sonnet-5'); // the point of the restore
+    expect(after['apiKey']).toBe('sk-ant-REAL-KEY'); // …without losing this
+    const providers = after['providers'] as Record<string, Record<string, unknown>>;
+    expect(providers['anthropic']?.['apiKey']).toBe('sk-ant-REAL-KEY');
+    expect(JSON.stringify(after)).not.toContain('[REDACTED]');
+  });
+
+  it('never writes a secret into the history entry itself', async () => {
+    // `maskConfigSecrets` did not recurse into arrays, so the per-key entries
+    // under `providers.<id>.apiKeys[]` went to disk in cleartext.
+    const id = await appendHistory(
+      {},
+      {
+        providers: {
+          anthropic: { apiKeys: [{ id: 'default', apiKey: 'sk-ant-LEAKED', isActive: true }] },
+        },
+      },
+      'added key',
+      homeFn,
+    );
+    const entry = await getHistoryEntry(id, homeFn);
+    expect(JSON.stringify(entry)).not.toContain('sk-ant-LEAKED');
+  });
+});

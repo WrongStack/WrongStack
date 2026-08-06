@@ -489,6 +489,17 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     getConfig: () => config,
     fallbackProfileManager,
     statusTracker,
+    wrapProviderCall: (request, inner) =>
+      agent.extensions.wrapProviderRunner(
+        (
+          _ctx: typeof agent.ctx,
+          wrappedRequest: import('@wrongstack/core/types').Request,
+        ) => inner(wrappedRequest),
+        // OneShotOrchestrator owns the selected provider and fallback chain.
+        // The agent-loop fallback wrapper routes from and mutates agent.ctx,
+        // which may describe a different provider/model than this utility call.
+        { exclude: ['fallback-model'] },
+      )(agent.ctx, request),
     compactor: container.resolve(TOKENS.Compactor),
   });
 
@@ -854,6 +865,24 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     configRef,
     autonomyModeRef,
     logger,
+    // WITHOUT this the helper primed an engine and dropped it: the only live
+    // holder is the `eternalEngine` binding below, written solely by the slash
+    // handler. `--eternal "<mission>"` therefore forced YOLO on and set the
+    // mode to 'eternal', then the REPL found no engine, printed "no engine
+    // wired — falling back to off" on EVERY loop iteration without actually
+    // flipping the mode back or `continue`-ing, and left the user staring at
+    // unconfirmed tool calls. `cli-eternal-flag.test.ts` passes this ref, so
+    // the test exercised a wiring production never had.
+    // The live holder is `EternalAutonomyEngine | null`; the ref contract is
+    // `| undefined`. Bridge rather than widen either side.
+    eternalEngineRef: {
+      get current() {
+        return eternalEngine ?? undefined;
+      },
+      set current(engine) {
+        eternalEngine = engine ?? null;
+      },
+    },
   });
   // Sync local `config` with any mutation the helper applied (e.g. yolo
   // flag flip). Using a ref keeps the helper's call site clean — no return

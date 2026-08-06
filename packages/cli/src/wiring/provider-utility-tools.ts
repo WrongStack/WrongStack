@@ -26,6 +26,7 @@ export interface ProviderUtilityToolsInput {
   getConfig: () => Config;
   fallbackProfileManager: FallbackProfileManager;
   statusTracker: ProviderModelStatusTracker;
+  wrapProviderCall: NonNullable<import('@wrongstack/core/types').OneShotOrchestratorOptions['wrapProviderCall']>;
   compactor: NonNullable<Parameters<typeof createContextManagerTool>[0]>['compactor'];
 }
 
@@ -120,6 +121,7 @@ export function registerProviderUtilityTools(input: ProviderUtilityToolsInput): 
     fallbackProfileManager: input.fallbackProfileManager,
     defaultProvider: config.provider,
     defaultModel: config.model,
+    wrapProviderCall: input.wrapProviderCall,
   });
   registerOrOverride(input.toolRegistry, 'llm', llmTool);
 
@@ -134,6 +136,7 @@ export function registerProviderUtilityTools(input: ProviderUtilityToolsInput): 
     // provider/model, so a three-seat panel asked one model three times and
     // reported a distinctness warning on every single call.
     modelRouter: createLiveModelRouter(input.getConfig),
+    wrapProviderCall: input.wrapProviderCall,
   });
   registerOrOverride(
     input.toolRegistry,
@@ -151,6 +154,7 @@ export function registerProviderUtilityTools(input: ProviderUtilityToolsInput): 
       getConfig: input.getConfig,
       fallbackProfileManager: input.fallbackProfileManager,
       statusTracker: input.statusTracker,
+      wrapProviderCall: input.wrapProviderCall,
     });
     input.toolRegistry.override(
       'context_manager',

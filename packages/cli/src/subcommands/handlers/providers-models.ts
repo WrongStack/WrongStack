@@ -9,8 +9,13 @@ import { visibleModelIds } from '../../provider-helpers.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import type { SubcommandHandler } from '../index.js';
 export const providersCmd: SubcommandHandler = async (args, deps) => {
-  const showAll = args.includes('--all');
-  const showUnsupported = args.includes('--unsupported');
+  // This file DOCUMENTS the stripped-flag problem and ships `subcommandFlags`
+  // for it (below), yet this handler still scanned `args` directly — so
+  // `providers --all` / `--unsupported` silently showed the default families.
+  const providerFlags = subcommandFlags(args, deps);
+  const showAll = providerFlags['all'] === true || providerFlags['all'] === 'true';
+  const showUnsupported =
+    providerFlags['unsupported'] === true || providerFlags['unsupported'] === 'true';
   try {
     const all = await deps.modelsRegistry.listProviders();
     const byFamily: Record<WireFamily, typeof all> = {

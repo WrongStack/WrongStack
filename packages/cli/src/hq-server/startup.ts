@@ -7,6 +7,7 @@
  * @module hq-server/startup
  */
 
+import { writeHqRuntimeFile } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as HqServerUtils from './utils.js';
@@ -28,14 +29,14 @@ export const hqRuntimeMarkerPath = HqServerUtils.hqRuntimeMarkerPath;
  * can find this HQ instance. Overwrites any previous marker.
  */
 export async function writeHqRuntimeMarker(dataDir: string, url: string): Promise<void> {
-  const file = hqRuntimeMarkerPath(dataDir);
-  const payload = JSON.stringify(
-    { url, pid: process.pid, updatedAt: new Date().toISOString() },
-    null,
-    2,
-  );
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, `${payload}\n`, { encoding: 'utf8', mode: 0o600 });
+  // Delegates to core. This used to be a hand-rolled `fs.writeFile` with
+  // `mode: 0o600`, which on Windows is a no-op beyond the read-only bit — and
+  // this file carries the local HQ client token. Core's writer was hardened
+  // for exactly that (WS-045: `restrictFilePermissions` after the write), but
+  // the hardening was never back-ported to the only site that actually writes
+  // the marker, so the fix protected a path nothing used.
+  await fs.mkdir(dataDir, { recursive: true });
+  await writeHqRuntimeFile(dataDir, { url, pid: process.pid });
 }
 
 /**

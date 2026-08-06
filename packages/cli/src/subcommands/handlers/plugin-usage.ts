@@ -1,8 +1,13 @@
+import { restoreFlags } from '../flags.js';
 import { runPluginManagementCommand } from '../../plugin-management.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import type { SubcommandHandler } from '../index.js';
 
 export const pluginCmd: SubcommandHandler = async (args, deps) => {
+  // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
+  // Without them `plugin add X --disabled` wrote it ENABLED and printed
+  // "(enabled)", and `plugin toggle` lost its own switches.
+  args = restoreFlags(args, deps, ['disabled', 'enable', 'e', 'json', 'all']);
   const result = await runPluginManagementCommand(args, {
     config: deps.config,
     configPath: activeProfileConfigPath(deps.paths, deps.config),

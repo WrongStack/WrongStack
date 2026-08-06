@@ -538,7 +538,16 @@ function officialPluginState(
 ): 'enabled' | 'disabled' | 'not configured' {
   const match = (config.plugins ?? []).find((p) => pluginName(p) === spec);
   if (!match) return 'not configured';
-  return typeof match === 'object' && match.enabled === false ? 'disabled' : 'enabled';
+  // Configured in `plugins[]`, so report the EFFECTIVE state rather than
+  // re-deriving it from that one array — `extensions.<name>.enabled` can
+  // override it, and this listing disagreeing with the loader is the whole
+  // bug class `resolvePluginEnablement` exists to end.
+  const { enabled } = resolvePluginEnablement({
+    name: spec,
+    config,
+    matches: (candidate) => pluginMatchesToggleSpec(candidate, spec),
+  });
+  return enabled ? 'enabled' : 'disabled';
 }
 
 async function togglePlugin(
@@ -556,9 +565,28 @@ async function togglePlugin(
     : [];
   const idx = plugins.findIndex((p) => pluginMatchesToggleSpec(p, spec));
   const configured = idx >= 0 ? plugins[idx] : undefined;
-  const enabled = configured
-    ? !(typeof configured === 'object' && configured.enabled === false)
-    : auditEntry?.defaultState === 'active';
+  // The SAME precedence the report path uses (`effectiveAuditState` above
+  // calls it) and the loader uses. The inline form here ignored
+  // `extensions.<name>.enabled` and `features.plugins`, so with
+  // `extensions: {"wstack-prompts": {"enabled": false}}` and no `plugins[]`
+  // entry, `plugin report` correctly said disabled while `toggle` computed
+  // `enabled = true`, wrote `{enabled: false}` and printed "Disabled" — the
+  // user who meant to ENABLE it had to toggle twice.
+  //
+  // Resolve against the config FILE, not `deps.config`. `toggle` reads the
+  // file, flips one entry and writes it back, so the file is the state being
+  // toggled; the in-memory snapshot can be older (another surface edited it,
+  // or the session started before the last change) and is missing `plugins`
+  // entirely in the CLI's own callers. `deps.config` still supplies the layers
+  // the file omits — `extensions`, `features` — which is the whole reason this
+  // goes through the shared resolver.
+  const effectiveConfig = { ...deps.config, ...existing } as Config;
+  const { enabled } = resolvePluginEnablement({
+    name: spec,
+    defaultState: auditEntry?.defaultState,
+    config: effectiveConfig,
+    matches: (candidate) => pluginMatchesToggleSpec(candidate, spec),
+  });
 
   if (!configured && !auditEntry) {
     return errorResult(

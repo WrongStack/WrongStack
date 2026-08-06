@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import { hasProviderCredential } from '@wrongstack/core/models';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
@@ -159,13 +160,11 @@ export function buildModelCapsCommand(opts: SlashCommandContext): SlashCommand {
         { apiKey?: string; apiKeys?: Array<{ apiKey?: string }> }
       >;
 
-      function hasKey(providerId: string): boolean {
-        const pc = configProviders[providerId];
-        if (!pc) return false;
-        if (typeof pc.apiKey === 'string' && pc.apiKey.length > 0) return true;
-        if (Array.isArray(pc.apiKeys) && pc.apiKeys.some((k) => k?.apiKey)) return true;
-        return false;
-      }
+      // This local copy read the saved config ONLY, so the `●`/`○` marker was
+      // hollow for every provider keyed through an environment variable —
+      // which is how most providers are keyed. One rule now, in core.
+      const hasKey = (provider: { id: string; envVars?: readonly string[] | undefined }): boolean =>
+        hasProviderCredential(provider, { providers: configProviders });
 
       const lines: string[] = [
         `${color.bold('Available Models')} ${color.dim('— capacities + pricing')}`,
@@ -185,7 +184,7 @@ export function buildModelCapsCommand(opts: SlashCommandContext): SlashCommand {
           continue;
         }
 
-        const keyed = hasKey(prov.id);
+        const keyed = hasKey(prov);
         const marker = keyed ? color.green('●') : color.dim('○');
 
         lines.push(`  ${marker} ${color.bold(prov.id.padEnd(16))} ${color.dim(`(${prov.name})`)}`);

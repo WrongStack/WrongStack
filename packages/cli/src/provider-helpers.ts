@@ -3,6 +3,7 @@
  * and subcommands. Keeps provider key detection and alias resolution in
  * one place so the logic doesn't drift between call sites.
  */
+import { hasProviderCredential } from '@wrongstack/core/models';
 import type { Config, ModelsRegistry, ProviderConfig, ResolvedProvider } from '@wrongstack/core/types';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 
@@ -95,12 +96,10 @@ export function isKeylessLocalProvider(provider: {
  * the user can actually use right now.
  */
 export function hasApiKey(provider: ResolvedProvider, config?: Config): boolean {
-  if (provider.envVars.some((v) => !!process.env[v])) return true;
-  const entry = config?.providers?.[provider.id];
-  if (!entry) return false;
-  if (typeof entry.apiKey === 'string' && entry.apiKey.length > 0) return true;
-  if (Array.isArray(entry.apiKeys) && entry.apiKeys.some((k) => k?.apiKey)) return true;
-  return false;
+  // The rule lives in core: the WebUI server needs the same answer and cannot
+  // import from the CLI. Three copies had drifted — `/modelcaps` ignored env
+  // vars, and the WebUI treated "present in the saved config" as "keyed".
+  return hasProviderCredential(provider, config);
 }
 
 /**

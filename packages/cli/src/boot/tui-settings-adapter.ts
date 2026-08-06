@@ -25,6 +25,7 @@ import {
   resolvePersistPath,
 } from '../settings-menu.js';
 import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
+import { activeProfileConfigPath } from '../profile-config-path.js';
 
 /**
  * F-key panel ids in the canonical order. Mirrors `PANEL_IDS` in the TUI
@@ -192,6 +193,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       auditLevel: cfg.session?.auditLevel ?? 'standard',
       indexOnStart: cfg.indexing?.onSessionStart !== false,
       maxIterations: cfg.tools?.maxIterations ?? 500,
+      nextStepsTool: cfg.tools?.nextsteps?.enabled === true,
       restrictFsToRoot: resolvedRestrict,
       autoProceedMaxIterations:
         ((cfg.autonomy as Record<string, unknown> | undefined)
@@ -291,6 +293,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.auditLevel !== undefined ||
         s.indexOnStart !== undefined ||
         s.maxIterations !== undefined ||
+        s.nextStepsTool !== undefined ||
         s.restrictFsToRoot !== undefined ||
         s.nextPrediction !== undefined ||
         s.debugStream !== undefined ||
@@ -323,10 +326,13 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         // the three-way routing (project → profile → bootstrap) consistent
         // with the settings-menu.ts slash commands and the run-tui live-apply
         // path; a future fourth target (e.g. org config) only needs one update.
-        const activeProfileName = (cfg as { activeProfile?: string }).activeProfile ?? 'default';
         const persistDeps = {
           configStore,
-          profileConfigPath: wpaths.profileConfig(activeProfileName),
+          // Third copy of "which profile is active" — an inline cast plus a
+          // `?? 'default'`, identical to `activeProfileConfigPath` two files
+          // over. The comment above already promised this resolution was
+          // delegated; now it is.
+          profileConfigPath: activeProfileConfigPath(wpaths, cfg),
           inProjectConfigPath: wpaths.inProjectConfig,
           vault: noOpVault,
           resolveProfilePath: (name: string) => wpaths.profileConfig(name),
@@ -435,9 +441,14 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           idx.onSessionStart = s.indexOnStart;
           decrypted.indexing = idx;
         }
-        if (s.maxIterations !== undefined || fsAccess !== undefined) {
+        if (
+          s.maxIterations !== undefined ||
+          s.nextStepsTool !== undefined ||
+          fsAccess !== undefined
+        ) {
           const tools = (decrypted.tools as Record<string, unknown>) ?? {};
           if (s.maxIterations !== undefined) tools.maxIterations = s.maxIterations;
+          if (s.nextStepsTool !== undefined) tools.nextsteps = { enabled: s.nextStepsTool };
           // Single source of truth for the inverse: deriveFsAccess above.
           if (fsAccess !== undefined) tools.restrictToProjectRoot = fsAccess.restrictToProjectRoot;
           decrypted.tools = tools;
@@ -596,7 +607,9 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
                 } as Config['indexing'],
               }
             : {}),
-          ...(s.maxIterations !== undefined || fsAccess !== undefined
+          ...(s.maxIterations !== undefined ||
+          s.nextStepsTool !== undefined ||
+          fsAccess !== undefined
             ? {
                 tools: {
                   ...currentConfig.tools,

@@ -143,17 +143,63 @@ interface HistoryIndex {
   entries: Array<{ id: string; timestamp: string; description: string }>;
 }
 
+/** Placeholder written in place of every secret value in a history snapshot. */
+const REDACTED = '[REDACTED]';
+
+/**
+ * Recurse into a value for masking. Arrays are walked too: a provider's saved
+ * credentials live in `providers.<id>.apiKeys[]`, so skipping arrays wrote the
+ * real `apiKey` of every saved key into `history/<id>.json` in cleartext —
+ * masking the scalar spelling while the array spelling went through untouched.
+ */
+function maskValue(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(maskValue);
+  if (typeof v === 'object' && v !== null) return maskConfigSecrets(v as Record<string, unknown>);
+  return v;
+}
+
 function maskConfigSecrets(cfg: Record<string, unknown>): Record<string, unknown> {
   if (typeof cfg !== 'object' || cfg === null) return {};
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(cfg)) {
     if (isSecretField(k)) {
-      out[k] = '[REDACTED]';
-    } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      out[k] = maskConfigSecrets(v as Record<string, unknown>);
+      out[k] = REDACTED;
     } else {
-      out[k] = v;
+      out[k] = maskValue(v);
     }
+  }
+  return out;
+}
+
+/**
+ * Rebuild a writable config from a masked history snapshot.
+ *
+ * History deliberately never stores secrets, so a snapshot cannot restore them
+ * — but writing it back verbatim replaced every live credential with the
+ * literal `"[REDACTED]"`, which the next boot reads as a plaintext key and
+ * every request 401s. Instead: take the structure from the snapshot and carry
+ * each masked value over from the config that is on disk right now. When the
+ * current config has no value at that path the key is dropped rather than
+ * materialising the placeholder.
+ */
+function reviveSecrets(masked: unknown, current: unknown): unknown {
+  if (masked === REDACTED) return current;
+  if (Array.isArray(masked)) {
+    const cur = Array.isArray(current) ? current : [];
+    return masked.map((item, i) => reviveSecrets(item, cur[i]));
+  }
+  if (typeof masked !== 'object' || masked === null) return masked;
+
+  const curObj =
+    typeof current === 'object' && current !== null && !Array.isArray(current)
+      ? (current as Record<string, unknown>)
+      : {};
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(masked as Record<string, unknown>)) {
+    const revived = reviveSecrets(v, curObj[k]);
+    // A secret with no counterpart in the live config: omit it entirely.
+    if (revived === undefined) continue;
+    out[k] = revived;
   }
   return out;
 }
@@ -316,7 +362,9 @@ export async function backupCurrent(
 
   if (content !== undefined) {
     try {
-      await atomicWrite(last, content);
+      // `content` is a verbatim copy of the live config, secrets included —
+      // same 0600 the config itself gets.
+      await atomicWrite(last, content, { mode: 0o600 });
     } catch (err) {
       writeErr(
         `[config-history] .last backup failed: ${toErrorMessage(err)}`,
@@ -328,7 +376,7 @@ export async function backupCurrent(
   if (content !== undefined) {
     try {
       const bakPath = `${cfg}.${ts}.bak`;
-      await atomicWrite(bakPath, content);
+      await atomicWrite(bakPath, content, { mode: 0o600 });
     } catch (err) {
       writeErr(
         `[config-history] timestamped backup failed: ${toErrorMessage(err)}`,
@@ -381,7 +429,7 @@ export async function appendHistory(
     await fs.writeFile(
       path.join(historyDir(homeFn, targetConfigPath), `${id}.json`),
       JSON.stringify(entry, null, 2),
-      'utf8',
+      { encoding: 'utf8', mode: 0o600 },
     );
   } catch (err) {
     throw new FsError({
@@ -462,15 +510,21 @@ export async function restoreFromHistory(
     // No config to restore from
   }
 
+  // Carry live credentials across the restore — see `reviveSecrets`. Written
+  // 0600 like every other config write: this file holds the revived secrets.
+  const restored = reviveSecrets(entry.snapshotMasked, oldCfg) as Record<string, unknown>;
+
   try {
-    await atomicWrite(configPath(homeFn, targetConfigPath), JSON.stringify(entry.snapshotMasked, null, 2));
+    await atomicWrite(configPath(homeFn, targetConfigPath), JSON.stringify(restored, null, 2), {
+      mode: 0o600,
+    });
   } catch (err) {
     return { ok: false, backupId: null, error: String(err) };
   }
 
   const backupId = await appendHistory(
     oldCfg,
-    entry.snapshotMasked as Record<string, unknown>,
+    restored,
     `Restored from history ${id}`,
     homeFn,
     targetConfigPath,

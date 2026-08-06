@@ -66,10 +66,26 @@ export const chronicleCmd: SubcommandHandler = async (args, deps) => {
 
     // `wstack chronicle prune [--dry-run] [--days N]`
     if (operation === 'prune') {
-      const dryRun = args.includes('--dry-run') || args.includes('-n');
+      // `parseArgs` strips every `--flag` from argv before the dispatcher calls
+      // this handler (boot.ts:358 passes `positional.slice(1)`), so scanning
+      // `args` alone saw neither flag: `prune --days 7 --dry-run` — the form
+      // this file's own usage text prints — resolved to a REAL purge at the
+      // 30-day default. `deps.flags` is what the top-level parse captured; a
+      // local scan still wins so a directly-invoked handler keeps working.
+      const flags = deps.flags ?? {};
+      const dryRun =
+        args.includes('--dry-run') ||
+        args.includes('-n') ||
+        flags['dry-run'] === true ||
+        flags['dry-run'] === 'true' ||
+        flags['n'] === true;
       const daysIndex = args.indexOf('--days');
       const rawDays =
-        daysIndex >= 0 && daysIndex + 1 < args.length ? args[daysIndex + 1] : undefined;
+        daysIndex >= 0 && daysIndex + 1 < args.length
+          ? args[daysIndex + 1]
+          : typeof flags['days'] === 'string'
+            ? flags['days']
+            : undefined;
       const days = rawDays ? parseInt(rawDays, 10) : 30;
       if (!Number.isFinite(days) || days < 1) {
         deps.renderer.writeError(

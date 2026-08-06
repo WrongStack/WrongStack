@@ -250,7 +250,9 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
     return 2;
   }
   let { paths, config, vault } = bootResult;
-  const first = positional[0];
+  // Not `const`: the `quick` intercept below consumes this token and must be
+  // able to clear it, otherwise the subcommand dispatch still matches.
+  let first = positional[0];
 
   // Only an ordinary interactive CLI launch may offer backup recovery. Keep
   // subcommands, single-shot prompts, WebUI, and explicit skip modes silent.
@@ -296,6 +298,13 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
     flags['quick'] = true;
     flags['tui'] = true;
     positional.splice(0, 1); // consume 'quick'
+    // `first` was captured before this splice, and `quick` IS registered in
+    // the subcommand table — so the dispatch check below still fired, ran
+    // `quickCmd` (which returns 0) and exited without ever opening the TUI.
+    // The intercept used to sit after dispatch, in `cli-main.ts`; moving it
+    // here left this stale reference behind. Clear it so the interactive path
+    // below owns the run.
+    first = undefined;
     const plugins = config?.plugins ?? [];
     if (plugins.length === 0) {
       console.debug('[wrongstack:quick] No plugins configured');
@@ -336,7 +345,10 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
   // Lightweight subcommands such as `wstack help` and `wstack version` do not
   // wait for models.dev. The deprecated `wstack init` compatibility handler is
   // dispatched here too, but current setup flows use `wstack auth`.
-  if (first && subcommands[first]) {
+  // Bound once so the narrowing survives `first` being a `let` (the `quick`
+  // intercept above clears it).
+  const subcommandHandler = first ? subcommands[first] : undefined;
+  if (first && subcommandHandler) {
     // Create container to get the SAME skillLoader instance that the main
     // interactive CLI uses. This ensures cache invalidation after
     // /skill-install propagates correctly to /skill and other commands.
@@ -355,7 +367,7 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
       registry: toolRegistryForSubcmd,
       tier: normalizeTokenSavingTier(config.features.tokenSavingMode),
     });
-    const code = await subcommands[first]?.(positional.slice(1), {
+    const code = await subcommandHandler(positional.slice(1), {
       config,
       renderer,
       reader,

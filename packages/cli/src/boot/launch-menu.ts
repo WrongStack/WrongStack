@@ -118,13 +118,11 @@ const PORT_TIMEOUT_MS = 8_000;
  *   - `--webui`, `--simpleui`, `--hq`, or `--desktop` flag is set
  *     (the user already chose a surface)
  *   - stdin is not a TTY (CI, pipes, redirects)
- *   - the first positional looks like a known subcommand (auth,
- *     init, mcp, plugin, doctor, version, help, …)
  *   - `--no-interactive` or `--skip` (existing "skip all prompts"
  *     contract from boot.ts)
  *   - a one-shot prompt (`--prompt <x>`) is supplied
- *   - any positional argument is present (treats it like the user
- *     is forwarding a one-shot query, not launching a surface)
+ *   - ANY positional argument is present — a subcommand or a one-shot
+ *     query. The user already said what they wanted.
  */
 export function shouldSkipMenu(
   argv: string[],
@@ -140,14 +138,17 @@ export function shouldSkipMenu(
   if (flags['skip'] === true) return true;
   if (typeof flags['prompt'] === 'string') return true;
   if (!isStdinTTY()) return true;
-  if (positional.length > 0) {
-    // A leading positional that matches a known subcommand means the
-    // user invoked a subcommand (auth, mcp, plugin, …). Don't ambush
-    // them with a menu. Unknown positional args are still treated as
-    // a one-shot query (handled above by the positional.length check).
-    const first = positional[0];
-    if (first && KNOWN_SUBCOMMANDS.has(first)) return true;
-  }
+  // ANY leading positional means the user asked for something specific —
+  // a subcommand or a one-shot query — so never ambush them with a menu.
+  //
+  // This used to gate on a hand-maintained name set that had drifted from the
+  // real dispatcher table, so `mailbox`, `hq`, `acp`, `chronicle`,
+  // `permissions`, `diag`, `models`, `providers`, `plugins`, `projects`,
+  // `usage`, `config` and every one-shot query printed the banner and a
+  // numbered menu to STDOUT after an 8 s countdown. That breaks the capture
+  // contract `handlers/mailbox-serve.ts` documents: `URL=$(wstack mailbox
+  // serve)` swallowed the menu instead of the URL.
+  if (positional.length > 0) return true;
   // Silence unused-arg lint without dropping the parameter — argv is
   // reserved for future deep argv parsing (e.g. recognizing
   // `wstack mcp add …` after subcommand-stripping).
@@ -155,43 +156,6 @@ export function shouldSkipMenu(
   return false;
 }
 
-/**
- * Subcommands that `shouldSkipMenu` treats as explicit user intent
- * (the user invoked a command, not a launchable surface). Kept in
- * sync with `packages/cli/src/subcommands/index.ts` — when a new
- * subcommand is added there, add it here too. The CLI dispatcher's
- * own short-circuit handles unknown positionals as one-shot prompts,
- * which the menu already excludes via the positional.length check.
- */
-const KNOWN_SUBCOMMANDS = new Set<string>([
-  'auth',
-  'init',
-  'mcp',
-  'plugin',
-  'doctor',
-  'version',
-  'help',
-  'provider',
-  'project',
-  'governance',
-  'session',
-  'sessions',
-  'replay',
-  'export',
-  'rewind',
-  'config-history',
-  'modeldiag',
-  'models-add',
-  'tools',
-  'skill',
-  'skills',
-  'update',
-  'quick',
-  'audit',
-  'bench',
-  'mailbox-serve',
-  'resume',
-]);
 
 interface RunLaunchMenuDeps {
   argv: string[];

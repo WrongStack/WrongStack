@@ -432,7 +432,12 @@ async function switchProjectCommand(
     cwd: resolved,
     stdio: 'inherit',
     detached: false,
-    signal: AbortSignal.timeout(30_000),
+    // NO abort signal: this child is a long-lived INTERACTIVE session that
+    // is meant to outlive the spawn call. The 30 s timeout fired 30 seconds
+    // after "Switched to <project> … (current session stays open)" and
+    // SIGTERM'd the new session mid-typing, with no message. Sibling
+    // long-lived spawns pass no signal (slash-commands/mailbox-serve.ts:98),
+    // and boot/tui-project-spawn.ts documents this exact bug being removed.
   });
 
   child.on('error', (err) => {
@@ -624,7 +629,12 @@ async function spawnInProject(
     cwd: root,
     stdio: 'inherit',
     detached: false,
-    signal: AbortSignal.timeout(30_000),
+    // NO abort signal: this child is a long-lived INTERACTIVE session that
+    // is meant to outlive the spawn call. The 30 s timeout fired 30 seconds
+    // after "Switched to <project> … (current session stays open)" and
+    // SIGTERM'd the new session mid-typing, with no message. Sibling
+    // long-lived spawns pass no signal (slash-commands/mailbox-serve.ts:98),
+    // and boot/tui-project-spawn.ts documents this exact bug being removed.
   });
 
   child.on('error', (err) => {
@@ -673,7 +683,12 @@ async function handleNewSession(
     cwd: process.cwd(),
     stdio: 'inherit',
     detached: false,
-    signal: AbortSignal.timeout(30_000),
+    // NO abort signal: this child is a long-lived INTERACTIVE session that
+    // is meant to outlive the spawn call. The 30 s timeout fired 30 seconds
+    // after "Switched to <project> … (current session stays open)" and
+    // SIGTERM'd the new session mid-typing, with no message. Sibling
+    // long-lived spawns pass no signal (slash-commands/mailbox-serve.ts:98),
+    // and boot/tui-project-spawn.ts documents this exact bug being removed.
   });
 
   child.on('error', (err) => {

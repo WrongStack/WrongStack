@@ -623,7 +623,7 @@ async function startHqServerWithAuth(
     const routerDeps: HqRouterDeps = {
       trustBoundary,
       host,
-      listeningPort,
+      listeningPort: () => listeningPort,
       trustedPublicOrigins,
       allowFileOrigin: options.allowFileOrigin,
       mutableAuth,
@@ -973,8 +973,21 @@ async function startHqServerWithAuth(
               snapshotBroadcaster.close();
               bootstrapStore.clear();
               persistence.timeseries.flush();
-              for (const ws of browsers) ws.close(1001, 'HQ shutting down');
-              for (const ws of clients.keys()) ws.close(1001, 'HQ shutting down');
+              // Send the courtesy close frame, then DESTROY. `wss` is
+              // `noServer: true`, so these upgraded sockets belong to
+              // `httpServer` — and `Server.close()` below waits for every one
+              // of them. `ws.close()` is only a handshake: a browser behind a
+              // dropped VPN never acks, and the socket lingers until `ws`'s
+              // internal 30 s timeout, so Ctrl+C on `wstack hq` blocked for a
+              // full 30 s (per stale tab) before the process could exit.
+              for (const ws of [...browsers, ...clients.keys()]) {
+                try {
+                  ws.close(1001, 'HQ shutting down');
+                  ws.terminate();
+                } catch {
+                  // Already gone.
+                }
+              }
               wss.close();
               for (const { router } of mailboxGateways.values()) router.close();
               httpServer.close(() => {

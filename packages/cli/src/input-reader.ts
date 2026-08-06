@@ -91,7 +91,14 @@ export class ReadlineInputReader implements InputReader {
       // (logger WARN/INFO, async Telegram activity) so it can't strand the
       // half-typed draft in scrollback. Cleared the moment the read settles.
       this.installPromptGuard(fresh);
-      return new Promise<string>((resolve) => {
+      // AWAITED, not returned. `finally { this.pending = false }` around a
+      // bare `return <promise>` runs when the promise is RETURNED, not when it
+      // settles — so the re-entrancy guard cleared itself immediately and a
+      // concurrent caller (a permission confirmation firing from an async tool
+      // path while the REPL is blocked here) skipped the wait loop, tore down
+      // this interface, and its `once('close', …)` resolved THIS read with '',
+      // dropping the user's half-typed line.
+      const line = await new Promise<string>((resolve) => {
         let settled = false;
         let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
@@ -150,6 +157,7 @@ export class ReadlineInputReader implements InputReader {
         fresh.close();
         return result;
       });
+      return line;
     } finally {
       this.pending = false;
     }

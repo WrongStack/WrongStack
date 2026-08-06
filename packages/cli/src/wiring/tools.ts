@@ -54,6 +54,7 @@ export async function setupTools(params: ToolsWiringDeps): Promise<ToolsWiringRe
     tier,
     contextTool: createContextManagerTool({ compactor: container.resolve(TOKENS.Compactor) }),
     memory: { enabled: config.features.memory, store: memoryStore },
+    nextSteps: { enabled: config.tools?.nextsteps?.enabled === true },
     coordinationTools: [
       makeMailboxTool({ projectDir: wpaths.projectDir }),
       makeMailSendTool({ projectDir: wpaths.projectDir }),

@@ -1,3 +1,4 @@
+import { restoreFlags } from '../flags.js';
 import * as path from 'node:path';
 import {
   DefaultSessionRewinder,
@@ -46,6 +47,8 @@ function findSessionId(args: string[]): string | undefined {
 }
 
 export const rewindCmd: SubcommandHandler = async (args, deps) => {
+  // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
+  args = restoreFlags(args, deps, ['all', 'last', 'to', 'list', 'resume']);
   const flags = parseRewindFlags(args);
 
   // Sessions are project-scoped under ~/.wrongstack/projects/<slug>/sessions.

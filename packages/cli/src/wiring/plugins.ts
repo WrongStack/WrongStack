@@ -1,12 +1,27 @@
 import { join } from 'node:path';
 import type { AgentPipelines } from '@wrongstack/core/agent';
-import type { Config, HealthRegistry, Logger, MetricsRuntimeStatus, MetricsSinkView, ModelsRegistry, Plugin, PromptLoader, SkillLoader } from '@wrongstack/core/types';
 import type { ExtensionRegistry } from '@wrongstack/core/extension';
-import type { PluginAPIInit, PluginHostHandle } from '@wrongstack/core/plugin';
-import type { ConfigStore, SessionWriter } from '@wrongstack/core/types';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
-import type { ProviderRegistry, SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { PluginAPIInit, PluginHostHandle } from '@wrongstack/core/plugin';
 import { loadPlugins, resolvePluginConfig, resolvePluginEnablement } from '@wrongstack/core/plugin';
+import type {
+  ProviderRegistry,
+  SlashCommandRegistry,
+  ToolRegistry,
+} from '@wrongstack/core/registry';
+import type {
+  Config,
+  ConfigStore,
+  HealthRegistry,
+  Logger,
+  MetricsRuntimeStatus,
+  MetricsSinkView,
+  ModelsRegistry,
+  Plugin,
+  PromptLoader,
+  SessionWriter,
+  SkillLoader,
+} from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { OFFICIAL_PLUGIN_FACTORIES } from '@wrongstack/plugins/factories';
 import createApi from '../plugin-api-factory.js';
@@ -191,6 +206,10 @@ export const BUILTIN_PLUGIN_FACTORIES: (() => Promise<Plugin>)[] = [
     return createSyncPlugin();
   },
   async () => {
+    const { createCloudConfigSyncPlugin } = await import('@wrongstack/core/plugin');
+    return createCloudConfigSyncPlugin();
+  },
+  async () => {
     const { createChimeraPlugin } = await import('@wrongstack/core/plugin');
     return createChimeraPlugin();
   },
@@ -289,8 +308,21 @@ export async function setupPlugins(
   const userPlugins: Plugin[] = [];
   if (config.features?.plugins !== false) {
     for (const p of config.plugins ?? []) {
-      if (typeof p === 'object' && p.enabled === false) continue;
       const spec = typeof p === 'string' ? p : p.name;
+      // Same resolver the built-in path 30 lines above uses. The bare
+      // `p.enabled === false` here was a fourth answer to "does this plugin
+      // run?": it ignored `extensions.<name>.enabled`, so a user plugin
+      // disabled through `extensions` still loaded while every report called
+      // it disabled.
+      const { enabled } = resolvePluginEnablement({
+        name: pluginNameFromSpec(spec) ?? spec,
+        aliases: [spec],
+        defaultState: 'active',
+        config,
+        // The resolver already extracts an entry's name before calling this.
+        matches: (configuredName) => configuredName === spec,
+      });
+      if (!enabled) continue;
       // Deprecation policy: if the spec resolves to a deprecated plugin
       // name (either as `'web-search'` or `'@wrongstack/plugins/web-search'`),
       // warn once and skip the dynamic import. Today this means
