@@ -15,6 +15,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
+import { hostname } from 'node:os';
 import * as path from 'node:path';
 import type { SessionRegistryEntry } from './session-registry-types.js';
 import { isPidAlive } from './utils/pid.js';
@@ -22,44 +23,122 @@ import { isPidAlive } from './utils/pid.js';
 // A held lock is released within milliseconds; anything older is a crashed
 // owner's leftover and is safe to break so writes never wedge permanently.
 const STALE_LOCK_MS = 10_000;
+/** Same-host live-owner cap — legit holds are well under this. */
+const SAME_HOST_STALE_MS = 2 * STALE_LOCK_MS;
 /** Also the scan interval for {@link pruneStaleTempFiles} — see its caller. */
 export const STALE_TMP_MS = 60_000;
 const MAX_STALE_TMP_FILES = 20;
 
+/** Machine name stamped into locks so foreign hosts never misread a pid. */
+const HOST_NAME = hostname();
+
+/** `host:pid` owner stamp written into the advisory lock on acquisition. */
+export function lockOwnerStamp(): string {
+  return `${HOST_NAME}:${process.pid}`;
+}
+
 /**
- * Break a contended lock if it is stale: the recorded owner pid is no longer
- * alive, or the lock is older than {@link STALE_LOCK_MS}. Returns true when the
- * lock was removed (caller should retry acquisition). Best-effort and
- * race-tolerant — a fresh lock (age ~0, live owner) is never broken, so the
- * common concurrent case self-heals on the next heartbeat.
+ * Unlink `lockPath` only if it still carries OUR exact host:pid stamp. A
+ * stale-lock breaker may have stolen the lock and re-stamped it with another
+ * host:pid; the resumed holder must not remove the new owner's lock. An EMPTY
+ * read is never ours to remove either — it may be the new owner's lock in its
+ * open-to-stamp gap (that lock is mtime-bounded instead).
+ *
+ * Residual race: between the owner read and the unlink, a foreign-host lease
+ * break could replace the lock; unlinking would then remove the new owner's
+ * lock. Exploiting it requires a >STALE_LOCK_MS hold AND a rename+stamp
+ * landing inside that microsecond window, so it is accepted and bounded by
+ * the same foreign-lease logic that enabled it.
+ */
+export async function maybeUnlinkOwnedLock(lockPath: string): Promise<void> {
+  const owner = await fs.readFile(lockPath, 'utf8').catch(() => null);
+  if (owner !== null && owner.trim() === lockOwnerStamp()) {
+    /* v8 ignore start -- best-effort lock cleanup; .catch only fires if the lock vanished */
+    await fs.unlink(lockPath).catch(() => undefined);
+    /* v8 ignore stop */
+  }
+}
+
+/**
+ * Break a contended lock if it is stale: a same-host owner pid that is no
+ * longer alive, or a foreign-host/ownerless lock older than
+ * {@link STALE_LOCK_MS}. A live same-host owner's lock is only broken past
+ * {@link SAME_HOST_STALE_MS} — a live-but-wedged holder must not degrade
+ * cross-session writes forever, but mtime alone must not false-positive while
+ * the holder is mid-critical-section. Returns true when the lock was removed
+ * (caller should retry acquisition).
+ *
+ * Removal is an atomic RENAME to a unique tombstone, never unlink: with
+ * unlink, two waiters can both read a stale lock and one's unlink can remove
+ * the OTHER's fresh lock, letting both into the critical section (POSIX).
+ * Rename wins for exactly one waiter; losers get ENOENT and simply retry.
+ * (A rename landing after the winner re-created the lock could still move the
+ * winner's fresh lock — a pre-existing microsecond TOCTOU; the caller's
+ * stamp-guarded cleanup prevents the resumed holder from unlinking the new
+ * owner's lock.)
  */
 export async function breakStaleLock(lockPath: string): Promise<boolean> {
   try {
-    const [stat, content] = await Promise.all([
-      fs.stat(lockPath),
-      /* v8 ignore start -- best-effort lock-content read; .catch only fires if the lock vanished */
-      fs.readFile(lockPath, 'utf8').catch(() => ''),
-      /* v8 ignore stop */
-    ]);
-    const ageMs = Date.now() - stat.mtimeMs;
-    const ownerPid = Number.parseInt(content.trim(), 10);
-    const ownerDead =
-      Number.isInteger(ownerPid) &&
-      ownerPid > 0 &&
-      ownerPid !== process.pid &&
-      !isPidAlive(ownerPid);
-    if (ownerDead || ageMs > STALE_LOCK_MS) {
-      /* v8 ignore start -- best-effort stale-lock removal; .catch only fires if the lock vanished */
-      await fs.unlink(lockPath).catch(() => undefined);
-      /* v8 ignore stop */
-      return true;
+    const content = await fs.readFile(lockPath, 'utf8').catch(() => '');
+    const trimmed = content.trim();
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx === -1) {
+      // Legacy bare-pid lock (pre host:pid stamps): preserve the old
+      // dead-owner behavior; an alive/unparseable bare pid falls back to the
+      // mtime lease cap.
+      const barePid = Number.parseInt(trimmed, 10);
+      if (Number.isInteger(barePid) && barePid > 0 && !isPidAlive(barePid)) {
+        return (await breakLockAtomically(lockPath)) === true;
+      }
+      const stat = await fs.stat(lockPath);
+      if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
+        return (await breakLockAtomically(lockPath)) === true;
+      }
+      return false;
+    }
+    const ownerHost = trimmed.slice(0, colonIdx);
+    const ownerPid = Number.parseInt(trimmed.slice(colonIdx + 1), 10);
+    if (ownerHost === HOST_NAME && Number.isInteger(ownerPid) && ownerPid > 0) {
+      if (isPidAlive(ownerPid)) {
+        const stat = await fs.stat(lockPath);
+        if (Date.now() - stat.mtimeMs > SAME_HOST_STALE_MS) {
+          return (await breakLockAtomically(lockPath)) === true;
+        }
+        return false;
+      }
+      return (await breakLockAtomically(lockPath)) === true;
+    }
+    // Foreign-host host:pid lock — pid not interpretable here; mtime lease only.
+    const stat = await fs.stat(lockPath);
+    if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
+      return (await breakLockAtomically(lockPath)) === true;
     }
     return false;
   } catch {
     // stat failed → the lock vanished underneath us; let the caller retry.
-    /* v8 ignore next -- defensive: a vanished lock between stat and read is fine */
+    /* v8 ignore next -- defensive: a vanished lock between read and stat is fine */
     return true;
   }
+}
+
+/**
+ * Remove a stale lock file via atomic RENAME to a unique tombstone, never
+ * unlink: with unlink, two waiters can both read a stale lock and one's
+ * unlink can remove the OTHER's fresh lock, letting both into the critical
+ * section (POSIX). Rename wins for exactly one waiter; losers get ENOENT and
+ * simply keep waiting on the winner's fresh lock.
+ */
+async function breakLockAtomically(lockPath: string): Promise<boolean> {
+  const tombstone = `${lockPath}.stale-${randomUUID()}`;
+  try {
+    await fs.rename(lockPath, tombstone);
+  } catch {
+    // EPERM (AV), ENOENT (already broken), or a lost race — not ours to break.
+    return false;
+  }
+  // The tombstone is ours alone — remove it right away.
+  void fs.unlink(tombstone).catch(() => undefined);
+  return true;
 }
 
 export async function writeAtomicFile(

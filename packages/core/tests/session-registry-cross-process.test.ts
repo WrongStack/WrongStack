@@ -435,7 +435,7 @@ describe('lock resilience', () => {
     const root = await freshRoot();
     const lockPath = path.join(root, 'session-registry.json.lock');
     // Plant a leftover lock owned by a PID that is not alive.
-    await fs.writeFile(lockPath, String(await deadPid()));
+    await fs.writeFile(lockPath, `${os.hostname()}:${await deadPid()}`);
 
     const reg = new SessionRegistry(root);
     await reg.register({
@@ -487,7 +487,7 @@ describe('lock resilience', () => {
     const reg = new SessionRegistry(root, { ownershipLockWaitMs: 100 });
 
     // A lock stamped with our live PID is not stale and cannot be broken.
-    await fs.writeFile(lockPath, String(process.pid));
+    await fs.writeFile(lockPath, `${os.hostname()}:${process.pid}`);
     await expect(
       reg.register({
         sessionId: 'sess-unclaimed',
@@ -513,7 +513,7 @@ describe('lock resilience', () => {
     const lockPath = path.join(root, 'session-registry.json.lock');
     const reg = new SessionRegistry(root);
 
-    await fs.writeFile(lockPath, String(process.pid));
+    await fs.writeFile(lockPath, `${os.hostname()}:${process.pid}`);
     const release = setTimeout(() => {
       void fs.unlink(lockPath);
     }, 1_000);

@@ -328,6 +328,25 @@ describe('review claim registry', () => {
     expect(checkEmit).not.toHaveBeenCalled();
   });
 
+  it('releases a raw-emitted review whose claim is still installing', async () => {
+    const rawBundle = bundle('v1');
+    // A raw emitter dispatches recordStartedReview and the completion in the
+    // same event emit (the no-Director release); the completion must await the
+    // pending claim installation instead of no-op'ing and orphaning it.
+    const started = recordStartedReview(sessionA as never, rawBundle, { storeDir });
+    const completed = recordCompletedReview(sessionA as never, { bundle: rawBundle });
+    await Promise.all([started, completed]);
+
+    // The claim was released, so the same content is claimable again.
+    const emit = vi.fn();
+    expect(
+      await emitReviewIfChanged({ events: sessionA, emitCustom: emit } as never, bundle('v1'), {
+        storeDir,
+      }),
+    ).not.toBeNull();
+    expect(emit).toHaveBeenCalledOnce();
+  });
+
   it('breaks a lock whose owner process is dead even when freshly created', async () => {
     const lockPath = path.join(storeDir, 'review-claims.jsonl.lock');
     await writeFile(lockPath, `${os.hostname()}:999999999`, 'utf8');
@@ -340,11 +359,21 @@ describe('review claim registry', () => {
   it('keeps a lock whose owner process is alive even when the mtime is old', async () => {
     const lockPath = path.join(storeDir, 'review-claims.jsonl.lock');
     await writeFile(lockPath, `${os.hostname()}:${process.pid}`, 'utf8');
-    const past = new Date(Date.now() - 120_000);
+    // Backdate beyond the foreign lease cap (30s) but below the same-host
+    // wedged-holder cap (60s): only the live-owner check can protect this lock.
+    const past = new Date(Date.now() - 45_000);
     await utimes(lockPath, past, past);
-    // The live-owner check must protect it — an mtime-only breaker would steal
-    // a lock from a holder that is mid-critical-section.
     expect(await breakStaleLock(lockPath)).toBe(false);
+  });
+
+  it('breaks a same-host lock held implausibly long by a live owner', async () => {
+    const lockPath = path.join(storeDir, 'review-claims.jsonl.lock');
+    await writeFile(lockPath, `${os.hostname()}:${process.pid}`, 'utf8');
+    // Past the same-host wedged-holder cap: a live-but-wedged holder must not
+    // degrade cross-session dedup forever.
+    const past = new Date(Date.now() - 61_000);
+    await utimes(lockPath, past, past);
+    expect(await breakStaleLock(lockPath)).toBe(true);
   });
 
   it('does not break a foreign-host lock on pid grounds, only past the lease cap', async () => {

@@ -120,16 +120,19 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
       // in the shared ledger BEFORE the event fires (like the automatic
       // paths), so a concurrent session cannot review the same content and the
       // execution owner can release the claims if no Director is present.
-      const payload = {
+      const payload: ReviewContextBundle = {
         config: {
           enabled: true,
           provider: ctx.provider.id,
           model: ctx.model,
           maxFiles: limit,
+          autoFix: 'off',
+          cascadeOn: 'off',
+          maxCascadeDepth: 0,
         },
         cwd,
         files: filesWithContent,
-      } as ReviewContextBundle;
+      };
 
       const emitted = await emitReviewIfChanged(
         { events: opts.events, emitCustom: opts.events.emitCustom.bind(opts.events) },
@@ -142,11 +145,14 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
         };
       }
 
+      const skipped = filesWithContent.length - emitted.files.length;
       const note = truncated
         ? `\n${existing.length - limit} more changed file(s) were not included — raise the cap with /review --limit ${existing.length}.`
         : '';
+      const skippedNote =
+        skipped > 0 ? ` ${skipped} file(s) already under review were skipped.` : '';
       return {
-        message: `🦂 Chimera review triggered for ${filesWithContent.length} file(s).\nThe review report will appear in chat history shortly.${note}`,
+        message: `🦂 Chimera review triggered for ${emitted.files.length} file(s).${skippedNote}\nThe review report will appear in chat history shortly.${note}`,
       };
     },
   };

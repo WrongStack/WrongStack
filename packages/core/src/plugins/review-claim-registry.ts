@@ -21,8 +21,6 @@ interface StartedReview {
   events: EventBus;
   /** Shared ledger dir, or null when the claim fell back to in-memory mode. */
   storeDir: string | null;
-  /** Claim TTL in ms, stored so the release uses the same expiry as the claim. */
-  ttlMs: number;
   claims: ReviewClaim[];
 }
 
@@ -34,6 +32,8 @@ interface LedgerLine {
   sid: string;
   /** For claims: the claim time. For releases: the CLAIM time it targets. */
   ts: number;
+  /** For claims: absolute expiry (claim ts + the claiming caller's TTL). */
+  exp?: number | undefined;
 }
 
 export interface ClaimStoreOptions {
@@ -66,8 +66,14 @@ const DEFAULT_CLAIM_TTL_MS = 30 * 60 * 1000;
 const LOCK_WAIT_MS = 5_000;
 const LOCK_RETRY_MAX_MS = 50;
 const LOCK_STALE_MS = 30_000;
-/** Extra budget for the one lock-contention retry before degraded fallback. */
-const LOCK_RETRY_BUDGET_MS = LOCK_STALE_MS + 5_000;
+/** Same-host live-owner lock cap — sub-second holds never reach it. */
+const SAME_HOST_STALE_MS = 2 * LOCK_STALE_MS;
+/**
+ * Extra budget for the one lock-contention retry before degraded fallback —
+ * long enough to also cover a foreign-host lease break (LOCK_STALE_MS) and
+ * the same-host wedged-holder cap (SAME_HOST_STALE_MS).
+ */
+const LOCK_RETRY_BUDGET_MS = SAME_HOST_STALE_MS + 5_000;
 /** Distinguishes a wedged lock from a storage failure in the fallback path. */
 const CLAIM_STORE_LOCK_TIMEOUT = 'CLAIM_STORE_LOCK_TIMEOUT';
 /** Machine name stamped into locks so foreign hosts never misread a pid. */
@@ -92,8 +98,9 @@ function warnFallbackOnce(message: string): void {
  *
  * Locks are stamped `host:pid`. A pid is only interpretable on the host that
  * wrote it, so:
- *  - same-host locks: broken iff the owner pid is dead (mtime alone can false-
- *    positive while the holder is mid-critical-section);
+ *  - same-host locks: broken iff the owner pid is dead, or the lock is held
+ *    implausibly long (past {@link SAME_HOST_STALE_MS}) — a live-but-wedged
+ *    holder must not degrade cross-session dedup forever;
  *  - foreign-host or ownerless locks: broken only past the mtime lease cap.
  * Exported for unit tests.
  */
@@ -104,7 +111,16 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
       const [ownerHost, pidRaw] = ownerRaw.trim().split(':', 2);
       const ownerPid = Number.parseInt(pidRaw ?? '', 10);
       if (ownerHost === HOST_NAME && Number.isInteger(ownerPid) && ownerPid > 0) {
-        if (isPidAlive(ownerPid)) return false;
+        if (isPidAlive(ownerPid)) {
+          const st = await fsp.stat(lockPath);
+          // Escape hatch for a same-host holder that is alive but wedged: its
+          // critical section is sub-second, so a hold past this cap is either
+          // a suspended process or pid reuse — break it to keep the feature.
+          if (Date.now() - st.mtimeMs > SAME_HOST_STALE_MS) {
+            return (await breakLockAtomically(lockPath)) === true;
+          }
+          return false;
+        }
         return (await breakLockAtomically(lockPath)) === true;
       }
     }
@@ -182,9 +198,11 @@ async function withStoreLock<T>(
         await handle.close().catch(() => undefined);
         // Only unlink a lock we still own: a stale-lock breaker may have
         // stolen this lock and re-stamped it with another host:pid, in which
-        // case the resumed holder must NOT remove the new owner's lock.
+        // case the resumed holder must NOT remove the new owner's lock. An
+        // EMPTY read is never ours to unlink — it may be the new owner's
+        // lock in its open-to-stamp gap; that lock is mtime-bounded instead.
         const owner = await fsp.readFile(lockPath, 'utf8').catch(() => null);
-        if (owner !== null && (owner.trim() === '' || owner.trim() === lockOwnerStamp())) {
+        if (owner !== null && owner.trim() === lockOwnerStamp()) {
           await fsp.unlink(lockPath).catch(() => undefined);
         }
       }
@@ -214,6 +232,14 @@ const HOST_SID = randomUUID();
 /** Same-process fallback ledger, used only when the shared store is unwritable. */
 const claimsByEventBus = new WeakMap<EventBus, Map<string, Set<string>>>();
 const startedReviews = new WeakMap<ReviewContextBundle, StartedReview>();
+/**
+ * In-flight claim installation for raw-emitted reviews. `recordStartedReview`
+ * installs the startedReviews entry only AFTER the async file claim lands, so
+ * a completion handler dispatched synchronously in the same event emit (the
+ * no-Director release) would otherwise no-op and orphan the claim until TTL.
+ * This map lets the completion await the pending claim instead.
+ */
+const pendingStartedReviews = new WeakMap<ReviewContextBundle, Promise<StartedReview | null>>();
 
 function fingerprint(content: string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -257,15 +283,17 @@ function lockFilePath(storeDir: string): string {
 }
 
 /**
- * Replay the ledger in order into `key -> fingerprint -> {sid, ts}`, dropping
- * lines older than the TTL. A release removes exactly the matching claim.
+ * Replay the ledger in order into `key -> fingerprint -> {sid, ts, exp}`,
+ * dropping claims past their PERSISTED absolute expiry. A release removes
+ * exactly the matching claim. Staleness is evaluated from the stored `exp`,
+ * never from a reader-local TTL — two callers with different TTL knobs must
+ * agree on whether a fingerprint is claimed.
  */
 async function readLedger(
   storeDir: string,
-  ttlMs: number,
   now: number,
-): Promise<Map<string, Map<string, { sid: string; ts: number }>>> {
-  const active = new Map<string, Map<string, { sid: string; ts: number }>>();
+): Promise<Map<string, Map<string, { sid: string; ts: number; exp: number }>>> {
+  const active = new Map<string, Map<string, { sid: string; ts: number; exp: number }>>();
   // ENOENT = first use (empty ledger); any other read failure is treated as a
   // store problem and surfaced so the caller can fall back conservatively
   // instead of treating the ledger as empty and duplicating every review.
@@ -286,7 +314,8 @@ async function readLedger(
         typeof parsed.key === 'string' &&
         typeof parsed.fp === 'string' &&
         typeof parsed.sid === 'string' &&
-        typeof parsed.ts === 'number'
+        typeof parsed.ts === 'number' &&
+        (typeof parsed.exp === 'undefined' || typeof parsed.exp === 'number')
       ) {
         entry = parsed as LedgerLine;
       }
@@ -294,19 +323,21 @@ async function readLedger(
       /* torn/corrupt line — ignore */
     }
     if (!entry) continue;
-    if (now - entry.ts > ttlMs) continue;
     let bucket = active.get(entry.key);
     if (!bucket) {
       bucket = new Map();
       active.set(entry.key, bucket);
     }
     if (entry.op === 'claim') {
-      bucket.set(entry.fp, { sid: entry.sid, ts: entry.ts });
+      // Legacy rows (pre-exp ledger) fall back to the default TTL.
+      const exp = entry.exp ?? entry.ts + DEFAULT_CLAIM_TTL_MS;
+      if (now > exp) continue;
+      bucket.set(entry.fp, { sid: entry.sid, ts: entry.ts, exp });
     } else {
       const existing = bucket.get(entry.fp);
       // Match the ORIGINAL claim time too, so a late release can never delete
-      // a newer claim of the same fingerprint that re-appeared after TTL
-      // expiry (same process shares HOST_SID, so sid alone is ambiguous).
+      // a newer claim of the same fingerprint that re-appeared after expiry
+      // (same process shares HOST_SID, so sid alone is ambiguous).
       if (existing?.sid === entry.sid && existing.ts === entry.ts) bucket.delete(entry.fp);
     }
   }
@@ -321,13 +352,20 @@ async function ledgerLineCount(storeDir: string): Promise<number> {
 /** Rewrite the ledger with only the live claims (drops releases + expired). */
 async function compactLedger(
   storeDir: string,
-  active: Map<string, Map<string, { sid: string; ts: number }>>,
+  active: Map<string, Map<string, { sid: string; ts: number; exp: number }>>,
 ): Promise<void> {
   const lines: string[] = [];
   for (const [key, fps] of active) {
     for (const [fp, claim] of fps) {
       lines.push(
-        JSON.stringify({ op: 'claim', key, fp, sid: claim.sid, ts: claim.ts } satisfies LedgerLine),
+        JSON.stringify({
+          op: 'claim',
+          key,
+          fp,
+          sid: claim.sid,
+          ts: claim.ts,
+          exp: claim.exp,
+        } satisfies LedgerLine),
       );
     }
   }
@@ -342,7 +380,13 @@ async function compactLedger(
       replaced = true;
     } catch {
       if (attempt === 2) {
-        await fsp.copyFile(tmp, claimsFilePath(storeDir)).catch(() => undefined);
+        // Never report success unless the replacement actually landed: a
+        // failed copyFile can leave a partially-written destination whose
+        // torn lines drop claims. Rethrow so the caller's best-effort catch
+        // handles it (and the tmp is preserved for a later retry).
+        await fsp.copyFile(tmp, claimsFilePath(storeDir)).catch(async (copyErr) => {
+          throw copyErr;
+        });
         await fsp.unlink(tmp).catch(() => undefined);
         replaced = true;
       } else {
@@ -364,7 +408,7 @@ async function acquireClaims(
     storeDir,
     async () => {
       const now = Date.now();
-      const active = await readLedger(storeDir, ttlMs, now);
+      const active = await readLedger(storeDir, now);
       const claims: ReviewClaim[] = [];
       const lines: string[] = [];
       for (const file of files) {
@@ -379,10 +423,17 @@ async function acquireClaims(
           bucket = new Map();
           active.set(key, bucket);
         }
-        bucket.set(fp, { sid: HOST_SID, ts: now });
+        bucket.set(fp, { sid: HOST_SID, ts: now, exp: now + ttlMs });
         claims.push({ key, fingerprint: fp, sid: HOST_SID, ts: now });
         lines.push(
-          JSON.stringify({ op: 'claim', key, fp, sid: HOST_SID, ts: now } satisfies LedgerLine),
+          JSON.stringify({
+            op: 'claim',
+            key,
+            fp,
+            sid: HOST_SID,
+            ts: now,
+            exp: now + ttlMs,
+          } satisfies LedgerLine),
         );
       }
       if (lines.length > 0) {
@@ -391,8 +442,11 @@ async function acquireClaims(
           if ((await ledgerLineCount(storeDir)) > maxLedgerLines) {
             await compactLedger(storeDir, active);
           }
-        } catch {
+        } catch (err) {
           // Compaction is best-effort — the appended claims are already valid.
+          warnFallbackOnce(
+            `[review-claim-registry] ledger compaction failed (${err instanceof Error ? err.message : String(err)}); will retry on a future acquire`,
+          );
         }
       }
       return claims;
@@ -404,7 +458,6 @@ async function acquireClaims(
 /** Append release lines for exactly the claims that are still live. */
 async function releaseSharedClaims(
   storeDir: string,
-  ttlMs: number,
   claims: ReviewClaim[],
   waitMs = LOCK_WAIT_MS,
 ): Promise<void> {
@@ -413,7 +466,7 @@ async function releaseSharedClaims(
     storeDir,
     async () => {
       const now = Date.now();
-      const active = await readLedger(storeDir, ttlMs, now);
+      const active = await readLedger(storeDir, now);
       const lines: string[] = [];
       for (const claim of claims) {
         const bucket = active.get(claim.key);
@@ -532,27 +585,26 @@ async function releaseClaims(
   events: EventBus,
   claims: ReviewClaim[],
   storeDir: string | null,
-  ttlMs: number,
 ): Promise<void> {
   if (storeDir === null) {
     releaseClaimsInMemory(events, claims);
     return;
   }
   try {
-    await releaseSharedClaims(storeDir, ttlMs, claims);
+    await releaseSharedClaims(storeDir, claims);
   } catch (err) {
     if ((err as { code?: string }).code === CLAIM_STORE_LOCK_TIMEOUT) {
       try {
-        await releaseSharedClaims(storeDir, ttlMs, claims, LOCK_RETRY_BUDGET_MS);
+        await releaseSharedClaims(storeDir, claims, LOCK_RETRY_BUDGET_MS);
         return;
       } catch {
         /* fall through to the warn below */
       }
     }
-    // Best-effort: the claim is bounded by its TTL and the next acquisition
-    // rewrites the ledger, so a failed release degrades gracefully.
+    // Best-effort: the claim is bounded by its stored expiry and the next
+    // acquisition rewrites the ledger, so a failed release degrades gracefully.
     warnFallbackOnce(
-      `[review-claim-registry] shared claim release failed (${err instanceof Error ? err.message : String(err)}); claim will expire via TTL`,
+      `[review-claim-registry] shared claim release failed (${err instanceof Error ? err.message : String(err)}); claim will expire via its stored TTL`,
     );
   }
 }
@@ -571,14 +623,17 @@ export async function recordStartedReview(
   opts?: ClaimStoreOptions | undefined,
 ): Promise<void> {
   if (!payload || typeof payload !== 'object') return;
+  const bundle = payload as ReviewContextBundle;
   // Reviews emitted by emitReviewIfChanged are claimed and tracked BEFORE the
   // event fires, so this listener must never re-claim them: an async re-claim
   // that lands after the completion release would resurrect the fingerprint
   // claim and block the next review (observed as a cross-cycle flake).
-  if (startedReviews.has(payload as ReviewContextBundle)) return;
+  if (startedReviews.has(bundle)) return;
   const candidate = payload as Partial<ReviewContextBundle>;
   if (typeof candidate.cwd !== 'string' || !Array.isArray(candidate.files)) return;
-
+  // Capture the narrowed values BEFORE the async IIFE — TS property narrowing
+  // does not persist into the closure.
+  const cwd: string = candidate.cwd;
   const files = candidate.files.filter(
     (file): file is ReviewFileEntry =>
       Boolean(file) &&
@@ -586,10 +641,29 @@ export async function recordStartedReview(
       typeof (file as ReviewFileEntry).path === 'string' &&
       typeof (file as ReviewFileEntry).content === 'string',
   );
-  const { claims, storeDir } = await claimFiles(events, candidate.cwd, files, opts);
-  if (claims.length > 0) {
-    const { ttlMs } = resolveStore(opts, candidate.cwd);
-    startedReviews.set(payload as ReviewContextBundle, { events, storeDir, ttlMs, claims });
+
+  // Install a SYNCHRONOUS pending marker before the first await: a completion
+  // handler dispatched in the same event emit (e.g. the no-Director release)
+  // must be able to await the claim installation instead of no-op'ing and
+  // orphaning the claim until TTL.
+  const pending = (async (): Promise<StartedReview | null> => {
+    try {
+      const { claims, storeDir } = await claimFiles(events, cwd, files, opts);
+      if (claims.length === 0) return null;
+      const entry: StartedReview = { events, storeDir, claims };
+      startedReviews.set(bundle, entry);
+      return entry;
+    } catch {
+      return null;
+    }
+  })();
+  pendingStartedReviews.set(bundle, pending);
+  try {
+    await pending;
+  } finally {
+    if (pendingStartedReviews.get(bundle) === pending) {
+      pendingStartedReviews.delete(bundle);
+    }
   }
 }
 
@@ -602,12 +676,19 @@ export async function recordCompletedReview(events: EventBus, payload: unknown):
   const bundle = (payload as { bundle?: unknown }).bundle;
   if (!bundle || typeof bundle !== 'object') return;
 
-  const startedReview = startedReviews.get(bundle as ReviewContextBundle);
+  let startedReview = startedReviews.get(bundle as ReviewContextBundle);
+  if (!startedReview) {
+    // A raw-emitted review may still be installing its claim (recordStartedReview
+    // is async). Await the pending installation so the completion releases it
+    // instead of no-op'ing and orphaning the claim until its stored expiry.
+    const pending = pendingStartedReviews.get(bundle as ReviewContextBundle);
+    if (pending) startedReview = (await pending) ?? undefined;
+  }
   // Bundle identity prevents an older completion from removing newer in-flight
   // claims; the events guard keeps a completion on one bus from releasing
   // claims made by another bus in the same process.
   if (!startedReview || startedReview.events !== events) return;
-  await releaseClaims(events, startedReview.claims, startedReview.storeDir, startedReview.ttlMs);
+  await releaseClaims(events, startedReview.claims, startedReview.storeDir);
   startedReviews.delete(bundle as ReviewContextBundle);
 }
 
@@ -639,7 +720,6 @@ export async function emitReviewIfChanged(
   startedReviews.set(claimedBundle, {
     events: api.events,
     storeDir,
-    ttlMs: resolveStore(opts, bundle.cwd).ttlMs,
     claims,
   });
   try {
@@ -647,7 +727,7 @@ export async function emitReviewIfChanged(
     return claimedBundle;
   } catch (err) {
     startedReviews.delete(claimedBundle);
-    await releaseClaims(api.events, claims, storeDir, resolveStore(opts, bundle.cwd).ttlMs);
+    await releaseClaims(api.events, claims, storeDir);
     throw err;
   }
 }

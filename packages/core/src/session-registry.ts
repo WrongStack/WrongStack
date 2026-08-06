@@ -17,6 +17,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   breakStaleLock,
+  lockOwnerStamp,
+  maybeUnlinkOwnedLock,
   pruneStaleTempFiles,
   STALE_TMP_MS,
   writeAtomicFile,
@@ -590,10 +592,22 @@ export class SessionRegistry {
         }
 
         try {
-          // Stamp the owner pid so other processes can detect a stale lock.
-          /* v8 ignore start -- best-effort owner-pid stamp; .catch only fires on a write failure */
-          await lockHandle.writeFile(String(process.pid)).catch(() => undefined);
-          /* v8 ignore stop */
+          // Stamp the owner (host:pid) BEFORE any critical-section work: an
+          // ownerless lock would be stolen by a peer past the mtime cap while
+          // we are still mid-write. Retry transient Windows I/O, then fail
+          // closed so a stamp failure never leaves an unowned lock behind.
+          let stamped = false;
+          for (let stampAttempt = 0; stampAttempt < 3 && !stamped; stampAttempt++) {
+            try {
+              await lockHandle.writeFile(lockOwnerStamp());
+              stamped = true;
+            } catch {
+              if (stampAttempt < 2) await new Promise((resolve) => setTimeout(resolve, 5));
+            }
+          }
+          if (!stamped) {
+            throw new Error('failed to stamp session-registry lock owner');
+          }
           const raw = await fs.readFile(this.filePath, 'utf8').catch(() => '{}');
           // Corruption-tolerant: a crash-zeroed or torn file must not abort
           // the write — starting from {} rewrites a healthy registry.
@@ -609,10 +623,11 @@ export class SessionRegistry {
           await this.writeAtomicWithRetry(registry);
           return; // success
         } finally {
-          await lockHandle.close();
-          /* v8 ignore start -- best-effort lock cleanup in finally; .catch only fires if the lock vanished */
-          await fs.unlink(lockPath).catch(() => undefined);
-          /* v8 ignore stop */
+          await lockHandle.close().catch(() => undefined);
+          // Only unlink a lock we still own: a stale-lock breaker may have
+          // stolen this lock and re-stamped it with another host:pid, in which
+          // case the resumed holder must NOT remove the new owner's lock.
+          await maybeUnlinkOwnedLock(lockPath);
         }
       } catch (err) {
         if (err instanceof SessionOwnershipConflictError) throw err;
