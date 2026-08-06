@@ -122,6 +122,9 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('sudo --user root rm .env')).toContain('.env');
     expect(destructiveTargets('env -u VAR rm .env')).toContain('.env');
     expect(destructiveTargets("git rm 'dir)/.env'")).toContain('dir)/.env');
+    expect(destructiveTargets("git rm 'dir;name/.env'")).toContain('dir;name/.env');
+    expect(destructiveTargets("git rm 'dir|name/.env'")).toContain('dir|name/.env');
+    expect(destructiveTargets("git rm 'dir&name/.env'")).toContain('dir&name/.env');
     expect(destructiveTargets('git rm .env')).toContain('.env');
     expect(destructiveTargets('git -C repo rm .env')).toContain('repo/.env');
     expect(destructiveTargets('git -C "repo dir" rm .env')).toContain('repo dir/.env');
@@ -148,7 +151,23 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('git reset --keep')).toContain('.');
   });
 
+  it('detects the destructive payload inside a single `env -S` command', () => {
+    expect(destructiveTargets("env -S 'rm .env'")).toContain('.env');
+    expect(destructiveTargets('env -S "rm -rf .git"')).toContain('.git');
+  });
+
+  it('does not let `env -S` hide compound destructive commands', () => {
+    expect(destructiveTargets('rm -rf .git && env -S "echo hi"')).toContain('.git');
+    expect(destructiveTargets('git clean -fdx && env -S "echo hi"')).toContain('.');
+    expect(destructiveTargets('env -S "echo hi" && rm -rf .env')).toContain('.env');
+    expect(destructiveTargets("rm -f .env; env -S 'echo y'")).toContain('.env');
+    expect(destructiveTargets("env -S 'echo y' | tee .env")).toContain('.env');
+  });
+
   it('ignores non-mutating raw Git forms', () => {
+    expect(destructiveTargets('git status rm')).toHaveLength(0);
+    expect(destructiveTargets('git add restore')).toHaveLength(0);
+    expect(destructiveTargets('git diff checkout')).toHaveLength(0);
     expect(destructiveTargets('git reset -- .env')).toHaveLength(0);
     expect(destructiveTargets('git restore -S .env')).toHaveLength(0);
     expect(destructiveTargets('git checkout -b feature/path-guard')).toHaveLength(0);
@@ -258,9 +277,12 @@ describe('destructiveTargets', () => {
     ],
     ["while read line <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt", ['notes.txt']],
     ["cat <<'EOF' > output\nrm .env\nEOF", ['output']],
-    [String.raw`cat <<\EOF
+    [
+      String.raw`cat <<\EOF
 rm .env
-EOF`, []],
+EOF`,
+      [],
+    ],
   ])(
     'ignores redirect-looking text inside non-executing heredoc bodies: %s',
     (command, expected) => {
@@ -270,6 +292,8 @@ EOF`, []],
 
   it('inspects executable heredoc consumers but keeps quoted data heredocs inert', () => {
     expect(destructiveTargets('cat <<EOF\n$(rm .env)\nEOF')).toContain('.env');
+    expect(destructiveTargets('cat <<EOF\n$(\nrm .env\n)\nEOF')).toContain('.env');
+    expect(destructiveTargets('cat <<EOF\n`\nrm .env\n`\nEOF')).toContain('.env');
     expect(destructiveTargets("cat <<'EOF'\n$(rm .env)\nEOF")).toHaveLength(0);
     expect(destructiveTargets("python <<'EOF'\nrm .env\nEOF")).toHaveLength(0);
     expect(destructiveTargets('python <<EOF\n$(rm .env)\nEOF')).toContain('.env');
@@ -580,14 +604,11 @@ describe('path-guard plugin', () => {
     '/usr/bin/sudo rm -rf db',
     'env rm -rf db',
     '/usr/bin/env rm -rf db',
-  ])(
-    'blocks recursive deletion through launcher wrappers: %s',
-    (command) => {
-      const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
-      pathGuardPlugin.setup(api as never);
-      expect(getHook(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
-    },
-  );
+  ])('blocks recursive deletion through launcher wrappers: %s', (command) => {
+    const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
+    pathGuardPlugin.setup(api as never);
+    expect(getHook(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+  });
 
   it('allows concrete files but blocks directory writer scopes that may contain defaults', () => {
     const api = makeApi();
@@ -1934,13 +1955,11 @@ describe('path-guard covers any tool that declares a write', () => {
     'git rm .env',
     'git checkout -- .env',
     'cat <<EOF > fix.sh\nrm .env\nEOF\nbash fix.sh',
-  ])('blocks protected paths through shell parser hardening: %s',
-    (command) => {
-      const api = makeApi();
-      pathGuardPlugin.setup(api as never);
-      expect(hookOf(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
-    },
-  );
+  ])('blocks protected paths through shell parser hardening: %s', (command) => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    expect(hookOf(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+  });
 
   it.each(['git rm --cached .env', 'git restore --staged .env', 'git clean -nd'])(
     'allows non-working-tree Git operations: %s',

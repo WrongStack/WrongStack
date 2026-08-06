@@ -730,13 +730,33 @@ function commandDeletesImplicitScope(command: string): boolean {
   // working tree. A literal `.` emitted by cp/mv is only their destination and
   // must not be widened to every descendant in the repository.
   const stripped = stripTransparentLaunchers(command);
-  return /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b[^;&|)`]*\b(?:clean|restore|checkout|switch|reset)\b/i.test(
-    stripped,
-  );
+  const gitInvocation = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)git\b((?:"[^"]*"|'[^']*'|[^;&|)`\r\n])*)/gi;
+  const valueTakingOptions = new Set([
+    '-C', '-c', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--exec-path', '--config-env', '--attr-source',
+  ]);
+  let match: RegExpExecArray | null = gitInvocation.exec(stripped);
+  while (match !== null) {
+    const tokens = (match[1]?.match(/"[^"]*"|'[^']*'|[^\s]+/g) ?? []).map((token) => token.replace(/^["']|["']$/g, ''));
+    for (let index = 0; index < tokens.length; index += 1) {
+      const token = tokens[index] ?? '';
+      if (token === '--') continue;
+      if (!token.startsWith('-')) {
+        if (/^(?:clean|restore|checkout|switch|reset)$/i.test(token)) return true;
+        break;
+      }
+      const optionName = token.split('=', 1)[0] ?? token;
+      if (valueTakingOptions.has(optionName) && !token.includes('=') && !(token.startsWith('-C') && token !== '-C')) index += 1;
+    }
+    match = gitInvocation.exec(stripped);
+  }
+  return false;
 }
 
 function stripTransparentLaunchers(command: string): string {
-  let stripped = command;
+  let stripped = command.replace(
+    /\benv\s+-S\s+(['"])(.*?)\1/gi,
+    (_match, _quote, payload: string) => payload,
+  );
   let previous: string;
   do {
     previous = stripped;
@@ -750,15 +770,6 @@ function stripTransparentLaunchers(command: string): string {
         '$1',
       );
   } while (stripped !== previous);
-  // `env -S 'cmd'` passes a shell command string — recursively scan it
-  // instead of treating it as an opaque value. Must check the ORIGINAL command
-  // because stripTransparentLaunchers consumes `env` prefix.
-  const sMatch = /(?:^|[;&|\r\n]\s*|\(\s*|`\s*)(?:[^\s;&|(){}]+[\\/])?env\s+-S\s+(['"])(.*?)\1/i.exec(
-    command,
-  );
-  if (sMatch?.[2]) {
-    return sMatch[2];
-  }
   return stripped;
 }
 
@@ -940,20 +951,24 @@ function heredocDelimiterOnLine(line: string): HeredocDelimiter | null {
 
 function maskNonExecutingHeredocBodies(command: string): string {
   const lines = command.split(/(?<=\n)/);
-  let heredoc: { delimiter: string; quoted: boolean; stripTabs: boolean } | null = null;
+  let heredoc: (HeredocDelimiter & { bodyStart: number }) | null = null;
+  const maskBody = (start: number, end: number, quoted: boolean): void => {
+    const body = lines.slice(start, end).join('');
+    const substitutions = quoted ? [] : executableCommandSubstitutions(body);
+    for (let index = start; index < end; index += 1) {
+      const line = lines[index] ?? '';
+      lines[index] = line.endsWith('\r\n') ? '\r\n' : line.endsWith('\n') ? '\n' : '';
+    }
+    if (substitutions.length > 0 && start < end) lines[start] = `${substitutions.join(';')}${lines[start] ?? ''}`;
+  };
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
     if (heredoc !== null) {
       const content = line.replace(/\r?\n$/, '');
       const terminator = heredoc.stripTabs ? content.replace(/^\t+/, '') : content;
       if (terminator === heredoc.delimiter) {
+        maskBody(heredoc.bodyStart, index, heredoc.quoted);
         heredoc = null;
-      } else if (heredoc.quoted) {
-        lines[index] = line.replace(/[^\r\n]/g, ' ');
-      } else {
-        const substitutions = executableCommandSubstitutions(content);
-        const newline = line.endsWith('\r\n') ? '\r\n' : line.endsWith('\n') ? '\n' : '';
-        lines[index] = substitutions.length > 0 ? `${substitutions.join(';')}${newline}` : newline;
       }
       continue;
     }
@@ -982,8 +997,9 @@ function maskNonExecutingHeredocBodies(command: string): string {
     const executesBody =
       /(?:^|[<>])>\s*>\s*\(|^(?:\||;|&|\(|\{)/.test(suffix) || executesRedirectedFile;
     if (!receivesDataWithoutExecuting || executesBody) continue;
-    heredoc = marker;
+    heredoc = { ...marker, bodyStart: index + 1 };
   }
+  if (heredoc !== null) maskBody(heredoc.bodyStart, lines.length, heredoc.quoted);
   return lines.join('');
 }
 
