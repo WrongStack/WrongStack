@@ -275,6 +275,21 @@ function nextId(): string {
  * this is sufficient for the current shape — widen if that changes).
  */
 
+/**
+ * Presence fields (`lastSeenAt`, `activity`, `lastActiveAt`) are consumed at
+ * human timescales — decay visuals, recency caps — so refreshing them per
+ * token is pure waste: it forced a full nodes+edges Map clone and an
+ * OfficeMapCanvas re-render on EVERY provider:delta. While the existing
+ * stamp is younger than this window and nothing else about the entry
+ * changed, the upsert is skipped entirely; recency stays accurate to
+ * ~250ms, which is far finer than anything reading it.
+ */
+const VOLATILE_REFRESH_MS = 250;
+
+function presenceFresh(lastStamp: number, now: number): boolean {
+  return now - lastStamp < VOLATILE_REFRESH_MS;
+}
+
 function shallowEqual(a: Record<string, unknown> | null | undefined, b: Record<string, unknown> | null | undefined): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -376,11 +391,28 @@ export const useVizStore = create<VizState>()((set, _get) => ({
       lastSeenAt: now,
     };
     const existingSource = state.nodes.get(sourceId);
-    const mergedSource: VizNode = existingSource ? { ...existingSource, ...sourceNode } : sourceNode;
-    const sourceChanged = !shallowEqual(
+    let mergedSource: VizNode = existingSource ? { ...existingSource, ...sourceNode } : sourceNode;
+    let sourceChanged = !shallowEqual(
       existingSource as unknown as Record<string, unknown> | undefined,
       mergedSource as unknown as Record<string, unknown>,
     );
+    // The clone-skip above never fired in practice: `sourceNode` always
+    // carries `lastSeenAt: now` (and re-pins activity), so every
+    // provider:delta counted as a change and re-cloned both Maps per token.
+    // Presence fields are only consumed at human timescales (decay visuals,
+    // recency caps), so refresh them at most every VOLATILE_REFRESH_MS when
+    // nothing else about the node changed.
+    if (existingSource && sourceChanged && presenceFresh(existingSource.lastSeenAt, now)) {
+      if (
+        shallowEqual(
+          { ...existingSource, activity: mergedSource.activity, lastSeenAt: mergedSource.lastSeenAt } as unknown as Record<string, unknown>,
+          mergedSource as unknown as Record<string, unknown>,
+        )
+      ) {
+        mergedSource = existingSource;
+        sourceChanged = false;
+      }
+    }
 
     // Upsert target node if present
     let mergedTarget: VizNode | undefined;
@@ -403,6 +435,17 @@ export const useVizStore = create<VizState>()((set, _get) => ({
         existingTarget as unknown as Record<string, unknown> | undefined,
         mergedTarget as unknown as Record<string, unknown>,
       );
+      if (existingTarget && targetChanged && presenceFresh(existingTarget.lastSeenAt, now)) {
+        if (
+          shallowEqual(
+            { ...existingTarget, activity: mergedTarget.activity, lastSeenAt: mergedTarget.lastSeenAt } as unknown as Record<string, unknown>,
+            mergedTarget as unknown as Record<string, unknown>,
+          )
+        ) {
+          mergedTarget = existingTarget;
+          targetChanged = false;
+        }
+      }
     }
 
     // Upsert edge if both endpoints present
@@ -428,6 +471,20 @@ export const useVizStore = create<VizState>()((set, _get) => ({
         existingEdge as unknown as Record<string, unknown> | undefined,
         mergedEdge as unknown as Record<string, unknown>,
       );
+      // Same volatile-field throttle as the nodes above; `lastActiveAt` is
+      // the edge's only per-event field once intensity has saturated at 1
+      // and no magnitude is accruing (the provider:delta steady state).
+      if (existingEdge && edgeChanged && presenceFresh(existingEdge.lastActiveAt, now)) {
+        if (
+          shallowEqual(
+            { ...existingEdge, lastActiveAt: mergedEdge.lastActiveAt } as unknown as Record<string, unknown>,
+            mergedEdge as unknown as Record<string, unknown>,
+          )
+        ) {
+          mergedEdge = existingEdge;
+          edgeChanged = false;
+        }
+      }
     }
 
     // Only allocate new Maps when something actually changed. Otherwise

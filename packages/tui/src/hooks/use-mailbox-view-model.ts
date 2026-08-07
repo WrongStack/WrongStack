@@ -153,8 +153,18 @@ export function useMailboxViewModel(events: AppProps['events']): {
     });
     const unsubSnapshot = events.onPattern('mailbox.snapshot', (_event, payload) => {
       const snapshot = payload as TuiMailboxSnapshot;
+      // Same retention caps as the incremental handlers above (50 messages /
+      // 30 agents). This handler used to put the FULL snapshot lists into
+      // state — the consumer half of the measured mailbox.snapshot storm:
+      // every mailbox event triggers a full-list snapshot publish, so an
+      // uncapped write here re-rendered the panel with an ever-growing
+      // array. Sort newest-first before capping instead of trusting wire
+      // order (the mailbox-store slice(-MAX) lesson).
       setMailboxMessages(
-        snapshot.messages.map((message) => ({
+        [...snapshot.messages]
+          .sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0))
+          .slice(0, 50)
+          .map((message) => ({
           id: message.id,
           from: message.from,
           to: message.to,
@@ -173,7 +183,13 @@ export function useMailboxViewModel(events: AppProps['events']): {
         })),
       );
       setMailboxAgents(
-        snapshot.agents.map((agent) => ({
+        [...snapshot.agents]
+          .sort((a, b) => {
+            if (a.online !== b.online) return a.online ? -1 : 1;
+            return (Date.parse(b.lastSeenAt) || 0) - (Date.parse(a.lastSeenAt) || 0);
+          })
+          .slice(0, 30)
+          .map((agent) => ({
           agentId: agent.agentId,
           name: agent.name,
           ...(agent.role !== undefined ? { role: agent.role } : {}),

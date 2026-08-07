@@ -107,6 +107,74 @@ describe('pushEvent', () => {
     expect(events[1].label).toBe('First');
   });
 
+  it('skips the nodes/edges Map clone for presence-only refreshes inside the volatile window', () => {
+    // Regression: `sourceNode` always carries `lastSeenAt: now`, so the
+    // documented "skip the Map clone when shallow-equal" optimization NEVER
+    // fired — every provider:delta re-cloned nodes+edges and re-rendered
+    // OfficeMapCanvas per token. Presence-only refreshes within
+    // VOLATILE_REFRESH_MS must return the same Map references.
+    const nowSpy = vi.spyOn(Date, 'now');
+    try {
+      nowSpy.mockReturnValue(100_000);
+      useVizStore.getState().pushEvent(
+        makeEvent({ id: 'd1', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+      );
+      const nodesAfterFirst = useVizStore.getState().nodes;
+      const edgesAfterFirst = useVizStore.getState().edges;
+
+      // Same content 20ms later: node upsert is presence-only → identical
+      // nodes reference. The EDGE still clones once here — its intensity is
+      // genuinely rising 0.7→1 (content, not presence).
+      nowSpy.mockReturnValue(100_020);
+      useVizStore.getState().pushEvent(
+        makeEvent({ id: 'd2', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+      );
+      expect(useVizStore.getState().nodes).toBe(nodesAfterFirst);
+      expect(useVizStore.getState().edges).not.toBe(edgesAfterFirst);
+
+      // Intensity has saturated at 1: from here on the steady token stream
+      // is presence-only for BOTH maps.
+      const nodesSaturated = useVizStore.getState().nodes;
+      const edgesSaturated = useVizStore.getState().edges;
+      nowSpy.mockReturnValue(100_040);
+      useVizStore.getState().pushEvent(
+        makeEvent({ id: 'd2b', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+      );
+      expect(useVizStore.getState().nodes).toBe(nodesSaturated);
+      expect(useVizStore.getState().edges).toBe(edgesSaturated);
+
+      // Past the window the presence stamp refreshes again (recency caps
+      // depend on it staying roughly current).
+      nowSpy.mockReturnValue(100_400);
+      useVizStore.getState().pushEvent(
+        makeEvent({ id: 'd3', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+      );
+      expect(useVizStore.getState().nodes).not.toBe(nodesAfterFirst);
+      expect(useVizStore.getState().nodes.get('leader')?.lastSeenAt).toBe(100_400);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it('still clones inside the volatile window when node content genuinely changes', () => {
+    const nowSpy = vi.spyOn(Date, 'now');
+    try {
+      nowSpy.mockReturnValue(200_000);
+      useVizStore.getState().pushEvent(
+        makeEvent({ id: 'c1', kind: 'provider:delta', source: 'leader', label: 'one' }),
+      );
+      const nodesAfterFirst = useVizStore.getState().nodes;
+      nowSpy.mockReturnValue(200_010);
+      useVizStore.getState().pushEvent(
+        makeEvent({ id: 'c2', kind: 'provider:delta', source: 'leader', label: 'two' }),
+      );
+      expect(useVizStore.getState().nodes).not.toBe(nodesAfterFirst);
+      expect(useVizStore.getState().nodes.get('leader')?.label).toBe('two');
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it('auto-generates id when not provided', () => {
     const ev = makeEvent({ id: undefined as any });
     useVizStore.getState().pushEvent(ev);

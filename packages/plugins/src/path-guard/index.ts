@@ -860,7 +860,7 @@ function stripTransparentLaunchers(command: string): string {
   let stripped = command.replace(
     /(?:[^\s;&|(){}]+[\\/])?env\s+([^;&|\r\n]*?)(?:-[i0v]*S|--split-string(?:=|\s+))\s*(?:'([^']*)'|"([^"]*)")/gi,
     (_match, _pre: string, singlePayload?: string, doublePayload?: string) =>
-      singlePayload ?? doublePayload ?? '',
+      (singlePayload ?? doublePayload ?? '').replace(/['"]/g, ''),
   );
   // Then iteratively strip `sudo` and `env` launcher prefixes via token-aware
   // parsing so arbitrary value-taking options do not bypass detection.
@@ -968,7 +968,7 @@ function commandRecursivelyDeletes(command: string): boolean {
   // so wrappers cannot hide recursive flags and inert stdin cannot invent them.
   const stripped = stripTransparentLaunchers(maskNonExecutingHeredocBodies(command));
   const destructive =
-    /(?:^|[;&|\r\n]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(rm|rmdir|del)\s+([^;&|\r\n]+)/gi;
+    /(?:^|[;&|\r\n]\s*|\{\s*|\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(rm|rmdir|del)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
   let match: RegExpExecArray | null = destructive.exec(stripped);
   while (match !== null) {
     const tool = match[1]?.toLowerCase();
@@ -1285,8 +1285,12 @@ function destructiveTargetsAtDepth(command: string, depth: number): string[] {
   }
 
   // rm/rmdir/del/unlink/truncate/mv/shred <args...>, including xargs wrappers.
+  // Group/subshell openings `{` and `(` are command boundaries, but `)` and `}`
+  // in the operand class would truncate quoted/escaped paths like
+  // `rm "file (1).env"`. The command-substitution scanner handles inner `)`;
+  // here we use a quote-aware operand capture instead.
   const destructive =
-    /(?:^|[;&|\r\n]\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|unlink|truncate|shred|mv)\s+([^;&|\r\n]+)/gi;
+    /(?:^|[;&|\r\n]\s*|\{\s*|(?<![\$(])\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|unlink|truncate|shred|mv)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
   let m: RegExpExecArray | null = destructive.exec(normalizedCommand);
   while (m !== null) {
     // For `mv src dst` both sides are candidates (overwrite either way).

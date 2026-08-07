@@ -76,15 +76,28 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     () => collectLiveAgentIdentities(fleetAgents.values()),
     [fleetAgents],
   );
-  const activeSessionIds = useMemo(
-    () =>
-      collectActiveSessionIds({
-        sessionId,
-        registrySessionIds,
-        agents: fleetAgents.values(),
-      }),
-    [fleetAgents, registrySessionIds, sessionId],
-  );
+  // Preserve reference identity while the CONTENTS are unchanged.
+  // `fleetAgents` is a fresh Map on every subagent event (fleet-store
+  // allocates unconditionally), so this memo recomputes constantly while
+  // agents stream — and every recompute used to return a brand-new array.
+  // The 8s board-list poll below keys its effect on this value; with a new
+  // identity per event the interval was torn down and recreated before it
+  // ever fired, so `kanban.list` never ran at exactly the moment new
+  // mirror boards appear.
+  const activeSessionIdsRef = useRef<string[]>([]);
+  const activeSessionIds = useMemo(() => {
+    const next = collectActiveSessionIds({
+      sessionId,
+      registrySessionIds,
+      agents: fleetAgents.values(),
+    });
+    const prev = activeSessionIdsRef.current;
+    if (prev.length === next.length && prev.every((id, index) => id === next[index])) {
+      return prev;
+    }
+    activeSessionIdsRef.current = next;
+    return next;
+  }, [fleetAgents, registrySessionIds, sessionId]);
   const activeBoards = boards.filter((board) => isKanbanBoardActive(board, activeSessionIds));
   const orphanedBoards = boards.filter((board) => !isKanbanBoardActive(board, activeSessionIds));
   const boardAudit = useMemo(

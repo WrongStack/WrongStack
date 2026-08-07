@@ -22,6 +22,13 @@ export function RunControlBar({
   const isSdd = runLink.engine === 'sdd';
   const pfx = isSdd ? 'sdd.board' : 'goal';
   const setCurrentView = useUIStore((s) => s.setCurrentView);
+  // Always address the run this board mirrors. The server falls back to its
+  // `latest` run when the payload carries no runId, so with two mirror
+  // boards open, Stop on board A would kill board B's run with no trace in
+  // the UI. The client message union has declared the field all along —
+  // nothing was sending it.
+  const sendRun = (type: string, payload: Record<string, unknown> = {}) =>
+    sendRaw(type, runLink.runId ? { runId: runLink.runId, ...payload } : payload);
   const btn =
     'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium hover:bg-muted';
   return (
@@ -41,17 +48,17 @@ export function RunControlBar({
         </button>
       )}
       <div className="ml-auto flex items-center gap-1">
-        <button type="button" className={btn} onClick={() => sendRaw(`${pfx}.pause`)}>
+        <button type="button" className={btn} onClick={() => sendRun(`${pfx}.pause`)}>
           <Pause size={12} /> {t('activity:kanban.actionPause')}
         </button>
-        <button type="button" className={btn} onClick={() => sendRaw(`${pfx}.resume`)}>
+        <button type="button" className={btn} onClick={() => sendRun(`${pfx}.resume`)}>
           <Play size={12} /> {t('activity:kanban.actionResume')}
         </button>
         {isSdd && (
           <button
             type="button"
             className={btn}
-            onClick={() => sendRaw('sdd.board.retry_all_failed')}
+            onClick={() => sendRun('sdd.board.retry_all_failed')}
           >
             <RotateCcw size={12} /> {t('activity:kanban.actionRetryFailed')}
           </button>
@@ -59,7 +66,7 @@ export function RunControlBar({
         <button
           type="button"
           className={cn(btn, 'text-destructive hover:bg-destructive/10')}
-          onClick={() => sendRaw(`${pfx}.stop`)}
+          onClick={() => sendRun(`${pfx}.stop`)}
         >
           <Square size={12} /> {t('activity:kanban.actionStop')}
         </button>
@@ -118,12 +125,17 @@ export function RunTaskControls({
   const isSdd = runLink.engine === 'sdd';
   const [reassigning, setReassigning] = useState(false);
   const [reassignName, setReassignName] = useState('');
+  // Same runId threading as RunControlBar: without it the server's
+  // `latest`-run fallback retries/cancels tasks on whichever run started
+  // most recently, not the one this board mirrors.
+  const sendRun = (type: string, payload: Record<string, unknown> = {}) =>
+    sendRaw(type, runLink.runId ? { runId: runLink.runId, ...payload } : payload);
   const btn =
     'inline-flex flex-1 items-center justify-center gap-1 rounded-md border py-1.5 text-xs font-medium hover:bg-muted';
   const submitReassign = () => {
     const n = reassignName.trim();
     if (!n) return;
-    sendRaw(isSdd ? 'sdd.board.reassign' : 'goal.assignTask', {
+    sendRun(isSdd ? 'sdd.board.reassign' : 'goal.assignTask', {
       taskId: runTaskId,
       agentName: n,
     });
@@ -142,7 +154,7 @@ export function RunTaskControls({
             candidates={modelCandidates}
             placeholder={t('activity:kanban.setModelForTask')}
             onPick={(model, provider) =>
-              sendRaw('sdd.board.set_task_model', { taskId: runTaskId, model, provider })
+              sendRun('sdd.board.set_task_model', { taskId: runTaskId, model, provider })
             }
           />
         </div>
@@ -180,7 +192,7 @@ export function RunTaskControls({
             type="button"
             className={btn}
             onClick={() =>
-              sendRaw(isSdd ? 'sdd.board.retry' : 'goal.retryTask', { taskId: runTaskId })
+              sendRun(isSdd ? 'sdd.board.retry' : 'goal.retryTask', { taskId: runTaskId })
             }
           >
             <RotateCcw size={13} /> {t('common:action.retry')}
@@ -192,7 +204,7 @@ export function RunTaskControls({
             <button
               type="button"
               className={cn(btn, 'text-destructive hover:bg-destructive/10')}
-              onClick={() => sendRaw('sdd.board.cancel_task', { taskId: runTaskId })}
+              onClick={() => sendRun('sdd.board.cancel_task', { taskId: runTaskId })}
             >
               <Square size={13} /> {t('common:action.cancel')}
             </button>
@@ -200,7 +212,7 @@ export function RunTaskControls({
             <button
               type="button"
               className={btn}
-              onClick={() => sendRaw('goal.runTask', { taskId: runTaskId })}
+              onClick={() => sendRun('goal.runTask', { taskId: runTaskId })}
             >
               <Play size={13} /> {t('activity:kanban.actionRunNow')}
             </button>

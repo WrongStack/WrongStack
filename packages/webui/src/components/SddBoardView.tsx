@@ -103,13 +103,27 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
   );
 
   // Once a destroy is pending and the run has settled (or the deadline passed),
-  // send the wipe. Re-runs whenever `active` flips after the Stop.
+  // send the wipe. Re-runs whenever `active` flips after the Stop — but a
+  // STUCK run may never publish another snapshot or flip `active`, so the
+  // deadline also needs its own timer. Without it, "Stopping…" stayed up
+  // forever and Destroy/Clean/Rollback/Pause/Stop remained hidden until the
+  // user refreshed. `fireDestroy` clears the pending ref, so the timer's
+  // re-check makes a double fire impossible.
   useEffect(() => {
     const pending = pendingDestroy.current;
     if (!pending) return;
     if (!active || Date.now() >= pending.deadline) {
       fireDestroy(pending.revertMerged);
+      return;
     }
+    const timer = setTimeout(
+      () => {
+        const still = pendingDestroy.current;
+        if (still) fireDestroy(still.revertMerged);
+      },
+      Math.max(0, pending.deadline - Date.now()),
+    );
+    return () => clearTimeout(timer);
   }, [active, snapshot, fireDestroy]);
 
   // Clear a stale result before a fresh lifecycle action so the banner reflects

@@ -30,6 +30,14 @@ interface InterruptLadderOptions {
   confirmExitRef: MutableRefObject<boolean>;
 }
 
+/**
+ * How long a Ctrl+C press stays "live" for the escalation ladder while the
+ * session is idle. Mirrors run-tui.ts's RAPID_EXIT_WINDOW_MS — the two
+ * counters answer the same "was this a rapid repeat?" question and should
+ * expire on the same clock.
+ */
+const INTERRUPT_PRESS_WINDOW_MS = 2_000;
+
 /** Implements the synchronous three-stage Ctrl+C/SIGINT escalation ladder. */
 export function useInterruptLadder({
   stateRef,
@@ -60,6 +68,8 @@ export function useInterruptLadder({
   // exit stage would never fire. This ref is the source of truth for the
   // ladder stage; the dispatches below keep the UI state in sync.
   const interruptsSyncRef = useRef(0);
+  // Timestamp of the previous press, for stale-press expiry below.
+  const lastPressAtRef = useRef(0);
 
   // The Ctrl+C escalation ladder, as a callable — three stages:
   //   1st press — stop work and stay at the prompt: cancel the foreground
@@ -77,6 +87,25 @@ export function useInterruptLadder({
   // keyboard there.
   const runInterruptLadder = useCallback(() => {
     const current = stateRef.current;
+    // Stale-press expiry. The counter is otherwise only reset by submit and
+    // run start, so a single Ctrl+C from 20 minutes ago (say, cancelling a
+    // picker) plus one now would read as the SECOND press and force-exit
+    // with killAll — run-tui.ts answers the same question with
+    // RAPID_EXIT_WINDOW_MS. The expiry applies ONLY while idle: during
+    // running/streaming/aborting the earlier press is part of the same
+    // escape attempt, and expiring it would strand the user in a wedged
+    // 'aborting' run that takes longer than the window (the exact case the
+    // 2nd-press-exits stage exists for).
+    const now = Date.now();
+    if (
+      interruptsSyncRef.current > 0 &&
+      current.status === 'idle' &&
+      now - lastPressAtRef.current > INTERRUPT_PRESS_WINDOW_MS
+    ) {
+      interruptsSyncRef.current = 0;
+      dispatch({ type: 'resetInterrupts' });
+    }
+    lastPressAtRef.current = now;
     const pressCount = interruptsSyncRef.current + 1;
     interruptsSyncRef.current = pressCount;
     // Second (or later) Ctrl+C — exit no matter what. Status may be

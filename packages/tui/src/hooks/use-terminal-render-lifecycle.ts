@@ -130,6 +130,11 @@ export function useTerminalRenderLifecycle(state: State): void {
     state.modelPicker.open,
     state.autonomyPicker.open,
     state.designPicker.open,
+    // resumePicker is read by both overlay expressions above; it was the one
+    // picker missing from this list, so /resume open→close never re-ran the
+    // effect and the app's TALLEST overlay never got its erase — the session
+    // list leaked into native scrollback.
+    state.resumePicker.open,
     state.settingsPicker.open,
     state.enhanceBusy,
     state.enhance,

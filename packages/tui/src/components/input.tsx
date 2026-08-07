@@ -377,11 +377,45 @@ export const Input = memo(function Input({
   // follow-up, a real Esc press is emitted.
   const { stdin } = useStdin();
   useEffect(() => {
-    if (!stdin || disabled) return;
+    if (!stdin) return;
     let escTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleData = (data: Buffer) => {
       const s = data.toString();
+
+      // While disabled (status==='aborting', confirm panel open) the parser
+      // stays MOUNTED — the sibling `hidden` prop documents why unmounting
+      // kills the F-key router — and forwards only the non-editing controls
+      // the abort contract promises stay live (app-key-handler: "all
+      // toggles allowed during abort"): F-keys, mouse reports, Home/End.
+      // Unmounting wholesale here left F2/F3/F4/F10, wheel scroll, and
+      // Home/End dead for the whole abort. Editing keys stay blocked, and
+      // Ctrl+C continues to arrive via Ink's useInput path above.
+      if (disabled) {
+        const disabledHomeEnd = isHomeEnd(s);
+        if (disabledHomeEnd === 'home') {
+          onKey('', { ...EMPTY_KEY, home: true });
+          return;
+        }
+        if (disabledHomeEnd === 'end') {
+          onKey('', { ...EMPTY_KEY, end: true });
+          return;
+        }
+        const disabledMouse = parseMouseEvents(s);
+        if (disabledMouse.length > 0) {
+          for (const ev of disabledMouse) {
+            onKey('', {
+              ...EMPTY_KEY,
+              mouse: ev,
+              wheelDeltaY: ev.kind === 'wheel' ? ev.wheel : undefined,
+            });
+          }
+          return;
+        }
+        const disabledFn = fnKey(s);
+        if (disabledFn !== null) onKey('', { ...EMPTY_KEY, fn: disabledFn });
+        return;
+      }
 
       // ESC buffering: see comment block above.
       if (s === '\x1b') {
