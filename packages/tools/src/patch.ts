@@ -145,7 +145,11 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
 
       const args = [`-p${strip}`, '--merge', ...(dryRun ? ['--dry-run'] : []), '-i', patchFile];
 
-      const result = await runPatch(args, dir, opts.signal);
+      const result = await runPatch(args, dir, opts.signal, {
+        patchFile,
+        strip,
+        dryRun,
+      });
 
       // Record what actually changed: mtime + hash (tagged 'write' so the
       // permission bypass does not widen) so a later `edit` doesn't trip the
@@ -231,7 +235,14 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
         };
       }
 
-      const patched = extractPatchedFiles(result.stdout);
+      const patched =
+        result.engine === 'git'
+          ? [
+              ...new Set(
+                resolvedTargets.map((target) => path.relative(dir, target.abs!) || target.abs!),
+              ),
+            ]
+          : extractPatchedFiles(result.stdout);
 
       return {
         applied: patched.length,
@@ -381,7 +392,35 @@ function runPatch(
   args: string[],
   cwd: string,
   signal: AbortSignal,
-): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  fallback: { patchFile: string; strip: number; dryRun: boolean },
+): Promise<{ exitCode: number; stdout: string; stderr: string; engine: 'patch' | 'git' }> {
+  return runPatchProcess('patch', args, cwd, signal).then(async (result) => {
+    if (!result.unavailable) return { ...result, engine: 'patch' };
+
+    // GNU patch is not installed by default on Windows. Git for Windows is
+    // already a WrongStack prerequisite and `git apply` works outside a Git
+    // worktree, so use it as a shell-free fallback. Path containment remains
+    // enforced by the pre-flight above; --unsafe-paths only prevents Git from
+    // applying its own repository-root policy to an already-validated target.
+    const gitArgs = [
+      'apply',
+      '--unsafe-paths',
+      `-p${fallback.strip}`,
+      '--verbose',
+      ...(fallback.dryRun ? ['--check'] : []),
+      fallback.patchFile,
+    ];
+    const gitResult = await runPatchProcess('git', gitArgs, cwd, signal);
+    return { ...gitResult, engine: 'git' };
+  });
+}
+
+function runPatchProcess(
+  command: 'patch' | 'git',
+  args: string[],
+  cwd: string,
+  signal: AbortSignal,
+): Promise<{ exitCode: number; stdout: string; stderr: string; unavailable: boolean }> {
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -391,7 +430,7 @@ function runPatch(
     // localized GNU patch output (fr/de/es etc.). Use buildChildEnv to
     // strip API keys and other secrets from the parent environment.
     const env = { ...buildChildEnv(), LANG: 'C', LC_ALL: 'C' };
-    const child = spawn('patch', args, {
+    const child = spawn(command, args, {
       cwd,
       signal,
       env,
@@ -404,8 +443,17 @@ function runPatch(
     child.stderr?.on('data', (c) => {
       stderr += c.toString();
     });
-    child.on('close', (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
-    child.on('error', (e) => resolve({ exitCode: 1, stdout: '', stderr: e.message }));
+    child.on('close', (code) =>
+      resolve({ exitCode: code ?? 1, stdout, stderr, unavailable: false }),
+    );
+    child.on('error', (e: NodeJS.ErrnoException) =>
+      resolve({
+        exitCode: 1,
+        stdout: '',
+        stderr: e.message,
+        unavailable: e.code === 'ENOENT',
+      }),
+    );
   });
 }
 
