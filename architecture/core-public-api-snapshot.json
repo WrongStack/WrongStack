@@ -938,7 +938,7 @@
         "export { createMcpControlTool, type MCPRegistryHandle } from './mcp-control.js';",
         "export { createMcpUseTool } from './mcp-use.js';",
         "export { type CreateOneShotLLMToolOptions, createOneShotLLMTool, ONE_SHOT_LLM_TOOL_NAME, } from './one-shot-llm-tool.js';",
-        "export { type CreatePluginManagerToolOptions, createPluginManagerTool, PLUGIN_MANAGER_TOOL_NAME, type PluginManagerCatalogEntry, type PluginManagerMutationResult, } from './plugin-manager.js';"
+        "export { type CreatePluginManagerToolOptions, createPluginManagerTool, PLUGIN_MANAGER_TOOL_NAME, type PluginManagerCatalogEntry, type PluginManagerHookRunner, type PluginManagerMutationResult, } from './plugin-manager.js';"
       ]
     },
     {
@@ -1276,7 +1276,7 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 3145
+      "sourceLines": 3209
     },
     {
       "directory": "types",

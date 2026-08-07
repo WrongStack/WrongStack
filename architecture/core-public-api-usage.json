@@ -139,9 +139,9 @@
       "runtimeOrMixed": 20
     },
     "@wrongstack/core/tools": {
-      "files": 3,
+      "files": 4,
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 4
     },
     "@wrongstack/core/types": {
       "files": 856,
@@ -7937,6 +7937,12 @@
     {
       "specifier": "@wrongstack/core/tasking",
       "file": "packages/webui-server/src/server/specs-ws-handler.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tools",
+      "file": "packages/cli/src/cli-main.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
