@@ -128,14 +128,14 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
         if (isPidAlive(ownerPid)) {
           const st = await fsp.stat(lockPath);
           if (Date.now() - st.mtimeMs > SAME_HOST_STALE_MS) {
-            return breakStaleLockVerified(lockPath, async () => {
+            return await breakStaleLockVerified(lockPath, async () => {
               const st2 = await fsp.stat(lockPath);
               return Date.now() - st2.mtimeMs > SAME_HOST_STALE_MS;
             });
           }
           return false;
         }
-        return breakStaleLockVerified(lockPath, async () => {
+        return await breakStaleLockVerified(lockPath, async () => {
           const content = await fsp.readFile(lockPath, 'utf8').catch(() => '');
           return content.trim() === ownerRaw.trim();
         });
@@ -143,7 +143,7 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
     }
     const st = await fsp.stat(lockPath);
     if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
-      return breakStaleLockVerified(lockPath, async () => {
+      return await breakStaleLockVerified(lockPath, async () => {
         const st2 = await fsp.stat(lockPath);
         return Date.now() - st2.mtimeMs > LOCK_STALE_MS;
       });

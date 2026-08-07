@@ -95,12 +95,12 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
       // mtime lease cap.
       const barePid = Number.parseInt(trimmed, 10);
       if (Number.isInteger(barePid) && barePid > 0 && !isPidAlive(barePid)) {
-        return breakStaleLockVerified(lockPath, async () => {
+        return await breakStaleLockVerified(lockPath, async () => {
           const reread = await fs.readFile(lockPath, 'utf8').catch(() => '');
           return reread.trim() === trimmed;
         });
       }
-      return breakStaleLockVerified(lockPath, async () => {
+      return await breakStaleLockVerified(lockPath, async () => {
         const st = await fs.stat(lockPath);
         return Date.now() - st.mtimeMs > STALE_LOCK_MS;
       });
@@ -111,20 +111,20 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
       if (isPidAlive(ownerPid)) {
         const stat = await fs.stat(lockPath);
         if (Date.now() - stat.mtimeMs > SAME_HOST_STALE_MS) {
-          return breakStaleLockVerified(lockPath, async () => {
+          return await breakStaleLockVerified(lockPath, async () => {
             const st = await fs.stat(lockPath);
             return Date.now() - st.mtimeMs > SAME_HOST_STALE_MS;
           });
         }
         return false;
       }
-      return breakStaleLockVerified(lockPath, async () => {
+      return await breakStaleLockVerified(lockPath, async () => {
         const reread = await fs.readFile(lockPath, 'utf8').catch(() => '');
         return reread.trim() === trimmed;
       });
     }
     // Foreign-host host:pid lock — pid not interpretable here; mtime lease only.
-    return breakStaleLockVerified(lockPath, async () => {
+    return await breakStaleLockVerified(lockPath, async () => {
       const st = await fs.stat(lockPath);
       return Date.now() - st.mtimeMs > STALE_LOCK_MS;
     });
