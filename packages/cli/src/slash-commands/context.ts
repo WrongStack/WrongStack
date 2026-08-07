@@ -1,13 +1,21 @@
 import * as fs from 'node:fs/promises';
-import type { Config, SlashCommand } from '@wrongstack/core/types';
-import type { Context } from '@wrongstack/core/agent';
-import { atomicWrite, type ContextBreakdown, color, getContextBreakdown, repairToolUseAdjacency } from '@wrongstack/core/utils';
-import { formatContextWindowModeList, getContextWindowMode, resolveContextWindowPolicy } from '@wrongstack/core/types';
-import type { ContextWindowPolicy } from '@wrongstack/core/types';
-import type { SystemBlockSource } from '@wrongstack/core/agent';
-import { countToolResults, countToolUses, countTurnPairs, estimateTokens } from './helpers.js';
-import type { SlashCommandContext } from './command-context.js';
+import type { Context, SystemBlockSource } from '@wrongstack/core/agent';
+import type { Config, ContextWindowPolicy, SlashCommand } from '@wrongstack/core/types';
+import {
+  formatContextWindowModeList,
+  getContextWindowMode,
+  resolveContextWindowPolicy,
+} from '@wrongstack/core/types';
+import {
+  atomicWrite,
+  type ContextBreakdown,
+  color,
+  getContextBreakdown,
+  repairToolUseAdjacency,
+} from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
+import type { SlashCommandContext } from './command-context.js';
+import { countToolResults, countToolUses, countTurnPairs, estimateTokens } from './helpers.js';
 
 export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
   return {
@@ -196,8 +204,7 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
       }
       const cache = ctx.tokenCounter?.cacheStats();
       if (cache && (cache.readTokens > 0 || cache.writeTokens > 0)) {
-        const saved =
-          cache.savedUsd > 0 ? `  ·  saved ~$${cache.savedUsd.toFixed(2)}` : '';
+        const saved = cache.savedUsd > 0 ? `  ·  saved ~$${cache.savedUsd.toFixed(2)}` : '';
         lines.push(
           `  cache-hit: ${(cache.hitRatio * 100).toFixed(1)}%  ·  read ${cache.readTokens.toLocaleString('en-US')}, write ${cache.writeTokens.toLocaleString('en-US')}${saved} (session cumulative)`,
         );
@@ -309,7 +316,14 @@ function safeBreakdown(ctx: Context): ContextBreakdown | null {
     return getContextBreakdown(ctx);
   } catch (err) {
     if (process.env['DEBUG_WS']) {
-      console.warn(JSON.stringify({ level: 'warn', event: 'context.breakdown_failed', message: String(err), timestamp: Date.now() }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'context.breakdown_failed',
+          message: String(err),
+          timestamp: Date.now(),
+        }),
+      );
     }
     return null;
   }
@@ -348,7 +362,7 @@ function renderBreakdown(bd: ContextBreakdown, detailed: boolean): string[] {
     `${color.bold('Breakdown')} (${headerSuffix})`,
     `  system:   ${K(bd.system.total)} (${PCT(bd.system.total, limit)})`,
     `  tools:    ${K(bd.tools.total)} (${PCT(bd.tools.total, limit)})  ·  builtin ${K(bd.tools.builtin)}, mcp ${K(bd.tools.mcp)} across ${bd.tools.count} defs`,
-    `  history:  ${K(bd.history.total)} (${PCT(bd.history.total, limit)})  ·  text ${K(bd.history.text)}, tool results ${K(bd.history.toolResults)}`,
+    `  history:  ${K(bd.history.total)} (${PCT(bd.history.total, limit)})  ·  text ${K(bd.history.text)}, tool inputs ${K(bd.history.toolInputs ?? 0)}, results ${K(bd.history.toolResults)}, thinking ${K(bd.history.thinking ?? 0)}`,
     `  volatile: ${K(bd.volatile.total)} (${PCT(bd.volatile.total, limit)})  ·  ledger ${K(bd.volatile.ledger)}, nextsteps ${K(bd.volatile.nextsteps)}`,
     `  ${color.bold('total')}:    ${K(bd.total)}${overBy > 0 ? '' : ` (${PCT(bd.total, limit)})`}`,
   ];
@@ -366,7 +380,10 @@ function renderBreakdown(bd: ContextBreakdown, detailed: boolean): string[] {
     const top = detailed ? sources : sources.slice(0, 3);
     out.push(
       `  ${color.dim('heaviest static:')} ${top
-        .map(([src, tokens]) => `${SOURCE_LABELS[src as keyof typeof SOURCE_LABELS] ?? src} ${K(tokens)}`)
+        .map(
+          ([src, tokens]) =>
+            `${SOURCE_LABELS[src as keyof typeof SOURCE_LABELS] ?? src} ${K(tokens)}`,
+        )
         .join(', ')}`,
     );
     if (detailed && bd.tools.total > 0 && (bd.system.bySource['tool-usage'] ?? 0) > 0) {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Text, useAnimation } from '../../ink.js';
+import { sanitizeTerminalText, truncateDisplay } from '../../terminal-width.js';
 import { getToolVisual } from '../../tool-glyph.js';
 import { fmtDuration } from './basic-format.js';
 
@@ -27,9 +28,8 @@ export function streamBoxRows(
   maxLines: number,
   contentWidth: number,
 ): Array<{ text: string; italic?: boolean | undefined }> {
-  const trunc = (line: string) =>
-    line.length > contentWidth ? `${line.slice(0, contentWidth - 1)}…` : line;
-  const lines = text.split('\n');
+  const trunc = (line: string) => truncateDisplay(line, contentWidth);
+  const lines = sanitizeTerminalText(text).split('\n');
   const totalLines = lines.length;
   const hidden = Math.max(0, totalLines - maxLines);
   const rows: Array<{ text: string; italic?: boolean | undefined }> = [];
@@ -60,10 +60,11 @@ export const ToolStreamBox = React.memo(function ToolStreamBox({
   useAnimation({ interval: 1_000 });
 
   const elapsedMs = Date.now() - startedAt;
+  const safeName = sanitizeTerminalText(name);
   const streamLines = name === 'write' ? WRITE_CREATE_STREAM_LINES : MAX_STREAM_LINES;
   const totalLines = text.split('\n').length;
   const hidden = Math.max(0, totalLines - streamLines);
-  const contentWidth = Math.max(20, Math.min(termWidth - 4, 100));
+  const contentWidth = Math.max(1, Math.min(termWidth - 4, 100));
   // Constant-height content block (see streamBoxRows): the live region must not
   // grow row-by-row as output streams, or it scrolls the terminal and leaks the
   // "◆ <tool> ⏱ …" header into scrollback on every update in inline mode.
@@ -84,7 +85,7 @@ export const ToolStreamBox = React.memo(function ToolStreamBox({
       <Box flexDirection="row">
         <Text color={color}>{glyph} </Text>
         <Text bold color={color}>
-          {isWritePreview ? 'write · creating file' : name}
+          {isWritePreview ? 'write · creating file' : safeName}
         </Text>
         <Text dimColor>{`  ⏱ ${fmtDuration(elapsedMs)}`}</Text>
         {hidden > 0 ? (

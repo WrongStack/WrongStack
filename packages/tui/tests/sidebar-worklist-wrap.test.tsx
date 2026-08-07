@@ -11,10 +11,13 @@
 // See: `packages/tui/src/components/sidebar-content.tsx`
 //      `packages/tui/src/components/sidebar-panels.tsx`
 
-import { describe, expect, it } from 'vitest';
+import type { TodoItem } from '@wrongstack/core/agent';
 import { render } from 'ink-testing-library';
 import React from 'react';
-import type { TodoItem } from '@wrongstack/core/agent';
+import { describe, expect, it } from 'vitest';
+import { reducer } from '../src/app-reducer.js';
+import type { Settings } from '../src/app-settings-type.js';
+import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
 import { SidebarContent } from '../src/components/sidebar-content.js';
 import {
   GoalPanelSidebar,
@@ -23,12 +26,9 @@ import {
   QueuePanelSidebar,
   TodosPanelSidebar,
 } from '../src/components/sidebar-panels.js';
-import { reducer } from '../src/app-reducer.js';
-import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
-import type { Settings } from '../src/app-settings-type.js';
 import { displayWidth } from '../src/terminal-width.js';
-import { renderRealTty, settle } from './helpers/real-tty.js';
 import { createTestState } from './helpers/create-test-state.js';
+import { renderRealTty, settle } from './helpers/real-tty.js';
 
 // 20-column sidebar → 16 usable content columns (per `computeSidebarContentWidth`).
 const NARROW_CONTENT_WIDTH = 16;
@@ -58,21 +58,18 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
   it('TodosPanelSidebar keeps the full todo label visible at 16 content columns (no ellipsis truncation)', {
     timeout: 5_000,
   }, async () => {
-    const longActive =
-      'Investigate sticky scrollback regression on narrow terminals';
-    const longPending =
-      'Add Korean locale strings and rework the autocomplete dictionary';
-    const longDone =
-      'Survey the audience for their most-wanted feature in v2';
+    const longActive = 'Investigate sticky scrollback regression on narrow terminals';
+    const longPending = 'Add Korean locale strings and rework the autocomplete dictionary';
+    const longDone = 'Survey the audience for their most-wanted feature in v2';
     const todos: TodoItem[] = [
       makeTodo('a', 'in_progress', 'Original', longActive),
       makeTodo('p', 'pending', longPending),
       makeTodo('d', 'completed', longDone),
     ];
-    const view = renderRealTty(
-      <TodosPanelSidebar todos={todos} width={NARROW_CONTENT_WIDTH} />,
-      { columns: NARROW_CONTENT_WIDTH + 4, rows: 40 },
-    );
+    const view = renderRealTty(<TodosPanelSidebar todos={todos} width={NARROW_CONTENT_WIDTH} />, {
+      columns: NARROW_CONTENT_WIDTH + 4,
+      rows: 40,
+    });
 
     await settle();
     const frame = view.lastFrame();
@@ -139,9 +136,7 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
   it('KanbanPanelSidebar keeps the full active-card title visible at 16 content columns', {
     timeout: 5_000,
   }, async () => {
-    const titles = [
-      'Stabilise the sticky scrollback regression on macOS Sonoma and Sequoia',
-    ];
+    const titles = ['Stabilise the sticky scrollback regression on macOS Sonoma and Sequoia'];
     const columns = [{ name: 'Backlog', count: 1 }];
     const view = renderRealTty(
       <KanbanPanelSidebar
@@ -176,11 +171,7 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
       ],
     };
     const view = renderRealTty(
-      <GoalPanelSidebar
-        goal={goal}
-        coordinatorRunning
-        width={NARROW_CONTENT_WIDTH}
-      />,
+      <GoalPanelSidebar goal={goal} coordinatorRunning width={NARROW_CONTENT_WIDTH} />,
       { columns: NARROW_CONTENT_WIDTH + 4, rows: 30 },
     );
 
@@ -188,12 +179,8 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
     const frame = view.lastFrame();
     const flat = flatten(frame);
 
-    expect(flat).toContain(
-      'Inventory every worktree helper across the workspace modules',
-    );
-    expect(flat).toContain(
-      'Replace the bespoke snapshot fallback with the canonical helper',
-    );
+    expect(flat).toContain('Inventory every worktree helper across the workspace modules');
+    expect(flat).toContain('Replace the bespoke snapshot fallback with the canonical helper');
     view.unmount();
   });
 
@@ -203,15 +190,14 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
     const items = [
       {
         id: 1,
-        displayText:
-          'Refactor the worktree helpers to use the canonical git utilities module',
+        displayText: 'Refactor the worktree helpers to use the canonical git utilities module',
         blocks: [],
       },
     ];
-    const view = renderRealTty(
-      <QueuePanelSidebar items={items} width={NARROW_CONTENT_WIDTH} />,
-      { columns: NARROW_CONTENT_WIDTH + 4, rows: 30 },
-    );
+    const view = renderRealTty(<QueuePanelSidebar items={items} width={NARROW_CONTENT_WIDTH} />, {
+      columns: NARROW_CONTENT_WIDTH + 4,
+      rows: 30,
+    });
 
     await settle();
     const frame = view.lastFrame();
@@ -257,12 +243,8 @@ describe('sidebar worklist items wrap onto multiple lines on narrow rails', () =
     const frame = lastFrame() ?? '';
     const flat = flatten(frame);
 
-    expect(flat).toContain(
-      'Diagnose the scrollback regression under narrow terminal widths',
-    );
-    expect(flat).toContain(
-      'Resync the keyboard shortcuts document with the v0.42 release notes',
-    );
+    expect(flat).toContain('Diagnose the scrollback regression under narrow terminal widths');
+    expect(flat).toContain('Resync the keyboard shortcuts document with the v0.42 release notes');
     // Both todos are non-completed, so the badge is 0/2.
     expect(frame).toContain('0/2');
   });
@@ -278,19 +260,19 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
   //
   // Pinned empirical value: with the default test state (no routed panels,
   // no running subagents, sidebar focused) the reducer computes a
-  // maxScrollOffset of exactly 75. The contributing sections are:
-  //   context card       4 rows (header + meter + tokens + margin)
-  //   model card         3 rows (header + value + margin)
-  //   fleet card         3 rows (header + summary + margin; margin=1 here
-  //                              because no agent rows follow in default state)
-  //   mission card      83 rows (1 header + 8 × SIDEBAR_MISSION_MAX_WRAP_LINES
-  //                              + 1 overflow row + 1 margin)
-  //   focus indicator    2 rows (visible only when focused)
-  //   agents/sessions    0 rows (default state has none)
+  // maxScrollOffset of exactly 82. The contributing sections are:
+  //   model/context hero 14 rows (stage + identity + meters + composition + margin)
+  //   fleet card          3 rows (header + summary + margin; margin=1 here
+  //                               because no agent rows follow in default state)
+  //   mission card       83 rows (1 header + 8 × SIDEBAR_MISSION_MAX_WRAP_LINES
+  //                               + 1 overflow row + 1 margin)
+  //   focus indicator     2 rows (visible only when focused)
+  //   system vitals       5 rows (SYSTEM card header + 3 metrics + margin)
+  //   agents/sessions     0 rows (default state has none)
   //   ─────────────────────────
-  //   contentHeight      95 rows
-  //   viewport          -20 rows
-  //   maxScrollOffset   = 75 rows
+  //   contentHeight      107 rows  (+5 for SYSTEM vitals card)
+  //   viewport           -20 rows
+  //   maxScrollOffset    = 87 rows
   // If you change SIDEBAR_MISSION_MAX_WRAP_LINES or any section reserve in
   // reducers/workspace-panels.ts, this assertion must move with it.
 
@@ -309,7 +291,10 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
     for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    expect(s.sidebarScrollOffset).toBe(75);
+    // With the new SYSTEM vitals card (+5 rows), the total is
+    // 14 (hero) + 5 (system) + 3 (fleet: empty, header+margin) + 2 (focus)
+    // + 83 (mission) = 107, minus the 20-row viewport = 87 max.
+    expect(s.sidebarScrollOffset).toBe(87);
   });
 
   // Regression for Medium #2 (effectiveSwarmOnSidebar dual source): when
@@ -328,9 +313,9 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
         effectiveSwarmOnSidebar: true,
       });
     }
-    // Same 75-row max as the picker-draft case (the effective boolean
+    // Same 87-row max as the picker-draft case (the effective boolean
     // produces the same content height when both report 'sidebar').
-    expect(s.sidebarScrollOffset).toBe(75);
+    expect(s.sidebarScrollOffset).toBe(87);
   });
 
   // Regression for Medium #1 (twin-row viewport subtraction): when one
@@ -338,12 +323,12 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
   // `sidebarTwinRowCount` from `viewportHeight` so the user can't scroll
   // past the rendered content end into blank space. With one twin (8
   // rows reserved), the effective viewport is 20 − 8 = 12 and the max
-  // scroll is 95 − 12 = 83.
+  // scroll is 107 − 12 = 95.
   //
   // Note: the `effectiveSwarmOnSidebar: true` field on every scroll
-  // already drives the 95-row height (1 header + 8 × 10 + 1 overflow
-  // + 1 margin = 83 mission rows + 12 chrome), so we don't need to
-  // pre-set `panelPositions.fleet: 'sidebar'` in a `settingsValueSet`
+  // already drives the 107-row height (1 header + 8 × 10 + 1 overflow
+  // + 1 margin = 83 mission rows + 24 chrome including SYSTEM vitals),
+  // so we don't need to pre-set `panelPositions.fleet: 'sidebar'` in a `settingsValueSet`
   // patch — the effective boolean carries the same information.
   it('subtracts sidebarTwinRowCount from the viewport when computing the scroll clamp', () => {
     let s = createTestState();
@@ -357,7 +342,8 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
         effectiveSwarmOnSidebar: true,
       });
     }
-    expect(s.sidebarScrollOffset).toBe(83);
+    // contentHeight 107 − viewport 12 (20−8 twin) = 95.
+    expect(s.sidebarScrollOffset).toBe(95);
   });
 
   // Mirror test for the `??` fallback in `computeMaxSidebarScroll`:
@@ -365,18 +351,18 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
   // read the picker draft (`state.settingsPicker.showAgentSwarmPanel`).
   // With the default state (picker draft = 'bottom'), the mission
   // queue reservation is absent, so the content height is the
-  // context + model + fleet + focus = 12 rows, viewport 20 → max
-  // scroll = 0 (no content to scroll past). A future flip of the
-  // `??` to a hardcoded `true` (or default `false`) would be caught
-  // by this assertion diverging from 0.
+  // hero + system vitals + focus = 21 rows (14 + 5 + 2), viewport 20
+  // → max scroll = 1. A future flip of the `??` to a hardcoded `true`
+  // (or default `false`) would be caught by this assertion diverging
+  // from 1.
   it('falls back to the picker draft when effectiveSwarmOnSidebar is omitted', () => {
     let s = createTestState();
     s = reducer(s, { type: 'toggleSidebarFocus' });
     for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // contentHeight 12 (no mission card) − viewport 20 = 0.
-    expect(s.sidebarScrollOffset).toBe(0);
+    // contentHeight 21 (14 hero + 5 system + 2 focus) − viewport 20 = 1.
+    expect(s.sidebarScrollOffset).toBe(1);
   });
 
   // End-to-end regression for the dual-source `effectiveSwarmOnSidebar`

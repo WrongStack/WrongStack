@@ -2,9 +2,9 @@ import { agentPrompt } from './agent-prompts.js';
 import type { BundledAgentSkill } from './role-skills.js';
 import {
   type AgentDefinition,
-  type RoleDispatcherSignal,
   LIGHT_BUDGET,
   MEDIUM_BUDGET,
+  type RoleDispatcherSignal,
   TOOLS,
 } from './types.js';
 
@@ -272,8 +272,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       id: 'resilience-engineer',
       name: 'Resilience Engineer',
       role: 'resilience-engineer',
-      tools: [...TOOLS.build, 'logs', 'observability'],
-      // uniqueness guaranteed by 'observability' vs chaos-engineer's 'test'
+      tools: [...TOOLS.build, 'logs'],
       prompt: agentPrompt('resilience-engineer'),
     },
     budget: MEDIUM_BUDGET,
@@ -297,8 +296,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       id: 'chaos-engineer',
       name: 'Chaos Engineer',
       role: 'chaos-engineer',
-      tools: [...TOOLS.build, 'logs', 'observability'],
-      // uniqueness guaranteed by 'observability' vs chaos-engineer's 'test'
+      tools: [...TOOLS.build, 'logs'],
       prompt: agentPrompt('chaos-engineer'),
     },
     budget: MEDIUM_BUDGET,
@@ -384,4 +382,3 @@ export const WAVE2_ROLE_METAS: Record<string, RoleDispatcherSignal> = {
 export const WAVE2_ROLES = new Set<string>(Object.keys(WAVE2_ROLE_METAS));
 
 void skillSet;
-

@@ -1,79 +1,80 @@
+import React from 'react';
 import { describe, expect, it } from 'vitest';
+import { computeRailSpans } from '../src/components/powerline-rail.js';
 import {
   fmtElapsed,
-  fmtMemory,
   hasTokenDisplay,
   renderMeter,
   renderProgress,
   stateChip,
-  statusBarAutonomySpan,
-  statusBarModelSpan,
   tokenDisplayTotals,
 } from '../src/components/status-bar.js';
+import { fmtMemory } from '../src/components/status-bar-format.js';
+import { Text } from '../src/ink.js';
 import { theme } from '../src/theme.js';
 
-describe('statusBarModelSpan (hit-test geometry)', () => {
-  it('places the model directly after the rail cap without workspace chips', () => {
-    expect(statusBarModelSpan({ model: 'anthropic/claude' })).toEqual({
-      start: 2,
-      len: 'anthropic/claude'.length,
-    });
+function chip(text: string): React.ReactElement {
+  return React.createElement(Text, null, text);
+}
+
+describe('computeRailSpans (hit-test geometry)', () => {
+  it('lays segments out 0-based with 2-space separators, mirroring PowerlineRail', () => {
+    const spans = computeRailSpans(
+      [
+        { id: 'yolo', node: chip('YOLO') },
+        { id: 'model', node: chip('openai/gpt-5.6') },
+        { id: 'state', node: chip('idle') },
+      ],
+      120,
+    );
+    expect(spans).toEqual([
+      { id: 'yolo', start: 0, len: 4 },
+      { id: 'model', start: 6, len: 'openai/gpt-5.6'.length },
+      { id: 'state', start: 6 + 'openai/gpt-5.6'.length + 2, len: 4 },
+    ]);
   });
 
-  it('accounts for project and working-directory chips before provider/model', () => {
-    const span = statusBarModelSpan({
-      provider: 'openai',
-      model: 'gpt-5.6',
-      projectName: 'WrongStack',
-      workingDir: 'packages/tui',
-    });
-    // cap(1) + each preceding chip's content + 2-space sep + model pad(1)
-    expect(span).toEqual({ start: 32, len: 'openai/gpt-5.6'.length });
+  it('drops segments that exceed the budget exactly like the renderer', () => {
+    const spans = computeRailSpans(
+      [
+        { id: 'a', node: chip('aaaaaaaaaa') },
+        { id: 'b', node: chip('bbbbbbbbbb') },
+        { id: 'c', node: chip('cccccccccc') },
+      ],
+      // Only the first two fit once the `+N` omission marker is reserved.
+      26,
+    );
+    expect(spans.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
-  it('omits hidden workspace chips from the model offset', () => {
-    const visible = statusBarModelSpan({
-      model: 'm',
-      projectName: 'WrongStack',
-      workingDir: 'packages/tui',
-    });
-    const hidden = statusBarModelSpan({
-      model: 'm',
-      projectName: 'WrongStack',
-      workingDir: 'packages/tui',
-      projectHidden: true,
-      workingDirHidden: true,
-    });
-    expect(visible.start).toBeGreaterThan(hidden.start);
-    expect(hidden.start).toBe(2);
-  });
-});
-
-describe('statusBarAutonomySpan (hit-test geometry)', () => {
-  it('returns null when autonomy is off or unset', () => {
-    expect(statusBarAutonomySpan({ autonomy: 'off' })).toBeNull();
-    expect(statusBarAutonomySpan({})).toBeNull();
+  it('always keeps the first segment even when over budget', () => {
+    const spans = computeRailSpans([{ id: 'a', node: chip('aaaaaaaaaa') }], 4);
+    expect(spans).toEqual([{ id: 'a', start: 0, len: 10 }]);
   });
 
-  it('starts at the left padding when YOLO is not shown', () => {
-    expect(statusBarAutonomySpan({ autonomy: 'auto' })).toEqual({
-      start: 2,
-      len: 2 + 'AUTO'.length,
-    });
+  it('trims trailing segments to make room for a right anchor', () => {
+    const anchor = chip('v9.9.99');
+    const withAnchor = computeRailSpans(
+      [
+        { id: 'a', node: chip('aaaaaaaaaa') },
+        { id: 'b', node: chip('bbbbbbbbbb') },
+      ],
+      24,
+      anchor,
+    );
+    expect(withAnchor.map((s) => s.id)).toEqual(['a']);
+    const withoutAnchor = computeRailSpans(
+      [
+        { id: 'a', node: chip('aaaaaaaaaa') },
+        { id: 'b', node: chip('bbbbbbbbbb') },
+      ],
+      24,
+    );
+    expect(withoutAnchor.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
-  it('shifts right past the YOLO chip + Powerline transition', () => {
-    const span = statusBarAutonomySpan({ yolo: true, autonomy: 'eternal' });
-    // cap(1) + "! YOLO"(6) + 2-space sep + label pad(1) = 10
-    expect(span).toEqual({ start: 10, len: 2 + 'ETERNAL'.length });
-  });
-
-  it('matches monochrome labels and YOLO geometry', () => {
-    expect(statusBarAutonomySpan({ yolo: true, autonomy: 'auto', monochrome: true })).toEqual({
-      // cap(1) + "YOLO"(4) + 2-space sep + label pad(1) = 8
-      start: 8,
-      len: 'AUTO'.length,
-    });
+  it('returns no spans for an empty rail', () => {
+    expect(computeRailSpans([], 80)).toEqual([]);
   });
 });
 
@@ -238,14 +239,15 @@ describe('tokenDisplayTotals', () => {
       input: 48_500,
       output: 0,
     });
-    expect(
-      hasTokenDisplay(tokenDisplayTotals({ input: 0, output: 0 }, undefined, 48_500)),
-    ).toBe(true);
+    expect(hasTokenDisplay(tokenDisplayTotals({ input: 0, output: 0 }, undefined, 48_500))).toBe(
+      true,
+    );
   });
 
   it('ignores the local estimate once the provider reports real usage', () => {
-    expect(
-      tokenDisplayTotals({ input: 1000, output: 200 }, undefined, 48_500),
-    ).toEqual({ input: 1000, output: 200 });
+    expect(tokenDisplayTotals({ input: 1000, output: 200 }, undefined, 48_500)).toEqual({
+      input: 1000,
+      output: 200,
+    });
   });
 });

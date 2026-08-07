@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.301.0] — 2026-08-07
+
+The broader set of changes included in this release has not yet been specified.
+
+### Documentation
+
+- **Mailbox session-affinity guard documentation now matches PR #314.** The `acceptMailboxMessageForSession` contract explicitly preserves strict `!== undefined` presence checks so malformed persisted values continue to fail closed.
+
 ## [0.300.0] — 2026-08-05
 
 ### Added

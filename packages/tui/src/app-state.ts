@@ -479,6 +479,8 @@ export type State = {
   enhanceEnabled: boolean;
   /** True while the refiner LLM call is in flight (before the panel appears). Drives a "refining…" indicator. */
   enhanceBusy: boolean;
+  /** True only while the long-history topic advisor performs a remote ambiguity check. */
+  topicCheckBusy: boolean;
   /**
    * Active pre-refine grace countdown. Set after the user submits a prompt
    * that passes the refiner gate but BEFORE the refiner LLM call starts.
@@ -494,6 +496,13 @@ export type State = {
     seconds: number;
     resolve: (decision: 'proceed' | 'skip' | 'cancel') => void;
   } | null;
+  /**
+   * Monotonic id of the active countdown, bumped on every open. The panel is
+   * keyed on it so a second countdown mounts a FRESH component instead of
+   * inheriting the previous one's expired timer — which wedged the panel at
+   * "refining in 0s…" with an orphaned resolve. Mirrors `historyGen`.
+   */
+  refineCountdownGen: number;
   /**
    * Active refinement-failure recovery panel. Set when a refine attempt (and
    * its automatic timeout retry) failed and the user must choose how to

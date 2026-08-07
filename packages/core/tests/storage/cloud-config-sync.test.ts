@@ -103,20 +103,20 @@ describe('cloud-config-sync sanitizer', () => {
     expect(runtime.tools).not.toHaveProperty('exec');
 
     const mcp = payloads['mcp.servers'] ?? {};
-    const context7 = (mcp.mcpServers as Record<string, Record<string, unknown>>).context7;
+    const context7 = (mcp.mcpServers as Record<string, Record<string, unknown>>).context7!;
     expect(context7.transport).toBe('streamable-http');
     expect(context7).not.toHaveProperty('headers');
     expect(context7).not.toHaveProperty('env');
 
     const providers = payloads['providers.catalog'] ?? {};
-    const opencode = (providers.providers as Record<string, Record<string, unknown>>).opencode;
+    const opencode = (providers.providers as Record<string, Record<string, unknown>>).opencode!;
     expect(opencode.baseUrl).toBe('https://opencode.ai/zen/v1');
     expect(opencode.envVars).toEqual(['OPENCODE_API_KEY']);
     expect(opencode).not.toHaveProperty('apiKey');
     expect(opencode).not.toHaveProperty('apiKeys');
 
     const extensions = payloads['extensions.plugins'] ?? {};
-    const telegram = (extensions.extensions as Record<string, Record<string, unknown>>).telegram;
+    const telegram = (extensions.extensions as Record<string, Record<string, unknown>>).telegram!;
     expect(telegram.notifyChatId).toBe(47356511);
     expect(telegram).not.toHaveProperty('botToken');
   });
@@ -145,7 +145,8 @@ describe('cloud-config-sync sanitizer', () => {
         },
       },
     });
-    const opencode = (afterProviders.providers as Record<string, Record<string, unknown>>).opencode;
+    const opencode = (afterProviders.providers as Record<string, Record<string, unknown>>)
+      .opencode!;
     expect(opencode.baseUrl).toBe('https://new.example/v1');
     // Key material stays exactly as it was locally.
     expect(opencode.apiKey).toBe('enc:v1:iv:tag:cipher');
@@ -157,7 +158,7 @@ describe('cloud-config-sync sanitizer', () => {
     const applied = applyNamespacePayload(local, 'extensions.plugins', {
       extensions: { telegram: { notifyChatId: 999 } },
     });
-    const telegram = (applied.extensions as Record<string, Record<string, unknown>>).telegram;
+    const telegram = (applied.extensions as Record<string, Record<string, unknown>>).telegram!;
     expect(telegram.notifyChatId).toBe(999);
     expect(telegram.botToken).toBe('enc:v1:iv:tag:cipher');
   });

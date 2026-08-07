@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { assistantTailRows, streamBoxRows } from '../src/components/history.js';
+import { streamBoxRows } from '../src/components/history.js';
+import { displayWidth } from '../src/terminal-width.js';
 
-// Regression: the live tool-stream box and assistant tail must render at a
+// Regression: the live tool-stream box must render at a
 // CONSTANT height regardless of how much text is streaming. A region that grows
 // row-by-row at the bottom of the terminal scrolls the screen on every update,
 // and in inline mode each scroll leaks the top row into
@@ -10,7 +11,12 @@ import { assistantTailRows, streamBoxRows } from '../src/components/history.js';
 
 describe('streamBoxRows (constant-height tool stream)', () => {
   it('always returns exactly maxLines rows regardless of input length', () => {
-    for (const text of ['', 'one', 'a\nb\nc', Array.from({ length: 50 }, (_, i) => `line ${i}`).join('\n')]) {
+    for (const text of [
+      '',
+      'one',
+      'a\nb\nc',
+      Array.from({ length: 50 }, (_, i) => `line ${i}`).join('\n'),
+    ]) {
       expect(streamBoxRows(text, 8, 100)).toHaveLength(8);
     }
   });
@@ -39,39 +45,17 @@ describe('streamBoxRows (constant-height tool stream)', () => {
     expect(content.text.endsWith('…')).toBe(true);
   });
 
+  it('normalizes tabs and terminal cursor controls before measuring live output', () => {
+    const rows = streamBoxRows('PASS\twide\x1b[40Cspill\r\nnext', 3, 20);
+    expect(rows.map((row) => row.text)).toEqual(['', 'PASS  widespill', 'next']);
+    expect(rows.every((row) => displayWidth(row.text) <= 20)).toBe(true);
+    expect(rows.map((row) => row.text).join('\n')).not.toMatch(/[\t\r\x1b]/);
+  });
+
   it('supports the write-create 3-line scrolling preview', () => {
     const rows = streamBoxRows('one\ntwo\nthree\nfour', 3, 100);
     expect(rows).toHaveLength(3);
     expect(rows[0]).toMatchObject({ italic: true });
     expect(rows.map((r) => r.text)).toEqual(['  … 1 more line above', 'three', 'four']);
-  });
-});
-
-describe('assistantTailRows (constant-height assistant tail)', () => {
-  it('always returns exactly tailLines rows regardless of input length', () => {
-    for (const text of ['', 'hi', 'a\nb', Array.from({ length: 40 }, (_, i) => `p${i}`).join('\n')]) {
-      expect(assistantTailRows(text, 8, 120)).toHaveLength(8);
-    }
-  });
-
-  it('bottom-pins the newest lines with blank padding on top', () => {
-    const rows = assistantTailRows('first\nsecond', 8, 120);
-    expect(rows.slice(0, 6).every((r) => r === '')).toBe(true);
-    expect(rows[6]).toBe('first');
-    expect(rows[7]).toBe('second');
-  });
-
-  it('keeps only the last tailLines when input overflows', () => {
-    const text = Array.from({ length: 20 }, (_, i) => `line${i}`).join('\n');
-    const rows = assistantTailRows(text, 8, 120);
-    expect(rows[0]).toBe('line12');
-    expect(rows[7]).toBe('line19');
-  });
-
-  it('truncates lines wider than contentWidth (no wrap)', () => {
-    const rows = assistantTailRows('z'.repeat(300), 8, 50);
-    const content = rows.find((r) => r.includes('z'))!;
-    expect(content.length).toBeLessThanOrEqual(50);
-    expect(content.endsWith('…')).toBe(true);
   });
 });

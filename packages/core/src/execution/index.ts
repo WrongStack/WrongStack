@@ -4,7 +4,6 @@ export {
   AutoCompactionMiddleware,
   type ContextWindowBudgetSnapshot,
 } from './auto-compaction-middleware.js';
-export { installSubagentAutoCompaction } from './subagent-compaction.js';
 export {
   AutonomousRunner,
   type AutonomousRunnerOptions,
@@ -23,6 +22,10 @@ export {
   parseOptionDecision,
   type TieredBrainArbiterOptions,
 } from './autonomy-brain.js';
+export {
+  type AutonomyPromptContributorOptions,
+  makeAutonomyPromptContributor,
+} from './autonomy-prompt-contributor.js';
 export {
   assembleBrainTiers,
   type BrainTierAssembly,
@@ -55,6 +58,7 @@ export {
   createBrainRuntime,
   resolveBrainConfigDefaults,
 } from './brain-runtime.js';
+export { type CompactorOptions, HybridCompactor } from './compactor.js';
 export {
   COUNCIL_REFUSE_OPTION_ID,
   type CouncilBrainOptions,
@@ -62,12 +66,12 @@ export {
   createCouncilBrainArbiter,
 } from './council-brain.js';
 export {
-  type CouncilResolution,
-  type CouncilResolutionInput,
-  type CouncilResolutionSeat,
-  type CouncilResolutionVote,
-  resolveCouncilVotes,
-} from './council-resolution.js';
+  COUNCIL_REFUSAL_OPTION_ID,
+  CouncilOrchestrator,
+  type CouncilOrchestratorOptions,
+  DEFAULT_COUNCIL_MAX_CONCURRENCY,
+  MAX_COUNCIL_CONCURRENCY,
+} from './council-orchestrator.js';
 export {
   BUILTIN_COUNCIL_PERSONA_IDS,
   BUILTIN_COUNCIL_PERSONAS,
@@ -99,17 +103,12 @@ export {
   COUNCIL_VOTER_PROMPT_PATH,
 } from './council-prompts.js';
 export {
-  COUNCIL_REFUSAL_OPTION_ID,
-  CouncilOrchestrator,
-  type CouncilOrchestratorOptions,
-  DEFAULT_COUNCIL_MAX_CONCURRENCY,
-  MAX_COUNCIL_CONCURRENCY,
-} from './council-orchestrator.js';
-export {
-  type AutonomyPromptContributorOptions,
-  makeAutonomyPromptContributor,
-} from './autonomy-prompt-contributor.js';
-export { type CompactorOptions, HybridCompactor } from './compactor.js';
+  type CouncilResolution,
+  type CouncilResolutionInput,
+  type CouncilResolutionSeat,
+  type CouncilResolutionVote,
+  resolveCouncilVotes,
+} from './council-resolution.js';
 export {
   activateDesign,
   clearActiveKit,
@@ -138,6 +137,11 @@ export {
   type PersistedActiveKit,
   recordKitChoice,
 } from './design-project-store.js';
+export {
+  nextEnhanceTimeout,
+  resolveConfiguredRefinerRef,
+  resolveEnhanceFallbackRef,
+} from './enhance-recovery.js';
 // Full error-handler surface — PR-C1 (66c4eb68) moved consumers here from
 // the types/ barrel, which used to `export *` this module.
 export {
@@ -156,44 +160,47 @@ export { buildGoalPreamble } from './goal-preamble.js';
 export { IntelligentCompactor, type IntelligentCompactorOptions } from './intelligent-compactor.js';
 export {
   applyModelRuntime,
-  mergeModelRuntime,
   type ModelRuntimeMiddlewareOptions,
+  mergeModelRuntime,
   type ResolvedModelRuntime,
   resolveCacheForRequest,
   resolveModelRuntime,
   resolveReasoningForRequest,
 } from './model-runtime.js';
+export { OneShotOrchestrator } from './one-shot-llm.js';
 export {
   type ParallelEngineState,
   ParallelEternalEngine,
   type ParallelEternalOptions,
   type ParallelIterationStage,
 } from './parallel-eternal-engine.js';
-export { DefaultRetryPolicy } from './retry-policy.js';
-export { SelectiveCompactor, type SelectiveCompactorOptions } from './selective-compactor.js';
-export { DefaultSkillLoader, type SkillLoaderOptions } from './skill-loader.js';
-export { DefaultPromptLoader, type PromptLoaderOptions, renderPrompt } from './prompt-loader.js';
-export {
-  type CompactorStrategy,
-  createStrategyCompactor,
-  type StrategyCompactorOptions,
-} from './strategy-compactor.js';
-export { ToolExecutor } from './tool-executor.js';
-export { OneShotOrchestrator } from './one-shot-llm.js';
 export {
   buildRefinerContextSections,
   DEFAULT_REFINER_RETRY_FEEDBACK,
+  type EnhanceFailureKind,
   enhanceUserPrompt,
   gatedEnhancerReasoning,
-  type EnhanceFailureKind,
   isValidEnglishRefinement,
   normalizedEqual,
   parseBilingualEnhancement,
   recentTextTurns,
   shouldEnhance,
 } from './prompt-enhancer.js';
+export { DefaultPromptLoader, type PromptLoaderOptions, renderPrompt } from './prompt-loader.js';
+export { DefaultRetryPolicy } from './retry-policy.js';
+export { SelectiveCompactor, type SelectiveCompactorOptions } from './selective-compactor.js';
+export { DefaultSkillLoader, type SkillLoaderOptions } from './skill-loader.js';
 export {
-  nextEnhanceTimeout,
-  resolveConfiguredRefinerRef,
-  resolveEnhanceFallbackRef,
-} from './enhance-recovery.js';
+  type CompactorStrategy,
+  createStrategyCompactor,
+  type StrategyCompactorOptions,
+} from './strategy-compactor.js';
+export { installSubagentAutoCompaction } from './subagent-compaction.js';
+export { ToolExecutor } from './tool-executor.js';
+export {
+  startFreshTopicContext,
+  type TopicShiftAdvice,
+  TopicShiftAdvisor,
+  type TopicShiftAdvisorInput,
+  type TopicShiftAdvisorOptions,
+} from './topic-shift-advisor.js';

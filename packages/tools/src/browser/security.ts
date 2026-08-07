@@ -85,7 +85,11 @@ export function parsePrivateOriginAllowlist(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
   const origins = new Set<string>();
   for (const entry of raw.split(',')) {
-    const candidate = entry.trim();
+    // Tolerate surrounding quotes: Windows setx / .env files / PowerShell
+    // profiles routinely store `VAR="http://…"` with the quotes embedded in
+    // the value, and rejecting that here made EVERY browser tool call throw
+    // on such machines (managerFor parses the allowlist per manager).
+    const candidate = entry.trim().replace(/^["']+|["']+$/gu, '');
     if (!candidate) continue;
     const url = parseBrowserUrl(candidate, true);
     if (url.pathname !== '/' || url.search || url.hash) {

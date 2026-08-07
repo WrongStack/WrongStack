@@ -1,12 +1,20 @@
 import type { Message } from '@wrongstack/core/types';
 import { useEffect, useRef, useState } from 'react';
 import type { AppProps } from '../app-props.js';
+import type { StatuslineItem } from '../components/statusline-picker.js';
 import { type GitInfo, readGitInfo } from '../git-info.js';
 
 interface GitSessionStatusOptions {
   agent: AppProps['agent'];
   getLiveSessions: AppProps['getLiveSessions'];
   setSessionCount: (count: number) => void;
+  /**
+   * Statusline hidden items. The 10s git poll is the only consumer of
+   * `readGitInfo`, which spawns three `git` child processes per tick —
+   * when the `git` chip is user-hidden, skip the poll entirely until it
+   * is visible again.
+   */
+  hiddenItems?: readonly StatuslineItem[] | undefined;
 }
 
 function sameGitInfo(a: GitInfo | null, b: GitInfo | null): boolean {
@@ -26,11 +34,24 @@ export function useGitSessionStatus({
   agent,
   getLiveSessions,
   setSessionCount,
+  hiddenItems = [],
 }: GitSessionStatusOptions): GitInfo | null {
   const [gitInfo, setGitInfo] = useState<GitInfo | null>(null);
   const previousBranchRef = useRef<string | null>(null);
 
+  const gitHidden = hiddenItems.includes('git');
+
+  // Reset the branch baseline when the gate activates: a branch switch that
+  // happened while the chip was hidden must not fire a stale notice on re-show.
   useEffect(() => {
+    if (gitHidden) previousBranchRef.current = null;
+  }, [gitHidden]);
+
+  useEffect(() => {
+    // Visibility gate: the git chip is the only consumer of `gitInfo`. When
+    // the user hides it via /statusline, skip the poll entirely — no child
+    // processes, no branch-switch notices — until it is visible again.
+    if (gitHidden) return;
     let cancelled = false;
     const refresh = () => {
       readGitInfo(agent.ctx.cwd)
@@ -72,7 +93,10 @@ export function useGitSessionStatus({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [agent.ctx]);
+    // `gitHidden` must be a dep: toggling the chip in /statusline has to
+    // re-run this effect to start (or stop) the poll. Without it the gate
+    // is evaluated once on mount and the chip toggle does nothing.
+  }, [agent.ctx, gitHidden]);
 
   useEffect(() => {
     if (!getLiveSessions) return;

@@ -5,6 +5,9 @@ description: |
   or evaluating third-party libraries in WrongStack. Triggers: user says "dependency",
   "package version", "outdated", "npm audit", "deprecated package", "tech stack".
 version: 1.2.0
+required-capabilities: [dependencies.manage]
+required-tools: []
+optional-capabilities: [web.research]
 ---
 
 # Tech Stack Validator — WrongStack (Language-Agnostic)

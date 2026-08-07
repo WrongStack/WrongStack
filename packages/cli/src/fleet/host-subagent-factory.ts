@@ -6,6 +6,7 @@ import {
   Context,
   createDefaultPipelines,
   createFallbackModelExtension,
+  renderInstructionLayer,
 } from '@wrongstack/core/agent';
 import {
   applyProjectAgentConfig,
@@ -169,17 +170,27 @@ export function createHostSubagentFactory(
       // Non-fatal: mailbox errors should not block subagent creation.
     }
 
+    const subagentTools = host.filterTools(effectiveCfg.tools);
     const baseSystem: TextBlock[] = await host.deps.systemPromptBuilder.build({
       cwd: subCwd,
       projectRoot: host.deps.projectRoot,
-      tools: host.filterTools(effectiveCfg.tools),
+      tools: subagentTools,
+      catalogTools: subagentTools,
       model: effModel,
       provider: effProvider,
       subagent: true,
       onlineAgents,
     });
 
-    baseSystem.unshift({ type: 'text', text: DEFAULT_SUBAGENT_BASELINE });
+    baseSystem.unshift({
+      type: 'text',
+      text: renderInstructionLayer(DEFAULT_SUBAGENT_BASELINE, {
+        toolNames: new Set(subagentTools.map((tool) => tool.name)),
+        tier: 'off',
+        subagent: true,
+        strictToolReferences: true,
+      }),
+    });
     if (availabilityNotice) baseSystem.push({ type: 'text', text: availabilityNotice });
 
     const audienceMemory = await retrieveHostSubagentMemory(
@@ -199,6 +210,7 @@ export function createHostSubagentFactory(
       host.deps,
       host.roster,
       effectiveCfg,
+      subagentTools.map((tool) => tool.name),
     );
     if (roleSkillContent) {
       for (let index = baseSystem.length - 1; index >= 0; index--) {
@@ -256,7 +268,8 @@ export function createHostSubagentFactory(
       allowOutsideProjectRoot:
         config.features?.allowOutsideProjectRoot ?? !(config.tools?.restrictToProjectRoot ?? false),
       model: effModel,
-      tools: host.filterTools(tools),
+      tools: subagentTools,
+      catalogTools: subagentTools,
       agentId: subagentName,
       agentName: effectiveCfg.name ?? subagentName,
     });

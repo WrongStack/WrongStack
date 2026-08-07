@@ -1,18 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BrainDecisionRequest } from '../../src/coordination/brain.js';
 import {
+  type BrainLlmTarget,
+  completeBrainLlm,
+  completeBrainLlmDetailed,
+} from '../../src/execution/autonomy-brain.js';
+import {
   COUNCIL_REFUSE_OPTION_ID,
   type CouncilVoter,
   createCouncilBrainArbiter,
   makeSeatCallerForVoter,
 } from '../../src/execution/council-brain.js';
-import {
-  completeBrainLlm,
-  completeBrainLlmDetailed,
-  type BrainLlmTarget,
-} from '../../src/execution/autonomy-brain.js';
-import type { Provider } from '../../src/types/provider.js';
 import { EventBus } from '../../src/kernel/events.js';
+import type { Provider } from '../../src/types/provider.js';
 
 const req = (over: Partial<BrainDecisionRequest> = {}): BrainDecisionRequest => ({
   id: 'c1',
@@ -77,8 +77,7 @@ const voter = (text: string, over: Partial<CouncilVoter> = {}): CouncilVoter => 
   ...over,
 });
 
-const vote = (optionId: string, rationale = 'because') =>
-  JSON.stringify({ optionId, rationale });
+const vote = (optionId: string, rationale = 'because') => JSON.stringify({ optionId, rationale });
 
 describe('createCouncilBrainArbiter — weighted majority', () => {
   it('answers with the majority option without needing a judge', async () => {
@@ -96,11 +95,7 @@ describe('createCouncilBrainArbiter — weighted majority', () => {
 
   it('lets vote weight overrule seat count', async () => {
     const council = createCouncilBrainArbiter({
-      voters: [
-        voter(vote('hold'), { weight: 3 }),
-        voter(vote('merge')),
-        voter(vote('merge')),
-      ],
+      voters: [voter(vote('hold'), { weight: 3 }), voter(vote('merge')), voter(vote('merge'))],
     });
     const d = await council.decide(req());
     expect(d).toMatchObject({ type: 'answer', optionId: 'hold' });
@@ -254,8 +249,17 @@ describe('council trace emission', () => {
 
     const arbiter = createCouncilBrainArbiter({
       voters: [
-        { provider: fakeProvider('{"optionId":"go","rationale":"safe"}'), model: 'm1', persona: 'executor' },
-        { provider: fakeProvider('{"optionId":"go","rationale":"fine"}'), model: 'm2', persona: 'skeptic', veto: true },
+        {
+          provider: fakeProvider('{"optionId":"go","rationale":"safe"}'),
+          model: 'm1',
+          persona: 'executor',
+        },
+        {
+          provider: fakeProvider('{"optionId":"go","rationale":"fine"}'),
+          model: 'm2',
+          persona: 'skeptic',
+          veto: true,
+        },
       ],
       events,
       traceContent: true,
@@ -511,6 +515,85 @@ describe('createCouncilBrainArbiter — timeout budget', () => {
   }, 3_000);
 });
 
+describe('makeSeatCallerForVoter — wire fidelity', () => {
+  it('forwards the requested responseFormat to the provider call', async () => {
+    // The orchestrator asks every seat/judge call for json_object. Dropping
+    // it here left JSON emission to prompt persuasion — which reasoning
+    // models routinely ignore, producing `invalid` votes.
+    const provider = fakeProvider(vote('merge'));
+    const caller = makeSeatCallerForVoter({ provider, model: 'm' });
+    await caller.call({
+      system: 's',
+      userPrompt: 'u',
+      timeoutMs: 5_000,
+      maxTokens: 200,
+      responseFormat: { type: 'json_object' },
+    });
+    const request = (provider.complete as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      responseFormat?: unknown;
+    };
+    expect(request.responseFormat).toEqual({ type: 'json_object' });
+  });
+
+  it('carries the provider stopReason into the seat result', async () => {
+    // Without this the orchestrator cannot tell "returned garbage" apart
+    // from "cut off at maxTokens", and every truncation surfaced as a bare
+    // "did not contain JSON".
+    const provider = {
+      id: 'fake',
+      capabilities: {},
+      stream: vi.fn(),
+      complete: vi.fn(async () => ({
+        content: [{ type: 'text', text: '{"optionId":' }],
+        stopReason: 'max_tokens',
+      })),
+    } as never as Provider;
+    const caller = makeSeatCallerForVoter({ provider, model: 'm' });
+    const result = await caller.call({
+      system: 's',
+      userPrompt: 'u',
+      timeoutMs: 5_000,
+      maxTokens: 10,
+    });
+    expect(result.stopReason).toBe('max_tokens');
+  });
+});
+
+describe('createCouncilBrainArbiter — voter output budget', () => {
+  it('defaults voterMaxTokens to 2000 instead of the orchestrator 300', async () => {
+    // Brain panels are routinely built from reasoning models whose thinking
+    // tokens count against maxTokens; 300 starved them into `invalid` votes.
+    const provider = fakeProvider(vote('merge'));
+    const council = createCouncilBrainArbiter({
+      voters: [
+        { provider, model: 'm', persona: 'executor' },
+        voter(vote('merge'), { persona: 'auditor' }),
+      ],
+    });
+    await council.decide(req());
+    const request = (provider.complete as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      maxTokens?: number;
+    };
+    expect(request.maxTokens).toBe(2000);
+  });
+
+  it('honours an explicit voterMaxTokens override', async () => {
+    const provider = fakeProvider(vote('merge'));
+    const council = createCouncilBrainArbiter({
+      voters: [
+        { provider, model: 'm', persona: 'executor' },
+        voter(vote('merge'), { persona: 'auditor' }),
+      ],
+      voterMaxTokens: 4321,
+    });
+    await council.decide(req());
+    const request = (provider.complete as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      maxTokens?: number;
+    };
+    expect(request.maxTokens).toBe(4321);
+  });
+});
+
 describe('completeBrainLlmDetailed — abort signal composition', () => {
   it('fails fast when the external signal is already aborted', async () => {
     const controller = new AbortController();
@@ -546,10 +629,7 @@ describe('completeBrainLlmDetailed — abort signal composition', () => {
   it('aborts the provider call when the per-call timeout expires', async () => {
     const provider = abortSensitiveProvider();
     await expect(
-      completeBrainLlmDetailed(
-        { provider, model: 'm' },
-        { system: 's', user: 'u', timeoutMs: 20 },
-      ),
+      completeBrainLlmDetailed({ provider, model: 'm' }, { system: 's', user: 'u', timeoutMs: 20 }),
     ).rejects.toThrow('aborted');
   }, 2_000);
 

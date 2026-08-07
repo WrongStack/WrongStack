@@ -5,6 +5,9 @@ description: |
   in WrongStack. Triggers: user mentions "TypeScript", "strict", "type error",
   "type safety", "narrowing", "branded type", "discriminated union", "noUncheckedIndexedAccess".
 version: 1.1.0
+required-capabilities: [filesystem.read, filesystem.write]
+required-tools: []
+optional-capabilities: [verification.run]
 ---
 
 # TypeScript Strict Mode — WrongStack

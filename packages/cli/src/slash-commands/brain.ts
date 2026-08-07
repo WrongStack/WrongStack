@@ -17,7 +17,7 @@
  *   /brain human-timeout    interactive escalation timeout (ms | off)
  *   /brain council ...      multi-LLM council (on/off/minrisk/voters/personas/
  *                           judge/quorum/approval/distinctness/timeout/
- *                           concurrency/judgetokens)
+ *                           concurrency/votertokens/judgetokens)
  *   /brain ledger ...       view rows | on|off | autodeny <n>
  *   /brain ask <question>   consult the Brain directly for a decision
  *   /brain save             re-persist the current settings
@@ -27,13 +27,16 @@
  */
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import type { BrainAutoRisk, BrainConfigPatch } from '@wrongstack/core/execution';
-import type { BrainConfigSnapshot } from '@wrongstack/core/execution';
+import { parseModelRef } from '@wrongstack/core/agent';
+import type { BrainLedgerEntry } from '@wrongstack/core/coordination';
+import type {
+  BrainAutoRisk,
+  BrainConfigPatch,
+  BrainConfigSnapshot,
+} from '@wrongstack/core/execution';
 import { BUILTIN_COUNCIL_PERSONA_IDS, BUILTIN_COUNCIL_PERSONAS } from '@wrongstack/core/execution';
 import type { BrainCouncilVoterConfig, SlashCommand } from '@wrongstack/core/types';
-import type { BrainLedgerEntry } from '@wrongstack/core/coordination';
 import { color } from '@wrongstack/core/utils';
-import { parseModelRef } from '@wrongstack/core/agent';
 import type { SlashCommandContext } from './command-context.js';
 
 const RISK_LEVELS: ReadonlySet<string> = new Set(['off', 'low', 'medium', 'high', 'all']);
@@ -43,6 +46,7 @@ const COUNCIL_DISTINCTNESS: ReadonlySet<string> = new Set(['none', 'model', 'pro
 const COUNCIL_NUMERIC_OPS: Record<string, string | undefined> = {
   timeout: 'perCallTimeoutMs',
   concurrency: 'maxConcurrency',
+  votertokens: 'voterMaxTokens',
   judgetokens: 'judgeMaxTokens',
 };
 /**
@@ -66,7 +70,14 @@ const TRACE_CONTENT_VALUES = ['none', 'redacted', 'full'];
 const TERMINAL_POLICY_VALUES = ['conservative', 'deny-all', 'continue-on-recommended'];
 const MONITOR_POLICY_VALUES = ['llm', 'steer', 'observe'];
 /** Tiers that reached a decision without any provider call. */
-const DETERMINISTIC_TIER_NAMES = ['rule', 'policy', 'heuristic', 'cache', 'ledger-guard', 'terminal'];
+const DETERMINISTIC_TIER_NAMES = [
+  'rule',
+  'policy',
+  'heuristic',
+  'cache',
+  'ledger-guard',
+  'terminal',
+];
 
 function parseRefEntry(ref: string): { provider?: string; model: string } | null {
   const parsed = parseModelRef(ref);
@@ -167,7 +178,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       '  /brain council personas           List the built-in decision lenses',
       '  /brain council judge <ref|auto> | quorum <0..1> | approval <0..1>',
       '  /brain council distinctness <none|model|provider>   warn on a non-diverse panel',
-      '  /brain council timeout|concurrency|judgetokens <n|default>',
+      '  /brain council timeout|concurrency|votertokens|judgetokens <n|default>',
       '  /brain ledger [n]      Show the last n rows (default 15) of the persistent decision ledger',
       '  /brain ledger on|off | autodeny <n>',
       '  /brain stats           Per-tier decision counts: how often the Brain actually calls a model',
@@ -229,9 +240,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       };
 
       const poolSummary = (snapshot: BrainConfigSnapshot): string =>
-        snapshot.poolLabels.length > 0
-          ? snapshot.poolLabels.join(' → ')
-          : 'session model';
+        snapshot.poolLabels.length > 0 ? snapshot.poolLabels.join(' → ') : 'session model';
 
       // TUI mode: bare /brain or /brain status opens the interactive panel.
       if ((subcommand === '' || subcommand === 'status') && opts.onPanelOpen?.current) {
@@ -303,7 +312,11 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           return { message: msg };
         }
         if (ref.toLowerCase() === 'session') {
-          return applyPatch({ models: null }, (s) => `Brain decision model: ${color.cyan('session model')} (pool cleared)${s.councilLabels.length === 0 ? '' : ' — council dissolved'}`);
+          return applyPatch(
+            { models: null },
+            (s) =>
+              `Brain decision model: ${color.cyan('session model')} (pool cleared)${s.councilLabels.length === 0 ? '' : ' — council dissolved'}`,
+          );
         }
         return applyPatch({ models: [ref] }, (s) =>
           s.poolLabels.length > 0
@@ -323,7 +336,10 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           return { message: msg };
         }
         if (op === 'clear') {
-          return applyPatch({ models: null }, () => `Brain LLM pool cleared — using the ${color.cyan('session model')}`);
+          return applyPatch(
+            { models: null },
+            () => `Brain LLM pool cleared — using the ${color.cyan('session model')}`,
+          );
         }
         if (op === 'add') {
           const ref = rest[1];
@@ -333,7 +349,10 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             return { message: msg };
           }
           const current = (snapshot?.models ?? []).map(compactEntry);
-          return applyPatch({ models: [...current, ref] }, (s) => `Brain LLM pool: ${color.cyan(poolSummary(s))}`);
+          return applyPatch(
+            { models: [...current, ref] },
+            (s) => `Brain LLM pool: ${color.cyan(poolSummary(s))}`,
+          );
         }
         if (op === 'remove') {
           const target = rest[1];
@@ -345,16 +364,26 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           const current = snapshot.models.map(compactEntry);
           const idx = /^\d+$/.test(target)
             ? Number.parseInt(target, 10) - 1
-            : current.findIndex((c) => c === target || c.endsWith(`/${target}`) || c === parseRefEntry(target)?.model);
+            : current.findIndex(
+                (c) =>
+                  c === target || c.endsWith(`/${target}`) || c === parseRefEntry(target)?.model,
+              );
           if (idx < 0 || idx >= current.length) {
             const msg = `No pool entry matches "${target}". Current pool: ${current.join(', ') || '(empty)'}`;
             opts.renderer.writeWarning(msg);
             return { message: msg };
           }
           const next = current.filter((_, i) => i !== idx);
-          return applyPatch({ models: next.length > 0 ? next : null }, (s) => `Brain LLM pool: ${color.cyan(poolSummary(s))}`);
+          return applyPatch(
+            { models: next.length > 0 ? next : null },
+            (s) => `Brain LLM pool: ${color.cyan(poolSummary(s))}`,
+          );
         }
-        return applyPatch({ models: rest }, (s) => `Brain LLM pool: ${color.cyan(poolSummary(s))} ${color.dim(`(${s.poolLabels.length}/${rest.length} resolved)`)}`);
+        return applyPatch(
+          { models: rest },
+          (s) =>
+            `Brain LLM pool: ${color.cyan(poolSummary(s))} ${color.dim(`(${s.poolLabels.length}/${rest.length} resolved)`)}`,
+        );
       }
 
       if (subcommand === 'strategy') {
@@ -364,8 +393,10 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           opts.renderer.writeWarning(msg);
           return { message: msg };
         }
-        return applyPatch({ strategy }, () =>
-          `Brain pool strategy set to ${color.cyan(strategy)} — ${strategy === 'fallback' ? 'first model is primary, the rest are tried in order on failure' : 'decisions rotate across the pool'}`,
+        return applyPatch(
+          { strategy },
+          () =>
+            `Brain pool strategy set to ${color.cyan(strategy)} — ${strategy === 'fallback' ? 'first model is primary, the rest are tried in order on failure' : 'decisions rotate across the pool'}`,
         );
       }
 
@@ -378,8 +409,10 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         }
         const patch: BrainConfigPatch =
           raw === 'default' ? { decisionTimeoutMs: null } : { decisionTimeoutMs: Number(raw) };
-        return applyPatch(patch, (s) =>
-          `Brain decision timeout: ${color.cyan(s.decisionTimeoutMs ? `${s.decisionTimeoutMs}ms` : 'default (15000ms)')}`,
+        return applyPatch(
+          patch,
+          (s) =>
+            `Brain decision timeout: ${color.cyan(s.decisionTimeoutMs ? `${s.decisionTimeoutMs}ms` : 'default (15000ms)')}`,
         );
       }
 
@@ -392,8 +425,10 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         }
         const patch: BrainConfigPatch =
           raw === 'off' ? { humanTimeoutMs: null } : { humanTimeoutMs: Number(raw) };
-        return applyPatch(patch, (s) =>
-          `Brain human-escalation timeout: ${color.cyan(s.humanTimeoutMs ? `${s.humanTimeoutMs}ms — unanswered prompts then resolve via the terminal policy` : 'off (wait indefinitely)')}`,
+        return applyPatch(
+          patch,
+          (s) =>
+            `Brain human-escalation timeout: ${color.cyan(s.humanTimeoutMs ? `${s.humanTimeoutMs}ms — unanswered prompts then resolve via the terminal policy` : 'off (wait indefinitely)')}`,
         );
       }
 
@@ -405,12 +440,18 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             : `council ${color.dim('disabled')}`;
         if (!op) {
           const snapshot = opts.brainRuntime?.getSnapshot();
-          const msg = snapshot ? `Brain ${councilSummary(snapshot)}` : 'The Brain runtime is not available in this session.';
+          const msg = snapshot
+            ? `Brain ${councilSummary(snapshot)}`
+            : 'The Brain runtime is not available in this session.';
           opts.renderer.write(msg);
           return { message: msg };
         }
         if (op === 'on' || op === 'off') {
-          return applyPatch({ council: { enabled: op === 'on' } }, (s) => `Brain ${councilSummary(s)}${op === 'on' && !s.council.enabled ? ' — needs ≥2 resolvable voters (set /brain council voters or a ≥2-model pool)' : ''}`);
+          return applyPatch(
+            { council: { enabled: op === 'on' } },
+            (s) =>
+              `Brain ${councilSummary(s)}${op === 'on' && !s.council.enabled ? ' — needs ≥2 resolvable voters (set /brain council voters or a ≥2-model pool)' : ''}`,
+          );
         }
         if (op === 'minrisk') {
           const level = (rest[1] ?? '').toLowerCase();
@@ -419,7 +460,11 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             opts.renderer.writeWarning(msg);
             return { message: msg };
           }
-          return applyPatch({ council: { minRisk: level as 'medium' | 'high' | 'critical' } }, (s) => `Brain council risk floor set to ${color.cyan(s.council.minRisk)} — questions at/above it convene the council`);
+          return applyPatch(
+            { council: { minRisk: level as 'medium' | 'high' | 'critical' } },
+            (s) =>
+              `Brain council risk floor set to ${color.cyan(s.council.minRisk)} — questions at/above it convene the council`,
+          );
         }
         if (op === 'voters') {
           const seats = rest.slice(1).map(parseSeat);
@@ -428,7 +473,10 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             opts.renderer.writeWarning(msg);
             return { message: msg };
           }
-          return applyPatch({ council: { voters: seats as BrainCouncilVoterConfig[] } }, councilSummary);
+          return applyPatch(
+            { council: { voters: seats as BrainCouncilVoterConfig[] } },
+            councilSummary,
+          );
         }
         if (op === 'personas') {
           // The seat grammar accepts any string, so the only way to know which
@@ -453,13 +501,18 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             opts.renderer.writeWarning(msg);
             return { message: msg };
           }
-          return applyPatch({ council: { judge: ref.toLowerCase() === 'auto' ? null : ref } }, (s) => `Brain council judge: ${color.cyan(s.council.judge ? compactEntry(s.council.judge) : 'auto')}${s.council.judge ? '' : color.dim(judgeSummary(s).replace(/^, judge: /, ' → '))}`);
+          return applyPatch(
+            { council: { judge: ref.toLowerCase() === 'auto' ? null : ref } },
+            (s) =>
+              `Brain council judge: ${color.cyan(s.council.judge ? compactEntry(s.council.judge) : 'auto')}${s.council.judge ? '' : color.dim(judgeSummary(s).replace(/^, judge: /, ' → '))}`,
+          );
         }
         if (op === 'quorum' || op === 'approval') {
           const value = Number(rest[1]);
           return applyPatch(
             op === 'quorum' ? { council: { quorum: value } } : { council: { approval: value } },
-            (s) => `Brain council ${op} set to ${color.cyan(String(op === 'quorum' ? (s.council.quorum ?? 0.5) : (s.council.approval ?? 0.5)))}`,
+            (s) =>
+              `Brain council ${op} set to ${color.cyan(String(op === 'quorum' ? (s.council.quorum ?? 0.5) : (s.council.approval ?? 0.5)))}`,
           );
         }
         if (op === 'distinctness') {
@@ -479,7 +532,11 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           );
         }
         if (COUNCIL_NUMERIC_OPS[op]) {
-          const field = COUNCIL_NUMERIC_OPS[op] as 'perCallTimeoutMs' | 'maxConcurrency' | 'judgeMaxTokens';
+          const field = COUNCIL_NUMERIC_OPS[op] as
+            | 'perCallTimeoutMs'
+            | 'maxConcurrency'
+            | 'voterMaxTokens'
+            | 'judgeMaxTokens';
           const raw = rest[1];
           if (!raw) {
             const msg = `Usage: /brain council ${op} <positive integer | default>`;
@@ -492,7 +549,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             return `Brain council ${op} set to ${color.cyan(applied === undefined ? 'default' : String(applied))}`;
           });
         }
-        const msg = `Unknown council subcommand: ${op}. Use on, off, minrisk, voters, personas, judge, quorum, approval, distinctness, timeout, concurrency, or judgetokens.`;
+        const msg = `Unknown council subcommand: ${op}. Use on, off, minrisk, voters, personas, judge, quorum, approval, distinctness, timeout, concurrency, votertokens, or judgetokens.`;
         opts.renderer.writeWarning(msg);
         return { message: msg };
       }
@@ -504,14 +561,17 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       if (subcommand === 'ledger') {
         const ledgerOp = (rest[0] ?? '').toLowerCase();
         if (ledgerOp === 'on' || ledgerOp === 'off') {
-          return applyPatch({ ledger: { enabled: ledgerOp === 'on' } }, (s) =>
-            `Brain decision ledger ${color.cyan(s.ledger.enabled ? 'enabled' : 'disabled')}${s.ledger.enabled && s.ledger.path ? ` — ${s.ledger.path}` : ''}`,
+          return applyPatch(
+            { ledger: { enabled: ledgerOp === 'on' } },
+            (s) =>
+              `Brain decision ledger ${color.cyan(s.ledger.enabled ? 'enabled' : 'disabled')}${s.ledger.enabled && s.ledger.path ? ` — ${s.ledger.path}` : ''}`,
           );
         }
         if (ledgerOp === 'autodeny') {
           const n = Number.parseInt(rest[1] ?? '', 10);
           if (!Number.isInteger(n) || n < 0) {
-            const msg = 'Usage: /brain ledger autodeny <n>  (0 disables the deterministic deny guard)';
+            const msg =
+              'Usage: /brain ledger autodeny <n>  (0 disables the deterministic deny guard)';
             opts.renderer.writeWarning(msg);
             return { message: msg };
           }
@@ -626,7 +686,9 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           lines.push(`  decision timeout: ${color.cyan(`${snapshot.decisionTimeoutMs}ms`)}`);
         }
         if (snapshot?.humanTimeoutMs) {
-          lines.push(`  human timeout:    ${color.cyan(`${snapshot.humanTimeoutMs}ms`)} ${color.dim('(then terminal policy)')}`);
+          lines.push(
+            `  human timeout:    ${color.cyan(`${snapshot.humanTimeoutMs}ms`)} ${color.dim('(then terminal policy)')}`,
+          );
         }
         const councilSeats = opts.brainSettings?.councilLabels ?? [];
         if (councilSeats.length > 0) {
@@ -857,7 +919,9 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           `  enabled  ${snapshot.trace.enabled ? color.cyan('yes') : color.dim('no')}`,
           `  content  ${color.cyan(snapshot.trace.content)}`,
           snapshot.trace.path ? `  path     ${color.dim(snapshot.trace.path)}` : '',
-          color.dim('  Records tiers, every pool target (incl. failures), council votes and tokens.'),
+          color.dim(
+            '  Records tiers, every pool target (incl. failures), council votes and tokens.',
+          ),
         ]
           .filter(Boolean)
           .join('\n');
@@ -893,7 +957,8 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         }
         const c = snapshot.cache;
         const total = c.hits + c.misses;
-        const rate = total > 0 ? color.dim(` (${Math.round((c.hits / total) * 100)}% hit rate)`) : '';
+        const rate =
+          total > 0 ? color.dim(` (${Math.round((c.hits / total) * 100)}% hit rate)`) : '';
         const msg = [
           color.bold('Brain decision cache'),
           `  enabled  ${c.enabled ? color.cyan('yes') : color.dim('no')}`,
@@ -957,7 +1022,9 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           `  enabled  ${m.enabled === false ? color.dim('no') : color.cyan('yes')}`,
           `  policy   ${color.cyan(m.policy ?? 'llm')}`,
           color.dim('  Signals: tool-failure streak, error storm, agent stall, file churn.'),
-          color.dim('  Changes apply live; a change restarts the watchers, resetting signal counters.'),
+          color.dim(
+            '  Changes apply live; a change restarts the watchers, resetting signal counters.',
+          ),
         ].join('\n');
         opts.renderer.write(msg);
         return { message: msg };
@@ -991,14 +1058,18 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             lines.push(`  ${tier.padEnd(14)} ${color.cyan(String(n))}`);
           }
           const decided = free + paid;
-          const pct = decided > 0 ? color.dim(` (${Math.round((free / decided) * 100)}% of decided)`) : '';
+          const pct =
+            decided > 0 ? color.dim(` (${Math.round((free / decided) * 100)}% of decided)`) : '';
           lines.push('');
           lines.push(`  ${'deterministic'.padEnd(14)} ${color.cyan(String(free))}${pct}`);
           lines.push(`  ${'model-backed'.padEnd(14)} ${color.cyan(String(paid))}`);
         }
         const snapshot = opts.brainRuntime?.getSnapshot();
         if (snapshot?.cache.enabled) {
-          lines.push('', color.dim(`  cache: ${snapshot.cache.hits} hit / ${snapshot.cache.misses} miss`));
+          lines.push(
+            '',
+            color.dim(`  cache: ${snapshot.cache.hits} hit / ${snapshot.cache.misses} miss`),
+          );
         }
         if (snapshot?.circuit && snapshot.circuit.state !== 'closed') {
           lines.push(color.dim(`  circuit: ${snapshot.circuit.state}`));
@@ -1009,7 +1080,10 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             lines.push(color.dim(`  ${fmtAge(w.at).padEnd(8)} ${w.outcome}`));
           }
         }
-        lines.push('', color.dim(`  Based on the last ${log.length} logged decision(s) of this session.`));
+        lines.push(
+          '',
+          color.dim(`  Based on the last ${log.length} logged decision(s) of this session.`),
+        );
         const msg = lines.join('\n');
         opts.renderer.write(msg);
         return { message: msg };

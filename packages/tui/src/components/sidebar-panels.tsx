@@ -34,21 +34,24 @@
 // (i.e., the F-key was pressed once). When the F-key is closed, the sidebar
 // slot is hidden.
 
-import type React from 'react';
-import { Box, Text } from '../ink.js';
-import { isCurrentSession } from './sidebar-content.js';
-import type { FleetEntry } from '../app-state.js';
 import type { TodoItem } from '@wrongstack/core/agent';
-import type { GoalSummary } from '../app-state.js';
+import type React from 'react';
+import type { FleetEntry, GoalSummary, ResumeSessionEntry } from '../app-state.js';
 import type { QueueItem } from '../app-state-core-types.js';
-import type { LiveSessionEntry } from './sessions-panel.js';
-import type { ProjectPickerItem } from './project-picker.js';
-import type { ResumeSessionEntry } from '../app-state.js';
-import type { WorktreeRow } from '../ui-contracts.js';
-import { theme } from '../theme.js';
+import { Box, Text } from '../ink.js';
 import { displayWidth } from '../terminal-width.js';
+import { theme } from '../theme.js';
+import type { WorktreeRow } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
-import { SidebarPanelCard, SidebarPanelFrame, SidebarSectionHeader, trunc } from './sidebar-panel-frame.js';
+import type { ProjectPickerItem } from './project-picker.js';
+import type { LiveSessionEntry } from './sessions-panel.js';
+import { isCurrentSession } from './sidebar-content.js';
+import {
+  SidebarPanelCard,
+  SidebarPanelFrame,
+  SidebarSectionHeader,
+  trunc,
+} from './sidebar-panel-frame.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -114,6 +117,41 @@ function fmtShortDuration(ms: number): string {
   const m = Math.floor(ms / 60_000);
   const s = Math.floor((ms % 60_000) / 1000);
   return `${m}m${s.toString().padStart(2, '0')}s`;
+}
+
+/**
+ * A single wrapping text flow for worklist rows. Keeping marker + label in one
+ * Yoga text node prevents the marker from disappearing when the label wraps at
+ * the 16-column content floor.
+ */
+function SidebarWorklistRow({
+  icon,
+  iconColor,
+  label,
+  labelColor,
+  innerWidth,
+  dim = false,
+  strikethrough = false,
+}: {
+  icon: string;
+  iconColor: string;
+  label: string;
+  labelColor: string;
+  innerWidth: number;
+  dim?: boolean | undefined;
+  strikethrough?: boolean | undefined;
+}): React.ReactElement {
+  return (
+    <Box width={innerWidth}>
+      <Text>
+        <Text color={iconColor}>{icon}</Text>
+        <Text color={labelColor} dimColor={dim} strikethrough={strikethrough}>
+          {' '}
+          {label}
+        </Text>
+      </Text>
+    </Box>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -188,27 +226,44 @@ export function ProjectPickerSidebar({
             const index = start + offset;
             const isSelected = index === selected;
             if (item.key === '__divider__') {
-              return <Text key={`${item.key}-${index}`} color={theme.textMuted}>{'─'.repeat(inner)}</Text>;
+              return (
+                <Text key={`${item.key}-${index}`} color={theme.textMuted}>
+                  {'─'.repeat(inner)}
+                </Text>
+              );
             }
             const icon = item.kind === 'project' ? glyphs.folder : glyphs.task;
             const accent = item.kind === 'project' ? theme.brand : theme.warn;
             return (
               <Box key={item.key} flexDirection="column">
                 <Box flexDirection="row">
-                  <Text color={isSelected ? accent : theme.textMuted}>{isSelected ? '▎' : ' '}</Text>
+                  <Text color={isSelected ? accent : theme.textMuted}>
+                    {isSelected ? '▎' : ' '}
+                  </Text>
                   <Text color={accent}> {icon} </Text>
-                  <Text color={isSelected ? theme.textPrimary : theme.textSecondary} bold={isSelected} wrap="truncate">
+                  <Text
+                    color={isSelected ? theme.textPrimary : theme.textSecondary}
+                    bold={isSelected}
+                    wrap="truncate"
+                  >
                     {trunc(item.label, Math.max(4, inner - 6))}
                   </Text>
                 </Box>
                 {item.subtitle ? (
-                  <Text color={theme.textMuted}> └ {trunc(item.subtitle, Math.max(4, inner - 4))}</Text>
+                  <Text color={theme.textMuted}>
+                    {' '}
+                    └ {trunc(item.subtitle, Math.max(4, inner - 4))}
+                  </Text>
                 ) : null}
               </Box>
             );
           })
         )}
-        {hint ? <Text color={theme.warn}>{glyphs.warning} {trunc(hint, inner - 2)}</Text> : null}
+        {hint ? (
+          <Text color={theme.warn}>
+            {glyphs.warning} {trunc(hint, inner - 2)}
+          </Text>
+        ) : null}
       </SidebarPanelCard>
     </SidebarPanelFrame>
   );
@@ -354,14 +409,23 @@ export function AgentsPanelSidebar({
         {live.map((e) => {
           const v = fleetStatusVisual(e.status);
           const elapsed = nowTick - e.startedAt;
-          const name = trunc(e.name || e.id, inner - 12);
+          const showElapsed = inner >= 24;
+          const elapsedLabel = showElapsed ? fmtShortDuration(elapsed) : '';
+          const name = trunc(
+            e.name || e.id,
+            Math.max(4, inner - 2 - (showElapsed ? displayWidth(elapsedLabel) + 1 : 0)),
+          );
           return (
             <Box key={e.id} flexDirection="row">
               <Text color={v.color}>{v.glyph}</Text>
               <Text color={theme.textPrimary}> </Text>
               <Text wrap="truncate">{name}</Text>
-              <Box flexGrow={1} />
-              <Text color={theme.textMuted}>{fmtShortDuration(elapsed)}</Text>
+              {showElapsed ? (
+                <>
+                  <Box flexGrow={1} />
+                  <Text color={theme.textMuted}>{elapsedLabel}</Text>
+                </>
+              ) : null}
             </Box>
           );
         })}
@@ -509,7 +573,10 @@ export function PlanPanelSidebar({
         <Text>
           <Text color={theme.warn}>◐{inProgressCount}</Text>
           <Text color={theme.textMuted}> </Text>
-          <Text color={theme.success}>{glyphs.success}{doneCount}</Text>
+          <Text color={theme.success}>
+            {glyphs.success}
+            {doneCount}
+          </Text>
           <Text color={theme.textMuted}> {total}</Text>
         </Text>
       }
@@ -554,16 +621,16 @@ export function PlanPanelSidebar({
                   ? theme.warn
                   : theme.textMuted;
             return (
-              <Box key={item.id} width={inner} flexDirection="row">
-                <Text color={color}>{icon}</Text>
-                <Text
-                  color={item.status === 'done' ? theme.textMuted : theme.textPrimary}
-                  {...(item.status === 'done' ? { dimColor: true, strikethrough: true } : {})}
-                >
-                  {' '}
-                  {item.title}
-                </Text>
-              </Box>
+              <SidebarWorklistRow
+                key={item.id}
+                icon={icon}
+                iconColor={color}
+                label={item.title}
+                labelColor={item.status === 'done' ? theme.textMuted : theme.textPrimary}
+                innerWidth={inner}
+                dim={item.status === 'done'}
+                strikethrough={item.status === 'done'}
+              />
             );
           })
         )}
@@ -619,19 +686,18 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
                 : t.status === 'in_progress'
                   ? theme.accent
                   : theme.textMuted;
-            const label =
-              t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
+            const label = t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
             return (
-              <Box key={t.id} width={inner} flexDirection="row">
-                <Text color={color}>{icon}</Text>
-                <Text
-                  color={t.status === 'completed' ? theme.textMuted : theme.textPrimary}
-                  {...(t.status === 'completed' ? { dimColor: true, strikethrough: true } : {})}
-                >
-                  {' '}
-                  {label}
-                </Text>
-              </Box>
+              <SidebarWorklistRow
+                key={t.id}
+                icon={icon}
+                iconColor={color}
+                label={label}
+                labelColor={t.status === 'completed' ? theme.textMuted : theme.textPrimary}
+                innerWidth={inner}
+                dim={t.status === 'completed'}
+                strikethrough={t.status === 'completed'}
+              />
             );
           })
         )}
@@ -669,17 +735,18 @@ export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): Rea
         {items.length === 0 ? (
           <Text color={theme.textMuted}>queue is empty</Text>
         ) : (
-          items.slice(0, 10).map((item, i) => (
-            <Box key={item.id ?? i} width={inner} flexDirection="row">
-              <Text color={theme.textMuted}>{i + 1}.</Text>
-              <Text
-                color={theme.textPrimary}
-              >
-                {' '}
-                {item.displayText}
-              </Text>
-            </Box>
-          ))
+          items
+            .slice(0, 10)
+            .map((item, i) => (
+              <SidebarWorklistRow
+                key={item.id ?? i}
+                icon={`${i + 1}.`}
+                iconColor={theme.textMuted}
+                label={item.displayText}
+                labelColor={theme.textPrimary}
+                innerWidth={inner}
+              />
+            ))
         )}
       </SidebarPanelCard>
     </SidebarPanelFrame>
@@ -726,15 +793,28 @@ export function ProcessListPanelSidebar({
         {processes.length === 0 ? (
           <Text color={theme.textMuted}>no processes</Text>
         ) : (
-          processes.slice(0, 10).map((p, i) => (
-            <Box key={`${p.pid}-${i}`} flexDirection="row">
-              <Text color={theme.success}>{glyphs.running}</Text>
-              <Text color={theme.textPrimary}> </Text>
-              <Text wrap="truncate">{trunc(p.name, inner - 12)}</Text>
-              <Box flexGrow={1} />
-              <Text color={theme.textMuted}>{p.pid}</Text>
-            </Box>
-          ))
+          processes.slice(0, 10).map((p, i) => {
+            const showPid = inner >= 24;
+            const pidLabel = String(p.pid);
+            return (
+              <Box key={`${p.pid}-${i}`} flexDirection="row">
+                <Text color={theme.success}>{glyphs.running}</Text>
+                <Text color={theme.textPrimary}> </Text>
+                <Text wrap="truncate">
+                  {trunc(
+                    p.name,
+                    Math.max(4, inner - 2 - (showPid ? displayWidth(pidLabel) + 1 : 0)),
+                  )}
+                </Text>
+                {showPid ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={theme.textMuted}>{pidLabel}</Text>
+                  </>
+                ) : null}
+              </Box>
+            );
+          })
         )}
       </SidebarPanelCard>
     </SidebarPanelFrame>
@@ -766,7 +846,14 @@ export function GoalPanelSidebar({
         : goal?.goalState === 'completed'
           ? '✅'
           : '⏹';
-  const progress = typeof goal?.progress === 'number' ? goal.progress : 0;
+  // Clamp like the bottom GoalPanel does: a negative host-fed progress fed
+  // into `'█'.repeat(...)` throws RangeError, and with no error boundary
+  // around the sidebar stack that killed the whole TUI; >100 overflowed the
+  // rail width silently.
+  const progress = Math.min(
+    100,
+    Math.max(0, typeof goal?.progress === 'number' ? goal.progress : 0),
+  );
   const deliverables = goal?.deliverables ?? [];
   const doneCount = deliverables.filter((d) => /^\[[x✓]\]|✅|\(done\)/i.test(d)).length;
   return (
@@ -811,9 +898,7 @@ export function GoalPanelSidebar({
               innerWidth={inner}
             />
             <Box>
-              <Text color={theme.success}>
-                {'█'.repeat(Math.round((progress / 100) * inner))}
-              </Text>
+              <Text color={theme.success}>{'█'.repeat(Math.round((progress / 100) * inner))}</Text>
               <Text color={theme.borderSubtle}>
                 {'░'.repeat(Math.max(0, inner - Math.round((progress / 100) * inner)))}
               </Text>
@@ -830,18 +915,16 @@ export function GoalPanelSidebar({
             {deliverables.slice(0, 6).map((d, i) => {
               const done = /^\[[x✓]\]|✅|\(done\)/i.test(d);
               return (
-                <Box key={i} width={inner} flexDirection="row">
-                  <Text color={done ? theme.success : theme.textMuted}>
-                    {done ? glyphs.success : glyphs.pending}
-                  </Text>
-                  <Text
-                    color={done ? theme.textMuted : theme.textSecondary}
-                    {...(done ? { dimColor: true, strikethrough: true } : {})}
-                  >
-                    {' '}
-                    {d.replace(/^\[[ x✓]\]\s*/, '')}
-                  </Text>
-                </Box>
+                <SidebarWorklistRow
+                  key={i}
+                  icon={done ? glyphs.success : glyphs.pending}
+                  iconColor={done ? theme.success : theme.textMuted}
+                  label={d.replace(/^\[[ x✓]\]\s*/, '')}
+                  labelColor={done ? theme.textMuted : theme.textSecondary}
+                  innerWidth={inner}
+                  dim={done}
+                  strikethrough={done}
+                />
               );
             })}
           </SidebarPanelCard>
@@ -879,9 +962,7 @@ export function SessionsPanelSidebar({
       title="SESSIONS"
       width={width}
       kicker="live + resume"
-      right={
-        <Text color={total > 0 ? theme.success : theme.textMuted}>{total}</Text>
-      }
+      right={<Text color={total > 0 ? theme.success : theme.textMuted}>{total}</Text>}
       footer="F10 details"
     >
       {live.length > 0 ? (
@@ -894,21 +975,23 @@ export function SessionsPanelSidebar({
             innerWidth={inner}
           />
           {live.map((s) => {
-            const isCurrent = isCurrentSession(
-              s.sessionId,
-              currentSessionId,
-            );
+            const isCurrent = isCurrentSession(s.sessionId, currentSessionId);
             const icon = isCurrent ? '●' : liveSessionGlyph(s.status);
             const color = liveSessionColor(s.status);
+            const showAgentCount = inner >= 24;
             return (
               <Box key={s.sessionId} flexDirection="row">
                 <Text color={color}>{icon}</Text>
                 <Text color={isCurrent ? theme.accent : theme.textPrimary} bold={isCurrent}>
                   {' '}
-                  {trunc(s.projectName, inner - 6)}
+                  {trunc(s.projectName, Math.max(4, inner - (showAgentCount ? 6 : 2)))}
                 </Text>
-                <Box flexGrow={1} />
-                <Text color={theme.textMuted}>{s.agentCount}a</Text>
+                {showAgentCount ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={theme.textMuted}>{s.agentCount}a</Text>
+                  </>
+                ) : null}
               </Box>
             );
           })}
@@ -924,8 +1007,12 @@ export function SessionsPanelSidebar({
             innerWidth={inner}
           />
           {resume.map((rs) => {
-            const title = trunc(rs.title || rs.lastUserMessage || rs.id, inner - 10);
-            const rel = fmtRelative(rs.lastActivityAt ?? rs.endedAt);
+            const showRelativeTime = inner >= 24;
+            const rel = showRelativeTime ? fmtRelative(rs.lastActivityAt ?? rs.endedAt) : '';
+            const title = trunc(
+              rs.title || rs.lastUserMessage || rs.id,
+              Math.max(4, inner - 2 - (showRelativeTime ? displayWidth(rel) + 1 : 0)),
+            );
             const outcomeGlyph =
               rs.outcome === 'completed'
                 ? glyphs.success
@@ -942,11 +1029,7 @@ export function SessionsPanelSidebar({
                   : rs.outcome === 'timeout'
                     ? theme.warn
                     : theme.textMuted;
-            const isCurrent = isCurrentSession(
-              rs.id,
-              currentSessionId,
-              rs.isCurrent,
-            );
+            const isCurrent = isCurrentSession(rs.id, currentSessionId, rs.isCurrent);
             return (
               <Box key={rs.id} flexDirection="row">
                 <Text color={outcomeColor}>{outcomeGlyph}</Text>
@@ -958,8 +1041,12 @@ export function SessionsPanelSidebar({
                   {' '}
                   {title}
                 </Text>
-                <Box flexGrow={1} />
-                <Text color={theme.textMuted}>{rel}</Text>
+                {showRelativeTime ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={theme.textMuted}>{rel}</Text>
+                  </>
+                ) : null}
               </Box>
             );
           })}
@@ -1073,7 +1160,10 @@ export function KanbanPanelSidebar({
       kicker="board"
       right={
         <Text>
-          <Text color={theme.success}>{glyphs.success}{columns.find((c) => c.name === 'done')?.count ?? 0}</Text>
+          <Text color={theme.success}>
+            {glyphs.success}
+            {columns.find((c) => c.name === 'done')?.count ?? 0}
+          </Text>
           <Text color={theme.textMuted}> {totalActive}</Text>
         </Text>
       }
@@ -1106,15 +1196,18 @@ export function KanbanPanelSidebar({
         {activeCardTitles.length === 0 ? (
           <Text color={theme.textMuted}>no active cards</Text>
         ) : (
-          activeCardTitles.slice(0, 6).map((title, i) => (
-            <Box key={i} width={inner} flexDirection="row">
-              <Text color={theme.warn}>●</Text>
-              <Text color={theme.textPrimary}>
-                {' '}
-                {title}
-              </Text>
-            </Box>
-          ))
+          activeCardTitles
+            .slice(0, 6)
+            .map((title, i) => (
+              <SidebarWorklistRow
+                key={i}
+                icon="●"
+                iconColor={theme.warn}
+                label={title}
+                labelColor={theme.textPrimary}
+                innerWidth={inner}
+              />
+            ))
         )}
       </SidebarPanelCard>
     </SidebarPanelFrame>
@@ -1127,7 +1220,11 @@ export function KanbanPanelSidebar({
 
 export interface ConnectionsPanelSidebarProps {
   /** Connection summaries: name + status badge. */
-  connections: readonly { name: string; status: 'ok' | 'warn' | 'down' | 'unknown'; latencyMs?: number | undefined }[];
+  connections: readonly {
+    name: string;
+    status: 'ok' | 'warn' | 'down' | 'unknown';
+    latencyMs?: number | undefined;
+  }[];
   width: number;
 }
 
@@ -1148,17 +1245,26 @@ export function ConnectionsPanelSidebar({
       kicker="service health"
       right={
         <Text>
-          <Text color={theme.success}>{glyphs.success}{okCount}</Text>
+          <Text color={theme.success}>
+            {glyphs.success}
+            {okCount}
+          </Text>
           {warnCount > 0 ? (
             <>
               <Text color={theme.textMuted}> </Text>
-              <Text color={theme.warn}>{glyphs.warning}{warnCount}</Text>
+              <Text color={theme.warn}>
+                {glyphs.warning}
+                {warnCount}
+              </Text>
             </>
           ) : null}
           {downCount > 0 ? (
             <>
               <Text color={theme.textMuted}> </Text>
-              <Text color={theme.error}>{glyphs.failure}{downCount}</Text>
+              <Text color={theme.error}>
+                {glyphs.failure}
+                {downCount}
+              </Text>
             </>
           ) : null}
         </Text>
@@ -1166,12 +1272,55 @@ export function ConnectionsPanelSidebar({
       footer="Ctrl+N details"
     >
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
+        <Box width={inner} overflowX="hidden">
+          <Text color={theme.accent} bold wrap="truncate">
+            ╭
+          </Text>
+          <Text color={okCount > 0 ? theme.success : theme.textMuted} wrap="truncate">
+            {'━'.repeat(Math.max(1, Math.floor((inner - 2) / 2)))}
+          </Text>
+          <Text
+            color={warnCount > 0 || downCount > 0 ? theme.warn : theme.accent}
+            bold
+            wrap="truncate"
+          >
+            ◆
+          </Text>
+          <Text color={okCount > 0 ? theme.success : theme.textMuted} wrap="truncate">
+            {'━'.repeat(Math.max(0, inner - Math.floor((inner - 2) / 2) - 3))}
+          </Text>
+          <Text color={theme.accent} bold wrap="truncate">
+            ╮
+          </Text>
+        </Box>
+        <Box width={inner} overflowX="hidden">
+          {inner >= 24 ? (
+            <Text color={theme.accent} wrap="truncate">
+              ╰─
+            </Text>
+          ) : null}
+          <Text color={theme.textMuted} wrap="truncate">
+            {inner >= 24 ? ' SIGNAL MATRIX ' : 'SIGNAL MATRIX'}
+          </Text>
+          <Box flexGrow={1} />
+          {inner >= 24 ? (
+            <Text color={theme.accent} wrap="truncate">
+              ─╯
+            </Text>
+          ) : null}
+        </Box>
         {connections.length === 0 ? (
-          <Text color={theme.textMuted}>no connections</Text>
+          <Text color={theme.textMuted}>◇ scanning for links…</Text>
         ) : (
           connections.slice(0, 10).map((c, i) => {
             const icon =
-              c.status === 'ok' ? glyphs.success : c.status === 'warn' ? glyphs.warning : c.status === 'down' ? glyphs.failure : '?';
+              c.status === 'ok'
+                ? glyphs.success
+                : c.status === 'warn'
+                  ? glyphs.warning
+                  : c.status === 'down'
+                    ? glyphs.failure
+                    : '?';
             const color =
               c.status === 'ok'
                 ? theme.success
@@ -1180,16 +1329,35 @@ export function ConnectionsPanelSidebar({
                   : c.status === 'down'
                     ? theme.error
                     : theme.textMuted;
-            const lat = c.latencyMs != null ? `${c.latencyMs}ms` : '';
+            const showLatency = inner >= 24;
+            const lat = showLatency && c.latencyMs != null ? `${c.latencyMs}ms` : '';
+            const lane = c.status === 'ok' ? '━━' : c.status === 'warn' ? '┅┅' : '··';
+            const rowChrome = displayWidth(icon) + displayWidth(lane);
             return (
-              <Box key={`${c.name}-${i}`} flexDirection="row">
-                <Text color={color}>{icon}</Text>
-                <Text color={theme.textPrimary} wrap="truncate">
-                  {' '}
-                  {trunc(c.name, inner - 10)}
+              <Box key={`${c.name}-${i}`} flexDirection="column">
+                <Box flexDirection="row" width={inner}>
+                  <Text color={color}>
+                    {icon}
+                    {lane}
+                  </Text>
+                  <Text color={theme.textPrimary} bold={c.status === 'ok'} wrap="truncate">
+                    {trunc(
+                      c.name,
+                      Math.max(3, inner - rowChrome - (lat ? displayWidth(lat) + 1 : 0)),
+                    )}
+                  </Text>
+                  {lat ? (
+                    <>
+                      <Box flexGrow={1} />
+                      <Text color={color}>{lat}</Text>
+                    </>
+                  ) : null}
+                </Box>
+                <Text color={color} dimColor>
+                  {'  '}
+                  {'⌁'.repeat(Math.max(1, Math.min(inner - 2, 3 + (i % 4))))}
+                  <Text color={theme.textMuted}> link {String(i + 1).padStart(2, '0')}</Text>
                 </Text>
-                <Box flexGrow={1} />
-                <Text color={theme.textMuted}>{lat}</Text>
               </Box>
             );
           })

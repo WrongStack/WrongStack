@@ -1,10 +1,11 @@
 /**
  * Coverage for tools/src/tool-tier.ts — selectBuiltinToolsForTier and registerBuiltinToolTier.
  */
-import { describe, expect, it, vi } from 'vitest';
-import { selectBuiltinToolsForTier, registerBuiltinToolTier } from '../src/tool-tier.js';
-import { builtinToolsPack } from '../src/pack.js';
+
 import type { Tool } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
+import { builtinToolsPack } from '../src/pack.js';
+import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '../src/tool-tier.js';
 
 const allTools = builtinToolsPack.tools.filter((t): t is Tool => t != null);
 
@@ -45,12 +46,12 @@ describe('selectBuiltinToolsForTier', () => {
     expect(swd).toBeUndefined();
   });
 
-  it('aggressive tier selects from all three tiers (may differ from medium)', () => {
+  it('aggressive tier is no larger than medium', () => {
     const medium = selectBuiltinToolsForTier('medium', allTools);
     const aggressive = selectBuiltinToolsForTier('aggressive', allTools);
-    // Both should be non-empty subsets
     expect(medium.length).toBeGreaterThan(0);
     expect(aggressive.length).toBeGreaterThan(0);
+    expect(aggressive.length).toBeLessThanOrEqual(medium.length);
   });
 
   it('preserves order from the input array', () => {
@@ -120,8 +121,16 @@ describe('registerBuiltinToolTier', () => {
 
   it('uses custom tools when provided', () => {
     const customTools: Tool[] = [
-      { name: 'custom1', description: 'test', parameters: { type: 'object', properties: {} } } as unknown as Tool,
-      { name: 'custom2', description: 'test', parameters: { type: 'object', properties: {} } } as unknown as Tool,
+      {
+        name: 'custom1',
+        description: 'test',
+        parameters: { type: 'object', properties: {} },
+      } as unknown as Tool,
+      {
+        name: 'custom2',
+        description: 'test',
+        parameters: { type: 'object', properties: {} },
+      } as unknown as Tool,
     ];
     const mockRegistry = {
       registerAllOrThrow: vi.fn(),

@@ -43,6 +43,34 @@ function legacyMemoryStore(): MemoryStore {
 }
 
 describe('canonical host tool registration', () => {
+  it('keeps the normal leader direct surface at or below 48 while retaining lazy tools', () => {
+    const registry = new ToolRegistry();
+    const context = { ...coordinationTool, name: 'context_manager' };
+    const coordination = ['mailbox', 'mail_send', 'mail_inbox', 'fleet_status'].map((name) => ({
+      ...coordinationTool,
+      name,
+    }));
+    registerCanonicalHostTools({
+      registry,
+      tier: 'medium',
+      contextTool: context,
+      memory: { enabled: true, store: new LegacyMemoryPortAdapter(legacyMemoryStore()) },
+      coordinationTools: coordination,
+    });
+    for (const name of ['skill', 'delegate', 'mcp_control', 'mcp_use']) {
+      registry.register({ ...coordinationTool, name });
+      registry.exposeToProvider(name);
+    }
+
+    // 61 built-ins + context + 4 legacy-memory + 4 coordination + 4 host
+    // gateways stay executable, but only the bounded 48-schema surface is sent
+    // directly to the provider.
+    expect(registry.list()).toHaveLength(74);
+    expect(registry.listForProvider()).toHaveLength(48);
+    expect(registry.get('browser_open')).toBeDefined();
+    expect(registry.listForProvider().map((tool) => tool.name)).not.toContain('browser_open');
+  });
+
   it('applies tier selection, legacy memory, coordination, and disabled policy', () => {
     const registry = new ToolRegistry();
 
@@ -57,6 +85,9 @@ describe('canonical host tool registration', () => {
     expect(result.memoryBackend).toBe('legacy');
     expect(result.builtinTools.map((tool) => tool.name)).toContain('read');
     expect(result.builtinTools.map((tool) => tool.name)).not.toContain('exec');
+    expect(registry.list().map((tool) => tool.name)).toContain('exec');
+    expect(registry.listForProvider().map((tool) => tool.name)).not.toContain('exec');
+    expect(registry.listForProvider().map((tool) => tool.name)).toContain('tool_search');
     expect(registry.get('remember')).toBeDefined();
     expect(registry.get('coordination-test')).toBe(coordinationTool);
     expect(registry.get('grep')).toBeUndefined();
@@ -95,6 +126,8 @@ describe('canonical host tool registration', () => {
 
     expect(result.memoryBackend).toBe('sage');
     expect(registry.get('coordination-test')).toBe(coordinationTool);
+    expect(registry.get('search_memory')).toBeDefined();
+    expect(registry.get('find_related_memories')).toBeDefined();
   });
 
   it('leaves the nextsteps tool unregistered by default', () => {

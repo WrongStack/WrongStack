@@ -766,6 +766,8 @@
     "councilMaxConcurrencyHint": "Combien de sièges votent en parallèle. Réduisez quand le pool partage un fournisseur limité en débit.",
     "councilDistinctnessLabel": "Distinction des sièges",
     "councilDistinctnessHint": "Rejeter les sièges en double : 'model' exige des modèles distincts, 'provider' des fournisseurs indépendants pour qu'une panne ne puisse pas faire basculer le vote.",
+    "councilVoterBudgetLabel": "Budget de réponse du votant",
+    "councilVoterBudgetHint": "Jetons de sortie par appel de siège — les modèles de raisonnement dépensent leurs jetons de réflexion sur ce budget.",
     "councilJudgeBudgetLabel": "Budget de réponse du juge",
     "councilJudgeBudgetHint": "Jetons de sortie pour l'appel du juge de départage.",
     "councilSeatTemplate": "Modèle de siège :",

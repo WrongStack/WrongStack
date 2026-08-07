@@ -58,26 +58,51 @@ export function subscribeKanbanDaemonEvents(
     }
   };
 
-  return bridgeKanbanSupervisor(
+  // Per-board trailing coalesce, matching the sibling daemon consumers
+  // (tools/session-kanban, cli/kanban-hq-sync): every broadcastBoard is a
+  // full board fetch + full-board fan-out to every WS client, and the
+  // daemon emits one event per mutation — a task drag produced several
+  // fetch+broadcast rounds back-to-back.
+  const COALESCE_MS = 300;
+  const pendingBroadcasts = new Map<string, ReturnType<typeof setTimeout>>();
+  const scheduleBroadcast = (boardId: string): void => {
+    if (pendingBroadcasts.has(boardId)) return;
+    const timer = setTimeout(() => {
+      pendingBroadcasts.delete(boardId);
+      void broadcastBoard(boardId).catch(() => {
+        // Best-effort: the next explicit refresh or next daemon event
+        // will catch transient errors (e.g. board deleted mid-read).
+      });
+    }, COALESCE_MS);
+    timer.unref?.();
+    pendingBroadcasts.set(boardId, timer);
+  };
+
+  const unsubscribe = bridgeKanbanSupervisor(
     projectRoot,
     async (event) => {
-      // Extract boardId from the mutation event data.
-      // The daemon sends { type: 'event', event: '<name>', data: { boardId, ... } }
-      // for every board mutation (board.created, task.added, column.updated, etc.).
+      // Only board-mutation event families carry a real board id in
+      // `data.boardId`. The daemon ALSO emits `workflow.*` events whose
+      // first data slot is a workflowId — probing that as a boardId made
+      // getBoard() return null, which broadcastBoard treats as "deleted":
+      // every SDD/AutoPhase checkpoint fanned a PHANTOM kanban.delete to
+      // every connected WS client.
+      const family = event.event?.split('.')[0];
+      if (family !== 'board' && family !== 'task' && family !== 'column') return;
       const evData = event.data as { boardId?: string } | undefined;
       const boardId = evData?.boardId;
       if (!boardId) return;
 
-      try {
-        if (event.event === 'board.deleted') {
-          broadcastDeleted(boardId);
-          return;
+      if (event.event === 'board.deleted') {
+        const timer = pendingBroadcasts.get(boardId);
+        if (timer) {
+          clearTimeout(timer);
+          pendingBroadcasts.delete(boardId);
         }
-        await broadcastBoard(boardId);
-      } catch {
-        // Best-effort: the next explicit refresh or next daemon event
-        // will catch transient errors (e.g. board deleted mid-read).
+        broadcastDeleted(boardId);
+        return;
       }
+      scheduleBroadcast(boardId);
     },
     {
       autoReconnect: true,
@@ -85,4 +110,9 @@ export function subscribeKanbanDaemonEvents(
       onConnected: reconcileAfterConnect,
     },
   );
+  return () => {
+    for (const timer of pendingBroadcasts.values()) clearTimeout(timer);
+    pendingBroadcasts.clear();
+    unsubscribe();
+  };
 }

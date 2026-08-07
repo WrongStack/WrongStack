@@ -1,14 +1,14 @@
+import { parseModelRef } from '@wrongstack/core/agent';
 import {
   buildRefinerContextSections,
   DEFAULT_REFINER_RETRY_FEEDBACK,
-  enhanceUserPrompt,
   type EnhanceFailureKind,
+  enhanceUserPrompt,
   nextEnhanceTimeout,
   normalizedEqual,
   recentTextTurns,
   shouldEnhance,
 } from '@wrongstack/core/execution';
-import { parseModelRef } from '@wrongstack/core/agent';
 import type { Provider, ReasoningRequest } from '@wrongstack/core/types';
 import type { Action, State } from './app-reducer.js';
 import type {
@@ -17,9 +17,8 @@ import type {
 } from './components/refine-failure-panel.js';
 import { INLINE_TOKEN_SRC } from './input-tokens.js';
 import { startPromptRefinement } from './prompt-refinement-start.js';
-import type { PromptRefinementCapabilities } from './tui-host-capabilities.js';
-
 import type { MutableCell } from './shared-types.js';
+import type { PromptRefinementCapabilities } from './tui-host-capabilities.js';
 
 export interface PromptRefinementHost {
   readonly capabilities: PromptRefinementCapabilities;
@@ -39,9 +38,7 @@ export interface PromptRefinementHost {
   setModel(value: string | null): void;
 }
 
-export type PromptRefinementResult =
-  | { kind: 'send'; effectiveText: string }
-  | { kind: 'cancel' };
+export type PromptRefinementResult = { kind: 'send'; effectiveText: string } | { kind: 'cancel' };
 
 /** Refine one submitted prompt and resolve every recovery/preview decision. */
 export async function refineSubmittedPrompt(
@@ -55,7 +52,10 @@ export async function refineSubmittedPrompt(
   const chipPattern = new RegExp(INLINE_TOKEN_SRC, 'g');
   for (const chipMatch of trimmed.matchAll(chipPattern)) chips.push(chipMatch[0]);
   if (chips.length > 0) {
-    cleanText = trimmed.replace(chipPattern, '').replace(/\s{2,}/g, ' ').trim();
+    cleanText = trimmed
+      .replace(chipPattern, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     if (!cleanText) {
       cleanText = trimmed;
       chips.length = 0;
@@ -78,19 +78,21 @@ export async function refineSubmittedPrompt(
   // composer; countdown expiry proceeds into normal refinement.
   // 0 = skip the countdown entirely (go straight to refinement).
   if (host.preRefineSeconds > 0) {
-    const countdownDecision = await new Promise<
-      'proceed' | 'skip' | 'cancel'
-    >((resolve) => {
-      host.dispatch({
-        type: 'refineCountdownOpen',
-        info: {
-          original: trimmed,
-          seconds: host.preRefineSeconds,
-          resolve,
-        },
-      });
+    let countdownInfo: NonNullable<State['refineCountdown']> | undefined;
+    const countdownDecision = await new Promise<'proceed' | 'skip' | 'cancel'>((resolve) => {
+      countdownInfo = {
+        original: trimmed,
+        seconds: host.preRefineSeconds,
+        resolve,
+      };
+      host.dispatch({ type: 'refineCountdownOpen', info: countdownInfo });
     });
-    host.dispatch({ type: 'refineCountdownClose' });
+    // Scoped to this countdown: if a newer one has taken over the slot, this
+    // (superseded) flow must not close it out from under its own caller.
+    host.dispatch({
+      type: 'refineCountdownClose',
+      ...(countdownInfo ? { info: countdownInfo } : {}),
+    });
     if (countdownDecision === 'skip') {
       return { kind: 'send', effectiveText };
     }

@@ -5,6 +5,9 @@ description: |
   Triggers: user says "API", "endpoint", "REST", "request", "response", "JSON",
   "HTTP", "status code", "pagination", "query params", "request body".
 version: 1.0.0
+required-capabilities: [filesystem.read]
+required-tools: []
+optional-capabilities: [filesystem.write, verification.run]
 ---
 
 # API Design — WrongStack

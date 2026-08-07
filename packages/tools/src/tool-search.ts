@@ -70,7 +70,7 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
   },
   async execute(input, ctx) {
     const limit = Math.min(input.limit ?? 20, 100);
-    const tools = ctx.tools;
+    const tools = ctx.catalogTools ?? ctx.tools;
     const query = input.query?.toLowerCase() ?? '';
 
     const filtered = tools.filter((t: Tool) => {

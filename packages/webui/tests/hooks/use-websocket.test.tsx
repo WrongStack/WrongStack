@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── stubs ───────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,7 @@ function makeClient() {
     getPrefs: record('getPrefs'),
     send: record('send'),
     sendMessage: record('sendMessage'),
+    adviseTopic: record('adviseTopic'),
     sendAbort: record('sendAbort'),
     sendConfirm: record('sendConfirm'),
     switchModel: record('switchModel'),
@@ -253,7 +254,7 @@ describe('useWebSocket', () => {
     expect(seenUrls).toContain('ws://localhost:3456');
   });
 
-  it('registers no handlers — that is the bootstrap hook\'s job', () => {
+  it("registers no handlers — that is the bootstrap hook's job", () => {
     setup();
     expect(client.handlerCount()).toBe(0);
   });
@@ -271,6 +272,21 @@ describe('useWebSocket', () => {
     const images = [{ data: 'AA', mediaType: 'image/png' }] as never;
     r.current.sendMessage('hi', images);
     expect(client.calls).toContainEqual({ method: 'sendMessage', args: ['hi', images] });
+  });
+
+  it('forwards a fresh-context decision without changing ordinary sends', () => {
+    const r = setup();
+    r.current.sendMessage('new topic', undefined, true);
+    expect(client.calls).toContainEqual({
+      method: 'sendMessage',
+      args: ['new topic', undefined, true],
+    });
+  });
+
+  it('delegates bounded topic advice to the websocket client', () => {
+    const r = setup();
+    r.current.adviseTopic('new topic');
+    expect(client.calls).toContainEqual({ method: 'adviseTopic', args: ['new topic'] });
   });
 
   it('drops the message and returns null while disconnected', () => {
@@ -351,7 +367,9 @@ describe('useWebSocket', () => {
     r.current.startGoal('Ship it');
     expect(client.calls).toContainEqual({
       method: 'send',
-      args: [{ type: 'goal.start', payload: { title: 'Ship it', phases: undefined, autonomous: true } }],
+      args: [
+        { type: 'goal.start', payload: { title: 'Ship it', phases: undefined, autonomous: true } },
+      ],
     });
   });
 
@@ -361,7 +379,10 @@ describe('useWebSocket', () => {
     expect(client.calls).toContainEqual({
       method: 'send',
       args: [
-        { type: 'goal.start', payload: { title: 'Ship it', phases: [{ id: 'p1' }], autonomous: false } },
+        {
+          type: 'goal.start',
+          payload: { title: 'Ship it', phases: [{ id: 'p1' }], autonomous: false },
+        },
       ],
     });
   });

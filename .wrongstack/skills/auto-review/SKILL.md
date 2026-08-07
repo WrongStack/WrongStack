@@ -7,6 +7,9 @@ description: |
   Triggers: user says "auto review", "otomatik review", "auto code review",
   "her değişiklikte review", "/auto-review".
 version: 2.0.0
+required-capabilities: [version-control.manage]
+required-tools: [git]
+optional-capabilities: [fleet.delegate, verification.run]
 ---
 
 # Auto Review — Built-in Plugin

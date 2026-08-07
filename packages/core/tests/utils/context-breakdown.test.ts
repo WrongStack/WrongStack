@@ -6,6 +6,7 @@ import {
   type Context,
   createContextEvidenceState,
   DefaultSystemPromptBuilder,
+  estimateMessageTokens,
   estimateTextTokens,
   getContextBreakdown,
   type Message,
@@ -100,13 +101,14 @@ describe('getContextBreakdown', () => {
     expect(bd.tools.mcpByServer.gmail).toBe(bd.tools.mcp);
   });
 
-  it('splits history text from tool_result output', () => {
+  it('splits history text, tool inputs, results, and thinking', () => {
     const messages: Message[] = [
       { role: 'user', content: 'hello world' },
       {
         role: 'assistant',
         content: [
-          { type: 'text', text: 'thinking about it' },
+          { type: 'thinking', thinking: 'private reasoning', signature: 'sig' },
+          { type: 'text', text: 'I will read it' },
           { type: 'tool_use', id: '1', name: 'read', input: { path: 'a.ts' } },
         ],
       },
@@ -118,8 +120,17 @@ describe('getContextBreakdown', () => {
     const bd = getContextBreakdown(mkCtx({ messages }));
     expect(bd.history.messageCount).toBe(3);
     expect(bd.history.text).toBeGreaterThan(0);
+    expect(bd.history.toolInputs).toBeGreaterThan(0);
     expect(bd.history.toolResults).toBeGreaterThan(0);
-    expect(bd.history.total).toBe(bd.history.text + bd.history.toolResults);
+    expect(bd.history.thinking).toBeGreaterThan(0);
+    expect(bd.history.total).toBe(
+      bd.history.text +
+        (bd.history.toolInputs ?? 0) +
+        bd.history.toolResults +
+        (bd.history.thinking ?? 0) +
+        (bd.history.other ?? 0),
+    );
+    expect(bd.history.total).toBe(estimateMessageTokens(messages));
     // The large tool_result must dominate the tool-results bucket.
     expect(bd.history.toolResults).toBeGreaterThan(bd.history.text);
   });
@@ -153,9 +164,7 @@ describe('getContextBreakdown', () => {
         maxContext: 200_000,
       }),
     );
-    expect(bd.total).toBe(
-      bd.system.total + bd.tools.total + bd.history.total + bd.volatile.total,
-    );
+    expect(bd.total).toBe(bd.system.total + bd.tools.total + bd.history.total + bd.volatile.total);
     expect(bd.usedPct).toBeCloseTo(bd.total / bd.effectiveMaxContext, 10);
   });
 });

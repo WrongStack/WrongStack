@@ -181,6 +181,7 @@ export interface BrainConfigWire {
     perCallTimeoutMs?: number | undefined;
     maxConcurrency?: number | undefined;
     distinctness: 'none' | 'model' | 'provider';
+    voterMaxTokens?: number | undefined;
     judgeMaxTokens?: number | undefined;
     seats: BrainCouncilSeatWire[];
   };
@@ -247,6 +248,7 @@ export interface BrainConfigPatchWire {
         perCallTimeoutMs?: number | null | undefined;
         maxConcurrency?: number | null | undefined;
         distinctness?: 'none' | 'model' | 'provider' | null | undefined;
+        voterMaxTokens?: number | null | undefined;
         judgeMaxTokens?: number | null | undefined;
         seats?: BrainCouncilSeatWire[] | null | undefined;
       }

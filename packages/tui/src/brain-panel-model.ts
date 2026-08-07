@@ -68,6 +68,8 @@ export interface BrainPanelSettings {
   councilPerCallTimeoutMs?: number | undefined;
   /** Seats polled concurrently, 1..8 (undefined = default 3). */
   councilMaxConcurrency?: number | undefined;
+  /** Output budget per voter seat call (undefined = default 2000). */
+  councilVoterMaxTokens?: number | undefined;
   /** Output budget for the judge call (undefined = follows the seat budget). */
   councilJudgeMaxTokens?: number | undefined;
   /** Explicitly configured voters (empty = seats derive from the pool). */
@@ -148,12 +150,13 @@ export interface BrainPanelHost {
   setCouncilApproval(fraction: number): Promise<string | null>;
   setCouncilDistinctness(mode: 'none' | 'model' | 'provider'): Promise<string | null>;
   /**
-   * The three positive-integer council knobs. `undefined` clears back to the
+   * The positive-integer council knobs. `undefined` clears back to the
    * default — unlike the LLM/cache ladders, `BrainCouncilPatch` accepts `null`
    * for these, so a "default" rung is reachable here.
    */
   setCouncilPerCallTimeout(ms: number | undefined): Promise<string | null>;
   setCouncilMaxConcurrency(count: number | undefined): Promise<string | null>;
+  setCouncilVoterMaxTokens(tokens: number | undefined): Promise<string | null>;
   setCouncilJudgeMaxTokens(tokens: number | undefined): Promise<string | null>;
   setLedgerEnabled(on: boolean): Promise<string | null>;
   setAutoDeny(count: number | undefined): Promise<string | null>;
@@ -195,6 +198,7 @@ export type BrainPanelRow =
   | { kind: 'councilDistinctness' }
   | { kind: 'councilTimeout' }
   | { kind: 'councilConcurrency' }
+  | { kind: 'councilVoterMaxTokens' }
   | { kind: 'councilJudgeMaxTokens' }
   | { kind: 'ledgerToggle' }
   | { kind: 'autoDeny' }
@@ -267,6 +271,7 @@ export function brainPanelRows(settings: BrainPanelSettings): BrainPanelRow[] {
       { kind: 'councilDistinctness' },
       { kind: 'councilTimeout' },
       { kind: 'councilConcurrency' },
+      { kind: 'councilVoterMaxTokens' },
       { kind: 'councilJudgeMaxTokens' },
     );
   }
@@ -318,11 +323,7 @@ export const AUTO_DENY_PRESETS: ReadonlyArray<number | undefined> = [undefined, 
 export const LLM_MAX_TOKENS_PRESETS: readonly number[] = [200, 400, 800, 1_600, 3_200];
 export const LLM_MIN_CONFIDENCE_PRESETS: readonly number[] = [0, 0.3, 0.5, 0.7, 0.9];
 export const CACHE_TTL_PRESETS: readonly number[] = [
-  60_000,
-  300_000,
-  900_000,
-  1_800_000,
-  3_600_000,
+  60_000, 300_000, 900_000, 1_800_000, 3_600_000,
 ];
 export const CACHE_MAX_ENTRIES_PRESETS: readonly number[] = [50, 100, 200, 500, 1_000];
 /**
@@ -359,6 +360,20 @@ export const COUNCIL_JUDGE_MAX_TOKENS_PRESETS: ReadonlyArray<number | undefined>
   1_200,
 ];
 /**
+ * Per-seat output budget rungs. The default is 2000 (see
+ * `BRAIN_COUNCIL_DEFAULT_VOTER_MAX_TOKENS` in core) — reasoning models spend
+ * their thinking tokens from this budget, so the rungs skew higher than the
+ * judge ladder.
+ */
+export const COUNCIL_VOTER_MAX_TOKENS_PRESETS: ReadonlyArray<number | undefined> = [
+  undefined,
+  500,
+  1_000,
+  2_000,
+  4_000,
+  8_000,
+];
+/**
  * Fallback lens cycle for hosts that publish no `personaCatalog`. Prefer
  * {@link personaCycle}, which uses the host's catalog when it is available —
  * the registry ships six lenses, not these three.
@@ -384,4 +399,3 @@ export function cyclePreset<T>(presets: ReadonlyArray<T>, current: T, delta: num
   const next = (from + delta + presets.length) % presets.length;
   return presets[next] as T;
 }
-

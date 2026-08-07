@@ -6,6 +6,8 @@ description: |
   "image", "docker-compose", "deploy", "containerize", "registry",
   "multi-stage", "distroless".
 version: 1.0.0
+required-capabilities: [filesystem.read, filesystem.write, execution.shell]
+required-tools: []
 ---
 
 # Docker Deploy — WrongStack

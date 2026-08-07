@@ -18,7 +18,7 @@ function flushRaf() {
   for (const cb of cbs) if (cb) cb(performance.now());
 }
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── WS hook mock ──────────────────────────────────────────────────────
@@ -26,6 +26,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // that the three send-mode buttons call the right client methods in the
 // right order. Capture every imperative call so each test can assert.
 const wsCalls: Array<{ name: string; args: unknown[] }> = [];
+const { confirmModalChoiceMock } = vi.hoisted(() => ({ confirmModalChoiceMock: vi.fn() }));
 const wsMock = {
   sendMessage: vi.fn((_content: string, _imageBase64?: string) => 'msg_id'),
   sendAbort: vi.fn(),
@@ -37,8 +38,25 @@ const wsMock = {
   // moment a test exercises those controls.
   sendMailboxMessage: vi.fn(),
   updatePrefs: vi.fn(),
+  // Annotated, not `as const`: inferring `source: 'local'` narrowed the mock's
+  // return type so cases overriding it with 'model' no longer typechecked.
+  adviseTopic: vi.fn(
+    async (): Promise<{
+      suggestNewContext: boolean;
+      confidence: number;
+      reason: string;
+      nextTopic?: string | undefined;
+      source: 'explicit' | 'model' | 'cache' | 'local';
+    }> => ({
+      suggestNewContext: false,
+      confidence: 1,
+      reason: 'same topic',
+      source: 'local',
+    }),
+  ),
   client: {
     isConnected: true,
+    supportsCapability: vi.fn(() => true),
     send: vi.fn(),
     onStatus: () => () => {},
   },
@@ -46,6 +64,7 @@ const wsMock = {
 vi.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => wsMock,
 }));
+vi.mock('@/components/ConfirmModal', () => ({ confirmModalChoice: confirmModalChoiceMock }));
 vi.mock('@/hooks/useProviderModels', () => ({ useProviderModels: () => [] }));
 
 // Stub heavy presentational children so the ChatInput test stays focused
@@ -69,6 +88,9 @@ beforeEach(() => {
   wsMock.refineModel.mockClear();
   wsMock.sendMailboxMessage.mockClear();
   wsMock.updatePrefs.mockClear();
+  wsMock.adviseTopic.mockClear();
+  wsMock.client.supportsCapability.mockClear();
+  confirmModalChoiceMock.mockReset();
   // Reset the chat store between tests so the queue / loading state
   // from one test doesn't bleed into the next.
   useChatStore.setState({
@@ -162,6 +184,72 @@ describe('ChatInput — send-mode buttons', () => {
     expect(wsMock.sendAbort).not.toHaveBeenCalled();
     expect(wsMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(wsMock.sendMessage).toHaveBeenCalledWith('hello agent', undefined);
+  });
+
+  it('offers a same-session fresh context for a detected topic shift', async () => {
+    useChatStore.setState({
+      messages: Array.from({ length: 5 }, (_, index) => ({
+        id: `m${index}`,
+        role: 'user' as const,
+        content: `authentication task ${index}`,
+        timestamp: index,
+      })),
+    });
+    wsMock.adviseTopic.mockResolvedValueOnce({
+      suggestNewContext: true,
+      confidence: 0.94,
+      reason: 'different goal',
+      nextTopic: 'deployment planning',
+      source: 'model',
+    });
+    confirmModalChoiceMock.mockResolvedValueOnce('confirm');
+    render(<ChatInput />);
+
+    const textarea = screen.getByPlaceholderText(/Message the agent/) as HTMLTextAreaElement;
+    typeInto(textarea, 'Plan a Kubernetes deployment for another product.');
+    fireEvent.click(screen.getByTestId('send-btw'));
+
+    await waitFor(() => {
+      expect(wsMock.sendMessage).toHaveBeenCalledWith(
+        'Plan a Kubernetes deployment for another product.',
+        undefined,
+        true,
+      );
+    });
+    expect(confirmModalChoiceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        confirmLabel: 'New context',
+        cancelLabel: 'Same context',
+        defaultAction: 'cancel',
+      }),
+    );
+  });
+
+  it('keeps the draft when the topic choice is dismissed', async () => {
+    useChatStore.setState({
+      messages: Array.from({ length: 5 }, (_, index) => ({
+        id: `m${index}`,
+        role: 'user' as const,
+        content: `authentication task ${index}`,
+        timestamp: index,
+      })),
+    });
+    wsMock.adviseTopic.mockResolvedValueOnce({
+      suggestNewContext: true,
+      confidence: 0.94,
+      reason: 'different goal',
+      source: 'model',
+    });
+    confirmModalChoiceMock.mockResolvedValueOnce('dismiss');
+    render(<ChatInput />);
+
+    const textarea = screen.getByPlaceholderText(/Message the agent/) as HTMLTextAreaElement;
+    typeInto(textarea, 'Keep this draft if I press Escape.');
+    fireEvent.click(screen.getByTestId('send-btw'));
+
+    await waitFor(() => expect(confirmModalChoiceMock).toHaveBeenCalledTimes(1));
+    expect(wsMock.sendMessage).not.toHaveBeenCalled();
+    expect(textarea.value).toBe('Keep this draft if I press Escape.');
   });
 
   it('steer while idle collapses to a plain send (no abort target)', () => {

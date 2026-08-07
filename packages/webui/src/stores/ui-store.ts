@@ -286,6 +286,8 @@ interface UIState {
     fallbackRef?: string | undefined;
     /** True once the automatic timeout retry has been spent (so we don't loop). */
     retried?: boolean | undefined;
+    /** Apply a model-context boundary atomically when the approved prompt is sent. */
+    freshContext?: boolean | undefined;
     /** Provider id of the model running the refinement (e.g. "openai"). */
     provider?: string | undefined;
     /** Model name running the refinement (e.g. "gpt-4o"). */
@@ -559,7 +561,8 @@ export const useUIStore = create<UIState>()(
       setProcessMonitorOpen: (open: boolean) => set({ processMonitorOpen: open }),
       setQueuePanelOpen: (open: boolean) => set({ queuePanelOpen: open }),
       setCronJobsOpen: (open: boolean) => set({ cronJobsOpen: open }),
-      setInspectSession: (id: string) => set({ inspectSessionId: id, currentView: 'session-inspect' as View }),
+      setInspectSession: (id: string) =>
+        set({ inspectSessionId: id, currentView: 'session-inspect' as View }),
       clearInspectSession: () => set({ inspectSessionId: null, currentView: 'chat' }),
       setTerminalOpen: (open: boolean) => set({ terminalOpen: open }),
       toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),

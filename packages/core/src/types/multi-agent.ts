@@ -46,6 +46,8 @@ export interface SubagentConfig {
    * higher values fire closer to the deadline. Ignored when `timeoutMs` is unset.
    */
   preemptFraction?: number | undefined;
+  /** Stable capability ids resolved to the host's concrete tool surface. */
+  capabilities?: string[] | undefined;
   tools?: string[] | undefined;
   /**
    * Tools to explicitly disable for this subagent. These tools will be

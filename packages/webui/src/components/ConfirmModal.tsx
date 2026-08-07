@@ -35,16 +35,18 @@ export interface ConfirmModalOptions {
   cancelLabel?: string | undefined;
   /** Destructive styling for the confirm button (deletes etc.). */
   danger?: boolean | undefined;
+  /** Which choice receives focus and Enter. Defaults to confirm for compatibility. */
+  defaultAction?: 'confirm' | 'cancel' | undefined;
 }
 
 interface ConfirmRequest extends ConfirmModalOptions {
-  resolve: (confirmed: boolean) => void;
+  resolve: (confirmed: boolean | null) => void;
 }
 
 interface ConfirmModalState {
   request: ConfirmRequest | null;
   open: (request: ConfirmRequest) => void;
-  settle: (confirmed: boolean) => void;
+  settle: (confirmed: boolean | null) => void;
 }
 
 /** Internal — used by ConfirmModalHost and tests. Call confirmModal() instead. */
@@ -65,7 +67,23 @@ export const useConfirmModalStore = create<ConfirmModalState>()((set, get) => ({
 /** Ask the user to confirm. Resolves true on confirm, false otherwise. */
 export function confirmModal(options: ConfirmModalOptions): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
-    useConfirmModalStore.getState().open({ ...options, resolve });
+    useConfirmModalStore.getState().open({
+      ...options,
+      resolve: (decision) => resolve(decision === true),
+    });
+  });
+}
+
+export type ConfirmModalChoice = 'confirm' | 'cancel' | 'dismiss';
+
+/** Three-way variant for workflows where dismissing must not equal either button. */
+export function confirmModalChoice(options: ConfirmModalOptions): Promise<ConfirmModalChoice> {
+  return new Promise<ConfirmModalChoice>((resolve) => {
+    useConfirmModalStore.getState().open({
+      ...options,
+      resolve: (decision) =>
+        resolve(decision === null ? 'dismiss' : decision ? 'confirm' : 'cancel'),
+    });
   });
 }
 
@@ -80,7 +98,7 @@ export function ConfirmModalHost() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        useConfirmModalStore.getState().settle(true);
+        useConfirmModalStore.getState().settle(request.defaultAction !== 'cancel');
       }
     };
     window.addEventListener('keydown', onKey);
@@ -91,7 +109,7 @@ export function ConfirmModalHost() {
     <Dialog
       open={request !== null}
       onOpenChange={(open) => {
-        if (!open) settle(false);
+        if (!open) settle(null);
       }}
     >
       <DialogContent className="max-w-md">
@@ -100,13 +118,18 @@ export function ConfirmModalHost() {
           {request?.message && <DialogDescription>{request.message}</DialogDescription>}
         </DialogHeader>
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" onClick={() => settle(false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            autoFocus={request?.defaultAction === 'cancel'}
+            onClick={() => settle(false)}
+          >
             {request?.cancelLabel ?? t('common:action.cancel')}
           </Button>
           <Button
             variant={request?.danger ? 'destructive' : 'default'}
             size="sm"
-            autoFocus
+            autoFocus={request?.defaultAction !== 'cancel'}
             onClick={() => settle(true)}
           >
             {request?.confirmLabel ?? t('common:action.confirm')}

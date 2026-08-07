@@ -22,6 +22,7 @@ import {
   COUNCIL_FRACTION_PRESETS,
   COUNCIL_JUDGE_MAX_TOKENS_PRESETS,
   COUNCIL_TIMEOUT_PRESETS,
+  COUNCIL_VOTER_MAX_TOKENS_PRESETS,
   cyclePreset,
   DECISION_TIMEOUT_PRESETS,
   HUMAN_TIMEOUT_PRESETS,
@@ -32,7 +33,9 @@ import {
 /** Step through a fixed enum ladder, wrapping in both directions. */
 function cycleEnum<T extends string>(values: readonly T[], current: T, delta: number): T {
   const at = values.indexOf(current);
-  return values[(((at >= 0 ? at : 0) + delta) % values.length + values.length) % values.length] as T;
+  return values[
+    ((((at >= 0 ? at : 0) + delta) % values.length) + values.length) % values.length
+  ] as T;
 }
 
 const TERMINAL_POLICIES: readonly BrainTerminalPolicyValue[] = [
@@ -214,11 +217,7 @@ export function useBrainPanel(opts: UseBrainPanelOptions): BrainPanelController 
           );
           return;
         case 'councilDistinctness': {
-          const next = cycleEnum(
-            COUNCIL_DISTINCTNESS_PRESETS,
-            settings.councilDistinctness,
-            delta,
-          );
+          const next = cycleEnum(COUNCIL_DISTINCTNESS_PRESETS, settings.councilDistinctness, delta);
           runBrainMutation(() => host.setCouncilDistinctness(next));
           return;
         }
@@ -233,6 +232,13 @@ export function useBrainPanel(opts: UseBrainPanelOptions): BrainPanelController 
           runBrainMutation(() =>
             host.setCouncilMaxConcurrency(
               cyclePreset(COUNCIL_CONCURRENCY_PRESETS, settings.councilMaxConcurrency, delta),
+            ),
+          );
+          return;
+        case 'councilVoterMaxTokens':
+          runBrainMutation(() =>
+            host.setCouncilVoterMaxTokens(
+              cyclePreset(COUNCIL_VOTER_MAX_TOKENS_PRESETS, settings.councilVoterMaxTokens, delta),
             ),
           );
           return;

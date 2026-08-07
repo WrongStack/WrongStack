@@ -1,9 +1,6 @@
 import { buildLiveNextStepsGateBlock } from '../core/agent-response.js';
-import {
-  SYSTEM_BLOCK_SOURCE,
-  type SystemBlockSource,
-} from '../core/system-prompt-builder.js';
 import type { Context } from '../core/context.js';
+import { SYSTEM_BLOCK_SOURCE, type SystemBlockSource } from '../core/system-prompt-builder.js';
 import type { TextBlock } from '../types/blocks.js';
 import type { Tool } from '../types/tool.js';
 import { buildCompletedWorkLedgerBlock } from './context-evidence.js';
@@ -39,10 +36,16 @@ export interface ContextBreakdown {
   };
   history: {
     total: number;
-    /** User/assistant text + tool_use inputs + thinking. */
+    /** User/assistant/system text only. */
     text: number;
+    /** Serialized tool_use arguments. Optional for backward-compatible UI snapshots. */
+    toolInputs?: number | undefined;
     /** tool_result output content. */
     toolResults: number;
+    /** Preserved provider reasoning/thinking blocks. */
+    thinking?: number | undefined;
+    /** Images and future/unknown content block kinds. */
+    other?: number | undefined;
     messageCount: number;
   };
   volatile: {
@@ -155,9 +158,13 @@ export function getContextBreakdown(ctx: Context): ContextBreakdown {
     }
   }
 
-  // --- Conversation history: text/tool_use/thinking vs tool_result output ---
+  // --- Conversation history: account every block kind separately so a large
+  //     tool input or preserved-thinking chain cannot hide in the "text" line. ---
   let histText = 0;
+  let histToolInputs = 0;
   let histToolResults = 0;
+  let histThinking = 0;
+  let histOther = 0;
   for (const msg of ctx.messages) {
     if (typeof msg.content === 'string') {
       histText += estimateTextTokens(msg.content);
@@ -169,16 +176,18 @@ export function getContextBreakdown(ctx: Context): ContextBreakdown {
           histText += estimateTextTokens(b.text);
           break;
         case 'tool_use':
-          histText += estimateToolInputTokens(b.input);
+          histToolInputs += estimateToolInputTokens(b.input);
           break;
         case 'tool_result':
           histToolResults += estimateToolResultTokens(b.content);
           break;
         case 'thinking':
-          histText += estimateTextTokens(b.thinking);
+          // The canonical message estimator serializes the whole block so
+          // opaque signatures/provider metadata count toward the wire budget.
+          histThinking += estimateTextTokens(JSON.stringify(b));
           break;
         default:
-          histText += estimateTextTokens(JSON.stringify(b));
+          histOther += estimateTextTokens(JSON.stringify(b));
       }
     }
   }
@@ -196,7 +205,7 @@ export function getContextBreakdown(ctx: Context): ContextBreakdown {
   const nextsteps = nextstepsBlock ? estimateTextTokens(nextstepsBlock.text) : 0;
 
   const toolsTotal = toolsBuiltin + toolsMcp;
-  const historyTotal = histText + histToolResults;
+  const historyTotal = histText + histToolInputs + histToolResults + histThinking + histOther;
   const volatileTotal = ledger + nextsteps;
   const total = systemTotal + toolsTotal + historyTotal + volatileTotal;
   const effectiveMaxContext = resolveEffectiveMaxContext(ctx);
@@ -213,7 +222,10 @@ export function getContextBreakdown(ctx: Context): ContextBreakdown {
     history: {
       total: historyTotal,
       text: histText,
+      toolInputs: histToolInputs,
       toolResults: histToolResults,
+      thinking: histThinking,
+      other: histOther,
       messageCount: ctx.messages.length,
     },
     volatile: { ledger, nextsteps, total: volatileTotal },

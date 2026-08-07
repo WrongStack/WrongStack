@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_SUBJECT_LEN, capSubject, compileUserRegex } from '../src/_regex.js';
+import { capSubject, compileUserRegex, MAX_SUBJECT_LEN } from '../src/_regex.js';
 
 describe('compileUserRegex (ReDoS guard for grep/replace/logs)', () => {
   it('compiles a simple pattern', () => {
@@ -50,6 +50,34 @@ describe('compileUserRegex (ReDoS guard for grep/replace/logs)', () => {
       expect(r.regex.test('FOO')).toBe(true);
       expect(r.regex.flags).toContain('i');
     }
+  });
+});
+
+describe('ambiguous quantified alternation (single outer quantifier)', () => {
+  // The measured hole: `(a|a)*$` passed every DANGEROUS_PATTERNS rule (rule 4
+  // requires a DOUBLED quantifier) and took 7s on a 27-char subject —
+  // synchronous and uninterruptible, so it kills a daemon event loop.
+  it.each(['(a|a)*$', '(a|a)+', '(?:a|a)*', '(a|ab)+x', '(ab|a)*$', '(x|)+', '(a|a){2,}'])(
+    'rejects %s',
+    (pattern) => {
+      const r = compileUserRegex(pattern, '');
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.reason).toContain('overlapping branches');
+    },
+  );
+
+  it.each(['(foo|bar)+', '(GET|POST) /api/\\w+', '(a|b)*c', 'foo|bar', '(a|ab)x'])(
+    'still allows disjoint or unquantified alternation %s',
+    (pattern) => {
+      expect(compileUserRegex(pattern, '').ok).toBe(true);
+    },
+  );
+
+  it('the previously-measured attack pattern now fails fast instead of backtracking', () => {
+    const start = Date.now();
+    const r = compileUserRegex('(a|a)*$', '');
+    expect(r.ok).toBe(false);
+    expect(Date.now() - start).toBeLessThan(50);
   });
 });
 

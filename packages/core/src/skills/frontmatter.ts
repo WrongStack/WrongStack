@@ -28,10 +28,23 @@ export interface ParsedSkillFrontmatter {
    * consult this field, so it neither grants nor restricts any tool.
    */
   allowedTools?: string[] | undefined;
+  /** WrongStack stable runtime capabilities required before this skill may load. */
+  requiredCapabilities?: string[] | undefined;
+  /** Exact registered tool names required before this skill may render or load. */
+  requiredTools?: string[] | undefined;
+  /** Capabilities that improve the workflow but have documented fallbacks. */
+  optionalCapabilities?: string[] | undefined;
 }
 
 /** Fields whose value is a single scalar string. */
-const SCALAR_KEYS = new Set(['name', 'description', 'trigger', 'version', 'license', 'compatibility']);
+const SCALAR_KEYS = new Set([
+  'name',
+  'description',
+  'trigger',
+  'version',
+  'license',
+  'compatibility',
+]);
 
 /**
  * Parse the YAML frontmatter block from a raw SKILL.md file. Returns `{}` when
@@ -109,9 +122,23 @@ function parseFrontmatterBlock(block: string): ParsedSkillFrontmatter {
       continue;
     }
 
-    if (key === 'allowed-tools' || key === 'allowedTools') {
-      // Spec: space-separated; tolerate comma-separated (common in real skills).
-      out.allowedTools = rest.split(/[\s,]+/).filter(Boolean);
+    if (
+      key === 'allowed-tools' ||
+      key === 'allowedTools' ||
+      key === 'required-capabilities' ||
+      key === 'requiredCapabilities' ||
+      key === 'required-tools' ||
+      key === 'requiredTools' ||
+      key === 'optional-capabilities' ||
+      key === 'optionalCapabilities'
+    ) {
+      const values = rest
+        .replace(/^\[/, '')
+        .replace(/\]$/, '')
+        .split(/[\s,]+/)
+        .map(unquote)
+        .filter(Boolean);
+      (out as Record<string, unknown>)[normalizeKey(key)] = values;
       i++;
       continue;
     }
@@ -130,7 +157,11 @@ function parseFrontmatterBlock(block: string): ParsedSkillFrontmatter {
 
 /** `allowed-tools` (hyphen) → `allowedTools` (camel); other keys pass through. */
 function normalizeKey(key: string): string {
-  return key === 'allowed-tools' ? 'allowedTools' : key;
+  if (key === 'allowed-tools') return 'allowedTools';
+  if (key === 'required-capabilities') return 'requiredCapabilities';
+  if (key === 'required-tools') return 'requiredTools';
+  if (key === 'optional-capabilities') return 'optionalCapabilities';
+  return key;
 }
 
 /** Strip surrounding single/double YAML quotes from a scalar value. */

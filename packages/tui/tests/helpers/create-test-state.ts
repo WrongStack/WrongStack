@@ -21,8 +21,8 @@
  * already used across the codebase.
  */
 
-import { DEFAULT_PANEL_POSITIONS } from '../../src/ui-contracts.js';
 import type { State } from '../../src/app-state.js';
+import { DEFAULT_PANEL_POSITIONS } from '../../src/ui-contracts.js';
 
 /**
  * Recursively partial — every field (including nested objects) becomes
@@ -218,7 +218,9 @@ export function createTestState(
     enhance: null,
     enhanceEnabled: true,
     enhanceBusy: false,
+    topicCheckBusy: false,
     refineCountdown: null,
+    refineCountdownGen: 0,
     refineFailure: null,
     continueConfirm: null,
     clearConfirm: null,

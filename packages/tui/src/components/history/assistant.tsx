@@ -1,8 +1,7 @@
-import { Box, Text } from '../../ink.js';
 import type React from 'react';
-import { type Lang, detectLang } from '../../highlight.js';
+import { detectLang, type Lang } from '../../highlight.js';
+import { Box } from '../../ink.js';
 import { MarkdownView } from '../../markdown.js';
-import { theme } from '../../theme.js';
 import { CodeBlock } from './code-block.js';
 import type { BodySegment } from './types.js';
 
@@ -31,7 +30,7 @@ export const MESSAGE_PANEL_MARGIN = 2;
  * termWidth - chrome (border+padding) only — no margin since panels are now full-width.
  */
 export function assistantContentWidth(termWidth: number): number {
-  return Math.max(20, termWidth - MESSAGE_PANEL_CHROME_WIDTH);
+  return Math.max(1, termWidth - MESSAGE_PANEL_CHROME_WIDTH);
 }
 
 /**
@@ -102,91 +101,6 @@ export function AssistantBody({
           />
         ),
       )}
-    </Box>
-  );
-}
-
-/** Rows reserved by the live assistant tail. Held constant so the streaming
- *  region never grows row-by-row (see ToolStreamBox for the why). */
-const ASSISTANT_TAIL_LINES = 8;
-
-/**
- * Total layout height of the AssistantTail in terminal rows. Must be kept
- * in sync with the component's actual rendered height so callers can
- * reserve space unconditionally (preventing layout jank when streaming
- * starts/stops).
- *
- * Margin: marginY={1} adds 2 rows (top + bottom).
- * Header: the "💬 ASSISTANT (streaming…)" line is 1 row.
- * Body: ASSISTANT_TAIL_LINES = 8 content rows.
- * Borders: borderTop/Right/Bottom are disabled; borderLeft is active but
- * contributes 0 vertical rows (it draws alongside existing rows).
- * Total = 2 + 1 + 8 = 11.
- */
-const ASSISTANT_TAIL_MARGIN_Y = 2;
-const ASSISTANT_TAIL_HEADER_ROWS = 1;
-export const ASSISTANT_TAIL_HEIGHT =
-  ASSISTANT_TAIL_MARGIN_Y + ASSISTANT_TAIL_HEADER_ROWS + ASSISTANT_TAIL_LINES;
-
-/**
- * Build the CONSTANT-height row set for the live assistant tail: always exactly
- * `tailLines` rows (newest pinned to the bottom, blank padding on top), each
- * truncated to `contentWidth` so nothing wraps. Pure + exported for testing.
- */
-export function assistantTailRows(
-  text: string,
-  tailLines: number,
-  contentWidth: number,
-): string[] {
-  const tail = text.split('\n').slice(-tailLines);
-  const rows: string[] = [];
-  for (let i = 0; i < tailLines - tail.length; i++) rows.push('');
-  for (const line of tail) {
-    rows.push(line.length > contentWidth ? `${line.slice(0, contentWidth - 1)}…` : line);
-  }
-  return rows;
-}
-
-/**
- * The live "ASSISTANT: (streaming...)" tail shown below committed history.
- *
- * Renders at a CONSTANT height (header + ASSISTANT_TAIL_LINES rows) with every
- * line truncated to the terminal width so nothing wraps. A wrapping/growing
- * tail pinned to the bottom of the screen forces the terminal to scroll on each
- * delta, and in inline mode each scroll leaks the input prompt
- * row into permanent scrollback. Holding the height fixed limits that to one
- * scroll when streaming starts. Rows are bottom-aligned (blank padding on top)
- * so the newest line stays pinned to the bottom.
- */
-export function AssistantTail({
-  text,
-  termWidth,
-}: { text: string; termWidth: number }): React.ReactElement {
-  // border (1) + paddingLeft (1) + 1 safety column against last-column autowrap.
-  const contentWidth = Math.max(20, termWidth - 3);
-  const rows = assistantTailRows(text, ASSISTANT_TAIL_LINES, contentWidth);
-  return (
-    <Box
-      flexDirection="column"
-      marginY={1}
-      borderStyle="single"
-      borderTop={false}
-      borderRight={false}
-      borderBottom={false}
-      borderColor={theme.assistant}
-      paddingLeft={1}
-    >
-      <Box flexDirection="row">
-        <Text bold color={theme.assistant}>
-          {'💬 ASSISTANT'}
-        </Text>
-        <Text dimColor>{'  (streaming…)'}</Text>
-      </Box>
-      <Box flexDirection="column">
-        {rows.map((r, i) => (
-          <Text key={i} color="white">{r || ' '}</Text>
-        ))}
-      </Box>
     </Box>
   );
 }

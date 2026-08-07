@@ -1,23 +1,24 @@
-import type { Director } from '@wrongstack/core/coordination';
-import type { AttachmentStore, ContentBlock } from '@wrongstack/core/types';
 import {
   detectContinueIntent,
   type InputBuilder,
   resolveContinuation,
   setBtwNote,
 } from '@wrongstack/core/agent';
+import type { Director } from '@wrongstack/core/coordination';
+import type { AttachmentStore, ContentBlock } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Action, State } from './app-reducer.js';
-import type { ShellCommandWarningDecision } from './components/shell-command-warning.js';
 import type { SendMode } from './components/send-mode-picker.js';
-import { emptyMemoryContextMonitor } from './memory-context-monitor.js';
+import type { ShellCommandWarningDecision } from './components/shell-command-warning.js';
 import { INLINE_TOKEN_SRC } from './input-tokens.js';
-import { refineSubmittedPrompt } from './submit-prompt-refinement.js';
+import { emptyMemoryContextMonitor } from './memory-context-monitor.js';
+import type { MutableCell } from './shared-types.js';
 import { buildSteeringPreamble } from './steering-preamble.js';
 import { shouldPushSubmittedHistory } from './submit-history.js';
-import type { SubmitCapabilities } from './tui-host-capabilities.js';
-import type { MutableCell } from './shared-types.js';
+import { refineSubmittedPrompt } from './submit-prompt-refinement.js';
 import { resolveAttachmentTokens, type TokenPreviewStore } from './token-previews.js';
+import { startFreshTopicContext, TopicShiftAdvisor } from './topic-shift-advisor.js';
+import type { SubmitCapabilities } from './tui-host-capabilities.js';
 
 export interface SubmitControllerHost {
   readonly capabilities: SubmitCapabilities;
@@ -83,6 +84,19 @@ export interface SubmitControllerHost {
      *  next-steps auto-submit, prompt-usage store, enhance abort). */
     onAfterClear?(): void;
   };
+}
+
+// createSubmitController is rebuilt as the App renders. Keep the bounded
+// decision cache attached to the long-lived Agent instead of a render closure.
+const topicAdvisorByAgent = new WeakMap<object, TopicShiftAdvisor>();
+
+function topicAdvisorFor(agent: object): TopicShiftAdvisor {
+  let advisor = topicAdvisorByAgent.get(agent);
+  if (!advisor) {
+    advisor = new TopicShiftAdvisor();
+    topicAdvisorByAgent.set(agent, advisor);
+  }
+  return advisor;
 }
 
 export function createSubmitController(host: SubmitControllerHost) {
@@ -492,6 +506,74 @@ export function createSubmitController(host: SubmitControllerHost) {
           })
         : null;
 
+    // Resolve SDD state once and reuse it below. An active spec conversation
+    // already owns its topic boundary, so the generic advisor must stay out.
+    const sddContext = await getSDDContext?.();
+
+    // ── Long-history topic boundary advisory ────────────────────────
+    // The advisor performs a cheap local gate first. It calls the provider
+    // only when history is substantial and lexical continuity is low, then
+    // caches the bounded decision. A fresh context resets only provider-bound
+    // conversational state: visible chat and the append-only session remain.
+    if (
+      !steering &&
+      stateRef.current.status === 'idle' &&
+      continueResolved === null &&
+      !sddContext
+    ) {
+      const liveState = stateRef.current;
+      const advice = await topicAdvisorFor(agent).advise({
+        prompt: trimmed,
+        messages: agent.ctx.messages,
+        provider: agent.ctx.provider,
+        model: agent.ctx.model,
+        contextTokens: agent.ctx.lastRequestTokens ?? liveState.leader.ctxTokens,
+        maxContext:
+          activeMaxContext ??
+          liveState.leader.ctxMaxTokens ??
+          agent.ctx.provider.capabilities.maxContext,
+        onModelCheck: (on) => dispatch({ type: 'topicCheckBusy', on }),
+      });
+      if (advice.suggestNewContext) {
+        const percent = Math.round(advice.confidence * 100);
+        const topic = advice.nextTopic ? `\nNew topic: ${advice.nextTopic}` : '';
+        const decision = await new Promise<boolean | null>((resolve) => {
+          dispatch({
+            type: 'slashConfirmOpen',
+            info: {
+              question: [
+                `This looks like a different topic (${percent}% confidence).`,
+                advice.reason,
+                topic,
+                'Start a fresh model context? Previous chat stays visible and saved.',
+                'y = new context · n/Enter = continue in this context',
+              ]
+                .filter(Boolean)
+                .join('\n'),
+              defaultYes: false,
+              resolve,
+            },
+          });
+        });
+        dispatch({ type: 'slashConfirmClose' });
+        if (decision === null) {
+          setDraft(trimmed, trimmed.length);
+          return;
+        }
+        if (decision) {
+          await startFreshTopicContext(agent.ctx);
+          dispatch({ type: 'resetContextChip' });
+          dispatch({
+            type: 'addEntry',
+            entry: {
+              kind: 'info',
+              text: 'New context started — previous chat remains in session history but is no longer sent to the model.',
+            },
+          });
+        }
+      }
+    }
+
     // ── Prompt refinement ("did you mean this?") ───────────────────────
     // Before the main agent sees the message, run it through a separate
     // one-shot LLM call (its own system prompt, no history) that rewrites it
@@ -573,7 +655,6 @@ export function createSubmitController(host: SubmitControllerHost) {
     // is zero-arg (see app-props / run-tui-options), so the Q/A pair for
     // the questioning phase is recorded elsewhere; here we just fetch the
     // prompt prefix.
-    const sddContext = await getSDDContext?.();
     if (sddContext && trimmed) {
       builder.appendText(`[SDD SESSION ACTIVE]\n${sddContext}\n\n---\nUser message:\n`);
     }

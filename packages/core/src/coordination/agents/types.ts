@@ -12,6 +12,7 @@
  * `fleet.ts` derives `FLEET_ROSTER` + `FLEET_ROSTER_BUDGETS` from the catalog.
  */
 import type { SubagentConfig } from '../../types/multi-agent.js';
+import { toolsForRuntimeCapabilities } from './capability-manifest.js';
 
 /** Lifecycle phase grouping. Drives statusline labels + dispatcher tie-breaks. */
 export type AgentPhase =
@@ -146,4 +147,11 @@ export const TOOLS = {
   docs: ['read', 'grep', 'glob', 'search', 'tree', 'write', 'edit', 'document', 'mailbox'],
   /** Web research. */
   research: ['read', 'grep', 'glob', 'search', 'fetch', 'mailbox'],
+} as const satisfies Record<string, readonly string[]>;
+
+/** Canonical optional tool packs used by specialist roster roles. */
+export const SPECIALIST_TOOLS = {
+  browser: toolsForRuntimeCapabilities(['browser.interact']),
+  memory: toolsForRuntimeCapabilities(['memory.manage']),
+  mcp: toolsForRuntimeCapabilities(['mcp.dynamic']),
 } as const satisfies Record<string, readonly string[]>;

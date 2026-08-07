@@ -5,6 +5,8 @@ description: |
   tool descriptions, skill definitions, or LLM instruction text in WrongStack.
   Triggers: user mentions "prompt", "system instruction", "skill description", "tool hint", "usage hint", "system prompt".
 version: 1.1.0
+required-capabilities: [filesystem.read, filesystem.write]
+required-tools: []
 ---
 
 # Prompt Engineering — WrongStack

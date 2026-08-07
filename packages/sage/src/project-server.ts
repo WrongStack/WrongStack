@@ -638,7 +638,16 @@ async function stop(_reason: string): Promise<void> {
   // exist — and therefore none can have its metadata deleted by the
   // read-then-delete pid compare in `removeOwnedMetadata`.
   await removeOwnedMetadata();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  // Destroy client sockets BEFORE awaiting close(): net.Server.close() only
+  // fires its callback once every connection has ended, so awaiting it with
+  // live clients deadlocked this function forever — and with the metadata
+  // already removed above, the zombie kept the endpoint bound while
+  // server.json was gone. A successor's EADDRINUSE probe then got an answer
+  // from the zombie, concluded "healthy owner", and exited: SAGE permanently
+  // dead for the project. The kanban daemon
+  // (packages/kanban/src/server/project-server.ts) is the reference
+  // ordering, including the bounded close for Windows named-pipe handles
+  // the kernel can retain.
   for (const state of clients) {
     for (const controller of state.active.values()) {
       controller.abort(new Error('SAGE project server stopping'));
@@ -646,6 +655,14 @@ async function stop(_reason: string): Promise<void> {
     state.socket.destroy();
   }
   clients.clear();
+  await new Promise<void>((resolve) => {
+    server.close(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+    const timer = setTimeout(() => resolve(), 500);
+    timer.unref?.();
+  });
   await store.dispose().catch(() => {});
   if (process.platform !== 'win32') {
     await fsPromises.rm(endpoint, { force: true }).catch(() => {});

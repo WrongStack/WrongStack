@@ -15,6 +15,9 @@ description: |
   synthesized into one report, or when deciding whether parallelism is worth it
   at all — talking someone out of fanning out is a valid use of this skill.
 version: 2.0.0
+required-capabilities: [fleet.delegate]
+required-tools: [collab_debug, delegate, glob, grep, plan, read, test]
+optional-capabilities: [coordination.mailbox, work.plan]
 ---
 
 # Multi-Agent Coordination — WrongStack

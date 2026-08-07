@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.300.1',
+  version: '0.301.0',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -419,7 +419,8 @@ export const changelog: ChangelogEntry[] = [
   {
     version: '0.296.0',
     date: '2026-07-25',
-    tagline: 'Chronicle metrics store, headless roster consolidation, and cleaner CLI startup wiring',
+    tagline:
+      'Chronicle metrics store, headless roster consolidation, and cleaner CLI startup wiring',
     highlights: [
       'Chronicle gains a disposable SQLite metrics store (provider reliability, task outcomes, file lineage, token cost) with incremental ingest, journal retention (chronicle.retentionDays), and task/kanban file-lineage attribution',
       'Agent roster supports headless LLM consolidation of role learning entries with live WebSocket broadcast and debounced refresh',
@@ -432,7 +433,8 @@ export const changelog: ChangelogEntry[] = [
   {
     version: '0.295.0',
     date: '2026-07-23',
-    tagline: 'Stable project identity, shared HQ Kanban, replayable Brain decisions, and indexed SAGE',
+    tagline:
+      'Stable project identity, shared HQ Kanban, replayable Brain decisions, and indexed SAGE',
     highlights: [
       'A committed .wrongstack/project.json proj_<ULID> keeps project identity stable across clones, worktrees, forks, and machines, with explicit id/init/rekey lifecycle commands',
       'HQ adds a project-scoped read-only Kanban workspace with board selection, live reconciliation, WIP signals, task metadata, and responsive columns',
@@ -1065,7 +1067,8 @@ export const releaseWorkflow = {
     'Verify npm and create the GitHub Release manually',
   ],
   requiredSecrets: ['Authenticated npm session or token for the intended registry'],
-  preReleaseNote: 'Pre-release npm tags and GitHub Release flags are managed deliberately; no checked-in workflow infers them from a tag.',
+  preReleaseNote:
+    'Pre-release npm tags and GitHub Release flags are managed deliberately; no checked-in workflow infers them from a tag.',
   hotfix: [
     'git checkout vX.Y.Z',
     'git checkout -b hotfix/X.Y.Z+1',

@@ -1,8 +1,9 @@
 /** F11 — project-level AutonomousCoordinator monitor. */
-import { Box, Text, useInput } from '../ink.js';
-import { useEffect, useState } from 'react';
+
 import type React from 'react';
+import { useEffect, useState } from 'react';
 import type { State } from '../app-state.js';
+import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import {
@@ -12,6 +13,7 @@ import {
   panelWindow,
   truncatePanelText,
   useMonitorSize,
+  usePanelShortcutsEnabled,
 } from './monitor-shell.js';
 import { renderProgress } from './status-bar.js';
 
@@ -66,8 +68,11 @@ export function CoordinatorPanel({
     setSelectedGoal((value) => Math.min(value, Math.max(0, goals.length - 1)));
   }, [goals.length]);
 
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
-    if (input === 'q' || input === 'Q' || key.escape) onClose();
+    // Esc is owned by the central ESC_CLOSE_PANELS table (esc-close-panels.ts);
+    // handling it here too would double-fire the toggle and re-open the panel.
+    if (shortcutsEnabled && (input === 'q' || input === 'Q')) onClose();
     else if (key.upArrow) setSelectedGoal((value) => Math.max(0, value - 1));
     else if (key.downArrow) {
       setSelectedGoal((value) => Math.min(Math.max(0, goals.length - 1), value + 1));

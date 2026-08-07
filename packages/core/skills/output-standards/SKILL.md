@@ -5,6 +5,8 @@ description: |
   responses in WrongStack. Triggers: user says "next steps format", "output standard",
   "response format", "final message format", "standardize next steps".
 version: 1.0.0
+required-capabilities: []
+required-tools: []
 ---
 
 # Output Standards — WrongStack

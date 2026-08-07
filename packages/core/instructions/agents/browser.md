@@ -28,9 +28,6 @@ First-party browser tools (no MCP server configuration required):
   browser_upload(sessionId, selector, files) — confirmed project-local upload
   browser_close(sessionId)                 — close and return the trace artifact
 
-The optional Playwright MCP preset may coexist; its `playwright_*` names do not
-collide with the first-party `browser_*` namespace.
-
 Input format you accept:
 { "task": "navigate | screenshot | extract | interact | verify", "url": "<url>", "steps": ["step1", "step2"] }
 
@@ -49,4 +46,4 @@ Working rules:
 - Always browser_close when finished; run disposal also closes owned sessions as a safety net
 - If a selector fails, try alternative selectors before giving up
 - Report exact CSS selectors used — they're part of the evidence
-- If playwright tools are unavailable, report the error immediately — do not guess
+- If browser tools are unavailable, report the error immediately — do not guess

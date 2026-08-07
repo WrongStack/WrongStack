@@ -1,7 +1,28 @@
 import type { ReactNode } from 'react';
-import { Box, Text } from '../ink.js';
+import { createContext, useContext } from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
+
+/**
+ * Whether panel letter/chord shortcuts (q close, r refresh, d delete, …) may
+ * fire. Monitors are NON-modal — the composer stays live behind them and
+ * Ink's `useInput` is a broadcast — so every keystroke the user types into
+ * chat also reaches each open panel's handler. The provider (AppView) sets
+ * this to `state.buffer === ''`: with a non-empty draft the user is writing a
+ * message, so single-letter panel shortcuts must stay inert. Mirrors the SDD
+ * board's empty-draft gate in app-key-handler.ts. Arrow/selection keys are
+ * NOT gated — the composer's own arrow handling is already suppressed while
+ * an overlay is open, so panels own those outright.
+ */
+const PanelShortcutsContext = createContext(true);
+
+export const PanelShortcutsProvider = PanelShortcutsContext.Provider;
+
+/** True when panel letter shortcuts may fire (empty composer draft). */
+export function usePanelShortcutsEnabled(): boolean {
+  return useContext(PanelShortcutsContext);
+}
 
 export interface MonitorSize {
   columns: number;

@@ -766,6 +766,8 @@
     "councilMaxConcurrencyHint": "Wie viele Sitze parallel abstimmen. Verringern, wenn der Pool einen ratenbegrenzten Provider teilt.",
     "councilDistinctnessLabel": "Sitzverschiedenheit",
     "councilDistinctnessHint": "Doppelte Sitze ablehnen: 'model' erfordert verschiedene Modelle, 'provider' unabhängige Provider, damit ein Ausfall die Abstimmung nicht kippen kann.",
+    "councilVoterBudgetLabel": "Wähler-Antwortbudget",
+    "councilVoterBudgetHint": "Ausgabetoken pro Sitzaufruf — Reasoning-Modelle verbrauchen ihre Denk-Token aus diesem Budget.",
     "councilJudgeBudgetLabel": "Richter-Antwortbudget",
     "councilJudgeBudgetHint": "Ausgabetoken für den stichentscheidenden Richteraufruf.",
     "councilSeatTemplate": "Sitzvorlage:",

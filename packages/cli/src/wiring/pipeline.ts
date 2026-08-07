@@ -1,13 +1,21 @@
-import { Agent, type AgentPipelines, type Context, createDefaultPipelines } from '@wrongstack/core/agent';
-import { applyModelRuntime, AutoCompactionMiddleware } from '@wrongstack/core/execution';
-import type { Config, Logger, ModelsRegistry, Provider } from '@wrongstack/core/types';
+import {
+  Agent,
+  type AgentPipelines,
+  type Context,
+  createDefaultPipelines,
+} from '@wrongstack/core/agent';
+import {
+  AutoCompactionMiddleware,
+  applyModelRuntime,
+  ToolExecutor,
+} from '@wrongstack/core/execution';
+import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
+import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveAuditLevel } from '@wrongstack/core/storage';
-import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
+import type { Config, Logger, ModelsRegistry, Provider } from '@wrongstack/core/types';
 import { resolveContextWindowPolicy } from '@wrongstack/core/types';
-import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { ToolExecutor } from '@wrongstack/core/execution';
+import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
 import { resolveRuntimeMaxContext } from '../context-limit.js';
 import { bootstrapMailboxBridgeAtStartup } from './mailbox-bridge-bootstrap.js';
 
@@ -21,12 +29,14 @@ export function setupPipelines(params: {
    * model-runtime middleware to map shared reasoning/cache settings into the
    * provider `Request`, gated by the active model's capabilities.
    */
-  modelRuntime?: {
-    getSettings(): import('@wrongstack/core/types').ModelRuntimeConfig | undefined;
-    getReasoningConfig(): import('@wrongstack/core/types').ReasoningConfig | undefined;
-    getCapabilities?(): import('@wrongstack/core/types').Capabilities | undefined;
-    onWarning?: ((message: string) => void) | undefined;
-  } | undefined;
+  modelRuntime?:
+    | {
+        getSettings(): import('@wrongstack/core/types').ModelRuntimeConfig | undefined;
+        getReasoningConfig(): import('@wrongstack/core/types').ReasoningConfig | undefined;
+        getCapabilities?(): import('@wrongstack/core/types').Capabilities | undefined;
+        onWarning?: ((message: string) => void) | undefined;
+      }
+    | undefined;
 }): AgentPipelines {
   const { events, logger } = params;
   const pipelines = createDefaultPipelines();
@@ -225,9 +235,9 @@ export function createAgent(params: {
   /**
    * Full Config object, used for `features.mailboxBridge` gating and
    * forwarded to `bootstrapMailboxBridgeAtStartup`. Optional — when
-   * omitted, the bootstrap defaults to 'auto' (i.e. always run).
-   * Tests can pass a stub with just `{ features: { mailboxBridge: 'off' } }`
-   * to skip the bridge entirely without touching the host config.
+   * omitted, the bootstrap defaults to 'off' (i.e. never run), so tests
+   * and embedders get no detached bridge process unless they ask for one
+   * with `{ features: { mailboxBridge: 'auto' } }`.
    */
   fullConfig?: Pick<Config, 'features'> | undefined;
   /** Surface label for the bootstrap log breadcrumb. */
@@ -253,17 +263,17 @@ export function createAgent(params: {
   };
   const toolExecutor = new ToolExecutor(params.tools, toolExecutorOptions);
 
-  // Mailbox bridge bootstrap — best-effort, fire-and-forget.
-  // Runs after the tool executor is built (so tool construction errors
-  // surface first, before we attempt cross-process IPC) and before the
-  // Agent is constructed (so the agent's mailbox checker can read the
-  // handle off ctx.meta when it's attached inside attachMailboxChecker).
+  // Mailbox bridge bootstrap — opt-in, best-effort, fire-and-forget.
+  // No-ops unless `features.mailboxBridge` is 'auto'; see the default-off
+  // rationale on that field. Runs after the tool executor is built (so
+  // tool construction errors surface first, before we attempt
+  // cross-process IPC) and before the Agent is constructed.
   //
   // We don't await: createAgent is sync, and waiting up to 5s for the
-  // bridge during boot would visibly delay every WrongStack startup
-  // even when no external agent ever shows up. The bridge lands on
-  // ctx.meta asynchronously; the local mailbox checker keeps working
-  // against the on-disk file while the bridge comes up.
+  // bridge during boot would visibly delay startup for the users who did
+  // opt in. The handle lands on ctx.meta asynchronously; the agent's own
+  // mailbox access never depends on it — that path is RemoteMailbox over
+  // IPC, which is unaffected by whether the HTTP bridge is up.
   void bootstrapMailboxBridgeAtStartup({
     projectRoot: params.context.projectRoot,
     config: params.fullConfig,

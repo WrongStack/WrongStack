@@ -3,6 +3,7 @@ export const CLIENT_CONVERSATION_MESSAGE_TYPES = [
   'ping',
   'user_message',
   'tool.confirm_result',
+  'topic.advice',
   'completion.request',
   'model.switch',
   'model.refine',

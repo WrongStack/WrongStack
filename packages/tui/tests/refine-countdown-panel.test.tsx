@@ -291,6 +291,39 @@ describe('RefineCountdownPanel', () => {
     view.unmount();
   });
 
+  it('resolves on unmount so the blocked submit never hangs', () => {
+    const onDecision = vi.fn();
+    const view = render(
+      React.createElement(RefineCountdownPanel, {
+        original: 'test',
+        seconds: 5,
+        onDecision,
+      }),
+    );
+
+    // /clear, closeAllPanels, or a newer countdown superseding this one tears
+    // the panel down mid-count. The caller is awaiting this promise.
+    view.unmount();
+    expect(onDecision).toHaveBeenCalledExactlyOnceWith('cancel');
+  });
+
+  it('does not re-resolve on unmount after a decision', () => {
+    vi.useFakeTimers();
+    const onDecision = vi.fn();
+    const view = render(
+      React.createElement(RefineCountdownPanel, {
+        original: 'test',
+        seconds: 1,
+        onDecision,
+      }),
+    );
+
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(onDecision).toHaveBeenCalledExactlyOnceWith('proceed');
+    view.unmount();
+    expect(onDecision).toHaveBeenCalledTimes(1);
+  });
+
   it('clamps seconds=0 to at least 1', () => {
     const view = render(
       React.createElement(RefineCountdownPanel, {

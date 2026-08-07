@@ -1,7 +1,7 @@
+import type { TokenCounter } from '@wrongstack/core/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import type { TokenCounter } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
 import { StatusBar, type StatusBarProps } from '../src/components/status-bar.js';
 import { displayWidth, stripAnsi } from '../src/terminal-width.js';
 
@@ -26,8 +26,6 @@ describe('spacing diagnose', () => {
         projectName: 'WrongStack',
         workingDir: 'packages/tui',
         processCount: 3,
-        processMemory: { ts: new Date().toISOString(), rss: 734_003_200, heapUsed: 536_870_912, heapTotal: 805_306_368, external: 0, heapLimit: 0, load: 0.45 },
-        cpuPercent: 42,
         context: { used: 45_000, max: 100_000 },
         tokenCounter: mockTokenCounter,
         todos: { pending: 2, inProgress: 1, completed: 5 },
@@ -40,15 +38,24 @@ describe('spacing diagnose', () => {
           lastFrom: 'worker-bot',
         },
         indexState: {
-          ready: true, indexing: false, currentFile: 0, totalFiles: 0,
+          ready: true,
+          indexing: false,
+          currentFile: 0,
+          totalFiles: 0,
           server: { status: 'connected', connected: true, pid: 4242 },
         },
         Sage: { total: 6261, activeInContext: 3 },
         memoryContextMonitor: {
-          memories: {}, transitions: [],
+          memories: {},
+          transitions: [],
           latest: {
-            at: '2026-07-28T00:00:00.000Z', matched: 12, injected: 9, filtered: 4,
-            trigger: 'test', contextPressure: 0.5, injectedChars: 12345,
+            at: '2026-07-28T00:00:00.000Z',
+            matched: 12,
+            injected: 9,
+            filtered: 4,
+            trigger: 'test',
+            contextPressure: 0.5,
+            injectedChars: 12345,
           },
         },
         sessionCount: 2,

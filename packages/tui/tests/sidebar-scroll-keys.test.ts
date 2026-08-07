@@ -66,10 +66,12 @@ describe('Sidebar focus + scroll key routing', () => {
   it('sidebarScroll clamps at dynamic upper bound based on content', () => {
     let s = createTestState();
     // Empty state → minimal content → maxScroll should be small (0 with no fleet)
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // With no agents/sessions/todos, content is ~10 rows, viewport ~20 → maxScroll = 0
+    // The model/context hero (13 rows) + SYSTEM vitals card (5 rows) = 18,
+    // which still fits within the default 20-row viewport without creating
+    // blank scroll space.
     expect(s.sidebarScrollOffset).toBe(0);
   });
 
@@ -81,17 +83,20 @@ describe('Sidebar focus + scroll key routing', () => {
     for (let i = 1; i <= 14; i++) {
       fleet[`sub-${i}`] = { id: `sub-${i}`, name: `agent-${i}`, status: 'running' };
     }
-    s = reducer({ ...s, fleet: fleet as never }, {
-      type: 'settingsValueSet',
-      patch: { showAgentSwarmPanel: 'sidebar' },
-    });
-    for (let i = 0; i < 100; i++) {
+    s = reducer(
+      { ...s, fleet: fleet as never },
+      {
+        type: 'settingsValueSet',
+        patch: { showAgentSwarmPanel: 'sidebar' },
+      },
+    );
+    for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // Sidebar mode reserves both the grouped swarm card and the mission queue's
-    // worst-case wrapped height: context/model 7 + swarm 28 + missions 83 =
-    // 118 total, minus the 20-row viewport = 98 max.
-    expect(s.sidebarScrollOffset).toBe(98);
+    // Sidebar mode reserves the 14-row model/context hero, 5-row system vitals
+    // card, grouped swarm card, and mission queue's worst-case wrapped height:
+    // 14 + 5 + 28 + 83 = 130 total, minus the 20-row viewport = 110 max.
+    expect(s.sidebarScrollOffset).toBe(110);
   });
 
   it('sidebarScrollReset sets offset to 0', () => {

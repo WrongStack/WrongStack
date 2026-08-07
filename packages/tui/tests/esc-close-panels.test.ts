@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { escCloseAction, ESC_CLOSE_PANELS } from '../src/esc-close-panels.js';
 import { createInitialState } from '../src/app-initial-state.js';
 import type { State } from '../src/app-reducer.js';
+import {
+  ESC_CLOSE_PANELS,
+  escCloseAction,
+  escSelfOwnedPanelOpen,
+} from '../src/esc-close-panels.js';
 
 function patch(state: State, p: Partial<State>): State {
   return { ...state, ...p };
@@ -107,5 +111,42 @@ describe('escCloseAction', () => {
   it('every entry name is unique', () => {
     const names = ESC_CLOSE_PANELS.map((e) => e.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('escSelfOwnedPanelOpen', () => {
+  it('is false when nothing is open', () => {
+    expect(escSelfOwnedPanelOpen(baseState)).toBe(false);
+  });
+
+  it.each([
+    ['worktreeMonitorOpen', { worktreeMonitorOpen: true }],
+    ['kanbanPanelOpen', { kanbanPanelOpen: true }],
+    ['goalKanbanPanelOpen', { goalKanbanPanelOpen: true }],
+  ] as const)('is true while %s', (_name, partial) => {
+    expect(escSelfOwnedPanelOpen(patch(baseState, partial))).toBe(true);
+  });
+
+  it('is true while the goalRun phase monitor is open', () => {
+    const goalRun: NonNullable<State['goalRun']> = {
+      title: 'g',
+      phases: {},
+      runningPhaseIds: [],
+      elapsedMs: 0,
+      monitorOpen: true,
+    };
+    expect(escSelfOwnedPanelOpen(patch(baseState, { goalRun }))).toBe(true);
+  });
+
+  it('never overlaps the central ESC_CLOSE_PANELS table', () => {
+    // A panel must be EITHER centrally closed OR self-owned — both at once
+    // would double-fire the toggle on a single Esc press.
+    for (const partial of [
+      { worktreeMonitorOpen: true },
+      { kanbanPanelOpen: true },
+      { goalKanbanPanelOpen: true },
+    ] as const) {
+      expect(escCloseAction(patch(baseState, partial))).toBeNull();
+    }
   });
 });

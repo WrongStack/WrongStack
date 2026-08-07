@@ -3,6 +3,7 @@ import { type ContextBreakdown, getContextBreakdown } from '@wrongstack/core/uti
 import { useEffect, useMemo, useState } from 'react';
 import type { AppProps } from '../app-props.js';
 import type { FleetEntry, State } from '../app-state.js';
+import type { StatuslineItem } from '../components/statusline-picker.js';
 import { resolveContextFill } from '../context-fill.js';
 
 interface StatusbarViewModelOptions {
@@ -13,7 +14,14 @@ interface StatusbarViewModelOptions {
   liveProvider: string;
   liveModel: string;
   liveTodos: readonly { status: string }[];
+  sidebarVisible?: boolean | undefined;
   state: State;
+  /**
+   * Statusline hidden items. The plan/task chips are the only consumers of
+   * the 3s `fs.stat` polls in this hook — when the corresponding chip is
+   * user-hidden, skip the poll entirely until it is visible again.
+   */
+  hiddenItems?: readonly StatuslineItem[] | undefined;
 }
 
 interface PlanCounts {
@@ -63,7 +71,9 @@ export function useStatusbarViewModel({
   liveProvider,
   liveModel,
   liveTodos,
+  sidebarVisible,
   state,
+  hiddenItems = [],
 }: StatusbarViewModelOptions): {
   contextBreakdown: ContextBreakdown | undefined;
   currentContextTokens: number;
@@ -108,13 +118,14 @@ export function useStatusbarViewModel({
   //     usable number (post-model switch, before the first request lands).
   //  2. The interactive ContextPanel's Composition tab, which needs the
   //     per-category breakdown while the panel is open.
-  // Both conditions are independent: the panel can be open with a fresh
-  // `currentRequestTokens` snapshot (and still want the breakdown), and the
-  // panel can be closed while we still want the bar fallback. Compute the
-  // breakdown whenever either signal is set.
+  // These conditions are independent: the panel or right sidebar can be open
+  // with a fresh `currentRequestTokens` snapshot (and still want the visual
+  // composition), while both can be closed and the bar still needs its local
+  // fallback. Compute the breakdown whenever any consumer needs it.
   const needLocalEstimate = cheapFill.needsLocalEstimate;
   const panelWantsBreakdown = state.contextPanelOpen;
-  const needBreakdown = needLocalEstimate || panelWantsBreakdown;
+  const sidebarWantsBreakdown = sidebarVisible;
+  const needBreakdown = needLocalEstimate || panelWantsBreakdown || sidebarWantsBreakdown;
 
   // Invalidation fingerprint for the breakdown. `getContextBreakdown` walks
   // `ctx.systemPrompt`, `ctx.tools` and `ctx.messages`, so the snapshot goes
@@ -175,8 +186,18 @@ export function useStatusbarViewModel({
   const fleetCounts = useMemo(() => {
     const entries = Object.values(state.fleet);
     if (entries.length === 0) return undefined;
-    const running = entries.filter((entry) => entry.status === 'running').length;
-    return running > 0 ? { running, idle: 0, pending: 0, completed: 0 } : undefined;
+    // Derive every bucket from FleetEntry.status — this used to hardcode
+    // idle/pending/completed to 0, which left the status bar's idle and
+    // completed render branches permanently dead. FleetEntry has no
+    // 'pending' state (agents enter the fleet already running), so that
+    // bucket is honestly 0 rather than misassigned.
+    const counts = { running: 0, idle: 0, pending: 0, completed: 0 };
+    for (const entry of entries) {
+      if (entry.status === 'running') counts.running++;
+      else if (entry.status === 'idle') counts.idle++;
+      else counts.completed++; // success | failed | timeout | stopped — terminal
+    }
+    return counts.running > 0 ? counts : undefined;
   }, [state.fleet]);
   const visibleSubagentCount = fleetCounts?.running ?? 0;
   const hasVisibleFleetPanel = useMemo(
@@ -218,9 +239,18 @@ export function useStatusbarViewModel({
     tokenCounter,
   ]);
 
+  // Visibility gate: `plan`/`tasks` are the only chips that consume the
+  // 3s fs.stat polls below. When the user hides a chip via /statusline,
+  // skip its poll entirely (no stats, no reads, no JSON.parse) until the
+  // chip is visible again. The booleans — not the array — are the effect
+  // deps so an unrelated hidden-item toggle doesn't restart the interval.
+  const planHidden = hiddenItems.includes('plan');
+  const taskHidden = hiddenItems.includes('tasks');
+
   const planPath = (agent.ctx.meta as Record<string, unknown>)['plan.path'];
   const [planCounts, setPlanCounts] = useState<PlanCounts | null>(null);
   useEffect(() => {
+    if (planHidden) return;
     if (typeof planPath !== 'string' || !planPath) {
       setPlanCounts(null);
       return;
@@ -263,11 +293,12 @@ export function useStatusbarViewModel({
       cancelled = true;
       clearInterval(id);
     };
-  }, [planPath]);
+  }, [planPath, planHidden]);
 
   const taskPath = (agent.ctx.meta as Record<string, unknown>)['task.path'];
   const [taskCounts, setTaskCounts] = useState<TaskCounts | null>(null);
   useEffect(() => {
+    if (taskHidden) return;
     if (typeof taskPath !== 'string' || !taskPath) {
       setTaskCounts(null);
       return;
@@ -317,16 +348,15 @@ export function useStatusbarViewModel({
       cancelled = true;
       clearInterval(id);
     };
-  }, [taskPath]);
+  }, [taskPath, taskHidden]);
 
   // Dropped-tool count: how many tools the provider's maxTools limit will
   // remove from the next request. 0 when the provider has no limit or the
   // registered tool count is within the limit. Surfaced in the StatusBar as
   // a chip so the user knows tools were omitted.
   const providerMaxTools = (agent.ctx.provider as { maxToolsCount?: number }).maxToolsCount ?? 0;
-  const droppedTools = providerMaxTools > 0
-    ? Math.max(0, (agent.ctx.tools?.length ?? 0) - providerMaxTools)
-    : 0;
+  const droppedTools =
+    providerMaxTools > 0 ? Math.max(0, (agent.ctx.tools?.length ?? 0) - providerMaxTools) : 0;
 
   return {
     contextBreakdown,

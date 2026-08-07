@@ -49,16 +49,7 @@ export type { WsStatus };
  *  type (btw, steer, note, …) routed to a target agent/role. Shared by the
  *  ws-client method, the `useWebSocket` wrapper, and UI prop contracts. */
 export type WSMailboxSendOptions = {
-  type:
-    | 'note'
-    | 'ask'
-    | 'assign'
-    | 'steer'
-    | 'btw'
-    | 'broadcast'
-    | 'status'
-    | 'result'
-    | 'review';
+  type: 'note' | 'ask' | 'assign' | 'steer' | 'btw' | 'broadcast' | 'status' | 'result' | 'review';
   to: string;
   subject: string;
   body: string;
@@ -717,7 +708,7 @@ class WrongStackWebSocketClientBase {
     this.handlers.get(eventType)?.delete(handler as EventHandler);
   }
 
-  sendMessage(content: string, images?: WSUserMessageImage[]): string {
+  sendMessage(content: string, images?: WSUserMessageImage[], freshContext = false): string {
     const id = `msg_${Date.now()}_${safeId().slice(0, 8)}`;
     this.send({
       type: 'user_message',
@@ -725,10 +716,46 @@ class WrongStackWebSocketClientBase {
         id,
         content,
         timestamp: Date.now(),
+        ...(freshContext ? { freshContext: true } : {}),
         ...(images && images.length > 0 ? { images } : {}),
       }),
     });
     return id;
+  }
+
+  adviseTopic(
+    prompt: string,
+    timeoutMs = 10_000,
+  ): Promise<Extract<WSServerMessage, { type: 'topic.advice_result' }>['payload']> {
+    type Advice = Extract<WSServerMessage, { type: 'topic.advice_result' }>['payload'];
+    const requestId = safeId();
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: Advice) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        off();
+        resolve(result);
+      };
+      const off = this.on('topic.advice_result', (message) => {
+        if (message.payload.requestId !== requestId) return;
+        finish(message.payload);
+      });
+      const timer = setTimeout(() => {
+        finish({
+          requestId,
+          suggestNewContext: false,
+          confidence: 0,
+          reason: 'Topic check timed out; continuing in the current context.',
+          source: 'local',
+        });
+      }, timeoutMs);
+      this.send({
+        type: 'topic.advice',
+        payload: this.withSession({ requestId, prompt }),
+      });
+    });
   }
 
   /** Send a mailbox message of the given type (btw, steer, note, etc.)

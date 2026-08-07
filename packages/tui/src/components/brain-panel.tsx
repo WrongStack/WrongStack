@@ -1,7 +1,9 @@
-import { Box, Text, useStdout } from '../ink.js';
 import type React from 'react';
 import type { BrainLogEntry, BrainRiskLevel } from '../brain-contracts.js';
+import { Box, Text, useStdout } from '../ink.js';
+
 export type { BrainLogEntry, BrainRiskLevel } from '../brain-contracts.js';
+
 import {
   BRAIN_READONLY_ROW_KINDS,
   type BrainDenyIsTerminal,
@@ -63,11 +65,23 @@ const TRACE_CONTENT_DESCS: Record<BrainTraceContent, string> = {
 };
 
 const HEURISTIC_META: Record<BrainHeuristicKey, { label: string; dim: string }> = {
-  lowRiskAutoAnswer: { label: 'low-risk auto', dim: 'auto-answer low-risk asks that carry a recommendation' },
-  blockedResolved: { label: 'blocked-resolved', dim: 'blocked + a resolution marker in context → continue' },
+  lowRiskAutoAnswer: {
+    label: 'low-risk auto',
+    dim: 'auto-answer low-risk asks that carry a recommendation',
+  },
+  blockedResolved: {
+    label: 'blocked-resolved',
+    dim: 'blocked + a resolution marker in context → continue',
+  },
   deadlockSkip: { label: 'deadlock-skip', dim: 'deadlock + failed work units → skip and continue' },
-  retryExhausted: { label: 'retry-exhausted', dim: 'demonstrably exhausted retries → mark failed, move on' },
-  continuePing: { label: 'continue-ping', dim: 'bare continue ping with no alternative → continue' },
+  retryExhausted: {
+    label: 'retry-exhausted',
+    dim: 'demonstrably exhausted retries → mark failed, move on',
+  },
+  continuePing: {
+    label: 'continue-ping',
+    dim: 'bare continue ping with no alternative → continue',
+  },
 };
 
 function fmtMs(ms: number | undefined, fallback: string): string {
@@ -76,18 +90,32 @@ function fmtMs(ms: number | undefined, fallback: string): string {
 }
 
 /** One settings row → label + value strings. */
-function rowText(row: BrainPanelRow, s: BrainPanelSettings): { label: string; value: string; dim?: string } {
+function rowText(
+  row: BrainPanelRow,
+  s: BrainPanelSettings,
+): { label: string; value: string; dim?: string } {
   switch (row.kind) {
     case 'mode':
       return {
         label: 'Mode',
         value: s.mode.toUpperCase(),
-        dim: s.mode === 'headless' ? 'never blocks on you (terminal policy)' : 'escalations prompt you',
+        dim:
+          s.mode === 'headless'
+            ? 'never blocks on you (terminal policy)'
+            : 'escalations prompt you',
       };
     case 'risk':
-      return { label: 'Risk ceiling', value: s.riskLevel.toUpperCase(), dim: RISK_DESCS[s.riskLevel] };
+      return {
+        label: 'Risk ceiling',
+        value: s.riskLevel.toUpperCase(),
+        dim: RISK_DESCS[s.riskLevel],
+      };
     case 'strategy':
-      return { label: 'Pool strategy', value: s.strategy, dim: 'fallback = ordered, round-robin = rotate' };
+      return {
+        label: 'Pool strategy',
+        value: s.strategy,
+        dim: 'fallback = ordered, round-robin = rotate',
+      };
     case 'timeout':
       return { label: 'Decision timeout', value: fmtMs(s.decisionTimeoutMs, 'default (15s)') };
     case 'humanTimeout':
@@ -122,7 +150,11 @@ function rowText(row: BrainPanelRow, s: BrainPanelSettings): { label: string; va
           : 'Enter = enable + pick voters · ←/→ toggle',
       };
     case 'councilMinRisk':
-      return { label: '  risk floor', value: s.councilMinRisk, dim: 'council convenes at/above this risk' };
+      return {
+        label: '  risk floor',
+        value: s.councilMinRisk,
+        dim: 'council convenes at/above this risk',
+      };
     case 'voter': {
       const v = s.voters[row.index];
       // Show the lens NAME, not the raw id: with six built-ins plus ad-hoc
@@ -176,14 +208,25 @@ function rowText(row: BrainPanelRow, s: BrainPanelSettings): { label: string; va
     case 'councilTimeout':
       return {
         label: '  seat timeout',
-        value: s.councilPerCallTimeoutMs === undefined ? 'default' : `${s.councilPerCallTimeoutMs}ms`,
-        dim: 'per-seat completion budget (default = the decision timeout)',
+        value:
+          s.councilPerCallTimeoutMs === undefined ? 'default' : `${s.councilPerCallTimeoutMs}ms`,
+        dim: 'per-seat completion budget (default = the decision timeout, else 45s)',
       };
     case 'councilConcurrency':
       return {
         label: '  concurrency',
-        value: s.councilMaxConcurrency === undefined ? 'default (3)' : String(s.councilMaxConcurrency),
+        value:
+          s.councilMaxConcurrency === undefined ? 'default (3)' : String(s.councilMaxConcurrency),
         dim: 'seats polled at once, 1..8 — higher is faster and burstier',
+      };
+    case 'councilVoterMaxTokens':
+      return {
+        label: '  voter tokens',
+        value:
+          s.councilVoterMaxTokens === undefined
+            ? 'default (2000)'
+            : String(s.councilVoterMaxTokens),
+        dim: 'output budget per seat — reasoning models think from this budget',
       };
     case 'councilJudgeMaxTokens':
       return {
@@ -200,7 +243,12 @@ function rowText(row: BrainPanelRow, s: BrainPanelSettings): { label: string; va
     case 'autoDeny':
       return {
         label: '  auto-deny',
-        value: s.autoDenyAfterFailures === undefined ? 'default (3)' : s.autoDenyAfterFailures === 0 ? 'off' : String(s.autoDenyAfterFailures),
+        value:
+          s.autoDenyAfterFailures === undefined
+            ? 'default (3)'
+            : s.autoDenyAfterFailures === 0
+              ? 'off'
+              : String(s.autoDenyAfterFailures),
         dim: 'deny after N observed consecutive failures',
       };
     case 'terminalPolicy':
@@ -352,9 +400,17 @@ export function BrainPanel({
             return (
               <Text key={key} wrap="truncate-end">
                 {focused ? <Text color="magenta">{'› '}</Text> : '  '}
-                <Text bold={focused} dimColor={readOnly}>{label.padEnd(18)}</Text>
+                <Text bold={focused} dimColor={readOnly}>
+                  {label.padEnd(18)}
+                </Text>
                 <Text
-                  color={r.kind === 'risk' ? RISK_COLORS[settings.riskLevel] : focused && !readOnly ? 'cyan' : undefined}
+                  color={
+                    r.kind === 'risk'
+                      ? RISK_COLORS[settings.riskLevel]
+                      : focused && !readOnly
+                        ? 'cyan'
+                        : undefined
+                  }
                   bold={r.kind === 'risk' || r.kind === 'mode'}
                   inverse={focused}
                   dimColor={readOnly}
@@ -386,7 +442,7 @@ export function BrainPanel({
               Recent decisions
             </Text>
             {total === 0 ? (
-              <Text dimColor>  No decisions recorded yet this session.</Text>
+              <Text dimColor> No decisions recorded yet this session.</Text>
             ) : (
               <>
                 {above > 0 ? <Text dimColor>{`  ↑ ${above} more`}</Text> : null}
@@ -403,8 +459,16 @@ export function BrainPanel({
                       {focused ? '› ' : '  '}
                       <Text dimColor>{entry.age.padEnd(8)}</Text>
                       <Text color="cyan">{entry.kind.padEnd(12)}</Text>
-                      <Text>{entry.question.length > 60 ? `${entry.question.slice(0, 57)}…` : entry.question}</Text>
-                      {entry.outcome ? <Text dimColor>{` → ${entry.outcome.length > 20 ? `${entry.outcome.slice(0, 17)}…` : entry.outcome}`}</Text> : null}
+                      <Text>
+                        {entry.question.length > 60
+                          ? `${entry.question.slice(0, 57)}…`
+                          : entry.question}
+                      </Text>
+                      {entry.outcome ? (
+                        <Text
+                          dimColor
+                        >{` → ${entry.outcome.length > 20 ? `${entry.outcome.slice(0, 17)}…` : entry.outcome}`}</Text>
+                      ) : null}
                     </Text>
                   );
                 })}

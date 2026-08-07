@@ -33,8 +33,16 @@ import {
   useSessionStore,
   useVizStore,
 } from '@/stores';
-import { resolveClients } from './OfficeMapCanvas/resolve.js';
+import {
+  OfficeMiniMap,
+  OfficeToolbar,
+  SessionWatchDrawer,
+} from './OfficeMapCanvas/CanvasPanels.js';
+import { edgeTypes } from './OfficeMapCanvas/edges.js';
 import { LiveFeed, StatsHUD } from './OfficeMapCanvas/Hud.js';
+import { FIT_VIEW_PADDING, nodeTypes, OFFICE_COLOR } from './OfficeMapCanvas/nodes.js';
+import { BroadcastComposer, OfficeMapLegends } from './OfficeMapCanvas/Overlays.js';
+import { resolveClients } from './OfficeMapCanvas/resolve.js';
 import { SelectedNodeDetailPanel } from './OfficeMapCanvas/SelectedNodeDetailPanel.js';
 import { useRecentlyFinishedFleetAgents } from './OfficeMapCanvas/use-recently-finished.js';
 import {
@@ -49,14 +57,6 @@ import {
   MAILBOX_Y,
   type OfficeNodeData,
 } from './OfficeMapCanvas/utils.js';
-import {
-  FIT_VIEW_PADDING,
-  nodeTypes,
-  OFFICE_COLOR,
-} from './OfficeMapCanvas/nodes.js';
-import { edgeTypes } from './OfficeMapCanvas/edges.js';
-import { BroadcastComposer, OfficeMapLegends } from './OfficeMapCanvas/Overlays.js';
-import { OfficeMiniMap, OfficeToolbar, SessionWatchDrawer } from './OfficeMapCanvas/CanvasPanels.js';
 
 // ── Main Canvas Component ────────────────────────────────────────────────────
 
@@ -425,6 +425,13 @@ export function OfficeMapCanvas() {
     const liveAgentIds = new Set(clients.flatMap((c) => c.agents.map((a) => a.serverId)));
     for (const id of [...prevAgentStatsRef.current.keys()]) {
       if (!liveAgentIds.has(id)) prevAgentStatsRef.current.delete(id);
+    }
+
+    // Same hygiene as the prev-stats prune above for the transient-highlight
+    // map: expired entries were only SKIPPED at read time, never deleted, so
+    // every node id ever highlighted stayed resident for the session.
+    for (const [id, until] of [...activeNodesRef.current]) {
+      if (until <= now) activeNodesRef.current.delete(id);
     }
 
     // Re-apply still-live transient "active" highlights + activity glow so the

@@ -1,3 +1,5 @@
+import stringWidth from 'string-width';
+
 /**
  * Terminal-column measurement helpers.
  *
@@ -8,52 +10,74 @@
  */
 
 const ANSI_RE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
-const COMBINING_RE = /\p{Mark}/u;
-const EMOJI_RE = /\p{Extended_Pictographic}/u;
+const ANSI_OSC_RE = /\x1b\][\s\S]*?(?:\x07|\x1b\\)/g;
+const ANSI_CONTROL_STRING_RE = /\x1b[P^_X][\s\S]*?\x1b\\/g;
+const ANSI_ESCAPE_RE = /\x1b[ -/]*[@-~]/g;
 const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
-function isWideCodePoint(code: number): boolean {
-  return (
-    code >= 0x1100 &&
-    (code <= 0x115f ||
-      code === 0x2329 ||
-      code === 0x232a ||
-      (code >= 0x2e80 && code <= 0xa4cf && code !== 0x303f) ||
-      (code >= 0xac00 && code <= 0xd7a3) ||
-      (code >= 0xf900 && code <= 0xfaff) ||
-      (code >= 0xfe10 && code <= 0xfe19) ||
-      (code >= 0xfe30 && code <= 0xfe6f) ||
-      (code >= 0xff00 && code <= 0xff60) ||
-      (code >= 0xffe0 && code <= 0xffe6) ||
-      (code >= 0x1b000 && code <= 0x1b2ff) ||
-      (code >= 0x1f200 && code <= 0x1f251) ||
-      (code >= 0x20000 && code <= 0x3fffd))
-  );
-}
+const LIGATURE_PAIRS = new Set(['->', '<-', '=>', '<=', '>=', '!=', '==', '~>', '<~']);
+const LIGATURE_SEPARATOR = ' ';
 
 export function stripAnsi(value: string): string {
-  return value.replace(ANSI_RE, '');
+  return value
+    .replace(ANSI_OSC_RE, '')
+    .replace(ANSI_CONTROL_STRING_RE, '')
+    .replace(ANSI_RE, '')
+    .replace(ANSI_ESCAPE_RE, '');
+}
+
+/**
+ * Prevent programming-font ligatures with a visible, measured separator.
+ * Ink's painter allocates at least one cell even for zero-width code points,
+ * so U+200B/U+200C would make Yoga and the output grid disagree.
+ */
+export function breakTerminalLigatures(value: string): string {
+  if (!/[-<=>!~]/.test(value)) return value;
+  let safe = '';
+  let previous = '';
+  for (const char of value) {
+    if (previous && LIGATURE_PAIRS.has(`${previous}${char}`)) safe += LIGATURE_SEPARATOR;
+    safe += char;
+    previous = char;
+  }
+  return safe;
+}
+
+/**
+ * Convert untrusted command/tool text into terminal-safe printable content.
+ *
+ * Ink measures control characters differently from a physical terminal: a
+ * literal tab is effectively zero-width to Yoga but expands to the next tab
+ * stop when Windows Terminal receives it. Cursor/erase escape sequences are
+ * worse because they can paint outside the component that owns the text.
+ * Normalize tabs to a small fixed separator, remove terminal escapes, and
+ * retain only printable characters plus newlines before layout is measured.
+ */
+export function sanitizeTerminalText(value: string, tabWidth = 2): string {
+  const tab = ' '.repeat(Math.max(1, Math.min(8, Math.floor(tabWidth))));
+  const withoutEscapes = value
+    .replace(ANSI_OSC_RE, '')
+    .replace(ANSI_CONTROL_STRING_RE, '')
+    .replace(ANSI_RE, '')
+    .replace(ANSI_ESCAPE_RE, '')
+    .replace(/\t/g, tab)
+    .replace(/\r/g, '');
+
+  let safe = '';
+  for (const char of withoutEscapes) {
+    const code = char.codePointAt(0) ?? 0;
+    if (char === '\n' || (code >= 0x20 && code !== 0x7f && !(code >= 0x80 && code <= 0x9f))) {
+      safe += char;
+    }
+  }
+  return safe;
 }
 
 export function displayWidth(value: string): number {
-  let width = 0;
-  for (const { segment } of GRAPHEME_SEGMENTER.segment(stripAnsi(value))) {
-    // Joined emoji (family, profession, skin-tone sequences) occupy one
-    // two-column grapheme even though they contain several code points.
-    if (EMOJI_RE.test(segment)) {
-      width += 2;
-      continue;
-    }
-    for (const char of segment) {
-      const code = char.codePointAt(0) ?? 0;
-      if (code === 0 || code < 0x20 || (code >= 0x7f && code < 0xa0)) continue;
-      if (COMBINING_RE.test(char) || code === 0xfe0e || code === 0xfe0f || code === 0x200d) {
-        continue;
-      }
-      width += isWideCodePoint(code) ? 2 : 1;
-    }
-  }
-  return width;
+  // Ink 7 measures and paints with string-width 8. Keeping the application on
+  // the same implementation prevents Yoga allocation and physical output from
+  // disagreeing for emoji clusters, CJK, combining marks and zero-width text.
+  return stringWidth(value);
 }
 
 export function truncateDisplay(value: string, maxWidth: number, ellipsis = '…'): string {
@@ -63,13 +87,45 @@ export function truncateDisplay(value: string, maxWidth: number, ellipsis = '…
   if (ellipsisWidth >= maxWidth) return ellipsis;
   let out = '';
   let used = 0;
-  for (const char of value) {
-    const charWidth = displayWidth(char);
-    if (used + charWidth + ellipsisWidth > maxWidth) break;
-    out += char;
-    used += charWidth;
+  for (const { segment } of GRAPHEME_SEGMENTER.segment(value)) {
+    const segmentWidth = displayWidth(segment);
+    if (used + segmentWidth + ellipsisWidth > maxWidth) break;
+    out += segment;
+    used += segmentWidth;
   }
   return `${out}${ellipsis}`;
+}
+
+export function truncateDisplayStart(value: string, maxWidth: number, ellipsis = '…'): string {
+  if (maxWidth <= 0) return '';
+  if (displayWidth(value) <= maxWidth) return value;
+  const ellipsisWidth = displayWidth(ellipsis);
+  if (ellipsisWidth >= maxWidth) return ellipsis;
+  const segments = [...GRAPHEME_SEGMENTER.segment(value)].map(({ segment }) => segment);
+  let out = '';
+  let used = 0;
+  for (let index = segments.length - 1; index >= 0; index--) {
+    const segment = segments[index] ?? '';
+    const segmentWidth = displayWidth(segment);
+    if (used + segmentWidth + ellipsisWidth > maxWidth) break;
+    out = `${segment}${out}`;
+    used += segmentWidth;
+  }
+  return `${ellipsis}${out}`;
+}
+
+/** Split without bisecting a grapheme cluster; input is expected to be ANSI-free. */
+export function splitDisplay(value: string, maxWidth: number): [head: string, tail: string] {
+  if (maxWidth <= 0) return ['', value];
+  let end = 0;
+  let used = 0;
+  for (const { segment, index } of GRAPHEME_SEGMENTER.segment(value)) {
+    const segmentWidth = displayWidth(segment);
+    if (used + segmentWidth > maxWidth) break;
+    used += segmentWidth;
+    end = index + segment.length;
+  }
+  return [value.slice(0, end), value.slice(end)];
 }
 
 export function padDisplayEnd(value: string, width: number): string {
@@ -88,7 +144,9 @@ export function frameRule(
 
   const available = width - 2;
   const left = truncateDisplay(leftLabel.trim(), Math.max(1, Math.floor(available * 0.62)));
-  const reservedRight = rightLabel ? Math.min(displayWidth(rightLabel.trim()), Math.floor(available * 0.3)) : 0;
+  const reservedRight = rightLabel
+    ? Math.min(displayWidth(rightLabel.trim()), Math.floor(available * 0.3))
+    : 0;
   const right = reservedRight > 0 ? truncateDisplay(rightLabel.trim(), reservedRight) : '';
   const prefix = left ? `─ ${left} ` : '';
   const suffix = right ? ` ${right} ─` : '';

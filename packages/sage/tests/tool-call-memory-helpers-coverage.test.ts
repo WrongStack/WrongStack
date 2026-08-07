@@ -557,7 +557,14 @@ describe('tool-call middleware failure coverage', () => {
       });
       const value = payload();
       await middleware.handler(value, async (next) => next);
-      expect(value.result.content).toContain(memory.text);
+      expect(value.result.content).not.toContain(memory.text);
+      expect(
+        (
+          value.ctx as typeof value.ctx & {
+            memoryEvidence?: Array<{ source: string; text: string }>;
+          }
+        ).memoryEvidence?.[0]?.text,
+      ).toContain(memory.text);
       expect(events.emit).toHaveBeenCalledWith(
         'memory.injector_run',
         expect.objectContaining({
@@ -595,18 +602,33 @@ describe('tool-call middleware failure coverage', () => {
       const persistence = memory.persistence ?? 'long_lived';
       const persistenceBoost =
         persistence === 'permanent' ? 0.08 : persistence === 'long_lived' ? 0.04 : -0.08;
-      const durable = ['fact', 'decision', 'convention', 'warning', 'anti_pattern', 'workflow',
-        'bug_root_cause', 'file_note', 'symbol_note', 'command_note'].includes(memory.kind);
+      const durable = [
+        'fact',
+        'decision',
+        'convention',
+        'warning',
+        'anti_pattern',
+        'workflow',
+        'bug_root_cause',
+        'file_note',
+        'symbol_note',
+        'command_note',
+      ].includes(memory.kind);
       const uses = memory.useCount ?? 0;
       const injections = memory.injectionCount ?? 0;
-      return Math.max(0, Math.min(1,
-        metadata * 0.48 +
-          relation * 0.48 +
-          persistenceBoost +
-          (durable ? 0.04 : 0) +
-          (uses > 0 ? Math.min(0.14, 0.05 + uses * 0.02) : 0) +
-          (memory.anchors.length > 0 ? 0.04 : -0.05) -
-          (injections >= 3 && uses === 0 ? Math.min(0.18, 0.05 + injections * 0.012) : 0)));
+      return Math.max(
+        0,
+        Math.min(
+          1,
+          metadata * 0.48 +
+            relation * 0.48 +
+            persistenceBoost +
+            (durable ? 0.04 : 0) +
+            (uses > 0 ? Math.min(0.14, 0.05 + uses * 0.02) : 0) +
+            (memory.anchors.length > 0 ? 0.04 : -0.05) -
+            (injections >= 3 && uses === 0 ? Math.min(0.18, 0.05 + injections * 0.012) : 0),
+        ),
+      );
     };
     for (const relation of [0, 0.62, 0.8, 0.95, 1]) {
       for (const overrides of [

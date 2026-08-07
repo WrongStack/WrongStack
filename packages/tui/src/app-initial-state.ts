@@ -5,7 +5,6 @@ import type {
   TokenSavingTier,
 } from '@wrongstack/core/types';
 import type { State } from './app-state.js';
-import { DEFAULT_PANEL_POSITIONS } from './ui-contracts.js';
 import { AUTH_PANEL_INITIAL } from './auth-panel-model.js';
 import { retainCheckpoints } from './checkpoint-retention.js';
 import { replaySessionMessages } from './components/history/replay.js';
@@ -13,6 +12,7 @@ import type { AutonomyAgentStatus } from './components/history/types.js';
 import { type ContextMode, DEFAULT_STATUSLINE_MODE } from './components/settings-picker.js';
 import { retainTuiHistory } from './history-retention.js';
 import { rehydrateHistory } from './rehydrate-history.js';
+import { DEFAULT_PANEL_POSITIONS } from './ui-contracts.js';
 
 export type RestoredToolCall = {
   name: string;
@@ -340,7 +340,9 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     enhance: null,
     enhanceEnabled,
     enhanceBusy: false,
+    topicCheckBusy: false,
     refineCountdown: null,
+    refineCountdownGen: 0,
     refineFailure: null,
     continueConfirm: null,
     clearConfirm: null,

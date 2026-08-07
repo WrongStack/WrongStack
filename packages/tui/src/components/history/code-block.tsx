@@ -13,6 +13,12 @@ import {
   type Token,
 } from '../../highlight.js';
 import { Box, Text } from '../../ink.js';
+import {
+  displayWidth,
+  sanitizeTerminalText,
+  splitDisplay,
+  truncateDisplay,
+} from '../../terminal-width.js';
 import { theme } from '../../theme.js';
 import {
   collectMultiFileDiffItems,
@@ -134,7 +140,7 @@ export function CodeBlock({
   lang: Lang;
   contentWidth: number;
 }): React.ReactElement {
-  let lines = code.replace(/\n+$/, '').split('\n');
+  let lines = sanitizeTerminalText(code, HARD_TAB_WIDTH).replace(/\n+$/, '').split('\n');
   const hidden = Math.max(0, lines.length - MAX_CODE_LINES);
   if (hidden > 0) lines = lines.slice(0, MAX_CODE_LINES);
   const gutterW = String(lines.length).length;
@@ -145,15 +151,15 @@ export function CodeBlock({
   // its container — the right border wraps to the next line's left edge (the
   // "boxes overflow / extra chars on the next line" bug). An explicit width
   // makes the box exactly fill the panel's inner area (100%) and never wrap.
-  const boxWidth = Math.max(22, contentWidth - 2);
+  const boxWidth = Math.max(1, contentWidth - 2);
   // Text area inside the frame: box width − border(2) − paddingX(2) − gutter.
-  const maxW = Math.max(20, Math.min(boxWidth - 4 - gutterW - 1, 120));
+  const maxW = Math.max(1, Math.min(boxWidth - 4 - gutterW - 1, 120));
   let carry: HLState = {};
   const rows = lines.map((raw) => {
     // Expand hard tabs before measuring/truncating so a tab-indented line
     // isn't under-counted (tab = 1 char but many columns) and made to wrap.
     const expanded = expandTabs(raw);
-    const display = expanded.length > maxW ? `${expanded.slice(0, maxW - 1)}…` : expanded;
+    const display = truncateDisplay(expanded, maxW);
     const r = highlightLine(display, lang, carry);
     carry = r.carry;
     return r.tokens;
@@ -417,21 +423,27 @@ function wrapTokens(tokens: Token[], width: number): Token[][] {
   if (width <= 0) return [tokens];
   const segments: Token[][] = [];
   let current: Token[] = [];
-  let currentLen = 0;
+  let currentWidth = 0;
   for (const t of tokens) {
     let text = t.text;
     while (text.length > 0) {
-      const room = width - currentLen;
+      const room = width - currentWidth;
       if (room <= 0) {
         segments.push(current);
         current = [];
-        currentLen = 0;
+        currentWidth = 0;
         continue;
       }
-      const piece = text.slice(0, room);
+      const [piece, rest] = splitDisplay(text, room);
+      if (!piece) {
+        segments.push(current);
+        current = [];
+        currentWidth = 0;
+        continue;
+      }
       current.push({ ...t, text: piece });
-      currentLen += piece.length;
-      text = text.slice(piece.length);
+      currentWidth += displayWidth(piece);
+      text = rest;
     }
   }
   if (current.length > 0 || segments.length === 0) segments.push(current);
@@ -515,9 +527,9 @@ export function DiffBlock({
     // render with painted background under their indentation and don't
     // overshoot the wrap/pad budget — see {@link expandTabs}.
     if ((row.kind === 'add' || row.kind === 'del' || row.kind === 'ctx') && row.text.length > 0) {
-      return expandTabs(row.text.slice(1)) || ' ';
+      return sanitizeTerminalText(expandTabs(row.text.slice(1)), HARD_TAB_WIDTH) || ' ';
     }
-    return expandTabs(row.text) || ' ';
+    return sanitizeTerminalText(expandTabs(row.text), HARD_TAB_WIDTH) || ' ';
   };
 
   const stats = showStats ? formatDiffStats(added, removed) : null;
@@ -531,7 +543,7 @@ export function DiffBlock({
   const terminalWrapGuard = typeof contentWidth === 'number' ? 1 : 0;
   const bodyBudget =
     typeof contentWidth === 'number'
-      ? Math.max(16, contentWidth - (2 + 3 + gutterWidth + 3 + terminalWrapGuard))
+      ? Math.max(1, contentWidth - (2 + 3 + gutterWidth + 3 + terminalWrapGuard))
       : DIFF_FALLBACK_WRAP_WIDTH;
   // When the width is known, the add/del wash pads its body out to the guarded
   // `bodyBudget` with trailing spaces so the dark green/maroon background
@@ -544,7 +556,7 @@ export function DiffBlock({
   const hasWidth = typeof contentWidth === 'number';
   const padBody = (seg: Token[]): number => {
     if (!hasWidth) return 0;
-    const len = seg.reduce((n, t) => n + t.text.length, 0);
+    const len = seg.reduce((n, t) => n + displayWidth(t.text), 0);
     return Math.max(0, bodyBudget - len);
   };
   // Continuation-row prefix: same width as `   ${ln} X ` so wrapped
@@ -579,7 +591,7 @@ export function DiffBlock({
         if (row.kind === 'meta') {
           return (
             <Text key={key} dimColor>
-              {`   ${blank}   ${row.text}`}
+              {`   ${blank}   ${sanitizeTerminalText(row.text)}`}
             </Text>
           );
         }

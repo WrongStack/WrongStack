@@ -14,8 +14,8 @@
  */
 
 import type { BrainArbiter, BrainDecisionRequest } from '../coordination/brain.js';
-import type { EventBus } from '../kernel/events.js';
 import { parseModelRef } from '../core/fallback-model.js';
+import type { EventBus } from '../kernel/events.js';
 import type { BrainConfig, BrainModelEntry } from '../types/config.js';
 import type { Provider } from '../types/provider.js';
 import { type BrainLlmTarget, createAutonomyBrain } from './autonomy-brain.js';
@@ -170,7 +170,9 @@ export function assembleBrainTiers(opts: BrainTierAssemblyOptions): BrainTierAss
   const councilCfg = brainCfg?.council;
   const SEATS = resolveSeats(councilCfg?.seats);
   const explicitVoters = (councilCfg?.voters ?? []).map((v) =>
-    typeof v === 'string' ? { entry: toEntry(v), cfg: {} as Partial<CouncilVoter> } : { entry: v, cfg: v },
+    typeof v === 'string'
+      ? { entry: toEntry(v), cfg: {} as Partial<CouncilVoter> }
+      : { entry: v, cfg: v },
   );
   const voters: CouncilVoter[] = (
     explicitVoters.length > 0
@@ -223,6 +225,7 @@ export function assembleBrainTiers(opts: BrainTierAssemblyOptions): BrainTierAss
           decisionTimeoutMs: councilCfg?.perCallTimeoutMs ?? brainCfg?.decisionTimeoutMs,
           maxConcurrency: councilCfg?.maxConcurrency,
           distinctness: councilCfg?.distinctness,
+          voterMaxTokens: councilCfg?.voterMaxTokens,
           judgeMaxTokens: councilCfg?.judgeMaxTokens,
           getDecisionDigest: opts.getDecisionDigest,
           events: opts.events,
@@ -236,7 +239,9 @@ export function assembleBrainTiers(opts: BrainTierAssemblyOptions): BrainTierAss
     getCouncilMinRisk: () => councilCfg?.minRisk ?? 'high',
     poolLabels: poolTargets.map((t) => t.label ?? t.model),
     councilLabels: council
-      ? voters.map((v) => `${v.label ?? v.model} (${v.persona ?? 'voter'}${v.veto ? ', veto' : ''})`)
+      ? voters.map(
+          (v) => `${v.label ?? v.model} (${v.persona ?? 'voter'}${v.veto ? ', veto' : ''})`,
+        )
       : [],
     judgeLabel: council ? (judge?.label ?? judge?.model) : undefined,
     judgeIsVoter:

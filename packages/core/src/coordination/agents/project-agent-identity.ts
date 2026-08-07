@@ -20,18 +20,33 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
-import type { SubagentConfig } from '../../types/multi-agent.js';
 import { clampSubagentCapabilities } from '../../security/capabilities.js';
+import type { SubagentConfig } from '../../types/multi-agent.js';
+import { inferRuntimeCapabilities } from './capability-manifest.js';
 import { validateProjectAgentConfig } from './project-agent-config-validation.js';
+import {
+  type ConsolidationMetadata,
+  isConsolidated,
+  loadConsolidationMetadata,
+  loadProjectAgentConsolidated,
+} from './project-agent-consolidation.js';
+import type {
+  LearnedCaptureResult,
+  ProjectAgentConfig,
+  RoleKnowledgeManifest,
+} from './project-agent-identity-types.js';
 import { BUILT_IN_KNOWLEDGE_MANIFESTS } from './project-agent-knowledge-manifests.js';
+import { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
+import {
+  LEARNED_HARD_LIMIT,
+  LEARNED_SOFT_LIMIT,
+  normalizeForComparison,
+  normalizeLearnedEntry,
+} from './project-agent-learning-normalize.js';
 import {
   loadProjectAgentLearningPolicy,
   type ProjectAgentLearningPolicy,
 } from './project-agent-learning-policy.js';
-import {
-  splitLearnedEntries,
-  tokenOverlap,
-} from './project-agent-learning-entries.js';
 import {
   mergeStructuredEntries,
   parseStructuredLearnedEntriesFromContent,
@@ -44,25 +59,24 @@ import {
   roleDir,
   writeTextAtomically,
 } from './project-agent-paths.js';
-import {
-  LEARNED_HARD_LIMIT,
-  LEARNED_SOFT_LIMIT,
-  normalizeForComparison,
-  normalizeLearnedEntry,
-} from './project-agent-learning-normalize.js';
-import type {
-  LearnedCaptureResult,
-  ProjectAgentConfig,
-  RoleKnowledgeManifest,
-} from './project-agent-identity-types.js';
-import {
+
+export { validateProjectAgentConfig } from './project-agent-config-validation.js';
+export {
+  buildConsolidationInstruction,
+  type ConsolidationMetadata,
+  clearProjectAgentConsolidated,
   isConsolidated,
   loadConsolidationMetadata,
   loadProjectAgentConsolidated,
-  type ConsolidationMetadata,
+  saveProjectAgentConsolidated,
 } from './project-agent-consolidation.js';
-
-export { validateProjectAgentConfig } from './project-agent-config-validation.js';
+export type {
+  CreateProjectAgentInput,
+  LearnedCaptureResult,
+  ProjectAgentConfig,
+  ProjectAgentProfile,
+  RoleKnowledgeManifest,
+} from './project-agent-identity-types.js';
 export {
   classifyLearnedEntry,
   LEARNED_ENTRY_MAX_CHARS,
@@ -72,44 +86,23 @@ export {
   normalizeLearnedEntry,
 } from './project-agent-learning-normalize.js';
 export {
+  loadProjectAgentLearningPolicy,
+  type ProjectAgentLearningPolicy,
+  updateProjectAgentLearningPolicy,
+} from './project-agent-learning-policy.js';
+export {
   decomposeLearnedEntry,
   mergeStructuredEntries,
   parseLearnedEntryStamp,
   renderLearnedInstructions,
   type StructuredLearnedEntry,
 } from './project-agent-learning-structured.js';
-export {
-  loadProjectAgentLearningPolicy,
-  type ProjectAgentLearningPolicy,
-  updateProjectAgentLearningPolicy,
-} from './project-agent-learning-policy.js';
 export { assertProjectAgentRole } from './project-agent-paths.js';
-export {
-  buildConsolidationInstruction,
-  clearProjectAgentConsolidated,
-  isConsolidated,
-  loadConsolidationMetadata,
-  loadProjectAgentConsolidated,
-  saveProjectAgentConsolidated,
-  type ConsolidationMetadata,
-} from './project-agent-consolidation.js';
-export type {
-  CreateProjectAgentInput,
-  LearnedCaptureResult,
-  ProjectAgentConfig,
-  ProjectAgentProfile,
-  RoleKnowledgeManifest,
-} from './project-agent-identity-types.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export {
-  createProjectAgent,
-  loadProjectAgentProfile,
-  slugifyProjectAgentRole,
-} from './project-agent-profile.js';
 export {
   listProjectAgentRoles,
   refreshProjectAgentIdentity,
@@ -119,8 +112,14 @@ export {
   updateProjectAgentKnowledge,
   updateProjectAgentLearned,
 } from './project-agent-files.js';
-import { loadProjectAgentProfile } from './project-agent-profile.js';
+export {
+  createProjectAgent,
+  loadProjectAgentProfile,
+  slugifyProjectAgentRole,
+} from './project-agent-profile.js';
+
 import { listProjectAgentRoles } from './project-agent-files.js';
+import { loadProjectAgentProfile } from './project-agent-profile.js';
 
 /**
  * Live roster overlay. Project policy is resolved lazily for both built-in and
@@ -289,6 +288,7 @@ export function applyProjectAgentConfig(
         ? undefined
         : [...new Set([...base.tools, ...projectConfig.tools])]
       : [...projectConfig.tools];
+    result.capabilities = inferRuntimeCapabilities(result.tools ?? []);
   }
   if (projectConfig.skillNames !== undefined) result.skillNames = [...projectConfig.skillNames];
   if (projectConfig.provider !== undefined) result.provider = projectConfig.provider;

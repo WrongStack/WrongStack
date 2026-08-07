@@ -38,6 +38,10 @@ export function RefineCountdownPanel({
 }: RefineCountdownPanelProps): React.ReactElement {
   const [remaining, setRemaining] = useState(Math.max(1, seconds));
   const resolvedRef = useRef(false);
+  const onDecisionRef = useRef(onDecision);
+  useEffect(() => {
+    onDecisionRef.current = onDecision;
+  }, [onDecision]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -46,14 +50,25 @@ export function RefineCountdownPanel({
           clearInterval(id);
           if (!resolvedRef.current) {
             resolvedRef.current = true;
-            onDecision('proceed');
+            onDecisionRef.current('proceed');
           }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      // The caller is blocked on this panel's promise. Anything that unmounts
+      // it without a decision — /clear, closeAllPanels, a newer countdown
+      // superseding this one — would otherwise leave that submit awaiting a
+      // resolve nobody can call again. Cancel restores the draft and ends the
+      // turn instead of hanging it.
+      if (!resolvedRef.current) {
+        resolvedRef.current = true;
+        onDecisionRef.current('cancel');
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

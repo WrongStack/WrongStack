@@ -61,7 +61,11 @@ export function renderOnlineAgents(
   }
 
   const inlineData = (value: string, max = 120): string =>
-    value.replace(/[`\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+    value
+      .replace(/[`\r\n]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, max);
   const agentList = agents
     .map((a) => {
       const details = [
@@ -90,6 +94,7 @@ export interface MemorySkillsContext {
   skillEagerMaxChars: number | undefined;
   /** Tools from the last build — used for memory relevance scoring. */
   lastBuildTools: Tool[] | undefined;
+  catalogTools: Tool[] | undefined;
   skillBodyCache: string | undefined;
 }
 
@@ -157,11 +162,22 @@ export async function buildMemoryAndSkills(
   // only the Overview and Rules sections (~400 chars max per skill).
   if (mem.skillLoader) {
     if (mem.skillMode === 'progressive') {
-      skillBodyCache = await buildProgressiveSkillManifestText(mem.skillLoader);
+      skillBodyCache = await buildProgressiveSkillManifestText(
+        mem.skillLoader,
+        mem.catalogTools?.map((tool) => tool.name) ?? [],
+      );
     } else if (mem.isCompact) {
-      skillBodyCache = await buildCompactSkillBodiesText(mem.skillLoader);
+      skillBodyCache = await buildCompactSkillBodiesText(
+        mem.skillLoader,
+        undefined,
+        mem.catalogTools?.map((tool) => tool.name) ?? [],
+      );
     } else {
-      skillBodyCache = await buildFullSkillBodiesText(mem.skillLoader, mem.skillEagerMaxChars);
+      skillBodyCache = await buildFullSkillBodiesText(
+        mem.skillLoader,
+        mem.skillEagerMaxChars,
+        mem.catalogTools?.map((tool) => tool.name) ?? [],
+      );
     }
   }
   if (skillBodyCache) {

@@ -169,15 +169,22 @@ export interface FeaturesConfig {
   allowOutsideProjectRoot?: boolean | undefined;
   /**
    * Auto-bootstrap the mailbox HTTP bridge from any WrongStack surface
-   * (REPL/TUI/WebUI/eternal). When 'auto' (the default), the first
-   * surface to come up for a given project joins or spawns the bridge
-   * so external agents can connect without the user running
-   * `wstack mailbox serve` themselves. 'off' disables this — operators
-   * must start the bridge explicitly (e.g. via the `/mailbox-serve`
-   * slash command or the standalone `wstack mailbox serve` subcommand).
-   * The per-project lock + token-persistence model means a second
-   * surface on the same project joins the first's bridge rather than
-   * spawning a duplicate.
+   * (REPL/TUI/WebUI/eternal).
+   *
+   * **Default: 'off'.** The bridge is a loopback HTTP façade that exists
+   * only so EXTERNAL agents (Claude Code, Aider, scripts) can reach the
+   * project mailbox. No WrongStack-internal surface consumes it — every
+   * in-process caller goes through `RemoteMailbox` over IPC — so booting
+   * it by default bought nothing and cost a full detached CLI process
+   * (~130 MB resident, with no idle shutdown) per project, forever.
+   *
+   * Set 'auto' to restore boot-time bootstrap: the first surface to come
+   * up for a given project joins or spawns the bridge. The per-project
+   * lock + token-persistence model means a second surface on the same
+   * project joins the first's bridge rather than spawning a duplicate.
+   *
+   * Either way the bridge can always be started on demand via the
+   * `/mailbox-serve` slash command or `wstack mailbox serve`.
    */
   mailboxBridge?: 'auto' | 'off' | undefined;
 }
@@ -211,9 +218,9 @@ export interface SageConfig {
          * the result they get appended to.
          */
         taskAware?: boolean | undefined;
-        /** Maximum diverse, structurally related hints appended to a single tool result. Default: 8. */
+        /** Maximum diverse, structurally related hints selected for one tool-memory evidence slot. Default: 8. */
         maxHintsPerTool?: number | undefined;
-        /** Maximum characters appended to a single tool result. Default: 2800. */
+        /** Maximum characters retained in the tool-memory evidence slot. Default: 2800. */
         maxCharsPerTool?: number | undefined;
         /** Maximum memories appended to ordinary turn context. Default: 8. */
         maxTurnMemories?: number | undefined;
@@ -249,14 +256,7 @@ export interface SageConfig {
         triggers?:
           | Partial<
               Record<
-                | 'read'
-                | 'tree'
-                | 'grep'
-                | 'glob'
-                | 'codebase_search'
-                | 'write'
-                | 'edit'
-                | 'patch',
+                'read' | 'tree' | 'grep' | 'glob' | 'codebase_search' | 'write' | 'edit' | 'patch',
                 boolean
               >
             >

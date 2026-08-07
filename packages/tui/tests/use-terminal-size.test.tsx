@@ -22,9 +22,9 @@ import { useTerminalSize } from '../src/hooks/use-terminal-size.js';
  * `history-native-scroll.test.tsx` was passing precisely because of the split:
  * it set the width on one stream and fired the event on the other.
  *
- * Nine of the eleven now share this hook. The two that do not are documented
- * where they live: `use-history-viewport-sync` needs `prependListener`
- * ordering, and `use-terminal-render-lifecycle` reads no size at all.
+ * Nine of the eleven now share this hook. The one that does not is documented
+ * where it lives: `use-history-viewport-sync` needs `prependListener`
+ * ordering.
  */
 
 class FakeStdout extends EventEmitter {

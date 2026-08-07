@@ -4,25 +4,12 @@ export {
   type UserInputPayload,
 } from './agent.js';
 export {
-  createDefaultPipelines,
   type AgentInit,
   type AgentInput,
   type AgentPipelines,
+  createDefaultPipelines,
   type ToolCallPipelinePayload,
 } from './agent-types.js';
-export { Context, type ContextInit, type RunOptions, type TodoItem } from './context.js';
-export {
-  ConversationState,
-  type ReadonlyConversationState,
-  type StateChange,
-  type StateChangeHandler,
-  wrapAsState,
-} from './conversation-state.js';
-export {
-  InputBuilder,
-  type InputBuilderEvent,
-  type InputBuilderOptions,
-} from './input-builder.js';
 export {
   buildBtwBlock,
   consumeBtwNotes,
@@ -30,12 +17,26 @@ export {
   setBtwNote,
 } from './btw.js';
 export {
+  Context,
+  type ContextInit,
+  type ProviderMemoryEvidence,
+  type RunOptions,
+  type TodoItem,
+} from './context.js';
+export {
   type ContinuationInput,
   type ContinuationSource,
   detectContinueIntent,
   type ResolvedContinuation,
   resolveContinuation,
 } from './continue-intent.js';
+export {
+  ConversationState,
+  type ReadonlyConversationState,
+  type StateChange,
+  type StateChangeHandler,
+  wrapAsState,
+} from './conversation-state.js';
 export {
   createFallbackModelExtension,
   effectiveFallbackChain,
@@ -46,16 +47,10 @@ export {
 } from './fallback-model.js';
 export { FallbackProfileManager } from './fallback-profile-manager.js';
 export {
-  formatModelRef,
-  normalizeModelRef,
-  parseModelRef,
-  type ModelRef,
-} from './model-ref.js';
-export {
-  DefaultSystemPromptBuilder,
-  type DefaultSystemPromptBuilderOptions,
-  type SystemBlockSource,
-} from './system-prompt-builder.js';
+  InputBuilder,
+  type InputBuilderEvent,
+  type InputBuilderOptions,
+} from './input-builder.js';
 export {
   type InstructionBundle,
   type InstructionBundlePaths,
@@ -67,6 +62,12 @@ export {
   renderInstructionLayer,
 } from './instruction-template.js';
 export {
+  formatModelRef,
+  type ModelRef,
+  normalizeModelRef,
+  parseModelRef,
+} from './model-ref.js';
+export {
   clearPendingNextSteps,
   hasNextStepsTag,
   MAX_PENDING_NEXT_STEPS,
@@ -76,5 +77,10 @@ export {
   renderNextStepsBlock,
   writePendingNextSteps,
 } from './next-steps-slot.js';
-export { setQueuedMessagesSnapshot } from './queued-messages.js';
 export { runProviderWithRetry } from './provider-runner.js';
+export { setQueuedMessagesSnapshot } from './queued-messages.js';
+export {
+  DefaultSystemPromptBuilder,
+  type DefaultSystemPromptBuilderOptions,
+  type SystemBlockSource,
+} from './system-prompt-builder.js';

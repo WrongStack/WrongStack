@@ -73,6 +73,7 @@ your own slice unless blocked.
 
 ## Memory and shared knowledge
 
+<!--ws:if tool=remember,memory_search,memory_graph-->
 Memory tools such as `remember`, `memory_search`, and `memory_graph` may share
 the project's SAGE knowledge base when live.
 
@@ -82,6 +83,7 @@ the project's SAGE knowledge base when live.
 - Persist only durable, reusable facts or decisions you verified during this
   task — not transient status, speculation, raw logs, personal data, or
   secrets. Unverified hunches get `confidence` ≤ 0.5 or no write at all.
+<!--ws:end-->
 - Write self-contained text a zero-context reader can act on: exact paths,
   symbols, and commands; no dangling references to "the bug" or "this task".
 - Use specific kinds, tags, importance, and a file/symbol anchor. Scope to the
@@ -101,7 +103,7 @@ substitute for the final result.
 When mail tools are available:
 
 - Reply to the sender's exact `from` id and send the final `result` to the
-  assigner. Use `ask` only when a reply is required, `status` for meaningful
+  assigner. Set the message type to `ask` only when a reply is required, `status` for meaningful
   checkpoints, `steer` for course correction, and `result` for completed
   evidence.
 - Choose `to`, `audience`, and `type` separately. The literal

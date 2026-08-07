@@ -112,12 +112,14 @@ export interface ContextEditorContentBlock {
   providerMeta?: Record<string, unknown> | undefined;
   signature?: string | undefined;
   thinking?: string | undefined;
-  source?: {
-    type: 'base64' | 'url';
-    media_type?: string | undefined;
-    data?: string | undefined;
-    url?: string | undefined;
-  } | undefined;
+  source?:
+    | {
+        type: 'base64' | 'url';
+        media_type?: string | undefined;
+        data?: string | undefined;
+        url?: string | undefined;
+      }
+    | undefined;
 }
 
 export interface ContextEditorMessage {
@@ -300,6 +302,18 @@ export interface WSContextPct {
     rawLoad?: number | undefined;
     tokens: number;
     maxContext: number;
+  };
+}
+
+export interface WSTopicAdviceResult {
+  type: 'topic.advice_result';
+  payload: SessionScopedPayload & {
+    requestId: string;
+    suggestNewContext: boolean;
+    confidence: number;
+    reason: string;
+    nextTopic?: string | undefined;
+    source: 'explicit' | 'model' | 'cache' | 'local';
   };
 }
 

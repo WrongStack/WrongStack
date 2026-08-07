@@ -5,6 +5,9 @@ description: |
   detects anomalies, and can intervene on command. Triggers: user says "shadow",
   "monitoring agent", "fleet watcher", "hoop command", "spike detection".
 version: 1.0.0
+required-capabilities: [coordination.mailbox]
+required-tools: [cron_schedule, mailbox, terminate_subagent]
+optional-capabilities: [fleet.delegate, work.plan]
 ---
 
 # Shadow Agent — Fleet Monitoring & Intervention

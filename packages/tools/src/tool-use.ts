@@ -65,7 +65,7 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
       };
     }
 
-    const tool = ctx.tools.find((t: Tool) => t.name === input.tool);
+    const tool = (ctx.catalogTools ?? ctx.tools).find((t: Tool) => t.name === input.tool);
     if (!tool) {
       return {
         tool: input.tool,

@@ -9,6 +9,13 @@ import type {
 import { create } from 'zustand';
 import { isKanbanBoardActive } from '../lib/kanban-board-active.js';
 
+/**
+ * A verification spinner older than this is a ghost: its
+ * verification_completed either failed, was cancelled, or belongs to a
+ * board the user has left. Real verifications finish in seconds.
+ */
+const VERIFICATION_SPINNER_TTL_MS = 5 * 60 * 1000;
+
 export interface KanbanResultPayload {
   success: boolean;
   data?: unknown;
@@ -48,7 +55,17 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   supervisorSnapshot: null,
   verificationActivity: {},
   setLoading: (loading) => set({ loading }),
-  setActiveBoardId: (id) => set({ activeBoardId: id, queueHealth: null, supervisorSnapshot: null }),
+  // verificationActivity is per-board ephemera like queueHealth /
+  // supervisorSnapshot: without clearing it here, spinners for a board the
+  // user left survived the switch and accumulated as ghosts (their
+  // verification_completed may never arrive once the board is inactive).
+  setActiveBoardId: (id) =>
+    set({
+      activeBoardId: id,
+      queueHealth: null,
+      supervisorSnapshot: null,
+      verificationActivity: {},
+    }),
   setError: (error) => set({ error }),
   setQueueHealth: (health) => set({ queueHealth: health }),
   handleResult: (type, payload) => {
@@ -184,11 +201,21 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
       const ref = data as { boardId?: string; taskId?: string } | null;
       if (ref?.boardId && ref.taskId) {
         const key = `${ref.boardId}:${ref.taskId}`;
-        set((state) => ({
-          verificationActivity: { ...state.verificationActivity, [key]: { startedAt: Date.now() } },
-          loading: false,
-          error: null,
-        }));
+        set((state) => {
+          // TTL prune: verification_completed is the ONLY removal event, so
+          // a failed/cancelled verification (whose completion never fires)
+          // left its spinner forever. Sweep stale entries whenever a new
+          // verification starts — no timer needed, and a spinner older than
+          // the TTL is a ghost by definition.
+          const now = Date.now();
+          const verificationActivity = Object.fromEntries(
+            Object.entries(state.verificationActivity).filter(
+              ([, value]) => now - value.startedAt < VERIFICATION_SPINNER_TTL_MS,
+            ),
+          );
+          verificationActivity[key] = { startedAt: now };
+          return { verificationActivity, loading: false, error: null };
+        });
       }
       return;
     }

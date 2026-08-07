@@ -45,6 +45,10 @@ export interface ProviderCustomModelWire {
 
 export type WSClientMessageCore =
   | WSUserMessage
+  | {
+      type: 'topic.advice';
+      payload: SessionScopedPayload & { requestId: string; prompt: string };
+    }
   | WSToolConfirmResult
   | { type: 'side_effects.list'; payload?: Record<string, never> }
   | {
@@ -347,7 +351,12 @@ export type WSClientMessageCore =
     }
   | {
       type: 'memory.sage.delete';
-      payload: { id: string; force?: boolean | undefined; reason?: string | undefined; neverInject?: boolean | undefined };
+      payload: {
+        id: string;
+        force?: boolean | undefined;
+        reason?: string | undefined;
+        neverInject?: boolean | undefined;
+      };
     }
   | {
       type: 'memory.sage.recover';

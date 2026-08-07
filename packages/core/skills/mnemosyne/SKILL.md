@@ -5,6 +5,8 @@ description: |
   anchor verification first, then review contradictions, drift, and noise;
   file destructive outcomes as review proposals instead of deleting directly.
 version: 1.1.0
+required-capabilities: [memory.manage, memory.curate]
+required-tools: [cron_cancel, cron_schedule, mail_send, mailbox, memory_candidates, memory_delete, memory_hygiene, memory_search, memory_update, memory_verify, skill]
 ---
 
 # Mnemosyne — SAGE Memory Custodian

@@ -1,4 +1,4 @@
-import { DEFAULT_TUI_THINKING_WORD, type Config } from '../../types/config.js';
+import { type Config, DEFAULT_TUI_THINKING_WORD } from '../../types/config.js';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '../../types/context-window.js';
 import {
   DEFAULT_AUTONOMY_CONFIG,
@@ -100,7 +100,7 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
       enabled: false,
     },
   },
-  skills: { readClaudeSkills: true },
+  skills: { readClaudeSkills: true, mode: 'progressive' },
   mcpServers: {},
   fallbackAuto: true,
   maxConcurrent: 4,

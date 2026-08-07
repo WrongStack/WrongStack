@@ -7,9 +7,10 @@
  * @module hq-server/startup
  */
 
-import { writeHqRuntimeFile } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { writeHqRuntimeFile } from '@wrongstack/core/hq';
+import { terminalLink, terminalText } from '../terminal-format.js';
 import * as HqServerUtils from './utils.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -85,16 +86,20 @@ export function writeHqStartupInfo(
   handle: HqStartupInfoHandle,
 ): void {
   const startup = handle.firstRunSetup;
-  write(`WrongStack HQ listening on http://${handle.host}:${handle.port}\n`);
+  const browserUrl = HqServerUtils.buildHttpUrl(handle.host, handle.port);
+  const clientUrl = HqServerUtils.buildClientWsUrl(handle.host, handle.port);
+  write(
+    `${terminalText('WrongStack HQ', 'magenta')} ${terminalText('listening on', 'green')} ${terminalLink(browserUrl)}\n`,
+  );
   if (!startup) {
-    write(`Browser endpoint: ${HqServerUtils.buildHttpUrl(handle.host, handle.port)}\n`);
-    write(`Client endpoint:  ${HqServerUtils.buildClientWsUrl(handle.host, handle.port)}\n`);
+    write(`${terminalText('Browser endpoint:', 'blue')} ${terminalLink(browserUrl)}\n`);
+    write(`${terminalText('Client endpoint:', 'blue')}  ${terminalLink(clientUrl)}\n`);
     writeHqLanEndpoints(write, handle, undefined);
     return;
   }
 
-  write(`Browser endpoint: ${startup.browserUrl}\n`);
-  write(`Client endpoint:  ${startup.clientUrl}\n`);
+  write(`${terminalText('Browser endpoint:', 'blue')} ${terminalLink(startup.browserUrl)}\n`);
+  write(`${terminalText('Client endpoint:', 'blue')}  ${terminalLink(startup.clientUrl)}\n`);
   if (startup.createdAuth) {
     write(`\nFirst-run HQ auth created in ${startup.dataDir}\n`);
   } else {
@@ -118,9 +123,17 @@ export function writeHqLanEndpoints(
   if (handle.host !== '0.0.0.0' && handle.host !== '::') return;
   const ips = HqServerUtils.lanIPv4Addresses();
   if (ips.length === 0) return;
-  write('\nReachable from other machines on your network:\n');
+  write(
+    `\n${terminalText('Reachable from other machines on your network:', 'blue', { bold: true })}\n`,
+  );
   for (const ip of ips) {
-    write(`  ${HqServerUtils.buildHttpUrl(ip, handle.port, browserToken)}\n`);
+    const url = HqServerUtils.buildHttpUrl(ip, handle.port, browserToken);
+    write(`  ${terminalLink(url)}\n`);
   }
-  write(`  On another machine, set WRONGSTACK_HQ_URL=http://${ips[0]}:${handle.port}\n`);
+  const firstIp = ips[0];
+  if (firstIp === undefined) return;
+  const clientUrl = HqServerUtils.buildHttpUrl(firstIp, handle.port);
+  write(
+    `  ${terminalText('On another machine, set', 'muted')} WRONGSTACK_HQ_URL=${terminalLink(clientUrl)}\n`,
+  );
 }

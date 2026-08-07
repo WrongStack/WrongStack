@@ -1,7 +1,13 @@
-import { create } from 'zustand';
-import type { AgentTranscriptEntry, AgentTranscriptKind, FleetTimelineEvent, SubagentView, SubagentEvent } from './types.js';
 import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
+import { create } from 'zustand';
 import { compareAgentsByActivity } from '@/lib/agent-status';
+import type {
+  AgentTranscriptEntry,
+  AgentTranscriptKind,
+  FleetTimelineEvent,
+  SubagentEvent,
+  SubagentView,
+} from './types.js';
 
 // ── Fleet store (live subagent roster; not persisted) ───────────────────────
 
@@ -9,6 +15,8 @@ const SPARKLINE_BINS = 12;
 const MAX_TIMELINE = 20;
 const MAX_AGENT_TIMELINE = 500;
 const MAX_AGENT_TRANSCRIPT = 1000;
+/** Roster cap — far above any real fleet; evicts terminal agents first. */
+const MAX_FLEET_AGENTS = 200;
 
 export const EMPTY_AGENT_TRANSCRIPT: AgentTranscriptEntry[] = [];
 
@@ -185,15 +193,20 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
     }
     return result;
   },
-  getAgentTranscript: (subagentId) => get().agentTranscripts.get(subagentId) ?? EMPTY_AGENT_TRANSCRIPT,
+  getAgentTranscript: (subagentId) =>
+    get().agentTranscripts.get(subagentId) ?? EMPTY_AGENT_TRANSCRIPT,
   clearFinishedAgents: () =>
     set((state) => {
       const survivors = new Map(state.agents);
       const finished = new Set<string>();
+      let droppedTokensIn = 0;
+      let droppedTokensOut = 0;
       for (const [id, agent] of survivors) {
         if (agent.status !== 'running') {
           survivors.delete(id);
           finished.add(id);
+          droppedTokensIn += agent.tokensIn ?? 0;
+          droppedTokensOut += agent.tokensOut ?? 0;
         }
       }
       const agentTranscripts = new Map(state.agentTranscripts);
@@ -206,6 +219,11 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
         agentTimeline: state.agentTimeline.filter((e) => !finished.has(e.subagentId)),
         eventTimeline: state.eventTimeline.filter((e) => !finished.has(e.agentId)),
         leaderId: state.leaderId && finished.has(state.leaderId) ? undefined : state.leaderId,
+        // Cleared agents leave the roster AND the token totals — the totals
+        // are running deltas of per-agent contributions, so keeping the
+        // tokens of agents no longer shown made the fleet chip drift up.
+        fleetTokensIn: Math.max(0, state.fleetTokensIn - droppedTokensIn),
+        fleetTokensOut: Math.max(0, state.fleetTokensOut - droppedTokensOut),
       };
     }),
   applyEvent: (e) =>
@@ -239,18 +257,21 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
       }
 
       if (e.kind === 'removed' && e.subagentId) {
+        // Subtract the departing agent's contribution from the fleet token
+        // totals — they are running deltas fed by per-agent snapshots, so a
+        // removed agent's tokens otherwise stayed counted forever (only
+        // session_stopped ever reset them, unconditionally to zero).
+        const departing = agents.get(e.subagentId);
         agents.delete(e.subagentId);
         agentTranscripts.delete(e.subagentId);
         return {
           agents,
           agentTranscripts,
-          agentTimeline: state.agentTimeline.filter(
-            (entry) => entry.subagentId !== e.subagentId,
-          ),
-          eventTimeline: state.eventTimeline.filter(
-            (entry) => entry.agentId !== e.subagentId,
-          ),
+          agentTimeline: state.agentTimeline.filter((entry) => entry.subagentId !== e.subagentId),
+          eventTimeline: state.eventTimeline.filter((entry) => entry.agentId !== e.subagentId),
           leaderId: state.leaderId === e.subagentId ? undefined : state.leaderId,
+          fleetTokensIn: Math.max(0, state.fleetTokensIn - (departing?.tokensIn ?? 0)),
+          fleetTokensOut: Math.max(0, state.fleetTokensOut - (departing?.tokensOut ?? 0)),
         };
       }
 
@@ -263,7 +284,11 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
         }
         leaderId = e.subagentId;
         const leader = agents.get(e.subagentId) ?? blankAgent(e.subagentId, e.name, e.sessionId);
-        agents.set(e.subagentId, { ...leader, isLeader: true, name: e.name?.trim() || leader.name });
+        agents.set(e.subagentId, {
+          ...leader,
+          isLeader: true,
+          name: e.name?.trim() || leader.name,
+        });
         timeline = pushTimeline(timeline, {
           id: makeTimelineId(),
           kind: 'leader_updated',
@@ -396,9 +421,10 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
           // This matches the TUI's warn threshold behaviour. budget_extended
           // clears the warning, so it only fires once until the next extension.
           if (next.ctxPct >= 80 && !next.budgetWarning) {
-            next.budgetWarning = next.ctxPct >= 100
-              ? { kind: 'hard', used: next.ctxPct, limit: 100 }
-              : { kind: 'soft', used: next.ctxPct, limit: 100 };
+            next.budgetWarning =
+              next.ctxPct >= 100
+                ? { kind: 'hard', used: next.ctxPct, limit: 100 }
+                : { kind: 'soft', used: next.ctxPct, limit: 100 };
           }
 
           if (typeof e.costUsd === 'number') next.costUsd = e.costUsd;
@@ -434,13 +460,14 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
             // to the main assistant, not subagent results.
             next.finalText = stripNextStepsBlock(e.finalText);
           }
-          const statusLabel = e.status === 'success'
-            ? '✓ completed'
-            : e.status === 'failed'
-              ? `✗ failed${e.failureReason ? ` (${e.failureReason})` : ''}`
-              : e.status === 'timeout'
-                ? `⏱ timeout${e.failureReason ? ` (${e.failureReason})` : ''}`
-                : 'stopped';
+          const statusLabel =
+            e.status === 'success'
+              ? '✓ completed'
+              : e.status === 'failed'
+                ? `✗ failed${e.failureReason ? ` (${e.failureReason})` : ''}`
+                : e.status === 'timeout'
+                  ? `⏱ timeout${e.failureReason ? ` (${e.failureReason})` : ''}`
+                  : 'stopped';
           timeline = pushTimeline(timeline, {
             id: makeTimelineId(),
             kind: 'task_completed',
@@ -454,7 +481,39 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
         }
       }
       agents.set(e.subagentId, next);
-      return { agents, leaderId, fleetTokensIn, fleetTokensOut, eventTimeline: timeline };
+      // Bound the roster at ingest (the coordinator-monitor-store pattern:
+      // every Map capped, eviction prefers terminal records). `agents` was
+      // the one uncapped Map here — AgentsPanel's "agents are bounded, show
+      // all without pagination" comment relied on a bound that didn't
+      // exist, and a long session with hundreds of spawns kept every
+      // record resident. Evict oldest-inserted non-running agents first;
+      // running agents are never evicted (they'd lose live telemetry), and
+      // their token totals follow them out (same running-delta contract as
+      // `removed`).
+      let evicted = false;
+      if (agents.size > MAX_FLEET_AGENTS) {
+        for (const [id, agent] of agents) {
+          if (agents.size <= MAX_FLEET_AGENTS) break;
+          if (agent.status === 'running' || id === e.subagentId) continue;
+          agents.delete(id);
+          agentTranscripts.delete(id);
+          evicted = true;
+          fleetTokensIn = Math.max(0, fleetTokensIn - (agent.tokensIn ?? 0));
+          fleetTokensOut = Math.max(0, fleetTokensOut - (agent.tokensOut ?? 0));
+          if (leaderId === id) leaderId = undefined;
+        }
+      }
+      return {
+        agents,
+        // Only publish the transcript clone when eviction actually touched
+        // it — replacing the Map identity on EVERY event would re-render
+        // every transcript subscriber per fleet event.
+        ...(evicted ? { agentTranscripts } : {}),
+        leaderId,
+        fleetTokensIn,
+        fleetTokensOut,
+        eventTimeline: timeline,
+      };
     }),
 }));
 

@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { compileSafeRegex, MAX_SUBJECT_LEN as KANBAN_MAX_SUBJECT } from '@wrongstack/kanban';
 import {
+  MAX_SUBJECT_LEN as CORE_MAX_SUBJECT,
   capSubject as coreCapSubject,
   compileUserRegex as coreCompileUserRegex,
-  MAX_SUBJECT_LEN as CORE_MAX_SUBJECT,
 } from '@wrongstack/core/utils';
+import { compileSafeRegex, MAX_SUBJECT_LEN as KANBAN_MAX_SUBJECT } from '@wrongstack/kanban';
+import { describe, expect, it } from 'vitest';
 import { capSubject, compileUserRegex, MAX_SUBJECT_LEN } from '../src/_regex.js';
 
 /**
@@ -35,6 +35,19 @@ const CORPUS = [
   '(.*)+',
   '(?!.*a+)x',
   '(x+x+)+y',
+  // ambiguous quantified alternation — a SINGLE outer quantifier is enough
+  // to backtrack exponentially when branches overlap (measured 7s on a
+  // 27-char subject before the detector existed; the corpus only carried
+  // the doubled-quantifier form above, which was false confidence)
+  '(a|a)*$',
+  '(a|a)+',
+  '(?:a|a)*',
+  '(a|ab)+x',
+  '(ab|a)*$',
+  '(x|)+',
+  // …while DISJOINT branches stay allowed
+  '(foo|bar)+',
+  '(GET|POST) /api/\\w+',
   // ordinary patterns a check might legitimately use
   'TODO',
   '^export function \\w+',

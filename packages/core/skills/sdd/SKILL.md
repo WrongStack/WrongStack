@@ -5,6 +5,8 @@ description: |
   in WrongStack. Triggers: user says "/sdd", "spec", "specification", "task graph",
   "SDD", "acceptance criteria", or starts a new feature.
 version: 2.1.0
+required-capabilities: [work.plan, filesystem.write]
+required-tools: []
 ---
 
 # Spec-Driven Development — WrongStack

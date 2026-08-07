@@ -1,4 +1,9 @@
 import { SKILL_LIMITS } from '../skills/limits.js';
+import {
+  missingRequiredRuntimeTools,
+  missingRuntimeCapabilities,
+  runtimeToolReferencesFromText,
+} from '../types/runtime-capability-manifest.js';
 import type { SkillLoader, SkillManifest } from '../types/skill.js';
 import { capSkillBody, stripFrontmatter } from './system-prompt-skill-text.js';
 
@@ -39,7 +44,10 @@ function foreignProvenanceTag(source: SkillManifest['source'], originTool?: stri
   return ` [foreign skill: ${origin}]`;
 }
 
-export async function buildProgressiveSkillManifestText(loader: SkillLoader): Promise<string> {
+export async function buildProgressiveSkillManifestText(
+  loader: SkillLoader,
+  availableToolNames: readonly string[] = [],
+): Promise<string> {
   try {
     const entries = await loader.listEntries();
     if (entries.length === 0) return '';
@@ -49,7 +57,16 @@ export async function buildProgressiveSkillManifestText(loader: SkillLoader): Pr
       '| Skill | Use when |',
       '|---|---|',
     ];
+    const manifests = new Map((await loader.list()).map((manifest) => [manifest.name, manifest]));
     for (const e of entries) {
+      const manifest = manifests.get(e.name);
+      if (
+        manifest &&
+        (missingRuntimeCapabilities(manifest.requiredCapabilities, availableToolNames).length > 0 ||
+          missingRequiredRuntimeTools(manifest.requiredTools, availableToolNames).length > 0)
+      ) {
+        continue;
+      }
       const trigger = (e.trigger ?? '').replace(/\|/g, '\\|').replace(/\n+/g, ' ').trim();
       lines.push(`| \`${e.name}\`${foreignProvenanceTag(e.source, e.originTool)} | ${trigger} |`);
     }
@@ -62,6 +79,7 @@ export async function buildProgressiveSkillManifestText(loader: SkillLoader): Pr
 export async function buildFullSkillBodiesText(
   loader: SkillLoader,
   budget: number = SKILL_LIMITS.EAGER_DEFAULT_MAX_CHARS,
+  availableToolNames: readonly string[] = [],
 ): Promise<string> {
   try {
     const skills = await loader.list();
@@ -70,10 +88,22 @@ export async function buildFullSkillBodiesText(
     const overflow: string[] = [];
     let used = 0;
     for (const s of skills) {
+      if (
+        missingRuntimeCapabilities(s.requiredCapabilities, availableToolNames).length > 0 ||
+        missingRequiredRuntimeTools(s.requiredTools, availableToolNames).length > 0
+      ) {
+        continue;
+      }
       try {
         const raw = await loader.readBody(s.name);
         const trimmed = stripFrontmatter(raw).trim();
         if (!trimmed) continue;
+        if (
+          missingRequiredRuntimeTools(runtimeToolReferencesFromText(trimmed), availableToolNames)
+            .length > 0
+        ) {
+          continue;
+        }
         const entry = `## Skill: ${s.name}${foreignProvenanceTag(s.source, s.originTool)}\n\n${capSkillBody(trimmed)}`;
         if (used + entry.length <= budget) {
           bodies.push(entry);
@@ -102,6 +132,7 @@ export async function buildFullSkillBodiesText(
 export async function buildCompactSkillBodiesText(
   loader: SkillLoader,
   budget: number = SKILL_LIMITS.COMPACT_DEFAULT_MAX_CHARS,
+  availableToolNames: readonly string[] = [],
 ): Promise<string> {
   try {
     const skills = await loader.list();
@@ -110,10 +141,22 @@ export async function buildCompactSkillBodiesText(
     const overflow: string[] = [];
     let used = 0;
     for (const s of skills) {
+      if (
+        missingRuntimeCapabilities(s.requiredCapabilities, availableToolNames).length > 0 ||
+        missingRequiredRuntimeTools(s.requiredTools, availableToolNames).length > 0
+      ) {
+        continue;
+      }
       try {
         const saveBody = await loader.readSaveBody(s.name);
         const clean = stripFrontmatter(saveBody).trim();
         if (!clean) continue;
+        if (
+          missingRequiredRuntimeTools(runtimeToolReferencesFromText(clean), availableToolNames)
+            .length > 0
+        ) {
+          continue;
+        }
         const entry = `## Skill: ${s.name}${foreignProvenanceTag(s.source, s.originTool)}\n\n${clean}`;
         if (used + entry.length <= budget) {
           bodies.push(entry);

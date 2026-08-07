@@ -57,6 +57,7 @@ describe('agent catalog integrity', () => {
       // Skills: every role has a diverse, duplicate-free curated set.
       const skills = config.skillNames ?? [];
       expect(skills.length, `skills for ${role}`).toBeGreaterThanOrEqual(3);
+      expect(skills.length, `too many eager skills for ${role}`).toBeLessThanOrEqual(3);
       expect(new Set(skills).size, `duplicate skill in ${role}`).toBe(skills.length);
 
       // Tools: non-empty, unique, well-formed ids.
@@ -113,9 +114,7 @@ describe('agent catalog integrity', () => {
     process.env['WRONGSTACK_AGENT_POLICY'] = 'on';
     (globalThis as { __WS_DISABLE_PROMPT_CACHE__?: boolean }).__WS_DISABLE_PROMPT_CACHE__ = true;
     try {
-      const mod = await import(
-        '../../src/coordination/agents/agent-prompts.js'
-      );
+      const mod = await import('../../src/coordination/agents/agent-prompts.js');
       for (const def of ALL_AGENT_DEFINITIONS) {
         const role = def.config.role as string;
         const prompt = mod.agentPrompt(role);
@@ -231,18 +230,23 @@ describe('browser and e2e agent tool lists', () => {
   const BROWSER_ROLE = 'browser';
   const E2E_ROLE = 'e2e';
 
-  const PLAYWRIGHT_TOOLS = [
-    'playwright_navigate',
-    'playwright_screenshot',
-    'playwright_click',
-    'playwright_type',
-    'playwright_evaluate',
-    'playwright_select_option',
-    'playwright_hover',
-    'playwright_fill_form',
-    'playwright_wait_for',
-    'playwright_press_key',
-    'playwright_drag',
+  const BROWSER_TOOLS = [
+    'browser_open',
+    'browser_status',
+    'browser_list',
+    'browser_navigate',
+    'browser_snapshot',
+    'browser_screenshot',
+    'browser_click',
+    'browser_type',
+    'browser_select',
+    'browser_press',
+    'browser_hover',
+    'browser_drag',
+    'browser_wait',
+    'browser_evaluate',
+    'browser_upload',
+    'browser_close',
   ] as const;
 
   const READ_TOOLS = ['read', 'grep', 'glob', 'search', 'tree'] as const;
@@ -267,11 +271,12 @@ describe('browser and e2e agent tool lists', () => {
     expect(browserDef!.config.role).toBe(BROWSER_ROLE);
   });
 
-  it('browser agent has all 11 playwright tools', () => {
+  it('browser agent has the canonical browser capability tools', () => {
     const tools = browserDef!.config.tools!;
-    for (const pt of PLAYWRIGHT_TOOLS) {
+    for (const pt of BROWSER_TOOLS) {
       expect(tools, `browser agent missing ${pt}`).toContain(pt);
     }
+    expect(browserDef!.config.capabilities).toContain('browser.interact');
   });
 
   it('browser agent has read-only tools (read, grep, glob, search, tree)', () => {
@@ -292,11 +297,12 @@ describe('browser and e2e agent tool lists', () => {
     }
   });
 
-  it('e2e agent has all 11 playwright tools', () => {
+  it('e2e agent has the canonical browser capability tools', () => {
     const tools = e2eDef!.config.tools!;
-    for (const pt of PLAYWRIGHT_TOOLS) {
+    for (const pt of BROWSER_TOOLS) {
       expect(tools, `e2e agent missing ${pt}`).toContain(pt);
     }
+    expect(e2eDef!.config.capabilities).toContain('browser.interact');
   });
 
   it('e2e agent DOES have heavy tools (bash, exec, write, edit, ...)', () => {
@@ -306,9 +312,9 @@ describe('browser and e2e agent tool lists', () => {
     }
   });
 
-  it('browser agent total tool count is reasonable (read + fetch + playwright, no heavy)', () => {
+  it('browser agent total tool count is bounded (read + fetch + browser, no heavy)', () => {
     const tools = browserDef!.config.tools!;
-    // TOOLS.read (read, grep, glob, search, tree, mailbox) + fetch + 11 playwright = 18
-    expect(tools.length).toBe(18);
+    expect(tools.length).toBeLessThanOrEqual(24);
+    expect(tools.some((name) => name.startsWith('playwright_'))).toBe(false);
   });
 });

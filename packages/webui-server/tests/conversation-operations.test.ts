@@ -19,6 +19,8 @@ function harness(options: { busy?: boolean } = {}) {
         ctx: {
           provider: { id: 'provider', capabilities: { vision: true } },
           model: 'model',
+          messages: [],
+          meta: {},
         },
         tools: { list: () => [] },
       }) as never,
@@ -33,6 +35,78 @@ function harness(options: { busy?: boolean } = {}) {
 }
 
 describe('createConversationOperations', () => {
+  it('answers short-history topic checks locally without spending a provider call', async () => {
+    const h = harness();
+    await h.routes.topicAdvice(ws, {
+      type: 'topic.advice',
+      payload: { requestId: 'topic-1', prompt: 'Plan an unrelated deployment strategy.' },
+    });
+
+    expect(h.sent.at(-1)).toMatchObject({
+      type: 'topic.advice_result',
+      payload: {
+        sessionId: 'session-live',
+        requestId: 'topic-1',
+        suggestNewContext: false,
+        source: 'local',
+      },
+    });
+    expect(h.begin).not.toHaveBeenCalled();
+  });
+
+  it('applies a fresh boundary before running while preserving the session id', async () => {
+    const sent: Array<{ type: string; payload: unknown }> = [];
+    const controller = new AbortController();
+    const replaceMessages = vi.fn();
+    const flushConversationJournal = vi.fn(async () => {});
+    const run = vi.fn(async () => {
+      expect(replaceMessages).toHaveBeenCalledWith([
+        expect.objectContaining({
+          role: 'system',
+          content: expect.stringContaining('context_boundary'),
+        }),
+      ]);
+      return { status: 'completed', iterations: 1, finalText: 'fresh answer' };
+    });
+    const context = {
+      provider: { id: 'provider', capabilities: { vision: true } },
+      model: 'model',
+      messages: [{ role: 'user', content: 'old topic' }],
+      state: { replaceMessages, replaceTodos: vi.fn() },
+      flushConversationJournal,
+      clearFileTracking: vi.fn(),
+      contextEvidence: {},
+      toolAdjacencyDirty: true,
+      pendingPostToolContext: {},
+      lastRequestTokens: 10_000,
+      lastRealInputTokens: 9_000,
+      meta: {},
+    };
+    const routes = createConversationOperations({
+      getAgent: () => ({ run, ctx: context, tools: { list: () => [] } }) as never,
+      getSessionId: () => 'session-live',
+      runControl: { begin: () => controller, end: vi.fn(), abort: vi.fn() },
+      pendingConfirms: new Map(),
+      send: (_ws, message) => sent.push(message),
+      notifyAbort: vi.fn(),
+    });
+
+    await routes.userMessage(ws, {
+      type: 'user_message',
+      payload: { content: 'new goal', freshContext: true },
+    });
+
+    expect(flushConversationJournal).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledWith(
+      'new goal',
+      expect.objectContaining({ signal: controller.signal }),
+    );
+    expect(sent.at(-1)).toMatchObject({
+      type: 'run.result',
+      payload: { sessionId: 'session-live', finalText: 'fresh answer' },
+    });
+  });
+
   it('runs through the host controller and projects the live session result', async () => {
     const h = harness();
     await h.routes.userMessage(ws, { type: 'user_message', payload: { content: 'hello' } });

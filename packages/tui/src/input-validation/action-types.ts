@@ -273,6 +273,7 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'toolStarted',
   'toolStreamAppend',
   'toolStreamClear',
+  'topicCheckBusy',
   'toolsPickerBusy',
   'toolsPickerClose',
   'toolsPickerFilter',

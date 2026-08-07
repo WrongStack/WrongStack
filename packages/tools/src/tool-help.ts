@@ -32,7 +32,7 @@ export const toolHelpTool: Tool<ToolHelpInput, ToolHelpOutput> = {
     '- Omit `tool` to get an overview of all available tools.\n' +
     '- Different `format` options give you different levels of detail.\n' +
     '- Tip: use `tool_search` to find the right tool name, then `tool_help` for the full schema.\n' +
-    'This tool is extremely valuable for self-correction when you are unsure about a tool\'s interface.',
+    "This tool is extremely valuable for self-correction when you are unsure about a tool's interface.",
   permission: 'auto',
   mutating: false,
   timeoutMs: 5_000,
@@ -43,12 +43,14 @@ export const toolHelpTool: Tool<ToolHelpInput, ToolHelpOutput> = {
     properties: {
       tool: {
         type: 'string',
-        description: 'Specific tool name to get detailed help for. Omit to get a list of all tools.',
+        description:
+          'Specific tool name to get detailed help for. Omit to get a list of all tools.',
       },
       format: {
         type: 'string',
         enum: ['short', 'full', 'markdown'],
-        description: 'Level of detail: "short" (summary), "full" (with full schema), "markdown" (human readable).',
+        description:
+          'Level of detail: "short" (summary), "full" (with full schema), "markdown" (human readable).',
       },
       include_examples: {
         type: 'boolean',
@@ -61,7 +63,7 @@ export const toolHelpTool: Tool<ToolHelpInput, ToolHelpOutput> = {
     const includeExamples = input.include_examples ?? false;
 
     if (input.tool) {
-      const tool = ctx.tools.find((t: Tool) => t.name === input.tool);
+      const tool = (ctx.catalogTools ?? ctx.tools).find((t: Tool) => t.name === input.tool);
       if (!tool) {
         return {
           tool: input.tool,
@@ -88,7 +90,7 @@ export const toolHelpTool: Tool<ToolHelpInput, ToolHelpOutput> = {
       };
     }
 
-    const allTools = ctx.tools.map((t: Tool) => ({
+    const allTools = (ctx.catalogTools ?? ctx.tools).map((t: Tool) => ({
       name: t.name,
       description: t.description,
       usageHint: t.usageHint ?? '',

@@ -131,6 +131,7 @@ export async function switchProjectInPlace(
   context.state.replaceMessages([]);
   context.state.replaceTodos([]);
   context.clearFileTracking();
+  context.clearMemoryEvidence?.();
   context.tokenCounter.reset();
   context.meta['packageTrackerOpts'] = { storageDir: nextWpaths.projectDir, projectRoot: resolved };
   context.state.setMeta(
@@ -174,7 +175,8 @@ export async function switchProjectInPlace(
     context.systemPrompt = await switchBuilder.build({
       cwd: resolved,
       projectRoot: resolved,
-      tools: agent.tools.list(),
+      tools: agent.tools.listForProvider(),
+      catalogTools: agent.tools.list(),
       provider: (context.provider as { id?: string }).id,
       model: context.model,
     });

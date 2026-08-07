@@ -4,7 +4,13 @@ import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { KeyCap, MonitorShell, truncatePanelText, useMonitorSize } from './monitor-shell.js';
 
-/** All possible statusline chip keys. */
+/** All possible statusline chip keys.
+
+ *  NOTE: `'cpu'` and `'memory'` were removed — CPU/RAM/heap metrics now live
+ *  in the right sidebar's SYSTEM card (sidebar-content.tsx). Any stale entries
+ *  in a saved statusline profile are silently ignored by `showChip` since no
+ *  chip renders them anymore, mirroring how removed phantom items ('version',
+ *  'time', 'sage') are handled. */
 export type StatuslineItem =
   | 'state'
   | 'model'
@@ -13,7 +19,6 @@ export type StatuslineItem =
   | 'queue'
   | 'hint'
   | 'index'
-  | 'memory'
   | 'breaker'
   | 'todos'
   | 'plan'
@@ -24,7 +29,6 @@ export type StatuslineItem =
   | 'elapsed'
   | 'context'
   | 'cost'
-  | 'cpu'
   | 'processes'
   | 'working_dir'
   | 'project'
@@ -95,7 +99,6 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   queue: 'Queued prompt count',
   hint: 'Transient status hint text',
   index: 'Codebase index server and indexing status',
-  memory: 'Current CLI process RAM and V8 heap usage',
   breaker: 'Process breaker countdown',
   todos: 'Todo items (pending/in-progress/done)',
   plan: 'Plan board items',
@@ -106,7 +109,6 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   elapsed: 'Session elapsed time',
   context: 'Context window usage %',
   cost: 'Token cost estimate',
-  cpu: 'CPU usage percentage',
   processes: 'Tracked bash/exec process count',
   working_dir: 'Current working directory',
   project: 'Project name',
@@ -155,11 +157,8 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   state: 1,
   tokens: 1,
   yolo: 1,
-  // Line 2 — session context: workdir/project first, then mode, git,
-  // memory pressure (RAM/heap), CPU, tools.
-  cpu: 2,
+  // Line 2 — session context: workdir/project first, then mode, git, tools.
   git: 2,
-  memory: 2,
   mode: 2,
   project: 2,
   sessions: 2,
@@ -219,9 +218,7 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   // Line 2 — workdir/project first, then session context
   'project',
   'working_dir',
-  'cpu',
   'git',
-  'memory',
   'mode',
   'sessions',
   'side_effects',

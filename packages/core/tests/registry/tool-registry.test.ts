@@ -28,6 +28,31 @@ describe('ToolRegistry', () => {
     expect(r.get('a')?.name).toBe('a');
   });
 
+  it('keeps lazy tools executable while bounding the provider surface', () => {
+    const r = new ToolRegistry();
+    r.register(t('read'));
+    r.register(t('rare-plugin-tool'), 'plugin:rare');
+    r.setProviderToolNames(['read']);
+
+    expect(r.list().map((tool) => tool.name)).toEqual(['read', 'rare-plugin-tool']);
+    expect(r.get('rare-plugin-tool')?.name).toBe('rare-plugin-tool');
+    expect(r.listForProvider().map((tool) => tool.name)).toEqual(['read']);
+
+    r.exposeToProvider('rare-plugin-tool');
+    expect(r.listForProvider().map((tool) => tool.name)).toEqual(['read', 'rare-plugin-tool']);
+  });
+
+  it('preserves provider exposure when cloning', () => {
+    const r = new ToolRegistry();
+    r.register(t('read'));
+    r.register(t('lazy'));
+    r.setProviderToolNames(['read']);
+
+    const clone = r.clone();
+    expect(clone.list().map((tool) => tool.name)).toEqual(['read', 'lazy']);
+    expect(clone.listForProvider().map((tool) => tool.name)).toEqual(['read']);
+  });
+
   it('rejects duplicate register', () => {
     const r = new ToolRegistry();
     r.register(t('a'));
@@ -87,7 +112,12 @@ describe('ToolRegistry', () => {
     const r = new ToolRegistry();
     r.register(t('a'), 'core');
     r.registerAll([t('a'), t('b'), t('a')], 'plug');
-    expect(r.list().map((x) => x.name).sort()).toEqual(['a', 'b']);
+    expect(
+      r
+        .list()
+        .map((x) => x.name)
+        .sort(),
+    ).toEqual(['a', 'b']);
   });
 
   it('registerAllOrThrow throws on first conflict', () => {
@@ -99,7 +129,12 @@ describe('ToolRegistry', () => {
   it('registerAllOrThrow registers all when no conflicts', () => {
     const r = new ToolRegistry();
     r.registerAllOrThrow([t('a'), t('b')], 'core');
-    expect(r.list().map((x) => x.name).sort()).toEqual(['a', 'b']);
+    expect(
+      r
+        .list()
+        .map((x) => x.name)
+        .sort(),
+    ).toEqual(['a', 'b']);
   });
 
   it('wrap throws when tool not registered', () => {
@@ -263,7 +298,12 @@ describe('ToolRegistry disable/enable', () => {
     expect(r.isDisabled('a')).toBe(true);
     expect(r.get('a')).toBeUndefined();
     expect(r.list().map((x) => x.name)).toEqual(['b']);
-    expect(r.listByCategory().get('')?.map((x) => x.name)).toEqual(['b']);
+    expect(
+      r
+        .listByCategory()
+        .get('')
+        ?.map((x) => x.name),
+    ).toEqual(['b']);
     expect(r.listWithOwner().map((x) => x.tool.name)).toEqual(['b']);
   });
 
@@ -293,7 +333,12 @@ describe('ToolRegistry disable/enable', () => {
     r.disable('a');
     r.disable('b');
     expect(r.enableAll()).toBe(2);
-    expect(r.list().map((x) => x.name).sort()).toEqual(['a', 'b']);
+    expect(
+      r
+        .list()
+        .map((x) => x.name)
+        .sort(),
+    ).toEqual(['a', 'b']);
   });
 
   it('applyDisabled ignores unknown names and returns the count disabled', () => {
@@ -352,7 +397,10 @@ describe('ToolRegistry registration + mode branches', () => {
     r.register(t('a'));
     expect(r.applyDescriptionModes({ a: 'garbage' })).toEqual({ applied: 0, missing: [] }); // 223 skip
     expect(r.applyDescriptionModes({ a: 'simple' })).toEqual({ applied: 1, missing: [] }); // 225 applied
-    expect(r.applyDescriptionModes({ ghost: 'extend' })).toEqual({ applied: 0, missing: ['ghost'] }); // 228 else-delete
+    expect(r.applyDescriptionModes({ ghost: 'extend' })).toEqual({
+      applied: 0,
+      missing: ['ghost'],
+    }); // 228 else-delete
   });
 
   it('list() returns a cached snapshot when unchanged', () => {

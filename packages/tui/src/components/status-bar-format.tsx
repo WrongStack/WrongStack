@@ -1,9 +1,7 @@
 import type React from 'react';
 import { isValidElement } from 'react';
-import { displayWidth } from '../terminal-width.js';
 import { pastel, theme } from '../theme.js';
 import { normalizeTuiThinkingWord } from '../thinking-word.js';
-import { glyphs } from '../ui-glyphs.js';
 
 /**
  * Head-truncate a chip's free-text payload (branch, path, project name) with a
@@ -80,66 +78,9 @@ export function hasTokenDisplay(tokens: TokenDisplayTotals): boolean {
   return tokens.input > 0 || tokens.output > 0;
 }
 
-const RAIL_CAP = 1;
-
-export function statusBarModelSpan(opts: {
-  model: string;
-  provider?: string | undefined;
-  yolo?: boolean | undefined;
-  autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
-  projectName?: string | undefined;
-  workingDir?: string | undefined;
-  projectHidden?: boolean | undefined;
-  workingDirHidden?: boolean | undefined;
-  monochrome?: boolean | undefined;
-}): { start: number; len: number } {
-  const leading: string[] = [];
-  if (opts.yolo) leading.push(opts.monochrome ? 'YOLO' : `${glyphs.warning} YOLO`);
-  if (opts.autonomy && opts.autonomy !== 'off') {
-    leading.push(
-      opts.monochrome ? opts.autonomy.toUpperCase() : `∞ ${opts.autonomy.toUpperCase()}`,
-    );
-  }
-  if (opts.projectName && !opts.projectHidden) {
-    const project = truncateChip(opts.projectName, 24);
-    leading.push(opts.monochrome ? project : `${glyphs.folder} ${project}`);
-  }
-  if (opts.workingDir && !opts.workingDirHidden) {
-    const workingDir = truncateChip(opts.workingDir, 28);
-    leading.push(opts.monochrome ? workingDir : `${glyphs.workingDirectory} ${workingDir}`);
-  }
-
-  // PowerlineRail separators are 2 spaces. Transition glyphs were removed
-  // in the clean PowerlineRail refactor — only the 2-space sep remains.
-  const sepWidth = 2;
-  const precedingWidth = leading.reduce(
-    (total, text) => total + displayWidth(text) + sepWidth,
-    0,
-  );
-  const full = opts.provider ? `${opts.provider}/${opts.model}` : opts.model;
-  return { start: RAIL_CAP + precedingWidth + 1, len: displayWidth(full) };
-}
-
-export function statusBarAutonomySpan(opts: {
-  yolo?: boolean | undefined;
-  autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
-  monochrome?: boolean | undefined;
-}): { start: number; len: number } | null {
-  if (!opts.autonomy || opts.autonomy === 'off') return null;
-  let col = RAIL_CAP;
-  if (opts.yolo) {
-    const yolo = opts.monochrome ? 'YOLO' : `${glyphs.warning} YOLO`;
-    const sepWidth = 2;
-    col += displayWidth(yolo) + sepWidth;
-  }
-  const label = opts.monochrome ? opts.autonomy.toUpperCase() : `∞ ${opts.autonomy.toUpperCase()}`;
-  return { start: col + 1, len: displayWidth(label) };
-}
-
-export function statusBarTodosSpan(): { start: number; len: number } {
-  const LABEL_MAX = 20;
-  return { start: RAIL_CAP + 1, len: LABEL_MAX };
-}
+// Chip click geometry is no longer dead-reckoned here — StatusBar publishes
+// a StatusBarClickMap computed by `computeRailSpans` (powerline-rail.tsx)
+// from the same segment nodes the rails render.
 
 export function stateChip(
   state: 'idle' | 'running' | 'streaming' | 'aborting',
@@ -166,9 +107,9 @@ export function renderProgress(ratio: number, width: number): string {
 
 export function contextBarColor(ratio: number): string {
   if (ratio < 0.25) return theme.accent;
-  if (ratio < 0.50) return theme.success;
+  if (ratio < 0.5) return theme.success;
   if (ratio < 0.65) return pastel.peach;
-  if (ratio < 0.80) return theme.warn;
+  if (ratio < 0.8) return theme.warn;
   return theme.error;
 }
 
@@ -202,6 +143,42 @@ export function blockMeter(ratio: number, width: number): { filled: string; empt
     filled: '█'.repeat(filledCount),
     empty: '░'.repeat(Math.max(0, w - filledCount)),
   };
+}
+
+/** Eight block-element levels (U+2581…U+2588) used by {@link sparkline}. */
+const SPARK_LEVELS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
+/**
+ * Render a 0..1 ratio history as a compact sparkline (oldest → newest, the
+ * latest sample is the last character). Each value maps onto one of the eight
+ * block levels, so a flat history renders as a flat line and spikes pop as
+ * peaks. Only the trailing `width` samples are drawn; a width of 0 (or an
+ * empty history) renders nothing.
+ */
+export function sparkline(values: readonly number[], width: number): string {
+  if (width <= 0 || values.length === 0) return '';
+  let out = '';
+  for (const value of values.slice(-width)) {
+    const clamped = Math.max(0, Math.min(1, value));
+    const index = Math.round(clamped * (SPARK_LEVELS.length - 1));
+    out += SPARK_LEVELS[index] ?? '▁';
+  }
+  return out;
+}
+
+/**
+ * A morphing dial glyph that fills like a loading ring as the ratio rises:
+ * `○` (idle) → `◔` → `◑` → `◕` → `●` (saturated). Non-bar replacement for
+ * block meters in the sidebar SYSTEM card. Same glyph family as the
+ * session-status dots (● ◉ ◐ ○) already used elsewhere in the TUI.
+ */
+export function dialGlyph(ratio: number): string {
+  const clamped = Math.max(0, Math.min(1, ratio));
+  if (clamped >= 0.75) return '●';
+  if (clamped >= 0.5) return '◕';
+  if (clamped >= 0.25) return '◑';
+  if (clamped > 0) return '◔';
+  return '○';
 }
 
 export function fmtTok(n: number): string {

@@ -75,6 +75,20 @@ export interface HqPublisherOptions {
   reconnect?: boolean;
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
+  /**
+   * Consecutive connect failures (never reaching `open`) before the one-time
+   * diagnostic warning fires. Defaults to `CONNECT_WARN_AFTER_FAILURES` (5).
+   */
+  connectWarnAfterFailures?: number;
+  /**
+   * Minimum gap between connect-failure warnings ACROSS all HqPublisher
+   * instances in this process. When a fleet of agents fails against the same
+   * dead/rejecting HQ at once, only the first instance to cross the threshold
+   * warns; the rest stay silent until the window elapses (each instance still
+   * warns at most once). Defaults to 5 minutes. Set to 0 to disable the
+   * process-wide gate entirely.
+   */
+  connectWarnCooldownMs?: number;
   maxQueuedMessages?: number;
   /** Hard byte cap on the outbound queue (prevents RAM blow-up when HQ is
    * offline). Older frames are dropped oldest-first when exceeded. The default
@@ -106,11 +120,13 @@ export interface HqPublisherOptions {
    */
   heartbeatIntervalMs?: number;
   /**
-   * Diagnostic sink for the one-time consecutive-connect-failure warning.
-   * The publisher is otherwise deliberately silent (dormant queueing), which
+   * Diagnostic sink for the consecutive-connect-failure warning. The
+   * publisher is otherwise deliberately silent (dormant queueing), which
    * made auth failures invisible: a token the server rejects — e.g. a wrong
    * `WRONGSTACK_HQ_TOKEN` against a remote HQ — looked exactly like "HQ not
-   * running". Defaults to a single structured `console.warn` line.
+   * running". Emission is one-shot per instance and rate-limited process-wide
+   * via {@link HqPublisherOptions.connectWarnCooldownMs}. Defaults to a
+   * single structured `console.warn` line.
    */
   warn?: (message: string) => void;
   /** Logger for structured events. When provided, the `warn` callback is derived from it. */
@@ -143,6 +159,12 @@ const OPEN_STATE = 1;
  * server at this layer — the warning names both possibilities.
  */
 const CONNECT_WARN_AFTER_FAILURES = 5;
+/**
+ * Process-wide minimum gap between connect-failure warnings. Suppresses the
+ * burst of identical warnings when many publisher instances (one per agent)
+ * fail against the same dead/rejecting HQ at once.
+ */
+const DEFAULT_CONNECT_WARN_COOLDOWN_MS = 5 * 60_000;
 const DEFAULT_RECONNECT_BASE_MS = 1_000;
 const DEFAULT_RECONNECT_MAX_MS = 30_000;
 const DEFAULT_DISCOVERY_POLL_MS = 5_000;
@@ -167,6 +189,14 @@ const DEFAULT_MAX_QUEUED_BYTES = Math.min(
 const DEFAULT_COMMAND_POLL_INTERVAL_MS = 500;
 const DEFAULT_COMMAND_POLL_LIMIT = 25;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 25_000;
+
+/**
+ * Module-level timestamp (ms epoch) of the last emitted connect-failure
+ * warning in THIS process. Shared across all HqPublisher instances so a fleet
+ * of agents failing against the same HQ emits at most one warning per
+ * `connectWarnCooldownMs` window instead of a burst of identical lines.
+ */
+let lastConnectWarningAtMs = 0;
 
 interface QueuedFrame {
   serialized: string;
@@ -242,6 +272,8 @@ export class HqPublisher {
   private readonly reconnect: boolean;
   private readonly reconnectBaseMs: number;
   private readonly reconnectMaxMs: number;
+  private readonly connectWarnAfterFailures: number;
+  private readonly connectWarnCooldownMs: number;
   private readonly maxQueuedMessages: number;
   private readonly maxQueuedBytes: number;
   private readonly resolvedRedactionPolicy: HqRedactionPolicy;
@@ -285,6 +317,8 @@ export class HqPublisher {
     this.reconnect = options.reconnect ?? true;
     this.reconnectBaseMs = options.reconnectBaseMs ?? DEFAULT_RECONNECT_BASE_MS;
     this.reconnectMaxMs = options.reconnectMaxMs ?? DEFAULT_RECONNECT_MAX_MS;
+    this.connectWarnAfterFailures = options.connectWarnAfterFailures ?? CONNECT_WARN_AFTER_FAILURES;
+    this.connectWarnCooldownMs = options.connectWarnCooldownMs ?? DEFAULT_CONNECT_WARN_COOLDOWN_MS;
     this.maxQueuedMessages = options.maxQueuedMessages ?? DEFAULT_MAX_QUEUED_MESSAGES;
     this.maxQueuedBytes = options.maxQueuedBytes ?? DEFAULT_MAX_QUEUED_BYTES;
     this.resolvedRedactionPolicy = resolveHqRedactionPolicy(options.redactionPolicy);
@@ -799,9 +833,12 @@ export class HqPublisher {
     // One-time visibility for persistent failures. `reconnectAttempt` resets
     // on every successful open, so reaching the threshold means the endpoint
     // has NEVER accepted us in this streak — dead server or rejected token.
-    if (!this.connectWarningEmitted && this.reconnectAttempt >= CONNECT_WARN_AFTER_FAILURES) {
-      this.connectWarningEmitted = true;
-      this.emitConnectWarning();
+    if (!this.connectWarningEmitted && this.reconnectAttempt >= this.connectWarnAfterFailures) {
+      // Only a warning that actually EMITS marks this instance done: if the
+      // process-wide cooldown suppresses it (a sibling instance warned
+      // recently), keep re-checking so this instance still gets its one
+      // diagnostic once the window elapses.
+      if (this.emitConnectWarning()) this.connectWarningEmitted = true;
     }
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
@@ -810,7 +847,16 @@ export class HqPublisher {
     this.reconnectTimer.unref?.();
   }
 
-  private emitConnectWarning(): void {
+  private emitConnectWarning(): boolean {
+    const nowMs = Date.now();
+    // Process-wide cooldown: a burst of agents failing against the same HQ
+    // collapses to ONE warning per window. Suppressed instances do NOT mark
+    // themselves done (see scheduleReconnect) — they re-check on later
+    // failures and emit once the window elapses, still at most once each.
+    if (nowMs - lastConnectWarningAtMs < this.connectWarnCooldownMs) {
+      return false;
+    }
+    lastConnectWarningAtMs = nowMs;
     const attempt = this.lastAttempt;
     const message =
       `WrongStack HQ publisher: ${this.reconnectAttempt} consecutive connection failures` +
@@ -819,7 +865,7 @@ export class HqPublisher {
       'If HQ runs in client-token mode, verify WRONGSTACK_HQ_TOKEN / auth.json. Retries continue with backoff.';
     if (this.logger) {
       this.logger.warn(message, { event: 'hq.publisher.connect_failed' });
-      return;
+      return true;
     }
     const warn =
       this.options.warn ??
@@ -837,6 +883,7 @@ export class HqPublisher {
     } catch {
       /* diagnostics must never break publishing */
     }
+    return true;
   }
 
   /**

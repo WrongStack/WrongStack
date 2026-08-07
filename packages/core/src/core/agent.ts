@@ -232,14 +232,11 @@ export class Agent {
       });
     });
 
-    // Refresh the live context's tool mirror from the registry. The provider
-    // request reads `this.tools.list()` directly, but `ctx.tools` is a separate
-    // convenience snapshot — the one tools introspect (tool_search, tool-help,
-    // vision adapters) and request-token estimation reads. The Context is
-    // constructed before MCP / plugin / fleet tools register, so without this
-    // refresh `ctx.tools` stays empty and tool_search reports zero tools.
-    // Using the agent's own registry keeps filtered subagent rosters correct.
-    this.ctx.tools = this.tools.list();
+    // Keep provider accounting and lazy discovery separate. `ctx.tools` is the
+    // direct request surface; catalogTools remains executable through governed
+    // meta-tools without paying every schema on every provider call.
+    this.ctx.tools = this.tools.listForProvider();
+    this.ctx.catalogTools = this.tools.list();
 
     const span = this.tracer?.startSpan('agent.run', {
       'agent.model': opts.model ?? this.ctx.model,

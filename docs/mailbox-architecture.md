@@ -223,7 +223,13 @@ code.
 - **CLI:** `/mailbox` exposes inbox, agents, online agents, send, broadcast,
   history, clear, and stale purge.
 - **HTTP bridge:** `wstack mailbox serve` is a network façade. Its handlers
-  call `RemoteMailbox`; external clients never open SQLite.
+  call `RemoteMailbox`; external clients never open SQLite. It is **opt-in**:
+  `features.mailboxBridge` defaults to `off`, so no surface spawns it at boot.
+  Nothing inside WrongStack consumes the bridge — every in-process caller
+  reaches the mailbox over IPC — and the bridge is a full detached CLI process
+  with no idle shutdown, so it only runs when an external agent needs it. Start
+  it with `/mailbox-serve` or `wstack mailbox serve`, or set
+  `features.mailboxBridge: "auto"` to restore boot-time bootstrap.
 
 ## External MCP boundary
 

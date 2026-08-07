@@ -10,9 +10,10 @@
  *
  * Data source: `getCronJobs` callback wired to the agent's `cron_list` tool.
  */
-import { Box, Text, useInput } from '../ink.js';
-import { useEffect, useState } from 'react';
+
 import type React from 'react';
+import { useEffect, useState } from 'react';
+import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import {
@@ -22,6 +23,7 @@ import {
   panelWindow,
   truncatePanelText,
   useMonitorSize,
+  usePanelShortcutsEnabled,
 } from './monitor-shell.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -116,7 +118,9 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
         if (cancelled) return;
         setFetchError(String(err));
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [getCronJobs, tick]);
 
   const jobs = snapshot?.jobs ?? [];
@@ -150,6 +154,7 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
     size.contentWidth - nameWidth - intervalWidth - runsWidth - nextWidth - lastWidth - 14,
   );
 
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
     // Navigation
     if (key.upArrow) {
@@ -160,9 +165,9 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
       setSelectedIndex((prev) => Math.max(0, prev - pageSize));
     } else if (key.pageDown) {
       setSelectedIndex((prev) => Math.min(jobs.length - 1, prev + pageSize));
-    } else if (key.home || (key.ctrl && input === 'a') || input === 'g') {
+    } else if (key.home || (shortcutsEnabled && ((key.ctrl && input === 'a') || input === 'g'))) {
       setSelectedIndex(0);
-    } else if (key.end || (key.ctrl && input === 'e') || input === 'G') {
+    } else if (key.end || (shortcutsEnabled && ((key.ctrl && input === 'e') || input === 'G'))) {
       setSelectedIndex(Math.max(0, jobs.length - 1));
     }
     // Every other key falls through to the app's keyboard handler
@@ -193,11 +198,12 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
           </Text>
           <Text color={theme.textMuted}> / {count} jobs</Text>
           {overdueCount > 0 ? (
-            <Text color={theme.error}> {'●'} {overdueCount} overdue</Text>
+            <Text color={theme.error}>
+              {' '}
+              {'●'} {overdueCount} overdue
+            </Text>
           ) : null}
-          {totalRuns > 0 ? (
-            <Text color={theme.textMuted}> · {totalRuns} runs</Text>
-          ) : null}
+          {totalRuns > 0 ? <Text color={theme.textMuted}> · {totalRuns} runs</Text> : null}
         </Text>
       }
       footer={
@@ -234,9 +240,7 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
         />
       ) : null}
 
-      {pw.above > 0 ? (
-        <Text color={theme.textMuted}> ↑ {pw.above} earlier jobs</Text>
-      ) : null}
+      {pw.above > 0 ? <Text color={theme.textMuted}> ↑ {pw.above} earlier jobs</Text> : null}
 
       {/* Job list */}
       {visible.map((job, i) => {
@@ -256,31 +260,20 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
               {isSelected ? '› ' : '  '}
             </Text>
             <Text color={c}>{g} </Text>
-            <Text
-              color={isSelected ? theme.textPrimary : c}
-              bold={isSelected}
-            >
+            <Text color={isSelected ? theme.textPrimary : c} bold={isSelected}>
               {name}
             </Text>
             <Text color={theme.textMuted}> {interval}</Text>
             <Text color={theme.textMuted}> {runs}</Text>
-            {nextWidth >= 8 ? (
-              <Text color={theme.textMuted}> {next}</Text>
-            ) : null}
-            {lastWidth >= 8 ? (
-              <Text color={theme.textMuted}> {last}</Text>
-            ) : null}
+            {nextWidth >= 8 ? <Text color={theme.textMuted}> {next}</Text> : null}
+            {lastWidth >= 8 ? <Text color={theme.textMuted}> {last}</Text> : null}
             <Box flexGrow={1} />
-            {actionWidth >= 6 ? (
-              <Text color={theme.textMuted}>{action}</Text>
-            ) : null}
+            {actionWidth >= 6 ? <Text color={theme.textMuted}>{action}</Text> : null}
           </Box>
         );
       })}
 
-      {pw.below > 0 ? (
-        <Text color={theme.textMuted}> ↓ {pw.below} more jobs</Text>
-      ) : null}
+      {pw.below > 0 ? <Text color={theme.textMuted}> ↓ {pw.below} more jobs</Text> : null}
     </MonitorShell>
   );
 }

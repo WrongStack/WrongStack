@@ -766,6 +766,8 @@
     "councilMaxConcurrencyHint": "Cuántos escaños votan en paralelo. Redúcelo cuando el pool comparte un proveedor con límite de tasa.",
     "councilDistinctnessLabel": "Distinción de escaños",
     "councilDistinctnessHint": "Rechazar escaños duplicados: 'model' exige modelos distintos, 'provider' proveedores independientes para que una caída no pueda inclinar el voto.",
+    "councilVoterBudgetLabel": "Presupuesto de respuesta del votante",
+    "councilVoterBudgetHint": "Tokens de salida por llamada de asiento — los modelos de razonamiento gastan sus tokens de pensamiento de este presupuesto.",
     "councilJudgeBudgetLabel": "Presupuesto de respuesta del juez",
     "councilJudgeBudgetHint": "Tokens de salida para la llamada del juez de desempate.",
     "councilSeatTemplate": "Plantilla de escaño:",

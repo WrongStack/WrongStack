@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { renderMarkdownTables, strWidth } from '../src/markdown-table.js';
 import {
+  assistantContentWidth,
   MESSAGE_PANEL_BORDER_WIDTH,
   MESSAGE_PANEL_CHROME_WIDTH,
-  assistantContentWidth,
 } from '../src/components/history/assistant.js';
+import { renderMarkdownTables, strWidth } from '../src/markdown-table.js';
 
 /**
  * Regression test for assistant panel table width budget calculations.
@@ -97,16 +97,15 @@ describe('assistant panel — table width budget', () => {
 describe('assistantContentWidth (the helper)', () => {
   // The assistant Entry render and these tests share this helper, so
   // any drift between them is a TypeScript error or a test failure.
-  it('subtracts only the chrome from termWidth and floors at 20', () => {
+  it('subtracts only the chrome from termWidth', () => {
     // chrome(2) = 2 columns subtracted; panels are now full-width (no margins)
     expect(assistantContentWidth(80)).toBe(78);
     expect(assistantContentWidth(120)).toBe(118);
   });
 
-  it('clamps to 20 at very small terminal widths', () => {
-    // 10-col terminal - 2 chrome = 8 → clamped to 20 so a tiny window
-    // doesn't render an unparseable 1-char-wide table.
-    expect(assistantContentWidth(10)).toBe(20);
-    expect(assistantContentWidth(5)).toBe(20);
+  it('never allocates more columns than a tiny terminal provides', () => {
+    expect(assistantContentWidth(10)).toBe(8);
+    expect(assistantContentWidth(5)).toBe(3);
+    expect(assistantContentWidth(1)).toBe(1);
   });
 });

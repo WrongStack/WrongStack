@@ -183,8 +183,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // plugin_manager gets a ref-backed getter that starts null and is filled
   // once wiring completes. Until then the nested `use` path simply runs
   // without hooks — the same window in which no tool call runs at all.
-  const hookRunnerRef: { current: import('@wrongstack/core/tools').PluginManagerHookRunner | null } =
-    { current: null };
+  const hookRunnerRef: {
+    current: import('@wrongstack/core/tools').PluginManagerHookRunner | null;
+  } = { current: null };
   registerCliManagementTools({
     toolRegistry,
     configStore,
@@ -245,7 +246,8 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const systemPrompt = await promptBuilder.build({
     cwd,
     projectRoot,
-    tools: toolRegistry.list(),
+    tools: toolRegistry.listForProvider(),
+    catalogTools: toolRegistry.list(),
     provider: config.provider,
     model: config.model,
     onlineAgents,
@@ -502,10 +504,8 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     statusTracker,
     wrapProviderCall: (request, inner) =>
       agent.extensions.wrapProviderRunner(
-        (
-          _ctx: typeof agent.ctx,
-          wrappedRequest: import('@wrongstack/core/types').Request,
-        ) => inner(wrappedRequest),
+        (_ctx: typeof agent.ctx, wrappedRequest: import('@wrongstack/core/types').Request) =>
+          inner(wrappedRequest),
         // OneShotOrchestrator owns the selected provider and fallback chain.
         // The agent-loop fallback wrapper routes from and mutates agent.ctx,
         // which may describe a different provider/model than this utility call.

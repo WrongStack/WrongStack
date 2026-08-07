@@ -80,6 +80,18 @@ function makePayload(overrides: Partial<ToolCallPipelinePayload> = {}): ToolCall
   } as ToolCallPipelinePayload;
 }
 
+function memoryEvidenceText(payload: ToolCallPipelinePayload): string {
+  return (
+    (
+      payload.ctx as ToolCallPipelinePayload['ctx'] & {
+        memoryEvidence?: Array<{ source: string; text: string }>;
+      }
+    ).memoryEvidence
+      ?.map((entry) => entry.text)
+      .join('\n') ?? ''
+  );
+}
+
 describe('SageToolCallMiddleware — disabled and no-trigger scenarios', () => {
   it('skips entirely when enabled is false', async () => {
     const store = makeStore();
@@ -216,7 +228,8 @@ describe('SageToolCallMiddleware — patch tool', () => {
     });
 
     await mw.handler(payload as never, async (p) => p);
-    expect(payload.result.content).toContain('Memory for patched file');
+    expect(payload.result.content).not.toContain('Memory for patched file');
+    expect(memoryEvidenceText(payload)).toContain('Memory for patched file');
   });
 });
 
@@ -304,7 +317,7 @@ describe('SageToolCallMiddleware — tool name variants', () => {
       },
     });
     await mw.handler(payload as never, async (p) => p);
-    expect(payload.result.content).toContain('finds this memory');
+    expect(memoryEvidenceText(payload)).toContain('finds this memory');
   });
 
   it('does NOT trigger injection for exec tool', async () => {
@@ -336,7 +349,12 @@ describe('SageToolCallMiddleware — tool name variants', () => {
     });
     const mw = createSageToolCallMiddleware({ memory: store, repeatCooldownMs: 0 });
     const payload = makePayload({
-      toolUse: { type: 'tool_use', id: 'tu_task', name: 'read', input: { path: 'node-version.txt' } },
+      toolUse: {
+        type: 'tool_use',
+        id: 'tu_task',
+        name: 'read',
+        input: { path: 'node-version.txt' },
+      },
       result: { type: 'tool_result', tool_use_id: 'tu_task', name: 'read', content: 'v24' },
       ctx: {
         projectRoot: tmpDir,
@@ -392,7 +410,7 @@ describe('SageToolCallMiddleware — result path extraction', () => {
       },
     });
     await mw.handler(payload as never, async (p) => p);
-    expect(payload.result.content).toContain('Memory for test file');
+    expect(memoryEvidenceText(payload)).toContain('Memory for test file');
   });
 });
 
@@ -452,7 +470,7 @@ describe('SageToolCallMiddleware — cooldown for high importance memory', () =>
     });
     // First call - injects
     await mw.handler(payload as never, async (p) => p);
-    expect(payload.result.content).toContain('Critical high importance memory');
+    expect(memoryEvidenceText(payload)).toContain('Critical high importance memory');
 
     // Second call immediately - should skip even for high importance
     const payload2 = makePayload({
@@ -479,7 +497,7 @@ describe('SageToolCallMiddleware — availableHintChars', () => {
     (payload as any).tool = { maxOutputBytes: 2000 };
     await mw.handler(payload as never, async (p) => p);
     // Should still inject with available chars
-    expect(payload.result.content).toContain('Memory for');
+    expect(memoryEvidenceText(payload)).toContain('Memory for');
   });
 });
 
@@ -523,7 +541,12 @@ describe('SageToolCallMiddleware — no memories match', () => {
 });
 
 describe('SageToolCallMiddleware — anchored to the file, once per session', () => {
-  async function readOnce(store: TestMemory, file: string, session: string, mw = createSageToolCallMiddleware({ memory: store })) {
+  async function readOnce(
+    store: TestMemory,
+    file: string,
+    session: string,
+    mw = createSageToolCallMiddleware({ memory: store }),
+  ) {
     const payload = makePayload({
       toolUse: { type: 'tool_use', id: `tu_${file}`, name: 'read', input: { path: file } },
       result: { type: 'tool_result', tool_use_id: `tu_${file}`, name: 'read', content: 'source' },
@@ -535,7 +558,7 @@ describe('SageToolCallMiddleware — anchored to the file, once per session', ()
       } as never,
     });
     await mw.handler(payload, async (p) => p);
-    return payload.result.content;
+    return memoryEvidenceText(payload);
   }
 
   it('injects the memory anchored to the file and not the same-basename one from another package', async () => {
@@ -575,7 +598,7 @@ describe('SageToolCallMiddleware — anchored to the file, once per session', ()
     expect(first).toContain('webui store keeps the full messages array');
     // The model has already been given this text. Sending it again spends
     // context to say nothing new.
-    expect(second).toBe('source');
+    expect(second).toBe('');
   });
 
   it('does not attach a project-wide note to every file under it', async () => {
@@ -590,7 +613,7 @@ describe('SageToolCallMiddleware — anchored to the file, once per session', ()
 
     // `packages/` sits above half the repository. An anchor that broad is a
     // project note, not evidence about one file.
-    expect(content).toBe('source');
+    expect(content).toBe('');
   });
 });
 
@@ -679,8 +702,8 @@ describe('SageToolCallMiddleware — relevance gates', () => {
 
     await mw.handler(payload, async (next) => next);
 
-    expect(payload.result.content).toContain('Store retrieval scoring requires evidence.');
-    expect(payload.result.content).not.toContain('Telegram outbound queue');
+    expect(memoryEvidenceText(payload)).toContain('Store retrieval scoring requires evidence.');
+    expect(memoryEvidenceText(payload)).not.toContain('Telegram outbound queue');
   });
 
   it('caps opted-in lexical-only injection at two memories per tool result', async () => {
@@ -730,10 +753,10 @@ describe('SageToolCallMiddleware — relevance gates', () => {
 
     await mw.handler(payload, async (next) => next);
 
-    expect(payload.result.content).toContain('uses the session service');
-    expect(payload.result.content).toContain('invalidates old tokens');
-    expect(payload.result.content).not.toContain('emits an audit event');
-    expect(payload.result.content).not.toContain('Unrelated graph expansion');
+    expect(memoryEvidenceText(payload)).toContain('uses the session service');
+    expect(memoryEvidenceText(payload)).toContain('invalidates old tokens');
+    expect(memoryEvidenceText(payload)).not.toContain('emits an audit event');
+    expect(memoryEvidenceText(payload)).not.toContain('Unrelated graph expansion');
     expect(findRelatedSage).not.toHaveBeenCalled();
   });
 });

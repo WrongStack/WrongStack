@@ -1,9 +1,9 @@
-import { Box, Text, useInput } from '../ink.js';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import type { QueueItem } from '../app-state.js';
+import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
-import type { QueueItem } from '../app-state.js';
 import {
   EmptyPanelState,
   KeyCap,
@@ -11,6 +11,7 @@ import {
   panelWindow,
   truncatePanelText,
   useMonitorSize,
+  usePanelShortcutsEnabled,
 } from './monitor-shell.js';
 
 /**
@@ -46,11 +47,16 @@ export function QueuePanel({
     if (confirmClear && items.length === 0) setConfirmClear(false);
   }, [items.length, confirmClear]);
 
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   const handler = useCallback(
     (_input: string, key: { upArrow: boolean; downArrow: boolean; return: boolean }) => {
       if (key.upArrow) setSelected((value) => Math.max(0, value - 1));
       else if (key.downArrow) {
         setSelected((value) => Math.min(Math.max(0, items.length - 1), value + 1));
+      } else if (!shortcutsEnabled) {
+        // Letter shortcuts (edit/delete/clear/refine) stay inert while the
+        // composer holds a draft — the user is typing a message, not driving
+        // the queue.
       } else if (_input === 'e' && items.length > 0) {
         setConfirmClear(false); // any non-cancel action disarms the confirm flow
         // 'e' for edit — restores selected item's text to the composer.
@@ -72,7 +78,16 @@ export function QueuePanel({
         setConfirmClear(false);
       }
     },
-    [items.length, selected, confirmClear, onDelete, onClear, onEdit, onToggleRefine],
+    [
+      items.length,
+      selected,
+      confirmClear,
+      onDelete,
+      onClear,
+      onEdit,
+      onToggleRefine,
+      shortcutsEnabled,
+    ],
   );
   useInput(handler);
 
@@ -94,11 +109,13 @@ export function QueuePanel({
           <KeyCap keyName="e" label="edit" color={theme.textMuted} />
           <KeyCap keyName="r" label="refine" color={theme.textMuted} />
           {items.length > 0 ? (
-            <KeyCap keyName="c" label={confirmClear ? 'confirm' : 'clear'} color={confirmClear ? theme.warn : theme.textMuted} />
+            <KeyCap
+              keyName="c"
+              label={confirmClear ? 'confirm' : 'clear'}
+              color={confirmClear ? theme.warn : theme.textMuted}
+            />
           ) : null}
-          {confirmClear ? (
-            <Text color={theme.warn}> Clear all? (c=yes, x=cancel)</Text>
-          ) : null}
+          {confirmClear ? <Text color={theme.warn}> Clear all? (c=yes, x=cancel)</Text> : null}
           <Box flexGrow={1} />
           <KeyCap keyName="F7" label="close" color={theme.accent} />
         </Box>
@@ -119,8 +136,7 @@ export function QueuePanel({
             return (
               <Box key={item.id} flexDirection="row" flexShrink={0} paddingX={1}>
                 <Text color={isSelected ? theme.accent : theme.textMuted} bold>
-                  {isSelected ? '›' : ' '}{' '}
-                  {String(idx + 1).padStart(2)}
+                  {isSelected ? '›' : ' '} {String(idx + 1).padStart(2)}
                 </Text>
                 <Text color={theme.textMuted}> {idx === 0 ? 'NEXT' : 'WAIT'}</Text>
                 <Text color={isSelected ? theme.textPrimary : theme.textSecondary}>

@@ -5,6 +5,8 @@ description: |
   branches, pull requests, or merge strategies in a WrongStack project session.
   Triggers: user mentions "commit", "branch", "PR", "merge", "rebase", "stash", "diff".
 version: 1.2.0
+required-capabilities: [version-control.manage]
+required-tools: [test]
 ---
 
 # Git Workflow — WrongStack

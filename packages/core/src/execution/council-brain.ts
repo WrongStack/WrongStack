@@ -19,25 +19,8 @@
  * @module council-brain
  */
 
-import type {
-  BrainArbiter,
-  BrainDecision,
-  BrainDecisionRequest,
-} from '../coordination/brain.js';
-import {
-  completeBrainLlmDetailed,
-  type BrainLlmTarget,
-} from './autonomy-brain.js';
+import type { BrainArbiter, BrainDecision, BrainDecisionRequest } from '../coordination/brain.js';
 import type { EventBus } from '../kernel/events.js';
-import {
-  CouncilOrchestrator,
-  DEFAULT_COUNCIL_MAX_CONCURRENCY,
-} from './council-orchestrator.js';
-import { DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS } from './council-profiles.js';
-import {
-  type CouncilPersonaRegistry,
-  DEFAULT_COUNCIL_PERSONA_REGISTRY,
-} from './council-personas.js';
 import type {
   CouncilLLMCaller,
   CouncilModelTarget,
@@ -46,6 +29,13 @@ import type {
 } from '../types/council.js';
 import type { OneShotLLMInput, OneShotLLMResult } from '../types/one-shot-llm.js';
 import type { Provider } from '../types/provider.js';
+import { type BrainLlmTarget, completeBrainLlmDetailed } from './autonomy-brain.js';
+import { CouncilOrchestrator, DEFAULT_COUNCIL_MAX_CONCURRENCY } from './council-orchestrator.js';
+import {
+  type CouncilPersonaRegistry,
+  DEFAULT_COUNCIL_PERSONA_REGISTRY,
+} from './council-personas.js';
+import { DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS } from './council-profiles.js';
 
 /**
  * Refusal option id used by the Brain adapter. Re-exported from the
@@ -83,12 +73,25 @@ export interface CouncilBrainOptions {
   quorumFraction?: number | undefined;
   /** Winning option weight must exceed this fraction. Default 0.5. */
   approvalFraction?: number | undefined;
-  /** Per-voter completion timeout in ms. Default 15 000. */
+  /**
+   * Per-voter completion timeout in ms. Default
+   * {@link BRAIN_COUNCIL_DEFAULT_PER_CALL_TIMEOUT_MS} (45s) — a council
+   * convenes for high-stakes decisions only, and reasoning models routinely
+   * take longer than the single-LLM tier's 15s before their first token.
+   */
   decisionTimeoutMs?: number | undefined;
   /** Seats polled concurrently, 1..8. Default 3 (the orchestrator's default). */
   maxConcurrency?: number | undefined;
   /** Panel-diversity warning policy. Default 'none'. */
   distinctness?: 'none' | 'model' | 'provider' | undefined;
+  /**
+   * Output budget per voter seat call. Default
+   * {@link BRAIN_COUNCIL_DEFAULT_VOTER_MAX_TOKENS}. Reasoning models spend
+   * their thinking tokens from this same budget, so the orchestrator's
+   * generic 300-token default starves them into `invalid` votes (empty or
+   * truncated JSON).
+   */
+  voterMaxTokens?: number | undefined;
   /** Output budget for the judge call. */
   judgeMaxTokens?: number | undefined;
   /** Optional digest of past decisions for context. */
@@ -185,6 +188,30 @@ function resolvePersonaRegistry(voters: readonly CouncilVoter[]): {
 // ── Factory ────────────────────────────────────────────────────────────────
 
 /**
+ * Default output budget per Brain-council voter seat.
+ *
+ * Deliberately larger than the orchestrator's generic 300-token default
+ * (`DEFAULT_COUNCIL_VOTER_MAX_TOKENS`): a vote is still just one optionId
+ * plus a short rationale, but reasoning models (deepseek-v4, glm, kimi, …)
+ * burn their chain-of-thought from the same `maxTokens` budget before any
+ * visible text appears. 300 reliably produced empty/truncated responses →
+ * `invalid` votes; 2000 leaves room to think and answer. Override via
+ * `brain.council.voterMaxTokens`.
+ */
+export const BRAIN_COUNCIL_DEFAULT_VOTER_MAX_TOKENS = 2000;
+
+/**
+ * Default per-seat completion timeout for the Brain council.
+ *
+ * Deliberately larger than the single-LLM tier's 15s: the council only
+ * convenes for high-stakes questions, and reasoning models on the panel
+ * often need more than 15s before their first visible token — at 15s they
+ * surfaced as `failed` seats on every convene. Override via
+ * `brain.council.perCallTimeoutMs` (or `brain.decisionTimeoutMs`).
+ */
+export const BRAIN_COUNCIL_DEFAULT_PER_CALL_TIMEOUT_MS = 45_000;
+
+/**
  * Build the per-seat LLM caller that wraps `completeBrainLlmDetailed` for
  * one BrainLlmTarget. Exported so tests can drive the exact production
  * wiring: it forwards the orchestrator's `input.signal` (overall budget +
@@ -200,14 +227,20 @@ export function makeSeatCallerForVoter(target: BrainLlmTarget): CouncilLLMCaller
         const result = await completeBrainLlmDetailed(
           { provider: target.provider, model: input.model ?? target.model },
           {
-            system: typeof input.system === 'string'
-              ? input.system
-              : Array.isArray(input.system)
-                ? input.system.map((b) => b.text).join('\n')
-                : '',
+            system:
+              typeof input.system === 'string'
+                ? input.system
+                : Array.isArray(input.system)
+                  ? input.system.map((b) => b.text).join('\n')
+                  : '',
             user: input.userPrompt ?? '',
             timeoutMs: input.timeoutMs ?? 15_000,
             maxTokens: input.maxTokens,
+            // Forward the orchestrator's requested wire format. The
+            // orchestrator asks for json_object on every seat/judge call;
+            // dropping it here left JSON emission to prompt persuasion,
+            // which is exactly what reasoning-heavy models ignore.
+            responseFormat: input.responseFormat,
             // Forward the orchestrator's signal (overall budget + caller
             // cancellation) so an in-flight seat call is interrupted when
             // the council times out or is cancelled instead of running to
@@ -232,6 +265,11 @@ export function makeSeatCallerForVoter(target: BrainLlmTarget): CouncilLLMCaller
           },
           durationMs: Date.now() - startedAt,
           fromFallback: false,
+          // Carried so the orchestrator can tell "model returned garbage"
+          // apart from "model was cut off at maxTokens" when a vote fails
+          // to parse — without it every truncation reads as `invalid` with
+          // a misleading "did not contain JSON" error.
+          stopReason: result.stopReason,
         };
       } catch (error) {
         return {
@@ -302,7 +340,7 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
       } satisfies CouncilModelTarget)
     : false;
 
-  const perCallTimeoutMs = opts.decisionTimeoutMs ?? 15_000;
+  const perCallTimeoutMs = opts.decisionTimeoutMs ?? BRAIN_COUNCIL_DEFAULT_PER_CALL_TIMEOUT_MS;
   // The overall budget must cover the whole panel: the seat calls run in
   // waves of `maxConcurrency` (worst case ceil(seats / concurrency) waves)
   // plus one final judge call, each budgeted at perCallTimeoutMs. Before
@@ -329,6 +367,12 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
     approvalFraction: opts.approvalFraction ?? 0.5,
     perCallTimeoutMs,
     overallTimeoutMs,
+    // Never fall through to the orchestrator's generic 300-token default:
+    // Brain panels are routinely built from reasoning models whose thinking
+    // tokens count against this budget, and 300 starves them into `invalid`
+    // votes (empty or mid-JSON truncated output). See
+    // BRAIN_COUNCIL_DEFAULT_VOTER_MAX_TOKENS.
+    voterMaxTokens: opts.voterMaxTokens ?? BRAIN_COUNCIL_DEFAULT_VOTER_MAX_TOKENS,
     ...(opts.judgeMaxTokens !== undefined ? { judgeMaxTokens: opts.judgeMaxTokens } : {}),
     distinctness: opts.distinctness ?? 'none',
   };
@@ -343,9 +387,7 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
     // default of 3 concurrent seats no matter how many voters were configured.
     ...(opts.maxConcurrency !== undefined ? { maxConcurrency: opts.maxConcurrency } : {}),
     seatCaller,
-    judgeCaller: opts.judge
-      ? makeSeatCallerForVoter(opts.judge)
-      : undefined,
+    judgeCaller: opts.judge ? makeSeatCallerForVoter(opts.judge) : undefined,
   });
 
   const abstain = (request: BrainDecisionRequest, why: string): BrainDecision => ({
@@ -391,9 +433,7 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
             providerId: vote.provider,
             model: vote.model,
             optionId: vote.optionId,
-            ...(opts.traceContent
-              ? { stance: vote.stance, rationale: vote.rationale }
-              : {}),
+            ...(opts.traceContent ? { stance: vote.stance, rationale: vote.rationale } : {}),
             weight: seat?.weight,
             veto: seat?.veto,
             durationMs: vote.durationMs,

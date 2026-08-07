@@ -48,18 +48,36 @@ const POINTER_OVERLAY_ROUTES: readonly PointerOverlayRoute[] = [
   { isOpen: (s) => s.shadowPanel.open, cancel: () => ({ type: 'shadowClose' }) },
   { isOpen: (s) => s.statuslinePicker.open, cancel: () => ({ type: 'statuslineClose' }) },
   { isOpen: (s) => s.projectPicker.open, cancel: () => ({ type: 'projectPickerClose' }) },
+  { isOpen: (s) => s.sessionsPanelOpen, cancel: () => ({ type: 'toggleSessionsPanel' }) },
   { isOpen: (s) => s.slashPicker.open, cancel: () => ({ type: 'slashPickerClose' }) },
   { isOpen: (s) => s.fKeyPicker.open, cancel: () => ({ type: 'fKeyPickerClose' }) },
   { isOpen: (s) => s.picker.open, cancel: () => ({ type: 'pickerClose' }) },
 ];
 
+/**
+ * Terminal geometry for pointer→key mapping. `viewportRows` is the managed
+ * history band height; every selectable overlay renders BELOW it (see
+ * hit-test.ts's layout contract), so a left press only maps to Enter when it
+ * lands in that bottom region. Without this gate a stray click anywhere on
+ * screen — including deep in the chat history — confirmed the focused item
+ * of whatever picker happened to be open (worst case: the project picker,
+ * where confirm triggers an exit-42 respawn).
+ */
+export interface PointerOverlayGeometry {
+  termRows: number;
+  viewportRows: number;
+}
+
 export function overlayPointerKey(
   state: State,
   input: string,
   key: KeyEvent,
+  geometry: PointerOverlayGeometry,
 ): { isEnter: boolean; cancelAction: Action | null } {
   const route = POINTER_OVERLAY_ROUTES.find((candidate) => candidate.isOpen(state));
-  const leftPress = key.mouse?.kind === 'press' && key.mouse.button === 'left';
+  const inBottomRegion =
+    !!key.mouse && key.mouse.y > geometry.viewportRows && key.mouse.y <= geometry.termRows;
+  const leftPress = key.mouse?.kind === 'press' && key.mouse.button === 'left' && inBottomRegion;
   const rightPress = key.mouse?.kind === 'press' && key.mouse.button === 'right';
   return {
     isEnter: key.return || input === '\r' || input === '\n' || (!!route && leftPress),
@@ -78,13 +96,14 @@ export interface BusyInterruptKeyHost {
   liveDirector(): Director | null;
 }
 
-/** Handle Esc-to-steer, including optional confirmation and fleet teardown. */
+/**
+ * Handle Esc-to-steer, including optional confirmation and fleet teardown.
+ * Open panels never reach this: `handleKey` routes Esc through
+ * `escCloseAction` / `escSelfOwnedPanelOpen` first, so by the time this
+ * runs an Esc press really means "interrupt the run".
+ */
 export function routeBusyInterruptKey(host: BusyInterruptKeyHost, key: KeyEvent): boolean {
   const { state, dispatch } = host;
-  if (key.escape && state.agentsMonitorOpen) {
-    dispatch({ type: 'toggleAgentsMonitor' });
-    return true;
-  }
   if (
     !key.escape ||
     state.status === 'idle' ||
@@ -190,6 +209,9 @@ export function routeModalOverlayKey(
     }
     return true;
   }
+  // The remote topic check is a short, bounded pre-submit gate. Consume keys
+  // while it owns the composer so a second Enter cannot duplicate the submit.
+  if (state.topicCheckBusy) return true;
   if (state.enhanceBusy) {
     if (key.escape) {
       host.enhanceCancelled.current = true;
@@ -197,13 +219,32 @@ export function routeModalOverlayKey(
     }
     return true;
   }
+  // The pre-refine grace countdown owns every key while it is up. Its own
+  // useInput decides proceed/skip/cancel; the composer must not ALSO see the
+  // key. It is the one modal that opens while `buffer` still holds the
+  // submitted text (clearDraft runs after refinement), so a leaked Enter
+  // re-submitted the same prompt and started a SECOND refine flow — two
+  // PROMPT REFINER panels, one wedged at "refining in 0s…" forever because
+  // its resolve was orphaned, permanently eating history viewport rows.
   if (
+    state.refineCountdown ||
     state.enhance ||
     state.refineFailure ||
     state.continueConfirm ||
     state.escConfirm ||
     state.sendModePicker
   ) {
+    return true;
+  }
+  // Overlays with their own useInput handler (broadcast delivery still
+  // reaches them): consume everything centrally so Enter doesn't ALSO
+  // submit the composer, arrows don't ALSO walk input history, and Esc
+  // doesn't ALSO trigger the busy-interrupt ladder.
+  //  - fallbackOverlay: Enter picks a model / Esc accepts auto-switch
+  //    (fallback-overlay.tsx)
+  //  - rewindOverlay: Enter performs a destructive session rewind
+  //    (checkpoint-timeline.tsx)
+  if (state.fallbackOverlay != null || state.rewindOverlay != null) {
     return true;
   }
   if (state.helpOpen) {
@@ -331,31 +372,17 @@ export function routeSettingsOverlayKey(
   return true;
 }
 
-/** Panels below the statusline own navigation/scroll keys while open. */
-export function isLowerOverlayOpen(state: State): boolean {
-  return (
-    state.monitorOpen ||
-    state.agentsMonitorOpen ||
-    state.worktreeMonitorOpen ||
-    state.planPanelOpen ||
-    state.kanbanPanelOpen ||
-    state.todosMonitorOpen ||
-    state.queuePanelOpen ||
-    state.processListOpen ||
-    state.goalPanelOpen ||
-    state.sessionsPanelOpen ||
-    state.coordinator.monitorOpen ||
-    state.helpOpen ||
-    (state.goalRun?.monitorOpen ?? false) ||
-    state.rewindOverlay !== null
-  );
-}
-
-/** Close the highest-priority panel on Esc and keep ProcessList modal. */
+/**
+ * Close the highest-priority panel on Esc and keep ProcessList modal.
+ * `processListOnBottom` carries the panel-position routing: when the process
+ * list is routed to the sidebar its modal `useInput` never mounts, so
+ * swallowing every key here froze the composer with no visible panel.
+ */
 export function routePanelEscapeKey(
   state: State,
   key: KeyEvent,
   dispatch: (action: Action) => void,
+  processListOnBottom: boolean,
 ): boolean {
   if (key.escape) {
     const action = escCloseAction(state);
@@ -364,5 +391,5 @@ export function routePanelEscapeKey(
       return true;
     }
   }
-  return state.processListOpen;
+  return state.processListOpen && processListOnBottom;
 }

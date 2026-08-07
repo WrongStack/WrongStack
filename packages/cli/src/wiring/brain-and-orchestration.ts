@@ -19,11 +19,12 @@ import {
 import { TOKENS } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { createMcpControlTool, createMcpUseTool } from '@wrongstack/core/tools';
-import type {
-  Config,
-  Provider,
-  SecretVault,
-  SessionWriter,
+import {
+  type Config,
+  normalizeTokenSavingTier,
+  type Provider,
+  type SecretVault,
+  type SessionWriter,
 } from '@wrongstack/core/types';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
 import { MultiAgentHost } from '../multi-agent.js';
@@ -445,6 +446,7 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       events,
     }),
   );
+  toolRegistry.exposeToProvider('delegate');
 
   // mcp_control tool
   toolRegistry.register(
@@ -454,15 +456,21 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       registry: mcpRegistry,
     }),
   );
+  if (normalizeTokenSavingTier(config.features.tokenSavingMode) !== 'off') {
+    toolRegistry.exposeToProvider('mcp_control');
+  }
 
-  // mcp_use tool — meta-tool for token-saving mode
-  if (config.features.tokenSavingMode) {
-    toolRegistry.register(
-      createMcpUseTool({
-        registry: mcpRegistry,
-        toolRegistry,
-      }),
-    );
+  // Stable MCP gateway. Keep it registered even in full/direct mode because
+  // roster capabilities and skills refer to the gateway, never to a specific
+  // server's dynamic `mcp__...` tool name.
+  toolRegistry.register(
+    createMcpUseTool({
+      registry: mcpRegistry,
+      toolRegistry,
+    }),
+  );
+  if (normalizeTokenSavingTier(config.features.tokenSavingMode) !== 'off') {
+    toolRegistry.exposeToProvider('mcp_use');
   }
 
   return {

@@ -17,12 +17,17 @@
 
 import type React from 'react';
 import { Box, Text } from '../../ink.js';
-import { displayWidth } from '../../terminal-width.js';
+import {
+  displayWidth,
+  sanitizeTerminalText,
+  truncateDisplay,
+  truncateDisplayStart,
+} from '../../terminal-width.js';
 import { theme } from '../../theme.js';
 import { getToolVisual } from '../../tool-glyph.js';
 import { glyphs } from '../../ui-glyphs.js';
-import type { HistoryEntry } from './types.js';
 import { DIFF_MAX_LINES, MULTI_DIFF_MAX_ROWS } from './code-block.js';
+import type { HistoryEntry } from './types.js';
 import { formatToolArgs, parseSageMemoryLine, resolveEntrySage } from './utils.js';
 
 // ── Types ──
@@ -80,19 +85,18 @@ const MAX_TEXT_ESTIMATE_ROWS = 200;
  */
 function estimateTextRows(text: string, contentWidth: number, maxRows: number): number {
   if (!text) return 1;
-  const width = Math.max(16, contentWidth);
+  const safeText = sanitizeTerminalText(text);
+  const width = Math.max(1, contentWidth);
   let rows = 0;
-  let lineWidth = 0;
-  for (const char of text) {
-    if (char === '\n') {
-      rows += Math.max(1, Math.ceil(lineWidth / width));
+  let lineStart = 0;
+  for (let index = 0; index < safeText.length; index++) {
+    if (safeText[index] === '\n') {
+      rows += Math.max(1, Math.ceil(displayWidth(safeText.slice(lineStart, index)) / width));
       if (rows >= maxRows) return maxRows;
-      lineWidth = 0;
-      continue;
+      lineStart = index + 1;
     }
-    lineWidth += displayWidth(char);
   }
-  rows += Math.max(1, Math.ceil(lineWidth / width));
+  rows += Math.max(1, Math.ceil(displayWidth(safeText.slice(lineStart)) / width));
   return Math.min(maxRows, Math.max(1, rows));
 }
 
@@ -126,35 +130,41 @@ export function estimateRenderGroupRows(
     const { cleanOutput, sageLines } = resolveEntrySage(entry.output, entry.sageLines);
     const memoryLines = sageLines.slice(1);
     // When sage inject is hidden, skip the panel entirely in height estimation.
-    const panelContentWidth = Math.max(16, contentWidth - 4);
-    const sagePanelRows = showSageMemoryInject === false || memoryLines.length === 0
-      ? 0
-      : 2 +
-        estimateTextRows(
-          `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${entry.sageStats ? ` · ${entry.sageStats}` : ''}`,
-          panelContentWidth,
-          MAX_TEXT_ESTIMATE_ROWS,
-        ) +
-        memoryLines.reduce((rows, line) => {
-          const parsed = parseSageMemoryLine(line);
-          if (!parsed) {
-            return rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
-          }
-          const labelRow = estimateTextRows(
-            parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]',
+    const panelContentWidth = Math.max(1, contentWidth - 4);
+    const sagePanelRows =
+      showSageMemoryInject === false || memoryLines.length === 0
+        ? 0
+        : 2 +
+          estimateTextRows(
+            `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${entry.sageStats ? ` · ${entry.sageStats}` : ''}`,
             panelContentWidth,
             MAX_TEXT_ESTIMATE_ROWS,
-          );
-          const bodyRow = estimateTextRows(parsed.text, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
-          const kvCells: string[] = [];
-          kvCells.push(`id: ${parsed.id}`);
-          if (parsed.anchor) kvCells.push(`anchor: ${parsed.anchor}`);
-          if (parsed.relation) kvCells.push(`relation: ${parsed.relation}`);
-          if (parsed.tags && parsed.tags.length > 0) kvCells.push(`tags: ${parsed.tags.join(', ')}`);
-          const kvRows = estimateSageKvRows(kvCells, panelContentWidth);
-          const gap = rows > 0 ? 1 : 0;
-          return rows + labelRow + bodyRow + kvRows + gap;
-        }, 0);
+          ) +
+          memoryLines.reduce((rows, line) => {
+            const parsed = parseSageMemoryLine(line);
+            if (!parsed) {
+              return rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
+            }
+            const labelRow = estimateTextRows(
+              parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]',
+              panelContentWidth,
+              MAX_TEXT_ESTIMATE_ROWS,
+            );
+            const bodyRow = estimateTextRows(
+              parsed.text,
+              panelContentWidth,
+              MAX_TEXT_ESTIMATE_ROWS,
+            );
+            const kvCells: string[] = [];
+            kvCells.push(`id: ${parsed.id}`);
+            if (parsed.anchor) kvCells.push(`anchor: ${parsed.anchor}`);
+            if (parsed.relation) kvCells.push(`relation: ${parsed.relation}`);
+            if (parsed.tags && parsed.tags.length > 0)
+              kvCells.push(`tags: ${parsed.tags.join(', ')}`);
+            const kvRows = estimateSageKvRows(kvCells, panelContentWidth);
+            const gap = rows > 0 ? 1 : 0;
+            return rows + labelRow + bodyRow + kvRows + gap;
+          }, 0);
     if (entry.resultRenderMode === 'simple') return 3 + sagePanelRows;
     if (STRUCTURED_DIFF_TOOLS.has(entry.name)) {
       const previewCap =
@@ -273,7 +283,9 @@ function ToolGroupHeader({
   const { glyph, color } = getToolVisual(name);
   const allOk = failCount === 0;
   const meta = `${totalDurationMs}ms`;
-  const fixedHeader = `${glyph} ${name}`;
+  const safeName = sanitizeTerminalText(name);
+  const visibleName = truncateDisplay(safeName, Math.max(1, termWidth - 16));
+  const fixedHeader = `${glyph} ${visibleName}`;
   const tailBudget = Math.max(0, termWidth - displayWidth(fixedHeader) - 10);
   const metaBudget = meta ? Math.min(displayWidth(meta), Math.floor(tailBudget * 0.36)) : 0;
   const railColor = allOk ? theme.borderSubtle : theme.error;
@@ -286,7 +298,7 @@ function ToolGroupHeader({
         <Text color={color}>{glyph}</Text>
         <Text> </Text>
         <Text bold color={theme.textPrimary}>
-          {name}
+          {visibleName}
         </Text>
         <Text> </Text>
         <Text bold color={theme.textSecondary}>
@@ -322,7 +334,7 @@ export function ToolGroup({
 }): React.ReactElement {
   const { name, entries, totalDurationMs, okCount: _okCount, failCount } = data;
   const railColor = failCount === 0 ? theme.borderSubtle : theme.error;
-  const toolContentWidth = Math.max(20, termWidth - 2);
+  const toolContentWidth = Math.max(1, termWidth - 2);
 
   return (
     <Box flexDirection="column" marginY={0}>
@@ -393,11 +405,10 @@ function ToolGroupItem({
   // omitted here — every row shares the group's tool, whose glyph is already in
   // the group header, so repeating it per row is redundant.
   const prefixWidth = 4 + String(index).length;
-  const metaWidth = metaStr ? metaStr.length + 5 : 0;
-  const argBudget = Math.max(8, contentWidth - prefixWidth - metaWidth);
-  const rawArg = formatToolArgs(entry.name, entry.input);
-  const argPreview =
-    displayWidth(rawArg) > argBudget ? `…${rawArg.slice(-(argBudget - 1))}` : rawArg;
+  const metaWidth = metaStr ? displayWidth(metaStr) + 5 : 0;
+  const argBudget = Math.max(1, contentWidth - prefixWidth - metaWidth);
+  const rawArg = sanitizeTerminalText(formatToolArgs(entry.name, entry.input));
+  const argPreview = truncateDisplayStart(rawArg, argBudget);
 
   return (
     <Text>

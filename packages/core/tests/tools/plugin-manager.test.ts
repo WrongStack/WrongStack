@@ -348,6 +348,7 @@ describe('plugin_manager honours read-only mode on the use path', () => {
         description: 'Reads something.',
         inputSchema: { type: 'object', properties: {} },
         permission: 'auto',
+        mutating: false,
         execute: run as never,
       },
       'alpha-plugin',
@@ -480,11 +481,7 @@ describe('plugin_manager use — permission pipeline alignment', () => {
     });
 
     expect(result).toEqual(expect.objectContaining({ status: 'ok' }));
-    expect(run).toHaveBeenCalledWith(
-      { text: '[REDACTED]' },
-      expect.anything(),
-      expect.anything(),
-    );
+    expect(run).toHaveBeenCalledWith({ text: '[REDACTED]' }, expect.anything(), expect.anything());
   });
 
   it('runs unchanged when no hook runner is wired', async () => {

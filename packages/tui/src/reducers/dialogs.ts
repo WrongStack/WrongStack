@@ -7,6 +7,7 @@ import {
   authPanelRows,
 } from '../auth-panel-model.js';
 import { nextSendModeIndex, SEND_MODE_OPTIONS } from '../components/send-mode-picker.js';
+import { F_KEY_PANEL_ENTRIES } from '../f-key-panels.js';
 import { closePanels, firstSelectable, skipDivider } from './helpers.js';
 
 const dialogActionTypes = [
@@ -44,6 +45,7 @@ const dialogActionTypes = [
   'enhanceClose',
   'enhanceSet',
   'enhanceBusy',
+  'topicCheckBusy',
   'refineCountdownOpen',
   'refineCountdownClose',
   'refineFailureOpen',
@@ -258,7 +260,10 @@ export function reduceDialogs(state: State, action: DialogAction): State {
     case 'fKeyPickerClose':
       return { ...state, fKeyPicker: { open: false, selected: 0 } };
     case 'fKeyPickerMove': {
-      const count = 12;
+      // Derived from the table, not hardcoded — a literal `12` silently
+      // made the 13th entry (Ctrl+N connections) unreachable by arrow keys
+      // when the table grew.
+      const count = F_KEY_PANEL_ENTRIES.length;
       const next = (state.fKeyPicker.selected + action.delta + count) % count;
       return { ...state, fKeyPicker: { ...state.fKeyPicker, selected: next } };
     }
@@ -280,9 +285,19 @@ export function reduceDialogs(state: State, action: DialogAction): State {
       return { ...state, enhanceEnabled: action.enabled };
     case 'enhanceBusy':
       return { ...state, enhanceBusy: action.on };
+    case 'topicCheckBusy':
+      return { ...state, topicCheckBusy: action.on };
     case 'refineCountdownOpen':
-      return { ...state, refineCountdown: action.info };
+      return {
+        ...state,
+        refineCountdown: action.info,
+        refineCountdownGen: state.refineCountdownGen + 1,
+      };
     case 'refineCountdownClose':
+      // A superseded refine flow unwinds AFTER the newer one opened its own
+      // countdown. Closing on identity keeps that late close from leaving the
+      // live countdown's promise hanging with no panel to resolve it.
+      if (action.info && state.refineCountdown !== action.info) return state;
       return { ...state, refineCountdown: null };
     case 'refineFailureOpen':
       return { ...state, refineFailure: action.info };

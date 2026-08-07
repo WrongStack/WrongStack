@@ -1,5 +1,11 @@
 import { agentPrompt } from './agent-prompts.js';
-import { type AgentDefinition, HEAVY_BUDGET, MEDIUM_BUDGET, TOOLS } from './types.js';
+import {
+  type AgentDefinition,
+  HEAVY_BUDGET,
+  MEDIUM_BUDGET,
+  SPECIALIST_TOOLS,
+  TOOLS,
+} from './types.js';
 
 /** Phase 4 · Verify — prove the code works under normal, end-to-end, and adverse conditions. */
 export const VERIFY_AGENTS: AgentDefinition[] = [
@@ -64,21 +70,7 @@ export const VERIFY_AGENTS: AgentDefinition[] = [
       id: 'e2e',
       name: 'E2E',
       role: 'e2e',
-      tools: [
-        ...TOOLS.build,
-        'fetch',
-        'playwright_navigate',
-        'playwright_screenshot',
-        'playwright_click',
-        'playwright_type',
-        'playwright_evaluate',
-        'playwright_select_option',
-        'playwright_hover',
-        'playwright_fill_form',
-        'playwright_wait_for',
-        'playwright_press_key',
-        'playwright_drag',
-      ],
+      tools: [...TOOLS.build, 'fetch', ...SPECIALIST_TOOLS.browser],
       prompt: agentPrompt('e2e'),
     },
     budget: HEAVY_BUDGET,
@@ -114,21 +106,7 @@ export const VERIFY_AGENTS: AgentDefinition[] = [
       id: 'browser',
       name: 'Browser',
       role: 'browser',
-      tools: [
-        ...TOOLS.read,
-        'fetch',
-        'playwright_navigate',
-        'playwright_screenshot',
-        'playwright_click',
-        'playwright_type',
-        'playwright_evaluate',
-        'playwright_select_option',
-        'playwright_hover',
-        'playwright_fill_form',
-        'playwright_wait_for',
-        'playwright_press_key',
-        'playwright_drag',
-      ],
+      tools: [...TOOLS.read, 'fetch', ...SPECIALIST_TOOLS.browser],
       prompt: agentPrompt('browser'),
     },
     budget: MEDIUM_BUDGET,

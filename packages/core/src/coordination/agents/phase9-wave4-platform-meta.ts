@@ -2,9 +2,10 @@ import { agentPrompt } from './agent-prompts.js';
 import type { BundledAgentSkill } from './role-skills.js';
 import {
   type AgentDefinition,
-  type RoleDispatcherSignal,
   LIGHT_BUDGET,
   MEDIUM_BUDGET,
+  type RoleDispatcherSignal,
+  SPECIALIST_TOOLS,
   TOOLS,
 } from './types.js';
 
@@ -215,7 +216,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       id: 'memory-curator',
       name: 'Memory Curator',
       role: 'memory-curator',
-      tools: [...TOOLS.read, 'memory'],
+      tools: [...TOOLS.read, ...SPECIALIST_TOOLS.memory],
       prompt: agentPrompt('memory-curator'),
     },
     budget: LIGHT_BUDGET,
@@ -238,7 +239,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       id: 'fleet-coordinator',
       name: 'Fleet Coordinator',
       role: 'fleet-coordinator',
-      tools: [...TOOLS.read, 'plan', 'multi-agent'],
+      tools: [...TOOLS.read, 'plan'],
       prompt: agentPrompt('fleet-coordinator'),
     },
     budget: MEDIUM_BUDGET,

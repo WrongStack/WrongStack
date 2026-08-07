@@ -1,3 +1,4 @@
+import { sanitizeTerminalText } from '../../terminal-width.js';
 import type { ToolVisualLine } from './tool-visual-types.js';
 
 export function recordToStringFields(obj: Record<string, unknown>): Record<string, string> {
@@ -17,7 +18,9 @@ export function appendOutputPreview(
   kind: 'stdout' | 'stderr',
 ): void {
   if (!output) return;
-  const lines = output.split(/\r?\n/).filter((line) => line.trim());
+  const lines = sanitizeTerminalText(output)
+    .split('\n')
+    .filter((line) => line.trim());
   for (const line of lines.slice(0, 3)) rows.push({ kind, text: line.trim() });
   if (lines.length > 3)
     rows.push({ kind: 'meta', text: `${lines.length - 3} more ${kind} line(s)` });

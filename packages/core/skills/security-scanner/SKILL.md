@@ -5,6 +5,9 @@ description: |
   in WrongStack. Triggers: user says "security", "vulnerability", "CVE", "secret",
   "injection", "XSS", "SQL injection", "audit security", "supply chain".
 version: 1.2.0
+required-capabilities: [filesystem.read, code.inspect]
+required-tools: []
+optional-capabilities: [dependencies.manage]
 ---
 
 # Security Scanner — WrongStack

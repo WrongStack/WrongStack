@@ -5,6 +5,9 @@ description: |
   TypeScript code in WrongStack. Triggers: ESM imports, fetch usage, AbortSignal,
   node: protocol, Web Streams, or any async patterns.
 version: 1.1.0
+required-capabilities: [filesystem.read, filesystem.write]
+required-tools: []
+optional-capabilities: [verification.run]
 ---
 
 # Modern Node.js (>= 22) — WrongStack
@@ -150,7 +153,7 @@ while (true) {
 
 | Anti-pattern | Why bad | Fix |
 |---|---|---|
-| `require()` in new code | WrongStack uses ESM | Use `import` with `.js` extension |
+| `require()` in new code | WrongStack uses ESM | Prefer `import` with `.js` extension |
 | `__dirname` without `fileURLToPath` | ESM doesn't have `__dirname` | `path.dirname(fileURLToPath(import.meta.url))` |
 | Mixing `fs.readFile` callback with `await` | Callback API doesn't return a promise | Use `fs.promises.readFile` |
 | Swallowing `AbortError` silently | Means timeout/abort happened | Log it or handle explicitly |

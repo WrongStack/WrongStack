@@ -64,6 +64,12 @@ describe('subagent tool visibility', () => {
     expect(selected).toContain('read');
   });
 
+  it('fails closed when a requested roster tool is not registered', () => {
+    expect(() =>
+      selectSubagentTools(ALL_TOOLS, NO_DIRECTOR_TOOLS, ['read', 'missing_tool']),
+    ).toThrow(/Subagent tool contract is not registered: missing_tool/);
+  });
+
   it('still honors an explicit request for a merely default-hidden tool', () => {
     // The contrast that makes the two sets meaningful: `delegate` is hidden by
     // default but grantable on request, whereas `nextsteps` is neither.
@@ -76,9 +82,9 @@ describe('subagent tool visibility', () => {
   it('does not let a never-granted name pull in a director tool of the same name', () => {
     const directorTools = new Map<string, Tool>([['nextsteps', tool('nextsteps')]]);
 
-    expect(
-      names(selectSubagentTools(ALL_TOOLS, directorTools, ['nextsteps'])),
-    ).not.toContain('nextsteps');
+    expect(names(selectSubagentTools(ALL_TOOLS, directorTools, ['nextsteps']))).not.toContain(
+      'nextsteps',
+    );
   });
 
   it('keeps the two sets disjoint so each name has one strictness level', () => {

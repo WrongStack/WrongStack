@@ -1,9 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import { RemoteMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config } from '@wrongstack/core/types';
-import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import {
   createHqPublisherFromEnv,
   startBrainTelemetryBridge,
@@ -13,6 +10,9 @@ import {
   startToolTelemetryBridge,
   startWorktreeTelemetryBridge,
 } from '@wrongstack/core/hq';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { Config } from '@wrongstack/core/types';
+import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import type { TuiMailboxSnapshot } from './mailbox-view-model-types.js';
 
 export interface RunTuiClientRegistrationOptions {
@@ -34,6 +34,15 @@ export interface RunTuiClientRegistration {
 const CLIENT_HEARTBEAT_MS = 15_000;
 /** Sync client counts from the shared registry every 30s so closed clients disappear promptly. */
 const CLIENT_SYNC_MS = 30_000;
+/**
+ * Trailing-edge coalesce for mailbox-event → snapshot publishes. Every
+ * `publishSnapshot` costs FIVE IPC round-trips and a 50-message payload;
+ * publishing per mailbox event was the producer half of the measured
+ * mailbox.snapshot storm (a burst of sends/receipts triggered one full
+ * snapshot each). 300ms matches the process registry's coalesce window —
+ * same "burst of events, one refresh" question.
+ */
+const SNAPSHOT_COALESCE_MS = 300;
 
 export function createRunTuiClientRegistration(
   opts: RunTuiClientRegistrationOptions,
@@ -44,6 +53,7 @@ export function createRunTuiClientRegistration(
   let registeredMailbox: RemoteMailbox | null = null;
   let registeredClientId: string | null = null;
   let unsubscribeMailboxEvents: (() => void) | null = null;
+  let snapshotCoalesceTimer: ReturnType<typeof setTimeout> | null = null;
   let tuiHqPublisher: ReturnType<typeof createHqPublisherFromEnv>;
   let registrationGeneration = 0;
   const stopHqAuxBridges: Array<() => void> = [];
@@ -106,10 +116,26 @@ export function createRunTuiClientRegistration(
         }
       };
 
-      unsubscribeMailboxEvents = opts.events.onPattern('mailbox.*', (event) => {
+      const scheduleSnapshot = (): void => {
+        if (opts.isCleaned() || generation !== registrationGeneration) return;
+        if (snapshotCoalesceTimer) return;
+        snapshotCoalesceTimer = setTimeout(() => {
+          snapshotCoalesceTimer = null;
+          void publishSnapshot();
+        }, SNAPSHOT_COALESCE_MS);
+        snapshotCoalesceTimer.unref?.();
+      };
+
+      // Held in a local so the abort branch below can remove exactly THIS
+      // subscription: two register() calls racing (F1 project switch) both
+      // write the shared `unsubscribeMailboxEvents` slot, and the loser's
+      // subscription used to leak — a live listener publishing snapshots
+      // for a project the TUI had already left.
+      const unsubscribe = opts.events.onPattern('mailbox.*', (event) => {
         if (event === 'mailbox.snapshot' || event === 'mailbox.sync_clients') return;
-        void publishSnapshot();
+        scheduleSnapshot();
       });
+      unsubscribeMailboxEvents = unsubscribe;
       await mailbox.registerClient({
         clientId,
         sessionId: opts.getSessionId?.() ?? opts.projectRoot,
@@ -118,7 +144,14 @@ export function createRunTuiClientRegistration(
         pid: process.pid,
       });
       if (opts.isCleaned() || generation !== registrationGeneration) {
-        await mailbox.deregisterClient(clientId);
+        // Mirror the unregister path: drop the listener AND close the
+        // named-pipe connection. Leaving the pipe open here was what put
+        // the NEXT startup on the "zombie pipe" recovery path after an F1
+        // project switch aborted a registration mid-flight.
+        unsubscribe();
+        if (unsubscribeMailboxEvents === unsubscribe) unsubscribeMailboxEvents = null;
+        await mailbox.deregisterClient(clientId).catch(() => undefined);
+        mailbox.close();
         return null;
       }
       registeredMailbox = mailbox;
@@ -263,6 +296,10 @@ export function createRunTuiClientRegistration(
     }
     unsubscribeMailboxEvents?.();
     unsubscribeMailboxEvents = null;
+    if (snapshotCoalesceTimer) {
+      clearTimeout(snapshotCoalesceTimer);
+      snapshotCoalesceTimer = null;
+    }
     for (const stop of stopHqAuxBridges) {
       try {
         stop();

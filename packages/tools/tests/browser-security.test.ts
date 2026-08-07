@@ -76,6 +76,18 @@ describe('browser security boundary', () => {
     expect(() => parsePrivateOriginAllowlist('http://127.0.0.1:3000/admin')).toThrow(/origin/);
   });
 
+  it('tolerates surrounding quotes on allowlist entries', () => {
+    // Windows setx / .env files routinely embed the quotes in the value;
+    // rejecting them made every browser tool call throw on such machines.
+    expect(parsePrivateOriginAllowlist('"http://127.0.0.1:3456"')).toEqual([
+      'http://127.0.0.1:3456',
+    ]);
+    expect(parsePrivateOriginAllowlist('\'http://10.0.0.5:80\', "http://127.0.0.1:3000"')).toEqual([
+      'http://10.0.0.5',
+      'http://127.0.0.1:3000',
+    ]);
+  });
+
   it('pins one public DNS answer and rejects mixed public/private answers', async () => {
     const lookup = async () => [{ address: '203.0.113.10', family: 4 }];
     await expect(

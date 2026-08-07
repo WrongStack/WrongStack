@@ -19,6 +19,11 @@ export interface SkillManifest {
    * grants nor restricts any tool.
    */
   allowedTools?: string[] | undefined;
+  /** Stable WrongStack runtime capabilities required to activate this skill. */
+  requiredCapabilities?: string[] | undefined;
+  requiredTools?: string[] | undefined;
+  /** Optional capabilities; the skill must remain useful when these are absent. */
+  optionalCapabilities?: string[] | undefined;
   path: string;
   /**
    * Discovery layer the skill came from. `claude-*`, `foreign`, and `extra` are

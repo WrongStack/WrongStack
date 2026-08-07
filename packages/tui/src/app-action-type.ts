@@ -354,8 +354,14 @@ export type Action =
   | { type: 'enhanceClose' }
   | { type: 'enhanceSet'; enabled: boolean }
   | { type: 'enhanceBusy'; on: boolean }
+  | { type: 'topicCheckBusy'; on: boolean }
   | { type: 'refineCountdownOpen'; info: NonNullable<State['refineCountdown']> }
-  | { type: 'refineCountdownClose' }
+  /**
+   * `info` scopes the close to the countdown the caller opened. A refine flow
+   * that was superseded by a newer countdown must not tear the newer one down
+   * when it finally unwinds; omitting `info` closes unconditionally.
+   */
+  | { type: 'refineCountdownClose'; info?: NonNullable<State['refineCountdown']> }
   | { type: 'refineFailureOpen'; info: NonNullable<State['refineFailure']> }
   | { type: 'refineFailureClose' }
   | { type: 'continueConfirmOpen'; info: NonNullable<State['continueConfirm']> }

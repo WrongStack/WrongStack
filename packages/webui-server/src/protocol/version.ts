@@ -11,6 +11,8 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
   'chronicle.metrics',
   'chronicle.status',
   'connections.health',
+  /** Bounded topic-shift advice plus same-session provider-context boundaries. */
+  'context.topic-boundary',
   /** Interview resume/discard + lastAgentText/lastRunId continuity. */
   'sdd.interview.continuity',
   /** Launch multi-agent runs from a graph id or resolved spec id. */

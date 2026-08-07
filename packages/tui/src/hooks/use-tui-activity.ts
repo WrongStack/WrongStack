@@ -1,18 +1,14 @@
-import type { Agent } from '@wrongstack/core/agent';
-import type { AttachmentStore } from '@wrongstack/core/types';
-import type { InputBuilder } from '@wrongstack/core/agent';
+import * as os from 'node:os';
+import type { Agent, InputBuilder } from '@wrongstack/core/agent';
 import { loadGoal } from '@wrongstack/core/storage';
+import type { AttachmentStore } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as os from 'node:os';
 import type { Action, State } from '../app-reducer.js';
 import { type HeapSample, startSharedHeapWatchdog, takeHeapSample } from '../heap-watchdog.js';
 import { useAnimation } from '../ink.js';
 import { isRandomTuiThinkingWord, pickRandomTuiThinkingWord } from '../thinking-word.js';
-import {
-  recordTuiAppRender,
-  snapshotTuiMemoryCounters,
-} from '../tui-memory-counters.js';
+import { recordTuiAppRender, snapshotTuiMemoryCounters } from '../tui-memory-counters.js';
 
 // ── Shallow retention sentinels (RAM audit) ────────────────────────────────
 // Each helper reads a known Map/Array length without traversing the graph,
@@ -55,6 +51,23 @@ function directorInFlight(ctx: Agent['ctx']): number {
 // path entirely — turning per-tick allocation + property access into a
 // constant-fold.
 const CPU_CORES = os.cpus().length || 1;
+
+// Physical RAM total, cached once — stable for the process lifetime. The
+// sidebar SYSTEM card ratios RSS against this to show the process's honest
+// share of physical memory (the HeapSample.load field only measures V8 heap
+// pressure, which understates RSS).
+const TOTAL_MEM = os.totalmem() || 1;
+
+/** Cap for the sidebar trend sparklines. 24 samples at the 10s shell tick
+ *  ≈ 4 minutes of history — enough to read a trend, small enough that three
+ *  capped arrays cost nothing per tick. */
+const MAX_METRIC_HISTORY = 24;
+
+/** Append one sample to a capped history buffer, dropping the oldest. */
+function pushMetricHistory<T>(buffer: T[], value: T): void {
+  buffer.push(value);
+  if (buffer.length > MAX_METRIC_HISTORY) buffer.shift();
+}
 
 export interface UseTuiActivityOptions {
   status: State['status'];
@@ -179,28 +192,48 @@ export function useTuiActivity({
       ? fleetWorkingBase
       : fleetWorkingBase + (timingNow - fleetWorkingStartRef.current);
 
+  // Sidebar SYSTEM-card trend buffers (one capped array per metric, fed by
+  // the memos below). Declared before the memos: React runs a useMemo
+  // factory during the same render pass, so these must exist before the
+  // processMemory memo that pushes into them.
+  const rssHistoryRef = useRef<number[]>([]);
+  const heapHistoryRef = useRef<number[]>([]);
+
   // Attribute long-session heap growth before V8 reaches its hard limit.
   // Reuse the existing 10s shell clock so diagnostics do not add another
   // timer or idle render loop just to refresh the status-line chip.
-  const processMemory = useMemo<HeapSample>(() => takeHeapSample(), [nowTick]);
+  const processMemory = useMemo<HeapSample>(() => {
+    const sample = takeHeapSample();
+    // Feed the sidebar SYSTEM card's trend sparklines. Ratios are 0..1:
+    // RSS against physical RAM (TOTAL_MEM), heap against its V8 limit
+    // (sample.load). Ref mutation during render follows the cpuPrevRef
+    // pattern below — this memo runs exactly once per nowTick change.
+    pushMetricHistory(rssHistoryRef.current, Math.min(1, sample.rss / TOTAL_MEM));
+    pushMetricHistory(heapHistoryRef.current, Math.min(1, sample.load));
+    return sample;
+  }, [nowTick]);
   // CPU usage percentage (0-100) for this Node.js process. Uses process.cpuUsage()
   // delta between ticks, normalized by elapsed wall-clock time and core count.
   // Works on all platforms (including Windows where os.loadavg() returns 0).
   // Reuse nowTick (10s clock) for refresh cadence.
   const cpuPrevRef = useRef<{ cpu: NodeJS.CpuUsage; time: bigint } | null>(null);
+  const cpuHistoryRef = useRef<number[]>([]);
   const cpuPercent = useMemo<number | undefined>(() => {
     const now = process.hrtime.bigint();
     const cpuNow = process.cpuUsage();
     const prev = cpuPrevRef.current;
     cpuPrevRef.current = { cpu: cpuNow, time: now };
     if (!prev) return undefined; // First tick — no baseline yet
-    const cpuDeltaUsec = (cpuNow.user - prev.cpu.user) + (cpuNow.system - prev.cpu.system);
+    const cpuDeltaUsec = cpuNow.user - prev.cpu.user + (cpuNow.system - prev.cpu.system);
     const wallMs = Number(now - prev.time) / 1e6;
     if (wallMs <= 0) return undefined;
     // cpuDeltaUsec is in microseconds; wall time in ms. Ratio gives core-utilization.
     // CPU_CORES is cached at module init — see top of file. Using the cached
     // constant avoids an os.cpus() call + array allocation per 10s tick.
-    return Math.min(100, Math.round((cpuDeltaUsec / 1000) / wallMs / CPU_CORES * 100));
+    const pct = Math.min(100, Math.round((cpuDeltaUsec / 1000 / wallMs / CPU_CORES) * 100));
+    // Feed the sidebar SYSTEM card's CPU trend sparkline (0..1 ratio).
+    pushMetricHistory(cpuHistoryRef.current, pct / 100);
+    return pct;
   }, [nowTick]);
   useEffect(() => {
     const stopHeapWatchdog = startSharedHeapWatchdog({
@@ -308,6 +341,10 @@ export function useTuiActivity({
     fleetWorkingTimeMs,
     processMemory,
     cpuPercent,
+    cpuHistory: cpuHistoryRef.current,
+    rssHistory: rssHistoryRef.current,
+    heapHistory: heapHistoryRef.current,
+    totalMem: TOTAL_MEM,
     enhanceDots,
     refreshGoalSummary,
   };

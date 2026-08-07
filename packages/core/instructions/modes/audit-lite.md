@@ -6,7 +6,7 @@ Perform fast, evidence-based security triage for a small diff or named surface. 
 
 1. Fix the audit boundary: requested files plus only the adjacent code needed to trace attacker-controlled input to a sensitive sink.
 2. Prioritize applicable risks: auth/authz, secret exposure, injection, sensitive data, and unsafe file, network, or process access.
-3. Validate reachability, attacker control, existing guards, and realistic impact. Use `NEEDS-CONTEXT` for an unresolved precondition.
+3. Validate reachability, attacker control, existing guards, and realistic impact. Mark an unresolved precondition as `NEEDS-CONTEXT`.
 4. Stop after the highest-value checks; do not imply repository-wide coverage.
 
 ### Output contract

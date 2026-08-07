@@ -141,17 +141,16 @@ export type ConcreteTokenSavingTier = Exclude<TokenSavingTier, 'auto'>;
  * Normalize a TokenSavingTier value, handling backward-compatible boolean inputs.
  * - `true`  → 'medium' (existing behavior)
  * - `false` → 'off'
- * - `'auto'` → `'off'` — the `'auto'` sentinel is window-dependent, so EVERY
- *   consumer that isn't the prompt builder (tool selection, lazy-load gate, TUI
- *   display) must treat it as the safe no-op `'off'`: it must NOT reduce the
- *   registered tool set or enable lazy loading on its own. Only the prompt
- *   builder expands `'auto'` — via {@link resolveTokenSavingTier} — and only for
- *   the (cache-stable) prompt prose. This keeps auto-tiering capability-neutral.
+ * - `'auto'` → `'medium'` — consumers without model-window context use a stable,
+ *   useful development baseline instead of silently expanding to the full tool
+ *   catalog. The prompt builder may refine `'auto'` with
+ *   {@link resolveTokenSavingTier} when the model window is known.
  * - other valid strings are returned as-is; `undefined`/invalid → 'off'
  */
 export function normalizeTokenSavingTier(val?: TokenSavingTier | boolean): ConcreteTokenSavingTier {
   if (val === undefined) return 'off';
   if (typeof val === 'boolean') return val ? 'medium' : 'off';
+  if (val === 'auto') return 'medium';
   const validTiers = new Set<ConcreteTokenSavingTier>([
     'off',
     'minimal',
@@ -159,7 +158,6 @@ export function normalizeTokenSavingTier(val?: TokenSavingTier | boolean): Concr
     'medium',
     'aggressive',
   ]);
-  // 'auto' is deliberately absent → collapses to 'off' for non-prompt consumers.
   return validTiers.has(val as ConcreteTokenSavingTier) ? (val as ConcreteTokenSavingTier) : 'off';
 }
 

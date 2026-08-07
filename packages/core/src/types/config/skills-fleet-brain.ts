@@ -19,9 +19,9 @@ export interface SkillsConfig {
   foreignSources?: boolean | string[] | undefined;
   /**
    * How skill bodies reach the system prompt.
-   * - `'eager'` (default): inject every discovered skill body into the prompt.
-   * - `'progressive'`: inject only the metadata manifest; the agent loads a
+   * - `'progressive'` (default): inject only the metadata manifest; the agent loads a
    *   skill body on demand via the `skill` tool (the agentskills.io model).
+   * - `'eager'`: inject discovered skill bodies up to `eagerMaxChars`.
    */
   mode?: 'eager' | 'progressive' | undefined;
   /**
@@ -219,8 +219,9 @@ export interface BrainCouncilConfig {
   approval?: number | undefined;
   /**
    * Per-seat completion timeout (ms). Defaults to `brain.decisionTimeoutMs`,
-   * then 15000 — set it when council seats need a longer budget than the
-   * single-LLM tier.
+   * then 45000 — the council convenes for high-stakes decisions only, and
+   * reasoning models often need well over the single-LLM tier's 15s before
+   * their first token.
    */
   perCallTimeoutMs?: number | undefined;
   /** Seats polled concurrently, 1..8. Default 3. */
@@ -232,6 +233,13 @@ export interface BrainCouncilConfig {
    * independence.
    */
   distinctness?: 'none' | 'model' | 'provider' | undefined;
+  /**
+   * Output budget per voter seat call. Default 2000. Reasoning models spend
+   * their thinking tokens from this same budget, so a small value starves
+   * them into `invalid` votes (empty or truncated JSON) — raise it if seat
+   * errors report "response truncated at maxTokens".
+   */
+  voterMaxTokens?: number | undefined;
   /** Output budget for the judge call. Default follows the seat budget. */
   judgeMaxTokens?: number | undefined;
   /**

@@ -1,11 +1,11 @@
-import { WrongStackError, ERROR_CODES } from '../types/errors.js';
 import type { ToolDescriptionMode, ToolDescriptionModeConfig } from '../types/config.js';
+import { ERROR_CODES, WrongStackError } from '../types/errors.js';
 import type { Tool } from '../types/tool.js';
+import { estimateToolDefTokens } from '../utils/token-estimate.js';
 import {
   applyToolDescriptionModeToTool,
   normalizeToolDescriptionMode,
 } from '../utils/tool-description-mode.js';
-import { estimateToolDefTokens } from '../utils/token-estimate.js';
 
 /**
  * A function that wraps (decorates) an existing tool. Receives the
@@ -44,6 +44,15 @@ export class ToolRegistry {
   /** Cached `list()` result, frozen after build. Invalidated on _version change. */
   private _listSnapshot: readonly Tool[] | undefined;
   private _listSnapshotVersion = -1;
+  /**
+   * Optional direct provider surface. `undefined` preserves the legacy
+   * behaviour (every enabled catalog tool is direct); when set, `list()` still
+   * exposes the complete executable catalog while `listForProvider()` returns
+   * only these names. This keeps lazy tools discoverable by tool_search/tool_use.
+   */
+  private _providerToolNames: Set<string> | undefined;
+  private _providerListSnapshot: readonly Tool[] | undefined;
+  private _providerListSnapshotVersion = -1;
 
   /** Pre-compute tool definition token estimate once at registration time. */
   private _stampDefTokens(tool: Tool): void {
@@ -213,9 +222,10 @@ export class ToolRegistry {
     return this.descriptionModes.get(name) ?? 'extend';
   }
 
-  applyDescriptionModes(
-    modes: ToolDescriptionModeConfig = {},
-  ): { applied: number; missing: string[] } {
+  applyDescriptionModes(modes: ToolDescriptionModeConfig = {}): {
+    applied: number;
+    missing: string[];
+  } {
     const missing: string[] = [];
     let applied = 0;
     for (const [name, rawMode] of Object.entries(modes)) {
@@ -332,6 +342,35 @@ export class ToolRegistry {
     return arr;
   }
 
+  /** Replace the direct provider surface. Pass `undefined` to expose the catalog. */
+  setProviderToolNames(names: readonly string[] | undefined): void {
+    this._providerToolNames = names ? new Set(names) : undefined;
+    this._version++;
+  }
+
+  /** Add registered or future tool names to the direct provider surface. */
+  exposeToProvider(names: string | readonly string[]): void {
+    if (!this._providerToolNames) return;
+    for (const name of typeof names === 'string' ? [names] : names) {
+      this._providerToolNames.add(name);
+    }
+    this._version++;
+  }
+
+  /** Tools serialized into provider requests and described by the system prompt. */
+  listForProvider(): Tool[] {
+    if (!this._providerToolNames) return this.list();
+    if (this._providerListSnapshot && this._version === this._providerListSnapshotVersion) {
+      return this._providerListSnapshot as Tool[];
+    }
+    const arr = Array.from(this.tools.entries())
+      .filter(([name]) => !this._disabled.has(name) && this._providerToolNames?.has(name) === true)
+      .map(([, entry]) => entry.tool);
+    this._providerListSnapshot = arr;
+    this._providerListSnapshotVersion = this._version;
+    return arr;
+  }
+
   /**
    * Group tools by their `category` field. Tools without a category
    * are placed under the key `""` (empty string). Returns a Map of
@@ -362,6 +401,7 @@ export class ToolRegistry {
     this.tools.clear();
     this.descriptionModes.clear();
     this._disabled.clear();
+    this._providerToolNames = undefined;
     this._version++;
   }
 
@@ -384,6 +424,9 @@ export class ToolRegistry {
     for (const name of this._disabled) {
       copy._disabled.add(name);
     }
+    copy._providerToolNames = this._providerToolNames
+      ? new Set(this._providerToolNames)
+      : undefined;
     copy._version = this._version;
     return copy;
   }

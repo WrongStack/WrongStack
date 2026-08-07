@@ -766,6 +766,8 @@
     "councilMaxConcurrencyHint": "Quanti seggi votano in parallelo. Riduci quando il pool condivide un provider con limiti di velocità.",
     "councilDistinctnessLabel": "Distinzione seggi",
     "councilDistinctnessHint": "Rifiuta seggi duplicati: 'model' richiede modelli distinti, 'provider' provider indipendenti così un guasto non può far pendere il voto.",
+    "councilVoterBudgetLabel": "Budget di risposta votante",
+    "councilVoterBudgetHint": "Token di output per chiamata di seggio — i modelli di ragionamento spendono i token di pensiero da questo budget.",
     "councilJudgeBudgetLabel": "Budget di risposta giudice",
     "councilJudgeBudgetHint": "Token di output per la chiamata del giudice di spareggio.",
     "councilSeatTemplate": "Modello di seggio:",

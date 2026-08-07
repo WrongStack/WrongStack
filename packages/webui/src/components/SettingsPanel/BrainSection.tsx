@@ -2,45 +2,45 @@ import { ArrowDown, ArrowUp, Brain, Loader2, Plus, X } from 'lucide-react';
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
 import type {
   BrainConfigPatchWire,
   BrainConfigWire,
   BrainCouncilVoterWire,
   WSServerMessage,
 } from '@/types';
-import { cn } from '@/lib/utils';
 import { ModelSelectDialog } from '../ModelSelectDialog';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { PreferenceSelect } from './PreferenceControls';
-import { PreferenceToggle } from './PreferenceToggle';
-
 import {
   CACHE_MAX_ENTRIES,
   CACHE_TTLS,
   COUNCIL_CALL_TIMEOUTS,
   COUNCIL_CONCURRENCY,
+  councilPersonaOptions,
   DECISION_LOG_SIZES,
   DECISION_TIMEOUTS,
+  entryLabel,
   FRACTIONS,
   HUMAN_TIMEOUTS,
   INTERVENTION_WINDOWS,
   JUDGE_MAX_TOKENS,
   LEDGER_MEMORY_ENTRIES,
   LLM_MAX_TOKENS,
+  localizeOptions,
   MIN_CONFIDENCE,
+  optionalValue,
   PICK_TITLES,
+  type PickTarget,
   RISK_COPY,
   RISK_LEVELS,
   RiskDot,
-  councilPersonaOptions,
-  entryLabel,
-  optionalValue,
-  localizeOptions,
-  withCurrent,
-  type PickTarget,
   type RiskLevel,
+  VOTER_MAX_TOKENS,
+  withCurrent,
 } from './brain-section-options';
+import { PreferenceSelect } from './PreferenceControls';
+import { PreferenceToggle } from './PreferenceToggle';
 export function BrainSection(): ReactElement {
   const { t } = useAppTranslation();
   const { client } = useWebSocket();
@@ -107,10 +107,7 @@ export function BrainSection(): ReactElement {
     [sendPatch],
   );
 
-  const voters: BrainCouncilVoterWire[] = useMemo(
-    () => config?.council.voters ?? [],
-    [config],
-  );
+  const voters: BrainCouncilVoterWire[] = useMemo(() => config?.council.voters ?? [], [config]);
 
   const setVoters = useCallback(
     (next: BrainCouncilVoterWire[]) => {
@@ -179,9 +176,7 @@ export function BrainSection(): ReactElement {
         </span>
         <div className="min-w-0">
           <h3 className="text-base font-semibold">{t('settings:brain.heading')}</h3>
-          <p className="text-xs text-muted-foreground">
-            {t('settings:brain.headingHint')}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('settings:brain.headingHint')}</p>
         </div>
         {(loading || busy) && (
           <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />
@@ -236,9 +231,7 @@ export function BrainSection(): ReactElement {
               hint={t('settings:brain.escalationDecisionTimeoutHint')}
               value={config.decisionTimeoutMs ? String(config.decisionTimeoutMs) : 'default'}
               options={localizeOptions(DECISION_TIMEOUTS, t)}
-              onChange={(v) =>
-                sendPatch({ decisionTimeoutMs: v === 'default' ? null : Number(v) })
-              }
+              onChange={(v) => sendPatch({ decisionTimeoutMs: v === 'default' ? null : Number(v) })}
               disabled={busy}
             />
             <PreferenceSelect
@@ -256,7 +249,10 @@ export function BrainSection(): ReactElement {
               options={[
                 { value: 'conservative', label: t('settings:brain.optConservative') },
                 { value: 'deny-all', label: t('settings:brain.optDenyAll') },
-                { value: 'continue-on-recommended', label: t('settings:brain.optContinueRecommended') },
+                {
+                  value: 'continue-on-recommended',
+                  label: t('settings:brain.optContinueRecommended'),
+                },
               ]}
               onChange={(terminalPolicy) => sendPatch({ terminalPolicy })}
               disabled={busy}
@@ -265,7 +261,10 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.escalationDecisionLogSizeLabel')}
               hint={t('settings:brain.escalationDecisionLogSizeHint')}
               value={String(config.decisionLogMaxEntries)}
-              options={localizeOptions(withCurrent(DECISION_LOG_SIZES, String(config.decisionLogMaxEntries)), t)}
+              options={localizeOptions(
+                withCurrent(DECISION_LOG_SIZES, String(config.decisionLogMaxEntries)),
+                t,
+              )}
               onChange={(v) => sendPatch({ decisionLogMaxEntries: Number(v) })}
               disabled={busy}
             />
@@ -279,9 +278,7 @@ export function BrainSection(): ReactElement {
                 {t('settings:brain.rulesConfigured', { count: config.rules.length })}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t('settings:brain.rulesBody')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('settings:brain.rulesBody')}</p>
             {config.rules.length > 0 && (
               <div className="space-y-1">
                 {config.rules.map((rule, i) => (
@@ -320,9 +317,7 @@ export function BrainSection(): ReactElement {
           {/* Heuristics */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
             <span className="text-sm font-medium">{t('settings:brain.heuristicsHeading')}</span>
-            <p className="text-xs text-muted-foreground">
-              {t('settings:brain.heuristicsBody')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('settings:brain.heuristicsBody')}</p>
             <PreferenceToggle
               label={t('settings:brain.heuristicsLowRiskLabel')}
               hint={t('settings:brain.heuristicsLowRiskHint')}
@@ -400,7 +395,10 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.qualityResponseBudgetLabel')}
               hint={t('settings:brain.qualityResponseBudgetHint')}
               value={String(config.llm.maxTokens)}
-              options={localizeOptions(withCurrent(LLM_MAX_TOKENS, String(config.llm.maxTokens)), t)}
+              options={localizeOptions(
+                withCurrent(LLM_MAX_TOKENS, String(config.llm.maxTokens)),
+                t,
+              )}
               onChange={(v) => sendPatch({ llm: { maxTokens: Number(v) } })}
               disabled={busy}
             />
@@ -415,7 +413,10 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.qualityMinConfidenceLabel')}
               hint={t('settings:brain.qualityMinConfidenceHint')}
               value={String(config.llm.minConfidence)}
-              options={localizeOptions(withCurrent(MIN_CONFIDENCE, String(config.llm.minConfidence)), t)}
+              options={localizeOptions(
+                withCurrent(MIN_CONFIDENCE, String(config.llm.minConfidence)),
+                t,
+              )}
               onChange={(v) => sendPatch({ llm: { minConfidence: Number(v) } })}
               disabled={busy}
             />
@@ -491,7 +492,10 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.cacheMaxEntriesLabel')}
               hint={t('settings:brain.cacheMaxEntriesHint')}
               value={String(config.cache.maxEntries)}
-              options={localizeOptions(withCurrent(CACHE_MAX_ENTRIES, String(config.cache.maxEntries)), t)}
+              options={localizeOptions(
+                withCurrent(CACHE_MAX_ENTRIES, String(config.cache.maxEntries)),
+                t,
+              )}
               onChange={(v) => sendPatch({ cache: { maxEntries: Number(v) } })}
               disabled={busy}
             />
@@ -500,16 +504,12 @@ export function BrainSection(): ReactElement {
           {/* Monitor */}
           <div className="space-y-1 rounded-md border border-border/70 bg-muted/20 p-3">
             <span className="text-sm font-medium">{t('settings:brain.monitorHeading')}</span>
-            <p className="text-xs text-muted-foreground">
-              {t('settings:brain.monitorBody')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('settings:brain.monitorBody')}</p>
             <PreferenceToggle
               label={t('settings:brain.monitorWatchLabel')}
               hint={t('settings:brain.monitorWatchHint')}
               value={config.monitor.enabled !== false}
-              onChange={() =>
-                sendPatch({ monitor: { enabled: config.monitor.enabled === false } })
-              }
+              onChange={() => sendPatch({ monitor: { enabled: config.monitor.enabled === false } })}
               disabled={busy}
             />
             <PreferenceSelect
@@ -629,7 +629,10 @@ export function BrainSection(): ReactElement {
           <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{t('settings:brain.councilHeading')}</span>
-              <Badge variant={config.council.enabled ? 'default' : 'outline'} className="text-[10px]">
+              <Badge
+                variant={config.council.enabled ? 'default' : 'outline'}
+                className="text-[10px]"
+              >
                 {config.council.enabled
                   ? t('settings:brain.councilConvened')
                   : t('settings:brain.councilDisabled')}
@@ -752,7 +755,9 @@ export function BrainSection(): ReactElement {
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 <span className="max-w-[180px] truncate font-mono text-xs">
-                  {config.council.judge ? entryLabel(config.council.judge) : t('settings:brain.councilAuto')}
+                  {config.council.judge
+                    ? entryLabel(config.council.judge)
+                    : t('settings:brain.councilAuto')}
                 </span>
                 <Button
                   variant="outline"
@@ -779,9 +784,13 @@ export function BrainSection(): ReactElement {
             <PreferenceSelect
               label={t('settings:brain.councilQuorumLabel')}
               hint={t('settings:brain.councilQuorumHint')}
-              value={config.council.quorum !== undefined ? String(config.council.quorum) : 'default'}
+              value={
+                config.council.quorum !== undefined ? String(config.council.quorum) : 'default'
+              }
               options={localizeOptions(FRACTIONS, t)}
-              onChange={(v) => sendPatch({ council: { quorum: v === 'default' ? null : Number(v) } })}
+              onChange={(v) =>
+                sendPatch({ council: { quorum: v === 'default' ? null : Number(v) } })
+              }
               disabled={busy}
             />
             <PreferenceSelect
@@ -800,10 +809,10 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.councilPerSeatTimeoutLabel')}
               hint={t('settings:brain.councilPerSeatTimeoutHint')}
               value={optionalValue(config.council.perCallTimeoutMs)}
-              options={localizeOptions(withCurrent(
-                COUNCIL_CALL_TIMEOUTS,
-                optionalValue(config.council.perCallTimeoutMs),
-              ), t)}
+              options={localizeOptions(
+                withCurrent(COUNCIL_CALL_TIMEOUTS, optionalValue(config.council.perCallTimeoutMs)),
+                t,
+              )}
               onChange={(v) =>
                 sendPatch({ council: { perCallTimeoutMs: v === 'default' ? null : Number(v) } })
               }
@@ -813,10 +822,10 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.councilMaxConcurrencyLabel')}
               hint={t('settings:brain.councilMaxConcurrencyHint')}
               value={optionalValue(config.council.maxConcurrency)}
-              options={localizeOptions(withCurrent(
-                COUNCIL_CONCURRENCY,
-                optionalValue(config.council.maxConcurrency),
-              ), t)}
+              options={localizeOptions(
+                withCurrent(COUNCIL_CONCURRENCY, optionalValue(config.council.maxConcurrency)),
+                t,
+              )}
               onChange={(v) =>
                 sendPatch({ council: { maxConcurrency: v === 'default' ? null : Number(v) } })
               }
@@ -835,10 +844,26 @@ export function BrainSection(): ReactElement {
               disabled={busy}
             />
             <PreferenceSelect
+              label={t('settings:brain.councilVoterBudgetLabel')}
+              hint={t('settings:brain.councilVoterBudgetHint')}
+              value={optionalValue(config.council.voterMaxTokens)}
+              options={localizeOptions(
+                withCurrent(VOTER_MAX_TOKENS, optionalValue(config.council.voterMaxTokens)),
+                t,
+              )}
+              onChange={(v) =>
+                sendPatch({ council: { voterMaxTokens: v === 'default' ? null : Number(v) } })
+              }
+              disabled={busy}
+            />
+            <PreferenceSelect
               label={t('settings:brain.councilJudgeBudgetLabel')}
               hint={t('settings:brain.councilJudgeBudgetHint')}
               value={optionalValue(config.council.judgeMaxTokens)}
-              options={localizeOptions(withCurrent(JUDGE_MAX_TOKENS, optionalValue(config.council.judgeMaxTokens)), t)}
+              options={localizeOptions(
+                withCurrent(JUDGE_MAX_TOKENS, optionalValue(config.council.judgeMaxTokens)),
+                t,
+              )}
               onChange={(v) =>
                 sendPatch({ council: { judgeMaxTokens: v === 'default' ? null : Number(v) } })
               }
@@ -894,10 +919,10 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.ledgerMemoryEntriesLabel')}
               hint={t('settings:brain.ledgerMemoryEntriesHint')}
               value={optionalValue(config.ledger.maxMemoryEntries)}
-              options={localizeOptions(withCurrent(
-                LEDGER_MEMORY_ENTRIES,
-                optionalValue(config.ledger.maxMemoryEntries),
-              ), t)}
+              options={localizeOptions(
+                withCurrent(LEDGER_MEMORY_ENTRIES, optionalValue(config.ledger.maxMemoryEntries)),
+                t,
+              )}
               onChange={(v) =>
                 sendPatch({ ledger: { maxMemoryEntries: v === 'default' ? null : Number(v) } })
               }
@@ -907,10 +932,13 @@ export function BrainSection(): ReactElement {
               label={t('settings:brain.ledgerRetryWindowLabel')}
               hint={t('settings:brain.ledgerRetryWindowHint')}
               value={optionalValue(config.ledger.interventionRetryWindowMs)}
-              options={localizeOptions(withCurrent(
-                INTERVENTION_WINDOWS,
-                optionalValue(config.ledger.interventionRetryWindowMs),
-              ), t)}
+              options={localizeOptions(
+                withCurrent(
+                  INTERVENTION_WINDOWS,
+                  optionalValue(config.ledger.interventionRetryWindowMs),
+                ),
+                t,
+              )}
               onChange={(v) =>
                 sendPatch({
                   ledger: { interventionRetryWindowMs: v === 'default' ? null : Number(v) },
@@ -932,9 +960,7 @@ export function BrainSection(): ReactElement {
         </span>
         <div className="space-y-1 max-h-[300px] overflow-y-auto">
           {log.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">
-              {t('settings:brain.recentEmpty')}
-            </p>
+            <p className="text-xs text-muted-foreground py-2">{t('settings:brain.recentEmpty')}</p>
           ) : (
             log.map((entry) => (
               <div

@@ -5,6 +5,8 @@ description: |
   system traces to surface patterns, anomalies, or operational insights.
   Triggers: user says "audit", "session analysis", "log analysis", "usage patterns".
 version: 1.2.0
+required-capabilities: [filesystem.read, code.inspect]
+required-tools: [bash, exec, grep, read]
 ---
 
 # Audit Log Agent — WrongStack

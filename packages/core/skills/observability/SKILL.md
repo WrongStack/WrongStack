@@ -6,6 +6,9 @@ description: |
   "log", "trace", "metrics", "observability", "instrument", "structured logging",
   "opentelemetry", "log level", "debug", "monitoring".
 version: 1.0.0
+required-capabilities: [filesystem.read, filesystem.write]
+required-tools: []
+optional-capabilities: [code.inspect]
 ---
 
 # Observability — WrongStack

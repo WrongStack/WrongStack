@@ -5,6 +5,9 @@ description: |
   Triggers: user mentions "React", "component", "useState", "useEffect",
   "Server Component", "Client Component", "Suspense", "useTransition", "use hook".
 version: 1.1.0
+required-capabilities: [filesystem.read, filesystem.write]
+required-tools: []
+optional-capabilities: [verification.run]
 ---
 
 # Modern React (19+) — WrongStack
@@ -17,8 +20,8 @@ React 19+ patterns: Server Components by default, `use` hook for promises, `useT
 
 1. Default to Server Components — mark `'use client'` only for interactive code.
 2. Keep the client boundary minimal — avoid unnecessary serialization errors.
-3. Don't use `useEffect` for data fetching — use Server Components or `use(promise)`.
-4. Don't use `forwardRef` in new code — `ref` is a regular prop in React 19.
+3. Avoid `useEffect` for data fetching — prefer Server Components or `use(promise)`.
+4. Avoid `forwardRef` in new code — `ref` is a regular prop in React 19.
 5. Use named exports for components — default exports hinder refactoring.
 6. Event handlers must have explicit types: `React.MouseEvent<HTMLButtonElement>`.
 

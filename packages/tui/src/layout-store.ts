@@ -225,9 +225,7 @@ export class LayoutStore {
     const filePath = path.join(this.sessionDataDir, LAYOUT_FILENAME);
     let raw: string;
     try {
-      raw = await import('node:fs/promises').then((fs) =>
-        fs.readFile(filePath, 'utf8'),
-      );
+      raw = await import('node:fs/promises').then((fs) => fs.readFile(filePath, 'utf8'));
     } catch {
       return 0; // File not found or unreadable
     }
@@ -285,10 +283,7 @@ export class LayoutStore {
       const fs = await import('node:fs/promises');
       const dir = path.dirname(filePath);
       await fs.mkdir(dir, { recursive: true });
-      const tmp = path.join(
-        dir,
-        `.${path.basename(filePath)}.${Date.now().toString(36)}.tmp`,
-      );
+      const tmp = path.join(dir, `.${path.basename(filePath)}.${Date.now().toString(36)}.tmp`);
       await fs.writeFile(tmp, JSON.stringify(snapshot, null, 2), 'utf8');
       await fs.rename(tmp, filePath);
     } catch {
@@ -306,6 +301,9 @@ export class LayoutStore {
       this.debounceTimer = null;
       void this.flushNow();
     }, DEBOUNCE_MS);
+    // An armed debounce must not hold the process open at exit — teardown
+    // paths call flushNow()/cancelFlush() themselves.
+    this.debounceTimer.unref?.();
   }
 
   /** Cancel any pending flush. */

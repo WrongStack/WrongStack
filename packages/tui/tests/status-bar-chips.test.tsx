@@ -1,16 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import React from 'react';
 import { render } from 'ink-testing-library';
-import { BrainChip, EternalStageChip, ThinkingChip } from '../src/components/status-bar-chips.js';
+import React from 'react';
+import { describe, expect, it } from 'vitest';
 import type { BrainStatusChip } from '../src/components/status-bar.js';
+import { BrainChip, EternalStageChip, ThinkingChip } from '../src/components/status-bar-chips.js';
 
 describe('BrainChip', () => {
   const baseBrain: BrainStatusChip = { state: 'idle' };
 
   it('renders idle state', () => {
-    const { lastFrame, unmount } = render(
-      React.createElement(BrainChip, { brain: baseBrain }),
-    );
+    const { lastFrame, unmount } = render(React.createElement(BrainChip, { brain: baseBrain }));
     const frame = lastFrame() ?? '';
     expect(frame).toContain('idle');
     unmount();
@@ -331,7 +329,6 @@ describe('ThinkingChip', () => {
         style: 'rainbow',
         phase: 0,
         cycleTick: 0,
-        colorPhase: 0,
       }),
     );
     const frame = lastFrame() ?? '';
@@ -346,7 +343,6 @@ describe('ThinkingChip', () => {
         style: 'wave',
         phase: 1,
         cycleTick: 0,
-        colorPhase: 0,
       }),
     );
     const frame = lastFrame() ?? '';
@@ -361,7 +357,6 @@ describe('ThinkingChip', () => {
         style: 'pulse',
         phase: 2,
         cycleTick: 0,
-        colorPhase: 0,
       }),
     );
     const frame = lastFrame() ?? '';
@@ -376,7 +371,6 @@ describe('ThinkingChip', () => {
         style: 'dots',
         phase: 0,
         cycleTick: 0,
-        colorPhase: 0,
       }),
     );
     const frame = lastFrame() ?? '';
@@ -391,7 +385,6 @@ describe('ThinkingChip', () => {
         style: 'breathe',
         phase: 0,
         cycleTick: 0,
-        colorPhase: 0,
       }),
     );
     const frame = lastFrame() ?? '';
@@ -407,7 +400,6 @@ describe('ThinkingChip', () => {
         style: 'cycle',
         phase: 0,
         cycleTick: 0,
-        colorPhase: 0,
       }),
     );
     const frame = lastFrame() ?? '';
@@ -423,7 +415,6 @@ describe('ThinkingChip', () => {
           style: 'dots',
           phase,
           cycleTick: 0,
-          colorPhase: 0,
         }),
       );
       const frame = lastFrame() ?? '';
@@ -440,7 +431,6 @@ describe('ThinkingChip', () => {
           style: 'breathe',
           phase,
           cycleTick: 0,
-          colorPhase: 0,
         }),
       );
       const frame = lastFrame() ?? '';

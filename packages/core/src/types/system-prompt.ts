@@ -1,6 +1,6 @@
+import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
 import type { TextBlock } from './blocks.js';
 import type { Tool } from './tool.js';
-import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
 
 /** Model capabilities relevant to prompt composition. */
 export interface ModelCapabilities {
@@ -14,6 +14,8 @@ export interface BuildContext {
   cwd: string;
   projectRoot: string;
   tools: Tool[];
+  /** Complete enabled catalog, including tools reachable only through lazy gateways. */
+  catalogTools?: Tool[] | undefined;
   /** Provider id (e.g. "anthropic", "minimax-coding-plan"). */
   provider?: string | undefined;
   /** Model id (e.g. "configured-model", "MiniMax-M2.7"). */

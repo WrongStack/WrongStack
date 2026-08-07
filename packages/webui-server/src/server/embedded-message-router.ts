@@ -158,6 +158,7 @@ export function createEmbeddedMessageRouter(
 
   const guardedTypes = new Set([
     'user_message',
+    'topic.advice',
     'abort',
     'tool.confirm_result',
     'session.new',

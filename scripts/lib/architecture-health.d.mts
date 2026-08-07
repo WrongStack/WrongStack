@@ -27,6 +27,18 @@ export function validateHotspotBaseline(
   candidates: Array<{ file: string; lines: number; relativeImports: number }>;
 };
 
+export function collectRuntimeExports(sourceText: string): Set<string>;
+export function collectIdentifiers(sourceText: string): Set<string>;
+export function findTestOnlyExports(input: {
+  exportsByFile: Map<string, Set<string>>;
+  sourceIdentifiers: Map<string, { files: number; firstFile: string }>;
+  testIdentifiers: Set<string>;
+}): Array<{ file: string; name: string }>;
+export function validateTestOnlyExportBaseline(
+  current: Array<{ file: string; name: string }>,
+  baseline: { files?: Record<string, string[]> },
+): { errors: string[] };
+
 export interface ArchitectureHealthReport {
   generatedAt: string;
   errors: string[];

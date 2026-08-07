@@ -1,11 +1,10 @@
 /**
- * sage-output-block — split the SAGE Memory Injector suffix off a tool result.
+ * sage-output-block — legacy replay support for inline SAGE tool-result suffixes.
  *
- * The SAGE middleware (`packages/sage/src/middleware/tool-call-memory.ts`)
- * appends a `--- SAGE: … (Memory Injector) ---` block to the tool result
- * content the model sees. That block is *memory*, not tool output, and every
- * surface renders it as its own card (TUI `SageMemoryBlock`, WebUI
- * `SageMemoryCard`).
+ * Current SAGE middleware stores retrievals in Context.memoryEvidence and the
+ * provider receives them as separate ephemeral system blocks. Older session
+ * logs may still contain a `--- SAGE: … (Memory Injector) ---` suffix inside a
+ * tool result, so replay surfaces retain this parser for compatibility.
  *
  * Surfaces used to recover the block by re-parsing the `tool.executed` event
  * `output` string — which is a ~400-char preview. When a tool's own output was
@@ -14,7 +13,7 @@
  * candidate, and the whole block fell through to the plain tool-output
  * renderer. The result was raw `--- SAGE: … ---` text dumped into the chat.
  *
- * So the split happens HERE, at the emit site, before any truncation:
+ * For those legacy payloads the split happens HERE, before any truncation:
  * `tool.executed.output` carries tool text only and the block travels
  * separately in `tool.executed.sage`. Surfaces that don't know about SAGE show
  * clean tool output instead of leaking the block, and surfaces that do render
@@ -22,9 +21,7 @@
  *
  * The headings and the memory-line shape mirror
  * `packages/tui/src/components/history/sage-output-format.ts` and
- * `packages/webui/src/lib/sage-block.ts`. Those two keep their own copies
- * because they also parse *replayed* sessions, where the block is still inline
- * in the persisted `tool_result` content. All three must agree.
+ * `packages/webui/src/lib/sage-block.ts`. All three must agree for old logs.
  */
 
 export interface SageOutputSplit {

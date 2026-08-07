@@ -67,11 +67,9 @@ describe('normalizeTokenSavingTier', () => {
     });
   });
 
-  describe("'auto' collapses to 'off' for non-prompt consumers", () => {
-    it("normalizeTokenSavingTier('auto') → 'off' (tools full, no lazy load)", () => {
-      // Every consumer except the prompt builder must treat 'auto' as the safe
-      // no-op 'off' so it never reduces the tool set or enables lazy loading.
-      expect(normalizeTokenSavingTier('auto')).toBe('off');
+  describe("'auto' uses a bounded baseline for non-prompt consumers", () => {
+    it("normalizeTokenSavingTier('auto') → 'medium'", () => {
+      expect(normalizeTokenSavingTier('auto')).toBe('medium');
     });
   });
 });

@@ -30,6 +30,7 @@ import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { StopControls } from './ChatInput/stop-controls.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
+import { confirmModalChoice } from './ConfirmModal.js';
 import { FileReferenceChip } from './FileReferenceChip.js';
 import { parseNextSteps } from './NextStepsBar.js';
 import { PromptLibraryModal } from './PromptLibraryModal.js';
@@ -64,7 +65,15 @@ export function ChatInput({
   const pushPrompt = useUIStore((s) => s.pushPrompt);
   const promptHistory = useUIStore((s) => s.promptHistory);
   const ws = useWebSocket();
-  const { sendMessage, sendAbort, sendMailboxMessage, client, refineModel, updatePrefs } = ws;
+  const {
+    sendMessage,
+    sendAbort,
+    sendMailboxMessage,
+    client,
+    refineModel,
+    updatePrefs,
+    adviseTopic,
+  } = ws;
   const { t } = useAppTranslation();
   const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled);
   const refinerProvider = useLocalPrefs((s) => s.refinerProvider);
@@ -105,7 +114,8 @@ export function ChatInput({
       if (client?.isConnected) {
         addMessage({ role: 'user', content: current.original });
         setLoading(true);
-        sendMessage(current.original);
+        if (current.freshContext === true) sendMessage(current.original, undefined, true);
+        else sendMessage(current.original);
       } else {
         setInput(current.original);
         toast.error(t('chat:input.notConnectedDraftKept'));
@@ -121,6 +131,8 @@ export function ChatInput({
   const stickyDraftRef = useRef<string | null>(null);
   const [atMention, setAtMention] = useState<FileMentionState | null>(null);
   const [refinePickOpen, setRefinePickOpen] = useState(false);
+  const [topicCheckBusy, setTopicCheckBusy] = useState(false);
+  const topicCheckBusyRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRefs = useFileReferenceStore((s) => s.refs);
   const { removeRef, clearRefs } = useFileReferenceStore.getState();
@@ -408,6 +420,7 @@ export function ChatInput({
   const submitWith = useCallback(
     async (mode: QueueMode) => {
       resetAutoSubmitStreak();
+      if (topicCheckBusyRef.current) return;
       if (!input.trim() && pendingImagesRef.current.length === 0 && fileRefs.length === 0) return;
 
       const content = input.trim();
@@ -415,11 +428,11 @@ export function ChatInput({
       for (const f of openFiles) fileContents[f.path] = f.content;
       const refsMarkdown = refsToMarkdown(fileRefs, fileContents);
       const combined = [content, refsMarkdown].filter(Boolean).join('\n\n');
-      clearRefs();
 
       // File refs are command arguments too. Dispatching only the textarea
       // text silently dropped every @-mention from prompt-producing commands.
       if (content.startsWith('/') && runSlashCommand(combined)) {
+        clearRefs();
         pushPrompt(content);
         setInput('');
         setHistoryIdx(-1);
@@ -427,6 +440,46 @@ export function ChatInput({
         _clearTextarea();
         return;
       }
+
+      let freshContext = false;
+      const userTurns = messages.reduce(
+        (count, message) => count + (message.role === 'user' ? 1 : 0),
+        0,
+      );
+      if (
+        mode === 'btw' &&
+        !isLoading &&
+        client?.isConnected &&
+        client.supportsCapability('context.topic-boundary') &&
+        userTurns >= 5
+      ) {
+        topicCheckBusyRef.current = true;
+        setTopicCheckBusy(true);
+        try {
+          const advice = await adviseTopic(combined);
+          if (advice.suggestNewContext) {
+            const decision = await confirmModalChoice({
+              title: t('chat:input.topicShiftTitle'),
+              message: t('chat:input.topicShiftMessage', {
+                reason: advice.reason,
+                topic: advice.nextTopic ?? t('chat:input.topicShiftUnnamed'),
+              }),
+              confirmLabel: t('chat:input.topicShiftFresh'),
+              cancelLabel: t('chat:input.topicShiftSame'),
+              defaultAction: 'cancel',
+            });
+            if (decision === 'dismiss') return;
+            freshContext = decision === 'confirm';
+          }
+        } catch {
+          // Advisory failures are non-blocking: same-context is the safe default.
+        } finally {
+          topicCheckBusyRef.current = false;
+          setTopicCheckBusy(false);
+        }
+      }
+
+      clearRefs();
 
       setInput('');
       setHistoryIdx(-1);
@@ -548,6 +601,7 @@ export function ChatInput({
               resolve: (_decision) => {},
               provider: displayedProvider,
               model: displayedModel,
+              ...(freshContext ? { freshContext: true } : {}),
             });
           } else {
             addMessage({
@@ -556,7 +610,9 @@ export function ChatInput({
               ...(attachments.length > 0 ? { attachments } : {}),
             });
             setLoading(true);
-            sendMessage(combined, images.length > 0 ? toWireImages(images) : undefined);
+            const wireImages = images.length > 0 ? toWireImages(images) : undefined;
+            if (freshContext) sendMessage(combined, wireImages, true);
+            else sendMessage(combined, wireImages);
             clearPendingImages();
           }
         } else {
@@ -606,6 +662,8 @@ export function ChatInput({
       configProvider,
       configModel,
       t,
+      messages,
+      adviseTopic,
     ],
   );
 
@@ -897,7 +955,8 @@ export function ChatInput({
           if (client?.isConnected) {
             addMessage({ role: 'user', content: panel.original });
             setLoading(true);
-            sendMessage(panel.original);
+            if (panel.freshContext === true) sendMessage(panel.original, undefined, true);
+            else sendMessage(panel.original);
           } else {
             setInput(panel.original);
             toast.error(t('chat:input.notConnectedDraftKept'));
@@ -950,6 +1009,12 @@ export function ChatInput({
           >
             {t('chat:input.clearAll')}
           </button>
+        </div>
+      )}
+
+      {topicCheckBusy && (
+        <div className="px-1 text-xs text-muted-foreground" role="status">
+          {t('chat:input.topicShiftChecking')}
         </div>
       )}
 
@@ -1029,7 +1094,7 @@ export function ChatInput({
               'scrollbar-thin',
             )}
             rows={1}
-            disabled={!client?.isConnected}
+            disabled={!client?.isConnected || topicCheckBusy}
           />
 
           <DraftTokenCounter
@@ -1042,7 +1107,7 @@ export function ChatInput({
         <div className="flex w-full justify-end gap-1 overflow-x-auto no-scrollbar sm:w-auto sm:overflow-visible">
           <ImageAttachControl
             imagePickerRef={imagePickerRef}
-            disabled={!client?.isConnected}
+            disabled={!client?.isConnected || topicCheckBusy}
             title={t('chat:input.attachImagesTitle')}
             addImageFiles={addImageFiles}
           />
@@ -1058,7 +1123,7 @@ export function ChatInput({
               type="button"
               size="icon"
               variant={enhanceEnabled ? 'default' : 'outline'}
-              disabled={!client?.isConnected}
+              disabled={!client?.isConnected || topicCheckBusy}
               onClick={() => {
                 const next = !enhanceEnabled;
                 useLocalPrefs.getState().set({ enhanceEnabled: next });
@@ -1085,7 +1150,11 @@ export function ChatInput({
             type="submit"
             size="icon"
             variant="default"
-            disabled={(!input.trim() && pendingImages.length === 0) || !client?.isConnected}
+            disabled={
+              topicCheckBusy ||
+              (!input.trim() && pendingImages.length === 0) ||
+              !client?.isConnected
+            }
             className="h-[44px] w-[44px] shrink-0 rounded-md"
             title={t('chat:sendTitle')}
             data-testid="send-submit"
@@ -1104,7 +1173,11 @@ export function ChatInput({
                 type="button"
                 size="icon"
                 variant="default"
-                disabled={(!input.trim() && pendingImages.length === 0) || !client?.isConnected}
+                disabled={
+                  topicCheckBusy ||
+                  (!input.trim() && pendingImages.length === 0) ||
+                  !client?.isConnected
+                }
                 onClick={handleBtw}
                 className="h-[44px] w-[44px] shrink-0 rounded-md"
                 title={isLoading ? t('chat:input.btwRunningTitle') : t('chat:input.btwIdleTitle')}
@@ -1116,7 +1189,11 @@ export function ChatInput({
                 type="button"
                 size="icon"
                 variant="outline"
-                disabled={(!input.trim() && pendingImages.length === 0) || !client?.isConnected}
+                disabled={
+                  topicCheckBusy ||
+                  (!input.trim() && pendingImages.length === 0) ||
+                  !client?.isConnected
+                }
                 onClick={handleSteer}
                 className="h-[44px] w-[44px] shrink-0 rounded-md border-warning/50 text-warning hover:bg-warning/10"
                 title={
@@ -1130,7 +1207,11 @@ export function ChatInput({
                 type="button"
                 size="icon"
                 variant="outline"
-                disabled={(!input.trim() && pendingImages.length === 0) || !client?.isConnected}
+                disabled={
+                  topicCheckBusy ||
+                  (!input.trim() && pendingImages.length === 0) ||
+                  !client?.isConnected
+                }
                 onClick={handleAddQueue}
                 className="h-[44px] w-[44px] shrink-0 rounded-md border-info/50 text-info hover:bg-info/10"
                 title={t('chat:input.addQueueTitle')}

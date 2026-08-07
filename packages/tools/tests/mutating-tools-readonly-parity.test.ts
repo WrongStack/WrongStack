@@ -22,8 +22,9 @@
  * writes and forgot to say so.
  */
 
+import type { Context } from '@wrongstack/core/agent';
 import { ReadOnlyPermissionPolicy } from '@wrongstack/core/security';
-import type { Context, PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/core/types';
+import type { PermissionDecision, PermissionPolicy, Tool } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { builtinToolsPack } from '../src/pack.js';
 
@@ -46,11 +47,12 @@ const MUTATION_CAPABILITIES = new Set([
 
 /** Inner policy that always allows, so any deny came from the wrapper. */
 const allowAll: PermissionPolicy = {
-  evaluate: async (): Promise<PermissionDecision> => ({ permission: 'auto', source: 'test' }),
+  evaluate: async (): Promise<PermissionDecision> => ({ permission: 'auto', source: 'trust' }),
   trust: async () => undefined,
   deny: async () => undefined,
   denyOnce: () => undefined,
   allowOnce: () => undefined,
+  reload: async () => undefined,
 };
 
 function readOnlyContext(): Context {
@@ -112,7 +114,8 @@ describe('read-only mode blocks every mutating builtin tool', () => {
 
   it('leaves non-mutating tools to the inner policy', async () => {
     const readOnlyTools = TOOLS.filter(
-      (t) => t.mutating !== true && !(t.capabilities ?? []).some((c) => MUTATION_CAPABILITIES.has(c)),
+      (t) =>
+        t.mutating !== true && !(t.capabilities ?? []).some((c) => MUTATION_CAPABILITIES.has(c)),
     );
     expect(readOnlyTools.length).toBeGreaterThan(5);
     for (const tool of readOnlyTools) {
@@ -148,12 +151,11 @@ describe('mutating / capabilities labelling stays in agreement', () => {
   });
 
   it('no mutating tool auto-approves', () => {
-    const auto = TOOLS.filter((t) => t.mutating === true && (t.permission ?? 'auto') === 'auto').map(
-      (t) => t.name,
+    const auto = TOOLS.filter(
+      (t) => t.mutating === true && (t.permission ?? 'auto') === 'auto',
+    ).map((t) => t.name);
+    expect(auto, `mutating tools at permission: 'auto' run unprompted: ${auto.join(', ')}`).toEqual(
+      [],
     );
-    expect(
-      auto,
-      `mutating tools at permission: 'auto' run unprompted: ${auto.join(', ')}`,
-    ).toEqual([]);
   });
 });

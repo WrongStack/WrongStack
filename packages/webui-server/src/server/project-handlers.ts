@@ -243,6 +243,7 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
         ctx.context.session = next;
         ctx.context.state.replaceMessages([]);
         ctx.context.state.replaceTodos([]);
+        ctx.context.clearMemoryEvidence?.();
         ctx.context.readFiles.clear();
         ctx.context.fileMtimes.clear();
         ctx.tokenCounter.reset();

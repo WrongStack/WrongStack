@@ -141,23 +141,6 @@ describe('StatusBar chip separators', () => {
     expect(lines.at(-1)).toContain('index connected #4242');
   });
 
-  it('renders the current process RSS and V8 heap usage', () => {
-    const frame = frameOf({
-      processMemory: {
-        ts: '2026-07-18T00:00:00.000Z',
-        rss: 1.5 * 1024 ** 3,
-        heapUsed: 768 * 1024 ** 2,
-        heapTotal: 1024 ** 3,
-        external: 0,
-        heapLimit: 4 * 1024 ** 3,
-        load: 0.1875,
-      },
-    });
-
-    expect(frame).toContain('RAM 1.5G');
-    expect(frame).toContain('heap 768M');
-  });
-
   it('shows total SAGE records and the active-in-context summary', () => {
     // With no memory-context monitor prop the active count falls back to
     // Sage.activeInContext so the rail still surfaces it.
@@ -217,7 +200,7 @@ describe('StatusBar chip separators', () => {
           matched: 5,
           injected: 3,
           filtered: 2,
-          contextPressure: 0.70,
+          contextPressure: 0.7,
           injectedChars: 1000,
         },
       },

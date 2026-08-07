@@ -322,9 +322,8 @@ describe('OneShotOrchestrator', () => {
 
   it('counts every exhausted fallback attempt in the failure result', async () => {
     const orch = new OneShotOrchestrator(
-      makeOneShotOpts(
-        makeConfig({ fallbackAuto: false }),
-        async () => fakeProviderThatThrows('p', 'overloaded'),
+      makeOneShotOpts(makeConfig({ fallbackAuto: false }), async () =>
+        fakeProviderThatThrows('p', 'overloaded'),
       ),
     );
 
@@ -367,7 +366,9 @@ describe('OneShotOrchestrator', () => {
         isAvailable: (pid: string) => pid !== 'primary',
         recordSuccess: () => {},
         recordFailure: () => {},
-      } as unknown as NonNullable<ConstructorParameters<typeof OneShotOrchestrator>[0]['statusTracker']>,
+      } as unknown as NonNullable<
+        ConstructorParameters<typeof OneShotOrchestrator>[0]['statusTracker']
+      >,
     });
 
     const result = await orch.call({
@@ -393,7 +394,9 @@ describe('OneShotOrchestrator', () => {
         isAvailable: () => false,
         recordSuccess: () => {},
         recordFailure: () => {},
-      } as unknown as NonNullable<ConstructorParameters<typeof OneShotOrchestrator>[0]['statusTracker']>,
+      } as unknown as NonNullable<
+        ConstructorParameters<typeof OneShotOrchestrator>[0]['statusTracker']
+      >,
     });
 
     const result = await orch.call({
@@ -756,13 +759,14 @@ describe('OneShotOrchestrator honours the host provider-call chain', () => {
     const orch = new OneShotOrchestrator({
       ...makeOneShotOpts(cfg, async () => provider),
       wrapProviderCall: async (request, inner) =>
-        inner({ ...request, system: '[REDACTED]' }),
+        inner({ ...request, system: [{ type: 'text', text: '[REDACTED]' }] }),
     });
 
     await orch.call({ system: 'sk-live-abc123', userPrompt: 'Say hello.' });
 
-    const sent = (provider.complete as unknown as { mock: { calls: Request[][] } }).mock.calls[0]![0];
-    expect(sent.system).toBe('[REDACTED]');
+    const sent = (provider.complete as unknown as { mock: { calls: Request[][] } }).mock
+      .calls[0]![0]!;
+    expect(sent.system).toEqual([{ type: 'text', text: '[REDACTED]' }]);
   });
 
   it('surfaces a chain refusal as an orchestrator error rather than a call', async () => {

@@ -22,6 +22,11 @@
       "fingerprint": "8c370e3250d384cb"
     },
     {
+      "file": "packages/cli/tests/auth-menu-oauth.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "0ea378c848b6d617"
+    },
+    {
       "file": "packages/cli/tests/auth-panel-tui-e2e.test.ts",
       "kind": "skipIf",
       "fingerprint": "6ec5e9ce19834641"

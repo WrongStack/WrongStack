@@ -55,6 +55,8 @@ export interface ContextInit {
   allowOutsideProjectRoot?: boolean | undefined;
   model: string;
   tools?: Tool[] | undefined;
+  /** Complete executable catalog for lazy discovery/meta-tools. */
+  catalogTools?: Tool[] | undefined;
   /** Agent id performing this run (e.g. 'leader', 'executor', 'tech-stack'). */
   agentId?: string | undefined;
   /** Human-readable agent name. */
@@ -67,6 +69,13 @@ export interface ContextInit {
    * `session.traceId` automatically.
    */
   traceId?: string | undefined;
+}
+
+export interface ProviderMemoryEvidence {
+  /** Stable owner key, for example `sage.tool-memory`. */
+  source: string;
+  /** Provider-bound evidence text; never appended to chat/tool history. */
+  text: string;
 }
 
 /**
@@ -203,6 +212,8 @@ export class Context implements RunEnv {
   allowOutsideProjectRoot: boolean;
   model: string;
   tools: Tool[] = [];
+  /** Complete enabled catalog; provider token accounting continues to use `tools`. */
+  catalogTools: Tool[] = [];
   meta: Record<string, unknown> = {};
   /** Agent id performing this run (e.g. 'leader', 'executor'). */
   agentId: string;
@@ -292,6 +303,37 @@ export class Context implements RunEnv {
   pendingPostToolContext: string | undefined = undefined;
 
   /**
+   * Bounded, provider-bound memory evidence kept outside conversation and
+   * tool-result history. Owners replace their own slot instead of appending a
+   * fresh message on every retrieval, so long sessions do not accumulate the
+   * same SAGE hints. Request construction emits these as ephemeral system
+   * suffixes, preserving the stable prompt-cache prefix.
+   */
+  memoryEvidence: ProviderMemoryEvidence[] = [];
+
+  setMemoryEvidence(source: string, text: string | undefined, maxChars = 6_000): void {
+    const key = source.trim();
+    if (!key) return;
+    const clean = text?.trim();
+    const retained = this.memoryEvidence.filter((entry) => entry.source !== key);
+    if (clean) {
+      const boundedMax = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
+      if (boundedMax > 0) retained.push({ source: key, text: clean.slice(0, boundedMax) });
+    }
+    // A plugin cannot grow this into an unbounded side channel. Oldest source
+    // slots are evicted; each surviving owner remains independently replaceable.
+    this.memoryEvidence = retained.slice(-8);
+  }
+
+  clearMemoryEvidence(source?: string): void {
+    if (source === undefined) {
+      this.memoryEvidence = [];
+      return;
+    }
+    this.memoryEvidence = this.memoryEvidence.filter((entry) => entry.source !== source);
+  }
+
+  /**
    * H1: pre-computed total-request token estimate from the most recent
    * `estimateRequestTokens()` call in the agent loop's pre-flight step.
    * The middleware that decides when to compact, the `emitContextPct`
@@ -328,6 +370,7 @@ export class Context implements RunEnv {
     this.allowOutsideProjectRoot = init.allowOutsideProjectRoot ?? false;
     this.model = init.model;
     this.tools = init.tools ?? [];
+    this.catalogTools = init.catalogTools ?? this.tools;
     this.agentId = init.agentId ?? 'unknown';
     this.agentName = init.agentName ?? 'Unknown Agent';
     this.traceId = init.traceId;

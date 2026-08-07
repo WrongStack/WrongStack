@@ -1,4 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
+import { COUNCIL_REFUSE_OPTION_ID } from '../../src/execution/council-brain.js';
+import {
+  CouncilOrchestrator,
+  DEFAULT_COUNCIL_MAX_CONCURRENCY,
+  MAX_COUNCIL_CONCURRENCY,
+} from '../../src/execution/council-orchestrator.js';
+import { DEFAULT_COUNCIL_PROFILE_REGISTRY } from '../../src/execution/council-profiles.js';
 import type { Config } from '../../src/types/config.js';
 import type {
   CouncilLLMCaller,
@@ -6,14 +14,6 @@ import type {
   CouncilQuestion,
 } from '../../src/types/council.js';
 import type { OneShotLLMInput, OneShotLLMResult } from '../../src/types/one-shot-llm.js';
-import {
-  CouncilOrchestrator,
-  DEFAULT_COUNCIL_MAX_CONCURRENCY,
-  MAX_COUNCIL_CONCURRENCY,
-} from '../../src/execution/council-orchestrator.js';
-import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
-import { DEFAULT_COUNCIL_PROFILE_REGISTRY } from '../../src/execution/council-profiles.js';
-import { COUNCIL_REFUSE_OPTION_ID } from '../../src/execution/council-brain.js';
 
 interface CallPlan {
   voterResponses: Map<string, string>;
@@ -111,7 +111,12 @@ describe('CouncilOrchestrator', () => {
       validVoteCount: 3,
       judgeUsed: false,
     });
-    expect(result.usage).toMatchObject({ calls: 3, inputTokens: 30, outputTokens: 15, totalTokens: 45 });
+    expect(result.usage).toMatchObject({
+      calls: 3,
+      inputTokens: 30,
+      outputTokens: 15,
+      totalTokens: 45,
+    });
     expect(result.usage.durationMs).toBeGreaterThanOrEqual(0);
     expect(result.votes.filter((vote) => vote.status === 'valid')).toHaveLength(3);
     expect(log.judgeCalls).toEqual([]);
@@ -317,10 +322,7 @@ describe('CouncilOrchestrator', () => {
     await expect(
       orchestrator.ask({
         ...QUESTION,
-        options: [
-          ...QUESTION.options!,
-          { id: COUNCIL_REFUSE_OPTION_ID, label: 'Refuse' },
-        ],
+        options: [...QUESTION.options!, { id: COUNCIL_REFUSE_OPTION_ID, label: 'Refuse' }],
       }),
     ).rejects.toThrow(/reserved/);
   });
@@ -805,7 +807,11 @@ describe('CouncilOrchestrator', () => {
         ['c', '{"optionId":"merge"}'],
       ]),
     });
-    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 2, refusalOptionId: 'custom_refuse' });
+    const orchestrator = new CouncilOrchestrator({
+      caller,
+      maxConcurrency: 2,
+      refusalOptionId: 'custom_refuse',
+    });
     const result = await orchestrator.ask({
       ...QUESTION,
       profile,
@@ -920,9 +926,7 @@ describe('CouncilOrchestrator — status + usage consistency', () => {
     // In-flight seats aborted by the budget are failures, and they share the
     // canonical timeout error with seats that never started.
     expect(result.votes.every((vote) => vote.status === 'failed')).toBe(true);
-    expect(
-      result.votes.every((vote) => vote.error?.includes('overall timeout')),
-    ).toBe(true);
+    expect(result.votes.every((vote) => vote.error?.includes('overall timeout'))).toBe(true);
   }, 3_000);
 
   it('does not report a judge verdict produced after the overall budget expired', async () => {
@@ -1106,3 +1110,61 @@ function noopCaller(): CouncilLLMCaller {
   };
 }
 
+describe('CouncilOrchestrator — truncation attribution', () => {
+  const truncated = (text: string): OneShotLLMResult => ({
+    text,
+    model: 'test-model',
+    provider: 'test',
+    tokens: { input: 10, output: 5, total: 15 },
+    durationMs: 1,
+    fromFallback: false,
+    stopReason: 'max_tokens',
+  });
+
+  it('appends the voter budget to an invalid vote cut off at max_tokens', async () => {
+    // A reasoning model that spends its whole output budget thinking returns
+    // empty/mid-JSON text with stopReason max_tokens. The bare parse error
+    // ("did not contain JSON") pointed operators away from the actual fix.
+    const caller: CouncilLLMCaller = {
+      async call(): Promise<OneShotLLMResult> {
+        return truncated('{"optionId":');
+      },
+    };
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const profile = {
+      id: 'trunc-voter',
+      seats: [{ id: 'a', persona: 'executor' }],
+      judge: false,
+      voterMaxTokens: 123,
+    } satisfies CouncilProfileConfig;
+    const result = await orchestrator.ask({ ...QUESTION, profile });
+    const vote = result.votes[0];
+    expect(vote?.status).toBe('invalid');
+    expect(vote?.error).toContain('truncated at maxTokens=123');
+  });
+
+  it('appends the judge budget when the judge response is cut off at max_tokens', async () => {
+    const caller: CouncilLLMCaller = {
+      async call(input: OneShotLLMInput): Promise<OneShotLLMResult> {
+        const isJudge = (input.userPrompt ?? '').includes('<council-ballots>');
+        if (isJudge) return truncated('{"optionId');
+        // Split panel forces the judge to run.
+        const seatId = /Seat id: ([a-z0-9-]+)/.exec(input.userPrompt ?? '')?.[1];
+        return ok(seatId === 'a' ? '{"optionId":"merge"}' : '{"optionId":"hold"}', input);
+      },
+    };
+    const orchestrator = new CouncilOrchestrator({ caller, maxConcurrency: 1 });
+    const profile = {
+      id: 'trunc-judge',
+      seats: [
+        { id: 'a', persona: 'executor' },
+        { id: 'b', persona: 'skeptic' },
+      ],
+      judge: { role: 'reviewer' },
+      judgeMaxTokens: 77,
+    } satisfies CouncilProfileConfig;
+    const result = await orchestrator.ask({ ...QUESTION, profile });
+    expect(result.judgeUsed).toBe(true);
+    expect(result.errors?.some((e) => e.includes('truncated at maxTokens=77'))).toBe(true);
+  });
+});

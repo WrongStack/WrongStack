@@ -1,12 +1,12 @@
-import type { ContentBlock } from '@wrongstack/core/types';
 import { resolveContinuation, type TodoItem } from '@wrongstack/core/agent';
+import type { ContentBlock } from '@wrongstack/core/types';
 import {
   createAutoProceedLoopGuard,
   createContinuationAttemptTracker,
-  generateAdvancementPrompt,
   GROUNDED_NO_PROGRESS_STEER,
-  matchTodoIdFromPrompt,
+  generateAdvancementPrompt,
   MAX_ADVANCEMENT_ATTEMPTS,
+  matchTodoIdFromPrompt,
 } from '@wrongstack/tools/auto-proceed-loop-guard';
 import {
   type Dispatch,
@@ -17,8 +17,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { AppProps } from '../app-props.js';
 import type { Action } from '../app-action-type.js';
+import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
 
 interface NextStepsAutoSubmitOptions {
@@ -64,7 +64,9 @@ export function selectAutoProceedCandidate({
     return { source: 'todo', prompt: todo.text, label: todo.label };
   }
 
-  const automatic = yolo ? autoSuggestions.find((item) => item.trim().length > 0)?.trim() : undefined;
+  const automatic = yolo
+    ? autoSuggestions.find((item) => item.trim().length > 0)?.trim()
+    : undefined;
   if (automatic) {
     const prompt = autonomyNextPrompt
       ? autonomyNextPrompt.replace('{{suggestion}}', automatic)
@@ -73,9 +75,7 @@ export function selectAutoProceedCandidate({
   }
 
   const suggestion = suggestions.find((item) => item.trim().length > 0)?.trim();
-  return suggestion
-    ? { source: 'suggestion', prompt: suggestion, label: suggestion }
-    : null;
+  return suggestion ? { source: 'suggestion', prompt: suggestion, label: suggestion } : null;
 }
 
 /** Owns grounded next-step countdowns and automatic-turn loop guards. */
@@ -105,7 +105,9 @@ export function useNextStepsAutoSubmit({
   autoSubmitLoopGuardRef: MutableRefObject<ReturnType<typeof createAutoProceedLoopGuard>>;
   cancelNextStepsCountdown: () => void;
 } {
-  const [nextStepsAutoSubmitCountdown, setNextStepsAutoSubmitCountdown] = useState<number | null>(null);
+  const [nextStepsAutoSubmitCountdown, setNextStepsAutoSubmitCountdown] = useState<number | null>(
+    null,
+  );
   const [nextStepsAutoSubmitLabel, setNextStepsAutoSubmitLabel] = useState<string | null>(null);
   const nextStepsAutoSubmitSuggestionRef = useRef<string | null>(null);
   // Where the armed prompt came from. Todo-sourced prompts are GROUNDED
@@ -173,6 +175,8 @@ export function useNextStepsAutoSubmit({
     if (
       state.enhance != null ||
       state.enhanceBusy ||
+      state.topicCheckBusy ||
+      state.refineCountdown != null ||
       state.refineFailure != null ||
       state.continueConfirm != null ||
       state.clearConfirm != null ||
@@ -312,7 +316,9 @@ export function useNextStepsAutoSubmit({
               const todos = nextStepsAutoSubmitTodosRef.current;
               const stalled = matchTodoIdFromPrompt(todos, suggestion);
               if (stalled) {
-                const attemptCount = continuationAttemptTrackerRef.current.recordAttempt(stalled.id);
+                const attemptCount = continuationAttemptTrackerRef.current.recordAttempt(
+                  stalled.id,
+                );
                 continuationAttemptTrackerRef.current.markSkipped(stalled.id);
                 // Cap: if total advancement attempts across all todos
                 // exceeds limit, halt so the board gets manual attention.
@@ -322,7 +328,11 @@ export function useNextStepsAutoSubmit({
                 if (totalAdvancements <= MAX_ADVANCEMENT_ATTEMPTS) {
                   const nextTodo = todos
                     .filter((t) => t.status !== 'completed')
-                    .find((t) => t.id !== stalled.id && !continuationAttemptTrackerRef.current.isSkipped(t.id));
+                    .find(
+                      (t) =>
+                        t.id !== stalled.id &&
+                        !continuationAttemptTrackerRef.current.isSkipped(t.id),
+                    );
                   if (nextTodo) {
                     // ── Guaranteed marking ───────────────────────────
                     // Directly demote the stalled todo off "in_progress"
@@ -450,6 +460,8 @@ export function useNextStepsAutoSubmit({
     autonomyLive,
     state.enhance,
     state.enhanceBusy,
+    state.topicCheckBusy,
+    state.refineCountdown,
     state.refineFailure,
     state.continueConfirm,
     state.clearConfirm,

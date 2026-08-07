@@ -41,10 +41,12 @@ let buildIdCache:
  * long-lived client process.
  */
 export function projectIndexServerBuildId(entrypoint: string | URL): string {
-  const file =
-    entrypoint instanceof URL || entrypoint.startsWith('file:')
-      ? fileURLToPath(entrypoint)
-      : path.resolve(entrypoint);
+  // Vite query-suffixed imports (`project-server.ts?case=…`) surface in
+  // import.meta.url; fileURLToPath rejects the query, so strip it. The
+  // artifact identity is the file content, which the query does not change.
+  const href = entrypoint instanceof URL ? entrypoint.href : entrypoint;
+  const cleanHref = href.split(/[?#]/, 1)[0] ?? href;
+  const file = cleanHref.startsWith('file:') ? fileURLToPath(cleanHref) : path.resolve(cleanHref);
   try {
     const stat = fs.statSync(file);
     if (

@@ -1,4 +1,5 @@
 import type { Agent } from '@wrongstack/core/agent';
+import { startFreshTopicContext, TopicShiftAdvisor } from '@wrongstack/core/execution';
 import type { ContentBlock } from '@wrongstack/core/types';
 import {
   buildUserContentBlocks,
@@ -51,6 +52,7 @@ function requestedSessionId(msg: WSClientMessage): string | undefined {
 export function createConversationOperations(
   ctx: ConversationOperationsContext,
 ): ConversationRouteHandlers {
+  const topicShiftAdvisor = new TopicShiftAdvisor();
   const sessionPayload = (payload: Record<string, unknown>): Record<string, unknown> => {
     const provided = payload['sessionId'];
     const sessionId =
@@ -73,10 +75,46 @@ export function createConversationOperations(
   };
 
   return {
+    topicAdvice: async (ws, msg) => {
+      if (!ensureCurrentSession(ws, msg, 'topic.advice')) return;
+      const payload = (msg.payload ?? {}) as { requestId?: unknown; prompt?: unknown };
+      if (typeof payload.requestId !== 'string' || typeof payload.prompt !== 'string') {
+        ctx.send(ws, {
+          type: 'topic.advice_result',
+          payload: sessionPayload({
+            requestId: typeof payload.requestId === 'string' ? payload.requestId : '',
+            suggestNewContext: false,
+            confidence: 0,
+            reason: 'Invalid topic advice request.',
+            source: 'local',
+          }),
+        });
+        return;
+      }
+      const agent = ctx.getAgent();
+      const configuredMax = agent.ctx.meta['effectiveMaxContext'];
+      const maxContext =
+        typeof configuredMax === 'number'
+          ? configuredMax
+          : agent.ctx.provider.capabilities.maxContext;
+      const advice = await topicShiftAdvisor.advise({
+        prompt: payload.prompt,
+        messages: agent.ctx.messages,
+        provider: agent.ctx.provider,
+        model: agent.ctx.model,
+        contextTokens: agent.ctx.lastRequestTokens,
+        maxContext,
+      });
+      ctx.send(ws, {
+        type: 'topic.advice_result',
+        payload: sessionPayload({ requestId: payload.requestId, ...advice }),
+      });
+    },
     userMessage: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'user_message')) return;
       const payload = (msg.payload ?? {}) as {
         content?: unknown;
+        freshContext?: unknown;
         images?: IncomingImagePayload[] | undefined;
         imageBase64?: string | undefined;
       };
@@ -103,6 +141,7 @@ export function createConversationOperations(
       const originSessionId = ctx.getSessionId();
       try {
         const agent = ctx.getAgent();
+        if (payload.freshContext === true) await startFreshTopicContext(agent.ctx);
         const content = typeof payload.content === 'string' ? payload.content : '';
         let input: string | ContentBlock[] = content;
         const imageBlocks = parseIncomingImages(payload.images, payload.imageBase64);

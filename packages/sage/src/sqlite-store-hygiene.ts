@@ -2,10 +2,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { ulid } from '@wrongstack/core/utils';
-
-import { memoryNodeId } from './sqlite-store-graph-helpers.js';
-import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { applySemanticChange } from './shared/semantic-rewrite.js';
+import { readSqliteSageRow } from './sqlite-store-codec.js';
+import { memoryNodeId } from './sqlite-store-graph-helpers.js';
 import {
   isNearDuplicateMemory,
   isPossiblyContradictory,
@@ -36,6 +35,26 @@ const HYGIENE_NEAR_DUP_BUCKET_CAP = 80;
 function compareIsoAscending(a: string, b: string): number {
   if (a < b) return -1;
   if (a > b) return 1;
+  return 0;
+}
+
+/**
+ * Oldest-first ordering for a pair of memories.
+ *
+ * `createdAt` is millisecond-precision, so two memories written in the same
+ * tick compare EQUAL. The equal case used to fall through to the caller's
+ * query order (`updated_at DESC, id DESC`) — which lists the newest record
+ * first, so the "newer" pick resolved to the OLDER member and the
+ * `contradicts` link plus the 'investigate' candidate landed on the wrong
+ * claim. Ids are ULIDs and sort lexicographically by creation time, so they
+ * break the tie in true insertion order. Byte comparison for the same reason
+ * `compareIsoAscending` avoids `localeCompare`.
+ */
+function compareMemoryAgeAscending(a: Sage, b: Sage): number {
+  const byCreated = compareIsoAscending(a.createdAt, b.createdAt);
+  if (byCreated !== 0) return byCreated;
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
   return 0;
 }
 
@@ -274,10 +293,7 @@ export async function runSqliteSageHygiene(
             // Skip pairs the contradiction pass is responsible for: merging a
             // polarity pair here would destroy the contradiction (e.g. "is
             // stable" vs "is not stable" would collapse into one memory).
-            if (
-              isNearDuplicateMemory(left, right) &&
-              !isPossiblyContradictory(left, right)
-            ) {
+            if (isNearDuplicateMemory(left, right) && !isPossiblyContradictory(left, right)) {
               union(left.id, right.id);
             }
           }
@@ -302,9 +318,7 @@ export async function runSqliteSageHygiene(
           const keeper = sorted[0]!;
           // Pair validation: only supersede members that are near-dup with the
           // keeper itself. Transitively connected-but-unrelated facts stay.
-          const duplicates = sorted
-            .slice(1)
-            .filter((dup) => isNearDuplicateMemory(keeper, dup));
+          const duplicates = sorted.slice(1).filter((dup) => isNearDuplicateMemory(keeper, dup));
           if (duplicates.length === 0) continue;
           const mergeSet = [keeper, ...duplicates];
           const richest = mergeSet.reduce((best, cur) =>
@@ -399,7 +413,7 @@ export async function runSqliteSageHygiene(
           // not re-flag (and re-candidate) the same contradiction.
           if (a.contradicts?.includes(b.id) || b.contradicts?.includes(a.id)) continue;
           // Flag the newer member; the older one is the contradicted claim.
-          const newer = compareIsoAscending(a.createdAt, b.createdAt) <= 0 ? b : a;
+          const newer = compareMemoryAgeAscending(a, b) <= 0 ? b : a;
           const other = newer === a ? b : a;
           if (!flagged.has(newer.id)) flagged.set(newer.id, { memory: newer, other });
         }
@@ -410,7 +424,11 @@ export async function runSqliteSageHygiene(
       await ctx.runMutation(() => {
         for (const { memory, other } of flagged.values()) {
           const contradictions = [...new Set([...(memory.contradicts ?? []), other.id])];
-          const updated = applySemanticChange(memory, { contradicts: contradictions }, ctx.nowIso());
+          const updated = applySemanticChange(
+            memory,
+            { contradicts: contradictions },
+            ctx.nowIso(),
+          );
           ctx.upsertMemory(updated);
           ctx.syncAnchorEdges(updated);
           pendingCandidates.push({ memory, other });

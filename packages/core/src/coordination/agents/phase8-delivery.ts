@@ -1,5 +1,5 @@
-import { type AgentDefinition, MEDIUM_BUDGET, TOOLS } from './types.js';
 import { agentPrompt } from './agent-prompts.js';
+import { type AgentDefinition, MEDIUM_BUDGET, SPECIALIST_TOOLS, TOOLS } from './types.js';
 
 /** Phase 8 · Delivery & Ops — ship it, run it, keep it healthy. */
 export const DELIVERY_AGENTS: AgentDefinition[] = [
@@ -14,7 +14,8 @@ export const DELIVERY_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'delivery',
-      summary: 'Git automation: focused commits, branch/rebase/conflict handling, PR prep, history investigation.',
+      summary:
+        'Git automation: focused commits, branch/rebase/conflict handling, PR prep, history investigation.',
       keywords: [
         'git',
         'commit',
@@ -42,7 +43,8 @@ export const DELIVERY_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'delivery',
-      summary: 'Release management: semver bumps, changelogs, and release notes derived from real history.',
+      summary:
+        'Release management: semver bumps, changelogs, and release notes derived from real history.',
       keywords: [
         'release',
         'version',
@@ -61,33 +63,14 @@ export const DELIVERY_AGENTS: AgentDefinition[] = [
       id: 'devops',
       name: 'DevOps',
       role: 'devops',
-      tools: [
-        ...TOOLS.build,
-        'mcp__ssh__ssh_list_servers',
-        'mcp__ssh__ssh_connection_status',
-        'mcp__ssh__ssh_execute',
-        'mcp__ssh__ssh_execute_sudo',
-        'mcp__ssh__ssh_upload',
-        'mcp__ssh__ssh_download',
-        'mcp__ssh__ssh_sync',
-        'mcp__ssh__ssh_deploy',
-        'mcp__ssh__ssh_health_check',
-        'mcp__ssh__ssh_service_status',
-        'mcp__ssh__ssh_process_manager',
-        'mcp__ssh__ssh_tunnel',
-        'mcp__ssh__ssh_backup_create',
-        'mcp__ssh__ssh_backup_list',
-        'mcp__ssh__ssh_backup_restore',
-        'mcp__ssh__ssh_db_list',
-        'mcp__ssh__ssh_db_query',
-        'mcp__ssh__ssh_profile',
-      ],
+      tools: [...TOOLS.build, ...SPECIALIST_TOOLS.mcp],
       prompt: agentPrompt('devops'),
     },
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'delivery',
-      summary: 'CI/CD, containerization, and deployment config: reproducible builds and safe deploys with rollback.',
+      summary:
+        'CI/CD, containerization, and deployment config: reproducible builds and safe deploys with rollback.',
       keywords: [
         'devops',
         'ci',
@@ -122,7 +105,8 @@ export const DELIVERY_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'delivery',
-      summary: 'Observability: structured logging, metrics, distributed tracing, and alerts/dashboards.',
+      summary:
+        'Observability: structured logging, metrics, distributed tracing, and alerts/dashboards.',
       keywords: [
         'observability',
         'logging',
@@ -150,7 +134,8 @@ export const DELIVERY_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'delivery',
-      summary: 'Package management + supply-chain safety: CVE audit, safe upgrades, pruning, install-script review.',
+      summary:
+        'Package management + supply-chain safety: CVE audit, safe upgrades, pruning, install-script review.',
       keywords: [
         'dependency',
         'dependencies',

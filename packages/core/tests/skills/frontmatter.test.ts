@@ -50,6 +50,20 @@ b`);
     expect(fm.allowedTools).toEqual(['Bash', 'Edit', 'Read']);
   });
 
+  it('parses required and optional runtime capabilities', () => {
+    const fm = parseSkillFrontmatter(`---
+name: x
+description: d
+required-capabilities: [filesystem.read, code.inspect]
+required-tools: [read, codebase-search]
+optional-capabilities: browser.interact mcp.dynamic
+---
+b`);
+    expect(fm.requiredCapabilities).toEqual(['filesystem.read', 'code.inspect']);
+    expect(fm.requiredTools).toEqual(['read', 'codebase-search']);
+    expect(fm.optionalCapabilities).toEqual(['browser.interact', 'mcp.dynamic']);
+  });
+
   it('returns {} for missing or unclosed frontmatter', () => {
     expect(parseSkillFrontmatter('no frontmatter here')).toEqual({});
     expect(parseSkillFrontmatter('---\nname: x\nnever closes')).toEqual({});

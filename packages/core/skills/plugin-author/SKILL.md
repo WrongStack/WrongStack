@@ -8,6 +8,9 @@ description: |
   Triggers: user says "new plugin", "add a plugin", "plugin teardown", "plugin
   health", "register a tool", "PluginAPI extension".
 version: 1.0.0
+required-capabilities: [filesystem.read, filesystem.write, execution.shell]
+required-tools: [bash, cron_cancel, cron_list, cron_schedule, edit, fetch, git, git_autocommit, json, read, search, secret_scanner_test, semver_bump, semver_changelog, semver_current, todo, watch_list, watch_start, watch_stop, write]
+optional-capabilities: [verification.run]
 ---
 
 # Plugin Author — WrongStack
@@ -64,7 +67,7 @@ There are currently **21 official plugins** in the suite:
    (todo-tracker) leave the file in place — the user may return. Only
    in-memory counters and resource handles (timers, watchers) are
    cleaned up.
-5. **Tool names use `snake_case`.** Plugin-level tools registered via
+5. **Tool names follow `snake_case`.** Plugin-level tools registered via
    `api.tools.register()` must be unique across the suite. The built-in
    tools (`bash`, `write`, `read`, `edit`, `fetch`, `search`, `json`,
    `todo`, `git`, etc.) are always present; don't collide.

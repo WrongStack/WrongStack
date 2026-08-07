@@ -1,6 +1,6 @@
-import type { ConcreteTokenSavingTier, Tool } from '@wrongstack/core/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import { TIER1_TOOLS, TIER2_TOOLS, TIER3_TOOLS } from './builtin.js';
+import type { ConcreteTokenSavingTier, Tool } from '@wrongstack/core/types';
+import { TIER1_TOOLS, TIER2_TOOLS } from './builtin.js';
 import { builtinToolsPack } from './pack.js';
 
 function toolNameSet(tools: readonly (Tool | null | undefined)[]): Set<string> {
@@ -30,14 +30,7 @@ export function selectBuiltinToolsForTier(
     }
     case 'aggressive': {
       const tier1Names = toolNameSet(TIER1_TOOLS);
-      const tier2Names = toolNameSet(TIER2_TOOLS);
-      const tier3Names = toolNameSet(TIER3_TOOLS);
-      return allTools.filter(
-        (tool) =>
-          tier1Names.has(tool.name) ||
-          (tier2Names.has(tool.name) && tool.name !== 'task') ||
-          (tier3Names.has(tool.name) && tool.name !== 'set_working_dir'),
-      );
+      return allTools.filter((tool) => tier1Names.has(tool.name));
     }
   }
 }

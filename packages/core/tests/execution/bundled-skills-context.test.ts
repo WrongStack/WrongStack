@@ -8,6 +8,8 @@ import {
   DefaultSystemPromptBuilder,
   resolveWstackPaths,
 } from '../../src/index.js';
+import { RUNTIME_CAPABILITY_MANIFEST } from '../../src/types/runtime-capability-manifest.js';
+import type { Tool } from '../../src/types/tool.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const bundledDir = path.resolve(here, '..', '..', 'skills');
@@ -42,9 +44,23 @@ describe('bundled operational skills → prompt context', () => {
     mode: 'eager' | 'progressive',
     skillEagerMaxChars = 1_000_000,
   ): Promise<string> {
+    const skillLoader = loader();
+    const requiredToolNames = [
+      ...new Set(RUNTIME_CAPABILITY_MANIFEST.flatMap((capability) => capability.tools)),
+    ];
+    const tools: Tool[] = requiredToolNames.map((name) => ({
+      name,
+      description: '',
+      inputSchema: { type: 'object' },
+      permission: 'auto',
+      mutating: false,
+      async execute() {
+        return 'ok';
+      },
+    }));
     const builder = new DefaultSystemPromptBuilder({
       todayIso: '2026-07-18',
-      skillLoader: loader(),
+      skillLoader,
       skillMode: mode,
       // Exercise the complete eager injection path without making this catalog
       // contract depend on the normal session-wide prompt budget.
@@ -53,7 +69,7 @@ describe('bundled operational skills → prompt context', () => {
     const blocks = await builder.build({
       cwd: path.join(tmp, 'project'),
       projectRoot: path.join(tmp, 'project'),
-      tools: [],
+      tools,
     });
     return blocks.map((block) => block.text).join('\n');
   }

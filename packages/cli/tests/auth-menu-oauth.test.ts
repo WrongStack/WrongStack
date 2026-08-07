@@ -12,11 +12,12 @@
  *    loopback URLs. The authorization-code `state` is parsed from the
  *    authorize URL the renderer logs, so the test can fire a valid callback.
  */
+
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
 import { DefaultSecretVault } from '@wrongstack/core/security';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,20 +35,7 @@ vi.mock('node:child_process', async (importOriginal) => ({
     return { on: () => {}, unref: () => {} };
   }),
 }));
-import {
-  buildAuthorizeUrl as buildCodexAuthorizeUrl,
-  exchangeAuthorizationCode as exchangeCodex,
-  extractAccountId,
-  fallbackCodexModelIds,
-  fetchCodexModels,
-  filterCurrentCodexModelIds,
-  generatePkce as generateCodexPkce,
-  isCodexCatalogModel,
-  parseAuthorizationInput as parseCodexInput,
-  refreshCodexToken,
-  resolveCodexModels,
-  runCodexOAuthLogin,
-} from '../src/auth-menu/openai-codex-oauth.js';
+
 import {
   buildAuthorizeUrl as buildClaudeAuthorizeUrl,
   exchangeAuthorizationCode as exchangeClaude,
@@ -65,6 +53,20 @@ import {
   openBrowser,
   startLoopbackServer,
 } from '../src/auth-menu/loopback-server.js';
+import {
+  buildAuthorizeUrl as buildCodexAuthorizeUrl,
+  exchangeAuthorizationCode as exchangeCodex,
+  extractAccountId,
+  fallbackCodexModelIds,
+  fetchCodexModels,
+  filterCurrentCodexModelIds,
+  generatePkce as generateCodexPkce,
+  isCodexCatalogModel,
+  parseAuthorizationInput as parseCodexInput,
+  refreshCodexToken,
+  resolveCodexModels,
+  runCodexOAuthLogin,
+} from '../src/auth-menu/openai-codex-oauth.js';
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -150,7 +152,40 @@ const ACCOUNT_JWT = jwt({
   'https://api.openai.com/auth': { chatgpt_account_id: 'acct-123' },
 });
 
-/** Fire a real loopback callback and return the server's HTTP response body. */
+/** Resolve true when `port` can be bound on the loopback interface right now. */
+function canBindPort(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const probe = net.createServer();
+    probe.once('error', () => resolve(false));
+    probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+  });
+}
+
+/**
+ * Anthropic registers a FIXED redirect URI, so the Claude flow can only ever
+ * listen on 53692 — unlike the Codex flow, which falls through a port list.
+ * The OS can refuse that one port outright: Windows (Hyper-V/WinNAT) reserves
+ * dynamic TCP blocks, and 53692 regularly lands inside one, so `bind()` fails
+ * with EACCES while nothing is actually listening. `runClaudeOAuthLogin`
+ * handles that correctly (it drops to the manual-paste prompt), but the cases
+ * below that need a REAL callback delivered cannot run at all — their
+ * `fireCallback` would hit a closed port and fail with ECONNREFUSED, which
+ * looks like a product bug and is not one. Probe once and gate those cases;
+ * on a host where the port is free (CI) every one of them still runs.
+ */
+const claudeLoopbackAvailable = await canBindPort(53692);
+
+/**
+ * Push a Claude flow that is waiting on the loopback down to the paste prompt.
+ * A mismatched `state` makes the server resolve null. When the port could not
+ * be bound there is no server and the flow is already at the prompt, so firing
+ * would just fail — skip it.
+ */
+async function nudgeClaudeToPastePrompt(port: number): Promise<void> {
+  if (!claudeLoopbackAvailable) return;
+  await fireCallback(port, '/callback', 'code=x&state=WRONG');
+}
+
 /** Poll until `port` can actually be bound again, or the deadline passes. */
 async function waitForPortRelease(port: number, timeoutMs = 3000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -185,8 +220,12 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function stubFetch(input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> {
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+async function stubFetch(
+  input: Parameters<typeof fetch>[0],
+  init?: RequestInit,
+): Promise<Response> {
+  const url =
+    typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
   for (const r of routes) {
     if (r.matcher(url)) return r.response();
   }
@@ -237,7 +276,13 @@ describe('loopback-server.ts — real loopback callback server', () => {
   });
 
   it('resolves waitForCode with code+state on a valid callback', async () => {
-    const server = await startLoopbackServer('state-1', [0], undefined, '/auth/callback', '127.0.0.1');
+    const server = await startLoopbackServer(
+      'state-1',
+      [0],
+      undefined,
+      '/auth/callback',
+      '127.0.0.1',
+    );
     expect(server.bound).toBe(true);
     const status = await fireCallback(server.port, '/auth/callback', 'code=abc123&state=state-1');
     expect(status).toBe(200);
@@ -409,10 +454,15 @@ describe('openai-codex-oauth.ts — pure helpers', () => {
     route('backend-api/models', () => jsonResponse({ data: [] }));
     const withCatalog = {
       getProvider: vi.fn(async () => ({
-        models: [{ id: current, family: 'gpt-codex' }, { id: 'old', family: 'gpt-codex' }],
+        models: [
+          { id: current, family: 'gpt-codex' },
+          { id: 'old', family: 'gpt-codex' },
+        ],
       })),
     } as never as ModelsRegistry;
-    await expect(resolveCodexModels(withCatalog, Promise.resolve('tok'))).resolves.toEqual([current]);
+    await expect(resolveCodexModels(withCatalog, Promise.resolve('tok'))).resolves.toEqual([
+      current,
+    ]);
 
     routes = [];
     route('backend-api/models', () => new Response(null, { status: 500 }));
@@ -628,7 +678,9 @@ describe('anthropic-oauth.ts — pure helpers', () => {
 
     routes = [];
     route('platform.claude.com/v1/oauth/token', () => jsonResponse({ error: 1 }, 401));
-    await expect(exchangeClaude('c', 's', 'v')).rejects.toThrow(/Claude token exchange failed \(401\)/);
+    await expect(exchangeClaude('c', 's', 'v')).rejects.toThrow(
+      /Claude token exchange failed \(401\)/,
+    );
 
     routes = [];
     route('platform.claude.com/v1/oauth/token', () => jsonResponse({ foo: 1 }));
@@ -637,45 +689,14 @@ describe('anthropic-oauth.ts — pure helpers', () => {
 });
 
 describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
-  function claudeRoutes(models: unknown = { data: [{ id: 'claude-sonnet-4-6' }, { id: 'gpt-4o' }] }): void {
+  function claudeRoutes(
+    models: unknown = { data: [{ id: 'claude-sonnet-4-6' }, { id: 'gpt-4o' }] },
+  ): void {
     route('platform.claude.com/v1/oauth/token', () =>
       jsonResponse({ access_token: 'ac', refresh_token: 'rf', expires_in: 3600 }),
     );
     route('/v1/models', () => jsonResponse(models));
   }
-
-  it('signs in via the real loopback callback and saves OAuth tokens', async () => {
-    claudeRoutes();
-    const { configPath, vault, registry } = await setup();
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const ac = new AbortController();
-    const flow = runClaudeOAuthLogin(deps, { providerId: 'claude-oauth-test', signal: ac.signal });
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    expect(await fireCallback(port, '/callback', `code=cb&state=${state}`)).toBe(200);
-    expect(await flow).toBe(0);
-    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
-    const p = (raw.providers as Record<string, Record<string, unknown>>)['claude-oauth-test']!;
-    expect(p.family).toBe('anthropic-oauth');
-    expect(p.baseUrl).toBe('https://api.anthropic.com');
-    // Only claude-* ids survive the filter.
-    expect(p.models).toEqual(['claude-sonnet-4-6']);
-    expect((p.apiKeys as Array<{ label: string; authMethod: string }>)[0]).toMatchObject({
-      label: 'oauth-default',
-      authMethod: 'oauth',
-    });
-  });
-
-  it('saves without a model list when the models fetch fails', async () => {
-    claudeRoutes(new Response(null, { status: 500 }));
-    const { configPath, vault, registry } = await setup();
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const ac = new AbortController();
-    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', `code=cb&state=${state}`);
-    expect(await flow).toBe(0);
-    expect(logs.some((l) => l.includes('No model list was discovered'))).toBe(true);
-  });
 
   it('cancels at the paste prompt with q', async () => {
     claudeRoutes();
@@ -684,7 +705,7 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
     const ac = new AbortController();
     const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
     const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', 'code=x&state=WRONG');
+    await nudgeClaudeToPastePrompt(port);
     expect(await flow).toBe(1);
     expect(logs.some((l) => l.includes('Cancelled.'))).toBe(true);
   });
@@ -698,7 +719,7 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
     const ac = new AbortController();
     const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
     const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', 'code=x&state=WRONG');
+    await nudgeClaudeToPastePrompt(port);
     expect(await flow).toBe(1);
     expect(logs.some((l) => l.includes('State mismatch'))).toBe(true);
   });
@@ -710,11 +731,12 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
     const ac = new AbortController();
     const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
     const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', 'code=x&state=WRONG'); // unblock wait → paste
+    await nudgeClaudeToPastePrompt(port); // unblock wait → paste
     expect(await flow).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown> | undefined>)['anthropic-oauth']?.family,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['anthropic-oauth']
+        ?.family,
     ).toBe('anthropic-oauth');
   });
 
@@ -725,7 +747,7 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
     const ac = new AbortController();
     const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
     const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', 'code=x&state=WRONG');
+    await nudgeClaudeToPastePrompt(port);
     expect(await flow).toBe(1);
     expect(logs.some((l) => l.includes('No authorization code received.'))).toBe(true);
   });
@@ -740,16 +762,6 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
     expect(logs.some((l) => l.includes('Cancelled.'))).toBe(true);
   });
 
-  it('runs without an external signal (SIGINT wiring is installed and removed)', async () => {
-    claudeRoutes();
-    const { configPath, vault, registry } = await setup();
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const flow = runClaudeOAuthLogin(deps); // no signal → own SIGINT handler
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', `code=cb&state=${state}`);
-    expect(await flow).toBe(0);
-  });
-
   it('falls back to manual paste when the callback port is busy', async () => {
     claudeRoutes();
     const dummy = await startLoopbackServer('dummy-53692', [53692]);
@@ -760,97 +772,154 @@ describe('anthropic-oauth.ts — runClaudeOAuthLogin flow', () => {
       const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
       const { port } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
       expect(port).toBe(53692);
-      expect(logs.some((l) => l.includes('Could not start the local callback listener'))).toBe(true);
+      expect(logs.some((l) => l.includes('Could not start the local callback listener'))).toBe(
+        true,
+      );
       expect(await flow).toBe(0);
     } finally {
       dummy.close();
     }
   });
 
-  it('replaces an existing oauth-default key on re-login', async () => {
-    claudeRoutes();
-    const { configPath, vault, registry } = await setup({
-      preExisting: {
-        providers: {
-          'claude-oauth-test': {
-            type: 'anthropic-oauth',
-            apiKeys: [{ label: 'oauth-default', apiKey: 'sk-old' }],
-            activeKey: 'oauth-default',
+  // Every case below needs the loopback server to actually BIND the fixed
+  // redirect port and hand a real authorization code to the flow. One gate for
+  // the whole group — see `claudeLoopbackAvailable` for why a host can refuse
+  // 53692 outright. Where the port is free (CI) the whole suite runs.
+  describe.skipIf(!claudeLoopbackAvailable)('with a real callback delivered on 53692', () => {
+    it('signs in via the real loopback callback and saves OAuth tokens', async () => {
+      claudeRoutes();
+      const { configPath, vault, registry } = await setup();
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, {
+        providerId: 'claude-oauth-test',
+        signal: ac.signal,
+      });
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      expect(await fireCallback(port, '/callback', `code=cb&state=${state}`)).toBe(200);
+      expect(await flow).toBe(0);
+      const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+      const p = (raw.providers as Record<string, Record<string, unknown>>)['claude-oauth-test']!;
+      expect(p.family).toBe('anthropic-oauth');
+      expect(p.baseUrl).toBe('https://api.anthropic.com');
+      // Only claude-* ids survive the filter.
+      expect(p.models).toEqual(['claude-sonnet-4-6']);
+      expect((p.apiKeys as Array<{ label: string; authMethod: string }>)[0]).toMatchObject({
+        label: 'oauth-default',
+        authMethod: 'oauth',
+      });
+    });
+
+    it('saves without a model list when the models fetch fails', async () => {
+      claudeRoutes(new Response(null, { status: 500 }));
+      const { configPath, vault, registry } = await setup();
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      await fireCallback(port, '/callback', `code=cb&state=${state}`);
+      expect(await flow).toBe(0);
+      expect(logs.some((l) => l.includes('No model list was discovered'))).toBe(true);
+    });
+
+    it('runs without an external signal (SIGINT wiring is installed and removed)', async () => {
+      claudeRoutes();
+      const { configPath, vault, registry } = await setup();
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const flow = runClaudeOAuthLogin(deps); // no signal → own SIGINT handler
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      await fireCallback(port, '/callback', `code=cb&state=${state}`);
+      expect(await flow).toBe(0);
+    });
+
+    it('replaces an existing oauth-default key on re-login', async () => {
+      claudeRoutes();
+      const { configPath, vault, registry } = await setup({
+        preExisting: {
+          providers: {
+            'claude-oauth-test': {
+              type: 'anthropic-oauth',
+              apiKeys: [{ label: 'oauth-default', apiKey: 'sk-old' }],
+              activeKey: 'oauth-default',
+            },
           },
         },
-      },
+      });
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, {
+        providerId: 'claude-oauth-test',
+        signal: ac.signal,
+      });
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      await fireCallback(port, '/callback', `code=cb&state=${state}`);
+      expect(await flow).toBe(0);
+      const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
+      const p = (raw.providers as Record<string, Record<string, unknown>>)['claude-oauth-test']!;
+      expect(p.family).toBe('anthropic-oauth');
+      expect((p.apiKeys as unknown[]).length).toBe(1); // old oauth-default replaced, not duplicated
     });
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const ac = new AbortController();
-    const flow = runClaudeOAuthLogin(deps, { providerId: 'claude-oauth-test', signal: ac.signal });
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', `code=cb&state=${state}`);
-    expect(await flow).toBe(0);
-    const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
-    const p = (raw.providers as Record<string, Record<string, unknown>>)['claude-oauth-test']!;
-    expect(p.family).toBe('anthropic-oauth');
-    expect((p.apiKeys as unknown[]).length).toBe(1); // old oauth-default replaced, not duplicated
-  });
 
-  it('reports a token-save failure', async () => {
-    claudeRoutes();
-    const { tmpDir, vault, registry } = await setup();
-    const configPath = path.join(tmpDir, 'not-a-file');
-    await fs.mkdir(configPath, { recursive: true });
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const ac = new AbortController();
-    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', `code=cb&state=${state}`);
-    expect(await flow).toBe(1);
-    expect(logs.some((l) => l.includes('Failed to save tokens'))).toBe(true);
-  });
-
-  it('maps an AbortError during exchange to "Login cancelled."', async () => {
-    route('platform.claude.com/v1/oauth/token', () => {
-      throw new DOMException('aborted', 'AbortError');
+    it('reports a token-save failure', async () => {
+      claudeRoutes();
+      const { tmpDir, vault, registry } = await setup();
+      const configPath = path.join(tmpDir, 'not-a-file');
+      await fs.mkdir(configPath, { recursive: true });
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      await fireCallback(port, '/callback', `code=cb&state=${state}`);
+      expect(await flow).toBe(1);
+      expect(logs.some((l) => l.includes('Failed to save tokens'))).toBe(true);
     });
-    route('/v1/models', () => jsonResponse({ data: [] }));
-    const { configPath, vault, registry } = await setup();
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const ac = new AbortController();
-    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', `code=cb&state=${state}`);
-    expect(await flow).toBe(1);
-    expect(logs.some((l) => l.includes('Login cancelled.'))).toBe(true);
-  });
 
-  it('surfaces a generic exchange failure', async () => {
-    route('platform.claude.com/v1/oauth/token', () => {
-      throw new Error('token endpoint down');
+    it('maps an AbortError during exchange to "Login cancelled."', async () => {
+      route('platform.claude.com/v1/oauth/token', () => {
+        throw new DOMException('aborted', 'AbortError');
+      });
+      route('/v1/models', () => jsonResponse({ data: [] }));
+      const { configPath, vault, registry } = await setup();
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      await fireCallback(port, '/callback', `code=cb&state=${state}`);
+      expect(await flow).toBe(1);
+      expect(logs.some((l) => l.includes('Login cancelled.'))).toBe(true);
     });
-    route('/v1/models', () => jsonResponse({ data: [] }));
-    const { configPath, vault, registry } = await setup();
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const ac = new AbortController();
-    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', `code=cb&state=${state}`);
-    expect(await flow).toBe(1);
-    expect(logs.some((l) => l.includes('Login failed: token endpoint down'))).toBe(true);
-  });
 
-  it('tolerates the models fetch throwing (falls back to an empty list)', async () => {
-    route('platform.claude.com/v1/oauth/token', () =>
-      jsonResponse({ access_token: 'ac', refresh_token: 'rf', expires_in: 3600 }),
-    );
-    route('/v1/models', () => {
-      throw new Error('net down');
+    it('surfaces a generic exchange failure', async () => {
+      route('platform.claude.com/v1/oauth/token', () => {
+        throw new Error('token endpoint down');
+      });
+      route('/v1/models', () => jsonResponse({ data: [] }));
+      const { configPath, vault, registry } = await setup();
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      await fireCallback(port, '/callback', `code=cb&state=${state}`);
+      expect(await flow).toBe(1);
+      expect(logs.some((l) => l.includes('Login failed: token endpoint down'))).toBe(true);
     });
-    const { configPath, vault, registry } = await setup();
-    const { deps, logs } = depsFor(configPath, vault, registry);
-    const ac = new AbortController();
-    const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
-    const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
-    await fireCallback(port, '/callback', `code=cb&state=${state}`);
-    expect(await flow).toBe(0);
-    expect(logs.some((l) => l.includes('No model list was discovered'))).toBe(true);
+
+    it('tolerates the models fetch throwing (falls back to an empty list)', async () => {
+      route('platform.claude.com/v1/oauth/token', () =>
+        jsonResponse({ access_token: 'ac', refresh_token: 'rf', expires_in: 3600 }),
+      );
+      route('/v1/models', () => {
+        throw new Error('net down');
+      });
+      const { configPath, vault, registry } = await setup();
+      const { deps, logs } = depsFor(configPath, vault, registry);
+      const ac = new AbortController();
+      const flow = runClaudeOAuthLogin(deps, { signal: ac.signal });
+      const { port, state } = callbackTarget(await waitForUrl(logs, 'claude.ai'));
+      await fireCallback(port, '/callback', `code=cb&state=${state}`);
+      expect(await flow).toBe(0);
+      expect(logs.some((l) => l.includes('No model list was discovered'))).toBe(true);
+    });
   });
 });
 
@@ -868,11 +937,11 @@ describe('github-copilot-oauth.ts — pure helpers', () => {
     expect(isUsableCopilotChatModel({ id: '' })).toBe(false);
     expect(isUsableCopilotChatModel(pick({ capabilities: { type: 'embeddings' } }))).toBe(false);
     expect(
-      isUsableCopilotChatModel(pick({ capabilities: { type: 'chat', supports: { tool_calls: false } } })),
+      isUsableCopilotChatModel(
+        pick({ capabilities: { type: 'chat', supports: { tool_calls: false } } }),
+      ),
     ).toBe(false);
-    expect(
-      isUsableCopilotChatModel(pick({ supported_endpoints: ['/responses'] })),
-    ).toBe(false);
+    expect(isUsableCopilotChatModel(pick({ supported_endpoints: ['/responses'] }))).toBe(false);
     expect(isUsableCopilotChatModel(pick({ policy: { state: 'disabled' } }))).toBe(false);
     expect(isUsableCopilotChatModel(pick({ vendor: 'Experimental' }))).toBe(false);
   });
@@ -974,7 +1043,9 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     const { configPath, vault, registry } = await setup();
     const { deps, logs } = depsFor(configPath, vault, registry);
     const ac = new AbortController();
-    expect(await runCopilotOAuthLogin(deps, { providerId: 'copilot-test', signal: ac.signal })).toBe(0);
+    expect(
+      await runCopilotOAuthLogin(deps, { providerId: 'copilot-test', signal: ac.signal }),
+    ).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     const p = (raw.providers as Record<string, Record<string, unknown>>)['copilot-test']!;
     expect(p.family).toBe('github-copilot');
@@ -994,7 +1065,8 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']
+        ?.models,
     ).toEqual(['gpt-4o']);
   });
 
@@ -1004,7 +1076,9 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     const { deps, logs } = depsFor(configPath, vault, registry);
     const ac = new AbortController();
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(1);
-    expect(logs.some((l) => l.includes('Login failed: GitHub device-code request failed (503)'))).toBe(true);
+    expect(
+      logs.some((l) => l.includes('Login failed: GitHub device-code request failed (503)')),
+    ).toBe(true);
   });
 
   it('surfaces a copilot-token failure', async () => {
@@ -1023,7 +1097,9 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     const { deps, logs } = depsFor(configPath, vault, registry);
     const ac = new AbortController();
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(1);
-    expect(logs.some((l) => l.includes('Login failed: Copilot token request failed (401)'))).toBe(true);
+    expect(logs.some((l) => l.includes('Login failed: Copilot token request failed (401)'))).toBe(
+      true,
+    );
   });
 
   it('cancels with "Login cancelled." when aborted during polling', async () => {
@@ -1054,7 +1130,8 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']
+        ?.models,
     ).toEqual(['gpt-4o']);
   });
 
@@ -1066,7 +1143,8 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']
+        ?.models,
     ).toEqual(['gpt-4o']);
   });
 
@@ -1080,7 +1158,8 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']
+        ?.models,
     ).toEqual(['gpt-4o']);
   });
 
@@ -1106,7 +1185,8 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     expect(await runCopilotOAuthLogin(deps, { signal: ac.signal })).toBe(0);
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.models,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']
+        ?.models,
     ).toEqual(['def-model', 'fb-model', 'plain']);
   });
 
@@ -1117,7 +1197,8 @@ describe('github-copilot-oauth.ts — runCopilotOAuthLogin flow', () => {
     expect(await runCopilotOAuthLogin(deps)).toBe(0); // no signal → own SIGINT handler
     const raw = JSON.parse(await fs.readFile(configPath, 'utf8')) as Record<string, unknown>;
     expect(
-      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']?.family,
+      (raw.providers as Record<string, Record<string, unknown> | undefined>)['github-copilot']
+        ?.family,
     ).toBe('github-copilot');
   });
 

@@ -1,17 +1,16 @@
-import {
-  detectTerminal,
-  TerminalLifecycle,
-  writeErr,
-} from '@wrongstack/core/utils';
+import { createWriteStream, type WriteStream } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { detectTerminal, TerminalLifecycle, writeErr } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import { render } from 'ink';
 import React from 'react';
 import { App } from './app.js';
 import { ALT_SCREEN_OFF, ALT_SCREEN_ON, MOUSE_OFF } from './mouse.js';
-import { BRACKETED_PASTE_OFF, BRACKETED_PASTE_ON } from './terminal-modes.js';
 import { createRunTuiClientRegistration } from './run-tui-client-registration.js';
-import { createRunTuiTitleController } from './run-tui-title-controller.js';
 import type { RunTuiOptions } from './run-tui-options.js';
+import { createRunTuiTitleController } from './run-tui-title-controller.js';
+import { BRACKETED_PASTE_OFF, BRACKETED_PASTE_ON } from './terminal-modes.js';
 import { silenceTerminal, unsilenceTerminal } from './terminal-silence.js';
 
 // Re-export autonomy stage types from core for backward compatibility
@@ -55,15 +54,54 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // the block comment above `silenceTerminal` for the full rationale.
   silenceTerminal();
 
+  // ── Optional raw stdout trace (WRONGSTACK_TUI_TRACE=1 | <path>) ─────────
+  // Tees every byte written to the terminal into a file so rendering
+  // artifacts (ghost/duplicated frames, scroll desyncs) can be diagnosed
+  // from a byte-exact capture instead of guesswork. `1` picks a temp path;
+  // any other non-empty value is used as the output path verbatim. The tee
+  // sits below Ink and terminal-silence: it sees exactly what the terminal
+  // sees. Restored (and the file flushed) on every cleanup path.
+  const traceEnv = process.env['WRONGSTACK_TUI_TRACE'];
+  let restoreTrace: (() => void) | null = null;
+  if (traceEnv && traceEnv !== '0') {
+    const tracePath =
+      traceEnv === '1' ? join(tmpdir(), `wstack-tui-trace-${process.pid}.bin`) : traceEnv;
+    try {
+      const stream: WriteStream = createWriteStream(tracePath);
+      const realWrite = stdout.write.bind(stdout);
+      const teeWrite: typeof stdout.write = (chunk, encodingOrCb?, cb?) => {
+        try {
+          stream.write(typeof chunk === 'string' ? chunk : Buffer.from(chunk));
+        } catch {
+          // Trace best-effort only — never interfere with the real write.
+        }
+        return realWrite(chunk as never, encodingOrCb as never, cb as never);
+      };
+      stdout.write = teeWrite;
+      restoreTrace = () => {
+        stdout.write = realWrite;
+        try {
+          stream.end();
+        } catch {
+          // Already closed — ignore.
+        }
+      };
+    } catch {
+      // Trace file could not be created — run without tracing.
+    }
+  }
+
   // Suppress the one-time maxTools warning on the provider — the StatusBar
   // surfaces the dropped-tool count as a visible chip instead, so a raw
   // process.emitWarning to stderr is redundant (and already swallowed by
   // silenceTerminal's process.on('warning') interceptor). This call is
   // explicit defense-in-depth: it documents intent and survives a future
   // change to silenceTerminal's warning interception.
-  const provider = opts.agent.ctx.provider as unknown as {
-    suppressMaxToolsWarning?: (() => void) | undefined;
-  } | undefined;
+  const provider = opts.agent.ctx.provider as unknown as
+    | {
+        suppressMaxToolsWarning?: (() => void) | undefined;
+      }
+    | undefined;
   if (provider?.suppressMaxToolsWarning) {
     provider.suppressMaxToolsWarning();
   }
@@ -162,6 +200,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     } catch {
       // stdout may already be closed during shutdown — ignore.
     } finally {
+      restoreTrace?.();
       unsilenceTerminal();
     }
   };

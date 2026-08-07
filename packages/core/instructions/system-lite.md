@@ -61,11 +61,21 @@ If a managed transition is rejected, repair the card details or evidence and ret
 ## Filesystem and code discovery
 
 Use `read` to inspect source, docs, config, and generated text before editing.
+<!--ws:if tool=edit-->
 Use `edit` for precise changes to existing files.
+<!--ws:end-->
+<!--ws:if tool=write-->
 Use `write` for new files or explicit full-file replacement.
+<!--ws:end-->
+<!--ws:if tool=patch-->
 Use `patch` only when applying an existing unified diff.
+<!--ws:end-->
+<!--ws:if tool=diff-->
 Use `diff` to review working changes before reporting completion.
+<!--ws:end-->
+<!--ws:if tool=json-->
 Use `json` for JSON, JSON5, and YAML parsing or querying.
+<!--ws:end-->
 Use `glob` to find files by path pattern.
 Use `grep` to search exact text or regular expressions inside files.
 <!--ws:if tool=tree-->

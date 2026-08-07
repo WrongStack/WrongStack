@@ -1,6 +1,11 @@
 import type { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import {
+  missingRequiredRuntimeTools,
+  missingRuntimeCapabilities,
+  runtimeToolReferencesFromText,
+} from '@wrongstack/core/agent-catalog';
 import { SKILL_LIMITS, stripFrontmatter } from '@wrongstack/core/skills';
 import type { SkillLoader, Tool } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
@@ -102,6 +107,27 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
           field: 'name',
         });
       }
+      const availableToolNames = (ctx?.catalogTools ?? ctx?.tools ?? []).map((tool) => tool.name);
+      const missingCapabilities = missingRuntimeCapabilities(
+        manifest.requiredCapabilities,
+        availableToolNames,
+      );
+      const missingTools = missingRequiredRuntimeTools(manifest.requiredTools, availableToolNames);
+      if (missingCapabilities.length > 0 || missingTools.length > 0) {
+        throw new ToolValidationError({
+          message:
+            `skill "${name}" is unavailable in this runtime; ` +
+            [
+              missingCapabilities.length > 0
+                ? `missing capabilities: ${missingCapabilities.join(', ')}`
+                : '',
+              missingTools.length > 0 ? `missing tools: ${missingTools.join(', ')}` : '',
+            ]
+              .filter(Boolean)
+              .join('; '),
+          field: 'name',
+        });
+      }
       const dir = path.dirname(manifest.path);
 
       // Loading a specific resource takes precedence; skip the (potentially large)
@@ -112,6 +138,16 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
       }
 
       const raw = await skillLoader.readBody(name);
+      const missingBodyTools = missingRequiredRuntimeTools(
+        runtimeToolReferencesFromText(raw),
+        availableToolNames,
+      );
+      if (missingBodyTools.length > 0) {
+        throw new ToolValidationError({
+          message: `skill "${name}" references unregistered tools: ${missingBodyTools.join(', ')}`,
+          field: 'name',
+        });
+      }
       const body = stripFrontmatter(raw).trim().slice(0, MAX_BODY_CHARS);
       const resources = loadedResource ? [] : await listResources(dir);
 

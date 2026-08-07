@@ -766,6 +766,8 @@
     "councilMaxConcurrencyHint": "How many seats vote in parallel. Lower this when the pool shares one rate-limited provider.",
     "councilDistinctnessLabel": "Seat distinctness",
     "councilDistinctnessHint": "Reject duplicate seats: 'model' requires distinct models, 'provider' requires independent providers so one outage cannot sway the vote.",
+    "councilVoterBudgetLabel": "Voter response budget",
+    "councilVoterBudgetHint": "Output tokens per seat call — reasoning models spend thinking tokens from this budget.",
     "councilJudgeBudgetLabel": "Judge response budget",
     "councilJudgeBudgetHint": "Output tokens for the tie-breaking judge call.",
     "councilSeatTemplate": "Seat template:",

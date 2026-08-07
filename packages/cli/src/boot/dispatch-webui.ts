@@ -31,6 +31,7 @@ import { color } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { TerminalRenderer } from '../renderer.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
+import { terminalLink, terminalText } from '../terminal-format.js';
 import type { CliWebUIOptions } from '../webui-server-options.js';
 
 export interface WebUIDispatchContext {
@@ -324,9 +325,11 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     // the default when it is taken (a second instance, leftover socket).
     onListening: ({ url }) => {
       const surface = isSimpleUi ? 'SimpleUI' : 'WebUI';
-      renderer.writeInfo(color.green(`  ✦ ${surface} running → ${color.bold(url)}`));
       renderer.writeInfo(
-        color.dim(`  Press Ctrl+C in this terminal to stop the ${surface} server.\n`),
+        `  ✦ ${terminalText(surface, 'success', { bold: true })} ${terminalText('running →', 'muted')} ${terminalLink(url)}`,
+      );
+      renderer.writeInfo(
+        `  ${terminalText(`Press Ctrl+C in this terminal to stop the ${surface} server.`, 'muted')}\n`,
       );
     },
     // Make autonomy.switch from the browser flip the CLI's real

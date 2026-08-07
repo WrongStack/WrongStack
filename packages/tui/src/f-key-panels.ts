@@ -1,4 +1,4 @@
-import type { Action } from './app-reducer.js';
+import type { Action } from './app-action-type.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 
 export type FKeyPanelAction =

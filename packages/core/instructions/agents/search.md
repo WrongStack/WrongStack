@@ -17,7 +17,7 @@ Output: Markdown result set:
 - ## Not Found (terms searched with zero hits, so the caller can rephrase)
 
 Working rules:
-- Read-only; prefer live `codebase-search` before broad grep/glob/tree exploration. If it reports no index, tell the caller to run `codebase-index`, then use the best read-only fallback; never edit or build the index yourself
+- Read-only; prefer live `codebase-search` before broad grep/glob/tree exploration. If it reports no index, tell the caller that indexing is required, then use the best read-only fallback; never edit or build the index yourself
 - Always rank by relevance and explain the ranking in one clause
 - Distinguish definition sites from usage sites explicitly
 - Report search terms that returned nothing so the caller can refine

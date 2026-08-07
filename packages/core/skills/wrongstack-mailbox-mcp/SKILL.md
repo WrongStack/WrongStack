@@ -1,6 +1,8 @@
 ---
 name: wrongstack-mailbox-mcp
 description: Coordinate with WrongStack agents through the project-scoped Mailbox MCP server. Use when an external coding agent needs to inspect unread or incomplete messages, query conversation history, discover online agents, send direct/reply/broadcast/steer messages, acknowledge outcomes, maintain its presence, soft-delete or restore messages, watch for changes, or perform explicitly authorized Mailbox administration without reading Mailbox files or SQLite directly.
+required-capabilities: [mcp.dynamic]
+required-tools: [mcp_use]
 ---
 
 # WrongStack Mailbox MCP
@@ -34,11 +36,11 @@ heartbeat identity to `--actor`; tool arguments cannot impersonate another actor
 
 ## Coordinate
 
-1. Call `mailbox_manage` with `register_self`. Include a stable name and role when known.
-2. Call `mailbox_read` with `unread`, then `query`. Prefer `unreadBy` plus `incompleteOnly` when
+1. Call `mcp_use` for the remote `mailbox_manage` operation with `register_self`. Include a stable name and role when known.
+2. Call `mcp_use` for the remote `mailbox_read` operation with `unread`, then `query`. Prefer `unreadBy` plus `incompleteOnly` when
    looking for actionable work.
-3. Use `mailbox_read` with `online_agents` before routing a time-sensitive direct message.
-4. Use `mailbox_manage` with `send`. Set an explicit recipient and message type:
+3. Call `mcp_use` for remote `mailbox_read` with `online_agents` before routing a time-sensitive direct message.
+4. Call `mcp_use` for remote `mailbox_manage` with `send`. Set an explicit recipient and message type:
    - `ask` for a blocking question;
    - `assign` for delegated work;
    - `steer` for changed direction;
@@ -46,17 +48,17 @@ heartbeat identity to `--actor`; tool arguments cannot impersonate another actor
    - `result` for a completed outcome;
    - `broadcast` only when every relevant agent should receive it.
 5. Set `replyTo` when continuing a thread. Do not create an unrelated message that loses context.
-6. Use `ack` or `ack_many` after reading or completing messages. Record a truthful outcome when
+6. Call `mcp_use` for the remote `ack` or `ack_many` operation after reading or completing messages. Record a truthful outcome when
    marking work completed.
 7. Send `heartbeat_self` during long work and `deregister_self` on a clean shutdown.
 
-Runtime-only `control` messages are deliberately unavailable. Use `steer` for normal external
+Runtime-only `control` messages are deliberately unavailable. Call `mcp_use` for the remote `steer` operation for normal external
 direction; never bypass the restriction through another channel.
 
 ## Observe changes
 
-Call `mailbox_watch` with an optional event type and timeout no greater than 25 seconds. Treat the
-result as a wake-up hint. After every event or timeout, reconcile with `mailbox_read`; watch events
+Call `mcp_use` for remote `mailbox_watch` with an optional event type and timeout no greater than 25 seconds. Treat the
+result as a wake-up hint. After every event or timeout, reconcile through remote `mailbox_read`; watch events
 contain identifiers and metadata, not the authoritative message snapshot.
 
 ## Manage and administer

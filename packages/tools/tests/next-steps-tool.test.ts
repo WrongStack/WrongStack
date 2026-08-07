@@ -14,7 +14,9 @@ function ctx(): { meta: Record<string, unknown> } {
 
 function run(input: unknown, c = ctx()) {
   // The tool only touches `ctx.meta`; the rest of Context is irrelevant here.
-  return nextStepsTool.execute(input as never, c as never);
+  return nextStepsTool.execute(input as never, c as never, {
+    signal: new AbortController().signal,
+  });
 }
 
 describe('nextStepsTool', () => {
@@ -71,7 +73,10 @@ describe('nextStepsTool', () => {
   });
 
   it('caps the schema at the same number of items the slot keeps', () => {
-    const steps = nextStepsTool.inputSchema['properties'] as Record<string, Record<string, unknown>>;
+    const steps = nextStepsTool.inputSchema['properties'] as Record<
+      string,
+      Record<string, unknown>
+    >;
     expect(steps['steps']?.['maxItems']).toBe(4);
     expect(steps['steps']?.['minItems']).toBe(1);
   });

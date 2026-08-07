@@ -163,7 +163,14 @@ describe('SAGE provider-context monitor', () => {
         },
       };
       await toolMiddleware.handler(toolPayload as never, async (payload) => payload);
-      expect(toolPayload.result.content).toContain(memory.text);
+      const memoryEvidence =
+        (
+          toolPayload.ctx as typeof toolPayload.ctx & {
+            memoryEvidence?: Array<{ source: string; text: string }>;
+          }
+        ).memoryEvidence ?? [];
+      expect(toolPayload.result.content).toBe('source text');
+      expect(memoryEvidence[0]?.text).toContain(memory.text);
 
       const snapshots: Array<{ activeMemoryIds: string[] }> = [];
       events.on('memory.context_snapshot', (payload) => snapshots.push(payload));
@@ -175,6 +182,7 @@ describe('SAGE provider-context monitor', () => {
       await contextMiddleware.handler(
         {
           model: 'test',
+          system: memoryEvidence.map((entry) => ({ type: 'text' as const, text: entry.text })),
           messages: [
             {
               role: 'user',

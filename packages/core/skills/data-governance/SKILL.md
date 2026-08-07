@@ -7,6 +7,9 @@ description: |
   Triggers: user says "data governance", "PII", "schema ownership", "retention policy", "data lineage", "migration safety".
 trigger: Use when designing or reviewing schema ownership, PII handling, retention, data lineage, access policy, or migration safety.
 version: 1.0.0
+required-capabilities: [filesystem.read]
+required-tools: []
+optional-capabilities: [code.inspect]
 ---
 
 # Data Governance — WrongStack

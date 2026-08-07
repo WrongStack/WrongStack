@@ -21,7 +21,7 @@ import type { AgentResponseHandler } from './agent-response.js';
 import type { AgentToolHandler } from './agent-tools.js';
 import type { RunResult, UserInputPayload } from './agent-types.js';
 import { buildBtwBlock, consumeBtwNotes } from './btw.js';
-import { resolveEventSessionId, type RunOptions } from './context.js';
+import { type RunOptions, resolveEventSessionId } from './context.js';
 import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { requestLimitExtension } from './iteration-limit.js';
 import { injectPendingMailboxMessages, removeInjectedMailboxBlocks } from './mailbox-loop.js';
@@ -171,7 +171,11 @@ export function createAgentLoopHandler(
       return;
     }
     const providerLimit = discovered?.maxContext;
-    if (typeof providerLimit !== 'number' || !Number.isFinite(providerLimit) || providerLimit <= 0) {
+    if (
+      typeof providerLimit !== 'number' ||
+      !Number.isFinite(providerLimit) ||
+      providerLimit <= 0
+    ) {
       emitNativeAfterRouteChange();
       return;
     }
@@ -247,13 +251,17 @@ export function createAgentLoopHandler(
     }
     const beforeMessages = a.ctx.messages;
     const beforeMsgCount = a.ctx.messages.length;
+    const beforeRevision = a.ctx.state.revision;
     await a.pipelines.contextWindow.run(a.ctx);
     _lastCompactionMsgCount = a.ctx.messages.length;
     _lastCompactionRevision = a.ctx.state.revision;
     _lastCompactionToolsRef = a.ctx.tools;
     _lastCompactionSystemRef = a.ctx.systemPrompt;
     _lastCompactionMaxContext = maxContext;
-    const changed = a.ctx.messages !== beforeMessages || a.ctx.messages.length !== beforeMsgCount;
+    const changed =
+      a.ctx.state.revision !== beforeRevision ||
+      a.ctx.messages !== beforeMessages ||
+      a.ctx.messages.length !== beforeMsgCount;
     const tokens = refreshContextRequestTokenStash({ force: changed });
     _lastCompactionRequestTokens = tokens;
     const load = maxContext > 0 ? tokens / maxContext : 0;
@@ -296,12 +304,15 @@ export function createAgentLoopHandler(
 
     a.ctx.lastRequestTokens = preFlight.total;
     _lastPreFlightMsgCount = req.messages.length;
+    _lastPreFlightToolCount = (req.tools ?? []).length;
+    _lastPreFlightRevision = a.ctx.state.revision;
     _cachedSysRef = req.system;
     _cachedToolsRef = req.tools ?? [];
     _cachedOverheadTokens = preFlight.systemPrompt + preFlight.tools;
     a.ctx.meta['lastRequestTokensAt'] = {
       msgCount: req.messages.length,
       toolCount: (req.tools ?? []).length,
+      revision: a.ctx.state.revision,
     };
 
     return preFlight;
@@ -310,6 +321,7 @@ export function createAgentLoopHandler(
   function refreshContextRequestTokenStash(opts: { force?: boolean | undefined } = {}): number {
     const msgCount = a.ctx.messages.length;
     const toolCount = (a.ctx.tools ?? []).length;
+    const revision = a.ctx.state.revision;
     const stashed = a.ctx.lastRequestTokens;
     const stashedAt = a.ctx.meta?.['lastRequestTokensAt'];
     if (
@@ -319,10 +331,16 @@ export function createAgentLoopHandler(
       typeof stashedAt === 'object' &&
       stashedAt !== null
     ) {
-      const meta = stashedAt as { msgCount?: unknown; toolCount?: unknown };
+      const meta = stashedAt as {
+        msgCount?: unknown;
+        toolCount?: unknown;
+        revision?: unknown;
+      };
       if (
         meta.msgCount === msgCount &&
-        (typeof meta.toolCount !== 'number' || meta.toolCount === toolCount)
+        meta.toolCount === toolCount &&
+        meta.revision === revision &&
+        _lastPreFlightRevision === revision
       ) {
         return stashed;
       }
@@ -331,7 +349,9 @@ export function createAgentLoopHandler(
     const refreshed = estimateMessageTokens(a.ctx.messages) + systemAndToolsOverhead();
     a.ctx.lastRequestTokens = refreshed;
     _lastPreFlightMsgCount = msgCount;
-    a.ctx.meta['lastRequestTokensAt'] = { msgCount, toolCount };
+    _lastPreFlightToolCount = toolCount;
+    _lastPreFlightRevision = revision;
+    a.ctx.meta['lastRequestTokensAt'] = { msgCount, toolCount, revision };
     return refreshed;
   }
 
@@ -393,21 +413,15 @@ export function createAgentLoopHandler(
     _lastEmittedRevision = revision;
     _lastEmittedMaxContext = maxContext;
 
-    if (msgCount !== _lastPreFlightMsgCount) {
-      const stashed = a.ctx.lastRequestTokens;
-      if (
-        typeof stashed === 'number' &&
-        stashed > 0 &&
-        _lastPreFlightMsgCount >= 0 &&
-        _lastPreFlightMsgCount < msgCount
-      ) {
-        const delta = estimateMessageTokens(a.ctx.messages.slice(_lastPreFlightMsgCount));
-        a.ctx.lastRequestTokens = stashed + delta;
-      } else {
-        a.ctx.lastRequestTokens = estimateMessageTokens(a.ctx.messages) + systemAndToolsOverhead();
-      }
-      _lastPreFlightMsgCount = msgCount;
-      a.ctx.meta['lastRequestTokensAt'] = { msgCount, toolCount };
+    if (
+      msgCount !== _lastPreFlightMsgCount ||
+      toolCount !== _lastPreFlightToolCount ||
+      revision !== _lastPreFlightRevision
+    ) {
+      // Any observed state rewrite invalidates the aggregate token stash.
+      // Per-message `_estTokens` keep this full sum cheap while avoiding the
+      // unsafe assumption that a larger array was append-only.
+      refreshContextRequestTokenStash({ force: true });
     }
 
     let total: number;
@@ -427,9 +441,7 @@ export function createAgentLoopHandler(
         ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
         : stashed;
     } else {
-      const raw = estimateMessageTokens(a.ctx.messages) + systemAndToolsOverhead();
-      a.ctx.lastRequestTokens = raw;
-      _lastPreFlightMsgCount = msgCount;
+      const raw = refreshContextRequestTokenStash({ force: true });
       const cal = getCalibrationState(calibrationKey());
       total = cal.calibrated ? Math.round(raw * Math.min(1.5, Math.max(0.5, cal.ratio))) : raw;
     }
@@ -459,6 +471,8 @@ export function createAgentLoopHandler(
   let _lastEmittedRevision = -1;
   let _lastEmittedMaxContext = -1;
   let _lastPreFlightMsgCount = -1;
+  let _lastPreFlightToolCount = -1;
+  let _lastPreFlightRevision = -1;
   let _lastCompactionMsgCount = -1;
   let _lastCompactionRevision = -1;
   let _lastCompactionToolsRef: unknown = null;
@@ -700,7 +714,11 @@ export function createAgentLoopHandler(
         }
 
         await a.extensions.runBeforeIteration(a.ctx, i);
-        a.events.emit('iteration.started', { sessionId: resolveEventSessionId(a.ctx), ctx: a.ctx, index: i });
+        a.events.emit('iteration.started', {
+          sessionId: resolveEventSessionId(a.ctx),
+          ctx: a.ctx,
+          index: i,
+        });
 
         injectPendingBtwNotes((block) => pendingMailboxBlocks.push(block));
         injectQueueAwareness();
@@ -1075,7 +1093,11 @@ export function createAgentLoopHandler(
 
         await compactContextIfNeeded();
         emitContextPct();
-        a.events.emit('iteration.completed', { sessionId: resolveEventSessionId(a.ctx), ctx: a.ctx, index: i });
+        a.events.emit('iteration.completed', {
+          sessionId: resolveEventSessionId(a.ctx),
+          ctx: a.ctx,
+          index: i,
+        });
         await a.extensions.runAfterIteration(a.ctx, i);
 
         if (autonomousContinue && responseResult.directive === 'continue') {

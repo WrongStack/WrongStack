@@ -31,15 +31,32 @@ export {
   type BrainEscalationMode,
   type BrainFallback,
   type BrainRisk,
+  type BrainTerminalPolicy,
   DefaultBrainArbiter,
   type DefaultBrainArbiterOptions,
   EscalationRoutingBrainArbiter,
   formatHumanPrompt,
   HumanEscalatingBrainArbiter,
   ObservableBrainArbiter,
-  type BrainTerminalPolicy,
   terminalPolicyDecision,
 } from './coordination/brain.js';
+export {
+  type BrainCacheStats,
+  BrainDecisionCache,
+  type BrainDecisionCacheOptions,
+  brainCacheKey,
+  type CachingBrainArbiterOptions,
+  createCachingBrainArbiter,
+} from './coordination/brain-cache.js';
+export {
+  BLOCKED_RESOLVED_MARKERS,
+  type BrainHeuristicsConfig,
+  compileResolutionMarkers,
+  DEFAULT_BRAIN_HEURISTICS,
+  isBlockedResolved,
+  type ResolvedBrainHeuristics,
+  resolveBrainHeuristics,
+} from './coordination/brain-heuristics.js';
 export {
   BrainDecisionLedger,
   type BrainDecisionLedgerOptions,
@@ -57,15 +74,6 @@ export {
   DEFAULT_FILE_EDIT_TOOLS,
 } from './coordination/brain-monitor.js';
 export {
-  BLOCKED_RESOLVED_MARKERS,
-  type BrainHeuristicsConfig,
-  compileResolutionMarkers,
-  DEFAULT_BRAIN_HEURISTICS,
-  isBlockedResolved,
-  type ResolvedBrainHeuristics,
-  resolveBrainHeuristics,
-} from './coordination/brain-heuristics.js';
-export {
   applyRule,
   BRAIN_RULE_PATTERN_MAX,
   BRAIN_RULE_SUBJECT_MAX,
@@ -81,19 +89,14 @@ export {
   ruleMatches,
 } from './coordination/brain-rules.js';
 export {
-  type BrainCacheStats,
-  BrainDecisionCache,
-  type BrainDecisionCacheOptions,
-  brainCacheKey,
-  type CachingBrainArbiterOptions,
-  createCachingBrainArbiter,
-} from './coordination/brain-cache.js';
-export {
-  BrainCircuitBreaker,
-  type BrainCircuitOptions,
-  type BrainCircuitSnapshot,
-  type BrainCircuitState,
-} from './execution/brain-circuit.js';
+  type BrainDecisionTier,
+  BrainTierCounter,
+  type BrainTierStats,
+  DETERMINISTIC_BRAIN_TIERS,
+  isDeterministicTier,
+  markDecisionTier,
+  readDecisionTier,
+} from './coordination/brain-telemetry.js';
 export {
   applyContentMode,
   BRAIN_TRACE_REDACTED_MAX,
@@ -110,15 +113,6 @@ export {
   sanitizeDecision,
   sanitizeRequest,
 } from './coordination/brain-trace.js';
-export {
-  type BrainDecisionTier,
-  BrainTierCounter,
-  type BrainTierStats,
-  DETERMINISTIC_BRAIN_TIERS,
-  isDeterministicTier,
-  markDecisionTier,
-  readDecisionTier,
-} from './coordination/brain-telemetry.js';
 export {
   type CollabBusState,
   CollaborationBus,
@@ -367,7 +361,13 @@ export {
   pendingBtwCount,
   setBtwNote,
 } from './core/btw.js';
-export { Context, type ContextInit, type RunOptions, type TodoItem } from './core/context.js';
+export {
+  Context,
+  type ContextInit,
+  type ProviderMemoryEvidence,
+  type RunOptions,
+  type TodoItem,
+} from './core/context.js';
 export {
   type ContinuationInput,
   type ContinuationSource,
@@ -456,9 +456,9 @@ export {
   type CompactorStrategy,
   createStrategyCompactor,
   HybridCompactor,
-  installSubagentAutoCompaction,
   IntelligentCompactor,
   type IntelligentCompactorOptions,
+  installSubagentAutoCompaction,
   SelectiveCompactor,
   type SelectiveCompactorOptions,
   type StrategyCompactorOptions,
@@ -480,6 +480,12 @@ export {
   type BrainTierAssembly,
   type BrainTierAssemblyOptions,
 } from './execution/brain-chain.js';
+export {
+  BrainCircuitBreaker,
+  type BrainCircuitOptions,
+  type BrainCircuitSnapshot,
+  type BrainCircuitState,
+} from './execution/brain-circuit.js';
 export {
   BRAIN_EVALUATION_CASE_VERSION,
   type BrainEvaluationCaseResult,
@@ -663,8 +669,8 @@ export {
 export * from './hq/index.js';
 export { allServers } from './infrastructure/mcp-servers.js';
 export {
-  ProviderCacheLedger,
   type ProviderCacheEntry,
+  ProviderCacheLedger,
 } from './infrastructure/provider-cache-ledger.js';
 export * from './kernel/index.js';
 export { attachMailboxChecker } from './mailbox-attach.js';
@@ -674,8 +680,6 @@ export {
   collabPauseMiddleware,
   type InjectedToolResult as CollabInjectedToolResult,
 } from './middleware/collab-pause.js';
-export * from './observability/network-telemetry.js';
-export * from './observability/process-telemetry.js';
 // ---- Notifications (one-way channel-agnostic delivery) ----
 export {
   type NotificationChannel,
@@ -687,14 +691,16 @@ export {
   type NotifierCounters,
   NotifierImpl,
 } from './notifications/index.js';
+export * from './observability/network-telemetry.js';
+export * from './observability/process-telemetry.js';
 export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './plugin/api.js';
 export {
   diffPluginConfig,
   type PluginConfigChange,
   type PluginConfigSource,
-  redactPluginConfig,
   type ResolvedPluginConfig,
   type ResolvePluginConfigInput,
+  redactPluginConfig,
   resolvePluginConfig,
   resolvePluginManifestConfig,
   validatePluginConfigMetadata,
@@ -702,9 +708,9 @@ export {
 export {
   KERNEL_API_VERSION,
   type LoadPluginsOptions,
+  loadPlugins,
   type PluginHostHandle,
   type PluginLoadFailure,
-  loadPlugins,
   unloadPlugins,
 } from './plugin/loader.js';
 // Built-in plugins
@@ -728,19 +734,21 @@ export {
   createChimeraPlugin,
   resolveChimeraConfig,
 } from './plugins/chimera-plugin.js';
-export {
-  integrateFindings,
-  type FindingsIntegrationResult,
-} from './plugins/review-finding-integration.js';
+export { createCloudConfigSyncPlugin } from './plugins/cloud-config-sync-plugin.js';
+export { createPromptsPlugin } from './plugins/prompts-plugin.js';
 export {
   executeFindingCommand,
-  transitionReport,
   type FindingCommandContext,
+  transitionReport,
 } from './plugins/review-finding-commands.js';
 export {
-  JsonlFindingStore,
+  type FindingsIntegrationResult,
+  integrateFindings,
+} from './plugins/review-finding-integration.js';
+export {
   FINDING_STORE_FILE,
   type FindingStore,
+  JsonlFindingStore,
   type ListOptions as FindingListOptions,
   type UpsertContext,
   type UpsertResult,
@@ -758,33 +766,31 @@ export type {
   ResolutionOutcome,
 } from './plugins/review-finding-types.js';
 export {
+  persistReviewReport,
+  type ReportIntegrationResult,
+  type ReportReopenResult,
+  type ReportSyncResult,
+  syncReportCompletion,
+  syncReportReopen,
+} from './plugins/review-report-integration.js';
+export {
   JsonlReportStore,
-  REPORT_STORE_FILE,
-  type PersistReportInput,
-  type ReportStore,
   type ListReportsOptions,
+  type PersistReportInput,
+  REPORT_STORE_FILE,
   type ReportActor,
+  type ReportStore,
 } from './plugins/review-report-store.js';
 export type {
+  ReportEventType,
+  ReportLifecycleStatus,
   ReviewReport,
   ReviewReportCounts,
   ReviewReportEvent,
   ReviewReportFile,
-  ReportEventType,
-  ReportLifecycleStatus,
 } from './plugins/review-report-types.js';
-export {
-  persistReviewReport,
-  syncReportCompletion,
-  syncReportReopen,
-  type ReportIntegrationResult,
-  type ReportSyncResult,
-  type ReportReopenResult,
-} from './plugins/review-report-integration.js';
-export { createPromptsPlugin } from './plugins/prompts-plugin.js';
 export { createSkillsPlugin } from './plugins/skills-plugin.js';
 export { createSyncPlugin } from './plugins/sync-plugin.js';
-export { createCloudConfigSyncPlugin } from './plugins/cloud-config-sync-plugin.js';
 export * from './prompts/index.js';
 export { type ProviderFactory, ProviderRegistry } from './registry/provider-registry.js';
 export {
@@ -815,6 +821,10 @@ export {
   WIDE_SUBAGENT_CAPABILITIES,
 } from './security/capabilities.js';
 export {
+  evaluateToolKanbanBoundary,
+  type ToolKanbanBoundaryEvaluation,
+} from './security/kanban-boundary.js';
+export {
   TRUST_POLICY_JSON_SCHEMA,
   TRUST_POLICY_LIMITS,
   TRUST_POLICY_SCHEMA_VERSION,
@@ -823,10 +833,6 @@ export {
   type TrustPolicyValidationResult,
   validateTrustPolicy,
 } from './security/permission-policy-schema.js';
-export {
-  evaluateToolKanbanBoundary,
-  type ToolKanbanBoundaryEvaluation,
-} from './security/kanban-boundary.js';
 export { DefaultSecretScrubber } from './security/secret-scrubber.js';
 export {
   getSessionRegistry,
@@ -929,6 +935,7 @@ export {
   resolveContextWindowPolicy,
 } from './types/context-window.js';
 export { DEFAULT_SESSION_PRUNE_DAYS } from './types/default-config.js';
+export type { FileEventRecord } from './types/file-event-record.js';
 export * from './types/index.js';
 export type { Logger, LogLevel } from './types/logger.js';
 // Explicit type re-exports keep the top-level public surface stable for types
@@ -944,7 +951,6 @@ export type {
   WireFamily,
 } from './types/models-registry.js';
 export type { ProviderRunner, RunProviderOptions } from './types/provider-runner.js';
-export type { FileEventRecord } from './types/file-event-record.js';
 export type { SecretScrubber } from './types/secret-scrubber.js';
 export type { RotatableSecretVault, SecretVault } from './types/secret-vault.js';
 export {

@@ -1,3 +1,4 @@
+import { inferRuntimeCapabilities } from './capability-manifest.js';
 import type { AgentDefinition } from './types.js';
 
 /**
@@ -126,8 +127,20 @@ export const ROLE_SKILL_SETS = {
   'tech-stack': skillSet('tech-stack', 'research-web', 'security-scanner', 'node-modern'),
 
   // ── Wave 1: Platform and systems engineering ──────────────────────────
-  android: skillSet('react-modern', 'typescript-strict', 'testing', 'security-scanner', 'tech-stack'),
-  desktop: skillSet('node-modern', 'typescript-strict', 'testing', 'security-scanner', 'tech-stack'),
+  android: skillSet(
+    'react-modern',
+    'typescript-strict',
+    'testing',
+    'security-scanner',
+    'tech-stack',
+  ),
+  desktop: skillSet(
+    'node-modern',
+    'typescript-strict',
+    'testing',
+    'security-scanner',
+    'tech-stack',
+  ),
   realtime: skillSet(
     'api-design',
     'observability',
@@ -233,26 +246,9 @@ export const ROLE_SKILL_SETS = {
     'security-scanner',
     'tech-stack',
   ),
-  'benchmark-engineer': skillSet(
-    'observability',
-    'testing',
-    'output-standards',
-    'tech-stack',
-  ),
-  'memory-curator': skillSet(
-    'mnemosyne',
-    'audit-log',
-    'testing',
-    'output-standards',
-    'tech-stack',
-  ),
-  'fleet-coordinator': skillSet(
-    'multi-agent',
-    'sdd',
-    'output-standards',
-    'testing',
-    'tech-stack',
-  ),
+  'benchmark-engineer': skillSet('observability', 'testing', 'output-standards', 'tech-stack'),
+  'memory-curator': skillSet('mnemosyne', 'audit-log', 'testing', 'output-standards', 'tech-stack'),
+  'fleet-coordinator': skillSet('multi-agent', 'sdd', 'output-standards', 'testing', 'tech-stack'),
 
   // ── Wave 2: Security, resilience, governance and agent platform ────────
   'threat-modeler': skillSet(
@@ -310,7 +306,9 @@ export const SHADOW_AGENT_SKILLS = skillSet(
   'security-scanner',
 );
 
-/** Attach a fresh skill-name array so catalog templates remain mutation-safe. */
+const MAX_EAGER_ROSTER_SKILLS = 3;
+
+/** Attach a bounded, fresh skill-name array so catalog templates remain mutation-safe. */
 export function assignSkillsToAgents(definitions: readonly AgentDefinition[]): AgentDefinition[] {
   return definitions.map((definition) => {
     const role = definition.config.role;
@@ -324,7 +322,8 @@ export function assignSkillsToAgents(definitions: readonly AgentDefinition[]): A
       ...definition,
       config: {
         ...definition.config,
-        skillNames: [...skills],
+        capabilities: inferRuntimeCapabilities(definition.config.tools ?? []),
+        skillNames: skills.slice(0, MAX_EAGER_ROSTER_SKILLS),
       },
     };
   });

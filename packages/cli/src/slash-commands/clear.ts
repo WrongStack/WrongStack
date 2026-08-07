@@ -1,5 +1,5 @@
-import { createContextEvidenceState } from '@wrongstack/core/utils';
 import type { SlashCommand } from '@wrongstack/core/types';
+import { createContextEvidenceState } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 import { interruptAll } from './interrupt.js';
 
@@ -80,6 +80,7 @@ export function buildClearCommand(opts: SlashCommandContext): SlashCommand {
         ctx.contextEvidence = createContextEvidenceState();
         ctx.toolAdjacencyDirty = false;
         ctx.pendingPostToolContext = undefined;
+        ctx.clearMemoryEvidence?.();
         ctx.lastRequestTokens = undefined;
         ctx.lastRealInputTokens = undefined;
         for (const key of Object.keys(ctx.meta)) ctx.state.deleteMeta(key);

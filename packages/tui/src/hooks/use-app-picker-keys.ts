@@ -1,9 +1,15 @@
 import type { PromptUsageStore } from '@wrongstack/core/storage';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Dispatch, MutableRefObject } from 'react';
-import type { AppProps } from '../app-props.js';
 import type { Action } from '../app-action-type.js';
+import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
+import { F_KEY_ENTRIES } from '../components/f-key-picker.js';
+import { filterPromptPicker } from '../components/prompt-picker.js';
+import { THINKING_WORD_FIELD } from '../components/settings-picker.js';
+import type { StatuslineItem } from '../components/statusline-picker.js';
+import { actionForFKeyPanel } from '../f-key-panels.js';
+import { selectedSlashCommandLine } from '../slash-command-search.js';
 import type { useAuthPanel } from './use-auth-panel.js';
 import type { useBrainPanel } from './use-brain-panel.js';
 import type { ModelPickRequestController } from './use-model-pick.js';
@@ -11,12 +17,6 @@ import type { usePanelControllers } from './use-panel-controllers.js';
 import { usePickerKeys } from './use-picker-keys.js';
 import type { useStatusbarViewModel } from './use-statusbar-view-model.js';
 import type { useTuiEnvironmentState } from './use-tui-environment-state.js';
-import { filterPromptPicker } from '../components/prompt-picker.js';
-import { F_KEY_ENTRIES } from '../components/f-key-picker.js';
-import { THINKING_WORD_FIELD } from '../components/settings-picker.js';
-import { actionForFKeyPanel } from '../f-key-panels.js';
-import { selectedSlashCommandLine } from '../slash-command-search.js';
-import type { StatuslineItem } from '../components/statusline-picker.js';
 
 interface UseAppPickerKeysOptions {
   host: AppProps;
@@ -125,8 +125,19 @@ export function useAppPickerKeys({
       const session = state.resumePicker.sessions[state.resumePicker.selected];
       if (!session || session.isCurrent) return;
       if (state.resumePicker.busy) return;
+      // Guard BEFORE flipping busy: `onResumeSession?.(id)` evaluates to
+      // undefined when the host doesn't wire the prop, and `.then` on
+      // undefined throws synchronously — leaving resumePickerBusy stuck
+      // true forever with no visible error.
+      if (!onResumeSession) {
+        dispatch({
+          type: 'resumePickerError',
+          text: 'Session resume is not available in this host.',
+        });
+        return;
+      }
       dispatch({ type: 'resumePickerBusy', on: true });
-      onResumeSession?.(session.id)
+      onResumeSession(session.id)
         .then((result) => {
           if (!result) {
             dispatch({
@@ -161,8 +172,17 @@ export function useAppPickerKeys({
       if (state.sessionResumeConfirm) {
         const pending = state.sessionResumeConfirm;
         dispatch({ type: 'sessionResumeConfirmClear' });
+        // Same guard as onResumePickerEnter: an unwired prop must not
+        // strand sessionsPanelBusy.
+        if (!onResumeSession) {
+          dispatch({
+            type: 'addEntry',
+            entry: { kind: 'warn', text: 'Session resume is not available in this host.' },
+          });
+          return;
+        }
         dispatch({ type: 'sessionsPanelBusy', on: true });
-        onResumeSession?.(pending.sessionId)
+        onResumeSession(pending.sessionId)
           .then((result) => {
             if (!result) {
               dispatch({ type: 'sessionsPanelBusy', on: false });
@@ -183,8 +203,16 @@ export function useAppPickerKeys({
               },
             });
           })
-          .catch(() => {
+          .catch((err) => {
             dispatch({ type: 'sessionsPanelBusy', on: false });
+            // resumeSession THROWS deliberately so the caller can surface
+            // the reason (tui-session-resume.ts documents this contract);
+            // swallowing it here left the user staring at a panel that
+            // silently did nothing.
+            dispatch({
+              type: 'addEntry',
+              entry: { kind: 'error', text: `Resume failed: ${toErrorMessage(err)}` },
+            });
           });
         return;
       }
@@ -323,6 +351,4 @@ export function useAppPickerKeys({
     },
     onPickerEnter,
   });
-
-
 }

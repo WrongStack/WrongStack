@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
+import { describe, expect, it } from 'vitest';
 import {
   buildTaskTree,
   flattenTaskTree,
@@ -141,11 +141,31 @@ describe('buildTaskTree', () => {
     ]);
   });
 
-  it('breaks cycles instead of hanging', () => {
+  it('breaks cycles instead of hanging — and still shows every task exactly once', () => {
     const a = task({ id: 'a', childTaskIds: ['b'], parentTaskId: 'b' });
     const b = task({ id: 'b', childTaskIds: ['a'], parentTaskId: 'a' });
     const tree = buildTaskTree(board([a, b]));
-    // Both have (resolvable) parents → no roots; must not infinite-loop.
-    expect(tree).toEqual([]);
+    // Both have (resolvable) parents so neither is a natural root — the
+    // orphan sweep must still surface them (dropping them made a 12-task
+    // board render 8), and the visited set must keep the cycle finite.
+    const ids: string[] = [];
+    const walk = (nodes: typeof tree): void => {
+      for (const node of nodes) {
+        ids.push(node.task.id);
+        walk(node.children);
+      }
+    };
+    walk(tree);
+    expect(ids.sort()).toEqual(['a', 'b']);
+  });
+
+  it('surfaces a one-way parent link (parent does not list the child back)', () => {
+    const parent = task({ id: 'parent', childTaskIds: [] });
+    const orphan = task({ id: 'orphan', parentTaskId: 'parent' });
+    const tree = buildTaskTree(board([parent, orphan]));
+    const rootIds = tree.map((node) => node.task.id).sort();
+    // `orphan` is not a natural root (its parent resolves) and the parent
+    // never visits it — before the sweep it vanished from the tree.
+    expect(rootIds).toEqual(['orphan', 'parent']);
   });
 });

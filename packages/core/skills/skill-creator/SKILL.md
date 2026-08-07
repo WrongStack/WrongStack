@@ -4,6 +4,8 @@ description: |
   Use this skill when the user wants to create a new AI skill in WrongStack.
   Triggers: user says "create a skill", "new skill", "add a skill", "skill definition".
 version: 1.2.0
+required-capabilities: [filesystem.write, runtime.admin]
+required-tools: [bash, skill]
 ---
 
 # Skill Creator — WrongStack

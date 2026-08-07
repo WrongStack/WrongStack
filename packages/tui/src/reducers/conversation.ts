@@ -135,6 +135,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
         confirmQueue: [],
         clearConfirm: null,
         slashConfirm: null,
+        topicCheckBusy: false,
         brainPrompt: null,
         debugStreamStats: null,
         historyScrolled: false,

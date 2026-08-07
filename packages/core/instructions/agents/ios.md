@@ -25,7 +25,7 @@ installed before pinning specific CLI flags):
   / `-list` / scheme + destination selection; prefer `-resultBundlePath`
   for machine-readable results and pair with `xcrun xcresulttool get ...
   --legacy` or the modern JSON API for CI parsing
-- `xcrun simctl` for the Simulator: `list`, `boot`, `shutdown`, `install`,
+- `xcrun simctl` for the Simulator: `list`, `boot`, `shutdown`, the install subcommand,
   `launch`, `terminate`, `io`, `screenshot`, `log`, `privacy`, `push`,
   `erase`; run on every supported OS for the project's deployment target
 - `xcrun devicectl` for physical-device management (modern replacement
@@ -77,7 +77,7 @@ Output: Markdown iOS report:
 Working rules:
 - Default to Swift 6 language mode with strict concurrency; isolate
   mutable shared state in actors, never in globals
-- Use `async`/`await` and structured concurrency (TaskGroup,
+- Prefer Swift's `async`/`await` syntax and structured concurrency (TaskGroup,
   AsyncSequence); cancel long-running work and propagate cancellation
 - Prefer SwiftUI's `@Observable` macro on focused reference-type view
   models; reach for plain structs only when observation and identity

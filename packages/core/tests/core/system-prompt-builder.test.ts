@@ -2,13 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { RUNTIME_CAPABILITY_MANIFEST } from '../../src/coordination/agents/capability-manifest.js';
+import type { MemoryStore, SkillLoader, Tool } from '../../src/index.js';
 import {
   DefaultSystemPromptBuilder,
   LAYER_1_IDENTITY,
   loadInstructionBundle,
   renderInstructionLayer,
 } from '../../src/index.js';
-import type { MemoryStore, SkillLoader, Tool } from '../../src/index.js';
 
 const mkTool = (name: string, hint?: string): Tool => ({
   name,
@@ -66,7 +67,7 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(withTools[0]?.text).toContain('Backlog → Todo → Running → Review → Done');
     expect(withTools[0]?.text).toContain('Worker completion means the card enters Review');
     expect(withTools[0]?.text).toContain('### Codebase-first discovery');
-    expect(withTools[0]?.text).toContain('codebase-stats/codebase-search');
+    expect(withTools[0]?.text).not.toContain('codebase-stats/codebase-search');
     expect(withTools[0]?.text).toContain('call live `codebase-index`');
 
     // A fresh builder: the rendered identity is cached per tool set.
@@ -81,6 +82,44 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(withoutTools[0]?.text).toContain('You are WrongStack');
     expect(withoutTools[0]?.text).toContain('Tool output trust boundary');
     expect(withoutTools[0]?.text?.length ?? 0).toBeLessThan(withTools[0]?.text?.length ?? 0);
+  });
+
+  it('keeps the fully assembled prompt free of unregistered canonical tool references', async () => {
+    const canonical = new Set(RUNTIME_CAPABILITY_MANIFEST.flatMap((entry) => entry.tools));
+    const mentions = (text: string, name: string): boolean => {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const token = new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`);
+      return text.split('\n').some((line) => {
+        if (
+          line.split('`').some((segment, index) => {
+            if (index % 2 !== 1) return false;
+            if (segment.includes(`<${name}`) || segment.includes(`</${name}`)) return false;
+            return token.test(segment);
+          })
+        ) {
+          return true;
+        }
+        return line
+          .split('**')
+          .some((segment, index) => index % 2 === 1 && segment.trim() === name);
+      });
+    };
+    const leaks: string[] = [];
+    for (const only of canonical) {
+      const tools = [mkTool(only)];
+      const builder = new DefaultSystemPromptBuilder({ todayIso: '2026-05-13' });
+      const blocks = await builder.build({
+        cwd: tmp,
+        projectRoot: tmp,
+        tools,
+        catalogTools: tools,
+      });
+      const prompt = blocks.map((block) => block.text).join('\n');
+      for (const hidden of canonical) {
+        if (hidden !== only && mentions(prompt, hidden)) leaks.push(`${only} exposed ${hidden}`);
+      }
+    }
+    expect(leaks, 'assembled singleton prompts leaked unregistered canonical tools').toEqual([]);
   });
 
   it('loads system instructions from override files with project taking precedence', async () => {
@@ -134,13 +173,19 @@ describe('DefaultSystemPromptBuilder', () => {
     await fs.writeFile(path.join(projectDir, 'system-lite.md'), 'PROJECT LITE');
     await fs.writeFile(path.join(projectDir, 'system-pro.md'), 'PROJECT PRO');
 
-    await expect(loadInstructionBundle({ bundledDir, systemVariant: 'default' })).resolves.toMatchObject({
+    await expect(
+      loadInstructionBundle({ bundledDir, systemVariant: 'default' }),
+    ).resolves.toMatchObject({
       system: { identity: 'BUNDLED DEFAULT' },
     });
-    await expect(loadInstructionBundle({ bundledDir, systemVariant: 'lite' })).resolves.toMatchObject({
+    await expect(
+      loadInstructionBundle({ bundledDir, systemVariant: 'lite' }),
+    ).resolves.toMatchObject({
       system: { identity: 'BUNDLED LITE' },
     });
-    await expect(loadInstructionBundle({ bundledDir, systemVariant: 'pro' })).resolves.toMatchObject({
+    await expect(
+      loadInstructionBundle({ bundledDir, systemVariant: 'pro' }),
+    ).resolves.toMatchObject({
       system: { identity: 'BUNDLED PRO' },
     });
 
@@ -189,9 +234,9 @@ describe('DefaultSystemPromptBuilder', () => {
     const bundle = await loadInstructionBundle({ projectDir, systemFile: 'system-pro.md' });
 
     expect(bundle.system?.identity).toBe('PROJECT PRO');
-    await expect(loadInstructionBundle({ projectDir, systemFile: '../system-pro.md' })).rejects.toThrow(
-      /Invalid system instruction file/,
-    );
+    await expect(
+      loadInstructionBundle({ projectDir, systemFile: '../system-pro.md' }),
+    ).rejects.toThrow(/Invalid system instruction file/);
   });
 
   it('applies in-memory instruction bundle overrides after file layers', async () => {
@@ -202,7 +247,9 @@ describe('DefaultSystemPromptBuilder', () => {
     const b = new DefaultSystemPromptBuilder({
       todayIso: '2026-05-13',
       instructionPaths: { globalDir },
-      instructionBundle: { system: { identity: 'MEMORY IDENTITY', leaderAfterTask: 'MEMORY LEADER' } },
+      instructionBundle: {
+        system: { identity: 'MEMORY IDENTITY', leaderAfterTask: 'MEMORY LEADER' },
+      },
     });
     const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [] });
 
@@ -214,7 +261,10 @@ describe('DefaultSystemPromptBuilder', () => {
     const projectDir = path.join(tmp, '.wrongstack', 'instructions');
     const sectionDir = path.join(projectDir, 'sections', 'tool');
     await fs.mkdir(sectionDir, { recursive: true });
-    await fs.writeFile(path.join(sectionDir, 'delegation-compact.md'), 'CUSTOM DELEGATE {{roleList}}');
+    await fs.writeFile(
+      path.join(sectionDir, 'delegation-compact.md'),
+      'CUSTOM DELEGATE {{roleList}}',
+    );
 
     const b = new DefaultSystemPromptBuilder({
       todayIso: '2026-05-13',
@@ -554,9 +604,7 @@ describe('DefaultSystemPromptBuilder', () => {
           version: 1,
           sessionId: 'sess',
           updatedAt: '2026-05-13T00:00:00Z',
-          items: [
-            { id: 'a', title: 'finished', status: 'done', createdAt: '', updatedAt: '' },
-          ],
+          items: [{ id: 'a', title: 'finished', status: 'done', createdAt: '', updatedAt: '' }],
         }),
       );
       const b = new DefaultSystemPromptBuilder({ planPath, todayIso: '2026-05-13' });

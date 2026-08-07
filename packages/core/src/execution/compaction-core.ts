@@ -1,8 +1,8 @@
 import type { ContentBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
 import { isTextBlock } from '../types/blocks.js';
-import type { Message } from '../types/messages.js';
 import type { Logger } from '../types/logger.js';
-import { repairToolUseAdjacency } from '../utils/message-invariants.js';
+import type { Message } from '../types/messages.js';
+import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-invariants.js';
 import {
   computeMessageTokens,
   estimateMessageTokens,
@@ -10,23 +10,28 @@ import {
   estimateToolInputTokens,
   estimateToolResultTokens,
 } from '../utils/token-estimate.js';
+
 export {
   buildSmartDigest,
+  type ContentScore,
   extractText,
   hasLargeToolResult,
   hasToolUse,
   scoreMessage,
-  type ContentScore,
 } from './compaction-scoring.js';
 
 // Path hint extraction — used inside firstErrorLine path summaries.
-const PATH_HINT_PATTERN = /(?:(?:[A-Za-z]:)?[./\\]?[\w@.-]+(?:[\\/][\w@(). -]+)+\.[A-Za-z0-9]{1,12})/g;
+const PATH_HINT_PATTERN =
+  /(?:(?:[A-Za-z]:)?[./\\]?[\w@.-]+(?:[\\/][\w@(). -]+)+\.[A-Za-z0-9]{1,12})/g;
 const PATH_BACKSLASH_PATTERN = /\\/g;
 const PATH_TRIM_PATTERN = /^["'`]+|["'`),;:]+$/g;
 
 // Error line detection — first non-blank line whose text matches the
 // set of words that indicate something went wrong.
-const ERROR_LINE_PATTERN = /\b(error|exception|failed|failure|fatal|panic|timeout|denied|enoent|eacces|eperm)\b/i;
+const ERROR_LINE_PATTERN =
+  /\b(error|exception|failed|failure|fatal|panic|timeout|denied|enoent|eacces|eperm)\b/i;
+const STRONG_ERROR_LINE_PATTERN =
+  /\b(error|exception|fatal|panic|timeout|denied|enoent|eacces|eperm)\b/i;
 const NEWLINE_SPLIT_PATTERN = /\r?\n/;
 const WHITESPACE_COLLAPSE_PATTERN = /\s+/g;
 
@@ -250,6 +255,439 @@ export interface EliseResult {
   changed: boolean;
 }
 
+export interface AcknowledgedToolResultElision extends EliseResult {
+  /** Raw tool-result blocks replaced with compact receipts. */
+  elidedResults: number;
+  /** Raw acknowledged tool I/O left verbatim after the pass. */
+  retainedTokens: number;
+}
+
+export interface AcknowledgedToolReceiptCollapse extends EliseResult {
+  /** Complete acknowledged tool exchanges folded into the bounded digest. */
+  collapsedPairs: number;
+}
+
+const TOOL_HISTORY_DIGEST_PREFIX = '[tool_history_digest:';
+
+interface FileToolLifecycle {
+  /** Successful reads for each file that has not since been mutated. */
+  activeReadIds: Set<string>;
+  /** Reads made obsolete by a later successful mutation. */
+  staleReadPaths: Map<string, string>;
+}
+
+function isReadToolName(name: string): boolean {
+  return /^(read|read_file|open_file|view)$/.test(name.toLowerCase());
+}
+
+function isFileMutationToolName(name: string): boolean {
+  return /^(edit|write|replace|patch|apply_patch)$/.test(name.toLowerCase());
+}
+
+function didFileMutationRun(use: ToolUseBlock): boolean {
+  const name = use.name.toLowerCase();
+  if (name === 'replace') return use.input?.['dry_run'] === false;
+  if (name === 'patch') return use.input?.['dry_run'] !== true;
+  return true;
+}
+
+function sameFilePath(a: string, b: string): boolean {
+  if (a === b) return true;
+  const aAbsolute = /^(?:[a-z]:\/|\/)/.test(a);
+  const bAbsolute = /^(?:[a-z]:\/|\/)/.test(b);
+  if (aAbsolute === bAbsolute) return false;
+  return aAbsolute ? a.endsWith(`/${b}`) : b.endsWith(`/${a}`);
+}
+
+function mutationPathKeys(use: ToolUseBlock, result: ToolResultBlock): string[] {
+  const paths = new Set<string>();
+  const direct = readPathOf(use.input);
+  if (direct) paths.add(normalizePathKey(direct));
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.content);
+  } catch {
+    return [...paths];
+  }
+  const visit = (value: unknown, key = ''): void => {
+    if (typeof value === 'string') {
+      if (/^(path|file|file_path|filename|files)$/.test(key) && value.trim()) {
+        paths.add(normalizePathKey(value.trim()));
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, key);
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    for (const [childKey, child] of Object.entries(value as Record<string, unknown>)) {
+      visit(child, childKey);
+    }
+  };
+  visit(parsed);
+  return [...paths];
+}
+
+/**
+ * Recover the provider-visible file working set from acknowledged tool pairs.
+ * Successful reads remain active verbatim until a later successful mutation
+ * of the same path supersedes them. Multiple ranged reads are all retained
+ * because together they may be the model's complete view. Failed mutations
+ * deliberately do nothing: the bytes on disk and the model's last trustworthy
+ * view did not change.
+ */
+function analyzeFileToolLifecycle(
+  messages: readonly Message[],
+  acknowledgedBefore: number,
+): FileToolLifecycle {
+  const uses = new Map<string, ToolUseBlock>();
+  const activeByPath = new Map<string, Set<string>>();
+  const staleReadPaths = new Map<string, string>();
+
+  for (let i = 0; i < acknowledgedBefore; i++) {
+    const message = messages[i];
+    if (!message || typeof message.content === 'string') continue;
+    for (const block of message.content) {
+      if (block.type === 'tool_use') {
+        uses.set(block.id, block);
+        continue;
+      }
+      if (block.type !== 'tool_result' || block.is_error === true) continue;
+      const use = uses.get(block.tool_use_id);
+      if (!use) continue;
+      if (isReadToolName(use.name)) {
+        const rawPath = readPathOf(use.input);
+        if (!rawPath) continue;
+        const pathKey = normalizePathKey(rawPath);
+        const matchingPath = [...activeByPath.keys()].find((activePath) =>
+          sameFilePath(activePath, pathKey),
+        );
+        const canonicalPath = matchingPath ?? pathKey;
+        const reads = activeByPath.get(canonicalPath) ?? new Set<string>();
+        reads.add(block.tool_use_id);
+        activeByPath.set(canonicalPath, reads);
+        continue;
+      }
+
+      if (!isFileMutationToolName(use.name) || !didFileMutationRun(use)) continue;
+      for (const mutationPath of mutationPathKeys(use, block)) {
+        for (const [activePath, activeIds] of activeByPath) {
+          if (!sameFilePath(activePath, mutationPath)) continue;
+          for (const activeId of activeIds) staleReadPaths.set(activeId, activePath);
+          activeByPath.delete(activePath);
+        }
+      }
+    }
+  }
+
+  return {
+    activeReadIds: new Set([...activeByPath.values()].flatMap((ids) => [...ids])),
+    staleReadPaths,
+  };
+}
+
+/**
+ * Bound raw tool I/O that the model has already consumed successfully.
+ *
+ * A result is acknowledged only when a later assistant message exists. The
+ * trailing tool-result batch therefore stays verbatim until it has actually
+ * reached the provider; retries and recovered sessions cannot lose the input
+ * needed for their next request. Among acknowledged pairs, the newest raw
+ * payloads share `maxRetainedTokens`; older or individually oversized pairs
+ * become semantic receipts while their exact payload remains in the session
+ * log. Tool ids and provider metadata stay intact so strict provider replay
+ * adjacency remains valid.
+ */
+export function eliseAcknowledgedToolResults(
+  messages: readonly Message[],
+  opts: { maxRetainedTokens: number },
+): AcknowledgedToolResultElision {
+  const unchanged = (retainedTokens = 0): AcknowledgedToolResultElision => ({
+    messages: messages as Message[],
+    saved: 0,
+    changed: false,
+    elidedResults: 0,
+    retainedTokens,
+  });
+
+  let lastAssistantIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === 'assistant') {
+      lastAssistantIndex = i;
+      break;
+    }
+  }
+  if (lastAssistantIndex <= 0) return unchanged();
+
+  const useById = new Map<string, ToolUseBlock>();
+  for (let i = 0; i < lastAssistantIndex; i++) {
+    const message = messages[i];
+    if (!message || typeof message.content === 'string') continue;
+    for (const block of message.content) {
+      if (block.type === 'tool_use') useById.set(block.id, block);
+    }
+  }
+
+  const budget = Number.isFinite(opts.maxRetainedTokens)
+    ? Math.max(0, Math.floor(opts.maxRetainedTokens))
+    : 0;
+  const idsToElide = new Set<string>();
+  let retainedTokens = 0;
+  const fileLifecycle = analyzeFileToolLifecycle(messages, messages.length);
+
+  // Stale file content must disappear even when the aggregate raw-I/O budget
+  // would otherwise retain it. Active reads take precedence over that budget:
+  // the hard emergency trimmer remains the final no-overflow backstop.
+  for (const id of fileLifecycle.staleReadPaths.keys()) idsToElide.add(id);
+
+  // Newest acknowledged pairs get first claim on the raw-payload budget.
+  for (let i = lastAssistantIndex - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || typeof message.content === 'string') continue;
+    for (let j = message.content.length - 1; j >= 0; j--) {
+      const block = message.content[j];
+      if (block?.type !== 'tool_result') continue;
+      const use = useById.get(block.tool_use_id);
+      const resultTokens = isElidedResultContent(block.content)
+        ? 0
+        : estimateToolResultTokens(block.content);
+      const useTokens =
+        use && !isElidedToolInput(use.input) ? estimateToolInputTokens(use.input) : 0;
+      const pairTokens = resultTokens + useTokens;
+      if (pairTokens === 0) continue;
+      if (fileLifecycle.activeReadIds.has(block.tool_use_id)) {
+        retainedTokens += pairTokens;
+        continue;
+      }
+      if (fileLifecycle.staleReadPaths.has(block.tool_use_id)) continue;
+      if (pairTokens > budget || retainedTokens + pairTokens > budget) {
+        idsToElide.add(block.tool_use_id);
+      } else {
+        retainedTokens += pairTokens;
+      }
+    }
+  }
+
+  if (idsToElide.size === 0) return unchanged(retainedTokens);
+
+  let next: Message[] | undefined;
+  let saved = 0;
+  let elidedResults = 0;
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    if (!message || typeof message.content === 'string') continue;
+    let content: ContentBlock[] | undefined;
+    for (let j = 0; j < message.content.length; j++) {
+      const block = message.content[j];
+      if (!block) continue;
+      if (
+        block.type === 'tool_use' &&
+        idsToElide.has(block.id) &&
+        !isElidedToolInput(block.input)
+      ) {
+        const before = estimateToolInputTokens(block.input);
+        const stalePath = fileLifecycle.staleReadPaths.get(block.id);
+        const input = stalePath
+          ? {
+              __stale_read: `invalidated by a later successful mutation of ${stalePath}`,
+              tool: block.name,
+            }
+          : summarizeToolUseInputElision(block, before);
+        saved += Math.max(0, before - estimateToolInputTokens(input));
+        content ??= message.content.slice();
+        content[j] = { ...block, input };
+      } else if (
+        block.type === 'tool_result' &&
+        idsToElide.has(block.tool_use_id) &&
+        !isElidedResultContent(block.content)
+      ) {
+        const before = estimateToolResultTokens(block.content);
+        const stalePath = fileLifecycle.staleReadPaths.get(block.tool_use_id);
+        const receipt = stalePath
+          ? `[stale read of ${stalePath} — invalidated by a later successful mutation; see session log]`
+          : summarizeToolResultElision(block, before);
+        saved += Math.max(0, before - estimateToolResultTokens(receipt));
+        elidedResults++;
+        content ??= message.content.slice();
+        content[j] = { ...block, content: receipt };
+      }
+    }
+    if (content) {
+      next ??= messages.slice() as Message[];
+      next[i] = { ...message, content, _estTokens: undefined };
+    }
+  }
+
+  if (!next) return unchanged(retainedTokens);
+  return {
+    messages: next,
+    saved,
+    changed: true,
+    elidedResults,
+    retainedTokens,
+  };
+}
+
+/**
+ * Bound the number of acknowledged tool-protocol pairs retained in history.
+ *
+ * Raw payload elision bounds bytes, but every receipt still leaves an
+ * assistant tool_use message and a user tool_result message behind. Long
+ * autonomous sessions therefore continued to grow linearly in protocol
+ * shells. This pass keeps the newest `maxPairs`, removes both halves of older
+ * pairs, drops thinking that existed solely to authorize an omitted tool call,
+ * and folds the count into one stable system digest. Surrounding assistant or
+ * user text is preserved.
+ */
+export function collapseAcknowledgedToolReceipts(
+  messages: readonly Message[],
+  opts: { maxPairs: number },
+): AcknowledgedToolReceiptCollapse {
+  const unchanged = (): AcknowledgedToolReceiptCollapse => ({
+    messages: messages as Message[],
+    saved: 0,
+    changed: false,
+    collapsedPairs: 0,
+  });
+
+  let lastAssistantIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === 'assistant') {
+      lastAssistantIndex = i;
+      break;
+    }
+  }
+  if (lastAssistantIndex <= 0) return unchanged();
+
+  const acknowledgedIds: string[] = [];
+  const seen = new Set<string>();
+  for (let i = lastAssistantIndex - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || typeof message.content === 'string') continue;
+    for (let j = message.content.length - 1; j >= 0; j--) {
+      const block = message.content[j];
+      if (block?.type !== 'tool_result' || seen.has(block.tool_use_id)) continue;
+      seen.add(block.tool_use_id);
+      acknowledgedIds.push(block.tool_use_id);
+    }
+  }
+
+  const maxPairs = Number.isFinite(opts.maxPairs) ? Math.max(0, Math.floor(opts.maxPairs)) : 0;
+  if (acknowledgedIds.length <= maxPairs) return unchanged();
+  const fileLifecycle = analyzeFileToolLifecycle(messages, messages.length);
+  const acknowledgedSet = new Set(acknowledgedIds);
+  const protectedReads = new Set(
+    [...fileLifecycle.activeReadIds].filter((id) => acknowledgedSet.has(id)),
+  );
+  const unprotected = acknowledgedIds.filter((id) => !protectedReads.has(id));
+  const unprotectedKeep = Math.max(0, maxPairs - protectedReads.size);
+  const idsToDrop = new Set(unprotected.slice(unprotectedKeep));
+  if (idsToDrop.size === 0) return unchanged();
+  const toolCounts = new Map<string, number>();
+  const pathHints = new Set<string>();
+  let priorDigestCount = 0;
+
+  for (const message of messages) {
+    const digest = toolHistoryDigestText(message);
+    if (digest) {
+      priorDigestCount = Math.max(priorDigestCount, toolHistoryDigestCount(digest));
+      continue;
+    }
+    if (typeof message.content === 'string') continue;
+    for (const block of message.content) {
+      if (block.type === 'tool_use' && idsToDrop.has(block.id)) {
+        toolCounts.set(block.name, (toolCounts.get(block.name) ?? 0) + 1);
+      } else if (block.type === 'tool_result' && idsToDrop.has(block.tool_use_id)) {
+        for (const hint of extractPathHints(block.content)) {
+          pathHints.add(hint);
+          if (pathHints.size >= 6) break;
+        }
+      }
+    }
+  }
+
+  const out: Message[] = [];
+  for (const message of messages) {
+    if (toolHistoryDigestText(message)) continue;
+    if (typeof message.content === 'string') {
+      out.push(message);
+      continue;
+    }
+
+    let removedUse = false;
+    let hasRemainingUse = false;
+    const content: ContentBlock[] = [];
+    for (const block of message.content) {
+      if (block.type === 'tool_use') {
+        if (idsToDrop.has(block.id)) {
+          removedUse = true;
+          continue;
+        }
+        hasRemainingUse = true;
+      }
+      if (block.type === 'tool_result' && idsToDrop.has(block.tool_use_id)) continue;
+      content.push(block);
+    }
+
+    // Signed/reasoning blocks attached only to a completed, omitted tool call
+    // are replay protocol, not durable context. Keep them when another tool_use
+    // remains in the same assistant message; otherwise retain only user-visible
+    // text/images from that response.
+    const compactContent =
+      removedUse && !hasRemainingUse
+        ? content.filter((block) => block.type !== 'thinking')
+        : content;
+    if (!hasMeaningfulContent(compactContent)) continue;
+    out.push(
+      compactContent.length === message.content.length &&
+        compactContent.every((block, index) => block === message.content[index])
+        ? message
+        : { ...message, content: compactContent, _estTokens: undefined },
+    );
+  }
+
+  const collapsedPairs = idsToDrop.size;
+  const totalOmitted = priorDigestCount + collapsedPairs;
+  const tools = [...toolCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 8)
+    .map(([name, count]) => `${name}×${count}`)
+    .join(', ');
+  const files = [...pathHints].slice(0, 6).join(', ');
+  const details = [tools ? `tools=${tools}` : '', files ? `files=${files}` : '']
+    .filter(Boolean)
+    .join('; ');
+  out.unshift({
+    role: 'system',
+    content: `${TOOL_HISTORY_DIGEST_PREFIX} ${totalOmitted} older acknowledged exchange(s) omitted${details ? `; ${details}` : ''}; exact I/O is in the session log]`,
+  });
+
+  return {
+    messages: out,
+    saved: Math.max(0, estimateMessages(messages) - estimateMessages(out)),
+    changed: true,
+    collapsedPairs,
+  };
+}
+
+function toolHistoryDigestText(message: Message): string | undefined {
+  if (message.role !== 'system') return undefined;
+  if (typeof message.content === 'string') {
+    return message.content.startsWith(TOOL_HISTORY_DIGEST_PREFIX) ? message.content : undefined;
+  }
+  const text = message.content.find(
+    (block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text',
+  )?.text;
+  return text?.startsWith(TOOL_HISTORY_DIGEST_PREFIX) ? text : undefined;
+}
+
+function toolHistoryDigestCount(text: string): number {
+  const match = /^\[tool_history_digest:\s*(\d+)/.exec(text);
+  return match?.[1] ? Number.parseInt(match[1], 10) : 0;
+}
+
 /**
  * Elide oversized tool I/O that falls before the preserve window. Pure:
  * returns a fresh array (or the same reference when unchanged). Replaces the
@@ -466,11 +904,38 @@ function summarizeToolResultElision(block: ToolResultBlock, tokens: number): str
   if (files.length > 0) parts.push(`files=${files.join(', ')}`);
   const error = firstErrorLine(block.content);
   if (error) parts.push(`error=${error}`);
+  const excerpt = semanticToolResultExcerpt(block.content);
+  if (excerpt) parts.push(`excerpt=${excerpt}`);
   return `[${parts.join('; ')}]`;
 }
 
+/**
+ * Keep enough of an elided result to preserve what happened, not merely that
+ * a tool ran. Head + tail works well for file reads, search output and command
+ * logs: headers/primary findings tend to be first while totals/failures tend
+ * to be last. The fixed character cap keeps receipt growth deterministic.
+ */
+function semanticToolResultExcerpt(content: unknown, maxChars = 480): string | undefined {
+  const text = safeToolResultString(content).replace(WHITESPACE_COLLAPSE_PATTERN, ' ').trim();
+  if (!text) return undefined;
+  if (text.length <= maxChars) return text;
+  const separator = ' … ';
+  const headChars = Math.ceil((maxChars - separator.length) * 0.65);
+  const tailChars = maxChars - separator.length - headChars;
+  return `${text.slice(0, headChars)}${separator}${text.slice(-tailChars)}`;
+}
+
+function safeToolResultString(content: unknown): string {
+  if (typeof content === 'string') return content;
+  try {
+    return JSON.stringify(content);
+  } catch {
+    return String(content);
+  }
+}
+
 function extractPathHints(content: unknown): string[] {
-  const text = typeof content === 'string' ? content : JSON.stringify(content);
+  const text = safeToolResultString(content);
   const out = new Set<string>();
   for (const match of text.matchAll(PATH_HINT_PATTERN)) {
     const clean = match[0]?.replace(PATH_BACKSLASH_PATTERN, '/').replace(PATH_TRIM_PATTERN, '');
@@ -481,11 +946,16 @@ function extractPathHints(content: unknown): string[] {
 }
 
 function firstErrorLine(content: unknown): string | undefined {
-  const text = typeof content === 'string' ? content : JSON.stringify(content);
-  for (const line of text.split(NEWLINE_SPLIT_PATTERN)) {
-    if (!ERROR_LINE_PATTERN.test(line)) continue;
-    const trimmed = line.replace(WHITESPACE_COLLAPSE_PATTERN, ' ').trim();
-    if (trimmed) return trimmed.slice(0, 180);
+  const text = safeToolResultString(content);
+  const lines = text.split(NEWLINE_SPLIT_PATTERN);
+  // Prefer explicit error markers over weak words such as "failure" that may
+  // merely occur in a file path (for example src/failure.ts).
+  for (const pattern of [STRONG_ERROR_LINE_PATTERN, ERROR_LINE_PATTERN]) {
+    for (const line of lines) {
+      if (!pattern.test(line)) continue;
+      const trimmed = line.replace(WHITESPACE_COLLAPSE_PATTERN, ' ').trim();
+      if (trimmed) return trimmed.slice(0, 180);
+    }
   }
   return undefined;
 }
@@ -518,11 +988,16 @@ const EMERGENCY_FLOOR_TAIL = 150;
 const EMERGENCY_MIN_TRIM_TOKENS = 120;
 
 function isElidedResultContent(content: string): boolean {
-  return typeof content === 'string' && content.startsWith('[elided:');
+  return (
+    typeof content === 'string' &&
+    (content.startsWith('[elided:') || content.startsWith('[stale read of '))
+  );
 }
 
 function isElidedToolInput(input: Record<string, unknown> | undefined): boolean {
-  return !!input && Object.hasOwn(input, '__elided_tool_input');
+  return (
+    !!input && (Object.hasOwn(input, '__elided_tool_input') || Object.hasOwn(input, '__stale_read'))
+  );
 }
 
 /**
@@ -765,7 +1240,7 @@ function readPathOf(input: Record<string, unknown> | undefined): string | undefi
 }
 
 function normalizePathKey(p: string): string {
-  return p.replace(PATH_BACKSLASH_PATTERN, '/').toLowerCase();
+  return p.replace(PATH_BACKSLASH_PATTERN, '/').replace(/^\.\//, '').toLowerCase();
 }
 
 /** Does `pathKey` refer to one of the hot (repeatedly-read) files? */
@@ -854,7 +1329,10 @@ export function dedupStaleReads(
         newContent ??= m.content.slice();
         newContent[j] = {
           ...b,
-          input: { __stale_read: `superseded by a later read of ${staleIds.get(b.id)}`, tool: b.name },
+          input: {
+            __stale_read: `superseded by a later read of ${staleIds.get(b.id)}`,
+            tool: b.name,
+          },
         };
       } else if (b.type === 'tool_result' && staleIds.has(b.tool_use_id)) {
         const key = staleIds.get(b.tool_use_id);

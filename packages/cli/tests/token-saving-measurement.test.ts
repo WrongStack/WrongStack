@@ -61,7 +61,7 @@ function makeMemoryStore(): ReturnType<typeof makeFakeMemoryStore> {
 
 function makeContainer() {
   const c = new Container();
-  c.bind(TOKENS.Compactor, () => ({ compact: async () => ({ ok: true }) } as never));
+  c.bind(TOKENS.Compactor, () => ({ compact: async () => ({ ok: true }) }) as never);
   return c;
 }
 
@@ -132,7 +132,7 @@ async function measureTier(tier: string): Promise<Measurement> {
   });
   const blocks = await result.systemPrompt;
   const joined = blocks.map((b) => b.text).join('\n');
-  const toolCount = toolRegistry.list().length;
+  const toolCount = toolRegistry.listForProvider().length;
   return {
     tier,
     toolCount,
@@ -189,6 +189,7 @@ describe('token-saving measurement (empirical)', () => {
     expect(byTier('off')).toBeGreaterThan(byTier('medium'));
     expect(byTier('medium')).toBeGreaterThan(byTier('minimal'));
     expect(byTier('minimal')).toBe(byTier('light')); // identical by design
+    expect(byTier('aggressive')).toBe(byTier('minimal')); // both expose Tier 1 directly
 
     // 'off' must be the largest prompt — every compacting tier is smaller.
     const offChars = results.find((r) => r.tier === 'off')!.promptChars;
@@ -224,8 +225,7 @@ describe('token-saving measurement (empirical)', () => {
     const aggressive = selectBuiltinToolsForTier('aggressive', allTools).length;
     expect(medium).toBeGreaterThanOrEqual(tier1.length);
     expect(medium).toBeLessThan(off); // off has more tools (includes TIER3)
-    expect(aggressive).toBeGreaterThanOrEqual(medium);
-    expect(aggressive).toBeLessThan(off + 1); // never exceeds off by more than tier3-excluded
+    expect(aggressive).toBe(tier1.length);
     // Check that 'off' returns the full list verbatim
     expect(
       selectBuiltinToolsForTier('off', allTools)

@@ -4,7 +4,9 @@ import type { ParsedNextStep } from '@wrongstack/tools/next-steps';
 import { parseNextSteps } from '@wrongstack/tools/next-steps';
 import React, { useEffect, useMemo } from 'react';
 import { langFromPath } from '../../highlight.js';
+import { MEMORY_GATE_DEFAULTS } from '../../history-entry.js';
 import { Box, Text } from '../../ink.js';
+import { sanitizeTerminalText } from '../../terminal-width.js';
 import { theme } from '../../theme.js';
 import { getToolVisual } from '../../tool-glyph.js';
 import { AssistantBody, assistantContentWidth } from './assistant.js';
@@ -20,15 +22,14 @@ import {
 } from './code-block.js';
 import { ToolCard } from './tool-card.js';
 import type { HistoryEntry } from './types.js';
-import { MEMORY_GATE_DEFAULTS } from '../../history-entry.js';
 import {
   fmtBytes,
   fmtTok,
   formatToolArgs,
   formatToolOutputSage,
   formatToolVisualOutput,
-  parseSageMemoryLine,
   type ParsedSageMemoryLine,
+  parseSageMemoryLine,
   shortenPath,
   stringOf,
   ToolOutputLines,
@@ -137,8 +138,8 @@ function brainRiskColor(risk: Extract<HistoryEntry, { kind: 'brain' }>['risk']):
  * icon + label header in the accent color and the message body below, wrapped
  * to the terminal width and split across lines so multi-line diagnostics stay
  * readable instead of overflowing a single-line strip. Slash-command output
- * that carries raw ANSI (bold/colors) is passed through untouched — the same
- * rule the `info` renderer uses — so pre-styled text isn't double-wrapped.
+ * is normalized before it reaches Ink so cursor/control sequences can never
+ * paint outside the notice card's measured geometry.
  */
 function NoticeCard({
   icon,
@@ -154,9 +155,8 @@ function NoticeCard({
   termWidth: number;
 }): React.ReactElement {
   // 2 border columns + 2 paddingX columns of chrome.
-  const contentWidth = Math.max(20, termWidth - 4);
-  const hasAnsi = /\x1b\[/.test(text);
-  const lines = text.split('\n');
+  const contentWidth = Math.max(1, termWidth - 4);
+  const lines = sanitizeTerminalText(text).split('\n');
   return (
     <Box
       flexDirection="column"
@@ -168,15 +168,11 @@ function NoticeCard({
     >
       <Text bold color={color}>{`${icon} ${label}`}</Text>
       <Box flexDirection="column" width={contentWidth}>
-        {hasAnsi ? (
-          <Text>{text}</Text>
-        ) : (
-          lines.map((line, i) => (
-            <Text key={i} color={color}>
-              {line.length > 0 ? line : ' '}
-            </Text>
-          ))
-        )}
+        {lines.map((line, i) => (
+          <Text key={i} color={color}>
+            {line.length > 0 ? line : ' '}
+          </Text>
+        ))}
       </Box>
     </Box>
   );
@@ -290,14 +286,14 @@ export const Entry = React.memo(function Entry({
             <Text bold color={theme.user}>
               {'👤 USER  '}
             </Text>
-            <Text color="white">{entry.text}</Text>
+            <Text color="white">{sanitizeTerminalText(entry.text)}</Text>
             {entry.queued ? <Text dimColor>{' (queued)'}</Text> : null}
             {entry.pasteContent ? (
               <>
                 {entry.text ? '\n' : null}
                 <Text dimColor>
                   {'  ↳ '}
-                  {entry.pasteContent}
+                  {sanitizeTerminalText(entry.pasteContent)}
                 </Text>
               </>
             ) : null}
@@ -327,7 +323,7 @@ export const Entry = React.memo(function Entry({
             <Text color={theme.textSecondary}>{'  (model reasoning…)'}</Text>
           </Box>
           <Box width={contentWidth}>
-            <Text color={theme.textSecondary}>{entry.text}</Text>
+            <Text color={theme.textSecondary}>{sanitizeTerminalText(entry.text)}</Text>
           </Box>
         </Box>
       );
@@ -381,7 +377,7 @@ export const Entry = React.memo(function Entry({
                 <Box key={s.index} flexDirection="row" marginTop={0}>
                   <Text>
                     <Text bold color={theme.accent}>{`  ${s.index}. `}</Text>
-                    <Text>{s.text}</Text>
+                    <Text>{sanitizeTerminalText(s.text)}</Text>
                     {s.auto ? (
                       <Text color="cyan" dimColor>
                         {' '}
@@ -526,7 +522,7 @@ export const Entry = React.memo(function Entry({
         // bullet onto its own row.
         const targetBudget = Math.max(24, termWidth - mutation.verb.length - 16);
         const hasCounts = mutation.added > 0 || mutation.removed > 0;
-        const toolContentWidth = Math.max(20, termWidth - 2);
+        const toolContentWidth = Math.max(1, termWidth - 2);
         return (
           <Box flexDirection="column">
             <ToolCard
@@ -594,7 +590,7 @@ export const Entry = React.memo(function Entry({
           </Box>
         );
       }
-      const toolContentWidth = Math.max(20, termWidth - 2);
+      const toolContentWidth = Math.max(1, termWidth - 2);
       const hasToolBody = Boolean(
         (visualLines && visualLines.length > 0) ||
           (entry.resultRenderMode !== 'simple' && outLines.length > 0) ||
@@ -636,7 +632,7 @@ export const Entry = React.memo(function Entry({
                       dimColor={entry.ok && !line.startsWith('!')}
                       {...(!entry.ok || line.startsWith('!') ? { color: 'red' } : {})}
                     >
-                      {line}
+                      {sanitizeTerminalText(line)}
                     </Text>
                   </Text>
                 );
@@ -774,17 +770,10 @@ export const Entry = React.memo(function Entry({
       );
     }
     case 'info': {
-      // Slash commands style their own output with raw ANSI (bold, colors,
-      // dim sections). Wrapping that in dimColor breaks mid-string: the
-      // first \x1b[22m close inside the text cancels the outer dim, leaving
-      // the rest of the entry patchy half-dim/half-bright. Only dim plain,
-      // unstyled lines.
-      const hasAnsi = /\x1b\[/.test(entry.text);
-      if (hasAnsi) return <Text>{entry.text}</Text>;
       return (
         <Text dimColor>
           <Text>{'ℹ '}</Text>
-          {entry.text}
+          {sanitizeTerminalText(entry.text)}
         </Text>
       );
     }
@@ -798,7 +787,7 @@ export const Entry = React.memo(function Entry({
             <Text bold color={theme.warn}>
               {'⚠ '}
             </Text>
-            <Text color={theme.warn}>{entry.text}</Text>
+            <Text color={theme.warn}>{sanitizeTerminalText(entry.text)}</Text>
           </Text>
         </Box>
       );
@@ -823,7 +812,7 @@ export const Entry = React.memo(function Entry({
         >
           <Text>
             <Text color={theme.brandPrimary}>{'📋 '}</Text>
-            <Text color={theme.textSecondary}>{entry.text}</Text>
+            <Text color={theme.textSecondary}>{sanitizeTerminalText(entry.text)}</Text>
           </Text>
         </Box>
       );
@@ -996,22 +985,22 @@ export const Entry = React.memo(function Entry({
       // Quiet single-line fleet/delegate chrome: no heavy colored rail and no
       // vertical margin that punches holes between history items. Role color
       // stays on the icon + label only.
-      const lines = entry.text.split('\n');
+      const lines = sanitizeTerminalText(entry.text).split('\n');
       return (
         <Box flexDirection="column" marginX={0} marginY={0} paddingLeft={0}>
           <Text>
             <Text color={theme.borderSubtle}>│ </Text>
-            <Text color={entry.agentColor}>{entry.icon}</Text>
+            <Text color={entry.agentColor}>{sanitizeTerminalText(entry.icon)}</Text>
             <Text> </Text>
             <Text bold color={entry.agentColor}>
-              {entry.agentLabel}
+              {sanitizeTerminalText(entry.agentLabel)}
             </Text>
             <Text> </Text>
             <Text color={theme.textSecondary}>{lines[0] ?? ''}</Text>
             {entry.detail ? (
               <>
                 <Text color={theme.textMuted}>{'  ·  '}</Text>
-                <Text color={theme.textMuted}>{entry.detail}</Text>
+                <Text color={theme.textMuted}>{sanitizeTerminalText(entry.detail)}</Text>
               </>
             ) : null}
           </Text>
@@ -1086,7 +1075,7 @@ function SageMemoryBlock({
         if (!parsed) {
           return (
             <Text key={i} color={theme.accent} dimColor wrap="truncate-end">
-              {line}
+              {sanitizeTerminalText(line)}
             </Text>
           );
         }
@@ -1104,14 +1093,15 @@ function SageMemoryRow({
   parsed: ParsedSageMemoryLine;
   index: number;
 }): React.ReactElement {
-  const labelText = parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]';
+  const labelText =
+    parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]';
   const tagText = parsed.tags && parsed.tags.length > 0 ? parsed.tags.join(', ') : undefined;
   return (
     <Box flexDirection="column" marginTop={index > 0 ? 1 : 0}>
       <Text bold color={theme.accent}>
         {labelText}
       </Text>
-      <Text color={theme.textPrimary}>{parsed.text}</Text>
+      <Text color={theme.textPrimary}>{sanitizeTerminalText(parsed.text)}</Text>
       <Box flexDirection="row" flexWrap="wrap">
         <SageKv label="id" value={parsed.id} />
         {parsed.anchor ? <SageKv label="anchor" value={parsed.anchor} /> : null}
@@ -1127,7 +1117,7 @@ function SageKv({ label, value }: { label: string; value: string }): React.React
   return (
     <Box flexDirection="row" marginRight={2}>
       <Text dimColor>{`${label}: `}</Text>
-      <Text color={theme.textSecondary}>{value}</Text>
+      <Text color={theme.textSecondary}>{sanitizeTerminalText(value)}</Text>
     </Box>
   );
 }

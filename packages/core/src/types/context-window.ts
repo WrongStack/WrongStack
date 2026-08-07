@@ -35,6 +35,7 @@ export interface ContextWindowMode {
   thresholds: ContextWindowThresholds;
   aggressiveOn: ContextWindowAggressiveOn;
   preserveK: number;
+  /** Per-block elision baseline used to derive the bounded recent raw tool-I/O window. */
   eliseThreshold: number;
   targetLoad: number;
 }
@@ -63,7 +64,8 @@ export const CONTEXT_WINDOW_MODES: readonly ContextWindowMode[] = Object.freeze(
   {
     id: 'balanced',
     name: 'Balanced',
-    description: 'Default rolling compaction: recent work stays verbatim, old tool output is trimmed.',
+    description:
+      'Default rolling compaction: recent work stays verbatim, old tool output is trimmed.',
     thresholds: { warn: 0.55, soft: 0.7, hard: 0.85 },
     aggressiveOn: 'soft',
     preserveK: 8,
@@ -104,15 +106,11 @@ export function normalizeContextWindowModeId(
   return DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES[id as DeprecatedContextWindowModeId] ?? null;
 }
 
-export function isDeprecatedContextWindowModeId(
-  id: string,
-): id is DeprecatedContextWindowModeId {
+export function isDeprecatedContextWindowModeId(id: string): id is DeprecatedContextWindowModeId {
   return Object.hasOwn(DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, id);
 }
 
-export function isContextWindowModeSelectionId(
-  id: string,
-): id is ContextWindowModeSelectionId {
+export function isContextWindowModeSelectionId(id: string): id is ContextWindowModeSelectionId {
   return isContextWindowModeId(id) || isDeprecatedContextWindowModeId(id);
 }
 
@@ -132,7 +130,9 @@ export function resolveContextWindowPolicy(
   overrideMode?: string | null | undefined,
 ): ContextWindowPolicy {
   const requested = overrideMode ?? config.mode ?? DEFAULT_CONTEXT_WINDOW_MODE_ID;
-  const mode = getContextWindowMode(requested) ?? expectDefined(getContextWindowMode(DEFAULT_CONTEXT_WINDOW_MODE_ID));
+  const mode =
+    getContextWindowMode(requested) ??
+    expectDefined(getContextWindowMode(DEFAULT_CONTEXT_WINDOW_MODE_ID));
 
   return {
     ...mode,

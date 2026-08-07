@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // ES2023 lib (not target): this project also typechecks the core sources it
+    // imports, and core targets ES2024 — `Array.findLastIndex` there is invisible
+    // under an ES2022 lib. Emit stays ES2022; only the API surface widens.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",

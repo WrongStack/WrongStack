@@ -1,15 +1,11 @@
-import {
-  getBoard,
-  listBoards,
-  type KanbanBoard,
-  type KanbanTask,
-} from '@wrongstack/kanban';
+import { getBoard, type KanbanBoard, type KanbanTask, listBoards } from '@wrongstack/kanban';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import type { GoalSummary } from '../app-state.js';
 import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
-import type { GoalSummary } from '../app-state.js';
+import { usePanelShortcutsEnabled } from './monitor-shell.js';
 
 export interface GoalKanbanPanelProps {
   projectRoot: string;
@@ -43,9 +39,7 @@ export function GoalKanbanPanel({
       // Match using exact normalized tag equality — never substring match,
       // which would select the wrong board when goal-tag prefixes overlap
       // (e.g. "goal:auth" vs "goal:authentication").
-      const matched = boards.find(
-        (b) => b.tags?.some((t) => normalizeTag(t) === goalTag),
-      );
+      const matched = boards.find((b) => b.tags?.some((t) => normalizeTag(t) === goalTag));
       // Fallback: pick any board with "🎯" in title
       const fallback = !matched
         ? boards.find((b) => b.title.includes('🎯') || b.title.includes('Goal'))
@@ -87,8 +81,9 @@ export function GoalKanbanPanel({
 
   const displayGoal = (goal?.refinedGoal || goal?.goal || '').replace(/\s+/g, ' ').trim();
 
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((_input, key) => {
-    if (key.escape || _input === 'q') {
+    if (key.escape || (shortcutsEnabled && _input === 'q')) {
       onClose();
     }
   });
@@ -118,9 +113,7 @@ export function GoalKanbanPanel({
             </Text>
           </>
         ) : null}
-        <Text color={theme.textMuted}>
-          | Esc/q close
-        </Text>
+        <Text color={theme.textMuted}>| Esc/q close</Text>
       </Box>
 
       {/* ── Goal progress header ── */}
@@ -165,16 +158,16 @@ export function GoalKanbanPanel({
                 </Text>
                 {colTasks.length === 0 ? (
                   <Text color={theme.textMuted} dimColor>
-                    {' '}—
+                    {' '}
+                    —
                   </Text>
                 ) : (
-                  colTasks.slice(0, 12).map((task) => (
-                    <TaskCard key={task.id} task={task} />
-                  ))
+                  colTasks.slice(0, 12).map((task) => <TaskCard key={task.id} task={task} />)
                 )}
                 {colTasks.length > 12 ? (
                   <Text color={theme.textMuted} dimColor>
-                    {' '}… {colTasks.length - 12} more
+                    {' '}
+                    … {colTasks.length - 12} more
                   </Text>
                 ) : null}
               </Box>
@@ -184,11 +177,7 @@ export function GoalKanbanPanel({
       )}
 
       {/* ── Footer — live status ── */}
-      {board && !loading ? (
-        <Box marginTop={1}>
-          {renderBoardSummary(board, goal)}
-        </Box>
-      ) : null}
+      {board && !loading ? <Box marginTop={1}>{renderBoardSummary(board, goal)}</Box> : null}
     </Box>
   );
 }
@@ -221,11 +210,13 @@ function TaskCard({ task }: { task: KanbanTask }): React.ReactElement {
   return (
     <Box>
       <Text color={color_} wrap="truncate">
-        {' '}{icon} {task.title}
+        {' '}
+        {icon} {task.title}
       </Text>
       {task.assignedAgent ? (
         <Text color={theme.textMuted} dimColor>
-          {' '}@{task.assignedAgent}
+          {' '}
+          @{task.assignedAgent}
         </Text>
       ) : null}
     </Box>
@@ -238,9 +229,7 @@ function renderGoalProgressHeader(goal: GoalSummary): React.ReactElement | null 
   if (!displayGoal) return null;
 
   const deliverables = goal.deliverables ?? [];
-  const doneDeliverables = deliverables.filter((d) =>
-    /^\[[x✓]\]|✅|\(done\)/i.test(d),
-  ).length;
+  const doneDeliverables = deliverables.filter((d) => /^\[[x✓]\]|✅|\(done\)/i.test(d)).length;
   const pct =
     typeof goal.progress === 'number'
       ? goal.progress
@@ -270,9 +259,7 @@ function renderGoalProgressHeader(goal: GoalSummary): React.ReactElement | null 
         <Text color={theme.textPrimary} bold>
           {pct}%
         </Text>
-        {trendIcon ? (
-          <Text color={theme.textMuted}>{trendIcon}</Text>
-        ) : null}
+        {trendIcon ? <Text color={theme.textMuted}>{trendIcon}</Text> : null}
         <Text color={theme.textMuted}>
           | {doneDeliverables}/{deliverables.length} deliverables
         </Text>
@@ -282,25 +269,21 @@ function renderGoalProgressHeader(goal: GoalSummary): React.ReactElement | null 
       </Box>
       {goal.progressNote ? (
         <Text color={theme.textMuted} dimColor>
-          {' '}{goal.progressNote}
+          {' '}
+          {goal.progressNote}
         </Text>
       ) : null}
     </Box>
   );
 }
 
-function renderBoardSummary(
-  board: KanbanBoard,
-  _goal: GoalSummary,
-): React.ReactElement | null {
+function renderBoardSummary(board: KanbanBoard, _goal: GoalSummary): React.ReactElement | null {
   const done = board.tasks.filter((t) => t.status === 'completed').length;
   const inProgress = board.tasks.filter((t) => t.status === 'in_progress').length;
   const blocked = board.tasks.filter((t) => t.status === 'blocked').length;
   const pending = board.tasks.length - done - inProgress - blocked;
 
-  const summaryParts = [
-    `📊 ${board.title.replace(/^🎯\s*/, '')}`,
-  ];
+  const summaryParts = [`📊 ${board.title.replace(/^🎯\s*/, '')}`];
   if (pending > 0) summaryParts.push(`❍ ${pending} pending`);
   if (inProgress > 0) summaryParts.push(`🔄 ${inProgress} active`);
   if (blocked > 0) summaryParts.push(`🚫 ${blocked} blocked`);
@@ -343,7 +326,10 @@ function columnIcon(title: string): string {
 }
 
 function buildGoalTag(goal: GoalSummary | null): string {
-  const text = (goal?.refinedGoal || goal?.goal || '').replace(/\s+/g, '-').slice(0, 24).toLowerCase();
+  const text = (goal?.refinedGoal || goal?.goal || '')
+    .replace(/\s+/g, '-')
+    .slice(0, 24)
+    .toLowerCase();
   return `goal:${text}`;
 }
 

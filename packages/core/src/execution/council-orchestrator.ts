@@ -1,3 +1,5 @@
+import type { FallbackProfileManager } from '../core/fallback-profile-manager.js';
+import type { Config } from '../types/config.js';
 import type {
   CouncilLLMCaller,
   CouncilModelTarget,
@@ -11,12 +13,12 @@ import type {
 } from '../types/council.js';
 import type { OneShotLLMResult } from '../types/one-shot-llm.js';
 import {
-  DEFAULT_COUNCIL_PERSONA_REGISTRY,
   type CouncilPersonaRegistry,
+  DEFAULT_COUNCIL_PERSONA_REGISTRY,
 } from './council-personas.js';
 import {
-  DEFAULT_COUNCIL_PROFILE_REGISTRY,
   type CouncilProfileRegistry,
+  DEFAULT_COUNCIL_PROFILE_REGISTRY,
   resolveCouncilProfile,
 } from './council-profiles.js';
 import {
@@ -26,8 +28,6 @@ import {
   buildCouncilVoterUserPrompt,
 } from './council-prompts.js';
 import { resolveCouncilVotes } from './council-resolution.js';
-import type { FallbackProfileManager } from '../core/fallback-profile-manager.js';
-import type { Config } from '../types/config.js';
 
 /** Synthetic ballot entry for "refuse every real option". */
 export const COUNCIL_REFUSAL_OPTION_ID = 'council_refuse';
@@ -122,9 +122,7 @@ export class CouncilOrchestrator {
 
   constructor(opts: CouncilOrchestratorOptions) {
     if (!opts.caller && !opts.seatCaller && !opts.judgeCaller) {
-      throw new Error(
-        'CouncilOrchestrator: provide `caller`, `seatCaller`, or `judgeCaller`.',
-      );
+      throw new Error('CouncilOrchestrator: provide `caller`, `seatCaller`, or `judgeCaller`.');
     }
     this.caller = opts.caller;
     this.personas = opts.personas ?? DEFAULT_COUNCIL_PERSONA_REGISTRY;
@@ -145,7 +143,9 @@ export class CouncilOrchestrator {
    * normalized once per stable object identity and cached, because hosts such
    * as the Brain adapter pass the same profile object on every ask().
    */
-  private resolveProfile(profile: string | CouncilProfileConfig | undefined): ResolvedCouncilProfile {
+  private resolveProfile(
+    profile: string | CouncilProfileConfig | undefined,
+  ): ResolvedCouncilProfile {
     if (typeof profile === 'string' || profile === undefined) {
       return resolveCouncilProfile(profile, {
         registry: this.profiles,
@@ -280,7 +280,7 @@ export class CouncilOrchestrator {
       // envelope status instead of showing a failed panel of cancelled seats.
       return question.signal?.aborted
         ? cancelledVote(seat)
-        : {
+        : ({
             seatId: seat.id,
             persona: seat.persona,
             status: 'failed',
@@ -288,7 +288,7 @@ export class CouncilOrchestrator {
             ...(seat.target?.model ? { model: seat.target.model } : {}),
             durationMs: 0,
             error: OVERALL_TIMEOUT_REASON,
-          } satisfies CouncilVoteResult;
+          } satisfies CouncilVoteResult);
     }
     let persona;
     try {
@@ -338,7 +338,7 @@ export class CouncilOrchestrator {
         persona: seat.persona,
         status: 'invalid',
         ...metadata,
-        error: parsed.error,
+        error: withTruncationNote(parsed.error, result, profile.voterMaxTokens),
       };
     }
     return {
@@ -457,9 +457,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
-        errors: errors.some((entry) => entry.includes(reason))
-          ? errors
-          : [...errors, reason],
+        errors: errors.some((entry) => entry.includes(reason)) ? errors : [...errors, reason],
         judgeUsed: true,
       });
     }
@@ -467,11 +465,7 @@ export class CouncilOrchestrator {
       return resultEnvelope({
         // User cancel -> cancelled; overall budget expired mid-judge -> failed;
         // otherwise the judge simply failed -> abstained (can't decide).
-        status: question.signal?.aborted
-          ? 'cancelled'
-          : signal.aborted
-            ? 'failed'
-            : 'abstained',
+        status: question.signal?.aborted ? 'cancelled' : signal.aborted ? 'failed' : 'abstained',
         reason: judged.error,
         resolution: 'none',
         votes,
@@ -554,8 +548,7 @@ export class CouncilOrchestrator {
       if (divergentStances(valid)) {
         return resultEnvelope({
           status: 'abstained',
-          reason:
-            'Council produced multiple distinct stances and has no judge to reconcile them.',
+          reason: 'Council produced multiple distinct stances and has no judge to reconcile them.',
           resolution: 'none',
           votes,
           profile,
@@ -620,9 +613,7 @@ export class CouncilOrchestrator {
         usage,
         startedAt,
         warnings,
-        errors: errors.some((entry) => entry.includes(reason))
-          ? errors
-          : [...errors, reason],
+        errors: errors.some((entry) => entry.includes(reason)) ? errors : [...errors, reason],
         judgeUsed: true,
       });
     }
@@ -693,7 +684,14 @@ export class CouncilOrchestrator {
       }
       return { ok: false, error: result.error };
     }
-    return parseJudge(result.text, question, this.refusalOptionId);
+    const judged = parseJudge(result.text, question, this.refusalOptionId);
+    if (!judged.ok) {
+      return {
+        ok: false,
+        error: withTruncationNote(judged.error, result, profile.judgeMaxTokens),
+      };
+    }
+    return judged;
   }
 
   /**
@@ -854,7 +852,10 @@ function parseCouncilResponse(
       error: `${roleLabel} returned an empty or missing ${opts.freeTextField}.`,
     };
   }
-  return { ok: true, value: { [opts.freeTextField]: freeText, ...(rationale ? { rationale } : {}) } };
+  return {
+    ok: true,
+    value: { [opts.freeTextField]: freeText, ...(rationale ? { rationale } : {}) },
+  };
 }
 
 /**
@@ -927,6 +928,18 @@ function parseJudge(
   };
 }
 
+/**
+ * Append a truncation note to a parse-failure error when the underlying call
+ * was cut off at its output budget. Without this, a reasoning model that
+ * spent its whole `maxTokens` thinking surfaces as a bare "did not contain
+ * JSON" — indistinguishable from a model that returned garbage, and pointing
+ * the operator away from the actual fix (raise the budget).
+ */
+function withTruncationNote(error: string, result: OneShotLLMResult, maxTokens: number): string {
+  if (result.stopReason !== 'max_tokens') return error;
+  return `${error} (response truncated at maxTokens=${maxTokens} — reasoning models may need a larger budget)`;
+}
+
 function parseObject(
   text: string,
 ): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
@@ -977,7 +990,9 @@ function resultEnvelope(input: {
   };
 }
 
-function callMetadata(result: OneShotLLMResult): Omit<CouncilVoteResult, 'seatId' | 'persona' | 'status'> {
+function callMetadata(
+  result: OneShotLLMResult,
+): Omit<CouncilVoteResult, 'seatId' | 'persona' | 'status'> {
   return {
     ...(result.provider ? { provider: result.provider } : {}),
     ...(result.model ? { model: result.model } : {}),

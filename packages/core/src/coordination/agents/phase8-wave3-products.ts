@@ -2,9 +2,9 @@ import { agentPrompt } from './agent-prompts.js';
 import type { BundledAgentSkill } from './role-skills.js';
 import {
   type AgentDefinition,
-  type RoleDispatcherSignal,
   HEAVY_BUDGET,
   MEDIUM_BUDGET,
+  type RoleDispatcherSignal,
   TOOLS,
 } from './types.js';
 
@@ -149,7 +149,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
       id: 'messaging',
       name: 'Messaging',
       role: 'messaging',
-      tools: [...TOOLS.build, 'logs', 'observability'],
+      tools: [...TOOLS.build, 'logs'],
       prompt: agentPrompt('messaging'),
     },
     budget: HEAVY_BUDGET,
@@ -227,8 +227,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'domain',
-      summary:
-        'ML engineer: model integration, inference, evaluation and guardrail wiring.',
+      summary: 'ML engineer: model integration, inference, evaluation and guardrail wiring.',
       keywords: [
         ...ML_ENGINEER_META.signals,
         'ml',

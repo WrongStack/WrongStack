@@ -9,6 +9,9 @@ description: |
   WrongStack-internal agents already share, so any agent with curl or
   fetch can read, send, and acknowledge messages.
 version: 1.0.0
+required-capabilities: [execution.shell]
+required-tools: []
+optional-capabilities: [web.research]
 ---
 
 # Mailbox Bridge — Expose the Shared Mailbox to External Agents

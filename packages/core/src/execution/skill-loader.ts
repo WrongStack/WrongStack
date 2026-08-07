@@ -9,11 +9,11 @@ import {
 import { SKILL_LIMITS } from '../skills/limits.js';
 import type {
   ShadowedSkill,
-  SkippedSkill,
   SkillEntry,
   SkillLoader,
   SkillLoaderDiagnostics,
   SkillManifest,
+  SkippedSkill,
 } from '../types/skill.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 
@@ -205,6 +205,9 @@ export class DefaultSkillLoader implements SkillLoader {
             compatibility: fm.compatibility,
             metadata: fm.metadata,
             allowedTools: fm.allowedTools,
+            requiredCapabilities: fm.requiredCapabilities,
+            requiredTools: fm.requiredTools,
+            optionalCapabilities: fm.optionalCapabilities,
             path: skillFile,
             source,
             originTool,

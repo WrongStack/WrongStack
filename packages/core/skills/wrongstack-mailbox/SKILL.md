@@ -9,6 +9,9 @@ description: |
   fleet", "tell the wrongstack agents", "is anyone online in
   wrongstack", or "register me with wrongstack".
 version: 1.0.0
+required-capabilities: []
+required-tools: [mailbox]
+optional-capabilities: [mcp.dynamic, web.research]
 ---
 
 # WrongStack Mailbox Client
@@ -658,7 +661,7 @@ await mb('/mailbox/send', {
   credential. If you must print the URL, redact the token (`[REDACTED]`).
 - **Don't reply to a broadcast with another broadcast.** Replies should
   target the original sender via `to: <their-id>`, with `replyTo` set.
-- **Don't use `control` messages.** They go through a different path in
+- **Avoid `control` messages.** They go through a different path in
   the WrongStack agent loop and will likely be dropped on the floor by
   the recipient.
 

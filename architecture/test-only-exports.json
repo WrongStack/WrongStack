@@ -262,6 +262,9 @@
     "packages/cli/src/subcommands/handlers/update.ts": [
       "detectUpdatePackageManager"
     ],
+    "packages/cli/src/terminal-format.ts": [
+      "terminalFormattingEnabled"
+    ],
     "packages/cli/src/tuneup.ts": [
       "checkAutonomy",
       "checkConfigDoctor",
@@ -281,6 +284,9 @@
       "fetchLatestFromNpm",
       "getUpdateNotification",
       "isNewer"
+    ],
+    "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts": [
+      "MAILBOX_BRIDGE_META_KEY"
     ],
     "packages/cli/src/wiring/metrics.ts": [
       "registerMcpHealthCheck",
@@ -310,6 +316,9 @@
     ],
     "packages/core/src/chronicle/project-server-client.ts": [
       "resolveChronicleProjectServerUrl"
+    ],
+    "packages/core/src/chronicle/sqlite-compaction.ts": [
+      "chronicleSqliteAllocatedBytes"
     ],
     "packages/core/src/chronicle/sqlite-journal.ts": [
       "CHRONICLE_SQLITE_FILE"
@@ -500,6 +509,12 @@
     ],
     "packages/core/src/types/provider.ts": [
       "MAX_RESET_HINT_MS"
+    ],
+    "packages/core/src/types/runtime-capability-manifest.ts": [
+      "isDeprecatedRuntimeToolAlias",
+      "isKnownRuntimeCapability",
+      "normalizeRuntimeToolName",
+      "runtimeCapabilityForTool"
     ],
     "packages/core/src/utils/child-env.ts": [
       "sanitizeNodeOptions"
@@ -1031,6 +1046,9 @@
     "packages/tui/src/components/memory-context-widget.tsx": [
       "MemoryContextWidget"
     ],
+    "packages/tui/src/components/powerline-rail.tsx": [
+      "visibleNodeText"
+    ],
     "packages/tui/src/components/refine-failure-panel.tsx": [
       "filterRefineModels"
     ],
@@ -1043,6 +1061,9 @@
     ],
     "packages/tui/src/components/shell-command-warning.tsx": [
       "truncateShellCommandWarningCommand"
+    ],
+    "packages/tui/src/components/sidebar-content.tsx": [
+      "contextSpectrum"
     ],
     "packages/tui/src/components/sidebar.tsx": [
       "SIDEBAR_FRACTION",
@@ -1164,6 +1185,9 @@
     ],
     "packages/tui/src/scroll-anchor.ts": [
       "anchorAtTopRow"
+    ],
+    "packages/tui/src/sidebar-sizing.ts": [
+      "SIDEBAR_TWIN_HEIGHT_BY_PANEL"
     ],
     "packages/tui/src/terminal-width.ts": [
       "frameRule",

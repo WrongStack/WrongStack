@@ -239,8 +239,7 @@ export function createSageToolCallMiddleware(
         // getSessionId is provided, fall back to ctx.session.id so the ledger
         // is still scoped per-session rather than process-global.
         const sessionId =
-          opts.getSessionId?.() ??
-          (nextPayload.ctx.session as { id?: string } | undefined)?.id;
+          opts.getSessionId?.() ?? (nextPayload.ctx.session as { id?: string } | undefined)?.id;
         const fresh = applyCooldown(
           eligible,
           seen,
@@ -320,12 +319,12 @@ export function createSageToolCallMiddleware(
           return nextPayload;
         }
 
-        const content = `${nextPayload.result.content.replace(/\s+$/, '')}\n\n${rendered.text}`;
-        nextPayload.result.content = content;
-        // The agent loop intentionally observes mutations on the original
-        // ToolResultBlock and ignores a pipeline replacement return value.
-        // Preserve injection even if a downstream plugin cloned the payload.
-        payload.result.content = content;
+        // Keep retrieval evidence out of the tool protocol payload. Appending
+        // it to `tool_result.content` duplicates SAGE text inside durable tool
+        // history and makes file-read lifecycle cleanup unable to distinguish
+        // source bytes from advisory memory. Context owns one bounded slot;
+        // request construction renders it as an ephemeral system suffix.
+        storeProviderMemoryEvidence(nextPayload.ctx, rendered.text, plan.maxChars);
         const now = Date.now();
         for (const memoryId of rendered.memoryIds) seen.set(cooldownKey(memoryId, sessionId), now);
         pruneCooldowns(seen, pruneState, now, opts.repeatCooldownMs ?? DEFAULT_REPEAT_COOLDOWN_MS);
@@ -407,6 +406,26 @@ export function createSageToolCallMiddleware(
       }
     },
   };
+}
+
+function storeProviderMemoryEvidence(
+  ctx: ToolCallPipelinePayload['ctx'],
+  text: string,
+  maxChars: number,
+): void {
+  const host = ctx as ToolCallPipelinePayload['ctx'] & {
+    memoryEvidence?: Array<{ source: string; text: string }>;
+    setMemoryEvidence?: (source: string, text: string, maxChars?: number) => void;
+  };
+  if (typeof host.setMemoryEvidence === 'function') {
+    host.setMemoryEvidence('sage.tool-memory', text, maxChars);
+    return;
+  }
+  const retained = (host.memoryEvidence ?? []).filter(
+    (entry) => entry.source !== 'sage.tool-memory',
+  );
+  retained.push({ source: 'sage.tool-memory', text: text.slice(0, Math.max(0, maxChars)) });
+  host.memoryEvidence = retained.slice(-8);
 }
 
 interface InjectorTraceMemory {
@@ -965,11 +984,7 @@ function extractTrigger(
       return {
         trigger: 'codebase_search',
         paths: stringValues(input.path),
-        queryText: joinQueryParts(
-          input.query,
-          input.q,
-          enrichPathQuery(stringValues(input.path)),
-        ),
+        queryText: joinQueryParts(input.query, input.q, enrichPathQuery(stringValues(input.path))),
       };
     case 'write':
       return {

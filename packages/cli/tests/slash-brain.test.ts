@@ -1,6 +1,9 @@
 import type { BrainArbiter, BrainDecisionRequest } from '@wrongstack/core/coordination';
-import type { BrainConfigPatch, BrainRuntime } from '@wrongstack/core/execution';
-import type { BrainConfigSnapshot } from '@wrongstack/core/execution';
+import type {
+  BrainConfigPatch,
+  BrainConfigSnapshot,
+  BrainRuntime,
+} from '@wrongstack/core/execution';
 import { describe, expect, it, vi } from 'vitest';
 import { buildBrainCommand } from '../src/slash-commands/brain.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
@@ -67,21 +70,18 @@ describe('/brain slash command', () => {
       expect(stripAnsi(result!.message!)).toContain('Brain autonomy ceiling: low');
     });
 
-    it.each([
-      'off',
-      'low',
-      'medium',
-      'high',
-      'all',
-    ] as const)('sets the ceiling to %s in place', async (level) => {
-      const settings = { maxAutoRisk: 'medium' as const } as { maxAutoRisk: string };
-      const ctx = makeCtx({
-        brainSettings: settings as SlashCommandContext['brainSettings'],
-      });
-      const result = await buildBrainCommand(ctx).run!(`risk ${level}`);
-      expect(settings.maxAutoRisk).toBe(level);
-      expect(stripAnsi(result!.message!)).toContain(`set to ${level}`);
-    });
+    it.each(['off', 'low', 'medium', 'high', 'all'] as const)(
+      'sets the ceiling to %s in place',
+      async (level) => {
+        const settings = { maxAutoRisk: 'medium' as const } as { maxAutoRisk: string };
+        const ctx = makeCtx({
+          brainSettings: settings as SlashCommandContext['brainSettings'],
+        });
+        const result = await buildBrainCommand(ctx).run!(`risk ${level}`);
+        expect(settings.maxAutoRisk).toBe(level);
+        expect(stripAnsi(result!.message!)).toContain(`set to ${level}`);
+      },
+    );
 
     it('rejects unknown levels without mutating settings', async () => {
       const settings = { maxAutoRisk: 'medium' as const };
@@ -191,6 +191,7 @@ describe('/brain slash command', () => {
           maxConcurrency: undefined,
           distinctness: 'none',
           judgeMaxTokens: undefined,
+          voterMaxTokens: undefined,
           seats: [],
         },
         ledger: {
@@ -282,6 +283,7 @@ describe('/brain slash command', () => {
           maxConcurrency: undefined,
           distinctness: 'none',
           judgeMaxTokens: undefined,
+          voterMaxTokens: undefined,
           seats: [],
         },
         councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
@@ -311,6 +313,7 @@ describe('/brain slash command', () => {
           maxConcurrency: undefined,
           distinctness: 'none',
           judgeMaxTokens: undefined,
+          voterMaxTokens: undefined,
           seats: [],
         },
         councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
@@ -542,6 +545,7 @@ describe('/brain slash command', () => {
           maxConcurrency: undefined,
           distinctness: 'none',
           judgeMaxTokens: undefined,
+          voterMaxTokens: undefined,
           seats: [],
         },
         ledger: {
@@ -686,7 +690,9 @@ describe('/brain slash command', () => {
       // apply until restart; the host now forwards them to
       // BrainMonitor.reconfigure() from the runtime's onApplied.
       const { runtime, patches } = makeRt();
-      const res = await buildBrainCommand(makeCtx({ brainRuntime: runtime })).run!('monitor policy observe');
+      const res = await buildBrainCommand(makeCtx({ brainRuntime: runtime })).run!(
+        'monitor policy observe',
+      );
       expect(patches).toEqual([{ monitor: { policy: 'observe' } }]);
       const message = stripAnsi(res?.message ?? '');
       expect(message).toContain('applied live');
@@ -740,7 +746,16 @@ describe('/brain slash command', () => {
 
     it('lists the new subcommands in argsHint, help and the unknown-subcommand hint', async () => {
       const cmd = buildBrainCommand(makeCtx());
-      for (const name of ['stats', 'rules', 'heuristics', 'llm', 'trace', 'cache', 'escalation', 'monitor']) {
+      for (const name of [
+        'stats',
+        'rules',
+        'heuristics',
+        'llm',
+        'trace',
+        'cache',
+        'escalation',
+        'monitor',
+      ]) {
         expect(cmd.argsHint).toContain(name);
         expect(cmd.help).toContain(name);
       }

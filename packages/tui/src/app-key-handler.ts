@@ -4,20 +4,21 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Action } from './app-action-type.js';
 import type { AppProps } from './app-props.js';
 import type { State } from './app-state.js';
+import { effectivePanelPositions } from './app-ui-state.js';
 import { AUTONOMY_OPTIONS } from './components/autonomy-picker.js';
 import { DEFAULT_INPUT_PROMPT, type KeyEvent } from './components/input.js';
 import type { HistoryScrollController } from './components/scrollable-history.js';
 import { SELECTION_COPY_ID } from './components/scrollable-history.js';
-import {
-  COMPACT_THRESHOLD,
-  statusBarAutonomySpan,
-  statusBarModelSpan,
-  statusBarTodosSpan,
-} from './components/status-bar.js';
+import type { StatusBarClickMap } from './components/status-bar-types.js';
 import { STATUSLINE_ITEMS, type StatuslineItem } from './components/statusline-picker.js';
+import { escCloseAction, escSelfOwnedPanelOpen } from './esc-close-panels.js';
 import { actionForFKeyPanel, fKeyEntryFor } from './f-key-panels.js';
-import { hitRegion, isHistoryScrollTarget, SCROLLBAR_HIT_WIDTH, statusBarLineRow } from './hit-test.js';
-import type { AutonomyStage } from './hooks/use-statusline-state.js';
+import {
+  hitRegion,
+  isHistoryScrollTarget,
+  SCROLLBAR_HIT_WIDTH,
+  statusBarLineRow,
+} from './hit-test.js';
 import { type DOMElement, measureElement } from './ink.js';
 import { routeInputKey } from './input-key-router.js';
 import {
@@ -32,7 +33,6 @@ import { sddLifecycleEntry } from './sdd-lifecycle-entry.js';
 
 const ESC_DOUBLE_PRESS_MS = 1000;
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
-const SB_PADX = 0;
 
 interface AppKeyHandlerOptions {
   state: State;
@@ -114,15 +114,8 @@ interface AppKeyHandlerOptions {
   sidebarTwinRowCount: number;
   statusBarWrapRef: MutableRefObject<DOMElement | null>;
   belowStatusBarRef: MutableRefObject<DOMElement | null>;
-  liveStatuslineMode: string;
-  statuslineHiddenForPicker: () => StatuslineItem[];
-  liveModel: string;
-  liveProvider: string;
-  yoloLive: boolean;
-  autonomyLive: AutonomyStage;
-  projectName: string | undefined;
-  workingDirChip: string | undefined;
-  todos: { pending: number; inProgress: number; completed: number };
+  /** Chip click map published by StatusBar on every render. */
+  statusBarClickMapRef: MutableRefObject<StatusBarClickMap | null>;
   openModelPicker: () => Promise<void>;
   nextStepsAutoSubmitTimerRef: MutableRefObject<ReturnType<typeof setInterval> | undefined>;
   nextStepsAutoSubmitSuggestionRef: MutableRefObject<string | null>;
@@ -188,15 +181,7 @@ export function createAppKeyHandler(
     sidebarTwinRowCount,
     statusBarWrapRef,
     belowStatusBarRef,
-    liveStatuslineMode,
-    statuslineHiddenForPicker,
-    liveModel,
-    liveProvider,
-    yoloLive,
-    autonomyLive,
-    projectName,
-    workingDirChip,
-    todos,
+    statusBarClickMapRef,
     openModelPicker,
     nextStepsAutoSubmitTimerRef,
     nextStepsAutoSubmitSuggestionRef,
@@ -354,7 +339,10 @@ export function createAppKeyHandler(
     // an overlay being open and never disturbs normal chat clicks. Combined
     // with wheel-to-move in each picker block, this gives full mouse menu
     // control without any pixel hit-testing.
-    const { isEnter, cancelAction } = overlayPointerKey(state, input, key);
+    const { isEnter, cancelAction } = overlayPointerKey(state, input, key, {
+      termRows,
+      viewportRows: state.viewportRows,
+    });
 
     // Right-click cancels the open overlay (mirrors each picker's Esc path).
     if (cancelAction) {
@@ -381,6 +369,28 @@ export function createAppKeyHandler(
     // Enter (confirm), and picker-specific keys (search, filter, Tab).
     // If no picker is open the hook returns false immediately.
     if (tryPickerKey(input, key, isEnter)) return;
+
+    // ── Esc closes the topmost panel BEFORE the busy-interrupt ladder ──
+    // Pressing Esc with a monitor/panel open means "close this panel",
+    // not "abort the run and drop the queue" — even mid-stream. Panels
+    // whose own useInput owns Esc (kanban's inline prompt, worktree,
+    // goal kanban, phase monitor) are only CONSUMED here: the broadcast
+    // useInput model delivers the same keypress to their handler, which
+    // performs the close/cancel itself. Either way the double-Esc
+    // clear-input timer is disarmed — an Esc spent on a panel must not
+    // count toward the buffer-wipe double-press.
+    if (key.escape) {
+      const panelClose = escCloseAction(state);
+      if (panelClose) {
+        dispatch(panelClose);
+        lastEscAtRef.current = 0;
+        return;
+      }
+      if (escSelfOwnedPanelOpen(state)) {
+        lastEscAtRef.current = 0;
+        return;
+      }
+    }
 
     if (
       routeBusyInterruptKey(
@@ -432,16 +442,12 @@ export function createAppKeyHandler(
       return;
     }
     // F-key / Ctrl-alias dispatch — table-driven via fKeyEntryFor.
-    // Entries with hostAction (F1, F10, F12) need host-side work; the
-    // rest dispatch directly via actionForFKeyPanel.
-    // Special cases: F10 also catches Esc when sessionsPanel is open (defence
-    // in depth); F11 also catches bare \x1b when coordinator is open.
-    const fKeyMatched =
-      fKeyEntryFor(key.fn, key.ctrl, input) ??
-      (key.fn === 10 && key.escape && state.sessionsPanelOpen
-        ? fKeyEntryFor(10, undefined, '')
-        : null) ??
-      (input === '\x1b' && state.coordinator.monitorOpen ? fKeyEntryFor(11, undefined, '') : null);
+    // Entries with hostAction need host-side work; the rest dispatch
+    // directly via actionForFKeyPanel. (Two former "defence in depth"
+    // branches were removed as unreachable: `key.fn && key.escape` can
+    // never both be set, and Ink 7 never delivers a bare '\x1b' as
+    // `input` — Esc-close is owned by the escCloseAction block above.)
+    const fKeyMatched = fKeyEntryFor(key.fn, key.ctrl, input);
     if (fKeyMatched) {
       const entry = fKeyMatched;
       switch (entry.hostAction) {
@@ -489,12 +495,7 @@ export function createAppKeyHandler(
     // which are destructive and (per the fallback path) bypass the
     // confirmation ladder. This mirrors the `?` help-shortcut gate above
     // and the established non-modal pattern (F2/F3/F4/F6/F7 monitors).
-    if (
-      state.sddBoard?.monitorOpen &&
-      !key.ctrl &&
-      !key.meta &&
-      draftRef.current.buffer === ''
-    ) {
+    if (state.sddBoard?.monitorOpen && !key.ctrl && !key.meta && draftRef.current.buffer === '') {
       if (key.rightArrow) {
         dispatch({ type: 'sddBoardFocusNext' });
         return;
@@ -547,7 +548,16 @@ export function createAppKeyHandler(
     ) {
       return;
     }
-    if (routePanelEscapeKey(state, key, dispatch)) return;
+    if (
+      routePanelEscapeKey(
+        state,
+        key,
+        dispatch,
+        effectivePanelPositions(state, getSettings?.()).processList !== 'sidebar',
+      )
+    ) {
+      return;
+    }
 
     // overlayOpen tracks whether the renderer hides the right sidebar for a
     // bottom-routed panel/overlay. Sidebar-routed panels must not suppress
@@ -558,12 +568,7 @@ export function createAppKeyHandler(
     // Shift+Tab on an empty draft toggles keyboard focus between the
     // chat input and the right sidebar. When sidebar-focused, ↑/↓ scroll
     // the sidebar content. Esc or typing unfocuses automatically.
-    if (
-      key.tab &&
-      key.shift &&
-      draftRef.current.buffer === '' &&
-      !overlayOpen
-    ) {
+    if (key.tab && key.shift && draftRef.current.buffer === '' && !overlayOpen) {
       dispatch({ type: 'toggleSidebarFocus' });
       return;
     }
@@ -821,10 +826,12 @@ export function createAppKeyHandler(
         historyScrollRef.current?.endSelection();
       }
       // Clickable status-bar chips. The bar is bottom-anchored above the panels
-      // in belowStatusBarRef; measure both to resolve each line's absolute row,
-      // then test the chip column spans (which mirror the rendered layout). A
-      // press only — drags never open a picker. Column spans are 0-based from
-      // the box's left edge (incl. paddingX), so screen col = span.start + 1.
+      // in belowStatusBarRef; measure both to resolve each content line's
+      // absolute row, then resolve the click column against the chip click map
+      // StatusBar publishes on every render (spans derived from the SAME
+      // segment nodes PowerlineRail draws — see StatusBarClickMap). A press
+      // only — drags never open a picker. Spans are 0-based from the bar's
+      // left edge, so screen col = span.start + 1.
       if (
         mouseMode &&
         key.mouse?.kind === 'press' &&
@@ -835,7 +842,6 @@ export function createAppKeyHandler(
         const belowHeight = belowStatusBarRef.current
           ? measureElement(belowStatusBarRef.current).height
           : 0;
-        const cols = stdout?.columns ?? 80;
         const mx = key.mouse.x;
         const my = key.mouse.y;
         const rowFor = (line: number) =>
@@ -846,85 +852,34 @@ export function createAppKeyHandler(
             headerRows: 0,
             line,
           });
-        const inSpan = (span: { start: number; len: number }) =>
-          mx >= span.start + 1 && mx <= span.start + span.len;
-        // Line 1 — provider/model chip → model picker. Detailed/no-color,
-        // full-width layouts only; compact/minimum modes use different ordering.
-        if (cols >= COMPACT_THRESHOLD && liveStatuslineMode !== 'minimum' && my === rowFor(0)) {
-          const hiddenSet = new Set(statuslineHiddenForPicker());
-          if (!hiddenSet.has('model')) {
-            const span = statusBarModelSpan({
-              model: liveModel,
-              provider: liveProvider,
-              yolo: yoloLive && !hiddenSet.has('yolo'),
-              autonomy: hiddenSet.has('autonomy') ? 'off' : autonomyLive,
-              projectName,
-              workingDir: workingDirChip,
-              projectHidden: hiddenSet.has('project'),
-              workingDirHidden: hiddenSet.has('working_dir'),
-              monochrome: liveStatuslineMode === 'no-color',
-            });
-            if (inSpan(span)) {
+        const clickMap = statusBarClickMapRef.current;
+        const lineEntry = clickMap?.lines.find((entry) => rowFor(entry.line) === my);
+        const span = lineEntry?.spans.find(
+          (candidate) => mx >= candidate.start + 1 && mx <= candidate.start + candidate.len,
+        );
+        if (span) {
+          switch (span.id) {
+            case 'model': {
               await openModelPicker();
               return;
             }
-          }
-        }
-        // Line 1 — autonomy chip → autonomy picker. Use the same visibility and
-        // monochrome inputs as StatusBar so the click target matches the glyphs.
-        if (cols >= COMPACT_THRESHOLD && liveStatuslineMode !== 'minimum') {
-          const hiddenSet = new Set(statuslineHiddenForPicker());
-          const autoSpan = hiddenSet.has('autonomy')
-            ? null
-            : statusBarAutonomySpan({
-                yolo: yoloLive && !hiddenSet.has('yolo'),
-                autonomy: autonomyLive,
-                monochrome: liveStatuslineMode === 'no-color',
-              });
-          if (autoSpan && my === rowFor(0) && inSpan(autoSpan)) {
-            dispatch({ type: 'autonomyPickerOpen', options: AUTONOMY_OPTIONS });
-            return;
-          }
-        }
-        // Line 3 — todos chip → todos overlay (only when todos are shown).
-        const todosShown =
-          !!todos && (todos.pending > 0 || todos.inProgress > 0 || todos.completed > 0);
-        if (todosShown && my === rowFor(2) && inSpan(statusBarTodosSpan())) {
-          dispatch({ type: 'toggleTodosMonitor' });
-          return;
-        }
-        // Statusline chips — click to open statusline picker focused on that chip.
-        // Field indices are derived from STATUSLINE_ITEMS so they can't drift
-        // when the picker's item order changes (line 3: todos/plan/tasks;
-        // line 4: fleet).
-        const hiddenSet = new Set(statuslineHiddenForPicker());
-        if (my === rowFor(2)) {
-          const mxLocal = mx - SB_PADX - 1;
-          if (!hiddenSet.has('todos') && mxLocal >= 0 && mxLocal < 20) {
-            openStatuslinePicker(STATUSLINE_ITEMS.indexOf('todos'));
-            return;
-          }
-          if (!hiddenSet.has('plan')) {
-            const planStart = 21;
-            if (mxLocal >= planStart && mxLocal < planStart + 22) {
-              openStatuslinePicker(STATUSLINE_ITEMS.indexOf('plan'));
+            case 'autonomy': {
+              dispatch({ type: 'autonomyPickerOpen', options: AUTONOMY_OPTIONS });
               return;
             }
-          }
-          if (!hiddenSet.has('tasks')) {
-            const tasksStart = 44;
-            if (mxLocal >= tasksStart && mxLocal < tasksStart + 26) {
-              openStatuslinePicker(STATUSLINE_ITEMS.indexOf('tasks'));
+            case 'todos': {
+              dispatch({ type: 'toggleTodosMonitor' });
               return;
             }
-          }
-        }
-        if (my === rowFor(3) && !hiddenSet.has('fleet')) {
-          const mxLocal = mx - SB_PADX - 1;
-          const fleetStart = 0;
-          if (mxLocal >= fleetStart && mxLocal < fleetStart + 22) {
-            openStatuslinePicker(STATUSLINE_ITEMS.indexOf('fleet'));
-            return;
+            case 'plan':
+            case 'tasks':
+            case 'fleet': {
+              openStatuslinePicker(STATUSLINE_ITEMS.indexOf(span.id));
+              return;
+            }
+            default:
+              // Non-clickable chip — fall through to the handlers below.
+              break;
           }
         }
       }

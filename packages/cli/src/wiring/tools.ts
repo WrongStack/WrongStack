@@ -1,14 +1,18 @@
-import type { TextBlock } from '@wrongstack/core/types';
-import type { Config, MemoryPort } from '@wrongstack/core/types';
-import { configureChildEnvGitIdentity, type WstackPaths } from '@wrongstack/core/utils';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
-import { createContextManagerTool } from '@wrongstack/core/infrastructure';
-import { type DefaultModelsRegistry, DefaultModeStore } from '@wrongstack/core/models';
-import { DefaultSkillLoader } from '@wrongstack/core/execution';
 import { DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
-import { makeFleetStatusTool, makeMailboxTool, makeMailInboxTool, makeMailSendTool } from '@wrongstack/core/coordination';
+import {
+  makeFleetStatusTool,
+  makeMailboxTool,
+  makeMailInboxTool,
+  makeMailSendTool,
+} from '@wrongstack/core/coordination';
+import { DefaultSkillLoader } from '@wrongstack/core/execution';
+import { createContextManagerTool } from '@wrongstack/core/infrastructure';
 import { TOKENS } from '@wrongstack/core/kernel';
+import { type DefaultModelsRegistry, DefaultModeStore } from '@wrongstack/core/models';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config, MemoryPort, TextBlock } from '@wrongstack/core/types';
+import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import { configureChildEnvGitIdentity, type WstackPaths } from '@wrongstack/core/utils';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
 import { configureDangerBypass, configureExecPolicy, makeSkillTool } from '@wrongstack/tools';
 import { resolveBundledSkillsDir } from '../cli-bundled-skills.js';
@@ -86,6 +90,7 @@ export async function setupTools(params: ToolsWiringDeps): Promise<ToolsWiringRe
   // Progressive-disclosure activation primitive: load a skill body on demand.
   if (skillLoader) {
     toolRegistry.register(makeSkillTool(skillLoader));
+    toolRegistry.exposeToProvider('skill');
   }
 
   // Resolve model capabilities for system prompt
@@ -120,7 +125,8 @@ export async function setupTools(params: ToolsWiringDeps): Promise<ToolsWiringRe
   const systemPrompt = promptBuilder.build({
     cwd,
     projectRoot,
-    tools: toolRegistry.list(),
+    tools: toolRegistry.listForProvider(),
+    catalogTools: toolRegistry.list(),
     provider: config.provider,
     model: config.model,
   });

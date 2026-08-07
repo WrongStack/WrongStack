@@ -203,9 +203,9 @@ export interface ToolEventMap {
     input?: unknown | undefined;
     output?: string | undefined;
     /**
-     * The `--- SAGE: … (Memory Injector) ---` block the SAGE middleware
-     * appended to the result, split off `output` BEFORE the preview cap and
-     * carried as whole lines (header first). Absent when nothing was injected.
+     * Legacy inline `--- SAGE: … (Memory Injector) ---` content split off
+     * `output` before the preview cap. Current retrievals travel through
+     * `memory.injector_run` and provider memory-evidence blocks instead.
      *
      * Surfaces render it as a memory card, never as tool output: sharing the
      * `output` budget used to cut a memory line mid-fence on short tool

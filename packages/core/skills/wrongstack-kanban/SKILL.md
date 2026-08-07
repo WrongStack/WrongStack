@@ -10,6 +10,8 @@ triggers:
   - user says "kanban", "board", "task dispatch", "kanban queue"
   - working with the kanban tool or kanban_queue
   - managing project work through boards
+required-capabilities: [work.plan]
+required-tools: [kanban, kanban_queue]
 ---
 
 # WrongStack Kanban — Deterministic Enforcement Skill
@@ -67,12 +69,13 @@ The lifecycle guard enforces these mechanically. Do not attempt to bypass them.
    order, and creation time — not randomly. Do not attempt to influence dispatch
    order by shuffling tasks or boards.
 
-2. **Claim before working.** Call `kanban_queue` or `claim_task` before starting
+2. **Claim before working.** Call `kanban_queue`, or call `kanban` with the
+   `claim_task` action, before starting
    work. Working on an unclaimed card means another agent may also be working on
    it.
 
-3. **Heartbeat or lose the lease.** If you hold a lease, you must call
-   `heartbeat_assignment` before it expires. Expired leases are recovered by the
+3. **Heartbeat or lose the lease.** If you hold a lease, you must call `kanban`
+   with the `heartbeat_assignment` action before it expires. Expired leases are recovered by the
    system and the task is reassigned.
 
 4. **Fence your writes.** Include `expectedLeaseId` in every `mark_assignment`

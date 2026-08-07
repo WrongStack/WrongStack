@@ -1,11 +1,11 @@
-import { Box, Text, useInput } from '../ink.js';
-import type React from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { theme } from '../theme.js';
-import { glyphs } from '../ui-glyphs.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { resolveWstackPaths, sessionScopedPath } from '@wrongstack/core/utils';
+import type React from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Box, Text, useInput } from '../ink.js';
+import { theme } from '../theme.js';
+import { glyphs } from '../ui-glyphs.js';
 import {
   EmptyPanelState,
   KeyCap,
@@ -13,6 +13,7 @@ import {
   panelWindow,
   truncatePanelText,
   useMonitorSize,
+  usePanelShortcutsEnabled,
 } from './monitor-shell.js';
 import { renderProgress } from './status-bar.js';
 
@@ -171,8 +172,9 @@ export function PlanPanel({
     await load(newScope);
   }
 
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
-    if (input === 's' || input === 'S') {
+    if (shortcutsEnabled && (input === 's' || input === 'S')) {
       void handleScopeSwitch(scope === 'session' ? 'project' : 'session');
     } else if (key.upArrow) {
       setSelected((value) => Math.max(0, value - 1));

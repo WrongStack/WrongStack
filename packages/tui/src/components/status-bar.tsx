@@ -5,21 +5,20 @@ import {
   computeTokenFingerprint,
   useChipStalenessGuard,
 } from '../hooks/use-chip-staleness-guard.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { useTodosAutoClear } from '../hooks/use-todos-auto-clear.js';
 import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation } from '../ink.js';
-import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { activeMemoryContextCount } from '../memory-context-monitor.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
-import { type AnimationStyle, COLOR_TICK_MS, colorPhaseFromTime } from './animation-style.js';
-import { PowerlineRail } from './powerline-rail.js';
+import type { AnimationStyle } from './animation-style.js';
+import { computeRailSpans, PowerlineRail, type RailSpanEntry } from './powerline-rail.js';
 import { BrainChip, EternalStageChip, ThinkingChip } from './status-bar-chips.js';
 import {
   contextBarColor,
   fmtDebugBytes,
   fmtElapsed,
-  fmtMemory,
   fmtTok,
   hasTokenDisplay,
   renderMeter,
@@ -40,16 +39,12 @@ import type { StatuslineItem } from './statusline-picker.js';
 export {
   contextBarColor,
   fmtElapsed,
-  fmtMemory,
   hasTokenDisplay,
   nodeText,
   planChipFit,
   renderMeter,
   renderProgress,
   stateChip,
-  statusBarAutonomySpan,
-  statusBarModelSpan,
-  statusBarTodosSpan,
   type TokenDisplayTotals,
   tokenDisplayTotals,
   truncateChip,
@@ -76,7 +71,6 @@ const STATUSLINE_ICONS = {
   cache: glyphs.success,
   context: glyphs.context,
   cost: glyphs.cost,
-  cpu: glyphs.cpu,
   debug_stream: glyphs.bug,
   elapsed: glyphs.clock,
   enhance: glyphs.auto,
@@ -88,7 +82,6 @@ const STATUSLINE_ICONS = {
   hint: glyphs.info,
   index: glyphs.index,
   mailbox: glyphs.mail,
-  memory: glyphs.warning,
   memory_context: glyphs.brain,
   mode: glyphs.terminal,
   model: glyphs.brand,
@@ -122,8 +115,6 @@ export type {
 } from './status-bar-types.js';
 /** Minimum terminal width before we switch to ultra-compact mode. */
 export const COMPACT_THRESHOLD = 50;
-/** Above this width, show most available information. */
-const COMFORTABLE_THRESHOLD = 90;
 
 function chipColor(color: string, isNoColor: boolean): string | undefined {
   return isNoColor ? undefined : color;
@@ -179,8 +170,6 @@ export function StatusBar({
   projectName,
   workingDir,
   processCount,
-  processMemory,
-  cpuPercent,
   context,
   estimatedContextTokens,
   Sage,
@@ -211,6 +200,7 @@ export function StatusBar({
   visibleChips = [],
   sideEffectCount = 0,
   maxWidth,
+  clickMapRef,
 }: StatusBarProps): React.ReactElement {
   // Track terminal width so we can adapt layout on narrow terminals.
   // We snapshot into state so that renders are stable — we don't want
@@ -218,7 +208,6 @@ export function StatusBar({
   const { columns: termWidth } = useTerminalSize({ maxWidth, fallbackColumns: 90 });
 
   const isCompact = termWidth < COMPACT_THRESHOLD;
-  const isComfortable = termWidth >= COMFORTABLE_THRESHOLD;
   const isNoColor = mode === 'no-color';
   const hiddenSet = useMemo(() => new Set(hiddenItems), [hiddenItems]);
   const showChip = (item: StatuslineItem): boolean => !hiddenSet.has(item);
@@ -244,13 +233,9 @@ export function StatusBar({
   });
   const spinner = expectDefined(SPINNER_FRAMES[spinnerIdx % SPINNER_FRAMES.length]);
 
-  // Fast color animation tick — separate from the 1s spinner so the
-  // rainbow/wave/pulse gradient moves smoothly (~8 updates/s).
-  const { time: colorTime } = useAnimation({
-    interval: COLOR_TICK_MS,
-    isActive: animationActive,
-  });
-  const colorPhase = animationActive ? colorPhaseFromTime(colorTime) : 0;
+  // The fast (~120ms) color tick lives INSIDE ThinkingChip — hosting it here
+  // re-rendered the entire StatusBar (and re-measured every rail segment)
+  // eight times a second while the agent worked.
 
   // ── Chip staleness guard ──────────────────────────────────────────────────
   // Detects when a chip fails to refresh (animation frozen, data source stale,
@@ -356,7 +341,6 @@ export function StatusBar({
         style={animationStyle}
         phase={spinnerIdx}
         cycleTick={cycleTick}
-        colorPhase={colorPhase}
       />
     ) : showChip('state') ? (
       <Text color={isNoColor ? undefined : stateColor}>
@@ -370,38 +354,6 @@ export function StatusBar({
       {model}
     </Text>
   ) : null;
-  const memoryColor = processMemory
-    ? processMemory.load >= 0.85
-      ? theme.error
-      : processMemory.load >= 0.6
-        ? theme.warn
-        : theme.success
-    : theme.textSecondary;
-  const memoryStatusChip =
-    processMemory && showChip('memory') ? (
-      <Text color={isNoColor ? undefined : memoryColor}>
-        RAM {fmtMemory(processMemory.rss)}
-        {isComfortable ? (
-          <Text dimColor={!isNoColor}> · heap {fmtMemory(processMemory.heapUsed)}</Text>
-        ) : null}
-      </Text>
-    ) : null;
-  const cpuColor =
-    cpuPercent == null
-      ? theme.textSecondary
-      : cpuPercent >= 90
-        ? theme.error
-        : cpuPercent >= 75
-          ? theme.warn
-          : theme.success;
-  const cpuStatusChip =
-    cpuPercent != null && showChip('cpu') ? (
-      <Text color={isNoColor ? undefined : cpuColor}>
-        {isNoColor
-          ? `CPU ${cpuPercent.toFixed(0)}%`
-          : `${STATUSLINE_ICONS.cpu} ${cpuPercent.toFixed(0)}%`}
-      </Text>
-    ) : null;
 
   const indexStatusChip =
     indexState && showChip('index')
@@ -594,41 +546,66 @@ export function StatusBar({
       : null,
   ].filter((chip): chip is React.ReactElement => chip !== null);
 
-  const modeChips = [
-    // Line 1 runtime chips: YOLO, autonomy, provider/model,
-    // then the context meter and remaining runtime details.
-    yolo && showChip('yolo') ? (
-      <Text color={chipColor(theme.error, isNoColor)} bold>
-        {isNoColor ? 'YOLO' : `${STATUSLINE_ICONS.yolo} YOLO`}
-      </Text>
-    ) : null,
-    autonomy && autonomy !== 'off' && showChip('autonomy') ? (
-      <Text
-        color={chipColor(
-          autonomy === 'eternal' ? theme.error : autonomy === 'auto' ? theme.warn : theme.accent,
-          isNoColor,
-        )}
-        bold
-      >
-        {isNoColor ? autonomy.toUpperCase() : `∞ ${autonomy.toUpperCase()}`}
-      </Text>
-    ) : null,
-    modelStatusChip,
-    processCount != null && processCount > 0 && showChip('processes') ? (
-      <Text color={isNoColor ? undefined : theme.error}>
-        {STATUSLINE_ICONS.processes} {processCount} {processCount === 1 ? 'process' : 'processes'}
-      </Text>
-    ) : null,
-    ...primaryChips,
-    stateStatusChip,
-    fleetWorkingTime != null && fleetWorkingTime > 0 && showChip('elapsed') ? (
-      <Text dimColor={!isNoColor}>
-        {isNoColor
-          ? fmtElapsed(fleetWorkingTime)
-          : `${STATUSLINE_ICONS.elapsed} ${fmtElapsed(fleetWorkingTime)}`}
-      </Text>
-    ) : null,
-  ].filter((c): c is React.ReactElement => c !== null);
+  // Line 1 runtime chips: YOLO, autonomy, provider/model, then the context
+  // meter and remaining runtime details. Tagged with stable ids so the mouse
+  // click map is derived from the SAME nodes PowerlineRail renders.
+  const modeChipEntries: RailSpanEntry[] = (
+    [
+      {
+        id: 'yolo',
+        node:
+          yolo && showChip('yolo') ? (
+            <Text color={chipColor(theme.error, isNoColor)} bold>
+              {isNoColor ? 'YOLO' : `${STATUSLINE_ICONS.yolo} YOLO`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'autonomy',
+        node:
+          autonomy && autonomy !== 'off' && showChip('autonomy') ? (
+            <Text
+              color={chipColor(
+                autonomy === 'eternal'
+                  ? theme.error
+                  : autonomy === 'auto'
+                    ? theme.warn
+                    : theme.accent,
+                isNoColor,
+              )}
+              bold
+            >
+              {isNoColor ? autonomy.toUpperCase() : `∞ ${autonomy.toUpperCase()}`}
+            </Text>
+          ) : null,
+      },
+      { id: 'model', node: modelStatusChip },
+      {
+        id: 'processes',
+        node:
+          processCount != null && processCount > 0 && showChip('processes') ? (
+            <Text color={isNoColor ? undefined : theme.error}>
+              {STATUSLINE_ICONS.processes} {processCount}{' '}
+              {processCount === 1 ? 'process' : 'processes'}
+            </Text>
+          ) : null,
+      },
+      ...primaryChips.map((node, i) => ({ id: `primary-${i}`, node })),
+      { id: 'state', node: stateStatusChip },
+      {
+        id: 'elapsed',
+        node:
+          fleetWorkingTime != null && fleetWorkingTime > 0 && showChip('elapsed') ? (
+            <Text dimColor={!isNoColor}>
+              {isNoColor
+                ? fmtElapsed(fleetWorkingTime)
+                : `${STATUSLINE_ICONS.elapsed} ${fmtElapsed(fleetWorkingTime)}`}
+            </Text>
+          ) : null,
+      },
+    ] as Array<{ id: string; node: React.ReactElement | null }>
+  ).filter((entry): entry is RailSpanEntry => entry.node != null);
+  const modeChips = modeChipEntries.map((entry) => entry.node);
 
   // ── Version chip (right-anchored on line 1 + minimum-mode rail) ─────────
   // Stays visible after the startup banner scrolls off, and gains an orange
@@ -661,7 +638,6 @@ export function StatusBar({
         style={animationStyle}
         phase={spinnerIdx}
         cycleTick={cycleTick}
-        colorPhase={colorPhase}
       />
     ) : showChip('state') ? (
       <Text color={chipColor(stateColor, isNoColor)}>
@@ -804,6 +780,285 @@ export function StatusBar({
     showEternalStage ||
     detailChips.length > 0;
 
+  // Line 3 work-row chips, tagged with stable ids so the mouse click map is
+  // derived from the SAME nodes PowerlineRail renders (see modeChipEntries).
+  const workRowEntries: RailSpanEntry[] = (
+    [
+      {
+        id: 'todos',
+        node:
+          todos &&
+          (todos.pending > 0 || todos.inProgress > 0 || (todos.completed > 0 && !todosCleared)) &&
+          showChip('todos') ? (
+            <Text>
+              <Text dimColor={!isNoColor}>todos </Text>
+              {todos.inProgress > 0 ? (
+                <Text color={isNoColor ? undefined : theme.warn}>
+                  {isNoColor ? `?${todos.inProgress}` : `${glyphs.running} ${todos.inProgress}`}
+                </Text>
+              ) : null}
+              {todos.inProgress > 0 && (todos.pending > 0 || todos.completed > 0) ? ' ' : ''}
+              {todos.pending > 0 ? (
+                <Text dimColor={!isNoColor}>
+                  {isNoColor ? `.${todos.pending}` : `${glyphs.pending} ${todos.pending}`}
+                </Text>
+              ) : null}
+              {todos.pending > 0 && todos.completed > 0 ? ' ' : ''}
+              {todos.completed > 0 ? (
+                <Text color={isNoColor ? undefined : theme.success}>
+                  {isNoColor ? `+${todos.completed}` : `${glyphs.success} ${todos.completed}`}
+                </Text>
+              ) : null}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'plan',
+        node:
+          plan && (plan.open > 0 || plan.inProgress > 0 || plan.done > 0) && showChip('plan') ? (
+            <Text>
+              <Text color={isNoColor ? undefined : theme.accent}>
+                {isNoColor ? '' : `${STATUSLINE_ICONS.plan} `}
+              </Text>
+              {plan.inProgress > 0 ? (
+                <Text color={isNoColor ? undefined : theme.warn}>
+                  {isNoColor ? `?${plan.inProgress}` : `${glyphs.running} ${plan.inProgress}`}
+                </Text>
+              ) : null}
+              {plan.inProgress > 0 && (plan.open > 0 || plan.done > 0) ? ' ' : ''}
+              {plan.open > 0 ? (
+                <Text dimColor={!isNoColor}>
+                  {isNoColor ? `.${plan.open}` : `${glyphs.pending} ${plan.open}`}
+                </Text>
+              ) : null}
+              {plan.open > 0 && plan.done > 0 ? ' ' : ''}
+              {plan.done > 0 ? (
+                <Text color={isNoColor ? undefined : theme.success}>
+                  {isNoColor ? `+${plan.done}` : `${glyphs.success} ${plan.done}`}
+                </Text>
+              ) : null}
+              {plan.scope ? <Text dimColor={!isNoColor}> [{plan.scope}]</Text> : null}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'tasks',
+        node:
+          hasTaskActivity && showChip('tasks') ? (
+            <Text>
+              <Text color={isNoColor ? undefined : theme.monitor.agents}>
+                {isNoColor ? '' : `${STATUSLINE_ICONS.tasks} `}
+              </Text>
+              {tasks!.inProgress > 0 ? (
+                <Text color={isNoColor ? undefined : theme.warn}>
+                  {isNoColor ? `?${tasks!.inProgress}` : `${glyphs.running} ${tasks!.inProgress}`}
+                </Text>
+              ) : null}
+              {tasks!.inProgress > 0 && (tasks!.pending > 0 || tasks!.blocked > 0) ? ' ' : ''}
+              {tasks!.pending > 0 ? (
+                <Text dimColor={!isNoColor}>
+                  {isNoColor ? `.${tasks!.pending}` : `${glyphs.pending} ${tasks!.pending}`}
+                </Text>
+              ) : null}
+              {tasks!.pending > 0 && tasks!.blocked > 0 ? ' ' : ''}
+              {tasks!.blocked > 0 ? (
+                <Text color={isNoColor ? undefined : theme.error}>
+                  {isNoColor ? `!${tasks!.blocked}` : `${glyphs.warning} ${tasks!.blocked}`}
+                </Text>
+              ) : null}
+              {(tasks!.pending > 0 || tasks!.blocked > 0) &&
+              (tasks!.completed > 0 || tasks!.failed > 0)
+                ? ' '
+                : ''}
+              {tasks!.completed > 0 ? (
+                <Text color={isNoColor ? undefined : theme.success}>
+                  {isNoColor ? `+${tasks!.completed}` : `${glyphs.success} ${tasks!.completed}`}
+                </Text>
+              ) : null}
+              {tasks!.completed > 0 && tasks!.failed > 0 ? ' ' : ''}
+              {tasks!.failed > 0 ? (
+                <Text color={isNoColor ? undefined : theme.error}>
+                  {isNoColor ? `x${tasks!.failed}` : `${glyphs.failure} ${tasks!.failed}`}
+                </Text>
+              ) : null}
+              {tasks!.scope ? <Text dimColor={!isNoColor}> [{tasks!.scope}]</Text> : null}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'fleet',
+        node:
+          fleetHasActivity && showChip('fleet') ? (
+            fleet ? (
+              <Text>
+                <Text color={isNoColor ? undefined : theme.accent}>
+                  {isNoColor ? '' : `${STATUSLINE_ICONS.fleet} `}
+                </Text>
+                {fleet.running > 0 ? (
+                  <Text color={isNoColor ? undefined : theme.warn}>
+                    {isNoColor ? `>${fleet.running}` : `${glyphs.running} ${fleet.running}`}
+                  </Text>
+                ) : null}
+                {fleet.running > 0 && (fleet.pending > 0 || fleet.idle > 0 || fleet.completed > 0)
+                  ? ' '
+                  : ''}
+                {fleet.pending > 0 ? (
+                  <Text dimColor={!isNoColor}>
+                    {isNoColor ? `.${fleet.pending}` : `${glyphs.pending} ${fleet.pending}`}
+                  </Text>
+                ) : null}
+                {fleet.pending > 0 && (fleet.idle > 0 || fleet.completed > 0) ? ' ' : ''}
+                {fleet.idle > 0 ? <Text dimColor={!isNoColor}>·{fleet.idle}idle</Text> : null}
+                {fleet.idle > 0 && fleet.completed > 0 ? ' ' : ''}
+                {fleet.completed > 0 ? (
+                  <Text color={isNoColor ? undefined : theme.success}>
+                    {isNoColor ? `+${fleet.completed}` : `${glyphs.success} ${fleet.completed}`}
+                  </Text>
+                ) : null}
+              </Text>
+            ) : (
+              <Text color={isNoColor ? undefined : theme.accent}>
+                {isNoColor
+                  ? `${subagentCount} agent${subagentCount === 1 ? '' : 's'}`
+                  : `${STATUSLINE_ICONS.fleet} ${subagentCount} agent${subagentCount === 1 ? '' : 's'}`}
+              </Text>
+            )
+          ) : null,
+      },
+      {
+        id: 'brain',
+        node: showBrain ? <BrainChip brain={brain!} monochrome={isNoColor} /> : null,
+      },
+      {
+        id: 'debug_stream',
+        node: showDebugStream ? (
+          <Text color={isNoColor ? undefined : theme.accent}>
+            <Text bold>{isNoColor ? 'stream' : `${STATUSLINE_ICONS.debug_stream} stream`}</Text>
+            <Text dimColor={!isNoColor}> #{debugStreamStats!.chunkCount}</Text>
+            <Text dimColor={!isNoColor}> · {debugStreamStats!.lastChunkSize}B</Text>
+            <Text dimColor={!isNoColor}> · +{debugStreamStats!.lastDeltaMs}ms</Text>
+            <Text dimColor={!isNoColor}> · {fmtDebugBytes(debugStreamStats!.totalBytes)}</Text>
+          </Text>
+        ) : null,
+      },
+      {
+        id: 'enhance',
+        node: showEnhance ? (
+          <Text color={isNoColor ? undefined : countdownColor(enhanceCountdown!, 15, 5)}>
+            {isNoColor
+              ? `refined · send in ${enhanceCountdown}s`
+              : `${STATUSLINE_ICONS.enhance} refinement ready · send in ${enhanceCountdown}s`}
+          </Text>
+        ) : null,
+      },
+      {
+        id: 'next_steps',
+        node:
+          hasNextStepsAutoSubmit &&
+          nextStepsAutoSubmitCountdown != null &&
+          showChip('next_steps') ? (
+            <>
+              <Text color={isNoColor ? undefined : nextStepsColor} bold>
+                {isNoColor
+                  ? `${nextStepsAutoSubmitCountdown}s`
+                  : `${STATUSLINE_ICONS.next_steps} ${nextStepsAutoSubmitCountdown}s`}
+              </Text>
+              <Text dimColor={!isNoColor}>
+                {' '}
+                {nextStepsAutoSubmitLabel ? formatSuggestionLabel(nextStepsAutoSubmitLabel) : ''}
+                {' · ⇥ edit'}
+              </Text>
+            </>
+          ) : null,
+      },
+      {
+        id: 'eternal_stage',
+        node: showEternalStage ? (
+          <EternalStageChip stage={eternalStage!} monochrome={isNoColor} />
+        ) : null,
+      },
+      {
+        id: 'goal',
+        node: hasActiveGoal ? (
+          <Text
+            color={
+              isNoColor
+                ? undefined
+                : goalSummary!.goalState === 'abandoned'
+                  ? theme.textMuted
+                  : goalSummary!.goalState === 'active' || goalSummary!.goalState === 'completed'
+                    ? theme.success
+                    : theme.warn
+            }
+          >
+            {isNoColor ? '' : `${STATUSLINE_ICONS.goal} `}
+            {goalSummary!.goal.length > 40
+              ? `${goalSummary!.goal.slice(0, 37)}…`
+              : goalSummary!.goal}{' '}
+            [{goalSummary!.goalState}] (iter {goalSummary!.iterations})
+          </Text>
+        ) : null,
+      },
+      {
+        id: 'auto_proceed',
+        node:
+          hasAutoProceed && showChip('auto_proceed') ? (
+            <Text
+              color={
+                isNoColor
+                  ? undefined
+                  : autoProceedCountdown != null && autoProceedCountdown <= 5
+                    ? theme.warn
+                    : theme.accent
+              }
+            >
+              {isNoColor
+                ? `auto in ${autoProceedCountdown}s`
+                : `${STATUSLINE_ICONS.auto_proceed} auto in ${autoProceedCountdown}s`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'dropped_tools',
+        node:
+          droppedTools && droppedTools > 0 ? (
+            <Text color={isNoColor ? undefined : theme.warn}>
+              {isNoColor ? `-${droppedTools} tools` : `${STATUSLINE_ICONS.tools} -${droppedTools}`}
+            </Text>
+          ) : null,
+      },
+      ...detailChips.map((node, i) => ({ id: `detail-${i}`, node })),
+    ] as Array<{ id: string; node: React.ReactElement | null }>
+  ).filter((entry): entry is RailSpanEntry => entry.node != null);
+  const workRowChips = workRowEntries.map((entry) => entry.node);
+
+  // Publish the mouse click map: 0-based content lines (0 = runtime rail,
+  // 1 = session rail, 2 = work rail when rendered) with column spans derived
+  // from the same tagged nodes the rails draw. The app-level mouse handler
+  // resolves clicks against this — never against dead-reckoned columns.
+  // Minimum mode has no clickable chips.
+  if (clickMapRef) {
+    const railBudget = Math.max(12, termWidth);
+    clickMapRef.current =
+      mode === 'minimum'
+        ? { lines: [] }
+        : {
+            lines: [
+              {
+                line: 0,
+                spans: computeRailSpans(
+                  isCompact ? modeChipEntries.slice(0, 5) : modeChipEntries,
+                  railBudget,
+                  versionStatusChip,
+                ),
+              },
+              ...(hasWorkActivity
+                ? [{ line: 2, spans: computeRailSpans(workRowEntries, railBudget) }]
+                : []),
+            ],
+          };
+  }
+
   if (mode === 'minimum') {
     return (
       <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={1}>
@@ -891,8 +1146,6 @@ export function StatusBar({
                 : `${STATUSLINE_ICONS.side_effects} ${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`}
             </Text>
           ) : null,
-          memoryStatusChip,
-          cpuStatusChip,
         ].filter((c): c is React.ReactElement => c !== null)}
         budget={Math.max(12, termWidth)}
         monochrome={isNoColor}
@@ -904,212 +1157,7 @@ export function StatusBar({
           Only rendered when there's something to show. */}
       {hasWorkActivity ? (
         <PowerlineRail
-          segments={[
-            todos &&
-            (todos.pending > 0 || todos.inProgress > 0 || (todos.completed > 0 && !todosCleared)) &&
-            showChip('todos') ? (
-              <Text>
-                <Text dimColor={!isNoColor}>todos </Text>
-                {todos.inProgress > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `?${todos.inProgress}` : `${glyphs.running} ${todos.inProgress}`}
-                  </Text>
-                ) : null}
-                {todos.inProgress > 0 && (todos.pending > 0 || todos.completed > 0) ? ' ' : ''}
-                {todos.pending > 0 ? (
-                  <Text dimColor={!isNoColor}>
-                    {isNoColor ? `.${todos.pending}` : `${glyphs.pending} ${todos.pending}`}
-                  </Text>
-                ) : null}
-                {todos.pending > 0 && todos.completed > 0 ? ' ' : ''}
-                {todos.completed > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `+${todos.completed}` : `${glyphs.success} ${todos.completed}`}
-                  </Text>
-                ) : null}
-              </Text>
-            ) : null,
-            plan && (plan.open > 0 || plan.inProgress > 0 || plan.done > 0) && showChip('plan') ? (
-              <Text>
-                <Text color={isNoColor ? undefined : theme.accent}>
-                  {isNoColor ? '' : `${STATUSLINE_ICONS.plan} `}
-                </Text>
-                {plan.inProgress > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `?${plan.inProgress}` : `${glyphs.running} ${plan.inProgress}`}
-                  </Text>
-                ) : null}
-                {plan.inProgress > 0 && (plan.open > 0 || plan.done > 0) ? ' ' : ''}
-                {plan.open > 0 ? (
-                  <Text dimColor={!isNoColor}>
-                    {isNoColor ? `.${plan.open}` : `${glyphs.pending} ${plan.open}`}
-                  </Text>
-                ) : null}
-                {plan.open > 0 && plan.done > 0 ? ' ' : ''}
-                {plan.done > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `+${plan.done}` : `${glyphs.success} ${plan.done}`}
-                  </Text>
-                ) : null}
-                {plan.scope ? <Text dimColor={!isNoColor}> [{plan.scope}]</Text> : null}
-              </Text>
-            ) : null,
-            hasTaskActivity && showChip('tasks') ? (
-              <Text>
-                <Text color={isNoColor ? undefined : theme.monitor.agents}>
-                  {isNoColor ? '' : `${STATUSLINE_ICONS.tasks} `}
-                </Text>
-                {tasks!.inProgress > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.warn}>
-                    {isNoColor ? `?${tasks!.inProgress}` : `${glyphs.running} ${tasks!.inProgress}`}
-                  </Text>
-                ) : null}
-                {tasks!.inProgress > 0 && (tasks!.pending > 0 || tasks!.blocked > 0) ? ' ' : ''}
-                {tasks!.pending > 0 ? (
-                  <Text dimColor={!isNoColor}>
-                    {isNoColor ? `.${tasks!.pending}` : `${glyphs.pending} ${tasks!.pending}`}
-                  </Text>
-                ) : null}
-                {tasks!.pending > 0 && tasks!.blocked > 0 ? ' ' : ''}
-                {tasks!.blocked > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.error}>
-                    {isNoColor ? `!${tasks!.blocked}` : `${glyphs.warning} ${tasks!.blocked}`}
-                  </Text>
-                ) : null}
-                {(tasks!.pending > 0 || tasks!.blocked > 0) &&
-                (tasks!.completed > 0 || tasks!.failed > 0)
-                  ? ' '
-                  : ''}
-                {tasks!.completed > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.success}>
-                    {isNoColor ? `+${tasks!.completed}` : `${glyphs.success} ${tasks!.completed}`}
-                  </Text>
-                ) : null}
-                {tasks!.completed > 0 && tasks!.failed > 0 ? ' ' : ''}
-                {tasks!.failed > 0 ? (
-                  <Text color={isNoColor ? undefined : theme.error}>
-                    {isNoColor ? `x${tasks!.failed}` : `${glyphs.failure} ${tasks!.failed}`}
-                  </Text>
-                ) : null}
-                {tasks!.scope ? <Text dimColor={!isNoColor}> [{tasks!.scope}]</Text> : null}
-              </Text>
-            ) : null,
-            fleetHasActivity && showChip('fleet') ? (
-              fleet ? (
-                <Text>
-                  <Text color={isNoColor ? undefined : theme.accent}>
-                    {isNoColor ? '' : `${STATUSLINE_ICONS.fleet} `}
-                  </Text>
-                  {fleet.running > 0 ? (
-                    <Text color={isNoColor ? undefined : theme.warn}>
-                      {isNoColor ? `>${fleet.running}` : `${glyphs.running} ${fleet.running}`}
-                    </Text>
-                  ) : null}
-                  {fleet.running > 0 && (fleet.pending > 0 || fleet.idle > 0 || fleet.completed > 0)
-                    ? ' '
-                    : ''}
-                  {fleet.pending > 0 ? (
-                    <Text dimColor={!isNoColor}>
-                      {isNoColor ? `.${fleet.pending}` : `${glyphs.pending} ${fleet.pending}`}
-                    </Text>
-                  ) : null}
-                  {fleet.pending > 0 && (fleet.idle > 0 || fleet.completed > 0) ? ' ' : ''}
-                  {fleet.idle > 0 ? <Text dimColor={!isNoColor}>·{fleet.idle}idle</Text> : null}
-                  {fleet.idle > 0 && fleet.completed > 0 ? ' ' : ''}
-                  {fleet.completed > 0 ? (
-                    <Text color={isNoColor ? undefined : theme.success}>
-                      {isNoColor ? `+${fleet.completed}` : `${glyphs.success} ${fleet.completed}`}
-                    </Text>
-                  ) : null}
-                </Text>
-              ) : (
-                <Text color={isNoColor ? undefined : theme.accent}>
-                  {isNoColor
-                    ? `${subagentCount} agent${subagentCount === 1 ? '' : 's'}`
-                    : `${STATUSLINE_ICONS.fleet} ${subagentCount} agent${subagentCount === 1 ? '' : 's'}`}
-                </Text>
-              )
-            ) : null,
-            showBrain ? <BrainChip brain={brain!} monochrome={isNoColor} /> : null,
-            showDebugStream ? (
-              <Text color={isNoColor ? undefined : theme.accent}>
-                <Text bold>{isNoColor ? 'stream' : `${STATUSLINE_ICONS.debug_stream} stream`}</Text>
-                <Text dimColor={!isNoColor}> #{debugStreamStats!.chunkCount}</Text>
-                <Text dimColor={!isNoColor}> · {debugStreamStats!.lastChunkSize}B</Text>
-                <Text dimColor={!isNoColor}> · +{debugStreamStats!.lastDeltaMs}ms</Text>
-                <Text dimColor={!isNoColor}> · {fmtDebugBytes(debugStreamStats!.totalBytes)}</Text>
-              </Text>
-            ) : null,
-            showEnhance ? (
-              <Text color={isNoColor ? undefined : countdownColor(enhanceCountdown!, 15, 5)}>
-                {isNoColor
-                  ? `refined · send in ${enhanceCountdown}s`
-                  : `${STATUSLINE_ICONS.enhance} refinement ready · send in ${enhanceCountdown}s`}
-              </Text>
-            ) : null,
-            hasNextStepsAutoSubmit &&
-            nextStepsAutoSubmitCountdown != null &&
-            showChip('next_steps') ? (
-              <>
-                <Text color={isNoColor ? undefined : nextStepsColor} bold>
-                  {isNoColor
-                    ? `${nextStepsAutoSubmitCountdown}s`
-                    : `${STATUSLINE_ICONS.next_steps} ${nextStepsAutoSubmitCountdown}s`}
-                </Text>
-                <Text dimColor={!isNoColor}>
-                  {' '}
-                  {nextStepsAutoSubmitLabel ? formatSuggestionLabel(nextStepsAutoSubmitLabel) : ''}
-                  {' · ⇥ edit'}
-                </Text>
-              </>
-            ) : null,
-            showEternalStage ? (
-              <EternalStageChip stage={eternalStage!} monochrome={isNoColor} />
-            ) : null,
-            hasActiveGoal ? (
-              <Text
-                color={
-                  isNoColor
-                    ? undefined
-                    : goalSummary!.goalState === 'abandoned'
-                      ? theme.textMuted
-                      : goalSummary!.goalState === 'active' ||
-                          goalSummary!.goalState === 'completed'
-                        ? theme.success
-                        : theme.warn
-                }
-              >
-                {isNoColor ? '' : `${STATUSLINE_ICONS.goal} `}
-                {goalSummary!.goal.length > 40
-                  ? `${goalSummary!.goal.slice(0, 37)}…`
-                  : goalSummary!.goal}{' '}
-                [{goalSummary!.goalState}] (iter {goalSummary!.iterations})
-              </Text>
-            ) : null,
-            hasAutoProceed && showChip('auto_proceed') ? (
-              <Text
-                color={
-                  isNoColor
-                    ? undefined
-                    : autoProceedCountdown != null && autoProceedCountdown <= 5
-                      ? theme.warn
-                      : theme.accent
-                }
-              >
-                {isNoColor
-                  ? `auto in ${autoProceedCountdown}s`
-                  : `${STATUSLINE_ICONS.auto_proceed} auto in ${autoProceedCountdown}s`}
-              </Text>
-            ) : null,
-            droppedTools && droppedTools > 0 ? (
-              <Text color={isNoColor ? undefined : theme.warn}>
-                {isNoColor
-                  ? `-${droppedTools} tools`
-                  : `${STATUSLINE_ICONS.tools} -${droppedTools}`}
-              </Text>
-            ) : null,
-            ...detailChips,
-          ].filter((c): c is React.ReactElement => c !== null)}
+          segments={workRowChips}
           budget={Math.max(12, termWidth)}
           monochrome={isNoColor}
           fillBg={LINE_BG_COLORS[2]}

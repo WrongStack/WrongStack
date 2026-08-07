@@ -14,7 +14,7 @@ import {
 import { toErrorMessage } from '../utils/error.js';
 import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-invariants.js';
 import type { AgentInternals } from './agent-internals.js';
-import { type Context, resolveEventSessionId, type RunOptions } from './context.js';
+import { type Context, type RunOptions, resolveEventSessionId } from './context.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
 import { maybeAppendPendingNextSteps } from './next-steps-slot.js';
 import { bindRequestProvider } from './request-provider-binding.js';
@@ -59,7 +59,9 @@ export function buildLiveNextStepsGateBlock(
     // it only when it is actually registered, so a request without the tool
     // never carries a line pointing at something the model cannot call.
     const toolRoute = ctx.tools?.some((t) => t.name === 'nextsteps')
-      ? ['Calling the `nextsteps` tool with the same items satisfies branch 1 as well; if you both call it and write the block, the block wins.']
+      ? [
+          'Calling the `nextsteps` tool with the same items satisfies branch 1 as well; if you both call it and write the block, the block wins.',
+        ]
       : [];
     return {
       type: 'text',
@@ -101,6 +103,32 @@ export function buildLiveNextStepsGateBlock(
     ].join('\n'),
     cache_control: { type: 'ephemeral' },
   };
+}
+
+const MAX_MEMORY_EVIDENCE_CHARS = 12_000;
+
+/**
+ * Render memory retrieval as volatile provider evidence, not conversation
+ * history. Keeping it after the stable base prompt preserves cache reuse while
+ * making the provenance boundary explicit to the model.
+ */
+function buildMemoryEvidenceBlocks(ctx: Pick<Context, 'memoryEvidence'>): TextBlock[] {
+  const blocks: TextBlock[] = [];
+  let remaining = MAX_MEMORY_EVIDENCE_CHARS;
+  for (const entry of ctx.memoryEvidence) {
+    if (remaining <= 0) break;
+    const text = entry.text.trim();
+    if (!text) continue;
+    const source = entry.source.replace(/[^a-z0-9_.-]+/gi, '-').slice(0, 80) || 'memory';
+    const bounded = text.slice(0, remaining);
+    remaining -= bounded.length;
+    blocks.push({
+      type: 'text',
+      text: `[memory_evidence source="${source}"]\n${bounded}\n[/memory_evidence]`,
+      cache_control: { type: 'ephemeral' },
+    });
+  }
+  return blocks;
 }
 
 export function createAgentResponseHandler(a: AgentInternals): AgentResponseHandler {
@@ -148,7 +176,8 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     stabilizePromptEpoch();
     const volatileLedger = buildCompletedWorkLedgerBlock(a.ctx);
     const liveNextStepsGate = buildLiveNextStepsGateBlock(a.ctx);
-    const volatileBlocks = [volatileLedger, liveNextStepsGate].filter(
+    const memoryEvidence = buildMemoryEvidenceBlocks(a.ctx);
+    const volatileBlocks = [volatileLedger, liveNextStepsGate, ...memoryEvidence].filter(
       (block): block is TextBlock => block !== undefined,
     );
     const system =
@@ -167,7 +196,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       model: opts.model ?? a.ctx.model,
       system,
       messages: a.ctx.messages,
-      tools: a.tools.list(),
+      tools: a.tools.listForProvider(),
       // `maxTokens` is deliberately NOT set here. The provider adapter
       // resolves the ceiling from the catalog entry for the model in
       // `req.model`, which is the only source that stays correct across a

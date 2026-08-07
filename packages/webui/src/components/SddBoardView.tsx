@@ -17,10 +17,9 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProviderModels } from '@/hooks/useProviderModels';
 import { useWebSocket } from '@/hooks/useWebSocket';
-
+import { i18n, useAppTranslation } from '@/i18n';
 import { agentInitials, fmtDuration, SDD_AGENT_COLORS, SDD_RUN_STATUS } from '@/lib/sdd-theme';
 import { cn } from '@/lib/utils';
-import { i18n, useAppTranslation } from '@/i18n';
 import {
   type BoardTaskItem,
   type SddLifecycleResultUI,
@@ -262,7 +261,9 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
             {snapshot && (
               <button
                 type="button"
-                title={t('activity:sddBoardView.openTheMirroredKanbanBoardSForThisRunOnePerDependencyWave')}
+                title={t(
+                  'activity:sddBoardView.openTheMirroredKanbanBoardSForThisRunOnePerDependencyWave',
+                )}
                 onClick={() => {
                   const runTag = `run:${snapshot.runId}`;
                   const boards = useKanbanStore
@@ -271,7 +272,18 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                   // Prefer the first wave board when multi-board; fall back to any match.
                   const preferred =
                     boards.find((b) => b.tags?.includes('phase:wave-0')) ?? boards[0];
-                  if (preferred) useKanbanStore.getState().setActiveBoardId(preferred.id);
+                  if (preferred) {
+                    useKanbanStore.getState().setActiveBoardId(preferred.id);
+                    // Fetch the board NOW — setActiveBoardId alone leaves the
+                    // store's activeBoard pointing at whatever was loaded
+                    // before, so the kanban view rendered the WRONG board's
+                    // content until the 5s fallback poll. Same pattern as
+                    // KanbanView's onBoardSelect.
+                    client?.send?.({
+                      type: 'kanban.get',
+                      payload: { boardId: preferred.id },
+                    } as never);
+                  }
                   useUIStore.getState().setCurrentView('kanban');
                 }}
                 className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
@@ -326,7 +338,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                   <button
                     type="button"
                     onClick={() => send({ type: 'sdd.board.pause', payload: {} })}
-                  className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/25"
+                    className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/25"
                   >
                     <Pause className="h-3.5 w-3.5" /> {t('activity:sddBoard.pause')}
                   </button>

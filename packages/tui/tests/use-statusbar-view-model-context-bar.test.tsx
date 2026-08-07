@@ -18,8 +18,7 @@
 // maxContext ceiling."
 
 import { renderHook } from '@testing-library/react';
-import type { Message } from '@wrongstack/core/types';
-import type { TokenCounter } from '@wrongstack/core/types';
+import type { Message, TokenCounter } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import type { AppProps } from '../src/app-props.js';
 import type { State } from '../src/app-state.js';
@@ -32,13 +31,13 @@ import { useStatusbarViewModel } from '../src/hooks/use-statusbar-view-model.js'
  * when `activeMaxContext` is undefined; supplying an explicit
  * `activeMaxContext` short-circuits the lookup entirely.
  */
-function makeAgent(maxContext: number): AppProps['agent'] {
+function makeAgent(maxContext: number, meta: Record<string, unknown> = {}): AppProps['agent'] {
   return {
     ctx: {
       provider: {
         capabilities: { maxContext },
       },
-      meta: {},
+      meta,
     },
   } as unknown as AppProps['agent'];
 }
@@ -198,6 +197,37 @@ describe('useStatusbarViewModel — context bar (model-switch regression)', () =
     // maxContext = 0 means the hook returns undefined and the bar is hidden.
     // This is the current behavior and should be preserved.
     expect(result.current.contextWindow).toBeUndefined();
+  });
+});
+
+describe('useStatusbarViewModel — sidebar composition', () => {
+  it('computes the category breakdown while the right sidebar is open', () => {
+    const tokenCounter = makeTokenCounter({
+      currentRequest: { input: 1_000, cacheRead: 0, cacheWrite: 0 },
+      cumulative: { input: 1_000, cacheRead: 0, cacheWrite: 0 },
+    });
+    const state = makeState();
+    const agent = makeAgent(8_000);
+    agent.ctx.systemPrompt = [{ type: 'text', text: 'system telemetry' }];
+    agent.ctx.tools = [];
+    agent.ctx.messages = [];
+
+    const { result } = renderHook(() =>
+      useStatusbarViewModel({
+        agent,
+        tokenCounter,
+        activeMaxContext: 8_000,
+        effectiveMaxContext: 8_000,
+        liveProvider: 'anthropic',
+        liveModel: 'claude-sonnet',
+        liveTodos: [],
+        sidebarVisible: true,
+        state,
+      }),
+    );
+
+    expect(result.current.contextBreakdown).toBeDefined();
+    expect(result.current.contextBreakdown?.system.total).toBeGreaterThan(0);
   });
 });
 

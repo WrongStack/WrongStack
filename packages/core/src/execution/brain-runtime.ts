@@ -31,14 +31,9 @@ import {
   type BrainTerminalPolicy,
   DefaultBrainArbiter,
 } from '../coordination/brain.js';
+import { BrainDecisionCache, createCachingBrainArbiter } from '../coordination/brain-cache.js';
 import type { BrainHeuristicsConfig } from '../coordination/brain-heuristics.js';
-import type { EventBus } from '../kernel/events.js';
-import {
-  BrainDecisionCache,
-  createCachingBrainArbiter,
-} from '../coordination/brain-cache.js';
 import { createLedgerGuardBrainArbiter } from '../coordination/brain-ledger.js';
-import { BrainCircuitBreaker } from './brain-circuit.js';
 import {
   type BrainRule,
   type CompiledBrainRule,
@@ -46,6 +41,7 @@ import {
   createRuleBrainArbiter,
 } from '../coordination/brain-rules.js';
 import { parseModelRef } from '../core/fallback-model.js';
+import type { EventBus } from '../kernel/events.js';
 import type { BrainConfig, BrainCouncilVoterConfig, BrainModelEntry } from '../types/config.js';
 import type { Provider } from '../types/provider.js';
 import {
@@ -54,6 +50,7 @@ import {
   DEFAULT_BRAIN_MAX_TOKENS,
 } from './autonomy-brain.js';
 import { assembleBrainTiers } from './brain-chain.js';
+import { BrainCircuitBreaker } from './brain-circuit.js';
 import {
   AUTO_RISK_LEVELS,
   COUNCIL_DISTINCTNESS,
@@ -90,6 +87,7 @@ export interface BrainConfigSnapshot {
     perCallTimeoutMs: number | undefined;
     maxConcurrency: number | undefined;
     distinctness: 'none' | 'model' | 'provider';
+    voterMaxTokens: number | undefined;
     judgeMaxTokens: number | undefined;
     seats: Array<{ persona: string; veto?: boolean | undefined }>;
   };
@@ -182,6 +180,7 @@ export interface BrainCouncilPatch {
   perCallTimeoutMs?: number | null | undefined;
   maxConcurrency?: number | null | undefined;
   distinctness?: 'none' | 'model' | 'provider' | null | undefined;
+  voterMaxTokens?: number | null | undefined;
   judgeMaxTokens?: number | null | undefined;
   seats?: Array<{ persona: string; veto?: boolean | undefined }> | null | undefined;
 }
@@ -641,7 +640,12 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
         if (p.judge !== undefined) {
           c.judge = p.judge === null ? undefined : normalizeEntry(p.judge);
         }
-        for (const key of ['perCallTimeoutMs', 'maxConcurrency', 'judgeMaxTokens'] as const) {
+        for (const key of [
+          'perCallTimeoutMs',
+          'maxConcurrency',
+          'voterMaxTokens',
+          'judgeMaxTokens',
+        ] as const) {
           const v = p[key];
           if (v === undefined) continue;
           if (v !== null && (!Number.isInteger(v) || v <= 0)) {
@@ -659,7 +663,8 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
           if (p.seats === null) {
             c.seats = undefined;
           } else {
-            if (!Array.isArray(p.seats)) throw new Error('Invalid council.seats: expected an array');
+            if (!Array.isArray(p.seats))
+              throw new Error('Invalid council.seats: expected an array');
             for (const seat of p.seats) {
               if (!seat?.persona?.trim()) {
                 throw new Error('Invalid council.seats: every seat needs a persona');
@@ -840,6 +845,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
         perCallTimeoutMs: councilCfg?.perCallTimeoutMs,
         maxConcurrency: councilCfg?.maxConcurrency,
         distinctness: councilCfg?.distinctness ?? 'none',
+        voterMaxTokens: councilCfg?.voterMaxTokens,
         judgeMaxTokens: councilCfg?.judgeMaxTokens,
         seats: (councilCfg?.seats ?? []).map((seat) => ({ ...seat })),
       },
@@ -921,6 +927,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
       if (c.perCallTimeoutMs !== undefined) outCouncil.perCallTimeoutMs = c.perCallTimeoutMs;
       if (c.maxConcurrency !== undefined) outCouncil.maxConcurrency = c.maxConcurrency;
       if (c.distinctness !== undefined) outCouncil.distinctness = c.distinctness;
+      if (c.voterMaxTokens !== undefined) outCouncil.voterMaxTokens = c.voterMaxTokens;
       if (c.judgeMaxTokens !== undefined) outCouncil.judgeMaxTokens = c.judgeMaxTokens;
       if (c.seats?.length) outCouncil.seats = c.seats.map((seat) => ({ ...seat }));
       out.council = outCouncil;

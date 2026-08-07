@@ -1,7 +1,7 @@
 import type { AgentTimelineEntry, Director } from '@wrongstack/core/coordination';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { AppProps } from './app-props.js';
 import type { Action } from './app-action-type.js';
+import type { AppProps } from './app-props.js';
 import type { State } from './app-state.js';
 import type { deriveAppViewState } from './app-view-state.js';
 import type { KeyEvent } from './components/input.js';
@@ -55,6 +55,10 @@ export interface AppViewRuntime {
   bottomRegionRef: MutableRefObject<DOMElement | null>;
   statusBarWrapRef: MutableRefObject<DOMElement | null>;
   belowStatusBarRef: MutableRefObject<DOMElement | null>;
+  /** Chip click map published by StatusBar; consumed by the mouse hit-test. */
+  statusBarClickMapRef: MutableRefObject<
+    import('./components/status-bar-types.js').StatusBarClickMap | null
+  >;
   stableOnKey: (input: string, key: KeyEvent) => void;
   liveTodos: ReturnType<typeof useLiveTodos>;
   liveSettings: ReturnType<NonNullable<AppProps['getSettings']>> | undefined;

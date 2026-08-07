@@ -58,6 +58,7 @@ function createHarness() {
     setCouncilPerCallTimeout: vi.fn().mockResolvedValue(null as string | null),
     setCouncilMaxConcurrency: vi.fn().mockResolvedValue(null as string | null),
     setCouncilJudgeMaxTokens: vi.fn().mockResolvedValue(null as string | null),
+    setCouncilVoterMaxTokens: vi.fn().mockResolvedValue(null as string | null),
     setLedgerEnabled: vi.fn().mockResolvedValue(null as string | null),
     setAutoDeny: vi.fn().mockResolvedValue(null as string | null),
     setTerminalPolicy: vi.fn().mockResolvedValue(null as string | null),
@@ -84,7 +85,9 @@ function createHarness() {
 
   function Harness(): React.ReactElement {
     const ctrl = useBrainPanel({ dispatch, getBrainData, brainPanelHost, requestModelPick });
-    useEffect(() => { controller = ctrl; }, [ctrl]);
+    useEffect(() => {
+      controller = ctrl;
+    }, [ctrl]);
     return React.createElement(Text, null, 'test');
   }
 
@@ -121,8 +124,15 @@ describe('useBrainPanel', () => {
     const dispatch = vi.fn();
     let controller: ReturnType<typeof useBrainPanel> | undefined;
     function Harness(): React.ReactElement {
-      const ctrl = useBrainPanel({ dispatch, getBrainData: undefined, brainPanelHost: undefined, requestModelPick: undefined });
-      useEffect(() => { controller = ctrl; }, [ctrl]);
+      const ctrl = useBrainPanel({
+        dispatch,
+        getBrainData: undefined,
+        brainPanelHost: undefined,
+        requestModelPick: undefined,
+      });
+      useEffect(() => {
+        controller = ctrl;
+      }, [ctrl]);
       return React.createElement(Text, null, 'test');
     }
     const view = render(React.createElement(Harness));
@@ -157,8 +167,15 @@ describe('useBrainPanel', () => {
     const dispatch = vi.fn();
     let controller: ReturnType<typeof useBrainPanel> | undefined;
     function Harness(): React.ReactElement {
-      const ctrl = useBrainPanel({ dispatch, getBrainData: vi.fn(), brainPanelHost: undefined, requestModelPick: undefined });
-      useEffect(() => { controller = ctrl; }, [ctrl]);
+      const ctrl = useBrainPanel({
+        dispatch,
+        getBrainData: vi.fn(),
+        brainPanelHost: undefined,
+        requestModelPick: undefined,
+      });
+      useEffect(() => {
+        controller = ctrl;
+      }, [ctrl]);
       return React.createElement(Text, null, 'test');
     }
     const view = render(React.createElement(Harness));

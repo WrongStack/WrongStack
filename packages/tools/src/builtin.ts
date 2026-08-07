@@ -4,8 +4,8 @@ import { bashTool } from './bash.js';
 import { batchToolUseTool } from './batch-tool-use.js';
 import { browserTools } from './browser/tools.js';
 import {
-  codebaseIndexTool,
   codebaseIncomingCallsTool,
+  codebaseIndexTool,
   codebaseOutgoingCallsTool,
   codebaseSearchTool,
   codebaseStatsTool,
@@ -76,10 +76,11 @@ export const OPTIONAL_TOOLS: Tool[] = [
 
 /**
  * Tier 1 (Token Saving) tool set — the absolute minimum for useful work.
- * 13 tools covering core file ops, indexed project discovery, shell, search,
+ * 15 tools covering core file ops, indexed project discovery, shell, search,
  * and utilities. Codebase index lifecycle tools stay available at every tier
  * so token saving does not force broad filesystem scans.
- * Saves ~3500-5500 tokens vs full mode by omitting specialized tools.
+ * Saves ~3500-5500 tokens vs full mode by omitting specialized schemas from
+ * direct provider exposure; hosts may retain those tools in a lazy catalog.
  *
  * Tier 1 tools:
  *   read, write, edit                         — file operations

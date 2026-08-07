@@ -11,8 +11,8 @@
 // `SidebarContent`; the outer shell clips their combined stack.
 
 import type React from 'react';
-import { Box, Text } from '../ink.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text } from '../ink.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { theme } from '../theme.js';
 
@@ -135,17 +135,22 @@ export function SidebarPanelFrame({
   // deliberately borderless so a 16-column slot keeps all 16 columns for data.
   const innerWidth = Math.max(8, width);
   const showKicker = !!kicker && innerWidth >= 24;
+  const stageTitle = innerWidth >= 24 ? ` ${icon} ${title}` : ` ${title}`;
 
   return (
     <Box flexDirection="column" width={width} flexShrink={0}>
-      {/* Rail-first header: accent edge + title, then a dedicated telemetry row. */}
+      {/* Signal-stage header: twin rails frame every routed panel as a live feed. */}
       <Box height={1} width={innerWidth}>
-        <Text color={accent} bold>
-          ▌
-        </Text>
+        <Text color={accent}>●</Text>
         <Text color={accent} bold wrap="truncate">
-          {trunc(` ${icon} ${title}`, Math.max(1, innerWidth - 1))}
+          {trunc(stageTitle, Math.max(1, innerWidth - 1))}
         </Text>
+        <Box flexGrow={1} />
+        {innerWidth >= 24 ? (
+          <Text color={accent} bold>
+            ╾
+          </Text>
+        ) : null}
       </Box>
       {showKicker || right ? (
         <Box height={1} width={innerWidth}>

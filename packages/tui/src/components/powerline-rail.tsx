@@ -38,6 +38,67 @@ export function visibleNodeText(node: React.ReactNode): string {
   return '';
 }
 
+export interface RailSpanEntry {
+  /** Stable identifier used by the mouse hit-test ('model', 'todos', …). */
+  id: string;
+  node: React.ReactElement;
+}
+
+export interface RailSpan {
+  id: string;
+  /** 0-based start column within the rail's row. */
+  start: number;
+  /** Rendered width in columns. */
+  len: number;
+}
+
+/**
+ * 0-based column spans of the segments PowerlineRail will actually keep,
+ * mirroring its keep/drop and right-anchor trim math exactly. The status-bar
+ * mouse hit-test consumes this so click targets are derived from the SAME
+ * nodes the renderer draws — dead-reckoned column constants drifted every
+ * time a chip changed width or moved lines. Keep this in lockstep with
+ * PowerlineRail's layout loop above.
+ */
+export function computeRailSpans(
+  entries: readonly RailSpanEntry[],
+  budget: number,
+  rightAnchor?: React.ReactElement | null,
+): RailSpan[] {
+  const widths = entries.map((entry) => displayWidth(visibleNodeText(entry.node)));
+  let used = 0;
+  let keep = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const sep = keep > 0 ? 2 : 0;
+    const w = widths[i]!;
+    const wouldDrop = entries.length - (i + 1);
+    const markerWidth = wouldDrop > 0 ? 2 + String(wouldDrop).length : 0;
+    if (keep > 0 && used + sep + w + markerWidth > budget) break;
+    used += sep + w;
+    keep += 1;
+  }
+  if (entries.length > 0) keep = Math.max(1, keep);
+  let dropped = entries.length - keep;
+  if (rightAnchor && keep > 0) {
+    const reservedRight = displayWidth(visibleNodeText(rightAnchor));
+    while (keep > 1) {
+      const markerWidth = dropped > 0 ? 2 + String(dropped + 1).length : 0;
+      if (used + 2 + reservedRight + markerWidth <= budget) break;
+      used -= 2 + widths[keep - 1]!;
+      keep -= 1;
+      dropped += 1;
+    }
+  }
+  const spans: RailSpan[] = [];
+  let col = 0;
+  for (let i = 0; i < keep; i++) {
+    if (i > 0) col += 2;
+    spans.push({ id: entries[i]!.id, start: col, len: widths[i]! });
+    col += widths[i]!;
+  }
+  return spans;
+}
+
 export interface PowerlineRailProps {
   segments: React.ReactElement[];
   budget: number;
@@ -142,9 +203,7 @@ export function PowerlineRail({
           {rightSegment}
         </Text>
       ) : null}
-      {dropped > 0 ? (
-        <Text color={theme.textMuted}>{` +${dropped}`}</Text>
-      ) : null}
+      {dropped > 0 ? <Text color={theme.textMuted}>{` +${dropped}`}</Text> : null}
     </Text>
   );
 

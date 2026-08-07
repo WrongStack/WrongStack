@@ -37,7 +37,12 @@ function ctx(
   tools: readonly { name: string }[],
   tier: ConcreteTokenSavingTier,
 ): InstructionTemplateContext {
-  return { toolNames: new Set(tools.map((t) => t.name)), tier, subagent: false };
+  return {
+    toolNames: new Set(tools.map((t) => t.name)),
+    tier,
+    subagent: false,
+    strictToolReferences: true,
+  };
 }
 
 /** Every tool name mentioned in a `tool=` / `!tool=` condition in the source. */
@@ -69,7 +74,14 @@ function mentionsTool(text: string, name: string): boolean {
     // Split on the delimiter and keep the odd-indexed segments: those are the
     // ones *inside* a span. Testing the raw line instead would also match the
     // plain prose sitting between two code spans.
-    if (line.split('`').some((seg, i) => i % 2 === 1 && token.test(seg))) return true;
+    if (
+      line.split('`').some((seg, i) => {
+        if (i % 2 !== 1) return false;
+        if (seg.includes(`<${name}`) || seg.includes(`</${name}`)) return false;
+        return token.test(seg);
+      })
+    )
+      return true;
     // Bold is only treated as a tool mention when the run is exactly the name
     // — **remember**, not **Match the user's language.**
     if (line.split('**').some((seg, i) => i % 2 === 1 && seg.trim() === name)) return true;
@@ -111,6 +123,21 @@ describe.each(VARIANTS)('bundled identity prompt — %s variant', (variant) => {
         .map((n) => `${n} → ${offendingLine(out, n)}`);
       expect(leaked, `${variant} / ${label} still describes unregistered tools`).toEqual([]);
     }
+  });
+
+  it('keeps every single-tool render free of peer tool references', async () => {
+    const source = await loadVariant(variant);
+    const gated = gatedToolNames(source);
+    const allLeaks: string[] = [];
+    for (const only of gated) {
+      const out = renderInstructionLayer(source, ctx([{ name: only }], 'minimal'));
+      allLeaks.push(
+        ...[...gated]
+          .filter((name) => name !== only && mentionsTool(out, name))
+          .map((name) => `${only} exposed ${name} → ${offendingLine(out, name)}`),
+      );
+    }
+    expect(allLeaks, `${variant} singleton renders leaked peer tools`).toEqual([]);
   });
 
   it('shrinks measurably when the tool set shrinks', async () => {

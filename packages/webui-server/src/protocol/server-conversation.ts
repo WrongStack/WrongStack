@@ -56,6 +56,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'tool.loop_detected',
   'tool.progress',
   'tool.started',
+  'topic.advice_result',
   'tools.list',
   'trust.persisted',
 ] as const;

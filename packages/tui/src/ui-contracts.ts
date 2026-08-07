@@ -27,6 +27,18 @@ export const PANEL_POSITION_FIELD_START = 46;
  */
 export const SIDEBAR_PANEL_LIMIT = 6;
 
+/**
+ * Maximum rows reserved for one wrapped routed-panel worklist label at the
+ * minimum 16-column content width. The right-sidebar scroll clamp in
+ * `reducers/workspace-panels.ts#computeMaxSidebarScroll` multiplies this by
+ * the per-panel item count when sizing its `sidebarTwinRowCount` reservation,
+ * so it must move in lockstep with `SIDEBAR_TWIN_HEIGHT_BY_PANEL` in
+ * `app-ui-state.ts` (which also multiplies by `SIDEBAR_TWIN_MAX_WRAP_LINES`).
+ * Keep this value width-blind on purpose — over-estimation is safe because
+ * `RightSidebar` still owns viewport clipping.
+ */
+export const SIDEBAR_TWIN_MAX_WRAP_LINES = 10;
+
 /** Where to render a given F-key panel: lower region (F-key) or right sidebar. */
 export type PanelPosition = 'bottom' | 'sidebar';
 

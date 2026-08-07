@@ -9,6 +9,9 @@ description: |
   "latest", "what's new in", "breaking changes", "find current",
   "web research", "search the web", "look up".
 version: 1.0.0
+required-capabilities: [web.research]
+required-tools: [context_manager, delegate, fetch, search]
+optional-capabilities: [runtime.admin]
 ---
 
 # Research Web — WrongStack

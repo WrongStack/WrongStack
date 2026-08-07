@@ -69,10 +69,10 @@ describe('role-skills integrity', () => {
       { config: { role: 'reviewer', name: 'Reviewer' } },
     ] as unknown as AgentDefinition[];
     const assigned = assignSkillsToAgents(defs);
-    const expected = [...ROLE_SKILL_SETS.reviewer];
+    const expected = ROLE_SKILL_SETS.reviewer.slice(0, 3);
     expect(assigned[0]?.config.skillNames).toEqual(expected);
     // Mutating the assigned array must not corrupt the shared catalog set.
     assigned[0]?.config.skillNames?.push('hacked');
-    expect([...ROLE_SKILL_SETS.reviewer]).toEqual(expected);
+    expect(ROLE_SKILL_SETS.reviewer.slice(0, 3)).toEqual(expected);
   });
 });

@@ -17,8 +17,9 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import type {
@@ -34,14 +35,17 @@ import type {
 } from '@/types';
 import { ChroniclePipelineStrip } from './ChroniclePipelineStrip';
 import { Pagination } from './ui/pagination';
-import { useAppTranslation } from '@/i18n';
 
 const facetFields = ['eventType', 'providerId', 'modelId', 'outcome', 'resourceKind'] as const;
 const DEFAULT_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 /** Bounds the default/reset query to recent history so it doesn't scan the entire journal. */
 function defaultQuery(): ChronicleQuery {
-  return { limit: 300, order: 'desc', from: new Date(Date.now() - DEFAULT_LOOKBACK_MS).toISOString() };
+  return {
+    limit: 300,
+    order: 'desc',
+    from: new Date(Date.now() - DEFAULT_LOOKBACK_MS).toISOString(),
+  };
 }
 type Signal = 'all' | 'llm' | 'agents' | 'tools' | 'files' | 'failures';
 const signals: Array<{ id: Signal; labelKey: string; icon: React.ReactNode }> = [
@@ -76,6 +80,11 @@ export function ChronicleDashboard() {
   const [providerDaily, setProviderDaily] = useState<ChronicleProviderDailyRow[]>([]);
   const [taskOutcomes, setTaskOutcomes] = useState<ChronicleTaskOutcomeRow[]>([]);
   const [chronicleStatus, setChronicleStatus] = useState<ChronicleStatus | null>(null);
+  // Latest query for the reconnect effect below — reading `query` there
+  // directly would put it in the dep array and re-issue the query on every
+  // filter keystroke.
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   const run = useCallback(
     (next: ChronicleQuery) => {
@@ -147,7 +156,13 @@ export function ChronicleDashboard() {
     const offStatus = client.on('chronicle.status_result', (message: WSServerMessage) => {
       if (message.type === 'chronicle.status_result') setChronicleStatus(message.payload);
     });
-    run(defaultQuery());
+    // Re-run the operator's CURRENT query, not the default: this effect
+    // re-fires on every client identity change (reconnect), and issuing
+    // defaultQuery() here silently replaced a filtered result set with the
+    // unfiltered one while the filter inputs still showed the operator's
+    // values. On first mount the ref holds defaultQuery(), so initial-load
+    // behavior is unchanged.
+    run(queryRef.current);
     requestMetrics();
     requestStatus();
     return () => {
@@ -180,9 +195,15 @@ export function ChronicleDashboard() {
     if (!stats) return undefined;
     const last = (key: string) => stats[key]?.last;
     return {
-      eventLoop: { utilization: last('eventLoop.utilization'), delayP95Ms: last('eventLoop.delayP95Ms') },
+      eventLoop: {
+        utilization: last('eventLoop.utilization'),
+        delayP95Ms: last('eventLoop.delayP95Ms'),
+      },
       memory: { heapUsedBytes: last('memory.heapUsedBytes') },
-      chronicle: { pendingEvents: last('chronicle.pendingEvents'), rejectedEvents: last('chronicle.rejectedEvents') },
+      chronicle: {
+        pendingEvents: last('chronicle.pendingEvents'),
+        rejectedEvents: last('chronicle.rejectedEvents'),
+      },
     } satisfies Health;
   }, [events]);
   const taskStats = useMemo(() => {
@@ -240,7 +261,9 @@ export function ChronicleDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <BrainCircuit className="h-5 w-5 text-primary" />
-                <h1 className="text-lg font-semibold tracking-tight">{t('activity:chronicle.codingIntelligence')}</h1>
+                <h1 className="text-lg font-semibold tracking-tight">
+                  {t('activity:chronicle.codingIntelligence')}
+                </h1>
                 <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold tracking-wider text-primary">
                   {t('activity:chronicle.chronicle')}
                 </span>
@@ -320,23 +343,27 @@ export function ChronicleDashboard() {
             {t('activity:chronicle.tokenEconomics')}
           </span>
           <span>
-            {t('activity:chronicle.freshInput')} <b className="text-foreground">{summary.inputTokens.toLocaleString()}</b>
+            {t('activity:chronicle.freshInput')}{' '}
+            <b className="text-foreground">{summary.inputTokens.toLocaleString()}</b>
           </span>
           <span>
             output <b className="text-foreground">{summary.outputTokens.toLocaleString()}</b>
           </span>
           <span>
-            {t('activity:chronicle.cacheRead')} <b className="text-foreground">{summary.cacheReadTokens.toLocaleString()}</b>
+            {t('activity:chronicle.cacheRead')}{' '}
+            <b className="text-foreground">{summary.cacheReadTokens.toLocaleString()}</b>
           </span>
           <span>
             cache write{' '}
             <b className="text-foreground">{summary.cacheWriteTokens.toLocaleString()}</b>
           </span>
           <span>
-            {t('activity:chronicle.cacheHit')} <b className="text-foreground">{cacheRatio(summary).toFixed(1)}%</b>
+            {t('activity:chronicle.cacheHit')}{' '}
+            <b className="text-foreground">{cacheRatio(summary).toFixed(1)}%</b>
           </span>
           <span>
-            {t('activity:chronicle.estimatedCost')} <b className="text-foreground">${summary.estimatedCostUsd.toFixed(4)}</b>
+            {t('activity:chronicle.estimatedCost')}{' '}
+            <b className="text-foreground">${summary.estimatedCostUsd.toFixed(4)}</b>
           </span>
         </section>
 
@@ -879,8 +906,16 @@ function Detail({
         </div>
       </div>
       <div className="mb-4 grid grid-cols-2 gap-2">
-        <Badge icon={<ShieldCheck />} label={t('activity:chronicle.evidenceHash')} value={event.hash.slice(0, 16)} />
-        <Badge icon={<Database />} label={t('activity:chronicle.sequence')} value={String(event.sequence)} />
+        <Badge
+          icon={<ShieldCheck />}
+          label={t('activity:chronicle.evidenceHash')}
+          value={event.hash.slice(0, 16)}
+        />
+        <Badge
+          icon={<Database />}
+          label={t('activity:chronicle.sequence')}
+          value={String(event.sequence)}
+        />
       </div>
       {graph && (
         <section className="mb-4">
@@ -915,7 +950,9 @@ function Detail({
             ))}
           </div>
           {graph.truncated && (
-            <p className="mt-1 text-[9px] text-warning">{t('activity:chronicle.lineageTruncatedAtSafetyLimit')}</p>
+            <p className="mt-1 text-[9px] text-warning">
+              {t('activity:chronicle.lineageTruncatedAtSafetyLimit')}
+            </p>
           )}
         </section>
       )}

@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { buildLiveNextStepsGateBlock } from '../../src/core/agent-response.js';
 import type { TodoItem } from '../../src/core/context.js';
 
-const todo = (
-  id: string,
-  status: TodoItem['status'],
-  content = `todo ${id}`,
-): TodoItem => ({ id, status, content });
+const todo = (id: string, status: TodoItem['status'], content = `todo ${id}`): TodoItem => ({
+  id,
+  status,
+  content,
+});
 
 describe('buildLiveNextStepsGateBlock', () => {
   it('requires nextsteps or an explicit no-further-steps explanation when no todos are open', () => {
@@ -44,10 +44,12 @@ describe('buildLiveNextStepsGateBlock', () => {
   });
 
   it('does not inject the leader contract into subagents', () => {
-    expect(buildLiveNextStepsGateBlock({
-      agentId: 'researcher',
-      todos: [],
-    })).toBeUndefined();
+    expect(
+      buildLiveNextStepsGateBlock({
+        agentId: 'researcher',
+        todos: [],
+      }),
+    ).toBeUndefined();
   });
 
   it('switches branches from the mutated live todo state on the next request', () => {

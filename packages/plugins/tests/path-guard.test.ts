@@ -1,9 +1,10 @@
 import { ToolExecutor } from '@wrongstack/core/execution';
 import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
+import type { Tool, ToolResultBlock } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const pathGuardPlugin = (await import('../src/path-guard')).default;
-const { compilePathGlob, destructiveTargets } = await import('../src/path-guard');
+const pathGuardPlugin = (await import('../src/path-guard/index.js')).default;
+const { compilePathGlob, destructiveTargets } = await import('../src/path-guard/index.js');
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -100,12 +101,22 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('mv "backup(1).env" .env')).toEqual(
       expect.arrayContaining(['backup(1).env', '.env']),
     );
-    expect(destructiveTargets(String.raw`rm config\ \(prod\).env`)).toContain(
-      'config (prod).env',
+    expect(destructiveTargets(String.raw`rm config\ \(prod\).env`)).toContain('config (prod).env');
+  });
+
+  it('preserves Windows path separators inside double quotes', () => {
+    expect(destructiveTargets(String.raw`rm -rf "D:\repo\.git"`)).toContain(
+      String.raw`D:\repo\.git`,
+    );
+    expect(destructiveTargets(String.raw`git -C "C:\repo" rm .env`)).toContain('C:/repo/.env');
+    expect(destructiveTargets(String.raw`echo secret | tee -a "C:\repo\.env"`)).toContain(
+      String.raw`C:\repo\.env`,
     );
   });
 
-  it('extracts command substitutions but ignores arithmetic expansions', () => {
+  it('extracts command and process substitutions but ignores arithmetic expansions', () => {
+    expect(destructiveTargets('echo hi > >(rm .env)')).toContain('.env');
+    expect(destructiveTargets('cat < <(rm .env)')).toContain('.env');
     expect(destructiveTargets('echo $((rm .env))')).toHaveLength(0);
     expect(destructiveTargets('echo "$((rm .env))"')).toHaveLength(0);
     expect(destructiveTargets('echo "$(rm .env)"')).toContain('.env');
@@ -121,9 +132,9 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('echo "\\`rm .env\\`"')).toHaveLength(0);
   });
 
-  it('bounds deeply nested command substitution inspection', () => {
+  it('bounds deeply nested command substitution inspection with an unresolved scope', () => {
     const nested = `${'echo $('.repeat(100)}rm .env${')'.repeat(100)}`;
-    expect(destructiveTargets(nested)).toContain('.');
+    expect(destructiveTargets(nested)).toContain('**');
   });
 
   it('terminates safely on deeply nested unclosed substitutions', () => {
@@ -170,6 +181,8 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('git --literal-pathspecs rm .env')).toContain('.env');
     expect(destructiveTargets('git --no-pager restore .env')).toContain('.env');
     expect(destructiveTargets('git --exec-path /tmp rm .env')).toContain('.env');
+    expect(destructiveTargets('git --attr-source HEAD clean -fdx')).toContain('.');
+    expect(destructiveTargets('git --attr-source=HEAD reset --hard')).toContain('.');
     expect(destructiveTargets('git -c core.safecrlf=false restore .env')).toContain('.env');
     expect(destructiveTargets('git restore .env')).toContain('.env');
     expect(destructiveTargets('git restore src')).toContain('src/**');
@@ -180,9 +193,9 @@ describe('destructiveTargets', () => {
     );
     expect(destructiveTargets('git restore --pathspec-from-file=paths.txt')).toContain('**');
     expect(destructiveTargets('git restore --pathspec-from-file paths.txt')).toContain('**');
-    expect(destructiveTargets('git --work-tree=repo restore --pathspec-from-file=paths.txt')).toContain(
-      'repo/**',
-    );
+    expect(
+      destructiveTargets('git --work-tree=repo restore --pathspec-from-file=paths.txt'),
+    ).toContain('repo/**');
     expect(destructiveTargets('git restore --staged --worktree .env')).toContain('.env');
     expect(destructiveTargets('git restore --staged -W .env')).toContain('.env');
     expect(destructiveTargets('git restore -SW .env')).toContain('.env');
@@ -203,10 +216,22 @@ describe('destructiveTargets', () => {
   it('detects destructive payloads inside env split-string commands', () => {
     expect(destructiveTargets("env -S 'rm .env'")).toContain('.env');
     expect(destructiveTargets('env -S "rm -rf .git"')).toContain('.git');
+    expect(destructiveTargets('env -S "rm -rf \'.git\'"')).toContain('.git');
+    expect(destructiveTargets(`env -S 'sh -c "rm .env"'`)).toContain('.env');
+    expect(destructiveTargets(`env -S "sh -c 'rm .env'"`)).toContain('.env');
+    expect(destructiveTargets(`env -S 'git clean -fd "dist"'`)).toContain('dist');
+    expect(destructiveTargets(`env --split-string="rm -rf '.git'"`)).toContain('.git');
     expect(destructiveTargets("env -iS 'rm .env'")).toContain('.env');
     expect(destructiveTargets("/usr/bin/env -S 'rm .env'")).toContain('.env');
+    expect(destructiveTargets("sudo /usr/bin/env -S 'rm -rf .git'")).toContain('.git');
     expect(destructiveTargets("env --split-string 'rm .env'")).toContain('.env');
     expect(destructiveTargets('env --split-string="rm -rf .git"')).toContain('.git');
+    expect(destructiveTargets("env -C 'safe;dir' -S 'rm .env'")).toContain('.env');
+    expect(destructiveTargets(String.raw`env -C safe\;dir -S 'rm .env'`)).toContain('.env');
+  });
+
+  it('does not unwrap env split-string text beyond a shell separator', () => {
+    expect(destructiveTargets("env FOO=1 ; echo -S 'rm -rf /'")).toHaveLength(0);
   });
 
   it('does not let `env -S` hide compound destructive commands', () => {
@@ -220,7 +245,16 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets("sudo env -S 'rm .env'")).toContain('.env');
     expect(destructiveTargets("env -S'echo safe' && rm .env")).toContain('.env');
     expect(destructiveTargets("env -S 'echo safe'; env -S 'rm .env'")).toContain('.env');
+    expect(destructiveTargets(`env -S "echo don't" ; rm .env`)).toContain('.env');
+    expect(destructiveTargets(`env -S 'echo "hi' ; rm .env`)).toContain('.env');
+    expect(destructiveTargets("env echo ok; rm .env; env -S 'echo safe'")).toContain('.env');
     expect(destructiveTargets("env -S 'echo safe'")).toHaveLength(0);
+  });
+
+  it('ignores Git-looking text inside quoted shell arguments', () => {
+    expect(destructiveTargets('echo "a; git clean -fdx"')).toHaveLength(0);
+    expect(destructiveTargets('echo "line1\ngit clean -fdx"')).toHaveLength(0);
+    expect(destructiveTargets('echo "x; git reset --hard"; cp notes.txt .')).toEqual(['.']);
   });
 
   it('ignores non-mutating raw Git forms', () => {
@@ -291,15 +325,28 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('env --chdir /tmp rm .env')).toContain('.env');
     expect(destructiveTargets('env -C "my dir" rm .env')).toContain('.env');
     expect(destructiveTargets('env --chdir "my dir" rm .env')).toContain('.env');
+    expect(destructiveTargets('env -a NAME rm -rf .git')).toContain('.git');
+    expect(destructiveTargets('env --argv0 NAME rm -rf .git')).toContain('.git');
+    expect(destructiveTargets('env --argv0=NAME rm -rf .git')).toContain('.git');
+    expect(destructiveTargets('env -iv rm -rf .git')).toContain('.git');
     expect(destructiveTargets('sudo -i rm .env')).toContain('.env');
     expect(destructiveTargets('sudo -i rm -rf db')).toContain('db');
     expect(destructiveTargets('sudo -E rm .env')).toContain('.env');
     expect(destructiveTargets('sudo -u root rm .env')).toContain('.env');
+    expect(destructiveTargets('sudo -uroot rm -rf .git')).toContain('.git');
+    expect(destructiveTargets('sudo -g root rm -rf .git')).toContain('.git');
+    expect(destructiveTargets('sudo -C 3 rm -rf .git')).toContain('.git');
     expect(destructiveTargets("sudo -p 'pw' rm .env")).toContain('.env');
     expect(destructiveTargets('sudo -p "password: " rm .env')).toContain('.env');
     expect(destructiveTargets('sudo --user "user name" rm .env')).toContain('.env');
     expect(destructiveTargets('sudo --host x rm .env')).toContain('.env');
     expect(destructiveTargets('sudo FOO=bar rm -rf .git')).toContain('.git');
+    expect(destructiveTargets('sudo -u root;rm -rf db')).toContain('db');
+    expect(destructiveTargets('sudo --user=root;rm .env')).toContain('.env');
+    expect(destructiveTargets('sudo FOO=bar;rm .env')).toContain('.env');
+    expect(destructiveTargets('env -u FOO;rm .env')).toContain('.env');
+    expect(destructiveTargets('env -uFOO;rm .env')).toContain('.env');
+    expect(destructiveTargets('env -C/tmp;rm .env')).toContain('.env');
   });
 
   it('distinguishes file-form combined redirects from descriptor operations', () => {
@@ -353,6 +400,8 @@ describe('destructiveTargets', () => {
       ['output.txt', 'notes.txt'],
     ],
     ["while read line <<'EOF'\nliteral > .env\nEOF\necho safe > notes.txt", ['notes.txt']],
+    ['while read line; do echo "$line"; done <<\'EOF\'\nliteral > .env\nEOF', []],
+    ['while read line\ndo\n  echo "$line"\ndone <<\'EOF\'\nliteral > .env\nEOF', []],
     ["cat <<'EOF' > output\nrm .env\nEOF", ['output']],
     [
       String.raw`cat <<\EOF
@@ -370,6 +419,15 @@ EOF`,
   it('does not treat a data heredoc feeding process substitution as executing its body', () => {
     expect(destructiveTargets("cat <<'EOF' > >(grep x)\nrm .env\nEOF")).toHaveLength(0);
   });
+
+  it.each(['env sh', 'sudo sh'])(
+    'inspects heredoc bodies executed by launcher-wrapped process substitutions: %s',
+    (processCommand) => {
+      expect(destructiveTargets(`cat <<'EOF' > >(${processCommand})\nrm .env\nEOF`)).toContain(
+        '.env',
+      );
+    },
+  );
 
   it('inspects executable heredoc consumers but keeps quoted data heredocs inert', () => {
     expect(destructiveTargets('cat <<EOF\n$(rm .env)\nEOF')).toContain('.env');
@@ -400,7 +458,7 @@ EOF`,
     "sh -c true | tee /tmp/out <<'EOF'\nrm .env\nEOF",
   ])('classifies the command immediately owning a heredoc: %s', (command) => {
     const targets = destructiveTargets(command);
-    if (command.includes("sh <<")) expect(targets).toContain('.env');
+    if (command.includes('sh <<')) expect(targets).toContain('.env');
     else expect(targets).not.toContain('.env');
   });
 
@@ -440,8 +498,10 @@ describe('path-guard plugin', () => {
       capabilities: ['fs.write'],
       execute,
     } as const;
+    // `as const` keeps the literal readable; the registry wants a mutable Tool.
+    const writerTool = writer as unknown as Tool;
     const executor = new ToolExecutor(
-      { get: (name) => (name === writer.name ? writer : undefined), list: () => [writer] },
+      { get: (name) => (name === writer.name ? writerTool : undefined), list: () => [writerTool] },
       {
         permissionPolicy: {
           evaluate: vi.fn().mockResolvedValue({ permission: 'auto', source: 'default' }),
@@ -470,9 +530,10 @@ describe('path-guard plugin', () => {
       'sequential',
     );
 
-    expect(result.outputs[0]?.result).toMatchObject({ is_error: true });
-    expect(result.outputs[0]?.result.content).toContain('path-guard');
-    expect(result.outputs[0]?.result.content).toContain('.env');
+    const blocked = result.outputs[0]?.result as ToolResultBlock;
+    expect(blocked).toMatchObject({ is_error: true });
+    expect(blocked.content).toContain('path-guard');
+    expect(blocked.content).toContain('.env');
     expect(execute).not.toHaveBeenCalled();
   });
 
@@ -523,6 +584,16 @@ describe('path-guard plugin', () => {
     }
   });
 
+  it('fails closed when command substitution inspection reaches its depth cap', () => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const hook = getHook(api);
+    const command = `${'echo $('.repeat(100)}rm .env${')'.repeat(100)}`;
+    const result = hook({ toolName: 'bash', toolInput: { command } });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('write scope "**"');
+  });
+
   it('allows destructive-looking data in non-executing heredocs at the hook level', () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
@@ -559,6 +630,37 @@ describe('path-guard plugin', () => {
     ).toBeUndefined();
   });
 
+  it.each(["bash <<'EOF'\necho hi > .env\nEOF", 'cat <<EOF\n$(echo hi > .env)\nEOF'])(
+    'blocks redirect writes executed from heredoc content: %s',
+    (command) => {
+      const api = makeApi();
+      pathGuardPlugin.setup(api as never);
+      const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+      expect(result?.decision).toBe('block');
+      expect(result?.reason).toContain('.env');
+    },
+  );
+
+  it.each(['find . -delete', 'find db -delete', 'find db -exec rm -rf {} +'])(
+    'blocks recursive find deletion scopes: %s',
+    (command) => {
+      const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
+      pathGuardPlugin.setup(api as never);
+      expect(getHook(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+    },
+  );
+
+  it('blocks destructive commands in process substitutions', () => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const result = getHook(api)({
+      toolName: 'bash',
+      toolInput: { command: 'echo hi > >(rm .env)' },
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('.env');
+  });
+
   it('blocks an executing heredoc owner after an earlier tee pipeline stage', () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
@@ -581,17 +683,45 @@ describe('path-guard plugin', () => {
     expect(result?.reason).toContain('$(pwd)/.env');
   });
 
-  it('allows plain Git branch switches while retaining destructive tree guards', () => {
+  it('blocks quoted Windows-style protected paths', () => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const result = getHook(api)({
+      toolName: 'bash',
+      toolInput: { command: String.raw`rm -rf "D:\repo\.git"` },
+      cwd: String.raw`D:\repo`,
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('.git');
+  });
+
+  it('guards raw Git operations that can rewrite the working tree', () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    expect(hook({ toolName: 'bash', toolInput: { command: 'git checkout main' } })).toBeUndefined();
-    expect(hook({ toolName: 'bash', toolInput: { command: 'git switch dev' } })).toBeUndefined();
-    expect(hook({ toolName: 'bash', toolInput: { command: 'git checkout .' } })?.decision).toBe(
+    for (const command of [
+      'git checkout main',
+      'git switch dev',
+      'git stash',
+      'git stash push',
+      'git stash pop',
+      'git stash apply',
+      'git checkout .',
+    ]) {
+      expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+    }
+    expect(hook({ toolName: 'bash', toolInput: { command: 'git stash list' } })).toBeUndefined();
+    expect(hook({ toolName: 'bash', toolInput: { command: 'git stash show' } })).toBeUndefined();
+    expect(hook({ toolName: 'bash', toolInput: { command: 'git reset --hard' } })?.decision).toBe(
       'block',
     );
     expect(
-      hook({ toolName: 'bash', toolInput: { command: 'git reset --hard' } })?.decision,
+      hook({ toolName: 'bash', toolInput: { command: 'git --attr-source HEAD clean -fdx' } })
+        ?.decision,
+    ).toBe('block');
+    expect(
+      hook({ toolName: 'bash', toolInput: { command: 'git --attr-source=HEAD reset --hard' } })
+        ?.decision,
     ).toBe('block');
   });
 
@@ -603,6 +733,8 @@ describe('path-guard plugin', () => {
       "env -S 'rm -rf .'",
       "env --split-string 'rm .env'",
       'env --split-string="rm -rf .git"',
+      `env -S "echo don't" ; rm .env`,
+      `env -S 'echo "hi' ; rm .env`,
     ]) {
       expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
     }
@@ -808,10 +940,40 @@ describe('path-guard plugin', () => {
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    for (const command of ['rm -f src/index.ts', 'mv a b', 'echo x > notes.txt']) {
+    for (const command of [
+      'rm -f src/index.ts',
+      'rm -rf src/index.ts',
+      'rm -rf notes.txt',
+      'mv a b',
+      'echo x > notes.txt',
+    ]) {
       expect(hook({ toolName: 'bash', toolInput: { command } })).toBeUndefined();
     }
   });
+
+  it.each([
+    'sudo -u root;rm -rf db',
+    'sudo --user=root;rm .env',
+    'sudo FOO=bar;rm .env',
+    'env -u FOO;rm .env',
+    'env -uFOO;rm .env',
+    'env -C/tmp;rm .env',
+  ])('blocks destructive commands glued to launcher option values: %s', (command) => {
+    const api = makeApi({ extensions: { 'path-guard': { protect: ['db/**', '.env'] } } });
+    pathGuardPlugin.setup(api as never);
+    expect(getHook(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+  });
+
+  it.each(['env --unknown rm .env', 'env -a', 'env --argv0'])(
+    'fails closed for unknown or malformed env launcher options: %s',
+    (command) => {
+      const api = makeApi();
+      pathGuardPlugin.setup(api as never);
+      const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+      expect(result?.decision).toBe('block');
+      expect(result?.reason).toContain('write scope "**"');
+    },
+  );
 
   it.each(['cp src .', 'mv x .'])(
     'does not widen a literal root destination into a deletion scope: %s',
@@ -824,9 +986,14 @@ describe('path-guard plugin', () => {
 
   it.each([
     'sudo rm -rf db',
+    'sudo -uroot rm -rf db',
+    'sudo -g root rm -rf db',
+    'sudo -C 3 rm -rf db',
     'sudo git clean -fd',
     'env -i git reset --hard',
     '/usr/bin/sudo rm -rf db',
+    'env -a NAME rm -rf db',
+    'env --argv0 NAME rm -rf db',
     'env rm -rf db',
     '/usr/bin/env rm -rf db',
   ])('blocks recursive deletion through launcher wrappers: %s', (command) => {
@@ -915,7 +1082,9 @@ describe('path-guard plugin', () => {
     const hook = getHook(api);
     hook({ toolName: 'write', toolInput: { path: '.env' } });
     pathGuardPlugin.teardown!(api as never);
-    const health = (await pathGuardPlugin.health!()) as { counters: Record<string, number> };
+    const health = (await pathGuardPlugin.health!()) as unknown as {
+      counters: Record<string, number>;
+    };
     expect(health.counters['blocks']).toBe(0);
     expect(api.log.info).toHaveBeenCalledWith('path-guard: teardown complete', expect.any(Object));
   });

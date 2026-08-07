@@ -1,18 +1,15 @@
 import type React from 'react';
 import { memo, useRef } from 'react';
+import { useTerminalSize } from '../../hooks/use-terminal-size.js';
 import { Box, Static } from '../../ink.js';
 import { Entry } from './entry.js';
 import type { HistoryProps } from './types.js';
-import { useTerminalSize } from '../../hooks/use-terminal-size.js';
 
 // ── Re-exports ──
 
 export {
-  ASSISTANT_TAIL_HEIGHT,
   AssistantBody,
-  AssistantTail,
   assistantContentWidth,
-  assistantTailRows,
   MESSAGE_PANEL_BORDER_WIDTH,
   MESSAGE_PANEL_CHROME_WIDTH,
   MESSAGE_PANEL_MARGIN,

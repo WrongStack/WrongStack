@@ -5,35 +5,64 @@
  * - selectBuiltinToolsForTier('off') returns all tools
  * - selectBuiltinToolsForTier('minimal'|'light') returns tier1-only tools
  * - selectBuiltinToolsForTier('medium') returns tier1+tier2 tools
- * - selectBuiltinToolsForTier('aggressive') filters tier2+tier3 exclusions
+ * - selectBuiltinToolsForTier('aggressive') stays within the tier1 surface
  * - registerBuiltinToolTier delegates to registry and returns selected tools
  * - empty/invalid allTools array is handled gracefully
  */
-import { describe, expect, it, vi } from 'vitest';
-import { selectBuiltinToolsForTier, registerBuiltinToolTier } from '../src/tool-tier.js';
+
 import type { Tool } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
+import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '../src/tool-tier.js';
 
 // Match the actual tier definitions in builtin.ts
 // These match the actual tool.name values in builtin.ts / the individual tool files.
 const TIER1_NAMES = [
-  'read', 'write', 'edit',
-  'codebase-stats', 'codebase-search', 'codebase-index',
-  'bash', 'grep', 'glob',
-  'diff', 'patch', 'json',
+  'read',
+  'write',
+  'edit',
+  'codebase-stats',
+  'codebase-search',
+  'codebase-index',
+  'bash',
+  'grep',
+  'glob',
+  'diff',
+  'patch',
+  'json',
   'search',
 ];
 
 const TIER2_NAMES = [
-  'replace', 'exec', 'fetch', 'git', 'tree',
-  'lint', 'format', 'typecheck', 'test',
-  'language_info', 'language', 'language_package',
-  'todo', 'plan', 'kanban', 'task',
-  'install', 'audit', 'design',
+  'replace',
+  'exec',
+  'fetch',
+  'git',
+  'tree',
+  'lint',
+  'format',
+  'typecheck',
+  'test',
+  'language_info',
+  'language',
+  'language_package',
+  'todo',
+  'plan',
+  'kanban',
+  'task',
+  'install',
+  'audit',
+  'design',
 ];
 
 const TIER3_NAMES = [
-  'outdated', 'logs', 'document', 'scaffold',
-  'tool_search', 'tool_use', 'batch_tool_use', 'tool_help',
+  'outdated',
+  'logs',
+  'document',
+  'scaffold',
+  'tool_search',
+  'tool_use',
+  'batch_tool_use',
+  'tool_help',
   'set_working_dir',
 ];
 
@@ -77,39 +106,11 @@ describe('selectBuiltinToolsForTier', () => {
     expect(result.map((t) => t.name).sort()).toEqual(expected);
   });
 
-  it('tier "aggressive" excludes task and set_working_dir', () => {
+  it('tier "aggressive" is bounded to the essential tier1 surface', () => {
     const result = selectBuiltinToolsForTier('aggressive', ALL_TOOLS);
     const names = result.map((t) => t.name);
-    expect(names).not.toContain('task');
-    expect(names).not.toContain('set_working_dir');
-    // tier1 tools are always present
-    for (const name of TIER1_NAMES) {
-      expect(names).toContain(name);
-    }
-  });
-
-  it('tier "aggressive" includes most tier2 tools (except task)', () => {
-    const result = selectBuiltinToolsForTier('aggressive', ALL_TOOLS);
-    const names = result.map((t) => t.name);
-    for (const name of TIER2_NAMES) {
-      if (name === 'task') {
-        expect(names).not.toContain(name);
-      } else {
-        expect(names).toContain(name);
-      }
-    }
-  });
-
-  it('tier "aggressive" includes tier3 tools except set_working_dir', () => {
-    const result = selectBuiltinToolsForTier('aggressive', ALL_TOOLS);
-    const names = result.map((t) => t.name);
-    for (const name of TIER3_NAMES) {
-      if (name === 'set_working_dir') {
-        expect(names).not.toContain(name);
-      } else {
-        expect(names).toContain(name);
-      }
-    }
+    expect(names.sort()).toEqual([...TIER1_NAMES].sort());
+    expect(result.length).toBeLessThan(selectBuiltinToolsForTier('medium', ALL_TOOLS).length);
   });
 
   it('returns empty array for empty input', () => {
@@ -138,7 +139,11 @@ describe('selectBuiltinToolsForTier', () => {
 describe('registerBuiltinToolTier', () => {
   it('registers tools and returns them', () => {
     const registry = { registerAllOrThrow: vi.fn() };
-    const result = registerBuiltinToolTier({ registry: registry as any, tier: 'medium', tools: ALL_TOOLS });
+    const result = registerBuiltinToolTier({
+      registry: registry as any,
+      tier: 'medium',
+      tools: ALL_TOOLS,
+    });
     expect(registry.registerAllOrThrow).toHaveBeenCalledTimes(1);
     expect(registry.registerAllOrThrow).toHaveBeenCalledWith(
       expect.arrayContaining(result),
@@ -156,10 +161,12 @@ describe('registerBuiltinToolTier', () => {
 
   it('passes the owner to registerAllOrThrow', () => {
     const registry = { registerAllOrThrow: vi.fn() };
-    registerBuiltinToolTier({ registry: registry as any, tier: 'off', tools: ALL_TOOLS, owner: 'test-host' });
-    expect(registry.registerAllOrThrow).toHaveBeenCalledWith(
-      expect.anything(),
-      'test-host',
-    );
+    registerBuiltinToolTier({
+      registry: registry as any,
+      tier: 'off',
+      tools: ALL_TOOLS,
+      owner: 'test-host',
+    });
+    expect(registry.registerAllOrThrow).toHaveBeenCalledWith(expect.anything(), 'test-host');
   });
 });

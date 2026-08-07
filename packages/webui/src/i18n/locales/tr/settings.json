@@ -766,6 +766,8 @@
     "councilMaxConcurrencyHint": "Kaç koltuğun paralel oy verdiği. Havuz tek hız sınırlı sağlayıcıyı paylaştığında bunu düşürün.",
     "councilDistinctnessLabel": "Koltuk farklılığı",
     "councilDistinctnessHint": "Yinelenen koltukları reddet: 'model' farklı modeller gerektirir, 'provider' tek bir kesintinin oyu etkileyememesi için bağımsız sağlayıcılar gerektirir.",
+    "councilVoterBudgetLabel": "Oy veren yanıt bütçesi",
+    "councilVoterBudgetHint": "Koltuk başına çıktı belirteci — akıl yürüten modeller düşünme belirteçlerini bu bütçeden harcar.",
     "councilJudgeBudgetLabel": "Hakem yanıt bütçesi",
     "councilJudgeBudgetHint": "Eşitlik bozan hakem çağrısı için çıktı belirteci.",
     "councilSeatTemplate": "Koltuk şablonu:",

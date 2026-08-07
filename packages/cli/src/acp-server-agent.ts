@@ -13,16 +13,22 @@
  * belong in the interactive host. The ACP server is a headless single-turn
  * surface; a future PR can layer richer session behaviour if needed.
  */
-import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
-import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
-import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { type Logger, type PermissionDecision, type PermissionPolicy, type Tool, ToolValidationError } from '@wrongstack/core/types';
-import { ToolRegistry } from '@wrongstack/core/registry';
-import type { WstackPaths } from '@wrongstack/core/utils';
-import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { ToolExecutor } from '@wrongstack/core/execution';
+
 import type { RunTurnApi } from '@wrongstack/acp/agent';
+import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
+import { ToolExecutor } from '@wrongstack/core/execution';
+import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { EventBus, TOKENS } from '@wrongstack/core/kernel';
+import { ToolRegistry } from '@wrongstack/core/registry';
+import { AutoApprovePermissionPolicy, ToolCapabilities } from '@wrongstack/core/security';
+import {
+  type Logger,
+  type PermissionDecision,
+  type PermissionPolicy,
+  type Tool,
+  ToolValidationError,
+} from '@wrongstack/core/types';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { createDefaultContainer } from '@wrongstack/runtime';
 import type { SubcommandDeps } from './subcommands/index.js';
 import { setupProvider } from './wiring/provider.js';
@@ -152,7 +158,8 @@ function makeAcpRead(base: Tool, api: RunTurnApi): Tool {
     mutating: false,
     execute: async (input: unknown) => {
       const i = (input ?? {}) as { path?: string; offset?: number; limit?: number };
-      if (!i.path) throw new ToolValidationError({ message: 'read: path is required', field: 'path' });
+      if (!i.path)
+        throw new ToolValidationError({ message: 'read: path is required', field: 'path' });
       const content = await api.readTextFile({
         path: i.path,
         ...(typeof i.offset === 'number' ? { line: i.offset } : {}),
@@ -174,7 +181,8 @@ function makeAcpWrite(base: Tool, api: RunTurnApi): Tool {
     ...base,
     execute: async (input: unknown) => {
       const i = (input ?? {}) as { path?: string; content?: string };
-      if (!i.path) throw new ToolValidationError({ message: 'write: path is required', field: 'path' });
+      if (!i.path)
+        throw new ToolValidationError({ message: 'write: path is required', field: 'path' });
       await api.writeTextFile({ path: i.path, content: i.content ?? '' });
       return { path: i.path, ok: true };
     },
@@ -191,8 +199,13 @@ function makeAcpEdit(base: Tool, api: RunTurnApi): Tool {
         new_string?: string;
         replace_all?: boolean;
       };
-      if (!i.path) throw new ToolValidationError({ message: 'edit: path is required', field: 'path' });
-      if (!i.old_string) throw new ToolValidationError({ message: 'edit: old_string is required', field: 'old_string' });
+      if (!i.path)
+        throw new ToolValidationError({ message: 'edit: path is required', field: 'path' });
+      if (!i.old_string)
+        throw new ToolValidationError({
+          message: 'edit: old_string is required',
+          field: 'old_string',
+        });
       const before = await api.readTextFile({ path: i.path });
       const occurrences = before.split(i.old_string).length - 1;
       if (occurrences === 0) {
@@ -223,7 +236,8 @@ function makeAcpBash(base: Tool, api: RunTurnApi): Tool {
     ...base,
     execute: async (input: unknown) => {
       const i = (input ?? {}) as { command?: string; cwd?: string };
-      if (!i.command) throw new ToolValidationError({ message: 'bash: command is required', field: 'command' });
+      if (!i.command)
+        throw new ToolValidationError({ message: 'bash: command is required', field: 'command' });
       // ACP terminals run the command through the client's shell; we pass it
       // as `sh -c "<command>"` so pipelines/operators work as the model expects.
       const { output, exitCode } = await api.runTerminal({
@@ -300,8 +314,7 @@ export function buildAcpServerAgentFactory(
     // terminal — so the editor's view (incl. unsaved buffers) is the source
     // of truth. A fresh registry avoids mutating the shared builtin one.
     const source = deps.toolRegistry ?? new ToolRegistry();
-    const tools = new ToolRegistry();
-    for (const t of source.list()) tools.register(t);
+    const tools = source.clone();
     if (api) {
       wireClientBackedTools(tools, api);
     }
@@ -335,7 +348,7 @@ export function buildAcpServerAgentFactory(
       projectRoot: cwd,
       allowOutsideProjectRoot: config.features?.allowOutsideProjectRoot ?? false,
       model: config.model,
-      tools: [...tools.list()] as Tool[],
+      tools: [...tools.listForProvider()] as Tool[],
       agentId: 'acp-server',
       agentName: 'wrongstack-acp',
     });

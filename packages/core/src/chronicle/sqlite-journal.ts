@@ -48,6 +48,25 @@ export const LEGACY_JSONL_QUARANTINE_KEY = 'legacy-jsonl-v1:quarantine';
 const SCHEMA_VERSION = 1;
 const SQLITE_FIXED_OVERHEAD_BYTES = 16 * 1024 * 1024;
 const MIN_SQLITE_PAGE_BUDGET_BYTES = 64 * 1024;
+/**
+ * Ceiling on the slice of `maxBytes` withheld from the main database for the
+ * rollback journal.
+ *
+ * Quota-enabled journals run in DELETE mode, where the rollback journal holds
+ * pre-images of the pages touched by ONE transaction — an append batch plus
+ * whatever `enforceEventLimitWithinTransaction` evicts. That is bounded by
+ * batch size, not by database size, so the reserve must not scale with the
+ * quota. It used to: the budget was a flat 50/50 split, which at the shipped
+ * 512 MB quota withheld 248 MB for a journal that never needs a fraction of
+ * it, and left the main database a 248 MB budget that `maxEvents: 100_000`
+ * filled to 98.2%. The two bounds then collided — whichever tripped first
+ * wedged ingestion. Capping the reserve keeps the aggregate ceiling exactly
+ * as configured while giving the main database the share it actually needs.
+ *
+ * Small quotas still fall back to the old half split (see `journalReserve`),
+ * so the documented minimum stays reachable.
+ */
+const MAX_ROLLBACK_JOURNAL_RESERVE_BYTES = 64 * 1024 * 1024;
 
 export class ChronicleStorageQuotaError extends Error {
   readonly currentBytes: number;
@@ -55,9 +74,14 @@ export class ChronicleStorageQuotaError extends Error {
   readonly maxBytes: number;
   readonly path: string;
 
-  constructor(details: { currentBytes: number; batchBytes: number; maxBytes: number; path: string }) {
+  constructor(details: {
+    currentBytes: number;
+    batchBytes: number;
+    maxBytes: number;
+    path: string;
+  }) {
     super(
-      `Chronicle SQLite quota exceeded at ${details.path}: ${details.currentBytes} bytes allocated + ${details.batchBytes} batch bytes exceeds ${details.maxBytes}; stop the project daemon and run chronicle compact`,
+      `Chronicle SQLite quota exceeded at ${details.path}: ${details.currentBytes} live bytes + ${details.batchBytes} batch bytes exceeds ${details.maxBytes}; lower chronicle retentionDays/maxEvents to shed data (run chronicle compact to return the freed pages to the filesystem)`,
     );
     this.name = 'ChronicleStorageQuotaError';
     this.currentBytes = details.currentBytes;
@@ -124,7 +148,8 @@ function loadDatabaseSync(): typeof DatabaseSync {
   try {
     Ctor = withSqliteExperimentalWarningSuppressed(
       () =>
-        (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite')).DatabaseSync,
+        (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite'))
+          .DatabaseSync,
     );
     return Ctor;
   } catch (error) {
@@ -150,6 +175,8 @@ export class ChronicleSqliteJournal {
   private readonly retentionCheckIntervalMs: number;
   private nextRetentionCheckAt = 0;
   private retainedEventCount = 0;
+  /** Resolved lazily by `pageSizeBytes()`; constant for an open database. */
+  private cachedPageSize: number | undefined;
 
   /**
    * Cached chain head per day. Cleared wholesale on any write failure so the
@@ -186,10 +213,16 @@ export class ChronicleSqliteJournal {
     ) {
       throw new RangeError('retentionCheckIntervalMs must be a positive finite number');
     }
-    if (options.maxEvents !== undefined && (!Number.isInteger(options.maxEvents) || options.maxEvents < 1)) {
+    if (
+      options.maxEvents !== undefined &&
+      (!Number.isInteger(options.maxEvents) || options.maxEvents < 1)
+    ) {
       throw new RangeError('maxEvents must be a positive integer');
     }
-    if (options.maxBytes !== undefined && (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 1)) {
+    if (
+      options.maxBytes !== undefined &&
+      (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 1)
+    ) {
       throw new RangeError('maxBytes must be a positive safe integer');
     }
     const minimumQuotaBytes = SQLITE_FIXED_OVERHEAD_BYTES + 2 * MIN_SQLITE_PAGE_BUDGET_BYTES;
@@ -206,7 +239,9 @@ export class ChronicleSqliteJournal {
     this.ensureSchema();
     this.configureByteQuota();
     if (this.maxEvents !== undefined) {
-      const row = this.db.prepare('SELECT COUNT(*) AS count FROM events').get() as { count: number };
+      const row = this.db.prepare('SELECT COUNT(*) AS count FROM events').get() as {
+        count: number;
+      };
       this.retainedEventCount = row.count;
       this.enforceEventLimitAtStartup();
     }
@@ -434,32 +469,70 @@ export class ChronicleSqliteJournal {
       this.db.exec('PRAGMA max_page_count = 2147483646');
       return;
     }
-    const mainBudget = Math.floor((this.maxBytes - SQLITE_FIXED_OVERHEAD_BYTES) / 2);
+    // Reserve rollback-journal headroom, but never more than a transaction can
+    // plausibly need. `Math.min` with the old half split keeps small quotas
+    // (and the documented `minimumQuotaBytes`) behaving exactly as before.
+    const halfSplit = Math.floor((this.maxBytes - SQLITE_FIXED_OVERHEAD_BYTES) / 2);
+    const journalReserve = Math.min(MAX_ROLLBACK_JOURNAL_RESERVE_BYTES, halfSplit);
+    const mainBudget = this.maxBytes - SQLITE_FIXED_OVERHEAD_BYTES - journalReserve;
     if (mainBudget < MIN_SQLITE_PAGE_BUDGET_BYTES) {
       throw new Error(
         `maxBytes must be at least ${SQLITE_FIXED_OVERHEAD_BYTES + 2 * MIN_SQLITE_PAGE_BUDGET_BYTES}`,
       );
     }
-    const pageSize = Number((this.db.prepare('PRAGMA page_size').get() as { page_size: number }).page_size);
-    const maxPages = Math.max(1, Math.floor(mainBudget / pageSize));
+    const maxPages = Math.max(1, Math.floor(mainBudget / this.pageSizeBytes()));
     this.db.exec(`PRAGMA max_page_count = ${maxPages}`);
   }
 
-  private aggregateAllocatedBytes(): number {
+  /**
+   * Bytes the journal actually occupies: live pages in the main database plus
+   * whatever the rollback/WAL sidecars currently hold.
+   *
+   * The quota MUST be measured this way rather than by `statSync` on the main
+   * database file. SQLite never returns freed pages to the filesystem — it
+   * parks them on the freelist and reuses them — so a database that once grew
+   * large keeps that size forever, even after retention and `maxEvents` have
+   * evicted almost everything. Measuring the file instead wedged the journal
+   * permanently: a 3.9 GB file whose live data was 243 MB failed a 512 MB
+   * quota on EVERY append, and the only escape (`chronicle compact`) refuses
+   * to run while the daemon is up — and the daemon respawns on demand. Live
+   * pages shrink when retention deletes rows, so the quota can recover on its
+   * own; allocated size cannot.
+   *
+   * The sidecars keep their on-disk size: they are transient and genuinely
+   * bounded by `configureByteQuota`'s half-of-budget split.
+   */
+  private aggregateLiveBytes(): number {
     let total = 0;
-    for (const file of [
-      this.dbPath,
-      `${this.dbPath}-journal`,
-      `${this.dbPath}-wal`,
-      `${this.dbPath}-shm`,
-    ]) {
+    for (const file of [`${this.dbPath}-journal`, `${this.dbPath}-wal`, `${this.dbPath}-shm`]) {
       try {
         total += fs.statSync(file).size;
       } catch (error) {
         if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
       }
     }
-    return total;
+    return total + this.mainDatabaseLiveBytes();
+  }
+
+  /** Live (non-freelist) pages of the main database, in bytes. */
+  private mainDatabaseLiveBytes(): number {
+    const pageCount = Number(
+      (this.db.prepare('PRAGMA page_count').get() as { page_count: number }).page_count,
+    );
+    const freelist = Number(
+      (this.db.prepare('PRAGMA freelist_count').get() as { freelist_count: number }).freelist_count,
+    );
+    return Math.max(0, pageCount - freelist) * this.pageSizeBytes();
+  }
+
+  /** Page size never changes for an open database; resolve it once. */
+  private pageSizeBytes(): number {
+    if (this.cachedPageSize === undefined) {
+      this.cachedPageSize = Number(
+        (this.db.prepare('PRAGMA page_size').get() as { page_size: number }).page_size,
+      );
+    }
+    return this.cachedPageSize;
   }
 
   private normalizeQuotaError(error: unknown): unknown {
@@ -472,7 +545,7 @@ export class ChronicleSqliteJournal {
       /database or disk is full/i.test(sqliteError.message);
     if (!quotaExhausted) return error;
     return new ChronicleStorageQuotaError({
-      currentBytes: this.aggregateAllocatedBytes(),
+      currentBytes: this.aggregateLiveBytes(),
       batchBytes: 0,
       maxBytes: this.maxBytes,
       path: this.dbPath,
@@ -481,7 +554,7 @@ export class ChronicleSqliteJournal {
 
   private assertActualAllocationWithinQuota(): void {
     if (this.maxBytes === undefined) return;
-    const currentBytes = this.aggregateAllocatedBytes();
+    const currentBytes = this.aggregateLiveBytes();
     if (currentBytes <= this.maxBytes) return;
     throw new ChronicleStorageQuotaError({
       currentBytes,
@@ -493,7 +566,7 @@ export class ChronicleSqliteJournal {
 
   private assertWithinByteQuota(events: readonly ChronicleEvent[]): void {
     if (this.maxBytes === undefined) return;
-    const currentBytes = this.aggregateAllocatedBytes();
+    const currentBytes = this.aggregateLiveBytes();
     const batchBytes = Buffer.byteLength(JSON.stringify(events), 'utf8');
     if (currentBytes + batchBytes <= this.maxBytes) return;
     throw new ChronicleStorageQuotaError({

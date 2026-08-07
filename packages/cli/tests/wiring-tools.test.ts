@@ -1,10 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Config } from '@wrongstack/core/types';
-import type { Tool } from '@wrongstack/core/types';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config, Tool } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -349,7 +348,7 @@ describe('selectBuiltinToolsForTier', () => {
     expect(result.some((t) => t.name === 'logs')).toBe(false);
   });
 
-  it("'aggressive' excludes 'task' from TIER2 and 'setWorkingDir' from TIER3", () => {
+  it("'aggressive' exposes only the Tier 1 direct surface", () => {
     // NOTE: namedTools() uses substring/grep matching so the count assertion is
     // unreliable (e.g. 'exec' matches bashTool too). Only verify exclusion behavior.
     const allToolNames = [
@@ -376,11 +375,12 @@ describe('selectBuiltinToolsForTier', () => {
     // Verify exclusions: 'task' (in TIER2) and 'setWorkingDir' (in TIER3) must be absent
     expect(result.some((t) => t.name === 'task')).toBe(false);
     expect(result.some((t) => t.name === 'setWorkingDir')).toBe(false);
-    // Verify inclusions: tools in TIER1 and TIER2/TIER3 (other than excluded) must be present
+    // Tier 1 remains directly available; Tier 2/3 stays executable through
+    // the full registry and on-demand meta-tool path.
     expect(result.some((t) => t.name === 'read')).toBe(true);
-    expect(result.some((t) => t.name === 'replace')).toBe(true);
-    expect(result.some((t) => t.name === 'exec')).toBe(true);
-    expect(result.some((t) => t.name === 'outdated')).toBe(true);
+    expect(result.some((t) => t.name === 'replace')).toBe(false);
+    expect(result.some((t) => t.name === 'exec')).toBe(false);
+    expect(result.some((t) => t.name === 'outdated')).toBe(false);
   });
 
   it.each(['off', 'minimal', 'light', 'medium', 'aggressive'] as const)(

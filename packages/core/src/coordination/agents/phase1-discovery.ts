@@ -1,5 +1,5 @@
-import { type AgentDefinition, LIGHT_BUDGET, MEDIUM_BUDGET, TOOLS } from './types.js';
 import { agentPrompt } from './agent-prompts.js';
+import { type AgentDefinition, LIGHT_BUDGET, MEDIUM_BUDGET, TOOLS } from './types.js';
 
 /** Phase 1 · Discovery — map the territory before any work begins. */
 export const DISCOVERY_AGENTS: AgentDefinition[] = [
@@ -14,7 +14,8 @@ export const DISCOVERY_AGENTS: AgentDefinition[] = [
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'discovery',
-      summary: 'Maps unfamiliar codebases: entry points, structure, architecture, feature flow (read-only).',
+      summary:
+        'Maps unfamiliar codebases: entry points, structure, architecture, feature flow (read-only).',
       keywords: [
         'explore',
         'map',
@@ -36,13 +37,14 @@ export const DISCOVERY_AGENTS: AgentDefinition[] = [
       id: 'search',
       name: 'Search',
       role: 'search',
-      tools: [...TOOLS.read],
+      tools: [...TOOLS.read, 'codebase-search'],
       prompt: agentPrompt('search'),
     },
     budget: MEDIUM_BUDGET,
     capability: {
       phase: 'discovery',
-      summary: 'Semantic + lexical code search across repos; finds definitions, references, duplicates, ranks by relevance.',
+      summary:
+        'Semantic + lexical code search across repos; finds definitions, references, duplicates, ranks by relevance.',
       keywords: [
         'search',
         'find all',
@@ -69,7 +71,8 @@ export const DISCOVERY_AGENTS: AgentDefinition[] = [
     budget: LIGHT_BUDGET,
     capability: {
       phase: 'discovery',
-      summary: 'Technical research and feasibility: compares libraries/approaches, recommends a path with evidence and tradeoffs.',
+      summary:
+        'Technical research and feasibility: compares libraries/approaches, recommends a path with evidence and tradeoffs.',
       keywords: [
         'research',
         'feasibility',

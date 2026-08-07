@@ -2,6 +2,7 @@ import { render } from 'ink-testing-library';
 import { createElement as e } from 'react';
 import { describe, expect, it } from 'vitest';
 import {
+  CodeBlock,
   DIFF_MAX_LINES,
   DiffBlock,
   type DiffLineRow,
@@ -9,6 +10,7 @@ import {
   formatDiffStats,
   parseUnifiedDiff,
 } from '../src/components/history/code-block.js';
+import { displayWidth } from '../src/terminal-width.js';
 
 function renderDiffBlock(
   rows: DiffLineRow[],
@@ -322,6 +324,36 @@ describe('<DiffBlock /> rendering', () => {
     expect(frame).toMatch(/ {8,}http\.Error\(w\)/);
   });
 
+  it('keeps Unicode, ligatures and terminal controls inside a narrow diff budget', () => {
+    const contentWidth = 24;
+    const frame = renderDiffBlock(
+      [
+        {
+          kind: 'add',
+          text: '+👨‍👩‍👧‍👦 名前 e\u0301 a->b\t\x1b[40Cspill',
+          newLine: 1,
+        },
+      ],
+      { useColor: true, contentWidth },
+    );
+
+    expect(frame).toContain('👨‍👩‍👧‍👦');
+    expect(frame).toContain('a->b');
+    expect(frame).not.toContain('\t');
+    expect(frame).not.toContain('\x1b[40C');
+    for (const line of frame.split('\n')) expect(displayWidth(line)).toBeLessThan(contentWidth);
+  });
+
+  it('does not force the legacy 16-column diff body into a narrow viewport', () => {
+    const contentWidth = 12;
+    const frame = renderDiffBlock([{ kind: 'add', text: `+${'x'.repeat(30)}`, newLine: 1 }], {
+      useColor: true,
+      contentWidth,
+    });
+
+    for (const line of frame.split('\n')) expect(displayWidth(line)).toBeLessThan(contentWidth);
+  });
+
   it('bounds the default Update preview and preserves whole-diff totals', () => {
     expect(DIFF_MAX_LINES).toBe(200);
 
@@ -445,5 +477,39 @@ describe('<DiffBlock /> rendering', () => {
     const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
     expect(normalize(withColor)).toBe(normalize(withoutColor));
     expect(withColor).toContain('// note');
+  });
+});
+
+describe('<CodeBlock /> terminal geometry', () => {
+  it('uses grapheme-aware width and removes terminal controls', () => {
+    const contentWidth = 24;
+    const { lastFrame, unmount } = render(
+      e(CodeBlock, {
+        code: '👨‍👩‍👧‍👦 名前 e\u0301 a->b\t\x1b[40Cspill',
+        lang: 'plain',
+        contentWidth,
+      }),
+    );
+    const frame = lastFrame() ?? '';
+    unmount();
+
+    expect(frame).toContain('👨‍👩‍👧‍👦');
+    expect(frame).toContain('a->b');
+    expect(frame).not.toContain('\t');
+    expect(frame).not.toContain('\x1b[40C');
+    for (const line of frame.split('\n'))
+      expect(displayWidth(line)).toBeLessThanOrEqual(contentWidth);
+  });
+
+  it('does not force the legacy 22-column frame into a narrower content area', () => {
+    const contentWidth = 12;
+    const { lastFrame, unmount } = render(
+      e(CodeBlock, { code: 'const value = 123;', lang: 'plain', contentWidth }),
+    );
+    const frame = lastFrame() ?? '';
+    unmount();
+
+    for (const line of frame.split('\n'))
+      expect(displayWidth(line)).toBeLessThanOrEqual(contentWidth);
   });
 });

@@ -2,12 +2,11 @@ import { agentPrompt } from './agent-prompts.js';
 import type { BundledAgentSkill } from './role-skills.js';
 import {
   type AgentDefinition,
-  type RoleDispatcherSignal,
   HEAVY_BUDGET,
   MEDIUM_BUDGET,
+  type RoleDispatcherSignal,
   TOOLS,
 } from './types.js';
-
 
 const skillSet = (...names: BundledAgentSkill[]): BundledAgentSkill[] => names;
 
@@ -136,14 +135,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Android platform specialist: Kotlin, Jetpack Compose, Android SDK, lifecycle and Play Store delivery.',
-      keywords: [
-        ...ANDROID_META.signals,
-        'android',
-        'kotlin',
-        'compose',
-        'gradle',
-        'playstore',
-      ],
+      keywords: [...ANDROID_META.signals, 'android', 'kotlin', 'compose', 'gradle', 'playstore'],
     },
   },
   {
@@ -159,14 +151,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Desktop application specialist: Electron or Tauri, native packaging, IPC and OS integration.',
-      keywords: [
-        ...DESKTOP_META.signals,
-        'desktop',
-        'electron',
-        'tauri',
-        'ipc',
-        'tray',
-      ],
+      keywords: [...DESKTOP_META.signals, 'desktop', 'electron', 'tauri', 'ipc', 'tray'],
     },
   },
   {
@@ -245,7 +230,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       id: 'platform-engineer',
       name: 'Platform Engineer',
       role: 'platform-engineer',
-      tools: [...TOOLS.build, 'install', 'git', 'node-modern'],
+      tools: [...TOOLS.build, 'install', 'git'],
       prompt: agentPrompt('platform-engineer'),
     },
     budget: MEDIUM_BUDGET,

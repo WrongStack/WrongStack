@@ -7,7 +7,7 @@ import type { Compactor } from '../../src/types/compactor.js';
 import { createContextEvidenceState } from '../../src/utils/context-evidence.js';
 
 function mockContext(_tokenEstimate: number): Context {
-  return {
+  const ctx = {
     messages: [],
     todos: [],
     readFiles: new Set(),
@@ -24,6 +24,19 @@ function mockContext(_tokenEstimate: number): Context {
     meta: {},
     clearFileTracking: () => {},
   } as never as Context;
+  let revision = 0;
+  Object.defineProperty(ctx, 'state', {
+    value: {
+      get revision() {
+        return revision;
+      },
+      replaceMessages(messages: Context['messages']) {
+        ctx.messages = messages;
+        revision++;
+      },
+    },
+  });
+  return ctx;
 }
 
 function mockCompactor(): Compactor & { compactCalls: { ctx: Context; aggressive: boolean }[] } {
@@ -31,7 +44,13 @@ function mockCompactor(): Compactor & { compactCalls: { ctx: Context; aggressive
     compactCalls: [],
     async compact(ctx, opts = {}) {
       this.compactCalls.push({ ctx, aggressive: opts.aggressive ?? false });
-      return { before: 1000, after: 800, fullRequestTokensBefore: 1000, fullRequestTokensAfter: 800, reductions: [] };
+      return {
+        before: 1000,
+        after: 800,
+        fullRequestTokensBefore: 1000,
+        fullRequestTokensAfter: 800,
+        reductions: [],
+      };
     },
   };
 }
@@ -63,6 +82,210 @@ describe('AutoCompactionMiddleware', () => {
 
     expect(ran).toBe(true);
     expect(compactor.compactCalls).toHaveLength(0);
+  });
+
+  it('prunes consumed raw tool I/O below warn while preserving the pending batch', async () => {
+    const mw = new AutoCompactionMiddleware(compactor, 10000, simpleEstimator(3000), {
+      warn: 0.5,
+      soft: 0.75,
+      hard: 0.9,
+    });
+    const ctx = mockContext(0);
+    ctx.meta['contextWindowPolicy'] = { eliseThreshold: 50 };
+    ctx.lastRequestTokens = 9_000;
+    ctx.lastRealInputTokens = 8_500;
+    ctx.meta['lastRequestTokensAt'] = { msgCount: 5, toolCount: 0 };
+    ctx.meta['realAnchorMsgCount'] = 5;
+    ctx.messages = [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'consumed',
+            name: 'exec',
+            input: { path: 'src/consumed.ts', content: 'a'.repeat(2_000) },
+          },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'consumed',
+            name: 'exec',
+            content: 'old result '.repeat(1_000),
+          },
+        ],
+      },
+      { role: 'assistant', content: [{ type: 'text', text: 'consumed' }] },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 'pending', name: 'read', input: { path: 'src/pending.ts' } },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'pending',
+            name: 'read',
+            content: 'pending result '.repeat(1_000),
+          },
+        ],
+      },
+    ];
+
+    await mw.handler()(ctx, async (c) => c);
+
+    expect(compactor.compactCalls).toHaveLength(0);
+    expect(JSON.stringify(ctx.messages[1])).toContain('[elided:');
+    expect(JSON.stringify(ctx.messages[4])).toContain('pending result pending result');
+    expect(ctx.lastRequestTokens).toBeUndefined();
+    expect(ctx.lastRealInputTokens).toBeUndefined();
+    expect(ctx.meta['lastRequestTokensAt']).toBeUndefined();
+    expect(ctx.meta['realAnchorMsgCount']).toBeUndefined();
+  });
+
+  it('bounds acknowledged protocol receipts below warn without firing pressure compaction', async () => {
+    const mw = new AutoCompactionMiddleware(compactor, 10000, simpleEstimator(3000), {
+      warn: 0.5,
+      soft: 0.75,
+      hard: 0.9,
+    });
+    const ctx = mockContext(0);
+    ctx.meta['contextWindowPolicy'] = { preserveK: 1, eliseThreshold: 50 };
+    for (let i = 0; i < 20; i++) {
+      ctx.messages.push({
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: `use-${i}`, name: 'exec', input: { path: `${i}.ts` } }],
+      });
+      ctx.messages.push({
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: `use-${i}`,
+            name: 'exec',
+            content: `result ${i}`,
+          },
+        ],
+      });
+    }
+    ctx.messages.push({ role: 'assistant', content: [{ type: 'text', text: 'done' }] });
+
+    await mw.handler()(ctx, async (c) => c);
+
+    expect(compactor.compactCalls).toHaveLength(0);
+    expect(JSON.stringify(ctx.messages[0])).toContain('[tool_history_digest: 4');
+    expect(
+      ctx.messages.flatMap((message) =>
+        typeof message.content === 'string'
+          ? []
+          : message.content.filter((block) => block.type === 'tool_result'),
+      ),
+    ).toHaveLength(16);
+  });
+
+  it('keeps a useful raw investigation window and semantically receipts only the overflow', async () => {
+    const mw = new AutoCompactionMiddleware(compactor, 200_000, simpleEstimator(30_000), {
+      warn: 0.55,
+      soft: 0.7,
+      hard: 0.85,
+    });
+    const ctx = mockContext(0);
+    ctx.meta['contextWindowPolicy'] = { preserveK: 8, eliseThreshold: 1_200 };
+    for (let i = 0; i < 4; i++) {
+      ctx.messages.push({
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: `read-${i}`, name: 'grep', input: { path: `src/${i}.ts` } },
+        ],
+      });
+      ctx.messages.push({
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: `read-${i}`,
+            name: 'grep',
+            content: `IMPORTANT_HEAD_${i}\n${'x'.repeat(10_000)}\nIMPORTANT_TAIL_${i}`,
+          },
+        ],
+      });
+    }
+    ctx.messages.push({ role: 'assistant', content: [{ type: 'text', text: 'reads consumed' }] });
+
+    await mw.handler()(ctx, async (c) => c);
+
+    expect(compactor.compactCalls).toHaveLength(0);
+    const wire = JSON.stringify(ctx.messages);
+    expect(wire).toContain('IMPORTANT_HEAD_0');
+    expect(wire).toContain('IMPORTANT_TAIL_0');
+    expect(JSON.stringify(ctx.messages[1])).toContain('[elided:');
+    expect(JSON.stringify(ctx.messages[1])).not.toContain('x'.repeat(1_000));
+    for (let i = 1; i < 4; i++) {
+      const rawResult = JSON.stringify(ctx.messages[i * 2 + 1]);
+      expect(rawResult).toContain(`IMPORTANT_HEAD_${i}\\n${'x'.repeat(1_000)}`);
+      expect(rawResult).toContain(`IMPORTANT_TAIL_${i}`);
+    }
+  });
+
+  it('rejects a stale aggregate stash after a same-length state rewrite', async () => {
+    const mw = new AutoCompactionMiddleware(
+      compactor,
+      10_000,
+      undefined,
+      { warn: 0.5, soft: 0.75, hard: 0.9 },
+      { failureMode: 'continue' },
+    );
+    const ctx = mockContext(0);
+    ctx.messages = [{ role: 'user', content: 'small' }];
+    ctx.lastRequestTokens = 100;
+    ctx.meta['lastRequestTokensAt'] = { msgCount: 1, toolCount: 0, revision: 0 };
+
+    // Count is unchanged, but revision and content are not. A count-only
+    // cache key would incorrectly reuse 100 and skip compaction.
+    ctx.state.replaceMessages([{ role: 'user', content: 'x'.repeat(40_000) }]);
+    await mw.handler()(ctx, async (c) => c);
+
+    expect(compactor.compactCalls).toHaveLength(1);
+  });
+
+  it('invalidates every token cache after a same-length pressure rewrite', async () => {
+    const rewritingCompactor: Compactor = {
+      async compact(ctx) {
+        ctx.state.replaceMessages([{ role: 'user', content: 'compacted' }]);
+        return {
+          before: 9_500,
+          after: 100,
+          fullRequestTokensBefore: 9_500,
+          fullRequestTokensAfter: 100,
+          reductions: [{ phase: 'summary', saved: 9_400 }],
+        };
+      },
+    };
+    const mw = new AutoCompactionMiddleware(rewritingCompactor, 10_000, simpleEstimator(9_500), {
+      warn: 0.5,
+      soft: 0.75,
+      hard: 0.9,
+    });
+    const ctx = mockContext(0);
+    ctx.messages = [{ role: 'user', content: 'old' }];
+    ctx.lastRequestTokens = 9_500;
+    ctx.lastRealInputTokens = 9_000;
+    ctx.meta['lastRequestTokensAt'] = { msgCount: 1, toolCount: 0, revision: 0 };
+    ctx.meta['realAnchorMsgCount'] = 1;
+
+    await mw.handler()(ctx, async (c) => c);
+
+    expect(ctx.lastRequestTokens).toBeUndefined();
+    expect(ctx.lastRealInputTokens).toBeUndefined();
+    expect(ctx.meta['lastRequestTokensAt']).toBeUndefined();
+    expect(ctx.meta['realAnchorMsgCount']).toBeUndefined();
   });
 
   it('drives the compaction decision from the REAL usage anchor over the estimator', () => {

@@ -164,6 +164,7 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
       cwd: subCwd,
       projectRoot: deps.projectRoot,
       tools: allowed,
+      catalogTools: allowed,
       model: effModel,
       provider: effProvider,
       subagent: true,
@@ -191,6 +192,7 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
         config.features?.allowOutsideProjectRoot ?? !(config.tools?.restrictToProjectRoot ?? false),
       model: effModel,
       tools: allowed,
+      catalogTools: allowed,
       agentId: agentName,
       agentName,
       traceId: deps.session.traceId,
@@ -306,7 +308,15 @@ function filterToolList(registry: ToolRegistry, allow?: string[]): Tool[] {
   const all = registry.list().filter((t) => !HIDDEN_FROM_SUBAGENTS.has(t.name));
   if (!allow || allow.length === 0) return all;
   const allowSet = new Set(allow);
-  return all.filter((t) => allowSet.has(t.name));
+  const selected = all.filter((t) => allowSet.has(t.name));
+  const selectedNames = new Set(selected.map((tool) => tool.name));
+  const missing = [...allowSet].filter(
+    (name) => !selectedNames.has(name) && !HIDDEN_FROM_SUBAGENTS.has(name),
+  );
+  if (missing.length > 0) {
+    throw new Error(`Subagent tool contract is not registered: ${missing.sort().join(', ')}`);
+  }
+  return selected;
 }
 
 function buildProvider(

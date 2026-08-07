@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Text } from '../../ink.js';
-import { shortenPath, truncMid } from './basic-format.js';
+import { sanitizeTerminalText, truncateDisplay } from '../../terminal-width.js';
+import { shortenPath } from './basic-format.js';
 import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
 const VISUAL_TEXT_BUDGET = 92;
@@ -27,7 +28,7 @@ export function ToolOutputLines({
             ) : null}
             {line.path ? (
               <>
-                <Text color="cyan">{shortenPath(line.path, 56)}</Text>
+                <Text color="cyan">{shortenPath(sanitizeTerminalText(line.path), 56)}</Text>
                 <Text dimColor>{'  '}</Text>
               </>
             ) : null}
@@ -38,7 +39,7 @@ export function ToolOutputLines({
               </>
             ) : null}
             <Text color={color} dimColor={line.kind === 'meta' || line.kind === 'stdout'}>
-              {truncMid(line.text, VISUAL_TEXT_BUDGET)}
+              {truncateDisplay(sanitizeTerminalText(line.text), VISUAL_TEXT_BUDGET)}
             </Text>
           </Text>
         );

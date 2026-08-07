@@ -3,11 +3,12 @@
  *
  * Why this exists: `instructions/system.md` (and its `-lite` / `-pro`
  * variants) used to be injected as layer-1 verbatim, listing ~100 tool names
- * regardless of which tools the current request actually registered. At
- * `minimal`/`light` tier only the 15 TIER1 tools survive
+ * regardless of which tools the current request actually exposed. At
+ * `minimal`/`light` tier only the 15 TIER1 tools are sent directly
  * (`@wrongstack/tools` `selectBuiltinToolsForTier`), yet the prompt still
  * spent ~8k tokens explaining `kanban`, the browser tools, the SAGE memory
- * tools and the Telegram bridge — none of which the model could call. The
+ * tools and the Telegram bridge. Those tools may remain executable through
+ * lazy discovery, but are not legal direct calls in that request. The
  * token-saving tier was spending most of its savings back in the prompt, and
  * the text had to carry a "some of the above may be a lie" disclaimer to
  * compensate.
@@ -59,7 +60,13 @@
  *
  * @module core/instruction-template
  */
+
 import type { ConcreteTokenSavingTier } from '../types/config.js';
+import { RUNTIME_CAPABILITY_MANIFEST } from '../types/runtime-capability-manifest.js';
+
+const CANONICAL_TOOL_NAMES = new Set(
+  RUNTIME_CAPABILITY_MANIFEST.flatMap((entry) => [...entry.tools]),
+);
 
 export interface InstructionTemplateContext {
   /** Names of the tools registered for the current request. */
@@ -70,6 +77,8 @@ export interface InstructionTemplateContext {
   subagent: boolean;
   /** Values for plain `{{name}}` placeholders. Unknown names are left as-is. */
   vars?: Record<string, string | number> | undefined;
+  /** Drop lines that format a declared but unavailable tool as callable. */
+  strictToolReferences?: boolean | undefined;
 }
 
 /**
@@ -111,7 +120,55 @@ export function renderInstructionLayer(
 
   const rendered = hasDirectives ? emit(parse(text), ctx) : text;
   const substituted = hasPlaceholders ? substitute(rendered, ctx) : rendered;
-  return tidy(substituted);
+  const guarded = ctx?.strictToolReferences
+    ? dropLinesWithUnavailableToolReferences(
+        substituted,
+        ctx,
+        new Set([...CANONICAL_TOOL_NAMES, ...declaredToolNames(text)]),
+      )
+    : substituted;
+  return tidy(guarded);
+}
+
+function declaredToolNames(text: string): Set<string> {
+  const names = new Set<string>();
+  for (const marker of text.matchAll(/<!--\s*ws:if\b([^>]*?)-->/g)) {
+    for (const attr of (marker[1] ?? '').matchAll(/!?tool=([A-Za-z0-9_.,-]+)/g)) {
+      for (const name of (attr[1] ?? '').split(',')) if (name.trim()) names.add(name.trim());
+    }
+  }
+  for (const placeholder of text.matchAll(/\{\{\s*tools:\s*([^}]+)}}/g)) {
+    for (const name of (placeholder[1] ?? '').split(',')) if (name.trim()) names.add(name.trim());
+  }
+  return names;
+}
+
+function dropLinesWithUnavailableToolReferences(
+  text: string,
+  ctx: InstructionTemplateContext,
+  declared: ReadonlySet<string>,
+): string {
+  const unavailable = [...declared].filter((name) => !ctx.toolNames.has(name));
+  if (unavailable.length === 0) return text;
+  return text
+    .split(/(?<=\n)/)
+    .filter((line) => !unavailable.some((name) => formattedToolMention(line, name)))
+    .join('');
+}
+
+function formattedToolMention(line: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const token = new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`);
+  if (
+    line.split('`').some((segment, index) => {
+      if (index % 2 !== 1) return false;
+      if (segment.includes(`<${name}`) || segment.includes(`</${name}`)) return false;
+      return token.test(segment);
+    })
+  ) {
+    return true;
+  }
+  return line.split('**').some((segment, index) => index % 2 === 1 && segment.trim() === name);
 }
 
 /**

@@ -82,10 +82,15 @@ const DEFAULT_CHECK_INTERVAL_MS = 10_000;
 const DEFAULT_MAX_RECOVERIES = 5;
 
 /**
- * The spinner is expected to advance every 250ms. If it hasn't advanced
- * within 3× that interval while the agent is active, it's frozen.
+ * The spinner advances every SPINNER_INTERVAL_MS (1000ms — see
+ * status-bar.tsx). If it hasn't advanced within 3× that interval while the
+ * agent is active, it's frozen. The threshold MUST stay above the actual
+ * spinner interval: an earlier 750ms threshold (based on an assumed 250ms
+ * tick) was shorter than one real tick, so every 10s check while streaming
+ * diagnosed a healthy spinner as frozen and remounted the whole chip rail —
+ * a guaranteed visible flicker, five times per session.
  */
-const SPINNER_EXPECTED_INTERVAL_MS = 250;
+const SPINNER_EXPECTED_INTERVAL_MS = 1_000;
 const SPINNER_FROZEN_THRESHOLD_MS = SPINNER_EXPECTED_INTERVAL_MS * 3;
 
 // ─── Hook ───────────────────────────────────────────────────────────────────

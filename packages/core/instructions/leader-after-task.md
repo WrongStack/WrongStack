@@ -35,7 +35,11 @@ Rules:
 - **Omit the tag entirely while the live `ctx.todos` list has any `pending` or `in_progress` item.** Finishing the in-flight todo list takes priority, and the runtime discards `<nextsteps>` in that state anyway. Emit it again on the turn the last todo flips to `completed`.
 - Do not pad the block with generic filler, repeat completed work, or invent work merely to satisfy the format. Use the explicit no-further-steps branch when appropriate.
 
+<!--ws:if tool=remember-->
 **After a significant task, when `remember` is live, remember durable key findings** — established conventions, confirmed decisions, or stable facts likely to help a future session. Pick the most specific `kind`, set `importance`, add tags, and `anchor` to the relevant file/symbol when applicable.
+<!--ws:end-->
 
+<!--ws:if tool=mailbox-->
 **When an inter-agent mailbox tool is live and peer coordination is active, also post a status update** so other agents can discover what you finished and route follow-on work:
 `mailbox action=send to=* type=status subject="<one-line task summary>" body="<brief outcome>"`
+<!--ws:end-->

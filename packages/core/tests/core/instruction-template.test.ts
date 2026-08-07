@@ -1,8 +1,16 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { RUNTIME_CAPABILITY_MANIFEST } from '../../src/coordination/agents/capability-manifest.js';
 import {
   type InstructionTemplateContext,
   renderInstructionLayer,
 } from '../../src/core/instruction-template.js';
+import {
+  isDeprecatedRuntimeToolAlias,
+  normalizeRuntimeToolName,
+} from '../../src/types/runtime-capability-manifest.js';
 
 function ctx(
   tools: readonly string[],
@@ -12,6 +20,7 @@ function ctx(
     toolNames: new Set(tools),
     tier: 'off',
     subagent: false,
+    strictToolReferences: true,
     ...overrides,
   };
 }
@@ -58,23 +67,23 @@ describe('renderInstructionLayer — block conditionals', () => {
   it('negates with a leading bang', () => {
     const text = '<!--ws:if !tool=codebase-search-->GREP FALLBACK<!--ws:end-->';
     expect(renderInstructionLayer(text, ctx(['grep']))).toContain('GREP FALLBACK');
-    expect(renderInstructionLayer(text, ctx(['codebase-search']))).not.toContain(
-      'GREP FALLBACK',
-    );
+    expect(renderInstructionLayer(text, ctx(['codebase-search']))).not.toContain('GREP FALLBACK');
   });
 
   it('gates on role', () => {
     const text = '<!--ws:if role=leader-->LEADER ONLY<!--ws:end-->';
     expect(renderInstructionLayer(text, ctx([], { subagent: false }))).toContain('LEADER ONLY');
-    expect(renderInstructionLayer(text, ctx([], { subagent: true }))).not.toContain(
-      'LEADER ONLY',
-    );
+    expect(renderInstructionLayer(text, ctx([], { subagent: true }))).not.toContain('LEADER ONLY');
   });
 
   it('renders the else branch when the condition fails', () => {
-    const text = ['<!--ws:if tool=kanban-->', 'BOARD', '<!--ws:else-->', 'TODO', '<!--ws:end-->'].join(
-      '\n',
-    );
+    const text = [
+      '<!--ws:if tool=kanban-->',
+      'BOARD',
+      '<!--ws:else-->',
+      'TODO',
+      '<!--ws:end-->',
+    ].join('\n');
     expect(renderInstructionLayer(text, ctx(['kanban'])).trim()).toBe('BOARD');
     expect(renderInstructionLayer(text, ctx([])).trim()).toBe('TODO');
   });
@@ -138,9 +147,13 @@ describe('renderInstructionLayer — fail-open contract', () => {
   });
 
   it('keeps the full text and strips every marker when no context is given', () => {
-    const text = ['<!--ws:if tool=kanban-->', 'BOARD', '<!--ws:else-->', 'TODO', '<!--ws:end-->'].join(
-      '\n',
-    );
+    const text = [
+      '<!--ws:if tool=kanban-->',
+      'BOARD',
+      '<!--ws:else-->',
+      'TODO',
+      '<!--ws:end-->',
+    ].join('\n');
     const out = renderInstructionLayer(text);
     expect(out.trim()).toBe('BOARD');
     expect(out).not.toContain('ws:');
@@ -167,9 +180,126 @@ describe('renderInstructionLayer — placeholders', () => {
   });
 
   it('substitutes plain vars and leaves unknown ones verbatim', () => {
-    const out = renderInstructionLayer('{{roleList}} and {{missing}}', ctx([], {
-      vars: { roleList: 'reviewer, tester' },
-    }));
+    const out = renderInstructionLayer(
+      '{{roleList}} and {{missing}}',
+      ctx([], {
+        vars: { roleList: 'reviewer, tester' },
+      }),
+    );
     expect(out).toBe('reviewer, tester and {{missing}}');
+  });
+});
+
+describe('bundled instruction tool-reference integrity', () => {
+  it('keeps every bundled instruction free of unknown callable names and deprecated aliases', async () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const root = path.resolve(here, '..', '..', 'instructions');
+    const pending = [root];
+    const files: string[] = [];
+    while (pending.length > 0) {
+      const dir = pending.pop();
+      if (!dir) break;
+      for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) pending.push(full);
+        else if (entry.isFile() && entry.name.endsWith('.md')) files.push(full);
+      }
+    }
+
+    const known = new Set<string>(RUNTIME_CAPABILITY_MANIFEST.flatMap((entry) => entry.tools));
+    for (const file of files) {
+      const raw = await fs.readFile(file, 'utf8');
+      const declared = [...raw.matchAll(/!?tool=([a-zA-Z0-9_,.-]+?)(?=\s|--)/g)].flatMap((match) =>
+        (match[1] ?? '').split(','),
+      );
+      const imperative = [
+        ...raw.matchAll(/\b(?:call|use|invoke|run)\s+`([a-z][a-z0-9_-]+)`/gi),
+      ].map((match) => normalizeRuntimeToolName(match[1] ?? ''));
+      expect(
+        declared.filter((tool) => !known.has(tool)),
+        `${path.relative(root, file)} declares an unknown tool`,
+      ).toEqual([]);
+      expect(
+        imperative.filter((tool) => !known.has(tool)),
+        `${path.relative(root, file)} has an ambiguous unknown callable reference`,
+      ).toEqual([]);
+      const identifiers = [...raw.matchAll(/`([a-z][a-z0-9_-]+)`/gi)].map(
+        (match) => match[1] ?? '',
+      );
+      expect(
+        identifiers.filter(isDeprecatedRuntimeToolAlias),
+        `${path.relative(root, file)} uses a deprecated tool alias`,
+      ).toEqual([]);
+    }
+  });
+
+  it('does not render a referenced tool name outside the exposed surface', async () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const instructions = path.resolve(here, '..', '..', 'instructions');
+    const exposed = [
+      'read',
+      'write',
+      'edit',
+      'codebase-stats',
+      'codebase-search',
+      'codebase-incoming-calls',
+      'codebase-outgoing-calls',
+      'codebase-index',
+      'bash',
+      'grep',
+      'glob',
+      'diff',
+      'patch',
+      'json',
+      'search',
+      'tool_search',
+      'tool_use',
+      'tool_help',
+    ];
+    const surfaces = [
+      { tools: exposed, tier: 'aggressive' as const },
+      { tools: ['read', 'grep', 'glob', 'search'], tier: 'medium' as const },
+    ];
+    for (const name of ['system.md', 'system-lite.md', 'system-pro.md']) {
+      const raw = await fs.readFile(path.join(instructions, name), 'utf8');
+      const referenced = new Set<string>(
+        RUNTIME_CAPABILITY_MANIFEST.flatMap((entry) => [...entry.tools]),
+      );
+      const declared = new Set<string>();
+      for (const match of raw.matchAll(/!?tool=([a-zA-Z0-9_,.-]+?)(?=\s|--)/g)) {
+        for (const tool of (match[1] ?? '').split(',')) referenced.add(tool);
+        for (const tool of (match[1] ?? '').split(',')) declared.add(tool);
+      }
+      for (const match of raw.matchAll(/\{\{tools:([^}]+)}}/g)) {
+        for (const tool of (match[1] ?? '').split(',')) referenced.add(tool.trim());
+        for (const tool of (match[1] ?? '').split(',')) declared.add(tool.trim());
+      }
+      const known = new Set<string>(RUNTIME_CAPABILITY_MANIFEST.flatMap((entry) => entry.tools));
+      expect(
+        [...declared].filter((tool) => !known.has(tool)),
+        `${name} declares tools outside the canonical capability catalog`,
+      ).toEqual([]);
+      const imperativeUnknown = [
+        ...new Set(
+          [...raw.matchAll(/\b(?:call|use|invoke|run)\s+`([a-z][a-z0-9_-]+)`/gi)]
+            .map((match) => match[1] ?? '')
+            .filter((tool) => !known.has(tool)),
+        ),
+      ];
+      expect(
+        imperativeUnknown,
+        `${name} has an imperative reference that is neither a canonical tool nor qualified as an action`,
+      ).toEqual([]);
+      for (const surface of surfaces) {
+        const rendered = renderInstructionLayer(raw, ctx(surface.tools, { tier: surface.tier }));
+        const renderedIdentifiers = new Set(
+          [...rendered.matchAll(/`([a-zA-Z][a-zA-Z0-9_-]*)`/g)].map((match) => match[1] ?? ''),
+        );
+        const leaked = [...renderedIdentifiers].filter(
+          (tool) => referenced.has(tool) && !surface.tools.includes(tool),
+        );
+        expect(leaked, `${name}/${surface.tier} rendered hidden tool references`).toEqual([]);
+      }
+    }
   });
 });

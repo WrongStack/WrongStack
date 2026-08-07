@@ -1,7 +1,8 @@
-import type { BrainConfigPatch, BrainRuntime } from '@wrongstack/core/execution';
-import type { BrainConfigSnapshot } from '@wrongstack/core/execution';
-import { describe, expect, it, vi } from 'vitest';
-import type { WebSocket } from 'ws';
+import type {
+  BrainConfigPatch,
+  BrainConfigSnapshot,
+  BrainRuntime,
+} from '@wrongstack/core/execution';
 import {
   type BrainHandlerContext,
   type BrainLogEntry,
@@ -12,6 +13,8 @@ import {
   handleBrainStatus,
   type WSServerMessage as WsServerMessage,
 } from '@wrongstack/webui-server';
+import { describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 
 /**
  * PR 5b of Issue #30: Brain ws-handler unit tests.
@@ -112,6 +115,7 @@ const SNAPSHOT: BrainConfigSnapshot = {
     maxConcurrency: undefined,
     distinctness: 'none',
     judgeMaxTokens: undefined,
+    voterMaxTokens: undefined,
     seats: [],
   },
   ledger: {
@@ -145,10 +149,10 @@ const SNAPSHOT: BrainConfigSnapshot = {
   usingSessionModel: false,
 };
 
-function makeRuntime(over: {
-  persistOk?: boolean;
-  applyThrows?: string;
-} = {}): { runtime: BrainRuntime; patches: BrainConfigPatch[] } {
+function makeRuntime(over: { persistOk?: boolean; applyThrows?: string } = {}): {
+  runtime: BrainRuntime;
+  patches: BrainConfigPatch[];
+} {
   const patches: BrainConfigPatch[] = [];
   const runtime = {
     arbiter: { decide: vi.fn() },
@@ -213,7 +217,14 @@ describe('handleBrainConfigGet/Set', () => {
     };
     const ids = (payload.config.personaCatalog ?? []).map((persona) => persona.id);
     expect(ids).toEqual(
-      expect.arrayContaining(['executor', 'skeptic', 'auditor', 'security', 'maintainer', 'user-advocate']),
+      expect.arrayContaining([
+        'executor',
+        'skeptic',
+        'auditor',
+        'security',
+        'maintainer',
+        'user-advocate',
+      ]),
     );
     for (const persona of payload.config.personaCatalog ?? []) {
       expect(persona.name).toBeTruthy();

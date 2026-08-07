@@ -13,9 +13,9 @@ import {
  * by index, so the array order must match the visual top-to-bottom order.
  */
 describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
-  it('has exactly 38 fields', () => {
-    expect(STATUSLINE_ITEMS.length).toBe(38);
-    expect(STATUSLINE_FIELD_COUNT).toBe(38);
+  it('has exactly 36 fields', () => {
+    expect(STATUSLINE_ITEMS.length).toBe(36);
+    expect(STATUSLINE_FIELD_COUNT).toBe(36);
   });
 
   it('follows line 1 → line 2 → line 3 → line 4 order', () => {
@@ -47,12 +47,7 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
     // Priority items that appear at the start of a line regardless of alpha sort.
     // Line 1 starts with its runtime-priority items; line 2 starts with the
     // location pair so navigation follows the rendered status-bar rail.
-    const PRIORITY_ITEMS = new Set<StatuslineItem>([
-      'yolo',
-      'autonomy',
-      'project',
-      'working_dir',
-    ]);
+    const PRIORITY_ITEMS = new Set<StatuslineItem>(['yolo', 'autonomy', 'project', 'working_dir']);
 
     // Group by line, in the order items actually appear in STATUSLINE_ITEMS
     // (so we exercise the same grouping the picker uses for navigation).
@@ -70,20 +65,6 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
       const sorted = [...tail].sort((a, b) => a.localeCompare(b));
       expect(tail).toEqual(sorted);
     }
-  });
-
-  it('groups memory with the line-2 session-context chips', () => {
-    // The /statusline picker displays the LINE 1 / LINE 2 / LINE 3 / LINE 4
-    // section headers by reading `ITEM_LINE`. Memory (RAM + heap) moved from
-    // line 1 (cheap runtime telemetry) to line 2 (slower session-context
-    // chips the user inspects together when something goes wrong).
-    expect(ITEM_LINE.memory).toBe(2);
-
-    const line2Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 2);
-    expect(line2Items).toContain('memory');
-
-    const line1Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 1);
-    expect(line1Items).not.toContain('memory');
   });
 
   it('groups codebase index server status on line 4 (background services)', () => {
@@ -143,7 +124,6 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
       'cache',
       'context',
       'cost',
-      'cpu',
       'debug_stream',
       'elapsed',
       'enhance',
@@ -155,7 +135,6 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
       'hint',
       'index',
       'mailbox',
-      'memory',
       'memory_context',
       'mode',
       'model',

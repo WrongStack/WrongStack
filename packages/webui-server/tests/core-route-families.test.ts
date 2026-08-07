@@ -25,6 +25,7 @@ describe('canonical core route families', () => {
       abort: vi.fn(),
       ping: vi.fn(),
       confirmTool: vi.fn(),
+      topicAdvice: vi.fn(),
     };
     const msg = { type, payload: {} };
 
@@ -61,6 +62,7 @@ describe('canonical core route families', () => {
       abort: vi.fn(),
       ping: vi.fn(),
       confirmTool: vi.fn(),
+      topicAdvice: vi.fn(),
     };
     await expect(handleConversationRoute(ws, { type: 'providers.list' }, handlers)).resolves.toBe(
       false,

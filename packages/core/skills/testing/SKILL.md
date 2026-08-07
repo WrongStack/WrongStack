@@ -5,6 +5,9 @@ description: |
   Triggers: user says "test", "unit test", "integration test", "e2e", "mock",
   "vitest", "coverage", "assert", "expect", "test strategy", "write tests".
 version: 1.0.0
+required-capabilities: [filesystem.read, verification.run]
+required-tools: []
+optional-capabilities: [execution.shell]
 ---
 
 # Testing — WrongStack
@@ -157,7 +160,7 @@ coverageThreshold: {
 
 ## WrongStack-specific test notes
 
-- **Subpath exports**: Some packages use `exports` field in `package.json` — tests must use the public entry point, not `dist/`.
+- **Subpath exports**: Some packages define an `exports` field in `package.json` — tests must use the public entry point, not `dist/`.
 - **AbortSignal**: Any test involving timeouts must use `AbortSignal.timeout()` not `setTimeout`.
 - **pnpm workspaces**: Run `pnpm test` in the package root, or `pnpm -r test` for all packages.
 - **Vitest config**: Each package has its own `vitest.config.ts`.

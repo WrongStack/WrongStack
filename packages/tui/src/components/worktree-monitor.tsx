@@ -1,8 +1,7 @@
-import { Box, Text, useInput } from '../ink.js';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
-import type { WorktreeRow } from './worktree-panel.js';
 import {
   EmptyPanelState,
   KeyCap,
@@ -10,7 +9,9 @@ import {
   panelWindow,
   truncatePanelText,
   useMonitorSize,
+  usePanelShortcutsEnabled,
 } from './monitor-shell.js';
+import type { WorktreeRow } from './worktree-panel.js';
 
 const fmtElapsed = (ms: number): string => {
   const s = Math.floor(ms / 1000);
@@ -63,8 +64,12 @@ export function WorktreeMonitor({
 }): React.ReactElement {
   const size = useMonitorSize();
   const [selected, setSelected] = useState(0);
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
-    if (isWorktreeMonitorCloseKey(input, key)) onClose();
+    // Ctrl+W is delete-word-back in the composer; only Esc closes while a
+    // draft is being typed.
+    if (key.escape === true || (shortcutsEnabled && isWorktreeMonitorCloseKey(input, key)))
+      onClose();
     else if (key.upArrow) setSelected((value) => Math.max(0, value - 1));
     else if (key.downArrow) {
       setSelected((value) => Math.min(Math.max(0, recent.length - 1), value + 1));

@@ -1,33 +1,33 @@
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { cn } from '@/lib/utils';
-import { useAppTranslation, i18n } from '@/i18n';
-import { showPanel } from '@/lib/view-navigation';
-import { useMailboxStore, useUIStore } from '@/stores';
 import {
+  Bell,
   CheckCircle2,
-  Mail,
-  MailOpen,
-  MessageSquare,
-  Users,
   Circle,
   FileText,
   HelpCircle,
-  Send,
+  Lock,
+  Mail,
+  MailOpen,
   MailPlus,
-  Bell,
+  MessageSquare,
   RotateCw,
   Search,
-  UserCheck,
-  Trash2,
+  Send,
   Sparkles,
+  Trash2,
+  UserCheck,
+  Users,
   Zap,
-  Lock,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { confirmModal } from './ConfirmModal';
-import { classifyMailboxRecipient } from '@/stores/mailbox-store';
-import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { i18n, useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { showPanel } from '@/lib/view-navigation';
+import { useMailboxStore, useUIStore } from '@/stores';
+import { classifyMailboxRecipient } from '@/stores/mailbox-store';
+import { confirmModal } from './ConfirmModal';
 
 type MailboxComposeType =
   | 'note'
@@ -142,7 +142,7 @@ export function MailboxPanel({ className }: { className?: string }) {
   const selectedMailMessage = useUIStore((s) => s.selectedMailMessage);
   const setSelectedMailMessage = useUIStore((s) => s.setSelectedMailMessage);
 
-  function handleMessageClick(m: typeof messages[number]) {
+  function handleMessageClick(m: (typeof messages)[number]) {
     // Re-clicking the same message deselects and goes back to chat
     if (selectedMailMessage?.id === m.id) {
       setSelectedMailMessage(null);
@@ -177,6 +177,16 @@ export function MailboxPanel({ className }: { className?: string }) {
   useEffect(() => {
     if (deleting && messages.length === 0) setDeleting(false);
   }, [deleting, messages.length]);
+  // Timeout fallback like the purge/compact siblings below: if the clear
+  // fails server-side (or a new message lands before the confirm), the
+  // success condition above never fires and the button stayed disabled
+  // with its spinner forever.
+  useEffect(() => {
+    if (deleting) {
+      const t = setTimeout(() => setDeleting(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [deleting]);
 
   async function handlePurge() {
     const ok = await confirmModal({
@@ -306,7 +316,9 @@ export function MailboxPanel({ className }: { className?: string }) {
                     <select
                       className="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
                       value={composeAudience}
-                      onChange={(event) => setComposeAudience(event.target.value as 'all' | 'leaders')}
+                      onChange={(event) =>
+                        setComposeAudience(event.target.value as 'all' | 'leaders')
+                      }
                     >
                       <option value="all">{t('activity:mailbox.audienceAll')}</option>
                       <option value="leaders">{t('activity:mailbox.audienceLeaders')}</option>
@@ -317,7 +329,9 @@ export function MailboxPanel({ className }: { className?: string }) {
                     <select
                       className="h-7 w-full rounded border border-border bg-background px-2 text-xs text-foreground"
                       value={composePriority}
-                      onChange={(event) => setComposePriority(event.target.value as 'low' | 'normal' | 'high')}
+                      onChange={(event) =>
+                        setComposePriority(event.target.value as 'low' | 'normal' | 'high')
+                      }
                     >
                       <option value="low">{t('activity:mailbox.priorityLow')}</option>
                       <option value="normal">{t('activity:mailbox.priorityNormal')}</option>
@@ -367,7 +381,10 @@ export function MailboxPanel({ className }: { className?: string }) {
                     </span>
                   )}
                   {sendState.phase === 'error' && (
-                    <span className="truncate text-[10px] text-destructive" title={sendState.message}>
+                    <span
+                      className="truncate text-[10px] text-destructive"
+                      title={sendState.message}
+                    >
                       {sendState.message}
                     </span>
                   )}
@@ -420,9 +437,12 @@ export function MailboxPanel({ className }: { className?: string }) {
                   <Zap className="h-3 w-3 shrink-0" />
                   <span>
                     {t('activity:mailbox.compactRemoved', { count: lastCompaction.totalRemoved })}
-                    {lastCompaction.expiredRemoved > 0 && ` (${t('activity:mailbox.compactExpired', { count: lastCompaction.expiredRemoved })})`}
-                    {lastCompaction.readByAllRemoved > 0 && ` (${t('activity:mailbox.compactReadByAll', { count: lastCompaction.readByAllRemoved })})`}
-                    {lastCompaction.stalePurged > 0 && ` (${t('activity:mailbox.compactStale', { count: lastCompaction.stalePurged })})`}
+                    {lastCompaction.expiredRemoved > 0 &&
+                      ` (${t('activity:mailbox.compactExpired', { count: lastCompaction.expiredRemoved })})`}
+                    {lastCompaction.readByAllRemoved > 0 &&
+                      ` (${t('activity:mailbox.compactReadByAll', { count: lastCompaction.readByAllRemoved })})`}
+                    {lastCompaction.stalePurged > 0 &&
+                      ` (${t('activity:mailbox.compactStale', { count: lastCompaction.stalePurged })})`}
                     {' — '}
                     {t('activity:mailbox.compactRemaining', { count: lastCompaction.remaining })}
                   </span>
@@ -432,7 +452,9 @@ export function MailboxPanel({ className }: { className?: string }) {
                 const Icon = TYPE_ICONS[m.type] ?? MessageSquare;
                 const isRead = m.readByCount > 0;
                 const isSelected = selectedMailMessage?.id === m.id;
-                const recipient = m.scope ? { scope: m.scope, recipientSessionId: m.recipientSessionId } : classifyMailboxRecipient(m.to);
+                const recipient = m.scope
+                  ? { scope: m.scope, recipientSessionId: m.recipientSessionId }
+                  : classifyMailboxRecipient(m.to);
                 return (
                   <button
                     type="button"
@@ -444,7 +466,12 @@ export function MailboxPanel({ className }: { className?: string }) {
                       isSelected && 'ring-1 ring-primary bg-primary/5',
                     )}
                   >
-                    <Icon className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', isRead ? 'text-muted-foreground' : 'text-warning')} />
+                    <Icon
+                      className={cn(
+                        'h-3.5 w-3.5 mt-0.5 shrink-0',
+                        isRead ? 'text-muted-foreground' : 'text-warning',
+                      )}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className={cn('font-medium truncate', !isRead && 'text-warning')}>
@@ -457,11 +484,17 @@ export function MailboxPanel({ className }: { className?: string }) {
                             {t('activity:mailbox.leadersLabel')}
                           </span>
                         )}
-                        {!isRead && <span className="text-[9px] text-warning font-bold">{t('activity:mailbox.newLabel')}</span>}
+                        {!isRead && (
+                          <span className="text-[9px] text-warning font-bold">
+                            {t('activity:mailbox.newLabel')}
+                          </span>
+                        )}
                         {recipient.scope === 'session' && (
                           <span
                             className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-semibold bg-warning/12 text-warning"
-                            title={t('activity:mailbox.sessionScopeTitle', { sid: recipient.recipientSessionId ?? '' })}
+                            title={t('activity:mailbox.sessionScopeTitle', {
+                              sid: recipient.recipientSessionId ?? '',
+                            })}
                           >
                             <Lock className="h-2.5 w-2.5" />
                             {t('activity:mailbox.sessionLabel')}
@@ -475,7 +508,8 @@ export function MailboxPanel({ className }: { className?: string }) {
                       </div>
                       <div className="text-muted-foreground truncate">{m.subject}</div>
                       <div className="text-[10px] text-muted-foreground/70 truncate">
-                        {m.body.slice(0, 60)}{m.body.length > 60 ? '…' : ''}
+                        {m.body.slice(0, 60)}
+                        {m.body.length > 60 ? '…' : ''}
                       </div>
                     </div>
                     <div className="shrink-0 text-[10px] text-muted-foreground flex flex-col items-end gap-0.5">
@@ -513,8 +547,16 @@ export function MailboxPanel({ className }: { className?: string }) {
                 <Users className="h-3 w-3" /> {t('activity:nav.agents')}
               </div>
               {agentPage.pageItems.map((a) => (
-                <div key={a.agentId} className="flex items-center gap-1.5 text-[10px] text-muted-foreground py-0.5">
-                  <span className={cn('h-1.5 w-1.5 rounded-full', a.online ? 'bg-success' : 'bg-muted-foreground/30')} />
+                <div
+                  key={a.agentId}
+                  className="flex items-center gap-1.5 text-[10px] text-muted-foreground py-0.5"
+                >
+                  <span
+                    className={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      a.online ? 'bg-success' : 'bg-muted-foreground/30',
+                    )}
+                  />
                   <span className="font-medium text-foreground/80">{a.name}</span>
                   {a.role && <span className="opacity-60">({a.role})</span>}
                   <span className="opacity-50">{a.status}</span>
@@ -532,7 +574,9 @@ export function MailboxPanel({ className }: { className?: string }) {
               />
               {agents.filter((a) => !a.online).length > 0 && (
                 <div className="text-[10px] text-muted-foreground/70 mt-0.5">
-                  {t('activity:mailbox.offlineCount', { count: agents.filter((a) => !a.online).length })}
+                  {t('activity:mailbox.offlineCount', {
+                    count: agents.filter((a) => !a.online).length,
+                  })}
                 </div>
               )}
             </div>

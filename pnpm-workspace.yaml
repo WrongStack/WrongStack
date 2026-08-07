@@ -14,8 +14,10 @@ packages:
   - "website"
 overrides:
   # dompurify <=3.4.10: ALLOWED_ATTR pollution via setConfig (GHSA-cmwh-pvxp-8882).
-  # Pulled in transitively by monaco-editor (webui). Patched in 3.4.11.
-  dompurify: ">=3.4.11"
+  # dompurify <=3.4.12: IN_PLACE hook removal leaves a detached subtree
+  # executable -> XSS (GHSA-55q2-fjhq-7xh7). Patched in 3.4.13.
+  # Pulled in transitively by monaco-editor (webui).
+  dompurify: ">=3.4.13"
   esbuild: "^0.28.1"
   undici-types: "^8.4.0"
   # jsdom@29.1.1 (vitest test env) needs undici's 7.x line (it requires the

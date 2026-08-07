@@ -1,12 +1,9 @@
 import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { classifyToolError } from '../../src/execution/tool-executor.js';
+import { FetchError, ToolValidationError, WrongStackError } from '../../src/types/errors.js';
 import { ToolErrorCategory } from '../../src/types/tool.js';
-import {
-  WrongStackError,
-  FetchError,
-  ToolValidationError,
-} from '../../src/types/errors.js';
+import type { ConfirmAwaiter } from '../../src/types/tool-executor.js';
 
 // ---------------------------------------------------------------------------
 // classifyToolError — exhaustive coverage of every branch
@@ -116,7 +113,12 @@ describe('classifyToolError', () => {
 
   // --- WrongStackError catch-all ---
 
-  function makeWSE(overrides: { severity?: string; recoverable?: boolean; code?: string; subsystem?: string }): WrongStackError {
+  function makeWSE(overrides: {
+    severity?: string;
+    recoverable?: boolean;
+    code?: string;
+    subsystem?: string;
+  }): WrongStackError {
     const err = new WrongStackError({
       message: 'wse',
       code: overrides.code ?? 'SOME_ERROR',
@@ -155,7 +157,12 @@ describe('classifyToolError', () => {
   });
 
   it('includes code and subsystem in detail for WrongStackError', () => {
-    const err = makeWSE({ code: 'FS_ERROR', subsystem: 'fs', recoverable: true, severity: 'warning' });
+    const err = makeWSE({
+      code: 'FS_ERROR',
+      subsystem: 'fs',
+      recoverable: true,
+      severity: 'warning',
+    });
     expect(classifyToolError(err)).toMatchObject({ detail: 'FS_ERROR [fs]' });
   });
 
@@ -186,7 +193,7 @@ describe('classifyToolError', () => {
 // budget edge cases, and error handling scenarios
 // ---------------------------------------------------------------------------
 import type { Context } from '../../src/core/context.js';
-import { ToolExecutor, classifyToolError as _cte } from '../../src/execution/tool-executor.js';
+import { classifyToolError as _cte, ToolExecutor } from '../../src/execution/tool-executor.js';
 import { EventBus, type EventMap } from '../../src/kernel/events.js';
 import type { ToolResultBlock, ToolUseBlock } from '../../src/types/blocks.js';
 import type { PermissionDecision } from '../../src/types/permission.js';
@@ -253,7 +260,10 @@ describe('ToolExecutor — additional coverage', () => {
   const scrubber = { scrub: (s: string) => s };
   const policy = { evaluate: vi.fn().mockResolvedValue(autoPermit()) };
 
-  function makeExecutor(tools: Tool[], opts?: Partial<Parameters<typeof ToolExecutor>[1]>) {
+  function makeExecutor(
+    tools: Tool[],
+    opts?: Partial<ConstructorParameters<typeof ToolExecutor>[1]>,
+  ) {
     const registry = {
       get: (name: string) => tools.find((t) => t.name === name),
       list: () => tools,
@@ -283,7 +293,9 @@ describe('ToolExecutor — additional coverage', () => {
         makeCtx(),
         'sequential',
       );
-      expect((result.outputs[0]!.result as ToolResultBlock).content).toContain('blocked by a PreToolUse hook');
+      expect((result.outputs[0]!.result as ToolResultBlock).content).toContain(
+        'blocked by a PreToolUse hook',
+      );
       expect(tool.execute).not.toHaveBeenCalled();
     });
 
@@ -383,11 +395,7 @@ describe('ToolExecutor — additional coverage', () => {
         preToolUse: vi.fn().mockResolvedValue({ input: originalInput }),
       };
       const executor = makeExecutor([tool], { hookRunner: hookRunner as never });
-      await executor.executeBatch(
-        [makeUse('read', originalInput)],
-        makeCtx(),
-        'sequential',
-      );
+      await executor.executeBatch([makeUse('read', originalInput)], makeCtx(), 'sequential');
       // The same reference input means isDeepStrictEqual is true → skip re-val
       expect(tool.execute).toHaveBeenCalledWith(
         originalInput,
@@ -581,11 +589,15 @@ describe('ToolExecutor — additional coverage', () => {
       const ctrl = new AbortController();
       const ctx = makeCtx();
       ctx.signal = ctrl.signal;
-      const awaiter = vi.fn<(...args: unknown[]) => Promise<string>>().mockImplementation(
+      const awaiter = vi.fn<ConfirmAwaiter>().mockImplementation(
         () => new Promise(() => {}), // never resolves
       );
       const executor = makeExecutor([tool], { confirmAwaiter: awaiter });
-      const promise = executor.executeBatch([makeUse('bash', { command: 'echo' })], ctx, 'sequential');
+      const promise = executor.executeBatch(
+        [makeUse('bash', { command: 'echo' })],
+        ctx,
+        'sequential',
+      );
       ctrl.abort('user interrupt');
       const result = await promise;
       expect((result.outputs[0]!.result as ToolResultBlock).content).toContain('aborted');

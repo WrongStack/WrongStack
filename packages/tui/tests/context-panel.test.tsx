@@ -31,7 +31,15 @@ function breakdown(): ContextBreakdown {
       },
     },
     tools: { total: 12_000, builtin: 7_000, mcp: 5_000, count: 42, mcpByServer: { gmail: 5_000 } },
-    history: { total: 41_000, text: 33_000, toolResults: 8_000, messageCount: 12 },
+    history: {
+      total: 41_000,
+      text: 25_000,
+      toolInputs: 5_000,
+      toolResults: 8_000,
+      thinking: 3_000,
+      other: 0,
+      messageCount: 12,
+    },
     volatile: { ledger: 300, nextsteps: 100, total: 400 },
     total: 83_400,
     effectiveMaxContext: 200_000,
@@ -84,6 +92,8 @@ describe('ContextPanel tabs', () => {
     expect(frame).toContain('Measured breakdown');
     expect(frame).toContain('System');
     expect(frame).toContain('History');
+    expect(frame).toContain('inputs 5.0k');
+    expect(frame).toContain('thinking 3.0k');
     // Overview content is gone once we switch away.
     expect(frame).not.toContain('PRESSURE');
     unmount();
@@ -120,7 +130,7 @@ describe('ContextPanel tabs', () => {
     unmount();
   });
 
-  it('closes on Esc', async () => {
+  it('closes on q and leaves Esc to the central ESC_CLOSE_PANELS table', async () => {
     let closed = false;
     const { stdin, unmount } = render(
       React.createElement(ContextPanel, {
@@ -130,10 +140,16 @@ describe('ContextPanel tabs', () => {
         },
       }),
     );
+    // Esc is deliberately NOT handled by the panel — the central table in
+    // esc-close-panels.ts dispatches toggleContextPanel. Handling it here too
+    // double-fired the toggle and re-opened the panel on a single keypress.
     stdin.write(ESC);
     // A lone ESC must clear ink's escape-sequence disambiguation window before
     // it commits to `key.escape`, so wait a real tick rather than a microtask.
     await new Promise((resolve) => setTimeout(resolve, 40));
+    expect(closed).toBe(false);
+    stdin.write('q');
+    await flush();
     expect(closed).toBe(true);
     unmount();
   });

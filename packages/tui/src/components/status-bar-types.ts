@@ -1,11 +1,10 @@
-import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { EventBus } from '@wrongstack/core/kernel';
+import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { GitInfo } from '../git-info.js';
-import type { HeapSample } from '../heap-watchdog.js';
+import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
 import type { AnimationStyle } from './animation-style.js';
 import type { StatuslineMode } from './settings-picker.js';
 import type { ChipMeta, StatuslineItem } from './statusline-picker.js';
-import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
 export interface TodoCounts {
   pending: number;
   inProgress: number;
@@ -229,10 +228,6 @@ export interface StatusBarProps {
   droppedTools?: number | undefined;
   /** Number of tracked bash/exec processes from the process registry. Currently unused on the rail. */
   processCount?: number | undefined;
-  /** Current RSS/heap sample for this CLI process. */
-  processMemory?: HeapSample | undefined;
-  /** CPU usage percentage (0-100). Derived from process.cpuUsage delta. Currently unused on the rail. */
-  cpuPercent?: number | undefined;
   /** Items to hide from the status bar. Canonical set: {@link StatuslineItem}. */
   hiddenItems?: StatuslineItem[] | undefined;
   /**
@@ -389,4 +384,21 @@ export interface StatusBarProps {
    * the full terminal (e.g. beside a sidebar).
    */
   maxWidth?: number | undefined;
+  /**
+   * When provided, the bar publishes a fresh {@link StatusBarClickMap} on
+   * every render: the 0-based content-line index and column spans of each
+   * clickable chip, derived from the SAME segment nodes PowerlineRail
+   * draws. The app-level mouse handler resolves clicks against this map —
+   * it must never dead-reckon chip columns itself.
+   */
+  clickMapRef?: import('react').MutableRefObject<StatusBarClickMap | null> | undefined;
+}
+
+/** Column spans of clickable status-bar chips, per rendered content line. */
+export interface StatusBarClickMap {
+  lines: Array<{
+    /** 0-based content-line index within the status-bar box (line 1 = 0). */
+    line: number;
+    spans: Array<import('./powerline-rail.js').RailSpan>;
+  }>;
 }

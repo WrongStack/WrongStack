@@ -1,10 +1,13 @@
 import { spawn } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  type MailboxBridgeLock,
+  readLiveLock,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import { readLiveLock, type MailboxBridgeLock } from '@wrongstack/core/coordination';
 
 export interface MailboxBridgeParams {
   projectRoot: string;
@@ -26,9 +29,14 @@ const MAILBOX_BRIDGE_BOOT_TIMEOUT_MS = 5_000;
  * spawn `wstack mailbox serve` and wait briefly for the lock to become
  * healthy. Failure stays non-fatal: the WebUI can run without external
  * agent HTTP connectivity.
+ *
+ * Gated on `features.mailboxBridge`, which defaults to 'off' — the
+ * bridge only serves EXTERNAL agents and no WebUI code path reads the
+ * handle stashed on `ctx.meta`, so a detached ~130 MB CLI process per
+ * project was overhead nobody collected on. Opt in with 'auto'.
  */
 export async function discoverMailboxBridgeForWebui(params: MailboxBridgeParams): Promise<void> {
-  const mode = params.config?.features?.mailboxBridge ?? 'auto';
+  const mode = params.config?.features?.mailboxBridge ?? 'off';
   if (mode === 'off') return;
 
   const projectDir = resolveProjectDir(params.projectRoot, wstackGlobalRoot());

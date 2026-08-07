@@ -2,6 +2,7 @@ import type { State } from './app-reducer.js';
 import type { AgentSwarmPanelMode, Settings } from './app-settings-type.js';
 import { computeSidebarContentWidth, computeSidebarWidth } from './components/sidebar.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
+import { sumSidebarTwinRowCount } from './sidebar-sizing.js';
 import {
   coercePanelPositionMap,
   PANEL_IDS,
@@ -126,8 +127,7 @@ export function buildSidebarOpenFlags(
   return {
     projectPicker: state.projectPicker.open,
     fleet: state.monitorOpen,
-    agents:
-      state.agentsMonitorOpen && effectiveAgentSwarmPanelMode(state, liveSettings) !== 'off',
+    agents: state.agentsMonitorOpen && effectiveAgentSwarmPanelMode(state, liveSettings) !== 'off',
     worktree: state.worktreeMonitorOpen,
     plan: state.planPanelOpen,
     todos: state.todosMonitorOpen,
@@ -252,6 +252,7 @@ function resolveSidebarLayout(
     state.goalKanbanPanelOpen ||
     state.cronMonitorOpen ||
     state.rewindOverlay != null ||
+    state.fallbackOverlay != null ||
     state.shellCommandWarning != null ||
     state.confirmQueue.length > 0 ||
     state.clearConfirm != null ||
@@ -261,6 +262,7 @@ function resolveSidebarLayout(
     state.sendModePicker != null ||
     state.enhance != null ||
     state.enhanceBusy ||
+    state.topicCheckBusy ||
     state.refineCountdown != null ||
     state.refineFailure != null ||
     state.continueConfirm != null ||
@@ -287,17 +289,16 @@ function resolveSidebarLayout(
   const effectiveSwarmOnSidebar =
     panelPositions.fleet === 'sidebar' || (legacySwarmOnSidebar ?? false);
 
-  // Sum the natural-height row estimate for each routed twin currently
-  // mounted above `SidebarContent`. Over-estimating is safe (existing
-  // convention); the scroll-clamp subtracts this from viewportHeight so
-  // the user can't scroll past the rendered content end into blank space.
+  // Sum the conservative natural-height budget for each routed twin mounted
+  // above `SidebarContent`. Worklist twins can wrap at the 16-column floor, so
+  // one global eight-row estimate under-reserves them and makes lower persistent
+  // content unreachable. The per-panel table mirrors each variant's maximum
+  // rendered rows while retaining the existing finite wrap ceiling.
   let sidebarTwinRowCount = 0;
   if (sidebarOpenFlags) {
-    for (const id of PANEL_IDS) {
-      if (routedToSidebar(id) && sidebarOpenFlags[id]) {
-        sidebarTwinRowCount += ESTIMATED_TWIN_HEIGHT;
-      }
-    }
+    sidebarTwinRowCount = sumSidebarTwinRowCount(
+      PANEL_IDS.filter((id) => routedToSidebar(id) && sidebarOpenFlags[id]),
+    );
   }
 
   return {
@@ -311,13 +312,7 @@ function resolveSidebarLayout(
   };
 }
 
-/**
- * Conservative row-height estimate for any routed sidebar twin panel.
- * Each twin renders a 1-row header + a 1-row separator + variable content +
- * optional 1-row footer. 8 rows covers the natural height of the
- * content-rich twins (Todos / Plan / Kanban / Goal / Sessions /
- * Coordinator) without overshooting the simpler ones (Fleet / Worktree /
- * etc.). Over-estimation is safe; the scroll-clamp subtracts this from
- * `viewportHeight`.
- */
-export const ESTIMATED_TWIN_HEIGHT = 8;
+// Per-panel natural-height budgets live in `./sidebar-sizing.js`; import the
+// `SIDEBAR_TWIN_HEIGHT_BY_PANEL` constant and `sumSidebarTwinRowCount()` helper
+// directly from that module. `SIDEBAR_TWIN_MAX_WRAP_LINES` lives in
+// `./ui-contracts.js` next to the routing constants.

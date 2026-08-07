@@ -1,10 +1,11 @@
-import { Box, Text, useInput } from '../ink.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  collectConnectionsHealth,
   type ConnectionHealthService,
   type ConnectionsHealthReport,
+  collectConnectionsHealth,
 } from '../connections-health.js';
+import { Box, Text, useInput } from '../ink.js';
+import { usePanelShortcutsEnabled } from './monitor-shell.js';
 
 /** Refresh interval for auto-updating service status. */
 const REFRESH_MS = 8_000;
@@ -54,7 +55,8 @@ function ServiceRow({ service }: { service: ConnectionHealthService }): React.Re
 
   const metaParts: string[] = [];
   if (service.ownerPid !== undefined) metaParts.push(`PID ${service.ownerPid}`);
-  if (service.clients !== undefined) metaParts.push(`${service.clients} client${service.clients === 1 ? '' : 's'}`);
+  if (service.clients !== undefined)
+    metaParts.push(`${service.clients} client${service.clients === 1 ? '' : 's'}`);
   if (service.activeRequests !== undefined && service.activeRequests > 0) {
     metaParts.push(`${service.activeRequests} active`);
   }
@@ -89,7 +91,10 @@ interface ConnectionsPanelProps {
   onClose: () => void;
 }
 
-export function ConnectionsPanel({ projectRoot, onClose }: ConnectionsPanelProps): React.ReactElement {
+export function ConnectionsPanel({
+  projectRoot,
+  onClose,
+}: ConnectionsPanelProps): React.ReactElement {
   const [report, setReport] = useState<ConnectionsHealthReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,8 +124,13 @@ export function ConnectionsPanel({ projectRoot, onClose }: ConnectionsPanelProps
     };
   }, [fetch]);
 
-  useInput((_input, key) => {
-    if (key.escape || _input === 'q') onClose();
+  const shortcutsEnabled = usePanelShortcutsEnabled();
+  useInput((_input, _key) => {
+    // Esc is owned by the central ESC_CLOSE_PANELS table (esc-close-panels.ts).
+    // Handling it here too double-fires the toggle on one keypress — the panel
+    // closes and immediately re-opens in the same React batch.
+    if (!shortcutsEnabled) return;
+    if (_input === 'q') onClose();
     if (_input === 'r') void fetch();
   });
 
@@ -133,7 +143,14 @@ export function ConnectionsPanel({ projectRoot, onClose }: ConnectionsPanelProps
     : 'Checking…';
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={report ? OVERALL_COLOR[report.overall] : 'gray'} paddingX={1} marginY={0} flexShrink={0}>
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={report ? OVERALL_COLOR[report.overall] : 'gray'}
+      paddingX={1}
+      marginY={0}
+      flexShrink={0}
+    >
       <Box justifyContent="space-between">
         <Box gap={1}>
           <Text bold>Service Connections</Text>

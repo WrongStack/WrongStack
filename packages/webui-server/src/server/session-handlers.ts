@@ -208,6 +208,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     // (empty for a fresh session). Without this a resume cleared the panel.
     ctx.context.state.replaceTodos(todos);
     resetContextAccounting();
+    ctx.context.clearMemoryEvidence?.();
     ctx.context.readFiles.clear();
     ctx.context.fileMtimes.clear();
     ctx.context.state.setMeta?.(
@@ -259,6 +260,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           ctx.context.state.replaceMessages([]);
           ctx.context.state.replaceTodos([]);
           resetContextAccounting();
+          ctx.context.clearMemoryEvidence?.();
           ctx.context.readFiles.clear();
           ctx.context.fileMtimes.clear();
           ctx.tokenCounter.reset?.();
@@ -273,6 +275,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       ctx.context.state.replaceMessages([]);
       ctx.context.state.replaceTodos([]);
       resetContextAccounting();
+      ctx.context.clearMemoryEvidence?.();
       ctx.context.readFiles.clear();
       ctx.context.fileMtimes.clear();
       ctx.tokenCounter.reset?.();

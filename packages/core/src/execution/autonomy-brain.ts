@@ -27,7 +27,6 @@
  *   });
  */
 
-import type { Provider, Usage } from '../types/provider.js';
 import {
   BRAIN_RISK_LEVELS,
   type BrainArbiter,
@@ -41,10 +40,11 @@ import {
   resolveBrainHeuristics,
 } from '../coordination/brain-heuristics.js';
 import { markDecisionTier } from '../coordination/brain-telemetry.js';
-import type { BrainCircuitBreaker } from './brain-circuit.js';
 import type { EventBus } from '../kernel/events.js';
+import type { Provider, ResponseFormat, Usage } from '../types/provider.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
 import { safeParse } from '../utils/safe-json.js';
+import type { BrainCircuitBreaker } from './brain-circuit.js';
 
 /** One (provider, model) pair the Brain may call for a decision. */
 export interface BrainLlmTarget {
@@ -117,7 +117,9 @@ export interface AutonomyBrainOptions {
    * Use this to log decisions into chat history, journal, or status line.
    * Example: "🧠 Brain: skipped deadlocked tasks → continuing with phase 3/5"
    */
-  onDecision?: ((summary: string, decision: BrainDecision, request: BrainDecisionRequest) => void) | undefined;
+  onDecision?:
+    | ((summary: string, decision: BrainDecision, request: BrainDecisionRequest) => void)
+    | undefined;
 }
 
 /** Re-exported under the historical local name; canonical copy lives with `BrainRisk`. */
@@ -249,7 +251,9 @@ export function createTieredBrainArbiter(opts: TieredBrainArbiterOptions): Brain
         policyDecision.type,
         false,
         policyAt,
-        provisionalContinue ? 'provisional continue — forwarded for a real judgement' : 'policy escalated',
+        provisionalContinue
+          ? 'provisional continue — forwarded for a real judgement'
+          : 'policy escalated',
       );
 
       // 'off' resolves to -1, so the comparison below short-circuits every
@@ -257,7 +261,14 @@ export function createTieredBrainArbiter(opts: TieredBrainArbiterOptions): Brain
       const ceilingLevel = resolveRiskCeiling(opts.getMaxAutoRisk?.() ?? 'medium');
       const requestLevel = RISK_LEVELS[request.risk] ?? 2;
       if (requestLevel > ceilingLevel) {
-        trace(request, 'llm', 'skipped', false, policyAt, `risk ${request.risk} exceeds the autonomy ceiling`);
+        trace(
+          request,
+          'llm',
+          'skipped',
+          false,
+          policyAt,
+          `risk ${request.risk} exceeds the autonomy ceiling`,
+        );
         return policyDecision;
       }
 
@@ -287,7 +298,14 @@ export function createTieredBrainArbiter(opts: TieredBrainArbiterOptions): Brain
             );
           }
         } else {
-          trace(request, 'council', 'skipped', false, policyAt, `risk ${request.risk} below the council floor`);
+          trace(
+            request,
+            'council',
+            'skipped',
+            false,
+            policyAt,
+            `risk ${request.risk} below the council floor`,
+          );
         }
       }
 
@@ -308,8 +326,7 @@ export function createTieredBrainArbiter(opts: TieredBrainArbiterOptions): Brain
         if (llmDecision.type === 'deny') {
           const policy = opts.getDenyIsTerminal?.() ?? 'never';
           const kind = readLlmDenyKind(llmDecision);
-          const terminal =
-            policy === 'always' || (policy === 'when-decided' && kind === undefined);
+          const terminal = policy === 'always' || (policy === 'when-decided' && kind === undefined);
           if (terminal) {
             markDecisionTier(request, 'llm');
             trace(request, 'llm', 'deny', true, llmAt, `denyIsTerminal: ${policy}`);
@@ -319,7 +336,14 @@ export function createTieredBrainArbiter(opts: TieredBrainArbiterOptions): Brain
         trace(request, 'llm', llmDecision.type, false, llmAt, 'non-answer discarded by the ladder');
       } catch (err) {
         // LLM layer is best-effort — fall through to the escalation tier.
-        trace(request, 'llm', 'error', false, llmAt, err instanceof Error ? err.message : String(err));
+        trace(
+          request,
+          'llm',
+          'error',
+          false,
+          llmAt,
+          err instanceof Error ? err.message : String(err),
+        );
       }
       // The LLM tier marked itself before we rejected its non-answer; restore
       // the provenance to the decision we are actually returning.
@@ -432,9 +456,8 @@ export function formatDecisionSummary(
   decision: BrainDecision,
   request: BrainDecisionRequest,
 ): string {
-  const question = request.question.length > 80
-    ? request.question.slice(0, 77) + '…'
-    : request.question;
+  const question =
+    request.question.length > 80 ? request.question.slice(0, 77) + '…' : request.question;
 
   if (decision.type === 'deny') {
     return `🧠 Brain: DENIED — "${question}" → ${decision.reason}`;
@@ -474,11 +497,16 @@ export function quickDecide(
   // Deadlock with failed tasks → skip and continue. The context must mention
   // "failed" anchored to a work-unit noun (task, step, job, …) so that
   // incidental mentions like "login failed" don't trigger the fast path.
-  if (h.deadlockSkip && q.includes('deadlock') && /\bfailed\s+(?:task|step|job|build|test|phase|stage|item|unit)s?\b/.test(ctx)) {
+  if (
+    h.deadlockSkip &&
+    q.includes('deadlock') &&
+    /\bfailed\s+(?:task|step|job|build|test|phase|stage|item|unit)s?\b/.test(ctx)
+  ) {
     return {
       type: 'answer',
       text: 'Skip deadlocked tasks and continue with remaining work. Failed tasks will be reported in the final summary.',
-      rationale: 'Heuristic: deadlocked tasks blocked by failed dependencies — skipping unblocks remaining work.',
+      rationale:
+        'Heuristic: deadlocked tasks blocked by failed dependencies — skipping unblocks remaining work.',
     };
   }
 
@@ -559,7 +587,9 @@ export function buildBrainUserMessage(request: BrainDecisionRequest): string {
     `Question: ${request.question}`,
     request.context ? `\nContext:\n${request.context}` : '',
     optionsText,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 /** Append a decision-history digest to a Brain user message (shared shape). */
@@ -617,6 +647,12 @@ export async function completeBrainLlmDetailed(
     user: string;
     timeoutMs: number;
     maxTokens?: number | undefined;
+    /**
+     * Wire-level response format (e.g. json_object). Callers that parse the
+     * response as JSON (the council seats) must pass this through — prompt
+     * wording alone does not put a provider into JSON mode.
+     */
+    responseFormat?: ResponseFormat | undefined;
     signal?: AbortSignal | undefined;
   },
 ): Promise<BrainLlmCallResult> {
@@ -638,6 +674,7 @@ export async function completeBrainLlmDetailed(
       system: [{ type: 'text', text: input.system }],
       messages: [{ role: 'user', content: input.user || 'Decide.' }],
       maxTokens: input.maxTokens ?? DEFAULT_BRAIN_MAX_TOKENS,
+      ...(input.responseFormat ? { responseFormat: input.responseFormat } : {}),
     },
     { signal },
   );
@@ -755,9 +792,7 @@ async function llmDecide(
         durationMs: Date.now() - startedAt,
         // A truncated response is a quality problem, not a transport one —
         // surface it rather than letting a half-sentence become a decision.
-        ...(result.stopReason === 'max_tokens'
-          ? { error: 'response truncated at maxTokens' }
-          : {}),
+        ...(result.stopReason === 'max_tokens' ? { error: 'response truncated at maxTokens' } : {}),
         ...(trace.content ? { responseText: text } : {}),
         ...(result.usage ? { usage: result.usage } : {}),
         at: Date.now(),
@@ -812,7 +847,8 @@ async function llmDecide(
   const minConfidence = quality?.minConfidence ?? 0;
   const rejectUncertain = quality?.rejectUncertain ?? true;
   const confidence = extractConfidence(text);
-  const belowConfidence = minConfidence > 0 && confidence !== undefined && confidence < minConfidence;
+  const belowConfidence =
+    minConfidence > 0 && confidence !== undefined && confidence < minConfidence;
 
   if (request.options?.length) {
     const parsed = parseOptionDecision(text, request.options);

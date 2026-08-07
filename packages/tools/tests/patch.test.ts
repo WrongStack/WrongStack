@@ -171,20 +171,26 @@ describe('patchTool — bookkeeping on every outcome', () => {
     await fs.writeFile(file, 'line1\n');
     const { ctx, changes } = makeTrackingCtx();
 
-    await patchTool.execute(
+    const result = await patchTool.execute(
       {
-        patch:
-          '--- a/gone.txt\n' +
-          '+++ /dev/null\n' +
-          '@@ -1 +0,0 @@\n' +
-          '-line1\n',
+        patch: '--- a/gone.txt\n' + '+++ /dev/null\n' + '@@ -1 +0,0 @@\n' + '-line1\n',
       },
       ctx,
       makeOpts(),
     );
 
+    // Assert against the recorded actions rather than a bare `toBeDefined()`:
+    // this has failed intermittently under full-suite load, and the bare form
+    // reported only "expected undefined to be defined" — which cannot
+    // distinguish "GNU patch left the file in place" (bookkeeping records
+    // 'modified', or nothing at all when the content is byte-identical) from
+    // "the target was never resolved". The actions plus patch's own stdout
+    // name the branch that ran.
     const deletion = changes.find((c) => c.action === 'deleted');
-    expect(deletion).toBeDefined();
+    expect(
+      changes.map((c) => c.action),
+      `patch reported: ${JSON.stringify(result)}`,
+    ).toContain('deleted');
     expect(deletion?.before).toBe('line1\n');
     expect(path.resolve(deletion!.path)).toBe(path.resolve(file));
   });

@@ -136,11 +136,7 @@ describe('renderMarkdownTables', () => {
 
   it('emoji column width matches header width', () => {
     // The emoji column should be as wide as the header column, not just wide enough for the emoji.
-    const input = [
-      '| Status |',
-      '|--------|',
-      '| ✅     |',
-    ].join('\n');
+    const input = ['| Status |', '|--------|', '| ✅     |'].join('\n');
     const out = renderMarkdownTables(input, 60);
     const lines = out.split('\n');
     console.log('Emoji single column:');
@@ -168,9 +164,8 @@ describe('renderMarkdownTables', () => {
   });
 
   it('prevents -> ligature from misaligning table borders', () => {
-    // In Fira Code / Cascadia Code / JetBrains Mono, `->` renders as a
-    // single-width → glyph, collapsing 2 character positions into 1 visual
-    // column. breakLigatures inserts U+200B to prevent the ligature.
+    // Use a measured separator rather than a zero-width code point: Ink's
+    // output grid allocates a cell even for U+200B while Yoga does not.
     const input = [
       '| Pattern  | Value |',
       '|----------|-------|',
@@ -182,20 +177,45 @@ describe('renderMarkdownTables', () => {
     // Every line (borders + data) must have identical visual width.
     const widths = new Set(lines.map((l) => strWidth(l)));
     expect(widths.size).toBe(1);
-    // The cell containing a->b must have a zero-width space breaking the ligature.
+    // The cell containing a->b must have a measured space breaking the ligature.
     const arrowRow = lines.find((l) => l.includes('a') && l.includes('b'))!;
-    expect(arrowRow).toContain('\u200B');
+    expect(arrowRow).toContain('- >');
   });
 
   it('prevents arrow chain ligatures in cells', () => {
-    const input = [
-      '| Chain |',
-      '|-------|',
-      '| a->b=>c |',
-    ].join('\n');
+    const input = ['| Chain |', '|-------|', '| a->b=>c |'].join('\n');
     const out = renderMarkdownTables(input, 60);
-    // Both ligature pairs must be broken.
-    const count = (out.match(/\u200B/g) ?? []).length;
-    expect(count).toBe(2);
+    expect(out).not.toContain('a->b');
+    expect(out).not.toContain('b=>c');
+    expect(out).toContain('a- >b=');
+    expect(out).toContain('>c');
+  });
+
+  it('normalizes tabs and terminal controls before laying out table cells', () => {
+    const input = [
+      '| Status | Value |',
+      '|--------|-------|',
+      '| PASS\tNOW | a->b\x1b[40Cspill |',
+    ].join('\n');
+    const out = renderMarkdownTables(input, 40);
+    expect(out).not.toMatch(/[\t\r\x1b]/);
+    expect(out).toContain('PASS  NOW');
+    expect(out).not.toContain('a->b');
+    expect(out).toContain('a-');
+    expect(out).toContain('>bspill');
+    expect(new Set(out.split('\n').map(strWidth)).size).toBe(1);
+  });
+
+  it('falls back to bounded stacked rows when column chrome cannot fit', () => {
+    const input = [
+      '| A | B | C | D | E | F |',
+      '|---|---|---|---|---|---|',
+      '| one | two | three | four | five | six |',
+    ].join('\n');
+    const out = renderMarkdownTables(input, 24);
+    expect(out).toContain('A: one');
+    expect(out).toContain('F: six');
+    expect(out).not.toContain('│');
+    expect(out.split('\n').every((line) => strWidth(line) <= 24)).toBe(true);
   });
 });

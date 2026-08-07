@@ -132,6 +132,16 @@ export const COUNCIL_CONCURRENCY: BrainOption[] = [
   { value: '5', label: '5' },
 ];
 
+/** Per-seat output budget. Default 2000 — reasoning models think from this budget. */
+export const VOTER_MAX_TOKENS: BrainOption[] = [
+  { value: 'default', labelKey: 'settings:brainOpt.default' },
+  { value: '500', label: '500' },
+  { value: '1000', label: '1000' },
+  { value: '2000', label: '2000' },
+  { value: '4000', label: '4000' },
+  { value: '8000', label: '8000' },
+];
+
 export const JUDGE_MAX_TOKENS: BrainOption[] = [
   { value: 'default', labelKey: 'settings:brainOpt.default' },
   { value: '200', label: '200' },

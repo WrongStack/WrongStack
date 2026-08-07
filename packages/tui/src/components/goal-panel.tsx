@@ -1,8 +1,8 @@
-import { Box, Text, useInput } from '../ink.js';
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { theme } from '../theme.js';
 import type { GoalSummary } from '../app-state.js';
+import { Box, Text, useInput } from '../ink.js';
+import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import {
   EmptyPanelState,
@@ -11,6 +11,7 @@ import {
   panelWindow,
   truncatePanelText,
   useMonitorSize,
+  usePanelShortcutsEnabled,
 } from './monitor-shell.js';
 
 export interface GoalPanelProps {
@@ -40,14 +41,15 @@ export function GoalPanel({
     setSelectedDeliverable((value) => Math.min(value, Math.max(0, deliverableCount - 1)));
   }, [deliverableCount]);
   // Keyboard shortcuts for coordinator control (called before early returns so hooks always fire)
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
-    if (input === 'c' || input === 'C') {
+    if (shortcutsEnabled && (input === 'c' || input === 'C')) {
       if (onCoordinatorStart && goal) {
         const goalText = goal.refinedGoal || goal.goal;
         onCoordinatorStart(goalText);
       }
     }
-    if (input === 'S') {
+    if (shortcutsEnabled && input === 'S') {
       if (onCoordinatorStop) {
         onCoordinatorStop();
       }

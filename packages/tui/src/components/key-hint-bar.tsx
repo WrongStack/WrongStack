@@ -1,6 +1,6 @@
-import { Box, Text } from '../ink.js';
-import { useEffect, useState } from 'react';
 import type React from 'react';
+import { useEffect, useState } from 'react';
+import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
 
 /** Which interactive context is active — drives which shortcuts the bar shows.
@@ -31,7 +31,10 @@ export const IDLE_MESSAGES: readonly Hint[] = [
   { key: '', label: '★ star us on GitHub!' },
   { key: '', label: 'visit wrongstack.com' },
   { key: '', label: 'press ? for help' },
-  { key: '', label: 'Ctrl+B toggles the sidebar' },
+  // Ctrl+B opens the SDD board (app-key-handler.ts); the sidebar is
+  // focused with Shift+Tab. This entry used to claim Ctrl+B toggles the
+  // sidebar, teaching users a wrong binding every 10 seconds.
+  { key: '', label: 'Shift+Tab focuses the sidebar' },
 ] as const;
 
 /** Returns true when no interactive context is active (idle / chat). */

@@ -12,6 +12,9 @@ description: |
   wants the fixes actually applied, that is bug-hunter or security-scanner, not
   this skill — but review first, then hand off.
 version: 2.0.0
+required-capabilities: [filesystem.read, code.inspect]
+required-tools: []
+optional-capabilities: [version-control.manage]
 ---
 
 # Chimera — Post-Session Code Guardian

@@ -1,10 +1,7 @@
 import * as path from 'node:path';
-import {
-  makeSubagentResultTool,
-  type FleetWorktreePolicy,
-} from '@wrongstack/core/coordination';
-import type { Config, SubagentConfig, TaskSpec, Tool } from '@wrongstack/core/types';
+import { type FleetWorktreePolicy, makeSubagentResultTool } from '@wrongstack/core/coordination';
 import { ToolCapabilities, WIDE_SUBAGENT_CAPABILITIES } from '@wrongstack/core/security';
+import type { Config, SubagentConfig, TaskSpec, Tool } from '@wrongstack/core/types';
 import { makePreferSideConflictResolver } from '@wrongstack/sdd';
 
 type AgentAvailability = NonNullable<SubagentConfig['availability']>;
@@ -136,12 +133,19 @@ export function selectSubagentTools(
   const allowSet = new Set(allow);
   const result = new Map<string, Tool>();
   for (const tool of allTools) {
-    if (allowSet.has(tool.name) && !NEVER_SUBAGENT_TOOLS.has(tool.name)) result.set(tool.name, tool);
+    if (allowSet.has(tool.name) && !NEVER_SUBAGENT_TOOLS.has(tool.name))
+      result.set(tool.name, tool);
   }
   for (const name of allowSet) {
     if (NEVER_SUBAGENT_TOOLS.has(name)) continue;
     const directorTool = directorToolsByName.get(name);
     if (directorTool && !result.has(name)) result.set(name, directorTool);
+  }
+  const missing = [...allowSet].filter(
+    (name) => !NEVER_SUBAGENT_TOOLS.has(name) && !result.has(name),
+  );
+  if (missing.length > 0) {
+    throw new Error(`Subagent tool contract is not registered: ${missing.sort().join(', ')}`);
   }
   result.set('submit_result', makeSubagentResultTool());
   return Array.from(result.values());

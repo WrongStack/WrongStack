@@ -12,6 +12,8 @@ description: |
   it does not perform the refactor. Use it before touching code, and when a
   refactor already in flight has lost its ordering.
 version: 2.0.0
+required-capabilities: [filesystem.read, code.inspect, work.plan]
+required-tools: []
 ---
 
 # Refactor Planner — WrongStack

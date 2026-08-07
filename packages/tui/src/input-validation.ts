@@ -51,8 +51,8 @@
  *   ONE place so the allowed set is auditable.
  */
 
-import { MAX_TOOL_STREAM_RETAINED_CHARS } from './reducers/helpers.js';
 import { TUI_CHECKPOINTS_MAX_ENTRIES } from './checkpoint-retention.js';
+import { measureDepth, normalizeActionType } from './input-validation/action-helpers.js';
 import { ALLOWED_ACTION_TYPES } from './input-validation/action-types.js';
 import {
   ALLOWED_AUTONOMY_MODES,
@@ -74,8 +74,8 @@ import {
   MAX_INPUT_BUFFER_CHARS,
   MAX_PICKER_MATCHES,
 } from './input-validation/limits.js';
-import { measureDepth, normalizeActionType } from './input-validation/action-helpers.js';
 import type { ValidationResult } from './input-validation/result.js';
+import { MAX_TOOL_STREAM_RETAINED_CHARS } from './reducers/helpers.js';
 
 export {
   ALLOWED_ACTION_TYPES,
@@ -117,13 +117,13 @@ export type {
   ValidationOk,
   ValidationResult,
 } from './input-validation/result.js';
+export { validateFleetEntry, validateRestoreEntry } from './input-validation/state-entries.js';
 export {
   validateKeyEventFields,
   validateMouseEvent,
   validatePasteContent,
   validateStdinFragment,
 } from './input-validation/terminal.js';
-export { validateFleetEntry, validateRestoreEntry } from './input-validation/state-entries.js';
 
 // -- Action validation ---------------------------------------------------
 
@@ -225,7 +225,10 @@ export function validateAction(action: {
     case 'replaceEntry': {
       const id = Number(action.id);
       if (!Number.isInteger(id) || id < 0) {
-        return { valid: false, error: `replaceEntry.id: ${action.id} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `replaceEntry.id: ${action.id} is not a non-negative integer.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -258,7 +261,10 @@ export function validateAction(action: {
     case 'setViewportRows': {
       const rows = Number(action.rows);
       if (!Number.isInteger(rows) || rows < 0) {
-        return { valid: false, error: `setViewportRows.rows: ${action.rows} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `setViewportRows.rows: ${action.rows} is not a non-negative integer.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -304,7 +310,10 @@ export function validateAction(action: {
     case 'modelPickerSelect': {
       const idx = Number(action.index);
       if (!Number.isInteger(idx) || idx < 0) {
-        return { valid: false, error: `modelPickerSelect.index: ${action.index} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `modelPickerSelect.index: ${action.index} is not a non-negative integer.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -312,7 +321,10 @@ export function validateAction(action: {
     case 'projectPickerSelect': {
       const idx = Number(action.selected);
       if (!Number.isInteger(idx) || idx < 0) {
-        return { valid: false, error: `projectPickerSelect.selected: ${action.selected} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `projectPickerSelect.selected: ${action.selected} is not a non-negative integer.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -450,7 +462,10 @@ export function validateAction(action: {
     case 'setEffectiveMaxContext': {
       const ctx = Number(action.value);
       if (!Number.isInteger(ctx) || ctx < 0 || ctx > 10_000_000) {
-        return { valid: false, error: `setEffectiveMaxContext.value: ${action.value} out of range [0, 10_000_000].` };
+        return {
+          valid: false,
+          error: `setEffectiveMaxContext.value: ${action.value} out of range [0, 10_000_000].`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -488,7 +503,10 @@ export function validateAction(action: {
     case 'setAnimationStyle': {
       const style = String(action.style ?? '');
       if (style.length > 50) {
-        return { valid: false, error: `setAnimationStyle.style: length ${style.length} exceeds 50.` };
+        return {
+          valid: false,
+          error: `setAnimationStyle.style: length ${style.length} exceeds 50.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -584,11 +602,17 @@ export function validateAction(action: {
     case 'goalRunPhaseUpdate': {
       const completed = Number(action.completedTasks);
       if (!Number.isInteger(completed) || completed < 0) {
-        return { valid: false, error: `goalRunPhaseUpdate.completedTasks: ${completed} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `goalRunPhaseUpdate.completedTasks: ${completed} is not a non-negative integer.`,
+        };
       }
       const total = Number(action.totalTasks);
       if (!Number.isInteger(total) || total < 0) {
-        return { valid: false, error: `goalRunPhaseUpdate.totalTasks: ${total} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `goalRunPhaseUpdate.totalTasks: ${total} is not a non-negative integer.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -653,7 +677,10 @@ export function validateAction(action: {
     case 'collabSessionDone': {
       const verdict = String(action.verdict ?? '');
       if (!ALLOWED_COLLAB_VERDICTS.has(verdict)) {
-        return { valid: false, error: `collabSessionDone.verdict: "${verdict}" not on allow-list.` };
+        return {
+          valid: false,
+          error: `collabSessionDone.verdict: "${verdict}" not on allow-list.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -670,15 +697,24 @@ export function validateAction(action: {
     case 'debugStreamStats': {
       const chunkCount = Number(action.chunkCount);
       if (!Number.isInteger(chunkCount) || chunkCount < 0) {
-        return { valid: false, error: `debugStreamStats.chunkCount: ${chunkCount} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `debugStreamStats.chunkCount: ${chunkCount} is not a non-negative integer.`,
+        };
       }
       const lastChunkSize = Number(action.lastChunkSize);
       if (!Number.isInteger(lastChunkSize) || lastChunkSize < 0) {
-        return { valid: false, error: `debugStreamStats.lastChunkSize: ${lastChunkSize} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `debugStreamStats.lastChunkSize: ${lastChunkSize} is not a non-negative integer.`,
+        };
       }
       const totalBytes = Number(action.totalBytes);
       if (!Number.isInteger(totalBytes) || totalBytes < 0) {
-        return { valid: false, error: `debugStreamStats.totalBytes: ${totalBytes} is not a non-negative integer.` };
+        return {
+          valid: false,
+          error: `debugStreamStats.totalBytes: ${totalBytes} is not a non-negative integer.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -687,7 +723,10 @@ export function validateAction(action: {
     case 'countdownTick': {
       const remaining = Number(action.remainingSeconds);
       if (!Number.isFinite(remaining) || remaining < 0) {
-        return { valid: false, error: `countdownTick.remainingSeconds: ${remaining} is not a non-negative number.` };
+        return {
+          valid: false,
+          error: `countdownTick.remainingSeconds: ${remaining} is not a non-negative number.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -707,7 +746,10 @@ export function validateAction(action: {
         return { valid: false, error: 'sessionsPanelSet.sessions: not an array.' };
       }
       if (sessions.length > 200) {
-        return { valid: false, error: `sessionsPanelSet.sessions: ${sessions.length} exceeds max 200.` };
+        return {
+          valid: false,
+          error: `sessionsPanelSet.sessions: ${sessions.length} exceeds max 200.`,
+        };
       }
       return { valid: true, value: payload };
     }
@@ -715,6 +757,13 @@ export function validateAction(action: {
     case 'sessionsPanelBusy': {
       if (typeof action.on !== 'boolean') {
         return { valid: false, error: 'sessionsPanelBusy.on: not a boolean.' };
+      }
+      return { valid: true, value: payload };
+    }
+
+    case 'topicCheckBusy': {
+      if (typeof action.on !== 'boolean') {
+        return { valid: false, error: 'topicCheckBusy.on: not a boolean.' };
       }
       return { valid: true, value: payload };
     }

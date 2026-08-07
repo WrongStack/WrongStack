@@ -3,11 +3,7 @@
  * Type-only imports from @wrongstack/kanban keep this browser-safe.
  */
 
-import type {
-  KanbanBoard,
-  KanbanTask,
-  KanbanVerificationCheckResult,
-} from '@wrongstack/kanban';
+import type { KanbanBoard, KanbanTask, KanbanVerificationCheckResult } from '@wrongstack/kanban';
 
 export type TaskVerificationState =
   | 'unverified'
@@ -138,6 +134,15 @@ export function buildTaskTree(board: KanbanBoard): TaskTreeNode[] {
     if (parent) continue;
     if (visited.has(task.id)) continue;
     roots.push(build(task, 0));
+  }
+  // Orphan sweep. A ONE-WAY parent link (the child names a parent whose
+  // childTaskIds doesn't name it back) or a parent cycle leaves tasks
+  // unreachable from any root: not a root (parent resolves) and never
+  // visited as a child. They used to vanish from the tree entirely — a
+  // board with 12 tasks rendered 8 — which reads as lost work. Surface
+  // them as extra roots; the visited set keeps cycles from hanging.
+  for (const task of board.tasks) {
+    if (!visited.has(task.id)) roots.push(build(task, 0));
   }
   return roots;
 }

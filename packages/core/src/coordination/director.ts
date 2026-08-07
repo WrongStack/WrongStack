@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
+import { renderInstructionLayer } from '../core/instruction-template.js';
 import { DirectorStateCheckpoint, type DirectorStateSnapshot } from '../storage/director-state.js';
 import type { BridgeMessage } from '../types/agent-bridge.js';
 import type { Logger } from '../types/logger.js';
@@ -14,22 +15,23 @@ import type { SessionWriter } from '../types/session.js';
 import type { Tool } from '../types/tool.js';
 import { toErrorMessage } from '../utils/error.js';
 import { safeStringify } from '../utils/safe-json.js';
+import { InMemoryAgentBridge } from './agent-bridge.js';
 import {
   acquireCheckpointLock as acquireDirectorCheckpointLock,
   appendSessionEvent as appendDirectorSessionEvent,
+  type DirectorCheckpointHost,
   resumeFromCheckpoint as resumeDirectorFromCheckpoint,
   scheduleManifest as scheduleDirectorManifest,
   setCheckpointState as setDirectorCheckpointState,
   writeManifest as writeDirectorManifest,
-  type DirectorCheckpointHost,
 } from './checkpoint-wiring.js';
-import { InMemoryAgentBridge } from './agent-bridge.js';
 import type { CollabDebugReport, CollabSessionOptions } from './collab-debug.js';
 import { DirectorBtwNotes } from './director/director-btw-notes.js';
 import { DirectorBudgetPolicy } from './director/director-budget-policy.js';
 import { DirectorCollabController } from './director/director-collab.js';
 import { FleetSpawnBudgetError } from './director/director-errors.js';
 import { DirectorTaskRegistry } from './director/director-task-registry.js';
+import { buildDirectorToolset } from './director/director-toolset.js';
 import type { DirectorOptions } from './director-options.js';
 import {
   composeDirectorPrompt,
@@ -38,24 +40,26 @@ import {
   DEFAULT_SUBAGENT_BASELINE,
   rosterSummaryFromConfigs,
 } from './director-prompts.js';
-import { buildDirectorToolset } from './director/director-toolset.js';
+import {
+  type DirectorSubagentSessionSummary,
+  readDirectorSubagentSession,
+} from './director-session.js';
+import { resolveDirectorSpawnModel } from './director-spawn-model.js';
 import { FleetBus, type FleetUsage, FleetUsageAggregator } from './fleet-bus.js';
 import type { FleetManager } from './fleet-manager.js';
 import { type DirectorFleetHost, spawn as fleetSpawn, type ManifestEntry } from './fleet-spawn.js';
 import type { ICoordinator } from './icoordinator.js';
 import { InMemoryBridgeTransport } from './in-memory-transport.js';
 import { LargeAnswerStore } from './large-answer-store.js';
-import { resolveDirectorSpawnModel } from './director-spawn-model.js';
 import type { ModelMatrixSource } from './model-matrix.js';
 import { DefaultMultiAgentCoordinator } from './multi-agent-coordinator.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 import { resolveMaxSpawnDepth } from './spawn-budget.js';
 import { nicknameKeyFromDisplay } from './subagent-nicknames.js';
-import { type WorktreeTaskStateUpdate, wrapSubagentRunnerWithWorktrees } from './worktree-task-runner.js';
 import {
-  readDirectorSubagentSession,
-  type DirectorSubagentSessionSummary,
-} from './director-session.js';
+  type WorktreeTaskStateUpdate,
+  wrapSubagentRunnerWithWorktrees,
+} from './worktree-task-runner.js';
 
 export {
   FleetContextOverflowError,
@@ -63,8 +67,8 @@ export {
   FleetSpawnBudgetError,
   FleetTokenCapError,
 } from './director/director-errors.js';
-export type { ModelMatrixSource } from './model-matrix.js';
 export type { DirectorOptions, TaskResultNotification } from './director-options.js';
+export type { ModelMatrixSource } from './model-matrix.js';
 
 export class Director implements DirectorFleetHost, ICoordinator {
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars — just a cast helper */
@@ -352,8 +356,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
             durationMs: r.durationMs,
           }),
         ).catch(() => {});
-      } catch {
-      }
+      } catch {}
     }
     const failed = r.status !== 'success';
     const errorString = r.error ? `${r.error.kind}: ${r.error.message}` : undefined;
@@ -519,7 +522,6 @@ export class Director implements DirectorFleetHost, ICoordinator {
       logger: this.logger,
     });
   }
-
 
   async ask<T = unknown>(subagentId: string, payload: unknown, timeoutMs?: number): Promise<T> {
     if (!this.subagentBridges.has(subagentId)) {
@@ -806,7 +808,12 @@ export class Director implements DirectorFleetHost, ICoordinator {
 
   subagentSystemPrompt(config: SubagentConfig, taskBrief?: string): string {
     return composeSubagentPrompt({
-      baseline: this.subagentBaseline,
+      baseline: renderInstructionLayer(this.subagentBaseline, {
+        toolNames: new Set(config.tools ?? []),
+        tier: 'off',
+        subagent: true,
+        strictToolReferences: true,
+      }),
       role: config.prompt,
       task: taskBrief,
       sharedScratchpad: this.sharedScratchpadPath ?? undefined,

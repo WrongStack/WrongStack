@@ -27,10 +27,8 @@
  * @module mailbox-types
  */
 
-import {
-  MAILBOX_TYPE_PROPERTIES,
-  type MailboxMessageType,
-} from './mailbox-type-properties.js';
+import { MAILBOX_TYPE_PROPERTIES, type MailboxMessageType } from './mailbox-type-properties.js';
+
 export {
   MAILBOX_TYPE_PROPERTIES,
   type MailboxMessageType,
@@ -273,6 +271,12 @@ export interface MailboxSessionAffinityContext {
  *    compatibility).
  * 6. Otherwise drop (`false`).
  *
+ * PR #314 guard contract: presence checks intentionally use strict
+ * `!== undefined` comparisons for both the affinity token and its optional
+ * fields. Do not simplify them to nullish checks: malformed persisted `null`
+ * values must remain on the token-bearing path and fail closed in the shape
+ * guard rather than being treated as absent.
+ *
  * Trust note: the filter accepts the sender-asserted `sessionAffinity.sessionId`
  * without store cross-check (rule 3). The persisted-report fallback (rule 4)
  * is the only server-side check. A sender that fabricates both an affinity
@@ -418,9 +422,7 @@ export function acceptMailboxMessageForSessionSync(
  */
 export function validateSendType(type: MailboxMessageType, to: string): void {
   if (type === 'control') {
-    throw new TypeError(
-      'Type "control" is reserved for runtime use and cannot be set by agents',
-    );
+    throw new TypeError('Type "control" is reserved for runtime use and cannot be set by agents');
   }
   const isMultiRecipient = to === '*' || to.startsWith('@session:');
   if (type === 'assign' && isMultiRecipient) {
@@ -1198,7 +1200,8 @@ export function isMailboxReceiptRecordV2(value: unknown): value is MailboxReceip
   // from entering typed receipt-folding code (e.g. completed:"false" truthy string).
   if ('read' in v && typeof v['read'] !== 'boolean') return false;
   if ('completed' in v && typeof v['completed'] !== 'boolean') return false;
-  if ('outcome' in v && v['outcome'] !== undefined && typeof v['outcome'] !== 'string') return false;
+  if ('outcome' in v && v['outcome'] !== undefined && typeof v['outcome'] !== 'string')
+    return false;
   return true;
 }
 

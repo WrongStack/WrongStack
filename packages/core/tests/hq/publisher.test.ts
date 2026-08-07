@@ -38,6 +38,11 @@ describe('HqPublisher connect-failure diagnostics', () => {
       project,
       reconnectBaseMs: 1,
       reconnectMaxMs: 2,
+      // Pin the threshold default explicitly and opt out of the process-wide
+      // cooldown so this test stays order-independent: it asserts the
+      // per-instance one-shot contract, while the cooldown has its own test.
+      connectWarnAfterFailures: 5,
+      connectWarnCooldownMs: 0,
       warn,
       socketFactory: () => {
         throw new Error('connect refused');
@@ -54,6 +59,55 @@ describe('HqPublisher connect-failure diagnostics', () => {
     expect(message).toContain('http://127.0.0.1:9');
     expect(message).toContain('client token present');
     publisher.close();
+  });
+
+  it('suppresses duplicate connect-failure warnings process-wide until the cooldown window elapses', () => {
+    vi.useFakeTimers();
+    // Jump the faked clock past any warning emitted earlier in this file so
+    // THIS test owns the module-level cooldown baseline.
+    vi.setSystemTime(new Date(Date.now() + 5 * 60_000 + 1_000));
+
+    const makeFailingPublisher = (warn: (message: string) => void) =>
+      new HqPublisher({
+        url: 'http://127.0.0.1:9',
+        token: 'some-token',
+        client,
+        project,
+        reconnectBaseMs: 1,
+        reconnectMaxMs: 2,
+        warn,
+        socketFactory: () => {
+          throw new Error('connect refused');
+        },
+      });
+
+    const warnA = vi.fn();
+    const warnB = vi.fn();
+    const publisherA = makeFailingPublisher(warnA);
+    publisherA.connect();
+    // Reconnect delays 1,2,2,2 → 5 failures at fake t+7ms → first warning of
+    // the process (default 5-minute cooldown window is cold at this point).
+    vi.advanceTimersByTime(7);
+    expect(warnA).toHaveBeenCalledTimes(1);
+
+    // A second instance failing identically inside the window is suppressed:
+    // its 5th failure crosses the threshold, but the module-level cooldown
+    // (shared across all instances in this process) holds it back.
+    const publisherB = makeFailingPublisher(warnB);
+    publisherB.connect();
+    vi.advanceTimersByTime(100);
+    expect(warnB).not.toHaveBeenCalled();
+    expect(warnA).toHaveBeenCalledTimes(1);
+
+    // Once the window elapses, B (still failing, never marked done) emits its
+    // single diagnostic; A stays one-shot.
+    vi.advanceTimersByTime(5 * 60_000 + 1_000);
+    expect(warnB).toHaveBeenCalledTimes(1);
+    expect(warnA).toHaveBeenCalledTimes(1);
+
+    publisherA.close();
+    publisherB.close();
+    vi.useRealTimers();
   });
 
   it('stays silent while connections succeed', async () => {

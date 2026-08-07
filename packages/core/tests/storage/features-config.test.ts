@@ -31,14 +31,14 @@ describe('Config.features defaults', () => {
       modelsRegistry: true,
       skills: true,
       prompts: true,
-      // Default is 'auto' — the prompt builder resolves it to a concrete tier
-      // from the model's context window (cache-safe, per session). Non-prompt
-      // consumers treat 'auto' as 'off', so tools/lazy-load are unchanged.
+      // Default is 'auto' — the prompt builder resolves it from the model's
+      // context window; consumers without that context use the medium baseline.
       tokenSavingMode: 'auto',
       // Zero-config must be CONFINED. This assertion previously pinned `true`,
       // which locked in the insecure default rather than catching it (WS-075).
       allowOutsideProjectRoot: false,
     });
+    expect(cfg.skills?.mode).toBe('progressive');
   });
 
   it('zero-config filesystem confinement is on, and both halves agree', async () => {

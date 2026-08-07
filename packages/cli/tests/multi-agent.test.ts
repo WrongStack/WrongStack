@@ -117,6 +117,21 @@ function makeDeps(): MultiAgentDeps {
   };
 }
 
+function registerShadowHostTools(deps: MultiAgentDeps): void {
+  for (const name of ['mailbox', 'mail_inbox', 'mail_send']) {
+    deps.toolRegistry.register({
+      name,
+      description: '',
+      inputSchema: { type: 'object' },
+      permission: 'auto',
+      mutating: false,
+      async execute() {
+        return 'ok';
+      },
+    });
+  }
+}
+
 describe('MultiAgentHost', () => {
   it('accepts a project-created generic role through spawn_subagent', async () => {
     const os = await import('node:os');
@@ -354,6 +369,7 @@ describe('MultiAgentHost', () => {
     mocked.mockClear();
 
     const deps = makeDeps();
+    registerShadowHostTools(deps);
     (deps.configStore.get as ReturnType<typeof vi.fn>).mockReturnValue({
       provider: 'openai',
       model: 'gpt-5',
@@ -391,6 +407,7 @@ describe('MultiAgentHost', () => {
 
   it('defers a problem-triggered shadow pass until the next work window finishes', async () => {
     const deps = makeDeps();
+    registerShadowHostTools(deps);
     const host = new MultiAgentHost(deps);
     await host.promoteToDirector();
 
@@ -932,9 +949,11 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
     // Construction registers at least one mailbox-related agent hook on the
     // subagent's Context (heartbeat, awareness, HQ, auto-compact). Capture
     // the pre-dispose count as a positive baseline.
-    const agentHooksBefore = (built.agent.ctx as unknown as {
-      agentHooks: { size: number };
-    }).agentHooks.size;
+    const agentHooksBefore = (
+      built.agent.ctx as unknown as {
+        agentHooks: { size: number };
+      }
+    ).agentHooks.size;
     expect(agentHooksBefore).toBeGreaterThan(0);
 
     await built.dispose?.();
@@ -942,9 +961,11 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
     // After dispose the Context's agentHooks Set must be empty — drainAgentHooks
     // pops every entry and clears the set. A non-zero count means at least
     // one hook was not invoked (timers / subscriptions / HQ socket still alive).
-    const agentHooksAfter = (built.agent.ctx as unknown as {
-      agentHooks: { size: number };
-    }).agentHooks.size;
+    const agentHooksAfter = (
+      built.agent.ctx as unknown as {
+        agentHooks: { size: number };
+      }
+    ).agentHooks.size;
     expect(agentHooksAfter).toBe(0);
   });
 
@@ -963,9 +984,11 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
     await built3.dispose?.();
 
     for (const built of [built1, built2, built3]) {
-      const remaining = (built.agent.ctx as unknown as {
-        agentHooks: { size: number };
-      }).agentHooks.size;
+      const remaining = (
+        built.agent.ctx as unknown as {
+          agentHooks: { size: number };
+        }
+      ).agentHooks.size;
       expect(remaining).toBe(0);
     }
   });

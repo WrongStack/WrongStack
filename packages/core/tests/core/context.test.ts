@@ -1,8 +1,8 @@
 import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { Context, resolveEventSessionId } from '../../src/core/context.js';
-import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import type { Provider, SessionWriter, TextBlock } from '../../src/index.js';
+import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 
 const fakeProvider = {} as Provider;
 const fakeSession: SessionWriter = {
@@ -34,6 +34,23 @@ describe('Context', () => {
     expect(ctx.todos).toEqual([]);
     expect(ctx.readFiles.size).toBe(0);
     expect(ctx.meta).toEqual({});
+  });
+
+  it('replaces and bounds provider memory evidence by source', () => {
+    const ctx = mkContext();
+
+    ctx.setMemoryEvidence('sage.tool-memory', ' first ');
+    ctx.setMemoryEvidence('other', 'second');
+    ctx.setMemoryEvidence('sage.tool-memory', 'x'.repeat(20), 5);
+
+    expect(ctx.memoryEvidence).toEqual([
+      { source: 'other', text: 'second' },
+      { source: 'sage.tool-memory', text: 'xxxxx' },
+    ]);
+    ctx.clearMemoryEvidence('other');
+    expect(ctx.memoryEvidence).toEqual([{ source: 'sage.tool-memory', text: 'xxxxx' }]);
+    ctx.clearMemoryEvidence();
+    expect(ctx.memoryEvidence).toEqual([]);
   });
 
   describe('run-pinned event session id', () => {
@@ -90,10 +107,12 @@ describe('Context', () => {
         toolUseId: 'tool-1',
       });
 
-      expect(oldAppend).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'file_event',
-        sessionId: 'old',
-      }));
+      expect(oldAppend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'file_event',
+          sessionId: 'old',
+        }),
+      );
       expect(newAppend).not.toHaveBeenCalled();
       expect(ctx.fileEvents.at(-1)?.sessionId).toBe('old');
     });
@@ -302,7 +321,10 @@ describe('Context.onWorkingDirChanged', () => {
 
     let newDir = '';
     let oldDir = '';
-    ctx.onWorkingDirChanged((n, o) => { newDir = n; oldDir = o; });
+    ctx.onWorkingDirChanged((n, o) => {
+      newDir = n;
+      oldDir = o;
+    });
 
     ctx.setWorkingDir('/proj/src');
     expect(newDir).toBe(path.resolve('/proj/src'));
@@ -322,7 +344,9 @@ describe('Context.onWorkingDirChanged', () => {
     });
 
     let called = false;
-    const unsub = ctx.onWorkingDirChanged(() => { called = true; });
+    const unsub = ctx.onWorkingDirChanged(() => {
+      called = true;
+    });
 
     // Unsubscribe before the change
     unsub();
@@ -344,8 +368,12 @@ describe('Context.onWorkingDirChanged', () => {
     });
 
     let count = 0;
-    ctx.onWorkingDirChanged(() => { count++; });
-    ctx.onWorkingDirChanged(() => { count++; });
+    ctx.onWorkingDirChanged(() => {
+      count++;
+    });
+    ctx.onWorkingDirChanged(() => {
+      count++;
+    });
 
     ctx.setWorkingDir('/proj/src');
     expect(count).toBe(2);
@@ -364,8 +392,12 @@ describe('Context.onWorkingDirChanged', () => {
     });
 
     let secondCalled = false;
-    ctx.onWorkingDirChanged(() => { throw new Error('boom'); });
-    ctx.onWorkingDirChanged(() => { secondCalled = true; });
+    ctx.onWorkingDirChanged(() => {
+      throw new Error('boom');
+    });
+    ctx.onWorkingDirChanged(() => {
+      secondCalled = true;
+    });
 
     // Should not throw — errors are swallowed
     expect(() => ctx.setWorkingDir('/proj/src')).not.toThrow();

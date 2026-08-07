@@ -76,7 +76,12 @@ describe('atomicUpdate stamp-failure branch', () => {
     const real = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
 
     // Every 'wx' lock open returns a handle whose stamp writeFile rejects.
-    vi.mocked(fsp.open).mockImplementation(async (filePath: string, flags?: string) => {
+    // Signature mirrors `fsp.open`'s (PathLike, string | number, Mode) overload
+    // — narrowing it to `string` no longer matches the mocked type.
+    vi.mocked(fsp.open).mockImplementation((async (
+      filePath: Parameters<typeof fsp.open>[0],
+      flags?: Parameters<typeof fsp.open>[1],
+    ) => {
       if (flags === 'wx') {
         const handle = await real.open(filePath, flags);
         const fake = Object.create(handle) as typeof handle;
@@ -84,7 +89,7 @@ describe('atomicUpdate stamp-failure branch', () => {
         return fake;
       }
       return real.open(filePath, flags as string);
-    });
+    }) as typeof fsp.open);
 
     await expect(
       reg.register({

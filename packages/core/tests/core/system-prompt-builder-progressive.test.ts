@@ -11,7 +11,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultSystemPromptBuilder, type SkillLoader } from '../../src/index.js';
 
 function mkSkillLoader(
-  skills: Array<{ name: string; trigger?: string; body?: string }>,
+  skills: Array<{
+    name: string;
+    trigger?: string;
+    body?: string;
+    requiredCapabilities?: string[];
+    requiredTools?: string[];
+  }>,
 ): SkillLoader {
   const byName = new Map(skills.map((s) => [s.name, s]));
   return {
@@ -19,6 +25,8 @@ function mkSkillLoader(
       skills.map((s) => ({
         name: s.name,
         description: s.trigger ?? '',
+        requiredCapabilities: s.requiredCapabilities,
+        requiredTools: s.requiredTools,
         path: `/mock/${s.name}`,
         source: 'bundled' as const,
       })),
@@ -32,7 +40,12 @@ function mkSkillLoader(
       })),
     find: async (name: string) =>
       byName.has(name)
-        ? { name, description: byName.get(name)!.trigger ?? '', path: `/mock/${name}`, source: 'bundled' as const }
+        ? {
+            name,
+            description: byName.get(name)!.trigger ?? '',
+            path: `/mock/${name}`,
+            source: 'bundled' as const,
+          }
         : undefined,
     manifestText: async () => '',
     readBody: async (name: string) => byName.get(name)?.body ?? '',
@@ -84,6 +97,62 @@ describe('DefaultSystemPromptBuilder — progressive skill mode', () => {
     ]);
     const prompt = await build({ skills: loader }); // no skillMode → eager
     expect(prompt).toContain('DOCKER RULES BODY');
+  });
+
+  it('lists a progressive skill only when its required catalog capability exists', async () => {
+    const loader = mkSkillLoader([
+      {
+        name: 'browser-workflow',
+        trigger: 'Drive a browser.',
+        requiredCapabilities: ['browser.interact'],
+      },
+    ]);
+    const builder = new DefaultSystemPromptBuilder({
+      todayIso: '2026-07-01',
+      skillLoader: loader,
+      skillMode: 'progressive',
+    });
+    const direct = [{ name: 'read', description: 'read' }] as never;
+    const withoutBrowser = await builder.build({
+      cwd: tmp,
+      projectRoot: tmp,
+      tools: direct,
+      catalogTools: direct,
+    });
+    expect(withoutBrowser.map((block) => block.text).join('\n')).not.toContain('browser-workflow');
+
+    const catalog = [...direct, { name: 'browser_open', description: 'browser' }] as never;
+    const withBrowser = await builder.build({
+      cwd: tmp,
+      projectRoot: tmp,
+      tools: direct,
+      catalogTools: catalog,
+    });
+    expect(withBrowser.map((block) => block.text).join('\n')).toContain('browser-workflow');
+  });
+
+  it('lists a progressive skill only when every exact required tool is registered', async () => {
+    const loader = mkSkillLoader([
+      {
+        name: 'exact-browser-workflow',
+        trigger: 'Drive a browser.',
+        requiredCapabilities: ['browser.interact'],
+        requiredTools: ['browser_open', 'browser_click'],
+      },
+    ]);
+    const builder = new DefaultSystemPromptBuilder({
+      todayIso: '2026-07-01',
+      skillLoader: loader,
+      skillMode: 'progressive',
+    });
+    const partialCatalog = [{ name: 'browser_open', description: 'browser' }] as never;
+    const partial = await builder.build({
+      cwd: tmp,
+      projectRoot: tmp,
+      tools: partialCatalog,
+      catalogTools: partialCatalog,
+    });
+    expect(partial.map((block) => block.text).join('\n')).not.toContain('exact-browser-workflow');
   });
 });
 

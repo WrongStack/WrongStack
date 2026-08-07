@@ -18,27 +18,36 @@
 // computeMaxSidebarScroll() in reducers/workspace-panels.ts — keep the two in
 // sync when changing the layout.
 
+import type { TodoItem } from '@wrongstack/core/agent';
+import type { ContextBreakdown } from '@wrongstack/core/utils';
+import type React from 'react';
 import type { ResumeSessionEntry } from '../app-state.js';
 import type { FleetEntry } from '../app-state-fleet.js';
-import type { TodoItem } from '@wrongstack/core/agent';
-import type React from 'react';
+import type { HeapSample } from '../heap-watchdog.js';
 import { Box, Text } from '../ink.js';
 import { displayWidth } from '../terminal-width.js';
-import { blockMeter, contextBarColor, fmtTok } from './status-bar-format.js';
-import type { LiveSessionEntry } from './sessions-panel.js';
+import { pastel, theme } from '../theme.js';
 import { SIDEBAR_MISSION_ROWS } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
-import { pastel, theme } from '../theme.js';
+import type { LiveSessionEntry } from './sessions-panel.js';
+import {
+  blockMeter,
+  contextBarColor,
+  dialGlyph,
+  fmtMemory,
+  fmtTok,
+  sparkline,
+} from './status-bar-format.js';
 
 export interface SidebarContentProps {
   /** Live context window data from useStatusbarViewModel. */
   contextWindow: { used: number; max: number } | undefined;
+  /** Honest per-category accounting behind the context window display. */
+  contextBreakdown?: ContextBreakdown | undefined;
   /** Fleet entries (leader + subagents) from useStatusbarViewModel. */
   entries: Record<string, FleetEntry>;
   /** Fleet counts summary. */
-  fleetCounts:
-    | { running: number; idle: number; pending: number; completed: number }
-    | undefined;
+  fleetCounts: { running: number; idle: number; pending: number; completed: number } | undefined;
   /** Current provider label for display. */
   provider?: string | undefined;
   /** Current model label for display. */
@@ -63,6 +72,18 @@ export interface SidebarContentProps {
   resumeSessions?: readonly ResumeSessionEntry[] | undefined;
   /** The current session ID — used to highlight the active session row. */
   currentSessionId?: string | undefined;
+  /** Current RSS/heap sample for this CLI process. */
+  processMemory?: HeapSample | undefined;
+  /** CPU usage percentage (0-100). Derived from process.cpuUsage delta. */
+  cpuPercent?: number | undefined;
+  /** Recent CPU ratios (0-1, oldest → newest) for the trend sparkline. */
+  cpuHistory?: readonly number[] | undefined;
+  /** Recent RSS/totalMem ratios (0-1) for the trend sparkline. */
+  rssHistory?: readonly number[] | undefined;
+  /** Recent heap-pressure ratios (0-1) for the trend sparkline. */
+  heapHistory?: readonly number[] | undefined;
+  /** Total physical RAM in bytes — denominator of the RAM ratio. */
+  totalMem?: number | undefined;
 }
 
 /** Truncate a string to fit within `max` display columns, adding an ellipsis. */
@@ -241,6 +262,103 @@ function Card({
   );
 }
 
+interface ContextSegment {
+  label: string;
+  shortLabel: string;
+  tokens: number;
+  color: string;
+  glyph: string;
+}
+
+export function contextSpectrum(
+  breakdown: ContextBreakdown | undefined,
+  contextWindow: { used: number; max: number } | undefined,
+  width: number,
+): Array<ContextSegment & { cells: number }> {
+  if (!contextWindow || width <= 0) return [];
+  const max = Math.max(1, contextWindow.max);
+  const used = Math.min(max, Math.max(0, contextWindow.used));
+  const measured = breakdown
+    ? [
+        {
+          label: 'System',
+          shortLabel: 'SYS',
+          tokens: breakdown.system.total,
+          color: pastel.peach,
+          glyph: '◆',
+        },
+        {
+          label: 'Tools',
+          shortLabel: 'TLS',
+          tokens: breakdown.tools.total,
+          color: theme.accent,
+          glyph: '◇',
+        },
+        {
+          label: 'History',
+          shortLabel: 'HST',
+          tokens: breakdown.history.total,
+          color: theme.brand,
+          glyph: '●',
+        },
+        {
+          label: 'Volatile',
+          shortLabel: 'VOL',
+          tokens: breakdown.volatile.total,
+          color: theme.warn,
+          glyph: '◈',
+        },
+      ]
+    : [
+        {
+          label: 'Used',
+          shortLabel: 'USE',
+          tokens: used,
+          color: contextBarColor(used / max),
+          glyph: '●',
+        },
+      ];
+  const measuredTotal = measured.reduce((sum, segment) => sum + segment.tokens, 0);
+  const scale = measuredTotal > used && measuredTotal > 0 ? used / measuredTotal : 1;
+  const normalized = measured.map((segment) => ({
+    ...segment,
+    tokens: Math.max(0, Math.round(segment.tokens * scale)),
+  }));
+  const normalizedTotal = normalized.reduce((sum, segment) => sum + segment.tokens, 0);
+  if (normalizedTotal < used) {
+    normalized.push({
+      label: 'Other',
+      shortLabel: 'DELTA',
+      tokens: used - normalizedTotal,
+      color: theme.textSecondary,
+      glyph: '△',
+    });
+  }
+  normalized.push({
+    label: 'Free',
+    shortLabel: 'FREE',
+    tokens: Math.max(0, max - used),
+    color: theme.borderDefault,
+    glyph: '·',
+  });
+  const spectrumTotal = Math.max(
+    1,
+    normalized.reduce((sum, segment) => sum + segment.tokens, 0),
+  );
+  const rawCells = normalized.map((segment) => (segment.tokens / spectrumTotal) * width);
+  const cells = rawCells.map(Math.floor);
+  let remainder = Math.max(0, width - cells.reduce((sum, count) => sum + count, 0));
+  const order = rawCells
+    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+    .sort((a, b) => b.fraction - a.fraction);
+  for (const item of order) {
+    if (remainder <= 0) break;
+    cells[item.index] = (cells[item.index] ?? 0) + 1;
+    remainder--;
+  }
+  return normalized.map((segment, index) => ({ ...segment, cells: cells[index] ?? 0 }));
+}
+
 interface MissionRow {
   id: string;
   status: TodoItem['status'];
@@ -272,8 +390,59 @@ function buildMissionRows(
   return { rows, overflow: ordered.length - shown.length, done, total };
 }
 
+/**
+ * A labeled system-vitals row: morphing dial glyph + right-aligned trend
+ * sparkline. Replaces the old block meter — still exactly one row per
+ * metric, so the SYSTEM card keeps its 5-row budget in
+ * computeMaxSidebarScroll(). The dial and value are colored by the *current*
+ * load via contextBarColor; the sparkline traces the recent history in the
+ * same heat color (latest sample at the right edge).
+ */
+function DialRow({
+  label,
+  value,
+  ratio,
+  history,
+  innerWidth,
+}: {
+  label: string;
+  value: string;
+  ratio: number;
+  history?: readonly number[] | undefined;
+  innerWidth: number;
+}): React.ReactElement {
+  const color = contextBarColor(ratio);
+  // Fixed chrome: label, dial, value, 3 single-space separators, and one gap
+  // before the right-aligned sparkline. Every remaining column is a sparkline
+  // cell; below 3 cells the sparkline is dropped (narrowest sidebars still
+  // get dial + value).
+  const sparkW = innerWidth - displayWidth(label) - displayWidth(value) - 4;
+  const spark = sparkW >= 3 ? sparkline(history ?? [], sparkW) : '';
+  return (
+    <Box flexDirection="row" width={innerWidth}>
+      <Text color={theme.textSecondary} bold>
+        {label}
+      </Text>
+      <Text> </Text>
+      <Text color={color}>{dialGlyph(ratio)}</Text>
+      <Text> </Text>
+      <Text color={color} bold>
+        {value}
+      </Text>
+      {spark ? (
+        <>
+          <Box flexGrow={1} />
+          <Text> </Text>
+          <Text color={color}>{spark}</Text>
+        </>
+      ) : null}
+    </Box>
+  );
+}
+
 export function SidebarContent({
   contextWindow,
+  contextBreakdown,
   entries,
   fleetCounts,
   provider,
@@ -286,33 +455,34 @@ export function SidebarContent({
   liveSessions,
   resumeSessions,
   currentSessionId,
+  processMemory,
+  cpuPercent,
+  cpuHistory,
+  rssHistory,
+  heapHistory,
+  totalMem,
 }: SidebarContentProps): React.ReactElement {
   // Subtract border (2) + padding (2) = 4 cols of chrome to get content area
   const innerWidth = Math.max(8, width - 4);
 
   // Context meter
-  const ctxRatio = contextWindow
-    ? Math.min(1, contextWindow.used / contextWindow.max)
-    : 0;
+  const ctxRatio = contextWindow ? Math.min(1, contextWindow.used / contextWindow.max) : 0;
   const ctxColor = contextBarColor(ctxRatio);
   const ctxPct = Math.round(ctxRatio * 100);
   const meter = blockMeter(ctxRatio, innerWidth);
+  const spectrum = contextSpectrum(contextBreakdown, contextWindow, innerWidth);
+  const modelIdentity = provider && model ? `${provider}/${model}` : (model ?? provider);
 
   // Fleet entries: show leader first, then running subagents.
   // Cap at 12 agents total (leader + up to 11 subagents), each rendered
   // as a 2-line row (name+ctx% on line 1, status+tool on line 2).
   const MAX_SIDEBAR_AGENTS = 12;
   const allEntries = Object.values(entries);
-  const leader = allEntries.find(
-    (e) => e.id === 'leader' || e.name === 'Leader Agent',
-  );
+  const leader = allEntries.find((e) => e.id === 'leader' || e.name === 'Leader Agent');
   const subagents = allEntries.filter((e) => e !== leader);
   const runningSubagents = subagents.filter((e) => e.status === 'running');
   const agentCap = leader ? MAX_SIDEBAR_AGENTS - 1 : MAX_SIDEBAR_AGENTS;
-  const shownAgents = [
-    ...(leader ? [leader] : []),
-    ...runningSubagents.slice(0, agentCap),
-  ];
+  const shownAgents = [...(leader ? [leader] : []), ...runningSubagents.slice(0, agentCap)];
   const hiddenAgentCount = runningSubagents.length - agentCap;
 
   const running = fleetCounts?.running ?? runningSubagents.length;
@@ -325,11 +495,7 @@ export function SidebarContent({
     : { rows: [] as MissionRow[], overflow: 0, done: 0, total: 0 };
 
   return (
-    <Box
-      flexDirection="column"
-      gap={0}
-      marginTop={scrollOffset > 0 ? -scrollOffset : undefined}
-    >
+    <Box flexDirection="column" gap={0} marginTop={scrollOffset > 0 ? -scrollOffset : undefined}>
       {/* ── Focus indicator ── */}
       {focused ? (
         <Box width={innerWidth} marginBottom={1}>
@@ -340,43 +506,118 @@ export function SidebarContent({
         </Box>
       ) : null}
 
-      {/* ── Context card: big % + block meter + token count ── */}
+      {/* ── Model + context hero: the statusbar identity, elevated into a stage. ── */}
       <Card innerWidth={innerWidth}>
-        <SectionHeader
-          glyph={glyphs.context}
-          label="CONTEXT"
-          color={pastel.peach}
-          badge={contextWindow ? `${ctxPct}%` : '—'}
-          badgeColor={ctxColor}
-          innerWidth={innerWidth}
-        />
+        <Box width={innerWidth}>
+          <Text color={theme.accent} bold>
+            ╼╼
+          </Text>
+          <Text color={theme.brand} bold>
+            {' '}
+            MODEL CORE{' '}
+          </Text>
+          <Text color={theme.accent} bold>
+            {'╾'.repeat(Math.max(0, innerWidth - 14))}
+          </Text>
+        </Box>
+        {modelIdentity ? (
+          <Box flexDirection="column">
+            <Text color={theme.textMuted} wrap="truncate">
+              {provider
+                ? `◈ ${trunc(provider.toUpperCase(), Math.max(1, innerWidth - 2))}`
+                : '◈ ACTIVE'}
+            </Text>
+            <Text color={theme.textPrimary} bold wrap="truncate">
+              {trunc(modelIdentity, innerWidth)}
+            </Text>
+          </Box>
+        ) : null}
+        <Box width={innerWidth}>
+          <Text color={ctxColor} bold>
+            {contextWindow ? `${String(ctxPct).padStart(3, '0')}%` : ' — '}
+          </Text>
+          <Text color={theme.textMuted}>{innerWidth >= 18 ? ' CONTEXT LOAD' : ' CTX LOAD'}</Text>
+        </Box>
         {contextWindow ? (
           <>
             <Box>
               <Text color={ctxColor}>{meter.filled}</Text>
               <Text color={theme.borderSubtle}>{meter.empty}</Text>
             </Box>
+            <Box width={innerWidth}>
+              {spectrum.map((segment) => (
+                <Text key={segment.shortLabel} color={segment.color}>
+                  {(segment.shortLabel === 'FREE' ? '·' : '━').repeat(segment.cells)}
+                </Text>
+              ))}
+            </Box>
             <Text color={theme.textMuted} wrap="truncate">
               {fmtTok(contextWindow.used)} / {fmtTok(contextWindow.max)} tokens
             </Text>
+            {spectrum.map((segment) => {
+              if (segment.shortLabel === 'FREE' && segment.tokens <= 0) return null;
+              const pct = Math.round((segment.tokens / Math.max(1, contextWindow.max)) * 100);
+              return (
+                <Box key={segment.shortLabel} width={innerWidth}>
+                  <Text color={segment.color}>
+                    {segment.glyph} {segment.shortLabel}
+                  </Text>
+                  <Box flexGrow={1} />
+                  <Text color={theme.textSecondary}>{fmtTok(segment.tokens)}</Text>
+                  <Text color={theme.textMuted}> {pct}%</Text>
+                </Box>
+              );
+            })}
           </>
         ) : (
-          <Text color={theme.textMuted}>—</Text>
+          <Text color={theme.textMuted}>awaiting context telemetry</Text>
         )}
       </Card>
 
-      {/* ── Model card ── */}
-      {provider && model ? (
+      {/* ── System vitals: CPU, RAM, heap — relocated from the statusline ── */}
+      {processMemory || cpuPercent != null ? (
         <Card innerWidth={innerWidth}>
           <SectionHeader
-            glyph={glyphs.tools}
-            label="MODEL"
-            color={theme.brand}
+            glyph={glyphs.cpu}
+            label="SYSTEM"
+            color={theme.textSecondary}
+            badge={cpuPercent != null ? `${cpuPercent.toFixed(0)}%` : undefined}
+            badgeColor={cpuPercent != null ? contextBarColor(cpuPercent / 100) : undefined}
             innerWidth={innerWidth}
           />
-          <Text color={theme.textSecondary} wrap="truncate">
-            {trunc(`${provider}/${model}`, innerWidth)}
-          </Text>
+          {cpuPercent != null ? (
+            <DialRow
+              label="CPU"
+              value={`${cpuPercent.toFixed(0)}%`}
+              ratio={cpuPercent / 100}
+              history={cpuHistory}
+              innerWidth={innerWidth}
+            />
+          ) : null}
+          {processMemory ? (
+            <>
+              <DialRow
+                label="RAM"
+                value={fmtMemory(processMemory.rss)}
+                // RSS is the process's whole resident set — ratio it against
+                // physical RAM, not the V8 heap limit (HeapSample.load).
+                ratio={
+                  totalMem && totalMem > 0
+                    ? Math.min(1, processMemory.rss / totalMem)
+                    : processMemory.load
+                }
+                history={rssHistory}
+                innerWidth={innerWidth}
+              />
+              <DialRow
+                label="HEAP"
+                value={fmtMemory(processMemory.heapUsed)}
+                ratio={processMemory.load}
+                history={heapHistory}
+                innerWidth={innerWidth}
+              />
+            </>
+          ) : null}
         </Card>
       ) : null}
 
@@ -393,10 +634,7 @@ export function SidebarContent({
           />
           <Box>
             <Text color={running > 0 ? theme.success : theme.textMuted}>▎</Text>
-            <Text
-              color={running > 0 ? theme.textSecondary : theme.textMuted}
-              wrap="truncate"
-            >
+            <Text color={running > 0 ? theme.textSecondary : theme.textMuted} wrap="truncate">
               {running > 0 ? ` ${running} running` : ' idle'}
             </Text>
           </Box>
@@ -404,11 +642,13 @@ export function SidebarContent({
             const { icon, color } = statusGlyph(entry);
             const isRunning = entry.status === 'running';
             const name = trunc(entry.name || entry.id, innerWidth - 8);
-            const ctxPctAgent =
-              entry.ctxPct != null ? `${Math.round(entry.ctxPct * 100)}%` : '';
-            const statusLabel = entry.status === 'running' ? 'running'
-              : entry.status === 'idle' ? 'idle'
-              : entry.status;
+            const ctxPctAgent = entry.ctxPct != null ? `${Math.round(entry.ctxPct * 100)}%` : '';
+            const statusLabel =
+              entry.status === 'running'
+                ? 'running'
+                : entry.status === 'idle'
+                  ? 'idle'
+                  : entry.status;
             const tool = entry.currentTool?.name
               ? trunc(entry.currentTool.name, innerWidth - statusLabel.length - 6)
               : '';
@@ -427,9 +667,7 @@ export function SidebarContent({
                   </Text>
                   <Box flexGrow={1} />
                   {ctxPctAgent ? (
-                    <Text color={contextBarColor(entry.ctxPct ?? 0)}>
-                      {ctxPctAgent}
-                    </Text>
+                    <Text color={contextBarColor(entry.ctxPct ?? 0)}>{ctxPctAgent}</Text>
                   ) : null}
                 </Box>
                 {/* Line 2: status + current tool, aligned beneath identity. */}
@@ -458,9 +696,7 @@ export function SidebarContent({
             label="MISSIONS"
             color={theme.warn}
             badge={`${mission.done}/${mission.total}`}
-            badgeColor={
-              mission.done === mission.total ? theme.success : theme.warn
-            }
+            badgeColor={mission.done === mission.total ? theme.success : theme.warn}
             innerWidth={innerWidth}
           />
           {mission.rows.map((m) => {
@@ -515,10 +751,7 @@ export function SidebarContent({
           {liveSessions && liveSessions.length > 0 ? (
             <Box flexDirection="column">
               {liveSessions.slice(0, 3).map((s) => {
-                const isCurrent = isCurrentSession(
-                  s.sessionId,
-                  currentSessionId,
-                );
+                const isCurrent = isCurrentSession(s.sessionId, currentSessionId);
                 const icon = isCurrent ? '●' : liveSessionIcon(s.status);
                 const color = liveSessionColor(s.status);
                 const name = trunc(s.projectName, innerWidth - 6);
@@ -542,21 +775,11 @@ export function SidebarContent({
 
           {/* Resume sessions (/resume) */}
           {resumeSessions && resumeSessions.length > 0 ? (
-            <Box
-              flexDirection="column"
-              marginTop={liveSessions && liveSessions.length > 0 ? 1 : 0}
-            >
+            <Box flexDirection="column" marginTop={liveSessions && liveSessions.length > 0 ? 1 : 0}>
               {resumeSessions.slice(0, 3).map((rs) => {
-                const isCurrent = isCurrentSession(
-                  rs.id,
-                  currentSessionId,
-                  rs.isCurrent,
-                );
+                const isCurrent = isCurrentSession(rs.id, currentSessionId, rs.isCurrent);
                 const badge = outcomeBadge(rs.outcome);
-                const title = trunc(
-                  rs.title || rs.lastUserMessage || rs.id,
-                  innerWidth - 8,
-                );
+                const title = trunc(rs.title || rs.lastUserMessage || rs.id, innerWidth - 8);
                 const rel = fmtRelative(rs.lastActivityAt ?? rs.endedAt);
                 return (
                   <Box key={rs.id} flexDirection="row">

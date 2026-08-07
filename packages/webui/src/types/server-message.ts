@@ -85,6 +85,7 @@ import type {
   WSToolConfirmNeeded,
   WSToolLoopDetected,
   WSToolsList,
+  WSTopicAdviceResult,
   WSTrustPersisted,
 } from './runtime.js';
 import type {
@@ -130,8 +131,8 @@ import type {
   WSProviderModels,
   WSProviderProbe,
   WSSavedProviders,
-  WSSessionsList,
   WSSessionInspect,
+  WSSessionsList,
   WSSideEffects,
   WSStatsGet,
   WSTodosCleared,
@@ -176,6 +177,7 @@ export type WSServerMessage =
   | WSContextEditorValidation
   | WSContextEditorApplied
   | WSContextPct
+  | WSTopicAdviceResult
   | WSContextMaxContext
   | WSTokenThreshold
   | WSTokenCostEstimateUnavailable

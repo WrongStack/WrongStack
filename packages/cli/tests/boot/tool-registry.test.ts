@@ -41,6 +41,7 @@ function makeFakeToolRegistry() {
         // helper calls register(tool) with a tool instance.
         calls.push({ kind: 'single', toolName: '<tool>', isDefault: false });
       }),
+      setProviderToolNames: vi.fn(),
     },
     calls,
   };

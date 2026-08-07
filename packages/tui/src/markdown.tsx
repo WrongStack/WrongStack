@@ -1,6 +1,7 @@
-import { Box, Text } from './ink.js';
 import type React from 'react';
+import { Box, Text } from './ink.js';
 import { detectTable, renderTable } from './markdown-table.js';
+import { sanitizeTerminalText, truncateDisplay } from './terminal-width.js';
 import { theme } from './theme.js';
 
 // Lightweight markdown renderer for assistant prose. Handles inline emphasis
@@ -157,7 +158,11 @@ export function parseInline(text: string): InlineToken[] {
       let urlEnd = i + 8;
       while (urlEnd < text.length) {
         const c = text[urlEnd];
-        const urlChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._~:/?#@!" + String.fromCharCode(36) + String.fromCharCode(38) + "+,;=-%[]()'*";
+        const urlChars =
+          'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._~:/?#@!' +
+          String.fromCharCode(36) +
+          String.fromCharCode(38) +
+          "+,;=-%[]()'*";
         if (c !== undefined && urlChars.includes(c)) {
           urlEnd++;
         } else {
@@ -188,7 +193,13 @@ export function parseInline(text: string): InlineToken[] {
   return tokens;
 }
 
-function InlineLine({ tokens, dim }: { tokens: InlineToken[]; dim?: boolean | undefined }): React.ReactElement {
+function InlineLine({
+  tokens,
+  dim,
+}: {
+  tokens: InlineToken[];
+  dim?: boolean | undefined;
+}): React.ReactElement {
   if (tokens.length === 0) return <Text> </Text>;
   return (
     <Text>
@@ -246,14 +257,14 @@ export function MarkdownView({
   /** Width available for tables. Defaults to `contentWidth ?? termWidth`. */
   tableWidth?: number | undefined;
 }): React.ReactElement {
-  const lines = text.split('\n');
+  const lines = sanitizeTerminalText(text).split('\n');
   const rows: React.ReactNode[] = [];
   let i = 0;
   let key = 0;
   // Tables are the only width-sensitive path here; size them to the real
   // content area so a 2-col-chrome border (assistant panel) doesn't push
   // the last cell off the right edge and force an Ink wrap.
-  const tableBudget = Math.max(20, tableWidth ?? contentWidth ?? termWidth);
+  const tableBudget = Math.max(1, tableWidth ?? contentWidth ?? termWidth);
   while (i < lines.length) {
     // GitHub table block → existing renderer.
     const tableEnd = detectTable(lines, i);
@@ -291,9 +302,13 @@ export function MarkdownView({
             // Box-drawing characters inside blockquotes also need transparent
             // background to avoid inheriting the message panel background.
             <Box flexDirection="row" backgroundColor="transparent">
-              {[...qContent].slice(0, (contentWidth ?? termWidth) - 2).map((ch, ci) => (
-                <Text key={ci} dimColor>{ch}</Text>
-              ))}
+              {[...truncateDisplay(qContent, Math.max(1, (contentWidth ?? termWidth) - 2), '')].map(
+                (ch, ci) => (
+                  <Text key={ci} dimColor>
+                    {ch}
+                  </Text>
+                ),
+              )}
             </Box>
           ) : (
             <InlineLine tokens={parseInline(qContent)} dim />
@@ -329,7 +344,7 @@ export function MarkdownView({
     // character-by-character inside a row prevents incorrect wrapping.
     if (/[\u2500-\u257F]/.test(line)) {
       const maxW = contentWidth ?? termWidth;
-      const chars = [...line].slice(0, maxW);
+      const chars = [...truncateDisplay(line, maxW, '')];
       // Box-drawing characters (U+2500-U+257F) inherit the message panel
       // background, making them visually unclear. Wrap in a transparent box
       // so they render on the terminal default background, matching tables.
@@ -348,5 +363,9 @@ export function MarkdownView({
   // Constrain prose to contentWidth so Ink wraps at the correct boundary,
   // not at the full terminal width. Tables already get an explicit width via
   // the <Box width={tableBudget}> wrapper around each row.
-  return <Box flexDirection="column" width={Math.max(20, tableBudget)}>{rows}</Box>;
+  return (
+    <Box flexDirection="column" width={tableBudget}>
+      {rows}
+    </Box>
+  );
 }

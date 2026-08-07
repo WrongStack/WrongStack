@@ -2,13 +2,15 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import type { Settings } from '../src/app-settings-type.js';
 import {
   buildSidebarOpenFlags,
   effectiveAgentSwarmPanelMode,
   effectivePanelPositions,
   resolveAppSidebarLayout,
 } from '../src/app-ui-state.js';
-import type { Settings } from '../src/app-settings-type.js';
+import { SIDEBAR_TWIN_HEIGHT_BY_PANEL } from '../src/sidebar-sizing.js';
+import { SIDEBAR_TWIN_MAX_WRAP_LINES } from '../src/ui-contracts.js';
 import { createTestState } from './helpers/create-test-state.js';
 
 const SRC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -49,6 +51,30 @@ describe('panel routing single source (effectivePanelPositions)', () => {
     const layout = resolveAppSidebarLayout(state, 120, undefined, false);
     expect(layout.panelPositions.fleet).toBe('sidebar');
   });
+
+  it('reserves per-panel twin heights for wrapped worklists and two-line connections', () => {
+    const base = createTestState();
+    const state = createTestState({
+      todosMonitorOpen: true,
+      connectionsPanelOpen: true,
+      settingsPicker: {
+        ...base.settingsPicker,
+        open: true,
+        panelPositions: {
+          ...base.settingsPicker.panelPositions,
+          todos: 'sidebar',
+          connections: 'sidebar',
+        },
+      },
+    });
+
+    const layout = resolveAppSidebarLayout(state, 80, undefined, false);
+    expect(layout.sidebarTwinRowCount).toBe(
+      SIDEBAR_TWIN_HEIGHT_BY_PANEL.todos + SIDEBAR_TWIN_HEIGHT_BY_PANEL.connections,
+    );
+    expect(SIDEBAR_TWIN_HEIGHT_BY_PANEL.todos).toBeGreaterThan(12 * SIDEBAR_TWIN_MAX_WRAP_LINES);
+    expect(SIDEBAR_TWIN_HEIGHT_BY_PANEL.connections).toBeGreaterThanOrEqual(26);
+  });
 });
 
 describe('agent swarm mode single source (effectiveAgentSwarmPanelMode)', () => {
@@ -76,7 +102,12 @@ describe('agent swarm mode single source (effectiveAgentSwarmPanelMode)', () => 
     });
     const persisted = { showAgentSwarmPanel: 'bottom' } as unknown as Settings;
     expect(buildSidebarOpenFlags(state, persisted).agents).toBe(false);
-    expect(buildSidebarOpenFlags({ ...state, settingsPicker: { ...state.settingsPicker, open: false } }, persisted).agents).toBe(true);
+    expect(
+      buildSidebarOpenFlags(
+        { ...state, settingsPicker: { ...state.settingsPicker, open: false } },
+        persisted,
+      ).agents,
+    ).toBe(true);
   });
 });
 

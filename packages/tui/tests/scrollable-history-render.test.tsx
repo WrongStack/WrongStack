@@ -1,11 +1,13 @@
 import { render } from 'ink-testing-library';
 import { describe, expect, it } from 'vitest';
+import type { HistoryEntry } from '../src/components/history.js';
 import {
   type HistoryScrollController,
   ScrollableHistory,
 } from '../src/components/scrollable-history.js';
-import type { HistoryEntry } from '../src/components/history.js';
-import { renderRealTty, settle } from './helpers/real-tty.js';
+import { Box, Text } from '../src/ink.js';
+import { displayWidth, splitDisplay } from '../src/terminal-width.js';
+import { cleanFrame, renderRealTty, settle } from './helpers/real-tty.js';
 
 const entries: HistoryEntry[] = Array.from({ length: 50 }, (_, index) => ({
   id: index + 1,
@@ -59,9 +61,7 @@ describe('<ScrollableHistory /> content navigation', () => {
   });
 
   it('virtualizes a long transcript on the first frame', () => {
-    const view = render(
-      <ScrollableHistory entries={entries} toolStream={null} viewportRows={8} />,
-    );
+    const view = render(<ScrollableHistory entries={entries} toolStream={null} viewportRows={8} />);
 
     const frame = view.lastFrame() ?? '';
     expect(frame).toContain('history-entry-50');
@@ -77,12 +77,7 @@ describe('<ScrollableHistory /> content navigation', () => {
       text: 'x'.repeat(200),
     };
     const view = render(
-      <ScrollableHistory
-        entries={[assistant]}
-        toolStream={null}
-        viewportRows={8}
-        maxWidth={40}
-      />,
+      <ScrollableHistory entries={[assistant]} toolStream={null} viewportRows={8} maxWidth={40} />,
     );
 
     const lines = (view.lastFrame() ?? '').split('\n');
@@ -120,6 +115,77 @@ describe('<ScrollableHistory /> content navigation', () => {
     // The final column belongs to the managed rail on every viewport row;
     // no exec preview may push it off the right edge.
     expect(rows.every((row) => row.endsWith('│') || row.endsWith('█'))).toBe(true);
+    tty.unmount();
+  });
+
+  it('keeps tabular exec output from painting through the rail into a sidebar', async () => {
+    const columns = 100;
+    const mainColumnWidth = 70;
+    const execEntry: HistoryEntry = {
+      id: 1,
+      kind: 'tool',
+      name: 'exec',
+      durationMs: 538,
+      ok: true,
+      input: { command: 'pnpm', args: ['exec', 'tsx', '.temp_files/residual-probe.ts'] },
+      output:
+        'exec: pnpm exec tsx .temp_files/residual-probe.ts (exit_code=0 allowed=true truncated=false)\n' +
+        'stdout:\n' +
+        'PASS\tshould block\tsudo --user=root rm .env\t[".env"]\texpected [".env"]\n' +
+        'PASS\tshould block\tenv -u VAR rm .env\t[".env"]\texpected [".env"]\x1b[40C',
+    };
+    const markdownEntry: HistoryEntry = {
+      id: 2,
+      kind: 'assistant',
+      text: [
+        '| Status | Route | Owner |',
+        '|--------|-------|-------|',
+        '| ✅ | a->b=>c | 👨‍👩‍👧‍👦 名前 |',
+        '| ❌ | x!=y | e\u0301quipe 🚀 |',
+      ].join('\n'),
+    };
+    const tty = renderRealTty(
+      <Box flexDirection="row" width={columns} height={30} overflowX="hidden">
+        <Box width={mainColumnWidth} height={30} flexShrink={0} overflowX="hidden">
+          <ScrollableHistory
+            entries={[execEntry, markdownEntry]}
+            toolStream={null}
+            viewportRows={30}
+            maxWidth={mainColumnWidth}
+          />
+        </Box>
+        <Box width={columns - mainColumnWidth} height={30} flexShrink={0} flexDirection="column">
+          {Array.from({ length: 30 }, (_, row) => (
+            <Text key={row}>{`SIDE-${String(row).padStart(2, '0')}`}</Text>
+          ))}
+        </Box>
+      </Box>,
+      { columns, rows: 30 },
+    );
+    await settle(120);
+
+    const frame = tty.lastFrame();
+    expect(frame).toContain('PASS  should block');
+    expect(frame).toContain('SIDE-00');
+    expect(frame).toContain('👨‍👩‍👧‍👦');
+    expect(frame).not.toContain('a->b');
+    expect(frame).not.toContain('b=>c');
+    expect(frame).toContain('a- >b=');
+    expect(frame).toContain('>c');
+    expect(frame).not.toMatch(/[\t\r]/);
+    expect(tty.stdout.frames.every((rawFrame) => !rawFrame.includes('\x1b[40Cspill'))).toBe(true);
+    const rows = cleanFrame(tty.stdout.frames.at(-1) ?? '')
+      .split('\n')
+      .slice(0, 30);
+    expect(rows).toHaveLength(30);
+    expect(rows.every((row) => displayWidth(row) <= columns)).toBe(true);
+    for (let row = 0; row < rows.length; row++) {
+      const [main, sidebar] = splitDisplay(rows[row] ?? '', mainColumnWidth);
+      expect(main.endsWith('│') || main.endsWith('█'), JSON.stringify({ row, main, sidebar })).toBe(
+        true,
+      );
+      expect(sidebar).toContain(`SIDE-${String(row).padStart(2, '0')}`);
+    }
     tty.unmount();
   });
 

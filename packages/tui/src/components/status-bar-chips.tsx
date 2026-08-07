@@ -7,12 +7,14 @@
  */
 
 import type React from 'react';
-import { Text } from '../ink.js';
+import { Text, useAnimation } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import {
   type AnimationStyle,
   BREATHE_FRAMES,
+  COLOR_TICK_MS,
+  colorPhaseFromTime,
   DOTS_FRAMES,
   pulseColor,
   rainbowColor,
@@ -84,7 +86,11 @@ export function EternalStageChip({
       return (
         <Text
           color={color(
-            stage.status === 'success' ? theme.success : stage.status === 'failure' ? theme.error : theme.warn,
+            stage.status === 'success'
+              ? theme.success
+              : stage.status === 'failure'
+                ? theme.error
+                : theme.warn,
           )}
         >
           {monochrome ? `reflect: ${stage.status}` : `↩ reflect: ${stage.status}`}
@@ -154,16 +160,20 @@ export function ThinkingChip({
   style,
   phase,
   cycleTick,
-  colorPhase,
 }: {
   text: string;
   style: AnimationStyle | 'cycle';
   phase: number;
   cycleTick: number;
-  /** Fast (~120ms cadence) animation frame for color effects (rainbow/wave/pulse).
-   *  Derived from `animationTime` to decouple color speed from the 1s spinner. */
-  colorPhase: number;
 }): React.ReactElement {
+  // Fast (~120ms) color tick for rainbow/wave/pulse, isolated INSIDE the
+  // chip so the ~8 fps gradient re-renders only this leaf — hosting the tick
+  // in StatusBar re-rendered the entire bar (and re-measured every rail
+  // segment) eight times a second while the agent worked. Hook usage is safe
+  // here despite PowerlineRail's invoke-to-measure trick: this chip exposes
+  // a `text` prop, which visibleNodeText prefers over calling the function.
+  const { time: colorTime } = useAnimation({ interval: COLOR_TICK_MS, isActive: true });
+  const colorPhase = colorPhaseFromTime(colorTime);
   const live: AnimationStyle = style === 'cycle' ? styleForCycleTick(cycleTick) : style;
   if (live === 'rainbow') {
     // A single Catppuccin gradient translates left-to-right across the label.
@@ -211,7 +221,7 @@ export function ThinkingChip({
   }
   // 'breathe' — spinning braille prefix, static text.
   const idx = phase % BREATHE_FRAMES.length;
-  const prefix = BREATHE_FRAMES[idx] ?? (BREATHE_FRAMES[0] ?? '⠋');
+  const prefix = BREATHE_FRAMES[idx] ?? BREATHE_FRAMES[0] ?? '⠋';
   return (
     <Text bold color="green">
       {prefix} {text}

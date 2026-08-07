@@ -558,6 +558,7 @@ describe('createBrainRuntime — config round-trip (brain-config-roundtrip)', ()
       perCallTimeoutMs: 20_000,
       maxConcurrency: 5,
       distinctness: 'provider',
+      voterMaxTokens: 1500,
       judgeMaxTokens: 400,
       seats: [{ persona: 'security', veto: true }],
     },

@@ -13,7 +13,12 @@ import {
   getCalibrationState,
   realAnchoredInputTokens,
 } from '../utils/token-estimate.js';
-import { enforceHardBudget, estimateMessages } from './compaction-core.js';
+import {
+  collapseAcknowledgedToolReceipts,
+  eliseAcknowledgedToolResults,
+  enforceHardBudget,
+  estimateMessages,
+} from './compaction-core.js';
 
 type PressureLevel = 'warn' | 'soft' | 'hard';
 const LEVEL_RANK: Record<PressureLevel, number> = { warn: 0, soft: 1, hard: 2 };
@@ -194,6 +199,29 @@ export class AutoCompactionMiddleware {
       // Runtime gate — when auto-compaction is turned off via /settings the
       // middleware stays installed but does nothing.
       if (!this._enabled) return next(ctx);
+
+      // Tool results are protocol inputs for the immediately following model
+      // response, not unlimited durable prompt memory. Once a later assistant
+      // message proves the provider consumed them, keep a mode-sized rolling
+      // raw window and replace the rest with semantic head/tail receipts. The
+      // window scales with both preserveK and the model context, so ordinary
+      // multi-file investigation stays available verbatim without letting a
+      // handful of 200 KB results fill the prompt. The trailing, not-yet-
+      // consumed tool batch is never eligible.
+      const rawHygiene = eliseAcknowledgedToolResults(ctx.messages, {
+        maxRetainedTokens: this.resolveToolResultRetention(ctx),
+      });
+      const receiptHygiene = collapseAcknowledgedToolReceipts(rawHygiene.messages, {
+        maxPairs: this.resolveToolReceiptRetention(ctx),
+      });
+      if (rawHygiene.changed || receiptHygiene.changed) {
+        ctx.state.replaceMessages(receiptHygiene.messages);
+        ctx.clearFileTracking();
+        // Both token stashes describe the pre-hygiene array. Message count can
+        // stay unchanged, so count-based invalidation alone is insufficient.
+        this.invalidateTokenCaches(ctx);
+      }
+
       // Reuse the last token estimate when the context hasn't grown since
       // the previous check — common in autonomous idle loops. The cached
       // value is invalidated whenever messages or tools change.
@@ -234,12 +262,12 @@ export class AutoCompactionMiddleware {
       ) {
         // Default estimator, context unchanged — reuse cached value.
         tokens = this._cachedTokens;
-      } else if (this.tryStashedTokens(ctx, msgCount, toolCount) !== null) {
+      } else if (this.tryStashedTokens(ctx, msgCount, toolCount, revision) !== null) {
         // H1: the agent loop's pre-flight (or its restash in emitContextPct)
         // populated `ctx.lastRequestTokens` this iteration. Apply the
         // per-(provider,model) calibration ratio and use it. This avoids
         // a third redundant O(n) walk per iteration.
-        const stashed = this.tryStashedTokens(ctx, msgCount, toolCount) as number;
+        const stashed = this.tryStashedTokens(ctx, msgCount, toolCount, revision) as number;
         const cal = getCalibrationState(`${ctx.provider?.id ?? 'unknown'}/${ctx.model}`);
         tokens = cal.calibrated
           ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
@@ -357,7 +385,12 @@ export class AutoCompactionMiddleware {
    * since and the value is stale). Returns null when missing or stale so
    * the caller falls back to a fresh walk.
    */
-  private tryStashedTokens(ctx: Context, msgCount: number, toolCount: number): number | null {
+  private tryStashedTokens(
+    ctx: Context,
+    msgCount: number,
+    toolCount: number,
+    revision: number,
+  ): number | null {
     const stashed = ctx.lastRequestTokens;
     if (typeof stashed !== 'number' || stashed <= 0) return null;
     // The agent loop writes the (msg, tool) count it computed the stash at
@@ -367,10 +400,28 @@ export class AutoCompactionMiddleware {
     // lastRequestTokens without the companion entry.
     const stashedAt = ctx.meta?.['lastRequestTokensAt'];
     if (typeof stashedAt !== 'object' || stashedAt === null) return null;
-    const meta = stashedAt as { msgCount?: unknown; toolCount?: unknown };
+    const meta = stashedAt as { msgCount?: unknown; toolCount?: unknown; revision?: unknown };
     if (meta.msgCount !== msgCount) return null;
     if (typeof meta.toolCount === 'number' && meta.toolCount !== toolCount) return null;
+    // A same-length replaceMessages() rewrite is invisible to count-only
+    // stamps. Require the ConversationState revision that produced the stash;
+    // legacy stamps without it are treated as untrusted and recomputed once.
+    if (meta.revision !== revision) return null;
     return stashed;
+  }
+
+  /** Invalidate every token view derived from the pre-rewrite conversation. */
+  private invalidateTokenCaches(ctx: Context): void {
+    ctx.lastRequestTokens = undefined;
+    ctx.lastRealInputTokens = undefined;
+    delete ctx.meta['lastRequestTokensAt'];
+    delete ctx.meta['realAnchorMsgCount'];
+    this._cachedTokens = -1;
+    this._cachedMsgCount = -1;
+    this._cachedToolCount = -1;
+    this._cachedRevision = -1;
+    this._cachedSystemRef = null;
+    this._cachedToolsRef = null;
   }
 
   /**
@@ -421,7 +472,11 @@ export class AutoCompactionMiddleware {
     const runtimeMaxContext = pressure.budget.maxContext;
     let postCompactionOverflow: AgentError | null = null;
     try {
+      const revisionBefore = ctx.state.revision;
       const report = await this.compactor.compact(ctx, { aggressive });
+      if (ctx.state.revision !== revisionBefore) {
+        this.invalidateTokenCaches(ctx);
+      }
       this.recordAttempt(pressure.level, pressure.tokens, report);
       this.onCompact?.(report);
       this.events?.emit('compaction.fired', {
@@ -458,14 +513,6 @@ export class AutoCompactionMiddleware {
       // Stale file-read metadata from before the compaction boundary is no
       // longer useful and would cause hasRead() to skip legitimate re-reads.
       ctx.clearFileTracking();
-
-      // The real-usage anchor was captured for the PRE-compaction message array.
-      // Compaction just rewrote it, so the anchor no longer corresponds — drop
-      // it so the live figure and the next decision use a fresh estimate of the
-      // compacted array until the next response re-anchors. (Without this, an
-      // elision-only pass that keeps the message count would leave the stale,
-      // larger real count in place and could spuriously re-trigger compaction.)
-      ctx.lastRealInputTokens = undefined;
 
       const afterTokens = report.fullRequestTokensAfter ?? report.after;
       let afterBudget = computeContextWindowBudget(ctx, afterTokens, runtimeMaxContext);
@@ -643,6 +690,7 @@ export class AutoCompactionMiddleware {
     });
     if (!result.changed) return null;
     ctx.state.replaceMessages(result.messages);
+    this.invalidateTokenCaches(ctx);
     return {
       saved: result.saved,
       trimmedBlocks: result.trimmedBlocks,
@@ -659,6 +707,41 @@ export class AutoCompactionMiddleware {
         ? (policy as { preserveK?: unknown }).preserveK
         : undefined;
     return typeof k === 'number' && k > 0 ? Math.floor(k) : 6;
+  }
+
+  /**
+   * Aggregate raw acknowledged tool-I/O budget from the active mode.
+   *
+   * `eliseThreshold` remains the per-result baseline. Multiplying it by the
+   * preserve window gives recent multi-tool investigations breathing room;
+   * the 12% context cap prevents deep mode or huge custom thresholds from
+   * turning that room into another unbounded prompt owner.
+   */
+  private resolveToolResultRetention(ctx: Context): number {
+    const policy = ctx.meta?.['contextWindowPolicy'];
+    const threshold =
+      policy && typeof policy === 'object'
+        ? (policy as { eliseThreshold?: unknown }).eliseThreshold
+        : undefined;
+    const perResultBaseline =
+      typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0
+        ? Math.floor(threshold)
+        : 1_200;
+    const desired = perResultBaseline * this.resolvePreserveK(ctx);
+    const contextCap = Math.max(
+      perResultBaseline,
+      Math.floor(effectiveMaxContext(ctx, this._maxContext) * 0.12),
+    );
+    return Math.max(perResultBaseline, Math.min(desired, contextCap));
+  }
+
+  /**
+   * Number of recent completed tool exchanges kept as semantic receipts.
+   * Four receipts per preserve slot retains a useful investigation trail; the
+   * absolute bounds keep frugal mode useful and deep mode finite.
+   */
+  private resolveToolReceiptRetention(ctx: Context): number {
+    return Math.min(96, Math.max(16, this.resolvePreserveK(ctx) * 4));
   }
 }
 

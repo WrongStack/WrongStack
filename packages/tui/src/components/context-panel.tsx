@@ -11,6 +11,7 @@ import {
   MonitorShell,
   SectionLabel,
   useMonitorSize,
+  usePanelShortcutsEnabled,
 } from './monitor-shell.js';
 // The bracket-style `[000o····]` meter is the statusline's context bar; reuse
 // it here so the panel's fill bars mirror the statusline instead of using a
@@ -267,8 +268,10 @@ function CompositionSection({
       icon: '💬',
       label: 'History',
       tokens: breakdown.history.total,
-      sub: `text ${fmtTok(breakdown.history.text)} · results ${fmtTok(
-        breakdown.history.toolResults,
+      sub: `text ${fmtTok(breakdown.history.text)} · inputs ${fmtTok(
+        breakdown.history.toolInputs ?? 0,
+      )} · results ${fmtTok(breakdown.history.toolResults)} · thinking ${fmtTok(
+        breakdown.history.thinking ?? 0,
       )} · ${breakdown.history.messageCount} msgs`,
     },
     {
@@ -522,7 +525,9 @@ function MetricsSection({ data }: { data: ContextPanelData }): React.ReactElemen
         <Box flexGrow={1}>
           <Text>
             <Text color={theme.textMuted}>Free </Text>
-            <Text color={theme.textSecondary}>{free.toLocaleString('en-US')} ({freePct}%)</Text>
+            <Text color={theme.textSecondary}>
+              {free.toLocaleString('en-US')} ({freePct}%)
+            </Text>
           </Text>
         </Box>
         <Box>
@@ -593,11 +598,17 @@ function StatusSection({ data }: { data: ContextPanelData }): React.ReactElement
     <Box flexDirection="column" marginTop={1}>
       <SectionLabel>STATUS</SectionLabel>
       <Box>
-        <Text color={zClr}>{bar} {(pct * 100).toFixed(1)}%</Text>
+        <Text color={zClr}>
+          {bar} {(pct * 100).toFixed(1)}%
+        </Text>
         <Text> </Text>
-        <Text color={theme.textMuted}>{used.toLocaleString('en-US')} / {max.toLocaleString('en-US')}</Text>
+        <Text color={theme.textMuted}>
+          {used.toLocaleString('en-US')} / {max.toLocaleString('en-US')}
+        </Text>
       </Box>
-      <Text color={zClr}>{emoji} {verdict}</Text>
+      <Text color={zClr}>
+        {emoji} {verdict}
+      </Text>
     </Box>
   );
 }
@@ -705,8 +716,14 @@ export function ContextPanel({ data, onClose }: ContextPanelProps): React.ReactE
   const contentWidth = size.contentWidth;
   const [tab, setTab] = useState<TabId>('overview');
 
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
-    if (key.escape) {
+    // Esc is owned by the central ESC_CLOSE_PANELS table (esc-close-panels.ts);
+    // handling it here too would double-fire the toggle and re-open the panel.
+    // With a draft in the composer, every key here (letters, digits, Tab,
+    // ←/→) collides with composer editing — the panel goes display-only.
+    if (!shortcutsEnabled) return;
+    if (input === 'q') {
       onClose();
       return;
     }

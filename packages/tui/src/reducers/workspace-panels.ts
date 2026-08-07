@@ -42,8 +42,8 @@ const SIDEBAR_MISSION_MAX_WRAP_LINES = 10;
  * Each section is a "card" whose marginBottom gap is counted here too, keeping
  * the ↑↓ scroll clamp aligned with the rendered layout (over-estimating is safe
  * — a little blank space at the end; under-estimating clips content):
- *   - Context card: 3 rows (header + meter + tokens) + 1 margin
- *   - Model card: 2 rows (header + value) + 1 margin, if present
+ *   - Model/context hero: 13 rows (stage, provider, model, load, meter,
+ *     spectrum, tokens, up to 6 composition rows) + 1 margin
  *   - Fleet card: 2 rows (header + summary); margin 0 if agent rows follow
  *   - Agent rows: 2 rows each (name+ctx% / status+tool), capped at 12 agents,
  *     + 1 "+N more" overflow row + 1 margin
@@ -72,24 +72,25 @@ function computeMaxSidebarScroll(
 ): number {
   let contentHeight = 0;
 
-  // Context card: header + meter + tokens (3) + marginBottom (1)
-  contentHeight += 4;
+  // Model/context hero: stage + provider + model + load + meter + spectrum +
+  // token total + up to six composition rows + marginBottom.
+  contentHeight += 14;
 
-  // Model card: header + value (2) + marginBottom (1) — treated as always present
-  contentHeight += 3;
+  // System vitals card (CPU / RAM / HEAP): header + up to 3 metric rows +
+  // marginBottom. Only rendered when processMemory or cpuPercent is present
+  // (always available in production via useTuiActivity). Worst case 5 rows.
+  contentHeight += 5;
 
   // The effective source for swarm-panel-on-sidebar is dual:
   //   - while the picker is open, the renderer reads the picker draft;
   //   - while the picker is closed, the caller threads the persisted mode.
   const swarmOnSidebar =
-    effectiveSwarmOnSidebar ?? (state.settingsPicker.showAgentSwarmPanel === 'sidebar');
+    effectiveSwarmOnSidebar ?? state.settingsPicker.showAgentSwarmPanel === 'sidebar';
 
   // Fleet card + agent rows (only when the swarm panel is on the sidebar).
   if (swarmOnSidebar) {
     const fleetEntries = Object.values(state.fleet);
-    const leader = fleetEntries.find(
-      (e) => e.id === 'leader' || e.name === 'Leader Agent',
-    );
+    const leader = fleetEntries.find((e) => e.id === 'leader' || e.name === 'Leader Agent');
     const runningSubagents = fleetEntries
       .filter((e) => e !== leader)
       .filter((e) => e.status === 'running');
@@ -173,10 +174,7 @@ const workspacePanelActionTypes = [
   'toggleWorktreeMonitor',
 ] as const satisfies readonly Action['type'][];
 
-type WorkspacePanelAction = Extract<
-  Action,
-  { type: (typeof workspacePanelActionTypes)[number] }
->;
+type WorkspacePanelAction = Extract<Action, { type: (typeof workspacePanelActionTypes)[number] }>;
 
 const workspacePanelActionTypeSet = new Set<string>(workspacePanelActionTypes);
 

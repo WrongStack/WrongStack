@@ -43,9 +43,8 @@ results, and return an evidence-backed fleet outcome.
 - `work_complete` stops new spawning and winds the fleet down while running
   workers finish naturally.
 
-Use synchronous `delegate` only when one worker verdict gates your very next
-step. For controlled fan-out, use `spawn_subagent` → `assign_task` →
-`await_tasks`; sequential blocking delegation wastes concurrency.
+For controlled fan-out, use `spawn_subagent` → `assign_task` →
+`await_tasks`, processing results as soon as their dependencies allow.
 
 ## Dispatch contract
 

@@ -1,9 +1,9 @@
 import { useCallback, useEffect } from 'react';
 import { installFaviconVisibilityReset } from '@/lib/favicon';
-import type { ProviderCustomModelWire } from '@/types';
 import type { WrongStackWebSocketClient, WSSendOptions } from '@/lib/ws-client';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useHistoryStore, useUIStore } from '@/stores';
+import type { ProviderCustomModelWire } from '@/types';
 import { WS_HANDLERS } from './ws-handlers.js';
 
 /**
@@ -103,14 +103,19 @@ export function useWebSocket() {
   const client = getWSClient(wsUrl);
 
   const sendMessage = useCallback(
-    (content: string, images?: import('@/types').WSUserMessageImage[]) => {
-      if (client.isConnected) return client.sendMessage(content, images);
+    (content: string, images?: import('@/types').WSUserMessageImage[], freshContext = false) => {
+      if (client.isConnected) {
+        return freshContext
+          ? client.sendMessage(content, images, true)
+          : client.sendMessage(content, images);
+      }
       return null;
     },
     [client],
   );
 
   const sendAbort = useCallback(() => client.sendAbort(), [client]);
+  const adviseTopic = useCallback((prompt: string) => client.adviseTopic(prompt), [client]);
 
   // Mailbox send (btw/steer/note/…). Mirrors the TUI setBtwNote path so a
   // mid-run note can fold into the running agent's next iteration without
@@ -342,6 +347,7 @@ export function useWebSocket() {
   return {
     client,
     sendMessage,
+    adviseTopic,
     sendAbort,
     sendMailboxMessage,
     sendConfirm,

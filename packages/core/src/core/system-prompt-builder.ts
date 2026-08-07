@@ -4,6 +4,10 @@ import type { ConcreteTokenSavingTier, TokenSavingTier } from '../types/config.j
 import { resolveTokenSavingTier } from '../types/config.js';
 import type { MemoryStore } from '../types/memory.js';
 import type { ModeStore } from '../types/mode.js';
+import {
+  missingRequiredRuntimeTools,
+  missingRuntimeCapabilities,
+} from '../types/runtime-capability-manifest.js';
 import type { SkillLoader } from '../types/skill.js';
 import type {
   BuildContext,
@@ -20,10 +24,7 @@ import {
   loadInstructionBundle,
   mergeInstructionBundle,
 } from './instruction-bundle.js';
-import {
-  type InstructionTemplateContext,
-  renderInstructionLayer,
-} from './instruction-template.js';
+import { type InstructionTemplateContext, renderInstructionLayer } from './instruction-template.js';
 import { PROMPT as DEFAULT_PROMPT, LEADER_AFTER_TASK_PROMPT } from './modes/default.js';
 import {
   agentsFingerprint,
@@ -33,9 +34,10 @@ import {
 } from './system-prompt-blocks.js';
 import { buildEnvironment } from './system-prompt-environment.js';
 import { buildMemoryAndSkills, renderOnlineAgents } from './system-prompt-memory-skills.js';
-import { compactTrigger } from './system-prompt-skill-text.js';
 import { type ActivePlanCache, readActivePlanBlock } from './system-prompt-plan.js';
-export { effectiveShell, shellGuidanceBlock, type EffectiveShell } from './system-prompt-shell.js';
+import { compactTrigger } from './system-prompt-skill-text.js';
+
+export { type EffectiveShell, effectiveShell, shellGuidanceBlock } from './system-prompt-shell.js';
 
 export const LAYER_1_IDENTITY = DEFAULT_PROMPT;
 
@@ -98,8 +100,8 @@ export interface DefaultSystemPromptBuilderOptions {
   injectMemory?: boolean | undefined;
   skillLoader?: SkillLoader | undefined;
   /**
-   * How skill bodies reach the prompt. `'eager'` (default) injects every
-   * discovered skill body; `'progressive'` injects only a name+trigger manifest
+   * How skill bodies reach the prompt. `'progressive'` (runtime default)
+   * injects only a name+trigger manifest; `'eager'` injects discovered bodies
    * and relies on the agent calling the `skill` tool to load a body on demand
    * (the agentskills.io progressive-disclosure model).
    */
@@ -184,6 +186,8 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   private skillBodyCache?: string | undefined;
   /** Tools from last build — used for memory relevance scoring. */
   private _lastBuildTools?: Tool[] | undefined;
+  /** Full executable catalog used to capability-gate progressive skills. */
+  private _lastCatalogTools?: Tool[] | undefined;
   /** Cached rendered online agents string, keyed by content fingerprint. */
   private _lastOnlineAgents?: { hash: string; text: string } | undefined;
   /** Cached full buildToolUsage output — keyed by tools array ref + agents fingerprint + tier. */
@@ -253,6 +257,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
 
   async buildRegions(ctx: BuildContext): Promise<SystemPromptRegions> {
     this._lastBuildTools = ctx.tools;
+    this._lastCatalogTools = ctx.catalogTools ?? ctx.tools;
     // Re-read skill entries on every build so newly created/edited skills
     // (which call SkillLoader.invalidateCache()) are picked up without a
     // process restart. The SkillLoader itself caches disk I/O, so this is
@@ -260,9 +265,26 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     if (this.opts.skillLoader) {
       try {
         const entries = await this.opts.skillLoader.listEntries();
+        const manifests = new Map(
+          (await this.opts.skillLoader.list()).map((manifest) => [manifest.name, manifest]),
+        );
         if (entries.length > 0) {
           const lines: string[] = [];
           for (const e of entries) {
+            const manifest = manifests.get(e.name);
+            if (
+              manifest &&
+              (missingRuntimeCapabilities(
+                manifest.requiredCapabilities,
+                this._lastCatalogTools?.map((tool) => tool.name) ?? [],
+              ).length > 0 ||
+                missingRequiredRuntimeTools(
+                  manifest.requiredTools,
+                  this._lastCatalogTools?.map((tool) => tool.name) ?? [],
+                ).length > 0)
+            ) {
+              continue;
+            }
             // Compact format: name + shortened trigger (full body in Active Skills)
             const shortTrigger = compactTrigger(e.trigger);
             lines.push(`- **${e.name}**  (${shortTrigger})`);
@@ -300,14 +322,8 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     const layer6 = ctx.subagent ? '' : await this.buildActivePlan();
 
     const core: TextBlock[] = [
-      tagBlock(
-        { type: 'text', text: layer1, cache_control: { type: 'ephemeral' } },
-        'identity',
-      ),
-      tagBlock(
-        { type: 'text', text: layer2, cache_control: { type: 'ephemeral' } },
-        'tool-usage',
-      ),
+      tagBlock({ type: 'text', text: layer1, cache_control: { type: 'ephemeral' } }, 'identity'),
+      tagBlock({ type: 'text', text: layer2, cache_control: { type: 'ephemeral' } }, 'tool-usage'),
     ];
     const session: TextBlock[] = [
       tagBlock(
@@ -319,19 +335,13 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
 
     if (layer4.trim()) {
       session.push(
-        tagBlock(
-          { type: 'text', text: layer4, cache_control: { type: 'ephemeral' } },
-          'skills',
-        ),
+        tagBlock({ type: 'text', text: layer4, cache_control: { type: 'ephemeral' } }, 'skills'),
       );
     }
 
     if (layer5.trim()) {
       session.push(
-        tagBlock(
-          { type: 'text', text: layer5, cache_control: { type: 'ephemeral' } },
-          'mode',
-        ),
+        tagBlock({ type: 'text', text: layer5, cache_control: { type: 'ephemeral' } }, 'mode'),
       );
     }
 
@@ -364,10 +374,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
 
     if (layer6.trim()) {
       volatile.push(
-        tagBlock(
-          { type: 'text', text: layer6, cache_control: { type: 'ephemeral' } },
-          'plan',
-        ),
+        tagBlock({ type: 'text', text: layer6, cache_control: { type: 'ephemeral' } }, 'plan'),
       );
     }
 
@@ -419,6 +426,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       toolNames: new Set(ctx.tools.map((t) => t.name)),
       tier: this.tier,
       subagent: ctx.subagent === true,
+      strictToolReferences: true,
     };
   }
 
@@ -582,7 +590,15 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     // and aggressive users are under context pressure.
     if (this.tier !== 'minimal' && this.tier !== 'aggressive') {
       const commonPatterns = section('tool.common.patterns');
-      if (commonPatterns) lines.push(commonPatterns);
+      if (commonPatterns) {
+        lines.push(
+          renderInstructionLayer(commonPatterns, {
+            toolNames: new Set(tools.map((tool) => tool.name)),
+            tier: this.tier,
+            subagent: ctx.subagent === true,
+          }),
+        );
+      }
     }
 
     // Delegation guidance — included when the `delegate` tool is present.
@@ -664,9 +680,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         // `aggressive` joins `light`/`medium` — the 400-token mailbox essay
         // is the largest single guidance section; users under context pressure
         // don't need it.
-        const mailbox = section('tool.mailbox.compact',
-          mailboxVars,
-        );
+        const mailbox = section('tool.mailbox.compact', mailboxVars);
         if (mailbox) lines.push(mailbox);
       } else {
         const mailbox = section('tool.mailbox.full', mailboxVars);
@@ -701,13 +715,11 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         // Minimal one-liner — `aggressive` joins `minimal`/`light`. The full
         // MCP workflow (activate → use → deactivate) is documented elsewhere
         // and the meta-tool `mcp_use` is sufficient at any tier that has it.
-        const mcp = section(hasMcpUse ? 'tool.mcp.compact.use' : 'tool.mcp.compact.control',
-        );
+        const mcp = section(hasMcpUse ? 'tool.mcp.compact.use' : 'tool.mcp.compact.control');
         if (mcp) lines.push(mcp);
       } else {
         // Full block
-        const mcp = section(hasMcpUse ? 'tool.mcp.full.use' : 'tool.mcp.full.control',
-        );
+        const mcp = section(hasMcpUse ? 'tool.mcp.full.use' : 'tool.mcp.full.control');
         if (mcp) lines.push(mcp);
       }
     }
@@ -722,8 +734,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       if (this.tier === 'minimal' || this.tier === 'light') {
         // Skip
       } else if (this.tier === 'medium') {
-        const contextManagement = section('tool.context.management.compact',
-        );
+        const contextManagement = section('tool.context.management.compact');
         if (contextManagement) lines.push(contextManagement);
       } else {
         // Adaptive threshold based on model context window size.
@@ -731,9 +742,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         // Fallback to 0 when unknown → conservative compaction (50 % threshold).
         const maxCtx = this.modelCapabilities()?.maxContextTokens ?? 0;
         const threshold = maxCtx <= 32000 ? '50' : '70';
-        const contextManagement = section('tool.context.management.full',
-          { threshold },
-        );
+        const contextManagement = section('tool.context.management.full', { threshold });
         if (contextManagement) lines.push(contextManagement);
       }
     }
@@ -780,6 +789,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       skillMode: this.opts.skillMode,
       skillEagerMaxChars: this.opts.skillEagerMaxChars,
       lastBuildTools: this._lastBuildTools,
+      catalogTools: this._lastCatalogTools,
       skillBodyCache: this.skillBodyCache,
     });
     this.skillBodyCache = result.skillBodyCache;
@@ -794,5 +804,4 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     if (!mode?.prompt) return '';
     return mode.prompt;
   }
-
 }

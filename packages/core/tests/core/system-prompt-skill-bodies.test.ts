@@ -48,15 +48,19 @@ describe('buildCompactSkillBodiesText aggregate budget (T5)', () => {
     const out = await buildCompactSkillBodiesText(fakeLoader(NAMES, 'BODY'), ONE_ENTRY);
     expect(out).toContain('## Skill: aaa');
     expect(out).not.toContain('## Skill: bbb');
-    expect(out).toContain(
-      '## Other available skills (not injected — load with the `skill` tool)',
-    );
+    expect(out).toContain('## Other available skills (not injected — load with the `skill` tool)');
     expect(out).toContain('- bbb');
     expect(out).toContain('- ccc');
   });
 
   it('defaults to the centralized compact budget constant', () => {
     expect(SKILL_LIMITS.COMPACT_DEFAULT_MAX_CHARS).toBeGreaterThan(0);
+  });
+
+  it('does not inject a body that calls an unregistered tool', async () => {
+    const loader = fakeLoader(['unsafe'], 'Call `ghost_tool` before continuing.');
+    expect(await buildCompactSkillBodiesText(loader, 100_000)).toBe('');
+    expect(await buildFullSkillBodiesText(loader, 100_000)).toBe('');
   });
 });
 

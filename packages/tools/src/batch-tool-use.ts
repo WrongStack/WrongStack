@@ -191,7 +191,9 @@ async function executeSingle(
       executionMs: Date.now() - start,
     };
   }
-  const tool = ctx.tools.find((candidate: Tool) => candidate.name === call.tool);
+  const tool = (ctx.catalogTools ?? ctx.tools).find(
+    (candidate: Tool) => candidate.name === call.tool,
+  );
 
   if (!tool) {
     return {

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  breakTerminalLigatures,
   displayWidth,
   frameRule,
   frameRuleParts,
   padDisplayEnd,
+  sanitizeTerminalText,
   stripAnsi,
   truncateDisplay,
 } from '../src/terminal-width.js';
@@ -15,12 +17,28 @@ describe('terminal column helpers', () => {
     expect(displayWidth('界')).toBe(2);
     expect(displayWidth('👨‍👩‍👧‍👦')).toBe(2);
     expect(displayWidth('')).toBe(1);
+    expect(displayWidth('❤️')).toBe(2);
+    expect(displayWidth('\u200b')).toBe(0);
   });
 
   it('truncates and pads by display columns instead of UTF-16 length', () => {
     expect(truncateDisplay('ab界cd', 5)).toBe('ab界…');
     expect(displayWidth(truncateDisplay('hello world', 6))).toBe(6);
     expect(displayWidth(padDisplayEnd('界', 5))).toBe(5);
+    expect(truncateDisplay('a👨‍👩‍👧‍👦b', 3)).toBe('a…');
+  });
+
+  it('keeps ligature-prone ASCII pairs as separate terminal cells', () => {
+    const safe = breakTerminalLigatures('a->b x=>y p!=q');
+    expect(safe).toBe('a- >b x= >y p! =q');
+    expect(displayWidth(safe)).toBe(displayWidth('a->b x=>y p!=q') + 3);
+  });
+
+  it('normalizes terminal controls without mutating printable text', () => {
+    const raw = 'PASS\tcolumn a->b\x1b[40Cspill\r\nnext\x1b]0;owned\x07line\x07';
+    const safe = sanitizeTerminalText(raw);
+    expect(safe).toBe('PASS  column a->bspill\nnextline');
+    expect(safe).not.toMatch(/[\t\r\x1b\x07]/);
   });
 
   it('builds exact-width labeled frame rails', () => {

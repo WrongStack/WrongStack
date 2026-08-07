@@ -1,3 +1,8 @@
+import {
+  missingRequiredRuntimeTools,
+  missingRuntimeCapabilities,
+  runtimeToolReferencesFromText,
+} from '@wrongstack/core/agent-catalog';
 import { TOKENS } from '@wrongstack/core/kernel';
 import type { SubagentConfig } from '@wrongstack/core/types';
 import { getSageRetrieval } from '@wrongstack/sage';
@@ -8,6 +13,7 @@ export async function resolveHostSubagentSkillContent(
   deps: MultiAgentDeps,
   roster: Record<string, SubagentConfig>,
   subCfg: SubagentConfig,
+  availableToolNames: readonly string[] = [],
 ): Promise<string> {
   const rosterSkillNames = subCfg.role ? roster[subCfg.role]?.skillNames : undefined;
   const skillNames = [...new Set(subCfg.skillNames ?? rosterSkillNames ?? [])];
@@ -22,8 +28,20 @@ export async function resolveHostSubagentSkillContent(
     try {
       const manifest = await deps.skillLoader.find(skillName);
       if (!manifest) continue;
+      if (
+        missingRuntimeCapabilities(manifest.requiredCapabilities, availableToolNames).length > 0 ||
+        missingRequiredRuntimeTools(manifest.requiredTools, availableToolNames).length > 0
+      ) {
+        continue;
+      }
       const body = (await deps.skillLoader.readSaveBody(skillName)).trim();
       if (!body) continue;
+      if (
+        missingRequiredRuntimeTools(runtimeToolReferencesFromText(body), availableToolNames)
+          .length > 0
+      ) {
+        continue;
+      }
       const entry = `## Skill: ${skillName}\n\n${body.slice(0, maxCharsPerSkill)}`;
       if (usedChars + entry.length > maxChars) {
         console.warn(

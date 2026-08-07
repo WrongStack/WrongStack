@@ -1,4 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Deterministic regardless of the host machine's browser allowlist env —
+// managerFor parses WRONGSTACK_BROWSER_PRIVATE_ORIGINS on every manager
+// creation, so a host value this suite didn't set was reaching the tests.
+beforeEach(() => {
+  vi.stubEnv('WRONGSTACK_BROWSER_PRIVATE_ORIGINS', '');
+});
+
 import {
   browserEvaluateTool,
   browserListTool,

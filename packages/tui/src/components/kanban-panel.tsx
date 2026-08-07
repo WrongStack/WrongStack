@@ -3,8 +3,8 @@ import {
   addTask,
   copyTaskToBoard,
   createBoard,
-  duplicateBoard,
   describeKanbanBoundary,
+  duplicateBoard,
   getBoard,
   type KanbanBoard,
   type KanbanBoardSummary,
@@ -29,6 +29,7 @@ import {
   topAuditIssues,
 } from '../kanban-audit.js';
 import { theme } from '../theme.js';
+import { usePanelShortcutsEnabled } from './monitor-shell.js';
 
 export interface KanbanPanelProps {
   projectRoot: string;
@@ -224,6 +225,7 @@ export function KanbanPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectRoot, sessionId, board?.id, selectedBoard, selectedTask]);
 
+  const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
     if (prompt) {
       if (key.escape) {
@@ -249,27 +251,30 @@ export function KanbanPanel({
       return;
     }
 
-    if (key.escape || input === 'q') {
+    // Letter/space shortcuts stay inert while the composer holds a draft
+    // (broadcast useInput — the user is typing a message, not driving the
+    // board). Esc, arrows, and Tab keep working either way.
+    if (key.escape || (shortcutsEnabled && input === 'q')) {
       onClose();
       return;
     }
-    if (input === 'r' || input === 'R') {
+    if (shortcutsEnabled && (input === 'r' || input === 'R')) {
       void load(selectedBoard, selectedTask);
       return;
     }
-    if (input === 'c') {
+    if (shortcutsEnabled && input === 'c') {
       setPrompt({ kind: 'createBoard', buffer: '' });
       return;
     }
-    if (input === 'a' && board) {
+    if (shortcutsEnabled && input === 'a' && board) {
       setPrompt({ kind: 'addTask', buffer: '' });
       return;
     }
-    if ((input === 'n' || key.downArrow) && boards.length > 0) {
+    if (((shortcutsEnabled && input === 'n') || key.downArrow) && boards.length > 0) {
       void load(clamp(selectedBoard + 1, 0, boards.length - 1), 0);
       return;
     }
-    if ((input === 'p' || key.upArrow) && boards.length > 0) {
+    if (((shortcutsEnabled && input === 'p') || key.upArrow) && boards.length > 0) {
       void load(clamp(selectedBoard - 1, 0, boards.length - 1), 0);
       return;
     }
@@ -303,7 +308,7 @@ export function KanbanPanel({
       }
       return;
     }
-    if ((input === ' ' || input === 'D') && board && activeTask) {
+    if (shortcutsEnabled && (input === ' ' || input === 'D') && board && activeTask) {
       void runMutation(async () => {
         const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
           status: 'completed',
@@ -314,7 +319,7 @@ export function KanbanPanel({
       });
       return;
     }
-    if (input === 'b' && board && activeTask) {
+    if (shortcutsEnabled && input === 'b' && board && activeTask) {
       void runMutation(async () => {
         const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
           status: 'blocked',
@@ -324,11 +329,11 @@ export function KanbanPanel({
       });
       return;
     }
-    if (input === 'x' && activeTask) {
+    if (shortcutsEnabled && input === 'x' && activeTask) {
       setPrompt({ kind: 'confirmDeleteTask', task: activeTask });
       return;
     }
-    if (input === 'd' && board) {
+    if (shortcutsEnabled && input === 'd' && board) {
       void runMutation(
         async () => {
           const duplicated = await duplicateBoard(projectRoot, board.id, {
@@ -341,14 +346,14 @@ export function KanbanPanel({
       );
       return;
     }
-    if (input === 'C' && board && activeTask && transferTarget) {
+    if (shortcutsEnabled && input === 'C' && board && activeTask && transferTarget) {
       void runMutation(async () => {
         await copyTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id);
         return `Copied task to ${transferTarget.title}`;
       });
       return;
     }
-    if (input === 'T' && board && activeTask && transferTarget) {
+    if (shortcutsEnabled && input === 'T' && board && activeTask && transferTarget) {
       void runMutation(async () => {
         await transferTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id, {
           preserveAssignment: true,
@@ -631,7 +636,11 @@ function TaskDetail({
             {board.boundary?.enabled ? ' + board ceiling' : ''}
           </Text>
           {(task.boundary?.allow ?? board.boundary?.allow)?.slice(0, 3).map((selector) => (
-            <Text key={`${selector.kind}:${selector.path}:${selector.access}`} dimColor wrap="truncate">
+            <Text
+              key={`${selector.kind}:${selector.path}:${selector.access}`}
+              dimColor
+              wrap="truncate"
+            >
               {selector.access} {selector.kind}:{selector.path}
             </Text>
           ))}

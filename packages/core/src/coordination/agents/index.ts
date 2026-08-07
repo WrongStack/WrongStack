@@ -23,16 +23,17 @@ import { DELIVERY_AGENTS } from './phase8-delivery.js';
 import { WAVE3_AGENTS } from './phase8-wave3-products.js';
 import { META_AGENTS } from './phase9-meta.js';
 import { WAVE4_AGENTS } from './phase9-wave4-platform-meta.js';
-import { ROLE_SKILL_SETS, SHADOW_AGENT_SKILLS, assignSkillsToAgents } from './role-skills.js';
+import { assignSkillsToAgents, ROLE_SKILL_SETS, SHADOW_AGENT_SKILLS } from './role-skills.js';
 import type { AgentDefinition, AgentPhase } from './types.js';
 
-export * from './role-skills.js';
-export * from './types.js';
+export * from './capability-manifest.js';
 export * from './phase3-wave1-platform.js';
 export * from './phase3-wave2-meta.js';
 export * from './phase8-wave3-products.js';
 export * from './phase9-wave4-platform-meta.js';
 export * from './project-agent-identity.js';
+export * from './role-skills.js';
+export * from './types.js';
 export {
   BUILD_AGENTS,
   DELIVERY_AGENTS,

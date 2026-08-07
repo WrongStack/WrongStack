@@ -1,6 +1,7 @@
-import { Box, Text } from '../ink.js';
 import type React from 'react';
+import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
+import { normalizeTuiThinkingWord } from '../thinking-word.js';
 import { glyphs } from '../ui-glyphs.js';
 import {
   KeyCap,
@@ -9,14 +10,8 @@ import {
   truncatePanelText,
   useMonitorSize,
 } from './monitor-shell.js';
-import {
-  fmtElapsed,
-  fmtMemory,
-  renderMeter,
-  truncateChip,
-  type StatusBarProps,
-} from './status-bar.js';
-import { normalizeTuiThinkingWord } from '../thinking-word.js';
+import { fmtElapsed, fmtMemory, renderMeter, truncateChip } from './status-bar-format.js';
+import type { StatusBarProps } from './status-bar-types.js';
 import { STATUSLINE_ITEMS } from './statusline-picker.js';
 
 /** Compact token formatting — mirrors the pattern from status-bar.tsx. */
@@ -79,7 +74,11 @@ export function StatuslineDetailPanel(
   const ctxRatio = context ? context.used / context.max : 0;
   const ctxPct = context ? `${Math.min(Math.round(ctxRatio * 100), 100)}%` : '—';
 
-  function chipRow(label: string, value: string, chipColor = theme.textPrimary): React.ReactElement {
+  function chipRow(
+    label: string,
+    value: string,
+    chipColor = theme.textPrimary,
+  ): React.ReactElement {
     return (
       <Box key={label}>
         <Text color={theme.textMuted}>{label.padEnd(16)}</Text>
@@ -203,9 +202,7 @@ export function StatuslineDetailPanel(
         {tokenSavingMode !== undefined && tokenSavingMode !== 'off'
           ? chipRow('Token saving', tokenSavingMode, 'yellow')
           : null}
-        {autoProceedCountdown != null
-          ? chipRow('Auto-proceed', `${autoProceedCountdown}s`)
-          : null}
+        {autoProceedCountdown != null ? chipRow('Auto-proceed', `${autoProceedCountdown}s`) : null}
         {nextStepsAutoSubmitCountdown != null
           ? chipRow(
               'Next-steps auto',
@@ -216,10 +213,7 @@ export function StatuslineDetailPanel(
         {/* ── Work ── */}
         <SectionLabel color={theme.success}>WORK</SectionLabel>
         {todos && (todos.pending > 0 || todos.inProgress > 0 || todos.completed > 0)
-          ? chipRow(
-              'Todos',
-              `⌛${todos.inProgress} ☐${todos.pending} ✓${todos.completed}`,
-            )
+          ? chipRow('Todos', `⌛${todos.inProgress} ☐${todos.pending} ✓${todos.completed}`)
           : null}
         {plan && (plan.open > 0 || plan.inProgress > 0 || plan.done > 0)
           ? chipRow(
@@ -247,34 +241,41 @@ export function StatuslineDetailPanel(
               `${truncateChip(goalSummary.goal, 48)} [${goalSummary.goalState}] iter ${goalSummary.iterations}`,
             )
           : null}
-        {enhanceCountdown != null
-          ? chipRow('Enhance', `auto-send in ${enhanceCountdown}s`)
-          : null}
+        {enhanceCountdown != null ? chipRow('Enhance', `auto-send in ${enhanceCountdown}s`) : null}
         {debugStreamStats
           ? chipRow(
               'Debug stream',
               `#${debugStreamStats.chunkCount} · ${debugStreamStats.lastChunkSize}B · +${debugStreamStats.lastDeltaMs}ms`,
             )
           : null}
-        {sideEffectCount > 0
-          ? chipRow('Side effects', String(sideEffectCount))
-          : null}
+        {sideEffectCount > 0 ? chipRow('Side effects', String(sideEffectCount)) : null}
 
         {/* ── Connectivity ── */}
         {mailbox ? (
           <>
             <SectionLabel color={theme.warn}>CONNECTIVITY</SectionLabel>
-            {chipRow('Mailbox unread', String(mailbox.unread), mailbox.unread > 0 ? 'yellow' : 'green')}
+            {chipRow(
+              'Mailbox unread',
+              String(mailbox.unread),
+              mailbox.unread > 0 ? 'yellow' : 'green',
+            )}
             {chipRow('Online agents', String(mailbox.onlineAgents))}
             {mailbox.lastSubject
-              ? chipRow('Last message', `${mailbox.lastFrom ? `${mailbox.lastFrom}: ` : ''}${truncateChip(mailbox.lastSubject, 40)}`)
+              ? chipRow(
+                  'Last message',
+                  `${mailbox.lastFrom ? `${mailbox.lastFrom}: ` : ''}${truncateChip(mailbox.lastSubject, 40)}`,
+                )
               : null}
           </>
         ) : null}
         {brain ? (
           <>
             <SectionLabel color={theme.warn}>BRAIN</SectionLabel>
-            {chipRow('State', brain.state, brain.state === 'denied' ? 'red' : brain.state === 'deciding' ? 'yellow' : 'green')}
+            {chipRow(
+              'State',
+              brain.state,
+              brain.state === 'denied' ? 'red' : brain.state === 'deciding' ? 'yellow' : 'green',
+            )}
           </>
         ) : null}
       </Box>

@@ -39,7 +39,7 @@ function mockProviderWithProbe(opts: {
       vision: false,
       caching: false,
       parallelism: 0,
-    } as Capabilities,
+    } as unknown as Capabilities,
     async complete(): Promise<Response> {
       return {
         model: 'test',
@@ -303,10 +303,13 @@ describe('refreshProviderContextLimit state machine', () => {
       probeResult: 272_000,
     });
 
-    const { agent: agentA, events, ctx, tmp, session } = await buildAgentWithProbe(
-      providerA,
-      'codex-model',
-    );
+    const {
+      agent: agentA,
+      events,
+      ctx,
+      tmp,
+      session,
+    } = await buildAgentWithProbe(providerA, 'codex-model');
     cleanup = async () => {
       await session.close();
       await fs.rm(tmp, { recursive: true, force: true });
@@ -319,7 +322,7 @@ describe('refreshProviderContextLimit state machine', () => {
 
     // Now simulate a route switch to Provider B (500K native, no probe).
     ctx.meta['contextLimitRouteKey'] = 'codex/codex-model'; // current route
-    const providerB: Provider = {
+    const providerB = {
       id: 'other',
       capabilities: {
         maxContext: 500_000,
@@ -328,7 +331,7 @@ describe('refreshProviderContextLimit state machine', () => {
         vision: false,
         caching: false,
         parallelism: 0,
-      } as Capabilities,
+      } as unknown as Capabilities,
       async complete(): Promise<Response> {
         return {
           model: 'other-model',
@@ -350,7 +353,7 @@ describe('refreshProviderContextLimit state machine', () => {
       },
       health: async () => ({ ok: true }),
     };
-    ctx.provider = providerB;
+    ctx.provider = providerB as never;
     ctx.model = 'other-model';
 
     const maxCtxEvents: Array<{ maxContext: number; source?: string }> = [];
@@ -382,10 +385,13 @@ describe('refreshProviderContextLimit state machine', () => {
       probeResult: 272_000,
     });
 
-    const { agent: agentA, events, ctx, tmp, session } = await buildAgentWithProbe(
-      providerA,
-      'codex-model',
-    );
+    const {
+      agent: agentA,
+      events,
+      ctx,
+      tmp,
+      session,
+    } = await buildAgentWithProbe(providerA, 'codex-model');
     cleanup = async () => {
       await session.close();
       await fs.rm(tmp, { recursive: true, force: true });
@@ -442,10 +448,13 @@ describe('refreshProviderContextLimit state machine', () => {
       probeResult: 272_000,
     });
 
-    const { agent: agentA, events, ctx, tmp, session } = await buildAgentWithProbe(
-      providerA,
-      'codex-model',
-    );
+    const {
+      agent: agentA,
+      events,
+      ctx,
+      tmp,
+      session,
+    } = await buildAgentWithProbe(providerA, 'codex-model');
     cleanup = async () => {
       await session.close();
       await fs.rm(tmp, { recursive: true, force: true });
@@ -458,7 +467,7 @@ describe('refreshProviderContextLimit state machine', () => {
 
     // Simulate fallback: switch to Provider B (no probe, native 500K).
     ctx.meta['contextLimitRouteKey'] = 'codex/codex-model';
-    const providerB: Provider = {
+    const providerB = {
       id: 'other',
       capabilities: {
         maxContext: 500_000,
@@ -467,7 +476,7 @@ describe('refreshProviderContextLimit state machine', () => {
         vision: false,
         caching: false,
         parallelism: 0,
-      } as Capabilities,
+      } as unknown as Capabilities,
       async complete(): Promise<Response> {
         return {
           model: 'other-model',

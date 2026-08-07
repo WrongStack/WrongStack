@@ -2,11 +2,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { addTask, createBoard, getBoard } from '../src/manager.js';
 import {
   proposeTaskDecomposition,
   resolveDecompositionProposal,
 } from '../src/manager/decomposition.js';
+import { addTask, createBoard, getBoard } from '../src/manager.js';
 import { readKanbanEvents } from '../src/storage.js';
 import type { KanbanDecompositionSubtask } from '../src/types.js';
 
@@ -207,7 +207,9 @@ describe('wireProposalDependencies cycle protection', () => {
         { title: 'B', dependsOnIndex: [0] },
       ],
     });
-    const [aId, bId] = result!.proposal.appliedChildTaskIds!;
+    const appliedIds = result!.proposal.appliedChildTaskIds!;
+    const aId = appliedIds[0]!;
+    const bId = appliedIds[1]!;
     const stored = await getBoard(tmpDir, board.id);
     const a = stored!.tasks.find((task) => task.id === aId)!;
     const b = stored!.tasks.find((task) => task.id === bId)!;

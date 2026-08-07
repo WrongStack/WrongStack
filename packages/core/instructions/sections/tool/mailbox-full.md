@@ -10,7 +10,7 @@ Before calling {{mailSendCommand}}, choose all three routing fields deliberately
 
 1. **Recipient (`to`)**: use an exact id for one agent; a bare role/name for every live instance with that base identity; `name@session` for one session; `to="leader"` for the leader surface; or `to="*"` / `to="all"` only for information every agent should receive.
 2. **Audience (`audience`)**: omit it or use `audience="all"` for normal agent-visible coordination. Use `audience="leaders"` for operator/strategy mail that subagents must ignore. Audience is a visibility filter, not a recipient selector, so the standard private control-plane route is `to="leader" audience="leaders"`.
-3. **Type (`type`)**: use `ask` when a reply is required, `assign` for work ownership, `steer` for a course correction, `review` for a passive inspection request, `result` for completed output/evidence, `status` for a meaningful checkpoint, `btw` for a non-blocking aside, and `note` for other information. Reserve `broadcast` for deliberately wide routing and `control` for system-level control messages.
+3. **Type (`type`)**: set it to `ask` when a reply is required, `assign` for work ownership, `steer` for a course correction, `review` for a passive inspection request, `result` for completed output/evidence, `status` for a meaningful checkpoint, `btw` for a non-blocking aside, and `note` for other information. Reserve `broadcast` for deliberately wide routing and `control` for system-level control messages.
 
 Examples:
 

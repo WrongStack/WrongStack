@@ -16,6 +16,9 @@ description: |
   brand", "add dark mode". Trigger even when the user never says the word
   "design" — if the output has pixels, this skill runs first.
 version: 2.0.0
+required-capabilities: [filesystem.read, filesystem.write, documentation.author]
+required-tools: [design]
+optional-capabilities: [browser.interact]
 ---
 
 # Design System Engine — WrongStack
@@ -116,7 +119,7 @@ For a genuinely specific color (brand primary, a mandated status color):
 design {action:"set", set:{ primary:"oklch(62% 0.2 25)", "dark.bg":"#111" }}
 ```
 
-Use `set` for the handful of values the brand actually dictates. Everything
+Use the `design` tool's `set` action for the handful of values the brand actually dictates. Everything
 else stays on the kit.
 
 ---
@@ -147,7 +150,7 @@ Then, without exception:
 2. **Read the generated file before writing UI.** It is the ground truth for
    which token names exist. Do not guess names from this document or from
    another project — use the ones actually in the file.
-3. Re-run `materialize` after any later `tune` or `set`, or the code and the
+3. Re-run the `design` tool with the `materialize` action after any later `tune` or `set`, or the code and the
    tokens silently diverge.
 
 ---

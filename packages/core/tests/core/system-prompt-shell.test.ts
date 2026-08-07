@@ -7,6 +7,18 @@ import {
   effectiveShell,
   shellGuidanceBlock,
 } from '../../src/core/system-prompt-builder.js';
+import type { Tool } from '../../src/types/tool.js';
+
+const bashTool: Tool = {
+  name: 'bash',
+  description: '',
+  inputSchema: { type: 'object' },
+  permission: 'auto',
+  mutating: false,
+  async execute() {
+    return 'ok';
+  },
+};
 
 describe('effectiveShell', () => {
   it('is posix on non-Windows regardless of WRONGSTACK_SHELL', () => {
@@ -82,7 +94,7 @@ describe('buildEnvironment — shell wiring (platform-gated)', () => {
     const b = new DefaultSystemPromptBuilder({ todayIso: '2026-05-13' });
     if (process.platform === 'win32') {
       process.env['WRONGSTACK_SHELL'] = 'pwsh';
-      const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+      const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [bashTool] });
       const env = blocks[2]?.text ?? '';
       expect(env).toContain('- Shell: pwsh (PowerShell 7+)');
       expect(env).toContain('## Shell — PowerShell 7+ (pwsh)');

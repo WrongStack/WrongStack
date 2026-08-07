@@ -1,11 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
-import type { IntrospectionRouteContext } from '../src/server/introspection-routes.js';
-import {
-  createRouteFamilyDispatcher,
-  type RouteFamilyTable,
-} from '../src/server/route-family-dispatcher.js';
 import {
   CLIENT_MESSAGE_TYPES,
   decodeProtocolFrame,
@@ -15,6 +10,11 @@ import {
   SERVER_MESSAGE_TYPES,
   SURFACE_PROTOCOL_VERSION,
 } from '../src/protocol/index.js';
+import type { IntrospectionRouteContext } from '../src/server/introspection-routes.js';
+import {
+  createRouteFamilyDispatcher,
+  type RouteFamilyTable,
+} from '../src/server/route-family-dispatcher.js';
 
 interface GoldenProtocolFixture {
   version: number;
@@ -38,8 +38,8 @@ describe('surface protocol contract', () => {
   });
 
   it('keeps every exact registry entry executable through its directional decoder', () => {
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(225);
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(239);
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(226);
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(240);
     for (const type of CLIENT_MESSAGE_TYPES) {
       expect(decodeProtocolMessage({ type }, 'client')).toEqual({
         ok: true,

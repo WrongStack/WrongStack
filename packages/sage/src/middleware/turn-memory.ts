@@ -145,7 +145,14 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
             }
             nextRequest = {
               ...request,
-              system: [...(request.system ?? []), { type: 'text', text: rendered.text }],
+              system: [
+                ...(request.system ?? []),
+                {
+                  type: 'text',
+                  text: `[memory_evidence source="sage.turn-memory"]\n${rendered.text}\n[/memory_evidence]`,
+                  cache_control: { type: 'ephemeral' },
+                },
+              ],
             };
           }
         }

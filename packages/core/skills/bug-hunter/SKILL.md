@@ -11,6 +11,9 @@ description: |
   agent behind a chimera review, or as a fan-out worker auditing a chunk of
   files in parallel — those modes have extra constraints documented below.
 version: 2.0.0
+required-capabilities: [filesystem.read, code.inspect]
+required-tools: []
+optional-capabilities: [verification.run]
 ---
 
 # Bug Hunter — WrongStack

@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildLosslessDigest,
   buildSmartDigest,
+  collapseAcknowledgedToolReceipts,
   dedupStaleReads,
+  eliseAcknowledgedToolResults,
   eliseOldToolResults,
   enforceHardBudget,
   extractText,
@@ -13,8 +15,9 @@ import {
   hasToolUse,
   scoreMessage,
 } from '../../src/execution/compaction-core.js';
-import { estimateMessageTokens } from '../../src/utils/token-estimate.js';
 import type { Message } from '../../src/types/index.js';
+import { repairToolUseAdjacency } from '../../src/utils/message-invariants.js';
+import { estimateMessageTokens } from '../../src/utils/token-estimate.js';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -295,6 +298,440 @@ describe('eliseOldToolResults', () => {
   });
 });
 
+describe('eliseAcknowledgedToolResults', () => {
+  const pair = (
+    id: string,
+    result: string,
+    input: Record<string, unknown> = {},
+    name = 'exec',
+  ): Message[] => [
+    {
+      role: 'assistant',
+      content: [{ type: 'tool_use', id, name, input }],
+    } as Message,
+    {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: id, name, content: result }],
+    } as Message,
+  ];
+
+  it('never elides the trailing tool batch before a provider response acknowledges it', () => {
+    const messages = pair('pending', 'x'.repeat(8_000), { path: 'src/pending.ts' });
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 100 });
+
+    expect(result.changed).toBe(false);
+    expect(result.messages).toBe(messages);
+    expect(JSON.stringify(result.messages)).toContain('x'.repeat(100));
+  });
+
+  it('keeps the newest acknowledged raw pairs within budget and receipts older pairs', () => {
+    const messages: Message[] = [
+      ...pair('old', 'old payload '.repeat(500), {
+        path: 'src/old.ts',
+        content: 'a'.repeat(2_000),
+      }),
+      { role: 'assistant', content: [{ type: 'text', text: 'old result consumed' }] } as Message,
+      ...pair('new', 'new payload', { path: 'src/new.ts' }),
+      { role: 'assistant', content: [{ type: 'text', text: 'new result consumed' }] } as Message,
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 100 });
+
+    expect(result.changed).toBe(true);
+    expect(result.elidedResults).toBe(1);
+    expect(result.saved).toBeGreaterThan(0);
+    expect(JSON.stringify(result.messages)).toContain('src/old.ts');
+    expect(JSON.stringify(result.messages)).toContain('__elided_tool_input');
+    expect(JSON.stringify(result.messages)).not.toContain('old payload '.repeat(100));
+    expect(JSON.stringify(result.messages)).toContain('new payload');
+  });
+
+  it('is idempotent and preserves tool ids, names, errors, and provider metadata', () => {
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'failed-read',
+            name: 'read',
+            input: { path: 'src/failure.ts' },
+            providerMeta: { 'google.thoughtSignature': 'signed' },
+          },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'failed-read',
+            name: 'read',
+            content: `src/failure.ts\nError: denied\n${'z'.repeat(8_000)}`,
+            is_error: true,
+          },
+        ],
+      } as Message,
+      { role: 'assistant', content: [{ type: 'text', text: 'I saw the failure' }] } as Message,
+    ];
+
+    const first = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 50 });
+    const second = eliseAcknowledgedToolResults(first.messages, { maxRetainedTokens: 50 });
+
+    expect(first.changed).toBe(true);
+    expect(second.changed).toBe(false);
+    expect(first.messages[0]).toMatchObject({
+      content: [
+        {
+          type: 'tool_use',
+          id: 'failed-read',
+          name: 'read',
+          providerMeta: { 'google.thoughtSignature': 'signed' },
+        },
+      ],
+    });
+    expect(first.messages[1]).toMatchObject({
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: 'failed-read',
+          name: 'read',
+          is_error: true,
+        },
+      ],
+    });
+    expect(JSON.stringify(first.messages[1])).toContain('Error: denied');
+  });
+
+  it('also bounds a raw tool input whose paired result was already elided', () => {
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'write-1',
+            name: 'write',
+            input: { path: 'src/large.ts', content: 'x'.repeat(8_000) },
+          },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'write-1',
+            name: 'write',
+            content: '[elided: ~2000 tokens; tool=write; files=src/large.ts]',
+          },
+        ],
+      } as Message,
+      { role: 'assistant', content: [{ type: 'text', text: 'write consumed' }] } as Message,
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 50 });
+
+    expect(result.changed).toBe(true);
+    expect(result.elidedResults).toBe(0);
+    expect(JSON.stringify(result.messages[0])).toContain('__elided_tool_input');
+    expect(JSON.stringify(result.messages[0])).not.toContain('x'.repeat(200));
+  });
+
+  it('keeps bounded semantic head and tail evidence in an elided result receipt', () => {
+    const messages: Message[] = [
+      ...pair(
+        'evidence',
+        `IMPORTANT_HEAD finding=alpha\n${'middle-noise '.repeat(1_000)}\nIMPORTANT_TAIL total=42`,
+        { path: 'src/evidence.ts' },
+      ),
+      { role: 'assistant', content: [{ type: 'text', text: 'evidence consumed' }] } as Message,
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 50 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(result.changed).toBe(true);
+    expect(wire).toContain('IMPORTANT_HEAD finding=alpha');
+    expect(wire).toContain('IMPORTANT_TAIL total=42');
+    expect(wire).not.toContain('middle-noise '.repeat(100));
+    expect(wire.length).toBeLessThan(2_000);
+  });
+
+  it('keeps acknowledged active file reads verbatim even above the raw-I/O budget', () => {
+    const fullRead = `ACTIVE_FILE\n${'source line\n'.repeat(1_000)}`;
+    const messages: Message[] = [
+      ...pair('read-active', fullRead, { file_path: '.\\src\\active.ts' }, 'read_file'),
+      { role: 'assistant', content: [{ type: 'text', text: 'read consumed' }] } as Message,
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 1 });
+
+    expect(result.changed).toBe(false);
+    expect(result.messages[1]?.content).toEqual([expect.objectContaining({ content: fullRead })]);
+    expect(result.retainedTokens).toBeGreaterThan(1);
+  });
+
+  it('removes an old read after a successful edit of the same normalized path', () => {
+    const oldRead = `OLD_SOURCE\n${'stale line\n'.repeat(1_000)}`;
+    const messages: Message[] = [
+      ...pair('read-old', oldRead, { path: 'src/file.ts' }, 'read'),
+      { role: 'assistant', content: [{ type: 'text', text: 'read consumed' }] } as Message,
+      ...pair('edit-ok', 'updated', { path: 'D:\\repo\\src\\file.ts' }, 'edit'),
+      { role: 'assistant', content: [{ type: 'text', text: 'edit consumed' }] } as Message,
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 10_000 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(result.changed).toBe(true);
+    expect(wire).not.toContain('OLD_SOURCE');
+    expect(wire).toContain('__stale_read');
+    expect(wire).toContain('invalidated by a later successful mutation');
+    expect(
+      eliseAcknowledgedToolResults(result.messages, { maxRetainedTokens: 10_000 }).changed,
+    ).toBe(false);
+  });
+
+  it('invalidates the old read as soon as the successful edit result exists', () => {
+    const messages: Message[] = [
+      ...pair('read-old', 'OLD_PENDING_SOURCE', { path: 'src/pending.ts' }, 'read'),
+      { role: 'assistant', content: [{ type: 'text', text: 'read consumed' }] } as Message,
+      ...pair('edit-pending', 'updated', { path: 'src/pending.ts' }, 'edit'),
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 10_000 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(wire).not.toContain('OLD_PENDING_SOURCE');
+    expect(wire).toContain('"content":"updated"');
+  });
+
+  it('keeps the read after a failed edit or an edit of another file', () => {
+    const read = `TRUSTED_SOURCE\n${'still current\n'.repeat(300)}`;
+    const messages: Message[] = [
+      ...pair('read-current', read, { path: 'src/current.ts' }, 'read'),
+      { role: 'assistant', content: [{ type: 'text', text: 'read consumed' }] } as Message,
+      {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 'edit-failed', name: 'edit', input: { path: 'src/current.ts' } },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'edit-failed',
+            name: 'edit',
+            content: 'denied',
+            is_error: true,
+          },
+        ],
+      } as Message,
+      { role: 'assistant', content: [{ type: 'text', text: 'failure consumed' }] } as Message,
+      ...pair('edit-other', 'updated', { path: 'src/other.ts' }, 'write'),
+      { role: 'assistant', content: [{ type: 'text', text: 'other write consumed' }] } as Message,
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 1 });
+
+    expect(result.messages[1]?.content).toEqual([expect.objectContaining({ content: read })]);
+  });
+
+  it('keeps a re-read after edit while removing only the pre-edit content', () => {
+    const messages: Message[] = [
+      ...pair('read-before', 'BEFORE_EDIT', { path: 'src/a.ts' }, 'read'),
+      { role: 'assistant', content: [{ type: 'text', text: 'before consumed' }] } as Message,
+      ...pair('edit', 'updated', { path: 'src/a.ts' }, 'edit'),
+      { role: 'assistant', content: [{ type: 'text', text: 'edit consumed' }] } as Message,
+      ...pair('read-after', `AFTER_EDIT\n${'fresh\n'.repeat(500)}`, { path: 'src/a.ts' }, 'read'),
+      { role: 'assistant', content: [{ type: 'text', text: 'after consumed' }] } as Message,
+    ];
+
+    const result = eliseAcknowledgedToolResults(messages, { maxRetainedTokens: 1 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(wire).not.toContain('BEFORE_EDIT');
+    expect(wire).toContain('AFTER_EDIT');
+    expect(wire).toContain('fresh\\n');
+  });
+});
+
+describe('collapseAcknowledgedToolReceipts', () => {
+  function acknowledgedCycles(count: number): Message[] {
+    const messages: Message[] = [];
+    for (let i = 0; i < count; i++) {
+      messages.push({
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: `private reasoning ${i}`, signature: `sig-${i}` },
+          {
+            type: 'tool_use',
+            id: `use-${i}`,
+            name: i % 2 === 0 ? 'exec' : 'grep',
+            input: { path: `src/file-${i}.ts` },
+          },
+        ],
+      } as Message);
+      messages.push({
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: `use-${i}`,
+            name: i % 2 === 0 ? 'exec' : 'grep',
+            content: `[elided: ~500 tokens; files=src/file-${i}.ts]`,
+          },
+        ],
+      } as Message);
+    }
+    messages.push({
+      role: 'assistant',
+      content: [{ type: 'text', text: `acknowledged ${count - 1}` }],
+    } as Message);
+    return messages;
+  }
+
+  it('bounds completed protocol pairs and folds older receipts into one digest', () => {
+    const messages = acknowledgedCycles(10);
+
+    const first = collapseAcknowledgedToolReceipts(messages, { maxPairs: 4 });
+    const second = collapseAcknowledgedToolReceipts(first.messages, { maxPairs: 4 });
+
+    expect(first.changed).toBe(true);
+    expect(first.collapsedPairs).toBe(6);
+    expect(first.saved).toBeGreaterThan(0);
+    expect(second.changed).toBe(false);
+    const wire = JSON.stringify(first.messages);
+    expect(wire).toContain('[tool_history_digest: 6 older acknowledged exchange(s) omitted');
+    expect(wire).toContain('src/file-0.ts');
+    expect(wire).not.toContain('private reasoning 0');
+    expect(wire).toContain('private reasoning 9');
+    expect(first.messages).toHaveLength(10); // digest + 4 pairs + final assistant
+    expect(
+      first.messages.flatMap((message) =>
+        typeof message.content === 'string'
+          ? []
+          : message.content.filter((block) => block.type === 'tool_result'),
+      ),
+    ).toHaveLength(4);
+    expect(repairToolUseAdjacency(first.messages).report).toEqual({
+      changed: false,
+      removedToolUses: [],
+      removedToolResults: [],
+      removedMessages: 0,
+    });
+  });
+
+  it('keeps completed protocol shells bounded across a long tool-only run', () => {
+    const result = collapseAcknowledgedToolReceipts(acknowledgedCycles(250), { maxPairs: 16 });
+
+    expect(result.collapsedPairs).toBe(234);
+    expect(result.messages).toHaveLength(34); // digest + 16 pairs + final assistant
+    expect(JSON.stringify(result.messages[0])).toContain(
+      '[tool_history_digest: 234 older acknowledged exchange(s) omitted',
+    );
+    expect(repairToolUseAdjacency(result.messages).report.changed).toBe(false);
+    expect(collapseAcknowledgedToolReceipts(result.messages, { maxPairs: 16 }).changed).toBe(false);
+  });
+
+  it('keeps a trailing unacknowledged result in addition to the receipt cap', () => {
+    const messages = acknowledgedCycles(5);
+    messages.pop(); // the pending tool-use response acknowledges the fifth result
+    messages.push({
+      role: 'assistant',
+      content: [{ type: 'tool_use', id: 'pending', name: 'read', input: { path: 'pending.ts' } }],
+    } as Message);
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'tool_result', tool_use_id: 'pending', name: 'read', content: 'pending raw' },
+      ],
+    } as Message);
+
+    const result = collapseAcknowledgedToolReceipts(messages, { maxPairs: 2 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(result.collapsedPairs).toBe(3);
+    expect(wire).toContain('pending raw');
+    expect(wire).toContain('"id":"pending"');
+    expect(repairToolUseAdjacency(result.messages).report.changed).toBe(false);
+  });
+
+  it('does not collapse active file reads merely to satisfy the receipt-count cap', () => {
+    const messages: Message[] = [];
+    for (let i = 0; i < 3; i++) {
+      messages.push(
+        ...[
+          {
+            role: 'assistant',
+            content: [
+              { type: 'tool_use', id: `active-${i}`, name: 'read', input: { path: `src/${i}.ts` } },
+            ],
+          } as Message,
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: `active-${i}`,
+                name: 'read',
+                content: `FULL_${i}`,
+              },
+            ],
+          } as Message,
+        ],
+      );
+    }
+    messages.push({ role: 'assistant', content: [{ type: 'text', text: 'consumed' }] } as Message);
+
+    const result = collapseAcknowledgedToolReceipts(messages, { maxPairs: 1 });
+
+    expect(result.changed).toBe(false);
+    expect(JSON.stringify(result.messages)).toContain('FULL_0');
+    expect(JSON.stringify(result.messages)).toContain('FULL_2');
+  });
+
+  it('treats non-finite pair limits as zero instead of disabling the bound', () => {
+    const result = collapseAcknowledgedToolReceipts(acknowledgedCycles(2), {
+      maxPairs: Number.NaN,
+    });
+
+    expect(result.collapsedPairs).toBe(2);
+    expect(repairToolUseAdjacency(result.messages).report.changed).toBe(false);
+  });
+
+  it('preserves user-visible assistant text while removing completed thinking and tool protocol', () => {
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: 'private chain', signature: 'sig' },
+          { type: 'text', text: 'I will inspect the file.' },
+          { type: 'tool_use', id: 'old', name: 'exec', input: { path: 'src/a.ts' } },
+        ],
+      } as Message,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'old', name: 'exec', content: 'src/a.ts' }],
+      } as Message,
+      { role: 'assistant', content: [{ type: 'text', text: 'Inspection complete.' }] } as Message,
+    ];
+
+    const result = collapseAcknowledgedToolReceipts(messages, { maxPairs: 0 });
+    const wire = JSON.stringify(result.messages);
+
+    expect(wire).toContain('I will inspect the file.');
+    expect(wire).toContain('Inspection complete.');
+    expect(wire).not.toContain('private chain');
+    expect(wire).not.toContain('tool_use');
+    expect(wire).not.toContain('tool_result');
+  });
+});
+
 describe('buildLosslessDigest', () => {
   it('keeps text verbatim, marks tool-only messages, and skips empty ones', () => {
     const messages: Message[] = [
@@ -411,8 +848,14 @@ describe('enforceHardBudget', () => {
     // orphaned protocol blocks survive.
     const msgs: Message[] = [];
     for (let i = 0; i < 8; i++) {
-      msgs.push({ role: 'assistant', content: [{ type: 'tool_use', id: `u${i}`, name: 'read', input: { path: `f${i}` } }] } as Message);
-      msgs.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: `u${i}`, content: 'y'.repeat(5_000) }] } as Message);
+      msgs.push({
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: `u${i}`, name: 'read', input: { path: `f${i}` } }],
+      } as Message);
+      msgs.push({
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: `u${i}`, content: 'y'.repeat(5_000) }],
+      } as Message);
     }
     const res = enforceHardBudget(msgs, 500, { preserveK: 1 });
     expect(estimateMessageTokens(res.messages)).toBeLessThanOrEqual(500);
@@ -432,7 +875,10 @@ describe('enforceHardBudget', () => {
 
 describe('dedupStaleReads', () => {
   const readUse = (id: string, path: string): Message =>
-    ({ role: 'assistant', content: [{ type: 'tool_use', id, name: 'read', input: { path } }] }) as Message;
+    ({
+      role: 'assistant',
+      content: [{ type: 'tool_use', id, name: 'read', input: { path } }],
+    }) as Message;
   const readResult = (id: string, content: string): Message =>
     ({ role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content }] }) as Message;
 

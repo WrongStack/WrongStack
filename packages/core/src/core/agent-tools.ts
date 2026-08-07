@@ -160,12 +160,8 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     content: string,
   ): void {
     const sig = sizeSignals(toolName, content);
-    // Memory the SAGE middleware appended to the result travels in its own
-    // field. `output` keeps tool text only, so a short tool result can no
-    // longer have the preview cap land inside a memory line — and surfaces
-    // without a SAGE renderer never print the block as tool output.
-    // Size signals stay computed over the full `content`: the model does see
-    // the injected block and pays tokens for it.
+    // New SAGE retrievals live in Context.memoryEvidence. Keep splitting old
+    // inline suffixes so replayed/pre-migration results remain clean.
     const { body, sageLines } = splitSageOutputBlock(content);
     const sage = capSageLines(sageLines, SAGE_EVENT_MAX);
     const metadata = recordToolOutputEvidence(a.ctx, {

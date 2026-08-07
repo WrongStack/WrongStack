@@ -111,7 +111,10 @@ describe('ChronicleSqliteJournal', () => {
     const row = db.prepare('SELECT payload FROM events WHERE sequence = 2').get() as {
       payload: string;
     };
-    const tampered = { ...(JSON.parse(row.payload) as Record<string, unknown>), outcome: 'failure' };
+    const tampered = {
+      ...(JSON.parse(row.payload) as Record<string, unknown>),
+      outcome: 'failure',
+    };
     db.prepare('UPDATE events SET payload = ? WHERE sequence = 2').run(JSON.stringify(tampered));
     db.close();
 
@@ -253,10 +256,15 @@ describe('ChronicleSqliteJournal', () => {
 
   it('keeps the event ceiling counter synchronized after a public purge', async () => {
     journal.close();
-    journal = new ChronicleSqliteJournal({ directory: dir, maxEvents: 3 });
-    await journal.appendBatch([input(), input(), input()]);
+    // Written under a past clock so the retention window can actually reach
+    // them — `purge` cuts off at `now - retentionDays`, never into the future.
+    const old = new Date('2026-01-01T00:00:00.000Z');
+    const past = new ChronicleSqliteJournal({ directory: dir, maxEvents: 3, now: () => old });
+    await past.appendBatch([input(), input(), input()]);
+    past.close();
 
-    await journal.purge({ before: new Date(Date.now() + 60_000), dryRun: false });
+    journal = new ChronicleSqliteJournal({ directory: dir, maxEvents: 3 });
+    await journal.purge({ retentionDays: 30, dryRun: false });
     await journal.appendBatch([input(), input(), input()]);
 
     expect(await journal.verify()).toMatchObject({ ok: true, entries: 3 });
@@ -292,7 +300,7 @@ describe('ChronicleSqliteJournal', () => {
     for (let index = 0; index < 512; index += 1) {
       const before = await journal.verify();
       try {
-        await journal.append(input({ metadata: { payload, index } }));
+        await journal.append(input({ attributes: { payload, index } }));
       } catch (error) {
         expect(error).toBeInstanceOf(ChronicleStorageQuotaError);
         expect(await journal.verify()).toEqual(before);
@@ -302,6 +310,79 @@ describe('ChronicleSqliteJournal', () => {
     }
 
     expect(rejected).toBe(true);
+  });
+
+  /**
+   * Regression: the quota used to measure the main database with `statSync`.
+   *
+   * SQLite parks freed pages on the freelist instead of returning them, so a
+   * journal that once grew large keeps that file size forever. Measuring the
+   * file therefore wedged ingestion permanently — a 3.9 GB file whose live
+   * data was 243 MB failed a 512 MB quota on EVERY append, and the only
+   * escape (`chronicle compact`) refuses to run while the daemon is up. The
+   * quota must track live pages, which shrink when rows are deleted.
+   */
+  it('admits writes after deletions free pages, even though the file never shrinks', async () => {
+    journal.close();
+    const quotaDir = path.join(dir, 'freelist');
+    await fs.mkdir(quotaDir, { recursive: true });
+    const payload = 'x'.repeat(64 * 1024);
+
+    // Fill an unbounded journal well past the quota we are about to impose.
+    const seed = new ChronicleSqliteJournal({ directory: quotaDir });
+    for (let index = 0; index < 400; index += 1) {
+      await seed.append(input({ attributes: { payload, index } }));
+    }
+    const dbPath = path.join(quotaDir, CHRONICLE_SQLITE_FILE);
+    const grownBytes = (await fs.stat(dbPath)).size;
+
+    // Delete almost everything. Rows go; the file keeps its high-water mark.
+    const raw = openRaw(quotaDir);
+    raw.exec('DELETE FROM events WHERE sequence > 5');
+    raw.close();
+    seed.close();
+
+    const afterDeleteBytes = (await fs.stat(dbPath)).size;
+    expect(afterDeleteBytes).toBeGreaterThanOrEqual(grownBytes);
+
+    // A quota below the FILE size but above the LIVE size must still accept
+    // writes. The old file-size check rejected every one of them.
+    const quotaBytes = 17 * 1024 * 1024;
+    expect(afterDeleteBytes).toBeGreaterThan(quotaBytes);
+
+    journal = new ChronicleSqliteJournal({ directory: quotaDir, maxBytes: quotaBytes });
+    await expect(
+      journal.append(input({ attributes: { note: 'after-free' } })),
+    ).resolves.toBeDefined();
+  });
+
+  /**
+   * Regression: `maxBytes` used to be split 50/50 between the main database
+   * and rollback-journal headroom. At the shipped 512 MB quota that left the
+   * main database 248 MB, which `maxEvents: 100_000` filled to 98.2% — the two
+   * bounds collided and ingestion wedged. The reserve is now capped, so the
+   * main database gets the share it needs while the aggregate ceiling is
+   * unchanged.
+   */
+  it('gives the main database the bulk of a large quota', async () => {
+    journal.close();
+    const budgetDir = path.join(dir, 'budget');
+    await fs.mkdir(budgetDir, { recursive: true });
+    journal = new ChronicleSqliteJournal({
+      directory: budgetDir,
+      maxBytes: 512 * 1024 * 1024,
+    });
+
+    const raw = openRaw(budgetDir);
+    const pageSize = (raw.prepare('PRAGMA page_size').get() as { page_size: number }).page_size;
+    raw.close();
+
+    const maxPages = (journal as unknown as { db: DatabaseSync }).db
+      .prepare('PRAGMA max_page_count')
+      .get() as { max_page_count: number };
+
+    // 512 MB - 16 MB fixed overhead - 64 MB capped journal reserve = 432 MB.
+    expect(maxPages.max_page_count * pageSize).toBe(432 * 1024 * 1024);
   });
 
   it('projects only values that remain recoverable from the payload', async () => {

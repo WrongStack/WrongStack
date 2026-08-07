@@ -1,10 +1,7 @@
 export {
-  ASSISTANT_TAIL_HEIGHT,
   AssistantBody,
-  AssistantTail,
   type AutonomyAgentStatus,
   assistantContentWidth,
-  assistantTailRows,
   Banner,
   type BodySegment,
   CodeBlock,
@@ -51,10 +48,10 @@ export {
   summarizeMultiFileDiffs,
   ToolOutputLines,
   ToolStreamBox,
-  toolStreamBoxHeight,
   type ToolVisualLine,
   type ToolVisualLineKind,
   tailForDisplay,
+  toolStreamBoxHeight,
   truncMid,
   tryParseJson,
 } from './history/index.js';

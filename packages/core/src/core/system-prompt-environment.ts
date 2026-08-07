@@ -43,6 +43,7 @@ export async function buildEnvironment(
     modelCapabilities?.supportsTools ? 1 : 0,
     modelCapabilities?.supportsVision ? 1 : 0,
     modelCapabilities?.supportsReasoning ? 1 : 0,
+    env.skillCache ?? '',
   ].join('\0');
   const cached = env.envCacheByRoot.get(cacheKey);
   if (cached) {
@@ -128,7 +129,11 @@ export async function buildEnvironment(
   // Shell syntax guidance — only meaningful on Windows, where the model must
   // not fall back to bash/POSIX idioms. Tier-gated: full for off/medium/
   // aggressive, a one-liner for light, omitted for minimal. POSIX returns ''.
-  if (effShell !== 'posix' && tier !== 'minimal') {
+  if (
+    ctx.tools.some((tool) => tool.name === 'bash') &&
+    effShell !== 'posix' &&
+    tier !== 'minimal'
+  ) {
     const guide = shellGuidanceBlock(effShell, tier === 'light' ? 'short' : 'full');
     if (guide) lines.push('', guide);
   }
