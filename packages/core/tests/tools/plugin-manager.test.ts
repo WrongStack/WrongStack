@@ -369,3 +369,141 @@ describe('plugin_manager honours read-only mode on the use path', () => {
     expect(result).toEqual(expect.objectContaining({ status: 'ok' }));
   });
 });
+
+/**
+ * The executor's permission pipeline elevates `auto` to `confirm` for
+ * dangerous-capability tools and runs every PreToolUse policy hook before
+ * execute. `plugin_manager use` invokes `execute()` directly, so it must
+ * either defer such calls back to the direct path (dangerous capabilities —
+ * a nested call cannot surface a confirm) or run the hook pipeline itself.
+ */
+describe('plugin_manager use — permission pipeline alignment', () => {
+  function registryWith(tool: Partial<Tool> & { name: string }): ToolRegistry {
+    const registry = new ToolRegistry();
+    registry.register(
+      {
+        description: 'test tool',
+        inputSchema: { type: 'object', properties: {} },
+        permission: 'auto',
+        execute: vi.fn() as never,
+        ...tool,
+      } as never,
+      'alpha-plugin',
+    );
+    return registry;
+  }
+
+  it('defers a dangerous-capability auto tool to the direct call path', async () => {
+    const run = vi.fn();
+    const tool = createPluginManagerTool({
+      getConfig: () => config(),
+      catalog,
+      toolRegistry: registryWith({
+        name: 'alpha_shell',
+        capabilities: ['shell.exec'],
+        execute: run as never,
+      }),
+      setEnabled: vi.fn(),
+    });
+
+    const result = await execute(tool, {
+      action: 'use',
+      plugin: 'alpha-plugin',
+      tool: 'alpha_shell',
+      input: {},
+    });
+
+    expect(run, 'the auto→confirm downgrade was walked around').not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'needs_direct_call',
+        directCall: expect.objectContaining({ tool: 'alpha_shell' }),
+      }),
+    );
+    expect((result as { message: string }).message).toContain('shell.exec');
+  });
+
+  it('lets a PreToolUse policy hook veto the nested call', async () => {
+    const run = vi.fn();
+    const preToolUse = vi
+      .fn()
+      .mockResolvedValue({ block: true, reason: 'path-guard: protected path' });
+    const tool = createPluginManagerTool({
+      getConfig: () => config(),
+      catalog,
+      toolRegistry: registryWith({ name: 'alpha_write', mutating: true, execute: run as never }),
+      setEnabled: vi.fn(),
+      getHookRunner: () => ({ preToolUse }),
+    });
+
+    const result = await execute(tool, {
+      action: 'use',
+      plugin: 'alpha-plugin',
+      tool: 'alpha_write',
+      input: { target: 'x' },
+    });
+
+    expect(run, 'a hook-denied tool still executed').not.toHaveBeenCalled();
+    expect(result).toEqual(expect.objectContaining({ status: 'error' }));
+    expect((result as { message: string }).message).toContain('path-guard: protected path');
+    // The hook must receive the tool's own declaration so capability-keyed
+    // policies (path-guard) can rule without knowing the name in advance.
+    expect(preToolUse).toHaveBeenCalledWith(
+      'alpha_write',
+      { target: 'x' },
+      expect.anything(),
+      expect.objectContaining({ mutating: true }),
+    );
+  });
+
+  it('executes with the hook-rewritten input', async () => {
+    const run = vi.fn().mockResolvedValue({ ok: true });
+    const tool = createPluginManagerTool({
+      getConfig: () => config(),
+      catalog,
+      toolRegistry: registryWith({
+        name: 'alpha_note',
+        inputSchema: { type: 'object', properties: { text: { type: 'string' } } },
+        execute: run as never,
+      }),
+      setEnabled: vi.fn(),
+      getHookRunner: () => ({
+        preToolUse: vi.fn().mockResolvedValue({ input: { text: '[REDACTED]' } }),
+      }),
+    });
+
+    const result = await execute(tool, {
+      action: 'use',
+      plugin: 'alpha-plugin',
+      tool: 'alpha_note',
+      input: { text: 'sk-secret' },
+    });
+
+    expect(result).toEqual(expect.objectContaining({ status: 'ok' }));
+    expect(run).toHaveBeenCalledWith(
+      { text: '[REDACTED]' },
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('runs unchanged when no hook runner is wired', async () => {
+    const run = vi.fn().mockResolvedValue({ ok: true });
+    const tool = createPluginManagerTool({
+      getConfig: () => config(),
+      catalog,
+      toolRegistry: registryWith({ name: 'alpha_plain', execute: run as never }),
+      setEnabled: vi.fn(),
+    });
+
+    const result = await execute(tool, {
+      action: 'use',
+      plugin: 'alpha-plugin',
+      tool: 'alpha_plain',
+      input: {},
+    });
+
+    expect(result).toEqual(expect.objectContaining({ status: 'ok' }));
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+});

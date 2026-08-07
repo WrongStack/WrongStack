@@ -15,7 +15,7 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1172,
+      "lines": 1183,
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
@@ -187,7 +187,7 @@
       "relativeImports": 150
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
-      "lines": 1055,
+      "lines": 1063,
       "relativeImports": 11
     },
     "packages/core/src/security/permission-policy.ts": {
@@ -255,7 +255,7 @@
       "relativeImports": 17
     },
     "packages/plugins/src/path-guard/index.ts": {
-      "lines": 1250,
+      "lines": 1854,
       "relativeImports": 0
     },
     "packages/plugins/src/secret-scanner/index.ts": {
@@ -343,11 +343,11 @@
       "relativeImports": 12
     },
     "packages/tui/src/app-view.tsx": {
-      "lines": 962,
+      "lines": 933,
       "relativeImports": 49
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1109,
+      "lines": 1083,
       "relativeImports": 66
     },
     "packages/tui/src/components/agents-monitor.tsx": {
@@ -359,12 +359,12 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/code-block.tsx": {
-      "lines": 823,
-      "relativeImports": 5
+      "lines": 835,
+      "relativeImports": 6
     },
     "packages/tui/src/components/history/entry.tsx": {
-      "lines": 1134,
-      "relativeImports": 11
+      "lines": 1124,
+      "relativeImports": 12
     },
     "packages/tui/src/components/history/utils.tsx": {
       "lines": 950,

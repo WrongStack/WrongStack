@@ -7,6 +7,7 @@ import type {
   KanbanTask,
 } from '@wrongstack/kanban';
 import { create } from 'zustand';
+import { isKanbanBoardActive } from '../lib/kanban-board-active.js';
 
 export interface KanbanResultPayload {
   success: boolean;
@@ -92,16 +93,37 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
       const deleteResult = data as { removed?: boolean; boardId?: string } | null;
       const removed = deleteResult?.removed === true;
       const removedBoardId = deleteResult?.boardId ?? activeBoardId;
-      set((state) => ({
-        boards: removed
-          ? state.boards.filter((board) => board.id !== removedBoardId)
-          : state.boards,
-        activeBoardId:
-          removed && state.activeBoardId === removedBoardId ? null : state.activeBoardId,
-        activeBoard: removed && state.activeBoard?.id === removedBoardId ? null : state.activeBoard,
-        loading: false,
-        error: null,
-      }));
+      set((state) => {
+        // Keep the three totals in step with the filtered list — leaving
+        // them untouched showed stale "N boards · M active" numbers until
+        // the next kanban.list refresh. When the removed board isn't in the
+        // loaded page we can't tell which bucket it was in, so only
+        // boardTotal drops; the next list refresh reconciles.
+        const removedSummary = removed
+          ? state.boards.find((board) => board.id === removedBoardId)
+          : undefined;
+        const removedActive = removedSummary ? isActiveSummary(removedSummary) : undefined;
+        return {
+          boards: removed
+            ? state.boards.filter((board) => board.id !== removedBoardId)
+            : state.boards,
+          boardTotal: removed ? Math.max(0, state.boardTotal - 1) : state.boardTotal,
+          activeBoardTotal:
+            removedActive === true
+              ? Math.max(0, state.activeBoardTotal - 1)
+              : state.activeBoardTotal,
+          orphanedBoardTotal:
+            removedActive === false
+              ? Math.max(0, state.orphanedBoardTotal - 1)
+              : state.orphanedBoardTotal,
+          activeBoardId:
+            removed && state.activeBoardId === removedBoardId ? null : state.activeBoardId,
+          activeBoard:
+            removed && state.activeBoard?.id === removedBoardId ? null : state.activeBoard,
+          loading: false,
+          error: null,
+        };
+      });
       return;
     }
     if (type === 'kanban.task.remove') {
@@ -316,8 +338,12 @@ function isBoardPage(value: unknown): value is KanbanBoardPage {
   );
 }
 
+// Fallback totals reuse the shared board-active predicate. The store runs
+// outside React and doesn't know the live session ids, so it passes an
+// empty list — presence-only, but the DEFINITION stays single-sourced with
+// `KanbanView`'s list split instead of forking a narrower copy here.
 function isActiveSummary(board: KanbanBoardSummary): boolean {
-  return board.presence?.some((entry) => entry.active) === true;
+  return isKanbanBoardActive(board, []);
 }
 
 function isColumn(value: unknown): value is KanbanColumn {

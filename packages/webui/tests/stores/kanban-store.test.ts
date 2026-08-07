@@ -96,6 +96,88 @@ describe('kanban-store', () => {
     expect(state.activeBoard?.id).toBe(second.id);
   });
 
+  it('kanban.delete decrements the board totals for the removed bucket', () => {
+    useKanbanStore.getState().handleResult('kanban.list', {
+      success: true,
+      data: [
+        {
+          id: 'active-board',
+          title: 'Active board',
+          createdAt: now,
+          updatedAt: now,
+          columnCount: 1,
+          taskCount: 0,
+          completedTaskCount: 0,
+          presence: [
+            {
+              id: 'presence-1',
+              sessionId: 'session-1',
+              agentId: 'leader',
+              lastSeenAt: now,
+              expiresAt: now,
+              active: true,
+            },
+          ],
+        },
+        {
+          id: 'orphan-board',
+          title: 'Orphan board',
+          createdAt: now,
+          updatedAt: now,
+          columnCount: 1,
+          taskCount: 0,
+          completedTaskCount: 0,
+        },
+      ],
+    });
+    expect(useKanbanStore.getState().boardTotal).toBe(2);
+    expect(useKanbanStore.getState().activeBoardTotal).toBe(1);
+    expect(useKanbanStore.getState().orphanedBoardTotal).toBe(1);
+
+    useKanbanStore.getState().handleResult('kanban.delete', {
+      success: true,
+      data: { removed: true, boardId: 'active-board' },
+    });
+    let state = useKanbanStore.getState();
+    expect(state.boardTotal).toBe(1);
+    expect(state.activeBoardTotal).toBe(0);
+    expect(state.orphanedBoardTotal).toBe(1);
+
+    useKanbanStore.getState().handleResult('kanban.delete', {
+      success: true,
+      data: { removed: true, boardId: 'orphan-board' },
+    });
+    state = useKanbanStore.getState();
+    expect(state.boardTotal).toBe(0);
+    expect(state.activeBoardTotal).toBe(0);
+    expect(state.orphanedBoardTotal).toBe(0);
+  });
+
+  it('kanban.delete leaves totals alone when nothing was removed', () => {
+    useKanbanStore.getState().handleResult('kanban.list', {
+      success: true,
+      data: [
+        {
+          id: 'only-board',
+          title: 'Only board',
+          createdAt: now,
+          updatedAt: now,
+          columnCount: 1,
+          taskCount: 0,
+          completedTaskCount: 0,
+        },
+      ],
+    });
+    useKanbanStore.getState().handleResult('kanban.delete', {
+      success: true,
+      data: { removed: false, boardId: 'only-board' },
+    });
+    const state = useKanbanStore.getState();
+    expect(state.boards).toHaveLength(1);
+    expect(state.boardTotal).toBe(1);
+    expect(state.orphanedBoardTotal).toBe(1);
+  });
+
   it('accepts paginated board results and exposes active/orphan totals', () => {
     useKanbanStore.getState().handleResult('kanban.list', {
       success: true,

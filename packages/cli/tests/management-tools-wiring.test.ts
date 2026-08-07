@@ -117,6 +117,36 @@ describe('registerCliManagementTools', () => {
     ]);
   });
 
+  it('forwards the late-bound hook runner getter to plugin_manager', () => {
+    // getHookRunner is optional, so forgetting to pass it is TS-silent —
+    // and without it the plugin_manager `use` path runs no PreToolUse
+    // policy hooks at all. Pin both halves of the bridge: the dep is
+    // forwarded here, and cli-main actually builds + fills the ref.
+    const getHookRunner = vi.fn(() => null);
+    registerCliManagementTools({
+      toolRegistry: { register: vi.fn() } as never,
+      configStore: { get: vi.fn(() => ({})), update: vi.fn() } as never,
+      profileConfigPath: 'C:/profile/config.json',
+      stdinInteractive: false,
+      getHookRunner,
+    });
+    expect(
+      (mocks.pluginOptions as { getHookRunner?: unknown }).getHookRunner,
+    ).toBe(getHookRunner);
+  });
+
+  it('cli-main wires the hook-runner ref into the management tools', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const cliMain = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli-main.ts'),
+      'utf8',
+    );
+    expect(cliMain).toContain('getHookRunner: () => hookRunnerRef.current');
+    expect(cliMain).toContain('hookRunnerRef.current = hookRunner;');
+  });
+
   it('mutates persisted profile config and recovers a missing file', async () => {
     const state = harness(false);
     mocks.readFile.mockRejectedValueOnce(new Error('missing'));

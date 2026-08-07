@@ -76,6 +76,25 @@ describe('mailbox store', () => {
     expect(byId.m3?.recipientSessionId).toBeUndefined();
   });
 
+  it('caps to the NEWEST messages when the payload exceeds the cap', () => {
+    // Regression: the server returns newest-first (sqlite ORDER BY
+    // timestamp DESC) and the old `.slice(-MAX)` kept the tail — i.e. the
+    // OLDEST messages — while its comment claimed "the most recent".
+    const oversized = Array.from({ length: 120 }, (_, index) =>
+      makeMessage({
+        id: `m${index}`,
+        // Descending timestamps: m0 is the newest, m119 the oldest.
+        timestamp: new Date(Date.UTC(2026, 0, 1, 0, 120 - index)).toISOString(),
+      }),
+    );
+    useMailboxStore.getState().setMessages(oversized);
+    const kept = useMailboxStore.getState().messages;
+    expect(kept).toHaveLength(100);
+    expect(kept[0]?.id).toBe('m0');
+    expect(kept.at(-1)?.id).toBe('m99');
+    expect(kept.some((message) => message.id === 'm119')).toBe(false);
+  });
+
   it('setMessages preserves server-provided scope when present', () => {
     useMailboxStore.getState().setMessages([
       makeMessage({ id: 'm1', to: '@session:s', scope: 'project', recipientSessionId: 'unused' }),

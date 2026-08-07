@@ -179,11 +179,18 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // These tools read config from the in-memory store and persist changes
   // to the active profile config file, mirroring updates back to the store.
   const stdinInteractive = process.stdin.isTTY;
+  // The hook runner is created by setupLifecycleAndPlugins further down, so
+  // plugin_manager gets a ref-backed getter that starts null and is filled
+  // once wiring completes. Until then the nested `use` path simply runs
+  // without hooks — the same window in which no tool call runs at all.
+  const hookRunnerRef: { current: import('@wrongstack/core/tools').PluginManagerHookRunner | null } =
+    { current: null };
   registerCliManagementTools({
     toolRegistry,
     configStore,
     profileConfigPath,
     stdinInteractive,
+    getHookRunner: () => hookRunnerRef.current,
   });
 
   // Metrics wiring — extracted to wiring/metrics.ts
@@ -383,6 +390,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     hqPublisherRef,
     brainMailbox,
     pluginHost,
+    hookRunner,
   } = await setupLifecycleAndPlugins({
     flags,
     config,
@@ -423,6 +431,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     logger,
     teardownHandlers,
   });
+  // Now that the hook pipeline exists, expose it to plugin_manager's nested
+  // `use` path (registered above, before hooks could exist).
+  hookRunnerRef.current = hookRunner;
 
   // ── Provider runtime helpers + fallback + switch + credential watcher ──
   // Extracted to wiring/provider-runtime-setup.ts.

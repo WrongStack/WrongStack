@@ -32,17 +32,10 @@ export function collectActiveSessionIds(input: {
   return [...ids];
 }
 
-export function isKanbanBoardActive(
-  board: Pick<KanbanBoard, 'presence' | 'tags'>,
-  activeSessionIds: readonly string[],
-): boolean {
-  return (
-    board.presence?.some((entry) => entry.active) === true ||
-    board.tags?.some(
-      (tag) => tag.startsWith('session:') && activeSessionIds.includes(tag.slice(8)),
-    ) === true
-  );
-}
+// The board-active predicate is shared with the kanban store (fallback
+// totals) and lives in lib/ — re-exported here so existing component
+// imports keep working.
+export { isKanbanBoardActive } from '../lib/kanban-board-active.js';
 
 export function runningBoardCostTotal(board: KanbanBoard | null): number {
   if (!board) return 0;

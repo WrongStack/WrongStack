@@ -31,5 +31,6 @@ export {
   createPluginManagerTool,
   PLUGIN_MANAGER_TOOL_NAME,
   type PluginManagerCatalogEntry,
+  type PluginManagerHookRunner,
   type PluginManagerMutationResult,
 } from './plugin-manager.js';

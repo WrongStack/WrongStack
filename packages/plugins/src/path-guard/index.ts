@@ -912,6 +912,8 @@ function launcherPrefixLength(after: string, valueTaking: Set<string>): number {
   for (let i = 0; i < tokens.length; i += 1) {
     const tok = tokens[i] ?? { value: '', start: 0, end: 0 };
     const token = tok.value;
+    // Stop at shell separators — the launched command boundary ends here.
+    if (/[;&|]/.test(token)) return consumed || tok.start;
     if (token === '--') return tok.end;
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) {
       consumed = tok.end;

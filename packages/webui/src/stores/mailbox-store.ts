@@ -118,13 +118,19 @@ export const useMailboxStore = create<MailboxState>()((set) => ({
       // Re-classify any message that lacks a server-derived scope, then cap
       // to the most recent MAX_MAILBOX_MESSAGES so the ActivityBar badge
       // and MailboxPanel list cannot drift past the cap over a long session.
+      // Sort newest-first explicitly before capping (the sibling setAgents
+      // pattern): the server returns newest-first (sqlite ORDER BY timestamp
+      // DESC), so the previous `.slice(-MAX)` — written as "keep the most
+      // recent" — actually kept the OLDEST slice whenever a payload
+      // exceeded the cap.
       messages: messages
         .map((m) => {
           if (m.scope !== undefined) return m;
           const classified = classifyMailboxRecipient(m.to);
           return { ...m, ...classified };
         })
-        .slice(-MAX_MAILBOX_MESSAGES),
+        .sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0))
+        .slice(0, MAX_MAILBOX_MESSAGES),
     }),
   setAgents: (agents) =>
     set(() => {

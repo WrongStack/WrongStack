@@ -91,9 +91,15 @@ export function KanbanBoardSidebar({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+        {/* Section headings count the list rendered under them. The
+            server-wide totals (activeBoardTotal / orphanedBoardTotal) use
+            the server's live-session knowledge and pagination scope, so
+            printing them here made the heading disagree with the visible
+            rows ("Active session · 3" over 2 items). They stay on the
+            summary line in the header, where server-wide is the point. */}
         {activeBoards.length > 0 && (
           <div className="mb-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-success">
-            Active session · {activeBoardTotal}
+            Active session · {activeBoards.length}
           </div>
         )}
         {activeBoards.map((board) => (
@@ -107,7 +113,7 @@ export function KanbanBoardSidebar({
         ))}
         {orphanedBoards.length > 0 && (
           <div className="mb-1 mt-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            No active session · {orphanedBoardTotal}
+            No active session · {orphanedBoards.length}
           </div>
         )}
         {orphanedBoards.map((board) => (

@@ -941,9 +941,6 @@
     "packages/tools/src/tool-summary.ts": [
       "SUMMARIZE_TOOL_INPUT_BROWSER_SRC"
     ],
-    "packages/tui/src/app-status-region.tsx": [
-      "resolveAgentSwarmPanelVisibility"
-    ],
     "packages/tui/src/auth-panel-model.ts": [
       "filterAuthCatalog"
     ],

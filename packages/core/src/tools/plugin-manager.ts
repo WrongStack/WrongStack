@@ -1,6 +1,6 @@
 import { type PluginEnablementSource, resolvePluginEnablement } from '../plugin/config.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
-import { ToolCapabilities } from '../security/capabilities.js';
+import { getDangerousCapabilities, ToolCapabilities } from '../security/capabilities.js';
 import { toolMutates } from '../security/readonly-permission-policy.js';
 import type { Config, PluginConfig } from '../types/config.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
@@ -32,6 +32,24 @@ export interface PluginManagerMutationResult {
   restartRequired?: boolean | undefined;
 }
 
+/**
+ * Structural view of the session's PreToolUse hook pipeline — satisfied by
+ * `HookRunner` without depending on the class. `use` runs the pipeline
+ * before a nested `execute()` so policy hooks (path-guard & co.) rule on
+ * plugin-tool calls exactly as they would on the direct path.
+ */
+export interface PluginManagerHookRunner {
+  preToolUse(
+    toolName: string,
+    toolInput: Record<string, unknown>,
+    env: { cwd: string; signal?: AbortSignal | undefined },
+    toolMeta?: {
+      capabilities?: readonly string[] | undefined;
+      mutating?: boolean | undefined;
+    },
+  ): Promise<{ block?: boolean | undefined; reason?: string | undefined; input?: Record<string, unknown> }>;
+}
+
 export interface CreatePluginManagerToolOptions {
   /** Re-read on every call so config changes made during the session are visible. */
   getConfig: () => Config;
@@ -41,6 +59,14 @@ export interface CreatePluginManagerToolOptions {
   toolRegistry: ToolRegistry;
   /** Persist an enable/disable decision in the host's active config. */
   setEnabled: (plugin: string, enabled: boolean) => Promise<PluginManagerMutationResult>;
+  /**
+   * Late-bound source for the session's policy-hook runner, resolved on
+   * every `use` call. Late-bound because the hook pipeline is wired after
+   * the management tools register (same pattern as OneShotOrchestrator's
+   * `wrapProviderCall`); optional so minimal hosts and tests without a
+   * hook pipeline keep the previous behavior bit-for-bit.
+   */
+  getHookRunner?: (() => PluginManagerHookRunner | null | undefined) | undefined;
 }
 
 interface PluginManagerInput {
@@ -287,6 +313,23 @@ export function createPluginManagerTool(opts: CreatePluginManagerToolOptions): T
           directCall: { tool: tool.name, input: input.input ?? {}, inputSchema: tool.inputSchema },
         };
       }
+      // The executor's pipeline elevates `auto` to `confirm` for tools that
+      // declare a dangerous capability (shell, fs.write, config mutation, …)
+      // outside YOLO. A nested `execute()` cannot surface that confirm, so
+      // the only correct behavior is to send the call back through the
+      // direct path where the pipeline can prompt. `getDangerousCapabilities`
+      // is the same authority the executor uses (security/capabilities.ts),
+      // so the two judgments cannot drift.
+      const dangerousCaps = getDangerousCapabilities(tool);
+      if (dangerousCaps.length > 0) {
+        return {
+          status: 'needs_direct_call',
+          message:
+            `Tool "${tool.name}" declares dangerous capabilities (${dangerousCaps.join(', ')}); ` +
+            'the permission pipeline must rule on it. Call it directly.',
+          directCall: { tool: tool.name, input: input.input ?? {}, inputSchema: tool.inputSchema },
+        };
+      }
       // Read-only mode is enforced by `ReadOnlyPermissionPolicy`, which sits on
       // the direct-call path only. `execute()` below is a direct invocation, so
       // without this check a plugin tool at `permission: 'auto'` that mutates
@@ -303,7 +346,27 @@ export function createPluginManagerTool(opts: CreatePluginManagerToolOptions): T
         };
       }
 
-      const nestedInput = input.input ?? {};
+      let nestedInput = input.input ?? {};
+      // Run the session's PreToolUse policy hooks before the nested
+      // execute(), mirroring the executor's order (hooks may veto or
+      // rewrite the input; validation below runs on whatever they return).
+      // Without this, a plugin tool invoked through `use` was the one tool
+      // surface no policy hook ever saw.
+      const hooks = opts.getHookRunner?.();
+      if (hooks) {
+        const pre = await hooks.preToolUse(tool.name, nestedInput, ctx, {
+          capabilities: tool.capabilities,
+          mutating: tool.mutating,
+        });
+        if (pre.block) {
+          return {
+            status: 'error',
+            message:
+              `A policy hook blocked "${tool.name}"` + (pre.reason ? `: ${pre.reason}` : '.'),
+          };
+        }
+        if (pre.input) nestedInput = pre.input;
+      }
       const validation = validateAgainstSchema(nestedInput, tool.inputSchema);
       if (!validation.ok) {
         return {

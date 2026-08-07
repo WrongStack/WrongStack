@@ -1,6 +1,10 @@
 import * as fs from 'node:fs/promises';
 import type { Config } from '@wrongstack/core/types';
-import { createFallbackManageTools, createPluginManagerTool } from '@wrongstack/core/tools';
+import {
+  createFallbackManageTools,
+  createPluginManagerTool,
+  type PluginManagerHookRunner,
+} from '@wrongstack/core/tools';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from '../plugin-management.js';
 
@@ -14,6 +18,13 @@ export interface RegisterCliManagementToolsDeps {
   configStore: ConfigStoreLike;
   profileConfigPath: string;
   stdinInteractive: boolean;
+  /**
+   * Late-bound PreToolUse pipeline for plugin_manager's nested `use` path.
+   * The hook runner is created by `setupLifecycleAndPlugins` AFTER the
+   * management tools register, so cli-main passes a ref-backed getter that
+   * starts null and is filled once wiring completes.
+   */
+  getHookRunner?: (() => PluginManagerHookRunner | null) | undefined;
 }
 
 export function registerCliManagementTools({
@@ -21,6 +32,7 @@ export function registerCliManagementTools({
   configStore,
   profileConfigPath,
   stdinInteractive,
+  getHookRunner,
 }: RegisterCliManagementToolsDeps): void {
   const fallbackManageTools = createFallbackManageTools({
     getConfig: () => configStore.get(),
@@ -51,6 +63,7 @@ export function registerCliManagementTools({
 
   toolRegistry.register(
     createPluginManagerTool({
+      ...(getHookRunner ? { getHookRunner } : {}),
       getConfig: () => configStore.get(),
       catalog: PLUGIN_AUDIT_ENTRIES.map((entry) => {
         const aliases = [
