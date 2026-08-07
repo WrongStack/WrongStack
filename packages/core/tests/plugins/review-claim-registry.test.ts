@@ -497,6 +497,34 @@ describe('review claim registry', () => {
     expect(emitCustom).toHaveBeenCalledTimes(2);
   });
 
+  it('evicts in-memory claims against the stored expiry, not the reader TTL', async () => {
+    // Fresh session object so the per-EventBus fallback ledger starts empty.
+    const sessionE = {};
+    const blocker = path.join(storeDir, 'not-a-dir');
+    await writeFile(blocker, 'x', 'utf8');
+    const unwritable = path.join(blocker, 'sub');
+    const emitCustom = vi.fn();
+
+    // Claim with a short TTL → the stored exp is now+50ms.
+    expect(
+      await emitReviewIfChanged({ events: sessionE, emitCustom } as never, bundle('v1'), {
+        storeDir: unwritable,
+        ttlMs: 50,
+      }),
+    ).not.toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    // A LATER reader with a much longer TTL must still see the claim as
+    // expired (stored exp elapsed). Reader-local eviction (now - ts > 5000)
+    // would wrongly keep it live and block this re-claim.
+    expect(
+      await emitReviewIfChanged({ events: sessionE, emitCustom } as never, bundle('v1'), {
+        storeDir: unwritable,
+        ttlMs: 5000,
+      }),
+    ).not.toBeNull();
+    expect(emitCustom).toHaveBeenCalledTimes(2);
+  });
+
   it('falls back to per-session dedup when the shared ledger is unwritable', async () => {
     // A plain file where a directory is expected → every ledger op fails.
     const blocker = path.join(storeDir, 'not-a-dir');

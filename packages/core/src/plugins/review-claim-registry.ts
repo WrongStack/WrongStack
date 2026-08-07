@@ -262,7 +262,10 @@ const MAX_LEDGER_LINES = 10_000;
 const HOST_SID = randomUUID();
 
 /** Same-process fallback ledger, used only when the shared store is unwritable. */
-const claimsByEventBus = new WeakMap<EventBus, Map<string, Map<string, number>>>();
+const claimsByEventBus = new WeakMap<
+  EventBus,
+  Map<string, Map<string, { ts: number; exp: number }>>
+>();
 const startedReviews = new WeakMap<ReviewContextBundle, StartedReview>();
 /**
  * In-flight claim installation for raw-emitted reviews. `recordStartedReview`
@@ -530,10 +533,10 @@ async function releaseSharedClaims(
 // ---------------------------------------------------------------------------
 // In-memory fallback (only when the shared ledger is unwritable)
 // ---------------------------------------------------------------------------
-function ledgerFor(events: EventBus): Map<string, Map<string, number>> {
+function ledgerFor(events: EventBus): Map<string, Map<string, { ts: number; exp: number }>> {
   let ledger = claimsByEventBus.get(events);
   if (!ledger) {
-    ledger = new Map<string, Map<string, number>>();
+    ledger = new Map<string, Map<string, { ts: number; exp: number }>>();
     claimsByEventBus.set(events, ledger);
   }
   return ledger;
@@ -553,10 +556,12 @@ function claimFilesInMemory(
     const fileFingerprint = fingerprint(file.content);
     let activeFingerprints = ledger.get(key);
     // Evict expired claims on access so a review that never completed cannot
-    // block the same content for the whole session.
+    // block the same content for the whole session. Staleness is evaluated
+    // from the PERSISTED absolute expiry, mirroring the shared ledger — never
+    // from a reader-local TTL (two callers with different knobs must agree).
     if (activeFingerprints) {
-      for (const [fp, ts] of activeFingerprints) {
-        if (now - ts > ttlMs) activeFingerprints.delete(fp);
+      for (const [fp, entry] of activeFingerprints) {
+        if (now > entry.exp) activeFingerprints.delete(fp);
       }
       if (activeFingerprints.size === 0) {
         ledger.delete(key);
@@ -564,11 +569,11 @@ function claimFilesInMemory(
       }
     }
     if (!activeFingerprints) {
-      activeFingerprints = new Map<string, number>();
+      activeFingerprints = new Map<string, { ts: number; exp: number }>();
       ledger.set(key, activeFingerprints);
     }
     if (activeFingerprints.has(fileFingerprint)) continue;
-    activeFingerprints.set(fileFingerprint, now);
+    activeFingerprints.set(fileFingerprint, { ts: now, exp: now + ttlMs });
     claims.push({ key, fingerprint: fileFingerprint, sid: HOST_SID, ts: now });
   }
   return claims;
@@ -579,10 +584,10 @@ function releaseClaimsInMemory(events: EventBus, claims: ReviewClaim[]): void {
   for (const claim of claims) {
     const activeFingerprints = ledger.get(claim.key);
     if (!activeFingerprints) continue;
-    // Mirror the shared-ledger sid+ts matching: with access-time TTL eviction,
+    // Mirror the shared-ledger sid+ts matching: with exp-based TTL eviction,
     // a fingerprint can be re-claimed after expiry, so a late release must not
     // delete the newer live entry.
-    if (activeFingerprints.get(claim.fingerprint) === claim.ts) {
+    if (activeFingerprints.get(claim.fingerprint)?.ts === claim.ts) {
       activeFingerprints.delete(claim.fingerprint);
     }
     if (activeFingerprints.size === 0) ledger.delete(claim.key);
