@@ -477,6 +477,13 @@ export const pluginCatalog = [
     source: 'Core',
   },
   {
+    name: 'wstack-cloud-config-sync',
+    risk: 'medium',
+    summary: 'my.wrongstack.com config synchronization over the namespaced sync API.',
+    defaultState: 'active',
+    source: 'Core',
+  },
+  {
     name: 'wstack-chimera',
     risk: 'medium',
     summary: 'Spawns a post-session code review subagent when explicitly enabled.',

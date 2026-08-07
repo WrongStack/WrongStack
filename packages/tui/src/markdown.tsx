@@ -74,6 +74,60 @@ function evictParseCache(incomingChars: number): void {
  * Results are memoized: repeated calls with the same text return the identical
  * cached array, eliminating redundant parsing on every TUI re-render.
  */
+
+/**
+ * O(1) character-membership check for the URL grammar used by the bare-URL
+ * branch below. Replaces a per-character string-concat + `.includes` scan
+ * that allocated a ~100-char string on every iteration of the URL loop —
+ * for a 50-char URL that was ~5000 char-of-string work, paid on every TUI
+ * re-render of any prose line containing a link.
+ *
+ * Allowlist matches the original code's printable-ASCII sans
+ * `["<>\\^`{|}]`, which itself matches what real-world https URLs carry
+ * (including `,;`, which are stripped afterwards by the trailing-punctuation
+ * regex below).
+ */
+function isUrlChar(code: number): boolean {
+  // a-z / A-Z / 0-9
+  if (
+    (code >= 0x61 && code <= 0x7a) ||
+    (code >= 0x41 && code <= 0x5a) ||
+    (code >= 0x30 && code <= 0x39)
+  ) {
+    return true;
+  }
+  // - . _ ~ : / ? # @ ! $ & + = % [ ] ( ) * ' , ;
+  // Note: `,` and `;` are matched here only so the URL is captured; the
+  // trailing-punctuation regex below strips them off when they were just
+  // sentence punctuation. Mirrors the original `String.fromCharCode(...).replace(...)`
+  // allowlist exactly.
+  return (
+    code === 0x2d ||
+    code === 0x2e ||
+    code === 0x5f ||
+    code === 0x7e ||
+    code === 0x3a ||
+    code === 0x2f ||
+    code === 0x3f ||
+    code === 0x23 ||
+    code === 0x40 ||
+    code === 0x21 ||
+    code === 0x24 ||
+    code === 0x26 ||
+    code === 0x2b ||
+    code === 0x3d ||
+    code === 0x25 ||
+    code === 0x5b ||
+    code === 0x5d ||
+    code === 0x28 ||
+    code === 0x29 ||
+    code === 0x2a ||
+    code === 0x27 ||
+    code === 0x2c ||
+    code === 0x3b
+  );
+}
+
 export function parseInline(text: string): InlineToken[] {
   const cached = _parseCache.get(text);
   if (cached) {
@@ -156,18 +210,8 @@ export function parseInline(text: string): InlineToken[] {
     // distinguishable from prose without wrapping in link syntax.
     if (text.startsWith('http://', i) || text.startsWith('https://', i)) {
       let urlEnd = i + 8;
-      while (urlEnd < text.length) {
-        const c = text[urlEnd];
-        const urlChars =
-          'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._~:/?#@!' +
-          String.fromCharCode(36) +
-          String.fromCharCode(38) +
-          "+,;=-%[]()'*";
-        if (c !== undefined && urlChars.includes(c)) {
-          urlEnd++;
-        } else {
-          break;
-        }
+      while (urlEnd < text.length && isUrlChar(text.charCodeAt(urlEnd))) {
+        urlEnd++;
       }
       const trailing = text.slice(i, urlEnd);
       const stripped = trailing.replace(/[.,;!?)]+$/, '');
