@@ -504,12 +504,15 @@ async function dispatch<O extends ChronicleServerOperationName>(
   }
 }
 
-function send(state: ClientState, message: ChronicleProjectServerMessage): void {
-  if (state.socket.destroyed) return;
+function encodeResponse(
+  state: ClientState,
+  message: ChronicleProjectServerMessage,
+): string | undefined {
+  if (state.socket.destroyed) return undefined;
   const encoded = encodeChronicleProjectServerMessage(message);
   if (encoded.length > CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS) {
     state.socket.destroy(new Error('Chronicle project server response exceeded frame limit'));
-    return;
+    return undefined;
   }
   // The frame cap above bounds one message; this bounds the queue. Ignoring
   // `socket.write()`'s `false` return lets a client that stopped reading grow
@@ -517,9 +520,28 @@ function send(state: ClientState, message: ChronicleProjectServerMessage): void 
   // kanban, SAGE and index owners.
   if (state.socket.writableLength > MAX_CLIENT_WRITE_BUFFER_BYTES) {
     state.socket.destroy(new Error('Chronicle client fell too far behind on reads'));
-    return;
+    return undefined;
   }
-  state.socket.write(encoded);
+  return encoded;
+}
+
+function send(state: ClientState, message: ChronicleProjectServerMessage): void {
+  const encoded = encodeResponse(state, message);
+  if (encoded !== undefined) state.socket.write(encoded);
+}
+
+async function sendAcknowledgement(
+  state: ClientState,
+  message: ChronicleProjectServerMessage,
+): Promise<void> {
+  const encoded = encodeResponse(state, message);
+  if (encoded === undefined) throw new Error('Chronicle client disconnected before acknowledgement');
+  await new Promise<void>((resolve, reject) => {
+    state.socket.write(encoded, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
 }
 
 async function handleMessage(
@@ -540,7 +562,12 @@ async function handleMessage(
     return;
   }
   if (message.type === 'shutdown') {
-    send(state, { type: 'response', id: message.id, ok: true, result: { stopped: true } });
+    await sendAcknowledgement(state, {
+      type: 'response',
+      id: message.id,
+      ok: true,
+      result: { stopped: true },
+    });
     await stop(message.reason ?? 'client request');
     return;
   }
@@ -641,9 +668,17 @@ async function stop(_reason: string): Promise<void> {
   // exist — and therefore none can have its metadata deleted by the
   // read-then-delete pid compare in `removeOwnedMetadata`.
   await removeOwnedMetadata();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  // Destroy client sockets before awaiting close(): net.Server.close() waits
+  // for every connection to end, so live clients can otherwise block daemon
+  // shutdown indefinitely after ownership metadata has already been removed.
   for (const state of clients) state.socket.destroy();
   clients.clear();
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
   await watcher?.close().catch(() => {});
   watcher = undefined;
   await flushJournals().catch(() => {});

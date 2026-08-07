@@ -51,6 +51,26 @@ function code(text: string): string {
     .join('\n');
 }
 
+describe('Chronicle shutdown acknowledgement', () => {
+  const body = code(source('packages/core/src/chronicle/project-server.ts'));
+
+  it('flushes the shutdown response before stopping the server', () => {
+    expect(body).toMatch(
+      /if \(message\.type === 'shutdown'\) \{\s*await sendAcknowledgement\(state,/,
+    );
+    expect(body).toMatch(/state\.socket\.write\(encoded, \(error\) => \{/);
+  });
+
+  it('resolves stop only from the server close acknowledgement', () => {
+    const stopStart = body.indexOf('async function stop');
+    const stopEnd = body.indexOf('server.on(', stopStart);
+    const stopBody = body.slice(stopStart, stopEnd);
+
+    expect(stopBody).toMatch(/server\.close\(\(error\) => \{/);
+    expect(stopBody).not.toMatch(/setTimeout\(/);
+  });
+});
+
 describe.each(DAEMONS)('%s', (file) => {
   it('writes metadata atomically, never unlink-then-rename', () => {
     const body = code(source(file));
