@@ -198,7 +198,10 @@ describe('buildVerificationReport', () => {
     expect(report.verdict).toBe('incomplete');
   });
 
-  it('legacy contract: returns passed when all subtasks are completed or failed', () => {
+  it('a failed subtask fails the parent even when every check passed', () => {
+    // This used to be pinned as a "legacy contract" returning 'passed':
+    // `subtasks.failed` was written and never read, so a parent whose
+    // children failed — even ALL of them — verified green.
     const report = buildVerificationReport({
       taskId: 't1',
       taskTitle: 'Test task',
@@ -216,7 +219,27 @@ describe('buildVerificationReport', () => {
       },
     });
 
-    expect(report.verdict).toBe('passed');
+    expect(report.verdict).toBe('failed');
+  });
+
+  it('all children failed can never verify as passed', () => {
+    const report = buildVerificationReport({
+      taskId: 't1',
+      taskTitle: 'Test task',
+      boardId: 'b1',
+      checks: [passedCheck('c1')],
+      subtasks: {
+        total: 2,
+        completed: 0,
+        failed: 2,
+        children: [
+          { taskId: 'st1', title: 'Sub 1', verdict: 'failed' },
+          { taskId: 'st2', title: 'Sub 2', verdict: 'failed' },
+        ],
+      },
+    });
+
+    expect(report.verdict).toBe('failed');
   });
 
   it('returns failed when both failed checks and incomplete subtasks exist', () => {

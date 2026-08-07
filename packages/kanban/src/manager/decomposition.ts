@@ -22,7 +22,7 @@ import type {
   KanbanEventContext,
   KanbanTask,
 } from '../types.js';
-import { createKanbanEvent, emitKanbanEvent, findTask, nowIso } from './_internal.js';
+import { createKanbanEvent, emitKanbanEvent, findTask, hasDependencyPath, nowIso } from './_internal.js';
 import { splitTask } from './dependencies.js';
 
 export interface ProposeTaskDecompositionInput {
@@ -103,7 +103,17 @@ async function wireProposalDependencies(
     for (const edge of edges) {
       const child = findTask(board, edge.taskId);
       if (!child) continue;
-      child.dependsOn = [...new Set([...(child.dependsOn ?? []), ...edge.dependsOn])];
+      // The dependsOnIndex edges come from the MODEL's proposal — a mutual
+      // pair (A dependsOn B, B dependsOn A) is one hallucination away, and
+      // this loop used to write it verbatim: both children became forever
+      // unclaimable AND every later syncBoardFromTaskGraph threw on the
+      // cycle, poisoning the board. Add each edge only if the reverse path
+      // does not already exist; a dropped edge degrades to "may run in
+      // either order", which is strictly better than a dead board.
+      for (const dependencyId of edge.dependsOn) {
+        if (hasDependencyPath(board, dependencyId, edge.taskId)) continue;
+        child.dependsOn = [...new Set([...(child.dependsOn ?? []), dependencyId])];
+      }
     }
     board.updatedAt = nowIso();
     return true;

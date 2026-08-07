@@ -38,6 +38,15 @@ import {
   syncTaskColumnForStatus,
 } from './_internal.js';
 import { collectBoardsForHealth } from './board-health.js';
+
+/**
+ * Staleness window for queued/running assignments that carry NO lease stamp
+ * ('running_no_lease'). A live agent heartbeats well inside this; ten
+ * minutes of total silence with no lease to expire means the owner is gone.
+ * Deliberately generous — recovery of a live claim is worse than a late
+ * recovery of a dead one.
+ */
+const STAMPLESS_ASSIGNMENT_STALE_MS = 10 * 60 * 1000;
 import { getBoard, listBoards } from './boards.js';
 import { areDependenciesMet } from './dependencies.js';
 import { StaleWriteError } from './lifecycle.js';
@@ -355,7 +364,23 @@ export async function recoverStaleTaskAssignments(
       if (!assignment || (assignment.status !== 'queued' && assignment.status !== 'running')) {
         continue;
       }
-      if (!assignment.leaseExpiresAt || assignment.leaseExpiresAt > checkedAt) continue;
+      // Two staleness signals:
+      //  - a stamped lease that has expired, or
+      //  - NO lease stamp at all and prolonged silence. The old
+      //    `!leaseExpiresAt → continue` skipped stampless assignments
+      //    forever — a claim written without a lease (the state the
+      //    classifier names 'running_no_lease', which the retry path below
+      //    itself produces by deleting the stamp) could never be recovered:
+      //    the agent dies, the task stays locked for good.
+      const leaseExpired =
+        assignment.leaseExpiresAt !== undefined && assignment.leaseExpiresAt <= checkedAt;
+      const lastSignalAt = assignment.heartbeatAt ?? assignment.claimedAt;
+      const stamplessAndSilent =
+        assignment.leaseExpiresAt === undefined &&
+        (lastSignalAt === undefined ||
+          new Date(checkedAt).getTime() - new Date(lastSignalAt).getTime() >=
+            STAMPLESS_ASSIGNMENT_STALE_MS);
+      if (!leaseExpired && !stamplessAndSilent) continue;
       const previousColumnId = task.columnId;
       const beforeAssignment = { ...assignment };
       const isHeartbeatDueNow = isAssignmentHeartbeatDue(assignment, checkedAt);
@@ -424,6 +449,14 @@ export async function recoverStaleTaskAssignments(
           delete task.assignment.leaseId;
           delete task.assignment.heartbeatAt;
           delete task.assignment.leaseExpiresAt;
+          // The dead agent no longer owns this task. Keeping its agentId
+          // made the retried record look OWNED, and an owned 'assigned'
+          // assignment blocks claiming (isTaskReadyForWork) — the retry
+          // would strand. Dropping the identity turns it into the same
+          // ownerless configuration template assignTask-without-agentId
+          // produces: routing/skills survive, the next claimer fills in
+          // its own identity.
+          delete task.assignment.agentId;
           if (input.clearAssignee !== false) {
             delete task.assignedAgent;
             delete task.assignee;
@@ -532,6 +565,16 @@ export async function releaseTaskClaim(
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
+    // Fencing, mirroring updateTaskAssignment/heartbeat: a zombie agent
+    // whose task was recovered and reassigned must not delete the LIVE
+    // owner's claim. Checked inside the board mutation lock; callers that
+    // omit the token (operator-driven manual release) stay unconditional.
+    if (
+      input.expectedLeaseId !== undefined &&
+      task.assignment?.leaseId !== input.expectedLeaseId
+    ) {
+      return null;
+    }
     const isManaged = board.lifecycle?.mode === 'managed';
     const previousColumnId = task.columnId;
     const beforeAssignment = task.assignment ? { ...task.assignment } : undefined;

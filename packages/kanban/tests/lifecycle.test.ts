@@ -644,3 +644,53 @@ describe('KANBAN_AGENT_STAGES', () => {
     expect([...KANBAN_AGENT_STAGES]).toEqual(['backlog', 'todo', 'running', 'review', 'done']);
   });
 });
+
+describe('transitionTask patch smuggling', () => {
+  // The input type Omit<>s columnId/status/lifecycle from the transition
+  // patch, but over IPC the patch arrives as plain JSON — a single call
+  // used to smuggle a stage jump past the ownership/evidence guards and
+  // REPLACE the audit ledger with a caller-supplied history array.
+  it.each(['columnId', 'status', 'lifecycle'])(
+    'rejects a transition patch carrying %s',
+    async (field) => {
+      const board = await createBoard(tmpDir, {
+        title: `Smuggle ${field}`,
+        columns: COLS,
+        lifecycle: policy,
+      });
+      const added = await addTask(tmpDir, board.id, {
+        title: 'Guarded',
+        description: 'Patch smuggling test card.',
+      });
+      const smuggled =
+        field === 'lifecycle'
+          ? { lifecycle: { currentStage: 'done', stageEnteredAt: 'x', history: [] } }
+          : field === 'status'
+            ? { status: 'completed' }
+            : { columnId: 'done' };
+      await expect(
+        transitionTask(tmpDir, board.id, added!.task.id, {
+          to: 'todo',
+          actor: 'agent-1',
+          comment: 'Planned.',
+          patch: smuggled as never,
+        }),
+      ).rejects.toThrow('Transition patch may not set');
+      // Benign patch fields still flow through the same call once the
+      // todo-stage gates (owner, due date, …) are satisfied.
+      await updateTask(tmpDir, board.id, added!.task.id, {
+        assignee: 'agent-1',
+        dueDate: '2026-09-01T00:00:00.000Z',
+        labels: ['guarded'],
+        successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'pending' }],
+      });
+      const ok = await transitionTask(tmpDir, board.id, added!.task.id, {
+        to: 'todo',
+        actor: 'agent-1',
+        comment: 'Planned.',
+        patch: { labels: ['ok'] } as never,
+      });
+      expect(ok).not.toBeNull();
+    },
+  );
+});

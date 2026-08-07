@@ -456,7 +456,34 @@ export async function transitionTask(
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
-    if (input.patch) applyTaskPatch(board, task, input.patch);
+    if (input.patch) {
+      // The transition OWNS columnId/status/lifecycle — they are written
+      // atomically below from the VALIDATED transition. The input type
+      // Omit<>s them, but that strips fields at the TypeScript layer only;
+      // over IPC the patch arrives as plain JSON, so a single call could
+      // smuggle Backlog→done past the ownership/evidence guards and
+      // REPLACE the audit ledger with a caller-supplied history array.
+      // Mirror the updateTask path (tasks.ts calls
+      // assertManagedTaskPatchAllowed) by failing loud instead of
+      // silently stripping.
+      const raw = input.patch as Record<string, unknown>;
+      const forbidden = ['columnId', 'status', 'lifecycle'].filter(
+        (key) => raw[key] !== undefined,
+      );
+      if (forbidden.length > 0) {
+        const issues: KanbanLifecycleValidationIssue[] = [
+          {
+            code: 'transition-skipped',
+            field: forbidden[0] as string,
+            message:
+              `Transition patch may not set ${forbidden.join(', ')} — ` +
+              'the transition writes column, status, and the audit ledger atomically.',
+          },
+        ];
+        throw new KanbanLifecycleError(issues[0]!.message, issues);
+      }
+      applyTaskPatch(board, task, input.patch);
+    }
     const issues = validateManagedTaskTransition(board, task, input);
     if (issues.length) throw new KanbanLifecycleError(issues[0]!.message, issues);
 

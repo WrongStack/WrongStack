@@ -47,6 +47,97 @@ const DANGEROUS_PATTERNS: ReadonlyArray<RegExp> = [
   /[([][^)\]]*[+*][^)\]]*[)\]][^)]*\?\??/,
 ];
 
+/**
+ * Ambiguous quantified alternation — `(a|a)*`, `(a|ab)+` — backtracks
+ * exponentially with a SINGLE outer quantifier because two branches can
+ * consume the same prefix (measured: 7s on a 27-char subject, synchronous
+ * and uninterruptible). The DANGEROUS_PATTERNS rule above only rejects a
+ * DOUBLED quantifier after the group, so this class sailed through. Flag
+ * a quantified group whose top-level branches are identical, prefix-related,
+ * or empty; disjoint branches (`(foo|bar)+`) stay allowed. Character-class
+ * overlap (`(\w|a)*`) remains undetected — the durable fix is a
+ * step-budgeted matcher.
+ *
+ * Keep in sync with `packages/tools/src/_regex.ts` and
+ * `packages/core/src/utils/regex-guard.ts` (regex-guard-parity.test.ts pins
+ * all three).
+ */
+function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] !== '(') continue;
+    if (i > 0 && pattern[i - 1] === '\\') continue;
+    let depth = 0;
+    let inClass = false;
+    let j = i;
+    for (; j < pattern.length; j++) {
+      const ch = pattern[j];
+      if (ch === '\\') {
+        j++;
+        continue;
+      }
+      if (inClass) {
+        if (ch === ']') inClass = false;
+        continue;
+      }
+      if (ch === '[') {
+        inClass = true;
+        continue;
+      }
+      if (ch === '(') depth++;
+      else if (ch === ')') {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    if (j >= pattern.length) return false; // unbalanced — RegExp() will reject
+    const next = pattern[j + 1];
+    if (next !== '+' && next !== '*' && next !== '{') continue;
+    let inner = pattern.slice(i + 1, j);
+    inner = inner.replace(/^\?(?::|<?[=!])/u, '');
+    const branches: string[] = [];
+    let current = '';
+    let d = 0;
+    let cls = false;
+    for (let k = 0; k < inner.length; k++) {
+      const ch = inner[k];
+      if (ch === '\\') {
+        current += ch + (inner[k + 1] ?? '');
+        k++;
+        continue;
+      }
+      if (cls) {
+        if (ch === ']') cls = false;
+        current += ch;
+        continue;
+      }
+      if (ch === '[') {
+        cls = true;
+        current += ch;
+        continue;
+      }
+      if (ch === '(') d++;
+      if (ch === ')') d--;
+      if (ch === '|' && d === 0) {
+        branches.push(current);
+        current = '';
+        continue;
+      }
+      current += ch;
+    }
+    branches.push(current);
+    if (branches.length < 2) continue;
+    for (let a = 0; a < branches.length; a++) {
+      for (let b = a + 1; b < branches.length; b++) {
+        const x = branches[a] as string;
+        const y = branches[b] as string;
+        if (x === '' || y === '') return true;
+        if (x === y || x.startsWith(y) || y.startsWith(x)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** Maximum subject length handed to a user-supplied regex. */
 export const MAX_SUBJECT_LEN = 64 * 1024;
 
@@ -74,6 +165,13 @@ export function compileSafeRegex(pattern: string, flags = ''): SafeRegexResult {
           'pattern looks vulnerable to catastrophic backtracking — rewrite without nested quantifiers',
       };
     }
+  }
+  if (hasAmbiguousQuantifiedAlternation(pattern)) {
+    return {
+      ok: false,
+      reason:
+        'pattern quantifies an alternation with overlapping branches — rewrite so no two branches can match the same text',
+    };
   }
   try {
     return { ok: true, regex: new RegExp(pattern, flags) };

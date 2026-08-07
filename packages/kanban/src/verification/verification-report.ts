@@ -28,8 +28,9 @@ export interface VerificationReportBuilderInput {
 /**
  * Build a KanbanVerificationReport from individual check results.
  * Computes the overall verdict automatically:
- *  - passed:    all checks passed or skipped, file scope matches, all subtasks done
- *  - failed:    any check failed
+ *  - passed:    all checks passed or skipped, file scope matches, all subtasks
+ *               COMPLETED (a failed subtask fails the parent — see below)
+ *  - failed:    any check failed, or any subtask failed
  *  - needs_human: any check had an error or needs escalation
  *  - incomplete: subtasks exist but are not all completed/failed
  */
@@ -42,12 +43,19 @@ export function buildVerificationReport(
   const checks = input.checks;
   const hasFailed = checks.some((c) => c.status === 'failed');
   const hasError = checks.some((c) => c.status === 'error');
+  // A failed subtask must fail the parent. `subtasks.failed` used to be
+  // written and never READ: verifySubtasks counts every child exactly once
+  // (completed + failed === total, always), so the incomplete branch below
+  // was arithmetically unreachable on that path — and a parent whose
+  // children ALL failed sailed to 'passed'. The incomplete branch stays for
+  // direct builder callers that hand-construct partial counts.
+  const hasFailedSubtasks = input.subtasks !== undefined && input.subtasks.failed > 0;
   const hasIncompleteSubtasks =
     input.subtasks &&
     (input.subtasks.completed + input.subtasks.failed < input.subtasks.total);
 
   let verdict: Verdict;
-  if (hasFailed) verdict = 'failed';
+  if (hasFailed || hasFailedSubtasks) verdict = 'failed';
   else if (hasError) verdict = 'needs_human';
   else if (hasIncompleteSubtasks) verdict = 'incomplete';
   else verdict = 'passed';

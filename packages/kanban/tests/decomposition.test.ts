@@ -190,3 +190,31 @@ describe('resolveDecompositionProposal', () => {
     ).toBeNull();
   });
 });
+
+describe('wireProposalDependencies cycle protection', () => {
+  it('drops the edge that would close a mutual dependsOnIndex cycle', async () => {
+    // The dependsOnIndex edges come from the MODEL's proposal — a mutual
+    // pair used to be written verbatim: both children forever unclaimable
+    // and every later graph sync throwing on the cycle.
+    const board = await createBoard(tmpDir, {
+      title: 'Cycle board',
+      atomicity: { mode: 'assess', decomposition: 'auto' },
+    });
+    const added = await addTask(tmpDir, board.id, { title: 'Big', description: 'x' });
+    const result = await proposeTaskDecomposition(tmpDir, board.id, added!.task.id, {
+      subtasks: [
+        { title: 'A', dependsOnIndex: [1] },
+        { title: 'B', dependsOnIndex: [0] },
+      ],
+    });
+    const [aId, bId] = result!.proposal.appliedChildTaskIds!;
+    const stored = await getBoard(tmpDir, board.id);
+    const a = stored!.tasks.find((task) => task.id === aId)!;
+    const b = stored!.tasks.find((task) => task.id === bId)!;
+    const aDeps = a.dependsOn ?? [];
+    const bDeps = b.dependsOn ?? [];
+    // Exactly ONE direction survives — never both (cycle), and dropping
+    // both would lose real ordering information.
+    expect(Number(aDeps.includes(bId)) + Number(bDeps.includes(aId))).toBe(1);
+  });
+});

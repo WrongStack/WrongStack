@@ -855,7 +855,22 @@ export function highestPriority(tasks: readonly KanbanTask[]): KanbanTaskPriorit
 
 export function isTaskReadyForWork(board: KanbanBoard, task: KanbanTask): boolean {
   if (!['pending', 'ready'].includes(task.status)) return false;
-  if (task.assignment && ['queued', 'running'].includes(task.assignment.status)) return false;
+  // An OWNED 'assigned' assignment blocks claiming too: buildAssignment's
+  // DEFAULT status is 'assigned', so omitting it left every assignTask'd
+  // task open to claimReadyTaskOnBoard, which overwrote the assignment and
+  // inherited the previous agentId/leaseId — a double claim. An OWNERLESS
+  // 'assigned' record (assignTask with routing/skills but no agentId) is a
+  // configuration template awaiting a claimer and stays claimable — the
+  // claim fills in the agent identity, inheriting only the configuration
+  // (pinned by the "configured task" claim test in manager.test.ts).
+  if (task.assignment) {
+    const status = task.assignment.status;
+    if (status === 'queued' || status === 'running') return false;
+    const hasExecutionOwner = Boolean(
+      task.assignment.agentId || task.assignment.subagentId || task.assignment.runTaskId,
+    );
+    if (status === 'assigned' && hasExecutionOwner) return false;
+  }
   if (task.mergedIntoTaskId) return false;
   if (!areDependenciesMet(board, task.id)) return false;
   // Enforced atomicity: a childless leaf judged too large must be split

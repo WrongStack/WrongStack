@@ -12,6 +12,7 @@ import {
   createBoard,
   createBoardFromTaskGraph,
   createBoardsFromPhaseGraph,
+  claimReadyTask,
   classifyTaskForQueue,
   duplicateBoard,
   exportBoardToTaskGraph,
@@ -24,6 +25,7 @@ import {
   listTaskActivity,
   mergeTasks,
   recoverStaleTaskAssignments,
+  releaseTaskClaim,
   recordTaskActivity,
   removeColumn,
   removeTask,
@@ -601,6 +603,122 @@ describe('recoverStaleTaskAssignments edges', () => {
     await updateTaskAssignment(tmpDir, b.id, t!.task.id, { status: 'completed' });
     const result = await recoverStaleTaskAssignments(tmpDir, b.id, { mode: 'retry' });
     expect(result).toBeNull();
+  });
+
+  it('recovers a lease-stampless assignment after prolonged silence', async () => {
+    // 'running_no_lease': the old sweep skipped anything without a
+    // leaseExpiresAt stamp forever — the agent dies, the task stays locked
+    // for good (and the retry path itself produces this shape by deleting
+    // the stamp).
+    const b = await makeBoard();
+    const t = await addTask(tmpDir, b.id, { title: 'Stampless' });
+    await assignTask(tmpDir, b.id, t!.task.id, { agentId: 'bot' });
+    await updateTaskAssignment(tmpDir, b.id, t!.task.id, {
+      status: 'running',
+      heartbeatAt: '2026-07-17T00:00:00Z',
+    });
+    // Silent for 11 minutes with no lease to expire → stale.
+    const result = await recoverStaleTaskAssignments(tmpDir, b.id, {
+      mode: 'retry',
+      now: '2026-07-17T00:11:00Z',
+    });
+    expect(result).not.toBeNull();
+    expect(result!.tasks[0]!.assignment?.status).toBe('assigned');
+  });
+
+  it('leaves a stampless assignment alone while its heartbeat is fresh', async () => {
+    const b = await makeBoard();
+    const t = await addTask(tmpDir, b.id, { title: 'Fresh' });
+    await assignTask(tmpDir, b.id, t!.task.id, { agentId: 'bot' });
+    await updateTaskAssignment(tmpDir, b.id, t!.task.id, {
+      status: 'running',
+      heartbeatAt: '2026-07-17T00:10:00Z',
+    });
+    const result = await recoverStaleTaskAssignments(tmpDir, b.id, {
+      mode: 'retry',
+      now: '2026-07-17T00:11:00Z',
+    });
+    expect(result).toBeNull();
+  });
+});
+
+describe('double-claim prevention', () => {
+  it('claims an ownerless assignment template with a preseeded lease', async () => {
+    const b = await makeBoard();
+    const t = await addTask(tmpDir, b.id, { title: 'Preseeded', status: 'ready' });
+    await assignTask(tmpDir, b.id, t!.task.id, {
+      provider: 'openai',
+      model: 'gpt-test',
+      fallbackModels: ['fallback/test'],
+      leaseId: 'lease-preseeded',
+      claimedAt: '2025-01-01T00:00:00Z',
+      heartbeatAt: '2025-01-01T00:00:00Z',
+      leaseExpiresAt: '2099-01-01T00:00:00Z',
+    });
+
+    const claimed = await claimReadyTask(tmpDir, { boardId: b.id, agentId: 'worker-bot' });
+
+    expect(claimed).not.toBeNull();
+    expect(claimed!.task.assignment).toMatchObject({
+      agentId: 'worker-bot',
+      provider: 'openai',
+      model: 'gpt-test',
+      fallbackModels: ['fallback/test'],
+      leaseId: 'lease-preseeded',
+      status: 'queued',
+    });
+  });
+
+  it('an owned assigned task cannot be re-claimed, and a recovered retry can', async () => {
+    const b = await makeBoard();
+    const t = await addTask(tmpDir, b.id, { title: 'Owned', status: 'ready' });
+    await assignTask(tmpDir, b.id, t!.task.id, { agentId: 'owner-bot' });
+
+    // Owned 'assigned' assignment: claimReadyTask used to overwrite it and
+    // inherit the previous identity — a double claim.
+    const denied = await claimReadyTask(tmpDir, { boardId: b.id, agentId: 'thief-bot' });
+    expect(denied).toBeNull();
+
+    // Stale → retry recovery strips the dead owner's identity, turning the
+    // record into an ownerless configuration template…
+    await updateTaskAssignment(tmpDir, b.id, t!.task.id, {
+      status: 'running',
+      leaseId: 'lease-1',
+      leaseExpiresAt: '2020-01-01T00:00:00Z',
+    });
+    await recoverStaleTaskAssignments(tmpDir, b.id, { mode: 'retry' });
+
+    // …which a NEW agent claims with its own identity (retry must not strand).
+    const claimed = await claimReadyTask(tmpDir, { boardId: b.id, agentId: 'new-bot' });
+    expect(claimed).not.toBeNull();
+    expect(claimed!.task.assignment?.agentId).toBe('new-bot');
+  });
+});
+
+describe('releaseTaskClaim fencing', () => {
+  it('a stale lease holder cannot release the live owner’s claim', async () => {
+    const b = await makeBoard();
+    const t = await addTask(tmpDir, b.id, { title: 'Fenced' });
+    await assignTask(tmpDir, b.id, t!.task.id, { agentId: 'live-bot' });
+    await updateTaskAssignment(tmpDir, b.id, t!.task.id, {
+      status: 'running',
+      leaseId: 'lease-live',
+    });
+
+    // Zombie agent still holds the OLD lease id — its release must no-op.
+    const denied = await releaseTaskClaim(tmpDir, b.id, t!.task.id, {
+      expectedLeaseId: 'lease-zombie',
+    });
+    expect(denied).toBeNull();
+    const board = await getBoard(tmpDir, b.id);
+    expect(board!.tasks[0]!.assignment?.leaseId).toBe('lease-live');
+
+    // The live owner (matching token) releases fine.
+    const released = await releaseTaskClaim(tmpDir, b.id, t!.task.id, {
+      expectedLeaseId: 'lease-live',
+    });
+    expect(released).not.toBeNull();
+    expect(released!.tasks[0]!.assignment).toBeUndefined();
   });
 });
 

@@ -310,6 +310,14 @@ export interface ReleaseKanbanTaskClaimInput {
   status?: 'pending' | 'ready' | 'blocked' | undefined;
   reason?: string | undefined;
   clearAssignee?: boolean | undefined;
+  /**
+   * Fencing token, same contract as the heartbeat input below: when set,
+   * the release applies only while the task's current `assignment.leaseId`
+   * matches. Without it a zombie agent whose task was recovered and
+   * REASSIGNED could unconditionally delete the LIVE owner's claim.
+   * Operator-driven manual releases omit it and stay unconditional.
+   */
+  expectedLeaseId?: string | undefined;
 }
 
 export interface HeartbeatKanbanTaskAssignmentInput {

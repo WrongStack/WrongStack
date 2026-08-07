@@ -393,8 +393,14 @@ export async function cancelKanbanDispatch(
 
   if (!current) return null;
 
+  // Fence the release too: the ownership check above and this release are
+  // TWO separate board mutations, and between them the task can be
+  // recovered and reclaimed by a new agent — an unfenced release then
+  // deleted the NEW owner's claim (the exact zombie-release hole the
+  // expectedLeaseId token exists for).
   return releaseTaskClaim(projectRoot, input.boardId, input.taskId, {
     reason: input.reason,
+    expectedLeaseId: input.leaseId,
   });
 }
 
