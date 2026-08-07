@@ -218,6 +218,8 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets("rm -f .env; env -S 'echo y'")).toContain('.env');
     expect(destructiveTargets("env -S 'echo y' | tee .env")).toContain('.env');
     expect(destructiveTargets("sudo env -S 'rm .env'")).toContain('.env');
+    expect(destructiveTargets("env -S'echo safe' && rm .env")).toContain('.env');
+    expect(destructiveTargets("env -S 'echo safe'; env -S 'rm .env'")).toContain('.env');
     expect(destructiveTargets("env -S 'echo safe'")).toHaveLength(0);
   });
 
@@ -364,6 +366,10 @@ EOF`,
       expect(destructiveTargets(command)).toEqual(expected);
     },
   );
+
+  it('does not treat a data heredoc feeding process substitution as executing its body', () => {
+    expect(destructiveTargets("cat <<'EOF' > >(grep x)\nrm .env\nEOF")).toHaveLength(0);
+  });
 
   it('inspects executable heredoc consumers but keeps quoted data heredocs inert', () => {
     expect(destructiveTargets('cat <<EOF\n$(rm .env)\nEOF')).toContain('.env');
@@ -681,9 +687,9 @@ describe('path-guard plugin', () => {
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    expect(
-      hook({ toolName: 'bash', toolInput: { command: 'git -C sub rm secrets/key' } })?.decision,
-    ).toBe('block');
+    for (const command of ['git -C sub rm secrets/key', 'git -Csub rm secrets/key']) {
+      expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+    }
     expect(
       hook({
         toolName: 'bash',

@@ -858,8 +858,8 @@ function stripTransparentLaunchers(command: string): string {
   // First, unwrap `env -S 'payload'` / `--split-string 'payload'` so the
   // payload replaces the option in-place before any further stripping.
   let stripped = command.replace(
-    /(?:[^\s;&|(){}]+[\\/])?env\s+(?:\S+\s+)*?(?:-[i0v]*S|--split-string(?:=|\s+))\s*(['"])(.*?)\1/gi,
-    (_match, _quote: string, payload: string) => payload,
+    /(?:[^\s;&|(){}]+[\\/])?env\s+([^;&|\r\n]*?)(?:-[i0v]*S|--split-string(?:=|\s+))\s*(['"])([^'"]*?)\2/gi,
+    (_match, _pre: string, _quote: string, payload: string) => payload,
   );
   // Then iteratively strip `sudo` and `env` launcher prefixes via token-aware
   // parsing so arbitrary value-taking options do not bypass detection.
@@ -1208,8 +1208,12 @@ function maskNonExecutingHeredocBodies(command: string): string {
         const previous = segmentTokens.at(-1)?.toLowerCase();
         return previous === undefined || /^(?:(?:ba|z|k)?sh|source|\.)$/.test(previous);
       });
+    const processSubstitution = /^(?:>>|>\||>)\s*>\s*\(\s*([^\s)]+)/.exec(suffix);
+    const processCommand = processSubstitution?.[1]?.replace(/^.*[\\/]/, '').toLowerCase();
     const executesBody =
-      /(?:^|[<>])>\s*>\s*\(|^(?:\||;|&|\(|\{)/.test(suffix) || executesRedirectedFile;
+      /^(?:\||;|&|\(|\{)/.test(suffix) ||
+      /^(?:(?:ba|z|k)?sh|source|\.)$/.test(processCommand ?? '') ||
+      executesRedirectedFile;
     if (!receivesDataWithoutExecuting || executesBody) continue;
     heredoc = { ...marker, bodyStart: index + 1 };
   }
