@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { resolveSidebarLayout } from '../src/app-ui-state.js';
+import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
+import type { Settings } from '../src/app-settings-type.js';
 import { RightSidebar } from '../src/components/sidebar.js';
 import {
   FleetPanelSidebar,
@@ -19,7 +20,12 @@ describe('routed sidebar panel layout', () => {
     const rows = 24;
     const state = createTestState({ monitorOpen: true });
     const { sidebarWidth, sidebarContentWidth, mainColumnWidth, overlayOpen } =
-      resolveSidebarLayout(state, columns, { fleet: 'sidebar' }, false);
+      resolveAppSidebarLayout(
+        state,
+        columns,
+        { panelPositions: { fleet: 'sidebar' } } as unknown as Settings,
+        false,
+      );
 
     expect(overlayOpen).toBe(false);
     expect(sidebarWidth).toBe(20);

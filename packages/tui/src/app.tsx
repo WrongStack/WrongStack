@@ -63,7 +63,7 @@ import { useExitCommand } from './hooks/use-exit-command.js';
 import { useEnhanceRuntimeState } from './hooks/use-enhance-runtime-state.js';
 import { useApp, useStdout } from './ink.js';
 import { deriveAppViewState } from './app-view-state.js';
-import { mergeStatuslineHiddenItems, resolveSidebarLayout } from './app-ui-state.js';
+import { mergeStatuslineHiddenItems, resolveAppSidebarLayout } from './app-ui-state.js';
 import { AppView } from './app-view.js';
 import { createRunBlocksController } from './run-blocks-controller.js';
 import { createSubmitController } from './submit-controller.js';
@@ -259,42 +259,16 @@ export function App(props: AppProps): React.ReactElement {
   const mailbox = useMailboxViewModel(events);
   const { setMailboxPanelOpen } = mailbox;
 
-  // Mirrors `sidebarPanelOpenFlags` in `app-view.tsx` so the scroll-clamp
-  // reservation in `resolveSidebarLayout` reflects which routed twins are
-  // actually mounted. `liveSettings?.showAgentSwarmPanel === 'off'` is the
-  // legacy tri-state that suppresses the agents slot even when open.
-  const sidebarOpenFlags = {
-    projectPicker: state.projectPicker.open,
-    fleet: state.monitorOpen,
-    agents:
-      state.agentsMonitorOpen &&
-      (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'off',
-    worktree: state.worktreeMonitorOpen,
-    plan: state.planPanelOpen,
-    todos: state.todosMonitorOpen,
-    queue: state.queuePanelOpen,
-    processList: state.processListOpen,
-    goal: state.goalPanelOpen,
-    sessions: state.sessionsPanelOpen,
-    coordinator:
-      state.coordinator.monitorOpen ||
-      (state.goalRun?.monitorOpen ?? false),
-    kanban: state.kanbanPanelOpen,
-    connections: state.connectionsPanelOpen,
-  };
-
-  const sidebarLayout = resolveSidebarLayout(
+  // Single-authority sidebar layout: the same wrapper the renderer
+  // (`app-view.tsx`) calls, so the dispatcher and the renderer can never
+  // drift on panel routing again. Notably this means the dispatcher now
+  // sees the settings picker's draft panelPositions while the picker is
+  // open, matching what the renderer mounts.
+  const sidebarLayout = resolveAppSidebarLayout(
     state,
     stdout?.columns ?? 80,
-    liveSettings?.panelPositions,
+    liveSettings,
     mailbox.mailboxPanelOpen,
-    sidebarOpenFlags,
-    // Legacy `showAgentSwarmPanel === 'sidebar'` source from the
-    // persisted config. Mirrors the renderer's read at
-    // `app-view.tsx:897-899` so the scroll-clamp reservation matches
-    // the actual source the renderer uses to decide whether to
-    // render the mission card on the sidebar.
-    (liveSettings?.showAgentSwarmPanel ?? 'bottom') === 'sidebar',
   );
 
   // Push live model changes to the terminal title controller so the

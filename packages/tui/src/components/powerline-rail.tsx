@@ -12,6 +12,27 @@ export function visibleNodeText(node: React.ReactNode): string {
     const props = node.props as { children?: React.ReactNode; text?: unknown };
     if (props.children !== undefined) return visibleNodeText(props.children);
     if (typeof props.text === 'string') return props.text;
+    // Function components carry neither `children` nor `text`, so they used
+    // to measure as 0 columns — a BrainChip or EternalStageChip on the rail
+    // made the frame overflow the budget by the chip's full rendered width
+    // (row 3 wrapped, the measured bottom region grew a row, and the
+    // viewport cropped the top history line one commit later). Chips in
+    // status-bar-chips.tsx are hook-free pure functions by construction, so
+    // invoking them yields the exact tree the renderer will produce.
+    // Anything that does throw (a future hook-using chip) falls back to the
+    // old 0-column measurement instead of crashing the rail — such a chip
+    // should expose a `text` prop like ThinkingChip does.
+    const type = node.type as unknown;
+    if (
+      typeof type === 'function' &&
+      !(type as { prototype?: { isReactComponent?: unknown } }).prototype?.isReactComponent
+    ) {
+      try {
+        return visibleNodeText((type as (p: unknown) => React.ReactNode)(node.props));
+      } catch {
+        return '';
+      }
+    }
     return '';
   }
   return '';

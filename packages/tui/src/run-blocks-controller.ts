@@ -38,6 +38,31 @@ export function createRunBlocksController(
   const runBlocks = async (blocks: ContentBlock[]): Promise<void> => {
     const { capabilities, refs, dispatch } = host;
     const { agent } = capabilities;
+    // Busy guard. Both wait-loop callers (steer, /steer runText) document
+    // that runBlocks "early-returns on the busy guard" — but no guard
+    // existed: the function unconditionally overwrote `activeController`
+    // and dispatched 'running', so the only serialization was each
+    // caller's own (possibly stale) status check. Two concurrent runs
+    // interleave into one JSONL and the first becomes un-abortable
+    // (Esc/Ctrl+C only sees the second controller).
+    //
+    // The gate is `activeController`, not `refs.state.current.status`: the
+    // status cell updates on React commit, so at the tail-drain call site
+    // below it may still read 'running' a frame after `finally` cleared the
+    // controller — a status gate would break queue draining. The controller
+    // cell is set/cleared synchronously in this function, making it the
+    // only race-free busy signal. Queue instead of dropping so a lost race
+    // (eternal poll vs. user submit in the same tick) never discards input.
+    if (refs.activeController.current) {
+      const displayText =
+        blocks
+          .filter((block) => block.type === 'text')
+          .map((block) => (block as { text: string }).text)
+          .join(' ')
+          .trim() || '(queued input)';
+      dispatch({ type: 'enqueue', item: { displayText, blocks } });
+      return;
+    }
     const runGeneration = refs.sessionGeneration.current;
     refs.activeRunGeneration.current = runGeneration;
     let settleRun = () => {};

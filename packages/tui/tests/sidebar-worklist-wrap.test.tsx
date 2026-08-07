@@ -24,7 +24,8 @@ import {
   TodosPanelSidebar,
 } from '../src/components/sidebar-panels.js';
 import { reducer } from '../src/app-reducer.js';
-import { resolveSidebarLayout } from '../src/app-ui-state.js';
+import { resolveAppSidebarLayout } from '../src/app-ui-state.js';
+import type { Settings } from '../src/app-settings-type.js';
 import { displayWidth } from '../src/terminal-width.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 import { createTestState } from './helpers/create-test-state.js';
@@ -386,18 +387,16 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
   // Without the legacy field, a config-only swarm mode (no recent
   // picker open) would render the mission card but the scroll-clamp
   // would under-reserve, hiding the bottom mission rows.
-  it('resolveSidebarLayout returns effectiveSwarmOnSidebar=true when only the legacy showAgentSwarmPanel field is "sidebar"', () => {
+  it('resolveAppSidebarLayout returns effectiveSwarmOnSidebar=true when only the legacy showAgentSwarmPanel field is "sidebar"', () => {
     const state = createTestState();
-    // No panelPositions override (default = 'bottom' for fleet).
-    // Pass `legacySwarmOnSidebar: true` to simulate a legacy
-    // `liveSettings.showAgentSwarmPanel === 'sidebar'` config.
-    const layout = resolveSidebarLayout(
+    // No panelPositions override (default = 'bottom' for fleet). A legacy
+    // `liveSettings.showAgentSwarmPanel === 'sidebar'` config alone must
+    // flip the flag.
+    const layout = resolveAppSidebarLayout(
       state,
       80,
-      undefined, // panelPositionsInput: use default
+      { showAgentSwarmPanel: 'sidebar' } as unknown as Settings,
       false, // mailboxPanelOpen
-      undefined, // sidebarOpenFlags
-      true, // legacySwarmOnSidebar
     );
     expect(layout.effectiveSwarmOnSidebar).toBe(true);
   });

@@ -1,7 +1,7 @@
 import { getProcessRegistry } from '@wrongstack/tools';
 import type React from 'react';
-import type { AgentSwarmPanelMode } from './app-settings-type.js';
-import { coercePanelPositionMap, type PanelId, type PanelPositionMap } from './ui-contracts.js';
+import { effectiveAgentSwarmPanelMode, effectivePanelPositions } from './app-ui-state.js';
+import type { PanelId, PanelPositionMap } from './ui-contracts.js';
 import type { AppViewProps } from './app-view-contract.js';
 import { AgentsMonitor } from './components/agents-monitor.js';
 import { ContextPanel } from './components/context-panel.js';
@@ -29,13 +29,11 @@ import { WorktreePanel } from './components/worktree-panel.js';
 import { Box } from './ink.js';
 import { renderRunningTools } from './running-tools.js';
 
-export function resolveAgentSwarmPanelVisibility(
-  settingsOpen: boolean,
-  pickerValue: AgentSwarmPanelMode,
-  persistedValue: AgentSwarmPanelMode | undefined,
-): AgentSwarmPanelMode {
-  return settingsOpen ? pickerValue : (persistedValue ?? 'bottom');
-}
+// The dual-source swarm-mode read (`resolveAgentSwarmPanelVisibility`) and
+// its state-bound form (`effectiveAgentSwarmPanelMode`) live in
+// app-ui-state.ts next to the panel-routing authority. Re-exported here for
+// backward compatibility with existing test imports.
+export { resolveAgentSwarmPanelVisibility } from './app-ui-state.js';
 
 export interface AppStatusRegionProps extends AppViewProps {
   /** Optional column width cap for the status bar (when beside a sidebar). */
@@ -128,7 +126,12 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
   // Per-panel position routing. When a panel is set to 'sidebar', its
   // bottom-region render is suppressed and the right sidebar renders the
   // sidebar twin instead. See app-view.tsx for the sidebar twin dispatch.
-  const panelPositions: PanelPositionMap = coercePanelPositionMap(liveSettings?.panelPositions);
+  // `effectivePanelPositions` is the same dual-source authority (picker
+  // draft while the settings picker is open, persisted config otherwise)
+  // the renderer and the dispatcher use — reading `liveSettings` directly
+  // here made this surface lag the sidebar twin while the picker was open,
+  // double-rendering the routed panel.
+  const panelPositions: PanelPositionMap = effectivePanelPositions(state, liveSettings);
   const routedToBottom = (id: PanelId): boolean => panelPositions[id] === 'bottom';
 
   return (
@@ -354,7 +357,7 @@ export function AppStatusRegion({ host, runtime, mainColumnWidth }: AppStatusReg
                 currentSessionId={agent.ctx.session?.id}
               />
             ) : (director || hasVisibleFleetPanel || state.collabSession) &&
-              (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'off' &&
+              effectiveAgentSwarmPanelMode(state, liveSettings) !== 'off' &&
               routedToBottom('fleet') ? (
               <FleetPanel
                 entries={entriesWithLeader}

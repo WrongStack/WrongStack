@@ -33,7 +33,11 @@ import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { RefineFailurePanel } from './components/refine-failure-panel.js';
 import { ResumePicker } from './components/resume-picker.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
-import { resolveSidebarLayout } from './app-ui-state.js';
+import {
+  buildSidebarOpenFlags,
+  effectiveAgentSwarmPanelMode,
+  resolveAppSidebarLayout,
+} from './app-ui-state.js';
 import { RightSidebar } from './components/sidebar.js';
 import { SidebarContent } from './components/sidebar-content.js';
 import {
@@ -127,24 +131,13 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // Per-panel position routing: a panel renders in the right sidebar when
   // its F-key is open AND its position is 'sidebar'. Mirrors
   // app-status-region.tsx's bottom-region suppression so the two surfaces
-  // never double-render.
-  const { panelPositions, sidebarWidth, sidebarContentWidth, mainColumnWidth } = resolveSidebarLayout(
-    state,
-    termCols,
-    // While the settings picker is open, use the reducer state for immediate
-    // visual feedback (the reducer updates on every ←/→ press). When the
-    // picker is closed, use the persisted configStore snapshot via
-    // liveSettings — the reducer's panelPositions is initialized to
-    // DEFAULT_PANEL_POSITIONS on boot and is never hydrated from disk, so
-    // only liveSettings carries the user's saved routing outside the
-    // picker session. The auto-save hook writes to configStore on every
-    // picker change, so by the time the picker closes, liveSettings
-    // already reflects the user's choices.
-    state.settingsPicker.open
-      ? state.settingsPicker.panelPositions
-      : liveSettings?.panelPositions,
-    mailbox.mailboxPanelOpen,
-  );
+  // never double-render. `resolveAppSidebarLayout` is the single authority
+  // for the dual-source panelPositions read (picker draft while the
+  // settings picker is open, persisted liveSettings otherwise) — the same
+  // wrapper the dispatcher in app.tsx calls, so the two surfaces receive
+  // byte-identical inputs.
+  const { panelPositions, sidebarWidth, sidebarContentWidth, mainColumnWidth } =
+    resolveAppSidebarLayout(state, termCols, liveSettings, mailbox.mailboxPanelOpen);
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
 
   // Sidebar slot allocation (SIDEBAR_PANEL_LIMIT, ui-contracts.ts): when
@@ -153,30 +146,10 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // overflowing the viewport. Panel toggles are mutually exclusive today
   // (reducers call closePanels before opening), so at most one slot is
   // occupied — the cap keeps the documented contract honest if that ever
-  // changes. The agents slot additionally honors the legacy
-  // `showAgentSwarmPanel: 'off'` tri-state — users who explicitly hide the
-  // swarm panel should not see it in the sidebar, and a hidden panel must
-  // not occupy a slot. Computed before the sidebar data hooks below so each
-  // hook can gate its polling on actual slot visibility.
-  const sidebarPanelOpenFlags: Partial<Record<PanelId, boolean>> = {
-    projectPicker: state.projectPicker.open,
-    fleet: state.monitorOpen,
-    agents:
-      state.agentsMonitorOpen && (liveSettings?.showAgentSwarmPanel ?? 'bottom') !== 'off',
-    worktree: state.worktreeMonitorOpen,
-    plan: state.planPanelOpen,
-    todos: state.todosMonitorOpen,
-    queue: state.queuePanelOpen,
-    processList: state.processListOpen,
-    goal: state.goalPanelOpen,
-    sessions: state.sessionsPanelOpen,
-    // Ctrl+P (goalRunMonitorToggle) opens the phase monitor WITHOUT setting
-    // coordinator.monitorOpen — closePanels resets the latter. The sidebar
-    // surface must stay reachable from both entry points.
-    coordinator: state.coordinator.monitorOpen || (state.goalRun?.monitorOpen ?? false),
-    kanban: state.kanbanPanelOpen,
-    connections: state.connectionsPanelOpen,
-  };
+  // changes. Shared with the dispatcher (app.tsx) via
+  // `buildSidebarOpenFlags` so the scroll-clamp reservation and the actual
+  // twin mounting can never disagree about which panels are open.
+  const sidebarPanelOpenFlags = buildSidebarOpenFlags(state, liveSettings);
   const openSidebarPanelIds = PANEL_IDS.filter(
     (id) => routedToSidebar(id) && (sidebarPanelOpenFlags[id] ?? false),
   );
@@ -946,9 +919,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             scrollOffset={state.sidebarScrollOffset}
             focused={state.sidebarFocused}
             todos={liveTodos}
-            showSwarmSection={state.settingsPicker.open
-              ? state.settingsPicker.showAgentSwarmPanel === 'sidebar'
-              : (liveSettings?.showAgentSwarmPanel ?? 'bottom') === 'sidebar'}
+            showSwarmSection={effectiveAgentSwarmPanelMode(state, liveSettings) === 'sidebar'}
             liveSessions={state.sessionsPanel.sessions}
             resumeSessions={state.resumePicker.sessions}
             currentSessionId={agent.ctx.session?.id}

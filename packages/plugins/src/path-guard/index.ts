@@ -858,8 +858,9 @@ function stripTransparentLaunchers(command: string): string {
   // First, unwrap `env -S 'payload'` / `--split-string 'payload'` so the
   // payload replaces the option in-place before any further stripping.
   let stripped = command.replace(
-    /(?:[^\s;&|(){}]+[\\/])?env\s+([^;&|\r\n]*?)(?:-[i0v]*S|--split-string(?:=|\s+))\s*(['"])([^'"]*?)\2/gi,
-    (_match, _pre: string, _quote: string, payload: string) => payload,
+    /(?:[^\s;&|(){}]+[\\/])?env\s+([^;&|\r\n]*?)(?:-[i0v]*S|--split-string(?:=|\s+))\s*(?:'([^']*)'|"([^"]*)")/gi,
+    (_match, _pre: string, singlePayload?: string, doublePayload?: string) =>
+      singlePayload ?? doublePayload ?? '',
   );
   // Then iteratively strip `sudo` and `env` launcher prefixes via token-aware
   // parsing so arbitrary value-taking options do not bypass detection.

@@ -608,7 +608,16 @@ export function createSubmitController(host: SubmitControllerHost) {
     clearDraft();
     const blocks = await builder.submit();
 
-    if (state.status !== 'idle' && !steering) {
+    // Live read, NOT the render-closure `state`: unbounded awaits sit above
+    // this line (refine countdown, continueConfirm keypress, builder.submit),
+    // so the closure's status can be minutes stale. A stale 'idle' here while
+    // the eternal poll already started a run would kick a SECOND concurrent
+    // agent.run() — clobbering activeController (first run becomes
+    // un-abortable) and interleaving two streams into one JSONL. Read into a
+    // local so TS doesn't narrow the ref chain (the steer branch below
+    // re-polls the same property in its wait loop).
+    const busyNow = stateRef.current.status !== 'idle';
+    if (busyNow && !steering) {
       // Agent is busy. Abort any next-steps auto-submit countdown since the
       // user is providing input. Only cancel autonomy if a countdown was
       // actually running — otherwise this would override the user's explicit

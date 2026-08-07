@@ -1,4 +1,5 @@
 import type { State } from './app-reducer.js';
+import type { AgentSwarmPanelMode, Settings } from './app-settings-type.js';
 import { computeSidebarContentWidth, computeSidebarWidth } from './components/sidebar.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import {
@@ -48,6 +49,122 @@ export function isPickerOverlayOpen(state: State): boolean {
   );
 }
 
+/**
+ * Single authority for "where does panel routing come from?". While the
+ * settings picker is open, the picker's draft (updated on every ←/→ press)
+ * wins so all surfaces track the user's in-flight edits synchronously; when
+ * it is closed, the persisted `liveSettings.panelPositions` is the only
+ * source that survives across sessions (the reducer's copy is initialized
+ * to defaults on boot and never hydrated from disk outside the picker).
+ *
+ * Every surface that needs panel routing — the dispatcher (`app.tsx`), the
+ * renderer (`app-view.tsx`), and the bottom-region suppression
+ * (`app-status-region.tsx`) — must read through this helper (or
+ * `resolveAppSidebarLayout`). Reading `liveSettings?.panelPositions`
+ * directly re-introduces the split-brain where the sidebar twin mounts from
+ * the picker draft while the bottom region still renders from persisted
+ * config, double-rendering the panel.
+ */
+function effectivePanelPositionsInput(
+  state: State,
+  liveSettings: Settings | undefined,
+): Partial<PanelPositionMap> | undefined {
+  return state.settingsPicker.open
+    ? state.settingsPicker.panelPositions
+    : liveSettings?.panelPositions;
+}
+
+/** Coerced form of {@link effectivePanelPositionsInput} for direct map reads. */
+export function effectivePanelPositions(
+  state: State,
+  liveSettings: Settings | undefined,
+): PanelPositionMap {
+  return coercePanelPositionMap(effectivePanelPositionsInput(state, liveSettings));
+}
+
+/**
+ * Pure dual-source read for the legacy tri-state swarm panel mode: the
+ * picker draft wins while the settings picker is open, the persisted value
+ * (defaulting to 'bottom') otherwise. Prefer
+ * {@link effectiveAgentSwarmPanelMode} at call sites that hold `State`.
+ */
+export function resolveAgentSwarmPanelVisibility(
+  settingsOpen: boolean,
+  pickerValue: AgentSwarmPanelMode,
+  persistedValue: AgentSwarmPanelMode | undefined,
+): AgentSwarmPanelMode {
+  return settingsOpen ? pickerValue : (persistedValue ?? 'bottom');
+}
+
+/** {@link resolveAgentSwarmPanelVisibility} bound to app state + live settings. */
+export function effectiveAgentSwarmPanelMode(
+  state: State,
+  liveSettings: Settings | undefined,
+): AgentSwarmPanelMode {
+  return resolveAgentSwarmPanelVisibility(
+    state.settingsPicker.open,
+    state.settingsPicker.showAgentSwarmPanel,
+    liveSettings?.showAgentSwarmPanel,
+  );
+}
+
+/**
+ * Open flags for each routable panel — which twins are candidates for a
+ * sidebar slot. Shared by the dispatcher and the renderer so the
+ * scroll-clamp reservation in `resolveSidebarLayout` and the actual twin
+ * mounting in `app-view.tsx` can never disagree about which panels are
+ * open. The agents slot honors the legacy `showAgentSwarmPanel: 'off'`
+ * tri-state (an explicitly hidden swarm panel must not occupy a slot), and
+ * the coordinator slot stays reachable from both entry points: Ctrl+P
+ * (goalRunMonitorToggle) opens the phase monitor WITHOUT setting
+ * `coordinator.monitorOpen` — `closePanels` resets the latter.
+ */
+export function buildSidebarOpenFlags(
+  state: State,
+  liveSettings: Settings | undefined,
+): Partial<Record<PanelId, boolean>> {
+  return {
+    projectPicker: state.projectPicker.open,
+    fleet: state.monitorOpen,
+    agents:
+      state.agentsMonitorOpen && effectiveAgentSwarmPanelMode(state, liveSettings) !== 'off',
+    worktree: state.worktreeMonitorOpen,
+    plan: state.planPanelOpen,
+    todos: state.todosMonitorOpen,
+    queue: state.queuePanelOpen,
+    processList: state.processListOpen,
+    goal: state.goalPanelOpen,
+    sessions: state.sessionsPanelOpen,
+    coordinator: state.coordinator.monitorOpen || (state.goalRun?.monitorOpen ?? false),
+    kanban: state.kanbanPanelOpen,
+    connections: state.connectionsPanelOpen,
+  };
+}
+
+/**
+ * The one way to compute the sidebar layout from app state. Bundles the
+ * dual-source panel-position read, the shared open-flags map, and the
+ * legacy swarm-mode flag so the dispatcher (`app.tsx`) and the renderer
+ * (`app-view.tsx`) call `resolveSidebarLayout` with byte-identical inputs.
+ * Before this wrapper existed the two sites drifted: the dispatcher never
+ * saw the picker draft and the renderer never passed the open flags.
+ */
+export function resolveAppSidebarLayout(
+  state: State,
+  termCols: number,
+  liveSettings: Settings | undefined,
+  mailboxPanelOpen: boolean,
+): SidebarLayoutState {
+  return resolveSidebarLayout(
+    state,
+    termCols,
+    effectivePanelPositionsInput(state, liveSettings),
+    mailboxPanelOpen,
+    buildSidebarOpenFlags(state, liveSettings),
+    effectiveAgentSwarmPanelMode(state, liveSettings) === 'sidebar',
+  );
+}
+
 export interface SidebarLayoutState {
   panelPositions: PanelPositionMap;
   overlayOpen: boolean;
@@ -82,7 +199,7 @@ export interface SidebarLayoutState {
  * this so a sidebar-routed panel narrows history consistently instead of
  * being treated as a full-width overlay by one surface.
  */
-export function resolveSidebarLayout(
+function resolveSidebarLayout(
   state: State,
   termCols: number,
   panelPositionsInput: Partial<Record<PanelId, 'bottom' | 'sidebar'>> | undefined,
