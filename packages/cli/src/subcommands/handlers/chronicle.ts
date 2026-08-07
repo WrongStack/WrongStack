@@ -1,9 +1,13 @@
 import { statSync } from 'node:fs';
+import path from 'node:path';
 import {
   type ChronicleFacet,
   type ChronicleMetricsView,
   type ChronicleQuery,
+  chronicleProjectServerMetadataPath,
+  compactChronicleSqlite,
   createChronicleProjectAccess,
+  resolveChronicleProjectServerOptions,
 } from '@wrongstack/core/chronicle';
 import type { SubcommandHandler } from '../index.js';
 
@@ -30,6 +34,21 @@ export const chronicleCmd: SubcommandHandler = async (args, deps) => {
   }
   let access: ReturnType<typeof createChronicleProjectAccess> | undefined;
   try {
+    if (operation === 'compact') {
+      if (args.length !== 1) {
+        throw new Error('Usage: wstack chronicle compact (stop the Chronicle daemon first)');
+      }
+      const resolved = resolveChronicleProjectServerOptions({
+        projectRoot: deps.projectRoot,
+        userHome: deps.userHome,
+      });
+      const result = compactChronicleSqlite({
+        dbPath: path.join(resolved.projectDir, 'chronicle', 'chronicle.sqlite'),
+        endpointMetadataPath: chronicleProjectServerMetadataPath(resolved.projectDir),
+      });
+      deps.renderer.write(`${JSON.stringify(result, null, 2)}\n`);
+      return 0;
+    }
     access = createChronicleProjectAccess({
       projectRoot: deps.projectRoot,
       userHome: deps.userHome,
@@ -292,7 +311,8 @@ function usage(): string {
     '  wstack chronicle status\n' +
     '  wstack chronicle facet <field> [field=value ...]\n' +
     '  wstack chronicle metrics [providers|tasks|files|summary] [field=value ...]\n' +
-    '  wstack chronicle prune [--days N] [--dry-run]\n\n' +
+    '  wstack chronicle prune [--days N] [--dry-run]\n' +
+    '  wstack chronicle compact\n\n' +
     'Examples:\n' +
     '  wstack chronicle status\n' +
     '  wstack chronicle query path=src/app.ts line=42\n' +
@@ -304,7 +324,8 @@ function usage(): string {
     '  wstack chronicle metrics files path=src/app.ts\n' +
     '  wstack chronicle metrics tasks limit=20\n' +
     '  wstack chronicle prune --days 7 --dry-run\n' +
-    '  wstack chronicle prune --days 30\n'
+    '  wstack chronicle prune --days 30\n' +
+    '  wstack chronicle compact\n'
   );
 }
 

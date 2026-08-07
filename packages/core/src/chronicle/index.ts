@@ -44,6 +44,13 @@ export {
 } from './project-server-protocol.js';
 export { ChronicleJournal, GENESIS_HASH, type ChronicleJournalOptions, type ChronicleJournalStats, type ChroniclePurgeOptions, type ChroniclePurgeResult } from './journal.js';
 export {
+  ChronicleCompactionBusyError,
+  compactChronicleSqlite,
+  type ChronicleSqliteCompactionOptions,
+  type ChronicleSqliteCompactionResult,
+} from './sqlite-compaction.js';
+export { ChronicleStorageQuotaError } from './sqlite-journal.js';
+export {
   wireProviderAttemptsToChronicle,
   type ChronicleProviderAdapterOptions,
 } from './provider-adapter.js';

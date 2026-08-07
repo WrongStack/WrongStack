@@ -19,6 +19,7 @@
  * enough. See `packages/core/tests/architecture/project-daemon-boundary.test.ts`.
  */
 import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -45,6 +46,26 @@ export const LEGACY_JSONL_MIGRATION_KEY = 'legacy-jsonl-v1';
 export const LEGACY_JSONL_QUARANTINE_KEY = 'legacy-jsonl-v1:quarantine';
 
 const SCHEMA_VERSION = 1;
+const SQLITE_FIXED_OVERHEAD_BYTES = 16 * 1024 * 1024;
+const MIN_SQLITE_PAGE_BUDGET_BYTES = 64 * 1024;
+
+export class ChronicleStorageQuotaError extends Error {
+  readonly currentBytes: number;
+  readonly batchBytes: number;
+  readonly maxBytes: number;
+  readonly path: string;
+
+  constructor(details: { currentBytes: number; batchBytes: number; maxBytes: number; path: string }) {
+    super(
+      `Chronicle SQLite quota exceeded at ${details.path}: ${details.currentBytes} bytes allocated + ${details.batchBytes} batch bytes exceeds ${details.maxBytes}; stop the project daemon and run chronicle compact`,
+    );
+    this.name = 'ChronicleStorageQuotaError';
+    this.currentBytes = details.currentBytes;
+    this.batchBytes = details.batchBytes;
+    this.maxBytes = details.maxBytes;
+    this.path = details.path;
+  }
+}
 
 export interface ChronicleSqliteJournalOptions {
   /** Directory holding the journal, i.e. `<projectDir>/chronicle`. */
@@ -52,6 +73,13 @@ export interface ChronicleSqliteJournalOptions {
   now?: (() => Date) | undefined;
   monotonicNow?: (() => bigint) | undefined;
   idFactory?: (() => string) | undefined;
+  /** Optional age bound, enforced during periodic maintenance. */
+  retentionDays?: number | undefined;
+  /** Optional row ceiling; oldest rows are checkpointed and evicted after each append. */
+  maxEvents?: number | undefined;
+  /** Aggregate SQLite allocation ceiling across the database, WAL, and SHM files. */
+  maxBytes?: number | undefined;
+  retentionCheckIntervalMs?: number | undefined;
 }
 
 export interface ChronicleSqlitePurgeOptions {
@@ -116,6 +144,12 @@ export class ChronicleSqliteJournal {
   private readonly now: () => Date;
   private readonly monotonicNow: () => bigint;
   private readonly idFactory: () => string;
+  private readonly retentionDays: number | undefined;
+  private readonly maxEvents: number | undefined;
+  private readonly maxBytes: number | undefined;
+  private readonly retentionCheckIntervalMs: number;
+  private nextRetentionCheckAt = 0;
+  private retainedEventCount = 0;
 
   /**
    * Cached chain head per day. Cleared wholesale on any write failure so the
@@ -140,10 +174,42 @@ export class ChronicleSqliteJournal {
     this.now = options.now ?? (() => new Date());
     this.monotonicNow = options.monotonicNow ?? (() => process.hrtime.bigint());
     this.idFactory = options.idFactory ?? (() => randomUUID());
+    if (
+      options.retentionDays !== undefined &&
+      (!Number.isFinite(options.retentionDays) || options.retentionDays <= 0)
+    ) {
+      throw new RangeError('retentionDays must be a positive finite number');
+    }
+    if (
+      options.retentionCheckIntervalMs !== undefined &&
+      (!Number.isFinite(options.retentionCheckIntervalMs) || options.retentionCheckIntervalMs <= 0)
+    ) {
+      throw new RangeError('retentionCheckIntervalMs must be a positive finite number');
+    }
+    if (options.maxEvents !== undefined && (!Number.isInteger(options.maxEvents) || options.maxEvents < 1)) {
+      throw new RangeError('maxEvents must be a positive integer');
+    }
+    if (options.maxBytes !== undefined && (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 1)) {
+      throw new RangeError('maxBytes must be a positive safe integer');
+    }
+    const minimumQuotaBytes = SQLITE_FIXED_OVERHEAD_BYTES + 2 * MIN_SQLITE_PAGE_BUDGET_BYTES;
+    if (options.maxBytes !== undefined && options.maxBytes < minimumQuotaBytes) {
+      throw new RangeError(`maxBytes must be at least ${minimumQuotaBytes}`);
+    }
+    this.retentionDays = options.retentionDays;
+    this.maxEvents = options.maxEvents;
+    this.maxBytes = options.maxBytes;
+    this.retentionCheckIntervalMs = options.retentionCheckIntervalMs ?? 60 * 60 * 1_000;
     const Database = loadDatabaseSync();
     this.db = new Database(this.dbPath);
-    this.db.exec('PRAGMA journal_mode = WAL');
+    this.db.exec(`PRAGMA journal_mode = ${this.maxBytes === undefined ? 'WAL' : 'DELETE'}`);
     this.ensureSchema();
+    this.configureByteQuota();
+    if (this.maxEvents !== undefined) {
+      const row = this.db.prepare('SELECT COUNT(*) AS count FROM events').get() as { count: number };
+      this.retainedEventCount = row.count;
+      this.enforceEventLimitAtStartup();
+    }
   }
 
   close(): void {
@@ -216,8 +282,10 @@ export class ChronicleSqliteJournal {
       previous = { sequence: event.sequence, hash: event.hash };
     }
 
+    let retainedCountAfterCommit = this.retainedEventCount;
     try {
       this.db.exec('BEGIN IMMEDIATE');
+      this.assertWithinByteQuota(events);
       const insert = this.db.prepare(
         `INSERT INTO events (
            day, sequence, event_id, hash, previous_hash, occurred_at, event_type, outcome,
@@ -249,6 +317,8 @@ export class ChronicleSqliteJournal {
           JSON.stringify(event),
         );
       }
+      retainedCountAfterCommit = this.enforceEventLimitWithinTransaction();
+      this.assertActualAllocationWithinQuota();
       this.db.exec('COMMIT');
     } catch (error) {
       try {
@@ -259,12 +329,14 @@ export class ChronicleSqliteJournal {
       this.anchors.clear();
       this.counters.failedEvents += inputs.length;
       this.lastBatchDurationMs = performance.now() - started;
-      throw error;
+      throw this.normalizeQuotaError(error);
     }
 
     this.anchors.set(day, previous);
     this.counters.persistedEvents += events.length;
+    this.retainedEventCount = retainedCountAfterCommit;
     this.lastBatchDurationMs = performance.now() - started;
+    await this.enforceRetentionIfDue();
     return events;
   }
 
@@ -342,6 +414,137 @@ export class ChronicleSqliteJournal {
     return { ok: true, entries, lastSequence, lastHash };
   }
 
+  private async enforceRetentionIfDue(): Promise<void> {
+    if (this.retentionDays === undefined) return;
+    const now = this.now();
+    if (now.getTime() < this.nextRetentionCheckAt) return;
+
+    this.nextRetentionCheckAt = now.getTime() + this.retentionCheckIntervalMs;
+    try {
+      await this.purge({ retentionDays: this.retentionDays });
+    } catch {
+      // Retention is best-effort maintenance and must never reject event ingestion.
+    }
+  }
+
+  private configureByteQuota(): void {
+    if (this.maxBytes === undefined) {
+      // max_page_count persists in the database header; remove a prior quota
+      // when the journal is intentionally reopened without one.
+      this.db.exec('PRAGMA max_page_count = 2147483646');
+      return;
+    }
+    const mainBudget = Math.floor((this.maxBytes - SQLITE_FIXED_OVERHEAD_BYTES) / 2);
+    if (mainBudget < MIN_SQLITE_PAGE_BUDGET_BYTES) {
+      throw new Error(
+        `maxBytes must be at least ${SQLITE_FIXED_OVERHEAD_BYTES + 2 * MIN_SQLITE_PAGE_BUDGET_BYTES}`,
+      );
+    }
+    const pageSize = Number((this.db.prepare('PRAGMA page_size').get() as { page_size: number }).page_size);
+    const maxPages = Math.max(1, Math.floor(mainBudget / pageSize));
+    this.db.exec(`PRAGMA max_page_count = ${maxPages}`);
+  }
+
+  private aggregateAllocatedBytes(): number {
+    let total = 0;
+    for (const file of [
+      this.dbPath,
+      `${this.dbPath}-journal`,
+      `${this.dbPath}-wal`,
+      `${this.dbPath}-shm`,
+    ]) {
+      try {
+        total += fs.statSync(file).size;
+      } catch (error) {
+        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
+      }
+    }
+    return total;
+  }
+
+  private normalizeQuotaError(error: unknown): unknown {
+    if (this.maxBytes === undefined || !(error instanceof Error)) return error;
+    const sqliteError = error as Error & { code?: string | number; errcode?: number };
+    const quotaExhausted =
+      sqliteError.code === 'SQLITE_FULL' ||
+      sqliteError.code === 13 ||
+      sqliteError.errcode === 13 ||
+      /database or disk is full/i.test(sqliteError.message);
+    if (!quotaExhausted) return error;
+    return new ChronicleStorageQuotaError({
+      currentBytes: this.aggregateAllocatedBytes(),
+      batchBytes: 0,
+      maxBytes: this.maxBytes,
+      path: this.dbPath,
+    });
+  }
+
+  private assertActualAllocationWithinQuota(): void {
+    if (this.maxBytes === undefined) return;
+    const currentBytes = this.aggregateAllocatedBytes();
+    if (currentBytes <= this.maxBytes) return;
+    throw new ChronicleStorageQuotaError({
+      currentBytes,
+      batchBytes: 0,
+      maxBytes: this.maxBytes,
+      path: this.dbPath,
+    });
+  }
+
+  private assertWithinByteQuota(events: readonly ChronicleEvent[]): void {
+    if (this.maxBytes === undefined) return;
+    const currentBytes = this.aggregateAllocatedBytes();
+    const batchBytes = Buffer.byteLength(JSON.stringify(events), 'utf8');
+    if (currentBytes + batchBytes <= this.maxBytes) return;
+    throw new ChronicleStorageQuotaError({
+      currentBytes,
+      batchBytes,
+      maxBytes: this.maxBytes,
+      path: this.dbPath,
+    });
+  }
+
+  private enforceEventLimitWithinTransaction(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM events').get() as { count: number };
+    if (this.maxEvents === undefined || row.count <= this.maxEvents) return row.count;
+
+    const excess = row.count - this.maxEvents;
+    const boundary = this.db
+      .prepare('SELECT day, sequence, hash FROM events ORDER BY day, sequence LIMIT 1 OFFSET ?')
+      .get(excess - 1) as (ChainAnchor & { day: string }) | undefined;
+    if (!boundary) return row.count;
+
+    this.db
+      .prepare(
+        `INSERT INTO chain_checkpoint (day, sequence, hash) VALUES (?, ?, ?)
+         ON CONFLICT(day) DO UPDATE SET sequence = excluded.sequence, hash = excluded.hash`,
+      )
+      .run(boundary.day, boundary.sequence, boundary.hash);
+    this.db
+      .prepare('DELETE FROM events WHERE day < ? OR (day = ? AND sequence <= ?)')
+      .run(boundary.day, boundary.day, boundary.sequence);
+    this.db.prepare('DELETE FROM chain_checkpoint WHERE day < ?').run(boundary.day);
+    this.anchors.clear();
+    return this.maxEvents;
+  }
+
+  private enforceEventLimitAtStartup(): void {
+    if (this.maxEvents === undefined || this.retainedEventCount <= this.maxEvents) return;
+    try {
+      this.db.exec('BEGIN IMMEDIATE');
+      const retainedCount = this.enforceEventLimitWithinTransaction();
+      this.db.exec('COMMIT');
+      this.retainedEventCount = retainedCount;
+    } catch (error) {
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // Preserve the original startup failure.
+      }
+      throw error;
+    }
+  }
+
   /**
    * Drop events older than the retention window.
    *
@@ -401,6 +604,7 @@ export class ChronicleSqliteJournal {
     }
 
     this.anchors.clear();
+    this.retainedEventCount = Math.max(0, this.retainedEventCount - count);
     return { ...empty, deletedCount: count };
   }
 
@@ -434,7 +638,9 @@ export class ChronicleSqliteJournal {
     );
 
     this.db.exec('BEGIN IMMEDIATE');
+    let retainedCountAfterCommit = this.retainedEventCount;
     try {
+      this.assertWithinByteQuota([]);
       await load({
         insert: (day, event) => {
           const row = projectEvent(event);
@@ -464,6 +670,8 @@ export class ChronicleSqliteJournal {
           checkpoint.run(day, sequence, hash);
         },
       });
+      retainedCountAfterCommit = this.enforceEventLimitWithinTransaction();
+      this.assertActualAllocationWithinQuota();
       this.db.exec('COMMIT');
     } catch (error) {
       try {
@@ -471,10 +679,12 @@ export class ChronicleSqliteJournal {
       } catch {
         // Nothing to unwind.
       }
-      throw error;
+      throw this.normalizeQuotaError(error);
     } finally {
       this.anchors.clear();
     }
+
+    this.retainedEventCount = retainedCountAfterCommit;
   }
 
   /**

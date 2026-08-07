@@ -11,11 +11,12 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GENESIS_HASH } from '../../src/chronicle/event-hash.js';
 import {
   CHRONICLE_SQLITE_FILE,
   ChronicleSqliteJournal,
+  ChronicleStorageQuotaError,
 } from '../../src/chronicle/sqlite-journal.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
@@ -169,6 +170,138 @@ describe('ChronicleSqliteJournal', () => {
       deletedCount: 2,
     });
     expect(await journal.verify()).toMatchObject({ ok: true, entries: 2 });
+  });
+
+  it('enforces configured retention no more than once per interval', async () => {
+    const retentionNow = new Date('2026-02-01T00:00:00.000Z');
+    const oldJournal = new ChronicleSqliteJournal({
+      directory: dir,
+      now: () => new Date('2025-12-01T00:00:00.000Z'),
+    });
+    await oldJournal.append(input({ correlation: { traceId: 'old', spanId: 'old' } }));
+    oldJournal.close();
+
+    journal.close();
+    journal = new ChronicleSqliteJournal({
+      directory: dir,
+      retentionDays: 30,
+      retentionCheckIntervalMs: 60 * 60 * 1_000,
+      maxEvents: 2,
+      now: () => retentionNow,
+    });
+    const purge = vi.spyOn(journal, 'purge');
+
+    await journal.append(input({ correlation: { traceId: 'recent-1', spanId: 'recent-1' } }));
+    await journal.append(input({ correlation: { traceId: 'recent-2', spanId: 'recent-2' } }));
+
+    expect(purge).toHaveBeenCalledTimes(1);
+    expect(await journal.verify()).toMatchObject({ ok: true, entries: 2 });
+
+    retentionNow.setTime(retentionNow.getTime() + 60 * 60 * 1_000);
+    await journal.append(input({ correlation: { traceId: 'recent-3', spanId: 'recent-3' } }));
+    expect(purge).toHaveBeenCalledTimes(2);
+    expect(await journal.verify()).toMatchObject({ ok: true, entries: 2 });
+  });
+
+  it('does not reject ingestion when best-effort retention fails', async () => {
+    journal.close();
+    journal = new ChronicleSqliteJournal({ directory: dir, retentionDays: 30 });
+    vi.spyOn(journal, 'purge').mockRejectedValueOnce(new Error('maintenance failed'));
+
+    await expect(journal.append(input())).resolves.toMatchObject({ sequence: 1 });
+  });
+
+  it('rejects invalid event ceilings', () => {
+    journal.close();
+
+    expect(
+      () =>
+        new ChronicleSqliteJournal({
+          directory: dir,
+          maxEvents: 0,
+        }),
+    ).toThrowError('maxEvents must be a positive integer');
+    journal = new ChronicleSqliteJournal({ directory: dir });
+  });
+
+  it('caps retained events while preserving the newest verifiable chain', async () => {
+    journal.close();
+    journal = new ChronicleSqliteJournal({
+      directory: dir,
+      maxEvents: 3,
+      now: () => new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    await journal.appendBatch([input(), input(), input(), input(), input()]);
+
+    expect(await journal.verify()).toMatchObject({ ok: true, entries: 3 });
+    const db = new DatabaseSync(path.join(dir, CHRONICLE_SQLITE_FILE));
+    const rows = db.prepare('SELECT sequence FROM events ORDER BY day, sequence').all() as Array<{
+      sequence: number;
+    }>;
+    db.close();
+    expect(rows.map((row) => row.sequence)).toEqual([3, 4, 5]);
+  });
+
+  it('enforces the event ceiling when reopening an oversized database', async () => {
+    await journal.appendBatch([input(), input(), input(), input()]);
+    journal.close();
+    journal = new ChronicleSqliteJournal({ directory: dir, maxEvents: 2 });
+
+    expect(await journal.verify()).toMatchObject({ ok: true, entries: 2 });
+  });
+
+  it('keeps the event ceiling counter synchronized after a public purge', async () => {
+    journal.close();
+    journal = new ChronicleSqliteJournal({ directory: dir, maxEvents: 3 });
+    await journal.appendBatch([input(), input(), input()]);
+
+    await journal.purge({ before: new Date(Date.now() + 60_000), dryRun: false });
+    await journal.appendBatch([input(), input(), input()]);
+
+    expect(await journal.verify()).toMatchObject({ ok: true, entries: 3 });
+  });
+
+  it('rejects invalid byte-retention policy configuration', () => {
+    expect(
+      () =>
+        new ChronicleSqliteJournal({
+          directory: path.join(dir, 'invalid-bytes'),
+          maxBytes: 1024,
+        }),
+    ).toThrow(/maxBytes/);
+    expect(
+      () =>
+        new ChronicleSqliteJournal({
+          directory: path.join(dir, 'invalid-retention'),
+          retentionDays: 1,
+          retentionCheckIntervalMs: 0,
+        }),
+    ).toThrow(/retentionCheckIntervalMs/);
+  });
+
+  it('rolls back atomically with a typed error when the byte quota is exhausted', async () => {
+    journal.close();
+    journal = new ChronicleSqliteJournal({
+      directory: dir,
+      maxBytes: 17 * 1024 * 1024,
+    });
+
+    const payload = 'x'.repeat(64 * 1024);
+    let rejected = false;
+    for (let index = 0; index < 512; index += 1) {
+      const before = await journal.verify();
+      try {
+        await journal.append(input({ metadata: { payload, index } }));
+      } catch (error) {
+        expect(error).toBeInstanceOf(ChronicleStorageQuotaError);
+        expect(await journal.verify()).toEqual(before);
+        rejected = true;
+        break;
+      }
+    }
+
+    expect(rejected).toBe(true);
   });
 
   it('projects only values that remain recoverable from the payload', async () => {

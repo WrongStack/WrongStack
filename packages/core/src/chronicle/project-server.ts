@@ -89,7 +89,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     projectId: values.get('--project-id')!,
     projectDir: path.resolve(values.get('--project-dir')!),
     workspaceId: values.get('--workspace-id')!,
-    retentionDays: Number.isFinite(retentionInput) && retentionInput >= 0 ? retentionInput : 30,
+    retentionDays: Number.isFinite(retentionInput) && retentionInput > 0 ? retentionInput : 30,
   };
 }
 
@@ -223,7 +223,16 @@ let quarantinedFamilies: ChronicleQuarantinedFamily[] = [];
 function store(): Promise<ChronicleSqliteJournal> {
   sqliteStore ??= (async () => {
     await fsp.mkdir(chronicleDirectory, { recursive: true });
-    const journal = new ChronicleSqliteJournal({ directory: chronicleDirectory });
+    const journal = new ChronicleSqliteJournal({
+      directory: chronicleDirectory,
+      retentionDays: parsed.retentionDays,
+      // Bound burst growth independently of age retention. Prefix eviction keeps
+      // at most this many rows while preserving chain verification via checkpoints.
+      maxEvents: 100_000,
+      // Formal aggregate allocation ceiling. Quota-enabled journals reserve
+      // rollback-journal headroom and constrain the main database with max_page_count.
+      maxBytes: 512 * 1024 * 1024,
+    });
     try {
       const result = await importLegacyChronicleJournal(journal, chronicleDirectory);
       quarantinedFamilies = result.quarantined;

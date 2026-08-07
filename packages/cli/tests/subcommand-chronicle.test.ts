@@ -1,10 +1,33 @@
+import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const call = vi.fn();
-const close = vi.fn();
+const {
+  call,
+  close,
+  createChronicleProjectAccess,
+  compactChronicleSqlite,
+  resolveChronicleProjectServerOptions,
+  chronicleProjectServerMetadataPath,
+} = vi.hoisted(() => {
+  const hoistedCall = vi.fn();
+  const hoistedClose = vi.fn();
+  return {
+    call: hoistedCall,
+    close: hoistedClose,
+    createChronicleProjectAccess: vi.fn(() => ({ call: hoistedCall, close: hoistedClose })),
+    compactChronicleSqlite: vi.fn(),
+    resolveChronicleProjectServerOptions: vi.fn(() => ({ projectDir: '/runtime/project' })),
+    chronicleProjectServerMetadataPath: vi.fn(
+      (projectDir: string) => `${projectDir}/chronicle/server.json`,
+    ),
+  };
+});
 
 vi.mock('@wrongstack/core/chronicle', () => ({
-  createChronicleProjectAccess: () => ({ call, close }),
+  chronicleProjectServerMetadataPath,
+  compactChronicleSqlite,
+  createChronicleProjectAccess,
+  resolveChronicleProjectServerOptions,
 }));
 
 import { parseArgs } from '../src/arg-parser.js';
@@ -39,6 +62,11 @@ beforeEach(() => {
   call.mockReset();
   call.mockResolvedValue({ candidates: [], deleted: 0 });
   close.mockReset();
+  createChronicleProjectAccess.mockClear();
+  compactChronicleSqlite.mockReset();
+  compactChronicleSqlite.mockReturnValue({ beforeBytes: 200, afterBytes: 120, reclaimedBytes: 80 });
+  resolveChronicleProjectServerOptions.mockClear();
+  chronicleProjectServerMetadataPath.mockClear();
 });
 
 describe('chronicle prune — flags must survive the dispatcher', () => {
@@ -76,5 +104,34 @@ describe('chronicle prune — flags must survive the dispatcher', () => {
     const { flags, positional } = parseArgs(['chronicle', 'prune', '--dry-run', 'extra']);
     expect(flags['dry-run']).toBe(true);
     expect(positional).toEqual(['chronicle', 'prune', 'extra']);
+  });
+});
+
+describe('chronicle compact', () => {
+  it('uses canonical offline paths without creating project access', async () => {
+    await expect(dispatch(['chronicle', 'compact'])).resolves.toBeUndefined();
+
+    expect(resolveChronicleProjectServerOptions).toHaveBeenCalledWith({
+      projectRoot: '/tmp',
+      userHome: '/tmp',
+    });
+    expect(chronicleProjectServerMetadataPath).toHaveBeenCalledWith('/runtime/project');
+    expect(compactChronicleSqlite).toHaveBeenCalledWith({
+      dbPath: path.join('/runtime/project', 'chronicle', 'chronicle.sqlite'),
+      endpointMetadataPath: '/runtime/project/chronicle/server.json',
+    });
+    expect(createChronicleProjectAccess).not.toHaveBeenCalled();
+  });
+
+  it('rejects unexpected positional arguments before touching storage', async () => {
+    const deps = fakeDeps();
+
+    await chronicleCmd(['compact', 'extra'], deps);
+
+    expect(deps.renderer.writeError).toHaveBeenCalledWith(
+      expect.stringContaining('Usage: wstack chronicle compact'),
+    );
+    expect(compactChronicleSqlite).not.toHaveBeenCalled();
+    expect(createChronicleProjectAccess).not.toHaveBeenCalled();
   });
 });
