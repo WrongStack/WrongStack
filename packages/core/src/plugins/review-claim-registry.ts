@@ -104,6 +104,20 @@ function warnFallbackOnce(message: string): void {
  *  - foreign-host or ownerless locks: broken only past the mtime lease cap.
  * Exported for unit tests.
  */
+/**
+ * Re-verify the stale classification immediately before the atomic break, so a
+ * winner that re-created the lock between classification and rename is not
+ * displaced. The residual window shrinks to the two adjacent syscalls between
+ * this verification read and the rename.
+ */
+async function breakStaleLockVerified(
+  lockPath: string,
+  verify: () => Promise<boolean>,
+): Promise<boolean> {
+  if (!(await verify())) return false;
+  return (await breakLockAtomically(lockPath)) === true;
+}
+
 export async function breakStaleLock(lockPath: string): Promise<boolean> {
   try {
     const ownerRaw = await fsp.readFile(lockPath, 'utf8').catch(() => null);
@@ -113,20 +127,26 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
       if (ownerHost === HOST_NAME && Number.isInteger(ownerPid) && ownerPid > 0) {
         if (isPidAlive(ownerPid)) {
           const st = await fsp.stat(lockPath);
-          // Escape hatch for a same-host holder that is alive but wedged: its
-          // critical section is sub-second, so a hold past this cap is either
-          // a suspended process or pid reuse — break it to keep the feature.
           if (Date.now() - st.mtimeMs > SAME_HOST_STALE_MS) {
-            return (await breakLockAtomically(lockPath)) === true;
+            return breakStaleLockVerified(lockPath, async () => {
+              const st2 = await fsp.stat(lockPath);
+              return Date.now() - st2.mtimeMs > SAME_HOST_STALE_MS;
+            });
           }
           return false;
         }
-        return (await breakLockAtomically(lockPath)) === true;
+        return breakStaleLockVerified(lockPath, async () => {
+          const content = await fsp.readFile(lockPath, 'utf8').catch(() => '');
+          return content.trim() === ownerRaw.trim();
+        });
       }
     }
     const st = await fsp.stat(lockPath);
     if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
-      return (await breakLockAtomically(lockPath)) === true;
+      return breakStaleLockVerified(lockPath, async () => {
+        const st2 = await fsp.stat(lockPath);
+        return Date.now() - st2.mtimeMs > LOCK_STALE_MS;
+      });
     }
   } catch {
     /* lock vanished — retry open */
@@ -232,7 +252,7 @@ const MAX_LEDGER_LINES = 10_000;
 const HOST_SID = randomUUID();
 
 /** Same-process fallback ledger, used only when the shared store is unwritable. */
-const claimsByEventBus = new WeakMap<EventBus, Map<string, Set<string>>>();
+const claimsByEventBus = new WeakMap<EventBus, Map<string, Map<string, number>>>();
 const startedReviews = new WeakMap<ReviewContextBundle, StartedReview>();
 /**
  * In-flight claim installation for raw-emitted reviews. `recordStartedReview`
@@ -500,10 +520,10 @@ async function releaseSharedClaims(
 // ---------------------------------------------------------------------------
 // In-memory fallback (only when the shared ledger is unwritable)
 // ---------------------------------------------------------------------------
-function ledgerFor(events: EventBus): Map<string, Set<string>> {
+function ledgerFor(events: EventBus): Map<string, Map<string, number>> {
   let ledger = claimsByEventBus.get(events);
   if (!ledger) {
-    ledger = new Map<string, Set<string>>();
+    ledger = new Map<string, Map<string, number>>();
     claimsByEventBus.set(events, ledger);
   }
   return ledger;
@@ -513,20 +533,33 @@ function claimFilesInMemory(
   events: EventBus,
   cwd: string,
   files: ReviewFileEntry[],
+  ttlMs: number,
 ): ReviewClaim[] {
   const ledger = ledgerFor(events);
+  const now = Date.now();
   const claims: ReviewClaim[] = [];
   for (const file of files) {
     const key = claimKey(cwd, file.path);
     const fileFingerprint = fingerprint(file.content);
     let activeFingerprints = ledger.get(key);
+    // Evict expired claims on access so a review that never completed cannot
+    // block the same content for the whole session.
+    if (activeFingerprints) {
+      for (const [fp, ts] of activeFingerprints) {
+        if (now - ts > ttlMs) activeFingerprints.delete(fp);
+      }
+      if (activeFingerprints.size === 0) {
+        ledger.delete(key);
+        activeFingerprints = undefined;
+      }
+    }
     if (!activeFingerprints) {
-      activeFingerprints = new Set<string>();
+      activeFingerprints = new Map<string, number>();
       ledger.set(key, activeFingerprints);
     }
     if (activeFingerprints.has(fileFingerprint)) continue;
-    activeFingerprints.add(fileFingerprint);
-    claims.push({ key, fingerprint: fileFingerprint, sid: HOST_SID, ts: Date.now() });
+    activeFingerprints.set(fileFingerprint, now);
+    claims.push({ key, fingerprint: fileFingerprint, sid: HOST_SID, ts: now });
   }
   return claims;
 }
@@ -536,7 +569,12 @@ function releaseClaimsInMemory(events: EventBus, claims: ReviewClaim[]): void {
   for (const claim of claims) {
     const activeFingerprints = ledger.get(claim.key);
     if (!activeFingerprints) continue;
-    activeFingerprints.delete(claim.fingerprint);
+    // Mirror the shared-ledger sid+ts matching: with access-time TTL eviction,
+    // a fingerprint can be re-claimed after expiry, so a late release must not
+    // delete the newer live entry.
+    if (activeFingerprints.get(claim.fingerprint) === claim.ts) {
+      activeFingerprints.delete(claim.fingerprint);
+    }
     if (activeFingerprints.size === 0) ledger.delete(claim.key);
   }
 }
@@ -570,7 +608,7 @@ async function claimFiles(
         warnFallbackOnce(
           `[review-claim-registry] claim lock still contended after ${LOCK_WAIT_MS + LOCK_RETRY_BUDGET_MS}ms (${err2 instanceof Error ? err2.message : String(err2)}); falling back to in-memory dedup`,
         );
-        return { claims: claimFilesInMemory(events, cwd, files), storeDir: null };
+        return { claims: claimFilesInMemory(events, cwd, files, ttlMs), storeDir: null };
       }
     }
     // Storage failure (EACCES/EROFS/ENOSPC/ENOTDIR/...) — unwritable tree or
@@ -579,7 +617,7 @@ async function claimFiles(
     warnFallbackOnce(
       `[review-claim-registry] shared claim store unavailable (${err instanceof Error ? err.message : String(err)}); falling back to in-memory dedup`,
     );
-    return { claims: claimFilesInMemory(events, cwd, files), storeDir: null };
+    return { claims: claimFilesInMemory(events, cwd, files, ttlMs), storeDir: null };
   }
 }
 
@@ -630,7 +668,7 @@ export async function recordStartedReview(
   // event fires, so this listener must never re-claim them: an async re-claim
   // that lands after the completion release would resurrect the fingerprint
   // claim and block the next review (observed as a cross-cycle flake).
-  if (startedReviews.has(bundle)) return;
+  if (startedReviews.has(bundle) || pendingStartedReviews.has(bundle)) return;
   const candidate = payload as Partial<ReviewContextBundle>;
   if (typeof candidate.cwd !== 'string' || !Array.isArray(candidate.files)) return;
   // Capture the narrowed values BEFORE the async IIFE — TS property narrowing

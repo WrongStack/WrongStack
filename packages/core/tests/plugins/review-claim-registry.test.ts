@@ -238,11 +238,12 @@ describe('review claim registry', () => {
       ),
     ).not.toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 80));
+    const ttlMs = 500;
     expect(
       await emitReviewIfChanged(
-        { events: sessionB, emitCustom: secondEmit } as never,
+        { events: sessionA, emitCustom: secondEmit } as never,
         bundle('v1'),
-        { storeDir, ttlMs: 50 },
+        { storeDir, ttlMs },
       ),
     ).not.toBeNull();
     expect(secondEmit).toHaveBeenCalledOnce();
@@ -394,6 +395,64 @@ describe('review claim registry', () => {
     const past = new Date(Date.now() - 120_000);
     await utimes(lockPath, past, past);
     expect(await breakStaleLock(lockPath)).toBe(true);
+  });
+
+  it('expires in-memory fallback claims like the shared ledger', async () => {
+    // Fresh session object so the per-EventBus fallback ledger starts empty.
+    const sessionC = {};
+    const blocker = path.join(storeDir, 'not-a-dir');
+    await writeFile(blocker, 'x', 'utf8');
+    const unwritable = path.join(blocker, 'sub');
+    const emitCustom = vi.fn();
+
+    expect(
+      await emitReviewIfChanged({ events: sessionC, emitCustom } as never, bundle('v1'), {
+        storeDir: unwritable,
+        ttlMs: 50,
+      }),
+    ).not.toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    // After the TTL, the same content is claimable again in the fallback path.
+    expect(
+      await emitReviewIfChanged({ events: sessionC, emitCustom } as never, bundle('v1'), {
+        storeDir: unwritable,
+        ttlMs: 50,
+      }),
+    ).not.toBeNull();
+    expect(emitCustom).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let a late in-memory release delete a newer fallback claim', async () => {
+    // Fresh session object so the per-EventBus fallback ledger starts empty.
+    const sessionD = {};
+    const blocker = path.join(storeDir, 'not-a-dir');
+    await writeFile(blocker, 'x', 'utf8');
+    const unwritable = path.join(blocker, 'sub');
+    const emitCustom = vi.fn();
+
+    const first = await emitReviewIfChanged(
+      { events: sessionD, emitCustom } as never,
+      bundle('v1'),
+      { storeDir: unwritable, ttlMs: 50 },
+    );
+    expect(first).not.toBeNull();
+    // Claim expires; the same content is re-claimed in the fallback path.
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(
+      await emitReviewIfChanged({ events: sessionD, emitCustom } as never, bundle('v1'), {
+        storeDir: unwritable,
+        ttlMs: 50,
+      }),
+    ).not.toBeNull();
+    // A's late completion must not delete B's newer live claim.
+    await recordCompletedReview(sessionD as never, { bundle: first });
+    expect(
+      await emitReviewIfChanged({ events: sessionD, emitCustom } as never, bundle('v1'), {
+        storeDir: unwritable,
+        ttlMs: 50,
+      }),
+    ).toBeNull();
+    expect(emitCustom).toHaveBeenCalledTimes(2);
   });
 
   it('falls back to per-session dedup when the shared ledger is unwritable', async () => {

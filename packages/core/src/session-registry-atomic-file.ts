@@ -88,13 +88,15 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
       // mtime lease cap.
       const barePid = Number.parseInt(trimmed, 10);
       if (Number.isInteger(barePid) && barePid > 0 && !isPidAlive(barePid)) {
-        return (await breakLockAtomically(lockPath)) === true;
+        return breakStaleLockVerified(lockPath, async () => {
+          const reread = await fs.readFile(lockPath, 'utf8').catch(() => '');
+          return reread.trim() === trimmed;
+        });
       }
-      const stat = await fs.stat(lockPath);
-      if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
-        return (await breakLockAtomically(lockPath)) === true;
-      }
-      return false;
+      return breakStaleLockVerified(lockPath, async () => {
+        const st = await fs.stat(lockPath);
+        return Date.now() - st.mtimeMs > STALE_LOCK_MS;
+      });
     }
     const ownerHost = trimmed.slice(0, colonIdx);
     const ownerPid = Number.parseInt(trimmed.slice(colonIdx + 1), 10);
@@ -102,23 +104,42 @@ export async function breakStaleLock(lockPath: string): Promise<boolean> {
       if (isPidAlive(ownerPid)) {
         const stat = await fs.stat(lockPath);
         if (Date.now() - stat.mtimeMs > SAME_HOST_STALE_MS) {
-          return (await breakLockAtomically(lockPath)) === true;
+          return breakStaleLockVerified(lockPath, async () => {
+            const st = await fs.stat(lockPath);
+            return Date.now() - st.mtimeMs > SAME_HOST_STALE_MS;
+          });
         }
         return false;
       }
-      return (await breakLockAtomically(lockPath)) === true;
+      return breakStaleLockVerified(lockPath, async () => {
+        const reread = await fs.readFile(lockPath, 'utf8').catch(() => '');
+        return reread.trim() === trimmed;
+      });
     }
     // Foreign-host host:pid lock — pid not interpretable here; mtime lease only.
-    const stat = await fs.stat(lockPath);
-    if (Date.now() - stat.mtimeMs > STALE_LOCK_MS) {
-      return (await breakLockAtomically(lockPath)) === true;
-    }
-    return false;
+    return breakStaleLockVerified(lockPath, async () => {
+      const st = await fs.stat(lockPath);
+      return Date.now() - st.mtimeMs > STALE_LOCK_MS;
+    });
   } catch {
     // stat failed → the lock vanished underneath us; let the caller retry.
     /* v8 ignore next -- defensive: a vanished lock between read and stat is fine */
     return true;
   }
+}
+
+/**
+ * Re-verify the stale classification immediately before the atomic break, so a
+ * winner that re-created the lock between classification and rename is not
+ * displaced. The residual window shrinks to the two adjacent syscalls between
+ * this verification and the rename.
+ */
+async function breakStaleLockVerified(
+  lockPath: string,
+  verify: () => Promise<boolean>,
+): Promise<boolean> {
+  if (!(await verify())) return false;
+  return (await breakLockAtomically(lockPath)) === true;
 }
 
 /**

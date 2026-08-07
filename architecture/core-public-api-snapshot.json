@@ -1220,7 +1220,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 18,
-      "sourceLines": 7373
+      "sourceLines": 7411
     },
     {
       "directory": "prompts",
