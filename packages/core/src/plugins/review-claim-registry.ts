@@ -199,6 +199,7 @@ async function withStoreLock<T>(
       handle = await fsp.open(lockPath, 'wx').catch(() => null);
     }
     if (handle) {
+      let stampFailed = false;
       try {
         // Stamp the owner BEFORE any critical-section work: an ownerless lock
         // would be stolen by a peer past the mtime cap while we are still
@@ -213,19 +214,28 @@ async function withStoreLock<T>(
           }
         }
         if (!stamped) {
+          stampFailed = true;
           throw new Error('failed to stamp claim lock owner');
         }
         return await fn();
       } finally {
         await handle.close().catch(() => undefined);
-        // Only unlink a lock we still own: a stale-lock breaker may have
-        // stolen this lock and re-stamped it with another host:pid, in which
-        // case the resumed holder must NOT remove the new owner's lock. An
-        // EMPTY read is never ours to unlink — it may be the new owner's
-        // lock in its open-to-stamp gap; that lock is mtime-bounded instead.
-        const owner = await fsp.readFile(lockPath, 'utf8').catch(() => null);
-        if (owner !== null && owner.trim() === lockOwnerStamp()) {
+        if (stampFailed) {
+          // The lock is ours (we created it microseconds ago; no breaker can
+          // have stolen it). Remove it now the handle is closed, or every
+          // waiter degrades to in-memory dedup until the mtime cap. The
+          // fail-closed error still propagates (no return in this finally).
           await fsp.unlink(lockPath).catch(() => undefined);
+        } else {
+          // Only unlink a lock we still own: a stale-lock breaker may have
+          // stolen this lock and re-stamped it with another host:pid, in which
+          // case the resumed holder must NOT remove the new owner's lock. An
+          // EMPTY read is never ours to unlink — it may be the new owner's
+          // lock in its open-to-stamp gap; that lock is mtime-bounded instead.
+          const owner = await fsp.readFile(lockPath, 'utf8').catch(() => null);
+          if (owner !== null && owner.trim() === lockOwnerStamp()) {
+            await fsp.unlink(lockPath).catch(() => undefined);
+          }
         }
       }
     }
@@ -751,10 +761,15 @@ export async function emitReviewIfChanged(
   const { claims, storeDir } = await claimFiles(api.events, bundle.cwd, bundle.files, opts);
   if (claims.length === 0) return null;
 
-  const claimedKeys = new Set(claims.map((claim) => claim.key));
+  const claimed = new Set(claims.map((claim) => `${claim.key}\0${claim.fingerprint}`));
   const claimedBundle: ReviewContextBundle = {
     ...bundle,
-    files: bundle.files.filter((file) => claimedKeys.has(claimKey(bundle.cwd, file.path))),
+    // Filter on key+FINGERPRINT pairs, not just key: two entries for the same
+    // path in one batch can differ in content, and a fingerprint claimed by
+    // another session must not ride along in the emitted bundle.
+    files: bundle.files.filter((file) =>
+      claimed.has(`${claimKey(bundle.cwd, file.path)}\0${fingerprint(file.content)}`),
+    ),
   };
 
   startedReviews.set(claimedBundle, {

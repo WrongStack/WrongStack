@@ -226,27 +226,33 @@ describe('review claim registry', () => {
   it('treats an expired claim as stale and allows re-claiming', async () => {
     const firstEmit = vi.fn();
     const secondEmit = vi.fn();
+    let now = 1_000_000;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
 
-    expect(
-      await emitReviewIfChanged(
-        { events: sessionA, emitCustom: firstEmit } as never,
-        bundle('v1'),
-        {
-          storeDir,
-          ttlMs: 50,
-        },
-      ),
-    ).not.toBeNull();
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    const ttlMs = 500;
-    expect(
-      await emitReviewIfChanged(
-        { events: sessionA, emitCustom: secondEmit } as never,
-        bundle('v1'),
-        { storeDir, ttlMs },
-      ),
-    ).not.toBeNull();
-    expect(secondEmit).toHaveBeenCalledOnce();
+    try {
+      expect(
+        await emitReviewIfChanged(
+          { events: sessionA, emitCustom: firstEmit } as never,
+          bundle('v1'),
+          {
+            storeDir,
+            ttlMs: 50,
+          },
+        ),
+      ).not.toBeNull();
+      now += 80;
+      const ttlMs = 500;
+      expect(
+        await emitReviewIfChanged(
+          { events: sessionA, emitCustom: secondEmit } as never,
+          bundle('v1'),
+          { storeDir, ttlMs },
+        ),
+      ).not.toBeNull();
+      expect(secondEmit).toHaveBeenCalledOnce();
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('keeps fresh claims when the ledger compacts in the same lock window', async () => {
@@ -298,35 +304,41 @@ describe('review claim registry', () => {
     const firstEmit = vi.fn();
     const reClaimEmit = vi.fn();
     const checkEmit = vi.fn();
+    let now = 1_000_000;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
 
-    // Session A claims v1 with a short TTL.
-    const aBundle = await emitReviewIfChanged(
-      { events: sessionA, emitCustom: firstEmit } as never,
-      bundle('v1'),
-      { storeDir, ttlMs: 50 },
-    );
-    expect(aBundle).not.toBeNull();
-
-    // Claim expires; session B (same process, same HOST_SID) re-claims v1.
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    expect(
-      await emitReviewIfChanged(
-        { events: sessionB, emitCustom: reClaimEmit } as never,
+    try {
+      // Session A claims v1 with a short TTL.
+      const aBundle = await emitReviewIfChanged(
+        { events: sessionA, emitCustom: firstEmit } as never,
         bundle('v1'),
         { storeDir, ttlMs: 50 },
-      ),
-    ).not.toBeNull();
+      );
+      expect(aBundle).not.toBeNull();
 
-    // A's completion arrives late. It must NOT release B's newer claim.
-    await recordCompletedReview(sessionA as never, { bundle: aBundle });
-    expect(
-      await emitReviewIfChanged(
-        { events: sessionA, emitCustom: checkEmit } as never,
-        bundle('v1'),
-        { storeDir, ttlMs: 50 },
-      ),
-    ).toBeNull();
-    expect(checkEmit).not.toHaveBeenCalled();
+      // Claim expires; session B (same process, same HOST_SID) re-claims v1.
+      now += 80;
+      expect(
+        await emitReviewIfChanged(
+          { events: sessionB, emitCustom: reClaimEmit } as never,
+          bundle('v1'),
+          { storeDir, ttlMs: 50 },
+        ),
+      ).not.toBeNull();
+
+      // A's completion arrives late. It must NOT release B's newer claim.
+      await recordCompletedReview(sessionA as never, { bundle: aBundle });
+      expect(
+        await emitReviewIfChanged(
+          { events: sessionA, emitCustom: checkEmit } as never,
+          bundle('v1'),
+          { storeDir, ttlMs: 50 },
+        ),
+      ).toBeNull();
+      expect(checkEmit).not.toHaveBeenCalled();
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('releases a raw-emitted review whose claim is still installing', async () => {
@@ -346,6 +358,36 @@ describe('review claim registry', () => {
       }),
     ).not.toBeNull();
     expect(emit).toHaveBeenCalledOnce();
+  });
+
+  it('emits only fingerprint-claimed files, not every entry for a shared path', async () => {
+    // Session A holds a live claim on src/file.ts v1.
+    const emitA = vi.fn();
+    expect(
+      await emitReviewIfChanged({ events: sessionA, emitCustom: emitA } as never, bundle('v1'), {
+        storeDir,
+      }),
+    ).not.toBeNull();
+
+    // Session B batches two entries for the SAME path — v1 (claimed by A) and
+    // v2 (new). Only the v2 fingerprint may be emitted.
+    const emitB = vi.fn();
+    const dupBatch: ReviewContextBundle = {
+      ...bundle('v1'),
+      files: [
+        { path: 'src/file.ts', status: 'modified', content: 'v1' },
+        { path: 'src/file.ts', status: 'modified', content: 'v2' },
+      ],
+    };
+    const emitted = await emitReviewIfChanged(
+      { events: sessionB, emitCustom: emitB } as never,
+      dupBatch,
+      { storeDir },
+    );
+    expect(emitted).not.toBeNull();
+    expect(emitted!.files).toHaveLength(1);
+    expect(emitted!.files[0]!.content).toBe('v2');
+    expect(emitB).toHaveBeenCalledOnce();
   });
 
   it('breaks a lock whose owner process is dead even when freshly created', async () => {

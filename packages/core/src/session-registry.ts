@@ -591,6 +591,7 @@ export class SessionRegistry {
           }
         }
 
+        let stampFailed = false;
         try {
           // Stamp the owner (host:pid) BEFORE any critical-section work: an
           // ownerless lock would be stolen by a peer past the mtime cap while
@@ -606,6 +607,7 @@ export class SessionRegistry {
             }
           }
           if (!stamped) {
+            stampFailed = true;
             throw new Error('failed to stamp session-registry lock owner');
           }
           const raw = await fs.readFile(this.filePath, 'utf8').catch(() => '{}');
@@ -624,10 +626,19 @@ export class SessionRegistry {
           return; // success
         } finally {
           await lockHandle.close().catch(() => undefined);
-          // Only unlink a lock we still own: a stale-lock breaker may have
-          // stolen this lock and re-stamped it with another host:pid, in which
-          // case the resumed holder must NOT remove the new owner's lock.
-          await maybeUnlinkOwnedLock(lockPath);
+          if (stampFailed) {
+            // The lock is ours (we created it microseconds ago; no breaker can
+            // have stolen it). Remove it now the handle is closed, or every
+            // writer degrades until the mtime cap. The fail-closed error still
+            // propagates (no return in this finally).
+            await fs.unlink(lockPath).catch(() => undefined);
+          } else {
+            // Only unlink a lock we still own: a stale-lock breaker may have
+            // stolen this lock and re-stamped it with another host:pid, in
+            // which case the resumed holder must NOT remove the new owner's
+            // lock.
+            await maybeUnlinkOwnedLock(lockPath);
+          }
         }
       } catch (err) {
         if (err instanceof SessionOwnershipConflictError) throw err;

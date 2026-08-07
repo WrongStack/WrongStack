@@ -52,10 +52,17 @@ export function lockOwnerStamp(): string {
  */
 export async function maybeUnlinkOwnedLock(lockPath: string): Promise<void> {
   const owner = await fs.readFile(lockPath, 'utf8').catch(() => null);
-  if (owner !== null && owner.trim() === lockOwnerStamp()) {
-    /* v8 ignore start -- best-effort lock cleanup; .catch only fires if the lock vanished */
-    await fs.unlink(lockPath).catch(() => undefined);
-    /* v8 ignore stop */
+  if (owner === null || owner.trim() !== lockOwnerStamp()) return;
+  // Bounded retry: Windows can transiently hold a freshly-written lock file
+  // (AV scan, indexing); a one-shot swallow would leave our live lock behind
+  // and double the recovery window for every waiter.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await fs.unlink(lockPath);
+      return;
+    } catch {
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 5));
+    }
   }
 }
 
