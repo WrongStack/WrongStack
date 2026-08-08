@@ -276,6 +276,7 @@ function panelFor(id: PanelId, width: number): ReactElement {
             },
           ]}
           currentSessionId="current-session"
+          now={NOW}
           width={width}
         />
       );

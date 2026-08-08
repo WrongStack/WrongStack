@@ -99,10 +99,10 @@ function liveSessionColor(status: string): string {
   return theme.textMuted;
 }
 
-/** Short relative time like "3m", "2h". */
-function fmtRelative(iso: string | undefined): string {
+/** Short relative time like "3m", "2h". Accepts an injectable `now` for deterministic rendering. */
+function fmtRelative(iso: string | undefined, now: number = Date.now()): string {
   if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = now - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
   if (min < 1) return 'now';
   if (min < 60) return `${min}m`;
@@ -942,6 +942,12 @@ export interface SessionsPanelSidebarProps {
   liveSessions?: readonly LiveSessionEntry[] | undefined;
   resumeSessions?: readonly ResumeSessionEntry[] | undefined;
   currentSessionId?: string | undefined;
+  /**
+   * Reference timestamp for relative-time labels (e.g. "2d"). Defaults to
+   * `Date.now()` at render time. Accepts an injected value so visual snapshots
+   * stay deterministic across calendar-day boundaries.
+   */
+  now?: number | undefined;
   width: number;
 }
 
@@ -949,9 +955,11 @@ export function SessionsPanelSidebar({
   liveSessions,
   resumeSessions,
   currentSessionId,
+  now,
   width,
 }: SessionsPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  const nowRef = now ?? Date.now();
   const live = liveSessions?.slice(0, 3) ?? [];
   const resume = resumeSessions?.slice(0, 3) ?? [];
   const total = (liveSessions?.length ?? 0) + (resumeSessions?.length ?? 0);
@@ -1008,7 +1016,7 @@ export function SessionsPanelSidebar({
           />
           {resume.map((rs) => {
             const showRelativeTime = inner >= 24;
-            const rel = showRelativeTime ? fmtRelative(rs.lastActivityAt ?? rs.endedAt) : '';
+            const rel = showRelativeTime ? fmtRelative(rs.lastActivityAt ?? rs.endedAt, nowRef) : '';
             const title = trunc(
               rs.title || rs.lastUserMessage || rs.id,
               Math.max(4, inner - 2 - (showRelativeTime ? displayWidth(rel) + 1 : 0)),

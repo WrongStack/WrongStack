@@ -90,7 +90,7 @@ interface Stats {
   sources: Set<string>;
 }
 
-function computeStats(entries: MemoryEntry[]): Stats {
+function computeStats(entries: MemoryEntry[], now: number = Date.now()): Stats {
   const stats: Stats = {
     total: entries.length,
     perScope: { 'project-agents': 0, 'project-memory': 0, 'user-memory': 0 },
@@ -118,7 +118,7 @@ function computeStats(entries: MemoryEntry[]): Stats {
       stats.noPriorityCount++;
     }
 
-    const days = daysAgo(e.ts);
+    const days = daysAgo(e.ts, now);
     if (days === null) {
       stats.recency.older++;
     } else if (days < 7) {
@@ -227,7 +227,7 @@ function renderSageStats(
   return lines;
 }
 
-function renderSageEntries(memories: SageLike[], compact?: boolean): string[] {
+function renderSageEntries(memories: SageLike[], compact?: boolean, now: number = Date.now()): string[] {
   if (memories.length === 0) return [];
 
   const lines: string[] = [];
@@ -266,7 +266,7 @@ function renderSageEntries(memories: SageLike[], compact?: boolean): string[] {
                 : '⚪';
 
       const date = fmtDate(mem.createdAt);
-      const recency = recencyLabel(daysAgo(mem.createdAt));
+      const recency = recencyLabel(daysAgo(mem.createdAt, now));
 
       const textPreview = mem.text.length > 100 ? `${mem.text.slice(0, 98)}…` : mem.text;
 
@@ -381,11 +381,11 @@ function renderLegacySummary(stats: Stats): string[] {
   return lines;
 }
 
-function renderLegacyEntry(e: MemoryEntry): string {
+function renderLegacyEntry(e: MemoryEntry, now: number = Date.now()): string {
   const typeEmoji = e.type ? (TYPE_EMOJI[e.type] ?? '•') : '•';
   const prioEmoji = e.priority ? (PRIORITY_EMOJI[e.priority] ?? '') : '';
   const date = fmtDate(e.ts);
-  const recency = recencyLabel(daysAgo(e.ts));
+  const recency = recencyLabel(daysAgo(e.ts, now));
 
   const textFirstLine = e.text.split('\n')[0] ?? '';
   const preview = textFirstLine.length > 100 ? `${textFirstLine.slice(0, 98)}…` : textFirstLine;
@@ -1012,7 +1012,7 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
 
           // ── Entries ──
           if (filteredMemories.length > 0) {
-            parts.push(...renderSageEntries(filteredMemories, parsed.compact));
+            parts.push(...renderSageEntries(filteredMemories, parsed.compact, Date.now()));
           } else {
             parts.push('*No entries matched the filter.*');
             parts.push('');
@@ -1081,7 +1081,7 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
         // ── Legacy stats (computed from the full filtered set so the bar
         // chart accurately reflects the filter, even if entries are capped
         // for display below).
-        const globalStats = computeStats(filteredEntries);
+        const globalStats = computeStats(filteredEntries, Date.now());
         parts.push(...renderLegacySummary(globalStats));
 
         // Legacy migration hint
@@ -1146,7 +1146,7 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
             const budget = scopeBudgets.get(scope) ?? scopeFiltered.length;
             const capped = scopeFiltered.slice(0, budget);
             if (capped.length === 0) continue;
-            parts.push(...renderLegacyScopeSection(scope, capped));
+            parts.push(...renderLegacyScopeSection(scope, capped, Date.now()));
           }
         }
 
@@ -1187,7 +1187,7 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
 
 // ── Legacy scope section (extracted for clarity) ────────────────────────────
 
-function renderLegacyScopeSection(scope: MemoryScope, entries: MemoryEntry[]): string[] {
+function renderLegacyScopeSection(scope: MemoryScope, entries: MemoryEntry[], now: number = Date.now()): string[] {
   if (entries.length === 0) return [];
 
   const lines: string[] = [];
@@ -1198,7 +1198,7 @@ function renderLegacyScopeSection(scope: MemoryScope, entries: MemoryEntry[]): s
   lines.push('');
 
   for (const e of entries) {
-    lines.push(renderLegacyEntry(e));
+    lines.push(renderLegacyEntry(e, now));
     lines.push('');
   }
 
