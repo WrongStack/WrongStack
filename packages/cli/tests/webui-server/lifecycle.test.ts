@@ -21,8 +21,23 @@ afterEach(() => {
 });
 
 describe('registerWebuiInstance', () => {
+  const captureRegisterCalls = (): {
+    calls: Array<{ record: WebUIInstanceRecord; baseDir?: string | undefined }>;
+    deps: { registerFn: (record: WebUIInstanceRecord, baseDir?: string | undefined) => Promise<void> };
+  } => {
+    const calls: Array<{ record: WebUIInstanceRecord; baseDir?: string | undefined }> = [];
+    return {
+      calls,
+      deps: {
+        registerFn: async (record, baseDir) => {
+          calls.push({ record, baseDir });
+        },
+      },
+    };
+  };
+
   it('builds the registry record (basename projectName + url) and passes baseDir', async () => {
-    const calls: Array<{ record: WebUIInstanceRecord; baseDir?: string }> = [];
+    const { calls, deps } = captureRegisterCalls();
     registerWebuiInstance(
       {
         pid: 1234,
@@ -33,7 +48,7 @@ describe('registerWebuiInstance', () => {
         startedAt: '2026-06-13T00:00:00.000Z',
         registryBaseDir: '/cfg',
       },
-      { registerFn: async (record: never, baseDir: string | undefined) => void calls.push({ record, baseDir } as never) } as never,
+      deps,
     );
     // fire-and-forget — let the microtask run
     await Promise.resolve();
@@ -47,6 +62,48 @@ describe('registerWebuiInstance', () => {
       projectName: 'acme',
       startedAt: '2026-06-13T00:00:00.000Z',
       url: 'http://127.0.0.1:3456',
+    });
+  });
+
+  it('passes optional multi-session child metadata to the registry record', async () => {
+    const { calls, deps } = captureRegisterCalls();
+    registerWebuiInstance(
+      {
+        pid: 1234,
+        surface: 'webui',
+        host: '127.0.0.1',
+        httpPort: 3456,
+        projectRoot: '/home/me/projects/acme',
+        startedAt: '2026-06-13T00:00:00.000Z',
+        registryBaseDir: '/cfg',
+        authToken: 'token-a',
+        role: 'session-child',
+        sessionId: 'sess-a',
+        parentPid: 99,
+        parentShellId: 'shell-a',
+        runtimeId: 'runtime-a',
+        attachable: true,
+        lastReadyAt: '2026-06-13T00:00:01.000Z',
+        protocolVersion: 1,
+        capabilities: ['multi-session-child'],
+      },
+      deps,
+    );
+
+    await Promise.resolve();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.record).toMatchObject({
+      role: 'session-child',
+      sessionId: 'sess-a',
+      parentPid: 99,
+      parentShellId: 'shell-a',
+      runtimeId: 'runtime-a',
+      attachable: true,
+      authToken: 'token-a',
+      auth: { scheme: 'registry-token', tokenPresent: true },
+      lastReadyAt: '2026-06-13T00:00:01.000Z',
+      protocolVersion: 1,
+      capabilities: ['multi-session-child'],
     });
   });
 

@@ -110,6 +110,9 @@
     "packages/cli/src/boot/short-circuit-desktop.ts": [
       "stripDesktopLauncherArgs"
     ],
+    "packages/cli/src/boot/webui-session-child.ts": [
+      "WEBUI_SESSION_CHILD_PROTOCOL_VERSION"
+    ],
     "packages/cli/src/chimera-reviewer-policy.ts": [
       "MAX_MUTATING_ATTEMPTS",
       "MAX_REVIEWER_ATTEMPTS"
@@ -1103,6 +1106,7 @@
       "MAX_MEMORY_ENTRIES"
     ],
     "packages/tui/src/history-retention.ts": [
+      "TUI_HISTORY_MAX_BYTES",
       "TUI_HISTORY_MAX_ENTRIES",
       "TUI_HISTORY_MAX_ENTRY_BYTES"
     ],

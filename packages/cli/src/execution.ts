@@ -89,6 +89,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       tokenCounter,
       activateSessionIdentity,
       updateInfo: initialUpdateInfo,
+      webuiSessionChild,
     },
     session: {
       session,
@@ -609,6 +610,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         sddSubagentFactory,
         statusTracker,
         updateInfo: bootUpdateInfo,
+        webuiSessionChild,
         getFleetBudget: () => {
           const d = getDirector?.() ?? null;
           if (!d) return null;

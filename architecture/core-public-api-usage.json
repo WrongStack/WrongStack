@@ -64,9 +64,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/hq": {
-      "files": 110,
+      "files": 111,
       "typeOnly": 74,
-      "runtimeOrMixed": 64
+      "runtimeOrMixed": 65
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -129,8 +129,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/storage": {
-      "files": 86,
-      "typeOnly": 26,
+      "files": 88,
+      "typeOnly": 28,
       "runtimeOrMixed": 88
     },
     "@wrongstack/core/tasking": {
@@ -169,9 +169,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 477,
+      "files": 479,
       "typeOnly": 53,
-      "runtimeOrMixed": 480
+      "runtimeOrMixed": 482
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -3605,6 +3605,12 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/tests/hq-mailbox-mutation.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/tests/hq-manual-entry-repro.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7720,6 +7726,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/src/server/instance-registry.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/src/server/pre-context-services.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7781,6 +7793,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/tests/project-session-identity.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/session-child-discovery.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13613,6 +13631,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/boot/tui-settings-adapter.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/boot/webui-session-child.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/cli-context.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

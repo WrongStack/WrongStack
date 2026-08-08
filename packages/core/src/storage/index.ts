@@ -105,6 +105,7 @@ export {
   getSessionRegistry,
   hasSessionRegistry,
   type SessionRegistryEntry,
+  type SessionWebUIEndpointHint,
   type AgentEntry,
   type AgentLiveStatus,
   type SessionLiveStatus,

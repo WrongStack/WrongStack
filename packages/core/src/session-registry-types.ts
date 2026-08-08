@@ -127,6 +127,22 @@ export type SessionLiveStatus =
   | 'stale' // process no longer alive (pruned on next read)
   | 'lost'; // heartbeat timeout — process may still be alive but unreachable
 
+export interface SessionWebUIEndpointHint {
+  role: 'standalone' | 'parent-shell' | 'session-child';
+  surface: 'webui' | 'simpleui' | string;
+  host: string;
+  httpPort: number;
+  url: string;
+  /** Redundant owner PID used to cross-check against WebUI instance records. */
+  pid: number;
+  parentPid?: number | undefined;
+  parentShellId?: string | undefined;
+  runtimeId?: string | undefined;
+  attachable?: boolean | undefined;
+  protocolVersion?: number | undefined;
+  capabilities?: string[] | undefined;
+}
+
 export interface SessionRegistryEntry {
   sessionId: string;
   projectSlug: string;
@@ -150,4 +166,6 @@ export interface SessionRegistryEntry {
   /** Count of tracked agents */
   agentCount: number;
   agents: AgentEntry[];
+  /** Optional WebUI endpoint hint. Session ownership remains keyed by `sessionId` + `pid`. */
+  webuiEndpoint?: SessionWebUIEndpointHint | undefined;
 }

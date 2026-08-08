@@ -149,11 +149,17 @@ export {
   defaultBaseDir,
   formatInstances,
   isPidAlive,
+  joinSessionRegistryWithWebUIInstances,
   listInstances,
   registerInstance,
   registryPath,
   unregisterInstance,
+  type WebUIInstanceAuthInfo,
   type WebUIInstanceRecord,
+  type WebUIInstanceRole,
+  type WebUISessionAttachCandidate,
+  type WebUISessionAttachDegradedReason,
+  type WebUISessionAttachEndpoint,
 } from './instance-registry.js';
 export {
   handleIntrospectionRoute,

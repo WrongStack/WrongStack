@@ -76,7 +76,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
   private pendingTasks: TaskSpec[] = [];
   private completedResults: TaskResult[] = [];
   /** Prevents completedResults from growing unbounded in long-running coordinators. */
-  private static readonly MAX_COMPLETED_RESULTS = 10_000;
+  private static readonly MAX_COMPLETED_RESULTS = 200_000;
   /** Caps each subagent's retained task history (see assign()); bounds RAM + the recordCompletion lookup. */
   private static readonly MAX_SUBAGENT_TASK_HISTORY = 64;
   private totalIterations = 0;

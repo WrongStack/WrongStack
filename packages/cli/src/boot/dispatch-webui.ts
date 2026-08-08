@@ -14,6 +14,13 @@
  * inline — they are too deeply coupled to local mutable state for a
  * single-PR extraction.
  */
+import * as path from 'node:path';
+import {
+  WEBUI_SESSION_CHILD_CAPABILITIES,
+  writeWebuiSessionChildError,
+  writeWebuiSessionChildReady,
+  type WebuiSessionChildOptions,
+} from './webui-session-child.js';
 import type { Agent } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { JournalEntry } from '@wrongstack/core/goal';
@@ -127,6 +134,8 @@ export interface WebUIDispatchContext {
     | undefined;
   /** Live fleet budget for WebUI concurrency/spawn gauges (issue #323). */
   getFleetBudget?: CliWebUIOptions['getFleetBudget'];
+  /** Internal one-session child launch metadata, when --webui-session-child is active. */
+  webuiSessionChild?: WebuiSessionChildOptions | undefined;
 }
 
 /**
@@ -169,8 +178,10 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     sddSubagentFactory,
     onKanbanDispatch,
     getFleetBudget,
+    webuiSessionChild,
   } = ctx;
-  const isSimpleUi = flags['simpleui'] === true;
+  const isSessionChild = Boolean(webuiSessionChild);
+  const isSimpleUi = !isSessionChild && flags['simpleui'] === true;
 
   // Route permission confirmations to the browser (tool.confirm_needed
   // events) instead of inline terminal prompts — runWebUI forwards them to
@@ -228,6 +239,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
   let frontendDistDir: string | undefined;
   try {
     webuiHost =
+      webuiSessionChild?.host ??
       flagValue(['webui-host', 'host']) ??
       process.env['WEBUI_HOST'] ??
       process.env['WS_HOST'] ??
@@ -236,27 +248,48 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     // --http-port/--ws-port and environment names as aliases, but resolve
     // exactly one port so `--port` also controls the page users open.
     const defaultPort = isSimpleUi ? 3466 : 3456;
-    webuiPort = parsePort(
-      flagValue(['webui-port', 'http-port', 'port', 'ws-port']) ??
-        process.env['WEBUI_PORT'] ??
-        process.env['PORT'] ??
-        process.env['WS_PORT'],
-      defaultPort,
-      '--port',
-    );
+    webuiPort =
+      webuiSessionChild?.port ??
+      parsePort(
+        flagValue(['webui-port', 'http-port', 'port', 'ws-port']) ??
+          process.env['WEBUI_PORT'] ??
+          process.env['PORT'] ??
+          process.env['WS_PORT'],
+        defaultPort,
+        '--port',
+      );
     webuiAccessToken =
-      flagValue(['webui-token']) ?? process.env['WEBUI_TOKEN'] ?? process.env['WEBUI_AUTH_TOKEN'];
+      webuiSessionChild?.token ??
+      flagValue(['webui-token']) ??
+      process.env['WEBUI_TOKEN'] ??
+      process.env['WEBUI_AUTH_TOKEN'];
     webuiPublicUrl =
-      flagValue(['webui-public-url', 'public-url']) ?? process.env['WEBUI_PUBLIC_URL'];
+      webuiSessionChild?.publicUrl ??
+      flagValue(['webui-public-url', 'public-url']) ??
+      process.env['WEBUI_PUBLIC_URL'];
     webuiPublicWsUrl =
-      flagValue(['webui-public-ws-url', 'public-ws-url']) ?? process.env['WEBUI_PUBLIC_WS_URL'];
+      webuiSessionChild?.publicWsUrl ??
+      flagValue(['webui-public-ws-url', 'public-ws-url']) ??
+      process.env['WEBUI_PUBLIC_WS_URL'];
     webuiRequireToken =
-      flagBoolean(['webui-require-token', 'require-token']) ?? envFlag('WEBUI_REQUIRE_TOKEN');
+      webuiSessionChild?.requireToken ??
+      flagBoolean(['webui-require-token', 'require-token']) ??
+      envFlag('WEBUI_REQUIRE_TOKEN');
     if (isSimpleUi) {
       const { ensureSimpleUiDistDir } = await import('../simpleui-dist.js');
       frontendDistDir = await ensureSimpleUiDistDir();
     }
   } catch (err) {
+    if (webuiSessionChild) {
+      await writeWebuiSessionChildError(webuiSessionChild.readyFile, {
+        protocolVersion: webuiSessionChild.protocolVersion,
+        runtimeId: webuiSessionChild.runtimeId,
+        parentShellId: webuiSessionChild.parentShellId,
+        phase: 'validate_args',
+        recoverable: false,
+        error: err,
+      }).catch(() => undefined);
+    }
     renderer.setSilent(false);
     renderer.writeInfo(color.red(`  ${err instanceof Error ? err.message : String(err)}`));
     return 1;
@@ -275,9 +308,11 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     publicUrl: webuiPublicUrl,
     publicWsUrl: webuiPublicWsUrl,
     requireToken: webuiRequireToken,
+    strictPort: webuiSessionChild?.strictPort,
     projectRoot,
     appConfig: config,
-    open: !!flags.open,
+    open: webuiSessionChild ? false : !!flags.open,
+    webuiSessionChild,
     agentTranscripts,
     hqAllowExec: flagBoolean(['hq-allow-exec']) ?? false,
     modelsRegistry,
@@ -323,7 +358,52 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     // listening, using the RESOLVED port. Requested ports auto-advance past
     // busy ports inside runWebUI, so a banner printed up-front lies whenever
     // the default when it is taken (a second instance, leftover socket).
-    onListening: ({ url }) => {
+    onListening: ({ httpPort, host, url, authToken }) => {
+      if (webuiSessionChild) {
+        void writeWebuiSessionChildReady(webuiSessionChild.readyFile, {
+          type: 'webui.session_child.ready',
+          protocolVersion: webuiSessionChild.protocolVersion,
+          runtime: {
+            role: 'session-child',
+            runtimeId: webuiSessionChild.runtimeId,
+            pid: process.pid,
+            parentPid: webuiSessionChild.parentPid,
+            parentShellId: webuiSessionChild.parentShellId,
+            startedAt: new Date().toISOString(),
+          },
+          project: {
+            projectRoot,
+            workingDir: webuiSessionChild.workingDir,
+            projectSlug: path.basename(projectRoot) || projectRoot,
+            projectName: path.basename(projectRoot) || projectRoot,
+          },
+          session: {
+            sessionId: session.id,
+            created: !webuiSessionChild.resume,
+            resumed: webuiSessionChild.resume,
+            provider: config.provider,
+            model: config.model,
+          },
+          endpoint: {
+            surface: 'webui',
+            host,
+            httpPort,
+            url,
+            ...(webuiPublicUrl ? { publicUrl: webuiPublicUrl } : {}),
+            ...(webuiPublicWsUrl ? { publicWsUrl: webuiPublicWsUrl } : {}),
+            requireToken: webuiRequireToken,
+            auth: authToken
+              ? { scheme: 'registry-token', tokenPresent: true, token: authToken }
+              : { scheme: 'none', tokenPresent: false },
+          },
+          registry: {
+            webuiInstanceRegistered: true,
+            sessionRegistered: true,
+          },
+          capabilities: [...WEBUI_SESSION_CHILD_CAPABILITIES],
+        }).catch(() => undefined);
+        return;
+      }
       const surface = isSimpleUi ? 'SimpleUI' : 'WebUI';
       renderer.writeInfo(
         `  ✦ ${terminalText(surface, 'success', { bold: true })} ${terminalText('running →', 'muted')} ${terminalLink(url)}`,
@@ -374,6 +454,16 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
         resolve(0);
       })
       .catch((err) => {
+        if (webuiSessionChild) {
+          void writeWebuiSessionChildError(webuiSessionChild.readyFile, {
+            protocolVersion: webuiSessionChild.protocolVersion,
+            runtimeId: webuiSessionChild.runtimeId,
+            parentShellId: webuiSessionChild.parentShellId,
+            phase: 'start_server',
+            recoverable: false,
+            error: err,
+          }).catch(() => undefined);
+        }
         renderer.setSilent(false);
         // Report through the renderer, not console: `runWebUI` installs a
         // quiet console for the interactive surface, and a `console.debug`

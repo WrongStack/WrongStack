@@ -59,6 +59,112 @@ describe('HQ token gate', () => {
     expect(container.querySelector<HTMLInputElement>('input')?.autocomplete).toBe('off');
   });
 
+  // Regression: when both modes are enabled AND the gate has a stored browser
+  // token, the user's intent is unambiguous — they want to use the token. The
+  // previous default of `password` made the user paste the token into the
+  // password field, hit "Log in", and watch the server reject it; only the
+  // bootstrap link opened in a new tab succeeded (because it bypasses the
+  // gate entirely). The fix defaults the active tab to `token` whenever the
+  // gate has a stored token to swap in.
+  it('defaults to the token tab when both modes are enabled and a stored token is present', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ tokenMode: true, passwordMode: true, loggedIn: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(TokenGate, { hadToken: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The token input must be visible and focused, not the password field.
+    // `PasswordInput` renders as `type="password"`, so use `placeholder` and
+    // `autocomplete` (which the token form sets to 'off' and the password
+    // form sets to 'current-password') to distinguish the two.
+    const input = container.querySelector<HTMLInputElement>('input');
+    expect(input?.autocomplete).toBe('off');
+    expect(input?.placeholder).toBe('browser token');
+    expect(document.activeElement).toBe(input);
+    // The "saved token was rejected" hint must be present (the trigger for
+    // `hadToken: true` rendering the upgrade flow rather than the empty
+    // token-mode prompt).
+    expect(container.textContent).toContain('saved token was rejected');
+    expect(container.textContent).not.toContain('Password required');
+  });
+
+  // Submit-cycle proof: pasting a token and pressing Enter in dual mode +
+  // hadToken routes the request to `/api/auth/upgrade`, NOT `/api/login`.
+  // Without the hadToken-default-to-token-tab fix, the password form would be
+  // active, the upgrade request would never fire, and the user would see
+  // "Login failed" — which the operator reported as "manual entry doesn't
+  // work" because the new-tab bootstrap URL bypasses the gate entirely.
+  it('routes the submit through /api/auth/upgrade in dual mode + hadToken', async () => {
+    const onAuthenticated = vi.fn();
+    const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/api/auth/status')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ tokenMode: true, passwordMode: true, loggedIn: false }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      if (url.includes('/api/auth/upgrade') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ loggedIn: true, upgraded: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 404 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(TokenGate, { hadToken: true, onAuthenticated }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const input = container.querySelector<HTMLInputElement>('input');
+    await act(async () => {
+      setInput(input!, 'manual-browser-token');
+      input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Proof that the token tab is the one that drove the request: the upgrade
+    // endpoint was hit with the Bearer header, and the password endpoint was
+    // never called. The latter is what makes this a regression test for the
+    // password-default bug — without the fix, this assertion fails because
+    // /api/login gets called instead.
+    const upgradeCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes('/api/auth/upgrade'),
+    );
+    const loginCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/login'));
+    expect(upgradeCalls).toHaveLength(1);
+    expect(loginCalls).toHaveLength(0);
+    expect(
+      (upgradeCalls[0]?.[1]?.headers as Record<string, string> | undefined)?.Authorization,
+    ).toBe('Bearer manual-browser-token');
+    expect(onAuthenticated).toHaveBeenCalledOnce();
+  });
+
   it('authenticates a pasted token before reloading the current tab', async () => {
     const onAuthenticated = vi.fn();
     const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {

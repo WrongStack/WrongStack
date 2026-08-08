@@ -1,5 +1,24 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
+
+// Read the cap from source instead of hardcoding it here: the behavior test
+// and the implementation drifted once already (10_000 → 200_000) and the
+// stale literal silently stopped exercising the trim.
+function readCompletedResultsCap(): number {
+  const file = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../../src/coordination/multi-agent-coordinator.ts',
+  );
+  const source = readFileSync(file, 'utf8');
+  const match = source.match(/MAX_COMPLETED_RESULTS\s*=\s*(\d[\d_]*)/);
+  if (!match) throw new Error('MAX_COMPLETED_RESULTS not found in multi-agent-coordinator.ts');
+  return Number(match[1]!.replaceAll('_', ''));
+}
+
+const MAX_COMPLETED_RESULTS = readCompletedResultsCap();
 
 describe('DefaultMultiAgentCoordinator', () => {
   const makeConfig = (overrides = {}) => ({
@@ -64,13 +83,13 @@ describe('DefaultMultiAgentCoordinator', () => {
     await coord.spawn({ id: 'a1', name: 'A1' });
     await coord.stop('a1');
 
-    const total = 10_050; // MAX_COMPLETED_RESULTS is 10_000
+    const total = MAX_COMPLETED_RESULTS + 50;
     for (let i = 0; i < total; i++) {
       await coord.assign({ id: `dead-task-${i}` });
     }
 
     const results = coord.results();
-    expect(results.length).toBeLessThanOrEqual(10_000);
+    expect(results.length).toBeLessThanOrEqual(MAX_COMPLETED_RESULTS);
     // The newest results are the ones kept.
     expect(results.at(-1)?.taskId).toBe(`dead-task-${total - 1}`);
     expect(results.at(-1)?.status).toBe('stopped');

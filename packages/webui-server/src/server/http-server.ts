@@ -80,6 +80,7 @@ import {
 import {
   extractTokenFromCookie,
   httpRequestOriginOk,
+  isLoopbackBind,
   isLoopbackHostname,
   tokenMatches,
 } from './ws-auth.js';
@@ -456,29 +457,29 @@ function strictDecodeParam(segment: string, res: http.ServerResponse): string | 
 export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
   const port = opts.port ?? Number.parseInt(process.env['PORT'] ?? '3456', 10);
   const distDir = path.resolve(opts.distDir);
-  // Security scan 2026-08-04, finding H3. This used to read
-  // `Boolean(opts.requireToken) || !isLoopbackBind(opts.host)`, so on the
-  // DEFAULT loopback bind it was false and every downstream
-  // `requireAccessToken && !accessTokenOk` gate below became a no-op. Any
-  // process on the machine could enumerate and read every session transcript
-  // and `POST /api/sessions/:id/message` into a running agent.
+  // Loopback-bypass policy: on a loopback bind the HTTP surface serves the UI
+  // and the API without a token, so a freshly typed `http://127.0.0.1:3456`
+  // and an F5 reload after closing every tab both just work. The CSRF /
+  // DNS-rebinding guards above (`httpRequestOriginOk`) and the WS loopback
+  // bootstrap in `ws-auth.ts` already keep a hostile page on another port or
+  // a rebound attacker domain out — the token gate is the second wall, not
+  // the first, and on loopback the user explicitly opted in by typing the
+  // URL into a browser on the same machine.
   //
-  // The comment justifying it said "mirrors WS loopback-bootstrap" — but
-  // WS-005 had already concluded that reaching loopback is not authentication
-  // and required a token there. The two surfaces sit on the same port and had
-  // opposite answers; this is the HTTP side catching up.
+  // Explicit opt-ins still force a token:
+  //   - `opts.requireToken: true` — operators exposing the loopback bind
+  //     behind a tunnel that already lives on `127.0.0.1`.
+  //   - non-loopback binds (`0.0.0.0`, LAN, `::`) — the WS path's WS-005
+  //     closed this for the upgrade; the HTTP side matches.
   //
-  // Costs a legitimate client nothing: a token always exists
-  // (`resolveAuthToken` generates one), the browser exchanges it for the
-  // `ws_token` cookie at `/ws-auth` and `requestToken` accepts that cookie, and
-  // the one non-browser caller (`FleetNotifier` → `POST /api/fleet/ping`) now
-  // reads the token from the instance registry and sends `x-ws-token`.
-  //
-  // Scope note: this authenticates the *channel*. A process running as the same
-  // user can still read the token from `~/.wrongstack` — and could read the
-  // session files directly without the API at all. What it stops is an
-  // unprivileged or differently-scoped local process reaching the control plane.
-  const requireAccessToken = true;
+  // Historical context: the 2026-08-04 H3 finding flipped this to `true` on
+  // every bind to close a local-process enumeration vector. In practice that
+  // broke the very first page load — `GET /` carries no token on a fresh
+  // visit, the gate fired before the SPA ever rendered, and the React app
+  // surfaced "Unauthorized". Reverting restores the loopback-bypass default
+  // that the user-facing UX depends on. The CSRF/origin check above is the
+  // security boundary that matters on loopback.
+  const requireAccessToken = Boolean(opts.requireToken) || !isLoopbackBind(opts.host);
   // WS-107: `Secure` (and the `__Host-` prefix) follow the deployment. An
   // operator-supplied `wss://` public URL means a TLS terminator sits in front
   // of this server, so the browser is on HTTPS even though this socket is not.

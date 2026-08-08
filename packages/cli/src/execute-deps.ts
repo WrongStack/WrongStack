@@ -21,6 +21,7 @@ import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { QueueStore } from '@wrongstack/core/storage';
+import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 import type {
   AttachmentStore,
   AutonomyStage,
@@ -132,6 +133,8 @@ export interface CoreDeps {
    * is consumed; the TUI reuses the result without making a second request.
    */
   updateInfo?: UpdateInfo | undefined;
+  /** Internal one-session WebUI child launch metadata, when --webui-session-child is active. */
+  webuiSessionChild?: WebuiSessionChildOptions | undefined;
 }
 
 /** Session + state stores. */

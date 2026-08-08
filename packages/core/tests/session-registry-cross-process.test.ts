@@ -111,6 +111,43 @@ describe('cross-process session discovery', () => {
     expect(list[0]!.gitBranch).toBe('main');
   });
 
+  it('preserves optional WebUI endpoint hints across register, heartbeat, and agent updates', async () => {
+    const root = await freshRoot();
+    const registry = new SessionRegistry(root);
+    const webuiEndpoint = {
+      role: 'session-child' as const,
+      surface: 'webui',
+      host: '127.0.0.1',
+      httpPort: 3456,
+      url: 'http://127.0.0.1:3456',
+      pid: process.pid,
+      parentPid: process.pid - 1,
+      parentShellId: 'shell-a',
+      runtimeId: 'runtime-a',
+      attachable: true,
+      protocolVersion: 1,
+      capabilities: ['multi-session-child'],
+    };
+
+    await registry.register({
+      sessionId: 'sess-webui-child',
+      projectSlug: 'alpha',
+      projectRoot: '/home/alpha',
+      projectName: 'Alpha',
+      workingDir: '/home/alpha',
+      clientType: 'webui',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      webuiEndpoint,
+    });
+
+    expect((await registry.get('sess-webui-child'))?.webuiEndpoint).toEqual(webuiEndpoint);
+    await forceHeartbeat(registry);
+    expect((await registry.get('sess-webui-child'))?.webuiEndpoint).toEqual(webuiEndpoint);
+    await registry.updateAgents([makeAgent({ id: 'leader' })]);
+    expect((await registry.get('sess-webui-child'))?.webuiEndpoint).toEqual(webuiEndpoint);
+  });
+
   it('re-registering the same process (project switch) replaces its entry, not adds one', async () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);

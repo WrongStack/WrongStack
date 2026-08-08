@@ -1,5 +1,6 @@
 import type { Agent } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
+import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 import type { BrainAutoRisk } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { TrustBoundary } from '@wrongstack/core/security';
@@ -45,6 +46,10 @@ export interface CliWebUIOptions {
   surface?: 'webui' | 'simpleui' | undefined;
   /** Fixed access token/password. Defaults to WEBUI_TOKEN or random per process. */
   accessToken?: string | undefined;
+  /** Fail instead of auto-advancing when the requested HTTP/WS port is busy. */
+  strictPort?: boolean | undefined;
+  /** Internal one-session child launch metadata for the multi-session parent shell. */
+  webuiSessionChild?: WebuiSessionChildOptions | undefined;
   /**
    * Live fleet concurrency + lifetime spawn budget for WebUI (issue #323).
    * Merged into `fleet.concurrency_update` broadcasts.
@@ -91,7 +96,14 @@ export interface CliWebUIOptions {
    * port resolution now makes startup asynchronous, so a synchronous bind can
    * no longer be assumed.
    */
-  onListening?: (info: { httpPort: number; wsPort: number; host: string; url: string }) => void;
+  onListening?: (info: {
+    httpPort: number;
+    wsPort: number;
+    host: string;
+    url: string;
+    authToken: string;
+    webuiInstanceRegistered: boolean;
+  }) => void;
   modelsRegistry?: ModelsRegistry | undefined;
   globalConfigPath?: string | undefined;
   /** Resolved profile config path: ~/.wrongstack/profiles/<activeProfile>/config.json */

@@ -103,6 +103,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     container,
     configStore,
     updateInfo,
+    webuiSessionChild,
   } = cliCtx;
   const profileConfigPath = activeProfileConfigPath(wpaths, config);
 
@@ -1004,6 +1005,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
         projectRoot,
         flags,
         positional,
+        webuiSessionChild,
         // Forward preflight's update-info so the TUI banner can render
         // the "(update available: v…)" indicator next to the version
         // chip. May be undefined (e.g. when the registry check was

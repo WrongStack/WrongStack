@@ -61,6 +61,41 @@ describe('register / list / unregister', () => {
     expect(JSON.parse(raw)).toMatchObject({ version: 1 });
   });
 
+  it('keeps optional multi-session child metadata backward-compatible in version 1 files', async () => {
+    await registerInstance(
+      record({
+        role: 'session-child',
+        sessionId: 'sess-a',
+        parentPid: 123,
+        parentShellId: 'shell-a',
+        runtimeId: 'runtime-a',
+        attachable: true,
+        auth: { scheme: 'registry-token', tokenPresent: true },
+        lastReadyAt: '2026-01-01T00:00:01.000Z',
+        protocolVersion: 1,
+        capabilities: ['multi-session-child'],
+      }),
+      baseDir,
+    );
+
+    const list = await listInstances(baseDir);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      role: 'session-child',
+      sessionId: 'sess-a',
+      parentPid: 123,
+      parentShellId: 'shell-a',
+      runtimeId: 'runtime-a',
+      attachable: true,
+      auth: { scheme: 'registry-token', tokenPresent: true },
+      lastReadyAt: '2026-01-01T00:00:01.000Z',
+      protocolVersion: 1,
+      capabilities: ['multi-session-child'],
+    });
+    const raw = await fs.readFile(registryPath(baseDir), 'utf8');
+    expect(JSON.parse(raw)).toMatchObject({ version: 1 });
+  });
+
   it('replaces a stale entry for the same pid instead of duplicating', async () => {
     await registerInstance(record({ httpPort: 3456 }), baseDir);
     await registerInstance(record({ httpPort: 9999 }), baseDir);

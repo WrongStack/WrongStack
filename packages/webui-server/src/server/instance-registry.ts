@@ -19,17 +19,27 @@
  *   server down. Callers wrap these in `.catch()`.
  */
 
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
+import type { SessionRegistryEntry, SessionLiveStatus } from '@wrongstack/core/storage';
 import { atomicWrite } from '@wrongstack/core/utils';
+
+export type WebUIInstanceRole = 'standalone' | 'parent-shell' | 'session-child';
+
+export interface WebUIInstanceAuthInfo {
+  /** How a same-user parent/sibling process can authenticate to this endpoint. */
+  scheme: 'registry-token' | 'cookie-bootstrap' | 'none';
+  /** Whether the record has a usable token in `authToken`. */
+  tokenPresent: boolean;
+}
 
 /** One running WebUI / SimpleUI process. */
 export interface WebUIInstanceRecord {
   /** OS process id — also the liveness key. */
   pid: number;
-  /** Surface kind — 'webui' or 'simpleui'. */
-  surface: 'webui' | 'simpleui';
+  /** Surface kind — 'webui' or 'simpleui'. Additional strings are tolerated for new surfaces. */
+  surface: 'webui' | 'simpleui' | string;
   /** Port serving both HTTP and WebSocket. */
   httpPort: number;
   /** Bind host (e.g. 127.0.0.1 or 0.0.0.0). */
@@ -63,11 +73,147 @@ export interface WebUIInstanceRecord {
    * Optional so an older record (or a surface that has no token) still parses.
    */
   authToken?: string | undefined;
+  /** Runtime role. Missing means the legacy standalone WebUI/SimpleUI role. */
+  role?: WebUIInstanceRole | undefined;
+  /** Live session owned by this endpoint when `role === 'session-child'`. */
+  sessionId?: string | undefined;
+  /** Parent shell process identity, when this endpoint was spawned by a parent. */
+  parentPid?: number | undefined;
+  parentShellId?: string | undefined;
+  /** Stable child runtime id, distinct from the session id. */
+  runtimeId?: string | undefined;
+  /** Whether a parent shell should treat this endpoint as attachable. */
+  attachable?: boolean | undefined;
+  /** Descriptive auth metadata; the same-user token remains in `authToken`. */
+  auth?: WebUIInstanceAuthInfo | undefined;
+  /** Health/protocol hints for future parent shells. */
+  lastReadyAt?: string | undefined;
+  protocolVersion?: number | undefined;
+  capabilities?: string[] | undefined;
 }
 
 interface RegistryFile {
   version: 1;
   instances: WebUIInstanceRecord[];
+}
+
+export interface WebUISessionAttachEndpoint {
+  host: string;
+  httpPort: number;
+  url: string;
+  authToken?: string | undefined;
+}
+
+export type WebUISessionAttachDegradedReason =
+  | 'live-session-no-webui-endpoint'
+  | 'endpoint-owner-mismatch'
+  | 'endpoint-missing-session-id'
+  | 'endpoint-session-mismatch'
+  | 'endpoint-not-session-child'
+  | 'endpoint-not-attachable'
+  | 'session-not-live';
+
+export interface WebUISessionAttachCandidate {
+  sessionId: string;
+  projectRoot: string;
+  workingDir: string;
+  sessionPid: number;
+  status: SessionLiveStatus;
+  instance?: WebUIInstanceRecord | undefined;
+  endpoint?: WebUISessionAttachEndpoint | undefined;
+  attachable: boolean;
+  degradedReason?: WebUISessionAttachDegradedReason | undefined;
+}
+
+function normalizeRoot(root: string): string {
+  const resolved = path.resolve(root);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function isLiveSessionStatus(status: SessionLiveStatus): boolean {
+  return status === 'active' || status === 'idle';
+}
+
+function instanceRole(instance: WebUIInstanceRecord): WebUIInstanceRole {
+  return instance.role ?? 'standalone';
+}
+
+function resolveAttachability(input: {
+  session: SessionRegistryEntry;
+  instance?: WebUIInstanceRecord | undefined;
+}): {
+  attachable: boolean;
+  instance?: WebUIInstanceRecord | undefined;
+  endpoint?: WebUISessionAttachEndpoint | undefined;
+  degradedReason?: WebUISessionAttachDegradedReason | undefined;
+} {
+  const { session, instance } = input;
+  if (!isLiveSessionStatus(session.status)) {
+    return { attachable: false, degradedReason: 'session-not-live' };
+  }
+  if (!instance) {
+    return { attachable: false, degradedReason: 'live-session-no-webui-endpoint' };
+  }
+  if (instance.pid !== session.pid) {
+    return { attachable: false, degradedReason: 'endpoint-owner-mismatch' };
+  }
+  if (!instance.sessionId) {
+    return { attachable: false, instance, degradedReason: 'endpoint-missing-session-id' };
+  }
+  if (instance.sessionId !== session.sessionId) {
+    return { attachable: false, instance, degradedReason: 'endpoint-session-mismatch' };
+  }
+  if (instanceRole(instance) !== 'session-child') {
+    return { attachable: false, instance, degradedReason: 'endpoint-not-session-child' };
+  }
+  if (instance.attachable === false) {
+    return { attachable: false, instance, degradedReason: 'endpoint-not-attachable' };
+  }
+  return {
+    attachable: true,
+    endpoint: {
+      host: instance.host,
+      httpPort: instance.httpPort,
+      url: instance.url,
+      ...(instance.authToken ? { authToken: instance.authToken } : {}),
+    },
+  };
+}
+
+export function joinSessionRegistryWithWebUIInstances(input: {
+  sessions: SessionRegistryEntry[];
+  instances: WebUIInstanceRecord[];
+  projectRoot?: string | undefined;
+  projectSlug?: string | undefined;
+}): WebUISessionAttachCandidate[] {
+  const targetRoot = input.projectRoot ? normalizeRoot(input.projectRoot) : undefined;
+  const sessions = input.sessions.filter((session) => {
+    if (input.projectSlug && session.projectSlug !== input.projectSlug) return false;
+    if (targetRoot && normalizeRoot(session.projectRoot) !== targetRoot) return false;
+    return true;
+  });
+
+  return sessions.map((session) => {
+    const instance =
+      input.instances.find((candidate) => candidate.sessionId === session.sessionId) ??
+      input.instances.find(
+        (candidate) =>
+          candidate.pid === session.pid &&
+          normalizeRoot(candidate.projectRoot) === normalizeRoot(session.projectRoot),
+      );
+    const resolved = resolveAttachability({ session, instance });
+    return {
+      sessionId: session.sessionId,
+      projectRoot: session.projectRoot,
+      workingDir: session.workingDir,
+      sessionPid: session.pid,
+      status: session.status,
+      ...(instance ? { instance } : {}),
+      ...(resolved.endpoint ? { endpoint: resolved.endpoint } : {}),
+      attachable: resolved.attachable,
+      ...(resolved.degradedReason ? { degradedReason: resolved.degradedReason } : {}),
+    };
+  });
 }
 
 /** Default wstack home dir (`~/.wrongstack`). Callers may override the base. */

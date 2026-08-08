@@ -131,6 +131,7 @@ export function shouldSkipMenu(
 ): boolean {
   if (flags['no-menu'] === true) return true;
   if (flags['webui'] === true) return true;
+  if (flags['webui-session-child'] === true) return true;
   if (flags['simpleui'] === true) return true;
   if (flags['hq'] === true) return true;
   if (flags['desktop'] === true) return true;

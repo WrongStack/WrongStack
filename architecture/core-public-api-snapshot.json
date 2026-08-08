@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.301.0",
+  "packageVersion": "0.301.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -755,7 +755,7 @@
         "export { SessionCheckpointCas, type CheckpointGitResult, type SessionCheckpointCasOptions, } from './session-checkpoint-cas.js';",
         "export { SessionMemoryConsolidator, type MemoryConsolidatorOptions, type ConsolidationOp, type ConsolidatorSage, } from './memory-consolidator.js';",
         "export { SessionRecovery, type StaleSession, type RecoveryPlan, } from './session-recovery.js';",
-        "export { SessionRegistry, getSessionRegistry, hasSessionRegistry, type SessionRegistryEntry, type AgentEntry, type AgentLiveStatus, type SessionLiveStatus, } from '../session-registry.js';",
+        "export { SessionRegistry, getSessionRegistry, hasSessionRegistry, type SessionRegistryEntry, type SessionWebUIEndpointHint, type AgentEntry, type AgentLiveStatus, type SessionLiveStatus, } from '../session-registry.js';",
         "export { ToolAuditLog, type AuditEntry, type ToolAuditLogOptions, type VerifyResult, } from './tool-audit-log.js';",
         "export { applyGoalDeliverableCompletions, coordinateGoalIteration, isGoalDeliverableComplete, parseCompletedGoalDeliverables, recomputeGoalProgress, stripGoalDeliverableMarker, type CompletedGoalDeliverable, type CoordinateGoalIterationOptions, type GoalCoordinationResult, } from './goal-coordination.js';",
         "export { applyNamespacePayload, buildNamespacePayloads, CLOUD_SYNC_CONTRACT, CLOUD_SYNC_NAMESPACES, CloudConfigSync, type CloudConfigSyncDeps, type CloudConfigSyncSettings, type CloudSyncPassSummary, LOCAL_ONLY_TOP_LEVEL, NAMESPACE_SCHEMA_VERSIONS, stripSecretMaterial, } from './cloud-config-sync.js';",
@@ -1266,7 +1266,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 77,
-      "sourceLines": 17319
+      "sourceLines": 17320
     },
     {
       "directory": "tasking",

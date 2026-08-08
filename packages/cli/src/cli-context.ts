@@ -20,6 +20,11 @@ import { handleHelpVersionShortCircuit } from './boot/short-circuit-flags.js';
 import { handleDesktopShortCircuit } from './boot/short-circuit-desktop.js';
 import { handleHqShortCircuit } from './boot/short-circuit-hq.js';
 import {
+  parseWebuiSessionChildOptions,
+  type WebuiSessionChildOptions,
+  writeWebuiSessionChildError,
+} from './boot/webui-session-child.js';
+import {
   applyLaunchMenuToArgv,
   runLaunchMenu,
   persistMenuChoice,
@@ -35,6 +40,7 @@ import { setOAuthTokenPersister } from '@wrongstack/providers';
 import { mutateConfigProviders, normalizeKeys, writeKeysBack } from './provider-config-utils.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { TOKENS } from '@wrongstack/core/kernel';
+import { writeErr } from '@wrongstack/core/utils';
 
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ConfigStore } from '@wrongstack/core/types';
@@ -47,6 +53,7 @@ export interface CliContext extends BootContext {
   events: EventBus;
   container: ReturnType<typeof wireContainer>['container'];
   configStore: ConfigStore;
+  webuiSessionChild?: WebuiSessionChildOptions | undefined;
 }
 
 // ── Initializer ───────────────────────────────────────────────────────────
@@ -85,6 +92,32 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
   // we re-run the relevant short-circuit with the augmented argv so
   // existing flag parsing paths keep their single source of truth.
   const { flags: _earlyForMenu, positional: _positionalForMenu } = parseArgs(argv);
+  let webuiSessionChild: WebuiSessionChildOptions | undefined;
+  if (_earlyForMenu['webui-session-child'] === true) {
+    try {
+      webuiSessionChild = parseWebuiSessionChildOptions(_earlyForMenu) ?? undefined;
+    } catch (err) {
+      const readyFile =
+        typeof _earlyForMenu['ready-file'] === 'string' ? _earlyForMenu['ready-file'] : undefined;
+      if (readyFile) {
+        await writeWebuiSessionChildError(readyFile, {
+          runtimeId:
+            typeof _earlyForMenu['runtime-id'] === 'string' ? _earlyForMenu['runtime-id'] : undefined,
+          parentShellId:
+            typeof _earlyForMenu['parent-shell-id'] === 'string'
+              ? _earlyForMenu['parent-shell-id']
+              : undefined,
+          phase: 'validate_args',
+          recoverable: false,
+          error: err,
+        }).catch(() => undefined);
+      }
+      writeErr(
+        `WebUI session child argument error: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
+      return 2;
+    }
+  }
   const launchMenuReader = new ReadlineInputReader();
   let menuResult: Awaited<ReturnType<typeof runLaunchMenu>>;
   try {
@@ -135,9 +168,62 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
     // else to wire here.
   }
 
+  const effectiveFlags = parseArgs(effectiveArgv).flags;
+  try {
+    webuiSessionChild = webuiSessionChild ?? parseWebuiSessionChildOptions(effectiveFlags) ?? undefined;
+  } catch (err) {
+    const readyFile =
+      typeof effectiveFlags['ready-file'] === 'string' ? effectiveFlags['ready-file'] : undefined;
+    if (readyFile) {
+      await writeWebuiSessionChildError(readyFile, {
+        runtimeId:
+          typeof effectiveFlags['runtime-id'] === 'string' ? effectiveFlags['runtime-id'] : undefined,
+        parentShellId:
+          typeof effectiveFlags['parent-shell-id'] === 'string'
+            ? effectiveFlags['parent-shell-id']
+            : undefined,
+        phase: 'validate_args',
+        recoverable: false,
+        error: err,
+      }).catch(() => undefined);
+    }
+    writeErr(`WebUI session child argument error: ${err instanceof Error ? err.message : String(err)}\n`);
+    return 2;
+  }
+
+  if (webuiSessionChild) {
+    try {
+      process.chdir(webuiSessionChild.workingDir);
+      if (webuiSessionChild.resume && webuiSessionChild.sessionId) {
+        const currentResume = effectiveFlags['resume'];
+        if (typeof currentResume === 'string' && currentResume !== webuiSessionChild.sessionId) {
+          throw new Error(
+            `--resume ${currentResume} conflicts with --session-id ${webuiSessionChild.sessionId}`,
+          );
+        }
+        if (currentResume !== webuiSessionChild.sessionId) {
+          effectiveArgv = [...effectiveArgv, '--resume', webuiSessionChild.sessionId];
+        }
+      }
+    } catch (err) {
+      await writeWebuiSessionChildError(webuiSessionChild.readyFile, {
+        protocolVersion: webuiSessionChild.protocolVersion,
+        runtimeId: webuiSessionChild.runtimeId,
+        parentShellId: webuiSessionChild.parentShellId,
+        phase: 'validate_args',
+        recoverable: false,
+        error: err,
+      }).catch(() => undefined);
+      writeErr(
+        `WebUI session child argument error: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
+      return 2;
+    }
+  }
+
   // --hq short-circuit (only reached when the menu did NOT select HQ;
   // when it did, the short-circuit above already returned).
-  const hqExit = await handleHqShortCircuit(parseArgs(effectiveArgv).flags);
+  const hqExit = await handleHqShortCircuit(effectiveFlags);
   if (hqExit !== null) return hqExit;
 
   // Full boot.
@@ -230,5 +316,6 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
     events,
     container,
     configStore,
+    webuiSessionChild,
   } as CliContext;
 }

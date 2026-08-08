@@ -28,6 +28,7 @@ export const BOOLEAN_FLAGS = new Set([
   'prompt',
   'metrics',
   'webui',
+  'webui-session-child',
   'simpleui',
   'full-auto',
   'desktop',
@@ -158,6 +159,7 @@ function normalizeSurfaceAliases(
   // flag so dispatch can select the independent frontend build, while also
   // setting `webui` so every existing non-interactive surface guard applies.
   if (flags['simpleui']) flags['webui'] = true;
+  if (flags['webui-session-child']) flags['webui'] = true;
 
   const first = positional[0];
   if (first === 'simpleui') {

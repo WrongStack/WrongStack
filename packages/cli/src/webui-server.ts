@@ -71,6 +71,7 @@ import type {
 export type WSClientMessage = EmbeddedWSClientMessage;
 export type WSServerMessage = EmbeddedWSServerMessage;
 
+import { WEBUI_SESSION_CHILD_CAPABILITIES } from './boot/webui-session-child.js';
 import {
   type ConnectedClient,
   createConnectionHandler,
@@ -123,7 +124,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   // alongside other WebUI instances. WS shares the HTTP port (single-port
   // design), so only one port is resolved.
   const strictPort =
-    process.env['WEBUI_STRICT_PORT'] === '1' || process.env['WEBUI_STRICT_PORT'] === 'true';
+    opts.strictPort ??
+    (process.env['WEBUI_STRICT_PORT'] === '1' || process.env['WEBUI_STRICT_PORT'] === 'true');
   let httpPort = requestedHttpPort;
   if (!strictPort) {
     httpPort = await findFreePort(host, requestedHttpPort);
@@ -479,23 +481,50 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     );
   }
 
+  const currentSessionId = (): string => opts.agent.ctx.session?.id ?? opts.session.id;
+
   // Record this instance so it shows up in `wstack --webui --list` /
   // ~/.wrongstack/webui-instances.json alongside standalone instances.
   const registryBaseDir = globalRoot;
+  let webuiInstanceRegistered = false;
   if (opts.projectRoot) {
-    registerWebuiInstance({
-      pid: process.pid,
-      surface,
-      host,
-      httpPort,
-      publicUrl,
-      projectRoot: opts.projectRoot,
-      startedAt: new Date().toISOString(),
-      registryBaseDir,
-      // Lets a same-project TUI/REPL authenticate `POST /api/fleet/ping` now
-      // that the API requires a token on every bind (H3).
-      authToken: wsToken,
-    });
+    const registration = Promise.resolve(
+      registerWebuiInstance({
+        pid: process.pid,
+        surface,
+        host,
+        httpPort,
+        publicUrl,
+        projectRoot: opts.projectRoot,
+        startedAt: new Date().toISOString(),
+        registryBaseDir,
+        // Lets a same-project TUI/REPL authenticate `POST /api/fleet/ping` now
+        // that the API requires a token on every bind (H3).
+        authToken: wsToken,
+        ...(opts.webuiSessionChild
+          ? {
+              role: 'session-child' as const,
+              sessionId: currentSessionId(),
+              parentPid: opts.webuiSessionChild.parentPid,
+              parentShellId: opts.webuiSessionChild.parentShellId,
+              runtimeId: opts.webuiSessionChild.runtimeId,
+              attachable: opts.webuiSessionChild.attachable,
+              lastReadyAt: new Date().toISOString(),
+              protocolVersion: opts.webuiSessionChild.protocolVersion,
+              capabilities: [...WEBUI_SESSION_CHILD_CAPABILITIES],
+            }
+          : {}),
+      }),
+    ).then(
+      (value: unknown) => value !== false,
+      () => false,
+    );
+    if (opts.webuiSessionChild) {
+      webuiInstanceRegistered = await registration;
+    } else {
+      void registration;
+      webuiInstanceRegistered = true;
+    }
   }
   // Auth token is delivered through the printed first-load URL and then
   // exchanged for an HttpOnly cookie by /ws-auth.
@@ -503,7 +532,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   // Subscribe to events once
   const eventUnsubscribers: Array<() => void> = [];
 
-  const currentSessionId = (): string => opts.agent.ctx.session?.id ?? opts.session.id;
   const sessionPayload = <T extends Record<string, unknown>>(
     payload: T,
   ): T & { sessionId: string } => {
@@ -908,7 +936,14 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       console.log(`[WebUI] WebSocket server running on ws://${host}:${httpPort}`);
       try {
         setupEvents();
-        opts.onListening?.({ httpPort, wsPort, host, url: accessUrl });
+        opts.onListening?.({
+          httpPort,
+          wsPort,
+          host,
+          url: accessUrl,
+          authToken: wsToken,
+          webuiInstanceRegistered,
+        });
       } catch (err) {
         consoleLogger.error('setup_events_failed', { message: toErrorMessage(err) });
       }

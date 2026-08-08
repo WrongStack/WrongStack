@@ -17,63 +17,58 @@ watching tool output in a richer view.
 
 ## Ports
 
-The Web UI listens on **two** ports:
+The Web UI uses a **single shared HTTP/WebSocket port**. The HTTP server serves the
+built React app and accepts WebSocket upgrades on the same listener.
 
 | Port | Env var | Default | Purpose |
 |---|---|---|---|
-| HTTP | `WEBUI_PORT` / `PORT` | `3456` | serves the built React app (`index.html` + assets) |
-| WebSocket | `WS_PORT` | `3457` | the agent backend (messages, tool stream, provider/key mgmt) |
+| HTTP + WebSocket | `WEBUI_PORT` / `PORT` | `3456` | serves the React app, `/api/*`, and WS upgrades |
 
-Bind host is `WEBUI_HOST` / `WS_HOST` (default `127.0.0.1`). On loopback the server also listens on
-the IPv6 loopback `::1` for the same WS port, so browsers that resolve `localhost`
-to IPv6 first don't flap. Set `--webui-host 0.0.0.0` or `WEBUI_HOST=0.0.0.0` to expose
-on LAN/Tailscale (this requires the auth token for HTTP, API, and WS access — see
-Security).
+Bind host is `WEBUI_HOST` / `WS_HOST` (default `127.0.0.1`). Set
+`--webui-host 0.0.0.0` or `WEBUI_HOST=0.0.0.0` to expose on LAN/Tailscale (this
+requires the auth token for HTTP, API, and WS access — see Security).
 
-The frontend learns the **real** WS port from a `<meta name="wrongstack-ws-port">`
-tag the HTTP server injects into the served HTML — it is *not* hardcoded. This is
-what makes multiple instances work.
-
-Behind a tunnel or reverse proxy, the browser-facing URL can differ from the local
-bind address. Set `WEBUI_PUBLIC_URL` / `--webui-public-url` for the HTTP URL printed to
-the user, and `WEBUI_PUBLIC_WS_URL` / `--webui-public-ws-url` when the WebSocket endpoint
-is exposed on a separate public URL.
+The frontend derives the WebSocket URL from the page origin in the normal same-port
+case. Behind a tunnel or reverse proxy, the browser-facing URL can differ from the
+local bind address. Set `WEBUI_PUBLIC_URL` / `--webui-public-url` for the HTTP URL
+printed to the user, and `WEBUI_PUBLIC_WS_URL` / `--webui-public-ws-url` when the
+browser must connect to a different WebSocket URL.
 
 ### Running multiple instances
 
-Both ports **auto-advance** to the next free port if the requested one is taken, so
-you can start several instances without picking ports by hand:
+The shared port **auto-advances** to the next free port if the requested one is taken,
+so you can start several instances without picking ports by hand:
 
 ```bash
-cd /path/A && wstack --webui         # → http 3456 / ws 3457
-cd /path/B && wstack --webui         # → http 3458 / ws 3459 (auto)
-cd /path/C && wstack --webui         # → http 3460 / ws 3461 (auto)
+cd /path/A && wstack --webui         # → http/ws 3456
+cd /path/B && wstack --webui         # → http/ws 3457 (auto)
+cd /path/C && wstack --webui         # → http/ws 3458 (auto)
 ```
 
 Each instance:
 
-- serves HTML stamped with **its own** WS port, so the browser dials the right backend;
+- serves HTML whose browser WebSocket connection targets that same instance;
 - boots against its own `cwd` (project-scoped sessions/goal/config);
 - registers itself in the instance registry (below).
 
-To pin ports instead (e.g. behind a reverse proxy), set them explicitly and disable
-auto-advance:
+To pin ports instead (e.g. behind a reverse proxy), set the shared port explicitly and
+disable auto-advance:
 
 ```bash
-wstack --webui --webui-host 0.0.0.0 --webui-port 8080 --ws-port 8081 --webui-token "$WEBUI_TOKEN"
-WEBUI_STRICT_PORT=1 wstack --webui --webui-port 8080 --ws-port 8081   # fail loudly if taken
+wstack --webui --webui-host 0.0.0.0 --webui-port 8080 --webui-token "$WEBUI_TOKEN"
+WEBUI_STRICT_PORT=1 wstack --webui --webui-port 8080   # fail loudly if taken
 ```
 
 ## Running-instance registry
 
 Every live instance records itself in **`~/.wrongstack/webui-instances.json`** so you
-can see which ports are open for which project:
+can see which port is open for which project:
 
 ```jsonc
 {
   "version": 1,
   "instances": [
-    { "pid": 12345, "httpPort": 3456, "wsPort": 3457, "host": "127.0.0.1",
+    { "pid": 12345, "httpPort": 3456, "host": "127.0.0.1",
       "projectRoot": "/path/A", "projectName": "A",
       "startedAt": "2026-06-05T09:12:00.000Z", "url": "http://127.0.0.1:3456" }
   ]
@@ -86,10 +81,10 @@ is formatted like this:
 ```text
 Running WebUI instances (2):
 
-  • http://127.0.0.1:3456  ·  ws:3457  ·  pid 12345
+  • http://127.0.0.1:3456  ·  pid 12345
       project: A  (/path/A)
       since:   2026-06-05T09:12:00.000Z
-  • http://127.0.0.1:3458  ·  ws:3459  ·  pid 23456
+  • http://127.0.0.1:3457  ·  pid 23456
       project: B  (/path/B)
       since:   2026-06-05T09:14:30.000Z
 ```
@@ -99,14 +94,23 @@ entries whose PID is no longer alive, so a crashed instance that never unregiste
 cleaned up on the next call. Writes are atomic. Instances launched via
 `wstack --webui` share this registry.
 
+### Internal multi-session groundwork
+
+WrongStack also has internal metadata for future process-per-session WebUI tabs. A
+future parent shell can launch one child WebUI runtime per live session and discover
+attachable children by joining the session registry with `webui-instances.json`.
+Child records use optional fields such as `role: "session-child"`, `sessionId`,
+`parentPid`, `parentShellId`, `runtimeId`, and `attachable`. This is internal
+groundwork only: the parent shell and browser tab UI are not implemented yet.
+
 ## CLI flags & env vars
 
 | Canonical invocation / flag | Effect |
 |---|---|
 | `wstack --webui` | start the server |
 | `--webui-host <h>` | bind host/interface (`0.0.0.0` for LAN/Tailscale) |
-| `--webui-port <n>` | HTTP frontend port |
-| `--ws-port <n>` | WebSocket backend port |
+| `--webui-port <n>` | shared HTTP + WebSocket port |
+| `--ws-port <n>` | legacy alias for the shared port |
 | `--webui-token <t>` | fixed access token/password instead of a random process token |
 | `--webui-public-url <url>` | browser-facing HTTP URL for tunnels/proxies |
 | `--webui-public-ws-url <url>` | browser-facing `ws://` or `wss://` URL for tunnels/proxies |
@@ -115,8 +119,8 @@ cleaned up on the next call. Writes are atomic. Instances launched via
 
 | Env var | Default | Effect |
 |---|---|---|
-| `WEBUI_PORT` / `PORT` | `3456` | HTTP port |
-| `WS_PORT` | `3457` | WebSocket port |
+| `WEBUI_PORT` / `PORT` | `3456` | shared HTTP + WebSocket port |
+| `WS_PORT` | unset | legacy alias for the shared port |
 | `WEBUI_HOST` / `WS_HOST` | `127.0.0.1` | bind host (`0.0.0.0` for LAN) |
 | `WEBUI_TOKEN` | random | fixed access token/password |
 | `WEBUI_PUBLIC_URL` | unset | browser-facing HTTP URL for tunnels/proxies |
@@ -146,8 +150,8 @@ cleaned up on the next call. Writes are atomic. Instances launched via
 ### Remote access examples
 
 ```bash
-# Tailscale/LAN: expose both HTTP and WS ports on the machine's Tailscale IP.
-WEBUI_TOKEN="$(openssl rand -hex 16)" wstack --webui --webui-host 0.0.0.0 --webui-port 8080 --ws-port 8081 --webui-token "$WEBUI_TOKEN"
+# Tailscale/LAN: expose the shared HTTP/WebSocket port on the machine's Tailscale IP.
+WEBUI_TOKEN="$(openssl rand -hex 16)" wstack --webui --webui-host 0.0.0.0 --webui-port 8080 --webui-token "$WEBUI_TOKEN"
 ```
 
 Cloudflare Tunnel or another reverse proxy can keep WrongStack bound to loopback and
@@ -157,8 +161,8 @@ publish only the tunnel endpoints:
 export WEBUI_TOKEN="$(openssl rand -hex 16)"
 WEBUI_REQUIRE_TOKEN=1 \
 WEBUI_PUBLIC_URL=https://wrongstack.example.com \
-WEBUI_PUBLIC_WS_URL=wss://wrongstack-ws.example.com \
-wstack --webui --webui-host 127.0.0.1 --webui-port 8080 --ws-port 8081 --webui-token "$WEBUI_TOKEN"
+WEBUI_PUBLIC_WS_URL=wss://wrongstack.example.com/ws \
+wstack --webui --webui-host 127.0.0.1 --webui-port 8080 --webui-token "$WEBUI_TOKEN"
 ```
 
 Example `cloudflared` ingress:
@@ -167,25 +171,22 @@ Example `cloudflared` ingress:
 ingress:
   - hostname: wrongstack.example.com
     service: http://127.0.0.1:8080
-  - hostname: wrongstack-ws.example.com
-    service: http://127.0.0.1:8081
   - service: http_status:404
 ```
 
 Then open `https://wrongstack.example.com?token=<WEBUI_TOKEN>`. The frontend exchanges
-the token for the HttpOnly cookie and then connects to `wss://wrongstack-ws.example.com`.
-When HTTP and WS use different public hostnames, the WS token also remains on the
-in-memory WS URL because the browser cookie cannot cross hostnames. Prefer a same-host
-WS route such as `wss://wrongstack.example.com/ws` if your proxy supports path-based
-routing.
+the token for the HttpOnly cookie and then connects back to the same origin using a
+WebSocket upgrade on the shared listener. If your proxy requires an explicit WS route,
+route it to the same local service, for example `wss://wrongstack.example.com/ws` →
+`http://127.0.0.1:8080`.
 The equivalent all-flags form is:
 
 ```bash
 wstack --webui \
-  --webui-host 127.0.0.1 --webui-port 8080 --ws-port 8081 \
+  --webui-host 127.0.0.1 --webui-port 8080 \
   --webui-token "$WEBUI_TOKEN" --webui-require-token \
   --webui-public-url https://wrongstack.example.com \
-  --webui-public-ws-url wss://wrongstack-ws.example.com
+  --webui-public-ws-url wss://wrongstack.example.com/ws
 ```
 
 ## UI surfaces
@@ -235,7 +236,7 @@ wstack --webui \
   webui package's `createHttpServer`, `findFreePort`, `openBrowser`, and the instance
   registry via the `@wrongstack/webui/server` export so the static-serve / port / meta
   injection logic lives in one place.
-- Static serve + WS-port `<meta>` injection + CSP: `packages/webui-server/src/server/http-server.ts`.
+- Static serve + optional WS URL `<meta>` injection + CSP: `packages/webui-server/src/server/http-server.ts`.
 - Free-port discovery: `port-utils.ts`. Instance registry: `instance-registry.ts`.
   Browser opener: `open-browser.ts`. Frontend WS-URL resolution: `src/lib/ws-client.ts`.
 - Completion trigger/cache heuristics: `src/lib/completion.ts`. Completion WS

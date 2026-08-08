@@ -44,9 +44,14 @@ export function TokenGate({
   const showToken = status?.tokenMode ?? true;
   const showPassword = status?.passwordMode ?? false;
   const [selectedTab, setSelectedTab] = useState<'token' | 'password' | null>(null);
-  // When both methods exist, prefer the human-friendly password flow on first render.
-  // Tokens remain available for operators and automation through the tab.
-  const activeTab = selectedTab ?? (showPassword ? 'password' : 'token');
+  // Tab defaulting: when the user already has a browser token they tried to use
+  // (stored, or in the URL), default to the token tab — they were clearly
+  // trying to authenticate with a token, and pasting a token into the password
+  // field produced a confusing "login failed" message. When there is no token
+  // signal, prefer the human-friendly password flow.
+  const activeTab =
+    selectedTab ??
+    (hadToken && showToken ? 'token' : showPassword ? 'password' : 'token');
 
   if (statusError) {
     return (

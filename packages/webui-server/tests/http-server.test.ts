@@ -23,9 +23,10 @@ import {
   isInsideDist,
 } from '../src/index.js';
 
-// Security scan 2026-08-04, finding H3: the HTTP API now requires a token on
-// every bind, including loopback. These suites previously exercised the
-// unauthenticated configuration that finding was about.
+// Loopback-bypass policy: on a loopback bind the HTTP surface serves the UI
+// and the API without a token. `authFetch` still attaches `x-ws-token` for
+// test fixtures that happen to be on non-loopback binds or to opt into
+// `requireToken`; on the default loopback bind it is just belt-and-braces.
 const TEST_API_TOKEN = 'test-api-token';
 const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
   fetch(url, {
@@ -301,37 +302,86 @@ describe('createHttpServer', () => {
     expect(res.headers.get('content-security-policy')).toContain("connect-src 'self'");
   });
 
-  // Security scan 2026-08-04, finding H3. `requireAccessToken` used to be
-  // `Boolean(opts.requireToken) || !isLoopbackBind(opts.host)`, so on the
-  // DEFAULT loopback bind every downstream auth gate was a no-op: any local
-  // process could read every session transcript and POST into a live agent.
-  // WS-005 had already ruled that reaching loopback is not authentication —
-  // the HTTP surface on the same port simply never got the same treatment.
-  describe('the token floor applies on a loopback bind too (H3)', () => {
-    it('401s an /api request with no token on a plain loopback bind', async () => {
+  // Loopback-bypass policy: on a loopback bind the HTTP surface serves the UI
+  // and the API without a token, so a freshly typed `http://127.0.0.1:3456`
+  // and an F5 reload after closing every tab both just work. The CSRF /
+  // DNS-rebinding guards (`httpRequestOriginOk`) and the WS loopback bootstrap
+  // in `ws-auth.ts` keep a hostile page on another port or a rebound attacker
+  // domain out — the token gate is the second wall, not the first, and on
+  // loopback the user explicitly opted in by typing the URL into a browser on
+  // the same machine.
+  //
+  // The 2026-08-04 H3 finding inverted this to require a token on every bind;
+  // in practice that broke the very first page load (the React SPA would
+  // surface "Unauthorized" before it could render).
+  describe('the token gate is bypassed on a loopback bind', () => {
+    it('serves / (the SPA) without a token on a plain loopback bind', async () => {
       const server = createHttpServer({
         host: '127.0.0.1',
         distDir,
-        apiToken: 'loopback-floor-token',
+        apiToken: 'loopback-bypass-token',
       });
       await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
       const addr = server.address();
       if (!addr || typeof addr === 'string') throw new Error('bad listen address');
       const base = `http://127.0.0.1:${addr.port}`;
       try {
-        expect((await fetch(`${base}/api/sessions`)).status).toBe(401);
-        // …and the same request with the token is not rejected by the floor.
-        const ok = await fetch(`${base}/api/sessions`, {
-          headers: { 'x-ws-token': 'loopback-floor-token' },
-        });
-        expect(ok.status).not.toBe(401);
+        // The first page load — no token, no cookie. This must NOT 401, or
+        // the SPA never renders and the user sees "Unauthorized".
+        const res = await fetch(`${base}/`);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('text/html');
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
       }
     });
 
-    it('accepts the ws_token cookie the browser already holds', async () => {
-      const token = 'cookie-floor-token';
+    it('serves /api/sessions without a token on a plain loopback bind', async () => {
+      const server = createHttpServer({
+        host: '127.0.0.1',
+        distDir,
+        apiToken: 'loopback-bypass-token',
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') throw new Error('bad listen address');
+      const base = `http://127.0.0.1:${addr.port}`;
+      try {
+        const res = await fetch(`${base}/api/sessions`);
+        expect(res.status).not.toBe(401);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+
+    it('accepts the fleet ping without a token on a loopback bind', async () => {
+      let pinged = 0;
+      const server = createHttpServer({
+        host: '127.0.0.1',
+        distDir,
+        apiToken: 'ping-token',
+        onFleetPing: () => {
+          pinged += 1;
+        },
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') throw new Error('bad listen address');
+      const base = `http://127.0.0.1:${addr.port}`;
+      try {
+        // On loopback the gate is off — a tokenless FleetNotifier-style POST
+        // bounces to the callback so first-load F5 still receives the
+        // immediate fleet re-broadcast.
+        const ok = await fetch(`${base}/api/fleet/ping`, { method: 'POST' });
+        expect(ok.status).toBe(204);
+        expect(pinged).toBe(1);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+
+    it('still honors the ws_token cookie when present (no behaviour change for it)', async () => {
+      const token = 'cookie-bypass-token';
       const server = createHttpServer({ host: '127.0.0.1', distDir, apiToken: token });
       await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
       const addr = server.address();
@@ -352,31 +402,41 @@ describe('createHttpServer', () => {
       }
     });
 
-    it('401s the fleet ping without a token and accepts it with one', async () => {
-      let pinged = 0;
+    it('forcing requireToken on a loopback bind still 401s without a token', async () => {
       const server = createHttpServer({
         host: '127.0.0.1',
         distDir,
-        apiToken: 'ping-token',
-        onFleetPing: () => {
-          pinged += 1;
-        },
+        apiToken: 'explicit-require-token',
+        requireToken: true,
       });
       await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
       const addr = server.address();
       if (!addr || typeof addr === 'string') throw new Error('bad listen address');
       const base = `http://127.0.0.1:${addr.port}`;
       try {
-        expect((await fetch(`${base}/api/fleet/ping`, { method: 'POST' })).status).toBe(401);
-        expect(pinged).toBe(0);
-        // FleetNotifier reads the token from the instance registry and sends
-        // it as `x-ws-token` — this is that request.
-        const ok = await fetch(`${base}/api/fleet/ping`, {
-          method: 'POST',
-          headers: { 'x-ws-token': 'ping-token' },
-        });
-        expect(ok.status).toBe(204);
-        expect(pinged).toBe(1);
+        const res = await fetch(`${base}/`);
+        expect(res.status).toBe(401);
+        const ok = await fetch(`${base}/?token=${encodeURIComponent('explicit-require-token')}`);
+        expect(ok.status).toBe(200);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+
+    it('401s on a non-loopback bind even without an explicit requireToken', async () => {
+      const server = createHttpServer({
+        host: '0.0.0.0',
+        distDir,
+        apiToken: 'wildcard-token',
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') throw new Error('bad listen address');
+      const base = `http://127.0.0.1:${addr.port}`;
+      try {
+        expect((await fetch(`${base}/`)).status).toBe(401);
+        const ok = await fetch(`${base}/?token=${encodeURIComponent('wildcard-token')}`);
+        expect(ok.status).toBe(200);
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
       }

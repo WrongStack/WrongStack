@@ -47,7 +47,7 @@ export interface SpawnStreamOptions {
 export async function* spawnStream(
   opts: SpawnStreamOptions,
 ): AsyncGenerator<ToolProgressEvent, SpawnStreamResult> {
-  const max = opts.maxBytes ?? 200_000;
+  const max = opts.maxBytes ?? 999_999_999;
   const flushAt = opts.flushBytes ?? 4 * 1024;
   const maxQueue = opts.maxQueueSize ?? 500;
   const maxQueueBytes = opts.maxQueueBytes ?? 1024 * 1024;

@@ -13,7 +13,7 @@ export function resolveExecutionMode(
 ): ExecutionMode {
   const prompt = typeof flags['prompt'] === 'string' ? flags['prompt'] : '';
   if (positional.length > 0 || prompt.length > 0) return 'single-shot';
-  if (flags.tui && flags['no-tui'] !== true && !flags.webui) return 'tui';
-  if (flags.webui) return 'webui';
+  if (flags.tui && flags['no-tui'] !== true && !flags.webui && !flags['webui-session-child']) return 'tui';
+  if (flags.webui || flags['webui-session-child']) return 'webui';
   return 'repl';
 }
