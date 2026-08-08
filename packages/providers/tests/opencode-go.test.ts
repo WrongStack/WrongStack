@@ -40,11 +40,15 @@ function sseFetch(events: string): typeof fetch {
 
 describe('OpenCodeGoProvider', () => {
   it('routes Chat Completions and Anthropic Messages models behind one provider', async () => {
-    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const calls: Array<{ url: string; body: Record<string, unknown>; headers: Record<string, string> }> = [];
     const fetchImpl = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const headers = Object.fromEntries(
+        Object.entries(init?.headers ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]),
+      );
       calls.push({
         url: String(input),
         body: JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>,
+        headers,
       });
       return new Response('', { status: 200 });
     }) as never as typeof fetch;
@@ -55,6 +59,8 @@ describe('OpenCodeGoProvider', () => {
 
     expect(calls[0]?.url).toBe('https://opencode.ai/zen/go/v1/chat/completions');
     expect(calls[1]?.url).toBe('https://opencode.ai/zen/go/v1/messages');
+    expect(calls[0]?.headers['x-opencode-session']).toMatch(/^sess_/);
+    expect(calls[1]?.headers['x-opencode-session']).toBe(calls[0]?.headers['x-opencode-session']);
     expect(provider.id).toBe('opencode-go');
   });
 

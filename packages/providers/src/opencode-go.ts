@@ -35,6 +35,21 @@ const OPENCODE_GO_EFFORTS: Readonly<Record<string, ReadonlySet<ReasoningEffort>>
   'deepseek-v4-flash': new Set(['high', 'max']),
 };
 
+/** OpenCode Go routes some models (e.g. deepseek-v4-flash) via sticky session affinity. */
+function buildOpenCodeGoHeaders(stickySessionId: string): Record<string, string> {
+  return {
+    'x-opencode-session': stickySessionId,
+    'x-opencode-client': 'wrongstack',
+    'HTTP-Referer': 'https://opencode.ai/',
+    'X-Title': 'wrongstack',
+  };
+}
+
+function createOpenCodeGoStickySessionId(): string {
+  const suffix = crypto.randomUUID().replace(/-/g, '').slice(0, 22);
+  return `sess_${suffix}`;
+}
+
 export interface OpenCodeGoProviderOptions {
   apiKey: string;
   baseUrl?: string | undefined;
@@ -65,11 +80,16 @@ export class OpenCodeGoProvider implements Provider {
     this.id = opts.id ?? 'opencode-go';
     this.models = new Map((opts.models ?? []).map((model) => [model.id, model]));
     const baseUrl = opts.baseUrl ?? DEFAULT_BASE_URL;
+    const stickySessionId = createOpenCodeGoStickySessionId();
+    const openCodeHeaders = {
+      ...buildOpenCodeGoHeaders(stickySessionId),
+      ...opts.headers,
+    };
     this.chat = new OpenCodeGoChatProvider({
       id: this.id,
       apiKey: opts.apiKey,
       baseUrl,
-      headers: opts.headers,
+      headers: openCodeHeaders,
       fetchImpl: opts.fetchImpl,
       // OpenCode Go's Zen chat-completions surface closes successful streams
       // without a `[DONE]` marker or a final `finish_reason` chunk. Tolerate
@@ -81,6 +101,7 @@ export class OpenCodeGoProvider implements Provider {
       id: this.id,
       apiKey: opts.apiKey,
       baseUrl,
+      headers: openCodeHeaders,
       fetchImpl: opts.fetchImpl,
     }, this.models);
   }
@@ -143,11 +164,23 @@ class OpenCodeGoChatProvider extends OpenAICompatibleProvider {
 }
 
 class OpenCodeGoMessagesProvider extends AnthropicProvider {
+  private readonly extraHeaders?: Record<string, string> | undefined;
+
   constructor(
-    opts: ConstructorParameters<typeof AnthropicProvider>[0],
+    opts: ConstructorParameters<typeof AnthropicProvider>[0] & {
+      headers?: Record<string, string> | undefined;
+    },
     private readonly models: ReadonlyMap<string, ModelsDevModel>,
   ) {
     super(opts);
+    this.extraHeaders = opts.headers;
+  }
+
+  protected override buildHeaders(req: Request): Record<string, string> {
+    return {
+      ...super.buildHeaders(req),
+      ...this.extraHeaders,
+    };
   }
 
   protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
