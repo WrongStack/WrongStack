@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.302.0] — 2026-08-08
+
+Consolidates the intermediate `0.301.1` package bump.
+
+### Added
+
+- **The CLI-hosted WebUI now serves HTTP and WebSocket traffic from one port.** The host can launch discoverable child sessions for additional projects while preserving project/session identity and bounded lifecycle cleanup. (`84c3e14bb`)
+
+### Changed
+
+- **The public plugin inventory now reports 72 managed plugins**, matching the canonical runtime catalog: 6 core plugins, 64 suite plugins, and 2 bridges. (`2ef680672`)
+
+### Fixed
+
+- **WebUI Kanban detail views are more reliable.** Task trees and verification dashboards retain their selected task context, while the inspector no longer renders a duplicated action surface. (`ee972764d`)
+- **OpenCode Go requests preserve sticky routing.** Provider calls now send `x-opencode-session`, keeping a WrongStack session on the same upstream model route. (`1482df22b`)
+- **Shared Vitest aliases no longer corrupt prefixed package names.** Central aliases are typed and sorted longest-first, and TUI snapshots use stable dates instead of drifting with the calendar. (`6d22a42eb`, `8aac142cb`, `614b560bb`)
+
 ## [0.301.0] — 2026-08-07
 
 The broader set of changes included in this release has not yet been specified.

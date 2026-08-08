@@ -39,11 +39,11 @@ export function coreAliases(corePackageDir) {
     const importPath = /** @type {string | undefined} */ (exportValue.import);
     if (typeof importPath !== 'string') continue;
 
-    // "./dist/coordination/agents/index.js" → "coordination/agents"
-    const srcRel = importPath
-      .replace(/^\.\/dist\//, '')
-      .replace(/\.js$/, '')
-      .replace(/\/index$/, '');
+    // Keep the concrete `index` target for the alias. Pointing at the parent
+    // directory is ambiguous when a sibling file has the same name as that
+    // directory (for example `coordination/agents.ts` and `agents/index.ts`).
+    const srcImportRel = importPath.replace(/^\.\/dist\//, '').replace(/\.js$/, '');
+    const srcLayoutRel = srcImportRel.replace(/\/index$/, '');
 
     // "./agent-catalog" → "agent-catalog"
     const exportRel = exportKey.slice(2); // strip leading "./"
@@ -54,10 +54,10 @@ export function coreAliases(corePackageDir) {
     // alias for them would cause @rollup/plugin-alias prefix conflicts
     // (e.g. '@wrongstack/core/utils' would shadow
     // '@wrongstack/core/utils/sage-output-block').
-    if (srcRel === exportRel) continue;
+    if (srcLayoutRel === exportRel) continue;
 
     const aliasKey = `@wrongstack/core/${exportRel}`;
-    divergent.push([aliasKey, resolve(corePackageDir, 'src', srcRel)]);
+    divergent.push([aliasKey, resolve(corePackageDir, 'src', srcImportRel)]);
   }
 
   // Sort by DESCENDING key length so longer aliases are checked first.

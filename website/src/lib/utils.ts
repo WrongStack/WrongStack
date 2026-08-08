@@ -321,9 +321,23 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.302.0',
+    date: '2026-08-08',
+    latest: true,
+    consolidated: true,
+    tagline: 'Single-port WebUI sessions, coherent Kanban details, and sticky provider routing',
+    highlights: [
+      'The CLI-hosted WebUI serves HTTP and WebSocket traffic from one port and can launch discoverable child sessions for additional projects',
+      'Kanban task trees, inspectors, and verification dashboards preserve selected-task context and avoid duplicate actions',
+      'OpenCode Go requests send the WrongStack session id so active sessions retain sticky upstream model routing',
+      'Shared Vitest aliases are typed and ordered longest-first, while TUI snapshots use stable dates instead of calendar-dependent values',
+      'The website and release surfaces align to 0.302.0 and the canonical 72-plugin runtime inventory',
+      'Consolidates the intermediate 0.301.1 package bump',
+    ],
+  },
+  {
     version: '0.300.0',
     date: '2026-08-05',
-    latest: true,
     tagline: 'WebUI palettes, intentional input collapse, and hardened Council decisions',
     highlights: [
       'WebUI now offers persistent emerald-gold, blue-navy, and purple-pink palettes over light/dark mode, with semantic color tokens throughout runtime surfaces',
