@@ -90,7 +90,12 @@ export function KanbanVerificationDashboard({
   onSelectTask: (id: string) => void;
 }) {
   const { t } = useAppTranslation();
-  const summary = useMemo(() => selectVerificationSummary(board), [board]);
+  // Keyed on the board's per-write revision (bumped by every mutateBoard
+  // write, stable across the 5s poll's fresh board identities) instead of the
+  // object itself — poll churn otherwise re-derived the whole summary on
+  // every render. selectVerificationSummary reads only board.tasks, which
+  // revision covers exactly.
+  const summary = useMemo(() => selectVerificationSummary(board), [board.id, board.revision]);
   const verifiedPct = summary.gradedTasks
     ? (summary.passed / summary.gradedTasks) * 100
     : 0;

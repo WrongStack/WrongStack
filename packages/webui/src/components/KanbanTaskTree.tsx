@@ -62,7 +62,12 @@ export function KanbanTaskTree({
 }) {
   const { t } = useAppTranslation();
   const verificationActivity = useKanbanStore((state) => state.verificationActivity);
-  const rows = useMemo(() => flattenTaskTree(buildTaskTree(board)), [board]);
+  // Same revision-keying as the column view: the 5s poll hands the store a
+  // fresh board object with an unchanged per-write revision, so the tree
+  // build must not re-run per poll. buildTaskTree reads only board.tasks —
+  // revision covers it. Live verification spinners are store state, read
+  // outside this memo per row.
+  const rows = useMemo(() => flattenTaskTree(buildTaskTree(board)), [board.id, board.revision]);
 
   if (!rows.length) {
     return (

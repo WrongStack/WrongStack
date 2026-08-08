@@ -51,7 +51,6 @@ export function KanbanTaskInspector({
   onSelectTask,
   sendKanban,
   sendRaw,
-  refreshBoard,
   activityEvents,
   activityPresence,
   activityLoading,
@@ -67,7 +66,6 @@ export function KanbanTaskInspector({
   onSelectTask: (id: string) => void;
   sendKanban: (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
   sendRaw: (type: string, payload?: Record<string, unknown>) => void;
-  refreshBoard: (boardId?: string | null) => void;
   activityEvents: KanbanEvent[];
   activityPresence?: KanbanBoardPresence[] | undefined;
   activityLoading: boolean;
@@ -248,7 +246,6 @@ export function KanbanTaskInspector({
         enforceDependencies: enforceChainDependencies,
       });
     }
-    window.setTimeout(() => refreshBoard(board.id), 180);
     setChangeReason('');
   };
 
@@ -281,7 +278,6 @@ export function KanbanTaskInspector({
           }
         : {}),
     });
-    window.setTimeout(() => refreshBoard(board.id), 180);
   };
 
   const addCheck = () => {
@@ -315,14 +311,12 @@ export function KanbanTaskInspector({
     if (!board || !task) return;
     sendKanban('kanban.task.assign', payload('assign'));
     setChangeReason('');
-    window.setTimeout(() => refreshBoard(board.id), 150);
   };
 
   const dispatch = () => {
     if (!board || !task) return;
     sendKanban('kanban.task.dispatch', payload('dispatch'));
     setChangeReason('');
-    window.setTimeout(() => refreshBoard(board.id), 200);
   };
 
   const copyTask = () => {
@@ -398,7 +392,6 @@ export function KanbanTaskInspector({
                   boundary,
                   activityNote: 'Task boundary edited in WebUI.',
                 });
-                window.setTimeout(() => refreshBoard(board.id), 150);
               }}
             />
             <Field label={t('activity:kanban.title')} value={title} onChange={setTitle} />
