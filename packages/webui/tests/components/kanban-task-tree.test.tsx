@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
+import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import { describe, expect, it, vi } from 'vitest';
 import { KanbanTaskTree } from '../../src/components/KanbanTaskTree.js';
-import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 
 /**
  * The 5s board poll hands the store a fresh board object with an unchanged
@@ -25,10 +25,13 @@ function boardWith(revision: number): KanbanBoard {
   const task = {
     id: 't1',
     title: 'Parent',
-    status: 'todo',
+    status: 'pending',
     order: 0,
     columnId: 'c1',
-  } as KanbanTask;
+    priority: 'medium',
+    createdAt: '2026-07-20T12:00:00.000Z',
+    updatedAt: '2026-07-21T12:00:00.000Z',
+  } satisfies KanbanTask;
   return {
     id: 'b1',
     title: 'Board',

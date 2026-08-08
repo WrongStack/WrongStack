@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockAtomicWrite = vi.hoisted(() => vi.fn());
 const mockReadFile = vi.hoisted(() => vi.fn());
@@ -13,13 +13,13 @@ vi.mock('node:fs/promises', () => ({
 
 import {
   defaultBaseDir,
-  registryPath,
-  isPidAlive,
-  registerInstance,
-  unregisterInstance,
-  listInstances,
   formatInstances,
+  isPidAlive,
   joinSessionRegistryWithWebUIInstances,
+  listInstances,
+  registerInstance,
+  registryPath,
+  unregisterInstance,
   type WebUIInstanceRecord,
 } from '../src/server/instance-registry.js';
 
@@ -99,7 +99,9 @@ describe('instance-registry', () => {
       await registerInstance(sampleRecord, '/tmp/base');
 
       expect(mockAtomicWrite).toHaveBeenCalled();
-      const [filePath, content] = mockAtomicWrite.mock.calls[0];
+      const writeCall = mockAtomicWrite.mock.calls[0];
+      if (!writeCall) throw new Error('Expected registry write');
+      const [filePath, content] = writeCall;
       expect(filePath).toContain('webui-instances.json');
       expect(filePath).toContain('base');
       const parsed = JSON.parse(content);
@@ -129,7 +131,9 @@ describe('instance-registry', () => {
         '/tmp/base',
       );
 
-      const [, content] = mockAtomicWrite.mock.calls[0];
+      const writeCall = mockAtomicWrite.mock.calls[0];
+      if (!writeCall) throw new Error('Expected registry write');
+      const [, content] = writeCall;
       const parsed = JSON.parse(content);
       expect(parsed.version).toBe(1);
       expect(parsed.instances[0]).toMatchObject({
@@ -158,7 +162,9 @@ describe('instance-registry', () => {
       await unregisterInstance(99999, '/tmp/base');
 
       expect(mockAtomicWrite).toHaveBeenCalled();
-      const [, content] = mockAtomicWrite.mock.calls[0];
+      const writeCall = mockAtomicWrite.mock.calls[0];
+      if (!writeCall) throw new Error('Expected registry write');
+      const [, content] = writeCall;
       const parsed = JSON.parse(content);
       expect(parsed.instances).toHaveLength(0);
     });

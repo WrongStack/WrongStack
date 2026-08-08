@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
+import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import { describe, expect, it, vi } from 'vitest';
 import { KanbanVerificationDashboard } from '../../src/components/KanbanVerificationDashboard.js';
-import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 
 /**
  * The 5s board poll hands the store a fresh board object with an unchanged
@@ -28,8 +28,21 @@ function boardWith(revision: number): KanbanBoard {
     status: 'completed',
     order: 0,
     columnId: 'c1',
-    verificationReport: { verdict: 'passed', checks: [] },
-  } as KanbanTask;
+    priority: 'medium',
+    createdAt: '2026-07-20T12:00:00.000Z',
+    updatedAt: '2026-07-21T12:00:00.000Z',
+    verificationReport: {
+      taskId: 't1',
+      taskTitle: 'Ship it',
+      boardId: 'b1',
+      startedAt: '2026-07-21T11:59:00.000Z',
+      completedAt: '2026-07-21T12:00:00.000Z',
+      verdict: 'passed',
+      checks: [],
+      markdownSummary: 'Verification passed.',
+      attachments: [],
+    },
+  } satisfies KanbanTask;
   return {
     id: 'b1',
     title: 'Board',
