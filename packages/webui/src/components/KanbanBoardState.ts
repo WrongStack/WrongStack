@@ -8,16 +8,6 @@ export interface FleetAgentLike {
   sessionId?: string | undefined;
 }
 
-export function collectLiveAgentIdentities(agents: Iterable<FleetAgentLike>): Set<string> {
-  const identities = new Set<string>();
-  for (const agent of agents) {
-    if (agent.status !== 'running') continue;
-    identities.add(agent.id);
-    identities.add(agent.name);
-  }
-  return identities;
-}
-
 export function collectActiveSessionIds(input: {
   sessionId: string | null;
   registrySessionIds: readonly string[];
