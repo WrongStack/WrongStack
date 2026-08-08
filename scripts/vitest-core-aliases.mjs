@@ -30,6 +30,8 @@ export function coreAliases(corePackageDir) {
   const corePkg = JSON.parse(readFileSync(corePkgPath, 'utf8'));
   const aliases = /** @type {Record<string, string>} */ ({});
 
+  const divergent = /** @type {Array<[string, string]>} */ ([]);
+
   for (const [exportKey, exportValue] of Object.entries(corePkg.exports)) {
     if (exportKey === '.' || exportKey === './package.json' || exportKey.includes('*')) continue;
 
@@ -55,7 +57,16 @@ export function coreAliases(corePackageDir) {
     if (srcRel === exportRel) continue;
 
     const aliasKey = `@wrongstack/core/${exportRel}`;
-    aliases[aliasKey] = resolve(corePackageDir, 'src', srcRel);
+    divergent.push([aliasKey, resolve(corePackageDir, 'src', srcRel)]);
+  }
+
+  // Sort by DESCENDING key length so longer aliases are checked first.
+  // @rollup/plugin-alias does prefix matching in insertion order:
+  // '@wrongstack/core/agent' would shadow '@wrongstack/core/agent-catalog'
+  // (matching it as a prefix → 'src/core-catalog') if it came first.
+  divergent.sort((a, b) => b[0].length - a[0].length);
+  for (const [key, value] of divergent) {
+    aliases[key] = value;
   }
 
   // Bare alias LAST: prefix-matching means '@wrongstack/core' catches any
