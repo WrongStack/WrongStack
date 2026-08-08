@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getVitestMaxWorkers } from '../../vitest.workers';
+import { coreAliases } from '../../scripts/vitest-core-aliases.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -131,12 +132,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       // Force @wrongstack/core to resolve from source (packages/core/src) instead
       // of going through the package's "exports" field which points to dist/.
-      '@wrongstack/core/agent-catalog': path.resolve(
-        __dirname,
-        '../../packages/core/src/coordination/agents/index.ts',
-      ),
-      '@wrongstack/core/agent': path.resolve(__dirname, '../../packages/core/src/core'),
-      '@wrongstack/core': path.resolve(__dirname, '../../packages/core/src'),
+      ...coreAliases(path.resolve(__dirname, '../core')),
       '@wrongstack/kanban': path.resolve(__dirname, '../../packages/kanban/src'),
       '@wrongstack/sdd': path.resolve(__dirname, '../../packages/sdd/src'),
       // Force @wrongstack/webui-server to resolve from source (its src/) instead

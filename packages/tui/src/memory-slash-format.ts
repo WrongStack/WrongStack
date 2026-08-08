@@ -43,10 +43,10 @@ export function parseDate(ts: string): Date | null {
   return Number.isFinite(d.getTime()) ? d : null;
 }
 
-export function daysAgo(ts: string): number | null {
+export function daysAgo(ts: string, now: number = Date.now()): number | null {
   const d = parseDate(ts);
   if (!d) return null;
-  return (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
+  return (now - d.getTime()) / (1000 * 60 * 60 * 24);
 }
 
 export function fmtDate(ts: string): string {

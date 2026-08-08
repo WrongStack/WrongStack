@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { getVitestMaxWorkers } from './vitest.workers';
+import { coreAliases } from './scripts/vitest-core-aliases.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,12 +17,7 @@ export default defineConfig({
       // of going through the package's "exports" field which points to dist/.
       // The dist/ output is only needed for published consumers; local vitest
       // workers (fork pool) need to import from source directly.
-      '@wrongstack/core/agent': path.resolve(__dirname, './packages/core/src/core'),
-      '@wrongstack/core/agent-catalog': path.resolve(
-        __dirname,
-        './packages/core/src/coordination/agents/index.ts',
-      ),
-      '@wrongstack/core': path.resolve(__dirname, './packages/core/src'),
+      ...coreAliases(path.resolve(__dirname, 'packages/core')),
       // Same for @wrongstack/tools: CLI tests import wiring that reaches the
       // tools package, and root Vitest must not require a prebuilt dist/.
       '@wrongstack/tools': path.resolve(__dirname, './packages/tools/src'),
