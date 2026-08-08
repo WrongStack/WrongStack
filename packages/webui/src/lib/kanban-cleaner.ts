@@ -32,7 +32,13 @@ export interface KanbanAuditSummary {
 export interface KanbanAuditOptions {
   /** Explicit time input keeps the audit pure, deterministic, and unit-testable. */
   now: number | Date;
-  /** IDs or names of agents currently reported as running by the WebUI fleet roster. */
+  /**
+   * @deprecated A valid assignment lease is the authoritative liveness
+   * signal. The WebUI fleet roster only sees the connected session, so a
+   * locally-unknown agent may simply be running in another session — flagging
+   * it produced false "abandoned" errors. Kept for API compatibility; ignored
+   * by the audit.
+   */
   liveAgentIdentities?: ReadonlySet<string> | readonly string[] | undefined;
   /** Enable only when the shared Kanban task contract exposes a due date. */
   requireDueDate?: boolean | undefined;
@@ -81,7 +87,6 @@ export function auditKanbanBoard(
 ): KanbanAuditSummary {
   const now = toEpoch(options.now);
   if (now === null) throw new TypeError('Kanban audit requires a valid current time');
-  const liveIdentities = normalizeIdentities(options.liveAgentIdentities);
   const reviewStaleAfterMs = resolveReviewStaleAfterMs(
     board as AuditableBoard,
     options.defaultReviewStaleAfterMs ?? DEFAULT_REVIEW_STALE_AFTER_MS,
@@ -93,7 +98,7 @@ export function auditKanbanBoard(
     if (TERMINAL_STATUSES.has(task.status)) continue;
 
     addRequiredDetailIssues(issues, task, options.requireDueDate === true);
-    addRunningIssue(issues, task, now, liveIdentities);
+    addRunningIssue(issues, task, now);
     addReviewIssue(issues, task, now, reviewStaleAfterMs);
     if (lifecycleOrder.length > 1) addLifecycleIssue(issues, task, lifecycleOrder);
   }
@@ -120,7 +125,7 @@ function addRequiredDetailIssues(
   if (assignmentIdentities(task).length === 0) {
     pushIssue(issues, task, 'missing-assignee', 'warning', 'Assign an owner');
   }
-  if (requireDueDate && !hasText(task.dueDate)) {
+  if (requireDueDate && toEpoch(task.dueDate) === null) {
     pushIssue(issues, task, 'missing-due-date', 'warning', 'Set a due date');
   }
   if (!hasItems(task.labels) && !hasItems(task.tags)) {
@@ -138,7 +143,6 @@ function addRunningIssue(
   issues: KanbanAuditIssue[],
   task: AuditableTask,
   now: number,
-  liveIdentities: ReadonlySet<string>,
 ): void {
   const assignment = task.assignment;
   const running = task.status === 'in_progress' || assignment?.status === 'running';
@@ -161,10 +165,11 @@ function addRunningIssue(
     pushIssue(issues, task, 'stale-running-task', 'error', 'Assignment lease is expired');
     return;
   }
-
-  if (!identities.some((identity) => liveIdentities.has(normalizeIdentity(identity)))) {
-    pushIssue(issues, task, 'abandoned-running-task', 'error', 'Assigned agent is not live');
-  }
+  // A valid lease is the authoritative liveness signal. The WebUI fleet
+  // roster only knows the connected session, so a locally-unknown agent may
+  // be running the task in another session — flagging it produced false
+  // "abandoned" errors on healthy cross-session boards. If the agent really
+  // died, the lease expires and the stale-running-task rule above catches it.
 }
 
 function addReviewIssue(
@@ -299,17 +304,8 @@ function readStringList(value: unknown): string[] {
   return result;
 }
 
-function normalizeIdentities(values: KanbanAuditOptions['liveAgentIdentities']): Set<string> {
-  const normalized = new Set<string>();
-  if (!values) return normalized;
-  for (const value of values) {
-    if (hasText(value)) normalized.add(normalizeIdentity(value));
-  }
-  return normalized;
-}
-
-function normalizeIdentity(value: string): string {
-  return value.trim().toLocaleLowerCase();
+function normalizeIdentity(identity: string): string {
+  return identity.trim().toLowerCase();
 }
 
 function firstText(...values: unknown[]): string | null {

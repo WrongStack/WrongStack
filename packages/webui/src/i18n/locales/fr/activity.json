@@ -2245,6 +2245,8 @@
     "newColumn": "Nouvelle colonne",
     "addColumn": "Ajouter une colonne",
     "duplicateBoard": "Dupliquer le tableau",
+    "confirmDelete": "Confirmer ?",
+    "confirmDeleteBoard": "Cliquez à nouveau pour confirmer la suppression du tableau",
     "deleteBoard": "Supprimer le tableau",
     "boardBoundary": "Limite du tableau",
     "noBoardSelected": "Aucun tableau Kanban sélectionné.",
@@ -2271,6 +2273,9 @@
     "actionReassign": "Réaffecter",
     "actionRunNow": "Exécuter maintenant",
     "deleteTaskAria": "Supprimer la tâche : {{title}}",
+    "confirmDeleteTask": "Cliquez à nouveau pour confirmer la suppression de la tâche",
+    "confirmDeleteTaskAria": "Confirmer la suppression : {{title}}",
+    "moveTaskToColumn": "Déplacer {{title}} vers la colonne",
     "activityNoteTemplate": "{{action}} de WebUI vers {{target}}."
   },
   "cronJobs": {

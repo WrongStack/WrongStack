@@ -2245,6 +2245,8 @@
     "newColumn": "Neue Spalte",
     "addColumn": "Spalte hinzufügen",
     "duplicateBoard": "Board duplizieren",
+    "confirmDelete": "Bestätigen?",
+    "confirmDeleteBoard": "Erneut klicken, um das Löschen des Boards zu bestätigen",
     "deleteBoard": "Board löschen",
     "boardBoundary": "Board-Grenze",
     "noBoardSelected": "Kein Kanban-Board ausgewählt.",
@@ -2271,6 +2273,9 @@
     "actionReassign": "Neu zuweisen",
     "actionRunNow": "Jetzt ausführen",
     "deleteTaskAria": "Task löschen: {{title}}",
+    "confirmDeleteTask": "Erneut klicken, um das Löschen der Aufgabe zu bestätigen",
+    "confirmDeleteTaskAria": "Löschen bestätigen: {{title}}",
+    "moveTaskToColumn": "{{title}} in Spalte verschieben",
     "activityNoteTemplate": "{{action}} von WebUI an {{target}}."
   },
   "cronJobs": {

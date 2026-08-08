@@ -2245,6 +2245,8 @@
     "newColumn": "Yeni sütun",
     "addColumn": "Sütun ekle",
     "duplicateBoard": "Panoyu çoğalt",
+    "confirmDelete": "Emin misiniz?",
+    "confirmDeleteBoard": "Panoyu silmeyi onaylamak için tekrar tıklayın",
     "deleteBoard": "Panoyu sil",
     "boardBoundary": "Pano sınırı",
     "noBoardSelected": "Kanban panosu seçilmedi.",
@@ -2271,6 +2273,9 @@
     "actionReassign": "Yeniden ata",
     "actionRunNow": "Şimdi çalıştır",
     "deleteTaskAria": "Görevi sil: {{title}}",
+    "confirmDeleteTask": "Görevi silmeyi onaylamak için tekrar tıklayın",
+    "confirmDeleteTaskAria": "Silmeyi onayla: {{title}}",
+    "moveTaskToColumn": "{{title}} sütununa taşı",
     "activityNoteTemplate": "{{action}} WebUI'dan {{target}} adresine."
   },
   "cronJobs": {

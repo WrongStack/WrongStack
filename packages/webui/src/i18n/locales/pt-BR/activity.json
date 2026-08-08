@@ -2245,6 +2245,8 @@
     "newColumn": "Nova coluna",
     "addColumn": "Adicionar coluna",
     "duplicateBoard": "Duplicar quadro",
+    "confirmDelete": "Confirmar?",
+    "confirmDeleteBoard": "Clique novamente para confirmar a exclusão do quadro",
     "deleteBoard": "Excluir quadro",
     "boardBoundary": "Limite do quadro",
     "noBoardSelected": "Nenhum quadro kanban selecionado.",
@@ -2271,6 +2273,9 @@
     "actionReassign": "Reatribuir",
     "actionRunNow": "Executar agora",
     "deleteTaskAria": "Excluir tarefa: {{title}}",
+    "confirmDeleteTask": "Clique novamente para confirmar a exclusão da tarefa",
+    "confirmDeleteTaskAria": "Confirmar exclusão: {{title}}",
+    "moveTaskToColumn": "Mover {{title}} para a coluna",
     "activityNoteTemplate": "{{action}} do WebUI para {{target}}."
   },
   "cronJobs": {

@@ -4,7 +4,7 @@ import { auditKanbanBoard } from '../../src/lib/kanban-cleaner.js';
 
 const NOW = Date.parse('2026-07-15T12:00:00.000Z');
 
-function completeTask(overrides: Partial<KanbanTask> & Record<string, unknown> = {}): KanbanTask {
+function completeTask(overrides: Record<string, unknown> = {}): KanbanTask {
   return {
     id: 'task-1',
     title: 'Ship cleaner',
@@ -104,6 +104,15 @@ describe('auditKanbanBoard', () => {
     ).toContain('missing-due-date');
   });
 
+  it('treats numeric and Date due dates as present', () => {
+    const numeric = completeTask({ dueDate: 1_753_000_000_000 });
+    const date = completeTask({ id: 'date', dueDate: new Date('2026-07-18T12:00:00.000Z') });
+
+    expect(
+      codes(auditKanbanBoard(board([numeric, date]), { now: NOW, requireDueDate: true })),
+    ).not.toContain('missing-due-date');
+  });
+
   it('ignores completed and archived cards', () => {
     const result = auditKanbanBoard(
       board([
@@ -116,7 +125,7 @@ describe('auditKanbanBoard', () => {
     expect(result.issues).toHaveLength(0);
   });
 
-  it('classifies running cards with missing, non-live, expired, and healthy leases', () => {
+  it('flags expired and lease-less running cards, but never a valid lease even when the agent is not live locally', () => {
     const assignment = {
       status: 'running' as const,
       agentId: 'agent-1',
@@ -125,6 +134,10 @@ describe('auditKanbanBoard', () => {
     };
     const tasks = [
       completeTask({ id: 'missing-lease', status: 'in_progress', assignment: undefined }),
+      // Cross-session regression: a valid lease is the authoritative liveness
+      // signal. This WebUI's fleet roster does not know 'agent-1' (it runs in
+      // another session), which previously produced a false
+      // 'abandoned-running-task' error on the card.
       completeTask({ id: 'not-live', status: 'in_progress', assignment }),
       completeTask({
         id: 'expired',
@@ -136,7 +149,10 @@ describe('auditKanbanBoard', () => {
 
     const result = auditKanbanBoard(board(tasks), {
       now: NOW,
-      liveAgentIdentities: ['agent-1'],
+      // Deliberately non-matching: the roster option is accepted for API
+      // compatibility but a valid lease is the only liveness signal the
+      // audit may rely on (see the kanban-cleaner addRunningIssue comment).
+      liveAgentIdentities: ['other-agent'],
     });
     const runtimeIssues = result.issues.filter(
       (issue) => issue.code === 'abandoned-running-task' || issue.code === 'stale-running-task',
@@ -146,6 +162,7 @@ describe('auditKanbanBoard', () => {
       ['expired', 'stale-running-task'],
       ['missing-lease', 'abandoned-running-task'],
     ]);
+    expect(result.issues.filter((issue) => issue.taskId === 'not-live')).toEqual([]);
   });
 
   it('detects skipped managed lifecycle states from status history', () => {

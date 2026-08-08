@@ -4,12 +4,12 @@ import { Columns3, Copy, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { auditKanbanBoard } from '@/lib/kanban-cleaner';
+import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useFleetStore, useKanbanStore, useSessionStore } from '@/stores';
 import { BoardPresence, SupervisorBar } from './KanbanBoardChrome.js';
 import {
   collectActiveSessionIds,
-  collectLiveAgentIdentities,
   isKanbanBoardActive,
   parseRunLink,
   runningBoardCostTotal,
@@ -50,6 +50,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     supervisorSnapshot,
     setLoading,
     setActiveBoardId,
+    setError,
   } = useKanbanStore();
   const [newBoardTitle, setNewBoardTitle] = useState('');
   const [boardPage, setBoardPage] = useState(1);
@@ -68,14 +69,36 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   const [taskActivityRefresh, setTaskActivityRefresh] = useState(0);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<KanbanViewMode>('board');
+  const [confirmDeleteBoard, setConfirmDeleteBoard] = useState(false);
+  // The board the armed delete belongs to. A click can only delete when the
+  // armed board is still the active one — otherwise a board switch that
+  // happens between the state reset and its passive effect would let a stale
+  // "Confirm?" button delete the newly selected board.
+  const armedDeleteBoardIdRef = useRef<string | null>(null);
   const autoSelectedSessionRef = useRef<string | null>(null);
+  // A sidebar page change clears the selection on purpose; suppressing the
+  // auto-select until the user explicitly picks a board stops the board[0]
+  // fallback from yanking them to a board on the newly shown page.
+  const skipBoardAutoSelectRef = useRef(false);
+
+  // Two-step delete: the second click on the header trash actually deletes.
+  // Disarm on a timeout so an armed button can't fire on a later stray click.
+  useEffect(() => {
+    if (!confirmDeleteBoard) return;
+    const timer = window.setTimeout(() => {
+      setConfirmDeleteBoard(false);
+      armedDeleteBoardIdRef.current = null;
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirmDeleteBoard]);
+  // Switching boards while the button is armed must not delete the old one.
+  useEffect(() => {
+    setConfirmDeleteBoard(false);
+    armedDeleteBoardIdRef.current = null;
+  }, [activeBoardId]);
 
   const ws = useMemo(() => getWSClient(wsUrl), [wsUrl]);
   const selectedTask = activeBoard?.tasks.find((task) => task.id === selectedTaskId) ?? null;
-  const liveAgentIdentities = useMemo(
-    () => collectLiveAgentIdentities(fleetAgents.values()),
-    [fleetAgents],
-  );
   // Preserve reference identity while the CONTENTS are unchanged.
   // `fleetAgents` is a fresh Map on every subagent event (fleet-store
   // allocates unconditionally), so this memo recomputes constantly while
@@ -105,11 +128,10 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       activeBoard
         ? auditKanbanBoard(activeBoard, {
             now: Date.now(),
-            liveAgentIdentities,
             requireDueDate: activeBoard.lifecycle?.mode === 'managed',
           })
         : null,
-    [activeBoard, liveAgentIdentities],
+    [activeBoard],
   );
 
   const runningCostTotal = useMemo(() => runningBoardCostTotal(activeBoard), [activeBoard]);
@@ -133,9 +155,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       pageSize: BOARD_PAGE_SIZE,
       activeSessionIds,
     });
-  const refreshBoard = (boardId = activeBoardId) => {
-    if (boardId) sendKanban('kanban.get', { boardId });
-  };
 
   useEffect(() => {
     refreshBoards();
@@ -143,6 +162,9 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   }, []);
 
   useEffect(() => {
+    // A page change clears the selection on purpose; don't re-pick boards[0]
+    // (or re-pin the session board) until the user explicitly chooses.
+    if (skipBoardAutoSelectRef.current) return;
     const sessionBoard = sessionId
       ? boards.find((candidate) => candidate.tags?.includes(`session:${sessionId}`))
       : undefined;
@@ -204,6 +226,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   const changeBoardPage = (page: number) => {
     setBoardPage(page);
     setActiveBoardId(null);
+    skipBoardAutoSelectRef.current = true;
     refreshBoards(page);
   };
 
@@ -293,7 +316,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       columnId: activeBoard.columns[0]?.id ?? 'backlog',
       activityNote: 'Task created manually in WebUI.',
     });
-    window.setTimeout(() => refreshBoard(activeBoard.id), 150);
   };
 
   const createColumn = () => {
@@ -302,13 +324,11 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     if (!title) return;
     setNewColumnTitle('');
     sendKanban('kanban.column.add', { boardId: activeBoard.id, title });
-    window.setTimeout(() => refreshBoard(activeBoard.id), 150);
   };
 
   const deleteBoard = () => {
     if (!activeBoard) return;
     sendKanban('kanban.delete', { boardId: activeBoard.id });
-    window.setTimeout(refreshBoards, 150);
   };
 
   const duplicateBoard = () => {
@@ -317,13 +337,11 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       boardId: activeBoard.id,
       title: `${activeBoard.title} Copy`,
     });
-    window.setTimeout(refreshBoards, 150);
   };
 
   const deleteTask = (task: KanbanTask) => {
     if (!activeBoard) return;
     sendKanban('kanban.task.remove', { boardId: activeBoard.id, taskId: task.id });
-    window.setTimeout(() => refreshBoard(activeBoard.id), 150);
   };
 
   const moveTask = (taskId: string, columnId: string) => {
@@ -337,7 +355,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       columnId,
       activityNote: `Moved in WebUI${from ? ` from ${from}` : ''} to ${to}.`,
     });
-    window.setTimeout(() => refreshBoard(activeBoard.id), 150);
   };
 
   return (
@@ -358,6 +375,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         onNewBoardTitleChange={setNewBoardTitle}
         onCreateBoard={createBoard}
         onBoardSelect={(boardId) => {
+          skipBoardAutoSelectRef.current = false;
           setActiveBoardId(boardId);
           sendKanban('kanban.get', { boardId });
         }}
@@ -367,9 +385,9 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4">
           <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-            <div className="truncate text-sm font-semibold">
+            <h1 className="truncate text-sm font-semibold">
               {activeBoard?.title ?? 'No board selected'}
-            </div>
+            </h1>
             <div className="truncate text-[11px] text-muted-foreground">
               {activeBoard
                 ? `${activeBoard.columns.length} columns / ${activeBoard.tasks.length} tasks`
@@ -408,7 +426,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                 type="button"
                 title={t('activity:kanban.addColumn')}
                 onClick={createColumn}
-                className="hidden h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
+                className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <Columns3 size={16} />
               </button>
@@ -422,11 +440,30 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
               </button>
               <button
                 type="button"
-                title={t('activity:kanban.deleteBoard')}
-                onClick={deleteBoard}
-                className="hidden h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:flex"
+                aria-pressed={confirmDeleteBoard}
+                title={
+                  confirmDeleteBoard
+                    ? t('activity:kanban.confirmDeleteBoard')
+                    : t('activity:kanban.deleteBoard')
+                }
+                onClick={() => {
+                  if (confirmDeleteBoard && armedDeleteBoardIdRef.current === activeBoard?.id) {
+                    setConfirmDeleteBoard(false);
+                    armedDeleteBoardIdRef.current = null;
+                    deleteBoard();
+                  } else {
+                    armedDeleteBoardIdRef.current = activeBoard?.id ?? null;
+                    setConfirmDeleteBoard(true);
+                  }
+                }}
+                className={cn(
+                  'hidden h-8 items-center justify-center rounded-md border transition-colors sm:flex',
+                  confirmDeleteBoard
+                    ? 'w-16 gap-1 border-destructive/40 bg-destructive/15 text-[11px] font-semibold text-destructive'
+                    : 'w-16 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+                )}
               >
-                <Trash2 size={16} />
+                {confirmDeleteBoard ? t('activity:kanban.confirmDelete') : <Trash2 size={16} />}
               </button>
             </>
           )}
@@ -440,7 +477,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
               value={activeBoard.boundary}
               onSave={(boundary) => {
                 sendKanban('kanban.update', { boardId: activeBoard.id, boundary });
-                window.setTimeout(() => refreshBoard(activeBoard.id), 150);
               }}
             />
           </div>
@@ -469,7 +505,15 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         {error && (
           <div className="flex h-9 shrink-0 items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 text-sm text-destructive">
             <X size={15} />
-            <span className="truncate">{error}</span>
+            <span className="min-w-0 flex-1 truncate">{error}</span>
+            <button
+              type="button"
+              aria-label={t('common:action.close')}
+              onClick={() => setError(null)}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-destructive/20"
+            >
+              <X size={15} />
+            </button>
           </div>
         )}
 
@@ -542,7 +586,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         onSelectTask={setSelectedTaskId}
         sendKanban={sendKanban}
         sendRaw={sendRaw}
-        refreshBoard={refreshBoard}
         activityEvents={taskActivity}
         activityPresence={taskActivityPresence}
         activityLoading={taskActivityLoading}

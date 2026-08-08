@@ -1,5 +1,5 @@
 import { AlertTriangle, ChevronDown, CircleAlert, Sparkles } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { KanbanAuditIssue, KanbanAuditSummary } from '@/lib/kanban-cleaner';
 import { cn } from '@/lib/utils';
 
@@ -12,10 +12,18 @@ export function KanbanCleanerAlert({
 }) {
   const [expanded, setExpanded] = useState(true);
   const contentId = useId();
+  // Issue ids seen on the previous audit pass. Auto-expanding on a count
+  // *change* (old behavior) fought the user's collapse whenever an issue
+  // appeared or vanished; only a genuinely NEW issue deserves attention.
+  const seenIssueIdsRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
-    if (audit.issues.length > 0) setExpanded(true);
-  }, [audit.issues.length]);
+    const ids = new Set(audit.issues.map((issue) => issue.id));
+    const previous = seenIssueIdsRef.current;
+    seenIssueIdsRef.current = ids;
+    if (previous === null) return;
+    if ([...ids].some((id) => !previous.has(id))) setExpanded(true);
+  }, [audit.issues]);
 
   if (audit.issues.length === 0) return null;
 

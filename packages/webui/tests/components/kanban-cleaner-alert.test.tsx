@@ -77,4 +77,53 @@ describe('KanbanCleanerAlert', () => {
 
     expect(container.firstChild).toBeNull();
   });
+
+  it('keeps the panel collapsed across re-renders with the same issues', () => {
+    const { rerender } = render(<KanbanCleanerAlert audit={audit} onSelectTask={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Kanban Cleaner issues' }));
+
+    // The 5s board poll hands the component a fresh audit object each time;
+    // the collapse must survive it (this regressed when the panel
+    // auto-expanded on any issues.length change).
+    rerender(<KanbanCleanerAlert audit={{ ...audit, issues: [...audit.issues] }} onSelectTask={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Expand Kanban Cleaner issues' })).toBeTruthy();
+  });
+
+  it('does not auto-expand when the issue count shrinks', () => {
+    const { rerender } = render(<KanbanCleanerAlert audit={audit} onSelectTask={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Kanban Cleaner issues' }));
+
+    const shrunk = {
+      ...audit,
+      issues: audit.issues.slice(0, 2),
+      counts: { error: 1, warning: 1 },
+      affectedTaskCount: 2,
+    };
+    rerender(<KanbanCleanerAlert audit={shrunk} onSelectTask={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Expand Kanban Cleaner issues' })).toBeTruthy();
+  });
+
+  it('auto-expands only when a brand-new issue appears while collapsed', () => {
+    const { rerender } = render(<KanbanCleanerAlert audit={audit} onSelectTask={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Kanban Cleaner issues' }));
+
+    const grown: KanbanAuditSummary = {
+      ...audit,
+      issues: [
+        ...audit.issues,
+        {
+          id: 'task-3:missing-description',
+          taskId: 'task-3',
+          taskTitle: 'Third task',
+          code: 'missing-description',
+          severity: 'warning',
+          message: 'Add a description',
+        },
+      ],
+      counts: { error: 1, warning: 3 },
+      affectedTaskCount: 3,
+    };
+    rerender(<KanbanCleanerAlert audit={grown} onSelectTask={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Collapse Kanban Cleaner issues' })).toBeTruthy();
+  });
 });
