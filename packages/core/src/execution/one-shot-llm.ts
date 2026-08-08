@@ -341,6 +341,10 @@ export class OneShotOrchestrator {
     target: { providerId: string; model: string },
   ): FallbackChain {
     const mgr = this.opts.fallbackProfileManager;
+    // Track whether the chain comes from an explicit source the user configured.
+    // When true, the chain is authoritative — we must NOT pollute it with
+    // auto-discovered models or every configured provider.
+    let fromExplicitSource = false;
     // An explicit bridge is independent of auto derivation, so seed the chain
     // with it even when fallbackAuto is disabled and no ordinary list exists.
     let selected: FallbackChain = mgr.resolveEffective({
@@ -348,20 +352,27 @@ export class OneShotOrchestrator {
       exclude: target,
     });
 
-    // Explicit chain wins
+    // Explicit chain wins. The flag is set only when the explicit inputs
+    // actually RESOLVED to usable models — a dead explicit chain (every
+    // entry blocked by missing key, calendar, or status tracker) must
+    // fall through to auto-derivation and keep its last-resort depth.
     if (input.fallbackModels && input.fallbackModels.length > 0) {
-      selected = mgr.resolveEffective({
+      const resolved = mgr.resolveEffective({
         fallbackModels: input.fallbackModels,
         fallbackAuto: false,
         exclude: target,
       });
+      selected = resolved;
+      fromExplicitSource = resolved.length > 0;
     } else if (config.fallbackModels && config.fallbackModels.length > 0) {
       // Config-level fallbackModels — independent of fallbackAuto
-      selected = mgr.resolveEffective({
+      const resolved = mgr.resolveEffective({
         fallbackModels: config.fallbackModels,
         fallbackAuto: false,
         exclude: target,
       });
+      selected = resolved;
+      fromExplicitSource = resolved.length > 0;
     } else if (config.fallbackAuto !== false) {
       // Smart default from config (only when auto-derivation is enabled)
       selected = mgr.resolveEffective({
@@ -371,6 +382,10 @@ export class OneShotOrchestrator {
     }
 
     if (config.fallbackAuto === false) return selected;
+
+    // Only append every configured provider as last-resort depth when the
+    // chain was auto-derived — an explicit user-chosen chain is authoritative.
+    if (fromExplicitSource) return selected;
 
     const combined = [...selected, ...mgr.resolveAllConfigured(target)];
     const seen = new Set<string>();

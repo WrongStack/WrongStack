@@ -242,6 +242,25 @@ function fallbackCandidates(
       ? configFallbackAuto
       : !opts.closedWorld;
   const explicitRefs = opts.fallbackModels ?? config.fallbackModels;
+  // Whether the selected chain comes from an explicit source the user
+  // configured themselves. When true, the chain is authoritative — we must
+  // NOT pollute it with auto-discovered models, favorites, the "default"
+  // profile, or every configured provider. Those are only last-resort depth
+  // when no explicit chain was provided.
+  //
+  // The flag is set only when the explicit inputs actually RESOLVED to
+  // usable models — not merely when the inputs exist. A dead explicit
+  // chain (every entry blocked by missing key, calendar, or status tracker)
+  // must fall through to auto-derivation and keep its last-resort depth.
+  const explicitUsable =
+    explicitRefs !== undefined &&
+    explicitRefs.length > 0 &&
+    mgr.resolveRefs(explicitRefs, current).length > 0;
+  const profileUsable =
+    opts.fallbackProfile !== undefined &&
+    mgr.hasProfile(opts.fallbackProfile) &&
+    mgr.resolve(opts.fallbackProfile, { exclude: current }).length > 0;
+  const fromExplicitSource = explicitUsable || profileUsable;
   const selectedChain = opts.closedWorld
     ? explicitRefs && explicitRefs.length > 0
       ? mgr.resolveRefs(explicitRefs, current)
@@ -291,13 +310,19 @@ function fallbackCandidates(
 
   // 3. The default profile is additional fallback depth (unless we already
   //    resolved it as the selected chain above).
-  if (opts.fallbackProfile !== 'default') {
+  //
+  //    When the user explicitly chose `fallbackModels` or a named
+  //    `fallbackProfile`, that selection is authoritative — we do NOT
+  //    pollute it with the "default" profile or auto-discovered models.
+  //    The unconditional appends only fire for the auto-derivation path.
+  if (!fromExplicitSource && opts.fallbackProfile !== 'default') {
     candidates.push(...mgr.resolve('default', { exclude: current }));
   }
 
   // 4. Every other configured provider as a last resort — but only
-  //    when fallbackAuto is actually enabled.
-  if (effectiveFallbackAuto) {
+  //    when fallbackAuto is actually enabled, and only when the chain
+  //    was auto-derived (not explicitly chosen by the user).
+  if (!fromExplicitSource && effectiveFallbackAuto) {
     candidates.push(...mgr.resolveAllConfigured(current));
   }
 
