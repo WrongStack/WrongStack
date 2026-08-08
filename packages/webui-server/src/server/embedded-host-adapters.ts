@@ -118,7 +118,8 @@ export function createEmbeddedProviderOperations(ctx: EmbeddedProviderContext) {
 
 export interface EmbeddedConversationContext extends EmbeddedHostTransport {
   agent: Agent;
-  abortControllers: Map<WebSocket, AbortController>;
+  /** Session-keyed abort controllers — one active run per session. */
+  abortControllers: Map<string, AbortController>;
   pendingConfirms: Map<string, PendingConfirm>;
 }
 
@@ -129,16 +130,17 @@ export function createEmbeddedConversationRoutes(
     getAgent: () => ctx.agent,
     getSessionId: () => ctx.agent.ctx.session?.id ?? '',
     runControl: {
-      begin: (ws) => {
-        if (ctx.abortControllers.has(ws)) return undefined;
+      begin: (_ws, sessionId) => {
+        if (ctx.abortControllers.has(sessionId)) return undefined;
         const controller = new AbortController();
-        ctx.abortControllers.set(ws, controller);
+        ctx.abortControllers.set(sessionId, controller);
         return controller;
       },
-      end: (ws, controller) => {
-        if (ctx.abortControllers.get(ws) === controller) ctx.abortControllers.delete(ws);
+      end: (_ws, sessionId, controller) => {
+        if (ctx.abortControllers.get(sessionId) === controller)
+          ctx.abortControllers.delete(sessionId);
       },
-      abort: (ws) => ctx.abortControllers.get(ws)?.abort(),
+      abort: (_ws, sessionId) => ctx.abortControllers.get(sessionId)?.abort(),
     },
     pendingConfirms: ctx.pendingConfirms,
     send: ctx.send,
@@ -170,10 +172,10 @@ export interface EmbeddedSessionContext extends EmbeddedHostTransport {
   opts: EmbeddedSessionOptions;
   buildSessionStart: (overrides?: Record<string, unknown>) => Promise<unknown>;
   getCustomModeStore: () => Promise<CustomModeStore>;
-  /** Abort the in-flight agent run before session.new/resume swaps the session. */
-  abortActiveRun?: (() => void) | undefined;
+  /** When sessionId is provided, abort only that session's run; otherwise abort all. */
+  abortActiveRun?: ((sessionId?: string) => void) | undefined;
   /** True while an embedded agent run is active. */
-  isRunActive?: (() => boolean) | undefined;
+  isRunActive?: ((sessionId?: string) => boolean) | undefined;
 }
 
 function sessionStoreFor(opts: EmbeddedSessionOptions): SessionStore {
@@ -230,7 +232,8 @@ export async function broadcastEmbeddedGoalSnapshot(ctx: EmbeddedSessionContext)
 
 export interface EmbeddedProjectContext extends EmbeddedHostTransport {
   opts: EmbeddedSessionOptions & { globalConfigPath?: string | undefined };
-  abortControllers: Map<WebSocket, AbortController>;
+  /** Session-keyed — same instance as EmbeddedConversationContext. */
+  abortControllers: Map<string, AbortController>;
   abortLegacyRun: () => void;
   buildSessionStart: (overrides?: Record<string, unknown>) => Promise<unknown>;
 }

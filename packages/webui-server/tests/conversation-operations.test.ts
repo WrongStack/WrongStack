@@ -115,7 +115,7 @@ describe('createConversationOperations', () => {
       signal: h.controller.signal,
       maxIterations: 7,
     });
-    expect(h.end).toHaveBeenCalledWith(ws, h.controller);
+    expect(h.end).toHaveBeenCalledWith(ws, 'session-live', h.controller);
     expect(h.sent.at(-1)).toMatchObject({
       type: 'run.result',
       payload: { sessionId: 'session-live', finalText: 'done' },
@@ -140,7 +140,7 @@ describe('createConversationOperations', () => {
     const h = harness();
     await h.routes.abort(ws, { type: 'abort', payload: {} });
 
-    expect(h.abort).toHaveBeenCalledWith(ws);
+    expect(h.abort).toHaveBeenCalledWith(ws, 'session-live');
     expect(h.aborted.at(-1)).toMatchObject({
       type: 'error',
       payload: { phase: 'abort', sessionId: 'session-live' },

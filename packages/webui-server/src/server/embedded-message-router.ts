@@ -334,9 +334,17 @@ export function createEmbeddedMessageRouter(
     // stream from the previous session would otherwise keep running in the
     // background after session.new/resume. The run's own end() cleanup
     // removes controllers from the map when it unwinds.
-    abortActiveRun: () => {
-      for (const controller of deps.conversationCtx.abortControllers.values()) {
-        controller.abort();
+    abortActiveRun: (sessionId) => {
+      if (sessionId) {
+        deps.conversationCtx.abortControllers.get(sessionId)?.abort();
+      } else {
+        // Abort all — used during full session teardown.
+        // Materialize first: .abort() triggers async unwinding that
+        // eventually calls end() → map.delete, which would mutate the
+        // map during iteration if we iterated the live values().
+        for (const controller of [...deps.conversationCtx.abortControllers.values()]) {
+          controller.abort();
+        }
       }
     },
     isRunActive: () => deps.conversationCtx.abortControllers.size > 0,

@@ -520,10 +520,15 @@ export async function startWebUI(
   }
 
   let _runLock: AbortController | null = null;
+  let _runLockSession: string | null = null;
   const runLockControl = {
     get: () => _runLock,
     set: (ctrl: AbortController | null) => {
       _runLock = ctrl;
+    },
+    getSession: () => _runLockSession,
+    setSession: (id: string | null) => {
+      _runLockSession = id;
     },
   };
 
@@ -739,6 +744,7 @@ export async function startWebUI(
       if (ctrl) {
         ctrl.abort();
         runLockControl.set(null);
+        runLockControl.setSession(null);
       }
     },
     isRunActive: () => runLockControl.get() !== null,

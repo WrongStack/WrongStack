@@ -156,13 +156,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const pendingConfirms = new Map<string, PendingConfirm>();
   const secretScrubber = new DefaultSecretScrubber();
   let abortController: AbortController | null = null;
-  // Per-WebSocket abort controllers. The legacy single-slot `abortController`
-  // above is the project-switch path's view (it always aborts the in-flight
-  // run, no matter which socket initiated the switch) — kept for behavior
-  // parity. The per-socket map scopes `case 'abort'` and `handleUserMessage`
-  // so a second browser tab or a rapid same-tab abort cannot kill another
-  // socket's run. Both are kept in sync.
-  const abortControllers = new Map<WebSocket, AbortController>();
+  // Per-session abort controllers. Keyed by sessionId so that pressing "stop"
+  // in one session aborts only that session's run — not every concurrent
+  // session in the same project folder. The legacy single-slot
+  // `abortController` above is the project-switch teardown path's view and
+  // remains a catch-all abort for the old single-session model.
+  const abortControllers = new Map<string, AbortController>();
 
   const profileDir = path.dirname(profileConfigPath);
   // Custom context modes are profile-scoped and shared with the standalone server.

@@ -40,7 +40,7 @@ export interface ConnectionHandlerDeps {
   send: (ws: WebSocket, msg: WSServerMessage) => void;
   sessionPayload: <T extends Record<string, unknown>>(payload: T) => T & { sessionId: string };
   handleMessage: (ws: WebSocket, client: ConnectedClient, msg: WSClientMessage) => Promise<void>;
-  abortControllers: Map<WebSocket, AbortController>;
+  abortControllers: Map<string, AbortController>;
   pendingConfirms: Map<string, PendingConfirm>;
   buildSessionStartPayload: (
     overrides?: Record<string, unknown>,
@@ -132,7 +132,9 @@ export function createConnectionHandler(
     send: deps.send,
     sessionPayload: deps.sessionPayload,
     rateLimitMax: deps.rateLimitMax,
-    onClose: (ws) => deps.abortControllers.delete(ws),
+    onClose: (_ws, client) => {
+      if (client?.sessionId) deps.abortControllers.delete(client.sessionId);
+    },
     buildInitialPayload: async () => {
       const payload = { ...(await deps.buildSessionStartPayload({}, deps.needsSetup)) };
       try {

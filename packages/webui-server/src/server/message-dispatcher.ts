@@ -54,6 +54,9 @@ import { broadcast, send, sendResult } from './ws-utils.js';
 interface RunLockControl {
   get(): AbortController | null;
   set(ctrl: AbortController | null): void;
+  /** Session ID that owns the active run, or null when idle. */
+  getSession(): string | null;
+  setSession(id: string | null): void;
 }
 interface MessageDispatcherOptions {
   state: WebuiMutableState;
@@ -191,16 +194,28 @@ export function createMessageDispatcher(
     getAgent: () => deps.agent,
     getSessionId: () => state.getSession().id,
     runControl: {
-      begin: () => {
+      begin: (_ws, sessionId) => {
         if (runLock.get()) return undefined;
         const controller = new AbortController();
         runLock.set(controller);
+        runLock.setSession(sessionId);
         return controller;
       },
-      end: (_ws, controller) => {
-        if (runLock.get() === controller) runLock.set(null);
+      end: (_ws, _sessionId, controller) => {
+        if (runLock.get() === controller) {
+          runLock.set(null);
+          runLock.setSession(null);
+        }
       },
-      abort: () => runLock.get()?.abort(),
+      abort: (_ws, sessionId) => {
+        // Only abort when the session matches. The standalone host has a
+        // single run slot, but a stop from session B must not kill a run
+        // owned by session A. A sessionId-less abort (legacy clients)
+        // falls through to the current run regardless.
+        if (runLock.getSession() === sessionId || !runLock.getSession()) {
+          runLock.get()?.abort();
+        }
+      },
     },
     pendingConfirms,
     send,

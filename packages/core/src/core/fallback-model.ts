@@ -540,6 +540,12 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         firstErr_: unknown,
         alreadyTracked = false,
       ): Promise<Response> {
+        // If the user already aborted (the signal fired before or during the
+        // primary call), do NOT rotate through fallbacks. The abort error
+        // should propagate immediately so the agent loop sees 'aborted'
+        // instead of burning time and money trying every configured model.
+        if (ctx_.signal?.aborted) throw firstErr_;
+
         let lastErr: unknown = firstErr_;
         const cfg = deps.getConfig();
         const current = { providerId: ctx_.provider.id, model: ctx_.model };
@@ -697,7 +703,15 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
           }
         }
 
+        // The gate may have waited seconds for a countdown. If the user
+        // aborted during that wait, don't start trying fallback entries.
+        if (ctx_.signal?.aborted) throw firstErr_;
+
         for (const entry of usableChain) {
+          // If the user aborted (or a prior fallback attempt took long
+          // enough for them to do so), stop rotating immediately.
+          if (ctx_.signal?.aborted) throw lastErr;
+
           if (
             !evaluateModelCalendar(cfg.modelAvailabilitySchedule, entry.providerId, entry.model)
               .allowed
@@ -791,6 +805,12 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
             ...(gateRequestId ? { requestId: gateRequestId } : {}),
             ...(warning ? { contextWindowWarning: warning } : {}),
           });
+
+          // The provider build and model-switch hooks above are async; the
+          // user may have aborted while they were pending. Re-check right
+          // before dispatching the fallback request so we don't launch a new
+          // provider call after cancellation.
+          if (ctx_.signal?.aborted) throw lastErr;
 
           try {
             const response = ensureUsableModelResponse(

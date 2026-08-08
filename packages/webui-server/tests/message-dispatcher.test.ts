@@ -88,6 +88,8 @@ function makeMinimalOpts(): any {
     runLock: {
       get: () => null,
       set: vi.fn(),
+      getSession: () => null,
+      setSession: vi.fn(),
     },
     pendingConfirms: new Map(),
   };

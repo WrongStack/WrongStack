@@ -22,10 +22,15 @@ import { errMessage } from './ws-utils.js';
 type OutboundMessage = { type: string; payload: unknown };
 
 export interface ConversationRunControl {
-  /** Return a controller when acquired, or undefined when this host is busy. */
-  begin(ws: WebSocket): AbortController | undefined;
-  end(ws: WebSocket, controller: AbortController): void;
-  abort(ws: WebSocket): void;
+  /**
+   * Acquire a run controller for the given session.
+   * Return a controller when acquired, or undefined when this host is busy.
+   */
+  begin(ws: WebSocket, sessionId: string): AbortController | undefined;
+  /** Release the controller for the given session after the run completes. */
+  end(ws: WebSocket, sessionId: string, controller: AbortController): void;
+  /** Abort only the run belonging to `sessionId`, leaving other sessions intact. */
+  abort(ws: WebSocket, sessionId: string): void;
 }
 
 export interface ConversationOperationsContext {
@@ -118,7 +123,8 @@ export function createConversationOperations(
         images?: IncomingImagePayload[] | undefined;
         imageBase64?: string | undefined;
       };
-      const controller = ctx.runControl.begin(ws);
+      const originSessionId = ctx.getSessionId();
+      const controller = ctx.runControl.begin(ws, originSessionId);
       if (!controller) {
         ctx.send(ws, {
           type: 'error',
@@ -132,13 +138,9 @@ export function createConversationOperations(
         return;
       }
 
-      // Pin the session this run was started in. The host can swap the
-      // active session (session.new/resume) while a slow provider stream
-      // is still in flight; stamping run.result with the live session id
-      // at completion time would leak the previous request's final text
-      // into the freshly-opened session's chat. Declared before the try so
-      // the catch branches can stamp it too.
-      const originSessionId = ctx.getSessionId();
+      // originSessionId was captured before begin() so both the run and
+      // every catch branch stamp the result with the session the user
+      // started in — not whatever session is live when the run unwinds.
       try {
         const agent = ctx.getAgent();
         if (payload.freshContext === true) await startFreshTopicContext(agent.ctx);
@@ -205,12 +207,13 @@ export function createConversationOperations(
           });
         }
       } finally {
-        ctx.runControl.end(ws, controller);
+        ctx.runControl.end(ws, originSessionId, controller);
       }
     },
     abort: (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'abort')) return;
-      ctx.runControl.abort(ws);
+      const sessionId = requestedSessionId(msg) ?? ctx.getSessionId();
+      ctx.runControl.abort(ws, sessionId);
       ctx.notifyAbort(ws, {
         type: 'error',
         payload: sessionPayload({ phase: 'abort', message: 'User aborted' }),
