@@ -1,13 +1,23 @@
 /** CLI boot adapter for canonical runtime tool registration and host policies. */
 
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { MemoryPort, TokenSavingTier, ToolDescriptionModeConfig, ToolResultRenderModeConfig } from '@wrongstack/core/types';
-import type { WstackPaths } from '@wrongstack/core/utils';
-import type { ToolRegistry } from '@wrongstack/core/registry';
-import { configureChildEnvGitIdentity } from '@wrongstack/core/utils';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import {
+  makeFleetStatusTool,
+  makeMailboxTool,
+  makeMailInboxTool,
+  makeMailSendTool,
+} from '@wrongstack/core/coordination';
 import { createContextManagerTool } from '@wrongstack/core/infrastructure';
-import { makeFleetStatusTool, makeMailboxTool, makeMailInboxTool, makeMailSendTool } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { ToolRegistry } from '@wrongstack/core/registry';
+import type {
+  MemoryPort,
+  TokenSavingTier,
+  ToolDescriptionModeConfig,
+  ToolResultRenderModeConfig,
+} from '@wrongstack/core/types';
+import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import type { WstackPaths } from '@wrongstack/core/utils';
+import { configureChildEnvGitIdentity } from '@wrongstack/core/utils';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
 import { configureDangerBypass, configureExecPolicy } from '@wrongstack/tools';
 import { configureGoalPolicy } from '../goal-host.js';

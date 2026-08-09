@@ -1,12 +1,12 @@
 import type { Context, TodoItem } from '@wrongstack/core/agent';
-import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import type { Message, MemoryStore } from '@wrongstack/core/types';
 import { HybridCompactor } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { MemoryStore, Message } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  type SlashCommandContext,
   buildBuiltinSlashCommands,
+  type SlashCommandContext,
 } from '../src/slash-commands/index.js';
 
 class FakeRenderer {
@@ -248,7 +248,11 @@ describe('built-in slash commands', () => {
     const { registry, renderer } = makeRig();
     const ctx = { messages: [] } as never as Context;
     await registry.dispatch('/compact', ctx);
-    expect(renderer.infos.some((i) => i.toLowerCase().includes('compact') || i.toLowerCase().includes('optimal'))).toBe(true);
+    expect(
+      renderer.infos.some(
+        (i) => i.toLowerCase().includes('compact') || i.toLowerCase().includes('optimal'),
+      ),
+    ).toBe(true);
   });
 
   it('/context shows context window summary', async () => {
@@ -370,9 +374,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn: async () => 'should not be called',
         onAgents: () => '',
       } as never as SlashCommandContext);
@@ -393,9 +395,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn,
         onAgents: () => '',
       } as never as SlashCommandContext);
@@ -422,9 +422,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn,
         onAgents: () => '',
       } as never as SlashCommandContext);
@@ -452,9 +450,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn,
         onAgents: () => '',
       } as never as SlashCommandContext);
@@ -477,9 +473,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn,
         onAgents: () => '',
       } as never as SlashCommandContext);
@@ -506,9 +500,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn,
         onAgents: () => '',
       } as never as SlashCommandContext);
@@ -529,9 +521,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn: async () => '',
         onAgents: () => '2 pending, 1 completed.\n  ✓        abc12345',
       } as never as SlashCommandContext);
@@ -551,9 +541,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onSpawn: async () => {
           throw new Error('no provider configured');
         },
@@ -578,9 +566,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onFleet,
       } as never as SlashCommandContext);
       for (const c of cmds) registry.register(c);
@@ -673,9 +659,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onPlugin,
       } as never as SlashCommandContext);
       for (const c of cmds) registry.register(c);
@@ -725,9 +709,7 @@ describe('built-in slash commands', () => {
         toolRegistry,
         compactor,
         tokenCounter,
-        renderer: renderer as never as Parameters<
-          typeof buildBuiltinSlashCommands
-        >[0]['renderer'],
+        renderer: renderer as never as Parameters<typeof buildBuiltinSlashCommands>[0]['renderer'],
         onDirector,
       } as never as SlashCommandContext);
       for (const c of cmds) registry.register(c);
@@ -770,5 +752,4 @@ describe('built-in slash commands', () => {
       expect(r?.message).toContain('/fleet status|spawn');
     });
   });
-
 });

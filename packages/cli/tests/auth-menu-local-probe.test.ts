@@ -4,11 +4,7 @@ import * as path from 'node:path';
 import { DefaultSecretScrubber, DefaultSecretVault } from '@wrongstack/core/security';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  type AuthMenuDeps,
-  probeLocalLlm,
-  runAuthLocal,
-} from '../src/auth-menu/index.js';
+import { type AuthMenuDeps, probeLocalLlm, runAuthLocal } from '../src/auth-menu/index.js';
 import type { ReadlineInputReader } from '../src/input-reader.js';
 import type { TerminalRenderer } from '../src/renderer.js';
 
@@ -200,10 +196,7 @@ describe('probeLocalLlm', () => {
 
   it('omits the Authorization header for noAuth presets (Ollama)', async () => {
     let capturedHeaders: Record<string, string> = {};
-    const fetchImpl = (async (
-      _input: unknown,
-      init: { headers: unknown } | undefined,
-    ) => {
+    const fetchImpl = (async (_input: unknown, init: { headers: unknown } | undefined) => {
       capturedHeaders = Object.fromEntries(new Headers(init?.headers as never).entries());
       return jsonResponse({ data: [] });
     }) as never as typeof fetch;
@@ -220,10 +213,7 @@ describe('probeLocalLlm', () => {
 
   it('sends a Bearer header for vLLM / LM Studio when a key is provided', async () => {
     let capturedHeaders: Record<string, string> = {};
-    const fetchImpl = (async (
-      _input: unknown,
-      init: { headers: unknown } | undefined,
-    ) => {
+    const fetchImpl = (async (_input: unknown, init: { headers: unknown } | undefined) => {
       capturedHeaders = Object.fromEntries(new Headers(init?.headers as never).entries());
       return jsonResponse({ data: [] });
     }) as never as typeof fetch;
@@ -240,10 +230,7 @@ describe('probeLocalLlm', () => {
 
   it('omits the Authorization header when noAuth is false but the key is empty', async () => {
     let capturedHeaders: Record<string, string> = {};
-    const fetchImpl = (async (
-      _input: unknown,
-      init: { headers: unknown } | undefined,
-    ) => {
+    const fetchImpl = (async (_input: unknown, init: { headers: unknown } | undefined) => {
       capturedHeaders = Object.fromEntries(new Headers(init?.headers as never).entries());
       return jsonResponse({ data: [] });
     }) as never as typeof fetch;
@@ -411,9 +398,7 @@ describe('runAuthLocal — health probe integration', () => {
     expect(code).toBe(0);
     const saved = await readSaved(configPath);
     expect(saved['omniroute']).toBeDefined();
-    expect((saved['omniroute'] as { baseUrl: string }).baseUrl).toBe(
-      'http://localhost:20128/v1',
-    );
+    expect((saved['omniroute'] as { baseUrl: string }).baseUrl).toBe('http://localhost:20128/v1');
     expect(deps.reader.readLine).not.toHaveBeenCalled();
   });
 
@@ -457,9 +442,7 @@ describe('runAuthLocal — health probe integration', () => {
   });
 
   it('does not save and reports the probe result when --probe-only is set', async () => {
-    globalThis.fetch = buildFetch(() =>
-      jsonResponse({ data: [{ id: 'm1' }] }),
-    ) as typeof fetch;
+    globalThis.fetch = buildFetch(() => jsonResponse({ data: [{ id: 'm1' }] })) as typeof fetch;
     const { deps, tmpDir } = await setupDeps({});
     const code = await runAuthLocal(deps, {
       name: 'ollama',
@@ -474,10 +457,11 @@ describe('runAuthLocal — health probe integration', () => {
 
   it('uses the configured secretScrubber to redact any echoed key in the probe detail', async () => {
     const scrubSpy = vi.spyOn(DefaultSecretScrubber.prototype, 'scrub');
-    globalThis.fetch = buildFetch(() =>
-      new Response('invalid: Bearer sk-very-secret-key-1234567890abc', {
-        status: 500,
-      }),
+    globalThis.fetch = buildFetch(
+      () =>
+        new Response('invalid: Bearer sk-very-secret-key-1234567890abc', {
+          status: 500,
+        }),
     ) as typeof fetch;
 
     // Empty secret = skip the vLLM key prompt so the probe runs.

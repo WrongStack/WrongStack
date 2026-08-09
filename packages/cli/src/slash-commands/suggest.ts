@@ -3,11 +3,10 @@ import { access } from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { parseNextSteps } from '@wrongstack/tools/next-steps';
 import type { SlashCommandContext } from './command-context.js';
 import { setSuggestions } from './suggestion-store.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 /**
  * Collect project context for the suggestion subagent.

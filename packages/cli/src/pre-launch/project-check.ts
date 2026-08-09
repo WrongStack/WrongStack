@@ -101,9 +101,7 @@ export async function runProjectCheck(opts: {
         const file = await scaffoldAgentsMd(projectRoot);
         renderer.write(`  ${color.green('✓')} Wrote ${color.dim(file)}\n`);
       } catch (err) {
-        renderer.writeError(
-          `Failed to scaffold AGENTS.md: ${toErrorMessage(err)}`,
-        );
+        renderer.writeError(`Failed to scaffold AGENTS.md: ${toErrorMessage(err)}`);
       }
     }
     return true;
@@ -150,9 +148,7 @@ export async function runProjectCheck(opts: {
         });
         renderer.write(`  ${color.green('✓')} Git repository initialized\n`);
       } catch (err) {
-        renderer.writeError(
-          `git init failed: ${toErrorMessage(err)}\n`,
-        );
+        renderer.writeError(`git init failed: ${toErrorMessage(err)}\n`);
       }
     }
   } else {

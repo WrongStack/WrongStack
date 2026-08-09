@@ -1,13 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createServer, type Server } from 'node:http';
 import * as fs from 'node:fs/promises';
+import { createServer, type Server } from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { acquireOrJoin, MAILBOX_BRIDGE_LOCK_FILENAME } from '@wrongstack/core/coordination';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  tryAcquireMailboxBridge,
   type ProbeFn,
   type SpawnFn,
+  tryAcquireMailboxBridge,
 } from '../src/mailbox-bridge-bootstrap.js';
 
 /**
@@ -405,7 +405,9 @@ describe('tryAcquireMailboxBridge', () => {
     const result = await readLiveLock(projectDir);
     expect(result.kind).toBe('probe-failed');
     if (result.kind === 'probe-failed') {
-      expect((result as { lock?: { token?: string } })?.lock?.token).toBe((lock as { lock?: { token?: string } })?.lock?.token);
+      expect((result as { lock?: { token?: string } })?.lock?.token).toBe(
+        (lock as { lock?: { token?: string } })?.lock?.token,
+      );
     }
   });
 

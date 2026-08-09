@@ -65,9 +65,7 @@ function makeReader(answers: string[]): ReadlineInputReader {
 
 describe('shouldSkipMenu', () => {
   it('skips when --no-menu is set', () => {
-    expect(
-      shouldSkipMenu([], { 'no-menu': true }, []),
-    ).toBe(true);
+    expect(shouldSkipMenu([], { 'no-menu': true }, [])).toBe(true);
   });
 
   it('skips when --webui is set', () => {
@@ -104,10 +102,7 @@ describe('shouldSkipMenu', () => {
 
   it('skips when first positional is a known subcommand', () => {
     for (const sub of ['auth', 'init', 'mcp', 'plugin', 'doctor', 'version']) {
-      expect(
-        shouldSkipMenu([], {}, [sub]),
-        `should skip subcommand "${sub}"`,
-      ).toBe(true);
+      expect(shouldSkipMenu([], {}, [sub]), `should skip subcommand "${sub}"`).toBe(true);
     }
   });
 
@@ -231,15 +226,11 @@ describe('applyLaunchMenuToArgv', () => {
 
 describe('toPersistedMenuChoice', () => {
   it('returns undefined for cancelled results', () => {
-    expect(
-      toPersistedMenuChoice({ mode: 'webui', cancelled: true }),
-    ).toBeUndefined();
+    expect(toPersistedMenuChoice({ mode: 'webui', cancelled: true })).toBeUndefined();
   });
 
   it('returns undefined for tui-repl results (owned by inner prompts)', () => {
-    expect(
-      toPersistedMenuChoice({ mode: 'tui-repl', cancelled: false }),
-    ).toBeUndefined();
+    expect(toPersistedMenuChoice({ mode: 'tui-repl', cancelled: false })).toBeUndefined();
   });
 
   it('persists a valid webui choice with port and host', () => {
@@ -462,7 +453,7 @@ describe('runLaunchMenu', () => {
     expect(result!.mode).toBe('webui');
     expect(result!.port).toBe(3500);
     // writeWarning should have fired at least once.
-    expect((renderer.writeWarning as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+    expect(renderer.writeWarning as ReturnType<typeof vi.fn>).toHaveBeenCalled();
   });
 });
 
@@ -514,8 +505,8 @@ describe('persistMenuChoice', () => {
     const { persistMenuChoice } = await import('../src/boot/launch-menu.js');
     const cfgPath = path.join(tmpDir, 'config.json');
     await fs.writeFile(cfgPath, '{not valid json');
-    await expect(
-      persistMenuChoice(cfgPath, { mode: 'webui', port: 3456 }),
-    ).rejects.toThrow(/corrupt config/);
+    await expect(persistMenuChoice(cfgPath, { mode: 'webui', port: 3456 })).rejects.toThrow(
+      /corrupt config/,
+    );
   });
 });

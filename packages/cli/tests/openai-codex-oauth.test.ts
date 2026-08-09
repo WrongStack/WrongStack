@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isParseError, type ModelsRegistry } from '@wrongstack/core/types';
-import { expectFetchError } from './helpers/fetch-error.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAuthorizeUrl,
   exchangeAuthorizationCode,
@@ -13,6 +12,7 @@ import {
   resolveCodexModels,
   startLoopbackServer,
 } from '../src/auth-menu/openai-codex-oauth.js';
+import { expectFetchError } from './helpers/fetch-error.js';
 
 function b64url(s: string): string {
   return Buffer.from(s).toString('base64url');
@@ -134,7 +134,12 @@ describe('exchangeAuthorizationCode', () => {
       vi.fn(async (url: string, init: { body?: string }) => {
         captured = { url, body: init.body };
         return new Response(
-          JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, id_token: 'ID' }),
+          JSON.stringify({
+            access_token: 'AT',
+            refresh_token: 'RT',
+            expires_in: 3600,
+            id_token: 'ID',
+          }),
           { status: 200 },
         );
       }),
@@ -161,14 +166,19 @@ describe('exchangeAuthorizationCode', () => {
       'fetch',
       vi.fn(async (_url: string, init: { body?: string }) => {
         body = init.body ?? '';
-        return new Response(JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 1 }), {
-          status: 200,
-        });
+        return new Response(
+          JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 1 }),
+          {
+            status: 200,
+          },
+        );
       }),
     );
 
     await exchangeAuthorizationCode('CODE', 'VERIFIER', undefined, 1457);
-    expect(new URLSearchParams(body).get('redirect_uri')).toBe('http://localhost:1457/auth/callback');
+    expect(new URLSearchParams(body).get('redirect_uri')).toBe(
+      'http://localhost:1457/auth/callback',
+    );
   });
 
   it('throws on a non-2xx token response', async () => {

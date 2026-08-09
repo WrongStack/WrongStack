@@ -34,9 +34,7 @@ describe('normalizeKeys', () => {
   it('migrates legacy single apiKey to the new shape', () => {
     const cfg: ProviderConfig = { apiKey: 'sk-legacy' } as ProviderConfig;
     const out = normalizeKeys(cfg);
-    expect(out).toEqual([
-      { label: 'default', apiKey: 'sk-legacy', createdAt: '' },
-    ]);
+    expect(out).toEqual([{ label: 'default', apiKey: 'sk-legacy', createdAt: '' }]);
   });
 
   it('prefers apiKeys over apiKey when both are present', () => {
@@ -313,9 +311,7 @@ describe('normalizeKeys ↔ writeKeysBack roundtrip', () => {
     const keys = normalizeKeys(legacy);
     const target = {} as ProviderConfig;
     writeKeysBack(target, keys);
-    expect(target.apiKeys).toEqual([
-      { label: 'default', apiKey: 'sk-old', createdAt: '' },
-    ]);
+    expect(target.apiKeys).toEqual([{ label: 'default', apiKey: 'sk-old', createdAt: '' }]);
     // apiKey is cleared — use resolveActiveApiKey to read the real key
     expect(target.apiKey).toBeUndefined();
     expect(resolveActiveApiKey(target)).toBe('sk-old');

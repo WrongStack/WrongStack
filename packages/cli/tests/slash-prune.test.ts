@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildPruneCommand } from '../src/slash-commands/prune.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildPruneCommand } from '../src/slash-commands/prune.js';
 
-function makeOpts(
-  overrides: Partial<SlashCommandContext> = {},
-): SlashCommandContext {
+function makeOpts(overrides: Partial<SlashCommandContext> = {}): SlashCommandContext {
   return {
     sessionStore: undefined,
     ...overrides,
@@ -20,9 +18,7 @@ describe('buildPruneCommand', () => {
 
   it('prunes with default 30 days', async () => {
     const prune = vi.fn().mockResolvedValue(5);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { prune } } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { prune } } as never));
     const res = await cmd.run('');
     expect(prune).toHaveBeenCalledWith(30);
     expect(res?.message).toContain('Pruned');
@@ -31,9 +27,7 @@ describe('buildPruneCommand', () => {
 
   it('prunes with custom day count', async () => {
     const prune = vi.fn().mockResolvedValue(3);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { prune } } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { prune } } as never));
     const res = await cmd.run('14');
     expect(prune).toHaveBeenCalledWith(14);
     expect(res?.message).toContain('14');
@@ -42,9 +36,7 @@ describe('buildPruneCommand', () => {
 
   it('clamps days between 1 and 365', async () => {
     const prune = vi.fn().mockResolvedValue(0);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { prune } } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { prune } } as never));
     await cmd.run('999');
     expect(prune).toHaveBeenCalledWith(365);
     await cmd.run('0');
@@ -53,18 +45,14 @@ describe('buildPruneCommand', () => {
 
   it('returns dim message when 0 sessions pruned', async () => {
     const prune = vi.fn().mockResolvedValue(0);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { prune } } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { prune } } as never));
     const res = await cmd.run('');
     expect(res?.message).toMatch(/No sessions older than/);
   });
 
   it('returns singular for 1 session', async () => {
     const prune = vi.fn().mockResolvedValue(1);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { prune } } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { prune } } as never));
     const res = await cmd.run('');
     expect(res?.message).toMatch(/1 session/);
     expect(res?.message).not.toMatch(/sessions/);
@@ -72,9 +60,7 @@ describe('buildPruneCommand', () => {
 
   it('supports dry-run with no stale sessions', async () => {
     const list = vi.fn().mockResolvedValue([]);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { list, prune: vi.fn() } } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { list, prune: vi.fn() } } as never));
     const res = await cmd.run('--dry-run');
     expect(list).toHaveBeenCalledWith(1000);
     expect(res?.message).toMatch(/No sessions older than/);
@@ -83,12 +69,10 @@ describe('buildPruneCommand', () => {
   it('supports dry-run with stale sessions', async () => {
     const now = Date.now();
     const oldDate = new Date(now - 40 * 86_400_000).toISOString();
-    const list = vi.fn().mockResolvedValue([
-      { id: 's1', startedAt: oldDate, title: 'old session' },
-    ]);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { list, prune: vi.fn() } } as never),
-    );
+    const list = vi
+      .fn()
+      .mockResolvedValue([{ id: 's1', startedAt: oldDate, title: 'old session' }]);
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { list, prune: vi.fn() } } as never));
     const res = await cmd.run('--dry-run');
     expect(list).toHaveBeenCalled();
     expect(res?.message).toMatch(/Would delete 1 session/);
@@ -97,9 +81,7 @@ describe('buildPruneCommand', () => {
 
   it('supports --rebuild-index', async () => {
     const rebuildIndex = vi.fn().mockResolvedValue(10);
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: { rebuildIndex } } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: { rebuildIndex } } as never));
     const res = await cmd.run('--rebuild-index');
     expect(rebuildIndex).toHaveBeenCalled();
     expect(res?.message).toContain('10');
@@ -117,9 +99,7 @@ describe('buildPruneCommand', () => {
   });
 
   it('returns yellow warning when sessionStore lacks rebuildIndex', async () => {
-    const cmd = buildPruneCommand(
-      makeOpts({ sessionStore: {} } as never),
-    );
+    const cmd = buildPruneCommand(makeOpts({ sessionStore: {} } as never));
     const res = await cmd.run('--rebuild-index');
     expect(res?.message).toMatch(/does not support index rebuild/);
   });

@@ -2,14 +2,10 @@ import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
 import { StaleWriteError } from '../manager/lifecycle.js';
-import type { KanbanErrorCode } from './protocol.js';
 import { getInstalledKanbanStorageBackend, type KanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanEvent } from '../types.js';
 import { getKanbanServerConnection } from './client.js';
-import type {
-  KanbanServerMethod,
-  KanbanServerOperations,
-} from './protocol.js';
+import type { KanbanErrorCode, KanbanServerMethod, KanbanServerOperations } from './protocol.js';
 
 class RemoteKanbanStorage implements KanbanStorageBackend {
   readonly kind = 'remote' as const;
@@ -88,10 +84,7 @@ class RemoteKanbanStorage implements KanbanStorageBackend {
       // (connection loss, timeout, server-down, disk-full) propagate
       // unchanged so the caller can distinguish real infrastructure
       // failures from benign stale-write contention.
-      if (
-        error instanceof Error &&
-        (error as { code?: KanbanErrorCode }).code === 'STALE_WRITE'
-      ) {
+      if (error instanceof Error && (error as { code?: KanbanErrorCode }).code === 'STALE_WRITE') {
         throw new StaleWriteError(error.message);
       }
       throw error;

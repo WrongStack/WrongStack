@@ -68,11 +68,9 @@ async function setup(
   const rootConfigPath = path.join(tmpDir, 'config.json');
   const configPath = path.join(tmpDir, 'profiles', 'default', 'config.json');
   await fs.mkdir(path.dirname(configPath), { recursive: true });
-  await fs.writeFile(
-    rootConfigPath,
-    JSON.stringify({ version: 1, activeProfile: 'default' }),
-    { mode: 0o600 },
-  );
+  await fs.writeFile(rootConfigPath, JSON.stringify({ version: 1, activeProfile: 'default' }), {
+    mode: 0o600,
+  });
   if (opts.preExisting) {
     await fs.writeFile(configPath, JSON.stringify(opts.preExisting), { mode: 0o600 });
   }

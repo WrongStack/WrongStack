@@ -1,10 +1,15 @@
 /**
  * Additional tests for CLI utilities — covering fmtDuration and fmtTaskResultLine.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { fmtDuration, fmtTaskResultLine, fmtTok, patchConfig } from '../src/utils.js';
 
-const noColor = { green: (s: string) => s, red: (s: string) => s, yellow: (s: string) => s, dim: (s: string) => s };
+const noColor = {
+  green: (s: string) => s,
+  red: (s: string) => s,
+  yellow: (s: string) => s,
+  dim: (s: string) => s,
+};
 
 // ============================================================================
 // fmtTok (existing, extended)
@@ -93,7 +98,10 @@ describe('fmtTaskResultLine', () => {
   });
 
   it('renders failed with string error', () => {
-    const r = fmtTaskResultLine(makeResult({ status: 'failed', error: 'something broke' }), noColor);
+    const r = fmtTaskResultLine(
+      makeResult({ status: 'failed', error: 'something broke' }),
+      noColor,
+    );
     expect(r.mark).toBe('✗');
     expect(r.stats).toContain('failed');
     expect(r.tail).toContain('something broke');
@@ -101,7 +109,10 @@ describe('fmtTaskResultLine', () => {
 
   it('renders failed with structured error (kind + message)', () => {
     const r = fmtTaskResultLine(
-      makeResult({ status: 'failed', error: { kind: 'provider_rate_limit', message: 'overloaded' } }),
+      makeResult({
+        status: 'failed',
+        error: { kind: 'provider_rate_limit', message: 'overloaded' },
+      }),
       noColor,
     );
     expect(r.mark).toBe('✗');
@@ -117,7 +128,10 @@ describe('fmtTaskResultLine', () => {
   });
 
   it('collapses whitespace in error message', () => {
-    const r = fmtTaskResultLine(makeResult({ status: 'failed', error: 'line1\n\n  line2\tline3' }), noColor);
+    const r = fmtTaskResultLine(
+      makeResult({ status: 'failed', error: 'line1\n\n  line2\tline3' }),
+      noColor,
+    );
     expect(r.tail).not.toContain('\n');
     expect(r.tail).toContain('line1');
     expect(r.tail).toContain('line2');

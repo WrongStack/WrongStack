@@ -44,18 +44,26 @@ vi.mock('@wrongstack/runtime', async () => {
 });
 
 const { wireContainer } = await import('../../src/boot/container-wiring.js');
+
 import { TOKENS } from '@wrongstack/core/kernel';
-import type { Config, Logger, ModelsRegistry, Renderer } from '@wrongstack/core/types';
+import type { Config, InputReader, Logger, ModelsRegistry, Renderer } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import type { InputReader } from '@wrongstack/core/types';
 
 function makeLogger(): Logger {
   const calls: Array<{ level: string; msg: string }> = [];
   return {
-    info: (msg: string) => { calls.push({ level: 'info', msg }); },
-    warn: (msg: string) => { calls.push({ level: 'warn', msg }); },
-    error: (msg: string) => { calls.push({ level: 'error', msg }); },
-    debug: (msg: string) => { calls.push({ level: 'debug', msg }); },
+    info: (msg: string) => {
+      calls.push({ level: 'info', msg });
+    },
+    warn: (msg: string) => {
+      calls.push({ level: 'warn', msg });
+    },
+    error: (msg: string) => {
+      calls.push({ level: 'error', msg });
+    },
+    debug: (msg: string) => {
+      calls.push({ level: 'debug', msg });
+    },
   } as never as Logger;
 }
 

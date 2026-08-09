@@ -387,3 +387,59 @@ describe('kanban-store — verification activity', () => {
     expect(state.boards.some((summary) => summary.id === 'b2')).toBe(true);
   });
 });
+
+describe('kanban-store — outbound actions flip loading state', () => {
+  beforeEach(() => {
+    useKanbanStore.setState({
+      loading: false,
+      error: null,
+      lastOutboundAction: null,
+    });
+  });
+
+  it('sendKanban sets loading=true and records lastOutboundAction', () => {
+    const state = useKanbanStore.getState();
+    expect(state.loading).toBe(false);
+
+    state.sendKanban('kanban.list', { page: 0 });
+
+    const after = useKanbanStore.getState();
+    expect(after.loading).toBe(true);
+    expect(after.lastOutboundAction).toBe('kanban.list');
+  });
+
+  it('transitionTask maps to kanban.task.transition and flips loading', () => {
+    useKanbanStore.getState().transitionTask('b1', 't1', 'done', { comment: 'ok' });
+    const after = useKanbanStore.getState();
+    expect(after.loading).toBe(true);
+    expect(after.lastOutboundAction).toBe('kanban.task.transition');
+  });
+
+  it('dispatchTask maps to kanban.task.dispatch and flips loading', () => {
+    useKanbanStore.getState().dispatchTask('b1', 't1', 'Investigate flaky test');
+    const after = useKanbanStore.getState();
+    expect(after.loading).toBe(true);
+    expect(after.lastOutboundAction).toBe('kanban.task.dispatch');
+  });
+
+  it('moveTask maps to kanban.task.move and flips loading', () => {
+    useKanbanStore.getState().moveTask('b1', 't1', 'review');
+    const after = useKanbanStore.getState();
+    expect(after.loading).toBe(true);
+    expect(after.lastOutboundAction).toBe('kanban.task.move');
+  });
+
+  it('removeTask maps to kanban.task.remove and flips loading', () => {
+    useKanbanStore.getState().removeTask('b1', 't1');
+    const after = useKanbanStore.getState();
+    expect(after.loading).toBe(true);
+    expect(after.lastOutboundAction).toBe('kanban.task.remove');
+  });
+
+  it('setLoading(false) clears the spinner flag', () => {
+    useKanbanStore.getState().sendKanban('kanban.list', {});
+    expect(useKanbanStore.getState().loading).toBe(true);
+    useKanbanStore.getState().setLoading(false);
+    expect(useKanbanStore.getState().loading).toBe(false);
+  });
+});

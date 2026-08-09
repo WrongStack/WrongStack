@@ -9,12 +9,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import * as path from 'node:path';
 import type * as http from 'node:http';
-import type { WebSocket } from 'ws';
-import type { TrustBoundary } from '@wrongstack/core/security';
-import { type createHqPersistence, tokenHasCapability, validateHqCommand } from '@wrongstack/core/hq';
-import type { HqSnapshot, HqAlertEngine, HqCommand, HqCommandAuditEntry, HqCommandAuditLog, HqEventEnvelope, HqQueuedCommand, HqTimeseriesSample, HqTranscriptEntry } from '@wrongstack/core/hq';
+import * as path from 'node:path';
 import type { createMailboxHttpRouter } from '@wrongstack/core/coordination';
 import {
   type Mailbox,
@@ -22,19 +18,35 @@ import {
   type MailboxHttpRateLimiter,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
+import type {
+  HqAlertEngine,
+  HqCommand,
+  HqCommandAuditEntry,
+  HqCommandAuditLog,
+  HqEventEnvelope,
+  HqQueuedCommand,
+  HqSnapshot,
+  HqTimeseriesSample,
+  HqTranscriptEntry,
+} from '@wrongstack/core/hq';
+import {
+  type createHqPersistence,
+  tokenHasCapability,
+  validateHqCommand,
+} from '@wrongstack/core/hq';
+import type { TrustBoundary } from '@wrongstack/core/security';
+import type { WebSocket } from 'ws';
 import { HQ_HTML } from '../hq-recovery-html.js';
 import { resolveHqDistDir, serveHqStatic } from '../hq-static-serve.js';
 import * as HqServerAuth from './auth.js';
-import * as HqServerSnapshot from './snapshot.js';
-import * as HqServerUtils from './utils.js';
-import { authorizeHqCommand } from './trust-boundary.js';
+import { resolveHqProjectRoot } from './project-root.js';
 import {
   type ApplyHqAuthFile,
   callerCanAdministerAuth,
   handleApiAuthAudit,
-  handleApiAuthStatus,
   handleApiAuthSessions,
   handleApiAuthSessionsRevoke,
+  handleApiAuthStatus,
   handleApiBootstrap,
   handleApiLogin,
   handleApiLoginVerify,
@@ -46,18 +58,20 @@ import {
   handleApiTotpSetup,
 } from './routes/auth-handlers.js';
 import {
-  handleApiAlerts,
-  handleApiCommandsAudit,
-  handleApiSystemHealth,
-  handleApiSystemUpdate,
-} from './routes/system-handlers.js';
-import {
   handleApiAgentMessages,
   handleApiSessionAgentMessages,
   handleApiSessionEvents,
   handleApiSessions,
 } from './routes/session-handlers.js';
-import { resolveHqProjectRoot } from './project-root.js';
+import {
+  handleApiAlerts,
+  handleApiCommandsAudit,
+  handleApiSystemHealth,
+  handleApiSystemUpdate,
+} from './routes/system-handlers.js';
+import * as HqServerSnapshot from './snapshot.js';
+import { authorizeHqCommand } from './trust-boundary.js';
+import * as HqServerUtils from './utils.js';
 
 // ── Re-exports for hq-server.ts backward compat ────────────────────────────
 
@@ -89,6 +103,7 @@ export const hqRuntimeMarkerPath = HqServerUtils.hqRuntimeMarkerPath;
 
 // ── Shared helpers used in routes ──────────────────────────────────────────
 
+import type { LoginAttemptStore } from './login-attempt-store.js';
 import type {
   ConnectedClient,
   HqRouterMutableAuth,
@@ -97,14 +112,8 @@ import type {
   ProjectDetail,
   TranscriptRing,
 } from './types.js';
-import type { LoginAttemptStore } from './login-attempt-store.js';
 
-export type {
-  ConnectedClient,
-  HqSnapshotBroadcaster,
-  ProjectDetail,
-  TranscriptRing,
-};
+export type { ConnectedClient, HqSnapshotBroadcaster, ProjectDetail, TranscriptRing };
 
 // ── Router dependency interface ────────────────────────────────────────────
 
@@ -178,7 +187,9 @@ export interface HqRouterDeps {
  * Kept as a factory so the dependencies from the server setup closure are
  * explicitly visible — every closure reference is a named field.
  */
-export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, res: http.ServerResponse) => Promise<void> {
+export function createHqRouter(
+  deps: HqRouterDeps,
+): (req: http.IncomingMessage, res: http.ServerResponse) => Promise<void> {
   const {
     host,
     listeningPort,
@@ -215,13 +226,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 
       // ── Origin guard (DNS-rebinding / CSRF boundary) ───────────────
       if (
-        !hasTrustedBrowserOrigin(
-          req,
-          host,
-          listeningPort(),
-          trustedPublicOrigins,
-          allowFileOrigin,
-        )
+        !hasTrustedBrowserOrigin(req, host, listeningPort(), trustedPublicOrigins, allowFileOrigin)
       ) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'forbidden: untrusted request origin' }));
@@ -274,7 +279,16 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       // ════════════════════════════════════════════════════════════════
 
       if (url.pathname === '/api/auth/status' && req.method === 'GET') {
-        await handleApiAuthStatus(req, res, url, mutableAuth, sessions, requireBrowserAuth, trustedPublicOrigins, secureCookies);
+        await handleApiAuthStatus(
+          req,
+          res,
+          url,
+          mutableAuth,
+          sessions,
+          requireBrowserAuth,
+          trustedPublicOrigins,
+          secureCookies,
+        );
         return;
       }
 
@@ -319,7 +333,15 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       }
 
       if (url.pathname === '/api/login' && req.method === 'POST') {
-        await handleApiLogin(req, res, mutableAuth, sessions, loginAttempts, secureCookies, trustedProxyHops);
+        await handleApiLogin(
+          req,
+          res,
+          mutableAuth,
+          sessions,
+          loginAttempts,
+          secureCookies,
+          trustedProxyHops,
+        );
         return;
       }
 
@@ -353,7 +375,18 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       }
 
       if (url.pathname === '/api/login/verify' && req.method === 'POST') {
-        await handleApiLoginVerify(req, res, url, mutableAuth, sessions, loginAttempts, dataDir, secureCookies, applyAuthFile, trustedProxyHops);
+        await handleApiLoginVerify(
+          req,
+          res,
+          url,
+          mutableAuth,
+          sessions,
+          loginAttempts,
+          dataDir,
+          secureCookies,
+          applyAuthFile,
+          trustedProxyHops,
+        );
         return;
       }
 
@@ -368,18 +401,43 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       }
 
       if (url.pathname === '/api/auth/totp/disable' && req.method === 'POST') {
-        await handleApiTotpDisable(req, res, mutableAuth, sessions, loginAttempts, dataDir, applyAuthFile, trustedProxyHops);
+        await handleApiTotpDisable(
+          req,
+          res,
+          mutableAuth,
+          sessions,
+          loginAttempts,
+          dataDir,
+          applyAuthFile,
+          trustedProxyHops,
+        );
         return;
       }
 
-      if (url.pathname === '/api/auth/password' && (req.method === 'POST' || req.method === 'DELETE')) {
-        await handleApiPassword(req, res, mutableAuth, sessions, dataDir, secureCookies, requireBrowserAuth, applyAuthFile);
+      if (
+        url.pathname === '/api/auth/password' &&
+        (req.method === 'POST' || req.method === 'DELETE')
+      ) {
+        await handleApiPassword(
+          req,
+          res,
+          mutableAuth,
+          sessions,
+          dataDir,
+          secureCookies,
+          requireBrowserAuth,
+          applyAuthFile,
+        );
         return;
       }
 
       if (url.pathname === '/api/snapshot' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(HqServerSnapshot.buildSnapshot(clients, { tokenStats: getTokenStats?.() })));
+        res.end(
+          JSON.stringify(
+            HqServerSnapshot.buildSnapshot(clients, { tokenStats: getTokenStats?.() }),
+          ),
+        );
         return;
       }
 
@@ -398,7 +456,14 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         /^\/api\/projects\/([^/]+)\/mailbox(?:\/(.*))?$/,
       );
       if (mailboxGatewayMatch) {
-        await handleMailboxGateway(req, res, mailboxGatewayMatch, authorizeMailboxGateway, getMailboxGateway, dataDir);
+        await handleMailboxGateway(
+          req,
+          res,
+          mailboxGatewayMatch,
+          authorizeMailboxGateway,
+          getMailboxGateway,
+          dataDir,
+        );
         return;
       }
 
@@ -407,7 +472,9 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         const projectId = decodePathSegment(projectKanbanMatch[1]!);
         if (projectId === null) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'Invalid project id.' } }));
+          res.end(
+            JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'Invalid project id.' } }),
+          );
           return;
         }
         const snapshot = await persistence.kanban.load(projectId);
@@ -424,7 +491,11 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
       // ── Fleet tree ────────────────────────────────────────────────
       if (url.pathname === '/api/fleet' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(HqServerSnapshot.buildSnapshot(clients, { tokenStats: getTokenStats?.() })));
+        res.end(
+          JSON.stringify(
+            HqServerSnapshot.buildSnapshot(clients, { tokenStats: getTokenStats?.() }),
+          ),
+        );
         return;
       }
 
@@ -458,15 +529,29 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 
       // ── Mailbox send ──────────────────────────────────────────────
       if (url.pathname === '/api/mailbox-send' && req.method === 'POST') {
-        await handleApiMailboxSend(req, res, mutableAuth, sessions, dataDir, getMailboxGateway, hqSessionTag);
+        await handleApiMailboxSend(
+          req,
+          res,
+          mutableAuth,
+          sessions,
+          dataDir,
+          getMailboxGateway,
+          hqSessionTag,
+        );
         return;
       }
 
-      const mailboxActionMatch = url.pathname.match(
-        /^\/api\/mailbox\/messages\/([^/]+)\/action$/,
-      );
+      const mailboxActionMatch = url.pathname.match(/^\/api\/mailbox\/messages\/([^/]+)\/action$/);
       if (mailboxActionMatch && req.method === 'POST') {
-        await handleMailboxAction(req, res, mailboxActionMatch, mutableAuth, sessions, dataDir, getMailboxGateway);
+        await handleMailboxAction(
+          req,
+          res,
+          mailboxActionMatch,
+          mutableAuth,
+          sessions,
+          dataDir,
+          getMailboxGateway,
+        );
         return;
       }
 
@@ -537,7 +622,10 @@ async function handleMailboxGateway(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
   match: RegExpMatchArray,
-  authorizeMailboxGateway: (req: http.IncomingMessage, projectDir: string) => MailboxHttpAccessDecision,
+  authorizeMailboxGateway: (
+    req: http.IncomingMessage,
+    projectDir: string,
+  ) => MailboxHttpAccessDecision,
   getMailboxGateway: (projectDir: string) => HqRouterMailboxGateway,
   dataDir: string,
 ): Promise<void> {
@@ -576,9 +664,7 @@ async function handleMailboxGateway(
   const rawUrl = _req.url ?? '';
   const queryIndex = rawUrl.indexOf('?');
   const querySuffix = queryIndex === -1 ? '' : rawUrl.slice(queryIndex);
-  const canonicalPath = suffix
-    ? `/mailbox/${suffix}${querySuffix}`
-    : `/mailbox${querySuffix}`;
+  const canonicalPath = suffix ? `/mailbox/${suffix}${querySuffix}` : `/mailbox${querySuffix}`;
   const projectDir = resolveProjectDir(projectRoot, gatewayGlobalRoot);
   await getMailboxGateway(projectDir).router.handle(_req, res, canonicalPath);
 }
@@ -599,9 +685,7 @@ async function handleApiProjectDetail(
   }
   if (!projectId) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'projectId is required' } }),
-    );
+    res.end(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'projectId is required' } }));
     return;
   }
   const detail = HqServerSnapshot.buildProjectDetail(clients, projectId);
@@ -718,9 +802,7 @@ async function handleApiCommand(
   const validated: HqCommand | null = validateHqCommand(queued);
   if (validated === null) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: 'unrecognized or malformed command', type: body.type }),
-    );
+    res.end(JSON.stringify({ error: 'unrecognized or malformed command', type: body.type }));
     return;
   }
 
@@ -852,15 +934,22 @@ async function handleApiMailboxSend(
 
   const to = typeof mbody.to === 'string' ? mbody.to : 'leader';
   const subject = typeof mbody.subject === 'string' ? mbody.subject : 'HQ prompt';
-  const priority =
-    mbody.priority === 'high' ? 'high' : mbody.priority === 'low' ? 'low' : 'normal';
+  const priority = mbody.priority === 'high' ? 'high' : mbody.priority === 'low' ? 'low' : 'normal';
   const audience = mbody.audience === 'leaders' ? 'leaders' : 'all';
   const mailboxType =
     mbody.type === 'queue'
       ? 'note'
-      : ['note', 'ask', 'assign', 'steer', 'btw', 'broadcast', 'status', 'result', 'review'].includes(
-            mbody.type,
-          )
+      : [
+            'note',
+            'ask',
+            'assign',
+            'steer',
+            'btw',
+            'broadcast',
+            'status',
+            'result',
+            'review',
+          ].includes(mbody.type)
         ? (mbody.type as
             | 'note'
             | 'ask'
@@ -988,13 +1077,7 @@ async function handleMailboxAction(
     res.end(JSON.stringify({ error: 'forbidden: token lacks control.enqueue capability' }));
     return;
   }
-  const MAILBOX_ACTIONS = [
-    'mark-read',
-    'acknowledge',
-    'reopen',
-    'soft-delete',
-    'restore',
-  ] as const;
+  const MAILBOX_ACTIONS = ['mark-read', 'acknowledge', 'reopen', 'soft-delete', 'restore'] as const;
 
   let abody: {
     action?: string;

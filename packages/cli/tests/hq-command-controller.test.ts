@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createHqCommandDispatcher, type HqCommandController } from '../src/hq-command-controller.js';
+import {
+  createHqCommandDispatcher,
+  type HqCommandController,
+} from '../src/hq-command-controller.js';
 
 function makeController(overrides: Partial<HqCommandController> = {}): HqCommandController {
   return {
@@ -18,15 +21,25 @@ describe('createHqCommandDispatcher', () => {
     const send = vi.fn().mockResolvedValue(undefined);
     const controller = makeController({ steerMailbox: { send } as never });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'steer', payload: { to: 'leader', subject: 'hi', body: 'do x' } });
-    expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'steer', to: 'leader', subject: 'hi', body: 'do x' }));
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'steer',
+      payload: { to: 'leader', subject: 'hi', body: 'do x' },
+    });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'steer', to: 'leader', subject: 'hi', body: 'do x' }),
+    );
     expect(result).toMatchObject({ commandId: 'c1', status: 'accepted' });
   });
 
   it('steer rejects when no mailbox is available', async () => {
     const controller = makeController({ steerMailbox: undefined });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'steer', payload: { to: 'leader', subject: 'x', body: 'y' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'steer',
+      payload: { to: 'leader', subject: 'x', body: 'y' },
+    });
     expect(result.status).toBe('rejected');
   });
 
@@ -34,7 +47,11 @@ describe('createHqCommandDispatcher', () => {
     const send = vi.fn().mockResolvedValue(undefined);
     const controller = makeController({ steerMailbox: { send } as never });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'broadcast', payload: { subject: 's', body: 'b' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'broadcast',
+      payload: { subject: 's', body: 'b' },
+    });
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: 'all', type: 'broadcast' }));
     expect(result.status).toBe('accepted');
   });
@@ -43,7 +60,11 @@ describe('createHqCommandDispatcher', () => {
     const interruptLeader = vi.fn(() => true);
     const controller = makeController({ interruptLeader });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'abort', payload: { target: 'leader' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'abort',
+      payload: { target: 'leader' },
+    });
     expect(interruptLeader).toHaveBeenCalled();
     expect(result).toMatchObject({ status: 'completed', message: 'leader aborted' });
   });
@@ -51,7 +72,11 @@ describe('createHqCommandDispatcher', () => {
   it('abort leader with no active run acks accepted', async () => {
     const controller = makeController({ interruptLeader: () => false });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'abort', payload: { target: 'leader' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'abort',
+      payload: { target: 'leader' },
+    });
     expect(result.status).toBe('accepted');
   });
 
@@ -78,7 +103,11 @@ describe('createHqCommandDispatcher', () => {
     const spawnAgent = vi.fn(async () => 'new-sub-1');
     const controller = makeController({ spawnAgent });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'spawn', payload: { role: 'bug-hunter' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'spawn',
+      payload: { role: 'bug-hunter' },
+    });
     expect(spawnAgent).toHaveBeenCalledWith('bug-hunter', undefined, undefined);
     expect(result).toMatchObject({ status: 'completed' });
   });
@@ -86,23 +115,38 @@ describe('createHqCommandDispatcher', () => {
   it('spawn rejects when no director (spawnAgent undefined)', async () => {
     const controller = makeController({ spawnAgent: undefined as never });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'spawn', payload: { role: 'bug-hunter' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'spawn',
+      payload: { role: 'bug-hunter' },
+    });
     expect(result.status).toBe('rejected');
   });
 
   it('run-command rejects without operator opt-in', async () => {
     const controller = makeController({ allowRunCommand: () => false });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'run-command', payload: { command: 'ls' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'run-command',
+      payload: { command: 'ls' },
+    });
     expect(result.status).toBe('rejected');
     expect(result.message).toContain('opt-in');
   });
 
   it('run-command routes as steer with operator opt-in', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
-    const controller = makeController({ allowRunCommand: () => true, steerMailbox: { send } as never });
+    const controller = makeController({
+      allowRunCommand: () => true,
+      steerMailbox: { send } as never,
+    });
     const dispatch = createHqCommandDispatcher(controller);
-    const result = await dispatch({ commandId: 'c1', type: 'run-command', payload: { command: 'ls -la' } });
+    const result = await dispatch({
+      commandId: 'c1',
+      type: 'run-command',
+      payload: { command: 'ls -la' },
+    });
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'steer', to: 'leader' }));
     expect(result.status).toBe('accepted');
   });

@@ -6,9 +6,9 @@ import {
   parseWebuiSessionChildOptions,
   WEBUI_SESSION_CHILD_CAPABILITIES,
   WEBUI_SESSION_CHILD_PROTOCOL_VERSION,
+  type WebuiSessionChildReadyPayload,
   writeWebuiSessionChildError,
   writeWebuiSessionChildReady,
-  type WebuiSessionChildReadyPayload,
 } from '../../src/boot/webui-session-child.js';
 
 describe('webui session child contract', () => {

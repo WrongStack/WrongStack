@@ -14,13 +14,12 @@
  */
 
 import type { Agent } from '@wrongstack/core/agent';
-import type { Logger } from '@wrongstack/core/types';
-import type { Compactor, Config } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
 import { EternalAutonomyEngine } from '@wrongstack/core/execution';
 import type { JournalEntry } from '@wrongstack/core/goal';
-import { TOKENS } from '@wrongstack/core/kernel';
 import type { Token } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/core/kernel';
+import type { Compactor, Config, Logger } from '@wrongstack/core/types';
+import { color } from '@wrongstack/core/utils';
 import type { TerminalRenderer } from './renderer.js';
 import type { AutonomyMode } from './services/autonomy-mode.js';
 import { patchConfig } from './utils.js';
@@ -75,7 +74,11 @@ export async function launchEternalFromFlag(deps: EternalFlagDeps): Promise<bool
 
   const { saveGoal, emptyGoal, goalFilePath, loadGoal } = await import('@wrongstack/core/goal');
   const goalPath = goalFilePath(deps.projectRoot);
-  const prior = await loadGoal(goalPath, undefined, deps.logger ? (msg) => deps.logger!.warn(msg) : undefined);
+  const prior = await loadGoal(
+    goalPath,
+    undefined,
+    deps.logger ? (msg) => deps.logger!.warn(msg) : undefined,
+  );
   // Preserve journal across flag-driven re-launches so the user can run
   // `wstack --eternal "<x>"`, ctrl-c, then `wstack --eternal "<y>"` and
   // still see the prior iteration history under /goal journal.

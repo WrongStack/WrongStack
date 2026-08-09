@@ -27,8 +27,9 @@
  * long-running consumer (file rotation, OTLP export) would
  * belong in a dedicated audit-sink module, not here.
  */
-import type { SecretScrubber } from '@wrongstack/core/types';
+
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import type { SecretScrubber } from '@wrongstack/core/types';
 
 /**
  * Discriminated union of every event the auth-menu local flow
@@ -162,9 +163,7 @@ export function fileAuditSink(path: string): AuthAuditSink {
  *   - `'<file-path>'`                  → append to the file
  *   - `undefined`                      → undefined (no sink)
  */
-export function resolveAuditSink(
-  flag: boolean | string | undefined,
-): AuthAuditSink | undefined {
+export function resolveAuditSink(flag: boolean | string | undefined): AuthAuditSink | undefined {
   if (flag === undefined) return undefined;
   if (flag === true || flag === 'stdout') return defaultStdoutSink();
   if (flag === 'stderr') return defaultStderrSink();
@@ -233,10 +232,7 @@ export function createAuthAuditLogger(
  * `previousModels`, `restoredModels`) are scrubbed
  * element-by-element.
  */
-function scrubEvent(
-  event: AuthAuditEvent,
-  scrubber: SecretScrubber,
-): AuthAuditEvent {
+function scrubEvent(event: AuthAuditEvent, scrubber: SecretScrubber): AuthAuditEvent {
   switch (event.type) {
     case 'auth.local.add':
       return {
@@ -244,9 +240,7 @@ function scrubEvent(
         providerId: scrubber.scrub(event.providerId),
         baseUrl: scrubber.scrub(event.baseUrl),
         models: event.models.map((m) => scrubber.scrub(m)),
-        ...(event.keyLabel !== undefined
-          ? { keyLabel: scrubber.scrub(event.keyLabel) }
-          : {}),
+        ...(event.keyLabel !== undefined ? { keyLabel: scrubber.scrub(event.keyLabel) } : {}),
       };
     case 'auth.local.clear':
       return {
@@ -336,8 +330,7 @@ export function decideAuthLocalEvents(opts: {
   // allowlist, so no lifecycle event.
   if (opts.newModels === null) return events;
 
-  const hadPriorAllowlist =
-    opts.previousModels !== undefined && opts.previousModels.length > 0;
+  const hadPriorAllowlist = opts.previousModels !== undefined && opts.previousModels.length > 0;
 
   if (hadPriorAllowlist && opts.newModels.length === 0) {
     // Non-empty → empty: a clear.

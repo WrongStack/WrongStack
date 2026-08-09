@@ -1,11 +1,10 @@
-import { color } from '@wrongstack/core/utils';
 import { noOpVault } from '@wrongstack/core/security';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { persistAutonomySetting } from '../settings-menu.js';
-import { parseSubcommand, unknownSubcommand } from './helpers.js';
-import type { SlashCommandContext } from './command-context.js';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
+import { persistAutonomySetting } from '../settings-menu.js';
+import type { SlashCommandContext } from './command-context.js';
+import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
 /**
  * `/refiner` — view or change the goal-refiner provider/model.
@@ -68,7 +67,9 @@ export function buildRefinerCommand(opts: SlashCommandContext): SlashCommand {
           `  model:            ${model ? color.cyan(model) : color.dim('(unset — uses session model)')}`,
           `  fallback-profile: ${fallbackProfile ? color.cyan(fallbackProfile) : color.dim('(unset)')}`,
           '',
-          color.dim('Change: /refiner set provider|model|fallback-profile <value> · /refiner clear'),
+          color.dim(
+            'Change: /refiner set provider|model|fallback-profile <value> · /refiner clear',
+          ),
         ].join('\n');
         return { message: msg };
       }

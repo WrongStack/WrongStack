@@ -1,6 +1,7 @@
-import { getSageSurface } from '@wrongstack/sage';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { getSageSurface } from '@wrongstack/sage';
 import type { SlashCommandContext } from './command-context.js';
+
 // ── /memory compact — LLM-driven memory review and optimization ────────
 
 interface CompactOperation {

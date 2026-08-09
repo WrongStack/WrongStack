@@ -19,7 +19,6 @@
  *      the inline `help` field — the legacy behavior).
  */
 import { describe, expect, it } from 'vitest';
-import { renderBlockToString } from '../../src/subcommands/handlers/per-subcommand-help.js';
 import {
   renderSlashDeepHelp,
   renderSlashFocusedHelp,
@@ -27,6 +26,7 @@ import {
   slashesWithFocusedHelp,
   wantsDeepHelp,
 } from '../../src/slash-commands/slash-deep-help.js';
+import { renderBlockToString } from '../../src/subcommands/handlers/per-subcommand-help.js';
 
 describe('slash-deep-help — slash → subcommand map', () => {
   it('contains exactly the slash commands with top-level mirrors', () => {

@@ -1,7 +1,7 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const histMocks = vi.hoisted(() => ({
   listHistory: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock('../src/subcommands/handlers/sessions-fleet.js', () => ({
   sessionsFleetCmd: fleetMocks.sessionsFleetCmd,
 }));
 
-import { sessionsCmd, configCmd } from '../src/subcommands/handlers/sessions-config.js';
+import { configCmd, sessionsCmd } from '../src/subcommands/handlers/sessions-config.js';
 
 let tmp: string;
 let writes: string[];
@@ -151,10 +151,7 @@ describe('sessionsCmd', () => {
     errors = [];
     const fork = vi.fn().mockRejectedValue(new Error('checkpoint missing'));
     expect(
-      await sessionsCmd(
-        ['fork', 'parent'],
-        mkDeps({ sessionStore: { list: vi.fn(), fork } }),
-      ),
+      await sessionsCmd(['fork', 'parent'], mkDeps({ sessionStore: { list: vi.fn(), fork } })),
     ).toBe(1);
     expect(errors.join('')).toContain('checkpoint missing');
   });

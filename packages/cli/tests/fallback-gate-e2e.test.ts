@@ -14,10 +14,11 @@
  * Also tests the auto-switch path: no choice sent → safety deadline
  * resolves null → extension proceeds with the chain head.
  */
-import { type Config, type Provider, ProviderError } from '@wrongstack/core/types';
-import { EventBus } from '@wrongstack/core/kernel';
-import { describe, expect, it, vi } from 'vitest';
+
 import { createFallbackModelExtension } from '@wrongstack/core/agent';
+import { EventBus } from '@wrongstack/core/kernel';
+import { type Config, type Provider, ProviderError } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
 import { createFallbackGate } from '../src/wiring/fallback-gate.js';
 
 const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() } as never;
@@ -32,7 +33,11 @@ function fakeProvider(id: string): Provider {
 }
 
 function makeCtx(providerId: string, model: string) {
-  return { provider: fakeProvider(providerId), model, session: { id: 's1' } } as never as import('@wrongstack/core/agent').Context;
+  return {
+    provider: fakeProvider(providerId),
+    model,
+    session: { id: 's1' },
+  } as never as import('@wrongstack/core/agent').Context;
 }
 
 function overload(providerId: string) {

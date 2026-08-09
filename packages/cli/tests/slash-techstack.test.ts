@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Tool } from '@wrongstack/core/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import type { Tool } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildTechStackCommand } from '../src/slash-commands/techstack.js';
@@ -192,7 +192,9 @@ describe('/techstack', () => {
     const { command } = rig({ withFetch: true, onSpawnAndWait: spawn });
     const res = expectSlashResult(await command.run('', {} as never));
     expect(spawn).toHaveBeenCalledTimes(1);
-    const passedOpts = (spawn.mock.calls as unknown[][])[0]?.[1] as { tools?: string[]; allowedCapabilities?: string[] } | undefined;
+    const passedOpts = (spawn.mock.calls as unknown[][])[0]?.[1] as
+      | { tools?: string[]; allowedCapabilities?: string[] }
+      | undefined;
     expect(passedOpts).toBeDefined();
     expect(passedOpts?.tools).toEqual(expect.arrayContaining(['read', 'fetch', 'write']));
     // Shell tools must NOT be granted.

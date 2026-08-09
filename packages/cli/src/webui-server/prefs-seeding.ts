@@ -1,14 +1,14 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { ModelBlackoutRule } from '@wrongstack/core/models';
 import { DefaultSecretVault } from '@wrongstack/core/security';
 import type { Config } from '@wrongstack/core/types';
-import type { ModelBlackoutRule } from '@wrongstack/core/models';
 import {
   type ConfigWriteLockHolder,
   PREF_KEYS,
   persistPrefsToConfig,
-  prefSnapshot as snapshotPrefs,
   seedContextMeta,
+  prefSnapshot as snapshotPrefs,
 } from '@wrongstack/webui-server';
 
 interface CliWebUIOptions {

@@ -46,11 +46,10 @@
 //     any retry policy belongs in `setupProvider` itself, not
 //     in this helper.
 
-import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
-import { capabilitiesFor } from '@wrongstack/providers';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
-import type { ResolvedProvider } from '@wrongstack/core/types';
+import type { Config, Logger, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { mergeCustomModelDefs } from '@wrongstack/core/utils';
+import { capabilitiesFor } from '@wrongstack/providers';
 import { setupProvider } from '../wiring/provider.js';
 
 export type ModeId = string;
@@ -125,7 +124,11 @@ export async function resolveModeAndCapabilities(
   let providerRegistry: ProviderRegistry;
   let provider: ReturnType<ProviderRegistry['create']>;
   try {
-    const result = await setupProvider({ config: deps.config, modelsRegistry: deps.modelsRegistry, logger: deps.logger });
+    const result = await setupProvider({
+      config: deps.config,
+      modelsRegistry: deps.modelsRegistry,
+      logger: deps.logger,
+    });
     resolvedProvider = result.resolvedProvider;
     providerRegistry = result.providerRegistry;
     provider = result.provider;
@@ -173,7 +176,9 @@ export async function resolveModeAndCapabilities(
             instanceCaps?.maxContext ||
             0,
           supportsTools: useInstanceCaps ? !!instanceCaps?.tools : (resolvedCaps?.tools ?? false),
-          supportsVision: useInstanceCaps ? !!instanceCaps?.vision : (resolvedCaps?.vision ?? false),
+          supportsVision: useInstanceCaps
+            ? !!instanceCaps?.vision
+            : (resolvedCaps?.vision ?? false),
           supportsReasoning:
             resolvedModel?.capabilities.reasoning ?? instanceCaps?.reasoning ?? false,
         }

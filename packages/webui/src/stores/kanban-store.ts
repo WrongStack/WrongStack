@@ -30,6 +30,7 @@ interface KanbanState {
   activeBoardId: string | null;
   activeBoard: KanbanBoard | null;
   loading: boolean;
+  lastOutboundAction: string | null;
   error: string | null;
   queueHealth: KanbanQueueHealth | null;
   supervisorSnapshot: KanbanSupervisorSnapshot | null;
@@ -40,6 +41,22 @@ interface KanbanState {
   setError: (error: string | null) => void;
   setQueueHealth: (health: KanbanQueueHealth | null) => void;
   handleResult: (type: string, payload: KanbanResultPayload) => void;
+  /**
+   * Mark a kanban outbound call as in-flight. Caller is still responsible for
+   * putting the message on the wire (KanbanView owns ws.send); this only
+   * surfaces the loading spinner and ensures handleResult's failure path can
+   * clear it. Returns the action type so callers can correlate results.
+   */
+  sendKanban: (type: string, payload?: Record<string, unknown>) => string;
+  transitionTask: (
+    boardId: string,
+    taskId: string,
+    to: 'backlog' | 'todo' | 'running' | 'review' | 'done',
+    extra?: Record<string, unknown>,
+  ) => string;
+  dispatchTask: (boardId: string, taskId: string, description: string) => string;
+  moveTask: (boardId: string, taskId: string, targetColumnId: string) => string;
+  removeTask: (boardId: string, taskId: string) => string;
 }
 
 export const useKanbanStore = create<KanbanState>()((set, get) => ({
@@ -50,11 +67,36 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   activeBoardId: null,
   activeBoard: null,
   loading: false,
+  lastOutboundAction: null,
   error: null,
   queueHealth: null,
   supervisorSnapshot: null,
   verificationActivity: {},
   setLoading: (loading) => set({ loading }),
+  sendKanban: (type, _payload) => {
+    set({ loading: true, lastOutboundAction: type });
+    return type;
+  },
+  transitionTask: (_boardId, _taskId, _to, _extra) => {
+    const action = 'kanban.task.transition';
+    set({ loading: true, lastOutboundAction: action });
+    return action;
+  },
+  dispatchTask: (_boardId, _taskId, _description) => {
+    const action = 'kanban.task.dispatch';
+    set({ loading: true, lastOutboundAction: action });
+    return action;
+  },
+  moveTask: (_boardId, _taskId, _targetColumnId) => {
+    const action = 'kanban.task.move';
+    set({ loading: true, lastOutboundAction: action });
+    return action;
+  },
+  removeTask: (_boardId, _taskId) => {
+    const action = 'kanban.task.remove';
+    set({ loading: true, lastOutboundAction: action });
+    return action;
+  },
   // verificationActivity is per-board ephemera like queueHealth /
   // supervisorSnapshot: without clearing it here, spinners for a board the
   // user left survived the switch and accumulated as ghosts (their

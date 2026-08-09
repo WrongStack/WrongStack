@@ -45,9 +45,7 @@ import { describe, expect, it } from 'vitest';
  *      6.0 USD.
  */
 
-const { getCostRates, computeUsageCost } = await import(
-  '../../src/webui-server/cost-helpers.js'
-);
+const { getCostRates, computeUsageCost } = await import('../../src/webui-server/cost-helpers.js');
 
 describe('getCostRates (PR 2 of #30)', () => {
   it('returns all zeros for null', () => {
@@ -85,20 +83,16 @@ describe('computeUsageCost (PR 2 of #30)', () => {
   });
 
   it('cacheRead undefined contributes 0', () => {
-    expect(
-      computeUsageCost({ input: 1_000_000, output: 1_000_000 }, rates)
-    ).toBe(18);
+    expect(computeUsageCost({ input: 1_000_000, output: 1_000_000 }, rates)).toBe(18);
   });
 
   it('cacheRead: 0 contributes 0 (same as undefined)', () => {
-    expect(
-      computeUsageCost({ input: 1_000_000, output: 1_000_000, cacheRead: 0 }, rates)
-    ).toBe(18);
+    expect(computeUsageCost({ input: 1_000_000, output: 1_000_000, cacheRead: 0 }, rates)).toBe(18);
   });
 
   it('zero usage yields zero cost regardless of rates', () => {
     expect(
-      computeUsageCost({ input: 0, output: 0 }, { input: 999, output: 999, cacheRead: 999 })
+      computeUsageCost({ input: 0, output: 0 }, { input: 999, output: 999, cacheRead: 999 }),
     ).toBe(0);
   });
 

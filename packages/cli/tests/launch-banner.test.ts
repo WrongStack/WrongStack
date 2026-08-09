@@ -9,7 +9,7 @@
 import { stripAnsi } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { WORDMARK_WIDTH, launchBannerLines } from '../src/boot/launch-banner.js';
+import { launchBannerLines, WORDMARK_WIDTH } from '../src/boot/launch-banner.js';
 
 describe('launchBannerLines', () => {
   let savedNoColor: string | undefined;

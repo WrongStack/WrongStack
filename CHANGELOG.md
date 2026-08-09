@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.302.2] — 2026-08-09
+
+### Fixed
+
+- **Explicit fallback chains are now authoritative.** Setting `fallbackModels` (or a named `fallbackProfile`) to a usable chain no longer dilutes the user's intent by prepending every configured provider or favorites. Auto-derivation, favorites, the default profile, and `resolveAllConfigured` depth only fire when no explicit chain produced usable models, so a dead explicit chain still falls through to last-resort depth. (`c5e61e113`, `f3e5166a8`)
+- **Stop cancels the current attempt, not the whole session.** The WebUI Stop button now respects the abort signal inside `runFallbackChain` so user cancellation halts fallback rotation, and the abort controller map is keyed by `sessionId` instead of `WebSocket` so pressing Stop only cancels the targeted session's run, not every concurrent session in the host. (`684b433e5`)
+
 ## [0.302.0] — 2026-08-08
 
 Consolidates the intermediate `0.301.1` package bump.

@@ -1,13 +1,23 @@
 import { randomUUID } from 'node:crypto';
-import type { SlashCommand } from '@wrongstack/core/types';
-import { addPlanItem, emptyPlan } from '@wrongstack/core/storage';
+import {
+  addPlanItem,
+  emptyPlan,
+  formatPlan,
+  loadPlan,
+  loadTasks,
+  mutateTasks,
+  saveCompletedWorkCheckpoint,
+  savePlan,
+} from '@wrongstack/core/storage';
+import type { SlashCommand, TaskPriority, TaskStatus, TaskType } from '@wrongstack/core/types';
 import type { TaskItem } from '@wrongstack/core/utils';
-import type { TaskPriority, TaskStatus, TaskType } from '@wrongstack/core/types';
-import { formatPlan } from '@wrongstack/core/storage';
-import { formatTaskList, formatTaskProgress, recordCompletedWorkEvidence } from '@wrongstack/core/utils';
-import { loadPlan, loadTasks, mutateTasks, saveCompletedWorkCheckpoint, savePlan } from '@wrongstack/core/storage';
-import { parseSubcommand, unknownSubcommand } from './helpers.js';
+import {
+  formatTaskList,
+  formatTaskProgress,
+  recordCompletedWorkEvidence,
+} from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
+import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
 function findTask(tasks: TaskItem[], query: string): { idx: number; item: TaskItem } | null {
   const asIndex = Number.parseInt(query, 10);
@@ -317,8 +327,7 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
             // /tasks promote doesn't wipe unrelated in-flight todos. Drop any
             // todos previously promoted from this same task to stay idempotent.
             const existing = ctx.state.todos.filter(
-              (t) =>
-                (t as { promotedFromTask?: string }).promotedFromTask !== found.item.id,
+              (t) => (t as { promotedFromTask?: string }).promotedFromTask !== found.item.id,
             );
             ctx.state.replaceTodos([...existing, ...todos]);
             outputMessage = `Promoted to ${todos.length} todo(s): "${found.item.title}"\n\n${formatTaskProgress(file.tasks)}`;
@@ -335,23 +344,24 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
             break;
           }
           default:
-            outputMessage = unknownSubcommand(
-              cmd,
-              [
-                'show',
-                'add',
-                'start',
-                'done',
-                'fail',
-                'status',
-                'depends',
-                'assign',
-                'promote',
-                'planify',
-                'clear',
-              ],
-              'tasks',
-            ) + '\n\nRelated: /plan (session-persistent roadmap) | /todos (per-turn list)';
+            outputMessage =
+              unknownSubcommand(
+                cmd,
+                [
+                  'show',
+                  'add',
+                  'start',
+                  'done',
+                  'fail',
+                  'status',
+                  'depends',
+                  'assign',
+                  'promote',
+                  'planify',
+                  'clear',
+                ],
+                'tasks',
+              ) + '\n\nRelated: /plan (session-persistent roadmap) | /todos (per-turn list)';
             return file;
         }
         return file;

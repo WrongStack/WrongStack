@@ -70,17 +70,13 @@ describe('cli main() — baseline boot shape (PR 0 of #29)', () => {
   it('returns exit 0 for --help (PR 1 short-circuit)', async () => {
     // Directly test the short-circuit handler instead of importing
     // the full cli-main.ts monolith — same coverage, no worker contention.
-    const { handleHelpVersionShortCircuit } = await import(
-      '../src/boot/short-circuit-flags.js'
-    );
+    const { handleHelpVersionShortCircuit } = await import('../src/boot/short-circuit-flags.js');
     const exit = await handleHelpVersionShortCircuit(['node', 'wstack', '--help']);
     expect(exit).toBe(0);
   });
 
   it('returns exit 0 for --version (PR 1 short-circuit)', async () => {
-    const { handleHelpVersionShortCircuit } = await import(
-      '../src/boot/short-circuit-flags.js'
-    );
+    const { handleHelpVersionShortCircuit } = await import('../src/boot/short-circuit-flags.js');
     const exit = await handleHelpVersionShortCircuit(['node', 'wstack', '--version']);
     expect(exit).toBe(0);
   });
@@ -95,9 +91,7 @@ describe('cli main() — baseline boot shape (PR 0 of #29)', () => {
     // explicitly asked for help. The notice is still emitted on
     // bare `wstack` invocations (and that path is pinned by
     // PR 0's test #1 + the existing boot-time notice contract).
-    const { handleHelpVersionShortCircuit } = await import(
-      '../src/boot/short-circuit-flags.js'
-    );
+    const { handleHelpVersionShortCircuit } = await import('../src/boot/short-circuit-flags.js');
     await handleHelpVersionShortCircuit(['node', 'wstack', '--help']);
     const combined = stderrWrites.join('');
     expect(combined).not.toMatch(/No provider or model configured/);

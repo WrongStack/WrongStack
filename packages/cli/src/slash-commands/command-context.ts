@@ -1,9 +1,19 @@
-import type { CompactReport, HealthRegistry, MemoryPort, MetricsRuntimeStatus, MetricsSink, ModeStore, Renderer, SkillLoader, TokenCounter } from '@wrongstack/core/types';
-import type { WstackPaths } from '@wrongstack/core/utils';
 import type { Context } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { SessionStore } from '@wrongstack/core/types';
 import type { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type {
+  CompactReport,
+  HealthRegistry,
+  MemoryPort,
+  MetricsRuntimeStatus,
+  MetricsSink,
+  ModeStore,
+  Renderer,
+  SessionStore,
+  SkillLoader,
+  TokenCounter,
+} from '@wrongstack/core/types';
+import type { WstackPaths } from '@wrongstack/core/utils';
 
 /** Host capabilities supplied to command adapters. */
 export interface SlashCommandContext {
@@ -135,21 +145,23 @@ export interface SlashCommandContext {
    * Read-only concurrency + lifetime spawn budget for `/fleet status`.
    * Returns null when no fleet host is available.
    */
-  onFleetBudget?: (() => {
-    maxConcurrent: number;
-    activeAgents: number;
-    maxSpawns: number;
-    usedSpawns: number;
-    remainingSpawns: number;
-    maxTokens?: number | undefined;
-    usedTokens?: number | undefined;
-    remainingTokens?: number | undefined;
-    maxCostUsd?: number | undefined;
-    usedCostUsd?: number | undefined;
-    remainingCostUsd?: number | undefined;
-    checkpointMaxSpawns?: number | undefined;
-    ceilingMismatch?: boolean | undefined;
-  } | null) | undefined;
+  onFleetBudget?:
+    | (() => {
+        maxConcurrent: number;
+        activeAgents: number;
+        maxSpawns: number;
+        usedSpawns: number;
+        remainingSpawns: number;
+        maxTokens?: number | undefined;
+        usedTokens?: number | undefined;
+        remainingTokens?: number | undefined;
+        maxCostUsd?: number | undefined;
+        usedCostUsd?: number | undefined;
+        remainingCostUsd?: number | undefined;
+        checkpointMaxSpawns?: number | undefined;
+        ceilingMismatch?: boolean | undefined;
+      } | null)
+    | undefined;
   /**
    * Get fleet usage summary for /fleet usage.
    */
@@ -267,12 +279,16 @@ export interface SlashCommandContext {
    * Access the (possibly null) eternal-autonomy engine. The REPL drives
    * `runOneIteration()` from its main loop when autonomy is 'eternal'.
    */
-  getEternalEngine?: (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null) | undefined;
+  getEternalEngine?:
+    | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
+    | undefined;
   /**
    * Access the (possibly null) parallel-eternal engine. The REPL drives
    * `runOneIteration()` from its main loop when autonomy is 'eternal-parallel'.
    */
-  getParallelEngine?: (() => import('@wrongstack/core/execution').ParallelEternalEngine | null) | undefined;
+  getParallelEngine?:
+    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | undefined;
   /**
    * Start the eternal/parallel autonomy engine. Called after `/autonomy eternal`
    * or `/autonomy parallel` confirms a goal exists and YOLO has been forced on.

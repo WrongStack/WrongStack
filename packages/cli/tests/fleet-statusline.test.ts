@@ -1,10 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@wrongstack/core/kernel';
-import {
-  FleetStatusLine,
-  renderFleetLine,
-  type FleetAgentState,
-} from '../src/fleet-statusline.js';
+import { describe, expect, it, vi } from 'vitest';
+import { type FleetAgentState, FleetStatusLine, renderFleetLine } from '../src/fleet-statusline.js';
 
 function strip(s: string): string {
   return s.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
@@ -21,8 +17,24 @@ describe('renderFleetLine', () => {
 
   it('shows running/done/failed counts and per-agent detail', () => {
     const states = stateMap(
-      { id: 'a', name: 'Debugger', status: 'running', iterations: 25, toolCalls: 14, lastTool: 'bash', startedAt: 0 },
-      { id: 'b', name: 'E2E', status: 'done', iterations: 8, toolCalls: 3, startedAt: 0, endedAt: 5000 },
+      {
+        id: 'a',
+        name: 'Debugger',
+        status: 'running',
+        iterations: 25,
+        toolCalls: 14,
+        lastTool: 'bash',
+        startedAt: 0,
+      },
+      {
+        id: 'b',
+        name: 'E2E',
+        status: 'done',
+        iterations: 8,
+        toolCalls: 3,
+        startedAt: 0,
+        endedAt: 5000,
+      },
     );
     const line = strip(renderFleetLine(states, 62_000, 200));
     expect(line).toContain('fleet');
@@ -36,9 +48,14 @@ describe('renderFleetLine', () => {
   });
 
   it('prefixes a WS version chip when version is provided', () => {
-    const states = stateMap(
-      { id: 'a', name: 'Debugger', status: 'running', iterations: 1, toolCalls: 0, startedAt: 0 },
-    );
+    const states = stateMap({
+      id: 'a',
+      name: 'Debugger',
+      status: 'running',
+      iterations: 1,
+      toolCalls: 0,
+      startedAt: 0,
+    });
     const line = strip(renderFleetLine(states, 1000, 200, '0.7.0'));
     expect(line).toContain('WS v0.7.0');
     // The version chip leads the line, before the fleet counts.
@@ -46,24 +63,40 @@ describe('renderFleetLine', () => {
   });
 
   it('omits the version chip when version is not provided', () => {
-    const states = stateMap(
-      { id: 'a', name: 'Debugger', status: 'running', iterations: 1, toolCalls: 0, startedAt: 0 },
-    );
+    const states = stateMap({
+      id: 'a',
+      name: 'Debugger',
+      status: 'running',
+      iterations: 1,
+      toolCalls: 0,
+      startedAt: 0,
+    });
     expect(strip(renderFleetLine(states, 1000, 200))).not.toContain('WS v');
   });
 
   it('renders a ⚡N extension badge for an agent that self-extended', () => {
-    const states = stateMap(
-      { id: 'a', name: 'Debugger', status: 'running', iterations: 5, toolCalls: 20, extensions: 3, startedAt: 0 },
-    );
+    const states = stateMap({
+      id: 'a',
+      name: 'Debugger',
+      status: 'running',
+      iterations: 5,
+      toolCalls: 20,
+      extensions: 3,
+      startedAt: 0,
+    });
     const line = strip(renderFleetLine(states, 1000, 200));
     expect(line).toContain('⚡3');
   });
 
   it('omits the extension badge when an agent has not extended', () => {
-    const states = stateMap(
-      { id: 'a', name: 'Debugger', status: 'running', iterations: 5, toolCalls: 20, startedAt: 0 },
-    );
+    const states = stateMap({
+      id: 'a',
+      name: 'Debugger',
+      status: 'running',
+      iterations: 5,
+      toolCalls: 20,
+      startedAt: 0,
+    });
     expect(strip(renderFleetLine(states, 1000, 200))).not.toContain('⚡');
   });
 
@@ -114,7 +147,12 @@ describe('FleetStatusLine', () => {
     sl.start();
 
     events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', name: 'Debugger' });
-    events.emit('subagent.tool_executed', { subagentId: 's1', name: 'bash', durationMs: 5, ok: true });
+    events.emit('subagent.tool_executed', {
+      subagentId: 's1',
+      name: 'bash',
+      durationMs: 5,
+      ok: true,
+    });
 
     const all = out.all();
     // Scroll region set to rows-1.
@@ -128,10 +166,19 @@ describe('FleetStatusLine', () => {
   it('surfaces a budget_extended event as a ⚡N badge', () => {
     const events = new EventBus();
     const out = new FakeTty();
-    const sl = new FleetStatusLine({ events, out: out as never as NodeJS.WriteStream, throttleMs: 0 });
+    const sl = new FleetStatusLine({
+      events,
+      out: out as never as NodeJS.WriteStream,
+      throttleMs: 0,
+    });
     sl.start();
     events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', name: 'Debugger' });
-    events.emit('subagent.budget_extended', { subagentId: 's1', kind: 'timeout', newLimit: 480000, totalExtensions: 2 });
+    events.emit('subagent.budget_extended', {
+      subagentId: 's1',
+      kind: 'timeout',
+      newLimit: 480000,
+      totalExtensions: 2,
+    });
     expect(strip(out.all())).toContain('⚡2');
     sl.stop();
   });
@@ -162,7 +209,11 @@ describe('FleetStatusLine', () => {
   it('task_completed success transitions agent to done and shows ✓', () => {
     const events = new EventBus();
     const out = new FakeTty();
-    const sl = new FleetStatusLine({ events, out: out as never as NodeJS.WriteStream, throttleMs: 0 });
+    const sl = new FleetStatusLine({
+      events,
+      out: out as never as NodeJS.WriteStream,
+      throttleMs: 0,
+    });
     sl.start();
     events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', name: 'E2E' });
     events.emit('subagent.task_completed', {
@@ -181,7 +232,11 @@ describe('FleetStatusLine', () => {
   it('task_completed failure transitions agent to failed and shows ✗', () => {
     const events = new EventBus();
     const out = new FakeTty();
-    const sl = new FleetStatusLine({ events, out: out as never as NodeJS.WriteStream, throttleMs: 0 });
+    const sl = new FleetStatusLine({
+      events,
+      out: out as never as NodeJS.WriteStream,
+      throttleMs: 0,
+    });
     sl.start();
     events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', name: 'E2E' });
     events.emit('subagent.task_completed', {
@@ -200,10 +255,21 @@ describe('FleetStatusLine', () => {
     vi.useFakeTimers();
     const events = new EventBus();
     const out = new FakeTty();
-    const sl = new FleetStatusLine({ events, out: out as never as NodeJS.WriteStream, throttleMs: 0 });
+    const sl = new FleetStatusLine({
+      events,
+      out: out as never as NodeJS.WriteStream,
+      throttleMs: 0,
+    });
     sl.start();
     events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', name: 'E2E' });
-    events.emit('subagent.task_completed', { subagentId: 's1', taskId: 't1', status: 'success', iterations: 1, toolCalls: 1, durationMs: 1000 });
+    events.emit('subagent.task_completed', {
+      subagentId: 's1',
+      taskId: 't1',
+      status: 'success',
+      iterations: 1,
+      toolCalls: 1,
+      durationMs: 1000,
+    });
     // At this point nothing is running — auto-deactivate is scheduled with setTimeout 800ms
     out.writes.length = 0;
     vi.advanceTimersByTime(799);
@@ -219,7 +285,11 @@ describe('FleetStatusLine', () => {
   it('iteration_summary updates agent iteration and tool call counts', () => {
     const events = new EventBus();
     const out = new FakeTty();
-    const sl = new FleetStatusLine({ events, out: out as never as NodeJS.WriteStream, throttleMs: 0 });
+    const sl = new FleetStatusLine({
+      events,
+      out: out as never as NodeJS.WriteStream,
+      throttleMs: 0,
+    });
     sl.start();
     events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', name: 'Debugger' });
     events.emit('subagent.iteration_summary', {
@@ -239,10 +309,21 @@ describe('FleetStatusLine', () => {
   it('task_started marks agent as running', () => {
     const events = new EventBus();
     const out = new FakeTty();
-    const sl = new FleetStatusLine({ events, out: out as never as NodeJS.WriteStream, throttleMs: 0 });
+    const sl = new FleetStatusLine({
+      events,
+      out: out as never as NodeJS.WriteStream,
+      throttleMs: 0,
+    });
     sl.start();
     events.emit('subagent.spawned', { subagentId: 's1', taskId: 't1', name: 'E2E' });
-    events.emit('subagent.task_completed', { subagentId: 's1', taskId: 't1', status: 'success', iterations: 1, toolCalls: 1, durationMs: 1000 });
+    events.emit('subagent.task_completed', {
+      subagentId: 's1',
+      taskId: 't1',
+      status: 'success',
+      iterations: 1,
+      toolCalls: 1,
+      durationMs: 1000,
+    });
     events.emit('subagent.task_started', { subagentId: 's1', taskId: 't2' });
     // Agent should now show as running again (▶1, no ✓)
     expect(strip(out.all())).toContain('▶1');

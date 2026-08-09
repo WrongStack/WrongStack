@@ -6,8 +6,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
-  generateCommitMessageWithLLM,
   type CommitLLMProvider,
+  generateCommitMessageWithLLM,
 } from '../src/services/commit-message.js';
 
 function providerWith(content: unknown): CommitLLMProvider {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildPluginCommand } from '../src/slash-commands/plugin.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildPluginCommand } from '../src/slash-commands/plugin.js';
 
 function makeOpts(overrides: Partial<SlashCommandContext> = {}): SlashCommandContext {
   return {
@@ -35,9 +35,7 @@ describe('buildPluginCommand', () => {
   it('opens plugin menu when menu arg and onPanelOpen is wired', async () => {
     const onPlugin = vi.fn();
     const onPanelOpen = vi.fn().mockReturnValue(true);
-    const cmd = buildPluginCommand(
-      makeOpts({ onPlugin, onPanelOpen: { current: onPanelOpen } }),
-    );
+    const cmd = buildPluginCommand(makeOpts({ onPlugin, onPanelOpen: { current: onPanelOpen } }));
     const res = await cmd.run('menu');
     expect(onPanelOpen).toHaveBeenCalledWith('pluginPickerOpen');
     expect(res?.message).toBe('Opened plugin menu.');
@@ -47,9 +45,7 @@ describe('buildPluginCommand', () => {
   it('opens plugin menu on bare /plugin when onPanelOpen is wired', async () => {
     const onPlugin = vi.fn();
     const onPanelOpen = vi.fn().mockReturnValue(true);
-    const cmd = buildPluginCommand(
-      makeOpts({ onPlugin, onPanelOpen: { current: onPanelOpen } }),
-    );
+    const cmd = buildPluginCommand(makeOpts({ onPlugin, onPanelOpen: { current: onPanelOpen } }));
     const res = await cmd.run('');
     expect(onPanelOpen).toHaveBeenCalledWith('pluginPickerOpen');
     expect(res?.message).toBe('Opened plugin menu.');
@@ -58,9 +54,7 @@ describe('buildPluginCommand', () => {
   it('falls through to onPlugin when TUI menu callback returns false', async () => {
     const onPlugin = vi.fn().mockResolvedValue('fallback result');
     const onPanelOpen = vi.fn().mockReturnValue(false);
-    const cmd = buildPluginCommand(
-      makeOpts({ onPlugin, onPanelOpen: { current: onPanelOpen } }),
-    );
+    const cmd = buildPluginCommand(makeOpts({ onPlugin, onPanelOpen: { current: onPanelOpen } }));
     const res = await cmd.run('menu');
     expect(onPanelOpen).toHaveBeenCalledWith('pluginPickerOpen');
     expect(onPlugin).toHaveBeenCalledWith('menu');

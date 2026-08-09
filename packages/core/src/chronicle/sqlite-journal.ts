@@ -45,28 +45,69 @@ export const LEGACY_JSONL_MIGRATION_KEY = 'legacy-jsonl-v1';
 /** Day families the import refused to move, recorded so they are never retried silently. */
 export const LEGACY_JSONL_QUARANTINE_KEY = 'legacy-jsonl-v1:quarantine';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const SQLITE_FIXED_OVERHEAD_BYTES = 16 * 1024 * 1024;
 const MIN_SQLITE_PAGE_BUDGET_BYTES = 64 * 1024;
 /**
  * Ceiling on the slice of `maxBytes` withheld from the main database for the
- * rollback journal.
+ * write-ahead log.
  *
- * Quota-enabled journals run in DELETE mode, where the rollback journal holds
- * pre-images of the pages touched by ONE transaction — an append batch plus
- * whatever `enforceEventLimitWithinTransaction` evicts. That is bounded by
- * batch size, not by database size, so the reserve must not scale with the
- * quota. It used to: the budget was a flat 50/50 split, which at the shipped
- * 512 MB quota withheld 248 MB for a journal that never needs a fraction of
- * it, and left the main database a 248 MB budget that `maxEvents: 100_000`
- * filled to 98.2%. The two bounds then collided — whichever tripped first
- * wedged ingestion. Capping the reserve keeps the aggregate ceiling exactly
- * as configured while giving the main database the share it actually needs.
+ * The journal runs in WAL mode, so the sidecar holds committed frames awaiting
+ * a checkpoint rather than one transaction's rollback pre-images. Its size is
+ * governed by `wal_autocheckpoint` and `journal_size_limit` — both set in the
+ * constructor — not by the size of the database, so the reserve must not scale
+ * with the quota. It used to: the budget was a flat 50/50 split, which at the
+ * shipped 512 MB quota withheld 248 MB for a sidecar that never needs a
+ * fraction of it, and left the main database a 248 MB budget that
+ * `maxEvents: 100_000` filled to 98.2%. The two bounds then collided — whichever
+ * tripped first wedged ingestion. Capping the reserve keeps the aggregate
+ * ceiling exactly as configured while giving the main database the share it
+ * actually needs.
  *
- * Small quotas still fall back to the old half split (see `journalReserve`),
+ * The ceiling is a multiple of the autocheckpoint threshold rather than equal
+ * to it, so a batch that overshoots before the checkpointer runs still fits.
+ *
+ * Small quotas still fall back to the old half split (see `sidecarReserve`),
  * so the documented minimum stays reachable.
  */
-const MAX_ROLLBACK_JOURNAL_RESERVE_BYTES = 64 * 1024 * 1024;
+const MAX_WAL_RESERVE_BYTES = 32 * 1024 * 1024;
+
+/**
+ * Checkpoint threshold in WAL frames (~8 MB at the 4 KiB default page size).
+ *
+ * Small enough that the sidecar stays well inside {@link MAX_WAL_RESERVE_BYTES},
+ * large enough that a burst of appends is not paying for a checkpoint every few
+ * transactions.
+ */
+const WAL_AUTOCHECKPOINT_PAGES = 2_000;
+
+/**
+ * Bytes of WAL retained after a checkpoint; the rest is truncated away.
+ *
+ * Without this the sidecar keeps its high-water mark for the life of the file,
+ * and `aggregateLiveBytes` would charge that peak against the quota forever —
+ * the same "allocated, not live" trap that measuring the main database with
+ * `statSync` used to spring.
+ */
+const WAL_SIZE_LIMIT_BYTES = 16 * 1024 * 1024;
+
+/**
+ * How far `maxEvents` may be overshot before prefix eviction runs.
+ *
+ * Eviction costs O(rows deleted), plus an index update per surviving secondary
+ * index, plus the `chain_checkpoint` write that keeps the truncated chain
+ * verifiable. A journal parked exactly at its ceiling pays all of that on
+ * *every* append — and sitting at the ceiling is the steady state for any
+ * long-lived project, not an edge case. Letting the table drift a little above
+ * the ceiling and then cutting back to it amortises the same total work across
+ * ~`slack` appends.
+ *
+ * The slack is a fraction of the ceiling rather than a constant so that small
+ * ceilings — including the single-digit ones the tests pin — keep the exact
+ * `maxEvents` bound they document.
+ */
+const TRIM_SLACK_RATIO = 0.02;
+const MAX_TRIM_SLACK_EVENTS = 2_000;
 
 export class ChronicleStorageQuotaError extends Error {
   readonly currentBytes: number;
@@ -173,10 +214,35 @@ export class ChronicleSqliteJournal {
   private readonly maxEvents: number | undefined;
   private readonly maxBytes: number | undefined;
   private readonly retentionCheckIntervalMs: number;
+  /** Overshoot allowed above `maxEvents` before eviction runs; see TRIM_SLACK_RATIO. */
+  private readonly trimSlack: number;
   private nextRetentionCheckAt = 0;
   private retainedEventCount = 0;
   /** Resolved lazily by `pageSizeBytes()`; constant for an open database. */
   private cachedPageSize: number | undefined;
+  /**
+   * Bytes the quota is known to have had spare at the last real measurement,
+   * and the bytes appended since. `assertWithinByteQuota` re-measures only once
+   * the second could plausibly have consumed the first — see its comment.
+   */
+  private quotaHeadroomBytes = 0;
+  private bytesSinceQuotaCheck = Number.POSITIVE_INFINITY;
+  /**
+   * Statements reused across appends.
+   *
+   * `db.prepare` re-parses the SQL every call, and the append path used to
+   * prepare five statements per batch. They are held rather than re-prepared
+   * because the schema cannot change under an open journal.
+   */
+  private statements:
+    | {
+        insert: ReturnType<DatabaseSync['prepare']>;
+        trimBoundary: ReturnType<DatabaseSync['prepare']>;
+        writeCheckpoint: ReturnType<DatabaseSync['prepare']>;
+        deletePrefix: ReturnType<DatabaseSync['prepare']>;
+        deleteCheckpoints: ReturnType<DatabaseSync['prepare']>;
+      }
+    | undefined;
 
   /**
    * Cached chain head per day. Cleared wholesale on any write failure so the
@@ -233,9 +299,26 @@ export class ChronicleSqliteJournal {
     this.maxEvents = options.maxEvents;
     this.maxBytes = options.maxBytes;
     this.retentionCheckIntervalMs = options.retentionCheckIntervalMs ?? 60 * 60 * 1_000;
+    this.trimSlack =
+      this.maxEvents === undefined
+        ? 0
+        : Math.min(MAX_TRIM_SLACK_EVENTS, Math.floor(this.maxEvents * TRIM_SLACK_RATIO));
     const Database = loadDatabaseSync();
     this.db = new Database(this.dbPath);
-    this.db.exec(`PRAGMA journal_mode = ${this.maxBytes === undefined ? 'WAL' : 'DELETE'}`);
+    // WAL regardless of whether a quota is configured. A quota used to force
+    // DELETE mode so the rollback journal could be budgeted, but that made every
+    // append create, fsync and unlink a sidecar file — measured at 3.2 ms per
+    // single-event transaction against a real 280 MB journal, versus 0.5 ms in
+    // WAL. `journal_size_limit` keeps the WAL bounded, which is what the quota
+    // actually needed; see MAX_WAL_RESERVE_BYTES.
+    this.db.exec('PRAGMA journal_mode = WAL');
+    // Durability is unchanged from DELETE mode: FULL fsyncs the WAL on every
+    // commit, so a committed event survives power loss exactly as before. NORMAL
+    // would be roughly 1.5x faster again, but it trades away the tail of the
+    // chain on an OS crash, and that is not this layer's call to make.
+    this.db.exec('PRAGMA synchronous = FULL');
+    this.db.exec(`PRAGMA wal_autocheckpoint = ${WAL_AUTOCHECKPOINT_PAGES}`);
+    this.db.exec(`PRAGMA journal_size_limit = ${WAL_SIZE_LIMIT_BYTES}`);
     this.ensureSchema();
     this.configureByteQuota();
     if (this.maxEvents !== undefined) {
@@ -317,18 +400,19 @@ export class ChronicleSqliteJournal {
       previous = { sequence: event.sequence, hash: event.hash };
     }
 
+    // Serialize once. The payload column and the quota's batch measurement both
+    // need these bytes, and `JSON.stringify` over a batch of multi-kilobyte
+    // events is not cheap enough to do twice.
+    const payloads = events.map((event) => JSON.stringify(event));
+    let batchBytes = 0;
+    for (const payload of payloads) batchBytes += Buffer.byteLength(payload, 'utf8');
+
     let retainedCountAfterCommit = this.retainedEventCount;
     try {
       this.db.exec('BEGIN IMMEDIATE');
-      this.assertWithinByteQuota(events);
-      const insert = this.db.prepare(
-        `INSERT INTO events (
-           day, sequence, event_id, hash, previous_hash, occurred_at, event_type, outcome,
-           project_id, session_id, agent_id, task_id, trace_id, logical_request_id,
-           resource_kind, resource_id, resource_path, duration_ns, payload
-         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      );
-      for (const event of events) {
+      this.assertWithinByteQuota(batchBytes);
+      const { insert } = this.preparedStatements();
+      for (const [index, event] of events.entries()) {
         const row = projectEvent(event);
         insert.run(
           day,
@@ -349,10 +433,12 @@ export class ChronicleSqliteJournal {
           row.resourceId,
           row.resourcePath,
           row.durationNs,
-          JSON.stringify(event),
+          payloads[index] as string,
         );
       }
-      retainedCountAfterCommit = this.enforceEventLimitWithinTransaction();
+      retainedCountAfterCommit = this.enforceEventLimitWithinTransaction(
+        this.retainedEventCount + events.length,
+      );
       this.assertActualAllocationWithinQuota();
       this.db.exec('COMMIT');
     } catch (error) {
@@ -362,6 +448,9 @@ export class ChronicleSqliteJournal {
         // A failed BEGIN leaves no transaction to roll back.
       }
       this.anchors.clear();
+      // The cached headroom describes a database state this batch did not
+      // reach; force the next append to measure rather than extrapolate.
+      this.invalidateQuotaEstimate();
       this.counters.failedEvents += inputs.length;
       this.lastBatchDurationMs = performance.now() - started;
       throw this.normalizeQuotaError(error);
@@ -370,6 +459,7 @@ export class ChronicleSqliteJournal {
     this.anchors.set(day, previous);
     this.counters.persistedEvents += events.length;
     this.retainedEventCount = retainedCountAfterCommit;
+    this.bytesSinceQuotaCheck += batchBytes;
     this.lastBatchDurationMs = performance.now() - started;
     await this.enforceRetentionIfDue();
     return events;
@@ -469,12 +559,12 @@ export class ChronicleSqliteJournal {
       this.db.exec('PRAGMA max_page_count = 2147483646');
       return;
     }
-    // Reserve rollback-journal headroom, but never more than a transaction can
-    // plausibly need. `Math.min` with the old half split keeps small quotas
-    // (and the documented `minimumQuotaBytes`) behaving exactly as before.
+    // Reserve WAL headroom, but never more than the checkpoint settings can let
+    // it reach. `Math.min` with the old half split keeps small quotas (and the
+    // documented `minimumQuotaBytes`) behaving exactly as before.
     const halfSplit = Math.floor((this.maxBytes - SQLITE_FIXED_OVERHEAD_BYTES) / 2);
-    const journalReserve = Math.min(MAX_ROLLBACK_JOURNAL_RESERVE_BYTES, halfSplit);
-    const mainBudget = this.maxBytes - SQLITE_FIXED_OVERHEAD_BYTES - journalReserve;
+    const sidecarReserve = Math.min(MAX_WAL_RESERVE_BYTES, halfSplit);
+    const mainBudget = this.maxBytes - SQLITE_FIXED_OVERHEAD_BYTES - sidecarReserve;
     if (mainBudget < MIN_SQLITE_PAGE_BUDGET_BYTES) {
       throw new Error(
         `maxBytes must be at least ${SQLITE_FIXED_OVERHEAD_BYTES + 2 * MIN_SQLITE_PAGE_BUDGET_BYTES}`,
@@ -552,9 +642,17 @@ export class ChronicleSqliteJournal {
     });
   }
 
+  /** Drop the cached headroom so the next quota check measures for real. */
+  private invalidateQuotaEstimate(): void {
+    this.quotaHeadroomBytes = 0;
+    this.bytesSinceQuotaCheck = Number.POSITIVE_INFINITY;
+  }
+
   private assertActualAllocationWithinQuota(): void {
     if (this.maxBytes === undefined) return;
+    if (!this.shouldMeasureQuota()) return;
     const currentBytes = this.aggregateLiveBytes();
+    this.recordQuotaHeadroom(currentBytes);
     if (currentBytes <= this.maxBytes) return;
     throw new ChronicleStorageQuotaError({
       currentBytes,
@@ -564,10 +662,27 @@ export class ChronicleSqliteJournal {
     });
   }
 
-  private assertWithinByteQuota(events: readonly ChronicleEvent[]): void {
+  /**
+   * Refuse a batch that would take the journal past its byte quota.
+   *
+   * This is the *courteous* bound, not the enforced one: `max_page_count` makes
+   * SQLite itself fail the write with `SQLITE_FULL`, which `normalizeQuotaError`
+   * turns into the same {@link ChronicleStorageQuotaError}. Its only job is to
+   * produce that error before a doomed batch has been written, so it does not
+   * have to run on every append — and it should not, because measuring costs two
+   * PRAGMA round trips and three `statSync` calls, twice per transaction.
+   *
+   * So it measures adaptively instead of on a fixed cadence: after a real
+   * measurement it knows the spare bytes, and it may skip until the bytes
+   * appended since then could plausibly have consumed half of them. Far from the
+   * ceiling that is thousands of appends; close to it, every one. The bound
+   * tightens exactly where being wrong would matter.
+   */
+  private assertWithinByteQuota(batchBytes: number): void {
     if (this.maxBytes === undefined) return;
+    if (!this.shouldMeasureQuota(batchBytes)) return;
     const currentBytes = this.aggregateLiveBytes();
-    const batchBytes = Buffer.byteLength(JSON.stringify(events), 'utf8');
+    this.recordQuotaHeadroom(currentBytes);
     if (currentBytes + batchBytes <= this.maxBytes) return;
     throw new ChronicleStorageQuotaError({
       currentBytes,
@@ -577,27 +692,53 @@ export class ChronicleSqliteJournal {
     });
   }
 
-  private enforceEventLimitWithinTransaction(): number {
-    const row = this.db.prepare('SELECT COUNT(*) AS count FROM events').get() as { count: number };
-    if (this.maxEvents === undefined || row.count <= this.maxEvents) return row.count;
+  /**
+   * Is the cached headroom still large enough to vouch for this batch?
+   *
+   * Half the headroom is the budget deliberately: rows carry index and page
+   * overhead beyond their payload bytes, so `bytesSinceQuotaCheck` understates
+   * real growth, and the factor absorbs that without needing to model it.
+   */
+  private shouldMeasureQuota(batchBytes = 0): boolean {
+    return this.bytesSinceQuotaCheck + batchBytes >= this.quotaHeadroomBytes / 2;
+  }
 
-    const excess = row.count - this.maxEvents;
-    const boundary = this.db
-      .prepare('SELECT day, sequence, hash FROM events ORDER BY day, sequence LIMIT 1 OFFSET ?')
-      .get(excess - 1) as (ChainAnchor & { day: string }) | undefined;
-    if (!boundary) return row.count;
+  private recordQuotaHeadroom(currentBytes: number): void {
+    this.quotaHeadroomBytes = Math.max(0, (this.maxBytes ?? 0) - currentBytes);
+    this.bytesSinceQuotaCheck = 0;
+  }
 
-    this.db
-      .prepare(
-        `INSERT INTO chain_checkpoint (day, sequence, hash) VALUES (?, ?, ?)
-         ON CONFLICT(day) DO UPDATE SET sequence = excluded.sequence, hash = excluded.hash`,
-      )
-      .run(boundary.day, boundary.sequence, boundary.hash);
-    this.db
-      .prepare('DELETE FROM events WHERE day < ? OR (day = ? AND sequence <= ?)')
-      .run(boundary.day, boundary.day, boundary.sequence);
-    this.db.prepare('DELETE FROM chain_checkpoint WHERE day < ?').run(boundary.day);
-    this.anchors.clear();
+  /**
+   * Evict the oldest events once the row ceiling has been overshot by `trimSlack`.
+   *
+   * @param count Rows now in the table. The caller tracks this rather than the
+   * method querying it: `SELECT COUNT(*)` walks the whole table, and at the
+   * ceiling — where every long-lived journal lives — that was a full scan of
+   * `maxEvents` rows on every append, to learn a number the append path already
+   * knew. The count is re-derived from the database whenever it could have
+   * drifted (open, import, purge), never accumulated blindly across those.
+   * @param slack Overshoot tolerated before evicting; callers that run once,
+   * rather than per append, pass 0 to land on the exact ceiling.
+   */
+  private enforceEventLimitWithinTransaction(count: number, slack = this.trimSlack): number {
+    if (this.maxEvents === undefined || count <= this.maxEvents + slack) return count;
+
+    const excess = count - this.maxEvents;
+    const statements = this.preparedStatements();
+    const boundary = statements.trimBoundary.get(excess - 1) as
+      | (ChainAnchor & { day: string })
+      | undefined;
+    if (!boundary) return count;
+
+    statements.writeCheckpoint.run(boundary.day, boundary.sequence, boundary.hash);
+    statements.deletePrefix.run(boundary.day, boundary.day, boundary.sequence);
+    statements.deleteCheckpoints.run(boundary.day);
+    // Only the evicted prefix is stale. Clearing every anchor forced the next
+    // append to re-read its chain head from disk, which — because eviction used
+    // to run on every append — meant the cache never once produced a hit.
+    for (const day of this.anchors.keys()) {
+      if (day <= boundary.day) this.anchors.delete(day);
+    }
     return this.maxEvents;
   }
 
@@ -605,7 +746,10 @@ export class ChronicleSqliteJournal {
     if (this.maxEvents === undefined || this.retainedEventCount <= this.maxEvents) return;
     try {
       this.db.exec('BEGIN IMMEDIATE');
-      const retainedCount = this.enforceEventLimitWithinTransaction();
+      // Startup cuts to the exact ceiling: a journal reopened above its limit
+      // should land on the documented bound, and the amortisation the slack buys
+      // is worthless on a path that runs once per process.
+      const retainedCount = this.enforceEventLimitWithinTransaction(this.retainedEventCount, 0);
       this.db.exec('COMMIT');
       this.retainedEventCount = retainedCount;
     } catch (error) {
@@ -677,7 +821,10 @@ export class ChronicleSqliteJournal {
     }
 
     this.anchors.clear();
-    this.retainedEventCount = Math.max(0, this.retainedEventCount - count);
+    this.retainedEventCount = this.countRows();
+    // Retention just freed pages; re-measure so the append path can spend the
+    // headroom it recovered instead of coasting on a pre-purge estimate.
+    this.invalidateQuotaEstimate();
     return { ...empty, deletedCount: count };
   }
 
@@ -713,7 +860,10 @@ export class ChronicleSqliteJournal {
     this.db.exec('BEGIN IMMEDIATE');
     let retainedCountAfterCommit = this.retainedEventCount;
     try {
-      this.assertWithinByteQuota([]);
+      // Imports bypass the append counter entirely — the sink inserts whatever
+      // the legacy family holds — so this path measures for real, both times.
+      this.invalidateQuotaEstimate();
+      this.assertWithinByteQuota(0);
       await load({
         insert: (day, event) => {
           const row = projectEvent(event);
@@ -743,7 +893,11 @@ export class ChronicleSqliteJournal {
           checkpoint.run(day, sequence, hash);
         },
       });
-      retainedCountAfterCommit = this.enforceEventLimitWithinTransaction();
+      // Re-derived, not accumulated: only the database knows how many rows the
+      // family's sink actually inserted. Cut to the exact ceiling — an import is
+      // a once-per-journal event with nothing to amortise across.
+      retainedCountAfterCommit = this.enforceEventLimitWithinTransaction(this.countRows(), 0);
+      this.invalidateQuotaEstimate();
       this.assertActualAllocationWithinQuota();
       this.db.exec('COMMIT');
     } catch (error) {
@@ -752,6 +906,7 @@ export class ChronicleSqliteJournal {
       } catch {
         // Nothing to unwind.
       }
+      this.invalidateQuotaEstimate();
       throw this.normalizeQuotaError(error);
     } finally {
       this.anchors.clear();
@@ -834,6 +989,36 @@ export class ChronicleSqliteJournal {
 
   // ─── internals ────────────────────────────────────────────────────────────
 
+  private preparedStatements(): NonNullable<ChronicleSqliteJournal['statements']> {
+    this.statements ??= {
+      insert: this.db.prepare(
+        `INSERT INTO events (
+           day, sequence, event_id, hash, previous_hash, occurred_at, event_type, outcome,
+           project_id, session_id, agent_id, task_id, trace_id, logical_request_id,
+           resource_kind, resource_id, resource_path, duration_ns, payload
+         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ),
+      trimBoundary: this.db.prepare(
+        'SELECT day, sequence, hash FROM events ORDER BY day, sequence LIMIT 1 OFFSET ?',
+      ),
+      writeCheckpoint: this.db.prepare(
+        `INSERT INTO chain_checkpoint (day, sequence, hash) VALUES (?, ?, ?)
+         ON CONFLICT(day) DO UPDATE SET sequence = excluded.sequence, hash = excluded.hash`,
+      ),
+      deletePrefix: this.db.prepare(
+        'DELETE FROM events WHERE day < ? OR (day = ? AND sequence <= ?)',
+      ),
+      deleteCheckpoints: this.db.prepare('DELETE FROM chain_checkpoint WHERE day < ?'),
+    };
+    return this.statements;
+  }
+
+  /** Rows currently in the table, straight from the database. */
+  private countRows(): number {
+    return (this.db.prepare('SELECT COUNT(*) AS count FROM events').get() as { count: number })
+      .count;
+  }
+
   private readMeta(key: string): string | undefined {
     const row = this.db.prepare('SELECT value FROM chronicle_meta WHERE key = ?').get(key) as
       | { value: string }
@@ -902,7 +1087,6 @@ export class ChronicleSqliteJournal {
       CREATE INDEX IF NOT EXISTS events_session ON events(session_id, day, sequence);
       CREATE INDEX IF NOT EXISTS events_trace ON events(trace_id);
       CREATE INDEX IF NOT EXISTS events_logical_request ON events(logical_request_id);
-      CREATE INDEX IF NOT EXISTS events_resource_path ON events(resource_path);
 
       CREATE TABLE IF NOT EXISTS chain_checkpoint (
         day      TEXT PRIMARY KEY,
@@ -915,6 +1099,14 @@ export class ChronicleSqliteJournal {
         value TEXT NOT NULL
       );
     `);
+    if (version < 2) {
+      // `resource_path` is projected for readers that select the column, but no
+      // query has ever filtered on it — `pushDown` in sqlite-query.ts does not
+      // list it — so the index only ever cost writes: one more B-tree insert per
+      // event and one more delete per eviction, on the hottest path there is.
+      // The column stays; only the index goes.
+      this.db.exec('DROP INDEX IF EXISTS events_resource_path');
+    }
     if (version !== SCHEMA_VERSION) {
       this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     }

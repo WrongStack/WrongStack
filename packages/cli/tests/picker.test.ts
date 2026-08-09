@@ -552,9 +552,7 @@ describe('openai-codex picker header', () => {
 
   it('does NOT render the codex header or legacy note for other providers', async () => {
     const { out } = mkRig();
-    const providers = [
-      fakeProvider({ models: [fakeModel({ id: 'claude-opus-4' })] }),
-    ];
+    const providers = [fakeProvider({ models: [fakeModel({ id: 'claude-opus-4' })] })];
     const reader = fakeReader(['1', '1', 'n']);
     const registry = fakeRegistry(providers);
     await runPicker({
@@ -862,7 +860,9 @@ describe('renderLiveProviderList', () => {
     const saved = new Set(['anthropic']);
     const out = renderLiveProviderList('', list, 0, saved);
     const lines = out.split('\n');
-    const selectedLine = lines.find((l) => l.includes('▶') && l.includes('◉') && l.includes('anthropic'));
+    const selectedLine = lines.find(
+      (l) => l.includes('▶') && l.includes('◉') && l.includes('anthropic'),
+    );
     expect(selectedLine).toBeTruthy();
   });
 
@@ -920,7 +920,9 @@ describe('renderLiveProviderList', () => {
       const selectedIdx = 18;
       const out = renderLiveProviderList('', many, selectedIdx);
       const lines = out.split('\n');
-      const selectedLine = lines.find((l) => l.includes('▶') && l.includes(`prov-${String(selectedIdx).padStart(2, '0')}`));
+      const selectedLine = lines.find(
+        (l) => l.includes('▶') && l.includes(`prov-${String(selectedIdx).padStart(2, '0')}`),
+      );
       expect(selectedLine).toBeTruthy();
       lines.forEach((line) => {
         if (line.includes('▶') && !line.includes(`prov-${String(selectedIdx).padStart(2, '0')}`)) {

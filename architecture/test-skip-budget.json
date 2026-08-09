@@ -34,7 +34,12 @@
     {
       "file": "packages/cli/tests/hq-visual-smoke.test.ts",
       "kind": "skipIf",
-      "fingerprint": "a2d5376526a22703"
+      "fingerprint": "cdceee059ef2523c"
+    },
+    {
+      "file": "packages/core/tests/chronicle/metrics-store-sqlite-source.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "1b4c70186dfe382c"
     },
     {
       "file": "packages/core/tests/chronicle/metrics-store.test.ts",

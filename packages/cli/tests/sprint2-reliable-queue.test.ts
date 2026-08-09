@@ -2,8 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { makeKanbanQueueTool } from '@wrongstack/core/coordination';
-import type { SubagentConfig } from '@wrongstack/core/types';
-import type { TaskResult, TaskSpec } from '@wrongstack/core/types';
+import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/core/types';
 import {
   addDependency,
   addTask,
@@ -19,8 +18,8 @@ import {
   releaseTaskClaim,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '@wrongstack/tools/kanban';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 let tmpDir = '';
 
@@ -280,7 +279,10 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
       status: 'running',
       leaseExpiresAt: '2099-01-01T00:00:00.000Z',
     });
-    await releaseTaskClaim(tmpDir, board.id, added!.task.id, { reason: 'manual release', status: 'blocked' });
+    await releaseTaskClaim(tmpDir, board.id, added!.task.id, {
+      reason: 'manual release',
+      status: 'blocked',
+    });
     await claimReadyTask(tmpDir, {
       boardId: board.id,
       taskId: added!.task.id,
@@ -381,7 +383,12 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
     };
     const tool = makeKanbanQueueTool(fakeDirector as never);
     const result = await tool.execute(
-      { boardId: board.id, heartbeatIntervalMs: 30_000, leaseTtlMs: 120_000, awaitCompletion: true },
+      {
+        boardId: board.id,
+        heartbeatIntervalMs: 30_000,
+        leaseTtlMs: 120_000,
+        awaitCompletion: true,
+      },
       { projectRoot: tmpDir } as never,
       { signal: new AbortController().signal },
     );
@@ -459,7 +466,14 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
       { signal: new AbortController().signal },
     );
     expect(toolResult).toMatchObject({ ok: true });
-    const health = (toolResult as { queueHealth?: { counts: { ready: number }; dependencyBlocked: { count: number; tasks: unknown[] } } }).queueHealth;
+    const health = (
+      toolResult as {
+        queueHealth?: {
+          counts: { ready: number };
+          dependencyBlocked: { count: number; tasks: unknown[] };
+        };
+      }
+    ).queueHealth;
     expect(health).toBeDefined();
     expect(health?.dependencyBlocked.count).toBeGreaterThan(0);
   });
@@ -569,7 +583,10 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
 
   it('router: auto mode fails when retryPolicy is "off"', async () => {
     const { board, task } = await setupStale();
-    await updateTaskAssignment(tmpDir, board.id, task.id, { status: 'running', retryPolicy: 'off' });
+    await updateTaskAssignment(tmpDir, board.id, task.id, {
+      status: 'running',
+      retryPolicy: 'off',
+    });
     const result = await recoverStaleTaskAssignments(tmpDir, board.id, {
       mode: 'auto',
       now: '2030-01-01T00:00:00.000Z',
@@ -579,7 +596,10 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
 
   it('router: auto mode fails when policy says fail-on-cost and costCeilingUsd is set', async () => {
     const { board, task } = await setupStale();
-    await updateTaskAssignment(tmpDir, board.id, task.id, { status: 'running', costCeilingUsd: 0.5 });
+    await updateTaskAssignment(tmpDir, board.id, task.id, {
+      status: 'running',
+      costCeilingUsd: 0.5,
+    });
     const result = await recoverStaleTaskAssignments(tmpDir, board.id, {
       mode: 'auto',
       now: '2030-01-01T00:00:00.000Z',
@@ -590,7 +610,10 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
 
   it('router: auto mode releases when policy says release-on-failure-kind', async () => {
     const { board, task } = await setupStale();
-    await updateTaskAssignment(tmpDir, board.id, task.id, { status: 'running', lastFailureKind: 'tool_timeout' });
+    await updateTaskAssignment(tmpDir, board.id, task.id, {
+      status: 'running',
+      lastFailureKind: 'tool_timeout',
+    });
     const result = await recoverStaleTaskAssignments(tmpDir, board.id, {
       mode: 'auto',
       now: '2030-01-01T00:00:00.000Z',
@@ -602,7 +625,11 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
 
   it('router: auto mode falls back to retry when no policy rule matches', async () => {
     const { board, task } = await setupStale();
-    await updateTaskAssignment(tmpDir, board.id, task.id, { status: 'running', attempt: 2, maxAttempts: 5 });
+    await updateTaskAssignment(tmpDir, board.id, task.id, {
+      status: 'running',
+      attempt: 2,
+      maxAttempts: 5,
+    });
     const result = await recoverStaleTaskAssignments(tmpDir, board.id, {
       mode: 'auto',
       now: '2030-01-01T00:00:00.000Z',
@@ -620,9 +647,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
       reason: 'worker-cancel',
     });
     const loaded = await getBoard(tmpDir, board.id);
-    const note = loaded?.tasks[0]?.notes?.find((n) =>
-      n.content.includes('worker-cancel'),
-    );
+    const note = loaded?.tasks[0]?.notes?.find((n) => n.content.includes('worker-cancel'));
     expect(note).toBeTruthy();
   });
 
@@ -644,7 +669,10 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
     expect(loaded?.tasks[0]?.retryPolicy).toBe('exponential');
     expect(loaded?.tasks[0]?.costCeilingUsd).toBe(5);
 
-    await releaseTaskClaim(tmpDir, board.id, added!.task.id, { reason: 'test release', status: 'ready' });
+    await releaseTaskClaim(tmpDir, board.id, added!.task.id, {
+      reason: 'test release',
+      status: 'ready',
+    });
     loaded = await getBoard(tmpDir, board.id);
     expect(loaded?.tasks[0]?.assignment).toBeUndefined();
     expect(loaded?.tasks[0]?.retryPolicy).toBe('exponential');
@@ -786,16 +814,18 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
 
     const fakeDirector = {
       getRemainingBudgetUsd: () => 1,
-      spawn: async () => { throw new Error('should not spawn'); },
-      assign: async () => { throw new Error('should not assign'); },
+      spawn: async () => {
+        throw new Error('should not spawn');
+      },
+      assign: async () => {
+        throw new Error('should not assign');
+      },
       awaitTasks: async (_taskIds: string[]): Promise<TaskResult[]> => [],
     };
     const tool = makeKanbanQueueTool(fakeDirector as never);
-    const result = await tool.execute(
-      { boardId: board.id },
-      { projectRoot: tmpDir } as never,
-      { signal: new AbortController().signal },
-    );
+    const result = await tool.execute({ boardId: board.id }, { projectRoot: tmpDir } as never, {
+      signal: new AbortController().signal,
+    });
     // The dispatch should complete but the task should be marked failed with a budget error.
     expect(result).toMatchObject({ ok: false, count: 0 });
     expect((result as { errors?: unknown[] })?.errors).toBeDefined();

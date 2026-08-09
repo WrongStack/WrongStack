@@ -29,8 +29,8 @@
  * working against this module unchanged.
  */
 
-import { color } from '@wrongstack/core/utils';
 import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
+import { color } from '@wrongstack/core/utils';
 import {
   buildCodexAuthorizeUrl,
   CODEX_BASE_URL,
@@ -51,16 +51,16 @@ import {
   resolveCodexModels,
 } from '@wrongstack/providers/oauth';
 import {
-  type LoopbackServer,
-  openBrowser,
-  startLoopbackServer as startSharedLoopbackServer,
-} from './loopback-server.js';
-import {
   mutateConfigProviders,
   normalizeKeys,
   nowIso,
   writeKeysBack,
 } from '../provider-config-utils.js';
+import {
+  type LoopbackServer,
+  openBrowser,
+  startLoopbackServer as startSharedLoopbackServer,
+} from './loopback-server.js';
 import type { AuthMenuDeps } from './types.js';
 
 // ── Protocol re-exports (canonical definitions: @wrongstack/providers/oauth) ──
@@ -78,8 +78,8 @@ export {
   filterCurrentCodexModelIds,
   generatePkce,
   isCodexCatalogModel,
-  parseAuthorizationInput,
   type Pkce,
+  parseAuthorizationInput,
   resolveCodexModels,
 } from '@wrongstack/providers/oauth';
 
@@ -150,7 +150,9 @@ export async function runCodexOAuthLogin(
   const onSig = () => {
     sigintCount += 1;
     if (sigintCount === 1) {
-      deps.renderer.write(color.dim('\n  Cancelling sign-in… (press Ctrl+C again to force-quit)\n'));
+      deps.renderer.write(
+        color.dim('\n  Cancelling sign-in… (press Ctrl+C again to force-quit)\n'),
+      );
       ac.abort();
     } else {
       process.exit(130);
@@ -194,9 +196,13 @@ export async function runCodexOAuthLogin(
     );
   } else {
     deps.renderer.write(
-      color.amber('  ⚠ Could not start the local callback listener (ports 1455 and 1457 in use).\n') +
+      color.amber(
+        '  ⚠ Could not start the local callback listener (ports 1455 and 1457 in use).\n',
+      ) +
         color.dim('  After signing in, copy the full redirect URL from your browser\n') +
-        color.dim('  (it starts with http://localhost:1455/auth/callback or :1457) and paste it below.\n'),
+        color.dim(
+          '  (it starts with http://localhost:1455/auth/callback or :1457) and paste it below.\n',
+        ),
     );
   }
 
@@ -239,7 +245,8 @@ export async function runCodexOAuthLogin(
 
     deps.renderer.write(color.dim('\n  Exchanging authorization code for tokens...\n'));
     const tokens = await exchangeAuthorizationCode(code, pkce.verifier, ac.signal, server.port);
-    const accountId = extractAccountId(tokens.access) ?? (tokens.idToken ? extractAccountId(tokens.idToken) : null);
+    const accountId =
+      extractAccountId(tokens.access) ?? (tokens.idToken ? extractAccountId(tokens.idToken) : null);
     if (!accountId) {
       deps.renderer.writeError(
         '  Signed in, but the token has no ChatGPT account id.\n' +
@@ -307,21 +314,26 @@ async function saveCodexTokens(
   };
 
   try {
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const existing = all[providerId];
-      const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
-      p.family = 'openai-codex';
-      if (!p.baseUrl) p.baseUrl = CODEX_BASE_URL;
-      // The caller populates `models` from the live backend or the fallback
-      // constant. Always overwrite — the backend is authoritative.
-      p.models = [...models];
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const existing = all[providerId];
+        const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
+        p.family = 'openai-codex';
+        if (!p.baseUrl) p.baseUrl = CODEX_BASE_URL;
+        // The caller populates `models` from the live backend or the fallback
+        // constant. Always overwrite — the backend is authoritative.
+        p.models = [...models];
 
-      const keys = normalizeKeys(p).filter((k) => k.label !== entry.label);
-      keys.push(entry);
-      writeKeysBack(p, keys);
-      p.activeKey = entry.label;
-      all[providerId] = p;
-    }, deps.profileConfigPath);
+        const keys = normalizeKeys(p).filter((k) => k.label !== entry.label);
+        keys.push(entry);
+        writeKeysBack(p, keys);
+        p.activeKey = entry.label;
+        all[providerId] = p;
+      },
+      deps.profileConfigPath,
+    );
     return true;
   } catch (err) {
     deps.renderer.writeError(`  Failed to save tokens: ${(err as Error).message}`);

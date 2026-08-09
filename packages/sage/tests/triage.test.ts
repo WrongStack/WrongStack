@@ -9,9 +9,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Sage } from '../src/types.js';
 import { preFilter, preFilterBatch } from '../src/triage/pre-filter.js';
 import { computeValueScore } from '../src/triage/value-score.js';
+import type { Sage } from '../src/types.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -45,6 +45,38 @@ function makeMemory(overrides: Partial<Sage> & { id?: string } = {}): Sage {
     ...overrides,
   };
 }
+
+describe('injector rejection evidence', () => {
+  it('reports the dominant gate count and applies the bounded below-score usage penalty', () => {
+    const score = computeValueScore(makeMemory(), {
+      injectorEvidence: {
+        rejectedByGate: { belowScore: 5, budget: 2 },
+        lastActivated: false,
+        lastInjected: false,
+        rejectionCount: 5,
+      },
+    });
+
+    expect(score.rejectionGate).toBe('belowScore');
+    expect(score.rejectionCount).toBe(5);
+    expect(score.rejectionPressure).toBe(1);
+    expect(score.usage).toBe(8);
+  });
+
+  it('does not invent a dominant gate when the lookback has no rejections', () => {
+    const score = computeValueScore(makeMemory(), {
+      injectorEvidence: {
+        rejectedByGate: {},
+        lastActivated: false,
+        lastInjected: false,
+      },
+    });
+
+    expect(score.rejectionPressure).toBe(0);
+    expect(score.rejectionGate).toBeUndefined();
+    expect(score.rejectionCount).toBeUndefined();
+  });
+});
 
 // ── Phase 1: Pre-Filter ─────────────────────────────────────────────────
 
@@ -98,7 +130,12 @@ describe('Phase 1: deterministic pre-filter', () => {
     });
 
     it('kind = preference + importance 0.79 → uncertain (below threshold)', () => {
-      const m = makeMemory({ kind: 'preference', importance: 0.79, anchors: [], injectionCount: 0 });
+      const m = makeMemory({
+        kind: 'preference',
+        importance: 0.79,
+        anchors: [],
+        injectionCount: 0,
+      });
       expect(preFilter(m).verdict).toBe('uncertain');
     });
 
@@ -124,7 +161,10 @@ describe('Phase 1: deterministic pre-filter', () => {
     });
 
     it('transient "WIP:" prefix → discard', () => {
-      const m = makeMemory({ text: 'WIP: still working on the auth module refactor', importance: 0.3 });
+      const m = makeMemory({
+        text: 'WIP: still working on the auth module refactor',
+        importance: 0.3,
+      });
       expect(preFilter(m).verdict).toBe('discard');
     });
 

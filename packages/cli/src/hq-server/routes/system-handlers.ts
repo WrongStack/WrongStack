@@ -6,9 +6,13 @@
  */
 
 import type * as http from 'node:http';
+import type {
+  HqAlertEngine,
+  HqCommandAuditLog,
+  HqEventEnvelope,
+  HqPersistence,
+} from '@wrongstack/core/hq';
 import type { WebSocket } from 'ws';
-import type { HqCommandAuditLog, HqEventEnvelope, HqPersistence } from '@wrongstack/core/hq';
-import type { HqAlertEngine } from '@wrongstack/core/hq';
 import type { ConnectedClient } from '../types.js';
 
 export async function handleApiSystemUpdate(res: http.ServerResponse): Promise<void> {
@@ -58,7 +62,8 @@ export async function handleApiSystemHealth(
   }
 
   const inMemoryEventLogActive = true;
-  const allOk = inMemoryEventLogActive && timeseriesStoreStatus === 'ok' && kanbanStoreStatus === 'ok';
+  const allOk =
+    inMemoryEventLogActive && timeseriesStoreStatus === 'ok' && kanbanStoreStatus === 'ok';
 
   const clientCount = clients.size;
   const connectedClients = [...clients.values()].filter(

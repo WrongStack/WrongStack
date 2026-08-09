@@ -1,7 +1,4 @@
-import {
-  fallbackProfileChain,
-  parseModelRef,
-} from '@wrongstack/core/agent';
+import { fallbackProfileChain, parseModelRef } from '@wrongstack/core/agent';
 import type { Config } from '@wrongstack/core/types';
 
 export interface KanbanDispatchRouteInput {

@@ -1,9 +1,8 @@
-import type { SlashCommand } from '@wrongstack/core/types';
 import type { AnnotationsStoreOptions } from '@wrongstack/core/storage';
-import { color, truncate } from '@wrongstack/core/utils';
-import { parseSubcommand, unknownSubcommand } from './helpers.js';
+import type { SlashCommand } from '@wrongstack/core/types';
+import { color, toErrorMessage, truncate } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
 /**
  * /collab — operator-side controls for the live-collaboration feature
@@ -116,9 +115,7 @@ async function historyCommand(
     }
   } catch (err) {
     return {
-      message: color.yellow(
-        `Failed to read session: ${toErrorMessage(err)}`,
-      ),
+      message: color.yellow(`Failed to read session: ${toErrorMessage(err)}`),
     };
   }
   const tail = events.slice(-limit);

@@ -9,8 +9,8 @@ import {
   getBoard,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '@wrongstack/tools/kanban';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 let tmpDir = '';
 

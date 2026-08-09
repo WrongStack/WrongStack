@@ -22,7 +22,10 @@ const E2E = process.env.WSTACK_E2E === '1';
 
 describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
   it('renders every view of the built panel with live data', { timeout: 120_000 }, async () => {
-    expect(resolveHqDistDir(), 'webui-hq dist must be built (pnpm --filter @wrongstack/webui-hq build)').not.toBeNull();
+    expect(
+      resolveHqDistDir(),
+      'webui-hq dist must be built (pnpm --filter @wrongstack/webui-hq build)',
+    ).not.toBeNull();
 
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-smoke-data-'));
     fs.writeFileSync(
@@ -135,7 +138,11 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       );
 
       const entries = [
-        { ts: now(), role: 'user', text: 'Fix the failing auth tests and show me a summary table.' },
+        {
+          ts: now(),
+          role: 'user',
+          text: 'Fix the failing auth tests and show me a summary table.',
+        },
         {
           ts: now(),
           role: 'thinking',
@@ -191,7 +198,11 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
           toolUseId: 'tu-bash-1',
         },
       ];
-      event('session.transcript', { sessionId: SESSION, fromSeq: 0, entries }, { sessionId: SESSION });
+      event(
+        'session.transcript',
+        { sessionId: SESSION, fromSeq: 0, entries },
+        { sessionId: SESSION },
+      );
 
       await new Promise((r) => setTimeout(r, 250));
       event(
@@ -243,7 +254,12 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
         detail: 'Flake is the known CI timer flake; safe to merge.',
         at: now(),
       });
-      event('worktree.event', { kind: 'allocated', ownerId: 'phase-2', branch: 'ws/phase-2', at: now() });
+      event('worktree.event', {
+        kind: 'allocated',
+        ownerId: 'phase-2',
+        branch: 'ws/phase-2',
+        at: now(),
+      });
       event('worktree.event', {
         kind: 'committed',
         ownerId: 'phase-2',

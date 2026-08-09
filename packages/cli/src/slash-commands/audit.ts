@@ -49,7 +49,8 @@ export function buildAuditCommand(opts: SlashCommandContext): SlashCommand {
           riskFilter = tok;
         }
       }
-      if (riskFilter) sideEffects = sideEffects.filter((se) => se.risk.toLowerCase() === riskFilter);
+      if (riskFilter)
+        sideEffects = sideEffects.filter((se) => se.risk.toLowerCase() === riskFilter);
       if (toolFilter)
         sideEffects = sideEffects.filter((se) => se.toolName.toLowerCase().includes(toolFilter));
 

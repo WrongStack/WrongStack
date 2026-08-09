@@ -1,11 +1,11 @@
+import type { Context } from '@wrongstack/core/agent';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  buildSaveCommand,
-  buildLoadCommand,
   buildExitCommand,
+  buildLoadCommand,
+  buildSaveCommand,
   isSafeSessionKillPid,
 } from '../src/slash-commands/session.js';
-import type { Context } from '@wrongstack/core/agent';
 
 function fakeCtx(): Context {
   return {
@@ -121,8 +121,18 @@ describe('buildLoadCommand --incomplete', () => {
     try {
       // Stale session — last event is in_flight_start with no end.
       const log = [
-        JSON.stringify({ type: 'session_start', ts: '2026-01-01T00:00:00Z', id: 's-crash', model: 'm', provider: 'p' }),
-        JSON.stringify({ type: 'in_flight_start', ts: '2026-01-01T00:00:01Z', context: 'iteration 7 / tool: read' }),
+        JSON.stringify({
+          type: 'session_start',
+          ts: '2026-01-01T00:00:00Z',
+          id: 's-crash',
+          model: 'm',
+          provider: 'p',
+        }),
+        JSON.stringify({
+          type: 'in_flight_start',
+          ts: '2026-01-01T00:00:01Z',
+          context: 'iteration 7 / tool: read',
+        }),
         '',
       ].join('\n');
       await writeFile(join(dir, 's-crash.jsonl'), log, 'utf8');
@@ -175,9 +185,24 @@ describe('buildLoadCommand --recover <sessionId>', () => {
     const dir = await mkdtemp(join(tmpdir(), 'resume-recover-'));
     try {
       const log = [
-        JSON.stringify({ type: 'session_start', ts: '2026-01-01T00:00:00Z', id: 's-recover', model: 'm', provider: 'p' }),
-        JSON.stringify({ type: 'checkpoint', ts: '2026-01-01T00:00:01Z', promptIndex: 0, promptPreview: 'before the crash' }),
-        JSON.stringify({ type: 'in_flight_start', ts: '2026-01-01T00:00:02Z', context: 'iteration 7 / tool: bash' }),
+        JSON.stringify({
+          type: 'session_start',
+          ts: '2026-01-01T00:00:00Z',
+          id: 's-recover',
+          model: 'm',
+          provider: 'p',
+        }),
+        JSON.stringify({
+          type: 'checkpoint',
+          ts: '2026-01-01T00:00:01Z',
+          promptIndex: 0,
+          promptPreview: 'before the crash',
+        }),
+        JSON.stringify({
+          type: 'in_flight_start',
+          ts: '2026-01-01T00:00:02Z',
+          context: 'iteration 7 / tool: bash',
+        }),
         '',
       ].join('\n');
       await writeFile(join(dir, 's-recover.jsonl'), log, 'utf8');
@@ -214,7 +239,13 @@ describe('buildLoadCommand --recover <sessionId>', () => {
     const dir = await mkdtemp(join(tmpdir(), 'resume-recover-clean-'));
     try {
       const log = [
-        JSON.stringify({ type: 'session_start', ts: '2026-01-01T00:00:00Z', id: 's-clean', model: 'm', provider: 'p' }),
+        JSON.stringify({
+          type: 'session_start',
+          ts: '2026-01-01T00:00:00Z',
+          id: 's-clean',
+          model: 'm',
+          provider: 'p',
+        }),
         JSON.stringify({ type: 'in_flight_end', ts: '2026-01-01T00:00:01Z', reason: 'clean' }),
         '',
       ].join('\n');

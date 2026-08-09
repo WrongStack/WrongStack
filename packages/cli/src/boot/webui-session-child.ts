@@ -128,7 +128,8 @@ function boolFlag(flags: Record<string, string | boolean>, names: string[]): boo
 function parsePositiveInteger(value: string | undefined, label: string): number {
   if (value === undefined) throw new Error(`${label} is required`);
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${label} must be a positive integer`);
+  if (!Number.isInteger(parsed) || parsed <= 0)
+    throw new Error(`${label} must be a positive integer`);
   return parsed;
 }
 

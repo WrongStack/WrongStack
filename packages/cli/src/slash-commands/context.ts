@@ -30,7 +30,10 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
       '  /context repair    Repair orphan tool_use/tool_result blocks after manual compaction.',
       '  /context limit     Show effective context window for this session.',
       '  /context limit <tokens> Set effective context window for this session (e.g. 220k).',
-      '  /context limit <tokens> --persist Persist effective context window to config.',
+      '  /context limit <tokens> --persist Persist as the FALLBACK window for models',
+      '                     whose window nothing published. The models.dev per-model',
+      '                     window still wins when it exists — to cap one provider on',
+      '                     purpose set providers.<id>.capabilities.maxContext.',
       '  /context thresholds <warn> <soft> <hard> Set compaction thresholds (percent or decimal).',
       '  /context thresholds <warn> <soft> <hard> --persist Persist thresholds to config.',
       '  /context mode      List context-window modes.',
@@ -187,9 +190,12 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
         ...(typeof realUsage === 'number' && realUsage > 0
           ? [`  tokens (real): ${realUsage.toLocaleString()} (provider-reported, last request)`]
           : []),
+        // The RESOLVED window, not raw models.dev: session wiring writes the
+        // resolved value back onto provider.capabilities, so labelling this
+        // "(models.dev)" misattributed config/family fallbacks to the catalog.
         `  window:      ${(caps?.maxContext ?? 0).toLocaleString()} ctx${
           caps?.maxOutput ? ` / ${caps.maxOutput.toLocaleString()} output` : ''
-        } (models.dev)`,
+        } (resolved)`,
         `  mode:        ${policy ? `${policy.id} (${policy.name})` : 'balanced'}`,
         `  limit:       ${formatLimit(readEffectiveLimit(ctx, opts))}`,
         `  system prompt: ${ctx.systemPrompt.length} block${ctx.systemPrompt.length !== 1 ? 's' : ''}`,

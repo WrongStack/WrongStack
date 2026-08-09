@@ -1,4 +1,3 @@
-import { restoreFlags } from '../flags.js';
 import { color, expectDefined } from '@wrongstack/core/utils';
 import {
   getHistoryEntry,
@@ -6,10 +5,11 @@ import {
   restoreFromHistory,
   restoreLast,
 } from '../../config-history.js';
+import { activeProfileConfigPath } from '../../profile-config-path.js';
+import { restoreFlags } from '../flags.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 import { redactKeys } from './helpers.js';
 import { sessionsFleetCmd } from './sessions-fleet.js';
-import { activeProfileConfigPath } from '../../profile-config-path.js';
 export const sessionsCmd: SubcommandHandler = async (args, deps) => {
   // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
   // Without them `sessions fork abc --to 3` forked at the LATEST boundary and
@@ -69,7 +69,9 @@ export const sessionsCmd: SubcommandHandler = async (args, deps) => {
       );
       return 0;
     } catch (err) {
-      deps.renderer.writeError(`Fork failed: ${err instanceof Error ? err.message : String(err)}\n`);
+      deps.renderer.writeError(
+        `Fork failed: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
       return 1;
     }
   }

@@ -20,7 +20,9 @@ describe('createPrefsSeeding', () => {
       }),
     ).resolves.toBeUndefined();
     expect((opts as { appConfig: unknown }).appConfig).not.toBe(frozenConfig);
-    expect((opts as { appConfig: { fallbackProfiles?: unknown } }).appConfig.fallbackProfiles).toEqual({
+    expect(
+      (opts as { appConfig: { fallbackProfiles?: unknown } }).appConfig.fallbackProfiles,
+    ).toEqual({
       default: ['anthropic/anthropic-test-model'],
     });
     expect(Object.isExtensible(frozenConfig)).toBe(false);
@@ -85,7 +87,9 @@ describe('createPrefsSeeding', () => {
 
     await persistPrefs({ modelMatrix });
 
-    expect((opts as { appConfig: { modelMatrix?: unknown } }).appConfig.modelMatrix).toEqual(modelMatrix);
+    expect((opts as { appConfig: { modelMatrix?: unknown } }).appConfig.modelMatrix).toEqual(
+      modelMatrix,
+    );
     const written = JSON.parse(readFileSync(globalConfigPath, 'utf8'));
     expect(written.modelMatrix).toEqual(modelMatrix);
   });
@@ -172,7 +176,10 @@ describe('seedConfigToMeta', () => {
             },
           },
         },
-        modelRuntime: { reasoning: { mode: 'off', effort: 'max', preserve: true }, cache: { ttl: '5m' } },
+        modelRuntime: {
+          reasoning: { mode: 'off', effort: 'max', preserve: true },
+          cache: { ttl: '5m' },
+        },
       }),
       'utf8',
     );

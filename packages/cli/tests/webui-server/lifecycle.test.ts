@@ -23,7 +23,9 @@ afterEach(() => {
 describe('registerWebuiInstance', () => {
   const captureRegisterCalls = (): {
     calls: Array<{ record: WebUIInstanceRecord; baseDir?: string | undefined }>;
-    deps: { registerFn: (record: WebUIInstanceRecord, baseDir?: string | undefined) => Promise<void> };
+    deps: {
+      registerFn: (record: WebUIInstanceRecord, baseDir?: string | undefined) => Promise<void>;
+    };
   } => {
     const calls: Array<{ record: WebUIInstanceRecord; baseDir?: string | undefined }> = [];
     return {

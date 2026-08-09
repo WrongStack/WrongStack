@@ -2,11 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Writable } from 'node:stream';
-import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
-import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
-import { stripAnsi } from '@wrongstack/core/utils';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
+import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
+import { resolveWstackPaths, stripAnsi } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TerminalRenderer } from '../src/renderer.js';
 import { type SubcommandDeps, subcommands } from '../src/subcommands/index.js';
@@ -691,7 +690,10 @@ describe('subcommands', () => {
       userHome: tmp,
     });
     await fs.mkdir(path.dirname(paths.globalConfig), { recursive: true });
-    await fs.writeFile(paths.globalConfig, JSON.stringify({ version: 1, activeProfile: 'default' }));
+    await fs.writeFile(
+      paths.globalConfig,
+      JSON.stringify({ version: 1, activeProfile: 'default' }),
+    );
     const code = await subcommands['plugin']!(
       ['add', '@wrongstack/telegram'],
       mkDeps({ renderer: rig.renderer, paths }),
@@ -714,7 +716,10 @@ describe('subcommands', () => {
       userHome: tmp,
     });
     await fs.mkdir(path.dirname(paths.globalConfig), { recursive: true });
-    await fs.writeFile(paths.globalConfig, JSON.stringify({ version: 1, activeProfile: 'default' }));
+    await fs.writeFile(
+      paths.globalConfig,
+      JSON.stringify({ version: 1, activeProfile: 'default' }),
+    );
     const code = await subcommands['plugin']!(
       ['install', 'telegram'],
       mkDeps({ renderer: rig.renderer, paths }),
@@ -760,7 +765,10 @@ describe('subcommands', () => {
     });
     const profileConfig = paths.profileConfig('default');
     await fs.mkdir(path.dirname(profileConfig), { recursive: true });
-    await fs.writeFile(paths.globalConfig, JSON.stringify({ version: 1, activeProfile: 'default' }));
+    await fs.writeFile(
+      paths.globalConfig,
+      JSON.stringify({ version: 1, activeProfile: 'default' }),
+    );
     await fs.writeFile(profileConfig, JSON.stringify({ plugins: ['@wrongstack/telegram'] }));
 
     const code = await subcommands['plugin']!(
@@ -784,7 +792,10 @@ describe('subcommands', () => {
     });
     const profileConfig = paths.profileConfig('default');
     await fs.mkdir(path.dirname(profileConfig), { recursive: true });
-    await fs.writeFile(paths.globalConfig, JSON.stringify({ version: 1, activeProfile: 'default' }));
+    await fs.writeFile(
+      paths.globalConfig,
+      JSON.stringify({ version: 1, activeProfile: 'default' }),
+    );
     await fs.writeFile(
       profileConfig,
       JSON.stringify({ plugins: ['@wrongstack/telegram', 'other'] }),

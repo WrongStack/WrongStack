@@ -154,7 +154,9 @@ async function listAgents(live: LoadedAcpRegistry | null): Promise<{ message: st
       (a) => !localIds.has(a.id) && !localIds.has(aliases[a.id] ?? ''),
     );
     lines.push('');
-    lines.push(`Synced registry: ${live.agents.length} agents available (use \`/acp <id> <task>\`).`);
+    lines.push(
+      `Synced registry: ${live.agents.length} agents available (use \`/acp <id> <task>\`).`,
+    );
     if (extra.length > 0) {
       lines.push(`  more ids: ${extra.map((a) => a.id).join(', ')}`);
     }
@@ -175,7 +177,12 @@ async function probeAgents(
   // Default to the installed set; an explicit csv overrides it.
   let ids: string[];
   if (csv) {
-    ids = dedup(csv.split(',').map((s) => s.trim()).filter(Boolean));
+    ids = dedup(
+      csv
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
   } else {
     const detected = await new EnsembleRegistry().list();
     ids = detected.filter((a) => a.installed).map((a) => a.id);
@@ -184,7 +191,9 @@ async function probeAgents(
     return { message: 'No installed agents to probe. Run `/acp` to see what is detected.' };
   }
 
-  opts.renderer.writeInfo(`Probing ${ids.length} agent(s)… (npx-based agents may download on first run)\n`);
+  opts.renderer.writeInfo(
+    `Probing ${ids.length} agent(s)… (npx-based agents may download on first run)\n`,
+  );
   const liveById = live?.byId;
   // BOUNDED concurrency: spawning every agent at once (incl. first-run npx
   // downloads) starves local agents' handshake — they then falsely time out.
@@ -224,13 +233,22 @@ async function benchAgents(
 
   let ids: string[];
   if (csv) {
-    ids = dedup(csv.split(',').flatMap((s) => s.split(/\s+/)).map((s) => s.trim()).filter(Boolean));
+    ids = dedup(
+      csv
+        .split(',')
+        .flatMap((s) => s.split(/\s+/))
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
   } else {
     const detected = await new EnsembleRegistry().list();
     ids = detected.filter((a) => a.installed).map((a) => a.id);
   }
   if (ids.length === 0) {
-    return { message: 'No installed agents to bench. Run `/acp` to see what is detected, or pass ids: `/acp bench gemini-cli,codex-cli`.' };
+    return {
+      message:
+        'No installed agents to bench. Run `/acp` to see what is detected, or pass ids: `/acp bench gemini-cli,codex-cli`.',
+    };
   }
 
   opts.renderer.writeInfo(
@@ -288,7 +306,12 @@ async function runSingle(
   // Detect a `--bg` flag anywhere in the remaining tokens.
   const tokens = rest.split(/\s+/).filter(Boolean);
   const bg = tokens.includes('--bg');
-  const task = stripQuotes(tokens.filter((t) => t !== '--bg').join(' ').trim());
+  const task = stripQuotes(
+    tokens
+      .filter((t) => t !== '--bg')
+      .join(' ')
+      .trim(),
+  );
   if (!task) {
     return {
       message: `Usage: /acp ${agentId} <task>  (add --bg to run in the background)\nTask description is required.`,
@@ -307,8 +330,7 @@ async function runSingle(
   if (bg) {
     if (!opts.onSpawn) {
       return {
-        message:
-          'Background mode needs the fleet (director). Director Mode is always active.',
+        message: 'Background mode needs the fleet (director). Director Mode is always active.',
       };
     }
     try {

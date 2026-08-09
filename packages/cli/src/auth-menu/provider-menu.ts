@@ -75,9 +75,14 @@ async function dispatchAction(
     );
     if (answer === null) return 'continue'; // cancelled
     if (answer) {
-      await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-        delete all[providerId];
-      }, deps.profileConfigPath);
+      await mutateConfigProviders(
+        deps.profileConfigPath,
+        deps.vault,
+        (all) => {
+          delete all[providerId];
+        },
+        deps.profileConfigPath,
+      );
       deps.renderer.write(`  ${color.green('✓')} Removed ${providerId}.\n`);
       return 'exit';
     }
@@ -90,14 +95,19 @@ async function dispatchAction(
     const target = expectDefined(keys[arg - 1]);
     const newKey = await readKeyInput(deps, `New key for ${target.label}`);
     if (!newKey) return 'continue';
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const p = all[providerId];
-      if (!p) return;
-      const list = normalizeKeys(p).map((k) =>
-        k.label === target.label ? { ...k, apiKey: newKey, createdAt: nowIso() } : k,
-      );
-      writeKeysBack(p, list);
-    }, deps.profileConfigPath);
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const p = all[providerId];
+        if (!p) return;
+        const list = normalizeKeys(p).map((k) =>
+          k.label === target.label ? { ...k, apiKey: newKey, createdAt: nowIso() } : k,
+        );
+        writeKeysBack(p, list);
+      },
+      deps.profileConfigPath,
+    );
     deps.renderer.write(`  ${color.green('✓')} Updated ${providerId}/${target.label}.\n`);
     return 'continue';
   }
@@ -112,15 +122,20 @@ async function dispatchAction(
     );
     if (answer === null) return 'continue'; // cancelled
     if (!answer) return 'continue'; // declined
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const p = all[providerId];
-      if (!p) return;
-      const list = normalizeKeys(p).filter((k) => k.label !== target.label);
-      writeKeysBack(p, list);
-      if (p.activeKey === target.label) {
-        p.activeKey = list[0]?.label;
-      }
-    }, deps.profileConfigPath);
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const p = all[providerId];
+        if (!p) return;
+        const list = normalizeKeys(p).filter((k) => k.label !== target.label);
+        writeKeysBack(p, list);
+        if (p.activeKey === target.label) {
+          p.activeKey = list[0]?.label;
+        }
+      },
+      deps.profileConfigPath,
+    );
     deps.renderer.write(`  ${color.green('✓')} Deleted ${providerId}/${target.label}.\n`);
     return 'continue';
   }
@@ -129,13 +144,18 @@ async function dispatchAction(
   if (verb === 's' || verb === 'set' || verb === 'active') {
     if (!validKeyIndex(arg, keys.length, deps, 's')) return 'continue';
     const target = expectDefined(keys[arg - 1]);
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const p = all[providerId];
-      if (!p) return;
-      const list = normalizeKeys(p);
-      writeKeysBack(p, list);
-      p.activeKey = target.label;
-    }, deps.profileConfigPath);
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const p = all[providerId];
+        if (!p) return;
+        const list = normalizeKeys(p);
+        writeKeysBack(p, list);
+        p.activeKey = target.label;
+      },
+      deps.profileConfigPath,
+    );
     deps.renderer.write(`  ${color.green('✓')} Active key → ${color.bold(target.label)}.\n`);
     return 'continue';
   }
@@ -156,18 +176,28 @@ async function dispatchAction(
         );
         return 'continue';
       }
-      await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-        const p = all[providerId];
-        if (!p) return;
-        p.family = validated;
-      }, deps.profileConfigPath);
+      await mutateConfigProviders(
+        deps.profileConfigPath,
+        deps.vault,
+        (all) => {
+          const p = all[providerId];
+          if (!p) return;
+          p.family = validated;
+        },
+        deps.profileConfigPath,
+      );
       deps.renderer.write(`  ${color.green('✓')} family → ${validated}\n`);
     } else {
-      await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-        const p = all[providerId];
-        if (!p) return;
-        delete p.family;
-      }, deps.profileConfigPath);
+      await mutateConfigProviders(
+        deps.profileConfigPath,
+        deps.vault,
+        (all) => {
+          const p = all[providerId];
+          if (!p) return;
+          delete p.family;
+        },
+        deps.profileConfigPath,
+      );
       deps.renderer.write(`  ${color.green('✓')} family → (unset)\n`);
     }
     return 'continue';
@@ -184,12 +214,17 @@ async function dispatchAction(
         `  ${color.amber('?')} Base URL ${color.dim(`(empty = unset, current: ${current || 'unset'})`)}: `,
       )
     ).trim();
-      await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const p = all[providerId];
-      if (!p) return;
-      if (ans === '') delete p.baseUrl;
-      else p.baseUrl = ans;
-    }, deps.profileConfigPath);
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const p = all[providerId];
+        if (!p) return;
+        if (ans === '') delete p.baseUrl;
+        else p.baseUrl = ans;
+      },
+      deps.profileConfigPath,
+    );
     deps.renderer.write(`  ${color.green('✓')} baseUrl → ${ans || '(unset)'}\n`);
     return 'continue';
   }
@@ -208,12 +243,17 @@ async function dispatchAction(
           .map((s) => s.trim())
           .filter(Boolean)
       : [];
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const p = all[providerId];
-      if (!p) return;
-      if (list.length === 0) delete p.models;
-      else p.models = list;
-    }, deps.profileConfigPath);
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const p = all[providerId];
+        if (!p) return;
+        if (list.length === 0) delete p.models;
+        else p.models = list;
+      },
+      deps.profileConfigPath,
+    );
     deps.renderer.write(
       `  ${color.green('✓')} models → ${list.length === 0 ? '(catalog default)' : list.join(', ')}\n`,
     );

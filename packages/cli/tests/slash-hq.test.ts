@@ -6,7 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildHqCommand } from '../src/slash-commands/hq.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 
-function makeCtx(config: Record<string, unknown> = {}): { ctx: SlashCommandContext; globalConfig: string } {
+function makeCtx(config: Record<string, unknown> = {}): {
+  ctx: SlashCommandContext;
+  globalConfig: string;
+} {
   const dir = mkdtempSync(path.join(tmpdir(), 'wstack-hq-test-'));
   const globalConfig = path.join(dir, 'global', 'config.json');
   const inProjectConfig = path.join(dir, 'project', 'config.json');

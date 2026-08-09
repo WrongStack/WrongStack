@@ -35,6 +35,7 @@ import type { WorklistContext } from './handlers/index.js';
 import type { HostRouteHandlers } from './host-routes.js';
 import type { KanbanHostRouteHandlers } from './kanban-host-routes.js';
 import { handleKanbanRoute } from './kanban-routes.js';
+import { createKanbanSupervisor } from './kanban-supervisor.js';
 import type { PendingConfirm } from './pending-confirms.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
 import { handleProcessKill, handleProcessKillAll, handleProcessList } from './process-handlers.js';
@@ -70,6 +71,13 @@ interface MessageDispatcherOptions {
   runLock: RunLockControl;
   /** Pending permission confirmations — tool.confirm_result resolves one. */
   pendingConfirms: Map<string, PendingConfirm>;
+  /**
+   * Caller-supplied register hook. The dispatcher calls this **once** during
+   * construction to hand its disposer to the caller. The caller is
+   * responsible for invoking the registered disposer during its own shutdown
+   * — the dispatcher itself never invokes the disposer.
+   */
+  onDispose?: ((disposer: () => void) => void) | undefined;
 }
 
 /**
@@ -245,10 +253,21 @@ export function createMessageDispatcher(
     getSnapshot: () =>
       handleGoalGet(state.getProjectRoot(), (message) => broadcast(state.getClients(), message)),
   };
+  const kanbanSupervisor = createKanbanSupervisor({
+    projectRoot: () => state.getProjectRoot(),
+    broadcast: (message: { type: string; payload: unknown }) =>
+      broadcast(state.getClients(), message),
+    log: (message) => deps.logger.warn?.(`[KanbanSupervisor] ${message}`),
+  });
+  if (opts.onDispose) {
+    const dispose = () => kanbanSupervisor.dispose();
+    opts.onDispose(dispose);
+  }
   const kanbanContext = () => ({
     projectRoot: state.getProjectRoot(),
     context: deps.context,
     broadcast: (message: object) => broadcast(state.getClients(), message),
+    supervisor: kanbanSupervisor,
   });
   const kanbanHostRoutes: KanbanHostRouteHandlers = {
     meta: async (ws) => {

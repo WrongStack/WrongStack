@@ -41,15 +41,15 @@ describe('/suggest prompt contract', () => {
     ]);
   });
 
-  it.each([
-    'NONE',
-    'No pending actions — everything is up to date.',
-  ])('does not store no-op status text as a selectable prompt: %s', async (result) => {
-    const { context, onSuggestions } = makeContext(result);
+  it.each(['NONE', 'No pending actions — everything is up to date.'])(
+    'does not store no-op status text as a selectable prompt: %s',
+    async (result) => {
+      const { context, onSuggestions } = makeContext(result);
 
-    const response = await buildSuggestCommand(context).run!('--fresh');
+      const response = await buildSuggestCommand(context).run!('--fresh');
 
-    expect(onSuggestions).toHaveBeenCalledWith([]);
-    expect(stripAnsi(response?.message ?? '')).toContain('No suggestions available.');
-  });
+      expect(onSuggestions).toHaveBeenCalledWith([]);
+      expect(stripAnsi(response?.message ?? '')).toContain('No suggestions available.');
+    },
+  );
 });

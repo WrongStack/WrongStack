@@ -64,6 +64,7 @@ const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
   'message_appended',
   'message_updated',
   'messages_replaced',
+  'messages_dropped',
   'context_snapshot',
   'checkpoint',
   'file_snapshot',

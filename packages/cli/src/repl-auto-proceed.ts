@@ -1,8 +1,11 @@
 import { color, estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
-import { GROUNDED_NO_PROGRESS_STEER, type AutoProceedLoopGuard } from '@wrongstack/tools/auto-proceed-loop-guard';
-import { setAutoSuggestions, setSuggestions } from './services/suggestion-store.js';
-import { parseSuggestionsFromOutput } from './repl-suggestions.js';
+import {
+  type AutoProceedLoopGuard,
+  GROUNDED_NO_PROGRESS_STEER,
+} from '@wrongstack/tools/auto-proceed-loop-guard';
 import type { ReplOptions } from './repl-options.js';
+import { parseSuggestionsFromOutput } from './repl-suggestions.js';
+import { setAutoSuggestions, setSuggestions } from './services/suggestion-store.js';
 
 /**
  * Run the full auto-proceed cycle: countdown, feed suggestion to agent,
@@ -66,7 +69,9 @@ export async function runAutoProceed(
     // Record at the authoritative submission boundary: cancelled countdowns
     // and autonomy changes above never count as feeds because no prompt left
     // the client. A repeated prompt halts before `agent.run()`.
-    const repetition = grounded ? loopGuard.recordGrounded(suggestion) : loopGuard.record(suggestion);
+    const repetition = grounded
+      ? loopGuard.recordGrounded(suggestion)
+      : loopGuard.record(suggestion);
     if (repetition.shouldHalt) {
       setSuggestions([]);
       setAutoSuggestions([]);

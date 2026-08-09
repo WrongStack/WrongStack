@@ -18,9 +18,9 @@
  *   /provider-status retry <provider> <model>  Release one pair for a half-open probe
  */
 
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 
 export function buildProviderStatusCommand(tracker: ProviderModelStatusTracker): SlashCommand {
   const help = [

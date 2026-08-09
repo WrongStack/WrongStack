@@ -3,7 +3,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReadlineInputReader } from '../src/input-reader.js';
-import { detectProjectKind, LaunchAbortedError, persistLaunchChoices, runLaunchPrompts, runProjectCheck } from '../src/pre-launch.js';
+import {
+  detectProjectKind,
+  LaunchAbortedError,
+  persistLaunchChoices,
+  runLaunchPrompts,
+  runProjectCheck,
+} from '../src/pre-launch.js';
 import type { TerminalRenderer } from '../src/renderer.js';
 
 /**
@@ -482,7 +488,10 @@ describe('runLaunchPrompts', () => {
   it('persistLaunchChoices preserves existing config fields', async () => {
     const dir = await mkTempDir('wstack-persist-');
     const configPath = path.join(dir, 'config.json');
-    await fs.writeFile(configPath, JSON.stringify({ provider: 'anthropic', model: 'claude', version: 1 }));
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({ provider: 'anthropic', model: 'claude', version: 1 }),
+    );
     const choices = { mode: 'repl' as const, yolo: false, autonomy: 'off' as const };
 
     await persistLaunchChoices(configPath, choices);

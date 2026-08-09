@@ -10,23 +10,24 @@
  * WS/HTTP/shutdown wiring that used to be inline (~370 lines) now lives
  * behind four focused entry points.
  */
-import * as path from 'node:path';
+
 import { createRequire } from 'node:module';
+import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createProjectIntakeService } from './intake-service.js';
 import type { Config, ModelsRegistry } from '@wrongstack/core/types';
-import { WebSocketServer, type WebSocket } from 'ws';
+import { toErrorMessage } from '@wrongstack/core/utils';
+import { type WebSocket, WebSocketServer } from 'ws';
+import { protocolAdvertisement } from '../protocol/index.js';
+import { createHttpServer } from './http-server.js';
+import { createProjectIntakeService } from './intake-service.js';
+import { registerShutdownHandlers } from './lifecycle.js';
+import { resolveProviderModelMetadata } from './model-catalog.js';
+import { findFreePort } from './port-utils.js';
+import { type FileWatcherMetrics, setupEvents } from './setup-events.js';
+import type { ConnectedClient } from './types.js';
+import { getCostRates } from './usage-cost.js';
 import { verifyClient as verifyWsClient } from './ws-auth.js';
 import { envFlag, resolveAuthToken } from './ws-utils.js';
-import { findFreePort } from './port-utils.js';
-import { createHttpServer } from './http-server.js';
-import { registerShutdownHandlers } from './lifecycle.js';
-import { setupEvents, type FileWatcherMetrics } from './setup-events.js';
-import { getCostRates } from './usage-cost.js';
-import { resolveProviderModelMetadata } from './model-catalog.js';
-import type { ConnectedClient } from './types.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { protocolAdvertisement } from '../protocol/index.js';
 
 // ── Port resolution ─────────────────────────────────────────────────────
 
@@ -445,6 +446,13 @@ interface ShutdownDeps {
   flushSession: () => Promise<void>;
   clients: () => IterableIterator<WebSocket>;
   servers: Array<import('node:http').Server | WebSocketServer>;
+  /**
+   * Fires **before** any HTTP/WS servers close. Use this for cleanup that must
+   * finish while the network is still up — e.g. telling a Kanban supervisor
+   * to flush its periodic tick so no in-flight `kanban.*` broadcast races a
+   * `WebSocketServer.close()`.
+   */
+  onPreShutdown?: () => Promise<void> | void;
   onShutdown: () => Promise<void> | void;
 }
 
@@ -453,6 +461,7 @@ export function registerShutdown(deps: ShutdownDeps): () => void {
     flushSession: deps.flushSession,
     clients: deps.clients,
     servers: deps.servers,
+    onPreShutdown: deps.onPreShutdown,
     onShutdown: deps.onShutdown,
   });
 }

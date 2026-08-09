@@ -11,8 +11,8 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   detectProjectFacts,
-  renderAgentsTemplate,
   type ProjectFacts,
+  renderAgentsTemplate,
 } from '../src/services/project-facts.js';
 
 let dir: string;

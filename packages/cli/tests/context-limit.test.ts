@@ -227,15 +227,37 @@ describe('resolveRuntimeMaxContext — limit.output must never become the contex
 });
 
 describe('resolveRuntimeMaxContextDetailed — branch reporting for telemetry', () => {
-  it('reports explicit-config when config.context.effectiveMaxContext is set', async () => {
+  /**
+   * REGRESSION: a single global `context.effectiveMaxContext` used to sit at the
+   * TOP of the chain, so one stale 128k value silently pinned every model of
+   * every provider — collapsing 1M-window models to 128k with nothing in the UI
+   * naming the cause. The per-model catalog window must outrank it.
+   */
+  it('does NOT let a global effectiveMaxContext override the per-model catalog window', async () => {
     const result = await resolveRuntimeMaxContextDetailed({
       modelsRegistry: fakeRegistry(),
-      config: { provider: 'openai', model: 'gpt-4o', context: { effectiveMaxContext: 321_000 } },
+      config: { provider: 'openai', model: 'gpt-5.5', context: { effectiveMaxContext: 128_000 } },
       provider,
       providerId: 'openai',
-      modelId: 'gpt-4o',
+      modelId: 'gpt-5.5',
     });
-    expect(result).toEqual({ maxContext: 321_000, branch: 'explicit-config' });
+    expect(result).toEqual({ maxContext: 1_050_000, branch: 'catalog-capabilities' });
+  });
+
+  it('falls back to effectiveMaxContext only when the catalog knows no window', async () => {
+    const result = await resolveRuntimeMaxContextDetailed({
+      modelsRegistry: fakeRegistry(),
+      config: {
+        provider: 'mystery',
+        model: 'mystery-model',
+        context: { effectiveMaxContext: 321_000 },
+        providers: { mystery: { type: 'mystery', models: ['mystery-model'] } },
+      },
+      provider: { capabilities: { maxContext: 0 } } as never as Provider,
+      providerId: 'mystery',
+      modelId: 'mystery-model',
+    });
+    expect(result).toEqual({ maxContext: 321_000, branch: 'explicit-config-fallback' });
   });
 
   it('reports provider-override when a per-provider capabilities.maxContext is set', async () => {
@@ -312,7 +334,9 @@ describe('resolveRuntimeMaxContextDetailed — branch reporting for telemetry', 
       config: {
         provider: 'local',
         model: 'local-model',
-        providers: { local: { type: 'local', family: 'openai-compatible', models: ['local-model'] } },
+        providers: {
+          local: { type: 'local', family: 'openai-compatible', models: ['local-model'] },
+        },
       },
       // Family default the resolver must land on and label as such.
       provider: { capabilities: { maxContext: 48_000 } } as never as Provider,
@@ -382,10 +406,15 @@ describe('resolveRuntimeMaxContextDetailed — branch reporting for telemetry', 
   it('resolveRuntimeMaxContext stays a value-only wrapper over the detailed resolver', async () => {
     const value = await resolveRuntimeMaxContext({
       modelsRegistry: fakeRegistry(),
-      config: { provider: 'openai', model: 'gpt-4o', context: { effectiveMaxContext: 111_000 } },
-      provider,
-      providerId: 'openai',
-      modelId: 'gpt-4o',
+      config: {
+        provider: 'mystery',
+        model: 'mystery-model',
+        context: { effectiveMaxContext: 111_000 },
+        providers: { mystery: { type: 'mystery', models: ['mystery-model'] } },
+      },
+      provider: { capabilities: { maxContext: 0 } } as never as Provider,
+      providerId: 'mystery',
+      modelId: 'mystery-model',
     });
     expect(value).toBe(111_000);
   });
@@ -534,8 +563,6 @@ describe('refreshRuntimeModelCatalog', () => {
     ).resolves.toBe(false);
 
     expect(registry.refresh).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('using cached catalog'),
-    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('using cached catalog'));
   });
 });

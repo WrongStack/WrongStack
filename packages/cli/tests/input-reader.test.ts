@@ -11,8 +11,9 @@
  * file input-reader-line-secret.test.ts, which mocks `node:readline`
  * and stands in for a TTY stdin to drive both paths.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { EventEmitter } from 'node:events';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReadlineInputReader } from '../src/input-reader.js';
 
 /** Minimal fake of NodeJS.ReadStream — just enough for setRawMode + .on/.off. */
@@ -74,9 +75,7 @@ describe('ReadlineInputReader.readKey', () => {
 
   it('matches case-insensitively (Y resolves to "yes" the same as y)', async () => {
     const reader = new ReadlineInputReader();
-    const promise = reader.readKey('> ', [
-      { key: 'y', label: 'yes', value: 'resume' },
-    ]);
+    const promise = reader.readKey('> ', [{ key: 'y', label: 'yes', value: 'resume' }]);
     setImmediate(() => {
       (process.stdin as never as EventEmitter).emit('data', Buffer.from('Y'));
     });
@@ -85,9 +84,7 @@ describe('ReadlineInputReader.readKey', () => {
 
   it('resolves to empty string on Ctrl+C and restores raw mode', async () => {
     const reader = new ReadlineInputReader();
-    const promise = reader.readKey('> ', [
-      { key: 'y', label: 'yes', value: 'resume' },
-    ]);
+    const promise = reader.readKey('> ', [{ key: 'y', label: 'yes', value: 'resume' }]);
     setImmediate(() => {
       (process.stdin as never as EventEmitter).emit('data', Buffer.from('\x03'));
     });
@@ -96,9 +93,7 @@ describe('ReadlineInputReader.readKey', () => {
 
   it('ignores non-matching keys until a match arrives', async () => {
     const reader = new ReadlineInputReader();
-    const promise = reader.readKey('> ', [
-      { key: 'y', label: 'yes', value: 'resume' },
-    ]);
+    const promise = reader.readKey('> ', [{ key: 'y', label: 'yes', value: 'resume' }]);
     // Schedule a wrong key first, then a right one. readKey must
     // keep listening and not resolve early.
     setImmediate(() => {

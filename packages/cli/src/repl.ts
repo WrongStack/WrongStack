@@ -1,11 +1,23 @@
-import { toErrorMessage } from '@wrongstack/core/utils';
-import type { GoalFile } from '@wrongstack/core/goal';
-import { color, estimateRequestTokensCalibrated, expectDefined, hasOpenTodos } from '@wrongstack/core/utils';
 import { detectContinueIntent, InputBuilder, resolveContinuation } from '@wrongstack/core/agent';
+import type { GoalFile } from '@wrongstack/core/goal';
 import { goalFilePath, loadGoal, summarizeUsage } from '@wrongstack/core/goal';
+import {
+  color,
+  estimateRequestTokensCalibrated,
+  expectDefined,
+  hasOpenTodos,
+  toErrorMessage,
+} from '@wrongstack/core/utils';
 import { readClipboardImage, routeImagesForModel } from '@wrongstack/runtime';
+import { createAutoProceedLoopGuard } from '@wrongstack/tools/auto-proceed-loop-guard';
 import { contextOverflowHint } from './context-overflow-diagnostic.js';
 import { type PredictLLMProvider, predictNextTasks } from './next-task-predictor.js';
+import { runAutoProceed } from './repl-auto-proceed.js';
+import { registerReplClient } from './repl-client-registration.js';
+import { readPossiblyMultiline } from './repl-input.js';
+import type { ReplOptions } from './repl-options.js';
+import { printBanner, renderContextChip } from './repl-rendering.js';
+import { parseSuggestionsFromOutput } from './repl-suggestions.js';
 import {
   advanceToNextTask,
   autoDetectTaskCompletion,
@@ -19,21 +31,14 @@ import {
   trySaveSpecFromAIOutput,
   trySaveTasksFromAIOutput,
 } from './services/sdd-runtime.js';
-import { fmtTok } from './utils.js';
 import { getSuggestions } from './services/suggestion-store.js';
-import { parseSuggestionsFromOutput } from './repl-suggestions.js';
-import { runAutoProceed } from './repl-auto-proceed.js';
-import { readPossiblyMultiline } from './repl-input.js';
-import { printBanner, renderContextChip } from './repl-rendering.js';
-import { registerReplClient } from './repl-client-registration.js';
-import type { ReplOptions } from './repl-options.js';
-import { createAutoProceedLoopGuard } from '@wrongstack/tools/auto-proceed-loop-guard';
+import { fmtTok } from './utils.js';
 
 /** Default ceiling on consecutive auto-proceed turns; 0 in settings means unlimited. */
 const DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED = 50;
 
-export { parseSuggestionsFromOutput, parseAutoSuggestionsFromOutput } from './repl-suggestions.js';
 export type { ReplOptions } from './repl-options.js';
+export { parseAutoSuggestionsFromOutput, parseSuggestionsFromOutput } from './repl-suggestions.js';
 
 export async function runRepl(opts: ReplOptions): Promise<number> {
   if (opts.banner !== false) printBanner(opts.renderer, opts.projectName);
@@ -205,9 +210,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
               continue;
             }
           } catch (err) {
-            opts.renderer.writeError(
-              `[eternal] ${toErrorMessage(err)}`,
-            );
+            opts.renderer.writeError(`[eternal] ${toErrorMessage(err)}`);
           }
           // Yield to the event loop so a SIGINT delivered during this
           // iteration can be processed before the next one fires.
@@ -299,9 +302,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
               continue;
             }
           } catch (err) {
-            opts.renderer.writeError(
-              `[parallel] ${toErrorMessage(err)}`,
-            );
+            opts.renderer.writeError(`[parallel] ${toErrorMessage(err)}`);
           }
           await new Promise((resolve) => setTimeout(resolve, 250));
           continue;
@@ -343,7 +344,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
             const isYolo = opts.getYolo?.() ?? false;
             const autoSuggestions = opts.getAutoSuggestions?.() ?? [];
             const useAutoSuggestions = isYolo && autoSuggestions.length > 0;
-            top = useAutoSuggestions ? autoSuggestions[0] ?? '' : suggestions[0] ?? '';
+            top = useAutoSuggestions ? (autoSuggestions[0] ?? '') : (suggestions[0] ?? '');
           } else {
             const todos = opts.agent.ctx.todos ?? [];
             const resolved = resolveContinuation({ todos, suggestions: [] });
@@ -389,9 +390,10 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
                 const isYolo = opts.getYolo?.() ?? false;
                 const autoSuggestions = opts.getAutoSuggestions?.() ?? [];
                 const useAutoSuggestions = isYolo && autoSuggestions.length > 0;
-                const promptToFeed = useAutoSuggestions && opts.autonomyNextPrompt
-                  ? opts.autonomyNextPrompt.replace('{{suggestion}}', top)
-                  : top;
+                const promptToFeed =
+                  useAutoSuggestions && opts.autonomyNextPrompt
+                    ? opts.autonomyNextPrompt.replace('{{suggestion}}', top)
+                    : top;
                 const submitted = await runAutoProceed(
                   opts,
                   promptToFeed,
@@ -581,7 +583,9 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
         if (resolved.source === 'open') {
           opts.renderer.write(
             `  ${color.amber('⚠')} ${color.bold("'continue' has no anchor")} ${color.dim('— no pending todo or suggestion.')}\n` +
-              color.dim("     If you proceed, I'll choose the next step from context; that can drift.\n"),
+              color.dim(
+                "     If you proceed, I'll choose the next step from context; that can drift.\n",
+              ),
           );
           const ans = (
             await opts.reader.readLine(color.dim('  Proceed anyway? [Y/n · e = type your own] '))
@@ -770,8 +774,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
         if (opts.tokenCounter && before) {
           const after = opts.tokenCounter.total();
           const costAfter = opts.tokenCounter.estimateCost().total;
-          const effectiveMaxContext =
-            opts.getEffectiveMaxContext?.() ?? opts.effectiveMaxContext;
+          const effectiveMaxContext = opts.getEffectiveMaxContext?.() ?? opts.effectiveMaxContext;
           const ctxChip =
             effectiveMaxContext && effectiveMaxContext > 0
               ? `  ctx: ${renderContextChip(after.input, effectiveMaxContext)}`
@@ -909,9 +912,7 @@ async function pasteClipboardImage(builder: InputBuilder, opts: ReplOptions): Pr
     const kb = (img.bytes / 1024).toFixed(0);
     opts.renderer.write(color.dim(`  ↳ ${placeholder} (PNG ${kb}KB)\n`));
   } catch (err) {
-    opts.renderer.writeError(
-      `Clipboard image error: ${toErrorMessage(err)}`,
-    );
+    opts.renderer.writeError(`Clipboard image error: ${toErrorMessage(err)}`);
   }
 }
 
@@ -995,9 +996,7 @@ async function renderGoalBanner(opts: ReplOptions): Promise<void> {
         try {
           await opts.slashRegistry.dispatch('/autonomy eternal', opts.agent.ctx);
         } catch (err) {
-          opts.renderer.writeError(
-            `Auto-resume failed: ${toErrorMessage(err)}`,
-          );
+          opts.renderer.writeError(`Auto-resume failed: ${toErrorMessage(err)}`);
         }
       } else {
         opts.renderer.write(

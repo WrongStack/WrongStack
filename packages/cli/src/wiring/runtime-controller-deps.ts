@@ -1,9 +1,9 @@
 /** Builds live controller callbacks for the running CLI session. */
 import type { Agent, Context } from '@wrongstack/core/agent';
+import { resolveConfiguredRefinerRef, resolveEnhanceFallbackRef } from '@wrongstack/core/execution';
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { AuditLevel } from '@wrongstack/core/storage';
 import type { Config, LogLevel, Provider } from '@wrongstack/core/types';
-import type { EventBus } from '@wrongstack/core/kernel';
-import { resolveConfiguredRefinerRef, resolveEnhanceFallbackRef } from '@wrongstack/core/execution';
 import type { ControllerDeps } from '../execute-deps.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import { deriveFsAccessPair } from '../settings-menu.js';
@@ -117,10 +117,7 @@ function applyLiveSettings(
       });
       config = patchConfig(config, { maxConcurrent: settings.maxConcurrent });
     }
-    if (
-      settings.restrictFsToRoot !== undefined ||
-      settings.allowOutsideProjectRoot !== undefined
-    ) {
+    if (settings.restrictFsToRoot !== undefined || settings.allowOutsideProjectRoot !== undefined) {
       const access = deriveFsAccessPair(settings);
       if (access) {
         input.context.allowOutsideProjectRoot = access.allowOutsideProjectRoot;

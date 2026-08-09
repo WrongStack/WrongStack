@@ -21,7 +21,6 @@ import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { QueueStore } from '@wrongstack/core/storage';
-import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 import type {
   AttachmentStore,
   AutonomyStage,
@@ -43,6 +42,7 @@ import type {
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
+import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 import type { ReadlineInputReader } from './input-reader.js';
 import type { LiveSettingsInput } from './live-settings-input.js';
 import type { TerminalRenderer } from './renderer.js';

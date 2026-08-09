@@ -59,8 +59,7 @@ describe('CLI wiring controllers', () => {
   //   cli-main (fleet deps) → execution (destructure + runTui opts)
   //   → tui run-tui (App prop) → App → AgentsMonitor.
   it('threads agentTranscripts through every optional-prop hop', () => {
-    const read = (rel: string) =>
-      readFileSync(path.join(__dirname, '..', rel), 'utf8');
+    const read = (rel: string) => readFileSync(path.join(__dirname, '..', rel), 'utf8');
     expect(read('src/cli-main.ts')).toMatch(/agentTranscripts:\s*agentMonitor/);
     const execution = read('src/execution.ts');
     expect(execution).toMatch(/agentsMonitorController,\s*agentTranscripts,/s);

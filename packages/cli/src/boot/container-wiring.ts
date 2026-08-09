@@ -37,15 +37,15 @@
 //     container's services. It will land in a follow-up PR
 //     (system-prompt.ts or similar).
 
-import type { Config, Logger, Renderer, ModelsRegistry } from '@wrongstack/core/types';
-import type { WstackPaths } from '@wrongstack/core/utils';
+import { DefaultPathResolver } from '@wrongstack/core/infrastructure';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { EventBus as CoreEventBus, TOKENS } from '@wrongstack/core/kernel';
-import { DefaultPathResolver } from '@wrongstack/core/infrastructure';
+import type { Config, Logger, ModelsRegistry, Renderer } from '@wrongstack/core/types';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { createDefaultContainer } from '@wrongstack/runtime';
-import { makePromptDelegate } from '../permission-prompt.js';
-import { resolveBundledSkillsDir } from '../cli-bundled-skills.js';
 import { resolveBundledPromptsDir } from '../cli-bundled-prompts.js';
+import { resolveBundledSkillsDir } from '../cli-bundled-skills.js';
+import { makePromptDelegate } from '../permission-prompt.js';
 
 interface WireContainerDeps {
   config: Config;
@@ -87,7 +87,9 @@ export function wireContainer(deps: WireContainerDeps): {
     events,
     permission: {
       yolo: deps.config.yolo,
-      promptDelegate: makePromptDelegate(deps.reader) as NonNullable<NonNullable<Parameters<typeof createDefaultContainer>[0]['permission']>['promptDelegate']>,
+      promptDelegate: makePromptDelegate(deps.reader) as NonNullable<
+        NonNullable<Parameters<typeof createDefaultContainer>[0]['permission']>['promptDelegate']
+      >,
     },
     compactor: {
       preserveK: deps.config.context.preserveK,

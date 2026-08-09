@@ -11,11 +11,11 @@
  * filled to construct Context + Agent.
  */
 
+import { Agent } from '@wrongstack/core/agent';
+import type { ProviderRegistry } from '@wrongstack/core/registry';
+import { ToolRegistry as RealToolRegistry } from '@wrongstack/core/registry';
 import type { Config, Provider, ResolvedProvider } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import type { ProviderRegistry } from '@wrongstack/core/registry';
-import { Agent } from '@wrongstack/core/agent';
-import { ToolRegistry as RealToolRegistry } from '@wrongstack/core/registry';
 import { builtinToolsPack } from '@wrongstack/tools';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,15 +39,15 @@ vi.mock('@wrongstack/runtime', () => ({
   }),
 }));
 
+import type { RunTurnApi } from '@wrongstack/acp/agent';
+import { ToolCapabilities } from '@wrongstack/core/security';
+import type { Tool } from '@wrongstack/core/types';
 import {
   ACPClientPermissionPolicy,
   AcpServerConfigError,
   buildAcpServerAgentFactory,
 } from '../src/acp-server-agent.js';
-import type { RunTurnApi } from '@wrongstack/acp/agent';
 import type { SubcommandDeps } from '../src/subcommands/index.js';
-import { ToolCapabilities } from '@wrongstack/core/security';
-import type { Tool } from '@wrongstack/core/types';
 
 function makeStubProvider(): Provider {
   return {
@@ -172,7 +172,9 @@ describe('buildAcpServerAgentFactory', () => {
     const agent = await agentFor('sess-acp', '/tmp', api);
 
     const readTool = agent.tools.get('read');
-    const readOut = (await readTool!.execute({ path: 'a.ts' }, agent.ctx, {} as never)) as { text: string };
+    const readOut = (await readTool!.execute({ path: 'a.ts' }, agent.ctx, {} as never)) as {
+      text: string;
+    };
     expect(reads[0]).toMatchObject({ path: 'a.ts' });
     expect(readOut.text).toContain('line one');
 
@@ -274,9 +276,12 @@ describe('ACPClientPermissionPolicy', () => {
     // We cast through `never` because the malformed shape does not match
     // either variant of the union — that mismatch is exactly what the bug
     // is about. The runtime check is what defends against it.
-    const requestPermission = vi.fn(async () => ({
-      outcome: 'selected',
-    } as never));
+    const requestPermission = vi.fn(
+      async () =>
+        ({
+          outcome: 'selected',
+        }) as never,
+    );
     const policy = new ACPClientPermissionPolicy(requestPermission as never);
 
     const decision = await policy.evaluate(sideEffectingTool, { path: 'a.ts' });

@@ -1,8 +1,8 @@
 import {
-  getSharedProjectMailbox,
-  mailboxSessionTag,
   type AgentMonitorService,
   type Director,
+  getSharedProjectMailbox,
+  mailboxSessionTag,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config } from '@wrongstack/core/types';

@@ -1,8 +1,7 @@
 import * as path from 'node:path';
 import type { SlashCommand } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { atomicWrite, color } from '@wrongstack/core/utils';
-import { readJsonObjectFile } from '@wrongstack/core/utils';
+import { atomicWrite, color, readJsonObjectFile } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 
 /** Characters that are stripped from profile names to prevent path traversal. */
@@ -174,8 +173,7 @@ async function switchProfile(
   try {
     await atomicWrite(wpaths.globalConfig, JSON.stringify(bootstrap, null, 2), { mode: 0o600 });
   } catch (err) {
-    const msg =
-      `${color.red('✗')} Failed to update bootstrap config: ${err instanceof Error ? err.message : String(err)}`;
+    const msg = `${color.red('✗')} Failed to update bootstrap config: ${err instanceof Error ? err.message : String(err)}`;
     renderer.writeWarning(msg);
     return { message: msg };
   }
@@ -232,8 +230,7 @@ async function copyProfile(
   try {
     await cp(srcDir, destDir, { recursive: true, errorOnExist: true, force: false });
   } catch (err) {
-    const msg =
-      `${color.red('✗')} Failed to copy profile: ${err instanceof Error ? err.message : String(err)}`;
+    const msg = `${color.red('✗')} Failed to copy profile: ${err instanceof Error ? err.message : String(err)}`;
     renderer.writeWarning(msg);
     return { message: msg };
   }

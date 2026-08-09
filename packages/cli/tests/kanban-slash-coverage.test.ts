@@ -1,13 +1,25 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock @wrongstack/kanban
 const mockListBoards = vi.hoisted(() => vi.fn(async (): Promise<any[]> => []));
-const mockCreateBoard = vi.hoisted(() => vi.fn(async () => ({ id: 'b1', title: 'Test', columns: [{ id: 'col1', name: 'Backlog' }], tasks: [], updatedAt: new Date().toISOString(), taskCount: 0, completedTaskCount: 0 })));
+const mockCreateBoard = vi.hoisted(() =>
+  vi.fn(async () => ({
+    id: 'b1',
+    title: 'Test',
+    columns: [{ id: 'col1', name: 'Backlog' }],
+    tasks: [],
+    updatedAt: new Date().toISOString(),
+    taskCount: 0,
+    completedTaskCount: 0,
+  })),
+);
 const mockGetBoard = vi.hoisted(() => vi.fn(async (): Promise<any> => null));
 const mockRemoveBoard = vi.hoisted(() => vi.fn(async () => true));
 const mockDuplicateBoard = vi.hoisted(() => vi.fn(async (): Promise<any> => null));
 const mockUpdateBoard = vi.hoisted(() => vi.fn(async (): Promise<any> => null));
-const mockCreateBoardFromText = vi.hoisted(() => vi.fn(() => ({ title: 'Generated', columns: [{ id: 'backlog', name: 'Backlog' }] })));
+const mockCreateBoardFromText = vi.hoisted(() =>
+  vi.fn(() => ({ title: 'Generated', columns: [{ id: 'backlog', name: 'Backlog' }] })),
+);
 const mockParseLinesIntoTasks = vi.hoisted(() => vi.fn(() => []));
 const mockGetKanbanSnapshot = vi.hoisted(() => vi.fn(async () => ({})));
 const mockExportBoardAsMarkdown = vi.hoisted(() => vi.fn(() => '# Board'));
@@ -78,12 +90,18 @@ vi.mock('../src/slash-commands/kanban-agent-helpers.js', () => ({
 
 vi.mock('../src/slash-commands/kanban-help.js', () => ({ KANBAN_COMMAND_HELP: 'KANBAN HELP' }));
 
-vi.mock('../src/slash-commands/kanban-graph.js', () => ({ handleGraphSubcommand: vi.fn(async () => ({ message: 'GRAPH' })) }));
-vi.mock('../src/slash-commands/kanban-task.js', () => ({ handleTaskSubcommand: vi.fn(async () => ({ message: 'TASK' })) }));
-vi.mock('../src/slash-commands/kanban-column.js', () => ({ handleColumnSubcommand: vi.fn(async () => ({ message: 'COLUMN' })) }));
+vi.mock('../src/slash-commands/kanban-graph.js', () => ({
+  handleGraphSubcommand: vi.fn(async () => ({ message: 'GRAPH' })),
+}));
+vi.mock('../src/slash-commands/kanban-task.js', () => ({
+  handleTaskSubcommand: vi.fn(async () => ({ message: 'TASK' })),
+}));
+vi.mock('../src/slash-commands/kanban-column.js', () => ({
+  handleColumnSubcommand: vi.fn(async () => ({ message: 'COLUMN' })),
+}));
 
-import { buildKanbanCommand } from '../src/slash-commands/kanban.js';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
+import { buildKanbanCommand } from '../src/slash-commands/kanban.js';
 
 /** Narrow the slash-command execute/run union (which includes `void`) to its message. */
 function runMessage(result: unknown): string | undefined {
@@ -110,7 +128,9 @@ describe('kanban slash command', () => {
   });
 
   it('lists boards when no subcommand', async () => {
-    mockListBoards.mockResolvedValue([{ id: 'b1', title: 'Board 1', tasks: [], updatedAt: '', taskCount: 0, completedTaskCount: 0 }]);
+    mockListBoards.mockResolvedValue([
+      { id: 'b1', title: 'Board 1', tasks: [], updatedAt: '', taskCount: 0, completedTaskCount: 0 },
+    ]);
     const cmd = buildKanbanCommand(makeCtx());
     const result = await cmd.run('');
     expect(runMessage(result)).toBeTruthy();
@@ -252,7 +272,12 @@ describe('kanban slash command', () => {
   });
 
   it('shows dependency chain', async () => {
-    mockGetBoard.mockResolvedValue({ id: 'b1', title: 'B1', columns: [], tasks: [{ id: 't1', title: 'T1', dependencies: [] }] });
+    mockGetBoard.mockResolvedValue({
+      id: 'b1',
+      title: 'B1',
+      columns: [],
+      tasks: [{ id: 't1', title: 'T1', dependencies: [] }],
+    });
     const cmd = buildKanbanCommand(makeCtx());
     const result = await cmd.run('deps b1 t1');
     expect(runMessage(result)).toBeTruthy();
@@ -272,7 +297,15 @@ describe('kanban slash command', () => {
   });
 
   it('prune dry-run shows nothing to prune', async () => {
-    mockListBoards.mockResolvedValue([{ id: 'b1', title: 'B1', updatedAt: new Date().toISOString(), taskCount: 0, completedTaskCount: 0 }]);
+    mockListBoards.mockResolvedValue([
+      {
+        id: 'b1',
+        title: 'B1',
+        updatedAt: new Date().toISOString(),
+        taskCount: 0,
+        completedTaskCount: 0,
+      },
+    ]);
     const cmd = buildKanbanCommand(makeCtx());
     const result = await cmd.run('prune 7');
     expect(runMessage(result)).toContain('Nothing to prune');

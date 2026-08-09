@@ -12,8 +12,8 @@ import * as path from 'node:path';
 import type { Director } from '@wrongstack/core/coordination';
 import { color } from '@wrongstack/core/utils';
 import type { TerminalRenderer } from '../renderer.js';
-import type { TuiRuntimeState } from './tui-runtime-state.js';
 import type { ProjectSwitchContext } from './tui-project-switch.js';
+import type { TuiRuntimeState } from './tui-runtime-state.js';
 
 export interface ProjectPickerContext {
   state: TuiRuntimeState;
@@ -48,7 +48,8 @@ export async function onProjectSelect(
   slug: string,
   kind: 'project' | 'action',
 ): Promise<void> {
-  const { state, renderer, director, getEternalEngine, getParallelEngine, switchProjectInPlace } = ctx;
+  const { state, renderer, director, getEternalEngine, getParallelEngine, switchProjectInPlace } =
+    ctx;
 
   try {
     if (kind === 'action') {
@@ -70,17 +71,19 @@ export async function onProjectSelect(
     if (path.resolve(state.projectRoot) === targetRoot) return;
 
     const fleetStatus = director?.status();
-    const fleetRunning =
-      fleetStatus?.subagents.filter((a) => a.status === 'running').length ?? 0;
+    const fleetRunning = fleetStatus?.subagents.filter((a) => a.status === 'running').length ?? 0;
     const eternalActive = getEternalEngine?.()?.currentState === 'running';
     const parallelActive = getParallelEngine?.()?.currentState === 'running';
     const hasActiveAgents = fleetRunning > 0 || eternalActive || parallelActive;
 
     if (hasActiveAgents) {
       const parts: string[] = [
-        color.yellow('⚠  Switching project in place; active background work is still tied to the previous project:'),
+        color.yellow(
+          '⚠  Switching project in place; active background work is still tied to the previous project:',
+        ),
       ];
-      if (fleetRunning > 0) parts.push(color.dim(`  • ${fleetRunning} subagent(s) currently running`));
+      if (fleetRunning > 0)
+        parts.push(color.dim(`  • ${fleetRunning} subagent(s) currently running`));
       if (eternalActive) parts.push(color.dim('  • Eternal engine is active'));
       if (parallelActive) parts.push(color.dim('  • Parallel engine is active'));
       parts.push('');
@@ -95,9 +98,7 @@ export async function onProjectSelect(
     if (err) renderer.write(color.red(`Project switch failed: ${err}\n`));
   } catch (err) {
     renderer.write(
-      color.red(
-        `Project switch failed: ${err instanceof Error ? err.message : String(err)}\n`,
-      ),
+      color.red(`Project switch failed: ${err instanceof Error ? err.message : String(err)}\n`),
     );
   }
 }

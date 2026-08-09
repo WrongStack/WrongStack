@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -8,6 +7,7 @@ import {
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mailboxServeCmd } from '../src/subcommands/handlers/mailbox-serve.js';
 
 /**
@@ -122,8 +122,12 @@ beforeAll(async () => {
   );
   serverChild = child;
   let stdout = '';
-  child.stdout?.on('data', (c: Buffer) => { stdout += c.toString('utf8'); });
-  child.stderr?.on('data', () => { /* swallow */ });
+  child.stdout?.on('data', (c: Buffer) => {
+    stdout += c.toString('utf8');
+  });
+  child.stderr?.on('data', () => {
+    /* swallow */
+  });
 
   // Wait for the structured startup event so we know the port.
   await new Promise<void>((resolve, reject) => {
@@ -163,7 +167,10 @@ afterAll(async () => {
     const child = serverChild;
     await new Promise<void>((resolve) => {
       const t = setTimeout(resolve, 3_000);
-      child.once('exit', () => { clearTimeout(t); resolve(); });
+      child.once('exit', () => {
+        clearTimeout(t);
+        resolve();
+      });
       child.kill('SIGINT');
     });
   }
@@ -221,13 +228,18 @@ describe('mailbox-bridge — auth gate', () => {
 
 describe('mailbox-bridge — POST /mailbox/send', () => {
   it('creates a message and returns 201 with the message', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'test-sender',
-      to: 'test-receiver',
-      type: 'note',
-      subject: 'hello',
-      body: 'integration test message',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'test-sender',
+        to: 'test-receiver',
+        type: 'note',
+        subject: 'hello',
+        body: 'integration test message',
+      },
+      auth(),
+    );
     expect(res.status).toBe(201);
     const msg = res.body as { id: string; subject: string };
     expect(msg.subject).toBe('hello');
@@ -235,20 +247,34 @@ describe('mailbox-bridge — POST /mailbox/send', () => {
   });
 
   it('returns 400 VALIDATION_ERROR when required fields are missing', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      to: 'test-receiver',
-      type: 'note',
-      subject: 'missing-from',
-      body: 'should fail',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        to: 'test-receiver',
+        type: 'note',
+        subject: 'missing-from',
+        body: 'should fail',
+      },
+      auth(),
+    );
     expect(res.status).toBe(400);
     expect((res.body as { error: { code: string } }).error.code).toBe('VALIDATION_ERROR');
   });
 
   it('returns 400 when type is invalid', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'a', to: 'b', type: 'not-a-real-type', subject: 's', body: 'b',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'a',
+        to: 'b',
+        type: 'not-a-real-type',
+        subject: 's',
+        body: 'b',
+      },
+      auth(),
+    );
     expect(res.status).toBe(400);
     expect((res.body as { error: { message: string } }).error.message).toContain('type');
   });
@@ -256,10 +282,15 @@ describe('mailbox-bridge — POST /mailbox/send', () => {
 
 describe('mailbox-bridge — POST /mailbox/query', () => {
   it('returns messages matching the recipient filter', async () => {
-    const res = await http('POST', '/mailbox/query', {
-      to: 'test-receiver',
-      limit: 10,
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/query',
+      {
+        to: 'test-receiver',
+        limit: 10,
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
     const data = (res.body as { data: Array<{ subject: string }> }).data;
     expect(Array.isArray(data)).toBe(true);
@@ -276,87 +307,147 @@ describe('mailbox-bridge — POST /mailbox/query', () => {
 
 describe('mailbox-bridge — POST /mailbox/check', () => {
   it('checks direct/base/broadcast inbox mail and can complete returned messages', async () => {
-    await http('POST', '/mailbox/send', {
-      from: 'external-sender',
-      to: 'external-reader',
-      type: 'ask',
-      subject: 'direct-check',
-      body: 'direct body',
-    }, auth());
-    await http('POST', '/mailbox/send', {
-      from: 'external-sender',
-      to: 'external',
-      type: 'assign',
-      subject: 'base-check',
-      body: 'base body',
-    }, auth());
-    await http('POST', '/mailbox/send', {
-      from: 'external-sender',
-      to: '*',
-      type: 'broadcast',
-      subject: 'broadcast-check',
-      body: 'broadcast body',
-    }, auth());
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'external-sender',
+        to: 'external-reader',
+        type: 'ask',
+        subject: 'direct-check',
+        body: 'direct body',
+      },
+      auth(),
+    );
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'external-sender',
+        to: 'external',
+        type: 'assign',
+        subject: 'base-check',
+        body: 'base body',
+      },
+      auth(),
+    );
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'external-sender',
+        to: '*',
+        type: 'broadcast',
+        subject: 'broadcast-check',
+        body: 'broadcast body',
+      },
+      auth(),
+    );
 
-    const res = await http('POST', '/mailbox/check', {
-      agentId: 'external-reader',
-      baseId: 'external',
-      completed: true,
-      outcome: 'handled over bridge',
-      limit: 10,
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/check',
+      {
+        agentId: 'external-reader',
+        baseId: 'external',
+        completed: true,
+        outcome: 'handled over bridge',
+        limit: 10,
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
-    const data = (res.body as { data: Array<{ subject: string; completed: boolean; outcome?: string }>; count: number }).data;
+    const data = (
+      res.body as {
+        data: Array<{ subject: string; completed: boolean; outcome?: string }>;
+        count: number;
+      }
+    ).data;
     expect((res.body as { count: number }).count).toBe(3);
-    expect(data.map((m) => m.subject).sort()).toEqual(['base-check', 'broadcast-check', 'direct-check']);
+    expect(data.map((m) => m.subject).sort()).toEqual([
+      'base-check',
+      'broadcast-check',
+      'direct-check',
+    ]);
     expect(data.every((m) => m.completed)).toBe(true);
     expect(data.every((m) => m.outcome === 'handled over bridge')).toBe(true);
   });
 
   it('can peek without marking returned messages read', async () => {
-    await http('POST', '/mailbox/send', {
-      from: 'peek-sender',
-      to: 'peek-reader',
-      type: 'note',
-      subject: 'peek-check',
-      body: 'peek body',
-    }, auth());
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'peek-sender',
+        to: 'peek-reader',
+        type: 'note',
+        subject: 'peek-check',
+        body: 'peek body',
+      },
+      auth(),
+    );
 
-    const res = await http('POST', '/mailbox/check', {
-      agentId: 'peek-reader',
-      markRead: false,
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/check',
+      {
+        agentId: 'peek-reader',
+        markRead: false,
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
     expect(
-      (res.body as { data: Array<{ subject: string }> }).data.some((m) => m.subject === 'peek-check'),
+      (res.body as { data: Array<{ subject: string }> }).data.some(
+        (m) => m.subject === 'peek-check',
+      ),
     ).toBe(true);
 
-    const query = await http('POST', '/mailbox/query', {
-      to: 'peek-reader',
-      unreadBy: 'peek-reader',
-      limit: 10,
-    }, auth());
-    expect((query.body as { data: Array<{ subject: string }> }).data.some((m) => m.subject === 'peek-check')).toBe(true);
+    const query = await http(
+      'POST',
+      '/mailbox/query',
+      {
+        to: 'peek-reader',
+        unreadBy: 'peek-reader',
+        limit: 10,
+      },
+      auth(),
+    );
+    expect(
+      (query.body as { data: Array<{ subject: string }> }).data.some(
+        (m) => m.subject === 'peek-check',
+      ),
+    ).toBe(true);
   });
 });
 
 describe('mailbox-bridge — POST /mailbox/ack', () => {
   it('acks a single message and returns the updated message', async () => {
     // First, send a message directed at our test reader.
-    const sent = await http('POST', '/mailbox/send', {
-      from: 'test-ack-sender',
-      to: 'test-ack-reader',
-      type: 'note',
-      subject: 'ack-me',
-      body: 'ack test',
-    }, auth());
+    const sent = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'test-ack-sender',
+        to: 'test-ack-reader',
+        type: 'note',
+        subject: 'ack-me',
+        body: 'ack test',
+      },
+      auth(),
+    );
     const msgId = (sent.body as { id: string }).id;
 
-    const ack = await http('POST', '/mailbox/ack', {
-      messageId: msgId,
-      readerId: 'test-ack-reader',
-      read: true,
-    }, auth());
+    const ack = await http(
+      'POST',
+      '/mailbox/ack',
+      {
+        messageId: msgId,
+        readerId: 'test-ack-reader',
+        read: true,
+      },
+      auth(),
+    );
     expect(ack.status).toBe(200);
     expect((ack.body as { updated: { id: string } | null }).updated?.id).toBe(msgId);
   });
@@ -364,23 +455,50 @@ describe('mailbox-bridge — POST /mailbox/ack', () => {
 
 describe('mailbox-bridge — POST /mailbox/ack-many', () => {
   it('acks a batch of messages under one call', async () => {
-    const sent1 = await http('POST', '/mailbox/send', {
-      from: 'test-batch-sender',
-      to: 'test-batch-reader',
-      type: 'note', subject: 'batch-1', body: 'one',
-    }, auth());
-    const sent2 = await http('POST', '/mailbox/send', {
-      from: 'test-batch-sender',
-      to: 'test-batch-reader',
-      type: 'note', subject: 'batch-2', body: 'two',
-    }, auth());
+    const sent1 = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'test-batch-sender',
+        to: 'test-batch-reader',
+        type: 'note',
+        subject: 'batch-1',
+        body: 'one',
+      },
+      auth(),
+    );
+    const sent2 = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'test-batch-sender',
+        to: 'test-batch-reader',
+        type: 'note',
+        subject: 'batch-2',
+        body: 'two',
+      },
+      auth(),
+    );
 
-    const res = await http('POST', '/mailbox/ack-many', {
-      acks: [
-        { messageId: (sent1.body as { id: string }).id, readerId: 'test-batch-reader', read: true },
-        { messageId: (sent2.body as { id: string }).id, readerId: 'test-batch-reader', read: true },
-      ],
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/ack-many',
+      {
+        acks: [
+          {
+            messageId: (sent1.body as { id: string }).id,
+            readerId: 'test-batch-reader',
+            read: true,
+          },
+          {
+            messageId: (sent2.body as { id: string }).id,
+            readerId: 'test-batch-reader',
+            read: true,
+          },
+        ],
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
     expect((res.body as { count: number }).count).toBe(2);
   });
@@ -388,9 +506,14 @@ describe('mailbox-bridge — POST /mailbox/ack-many', () => {
 
 describe('mailbox-bridge — POST /mailbox/unread-count', () => {
   it('returns the unread count for an agent', async () => {
-    const res = await http('POST', '/mailbox/unread-count', {
-      forAgentId: 'some-agent',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/unread-count',
+      {
+        forAgentId: 'some-agent',
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
     expect(typeof (res.body as { count: number }).count).toBe('number');
   });
@@ -398,13 +521,18 @@ describe('mailbox-bridge — POST /mailbox/unread-count', () => {
 
 describe('mailbox-bridge — agent & client registry', () => {
   it('registers an external agent with source=http', async () => {
-    const res = await http('POST', '/mailbox/agents/register', {
-      agentId: 'ext-claude-code-test',
-      sessionId: 'external',
-      name: 'Claude Code (test)',
-      role: 'external',
-      pid: 99999,
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/agents/register',
+      {
+        agentId: 'ext-claude-code-test',
+        sessionId: 'external',
+        name: 'Claude Code (test)',
+        role: 'external',
+        pid: 99999,
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
     expect((res.body as { ok: boolean }).ok).toBe(true);
   });
@@ -419,26 +547,41 @@ describe('mailbox-bridge — agent & client registry', () => {
   });
 
   it('updates the agent heartbeat', async () => {
-    const res = await http('POST', '/mailbox/agents/heartbeat', {
-      agentId: 'ext-claude-code-test',
-      currentTask: 'integration test running',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/agents/heartbeat',
+      {
+        agentId: 'ext-claude-code-test',
+        currentTask: 'integration test running',
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
   });
 
   it('registers an external client with source=http', async () => {
-    const res = await http('POST', '/mailbox/register-client', {
-      clientId: 'ext-client-test',
-      name: 'External Client (test)',
-      pid: 99999,
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/register-client',
+      {
+        clientId: 'ext-client-test',
+        name: 'External Client (test)',
+        pid: 99999,
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
   });
 
   it('updates the client heartbeat', async () => {
-    const res = await http('POST', '/mailbox/heartbeat', {
-      clientId: 'ext-client-test',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/heartbeat',
+      {
+        clientId: 'ext-client-test',
+      },
+      auth(),
+    );
     expect(res.status).toBe(200);
   });
 });
@@ -463,15 +606,22 @@ describe('mailbox-bridge — error shape', () => {
 describe('mailbox-bridge — body cap', () => {
   it('returns 400 VALIDATION_ERROR for a body larger than 256 KB', async () => {
     const huge = 'x'.repeat(300 * 1024); // 300 KB > 256 KB cap
-    const res = await http('POST', '/mailbox/send', {
-      from: 'oversized-sender',
-      to: 'oversized-receiver',
-      type: 'note',
-      subject: 'too big',
-      body: huge,
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'oversized-sender',
+        to: 'oversized-receiver',
+        type: 'note',
+        subject: 'too big',
+        body: huge,
+      },
+      auth(),
+    );
     expect(res.status).toBe(400);
-    expect((res.body as { error: { code: string; message: string } }).error.code).toBe('VALIDATION_ERROR');
+    expect((res.body as { error: { code: string; message: string } }).error.code).toBe(
+      'VALIDATION_ERROR',
+    );
     expect((res.body as { error: { message: string } }).error.message).toMatch(/too large|body/i);
   });
 });

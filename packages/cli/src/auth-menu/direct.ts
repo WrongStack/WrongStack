@@ -66,18 +66,23 @@ export async function runAuthDirect(
   const apiKey = await readKeyInput(deps, `API key for ${providerId}/${label}`);
   if (!apiKey) return 1;
 
-  await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-    const p = all[providerId] ?? { type: providerId };
-    if (!p.type) p.type = providerId;
-    if (!p.family && opts.family) p.family = opts.family;
-    if (!p.baseUrl && opts.baseUrl) p.baseUrl = opts.baseUrl;
-    if (!p.envVars && opts.envVars) p.envVars = opts.envVars;
-    const list = normalizeKeys(p);
-    list.push({ label, apiKey, createdAt: nowIso() });
-    writeKeysBack(p, list);
-    if (!p.activeKey) p.activeKey = label;
-    all[providerId] = p;
-  }, deps.profileConfigPath);
+  await mutateConfigProviders(
+    deps.profileConfigPath,
+    deps.vault,
+    (all) => {
+      const p = all[providerId] ?? { type: providerId };
+      if (!p.type) p.type = providerId;
+      if (!p.family && opts.family) p.family = opts.family;
+      if (!p.baseUrl && opts.baseUrl) p.baseUrl = opts.baseUrl;
+      if (!p.envVars && opts.envVars) p.envVars = opts.envVars;
+      const list = normalizeKeys(p);
+      list.push({ label, apiKey, createdAt: nowIso() });
+      writeKeysBack(p, list);
+      if (!p.activeKey) p.activeKey = label;
+      all[providerId] = p;
+    },
+    deps.profileConfigPath,
+  );
 
   deps.renderer.writeInfo(`Stored encrypted key for ${providerId} (label "${label}").`);
   deps.renderer.writeInfo(`Use: wstack --provider ${providerId} "<task>"`);

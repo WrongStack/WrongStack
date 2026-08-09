@@ -1,16 +1,16 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildStatuslineCommand,
   DEFAULTS,
-  STATUSLINE_CONFIG_KEYS,
   ensureStatuslineConfig,
   loadStatuslineConfig,
-  saveStatuslineConfig,
+  STATUSLINE_CONFIG_KEYS,
   type StatuslineCommandDeps,
   type StatuslineConfig,
+  saveStatuslineConfig,
 } from '../src/slash-commands/statusline.js';
 
 let tmp: string;
@@ -156,7 +156,18 @@ describe('saveStatuslineConfig', () => {
 
 // ── /statusline command ──────────────────────────────────────────────────────
 
-function makeDeps(initial: StatuslineConfig = { todos: true, plan: true, fleet: true, git: true, elapsed: true, context: true, cost: true, working_dir: true }): StatuslineCommandDeps & { _cfg: StatuslineConfig } {
+function makeDeps(
+  initial: StatuslineConfig = {
+    todos: true,
+    plan: true,
+    fleet: true,
+    git: true,
+    elapsed: true,
+    context: true,
+    cost: true,
+    working_dir: true,
+  },
+): StatuslineCommandDeps & { _cfg: StatuslineConfig } {
   const state = { cfg: { ...initial } };
   return {
     cwd: tmp,
@@ -174,7 +185,15 @@ function makeDeps(initial: StatuslineConfig = { todos: true, plan: true, fleet: 
 
 describe('buildStatuslineCommand', () => {
   it('shows current config with on/off bullets when called bare', async () => {
-    const deps = makeDeps({ todos: true, plan: false, fleet: true, git: true, elapsed: true, context: true, cost: true });
+    const deps = makeDeps({
+      todos: true,
+      plan: false,
+      fleet: true,
+      git: true,
+      elapsed: true,
+      context: true,
+      cost: true,
+    });
     const cmd = buildStatuslineCommand(deps);
     const res = await cmd.run('');
     expect(res?.message ?? '').toContain('● todos');
@@ -199,7 +218,11 @@ describe('buildStatuslineCommand', () => {
 
   it('valid item but missing on|off toggles the item', async () => {
     const setHidden = vi.fn();
-    const deps = { ...makeDeps(), hiddenItems: [], setHiddenItems: setHidden } as never as StatuslineCommandDeps;
+    const deps = {
+      ...makeDeps(),
+      hiddenItems: [],
+      setHiddenItems: setHidden,
+    } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     // git is visible by default (not in hiddenItems), so toggling should hide it
     const res = await cmd.run('git');
@@ -215,7 +238,11 @@ describe('buildStatuslineCommand', () => {
 
   it('item off persists and appends to hidden items', async () => {
     const setHidden = vi.fn();
-    const deps = { ...makeDeps(), hiddenItems: ['cost'], setHiddenItems: setHidden } as never as StatuslineCommandDeps;
+    const deps = {
+      ...makeDeps(),
+      hiddenItems: ['cost'],
+      setHiddenItems: setHidden,
+    } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     const res = await cmd.run('git off');
     expect(res?.message ?? '').toBe('statusline git: off');
@@ -224,7 +251,11 @@ describe('buildStatuslineCommand', () => {
 
   it('item on persists and removes from hidden items', async () => {
     const setHidden = vi.fn();
-    const deps = { ...makeDeps(), hiddenItems: ['git', 'cost'], setHiddenItems: setHidden } as never as StatuslineCommandDeps;
+    const deps = {
+      ...makeDeps(),
+      hiddenItems: ['git', 'cost'],
+      setHiddenItems: setHidden,
+    } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     await cmd.run('git on');
     expect(setHidden).toHaveBeenCalledWith(['cost']);
@@ -238,7 +269,11 @@ describe('buildStatuslineCommand', () => {
 
   it('working_dir off persists and appends to hidden items', async () => {
     const setHidden = vi.fn();
-    const deps = { ...makeDeps(), hiddenItems: ['cost'], setHiddenItems: setHidden } as never as StatuslineCommandDeps;
+    const deps = {
+      ...makeDeps(),
+      hiddenItems: ['cost'],
+      setHiddenItems: setHidden,
+    } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     const res = await cmd.run('working_dir off');
     expect(res?.message ?? '').toBe('statusline working_dir: off');
@@ -247,7 +282,11 @@ describe('buildStatuslineCommand', () => {
 
   it('working_dir on persists and removes from hidden items', async () => {
     const setHidden = vi.fn();
-    const deps = { ...makeDeps(), hiddenItems: ['working_dir', 'cost'], setHiddenItems: setHidden } as never as StatuslineCommandDeps;
+    const deps = {
+      ...makeDeps(),
+      hiddenItems: ['working_dir', 'cost'],
+      setHiddenItems: setHidden,
+    } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     await cmd.run('working_dir on');
     expect(setHidden).toHaveBeenCalledWith(['cost']);
@@ -256,32 +295,66 @@ describe('buildStatuslineCommand', () => {
   it('all off sets every item to false and populates hiddenItems', async () => {
     const setHidden = vi.fn();
     const setConfig = vi.fn();
-    const deps = { ...makeDeps(), hiddenItems: [], setHiddenItems: setHidden, setConfig } as never as StatuslineCommandDeps;
+    const deps = {
+      ...makeDeps(),
+      hiddenItems: [],
+      setHiddenItems: setHidden,
+      setConfig,
+    } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     const res = await cmd.run('all off');
     expect(res?.message ?? '').toBe('statusline all: hiding all chips');
     expect(setConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        todos: false, plan: false, tasks: false, fleet: false,
-        git: false, elapsed: false, context: false, cost: false, working_dir: false,
+        todos: false,
+        plan: false,
+        tasks: false,
+        fleet: false,
+        git: false,
+        elapsed: false,
+        context: false,
+        cost: false,
+        working_dir: false,
       }),
     );
     expect(setHidden).toHaveBeenCalledWith(
-      expect.arrayContaining(['todos', 'plan', 'tasks', 'fleet', 'git', 'elapsed', 'context', 'cost', 'working_dir']),
+      expect.arrayContaining([
+        'todos',
+        'plan',
+        'tasks',
+        'fleet',
+        'git',
+        'elapsed',
+        'context',
+        'cost',
+        'working_dir',
+      ]),
     );
   });
 
   it('all on sets every item to true and clears hiddenItems', async () => {
     const setHidden = vi.fn();
     const setConfig = vi.fn();
-    const deps = { ...makeDeps(), hiddenItems: ['git', 'cost'], setHiddenItems: setHidden, setConfig } as never as StatuslineCommandDeps;
+    const deps = {
+      ...makeDeps(),
+      hiddenItems: ['git', 'cost'],
+      setHiddenItems: setHidden,
+      setConfig,
+    } as never as StatuslineCommandDeps;
     const cmd = buildStatuslineCommand(deps);
     const res = await cmd.run('all on');
     expect(res?.message ?? '').toBe('statusline all: showing all chips');
     expect(setConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        todos: true, plan: true, tasks: true, fleet: true,
-        git: true, elapsed: true, context: true, cost: true, working_dir: true,
+        todos: true,
+        plan: true,
+        tasks: true,
+        fleet: true,
+        git: true,
+        elapsed: true,
+        context: true,
+        cost: true,
+        working_dir: true,
       }),
     );
     expect(setHidden).toHaveBeenCalledWith([]);

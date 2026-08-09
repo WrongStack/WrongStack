@@ -60,7 +60,9 @@ export function buildFKeysCommand(opts: SlashCommandContext): SlashCommand {
         if (ok) return {};
       }
 
-      return { message: `Opening ${entry.label}… (REPL/headless mode — panel may not be available)` };
+      return {
+        message: `Opening ${entry.label}… (REPL/headless mode — panel may not be available)`,
+      };
     },
   };
 }

@@ -1,15 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getSharedProjectMailbox, type RemoteMailbox } from '@wrongstack/core/coordination';
-import { buildMailboxCommand } from '../src/slash-commands/mailbox.js';
-import { touchProjectInManifest, loadManifest } from '../src/slash-commands/project-utils.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
-import {
-  disposeProjectMailbox,
-  removeMailboxTempRoot,
-} from './helpers/mailbox-daemon.js';
+import { buildMailboxCommand } from '../src/slash-commands/mailbox.js';
+import { loadManifest, touchProjectInManifest } from '../src/slash-commands/project-utils.js';
+import { disposeProjectMailbox, removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 
 function stripAnsi(s: string): string {
   return s.replace(/\[[0-9;]*m/g, '');
@@ -161,10 +158,34 @@ describe('/mailbox slash command', () => {
   });
 
   it('inbox shows messages addressed to the unique id, base alias, and broadcasts — then marks them read', async () => {
-    await mailbox.send({ from: 'worker#42', to: 'leader#999', type: 'note', subject: 'direct', body: 'direct msg' });
-    await mailbox.send({ from: 'worker#42', to: 'leader', type: 'note', subject: 'alias', body: 'alias msg' });
-    await mailbox.send({ from: 'worker#42', to: '*', type: 'broadcast', subject: 'bcast', body: 'bcast msg' });
-    await mailbox.send({ from: 'worker#42', to: 'other', type: 'note', subject: 'not-mine', body: 'x' });
+    await mailbox.send({
+      from: 'worker#42',
+      to: 'leader#999',
+      type: 'note',
+      subject: 'direct',
+      body: 'direct msg',
+    });
+    await mailbox.send({
+      from: 'worker#42',
+      to: 'leader',
+      type: 'note',
+      subject: 'alias',
+      body: 'alias msg',
+    });
+    await mailbox.send({
+      from: 'worker#42',
+      to: '*',
+      type: 'broadcast',
+      subject: 'bcast',
+      body: 'bcast msg',
+    });
+    await mailbox.send({
+      from: 'worker#42',
+      to: 'other',
+      type: 'note',
+      subject: 'not-mine',
+      body: 'x',
+    });
 
     const cmd = buildMailboxCommand(opts);
     const res = await cmd.run('', opts.context);
@@ -181,8 +202,18 @@ describe('/mailbox slash command', () => {
   });
 
   it('agents lists registered agents and marks self', async () => {
-    await mailbox.registerAgent({ agentId: 'leader#999', name: 'Leader [cli]', sessionId: 's1', pid: 999 });
-    await mailbox.registerAgent({ agentId: 'leader#1000', name: 'Leader [webui]', sessionId: 's2', pid: 1000 });
+    await mailbox.registerAgent({
+      agentId: 'leader#999',
+      name: 'Leader [cli]',
+      sessionId: 's1',
+      pid: 999,
+    });
+    await mailbox.registerAgent({
+      agentId: 'leader#1000',
+      name: 'Leader [webui]',
+      sessionId: 's2',
+      pid: 1000,
+    });
 
     const cmd = buildMailboxCommand(opts);
     const res = await cmd.run('agents', opts.context);
@@ -198,7 +229,13 @@ describe('/mailbox slash command', () => {
     // in the same millisecond on fast CI runners and flip the order. Sleep
     // 5ms between sends so the ISO timestamps are strictly distinct.
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await mailbox.send({ from: 'b', to: '*', type: 'broadcast', subject: 'second', body: 'second' });
+    await mailbox.send({
+      from: 'b',
+      to: '*',
+      type: 'broadcast',
+      subject: 'second',
+      body: 'second',
+    });
     const cmd = buildMailboxCommand(opts);
     const res = await cmd.run('history 10', opts.context);
     const msg = stripAnsi(res?.message ?? '');
@@ -235,9 +272,7 @@ describe('touchProjectInManifest', () => {
     expect(manifest.projects).toHaveLength(1);
     expect(path.resolve(manifest.projects[0]!.root)).toBe(path.resolve(root));
     // Per-project data dir created alongside.
-    await expect(
-      fs.access(path.join(home, 'projects', entry.slug)),
-    ).resolves.toBeUndefined();
+    await expect(fs.access(path.join(home, 'projects', entry.slug))).resolves.toBeUndefined();
   });
 
   it('refreshes lastSeen/lastWorkingDir without duplicating an existing entry', async () => {

@@ -31,7 +31,6 @@ describe('barrel modules (import coverage)', () => {
     expect(mod.LaunchAbortedError).toBeDefined();
     expect(mod.persistLaunchChoices).toBeDefined();
     expect(mod.runLaunchPrompts).toBeDefined();
-
   });
 
   it('short-circuit-flags.ts exports help/version handler', async () => {

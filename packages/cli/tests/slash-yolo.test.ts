@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildYoloCommand } from '../src/slash-commands/yolo.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildYoloCommand } from '../src/slash-commands/yolo.js';
 
 // Strip ANSI escapes so message assertions match regardless of color.
 const stripAnsi = (s: string): string => s.replace(/\[[0-9;]*m/g, '');
@@ -90,28 +90,22 @@ describe('/yolo slash command', () => {
       ctx = makeCtx({ onYolo });
     });
 
-    it.each(['on', 'enable', 'true', '1', 'ON', '  on  '])(
-      '"%s" enables YOLO',
-      async (arg) => {
-        const cmd = buildYoloCommand(ctx);
-        const result = await cmd.run!(arg);
-        expect(state).toBe(true);
-        const message = stripAnsi(result!.message!);
-        expect(message).toMatch(/ENABLED/);
-        expect(message).toContain('tool calls will be auto-approved');
-      },
-    );
+    it.each(['on', 'enable', 'true', '1', 'ON', '  on  '])('"%s" enables YOLO', async (arg) => {
+      const cmd = buildYoloCommand(ctx);
+      const result = await cmd.run!(arg);
+      expect(state).toBe(true);
+      const message = stripAnsi(result!.message!);
+      expect(message).toMatch(/ENABLED/);
+      expect(message).toContain('tool calls will be auto-approved');
+    });
 
-    it.each(['off', 'disable', 'false', '0', 'OFF'])(
-      '"%s" disables YOLO',
-      async (arg) => {
-        state = true;
-        const cmd = buildYoloCommand(ctx);
-        const result = await cmd.run!(arg);
-        expect(state).toBe(false);
-        expect(stripAnsi(result!.message!)).toMatch(/DISABLED/);
-      },
-    );
+    it.each(['off', 'disable', 'false', '0', 'OFF'])('"%s" disables YOLO', async (arg) => {
+      state = true;
+      const cmd = buildYoloCommand(ctx);
+      const result = await cmd.run!(arg);
+      expect(state).toBe(false);
+      expect(stripAnsi(result!.message!)).toMatch(/DISABLED/);
+    });
 
     it('toggle flips the current state', async () => {
       const cmd = buildYoloCommand(ctx);

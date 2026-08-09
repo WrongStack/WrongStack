@@ -1,11 +1,11 @@
 import type { Context } from '@wrongstack/core/agent';
-import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { HybridCompactor } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it } from 'vitest';
-import { classifyError, needsSubagent, isSimpleFix } from '../src/slash-commands/fix-classifier.js';
-import { buildBuiltinSlashCommands } from '../src/slash-commands/index.js';
+import { classifyError, isSimpleFix, needsSubagent } from '../src/slash-commands/fix-classifier.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildBuiltinSlashCommands } from '../src/slash-commands/index.js';
 
 class FakeRenderer {
   output = '';
@@ -15,15 +15,25 @@ class FakeRenderer {
   write(s: unknown): void {
     this.output += typeof s === 'string' ? s : ((s as { text?: string }).text ?? '');
   }
-  writeLine(s = ''): void { this.output += `${s}\n`; }
+  writeLine(s = ''): void {
+    this.output += `${s}\n`;
+  }
   writeBlock(): void {}
   writeToolCall(): void {}
   writeToolResult(): void {}
   writeDiff(): void {}
-  writeWarning(s: string): void { this.warnings.push(s); }
-  writeError(s: string): void { this.errors.push(s); }
-  writeInfo(s: string): void { this.infos.push(s); }
-  clear(): void { this.output = ''; }
+  writeWarning(s: string): void {
+    this.warnings.push(s);
+  }
+  writeError(s: string): void {
+    this.errors.push(s);
+  }
+  writeInfo(s: string): void {
+    this.infos.push(s);
+  }
+  clear(): void {
+    this.output = '';
+  }
 }
 
 function makeRig() {
@@ -92,7 +102,7 @@ describe('fix-classifier', () => {
   });
 
   it('classifies Rust panic', () => {
-    const r = classifyError('thread \'main\' panicked at \'index out of bounds\', src/main.rs:42');
+    const r = classifyError("thread 'main' panicked at 'index out of bounds', src/main.rs:42");
     expect(r.category).toBe('runtime');
     expect(r.subcategory).toBe('panic');
     expect(r.language).toBe('rust');
@@ -123,7 +133,9 @@ describe('fix-classifier', () => {
 
   // ── Python ──────────────────────────────────────────────────────────────
   it('classifies Python traceback', () => {
-    const r = classifyError('Traceback (most recent call last):\n  File "test.py", line 42, in <module>');
+    const r = classifyError(
+      'Traceback (most recent call last):\n  File "test.py", line 42, in <module>',
+    );
     expect(r.category).toBe('runtime');
     expect(r.subcategory).toBe('python-traceback');
     expect(r.language).toBe('python');
@@ -176,7 +188,7 @@ describe('fix-classifier', () => {
 
   // ── C / C++ ────────────────────────────────────────────────────────────
   it('classifies C compiler error', () => {
-    const r = classifyError('gcc: error: undefined reference to \'main\'');
+    const r = classifyError("gcc: error: undefined reference to 'main'");
     expect(r.category).toBe('compile');
     expect(r.subcategory).toBe('c-compile');
     expect(r.language).toBe('c');
@@ -199,7 +211,7 @@ describe('fix-classifier', () => {
 
   // ── Node.js / JS ────────────────────────────────────────────────────────
   it('classifies Node.js ENOENT as infra config-error (config.json matches first)', () => {
-    const r = classifyError('Error: ENOENT: no such file or directory, open \'config.json\'');
+    const r = classifyError("Error: ENOENT: no such file or directory, open 'config.json'");
     expect(r.category).toBe('infra');
     expect(r.subcategory).toBe('config-error');
     expect(r.language).toBe('unknown');
@@ -257,7 +269,9 @@ describe('fix-classifier', () => {
 
   // ── React / Next.js ────────────────────────────────────────────────────
   it('classifies React hooks error', () => {
-    const r = classifyError("Error: Invalid hook call. Hooks can only be called inside of the body of a function component");
+    const r = classifyError(
+      'Error: Invalid hook call. Hooks can only be called inside of the body of a function component',
+    );
     expect(r.category).toBe('runtime');
     expect(r.subcategory).toBe('react-error');
     expect(r.skillHints).toContain('react-modern');
@@ -272,7 +286,7 @@ describe('fix-classifier', () => {
 
   // ── Dependency ────────────────────────────────────────────────────────
   it('classifies module not found as dep', () => {
-    const r = classifyError('Error: Cannot find module \'lodash\' in /project/node_modules');
+    const r = classifyError("Error: Cannot find module 'lodash' in /project/node_modules");
     expect(r.category).toBe('dep');
     expect(r.subcategory).toBe('module-not-found');
     expect(r.confidence).toBe(0.9);
@@ -280,7 +294,7 @@ describe('fix-classifier', () => {
 
   // ── Infra ─────────────────────────────────────────────────────────────
   it('classifies file system permission error', () => {
-    const r = classifyError('EACCES: permission denied, open \'.env\'');
+    const r = classifyError("EACCES: permission denied, open '.env'");
     expect(r.category).toBe('infra');
     expect(r.subcategory).toBe('file-system');
   });
@@ -299,7 +313,9 @@ describe('fix-classifier', () => {
   });
 
   it('classifies Docker / CI error as infra', () => {
-    const r = classifyError('GitHub Actions pipeline failed: docker build returned non-zero exit code 1');
+    const r = classifyError(
+      'GitHub Actions pipeline failed: docker build returned non-zero exit code 1',
+    );
     expect(r.category).toBe('infra');
     expect(r.subcategory).toBe('config-error');
   });
@@ -332,7 +348,9 @@ describe('fix-classifier', () => {
   });
 
   it('isSimpleFix returns true for high-confidence TypeScript errors', () => {
-    expect(isSimpleFix(classifyError('TS2345: Argument of type "string | null" is not assignable'))).toBe(true);
+    expect(
+      isSimpleFix(classifyError('TS2345: Argument of type "string | null" is not assignable')),
+    ).toBe(true);
   });
 
   it('isSimpleFix returns true for null-undefined-access with high confidence', () => {
@@ -340,7 +358,9 @@ describe('fix-classifier', () => {
   });
 
   it('needsSubagent returns false for high-confidence TS errors', () => {
-    expect(needsSubagent(classifyError('TS2345: Argument of type "string | null" is not assignable'))).toBe(false);
+    expect(
+      needsSubagent(classifyError('TS2345: Argument of type "string | null" is not assignable')),
+    ).toBe(false);
   });
 });
 
@@ -357,7 +377,10 @@ describe('/fix command', () => {
 
   it('classifies TypeScript error and activates typescript-strict skill', async () => {
     const { registry } = makeRig();
-    const result = await registry.dispatch('/fix TS2345: Argument of type "string | null" is not assignable', fakeCtx);
+    const result = await registry.dispatch(
+      '/fix TS2345: Argument of type "string | null" is not assignable',
+      fakeCtx,
+    );
     expect(result?.message).toContain('typescript-strict');
     expect(result?.runText).toContain('TypeScript');
     expect(result?.runText).toContain('TS2345');
@@ -366,14 +389,20 @@ describe('/fix command', () => {
 
   it('classifies undefined-call error (cannot read property) as node-modern skill', async () => {
     const { registry } = makeRig();
-    const result = await registry.dispatch('/fix TypeError: Cannot read property "map" of undefined', fakeCtx);
+    const result = await registry.dispatch(
+      '/fix TypeError: Cannot read property "map" of undefined',
+      fakeCtx,
+    );
     expect(result?.message).toContain('node-modern');
     expect(result?.runText).toContain('Runtime');
   });
 
   it('classifies hardcoded secret as security-scanner', async () => {
     const { registry } = makeRig();
-    const result = await registry.dispatch('/fix Security: hardcoded API key in config.ts', fakeCtx);
+    const result = await registry.dispatch(
+      '/fix Security: hardcoded API key in config.ts',
+      fakeCtx,
+    );
     expect(result?.message).toContain('security-scanner');
     expect(result?.runText).toContain('security');
     expect(result?.metadata?.skillHints).toContain('security-scanner');
@@ -381,7 +410,10 @@ describe('/fix command', () => {
 
   it('classifies SQL injection as security-scanner', async () => {
     const { registry } = makeRig();
-    const result = await registry.dispatch('/fix SQL injection vulnerability in query builder', fakeCtx);
+    const result = await registry.dispatch(
+      '/fix SQL injection vulnerability in query builder',
+      fakeCtx,
+    );
     expect(result?.message).toContain('security-scanner');
     expect(result?.metadata?.skillHints).toContain('security-scanner');
   });
@@ -395,7 +427,10 @@ describe('/fix command', () => {
 
   it('classifies Python traceback as runtime (python)', async () => {
     const { registry } = makeRig();
-    const result = await registry.dispatch('/fix Traceback (most recent call last): File "test.py", line 1', fakeCtx);
+    const result = await registry.dispatch(
+      '/fix Traceback (most recent call last): File "test.py", line 1',
+      fakeCtx,
+    );
     expect(result?.message).toContain('python-traceback');
     expect(result?.metadata?.skillHints).toContain('bug-hunter');
     expect(result?.runText).toContain('Traceback');
@@ -403,7 +438,10 @@ describe('/fix command', () => {
 
   it('classifies Rust E0503 as runtime error with error code', async () => {
     const { registry } = makeRig();
-    const result = await registry.dispatch('/fix error[E0503]: expected something but found E0503 in src/lib.rs', fakeCtx);
+    const result = await registry.dispatch(
+      '/fix error[E0503]: expected something but found E0503 in src/lib.rs',
+      fakeCtx,
+    );
     expect(result?.message).toContain('panic');
     expect(result?.runText).toContain('E0503');
     expect(result?.metadata?.delegateRequested).toBe(false); // confidence 1.0 → inline fix
@@ -411,7 +449,10 @@ describe('/fix command', () => {
 
   it('classifies segfault as runtime', async () => {
     const { registry } = makeRig();
-    const result = await registry.dispatch('/fix Segmentation fault (core dumped) at main.rs:42', fakeCtx);
+    const result = await registry.dispatch(
+      '/fix Segmentation fault (core dumped) at main.rs:42',
+      fakeCtx,
+    );
     expect(result?.message).toContain('segfault');
     expect(result?.metadata?.skillHints).toContain('bug-hunter');
   });

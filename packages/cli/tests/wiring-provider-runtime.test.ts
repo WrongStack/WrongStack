@@ -1,10 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ProviderRegistry } from '@wrongstack/core/registry';
 import type { Config, Provider } from '@wrongstack/core/types';
-import {
-  buildProviderForId,
-  resolveProviderCfg,
-} from '../src/wiring/provider-runtime.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildProviderForId, resolveProviderCfg } from '../src/wiring/provider-runtime.js';
 import { serializeProviderRuntimeSnapshot } from '../src/wiring/provider-runtime-setup.js';
 
 // Mock the providers package — we test the resolver / builder in
@@ -135,7 +132,10 @@ describe('buildProviderForId', () => {
     // no factory registered for the user-visible id `minimax-coding-plan`.
     makeProviderFromConfig.mockReturnValue(fakeProvider('minimax-coding-plan'));
 
-    const provider = buildProviderForId({ config: cfg, providerRegistry: registry }, 'minimax-coding-plan');
+    const provider = buildProviderForId(
+      { config: cfg, providerRegistry: registry },
+      'minimax-coding-plan',
+    );
 
     expect(provider.id).toBe('minimax-coding-plan');
     // Verify the call site: id parameter must be the user-visible id, not
@@ -211,7 +211,10 @@ describe('buildProviderForId', () => {
     const registry = new ProviderRegistry();
     makeProviderFromConfig.mockReturnValue(fakeProvider('gateway-work'));
 
-    const provider = buildProviderForId({ config: cfg, providerRegistry: registry }, 'gateway-work');
+    const provider = buildProviderForId(
+      { config: cfg, providerRegistry: registry },
+      'gateway-work',
+    );
 
     expect(provider.id).toBe('gateway-work');
     expect(makeProviderFromConfig).toHaveBeenCalledWith(

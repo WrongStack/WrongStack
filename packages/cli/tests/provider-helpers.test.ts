@@ -1,7 +1,7 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  hasApiKey,
   buildPickableProviders,
+  hasApiKey,
   isKeylessLocalProvider,
   resolveProviderAlias,
   visibleModelIds,
@@ -81,9 +81,9 @@ describe('hasApiKey', () => {
 
 describe('isKeylessLocalProvider', () => {
   it('is true for a loopback gateway with no env vars (omniroute)', () => {
-    expect(
-      isKeylessLocalProvider({ apiBase: 'http://localhost:20128/v1', envVars: [] }),
-    ).toBe(true);
+    expect(isKeylessLocalProvider({ apiBase: 'http://localhost:20128/v1', envVars: [] })).toBe(
+      true,
+    );
   });
 
   it('is true for 127.x and ::1 hosts', () => {

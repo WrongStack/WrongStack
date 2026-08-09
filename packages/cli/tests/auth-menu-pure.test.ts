@@ -7,7 +7,11 @@
  * addFromCatalog) need a full provider store and are out of scope here —
  * they're covered by the existing auth-menu integration tests.
  */
+
+import type { ProviderConfig } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderOAuthLoginOptions, resolveOAuthKind } from '../src/auth-menu/oauth-menu.js';
+import { plainMaskedKey } from '../src/auth-menu/panel-service.js';
 import {
   confirm,
   readKeyInput,
@@ -17,9 +21,6 @@ import {
   suggestLabel,
   validateFamily,
 } from '../src/auth-menu/shared.js';
-import { renderOAuthLoginOptions, resolveOAuthKind } from '../src/auth-menu/oauth-menu.js';
-import { plainMaskedKey } from '../src/auth-menu/panel-service.js';
-import type { ProviderConfig } from '@wrongstack/core/types';
 
 function renderer() {
   return {
@@ -63,7 +64,11 @@ describe('shared.ts — render helpers', () => {
 
   it('renderProviderHeader renders family, type, baseUrl, and keys', () => {
     const r = renderer();
-    renderProviderHeader(r, 'openai', cfg({ family: 'openai', baseUrl: 'https://x', apiKey: 'sk-1234567890abcdef' }));
+    renderProviderHeader(
+      r,
+      'openai',
+      cfg({ family: 'openai', baseUrl: 'https://x', apiKey: 'sk-1234567890abcdef' }),
+    );
     expect(r.write).toHaveBeenCalledWith(expect.stringContaining('[openai]'));
     expect(r.write).toHaveBeenCalledWith(expect.stringContaining('https://x'));
 
@@ -74,10 +79,17 @@ describe('shared.ts — render helpers', () => {
 
   it('renderProviderHeader handles a provider with multiple keys and no baseUrl', () => {
     const r = renderer();
-    renderProviderHeader(r, 'multi', cfg({ family: 'openai', apiKeys: [
-      { label: 'work', apiKey: 'sk-aaaa1111bbbb2222', createdAt: '2020-01-01T00:00:00.000Z' },
-      { label: 'home', apiKey: 'sk-cccc3333dddd4444', createdAt: '2020-01-01T00:00:00.000Z' },
-    ] }));
+    renderProviderHeader(
+      r,
+      'multi',
+      cfg({
+        family: 'openai',
+        apiKeys: [
+          { label: 'work', apiKey: 'sk-aaaa1111bbbb2222', createdAt: '2020-01-01T00:00:00.000Z' },
+          { label: 'home', apiKey: 'sk-cccc3333dddd4444', createdAt: '2020-01-01T00:00:00.000Z' },
+        ],
+      }),
+    );
     expect(r.write).toHaveBeenCalledWith(expect.stringContaining('multi'));
 
     const rNoUrl = renderer();
@@ -102,10 +114,16 @@ describe('shared.ts — render helpers', () => {
 
 describe('shared.ts — input/validation helpers', () => {
   it('readKeyInput trims and rejects empty input', async () => {
-    const deps = { reader: { readSecret: vi.fn(async () => '  sk-abc  ') }, renderer: renderer() } as never;
+    const deps = {
+      reader: { readSecret: vi.fn(async () => '  sk-abc  ') },
+      renderer: renderer(),
+    } as never;
     await expect(readKeyInput(deps, 'Add key')).resolves.toBe('sk-abc');
 
-    const empty = { reader: { readSecret: vi.fn(async () => '   ') }, renderer: renderer() } as never;
+    const empty = {
+      reader: { readSecret: vi.fn(async () => '   ') },
+      renderer: renderer(),
+    } as never;
     await expect(readKeyInput(empty, 'Add key')).resolves.toBeUndefined();
   });
 
@@ -170,11 +188,11 @@ describe('panel-service.ts — plainMaskedKey', () => {
   });
 });
 
+import type { AuthPanelServiceDeps } from '../src/auth-menu/panel-service.js';
 // ── panel-service host with mocked config utils ──────────────────────────
 // NOTE: the vi.mock calls below MUST use the `vi` identifier (not an alias)
 // so vitest's hoisting transformer moves them above the imports.
 import { createAuthPanelHost } from '../src/auth-menu/panel-service.js';
-import type { AuthPanelServiceDeps } from '../src/auth-menu/panel-service.js';
 
 const configMock = vi.hoisted(() => ({
   loadConfigProviders: vi.fn(),
@@ -256,7 +274,10 @@ describe('panel-service.ts — host', () => {
   it('setActiveKey and deleteKey mutate through the config utils', async () => {
     configMock.mutateConfigProviders.mockImplementation(async (_p, _v, mutator) => {
       const providers: Record<string, ProviderConfig> = {
-        openai: { type: 'openai', apiKeys: [{ label: 'work', apiKey: 'k1', createdAt: '2020-01-01T00:00:00.000Z' }] },
+        openai: {
+          type: 'openai',
+          apiKeys: [{ label: 'work', apiKey: 'k1', createdAt: '2020-01-01T00:00:00.000Z' }],
+        },
       };
       mutator(providers);
     });
@@ -272,4 +293,3 @@ describe('panel-service.ts — host', () => {
     expect(presets.length).toBeGreaterThan(0);
   });
 });
-

@@ -59,7 +59,12 @@ function toolCallPayload(
     toolUse: { type: 'tool_use', id: 't1', name: toolName, input },
     result: result.ok
       ? { type: 'tool_result', tool_use_id: 't1', content: result.content ?? 'ok' }
-      : { type: 'tool_result', tool_use_id: 't1', content: String(result.content ?? 'err'), is_error: true },
+      : {
+          type: 'tool_result',
+          tool_use_id: 't1',
+          content: String(result.content ?? 'err'),
+          is_error: true,
+        },
     ctx: fakeCtx(),
     tool: { name: toolName, mutating },
   } as never;

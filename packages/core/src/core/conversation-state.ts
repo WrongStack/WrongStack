@@ -19,6 +19,8 @@ import { Context } from './context.js';
 export type StateChange =
   | { kind: 'message_appended'; message: Message }
   | { kind: 'messages_replaced'; messages: readonly Message[] }
+  /** The oldest `count` messages were evicted; see the `messages_dropped` SessionEvent. */
+  | { kind: 'messages_dropped'; count: number }
   | { kind: 'message_updated'; index: number; message: Message }
   | {
       kind: 'todos_replaced';
@@ -103,17 +105,25 @@ export class ConversationState {
     // messages are dropped first — the compaction digest lives at index 0
     // and is dropped with them.
     const overflow = this.overflowCount(this.ctx.messages);
+    // The append is always journaled, including on the overflow path. The
+    // snapshot this replaced carried the new message implicitly, inside the
+    // full array it wrote; a delta does not, so omitting it here silently loses
+    // exactly the messages that triggered an eviction.
+    this.emit({ kind: 'message_appended', message });
     if (overflow > 0) {
       this.ctx.messages.splice(0, overflow);
       // Dropping messages may orphan a tool_use or tool_result, breaking
       // strict-provider adjacency rules. Force a repair scan on the next
       // request pipeline run.
       this.ctx.toolAdjacencyDirty = true;
-      // Emit a full snapshot so journal replay does not reconstruct an
-      // array larger than live state after truncation.
-      this.emit({ kind: 'messages_replaced', messages: [...this.ctx.messages] });
-    } else {
-      this.emit({ kind: 'message_appended', message });
+      // Emit the eviction as a delta, not a snapshot. Replay splices the same
+      // prefix off, so the reconstructed array still matches live state — but
+      // the journal cost is the count instead of the entire surviving history.
+      // That distinction is the whole ballgame: once a session reaches the cap,
+      // this branch runs on *every* append, so a snapshot made the journal
+      // quadratic in session length (measured: 2.1 GB of snapshots carrying
+      // ~10 MB of conversation).
+      this.emit({ kind: 'messages_dropped', count: overflow });
     }
   }
 

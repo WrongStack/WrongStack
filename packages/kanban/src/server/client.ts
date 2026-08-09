@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { decodeLifecycleIssues, KanbanLifecycleError } from '../manager/lifecycle-error.js';
 import { kanbanProjectServerEndpoint } from './endpoint.js';
 import {
   KANBAN_PROJECT_SERVER_METADATA_FILE,
@@ -213,8 +214,21 @@ class KanbanServerConnection {
                 .error;
               const message = errPayload?.message;
               const code = errPayload?.code;
-              const error = new Error(typeof message === 'string' ? message : 'request failed');
-              if (typeof code === 'string') (error as { code?: string }).code = code;
+              const original = typeof message === 'string' ? message : 'request failed';
+              // Reconstruct the typed error across the IPC boundary so callers
+              // can recover the structured validation issues instead of the
+              // JSON-encoded message they would otherwise have to re-parse.
+              const error =
+                code === 'LIFECYCLE'
+                  ? new KanbanLifecycleError(
+                      original,
+                      decodeLifecycleIssues({ message: original } as Error),
+                    )
+                  : (() => {
+                      const e = new Error(original);
+                      if (typeof code === 'string') (e as { code?: string }).code = code;
+                      return e;
+                    })();
               pending.reject(error);
             }
           }

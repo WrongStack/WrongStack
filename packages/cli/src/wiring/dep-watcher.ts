@@ -1,11 +1,13 @@
 import * as path from 'node:path';
-import type { EventBus } from '@wrongstack/core/kernel';
-import { type FileAuthorTrackerOptions, type PackageAuthorTrackerOptions, startTechStackConsumer } from '@wrongstack/core/coordination';
 import {
+  type FileAuthorTrackerOptions,
   getSharedProjectMailbox,
+  type PackageAuthorTrackerOptions,
   startPackageOutdatedWatcher,
+  startTechStackConsumer,
 } from '@wrongstack/core/coordination';
 import type { DefaultLogger } from '@wrongstack/core/infrastructure';
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { MultiAgentHost } from '../multi-agent.js';
 
 export interface SetupDepWatcherConsumersDeps {
@@ -28,8 +30,17 @@ export interface SetupDepWatcherConsumersDeps {
  * original authors when their added packages become outdated.
  */
 export function setupDepWatcherConsumers(deps: SetupDepWatcherConsumersDeps): void {
-  const { dwCfg, globalRoot, projectSlug, events, multiAgentHost, sessionId, logger, teardownHandlers, projectRoot } =
-    deps;
+  const {
+    dwCfg,
+    globalRoot,
+    projectSlug,
+    events,
+    multiAgentHost,
+    sessionId,
+    logger,
+    teardownHandlers,
+    projectRoot,
+  } = deps;
 
   // ── Tech-stack mailbox consumer: auto-spawn agent on dep-watcher messages ──
   let techStackConsumerDispose: (() => void) | undefined;

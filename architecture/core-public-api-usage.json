@@ -6,7 +6,7 @@
     "@wrongstack/core/agent": {
       "files": 249,
       "typeOnly": 198,
-      "runtimeOrMixed": 70
+      "runtimeOrMixed": 68
     },
     "@wrongstack/core/agent-catalog": {
       "files": 10,
@@ -21,7 +21,7 @@
     "@wrongstack/core/coordination": {
       "files": 168,
       "typeOnly": 71,
-      "runtimeOrMixed": 147
+      "runtimeOrMixed": 146
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -65,8 +65,8 @@
     },
     "@wrongstack/core/hq": {
       "files": 111,
-      "typeOnly": 74,
-      "runtimeOrMixed": 64
+      "typeOnly": 72,
+      "runtimeOrMixed": 62
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -75,12 +75,12 @@
     },
     "@wrongstack/core/infrastructure": {
       "files": 36,
-      "typeOnly": 6,
+      "typeOnly": 5,
       "runtimeOrMixed": 35
     },
     "@wrongstack/core/kernel": {
-      "files": 204,
-      "typeOnly": 108,
+      "files": 205,
+      "typeOnly": 109,
       "runtimeOrMixed": 106
     },
     "@wrongstack/core/kernel/events.js": {
@@ -105,7 +105,7 @@
     },
     "@wrongstack/core/plugin": {
       "files": 22,
-      "typeOnly": 15,
+      "typeOnly": 14,
       "runtimeOrMixed": 19
     },
     "@wrongstack/core/registry": {
@@ -136,7 +136,7 @@
     "@wrongstack/core/storage": {
       "files": 92,
       "typeOnly": 28,
-      "runtimeOrMixed": 100
+      "runtimeOrMixed": 98
     },
     "@wrongstack/core/tasking": {
       "files": 30,
@@ -150,8 +150,8 @@
     },
     "@wrongstack/core/types": {
       "files": 860,
-      "typeOnly": 811,
-      "runtimeOrMixed": 218
+      "typeOnly": 794,
+      "runtimeOrMixed": 217
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -176,7 +176,7 @@
     "@wrongstack/core/utils": {
       "files": 479,
       "typeOnly": 53,
-      "runtimeOrMixed": 482
+      "runtimeOrMixed": 451
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -449,7 +449,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/slash-commands/setmodel.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -665,7 +665,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/fallback-model.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -2141,7 +2141,7 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/dep-watcher.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -3418,7 +3418,7 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-command-controller.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -3449,7 +3449,7 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/preflight.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -3478,7 +3478,7 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/routes/system-handlers.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -3533,7 +3533,7 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/subcommands/handlers/hq.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -4090,7 +4090,7 @@
     {
       "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/src/boot-config.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -5139,6 +5139,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sage/tests/middleware/tool-call-memory-rejected-detail.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/sage/tests/tool-call-memory.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5866,7 +5872,7 @@
     {
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/tests/cascade-e2e.test.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -7445,7 +7451,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/slash-commands/tasks.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -8314,7 +8320,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/boot/system-prompt.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -8374,7 +8380,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/cli-eternal-flag.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -8560,7 +8566,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/fleet/routing.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -8728,7 +8734,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/agents.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -8782,7 +8788,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/command-context.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 12
     },
     {
@@ -9130,7 +9136,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/tasks.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9311,12 +9317,12 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/command-host-state.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/controllers.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9418,7 +9424,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/runtime-dispatch-state.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9430,7 +9436,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/runtime-picker-deps.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9448,7 +9454,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/session-command-handlers.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9460,7 +9466,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/slash-commands.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 2
     },
     {
@@ -9556,7 +9562,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/boot/container-wiring.test.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9592,7 +9598,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/chimera-subagent-rate-limit-smoke.test.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -9628,7 +9634,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/fleet-shadow-pass.test.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9694,13 +9700,13 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/kanban-recovery-e2e.test.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/kanban-reliable-queue.test.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9922,7 +9928,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/sprint2-reliable-queue.test.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -13619,7 +13625,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/boot/config-backup-recovery.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13769,13 +13775,13 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/config-history.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/context-limit.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13799,7 +13805,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/fleet-statusline.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13877,7 +13883,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/picker.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13955,7 +13961,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/repl.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13967,7 +13973,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/mcp-management.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -13991,7 +13997,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/statusline-config.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14045,13 +14051,13 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/codebase-reindex.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/collab.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14069,7 +14075,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/delegate.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14087,7 +14093,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/doctor.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14117,7 +14123,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/fleet.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14129,7 +14135,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/gitid.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14243,7 +14249,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/models.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14261,7 +14267,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/profile.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14285,7 +14291,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/refiner.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14297,13 +14303,13 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/session.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/setmodel.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14327,7 +14333,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/suggest.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14345,13 +14351,13 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/techstack.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/telegram-settings.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14369,7 +14375,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/tool.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14387,7 +14393,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/working-dir.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14435,7 +14441,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/bench.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14447,13 +14453,13 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/diag-doctor.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/export.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14477,7 +14483,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/mcp.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14495,7 +14501,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/modeldiag.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14615,7 +14621,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/wiring/director-setup.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -14909,7 +14915,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/subcommands.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

@@ -1,12 +1,12 @@
 import type { HqClientConfig } from '@wrongstack/core/hq';
+import { readHqRuntimeFileSync, resolveHqConfig, resolveHqDataDir } from '@wrongstack/core/hq';
+import { noOpVault } from '@wrongstack/core/security';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import { noOpVault } from '@wrongstack/core/security';
-import { readHqRuntimeFileSync, resolveHqConfig, resolveHqDataDir } from '@wrongstack/core/hq';
-import { persistConfigSetting } from '../settings-menu.js';
-import { parseSubcommand } from './helpers.js';
-import type { SlashCommandContext } from './command-context.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
+import { persistConfigSetting } from '../settings-menu.js';
+import type { SlashCommandContext } from './command-context.js';
+import { parseSubcommand } from './helpers.js';
 
 function maskToken(t: string): string {
   if (t.length <= 10) return `${t.slice(0, 2)}…(${t.length})`;
@@ -88,7 +88,9 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
           const parsed = new URL(url);
           if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('proto');
         } catch {
-          return { message: `${color.red('Invalid URL:')} ${url} ${color.dim('(expected http://host:3499)')}` };
+          return {
+            message: `${color.red('Invalid URL:')} ${url} ${color.dim('(expected http://host:3499)')}`,
+          };
         }
         await persistConfigSetting(persistDeps, (cfg) => {
           const hq = (cfg.hq as Record<string, unknown> | undefined) ?? {};
@@ -117,14 +119,18 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
           hq.enabled = true;
           cfg.hq = hq;
         });
-        return { message: `${color.green('✓')} HQ client token saved ${color.dim(maskToken(token))}` };
+        return {
+          message: `${color.green('✓')} HQ client token saved ${color.dim(maskToken(token))}`,
+        };
       }
 
       // ── raw on / off ────────────────────────────────────────────────────
       if (sub === 'raw') {
         const mode = (rest[0] ?? '').trim().toLowerCase();
         if (mode !== 'on' && mode !== 'off') {
-          return { message: `${color.amber('Usage:')} /hq raw on|off ${color.dim('(publish raw chat/tool content to HQ)')}` };
+          return {
+            message: `${color.amber('Usage:')} /hq raw on|off ${color.dim('(publish raw chat/tool content to HQ)')}`,
+          };
         }
         const on = mode === 'on';
         await persistConfigSetting(persistDeps, (cfg) => {
@@ -147,7 +153,9 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
           hq.enabled = on;
           cfg.hq = hq;
         });
-        return { message: `${color.green('✓')} HQ publishing → ${on ? color.cyan('on') : color.dim('off')}` };
+        return {
+          message: `${color.green('✓')} HQ publishing → ${on ? color.cyan('on') : color.dim('off')}`,
+        };
       }
 
       // ── clear ───────────────────────────────────────────────────────────
@@ -166,11 +174,15 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
         const lines: string[] = [`${color.bold('📋 WrongStack HQ — connection')}`, ''];
 
         if (!resolved) {
-          lines.push(`  ${color.dim('Not configured.')} Use ${color.cyan('/hq set <url> [token]')} to connect,`);
+          lines.push(
+            `  ${color.dim('Not configured.')} Use ${color.cyan('/hq set <url> [token]')} to connect,`,
+          );
           lines.push(`  or run ${color.cyan('wstack --hq')} locally (auto-discovered).`);
           if (runtime) {
             lines.push('');
-            lines.push(`  ${color.green('A local HQ is running')} at ${color.cyan(runtime.url)} ${color.dim('(start a new session to attach)')}`);
+            lines.push(
+              `  ${color.green('A local HQ is running')} at ${color.cyan(runtime.url)} ${color.dim('(start a new session to attach)')}`,
+            );
           }
           const message = lines.join('\n');
           return { message };
@@ -179,8 +191,12 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
         // Discovery mode with no live local HQ: don't present the dormant
         // placeholder URL as a real connection — say what will happen.
         if (resolved.discover && !runtime) {
-          lines.push(`  mode:    ${color.cyan('auto-discovery')} ${color.dim('(no local HQ running yet)')}`);
-          lines.push(`  ${color.dim('This session will attach automatically when `wstack --hq` starts')}`);
+          lines.push(
+            `  mode:    ${color.cyan('auto-discovery')} ${color.dim('(no local HQ running yet)')}`,
+          );
+          lines.push(
+            `  ${color.dim('This session will attach automatically when `wstack --hq` starts')}`,
+          );
           lines.push(`  ${color.dim(`on this machine (watching ${dataDir}).`)}`);
           lines.push(`  ${color.dim('Disable with WRONGSTACK_HQ_ENABLED=0 or /hq off.')}`);
           return { message: lines.join('\n') };
@@ -194,10 +210,14 @@ export function buildHqCommand(opts: SlashCommandContext): SlashCommand {
               ? `local HQ marker (pid ${runtime.pid ?? '?'})`
               : 'default';
         lines.push(`  url:     ${color.cyan(resolved.url)}`);
-        lines.push(`  enabled: ${resolved.enabled === false ? color.dim('false') : color.green('true')}`);
+        lines.push(
+          `  enabled: ${resolved.enabled === false ? color.dim('false') : color.green('true')}`,
+        );
         if (resolved.discover) lines.push(`  mode:    ${color.cyan('auto-discovery')}`);
         lines.push(`  source:  ${color.dim(source)}`);
-        lines.push(`  token:   ${resolved.token ? color.dim(maskToken(resolved.token)) : color.dim('none (open mode)')}`);
+        lines.push(
+          `  token:   ${resolved.token ? color.dim(maskToken(resolved.token)) : color.dim('none (open mode)')}`,
+        );
         lines.push(
           `  content: ${resolved.rawContent === true ? color.amber('raw (unredacted)') : color.dim('redacted — explicitly disabled; enable with /hq raw on')}`,
         );

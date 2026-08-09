@@ -28,7 +28,11 @@ describe('makeProviderClassifier', () => {
       { role: 'coder', name: 'coder', summary: 'writes code' } as never,
     ]);
     expect(provider.complete).toHaveBeenCalledOnce();
-    const callArgs = provider.complete.mock.calls[0]?.[0] as { model: string; maxTokens: number; temperature: number };
+    const callArgs = provider.complete.mock.calls[0]?.[0] as {
+      model: string;
+      maxTokens: number;
+      temperature: number;
+    };
     expect(callArgs.model).toBe('gpt-4o');
     expect(callArgs.maxTokens).toBe(120);
     expect(callArgs.temperature).toBe(0);

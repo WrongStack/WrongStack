@@ -23,14 +23,14 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConfigStore } from '@/stores/config-store';
-import { useUIStore } from '@/stores/ui-store';
-import { useAppTranslation } from '@/i18n';
 import {
   ensureInspectHandlerInstalled,
   useSessionInspectStore,
 } from '@/stores/session-inspect-store';
+import { useUIStore } from '@/stores/ui-store';
 import {
   formatCompactNumber,
   formatRelative,
@@ -56,6 +56,7 @@ const EVENT_ICON_MAP: Record<string, typeof Activity> = {
   message_appended: MessageSquareText,
   message_updated: MessageSquareText,
   messages_replaced: MessageSquareText,
+  messages_dropped: MessageSquareText,
   file_event: FileCode2,
   mode_changed: Activity,
   task_created: Activity,
@@ -96,15 +97,30 @@ function outcomeBadge(
 ): { label: string; cls: string } {
   switch (outcome) {
     case 'completed':
-      return { label: t('activity:sessionInspect.outcomeCompleted'), cls: 'border-success/30 bg-success/10 text-success' };
+      return {
+        label: t('activity:sessionInspect.outcomeCompleted'),
+        cls: 'border-success/30 bg-success/10 text-success',
+      };
     case 'error':
-      return { label: t('activity:sessionInspect.outcomeError'), cls: 'border-destructive/30 bg-destructive/10 text-destructive' };
+      return {
+        label: t('activity:sessionInspect.outcomeError'),
+        cls: 'border-destructive/30 bg-destructive/10 text-destructive',
+      };
     case 'timeout':
-      return { label: t('activity:sessionInspect.outcomeTimeout'), cls: 'border-warning/30 bg-warning/10 text-warning' };
+      return {
+        label: t('activity:sessionInspect.outcomeTimeout'),
+        cls: 'border-warning/30 bg-warning/10 text-warning',
+      };
     case 'aborted':
-      return { label: t('activity:sessionInspect.outcomeAborted'), cls: 'border-muted-foreground/30 bg-muted text-muted-foreground' };
+      return {
+        label: t('activity:sessionInspect.outcomeAborted'),
+        cls: 'border-muted-foreground/30 bg-muted text-muted-foreground',
+      };
     default:
-      return { label: t('activity:sessionInspect.outcomeUnknown'), cls: 'border-border bg-muted text-muted-foreground' };
+      return {
+        label: t('activity:sessionInspect.outcomeUnknown'),
+        cls: 'border-border bg-muted text-muted-foreground',
+      };
   }
 }
 
@@ -162,12 +178,12 @@ export function SessionInspectView() {
   const filteredEvents = useMemo(
     () =>
       eventFilter
-        ? payload?.events.filter(
+        ? (payload?.events.filter(
             (e) =>
               e.label.toLowerCase().includes(eventFilter.toLowerCase()) ||
               e.type.toLowerCase().includes(eventFilter.toLowerCase()),
-          ) ?? []
-        : payload?.events ?? [],
+          ) ?? [])
+        : (payload?.events ?? []),
     [payload, eventFilter],
   );
 
@@ -212,7 +228,9 @@ export function SessionInspectView() {
       <div className="flex h-full min-h-0 items-center justify-center bg-[hsl(var(--surface-2)/0.45)]">
         <div className="flex max-w-sm flex-col items-center gap-3 p-6 text-center">
           <Search className="h-9 w-9 text-muted-foreground opacity-30" />
-          <p className="text-sm font-medium text-foreground">{t('activity:sessionInspect.noSessionSelected')}</p>
+          <p className="text-sm font-medium text-foreground">
+            {t('activity:sessionInspect.noSessionSelected')}
+          </p>
           <p className="text-xs text-muted-foreground">
             {t('activity:sessionInspect.selectASessionFromTheSessions')}
           </p>
@@ -304,7 +322,11 @@ export function SessionInspectView() {
       <div className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6">
         {/* ── Stats grid ──────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-          <StatCard icon={Cpu} label={t('activity:sessionInspect.tokens')} value={formatCompactNumber(payload.tokenTotal)} />
+          <StatCard
+            icon={Cpu}
+            label={t('activity:sessionInspect.tokens')}
+            value={formatCompactNumber(payload.tokenTotal)}
+          />
           <StatCard
             icon={MessageSquareText}
             label={t('activity:sessionInspect.messages')}
@@ -345,7 +367,9 @@ export function SessionInspectView() {
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <History className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold">{t('activity:sessionInspect.eventTimeline')}</h2>
+                <h2 className="text-sm font-semibold">
+                  {t('activity:sessionInspect.eventTimeline')}
+                </h2>
                 <span className="font-mono text-[10px] text-muted-foreground">
                   {filteredEvents.length} / {payload.events.length}
                 </span>
@@ -417,14 +441,13 @@ export function SessionInspectView() {
               <section className="border border-border/70 bg-card/70">
                 <div className="flex items-center gap-2 border-b border-border/70 px-4 py-2.5">
                   <Wrench className="h-4 w-4 text-primary" />
-                  <h2 className="text-sm font-semibold">{t('activity:sessionInspect.toolBreakdown')}</h2>
+                  <h2 className="text-sm font-semibold">
+                    {t('activity:sessionInspect.toolBreakdown')}
+                  </h2>
                 </div>
                 <div className="divide-y divide-border/60">
                   {sortedTools.map(([name, count]) => (
-                    <div
-                      key={name}
-                      className="flex items-center justify-between px-4 py-2 text-xs"
-                    >
+                    <div key={name} className="flex items-center justify-between px-4 py-2 text-xs">
                       <span className="truncate font-medium">{name}</span>
                       <span className="ml-2 shrink-0 font-mono font-semibold tabular-nums">
                         {count}
@@ -440,7 +463,9 @@ export function SessionInspectView() {
               <section className="border border-border/70 bg-card/70">
                 <div className="flex items-center gap-2 border-b border-border/70 px-4 py-2.5">
                   <FileCode2 className="h-4 w-4 text-success" />
-                  <h2 className="text-sm font-semibold">{t('activity:sessionInspect.fileChanges')}</h2>
+                  <h2 className="text-sm font-semibold">
+                    {t('activity:sessionInspect.fileChanges')}
+                  </h2>
                   <span className="font-mono text-[10px] text-muted-foreground">
                     {payload.fileEvents.length}
                   </span>

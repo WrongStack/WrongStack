@@ -15,11 +15,11 @@ import { DefaultSecretVault } from '@wrongstack/core/security';
 import type { ModelsRegistry, ResolvedModel, ResolvedProvider } from '@wrongstack/core/types';
 import type { AuthFlowIo } from '@wrongstack/tui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AuthMenuDeps } from '../src/auth-menu/types.js';
-import { createAuthPanelHost } from '../src/auth-menu/panel-service.js';
-import { runTopMenu } from '../src/auth-menu/top-menu.js';
-import { manageProvider } from '../src/auth-menu/provider-menu.js';
 import { addKeyForProvider } from '../src/auth-menu/add-provider.js';
+import { createAuthPanelHost } from '../src/auth-menu/panel-service.js';
+import { manageProvider } from '../src/auth-menu/provider-menu.js';
+import { runTopMenu } from '../src/auth-menu/top-menu.js';
+import type { AuthMenuDeps } from '../src/auth-menu/types.js';
 
 // ── Hermetic probe ─────────────────────────────────────────────────────────
 const probeMock = vi.hoisted(() => vi.fn());
@@ -276,7 +276,13 @@ describe('panel host — addCatalogProvider flow', () => {
 
   it('applies family/baseUrl overrides and a custom alias', async () => {
     const { host, configPath } = await setup({ catalog: ANTHROPIC_CATALOG });
-    const { io } = makeIo(['google', 'http://override.local/v1', 'g-anthropic', 'default', 'sk-g-1234567890']);
+    const { io } = makeIo([
+      'google',
+      'http://override.local/v1',
+      'g-anthropic',
+      'default',
+      'sk-g-1234567890',
+    ]);
     expect((await host.addCatalogProvider('anthropic', io)).ok).toBe(true);
     const providers = await readProviders(configPath);
     expect(providers['g-anthropic']).toMatchObject({
@@ -455,7 +461,9 @@ describe('panel host — error branches', () => {
     const { io, log } = makeIo(['']);
     expect((await host.editField('anthropic', 'models', io)).ok).toBe(true);
     expect(log.some((l) => l.includes('(catalog default)'))).toBe(true);
-    expect(((await readProviders(configPath))['anthropic'] as Record<string, unknown>).models).toBeUndefined();
+    expect(
+      ((await readProviders(configPath))['anthropic'] as Record<string, unknown>).models,
+    ).toBeUndefined();
   });
 
   it('editModelDetails reports a provider that vanished', async () => {
@@ -526,7 +534,15 @@ describe('runTopMenu — interactive menu', () => {
   it('adds a custom provider from the menu', async () => {
     const { configPath, vault, registry } = await setup();
     const { deps } = menuCtx(configPath, vault, registry, [
-      'c', 'menu-custom', 'openai', '', '', '', 'default', 'sk-m-1234567890', 'q',
+      'c',
+      'menu-custom',
+      'openai',
+      '',
+      '',
+      '',
+      'default',
+      'sk-m-1234567890',
+      'q',
     ]);
     expect(await runTopMenu(deps)).toBe(0);
     const providers = await readProviders(configPath);

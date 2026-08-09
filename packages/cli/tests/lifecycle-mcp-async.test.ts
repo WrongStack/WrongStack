@@ -1,6 +1,6 @@
+import { MCPRegistry } from '@wrongstack/mcp';
 import { describe, expect, it, vi } from 'vitest';
 import { setupLifecycleAndPlugins } from '../src/wiring/lifecycle-plugins.js';
-import { MCPRegistry } from '@wrongstack/mcp';
 
 vi.mock('@wrongstack/core/coordination', () => ({
   getSharedProjectMailbox: vi.fn().mockReturnValue({}),
@@ -100,9 +100,7 @@ describe('Lifecycle MCP Background Initialization', () => {
     const result = await setupPromise;
 
     expect(result).toBeDefined();
-    expect(mockStart).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'testServer' }),
-    );
+    expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ name: 'testServer' }));
     expect(mcpStarted).toBe(false); // Proves setupLifecycle did not block on MCP start!
 
     // Clean resolve

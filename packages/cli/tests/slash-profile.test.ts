@@ -3,8 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { resolveWstackPaths, stripAnsi } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildProfileCommand } from '../src/slash-commands/profile.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildProfileCommand } from '../src/slash-commands/profile.js';
 
 describe('/profile', () => {
   let tmp: string;

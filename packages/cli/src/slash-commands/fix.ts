@@ -1,13 +1,13 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
+import type { SlashCommandContext } from './command-context.js';
 import {
   type Classification,
   classifyError,
   isSimpleFix,
   needsSubagent,
 } from './fix-classifier.js';
-import type { SlashCommandContext } from './command-context.js';
 
 interface FixResult {
   message?: string | undefined;

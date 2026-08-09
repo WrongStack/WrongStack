@@ -28,8 +28,12 @@ export interface ReplOptions {
   onValidateAutoProceed?:
     | ((suggestion: string, lastOutput: string) => Promise<boolean>)
     | undefined;
-  getEternalEngine?: (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null) | undefined;
-  getParallelEngine?: (() => import('@wrongstack/core/execution').ParallelEternalEngine | null) | undefined;
+  getEternalEngine?:
+    | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
+    | undefined;
+  getParallelEngine?:
+    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | undefined;
   getSddRun?: (() => import('@wrongstack/sdd').SddRunControl | null) | undefined;
   effectiveMaxContext?: number | undefined;
   getEffectiveMaxContext?: (() => number | undefined) | undefined;

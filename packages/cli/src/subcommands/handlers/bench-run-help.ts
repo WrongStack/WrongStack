@@ -110,7 +110,8 @@ export const BENCH_RUN_FLAGS: ReadonlyArray<BenchRunFlag> = [
   {
     name: 'dataset-dir',
     flag: '--dataset-dir <path>',
-    description: 'Path to the SWE-bench Verified dataset (optional, defaults to the official cache).',
+    description:
+      'Path to the SWE-bench Verified dataset (optional, defaults to the official cache).',
     group: 'suite',
     kind: 'value',
   },
@@ -161,18 +162,18 @@ export const BENCH_RUN_FLAGS: ReadonlyArray<BenchRunFlag> = [
  * `BENCH_RUN_FLAGS` to keep the two in sync — a new boolean
  * flag added to `BENCH_RUN_FLAGS` shows up here automatically.
  */
-export const BENCH_RUN_BOOLEAN_FLAG_NAMES: ReadonlyArray<string> = BENCH_RUN_FLAGS
-  .filter((f) => f.kind === 'boolean')
-  .map((f) => f.name);
+export const BENCH_RUN_BOOLEAN_FLAG_NAMES: ReadonlyArray<string> = BENCH_RUN_FLAGS.filter(
+  (f) => f.kind === 'boolean',
+).map((f) => f.name);
 
 /**
  * The names of the value flags (the parser reads these via
  * `flagStr` directly). Same derivation strategy as the
  * boolean list.
  */
-export const BENCH_RUN_VALUE_FLAG_NAMES: ReadonlyArray<string> = BENCH_RUN_FLAGS
-  .filter((f) => f.kind === 'value')
-  .map((f) => f.name);
+export const BENCH_RUN_VALUE_FLAG_NAMES: ReadonlyArray<string> = BENCH_RUN_FLAGS.filter(
+  (f) => f.kind === 'value',
+).map((f) => f.name);
 
 /**
  * The width of the flag column in the rendered help block.
@@ -222,7 +223,9 @@ export function renderBenchRunHelpToString(): string {
     color.bold('Flags'),
     ...buildFlagBlock(),
     '',
-    color.dim('See also: wstack bench list (show available suites + cells); wstack bench report <dir>'),
+    color.dim(
+      'See also: wstack bench list (show available suites + cells); wstack bench report <dir>',
+    ),
   ];
   return lines.join('\n') + '\n';
 }
@@ -261,9 +264,11 @@ function buildFlagBlock(): string[] {
     if (f.group !== currentGroup) {
       // Insert a subheader when the group changes.
       const header =
-        f.group === 'suite'   ? 'Suite selection:' :
-        f.group === 'models'  ? 'Model matrix:'    :
-                                'Run control:';
+        f.group === 'suite'
+          ? 'Suite selection:'
+          : f.group === 'models'
+            ? 'Model matrix:'
+            : 'Run control:';
       rows.push(color.dim(`  ${header}`));
       currentGroup = f.group;
     }

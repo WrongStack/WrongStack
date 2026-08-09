@@ -18,7 +18,12 @@
  * Secrets never cross into the TUI: key values are masked here, and the
  * modal prompt sends the plaintext only INTO the flow (never back out).
  */
-import type { ModelsRegistry, ProviderConfig, SecretScrubber, SecretVault } from '@wrongstack/core/types';
+import type {
+  ModelsRegistry,
+  ProviderConfig,
+  SecretScrubber,
+  SecretVault,
+} from '@wrongstack/core/types';
 import type {
   AuthCatalogRow,
   AuthFlowIo,
@@ -381,11 +386,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
       });
     },
 
-    editModelDetails(
-      providerId: string,
-      modelId: string,
-      io: AuthFlowIo,
-    ): Promise<AuthFlowResult> {
+    editModelDetails(providerId: string, modelId: string, io: AuthFlowIo): Promise<AuthFlowResult> {
       return runFlow(async () => {
         const providers = await loadProviders();
         const cfg = providers[providerId];
@@ -396,10 +397,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
 
         // Fetch catalog reference values so the user can see defaults
         const catalogModel = await deps.modelsRegistry
-          .getModel(
-            cfg.type && cfg.type !== providerId ? cfg.type : providerId,
-            modelId,
-          )
+          .getModel(cfg.type && cfg.type !== providerId ? cfg.type : providerId, modelId)
           .catch(() => undefined);
 
         const existing = cfg.customModels?.[modelId];
@@ -413,10 +411,9 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
 
         // Identity
         const name = (
-          await io.prompt(
-            `Name (current: ${(currentMd['name'] as string) ?? modelId})`,
-            { secret: false },
-          )
+          await io.prompt(`Name (current: ${(currentMd['name'] as string) ?? modelId})`, {
+            secret: false,
+          })
         ).trim();
 
         // Limits
@@ -451,12 +448,24 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
         const modelsDev: Record<string, unknown> = {};
         if (name) modelsDev['name'] = name;
         const limit: Record<string, number> = {};
-        if (ctxRaw) { const n = Number(ctxRaw); if (!Number.isNaN(n) && n >= 0) limit['context'] = n; }
-        if (outRaw) { const n = Number(outRaw); if (!Number.isNaN(n) && n >= 0) limit['output'] = n; }
+        if (ctxRaw) {
+          const n = Number(ctxRaw);
+          if (!Number.isNaN(n) && n >= 0) limit['context'] = n;
+        }
+        if (outRaw) {
+          const n = Number(outRaw);
+          if (!Number.isNaN(n) && n >= 0) limit['output'] = n;
+        }
         if (Object.keys(limit).length > 0) modelsDev['limit'] = limit;
         const cost: Record<string, number> = {};
-        if (costInRaw) { const n = Number(costInRaw); if (!Number.isNaN(n) && n >= 0) cost['input'] = n; }
-        if (costOutRaw) { const n = Number(costOutRaw); if (!Number.isNaN(n) && n >= 0) cost['output'] = n; }
+        if (costInRaw) {
+          const n = Number(costInRaw);
+          if (!Number.isNaN(n) && n >= 0) cost['input'] = n;
+        }
+        if (costOutRaw) {
+          const n = Number(costOutRaw);
+          if (!Number.isNaN(n) && n >= 0) cost['output'] = n;
+        }
         if (Object.keys(cost).length > 0) modelsDev['cost'] = cost;
 
         if (Object.keys(modelsDev).length === 0) {
@@ -478,7 +487,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
               ...(limit || existingEntry.modelsDev
                 ? {
                     limit: {
-                      ...(existingEntry.modelsDev?.['limit'] as Record<string, unknown> ?? {}),
+                      ...((existingEntry.modelsDev?.['limit'] as Record<string, unknown>) ?? {}),
                       ...limit,
                     },
                   }
@@ -517,9 +526,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
           return false;
         }
 
-        const modelId = (
-          await io.prompt('Model id', { secret: false })
-        ).trim();
+        const modelId = (await io.prompt('Model id', { secret: false })).trim();
         if (!modelId) {
           io.onLog('✗ Model id is required.');
           return false;
@@ -528,10 +535,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
         // If from catalog, try to prefill
         if (opts?.fromCatalog) {
           const catalogModel = await deps.modelsRegistry
-            .getModel(
-              cfg.type && cfg.type !== providerId ? cfg.type : providerId,
-              modelId,
-            )
+            .getModel(cfg.type && cfg.type !== providerId ? cfg.type : providerId, modelId)
             .catch(() => undefined);
           if (catalogModel) {
             io.onLog(
@@ -585,10 +589,7 @@ export function createAuthPanelHost(deps: AuthPanelServiceDeps): AuthPanelHost {
         if (!cfg) return `Provider "${providerId}" no longer in config.`;
 
         const catalogModel = await deps.modelsRegistry
-          .getModel(
-            cfg.type && cfg.type !== providerId ? cfg.type : providerId,
-            modelId,
-          )
+          .getModel(cfg.type && cfg.type !== providerId ? cfg.type : providerId, modelId)
           .catch(() => undefined);
         if (!catalogModel) {
           return `Model "${modelId}" not found in catalog — cannot reset.`;

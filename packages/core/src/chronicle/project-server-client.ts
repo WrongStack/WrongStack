@@ -9,6 +9,7 @@ import {
   chronicleProjectServerMetadataPath,
 } from './project-server-endpoint.js';
 import {
+  CHRONICLE_MAX_APPEND_BATCH,
   CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS,
   CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION,
   type ChronicleProjectServerHealth,
@@ -543,7 +544,12 @@ export class ChronicleRemoteJournal implements ChronicleEventSink {
       this.timer = undefined;
     }
     if (this.pending.length === 0) return;
-    const batch = this.pending.splice(0);
+    // Chunked at the server's bound, not drained wholesale. `maxPending` allows
+    // a backlog ten times this size, so a slow or restarting daemon could grow
+    // `pending` past what one call may carry — and the server rejects an
+    // oversized batch as malformed, which turned "persist late" into "lose
+    // everything". The remainder is rescheduled by the `finally` below.
+    const batch = this.pending.splice(0, CHRONICLE_MAX_APPEND_BATCH);
     const started = performance.now();
     this.counters.batches++;
     this.counters.largestBatch = Math.max(this.counters.largestBatch, batch.length);

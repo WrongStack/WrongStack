@@ -114,36 +114,49 @@ export function wireEventWiring(deps: WireEventWiringDeps): EventWiring {
     closeStreamingLine();
   });
 
-  evOn('provider.retry', (p: { sessionId?: string | undefined; delayMs: number; attempt: number; description: string }) => {
-    if (!isCurrentSession(p.sessionId)) return;
-    stopSpinnerAndStreaming();
-    const secs = (p.delayMs / 1000).toFixed(p.delayMs >= 1000 ? 1 : 2);
-    writeErr(color.yellow(`  ⟳ retry ${p.attempt} in ${secs}s — ${p.description}\n`));
-    spinner.start(color.dim(`${getProvider()}/${getModel()} thinking…`));
-  });
+  evOn(
+    'provider.retry',
+    (p: {
+      sessionId?: string | undefined;
+      delayMs: number;
+      attempt: number;
+      description: string;
+    }) => {
+      if (!isCurrentSession(p.sessionId)) return;
+      stopSpinnerAndStreaming();
+      const secs = (p.delayMs / 1000).toFixed(p.delayMs >= 1000 ? 1 : 2);
+      writeErr(color.yellow(`  ⟳ retry ${p.attempt} in ${secs}s — ${p.description}\n`));
+      spinner.start(color.dim(`${getProvider()}/${getModel()} thinking…`));
+    },
+  );
 
-  evOn('provider.fallback', (p: {
-    sessionId?: string | undefined;
-    status: number;
-    to: { providerId: string; model: string };
-    contextWindowWarning?:
-      | { fromMaxContext: number; toMaxContext: number; currentTokens?: number | undefined }
-      | undefined;
-  }) => {
-    if (!isCurrentSession(p.sessionId)) return;
-    stopSpinnerAndStreaming();
-    const contextWarning = p.contextWindowWarning
-      ? `  ⚠ smaller context window: ${p.contextWindowWarning.fromMaxContext.toLocaleString('en-US')} → ${p.contextWindowWarning.toMaxContext.toLocaleString('en-US')} tokens${
-          p.contextWindowWarning.currentTokens
-            ? `; current request ≈ ${p.contextWindowWarning.currentTokens.toLocaleString('en-US')} tokens (${Math.round((p.contextWindowWarning.currentTokens / p.contextWindowWarning.toMaxContext) * 100)}% of new window)`
-            : ''
-        }\n`
-      : '';
-    writeErr(
-      color.yellow(`  ↻ rate-limited (${p.status}) — switched to ${p.to.providerId}/${p.to.model}\n${contextWarning}`),
-    );
-    spinner.start(color.dim(`${p.to.providerId}/${p.to.model} thinking…`));
-  });
+  evOn(
+    'provider.fallback',
+    (p: {
+      sessionId?: string | undefined;
+      status: number;
+      to: { providerId: string; model: string };
+      contextWindowWarning?:
+        | { fromMaxContext: number; toMaxContext: number; currentTokens?: number | undefined }
+        | undefined;
+    }) => {
+      if (!isCurrentSession(p.sessionId)) return;
+      stopSpinnerAndStreaming();
+      const contextWarning = p.contextWindowWarning
+        ? `  ⚠ smaller context window: ${p.contextWindowWarning.fromMaxContext.toLocaleString('en-US')} → ${p.contextWindowWarning.toMaxContext.toLocaleString('en-US')} tokens${
+            p.contextWindowWarning.currentTokens
+              ? `; current request ≈ ${p.contextWindowWarning.currentTokens.toLocaleString('en-US')} tokens (${Math.round((p.contextWindowWarning.currentTokens / p.contextWindowWarning.toMaxContext) * 100)}% of new window)`
+              : ''
+          }\n`
+        : '';
+      writeErr(
+        color.yellow(
+          `  ↻ rate-limited (${p.status}) — switched to ${p.to.providerId}/${p.to.model}\n${contextWarning}`,
+        ),
+      );
+      spinner.start(color.dim(`${p.to.providerId}/${p.to.model} thinking…`));
+    },
+  );
 
   evOn('provider.error', (p: { sessionId?: string | undefined; description: string }) => {
     if (!isCurrentSession(p.sessionId)) return;
@@ -159,7 +172,10 @@ export function wireEventWiring(deps: WireEventWiringDeps): EventWiring {
 
   evOn(
     'provider.response',
-    (e: { sessionId?: string | undefined; usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number } }) => {
+    (e: {
+      sessionId?: string | undefined;
+      usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
+    }) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (e.usage) {
         cliInputTokens = e.usage.input ?? cliInputTokens;

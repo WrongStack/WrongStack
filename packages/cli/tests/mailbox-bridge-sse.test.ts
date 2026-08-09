@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 /**
  * Integration tests for the mailbox HTTP bridge SSE (Server-Sent Events) endpoint.
@@ -71,8 +71,11 @@ beforeAll(async () => {
 
   const mb = createProjectMailbox({ projectDir, isolatedConnection: true });
   await mb.send({
-    from: 'test-bootstrap', to: 'test-bootstrap',
-    type: 'note', subject: 'bootstrap', body: 'pre-suite',
+    from: 'test-bootstrap',
+    to: 'test-bootstrap',
+    type: 'note',
+    subject: 'bootstrap',
+    body: 'pre-suite',
   });
   await mb.close();
 
@@ -86,8 +89,12 @@ beforeAll(async () => {
   );
   serverChild = child;
   let stdout = '';
-  child.stdout?.on('data', (c: Buffer) => { stdout += c.toString('utf8'); });
-  child.stderr?.on('data', () => { /* swallow */ });
+  child.stdout?.on('data', (c: Buffer) => {
+    stdout += c.toString('utf8');
+  });
+  child.stderr?.on('data', () => {
+    /* swallow */
+  });
 
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(
@@ -120,7 +127,10 @@ afterAll(async () => {
     const child = serverChild;
     await new Promise<void>((resolve) => {
       const t = setTimeout(resolve, 3_000);
-      child.once('exit', () => { clearTimeout(t); resolve(); });
+      child.once('exit', () => {
+        clearTimeout(t);
+        resolve();
+      });
       child.kill('SIGINT');
     });
   }
@@ -175,8 +185,16 @@ async function openSseAndCollect(
   } finally {
     clearTimeout(timer);
     if (!matched) controller.abort();
-    try { await reader.cancel(); } catch { /* already closed */ }
-    try { await res.body?.cancel(); } catch { /* already closed */ }
+    try {
+      await reader.cancel();
+    } catch {
+      /* already closed */
+    }
+    try {
+      await res.body?.cancel();
+    } catch {
+      /* already closed */
+    }
   }
   return { chunks, raw };
 }
@@ -193,10 +211,7 @@ describe('mailbox-bridge — SSE endpoint', () => {
   });
 
   it('opens a text/event-stream with auth', async () => {
-    const { raw } = await openSseAndCollect(
-      (chunk) => chunk.includes('connected'),
-      2_000,
-    );
+    const { raw } = await openSseAndCollect((chunk) => chunk.includes('connected'), 2_000);
     expect(raw).toContain(': connected');
   });
 
@@ -207,21 +222,23 @@ describe('mailbox-bridge — SSE endpoint', () => {
 
   it('pushes a message.sent event when a message is sent via POST', async () => {
     // Start collecting SSE events in the background.
-    const ssePromise = openSseAndCollect(
-      (chunk) => chunk.includes('message.sent'),
-      5_000,
-    );
+    const ssePromise = openSseAndCollect((chunk) => chunk.includes('message.sent'), 5_000);
     // Give the SSE connection a moment to establish + subscribe.
     await new Promise((r) => setTimeout(r, 200));
 
     // Send a message — this should trigger an SSE push.
-    await http('POST', '/mailbox/send', {
-      from: 'sse-test-sender',
-      to: 'sse-test-receiver',
-      type: 'note',
-      subject: 'sse-event-test',
-      body: 'hello via SSE',
-    }, auth());
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'sse-test-sender',
+        to: 'sse-test-receiver',
+        type: 'note',
+        subject: 'sse-event-test',
+        body: 'hello via SSE',
+      },
+      auth(),
+    );
 
     const { raw } = await ssePromise;
 
@@ -232,19 +249,21 @@ describe('mailbox-bridge — SSE endpoint', () => {
   });
 
   it('SSE event has correct JSON structure', async () => {
-    const ssePromise = openSseAndCollect(
-      (chunk) => chunk.includes('message.sent'),
-      5_000,
-    );
+    const ssePromise = openSseAndCollect((chunk) => chunk.includes('message.sent'), 5_000);
     await new Promise((r) => setTimeout(r, 200));
 
-    const sendRes = await http('POST', '/mailbox/send', {
-      from: 'json-structure-test',
-      to: 'receiver',
-      type: 'note',
-      subject: 'structure',
-      body: 'x',
-    }, auth());
+    const sendRes = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'json-structure-test',
+        to: 'receiver',
+        type: 'note',
+        subject: 'structure',
+        body: 'x',
+      },
+      auth(),
+    );
     const sentMsg = sendRes.body as { id: string };
 
     const { raw } = await ssePromise;
@@ -269,24 +288,37 @@ describe('mailbox-bridge — SSE endpoint', () => {
   });
 
   it('delivers multiple events in order', async () => {
-    const ssePromise = openSseAndCollect(
-      (chunk) => {
-        // Wait for at least 2 data events.
-        const dataLines = chunk.split('\n').filter((l) => l.startsWith('data:'));
-        return dataLines.length >= 2;
-      },
-      5_000,
-    );
+    const ssePromise = openSseAndCollect((chunk) => {
+      // Wait for at least 2 data events.
+      const dataLines = chunk.split('\n').filter((l) => l.startsWith('data:'));
+      return dataLines.length >= 2;
+    }, 5_000);
     await new Promise((r) => setTimeout(r, 200));
 
-    await http('POST', '/mailbox/send', {
-      from: 'multi-sender', to: 'r',
-      type: 'note', subject: 'first', body: '1',
-    }, auth());
-    await http('POST', '/mailbox/send', {
-      from: 'multi-sender', to: 'r',
-      type: 'note', subject: 'second', body: '2',
-    }, auth());
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'multi-sender',
+        to: 'r',
+        type: 'note',
+        subject: 'first',
+        body: '1',
+      },
+      auth(),
+    );
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'multi-sender',
+        to: 'r',
+        type: 'note',
+        subject: 'second',
+        body: '2',
+      },
+      auth(),
+    );
 
     const { raw } = await ssePromise;
     const dataLines = raw.split('\n').filter((l) => l.startsWith('data:'));
@@ -298,20 +330,22 @@ describe('mailbox-bridge — SSE endpoint', () => {
 
   it('multiple concurrent SSE clients each receive events', async () => {
     // Open two SSE connections simultaneously.
-    const sse1Promise = openSseAndCollect(
-      (chunk) => chunk.includes('multi-client-test'),
-      5_000,
-    );
-    const sse2Promise = openSseAndCollect(
-      (chunk) => chunk.includes('multi-client-test'),
-      5_000,
-    );
+    const sse1Promise = openSseAndCollect((chunk) => chunk.includes('multi-client-test'), 5_000);
+    const sse2Promise = openSseAndCollect((chunk) => chunk.includes('multi-client-test'), 5_000);
     await new Promise((r) => setTimeout(r, 300));
 
-    await http('POST', '/mailbox/send', {
-      from: 'multi-client-test', to: 'r',
-      type: 'note', subject: 'broadcast-test', body: 'x',
-    }, auth());
+    await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'multi-client-test',
+        to: 'r',
+        type: 'note',
+        subject: 'broadcast-test',
+        body: 'x',
+      },
+      auth(),
+    );
 
     const [r1, r2] = await Promise.all([sse1Promise, sse2Promise]);
     expect(r1.raw).toContain('multi-client-test');

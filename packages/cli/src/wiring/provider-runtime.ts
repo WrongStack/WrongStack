@@ -1,5 +1,5 @@
-import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import type { ProviderRegistry } from '@wrongstack/core/registry';
+import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 
 /**
@@ -77,7 +77,8 @@ export function buildProviderForId(
   providerId: string,
 ): Provider {
   const { cfg, factoryType } = resolveProviderCfg(args.config, providerId);
-  const useRegistry = !!args.config.features.modelsRegistry && args.providerRegistry.has(factoryType);
+  const useRegistry =
+    !!args.config.features.modelsRegistry && args.providerRegistry.has(factoryType);
   return useRegistry
     ? args.providerRegistry.create(cfg, factoryType)
     : makeProviderFromConfig(

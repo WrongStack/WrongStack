@@ -1,9 +1,8 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { resetIndexCircuitBreaker, runStartupIndex } from '@wrongstack/tools';
 import type { SlashCommandContext } from './command-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 /**
  * `/codebase-reindex` — manually refresh the `codebase-search` symbol index.

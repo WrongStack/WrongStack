@@ -8,13 +8,14 @@
  * `.wrongstack` state dir (`~/.wrongstack/projects/<slug>/requirement-intakes`)
  * and are ready for downstream modules (SDD interview kickoff, planning).
  */
+
+import type { SlashCommand } from '@wrongstack/core/types';
+import { ensureProjectIdentity, resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   AllowAllIntakeAuthorizer,
   RequirementIntakeService,
   RequirementIntakeStore,
 } from '@wrongstack/requirement-intake';
-import { ensureProjectIdentity, resolveWstackPaths } from '@wrongstack/core/utils';
-import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
 const INTAKE_ACTOR = { id: 'cli-operator', type: 'user' } as const;

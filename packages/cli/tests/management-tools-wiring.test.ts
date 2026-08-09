@@ -130,9 +130,7 @@ describe('registerCliManagementTools', () => {
       stdinInteractive: false,
       getHookRunner,
     });
-    expect(
-      (mocks.pluginOptions as { getHookRunner?: unknown }).getHookRunner,
-    ).toBe(getHookRunner);
+    expect((mocks.pluginOptions as { getHookRunner?: unknown }).getHookRunner).toBe(getHookRunner);
   });
 
   it('cli-main wires the hook-runner ref into the management tools', async () => {

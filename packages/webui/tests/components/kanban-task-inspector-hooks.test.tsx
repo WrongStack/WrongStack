@@ -2,30 +2,57 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KanbanBoard, KanbanTask } from '@/types/kanban-types';
 
-// Mutable state that the mock store reads.
-let mockActiveBoard: KanbanBoard | null = null;
-
-vi.mock('@/stores', () => ({
-  useConfigStore: Object.assign(() => ({ wsUrl: 'ws://localhost:0' }), {}),
-  useSessionStore: () => ({ session: { id: 'test-session' } }),
-  useFleetStore: Object.assign(
-    (selector: (s: { agents: Map<string, unknown> }) => unknown) => selector({ agents: new Map() }),
-    {},
-  ),
-  useKanbanStore: () => ({
-    boards: [],
-    activeBoardId: 'board-1',
+// Hoisted reference so the vi.mock factories (which run before module
+// initialization) can read the same mutable that tests assign in
+// beforeEach, and so both factories share a single action+state shape
+// (diverging mocks would silently pass today and break tomorrow).
+const { mockRefs, baseState } = vi.hoisted(() => {
+  const mockRefs = { activeBoard: null as KanbanBoard | null };
+  const baseState = () => ({
+    boards: [] as KanbanBoard[],
+    activeBoardId: 'board-1' as string | null,
     get activeBoard() {
-      return mockActiveBoard;
+      return mockRefs.activeBoard;
     },
     loading: false,
-    error: null,
+    error: null as string | null,
     queueHealth: null,
     supervisorSnapshot: null,
+    lastOutboundAction: null as string | null,
     setLoading: vi.fn(),
     setActiveBoardId: vi.fn(),
-  }),
-}));
+    setError: vi.fn(),
+    sendKanban: vi.fn(),
+    transitionTask: vi.fn(),
+    dispatchTask: vi.fn(),
+    moveTask: vi.fn(),
+    removeTask: vi.fn(),
+  });
+  return { mockRefs, baseState };
+});
+
+vi.mock('@/stores', () => {
+  const useKanbanStore = Object.assign(() => baseState(), {
+    getState: () => baseState(),
+  });
+  return {
+    useConfigStore: Object.assign(() => ({ wsUrl: 'ws://localhost:0' }), {}),
+    useSessionStore: () => ({ session: { id: 'test-session' } }),
+    useFleetStore: Object.assign(
+      (selector: (s: { agents: Map<string, unknown> }) => unknown) =>
+        selector({ agents: new Map() }),
+      {},
+    ),
+    useKanbanStore,
+  };
+});
+
+vi.mock('@/stores/kanban-store', () => {
+  const useKanbanStore = Object.assign(() => baseState(), {
+    getState: () => baseState(),
+  });
+  return { useKanbanStore };
+});
 
 vi.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => ({
@@ -118,7 +145,7 @@ function renderKanban() {
 describe('KanbanView — TaskInspector hook-order regression (React error 310)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockActiveBoard = null;
+    mockRefs.activeBoard = null;
   });
 
   it('does not render an empty inspector when no task is selected', () => {
@@ -134,7 +161,7 @@ describe('KanbanView — TaskInspector hook-order regression (React error 310)',
 
   it('opens the inspector only after a task card is selected', () => {
     const task = makeTask();
-    mockActiveBoard = makeBoard(task);
+    mockRefs.activeBoard = makeBoard(task);
     renderKanban();
 
     expect(screen.queryByRole('complementary', { name: 'Task inspector' })).toBeNull();
@@ -179,7 +206,7 @@ describe('KanbanView — TaskInspector hook-order regression (React error 310)',
         model: 'gpt-5.4',
       },
     });
-    mockActiveBoard = makeBoard(task);
+    mockRefs.activeBoard = makeBoard(task);
     renderKanban();
 
     expect(() =>

@@ -323,6 +323,7 @@ export type KanbanErrorCode =
   | 'INVALID_INPUT'
   | 'ALREADY_EXISTS'
   | 'STALE_WRITE'
+  | 'LIFECYCLE'
   | 'INTERNAL_ERROR';
 
 export interface KanbanServerEvent {

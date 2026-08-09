@@ -5,8 +5,8 @@
  * catch.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { makeProviderClassifier } from '../src/services/dispatch-classifier.js';
 import type { CommitLLMProvider } from '../src/services/commit-message.js';
+import { makeProviderClassifier } from '../src/services/dispatch-classifier.js';
 
 function providerWith(content: unknown): CommitLLMProvider {
   return {

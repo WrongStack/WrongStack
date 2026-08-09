@@ -1,7 +1,7 @@
 import { Writable } from 'node:stream';
+import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { EventBus } from '@wrongstack/core/kernel';
 import { stripAnsi } from '@wrongstack/core/utils';
-import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { describe, expect, it } from 'vitest';
 import { TerminalRenderer } from '../src/renderer.js';
 import { SessionStats } from '../src/session-stats.js';
@@ -64,7 +64,8 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      model: 'test-model', stopReason: 'end_turn',
+      model: 'test-model',
+      stopReason: 'end_turn',
     });
     r.events.emit('tool.executed', {
       name: 'read',
@@ -129,7 +130,8 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      model: 'test-model', stopReason: 'end_turn',
+      model: 'test-model',
+      stopReason: 'end_turn',
     } as never);
     expect(r.stats.hasActivity()).toBe(true);
 
@@ -141,7 +143,8 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      model: 'test-model', stopReason: 'end_turn',
+      model: 'test-model',
+      stopReason: 'end_turn',
     } as never);
 
     // render() should still work without throwing.
@@ -163,7 +166,8 @@ describe('SessionStats', () => {
     r.events.emit('provider.response', {
       ctx: {} as never,
       usage: {} as never,
-      model: 'test-model', stopReason: 'end_turn',
+      model: 'test-model',
+      stopReason: 'end_turn',
     });
     r.stats.render(r.renderer);
     const text = stripAnsi(r.out.buf);

@@ -28,9 +28,9 @@ import {
   serializeHqSessionCookie,
   setHqSessionCookie,
 } from '../auth.js';
+import { resolveClientAddress } from '../client-address.js';
 import type { LoginAttemptStore } from '../login-attempt-store.js';
 import type { HqRouterMutableAuth, HqSessionEntry } from '../types.js';
-import { resolveClientAddress } from '../client-address.js';
 import { readRequestBody, writeInvalidBody } from '../utils.js';
 
 /**
@@ -383,9 +383,7 @@ export async function handleApiPassword(
   // Previously this only checked `isCookieAuth(auth)`, so a leaked/read-only
   // browser token could change or remove the HQ password without knowing it.
   const hasAdminCapability =
-    auth !== undefined &&
-    'capabilities' in auth &&
-    auth.capabilities?.includes('auth.admin');
+    auth !== undefined && 'capabilities' in auth && auth.capabilities?.includes('auth.admin');
 
   if (!localOpenBootstrap && mutableAuth.passwordHash !== undefined && !hasAdminCapability) {
     const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
@@ -393,7 +391,10 @@ export async function handleApiPassword(
       res.writeHead(403, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
-          error: { code: 'INVALID_CURRENT_PASSWORD', message: 'Current password is required to change or remove it.' },
+          error: {
+            code: 'INVALID_CURRENT_PASSWORD',
+            message: 'Current password is required to change or remove it.',
+          },
         }),
       );
       return;
@@ -700,10 +701,7 @@ let recoveryCodeLock: Promise<void> = Promise.resolve();
 const MAX_2FA_VERIFY_FAILURES = 5;
 
 /** Record a failed 2FA attempt, feeding the same exponential backoff as login. */
-function recordVerifyFailure(
-  loginAttempts: LoginAttemptStore,
-  clientIp: string,
-): number {
+function recordVerifyFailure(loginAttempts: LoginAttemptStore, clientIp: string): number {
   const prev = loginAttempts.get(clientIp);
   const count = (prev?.count ?? 0) + 1;
   loginAttempts.recordFailure(clientIp);
@@ -740,7 +738,11 @@ export async function handleApiLoginVerify(
   const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp);
   if (blocked) {
     res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(retryAfter) });
-    res.end(JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' } }));
+    res.end(
+      JSON.stringify({
+        error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' },
+      }),
+    );
     return;
   }
 
@@ -749,20 +751,30 @@ export async function handleApiLoginVerify(
   const sessionId = raw ? parseHqSessionCookie(raw, mutableAuth.cookieSecret) : undefined;
   if (!sessionId) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'NO_PENDING_SESSION', message: 'No pending 2FA session.' } }));
+    res.end(
+      JSON.stringify({ error: { code: 'NO_PENDING_SESSION', message: 'No pending 2FA session.' } }),
+    );
     return;
   }
   const session = sessions.get(sessionId);
   if (!session?.pending2fa) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'NO_PENDING_SESSION', message: 'Session is not pending 2FA.' } }));
+    res.end(
+      JSON.stringify({
+        error: { code: 'NO_PENDING_SESSION', message: 'Session is not pending 2FA.' },
+      }),
+    );
     return;
   }
   // Expire the pending session if it exceeds the TTL.
   if (Date.now() - session.createdAt > PENDING_2FA_TTL_MS) {
     sessions.delete(sessionId);
     res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'TOTP_EXPIRED', message: '2FA session expired. Please log in again.' } }));
+    res.end(
+      JSON.stringify({
+        error: { code: 'TOTP_EXPIRED', message: '2FA session expired. Please log in again.' },
+      }),
+    );
     return;
   }
 
@@ -779,7 +791,9 @@ export async function handleApiLoginVerify(
   if (typeof body.code === 'string' && body.code.length > 0) {
     if (!mutableAuth.totpSecret) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { code: 'TOTP_NOT_ENABLED', message: '2FA is not configured.' } }));
+      res.end(
+        JSON.stringify({ error: { code: 'TOTP_NOT_ENABLED', message: '2FA is not configured.' } }),
+      );
       return;
     }
     const matchedCounter = verifyTotpCounter(body.code, mutableAuth.totpSecret);
@@ -812,7 +826,11 @@ export async function handleApiLoginVerify(
     loginAttempts.clearOnSuccess(clientIp);
     sessions.delete(sessionId);
     const fullSessionId = randomUUID();
-    sessions.set(fullSessionId, { createdAt: Date.now(), kind: 'password', lastSeenAt: Date.now() });
+    sessions.set(fullSessionId, {
+      createdAt: Date.now(),
+      kind: 'password',
+      lastSeenAt: Date.now(),
+    });
     setHqSessionCookie(
       res,
       serializeHqSessionCookie(fullSessionId, mutableAuth.cookieSecret),
@@ -829,7 +847,11 @@ export async function handleApiLoginVerify(
     const storedHashes = mutableAuth.totpRecoveryCodes ?? [];
     if (storedHashes.length === 0) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { code: 'NO_RECOVERY_CODES', message: 'No recovery codes available.' } }));
+      res.end(
+        JSON.stringify({
+          error: { code: 'NO_RECOVERY_CODES', message: 'No recovery codes available.' },
+        }),
+      );
       return;
     }
     if (!verifyRecoveryCode(body.recoveryCode, storedHashes)) {
@@ -837,7 +859,11 @@ export async function handleApiLoginVerify(
         sessions.delete(sessionId);
       }
       res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { code: 'INVALID_RECOVERY_CODE', message: 'Invalid recovery code.' } }));
+      res.end(
+        JSON.stringify({
+          error: { code: 'INVALID_RECOVERY_CODE', message: 'Invalid recovery code.' },
+        }),
+      );
       return;
     }
     // Consume atomically under an in-process mutex: `mutateHqAuthFile` has no
@@ -868,7 +894,14 @@ export async function handleApiLoginVerify(
       });
       if (!consumed) {
         res.writeHead(409, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: { code: 'RECOVERY_CODE_ALREADY_USED', message: 'This recovery code has already been used.' } }));
+        res.end(
+          JSON.stringify({
+            error: {
+              code: 'RECOVERY_CODE_ALREADY_USED',
+              message: 'This recovery code has already been used.',
+            },
+          }),
+        );
         return;
       }
       applyAuthFile(next);
@@ -879,7 +912,11 @@ export async function handleApiLoginVerify(
     loginAttempts.clearOnSuccess(clientIp);
     sessions.delete(sessionId);
     const fullSessionId = randomUUID();
-    sessions.set(fullSessionId, { createdAt: Date.now(), kind: 'password', lastSeenAt: Date.now() });
+    sessions.set(fullSessionId, {
+      createdAt: Date.now(),
+      kind: 'password',
+      lastSeenAt: Date.now(),
+    });
     setHqSessionCookie(
       res,
       serializeHqSessionCookie(fullSessionId, mutableAuth.cookieSecret),
@@ -892,7 +929,9 @@ export async function handleApiLoginVerify(
 
   res.writeHead(400, { 'Content-Type': 'application/json' });
   res.end(
-    JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Provide a `code` or `recoveryCode`.' } }),
+    JSON.stringify({
+      error: { code: 'BAD_REQUEST', message: 'Provide a `code` or `recoveryCode`.' },
+    }),
   );
 }
 
@@ -920,7 +959,12 @@ export async function handleApiTotpSetup(
   if (mutableAuth.totpSecret) {
     res.writeHead(409, { 'Content-Type': 'application/json' });
     res.end(
-      JSON.stringify({ error: { code: 'TOTP_ALREADY_ENABLED', message: '2FA is already active. Disable it first to re-enroll.' } }),
+      JSON.stringify({
+        error: {
+          code: 'TOTP_ALREADY_ENABLED',
+          message: '2FA is already active. Disable it first to re-enroll.',
+        },
+      }),
     );
     return;
   }
@@ -965,7 +1009,9 @@ export async function handleApiTotpEnable(
   if (mutableAuth.totpSecret) {
     res.writeHead(409, { 'Content-Type': 'application/json' });
     res.end(
-      JSON.stringify({ error: { code: 'TOTP_ALREADY_ENABLED', message: '2FA is already active.' } }),
+      JSON.stringify({
+        error: { code: 'TOTP_ALREADY_ENABLED', message: '2FA is already active.' },
+      }),
     );
     return;
   }
@@ -974,7 +1020,9 @@ export async function handleApiTotpEnable(
   if (!pendingSecret) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(
-      JSON.stringify({ error: { code: 'TOTP_NOT_SETUP', message: 'Call /api/auth/totp/setup first.' } }),
+      JSON.stringify({
+        error: { code: 'TOTP_NOT_SETUP', message: 'Call /api/auth/totp/setup first.' },
+      }),
     );
     return;
   }
@@ -997,7 +1045,9 @@ export async function handleApiTotpEnable(
   // Verify the code against the PENDING secret.
   if (!verifyTotp(body.code, pendingSecret)) {
     res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: { code: 'INVALID_TOTP', message: 'Invalid authenticator code.' } }));
+    res.end(
+      JSON.stringify({ error: { code: 'INVALID_TOTP', message: 'Invalid authenticator code.' } }),
+    );
     return;
   }
 
@@ -1046,7 +1096,11 @@ export async function handleApiTotpDisable(
   const { blocked, retryAfter } = loginAttempts.checkBlocked(clientIp);
   if (blocked) {
     res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': String(retryAfter) });
-    res.end(JSON.stringify({ error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' } }));
+    res.end(
+      JSON.stringify({
+        error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' },
+      }),
+    );
     return;
   }
 
@@ -1071,7 +1125,12 @@ export async function handleApiTotpDisable(
     recordVerifyFailure(loginAttempts, clientIp);
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(
-      JSON.stringify({ error: { code: 'CONFIRMATION_REQUIRED', message: 'Provide the current password or a TOTP code.' } }),
+      JSON.stringify({
+        error: {
+          code: 'CONFIRMATION_REQUIRED',
+          message: 'Provide the current password or a TOTP code.',
+        },
+      }),
     );
     return;
   }
@@ -1176,9 +1235,9 @@ export async function handleApiAuthSessionsRevoke(
   res.end(JSON.stringify({ revoked: count }));
 }
 
+import { readHqAuthAuditTail } from '@wrongstack/core/hq';
 // Lazy import to avoid circular dependency at module load time.
 import * as HqServerAuthRef from '../auth.js';
-import { readHqAuthAuditTail } from '@wrongstack/core/hq';
 
 /**
  * GET `/api/auth/audit` — recent auth events for the audit panel.

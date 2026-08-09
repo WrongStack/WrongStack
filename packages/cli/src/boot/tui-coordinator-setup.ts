@@ -17,10 +17,10 @@
  * `state.coordinatorEvents` (both on the shared TuiRuntimeState).
  */
 import * as path from 'node:path';
-import { AutonomousCoordinator, type Director, type Mailbox } from '@wrongstack/core/coordination';
 import type { Context } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
 import type { LLMProvider } from '@wrongstack/core/coordination';
+import { AutonomousCoordinator, type Director, type Mailbox } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
@@ -59,10 +59,18 @@ export interface CoordinatorSetupResult {
  * coordinator if already created) and a `cleanup` function that removes
  * the event listener.
  */
-export function setupAutonomousCoordinator(
-  ctx: CoordinatorSetupContext,
-): CoordinatorSetupResult {
-  const { state, events, context, wpaths, mailbox, director, getDirector, coordinatorController, onCoordinatorStopSetter } = ctx;
+export function setupAutonomousCoordinator(ctx: CoordinatorSetupContext): CoordinatorSetupResult {
+  const {
+    state,
+    events,
+    context,
+    wpaths,
+    mailbox,
+    director,
+    getDirector,
+    coordinatorController,
+    onCoordinatorStopSetter,
+  } = ctx;
 
   const ensure = (): AutonomousCoordinator | null => {
     if (state.autonomousCoordinator) return state.autonomousCoordinator;
@@ -73,9 +81,7 @@ export function setupAutonomousCoordinator(
     // "~/.wrongstack/.../sessions/<date>/sess_<ULID>.jsonl" → parent dir). Fall back
     // to the global project dir when the writer is in-memory.
     const transcript = context.session.transcriptPath;
-    const sessionDir = transcript
-      ? path.dirname(transcript)
-      : wpaths.projectDir;
+    const sessionDir = transcript ? path.dirname(transcript) : wpaths.projectDir;
 
     // Adapt Context.provider (Wire provider) to AutonomousBrain.LLMProvider
     // (one-method LLM call). The brain calls decide(prompt) → option+rationale.
@@ -84,20 +90,25 @@ export function setupAutonomousCoordinator(
         const sysPrompt = [
           {
             type: 'text' as const,
-            text: 'You are the autonomous brain of a multi-agent coordination system. '
-              + 'Pick the best option for the decision described and reply with JSON: '
-              + '{"optionId":"<id>","rationale":"<short why>"}.',
+            text:
+              'You are the autonomous brain of a multi-agent coordination system. ' +
+              'Pick the best option for the decision described and reply with JSON: ' +
+              '{"optionId":"<id>","rationale":"<short why>"}.',
           },
         ];
         const userPrompt = {
           type: 'text' as const,
-          text: `Decision: ${prompt.question}\n\n`
-            + `Context: ${JSON.stringify(prompt.context)}\n\n`
-            + `Options:\n${prompt.options
-              .map((o, i) => `  ${i + 1}. [${o.id}] ${o.label}${o.consequence ? ` — ${o.consequence}` : ''}`)
-              .join('\n')}\n\n`
-            + `Risk: ${prompt.risk}\n\n`
-            + 'Reply with ONLY the JSON object.',
+          text:
+            `Decision: ${prompt.question}\n\n` +
+            `Context: ${JSON.stringify(prompt.context)}\n\n` +
+            `Options:\n${prompt.options
+              .map(
+                (o, i) =>
+                  `  ${i + 1}. [${o.id}] ${o.label}${o.consequence ? ` — ${o.consequence}` : ''}`,
+              )
+              .join('\n')}\n\n` +
+            `Risk: ${prompt.risk}\n\n` +
+            'Reply with ONLY the JSON object.',
         };
         const resp = await context.provider.complete(
           {
@@ -115,12 +126,17 @@ export function setupAutonomousCoordinator(
           { signal: context.signal },
         );
         const text = resp.content
-          .filter((b): b is { type: 'text'; text: string } => (b as { type?: string }).type === 'text')
+          .filter(
+            (b): b is { type: 'text'; text: string } => (b as { type?: string }).type === 'text',
+          )
           .map((b) => b.text)
           .join('\n')
           .trim();
         // Parse the JSON, tolerate code fences.
-        const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+        const cleaned = text
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/```$/, '')
+          .trim();
         try {
           const parsed = JSON.parse(cleaned) as { optionId?: string; rationale?: string };
           const optId = parsed.optionId ?? prompt.options[0]?.id ?? '';
@@ -156,7 +172,8 @@ export function setupAutonomousCoordinator(
       coordinatorController['onCoordinatorStart'] = (goal?: string) => {
         const coordinator = state.autonomousCoordinator;
         if (!coordinator) return;
-        coordinator.run({ goal: goal ?? 'Improve the codebase', runUntilComplete: true })
+        coordinator
+          .run({ goal: goal ?? 'Improve the codebase', runUntilComplete: true })
           .then(() => undefined)
           .catch((err: unknown) =>
             console.error(
@@ -173,18 +190,26 @@ export function setupAutonomousCoordinator(
       coordinatorController['onCoordinatorTasks'] = async () => {
         if (!state.autonomousCoordinator) return null;
         await state.autonomousCoordinator.graph.load();
-        return state.autonomousCoordinator.auction
-          .getPendingTasks()
-          .map((task) => ({ id: task.id, title: task.title, priority: task.priority, tags: task.tags }));
+        return state.autonomousCoordinator.auction.getPendingTasks().map((task) => ({
+          id: task.id,
+          title: task.title,
+          priority: task.priority,
+          tags: task.tags,
+        }));
       };
       coordinatorController['onCoordinatorClaim'] = async (taskId: string) => {
         if (!state.autonomousCoordinator) return 'No coordinator is active.';
         await state.autonomousCoordinator.graph.load();
-        const goal = state.autonomousCoordinator.graph.get(taskId) as import('@wrongstack/core/coordination').GoalNode | undefined;
+        const goal = state.autonomousCoordinator.graph.get(taskId) as
+          | import('@wrongstack/core/coordination').GoalNode
+          | undefined;
         if (goal?.type !== 'goal') return `Task ${taskId.slice(0, 8)} not found.`;
-        if (goal.status !== 'pending') return `Task ${taskId.slice(0, 8)} is ${goal.status}, not claimable.`;
+        if (goal.status !== 'pending')
+          return `Task ${taskId.slice(0, 8)} is ${goal.status}, not claimable.`;
         const ok = await state.autonomousCoordinator.auction.claim(
-          taskId, `terminal@${context.session.id ?? 'unknown'}`, 'Terminal worker',
+          taskId,
+          `terminal@${context.session.id ?? 'unknown'}`,
+          'Terminal worker',
         );
         if (!ok) return `Task ${taskId.slice(0, 8)} could not be claimed.`;
         return { description: goal.description };
@@ -192,18 +217,27 @@ export function setupAutonomousCoordinator(
       coordinatorController['onCoordinatorComplete'] = async (taskId: string, result?: string) => {
         if (!state.autonomousCoordinator) return 'No coordinator is active.';
         await state.autonomousCoordinator.graph.load();
-        const goal = state.autonomousCoordinator.graph.get(taskId) as import('@wrongstack/core/coordination').GoalNode | undefined;
+        const goal = state.autonomousCoordinator.graph.get(taskId) as
+          | import('@wrongstack/core/coordination').GoalNode
+          | undefined;
         if (goal?.type !== 'goal') return `Task ${taskId.slice(0, 8)} not found.`;
-        if (goal.status !== 'in_progress') return `Task ${taskId.slice(0, 8)} is ${goal.status}, cannot complete.`;
-        await state.autonomousCoordinator.reportTaskCompletion(taskId, result ?? 'Terminal worker completed the task');
+        if (goal.status !== 'in_progress')
+          return `Task ${taskId.slice(0, 8)} is ${goal.status}, cannot complete.`;
+        await state.autonomousCoordinator.reportTaskCompletion(
+          taskId,
+          result ?? 'Terminal worker completed the task',
+        );
         return null;
       };
       coordinatorController['onCoordinatorFail'] = async (taskId: string, error: string) => {
         if (!state.autonomousCoordinator) return 'No coordinator is active.';
         await state.autonomousCoordinator.graph.load();
-        const goal = state.autonomousCoordinator.graph.get(taskId) as import('@wrongstack/core/coordination').GoalNode | undefined;
+        const goal = state.autonomousCoordinator.graph.get(taskId) as
+          | import('@wrongstack/core/coordination').GoalNode
+          | undefined;
         if (goal?.type !== 'goal') return `Task ${taskId.slice(0, 8)} not found.`;
-        if (goal.status !== 'in_progress') return `Task ${taskId.slice(0, 8)} is ${goal.status}, cannot fail.`;
+        if (goal.status !== 'in_progress')
+          return `Task ${taskId.slice(0, 8)} is ${goal.status}, cannot fail.`;
         await state.autonomousCoordinator.reportTaskFailure(taskId, error);
         return null;
       };
@@ -212,8 +246,18 @@ export function setupAutonomousCoordinator(
         await state.autonomousCoordinator.syncFromGraph();
         const stats = state.autonomousCoordinator.getStats();
         return {
-          goals: { total: stats.goals.total, done: stats.goals.done, pending: stats.goals.pending, failed: stats.goals.failed },
-          dag: { running: stats.dag.running, ready: stats.dag.ready, done: stats.dag.done, failed: stats.dag.failed },
+          goals: {
+            total: stats.goals.total,
+            done: stats.goals.done,
+            pending: stats.goals.pending,
+            failed: stats.goals.failed,
+          },
+          dag: {
+            running: stats.dag.running,
+            ready: stats.dag.ready,
+            done: stats.dag.done,
+            failed: stats.dag.failed,
+          },
           auction: { pending: stats.auction.pending, inProgress: stats.auction.in_progress },
         };
       };

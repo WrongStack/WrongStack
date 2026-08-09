@@ -58,7 +58,8 @@ export function emitBoardEvent(
 
 export function subscribeToBoardEvents(listener: Listener): () => void {
   if (listeners.size >= MAX_LISTENERS) {
-    const msg = `Kanban event-emitter listener limit (${MAX_LISTENERS}) reached — ` +
+    const msg =
+      `Kanban event-emitter listener limit (${MAX_LISTENERS}) reached — ` +
       'callers must dispose their board-event subscriptions to prevent unbounded memory growth. ' +
       'Returning no-op disposer; this subscription will not receive events.';
     if (typeof process !== 'undefined' && process.emitWarning) {

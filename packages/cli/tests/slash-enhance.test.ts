@@ -14,9 +14,7 @@ function makeController(enabled: boolean) {
   return controller;
 }
 
-const makeCtx = (
-  overrides: Partial<SlashCommandContext> = {},
-): SlashCommandContext => {
+const makeCtx = (overrides: Partial<SlashCommandContext> = {}): SlashCommandContext => {
   const write = vi.fn();
   const writeWarning = vi.fn();
   return {

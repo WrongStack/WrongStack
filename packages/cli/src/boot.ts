@@ -32,13 +32,13 @@ function resolveBundledOverlayFile(): string | undefined {
   }
 }
 
-import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/core/types';
-import { color, isStdinTTY, type WstackPaths, writeErr } from '@wrongstack/core/utils';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { TOKENS } from '@wrongstack/core/kernel';
+import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/core/types';
+import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import { color, isStdinTTY, type WstackPaths, writeErr } from '@wrongstack/core/utils';
 import { createDefaultContainer } from '@wrongstack/runtime';
 import { registerBuiltinToolTier } from '@wrongstack/tools/tool-tier';
 import { parseArgs } from './arg-parser.js';

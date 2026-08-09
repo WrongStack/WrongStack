@@ -2,8 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { makeKanbanQueueTool } from '@wrongstack/core/coordination';
-import type { SubagentConfig } from '@wrongstack/core/types';
-import type { TaskResult, TaskSpec } from '@wrongstack/core/types';
+import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/core/types';
 import {
   addTask,
   assignTask,
@@ -17,8 +16,8 @@ import {
   releaseTaskClaim,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '@wrongstack/tools/kanban';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 let tmpDir = '';
 
@@ -318,9 +317,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
       'task.completion.gate_pending',
     ]);
 
-    const completedEvent = events.find(
-      (event) => event.type === 'task.assignment.completed',
-    );
+    const completedEvent = events.find((event) => event.type === 'task.assignment.completed');
     expect(completedEvent?.taskId).toBe(added!.task.id);
     expect(completedEvent?.actor).toBe('worker-evt');
     expect(completedEvent?.subagentId).toBe('sub-evt');

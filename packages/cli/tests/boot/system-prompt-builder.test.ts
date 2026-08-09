@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 /**
  * PR 5 of Issue #29: extract the SystemPromptBuilder
@@ -32,6 +32,7 @@ import * as path from 'node:path';
 const { bindSystemPromptBuilder } = await import('../../src/boot/system-prompt-builder.js');
 
 import type { TokenSavingTier } from '@wrongstack/core/types';
+
 type SystemInstructionVariant = 'default' | 'lite' | 'pro';
 
 interface CapturedBuilder {
@@ -175,11 +176,14 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
     expect(builder.opts.tokenSavingMode).toBe('aggressive');
   });
 
-  it.each(['lite', 'pro'] as const)('passes %s systemPromptVariant through to instructionPaths', (variant) => {
-    const { capturedFactory } = makeDeps({ systemPromptVariant: variant });
-    const builder = capturedFactory();
-    expect(builder.opts.instructionPaths?.systemVariant).toBe(variant);
-  });
+  it.each(['lite', 'pro'] as const)(
+    'passes %s systemPromptVariant through to instructionPaths',
+    (variant) => {
+      const { capturedFactory } = makeDeps({ systemPromptVariant: variant });
+      const builder = capturedFactory();
+      expect(builder.opts.instructionPaths?.systemVariant).toBe(variant);
+    },
+  );
 
   it('autonomy contributor is the only contributor wired into the builder', () => {
     // The pre-refactor inline block wired exactly one

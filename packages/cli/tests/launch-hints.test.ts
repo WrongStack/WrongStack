@@ -15,7 +15,12 @@ function makeRenderer(): { write: (input: string | TextBlock) => void; output: (
   const write = vi.fn<(input: string | TextBlock) => void>();
   return {
     write,
-    output: () => stripAnsi((write as never as { mock: { calls: unknown[][] } }).mock.calls.map((c) => String(c[0])).join('')),
+    output: () =>
+      stripAnsi(
+        (write as never as { mock: { calls: unknown[][] } }).mock.calls
+          .map((c) => String(c[0]))
+          .join(''),
+      ),
   };
 }
 
@@ -81,14 +86,17 @@ describe('printLaunchHints', () => {
     expect(allHints).not.toContain('/usage');
   });
 
-  it.each([80, 50, 30, 20])('wraps every hint group within a %i-column terminal', async (termWidth) => {
-    for (let groupIndex = 0; groupIndex < HINT_GROUP_COUNT; groupIndex++) {
-      const r = makeRenderer();
-      await printLaunchHints(r, {}, { groupIndex, termWidth });
-      const lines = r.output().split('\n');
-      expect(Math.max(...lines.map((line) => [...line].length))).toBeLessThanOrEqual(termWidth);
-    }
-  });
+  it.each([80, 50, 30, 20])(
+    'wraps every hint group within a %i-column terminal',
+    async (termWidth) => {
+      for (let groupIndex = 0; groupIndex < HINT_GROUP_COUNT; groupIndex++) {
+        const r = makeRenderer();
+        await printLaunchHints(r, {}, { groupIndex, termWidth });
+        const lines = r.output().split('\n');
+        expect(Math.max(...lines.map((line) => [...line].length))).toBeLessThanOrEqual(termWidth);
+      }
+    },
+  );
 
   it('wraps groupIndex out of range', async () => {
     const r = makeRenderer();

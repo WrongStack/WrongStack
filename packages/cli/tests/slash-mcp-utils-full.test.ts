@@ -1,9 +1,9 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { parseMcpArgs, runMcpManagementCommand } from '../src/slash-commands/mcp-utils.js';
+import * as path from 'node:path';
 import type { Config, MCPServerConfig } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseMcpArgs, runMcpManagementCommand } from '../src/slash-commands/mcp-utils.js';
 
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '');
 

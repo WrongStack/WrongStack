@@ -1,4 +1,3 @@
-import { restoreFlags } from '../flags.js';
 import { color } from '@wrongstack/core/utils';
 import { parseAuthFlags } from '../../arg-parser.js';
 import {
@@ -9,13 +8,14 @@ import {
   runAuthMenu,
   runOAuthLoginKind,
 } from '../../auth-menu/index.js';
+import { activeProfileConfigPath } from '../../profile-config-path.js';
 import {
   loadConfigProviders,
   maskedKey,
   mutateConfigProviders,
   normalizeKeys,
 } from '../../provider-config-utils.js';
-import { activeProfileConfigPath } from '../../profile-config-path.js';
+import { restoreFlags } from '../flags.js';
 import type { SubcommandHandler } from '../index.js';
 import { renderAuthLocalHelpToString, wantsLocalHelp } from './auth-local-help.js';
 
@@ -130,12 +130,22 @@ export const authCmd: SubcommandHandler = async (args, deps) => {
     // is a typo, not a request to sign into Claude.
     const kind = resolveOAuthKind(pid, { allowNumeric: false });
     if (kind) return runOAuthLoginKind(menuDeps, kind);
-    deps.renderer.writeError('OAuth login is only supported for ChatGPT, Claude, and GitHub Copilot.');
+    deps.renderer.writeError(
+      'OAuth login is only supported for ChatGPT, Claude, and GitHub Copilot.',
+    );
     deps.renderer.write(
-      color.dim('  Sign in with ChatGPT: ') + color.bold('wstack auth login chatgpt') + '\n' +
-        color.dim('  Sign in with Claude:  ') + color.bold('wstack auth login claude') + '\n' +
-        color.dim('  Sign in with Copilot: ') + color.bold('wstack auth login copilot') + '\n' +
-        color.dim('  For an API key instead: ') + color.bold(`wstack auth ${pid}`) + '\n',
+      color.dim('  Sign in with ChatGPT: ') +
+        color.bold('wstack auth login chatgpt') +
+        '\n' +
+        color.dim('  Sign in with Claude:  ') +
+        color.bold('wstack auth login claude') +
+        '\n' +
+        color.dim('  Sign in with Copilot: ') +
+        color.bold('wstack auth login copilot') +
+        '\n' +
+        color.dim('  For an API key instead: ') +
+        color.bold(`wstack auth ${pid}`) +
+        '\n',
     );
     return 1;
   }

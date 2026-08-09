@@ -17,11 +17,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
-
-import * as cliCodex from '../src/auth-menu/openai-codex-oauth.js';
-import * as protocol from '@wrongstack/providers/oauth';
 import { refreshCodexAccessToken } from '@wrongstack/providers';
+import * as protocol from '@wrongstack/providers/oauth';
+import { describe, expect, it } from 'vitest';
+import * as cliCodex from '../src/auth-menu/openai-codex-oauth.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -51,7 +50,12 @@ function filesContaining(needle: string): string[] {
     const text = fs.readFileSync(file, 'utf8');
     return text
       .split('\n')
-      .some((line) => line.includes(needle) && !line.trimStart().startsWith('*') && !line.trimStart().startsWith('//'));
+      .some(
+        (line) =>
+          line.includes(needle) &&
+          !line.trimStart().startsWith('*') &&
+          !line.trimStart().startsWith('//'),
+      );
   });
 }
 

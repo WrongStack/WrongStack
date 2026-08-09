@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  configureGoalPolicy,
-  resetGoalPolicy,
-  isGoalCommandAllowed,
-} from '../src/goal-host.js';
+import { configureGoalPolicy, isGoalCommandAllowed, resetGoalPolicy } from '../src/goal-host.js';
 
 describe('goal command policy', () => {
   afterEach(() => resetGoalPolicy());

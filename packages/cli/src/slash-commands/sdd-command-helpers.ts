@@ -60,10 +60,7 @@ export function parseSddSubtasks(parts: readonly string[]): SddSubtaskInput[] {
     .filter((s) => s.title);
 }
 
-export function formatSddDestroyResult(
-  res: SddDestroyResult,
-  revertMerged: boolean,
-): string {
+export function formatSddDestroyResult(res: SddDestroyResult, revertMerged: boolean): string {
   const mergedNote = revertMerged
     ? res.revertOk === false
       ? `  Merged-commit revert refused: ${res.revertReason ?? 'unknown reason'}.`

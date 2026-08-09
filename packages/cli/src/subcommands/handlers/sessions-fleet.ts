@@ -43,35 +43,44 @@ async function listFleetRuns(deps: SubcommandDeps): Promise<number> {
   // by the number of entries, which is the number of session runs on
   // disk — small enough that unbounded fan-out is safe.
   const perEntry = await Promise.all(
-    entries.map(async (id): Promise<{ id: string; manifest: boolean; checkpoint: boolean; subagents: number } | null> => {
-      const runDir = path.join(deps.paths.projectSessions, id);
-      try {
-        const stat = await fsp.stat(runDir);
-        if (!stat.isDirectory()) return null;
-      } catch {
-        return null; // skip inaccessible entries
-      }
-      const [manifestResult, checkpointResult, subagentFilesResult] = await Promise.all([
-        fsp.access(path.join(runDir, 'fleet.json')).then(
-          () => true,
-          () => false,
-        ),
-        fsp.access(path.join(runDir, 'checkpoint.json')).then(
-          () => true,
-          () => false,
-        ),
-        fsp.readdir(path.join(runDir, 'subagents')).then(
-          (files) => files.filter((f) => f.endsWith('.jsonl')).length,
-          () => 0,
-        ),
-      ]);
-      return {
+    entries.map(
+      async (
         id,
-        manifest: manifestResult,
-        checkpoint: checkpointResult,
-        subagents: subagentFilesResult,
-      };
-    }),
+      ): Promise<{
+        id: string;
+        manifest: boolean;
+        checkpoint: boolean;
+        subagents: number;
+      } | null> => {
+        const runDir = path.join(deps.paths.projectSessions, id);
+        try {
+          const stat = await fsp.stat(runDir);
+          if (!stat.isDirectory()) return null;
+        } catch {
+          return null; // skip inaccessible entries
+        }
+        const [manifestResult, checkpointResult, subagentFilesResult] = await Promise.all([
+          fsp.access(path.join(runDir, 'fleet.json')).then(
+            () => true,
+            () => false,
+          ),
+          fsp.access(path.join(runDir, 'checkpoint.json')).then(
+            () => true,
+            () => false,
+          ),
+          fsp.readdir(path.join(runDir, 'subagents')).then(
+            (files) => files.filter((f) => f.endsWith('.jsonl')).length,
+            () => 0,
+          ),
+        ]);
+        return {
+          id,
+          manifest: manifestResult,
+          checkpoint: checkpointResult,
+          subagents: subagentFilesResult,
+        };
+      },
+    ),
   );
   for (const r of perEntry) if (r) runs.push(r);
 

@@ -30,8 +30,15 @@ import type { EventBus } from '@wrongstack/core/kernel';
  */
 export function createFallbackGate(_events: EventBus): FallbackGateFn {
   const gateFn: FallbackGateFn = (params) => {
-    const { events: bus, sessionId, from, status, candidates, autoSwitchSeconds, requestId } =
-      params;
+    const {
+      events: bus,
+      sessionId,
+      from,
+      status,
+      candidates,
+      autoSwitchSeconds,
+      requestId,
+    } = params;
 
     return runGate(bus, { sessionId, from, status, candidates, autoSwitchSeconds, requestId });
   };

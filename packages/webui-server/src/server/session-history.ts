@@ -144,6 +144,8 @@ function labelForEvent(e: SessionEvent): string {
       const count = e.messagesOmitted ?? e.messages.length;
       return `Messages replaced (${e.messagesOmitted ? '~' : ''}${count} msgs)`;
     }
+    case 'messages_dropped':
+      return `Oldest ${e.count} message${e.count === 1 ? '' : 's'} evicted`;
     case 'message_truncated':
       return `Message truncated: ${e.before} → ${e.after}`;
     case 'file_event':
@@ -236,6 +238,8 @@ function detailForEvent(e: SessionEvent): string {
       return `at index ${e.index}`;
     case 'messages_replaced':
       return `${e.messagesOmitted ?? e.messages.length} total`;
+    case 'messages_dropped':
+      return `dropped ${e.count} from the front`;
     case 'message_truncated':
       return `truncated to ${e.after} tokens`;
     case 'mode_changed':

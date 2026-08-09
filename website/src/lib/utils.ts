@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.302.0',
+  version: '0.302.2',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -321,9 +321,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.302.2',
+    date: '2026-08-09',
+    latest: true,
+    tagline: 'Authoritative fallback chains and session-scoped Stop cancellation',
+    highlights: [
+      'Setting fallbackModels or a named fallbackProfile now produces an authoritative chain; auto-derivation, favorites, the default profile, and resolveAllConfigured depth only fire when no explicit chain resolved to usable models',
+      'A dead explicit chain (every entry blocked by missing key, calendar, or status tracker) falls through to last-resort depth instead of silently rerouting',
+      'The WebUI Stop button respects the abort signal inside runFallbackChain so user cancellation halts fallback rotation immediately instead of grinding through every configured provider',
+      'The abort controller map is keyed by sessionId instead of WebSocket, so pressing Stop only cancels the targeted session, not every concurrent session running in the same host',
+      'All 29 packages, 2 apps, README highlights, website metadata, and changelog content align to 0.302.2',
+    ],
+  },
+  {
     version: '0.302.0',
     date: '2026-08-08',
-    latest: true,
     consolidated: true,
     tagline: 'Single-port WebUI sessions, coherent Kanban details, and sticky provider routing',
     highlights: [

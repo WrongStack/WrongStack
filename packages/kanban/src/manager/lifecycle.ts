@@ -6,14 +6,22 @@ import type {
   KanbanLifecycleStage,
   KanbanLifecycleTransition,
   KanbanLifecycleValidationIssue,
-  RepairManagedProjectionInput,
   KanbanTask,
   KanbanTaskStatus,
   KanbanTaskTransitionInput,
   KanbanTaskTransitionResult,
   KanbanVerificationReport,
+  RepairManagedProjectionInput,
 } from '../types.js';
 import { applyTaskPatch, findTask, nowIso } from './_internal.js';
+import { KanbanLifecycleError } from './lifecycle-error.js';
+
+export {
+  decodeLifecycleIssues,
+  KanbanLifecycleError,
+  LIFECYCLE_ISSUES_PREFIX,
+  LIFECYCLE_ISSUES_SUFFIX,
+} from './lifecycle-error.js';
 
 export const KANBAN_AGENT_STAGES: readonly KanbanLifecycleStage[] = [
   'backlog',
@@ -30,16 +38,6 @@ const STATUS_BY_STAGE: Readonly<Record<KanbanLifecycleStage, KanbanTaskStatus>> 
   review: 'review',
   done: 'completed',
 };
-
-export class KanbanLifecycleError extends Error {
-  readonly issues: readonly KanbanLifecycleValidationIssue[];
-
-  constructor(message: string, issues: readonly KanbanLifecycleValidationIssue[]) {
-    super(message);
-    this.name = 'KanbanLifecycleError';
-    this.issues = issues;
-  }
-}
 
 /**
  * Shared prefix for StaleWriteError messages constructed by the local storage
@@ -103,7 +101,7 @@ export async function adoptManagedLifecycle(
       if (alreadyAdopted > 0) {
         process.stderr.write(
           `[kanban] adoptManagedLifecycle: ${alreadyAdopted}/${board.tasks.length} cards ` +
-          `already have lifecycle metadata — adopting remaining cards only.\n`,
+            `already have lifecycle metadata — adopting remaining cards only.\n`,
         );
       }
     }
@@ -165,13 +163,16 @@ export async function adoptManagedLifecycle(
       }
       const stage = lifecycleStageForColumn(board, task.columnId);
       if (!stage) {
-        throw new KanbanLifecycleError(`Card ${task.id} is outside the adopted lifecycle columns.`, [
-          {
-            code: 'stage-mismatch',
-            field: 'columnId',
-            message: `Card ${task.id} is outside the adopted lifecycle columns.`,
-          },
-        ]);
+        throw new KanbanLifecycleError(
+          `Card ${task.id} is outside the adopted lifecycle columns.`,
+          [
+            {
+              code: 'stage-mismatch',
+              field: 'columnId',
+              message: `Card ${task.id} is outside the adopted lifecycle columns.`,
+            },
+          ],
+        );
       }
       task.status = STATUS_BY_STAGE[stage];
       task.updatedAt = at;
@@ -206,13 +207,16 @@ export async function repairManagedTaskProjection(
     const task = findTask(board, taskId);
     if (!task) return null;
     if (board.lifecycle?.mode !== 'managed' || !task.lifecycle) {
-      throw new KanbanLifecycleError('Managed projection repair requires managed lifecycle metadata.', [
-        {
-          code: 'managed-policy-invalid',
-          field: 'lifecycle',
-          message: 'Managed projection repair requires managed lifecycle metadata.',
-        },
-      ]);
+      throw new KanbanLifecycleError(
+        'Managed projection repair requires managed lifecycle metadata.',
+        [
+          {
+            code: 'managed-policy-invalid',
+            field: 'lifecycle',
+            message: 'Managed projection repair requires managed lifecycle metadata.',
+          },
+        ],
+      );
     }
     if (!hasText(input.actor) || !hasText(input.comment)) {
       throw new KanbanLifecycleError('Projection repair requires an actor and audit comment.', [
@@ -227,13 +231,16 @@ export async function repairManagedTaskProjection(
     const expectedColumnId = board.lifecycle.columns[stage];
     const expectedStatus = STATUS_BY_STAGE[stage];
     if (task.columnId === expectedColumnId && task.status === expectedStatus) {
-      throw new KanbanLifecycleError('Managed card projection already matches its lifecycle stage.', [
-        {
-          code: 'stage-mismatch',
-          field: 'columnId',
-          message: 'Managed card projection already matches its lifecycle stage.',
-        },
-      ]);
+      throw new KanbanLifecycleError(
+        'Managed card projection already matches its lifecycle stage.',
+        [
+          {
+            code: 'stage-mismatch',
+            field: 'columnId',
+            message: 'Managed card projection already matches its lifecycle stage.',
+          },
+        ],
+      );
     }
     const at = nowIso();
     const transition: KanbanLifecycleTransition = {
@@ -326,7 +333,12 @@ export function initializeAndValidateManagedTask(board: KanbanBoard, task: Kanba
   initializeManagedTaskLifecycle(board, task);
   if (board.lifecycle?.mode !== 'managed') return;
   const issues: KanbanLifecycleValidationIssue[] = [];
-  requireDetail(issues, 'description', hasText(task.description), 'Add a complete task description.');
+  requireDetail(
+    issues,
+    'description',
+    hasText(task.description),
+    'Add a complete task description.',
+  );
   if (issues.length) throw new KanbanLifecycleError(issues[0]!.message, issues);
 }
 
@@ -397,7 +409,11 @@ export function validateManagedTaskTransition(
     });
   }
   if (!hasText(input.actor)) {
-    issues.push({ code: 'task-detail-missing', field: 'actor', message: 'Transition actor is required.' });
+    issues.push({
+      code: 'task-detail-missing',
+      field: 'actor',
+      message: 'Transition actor is required.',
+    });
   }
   if (!hasText(input.comment)) {
     issues.push({
@@ -467,9 +483,7 @@ export async function transitionTask(
       // assertManagedTaskPatchAllowed) by failing loud instead of
       // silently stripping.
       const raw = input.patch as Record<string, unknown>;
-      const forbidden = ['columnId', 'status', 'lifecycle'].filter(
-        (key) => raw[key] !== undefined,
-      );
+      const forbidden = ['columnId', 'status', 'lifecycle'].filter((key) => raw[key] !== undefined);
       if (forbidden.length > 0) {
         const issues: KanbanLifecycleValidationIssue[] = [
           {
@@ -549,11 +563,18 @@ function validateRequiredCardDetails(
   task: KanbanTask,
   issues: KanbanLifecycleValidationIssue[],
 ): void {
-  requireDetail(issues, 'description', hasText(task.description), 'Add a complete task description.');
+  requireDetail(
+    issues,
+    'description',
+    hasText(task.description),
+    'Add a complete task description.',
+  );
   requireDetail(
     issues,
     'assignee',
-    [task.assignee, task.assignedAgent, task.assignment?.agentId, task.assignment?.name].some(hasText),
+    [task.assignee, task.assignedAgent, task.assignment?.agentId, task.assignment?.name].some(
+      hasText,
+    ),
     'Assign an owner or agent.',
   );
   requireDetail(
@@ -562,7 +583,12 @@ function validateRequiredCardDetails(
     hasText(task.dueDate) && Number.isFinite(Date.parse(task.dueDate)),
     'Add a valid due date.',
   );
-  requireDetail(issues, 'labels', Boolean(task.labels?.some(hasText)), 'Add at least one tag or label.');
+  requireDetail(
+    issues,
+    'labels',
+    Boolean(task.labels?.some(hasText)),
+    'Add at least one tag or label.',
+  );
   // Composite parents (truthy atomic) MUST have persisted children.
   // Atomic leaves (falsy/undefined atomic) are executable directly and
   // must not be forced into infinite recursive decomposition.
@@ -579,7 +605,10 @@ function validateRequiredCardDetails(
   requireDetail(
     issues,
     'successCriteria',
-    Boolean(task.successCriteria?.length && task.successCriteria.every((check) => hasText(check.description))),
+    Boolean(
+      task.successCriteria?.length &&
+        task.successCriteria.every((check) => hasText(check.description)),
+    ),
     'Add explicit acceptance criteria.',
   );
 }
@@ -591,9 +620,12 @@ function validateRunningOwnership(
   const assignment = task.assignment;
   const valid =
     assignment?.status === 'running' &&
-    [assignment.leaseId, assignment.claimedAt, assignment.heartbeatAt, assignment.leaseExpiresAt].every(
-      hasText,
-    );
+    [
+      assignment.leaseId,
+      assignment.claimedAt,
+      assignment.heartbeatAt,
+      assignment.leaseExpiresAt,
+    ].every(hasText);
   requireDetail(
     issues,
     'assignment',
@@ -647,7 +679,8 @@ export function validateDefinitionOfDone(
     issues.push({
       code: 'review-evidence-missing',
       field: 'verificationReport',
-      message: 'Atomic tasks require a completed verification report (run verify_completion) before Done.',
+      message:
+        'Atomic tasks require a completed verification report (run verify_completion) before Done.',
     });
   }
   if (task.atomic && effectiveReport?.verdict !== 'passed') {

@@ -21,16 +21,13 @@
  *   4. The on-disk event log is bounded (no full rebuild on resume).
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WebSocket } from 'ws';
-
-import { HQ_PROTOCOL_VERSION, writeHqAuthFile, HQ_AUTH_FILE_VERSION } from '@wrongstack/core/hq';
-
-import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
-
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { WebSocket } from 'ws';
+import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
 type BrowserMessage =
   | { type: 'hq.snapshot'; snapshot: unknown }
@@ -107,9 +104,7 @@ beforeEach(async () => {
   await writeHqAuthFile(dataDir, {
     version: HQ_AUTH_FILE_VERSION,
     updatedAt: new Date().toISOString(),
-    clientTokens: [
-      { id: 'b6-client', token: 'b6-token', createdAt: new Date().toISOString() },
-    ],
+    clientTokens: [{ id: 'b6-client', token: 'b6-token', createdAt: new Date().toISOString() }],
   });
 });
 
@@ -122,135 +117,127 @@ afterEach(async () => {
 });
 
 describe('B6 — sync ladder reconnect gate', () => {
-  it(
-    'reconnects an offline leader, fills the gap, and emits the next hq.event within 5 s with no full rebuild',
-    async () => {
-      const port = getPort();
-      // clientTtlMs = 50 ms — a leader that disconnects is treated as offline
-      // almost immediately, simulating the 30-minute offline window.
-      // The acceptance test only cares about the contract (gap-fill under
-      // the bounded cap with no rebuild); the 30-minute wall-clock path is
-      // covered by B5's smoke test.
-      handle = await startHqServer({ host: '127.0.0.1', port, dataDir, clientTtlMs: 50 });
+  it('reconnects an offline leader, fills the gap, and emits the next hq.event within 5 s with no full rebuild', async () => {
+    const port = getPort();
+    // clientTtlMs = 50 ms — a leader that disconnects is treated as offline
+    // almost immediately, simulating the 30-minute offline window.
+    // The acceptance test only cares about the contract (gap-fill under
+    // the bounded cap with no rebuild); the 30-minute wall-clock path is
+    // covered by B5's smoke test.
+    handle = await startHqServer({ host: '127.0.0.1', port, dataDir, clientTtlMs: 50 });
 
-      // Phase 1 — leader connects, publishes a few envelopes, then goes
-      // offline. The browser mirror also opens so we can observe the
-      // gap-fill on the resume path.
-      const browser = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/browser`);
-      await waitForOpen(browser);
+    // Phase 1 — leader connects, publishes a few envelopes, then goes
+    // offline. The browser mirror also opens so we can observe the
+    // gap-fill on the resume path.
+    const browser = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/browser`);
+    await waitForOpen(browser);
 
-      const leader1 = new WebSocket(
-        `ws://127.0.0.1:${handle.port}/ws/client?token=b6-token`,
-      );
-      await waitForOpen(leader1);
+    const leader1 = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client?token=b6-token`);
+    await waitForOpen(leader1);
 
-      const leaderHello = {
-        type: 'client.hello',
-        payload: {
-          protocolVersion: HQ_PROTOCOL_VERSION,
-          client: {
-            clientId: 'b6-leader',
-            kind: 'tui',
-            machineId: 'b6-machine',
-            pid: 4242,
-            startedAt: new Date().toISOString(),
-          },
-          project: {
-            projectId: 'b6-project',
-            projectRoot: '/b6',
-            projectName: 'B6 Project',
-            machineId: 'b6-machine',
-            workspaceKind: 'git',
-          },
-          capabilities: ['telemetry.publish', 'control.receive'],
-        },
-      };
-      leader1.send(JSON.stringify(leaderHello));
-      await nextMessage(leader1, (m) => m.type === 'hq.welcome');
-
-      const publishSeq = (i: number) => ({
-        type: 'client.event',
-        event: {
-          id: `b6-evt-${i}`,
-          type: 'session.usage',
-          schemaVersion: HQ_PROTOCOL_VERSION,
-          timestamp: new Date().toISOString(),
+    const leaderHello = {
+      type: 'client.hello',
+      payload: {
+        protocolVersion: HQ_PROTOCOL_VERSION,
+        client: {
           clientId: 'b6-leader',
-          projectId: 'b6-project',
-          seq: i,
-          payload: { totalTokens: i * 10 },
+          kind: 'tui',
+          machineId: 'b6-machine',
+          pid: 4242,
+          startedAt: new Date().toISOString(),
         },
+        project: {
+          projectId: 'b6-project',
+          projectRoot: '/b6',
+          projectName: 'B6 Project',
+          machineId: 'b6-machine',
+          workspaceKind: 'git',
+        },
+        capabilities: ['telemetry.publish', 'control.receive'],
+      },
+    };
+    leader1.send(JSON.stringify(leaderHello));
+    await nextMessage(leader1, (m) => m.type === 'hq.welcome');
+
+    const publishSeq = (i: number) => ({
+      type: 'client.event',
+      event: {
+        id: `b6-evt-${i}`,
+        type: 'session.usage',
+        schemaVersion: HQ_PROTOCOL_VERSION,
+        timestamp: new Date().toISOString(),
+        clientId: 'b6-leader',
+        projectId: 'b6-project',
+        seq: i,
+        payload: { totalTokens: i * 10 },
+      },
+    });
+    // Publish 3 envelopes so the leader's lastEventSeq is 3.
+    for (let i = 1; i <= 3; i++) leader1.send(JSON.stringify(publishSeq(i)));
+
+    // Phase 2 — leader goes offline. Wait long enough for the 50 ms ttl
+    // to elapse and the cleanup sweep to evict the connection.
+    leader1.close();
+    await new Promise((r) => setTimeout(r, 250));
+
+    // Phase 3 — leader reconnects. We record the time the WebSocket
+    // opens and then await the first post-resume `hq.event` on the live
+    // socket.
+    const leader2 = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client?token=b6-token`);
+    const openedAt = await new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('leader2 open timeout')), 5_000);
+      leader2.once('open', () => {
+        clearTimeout(timer);
+        resolve(Date.now());
       });
-      // Publish 3 envelopes so the leader's lastEventSeq is 3.
-      for (let i = 1; i <= 3; i++) leader1.send(JSON.stringify(publishSeq(i)));
+    });
+    leader2.send(JSON.stringify(leaderHello));
+    // Wait for the welcome — the server only accepts `client.resume` once
+    // the client is registered, and we need to know registration completed
+    // before sending the resume frame.
+    await nextMessage(leader2, (m) => m.type === 'hq.welcome', 5_000, 'welcome-after-reconnect');
+    // After hello the leader sends `client.resume` (the existing publisher
+    // does this in `HqPublisher.start()`); we replicate the contract here.
+    leader2.send(JSON.stringify({ type: 'client.resume', lastSeqSeen: 3 }));
 
-      // Phase 2 — leader goes offline. Wait long enough for the 50 ms ttl
-      // to elapse and the cleanup sweep to evict the connection.
-      leader1.close();
-      await new Promise((r) => setTimeout(r, 250));
+    // Acceptance (1): gap-fill reply contains the missing envelopes or
+    // is escalated to an authoritative `hq.snapshot` handoff. The reply
+    // arrives on the publisher socket (this is the resume contract — the
+    // server tells the reconnecting client what it missed).
+    const gapReply = await nextMessage(
+      leader2,
+      (m) => m.type === 'hq.resume_gap' || m.type === 'hq.snapshot',
+      5_000,
+      'resume-reply',
+    );
+    expect(['hq.resume_gap', 'hq.snapshot']).toContain(gapReply.type);
 
-      // Phase 3 — leader reconnects. We record the time the WebSocket
-      // opens and then await the first post-resume `hq.event` on the live
-      // socket.
-      const leader2 = new WebSocket(
-        `ws://127.0.0.1:${handle.port}/ws/client?token=b6-token`,
-      );
-      const openedAt = await new Promise<number>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('leader2 open timeout')), 5_000);
-        leader2.once('open', () => {
-          clearTimeout(timer);
-          resolve(Date.now());
-        });
-      });
-      leader2.send(JSON.stringify(leaderHello));
-      // Wait for the welcome — the server only accepts `client.resume` once
-      // the client is registered, and we need to know registration completed
-      // before sending the resume frame.
-      await nextMessage(leader2, (m) => m.type === 'hq.welcome', 5_000, 'welcome-after-reconnect');
-      // After hello the leader sends `client.resume` (the existing publisher
-      // does this in `HqPublisher.start()`); we replicate the contract here.
-      leader2.send(JSON.stringify({ type: 'client.resume', lastSeqSeen: 3 }));
+    // Acceptance (2): post-resume publish round-trip. The publisher does
+    // not get its own `hq.event` echoed back (broadcasts go to browsers),
+    // so we assert the round-trip via the browser mirror: it must receive
+    // the envelope we publish within 5 s of the WebSocket opening.
+    const browserEvt = nextMessage(
+      browser,
+      (m) =>
+        m.type === 'hq.event' &&
+        (m as Extract<BrowserMessage, { type: 'hq.event' }>).event.id === 'b6-evt-4',
+      5_000,
+      'browser-sees-post-resume-event',
+    );
+    leader2.send(JSON.stringify(publishSeq(4)));
+    const browserMsg = (await browserEvt) as Extract<BrowserMessage, { type: 'hq.event' }>;
+    const elapsedMs = Date.now() - openedAt;
+    expect(elapsedMs).toBeLessThanOrEqual(5_000);
+    expect(browserMsg.event.seq).toBe(4);
 
-      // Acceptance (1): gap-fill reply contains the missing envelopes or
-      // is escalated to an authoritative `hq.snapshot` handoff. The reply
-      // arrives on the publisher socket (this is the resume contract — the
-      // server tells the reconnecting client what it missed).
-      const gapReply = await nextMessage(
-        leader2,
-        (m) => m.type === 'hq.resume_gap' || m.type === 'hq.snapshot',
-        5_000,
-        'resume-reply',
-      );
-      expect(['hq.resume_gap', 'hq.snapshot']).toContain(gapReply.type);
+    // Acceptance (3): the on-disk event log is bounded — the resume did
+    // not trigger a full rebuild. We assert that the events.jsonl file
+    // exists and is small (≤ 1 MiB).
+    const logPath = path.join(dataDir, 'events.jsonl');
+    const stat = await fs.stat(logPath);
+    expect(stat.size).toBeLessThan(1024 * 1024);
 
-      // Acceptance (2): post-resume publish round-trip. The publisher does
-      // not get its own `hq.event` echoed back (broadcasts go to browsers),
-      // so we assert the round-trip via the browser mirror: it must receive
-      // the envelope we publish within 5 s of the WebSocket opening.
-      const browserEvt = nextMessage(
-        browser,
-        (m) =>
-          m.type === 'hq.event' &&
-          (m as Extract<BrowserMessage, { type: 'hq.event' }>).event.id === 'b6-evt-4',
-        5_000,
-        'browser-sees-post-resume-event',
-      );
-      leader2.send(JSON.stringify(publishSeq(4)));
-      const browserMsg = (await browserEvt) as Extract<BrowserMessage, { type: 'hq.event' }>;
-      const elapsedMs = Date.now() - openedAt;
-      expect(elapsedMs).toBeLessThanOrEqual(5_000);
-      expect(browserMsg.event.seq).toBe(4);
-
-      // Acceptance (3): the on-disk event log is bounded — the resume did
-      // not trigger a full rebuild. We assert that the events.jsonl file
-      // exists and is small (≤ 1 MiB).
-      const logPath = path.join(dataDir, 'events.jsonl');
-      const stat = await fs.stat(logPath);
-      expect(stat.size).toBeLessThan(1024 * 1024);
-
-      leader2.close();
-      browser.close();
-    },
-    20_000,
-  );
+    leader2.close();
+    browser.close();
+  }, 20_000);
 });

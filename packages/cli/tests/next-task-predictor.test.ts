@@ -1,8 +1,8 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  type PredictLLMProvider,
   buildPredictionPrompt,
+  type PredictLLMProvider,
   parsePredictions,
   predictNextTasks,
 } from '../src/next-task-predictor.js';

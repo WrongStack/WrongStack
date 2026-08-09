@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { assessCommitSafety } from '@wrongstack/core/coordination';
+import type { SlashCommand } from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 

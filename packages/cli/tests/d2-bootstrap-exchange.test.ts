@@ -25,12 +25,12 @@
  * existing `/api/auth/bootstrap` route. The fix is to lock the contract
  * with a focused CI gate so the leak cannot regress silently.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-
 import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
@@ -46,10 +46,7 @@ async function readSetCookie(response: Response): Promise<string | null> {
   return raw;
 }
 
-async function fetchBootstrap(
-  baseUrl: string,
-  code: string | null,
-): Promise<Response> {
+async function fetchBootstrap(baseUrl: string, code: string | null): Promise<Response> {
   return fetch(`${baseUrl}/api/auth/bootstrap`, {
     method: 'POST',
     headers: {
@@ -151,10 +148,7 @@ describe('D2 — auth bootstrap exchange', () => {
     expect(first.status).toBe(200);
     expect(first.headers.get('set-cookie')).not.toBeNull();
 
-    const second = await fetchBootstrap(
-      `http://127.0.0.1:${handle.port}`,
-      fragment ?? '',
-    );
+    const second = await fetchBootstrap(`http://127.0.0.1:${handle.port}`, fragment ?? '');
     expect(second.status).toBe(401);
     const body = (await second.json()) as { error?: { code?: string } };
     expect(body.error?.code).toBe('INVALID_OR_EXPIRED_CODE');

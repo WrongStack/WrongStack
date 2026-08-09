@@ -1,10 +1,11 @@
 import {
   assessHqExposure,
+  type EnsureHqFirstRunAuthResult,
   ensureHqFirstRunAuthFile,
+  HqInsecureExposureError,
   isTokenExpired,
   resolveHqDataDir,
 } from '@wrongstack/core/hq';
-import { HqInsecureExposureError, type EnsureHqFirstRunAuthResult } from '@wrongstack/core/hq';
 import { resolveAuditActor } from './audit-actor.js';
 
 export interface HqPreflightOptions {

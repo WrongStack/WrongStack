@@ -13,24 +13,13 @@
           "default": "enabled",
           "disableSupported": false,
           "effortSupported": true,
-          "effortLevels": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
+          "effortLevels": ["low", "medium", "high", "xhigh", "max"],
           "preserveThinking": "unsupported"
         },
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         },
         "limit": {
           "context": 1050000,
@@ -44,13 +33,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         },
         "limit": {
           "context": 1050000,
@@ -66,24 +50,13 @@
           "default": "enabled",
           "disableSupported": false,
           "effortSupported": true,
-          "effortLevels": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
+          "effortLevels": ["low", "medium", "high", "xhigh", "max"],
           "preserveThinking": "unsupported"
         },
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         },
         "limit": {
           "context": 1050000,
@@ -99,24 +72,13 @@
           "default": "enabled",
           "disableSupported": false,
           "effortSupported": true,
-          "effortLevels": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
+          "effortLevels": ["low", "medium", "high", "xhigh", "max"],
           "preserveThinking": "unsupported"
         },
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         },
         "limit": {
           "context": 1050000,
@@ -130,13 +92,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         },
         "limit": {
           "context": 1050000,
@@ -150,13 +107,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         },
         "limit": {
           "context": 400000,
@@ -170,12 +122,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text"],
+          "output": ["text"]
         },
         "limit": {
           "context": 128000,
@@ -196,13 +144,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         }
       },
       "qwen3.7-max": {
@@ -212,12 +155,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text"],
+          "output": ["text"]
         }
       },
       "qwen3.7-plus": {
@@ -227,13 +166,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         }
       },
       "qwen3.6-flash": {
@@ -243,13 +177,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text", "image"],
+          "output": ["text"]
         }
       },
       "glm-5.2": {
@@ -259,12 +188,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text"],
+          "output": ["text"]
         }
       },
       "deepseek-v4-pro": {
@@ -274,12 +199,8 @@
         "reasoning": true,
         "tool_call": true,
         "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
+          "input": ["text"],
+          "output": ["text"]
         }
       },
       "wan2.7-image": {
@@ -288,12 +209,8 @@
         "description": "Text-to-image generation model by Wanx.",
         "reasoning": false,
         "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "image"
-          ]
+          "input": ["text"],
+          "output": ["image"]
         }
       },
       "wan2.7-image-pro": {
@@ -302,12 +219,8 @@
         "description": "Higher-quality text-to-image generation model by Wanx.",
         "reasoning": false,
         "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "image"
-          ]
+          "input": ["text"],
+          "output": ["image"]
         }
       },
       "happyhorse-1.1-t2v": {
@@ -316,12 +229,8 @@
         "description": "Text-to-video generation model by HappyHorse.",
         "reasoning": false,
         "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "video"
-          ]
+          "input": ["text"],
+          "output": ["video"]
         }
       },
       "happyhorse-1.1-i2v": {
@@ -330,13 +239,8 @@
         "description": "Image-to-video generation model by HappyHorse.",
         "reasoning": false,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "video"
-          ]
+          "input": ["text", "image"],
+          "output": ["video"]
         }
       },
       "happyhorse-1.1-r2v": {
@@ -345,13 +249,8 @@
         "description": "Reference-to-video generation model by HappyHorse.",
         "reasoning": false,
         "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "video"
-          ]
+          "input": ["text", "image"],
+          "output": ["video"]
         }
       }
     }
@@ -379,20 +278,7 @@
     "watsonx"
   ],
   "_removeModels": {
-    "openai": [
-      "gpt-4o-mini",
-      "gpt-4o",
-      "gpt-4",
-      "gpt-4-turbo",
-      "o1",
-      "o1-mini",
-      "o3-mini"
-    ],
-    "deepseek": [
-      "deepseek-chat",
-      "deepseek-reasoner",
-      "deepseek-v3.2",
-      "deepseek-v4-flash"
-    ]
+    "openai": ["gpt-4o-mini", "gpt-4o", "gpt-4", "gpt-4-turbo", "o1", "o1-mini", "o3-mini"],
+    "deepseek": ["deepseek-chat", "deepseek-reasoner", "deepseek-v3.2", "deepseek-v4-flash"]
   }
 }

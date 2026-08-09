@@ -1,3 +1,4 @@
+import { color } from '@wrongstack/core/utils';
 import {
   areDependenciesMet,
   findBlockedTasks,
@@ -6,7 +7,6 @@ import {
   type KanbanOrchestrationSnapshot,
   type KanbanTask,
 } from '@wrongstack/kanban';
-import { color } from '@wrongstack/core/utils';
 
 export const HEADING = (s: string) => color.bold(s);
 export const LABEL = (s: string) => color.cyan(s);

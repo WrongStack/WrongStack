@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'node:events';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const updateMocks = vi.hoisted(() => ({
   checkForUpdate: vi.fn(),
@@ -348,12 +348,12 @@ describe('updateCmd subcommand', () => {
 
 describe('detectUpdatePackageName', () => {
   it('detects the direct CLI package and defaults to the umbrella package', () => {
-    expect(detectUpdatePackageName(['node', 'C:\\x\\node_modules\\@wrongstack\\cli\\dist\\index.js'])).toBe(
-      '@wrongstack/cli',
-    );
-    expect(detectUpdatePackageName(['node', 'C:\\x\\node_modules\\wrongstack\\src\\index.js'])).toBe(
-      'wrongstack',
-    );
+    expect(
+      detectUpdatePackageName(['node', 'C:\\x\\node_modules\\@wrongstack\\cli\\dist\\index.js']),
+    ).toBe('@wrongstack/cli');
+    expect(
+      detectUpdatePackageName(['node', 'C:\\x\\node_modules\\wrongstack\\src\\index.js']),
+    ).toBe('wrongstack');
   });
 });
 

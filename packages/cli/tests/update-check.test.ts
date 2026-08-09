@@ -2,7 +2,6 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { expectFetchError } from './helpers/fetch-error.js';
 import {
   checkForUpdate,
   currentVersion,
@@ -10,6 +9,7 @@ import {
   getUpdateNotification,
   isNewer,
 } from '../src/update-check.js';
+import { expectFetchError } from './helpers/fetch-error.js';
 
 describe('update-check', () => {
   let tmp: string;
@@ -198,10 +198,7 @@ describe('update-check', () => {
         'update-cache.json',
       );
       await fs.mkdir(path.dirname(cacheFile), { recursive: true });
-      await fs.writeFile(
-        cacheFile,
-        JSON.stringify({ timestamp: 'tomorrow', latestVersion: {} }),
-      );
+      await fs.writeFile(cacheFile, JSON.stringify({ timestamp: 'tomorrow', latestVersion: {} }));
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
 
       await expect(checkForUpdate(undefined, () => userHome)).resolves.toMatchObject({

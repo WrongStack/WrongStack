@@ -14,8 +14,8 @@
 import type { Agent } from '@wrongstack/core/agent';
 import type { TokenCounter } from '@wrongstack/core/types';
 import { color, writeOut } from '@wrongstack/core/utils';
-import type { TerminalRenderer } from '../renderer.js';
 import { contextOverflowHint } from '../context-overflow-diagnostic.js';
+import type { TerminalRenderer } from '../renderer.js';
 import { fmtTok } from '../utils.js';
 
 export interface SingleShotDispatchContext {
@@ -37,9 +37,7 @@ export interface SingleShotDispatchContext {
  * Returns the exit code: 0 success, 1 failure or max-iterations, 130
  * aborted.
  */
-export async function runSingleShotDispatch(
-  ctx: SingleShotDispatchContext,
-): Promise<number> {
+export async function runSingleShotDispatch(ctx: SingleShotDispatchContext): Promise<number> {
   const { agent, query, flags, tokenCounter, renderer } = ctx;
 
   const ctrl = new AbortController();

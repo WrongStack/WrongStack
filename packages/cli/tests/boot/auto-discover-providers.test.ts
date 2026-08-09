@@ -1,12 +1,15 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Config, ModelsDevPayload } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { discoverAndMergeProviders } from '../../src/boot/auto-discover-providers.js';
 
 /** Minimal registry double capturing mergeOverlay calls. */
-function fakeRegistry(): { merged: ModelsDevPayload[]; mergeOverlay: (p: ModelsDevPayload) => void } {
+function fakeRegistry(): {
+  merged: ModelsDevPayload[];
+  mergeOverlay: (p: ModelsDevPayload) => void;
+} {
   const merged: ModelsDevPayload[] = [];
   return { merged, mergeOverlay: (p) => merged.push(p) };
 }
@@ -14,7 +17,10 @@ function fakeRegistry(): { merged: ModelsDevPayload[]; mergeOverlay: (p: ModelsD
 function modelsResponse(ids: string[]): typeof fetch {
   return (async () =>
     new Response(
-      JSON.stringify({ object: 'list', data: ids.map((id) => ({ id, capabilities: { tool_calling: true } })) }),
+      JSON.stringify({
+        object: 'list',
+        data: ids.map((id) => ({ id, capabilities: { tool_calling: true } })),
+      }),
       { status: 200, headers: { 'content-type': 'application/json' } },
     )) as never as typeof fetch;
 }
@@ -87,7 +93,12 @@ describe('discoverAndMergeProviders', () => {
     const fetchSpy = vi.fn(modelsResponse(['litellm/gpt-4o'])) as never as typeof fetch;
     await discoverAndMergeProviders({
       config: cfgWith({
-        mygw: { type: 'mygw', baseUrl: 'http://localhost:4000/v1', apiKey: 'k', autoDiscoverModels: true },
+        mygw: {
+          type: 'mygw',
+          baseUrl: 'http://localhost:4000/v1',
+          apiKey: 'k',
+          autoDiscoverModels: true,
+        },
       }),
       registry: reg as never,
       cacheDir,

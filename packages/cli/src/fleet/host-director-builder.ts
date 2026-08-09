@@ -3,8 +3,8 @@ import * as path from 'node:path';
 import {
   DEFAULT_MAX_FLEET_SPAWNS,
   FleetManager,
-  HARD_MAX_SPAWN_DEPTH,
   type FleetWorktreePolicy,
+  HARD_MAX_SPAWN_DEPTH,
 } from '@wrongstack/core/coordination';
 import type { Config } from '@wrongstack/core/types';
 import { WorktreeManager } from '@wrongstack/core/worktree';
@@ -58,11 +58,11 @@ export function prepareHostDirectorRuntime(input: {
     configuredIdleTimeoutMs >= 0
       ? configuredIdleTimeoutMs
       : 300_000; // 5 min — covers the typical leader reasoning gap between
-                  // `spawn_subagent` and `assign_task`. This fallback governs
-                  // the lifecycle removal timeout only; the per-spawn
-                  // `spawn_subagent({ idleTimeoutMs })` parameter feeds the
-                  // separate in-task activity watchdog (see
-                  // multi-agent-coordinator.ts).
+  // `spawn_subagent` and `assign_task`. This fallback governs
+  // the lifecycle removal timeout only; the per-spawn
+  // `spawn_subagent({ idleTimeoutMs })` parameter feeds the
+  // separate in-task activity watchdog (see
+  // multi-agent-coordinator.ts).
   const defaultScratchpad =
     opts.sharedScratchpadPath ||
     (opts.sessionsRoot && opts.directorRunId

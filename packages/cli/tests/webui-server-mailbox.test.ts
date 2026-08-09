@@ -1,12 +1,12 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { EventBus } from '@wrongstack/core/kernel';
 import { createProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
-import { removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
+import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runWebUI } from '../src/webui-server.js';
 import { openWs } from './_ws-client.js';
+import { removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 
 const ports = { next: 45_720 };
 const nextPort = (): number => ports.next++;
@@ -23,9 +23,16 @@ beforeEach(async () => {
   tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ws-mailbox-test-'));
   // Create a minimal config.json with providers to satisfy config loading
   globalConfigPath = path.join(tmpDir, 'config.json');
-  await fs.promises.writeFile(globalConfigPath, JSON.stringify({
-    providers: [{ id: 'test-provider', family: 'anthropic', models: [] }],
-  }, null, 2));
+  await fs.promises.writeFile(
+    globalConfigPath,
+    JSON.stringify(
+      {
+        providers: [{ id: 'test-provider', family: 'anthropic', models: [] }],
+      },
+      null,
+      2,
+    ),
+  );
 });
 
 afterEach(async () => {
@@ -56,7 +63,9 @@ describe('runWebUI mailbox operations', () => {
     const wsPort = nextPort();
     const httpPort = wsPort; // single-port design: HTTP and WS share one listener
     let signalReady: (() => void) | undefined;
-    const listening = new Promise<void>((r) => { signalReady = r; });
+    const listening = new Promise<void>((r) => {
+      signalReady = r;
+    });
 
     const projectRoot = path.join(tmpDir, 'project');
     await fs.promises.mkdir(projectRoot, { recursive: true });
@@ -93,7 +102,9 @@ describe('runWebUI mailbox operations', () => {
     const wsPort = nextPort();
     const httpPort = wsPort; // single-port design: HTTP and WS share one listener
     let signalReady: (() => void) | undefined;
-    const listening = new Promise<void>((r) => { signalReady = r; });
+    const listening = new Promise<void>((r) => {
+      signalReady = r;
+    });
 
     serverDone = runWebUI({
       port: wsPort,
@@ -125,7 +136,9 @@ describe('runWebUI mailbox operations', () => {
     const wsPort = nextPort();
     const httpPort = wsPort; // single-port design: HTTP and WS share one listener
     let signalReady: (() => void) | undefined;
-    const listening = new Promise<void>((r) => { signalReady = r; });
+    const listening = new Promise<void>((r) => {
+      signalReady = r;
+    });
 
     const projectRoot = path.join(tmpDir, 'project');
     await fs.promises.mkdir(projectRoot, { recursive: true });
@@ -138,7 +151,13 @@ describe('runWebUI mailbox operations', () => {
     mailboxProjectDirs.push(mbDir);
     const mb = createProjectMailbox({ projectDir: mbDir, isolatedConnection: true });
     openMailboxes.push(mb);
-    await mb.send({ from: 'agent#1', to: '*', type: 'broadcast', subject: 'test', body: 'test message' });
+    await mb.send({
+      from: 'agent#1',
+      to: '*',
+      type: 'broadcast',
+      subject: 'test',
+      body: 'test message',
+    });
 
     serverDone = runWebUI({
       port: wsPort,

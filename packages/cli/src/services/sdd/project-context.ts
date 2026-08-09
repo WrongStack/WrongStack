@@ -1,6 +1,8 @@
 import type { AISpecBuilder, AISpecPhase, SpecIndexEntry, SpecStore } from '@wrongstack/sdd';
+
 // Shared with the WebUI wizard — single implementation in @wrongstack/sdd.
 export { gatherProjectContext } from '@wrongstack/sdd';
+
 import { sddState } from './state.js';
 
 export function getActiveBuilder(): AISpecBuilder | null {

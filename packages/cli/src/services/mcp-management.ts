@@ -5,8 +5,14 @@
  * and the slash-command wiring in index.ts.
  */
 import type { Config, MCPServerConfig } from '@wrongstack/core/types';
-import { color, expectDefined } from '@wrongstack/core/utils';
-import { readJsonObjectFile, removeJsonPath, setJsonPath, updateJsonObjectFile } from '@wrongstack/core/utils';
+import {
+  color,
+  expectDefined,
+  readJsonObjectFile,
+  removeJsonPath,
+  setJsonPath,
+  updateJsonObjectFile,
+} from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 export interface McpParsedArgs {
   action: 'list' | 'add' | 'remove' | 'enable' | 'disable' | 'restart';

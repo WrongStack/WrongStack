@@ -40,7 +40,13 @@ describe('Chimera work registry', () => {
 
     const review = Promise.resolve().then(() => {
       order.push('review');
-      expect(registry.track(cascade.promise.then(() => { order.push('cascade'); }))).toBe(true);
+      expect(
+        registry.track(
+          cascade.promise.then(() => {
+            order.push('cascade');
+          }),
+        ),
+      ).toBe(true);
     });
     registry.track(review);
 

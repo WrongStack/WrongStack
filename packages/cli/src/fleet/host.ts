@@ -32,15 +32,9 @@ import {
 } from '@wrongstack/core/types';
 
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import {
-  makeFleetWorktreeConflictResolver,
-  selectSubagentTools,
-} from './host-helpers.js';
 import { HostAcpRunnerCache } from './host-acp-runner-cache.js';
-import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
 import { normalizeMaxConcurrent } from './host-concurrency.js';
-import { emitHostLifecycleCompleted } from './host-lifecycle-events.js';
-import { applyFleetRootDefaults } from './host-paths.js';
+import { createHostFleetManager, prepareHostDirectorRuntime } from './host-director-builder.js';
 import {
   installDirectorTaskCompletedHandler,
   registerCoordinatorLifecycleHandlers,
@@ -48,25 +42,28 @@ import {
   registerDirectorStatsBridge,
   registerDirectorSubagentLifecycleBridges,
 } from './host-director-event-bridges.js';
-import { createHostSubagentFactory } from './host-subagent-factory.js';
-import { reportTaskResultToLeader } from './host-task-result-report.js';
-import { createHostFleetSupervisor } from './host-supervisor.js';
 import {
   createHostStatusBroadcaster,
   startDirectorAgentMonitor,
 } from './host-director-services.js';
-import { createHostFleetManager, prepareHostDirectorRuntime } from './host-director-builder.js';
+import { makeFleetWorktreeConflictResolver, selectSubagentTools } from './host-helpers.js';
+import { HostLearningRoleTracker } from './host-learning-tracker.js';
+import { emitHostLifecycleCompleted } from './host-lifecycle-events.js';
+import { applyFleetRootDefaults } from './host-paths.js';
+import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
+import type { HostSpawnAndWaitOptions, HostSpawnOptions } from './host-spawn-types.js';
 import {
   aggregateFleetUsage,
   buildFleetHostStatus,
   type FleetHostStatus,
   type FleetHostUsage,
 } from './host-status.js';
-import type { HostSpawnAndWaitOptions, HostSpawnOptions } from './host-spawn-types.js';
+import { createHostSubagentFactory } from './host-subagent-factory.js';
+import { createHostFleetSupervisor } from './host-supervisor.js';
+import { reportTaskResultToLeader } from './host-task-result-report.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 import { buildRoutingRunner } from './routing.js';
 import { setActiveFleetSupervisor } from './supervisor-registry.js';
-import { HostLearningRoleTracker } from './host-learning-tracker.js';
 
 export type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 
@@ -703,10 +700,7 @@ export class MultiAgentHost {
    * Optional `opts` lets the caller override the subagent's provider, model,
    * and tool slice per spawn.
    */
-  async spawnAndWait(
-    description: string,
-    opts?: HostSpawnAndWaitOptions,
-  ): Promise<TaskResult> {
+  async spawnAndWait(description: string, opts?: HostSpawnAndWaitOptions): Promise<TaskResult> {
     const { taskId } = await this.spawn(description, opts);
     // Capture director reference before await to avoid TOCTOU race with
     // concurrent stopAll() — this.director is a shared mutable field.
@@ -827,7 +821,10 @@ export class MultiAgentHost {
   budgetView(): import('./host-status.js').FleetBudgetView {
     const snap = this.fleetManager?.budgetSnapshot?.();
     const maxSpawns =
-      snap?.maxSpawns ?? this.opts.maxSpawns ?? this.director?.maxSpawns ?? Number.POSITIVE_INFINITY;
+      snap?.maxSpawns ??
+      this.opts.maxSpawns ??
+      this.director?.maxSpawns ??
+      Number.POSITIVE_INFINITY;
     const usedSpawns = snap?.usedSpawns ?? this.director?.spawnCount ?? 0;
     const remainingSpawns =
       snap?.remainingSpawns ??

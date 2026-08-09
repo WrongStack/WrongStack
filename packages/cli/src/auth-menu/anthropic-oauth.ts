@@ -13,15 +13,20 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto';
-import { openBrowser, startLoopbackServer } from './loopback-server.js';
+import {
+  FetchError,
+  ParseError,
+  type ProviderApiKey,
+  type ProviderConfig,
+} from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import { FetchError, ParseError, type ProviderApiKey, type ProviderConfig } from '@wrongstack/core/types';
 import {
   mutateConfigProviders,
   normalizeKeys,
   nowIso,
   writeKeysBack,
 } from '../provider-config-utils.js';
+import { openBrowser, startLoopbackServer } from './loopback-server.js';
 import type { AuthMenuDeps } from './types.js';
 
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
@@ -229,7 +234,13 @@ export async function runClaudeOAuthLogin(
     process.on('SIGINT', onSig);
   }
 
-  const server = await startLoopbackServer(state, [REDIRECT_PORT], ac.signal, REDIRECT_PATH, REDIRECT_HOST);
+  const server = await startLoopbackServer(
+    state,
+    [REDIRECT_PORT],
+    ac.signal,
+    REDIRECT_PATH,
+    REDIRECT_HOST,
+  );
 
   deps.renderer.write(
     color.bold(`\n  Sign in with Claude — ${color.cyan(providerId)}\n`) +
@@ -342,18 +353,23 @@ async function saveClaudeTokens(
     scope: SCOPES,
   };
   try {
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const existing = all[providerId];
-      const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
-      p.family = 'anthropic-oauth';
-      if (!p.baseUrl) p.baseUrl = CLAUDE_BASE_URL;
-      if (models.length > 0) p.models = models;
-      const keys = normalizeKeys(p).filter((k) => k.label !== entry.label);
-      keys.push(entry);
-      writeKeysBack(p, keys);
-      p.activeKey = entry.label;
-      all[providerId] = p;
-    }, deps.profileConfigPath);
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const existing = all[providerId];
+        const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
+        p.family = 'anthropic-oauth';
+        if (!p.baseUrl) p.baseUrl = CLAUDE_BASE_URL;
+        if (models.length > 0) p.models = models;
+        const keys = normalizeKeys(p).filter((k) => k.label !== entry.label);
+        keys.push(entry);
+        writeKeysBack(p, keys);
+        p.activeKey = entry.label;
+        all[providerId] = p;
+      },
+      deps.profileConfigPath,
+    );
     return true;
   } catch (err) {
     deps.renderer.writeError(`  Failed to save tokens: ${(err as Error).message}`);

@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 /**
  * Integration tests for mailbox HTTP bridge security features:
@@ -70,8 +70,11 @@ beforeAll(async () => {
   // SQLite store is deliberately not reachable outside its owner process).
   const mb = createProjectMailbox({ projectDir, isolatedConnection: true });
   await mb.send({
-    from: 'test-bootstrap', to: 'test-bootstrap',
-    type: 'note', subject: 'bootstrap', body: 'pre-suite',
+    from: 'test-bootstrap',
+    to: 'test-bootstrap',
+    type: 'note',
+    subject: 'bootstrap',
+    body: 'pre-suite',
   });
   await mb.close();
 
@@ -86,8 +89,12 @@ beforeAll(async () => {
   );
   serverChild = child;
   let stdout = '';
-  child.stdout?.on('data', (c: Buffer) => { stdout += c.toString('utf8'); });
-  child.stderr?.on('data', () => { /* swallow */ });
+  child.stdout?.on('data', (c: Buffer) => {
+    stdout += c.toString('utf8');
+  });
+  child.stderr?.on('data', () => {
+    /* swallow */
+  });
 
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(
@@ -120,7 +127,10 @@ afterAll(async () => {
     const child = serverChild;
     await new Promise<void>((resolve) => {
       const t = setTimeout(resolve, 3_000);
-      child.once('exit', () => { clearTimeout(t); resolve(); });
+      child.once('exit', () => {
+        clearTimeout(t);
+        resolve();
+      });
       child.kill('SIGINT');
     });
   }
@@ -143,48 +153,102 @@ const auth = (): Record<string, string> => ({ Authorization: `Bearer ${token}` }
 
 describe('mailbox-bridge — from-identity validation', () => {
   it('rejects "leader" as from-id', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'leader', to: 'b', type: 'note', subject: 's', body: 'x',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'leader',
+        to: 'b',
+        type: 'note',
+        subject: 's',
+        body: 'x',
+      },
+      auth(),
+    );
     expect(res.status).toBe(400);
     expect((res.body as { error: { code: string } }).error.code).toBe('VALIDATION_ERROR');
     expect((res.body as { error: { message: string } }).error.message).toMatch(/reserved/i);
   });
 
   it('rejects "fleet" as from-id', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'fleet', to: 'b', type: 'note', subject: 's', body: 'x',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'fleet',
+        to: 'b',
+        type: 'note',
+        subject: 's',
+        body: 'x',
+      },
+      auth(),
+    );
     expect(res.status).toBe(400);
     expect((res.body as { error: { message: string } }).error.message).toMatch(/reserved/i);
   });
 
   it('rejects "leader@session-tag" (base id is reserved)', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'leader@abc123', to: 'b', type: 'steer', subject: 's', body: 'x',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'leader@abc123',
+        to: 'b',
+        type: 'steer',
+        subject: 's',
+        body: 'x',
+      },
+      auth(),
+    );
     expect(res.status).toBe(400);
     expect((res.body as { error: { message: string } }).error.message).toMatch(/reserved/i);
   });
 
   it('rejects "mailbox-bridge-watchdog" as from-id', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'mailbox-bridge-watchdog', to: 'b', type: 'status', subject: 's', body: 'x',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'mailbox-bridge-watchdog',
+        to: 'b',
+        type: 'status',
+        subject: 's',
+        body: 'x',
+      },
+      auth(),
+    );
     expect(res.status).toBe(400);
   });
 
   it('accepts a non-reserved from-id', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'claude-code-1234', to: 'b', type: 'note', subject: 'ok', body: 'x',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'claude-code-1234',
+        to: 'b',
+        type: 'note',
+        subject: 'ok',
+        body: 'x',
+      },
+      auth(),
+    );
     expect(res.status).toBe(201);
   });
 
   it('accepts "leader-like" names that are not exact matches', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'leadership', to: 'b', type: 'note', subject: 'ok', body: 'x',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'leadership',
+        to: 'b',
+        type: 'note',
+        subject: 'ok',
+        body: 'x',
+      },
+      auth(),
+    );
     // "leadership" is NOT "leader" — should be accepted.
     expect(res.status).toBe(201);
   });
@@ -194,11 +258,19 @@ describe('mailbox-bridge — from-identity validation', () => {
 
 describe('mailbox-bridge — ttlMs on send', () => {
   it('accepts ttlMs and sets expiresAt on the message', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'ttl-sender', to: 'ttl-reader',
-      type: 'note', subject: 'ttl-test', body: 'expires soon',
-      ttlMs: 30_000,
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'ttl-sender',
+        to: 'ttl-reader',
+        type: 'note',
+        subject: 'ttl-test',
+        body: 'expires soon',
+        ttlMs: 30_000,
+      },
+      auth(),
+    );
     expect(res.status).toBe(201);
     const msg = res.body as { expiresAt?: string };
     expect(msg.expiresAt).toBeDefined();
@@ -210,10 +282,18 @@ describe('mailbox-bridge — ttlMs on send', () => {
   });
 
   it('works without ttlMs (expiresAt omitted)', async () => {
-    const res = await http('POST', '/mailbox/send', {
-      from: 'no-ttl-sender', to: 'b',
-      type: 'note', subject: 'no-ttl', body: 'x',
-    }, auth());
+    const res = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'no-ttl-sender',
+        to: 'b',
+        type: 'note',
+        subject: 'no-ttl',
+        body: 'x',
+      },
+      auth(),
+    );
     expect(res.status).toBe(201);
     const msg = res.body as { expiresAt?: string };
     // expiresAt should be undefined or absent.

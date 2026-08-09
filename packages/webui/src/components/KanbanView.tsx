@@ -1,30 +1,31 @@
-import { useAppTranslation } from '@/i18n';
 import type { KanbanBoardPresence, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { Columns3, Copy, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
+import { useAppTranslation } from '@/i18n';
 import { auditKanbanBoard } from '@/lib/kanban-cleaner';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
-import { useConfigStore, useFleetStore, useKanbanStore, useSessionStore } from '@/stores';
+import { useConfigStore, useFleetStore, useSessionStore } from '@/stores';
+import { useKanbanStore } from '@/stores/kanban-store';
 import { BoardPresence, SupervisorBar } from './KanbanBoardChrome.js';
+import { KanbanBoardSidebar } from './KanbanBoardSidebar';
 import {
   collectActiveSessionIds,
   isKanbanBoardActive,
   parseRunLink,
   runningBoardCostTotal,
 } from './KanbanBoardState';
-import { KanbanBoardSidebar } from './KanbanBoardSidebar';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanCleanerAlert } from './KanbanCleanerAlert';
-import { KanbanDecompositionApprovalCard } from './KanbanDecompositionPanel';
 import { KanbanColumnView } from './KanbanColumnView';
+import { KanbanDecompositionApprovalCard } from './KanbanDecompositionPanel';
 import { KanbanQueueHealthBar } from './KanbanQueueHealthBar';
 import { RunControlBar, StartAsBar } from './KanbanRunControls.js';
+import { KanbanTaskInspector } from './KanbanTaskInspector';
 import { KanbanTaskTree } from './KanbanTaskTree';
 import { KanbanVerificationDashboard } from './KanbanVerificationDashboard';
-import { KanbanTaskInspector } from './KanbanTaskInspector';
-import { KanbanViewModeTabs, type KanbanViewMode } from './KanbanViewModeTabs';
+import { type KanbanViewMode, KanbanViewModeTabs } from './KanbanViewModeTabs';
 import { useKanbanRegistrySessionIds } from './useKanbanRegistrySessionIds';
 
 export const TASK_ACTIVITY_LOAD_LIMIT = 5_000;
@@ -48,7 +49,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     error,
     queueHealth,
     supervisorSnapshot,
-    setLoading,
     setActiveBoardId,
     setError,
   } = useKanbanStore();
@@ -137,7 +137,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   const runningCostTotal = useMemo(() => runningBoardCostTotal(activeBoard), [activeBoard]);
 
   const sendKanban = (type: `kanban.${string}`, payload: Record<string, unknown> = {}) => {
-    setLoading(true);
+    useKanbanStore.getState().sendKanban(type, payload);
     ws.send({ type, payload });
   };
 
@@ -596,4 +596,3 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     </div>
   );
 }
-

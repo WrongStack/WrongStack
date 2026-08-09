@@ -1,22 +1,21 @@
 import * as fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   type BenchReport,
   type BenchSuite,
+  type BenchTask,
   collectCellPredictions,
   computeToolManifestHash,
   createLocalManifestSuite,
   createPolyglotSuite,
   createSwebenchSuite,
-  type BenchTask,
   type GradeResult,
-  type ModelCell,
   gradeLocalManifest,
   gradePolyglot,
   gradeSwebench,
   loadBenchConfig,
+  type ModelCell,
   mineTranscript,
   readSummary,
   renderMarkdownReport,
@@ -25,7 +24,7 @@ import {
   writeJsonArtifacts,
   writePredictionsJsonl,
 } from '@wrongstack/bench';
-import { color } from '@wrongstack/core/utils';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { CLI_VERSION } from '../../version.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
@@ -71,9 +70,7 @@ function printUsage(deps: SubcommandDeps): void {
       color.dim(
         '  wstack bench run --suite polyglot --polyglot-dir ./polyglot --models bench.config.json --limit 5',
       ),
-      color.dim(
-        '  wstack bench run --suite local --suite-dir ./evals --models bench.config.json',
-      ),
+      color.dim('  wstack bench run --suite local --suite-dir ./evals --models bench.config.json'),
       color.dim('  wstack bench mine --transcript ./session.jsonl --out ./evals'),
       color.dim('  wstack bench report ./bench-results/2026-06-14T10-00-00'),
       '',
@@ -250,9 +247,7 @@ async function benchReport(args: string[], deps: SubcommandDeps): Promise<number
   try {
     summary = await readSummary(outDir);
   } catch (err) {
-    deps.renderer.writeError(
-      `cannot read summary.json in ${outDir}: ${toErrorMessage(err)}`,
-    );
+    deps.renderer.writeError(`cannot read summary.json in ${outDir}: ${toErrorMessage(err)}`);
     return 1;
   }
   const md = renderMarkdownReport(summary);
@@ -264,7 +259,9 @@ async function benchReport(args: string[], deps: SubcommandDeps): Promise<number
 async function benchMine(args: string[], deps: SubcommandDeps): Promise<number> {
   const transcriptRaw = flagStr(deps, 'transcript') ?? args.find((arg) => !arg.startsWith('-'));
   if (!transcriptRaw) {
-    deps.renderer.writeError('Usage: wstack bench mine --transcript <session.jsonl> [--out <eval-dir>]');
+    deps.renderer.writeError(
+      'Usage: wstack bench mine --transcript <session.jsonl> [--out <eval-dir>]',
+    );
     return 1;
   }
   const outRaw = flagStr(deps, 'out') ?? 'evals';
@@ -273,7 +270,9 @@ async function benchMine(args: string[], deps: SubcommandDeps): Promise<number> 
       transcriptPath: path.resolve(deps.cwd, transcriptRaw),
       outDir: path.resolve(deps.cwd, outRaw),
     });
-    deps.renderer.writeInfo(`Mined ${mined.candidates.length} edit attempt(s) from ${mined.sessionId}.`);
+    deps.renderer.writeInfo(
+      `Mined ${mined.candidates.length} edit attempt(s) from ${mined.sessionId}.`,
+    );
     deps.renderer.writeInfo(`Pinned transcript → ${mined.copiedTranscriptPath}`);
     deps.renderer.writeInfo(`Curator drafts → ${mined.draftsPath}`);
     deps.renderer.writeInfo(

@@ -34,14 +34,44 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '../utils/atomic-write.js';
 import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning.js';
-import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
-import type { ChronicleEvent } from './types.js';
 import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
+import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
+import { CHRONICLE_SQLITE_FILE } from './sqlite-journal.js';
+import type { ChronicleEvent } from './types.js';
 
 const SCHEMA_VERSION = 3;
 const READ_CHUNK_BYTES = 1024 * 1024;
+
+/**
+ * `ingest_state` key prefix for the SQLite journal, one row per day family.
+ *
+ * The store was written against the JSONL partitions and tracked a byte offset
+ * per file. After the journal moved to SQLite those files stopped existing, so
+ * `findChroniclePartitions` returned nothing and `refresh()` quietly ingested
+ * nothing — forever, and without an error. Measured on a live install: every
+ * aggregate table at zero rows while the journal held 100 000 events, so
+ * `wstack chronicle metrics` and the WebUI reliability strip had been showing an
+ * empty projection rather than a broken one.
+ *
+ * A day family is the right cursor granularity because it is the journal's own:
+ * `sequence` restarts at 1 each day, so `(day, sequence)` is monotonic within a
+ * family and directly comparable — no byte accounting, and the same
+ * "resume where we stopped" property the partition offsets had.
+ */
+const SQLITE_SOURCE_PREFIX = 'sqlite:';
+
+/** Events pulled from the journal per statement while catching up. */
+const SQLITE_INGEST_BATCH = 2_000;
 const EMPTY_FAMILIES: Record<ChronicleSignalFamily, number> = {
-  llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0, finding: 0,
+  llm: 0,
+  agent: 0,
+  tool: 0,
+  file: 0,
+  memory: 0,
+  task: 0,
+  decision: 0,
+  runtime: 0,
+  finding: 0,
 };
 
 export interface ChronicleMetricsRefreshResult {
@@ -114,7 +144,9 @@ function loadDatabaseSync(): typeof DatabaseSync {
   if (Ctor === null) throw new Error('node:sqlite is unavailable in this runtime');
   try {
     Ctor = withSqliteExperimentalWarningSuppressed(
-      () => (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite')).DatabaseSync,
+      () =>
+        (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite'))
+          .DatabaseSync,
     );
     return Ctor;
   } catch (error) {
@@ -179,6 +211,10 @@ export class ChronicleMetricsStore {
         if (ingested) result.sourceFiles++;
       }
       this.pruneOffsets(files);
+      // Both sources are consumed, not one or the other: an install that
+      // migrated keeps whatever the partitions contributed while the SQLite
+      // journal carries everything written since.
+      this.ingestSqliteJournal(offsets, result);
     });
     return result;
   }
@@ -313,8 +349,7 @@ export class ChronicleMetricsStore {
     }
     const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '';
     params.push(clampLimit(options.limit, 200));
-    const projection =
-      `path, operation, occurred_at, session_id, agent_id, task_id, board_id, run_id,
+    const projection = `path, operation, occurred_at, session_id, agent_id, task_id, board_id, run_id,
        tool_name, provider_id, model_id, source`;
     const sql = options.latestPerPath
       ? `SELECT ${projection} FROM (
@@ -325,9 +360,7 @@ export class ChronicleMetricsStore {
          ) WHERE path_rank = 1 ORDER BY occurred_at DESC LIMIT ?`
       : `SELECT ${projection}
          FROM file_lineage${where} ORDER BY occurred_at DESC LIMIT ?`;
-    const rows = this.db
-      .prepare(sql)
-      .all(...params) as Array<Record<string, string>>;
+    const rows = this.db.prepare(sql).all(...params) as Array<Record<string, string>>;
     return rows.map((row) => ({
       path: row.path!,
       operation: row.operation!,
@@ -389,8 +422,14 @@ export class ChronicleMetricsStore {
     const dayFilter = (column: string): { where: string; params: string[] } => {
       const clauses: string[] = [];
       const params: string[] = [];
-      if (fromDay) { clauses.push(`${column} >= ?`); params.push(fromDay); }
-      if (toDay) { clauses.push(`${column} <= ?`); params.push(toDay); }
+      if (fromDay) {
+        clauses.push(`${column} >= ?`);
+        params.push(fromDay);
+      }
+      if (toDay) {
+        clauses.push(`${column} <= ?`);
+        params.push(toDay);
+      }
       return { where: clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '', params };
     };
 
@@ -425,7 +464,11 @@ export class ChronicleMetricsStore {
     const familyRange = dayFilter('day');
     const familyRows = this.db
       .prepare(`SELECT family, count, failure_count FROM family_daily${familyRange.where}`)
-      .all(...familyRange.params) as Array<{ family: string; count: number; failure_count: number }>;
+      .all(...familyRange.params) as Array<{
+      family: string;
+      count: number;
+      failure_count: number;
+    }>;
     const families = { ...EMPTY_FAMILIES };
     const failuresByFamily = { ...EMPTY_FAMILIES };
     for (const row of familyRows) {
@@ -436,19 +479,29 @@ export class ChronicleMetricsStore {
 
     const agentRange = dayFilter('day');
     const uniqueAgents = (
-      this.db.prepare(`SELECT COUNT(DISTINCT agent_id) n FROM agent_daily${agentRange.where}`).get(...agentRange.params) as { n: number }
+      this.db
+        .prepare(`SELECT COUNT(DISTINCT agent_id) n FROM agent_daily${agentRange.where}`)
+        .get(...agentRange.params) as { n: number }
     ).n;
     const requestRange = dayFilter('day');
     const logicalRequests = (
-      this.db.prepare(`SELECT COUNT(DISTINCT logical_request_id) n FROM logical_request_daily${requestRange.where}`).get(...requestRange.params) as { n: number }
+      this.db
+        .prepare(
+          `SELECT COUNT(DISTINCT logical_request_id) n FROM logical_request_daily${requestRange.where}`,
+        )
+        .get(...requestRange.params) as { n: number }
     ).n;
     const fileRange = dayFilter('day');
     const uniqueFiles = (
-      this.db.prepare(`SELECT COUNT(DISTINCT path_key) n FROM file_seen_daily${fileRange.where}`).get(...fileRange.params) as { n: number }
+      this.db
+        .prepare(`SELECT COUNT(DISTINCT path_key) n FROM file_seen_daily${fileRange.where}`)
+        .get(...fileRange.params) as { n: number }
     ).n;
     const costRange = dayFilter('day');
     const cost = (
-      this.db.prepare(`SELECT COALESCE(SUM(cost),0) c FROM token_cost${costRange.where}`).get(...costRange.params) as { c: number }
+      this.db
+        .prepare(`SELECT COALESCE(SUM(cost),0) c FROM token_cost${costRange.where}`)
+        .get(...costRange.params) as { c: number }
     ).c;
 
     return {
@@ -465,7 +518,10 @@ export class ChronicleMetricsStore {
       cacheReadTokens: Number(provider.cacheReadTokens),
       cacheWriteTokens: Number(provider.cacheWriteTokens),
       estimatedCostUsd: Number(cost),
-      providerAvgDurationMs: Number(provider.durationCount) > 0 ? Number(provider.durationTotal) / Number(provider.durationCount) : 0,
+      providerAvgDurationMs:
+        Number(provider.durationCount) > 0
+          ? Number(provider.durationTotal) / Number(provider.durationCount)
+          : 0,
       // True p95 needs a retained distribution; this per-day aggregate only
       // keeps sum/max/count, so approximate with the observed max rather
       // than adding a per-attempt histogram write (would add the same kind
@@ -474,7 +530,10 @@ export class ChronicleMetricsStore {
       toolCalls: Number(counters.toolCalls),
       completedTools: Number(counters.completedTools),
       failedTools: Number(counters.failedTools),
-      toolAvgDurationMs: Number(counters.toolDurationCount) > 0 ? Number(counters.toolDurationTotal) / Number(counters.toolDurationCount) : 0,
+      toolAvgDurationMs:
+        Number(counters.toolDurationCount) > 0
+          ? Number(counters.toolDurationTotal) / Number(counters.toolDurationCount)
+          : 0,
       processes: Number(counters.processes),
       failedProcesses: Number(counters.failedProcesses),
       fileEvents: Number(counters.fileEvents),
@@ -617,8 +676,87 @@ export class ChronicleMetricsStore {
     for (const row of this.db.prepare('SELECT file FROM ingest_state').all() as Array<{
       file: string;
     }>) {
+      // SQLite cursors are not partition files and are not evidenced by this
+      // listing; pruning them here would reset the journal cursor to zero on
+      // every refresh and re-ingest the whole journal each time.
+      if (row.file.startsWith(SQLITE_SOURCE_PREFIX)) continue;
       if (!keep.has(row.file))
         this.db.prepare('DELETE FROM ingest_state WHERE file = ?').run(row.file);
+    }
+  }
+
+  /**
+   * Fold everything the SQLite journal holds past this store's per-day cursor.
+   *
+   * Opened read-only on its own connection: the journal runs in WAL, so this
+   * never blocks the daemon writing to it, and metrics are best-effort — a
+   * journal that cannot be opened (mid-migration, absent, locked) leaves the
+   * cursors untouched and the next refresh retries.
+   *
+   * Rows the journal has already evicted are simply not seen. That is the
+   * intended split of responsibilities: the journal is a bounded ring, and this
+   * store is where an aggregate outlives the raw event it came from — which
+   * only holds if refresh runs more often than the ring turns over.
+   */
+  private ingestSqliteJournal(
+    offsets: Map<string, number>,
+    result: ChronicleMetricsRefreshResult,
+  ): void {
+    const journalPath = path.join(this.directory, CHRONICLE_SQLITE_FILE);
+    let source: DatabaseSync;
+    try {
+      source = new (loadDatabaseSync())(journalPath, { readOnly: true });
+    } catch {
+      return;
+    }
+    try {
+      const days = source.prepare('SELECT DISTINCT day FROM events ORDER BY day').all() as Array<{
+        day: string;
+      }>;
+      const read = source.prepare(
+        'SELECT sequence, payload FROM events WHERE day = ? AND sequence > ? ORDER BY sequence LIMIT ?',
+      );
+      const writeCursor = this.db.prepare(
+        'INSERT INTO ingest_state (file, bytes) VALUES (?, ?) ' +
+          'ON CONFLICT(file) DO UPDATE SET bytes = excluded.bytes',
+      );
+      for (const { day } of days) {
+        const key = `${SQLITE_SOURCE_PREFIX}${day}`;
+        const from = offsets.get(key) ?? 0;
+        let cursor = from;
+        this.db.exec('BEGIN');
+        try {
+          for (;;) {
+            const rows = read.all(day, cursor, SQLITE_INGEST_BATCH) as Array<{
+              sequence: number;
+              payload: string;
+            }>;
+            if (rows.length === 0) break;
+            for (const row of rows) {
+              try {
+                this.ingestEvent(JSON.parse(row.payload) as ChronicleEvent);
+                result.ingestedEvents++;
+              } catch {
+                result.invalidLines++;
+              }
+              result.ingestedBytes += row.payload.length;
+              cursor = Number(row.sequence);
+            }
+            if (rows.length < SQLITE_INGEST_BATCH) break;
+          }
+          if (cursor > from) writeCursor.run(key, cursor);
+          this.db.exec('COMMIT');
+        } catch (error) {
+          this.db.exec('ROLLBACK');
+          throw error;
+        }
+        if (cursor > from) result.sourceFiles++;
+      }
+    } catch {
+      // Best-effort: a malformed or concurrently-migrating journal must not
+      // fail the refresh that also consumed the partitions above.
+    } finally {
+      source.close();
     }
   }
 
@@ -728,16 +866,21 @@ export class ChronicleMetricsStore {
       )
       .run(day, family, failed);
     if (failed) bump('failures = failures + 1');
-    if (event.outcome === 'cancelled' || event.outcome === 'abandoned') bump('cancellations = cancellations + 1');
+    if (event.outcome === 'cancelled' || event.outcome === 'abandoned')
+      bump('cancellations = cancellations + 1');
     if (family === 'agent') bump('agent_events = agent_events + 1');
 
     if (event.correlation.logicalRequestId) {
       this.db
-        .prepare('INSERT OR IGNORE INTO logical_request_daily (day, logical_request_id) VALUES (?, ?)')
+        .prepare(
+          'INSERT OR IGNORE INTO logical_request_daily (day, logical_request_id) VALUES (?, ?)',
+        )
         .run(day, event.correlation.logicalRequestId);
     }
     if (event.scope.agentId) {
-      this.db.prepare('INSERT OR IGNORE INTO agent_daily (day, agent_id) VALUES (?, ?)').run(day, event.scope.agentId);
+      this.db
+        .prepare('INSERT OR IGNORE INTO agent_daily (day, agent_id) VALUES (?, ?)')
+        .run(day, event.scope.agentId);
     }
 
     const type = event.eventType;
@@ -750,10 +893,13 @@ export class ChronicleMetricsStore {
       bump(
         `${type === 'tool.executed' ? 'completed_tools' : 'failed_tools'} = ${type === 'tool.executed' ? 'completed_tools' : 'failed_tools'} + 1,
          tool_duration_ms_total = tool_duration_ms_total + ?, tool_duration_ms_max = MAX(tool_duration_ms_max, ?), tool_duration_count = tool_duration_count + ?`,
-        dur, dur, durationCount,
+        dur,
+        dur,
+        durationCount,
       );
     } else if (type === 'process.started') bump('processes = processes + 1');
-    else if (type === 'process.completed' && event.outcome === 'failure') bump('failed_processes = failed_processes + 1');
+    else if (type === 'process.completed' && event.outcome === 'failure')
+      bump('failed_processes = failed_processes + 1');
 
     if (event.resource?.kind === 'file' || type.startsWith('file.')) {
       bump('file_events_all = file_events_all + 1');
@@ -771,7 +917,9 @@ export class ChronicleMetricsStore {
     // the provider being fallen back FROM, held in attributes.from. Attribute
     // it there rather than letting it manufacture a phantom ('', '') row.
     const providerId =
-      event.runtime?.providerId ?? asString(readPath(event.attributes ?? {}, 'from.providerId')) ?? '';
+      event.runtime?.providerId ??
+      asString(readPath(event.attributes ?? {}, 'from.providerId')) ??
+      '';
     const modelId =
       event.runtime?.modelId ?? asString(readPath(event.attributes ?? {}, 'from.model')) ?? '';
     // No identity at all → not attributable to any provider row; skip.

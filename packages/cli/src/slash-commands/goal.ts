@@ -1,11 +1,11 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { PhaseGraph, PhaseProgress } from '@wrongstack/core/goal';
+import { PhaseStore } from '@wrongstack/core/goal';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { ConfigError } from '@wrongstack/core/types';
-import { PhaseStore } from '@wrongstack/core/goal';
-import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
+import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
 function getStore(opts: SlashCommandContext): PhaseStore {
   // Engine checkpoints live apart from the canonical mission goal.json file.
@@ -188,10 +188,7 @@ export function buildGoalCommand(opts: SlashCommandContext): SlashCommand {
             }
             await opts.onGoalResumeFromGraph(graph);
             return {
-              message: [
-                `▶ Resumed: **${graph.title}**`,
-                formatPhaseList(graph),
-              ].join('\n'),
+              message: [`▶ Resumed: **${graph.title}**`, formatPhaseList(graph)].join('\n'),
             };
           }
 

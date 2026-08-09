@@ -108,19 +108,16 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
       );
     });
   const sessionEndProducers = new Set<Promise<void>>();
-  events.emit(
-    'session.ended',
-    {
-      id: activeSession.id,
-      sessionId: activeSession.id,
-      usage: tokenCounter.total(),
-      waitUntil: (work: Promise<void>) => {
-        const tracked = Promise.resolve(work).finally(() => sessionEndProducers.delete(tracked));
-        void tracked.catch(() => undefined);
-        sessionEndProducers.add(tracked);
-      },
+  events.emit('session.ended', {
+    id: activeSession.id,
+    sessionId: activeSession.id,
+    usage: tokenCounter.total(),
+    waitUntil: (work: Promise<void>) => {
+      const tracked = Promise.resolve(work).finally(() => sessionEndProducers.delete(tracked));
+      void tracked.catch(() => undefined);
+      sessionEndProducers.add(tracked);
     },
-  );
+  });
   // session.ended listeners are invoked synchronously but may start asynchronous
   // Git/filesystem work before emitting review_needed. Join those producers
   // first, then drain every review/cascade promise to a fixed point. This keeps

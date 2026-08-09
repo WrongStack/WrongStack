@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildProjectCommand } from '../src/slash-commands/project.js';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
+import { buildProjectCommand } from '../src/slash-commands/project.js';
 
 describe('/project identity commands', () => {
   let root: string;
@@ -35,26 +35,22 @@ describe('/project identity commands', () => {
     },
   );
 
-  it(
-    'reports an interactive rejection as cancellation without flag guidance',
-    { timeout: 5000 },
-    async () => {
-      const confirm = vi.fn().mockResolvedValue(null);
-      const result = await command(confirm).run('rekey');
+  it('reports an interactive rejection as cancellation without flag guidance', {
+    timeout: 5000,
+  }, async () => {
+    const confirm = vi.fn().mockResolvedValue(null);
+    const result = await command(confirm).run('rekey');
 
-      expect(confirm).toHaveBeenCalledOnce();
-      expect(result?.message).toBe('Rekey cancelled.');
-    },
-  );
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(result?.message).toBe('Rekey cancelled.');
+  });
 
-  it(
-    'requests --yes only when no interactive confirmation is available',
-    { timeout: 5000 },
-    async () => {
-      const result = await command().run('rekey');
+  it('requests --yes only when no interactive confirmation is available', {
+    timeout: 5000,
+  }, async () => {
+    const result = await command().run('rekey');
 
-      expect(result?.message).toContain('requires confirmation');
-      expect(result?.message).toContain('--yes');
-    },
-  );
+    expect(result?.message).toContain('requires confirmation');
+    expect(result?.message).toContain('--yes');
+  });
 });

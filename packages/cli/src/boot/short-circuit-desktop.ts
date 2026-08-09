@@ -59,7 +59,9 @@ async function launchDesktop(args: string[]): Promise<number> {
       windowsHide: false,
     });
     child.once('error', (err) => {
-      process.stderr.write(`${color.red('✗ Failed to start WrongStack Desktop:')} ${err.message}\n`);
+      process.stderr.write(
+        `${color.red('✗ Failed to start WrongStack Desktop:')} ${err.message}\n`,
+      );
       resolve(1);
     });
     child.once('exit', (code, signal) => {

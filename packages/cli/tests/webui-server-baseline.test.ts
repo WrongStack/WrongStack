@@ -1,6 +1,6 @@
 import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { runWebUI, type WSServerMessage, type WSClientMessage } from '../src/webui-server.js';
+import { runWebUI, type WSClientMessage, type WSServerMessage } from '../src/webui-server.js';
 import { openWs } from './_ws-client.js';
 
 /**
@@ -104,7 +104,7 @@ describe('runWebUI boot shape (PR 0 of #30)', () => {
       // onListening.info.wsPort below.
       host: '127.0.0.1',
       profileConfigPath: '/tmp/test-profile.json',
-  onListening: (info) => {
+      onListening: (info) => {
         listeningInfo = info;
         signalReady?.();
       },
@@ -120,9 +120,7 @@ describe('runWebUI boot shape (PR 0 of #30)', () => {
       await listening;
       expect(listeningInfo).toBeDefined();
       expect(listeningInfo!.host).toBe('127.0.0.1');
-      const { ws, waitForMessage } = await openWs(
-        `ws://127.0.0.1:${listeningInfo!.wsPort}`,
-      );
+      const { ws, waitForMessage } = await openWs(`ws://127.0.0.1:${listeningInfo!.wsPort}`);
       const start = await waitForMessage('session.start');
       expect(start.type).toBe('session.start');
       ws.close();
@@ -147,7 +145,7 @@ describe('runWebUI boot shape (PR 0 of #30)', () => {
     const serverDone = runWebUI({
       host: '127.0.0.1',
       profileConfigPath: '/tmp/test-profile.json',
-  onListening: (info) => {
+      onListening: (info) => {
         listeningInfo = info;
         signalReady?.();
       },

@@ -4,7 +4,10 @@ import { _resetAutoHygieneThrottleForTesting, setupSage } from '../src/wiring/sa
 // Minimal mock types matching SageWiringDeps
 interface MockDeps {
   config: Record<string, unknown>;
-  pipelines: { toolCall: { use: ReturnType<typeof vi.fn> }; request: { use: ReturnType<typeof vi.fn> } };
+  pipelines: {
+    toolCall: { use: ReturnType<typeof vi.fn> };
+    request: { use: ReturnType<typeof vi.fn> };
+  };
   memoryStore: Record<string, unknown>;
   logger: { debug: ReturnType<typeof vi.fn> };
   events: { emit: ReturnType<typeof vi.fn> };
@@ -60,9 +63,7 @@ describe('auto-hygiene throttle', () => {
     expect(hygieneSpy).toHaveBeenCalledTimes(1); // still 1, not 2
 
     // The debug log should mention the throttle.
-    expect(deps.logger.debug).toHaveBeenCalledWith(
-      expect.stringContaining('auto-hygiene skipped'),
-    );
+    expect(deps.logger.debug).toHaveBeenCalledWith(expect.stringContaining('auto-hygiene skipped'));
   });
 
   it('calls flushPendingCounters even when hygiene is throttled (defensive: real batching hook is deferred — see R3b)', async () => {

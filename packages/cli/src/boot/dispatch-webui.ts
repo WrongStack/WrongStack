@@ -15,12 +15,6 @@
  * single-PR extraction.
  */
 import * as path from 'node:path';
-import {
-  WEBUI_SESSION_CHILD_CAPABILITIES,
-  writeWebuiSessionChildError,
-  writeWebuiSessionChildReady,
-  type WebuiSessionChildOptions,
-} from './webui-session-child.js';
 import type { Agent } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { JournalEntry } from '@wrongstack/core/goal';
@@ -40,6 +34,12 @@ import type { TerminalRenderer } from '../renderer.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import { terminalLink, terminalText } from '../terminal-format.js';
 import type { CliWebUIOptions } from '../webui-server-options.js';
+import {
+  WEBUI_SESSION_CHILD_CAPABILITIES,
+  type WebuiSessionChildOptions,
+  writeWebuiSessionChildError,
+  writeWebuiSessionChildReady,
+} from './webui-session-child.js';
 
 export interface WebUIDispatchContext {
   agent: Agent;

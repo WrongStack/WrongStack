@@ -1,6 +1,13 @@
-import type { Capabilities, Config, CustomModelDefinition, Logger, ModelsRegistry, Provider, ProviderConfig } from '@wrongstack/core/types';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { mergeCustomModelDefs } from '@wrongstack/core/utils';
+import type {
+  Capabilities,
+  Config,
+  CustomModelDefinition,
+  Logger,
+  ModelsRegistry,
+  Provider,
+  ProviderConfig,
+} from '@wrongstack/core/types';
+import { mergeCustomModelDefs, toErrorMessage } from '@wrongstack/core/utils';
 import { capabilitiesFor } from '@wrongstack/providers';
 
 /**
@@ -35,14 +42,20 @@ export interface ResolveMaxContextInput {
  * Resolve the max context WrongStack should use for compaction/status UI.
  *
  * Priority chain (first hit wins):
- *  1. config.context.effectiveMaxContext        — explicit session/global value
- *  2. providers.<id>.capabilities.maxContext    — explicit per-provider override
- *  3. sibling catalog for OAuth families        — anthropic-oauth/openai-codex/
+ *  1. providers.<id>.capabilities.maxContext    — explicit per-provider override.
+ *     Provider-SCOPED, so it can't silently pin unrelated providers.
+ *  2. sibling catalog for OAuth families        — anthropic-oauth/openai-codex/
  *     github-copilot share their models with a canonical models.dev provider
  *     (anthropic/openai) but aren't themselves listed, so resolve the real
  *     per-model window there (e.g. Opus 4.8 → 1M, gpt-5.5 → 1.05M)
- *  4. models.dev catalog (capabilitiesFor → getModel) — the published per-model
+ *  3. models.dev catalog (capabilitiesFor → getModel) — the published per-model
  *     window, keyed by provider (e.g. 1M for an OpenRouter model)
+ *  4. config.context.effectiveMaxContext        — global FALLBACK for models whose
+ *     window nothing published. It deliberately ranks BELOW the catalog: it is a
+ *     single model-agnostic number, so honoring it above per-model facts pins
+ *     every model of every provider to one value forever, invisibly. (A stale
+ *     128k here once collapsed 1M-window models to 128k across the whole config.)
+ *     To cap ONE provider on purpose, use (1) — that is what it is for.
  *  5. provider.capabilities.maxContext          — family default (may be 0)
  *
  * Returns 0 when the context window cannot be determined — callers should
@@ -63,7 +76,7 @@ export interface ResolveMaxContextInput {
  * that silently shrinks the window). See {@link resolveRuntimeMaxContextDetailed}.
  */
 export type MaxContextBranch =
-  | 'explicit-config'
+  | 'explicit-config-fallback'
   | 'provider-override'
   | 'sibling-capabilities'
   | 'sibling-direct-model'
@@ -89,9 +102,6 @@ export interface ResolvedMaxContext {
 export async function resolveRuntimeMaxContextDetailed(
   input: ResolveMaxContextInput,
 ): Promise<ResolvedMaxContext> {
-  const explicitContext = positiveNumber(input.config.context?.effectiveMaxContext);
-  if (explicitContext) return { maxContext: explicitContext, branch: 'explicit-config' };
-
   const providerConfig = input.runtimeProviderConfig ?? input.config.providers?.[input.providerId];
   const providerOverride = positiveNumber(readConfiguredMaxContext(providerConfig));
   if (providerOverride) return { maxContext: providerOverride, branch: 'provider-override' };
@@ -175,6 +185,15 @@ export async function resolveRuntimeMaxContextDetailed(
     }
   }
 
+  // Catalog exhausted — NOW the global config value earns its keep. It is the
+  // user's answer to "what window should I assume when nothing published one",
+  // which is exactly the openai-compatible / coding-plan gateway case. Ranking
+  // it here (not first) is what keeps a 1M-window model at 1M.
+  const explicitContext = positiveNumber(input.config.context?.effectiveMaxContext);
+  if (explicitContext) {
+    return { maxContext: explicitContext, branch: 'explicit-config-fallback' };
+  }
+
   // All catalog lookups exhausted — return the provider's raw capabilities.
   // This may be 0 for catch-all families like openai-compatible, which
   // signals "unknown context window" to callers.
@@ -253,7 +272,12 @@ export function describeMaxContextChange(params: {
     `(branch=${branch}${shrank ? ', DECREASED' : ''})`;
 
   return shrank && suspicious
-    ? { level: 'warn', message: `Context window shrank via a non-catalog branch: ${detail}`, shrank, branch }
+    ? {
+        level: 'warn',
+        message: `Context window shrank via a non-catalog branch: ${detail}`,
+        shrank,
+        branch,
+      }
     : { level: 'debug', message: detail, shrank, branch };
 }
 

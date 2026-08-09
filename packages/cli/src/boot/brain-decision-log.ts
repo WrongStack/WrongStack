@@ -57,10 +57,7 @@ export function subscribeBrainDecisionLog(
     if (brainLog.length > MAX_BRAIN_LOG_ENTRIES) brainLog.shift();
   };
 
-  const subscribe = (
-    name: string,
-    handler: (payload: unknown) => void,
-  ): void => {
+  const subscribe = (name: string, handler: (payload: unknown) => void): void => {
     (events.on as (e: string, h: (payload: unknown) => void) => void)(name, handler);
     listeners.push([name, handler]);
   };

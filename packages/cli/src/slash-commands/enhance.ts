@@ -1,6 +1,6 @@
+import { noOpVault } from '@wrongstack/core/security';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import { noOpVault } from '@wrongstack/core/security';
 import { persistAutonomySetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';
 

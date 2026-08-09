@@ -1,5 +1,5 @@
-import { expectDefined } from '@wrongstack/core/utils';
 import { FsError } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 
 export { expectDefined };
 
@@ -10,9 +10,9 @@ export { expectDefined };
  * touches the config `providers` map.
  */
 import * as fs from 'node:fs/promises';
+import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 import type { ProviderApiKey, ProviderConfig, SecretVault } from '@wrongstack/core/types';
 import { atomicWrite, color } from '@wrongstack/core/utils';
-import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 /**
  * Normalize a ProviderConfig to the canonical `apiKeys[]` form.
  * Migrates the legacy single-key `apiKey` field on the fly so every
@@ -65,9 +65,7 @@ export function writeKeysBack(cfg: ProviderConfig, keys: ProviderApiKey[]): void
  */
 export function resolveActiveApiKey(cfg: ProviderConfig): string | undefined {
   if (Array.isArray(cfg.apiKeys) && cfg.apiKeys.length > 0) {
-    const active = cfg.activeKey
-      ? cfg.apiKeys.find((k) => k.label === cfg.activeKey)
-      : undefined;
+    const active = cfg.activeKey ? cfg.apiKeys.find((k) => k.label === cfg.activeKey) : undefined;
     return (active ?? cfg.apiKeys[0])?.apiKey;
   }
   return cfg.apiKey && cfg.apiKey.length > 0 ? cfg.apiKey : undefined;
@@ -108,7 +106,12 @@ export function clearStaleProviderDefaults(config: Record<string, unknown>): voi
     return;
   }
   const modelId = typeof config['model'] === 'string' ? config['model'] : undefined;
-  if (modelId && Array.isArray(provider.models) && provider.models.length > 0 && !provider.models.includes(modelId)) {
+  if (
+    modelId &&
+    Array.isArray(provider.models) &&
+    provider.models.length > 0 &&
+    !provider.models.includes(modelId)
+  ) {
     delete config['model'];
   }
 }

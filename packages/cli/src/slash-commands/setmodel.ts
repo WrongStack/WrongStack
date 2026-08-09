@@ -1,12 +1,22 @@
 import * as fs from 'node:fs/promises';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { fallbackProfileChain, parseModelRef } from '@wrongstack/core/agent';
 import { AGENT_CATALOG, AGENTS_BY_PHASE, type AgentPhase } from '@wrongstack/core/agent-catalog';
-import { atomicWrite, color, expectDefined } from '@wrongstack/core/utils';
-import { ConfigError, type ModelMatrixEntry, type ProviderConfig, type ReasoningEffort, type SlashCommand } from '@wrongstack/core/types';
-import { fallbackProfileChain } from '@wrongstack/core/agent';
+import {
+  MATRIX_PHASE_KEYS,
+  matrixKeyKind,
+  phaseForRole,
+  resolveModelMatrix,
+  resolveModelTargetFromEntry,
+} from '@wrongstack/core/coordination';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
-import { MATRIX_PHASE_KEYS, matrixKeyKind, phaseForRole, resolveModelMatrix, resolveModelTargetFromEntry } from '@wrongstack/core/coordination';
-import { parseModelRef } from '@wrongstack/core/agent';
+import {
+  ConfigError,
+  type ModelMatrixEntry,
+  type ProviderConfig,
+  type ReasoningEffort,
+  type SlashCommand,
+} from '@wrongstack/core/types';
+import { atomicWrite, color, expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 import { visibleModelIds } from '../provider-helpers.js';
 import type { SlashCommandContext } from './command-context.js';
@@ -30,7 +40,11 @@ async function resolveCatalogModelIds(
       try {
         const catalogId = catalogProviderIdFor(id, config.providers?.[id]?.type);
         const provider = await registry.getProvider(catalogId);
-        if (provider) out.set(id, provider.models.map((m) => m.id));
+        if (provider)
+          out.set(
+            id,
+            provider.models.map((m) => m.id),
+          );
       } catch {
         // Best-effort — an unreachable catalog must not break the command.
       }
@@ -128,7 +142,9 @@ function fmtEntry(e: ModelMatrixEntry): string {
   const runtime = fmtRuntime(e);
   if (e.fallbackProfile && !e.model) return `profile:${e.fallbackProfile}${runtime}`;
   if (e.fallbackProfile && e.model) {
-    const base = e.provider ? `${e.provider}/${e.model}` : `${e.model} ${color.dim('(leader provider)')}`;
+    const base = e.provider
+      ? `${e.provider}/${e.model}`
+      : `${e.model} ${color.dim('(leader provider)')}`;
     return `${base} ${color.dim(`+ profile:${e.fallbackProfile}`)}${runtime}`;
   }
   if (!e.model) return `${color.dim('(leader model)')}${runtime}`;
@@ -319,7 +335,9 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
         const catalogModels = await resolveCatalogModelIds(opts.modelsRegistry, config, keyed);
         const provLines = keyed.map((id) => {
           const models = visibleModelIds(id, config, catalogModels.get(id) ?? []);
-          const ms = models.length ? summarizeModelIds(models) : color.dim('(any model id accepted)');
+          const ms = models.length
+            ? summarizeModelIds(models)
+            : color.dim('(any model id accepted)');
           return `    ${color.cyan(id.padEnd(16))} ${ms}`;
         });
         const roles = Object.keys(AGENT_CATALOG).sort();
@@ -520,7 +538,8 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
             const profile = parts[1]!;
             const chain = fallbackProfileChain(config, profile);
             const first = chain[0];
-            if (!first) return { message: `${color.red('Empty profile')}: ${color.amber(profile)}` };
+            if (!first)
+              return { message: `${color.red('Empty profile')}: ${color.amber(profile)}` };
             const parsed = parseModelRef(first);
             const provider = parsed.provider ?? config.provider;
             if (!keyed.includes(provider)) {
@@ -545,7 +564,9 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
           const provider = parts[1];
           const model = parts.slice(2).join(' ');
           if (!provider || !model) {
-            return { message: `${color.amber('Usage:')} /setmodel leader <provider> <model> | <fallbackProfile>` };
+            return {
+              message: `${color.amber('Usage:')} /setmodel leader <provider> <model> | <fallbackProfile>`,
+            };
           }
           if (!keyed.includes(provider)) {
             return {
@@ -589,7 +610,9 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
           if (sub === 'reasoning') {
             nextMode = parts[2] as typeof nextMode;
             if (!isReasoningMode(nextMode)) {
-              return { message: `${color.amber('Usage:')} /setmodel reasoning ${key} auto|on|off [effort]` };
+              return {
+                message: `${color.amber('Usage:')} /setmodel reasoning ${key} auto|on|off [effort]`,
+              };
             }
             if (parts[3] !== undefined) {
               if (!isReasoningEffort(parts[3])) {
@@ -609,7 +632,9 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
           } else {
             nextPreserve = parseBoolWord(parts[2]);
             if (nextPreserve === undefined) {
-              return { message: `${color.amber('Usage:')} /setmodel reasoning-preserve ${key} on|off` };
+              return {
+                message: `${color.amber('Usage:')} /setmodel reasoning-preserve ${key} on|off`,
+              };
             }
           }
 
@@ -631,7 +656,7 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
           });
           return {
             message: `${color.green('✓')} ${color.amber(key)} → ${fmtEntry(
-              ((decrypted.modelMatrix as Record<string, ModelMatrixEntry>)[key])!,
+              (decrypted.modelMatrix as Record<string, ModelMatrixEntry>)[key]!,
             )}`,
           };
         }
@@ -648,7 +673,10 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
               message: `${color.red('Unknown key')}: "${key}". Use * , a phase (${MATRIX_PHASE_KEYS.join(', ')}), or a role. ${color.dim('/setmodel list')}`,
             };
           }
-          const parsed = parseTarget(parts.slice(2), (config.fallbackProfiles ?? {}) as Record<string, string[]>);
+          const parsed = parseTarget(
+            parts.slice(2),
+            (config.fallbackProfiles ?? {}) as Record<string, string[]>,
+          );
           if ('error' in parsed) {
             return { message: `${color.amber('Usage:')} /setmodel set ${key} <provider>/<model>` };
           }
@@ -660,20 +688,28 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
           const decrypted = await patchProfileConfig((cfg) => {
             const matrix = { ...((cfg.modelMatrix as Record<string, ModelMatrixEntry>) ?? {}) };
             const previousRuntime = matrix[key]?.modelRuntime;
-            matrix[key] = parsed.fallbackProfile && !parsed.model
-              ? { fallbackProfile: parsed.fallbackProfile, ...(previousRuntime ? { modelRuntime: previousRuntime } : {}) }
-              : parsed.provider
+            matrix[key] =
+              parsed.fallbackProfile && !parsed.model
                 ? {
-                    provider: parsed.provider,
-                    model: parsed.model,
-                    ...(parsed.fallbackProfile ? { fallbackProfile: parsed.fallbackProfile } : {}),
+                    fallbackProfile: parsed.fallbackProfile,
                     ...(previousRuntime ? { modelRuntime: previousRuntime } : {}),
                   }
-                : {
-                    model: parsed.model,
-                    ...(parsed.fallbackProfile ? { fallbackProfile: parsed.fallbackProfile } : {}),
-                    ...(previousRuntime ? { modelRuntime: previousRuntime } : {}),
-                  };
+                : parsed.provider
+                  ? {
+                      provider: parsed.provider,
+                      model: parsed.model,
+                      ...(parsed.fallbackProfile
+                        ? { fallbackProfile: parsed.fallbackProfile }
+                        : {}),
+                      ...(previousRuntime ? { modelRuntime: previousRuntime } : {}),
+                    }
+                  : {
+                      model: parsed.model,
+                      ...(parsed.fallbackProfile
+                        ? { fallbackProfile: parsed.fallbackProfile }
+                        : {}),
+                      ...(previousRuntime ? { modelRuntime: previousRuntime } : {}),
+                    };
             cfg.modelMatrix = matrix;
           }, profileConfigPath);
           opts.configStore.update({

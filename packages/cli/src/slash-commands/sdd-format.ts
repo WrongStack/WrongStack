@@ -93,7 +93,9 @@ export function formatTaskListView(
     const prio = n.priority.slice(0, 4).padEnd(5);
     const title = n.title.length > 36 ? n.title.slice(0, 35) + '…' : n.title;
     const elapsed =
-      n.status === 'in_progress' && n.startedAt ? ` (${formatElapsed(Date.now() - n.startedAt)})` : '';
+      n.status === 'in_progress' && n.startedAt
+        ? ` (${formatElapsed(Date.now() - n.startedAt)})`
+        : '';
     lines.push(`  ${num}  ${taskStatusIcon(n.status)}     ${prio}   ${title}${elapsed}`);
     if (n.description && n.status !== 'completed') {
       const first = n.description.split('\n')[0] ?? '';
@@ -142,7 +144,11 @@ export function formatNextTaskView(
     .map((id) => tracker.getNode(id)?.title ?? '?')
     .join(', ');
 
-  const lines = [`╭─── NEXT TASK ───────────────────────────────────────────╮`, '', `  🔄 ${next.title}`];
+  const lines = [
+    `╭─── NEXT TASK ───────────────────────────────────────────╮`,
+    '',
+    `  🔄 ${next.title}`,
+  ];
 
   if (next.description) {
     const first = next.description.split('\n')[0] ?? '';
@@ -159,7 +165,9 @@ export function formatNextTaskView(
   }
 
   lines.push('');
-  lines.push(`  ── Progress: ${progress.completed}/${progress.total} (${progress.percentComplete}%) ──`);
+  lines.push(
+    `  ── Progress: ${progress.completed}/${progress.total} (${progress.percentComplete}%) ──`,
+  );
   lines.push('');
   lines.push(`  Run /sdd done <task title or number> when done.`);
   lines.push(`╰${'─'.repeat(55)}╯`);

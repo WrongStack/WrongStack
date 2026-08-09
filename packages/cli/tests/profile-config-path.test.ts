@@ -89,11 +89,7 @@ describe('active profile resolution', () => {
     expect(bootstrapProfileName(path.join(missing, '.wrongstack'))).toBe('default');
 
     const corrupt = tempHome();
-    fs.writeFileSync(
-      path.join(corrupt, '.wrongstack', 'config.json'),
-      '{ not json',
-      'utf8',
-    );
+    fs.writeFileSync(path.join(corrupt, '.wrongstack', 'config.json'), '{ not json', 'utf8');
     expect(bootstrapProfileName(path.join(corrupt, '.wrongstack'))).toBe('default');
   });
 

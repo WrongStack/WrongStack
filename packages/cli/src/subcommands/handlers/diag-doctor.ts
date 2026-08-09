@@ -1,10 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { color } from '@wrongstack/core/utils';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { API_VERSION } from '../../version.js';
 import type { SubcommandHandler } from '../index.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 export const diagCmd: SubcommandHandler = async (_args, deps) => {
   const cfg = deps.config;

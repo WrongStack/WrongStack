@@ -1,15 +1,15 @@
-import { restoreFlags } from '../flags.js';
-import { expectDefined } from '@wrongstack/core/utils';
+import { allServers } from '@wrongstack/core/infrastructure';
 import {
+  expectDefined,
   jsonObjectFileExists,
   readJsonObjectFile,
   removeJsonPath,
   setJsonPath,
   updateJsonObjectFile,
 } from '@wrongstack/core/utils';
-import { allServers } from '@wrongstack/core/infrastructure';
 import { serveMcpStdio } from '../../mcp-serve.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
+import { restoreFlags } from '../flags.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
 const BUILT_IN_MCP = allServers();

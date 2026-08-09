@@ -15,7 +15,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { HqAuthFile } from '@wrongstack/core/hq';
-import { HQ_AUTH_FILE_VERSION, HqInsecureExposureError, writeHqAuthFile } from '@wrongstack/core/hq';
+import {
+  HQ_AUTH_FILE_VERSION,
+  HqInsecureExposureError,
+  writeHqAuthFile,
+} from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { prepareHqServerStart } from '../src/hq-server/preflight.js';
 
@@ -75,9 +79,9 @@ describe('prepareHqServerStart — expired tokens are not credentials', () => {
       ],
     });
 
-    await expect(
-      prepareHqServerStart({ dataDir, host: '0.0.0.0' }, defaults),
-    ).rejects.toThrow(/expired/i);
+    await expect(prepareHqServerStart({ dataDir, host: '0.0.0.0' }, defaults)).rejects.toThrow(
+      /expired/i,
+    );
   });
 
   it('allows a wildcard bind when at least one browser token is still live', async () => {

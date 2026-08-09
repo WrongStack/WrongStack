@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildFleetCommand } from '../src/slash-commands/fleet.js';
-import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import {
   buildFleetHostStatus,
-  formatFleetBudgetLines,
   type FleetBudgetView,
+  formatFleetBudgetLines,
 } from '../src/fleet/host-status.js';
+import { buildFleetCommand } from '../src/slash-commands/fleet.js';
+import type { SlashCommandContext } from '../src/slash-commands/index.js';
 
 function fleetCtx(extra: object = {}): SlashCommandContext {
   return {

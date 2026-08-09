@@ -1,5 +1,5 @@
-import { color } from '@wrongstack/core/utils';
 import type { ProviderApiKey, ProviderConfig, WireFamily } from '@wrongstack/core/types';
+import { color } from '@wrongstack/core/utils';
 import { activeLabel, maskedKey, normalizeKeys } from '../provider-config-utils.js';
 import type { AuthMenuDeps } from './types.js';
 
@@ -102,7 +102,9 @@ export function renderActions(renderer: AuthMenuDeps['renderer'], keysLength: nu
     renderer.write(`    ${color.bold('s')} <n>    Set key <n> as active\n`);
   }
   renderer.write(`    ${color.bold('f')}        Edit family\n`);
-  renderer.write(`    ${color.bold('B')}        Edit baseUrl ${color.dim('(capital B — b is Back)')}\n`);
+  renderer.write(
+    `    ${color.bold('B')}        Edit baseUrl ${color.dim('(capital B — b is Back)')}\n`,
+  );
   renderer.write(`    ${color.bold('m')}        Edit visible model list\n`);
   renderer.write(`    ${color.bold('x')}        Remove this provider entirely\n`);
   renderer.write(`    ${color.bold('b')}        Back\n`);

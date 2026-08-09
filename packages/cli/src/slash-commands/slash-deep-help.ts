@@ -126,8 +126,7 @@ const slashToSubcommand: Record<string, string> = {
  * Used by `/help <name>` to decide whether to render the focused
  * help block (preferred) or fall back to the inline `help` field.
  */
-export const slashesWithFocusedHelp: ReadonlyArray<string> =
-  Object.keys(slashToSubcommand);
+export const slashesWithFocusedHelp: ReadonlyArray<string> = Object.keys(slashToSubcommand);
 
 /**
  * Resolve a slash command name to its top-level subcommand
@@ -166,10 +165,7 @@ export function renderSlashFocusedHelp(slashName: string): string | undefined {
  *                        →  renderDeepHelpToString('mcp:add')
  *                        →  the same string `wstack mcp add --help` writes
  */
-export function renderSlashDeepHelp(
-  slashName: string,
-  deep: string,
-): string | undefined {
+export function renderSlashDeepHelp(slashName: string, deep: string): string | undefined {
   const sub = resolveSlashSubcommand(slashName);
   if (!sub) return undefined;
   return renderDeepHelpToString(`${sub}:${deep}`);

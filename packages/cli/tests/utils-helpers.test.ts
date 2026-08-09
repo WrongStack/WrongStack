@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtTok, patchConfig, fmtDuration, fmtTaskResultLine } from '../src/utils.js';
+import { fmtDuration, fmtTaskResultLine, fmtTok, patchConfig } from '../src/utils.js';
 
 const noColor = {
   green: (s: string) => s,
@@ -90,20 +90,14 @@ describe('fmtTaskResultLine', () => {
   });
 
   it('renders failed with prefixed status and tail', () => {
-    const out = fmtTaskResultLine(
-      { ...base, status: 'failed', error: 'oh no' },
-      noColor,
-    );
+    const out = fmtTaskResultLine({ ...base, status: 'failed', error: 'oh no' }, noColor);
     expect(out.mark).toBe('✗');
     expect(out.stats).toContain('failed');
     expect(out.tail).toContain('oh no');
   });
 
   it('renders timeout with yellow mark and tail', () => {
-    const out = fmtTaskResultLine(
-      { ...base, status: 'timeout', error: 'too slow' },
-      noColor,
-    );
+    const out = fmtTaskResultLine({ ...base, status: 'timeout', error: 'too slow' }, noColor);
     expect(out.mark).toBe('⏱');
     expect(out.stats).toContain('timeout');
     expect(out.tail).toContain('too slow');
@@ -130,10 +124,7 @@ describe('fmtTaskResultLine', () => {
 
   it('truncates long error messages with ellipsis', () => {
     const longMsg = 'x'.repeat(200);
-    const out = fmtTaskResultLine(
-      { ...base, status: 'failed', error: longMsg },
-      noColor,
-    );
+    const out = fmtTaskResultLine({ ...base, status: 'failed', error: longMsg }, noColor);
     expect(out.tail).toContain('…');
     expect(out.tail.length).toBeLessThan(longMsg.length);
   });

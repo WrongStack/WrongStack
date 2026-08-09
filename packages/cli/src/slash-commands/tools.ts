@@ -16,7 +16,8 @@ export function buildToolsCommand(opts: SlashCommandContext): SlashCommand {
   return {
     name: 'tools',
     category: 'Inspect',
-    description: 'List registered tools. Pass a pattern to filter by name or owner: /tools <pattern>.',
+    description:
+      'List registered tools. Pass a pattern to filter by name or owner: /tools <pattern>.',
     argsHint: '[name-or-owner filter]',
     async run(args) {
       const reg = opts.toolRegistry;

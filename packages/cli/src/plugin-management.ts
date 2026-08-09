@@ -1,21 +1,18 @@
 import * as fs from 'node:fs/promises';
-import { atomicWrite } from '@wrongstack/core/utils';
-import {
-  type PluginEnablementSource,
-  resolvePluginEnablement,
-} from '@wrongstack/core/plugin';
+import { type PluginEnablementSource, resolvePluginEnablement } from '@wrongstack/core/plugin';
 import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
+import { atomicWrite } from '@wrongstack/core/utils';
 import {
   PLUGIN_AUDIT_ENTRIES,
   type PluginAuditEntry,
 } from '@wrongstack/plugins/plugin-audit-catalog';
 
+export type { PluginAuditEntry };
 // The plugin audit catalog now lives in @wrongstack/plugins/plugin-audit-catalog
 // (host-owned entries joined with the generated official catalog) so the CLI
 // plugin manager and the WebUI settings panel share one source of truth.
 // Re-exported here for existing CLI consumers (management-tools.ts, /plugin).
 export { PLUGIN_AUDIT_ENTRIES };
-export type { PluginAuditEntry };
 
 export const OFFICIAL_PLUGINS = [
   {

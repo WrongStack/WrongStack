@@ -202,9 +202,7 @@ describe('runAuthLocal — LM Studio', () => {
     const { deps, configPath } = await setupDeps({ secrets: [''] });
     await runAuthLocal(deps, { name: 'lmstudio', noProbe: true });
     const saved = await readSaved(configPath);
-    expect((saved['lmstudio'] as { baseUrl: string }).baseUrl).toBe(
-      'http://localhost:1234/v1',
-    );
+    expect((saved['lmstudio'] as { baseUrl: string }).baseUrl).toBe('http://localhost:1234/v1');
   });
 });
 
@@ -217,9 +215,7 @@ describe('runAuthLocal — flag handling', () => {
       noProbe: true,
     });
     const saved = await readSaved(configPath);
-    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe(
-      'http://gpu-box.lan:11434/v1',
-    );
+    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe('http://gpu-box.lan:11434/v1');
   });
 
   it('rejects an unknown --name', async () => {
@@ -249,9 +245,7 @@ describe('runAuthLocal — flag handling', () => {
     const { deps, configPath } = await setupDeps({});
     await runAuthLocal(deps, { name: 'ollama', baseUrl: '   ', noProbe: true });
     const saved = await readSaved(configPath);
-    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe(
-      'http://localhost:11434/v1',
-    );
+    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe('http://localhost:11434/v1');
   });
 });
 
@@ -262,9 +256,7 @@ describe('runAuthLocal — interactive picker', () => {
     const code = await runAuthLocal(deps, { noProbe: true });
     expect(code).toBe(0);
     const saved = await readSaved(configPath);
-    expect((saved['omniroute'] as { baseUrl: string }).baseUrl).toBe(
-      'http://localhost:20128/v1',
-    );
+    expect((saved['omniroute'] as { baseUrl: string }).baseUrl).toBe('http://localhost:20128/v1');
   });
 
   it('saves Ollama when the user picks it by id', async () => {
@@ -273,9 +265,7 @@ describe('runAuthLocal — interactive picker', () => {
     const code = await runAuthLocal(deps, { noProbe: true });
     expect(code).toBe(0);
     const saved = await readSaved(configPath);
-    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe(
-      'http://localhost:11434/v1',
-    );
+    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe('http://localhost:11434/v1');
   });
 
   it('accepts the preset id directly as a pick', async () => {
@@ -284,9 +274,7 @@ describe('runAuthLocal — interactive picker', () => {
     const code = await runAuthLocal(deps, { noProbe: true });
     expect(code).toBe(0);
     const saved = await readSaved(configPath);
-    expect((saved['vllm'] as { baseUrl: string }).baseUrl).toBe(
-      'http://localhost:8000/v1',
-    );
+    expect((saved['vllm'] as { baseUrl: string }).baseUrl).toBe('http://localhost:8000/v1');
   });
 
   it('returns 0 on cancel (q)', async () => {
@@ -328,9 +316,7 @@ describe('runAuthLocal — merge with pre-existing provider', () => {
     });
     await runAuthLocal(deps, { name: 'ollama', noProbe: true });
     const saved = await readSaved(configPath);
-    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe(
-      'http://existing.local:9999/v1',
-    );
+    expect((saved['ollama'] as { baseUrl: string }).baseUrl).toBe('http://existing.local:9999/v1');
   });
 
   it('appends a numeric suffix when the default label collides', async () => {

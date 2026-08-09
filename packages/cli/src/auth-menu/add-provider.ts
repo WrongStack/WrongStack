@@ -1,20 +1,17 @@
+import * as fs from 'node:fs/promises';
 import type { ProviderConfig, ResolvedProvider, WireFamily } from '@wrongstack/core/types';
 import { atomicWrite, color } from '@wrongstack/core/utils';
 import { catalogProviderIdFor, PROVIDER_DEFINITIONS } from '@wrongstack/providers';
+import { runLiveProviderPicker } from '../picker.js';
 import {
   mutateConfigProviders,
   normalizeKeys,
   nowIso,
   writeKeysBack,
 } from '../provider-config-utils.js';
-import { loadProviders } from './helpers.js';
-import {
-  renderOAuthLoginOptions,
-  runOAuthLoginChoice,
-} from './oauth-menu.js';
-import * as fs from 'node:fs/promises';
-import { runLiveProviderPicker } from '../picker.js';
 import { nextCustomProviderId } from '../provider-id.js';
+import { loadProviders } from './helpers.js';
+import { renderOAuthLoginOptions, runOAuthLoginChoice } from './oauth-menu.js';
 import { readKeyInput, suggestLabel, validateFamily } from './shared.js';
 import type { AuthMenuDeps } from './types.js';
 
@@ -81,7 +78,7 @@ export async function addFromCatalog(deps: AuthMenuDeps): Promise<boolean> {
         `  ${color.amber('?')} OAuth or q to quit ${color.dim('[chatgpt/claude/copilot]')}: `,
       )
     ).trim();
-    if (answer && await runOAuthLoginChoice(deps, answer, { allowNumeric: false })) {
+    if (answer && (await runOAuthLoginChoice(deps, answer, { allowNumeric: false }))) {
       return true;
     }
     return false;
@@ -309,27 +306,32 @@ export async function addKeyForProvider(
   const apiKey = await readKeyInput(deps, `API key for ${providerId}/${label}`);
   if (!apiKey) return false;
 
-  await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-    const existingProv: ProviderConfig = all[providerId] ?? {
-      type: providerId,
-      ...template,
-    };
-    if (!existingProv.type) existingProv.type = providerId;
-    if (!existingProv.family && template.family) {
-      existingProv.family = template.family;
-    }
-    if (!existingProv.baseUrl && template.baseUrl) {
-      existingProv.baseUrl = template.baseUrl;
-    }
-    if (!existingProv.envVars && template.envVars) {
-      existingProv.envVars = template.envVars;
-    }
-    const list = normalizeKeys(existingProv);
-    list.push({ label, apiKey, createdAt: nowIso() });
-    writeKeysBack(existingProv, list);
-    if (!existingProv.activeKey) existingProv.activeKey = label;
-    all[providerId] = existingProv;
-  }, deps.profileConfigPath);
+  await mutateConfigProviders(
+    deps.profileConfigPath,
+    deps.vault,
+    (all) => {
+      const existingProv: ProviderConfig = all[providerId] ?? {
+        type: providerId,
+        ...template,
+      };
+      if (!existingProv.type) existingProv.type = providerId;
+      if (!existingProv.family && template.family) {
+        existingProv.family = template.family;
+      }
+      if (!existingProv.baseUrl && template.baseUrl) {
+        existingProv.baseUrl = template.baseUrl;
+      }
+      if (!existingProv.envVars && template.envVars) {
+        existingProv.envVars = template.envVars;
+      }
+      const list = normalizeKeys(existingProv);
+      list.push({ label, apiKey, createdAt: nowIso() });
+      writeKeysBack(existingProv, list);
+      if (!existingProv.activeKey) existingProv.activeKey = label;
+      all[providerId] = existingProv;
+    },
+    deps.profileConfigPath,
+  );
 
   deps.renderer.write(
     `  ${color.green('✓')} Saved ${color.bold(providerId)}/${color.bold(label)}.\n`,

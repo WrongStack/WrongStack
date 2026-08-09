@@ -10,8 +10,8 @@
  * TUI exited normally and the caller should continue its cleanup path.
  */
 import { spawn } from 'node:child_process';
-import { createRequire } from 'node:module';
 import * as fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { color } from '@wrongstack/core/utils';
 

@@ -47,7 +47,9 @@ describe('ensureSimpleUiDistDir', () => {
         if (file.endsWith('index.html')) return built;
         return true;
       },
-      runBuild: () => { built = true; },
+      runBuild: () => {
+        built = true;
+      },
       findWorkspaceRoot: () => 'C:\\workspace',
     });
     expect(result).toBe(path.join(pkgDir, 'dist'));
@@ -63,7 +65,10 @@ describe('ensureSimpleUiDistDir', () => {
         if (file.endsWith('index.html')) return built;
         return true;
       },
-      runBuild: (cwd: string) => { receivedCwd = cwd; built = true; },
+      runBuild: (cwd: string) => {
+        receivedCwd = cwd;
+        built = true;
+      },
       findWorkspaceRoot: () => 'C:\\my-root',
     });
     expect(receivedCwd).toBe('C:\\my-root');
@@ -74,7 +79,9 @@ describe('ensureSimpleUiDistDir', () => {
       ensureSimpleUiDistDir({
         resolvePackageJson: () => manifest,
         exists: () => false,
-        runBuild: () => { throw new Error('pnpm not found'); },
+        runBuild: () => {
+          throw new Error('pnpm not found');
+        },
         findWorkspaceRoot: () => 'C:\\workspace',
       }),
     ).rejects.toThrow('SimpleUI auto-build failed');
@@ -94,7 +101,9 @@ describe('ensureSimpleUiDistDir', () => {
   it('throws when the package itself cannot be resolved', async () => {
     await expect(
       ensureSimpleUiDistDir({
-        resolvePackageJson: () => { throw new Error('not found'); },
+        resolvePackageJson: () => {
+          throw new Error('not found');
+        },
         exists: () => false,
       }),
     ).rejects.toThrow('SimpleUI package could not be resolved');

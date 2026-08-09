@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { EventBus } from '@wrongstack/core/kernel';
+import { describe, expect, it } from 'vitest';
 import {
   type BrainDecisionEntry,
   subscribeBrainDecisionLog,
@@ -140,7 +140,9 @@ describe('subscribeBrainDecisionLog', () => {
       status: 'decided',
       resolution: 'majority',
       requestId: 'r2',
-      warnings: ['Council distinctness policy "model" was not met: 1 distinct target(s) served 3 valid vote(s).'],
+      warnings: [
+        'Council distinctness policy "model" was not met: 1 distinct target(s) served 3 valid vote(s).',
+      ],
     });
     expect(brainLog).toEqual<BrainDecisionEntry[]>([
       {

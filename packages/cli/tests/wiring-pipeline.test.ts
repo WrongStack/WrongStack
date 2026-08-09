@@ -1,11 +1,11 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { setupPipelines, setupCompaction, createAgent } from '../src/wiring/pipeline.js';
 import { Agent } from '@wrongstack/core/agent';
 import { AutoCompactionMiddleware } from '@wrongstack/core/execution';
+import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { DefaultLogger } from '@wrongstack/core/infrastructure';
-import { DefaultSecretScrubber, DefaultPermissionPolicy } from '@wrongstack/core/security';
+import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createAgent, setupCompaction, setupPipelines } from '../src/wiring/pipeline.js';
 
 vi.mock('@wrongstack/providers', () => ({
   capabilitiesFor: vi.fn(),
@@ -19,7 +19,10 @@ function bootContainer(): Container {
   const c = new Container();
   c.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error' }));
   c.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
-  c.bind(TOKENS.PermissionPolicy, () => new DefaultPermissionPolicy({ yolo: true, trustFile: '/tmp/test-trust.json' }));
+  c.bind(
+    TOKENS.PermissionPolicy,
+    () => new DefaultPermissionPolicy({ yolo: true, trustFile: '/tmp/test-trust.json' }),
+  );
   return c;
 }
 
@@ -118,7 +121,9 @@ describe('setupCompaction', () => {
     expect(result.autoCompactor).toBeInstanceOf(AutoCompactionMiddleware);
   });
 
-  it('prefers explicit effectiveMaxContext from config', async () => {
+  // The global effectiveMaxContext is a FALLBACK, not an override: one stale
+  // value must never shrink a model whose real window the catalog publishes.
+  it('prefers the catalog window over an explicit effectiveMaxContext from config', async () => {
     capabilitiesFor.mockResolvedValue({ maxContext: 200_000 });
     const events = new EventBus();
     const pipelines = setupPipelines({ events, logger: new DefaultLogger({ level: 'error' }) });
@@ -136,6 +141,29 @@ describe('setupCompaction', () => {
         },
       },
       provider: fakeProvider(),
+      pipelines,
+    });
+    expect(result.effectiveMaxContext).toBe(200_000);
+  });
+
+  it('uses effectiveMaxContext when the catalog publishes no window', async () => {
+    capabilitiesFor.mockResolvedValue({ maxContext: 0 });
+    const events = new EventBus();
+    const pipelines = setupPipelines({ events, logger: new DefaultLogger({ level: 'error' }) });
+    const result = await setupCompaction({
+      compactor: { compact: vi.fn() } as never,
+      events,
+      modelsRegistry: fakeModelsRegistry(),
+      context: fakeContext(),
+      config: {
+        context: {
+          warnThreshold: 70,
+          softThreshold: 85,
+          hardThreshold: 95,
+          effectiveMaxContext: 8_000,
+        },
+      },
+      provider: fakeProvider(0),
       pipelines,
     });
     expect(result.effectiveMaxContext).toBe(8_000);
@@ -340,7 +368,10 @@ describe('createAgent', () => {
         },
       },
       confirmAwaiter: { request: vi.fn() } as never,
-      permissionPolicy: new DefaultPermissionPolicy({ yolo: true, trustFile: '/tmp/test-trust.json' }),
+      permissionPolicy: new DefaultPermissionPolicy({
+        yolo: true,
+        trustFile: '/tmp/test-trust.json',
+      }),
     });
     expect(agent).toBeInstanceOf(Agent);
   });

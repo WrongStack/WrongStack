@@ -19,19 +19,19 @@
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 985,
+      "lines": 982,
       "relativeImports": 20
     },
     "packages/cli/src/goal-host.ts": {
-      "lines": 917,
+      "lines": 922,
       "relativeImports": 1
     },
     "packages/cli/src/hq-server/routes/auth-handlers.ts": {
-      "lines": 1196,
+      "lines": 1255,
       "relativeImports": 6
     },
     "packages/cli/src/hq-server/routes.ts": {
-      "lines": 1084,
+      "lines": 1167,
       "relativeImports": 12
     },
     "packages/cli/src/hq-server/ws.ts": {
@@ -39,15 +39,15 @@
       "relativeImports": 3
     },
     "packages/cli/src/hq-server.ts": {
-      "lines": 1023,
+      "lines": 1070,
       "relativeImports": 10
     },
     "packages/cli/src/picker.ts": {
-      "lines": 824,
+      "lines": 832,
       "relativeImports": 11
     },
     "packages/cli/src/repl.ts": {
-      "lines": 995,
+      "lines": 1022,
       "relativeImports": 13
     },
     "packages/cli/src/slash-commands/brain.ts": {
@@ -55,11 +55,11 @@
       "relativeImports": 1
     },
     "packages/cli/src/slash-commands/kanban.ts": {
-      "lines": 853,
+      "lines": 1396,
       "relativeImports": 5
     },
     "packages/cli/src/slash-commands/memory.ts": {
-      "lines": 1117,
+      "lines": 1143,
       "relativeImports": 6
     },
     "packages/cli/src/slash-commands/sdd.ts": {
@@ -71,23 +71,23 @@
       "relativeImports": 4
     },
     "packages/cli/src/subcommands/handlers/modeldiag.ts": {
-      "lines": 1087,
+      "lines": 1095,
       "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1128,
+      "lines": 1127,
       "relativeImports": 20
     },
     "packages/core/src/chronicle/metrics-store.ts": {
-      "lines": 985,
-      "relativeImports": 5
+      "lines": 1090,
+      "relativeImports": 6
     },
     "packages/core/src/chronicle/query.ts": {
       "lines": 906,
       "relativeImports": 3
     },
     "packages/core/src/chronicle/sqlite-journal.ts": {
-      "lines": 968,
+      "lines": 1160,
       "relativeImports": 5
     },
     "packages/core/src/coordination/agents/project-agent-identity.ts": {
@@ -135,15 +135,15 @@
       "relativeImports": 3
     },
     "packages/core/src/core/agent-loop.ts": {
-      "lines": 1127,
-      "relativeImports": 26
+      "lines": 1160,
+      "relativeImports": 27
     },
     "packages/core/src/core/context.ts": {
-      "lines": 913,
+      "lines": 920,
       "relativeImports": 13
     },
     "packages/core/src/core/fallback-model.ts": {
-      "lines": 833,
+      "lines": 878,
       "relativeImports": 14
     },
     "packages/core/src/core/system-prompt-builder.ts": {
@@ -287,7 +287,7 @@
       "relativeImports": 12
     },
     "packages/sage/src/middleware/tool-call-memory.ts": {
-      "lines": 1292,
+      "lines": 1593,
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
@@ -427,7 +427,7 @@
       "relativeImports": 1
     },
     "packages/tui/src/submit-controller.ts": {
-      "lines": 801,
+      "lines": 815,
       "relativeImports": 13
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
@@ -555,8 +555,8 @@
       "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
-      "lines": 967,
-      "relativeImports": 8
+      "lines": 989,
+      "relativeImports": 9
     },
     "packages/webui-server/src/server/provider-handlers.ts": {
       "lines": 807,
@@ -567,7 +567,7 @@
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1134,
+      "lines": 1121,
       "relativeImports": 18
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

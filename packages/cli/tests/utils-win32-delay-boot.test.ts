@@ -2,9 +2,9 @@
  * Tests for CLI utility modules: win32-cmd, delay-format, and boot-config.
  */
 import { describe, expect, it } from 'vitest';
-import { buildWin32CmdShimInvocation } from '../src/utils/win32-cmd.js';
-import { formatDelay } from '../src/utils/delay-format.js';
 import { bootConfig } from '../src/boot-config.js';
+import { formatDelay } from '../src/utils/delay-format.js';
+import { buildWin32CmdShimInvocation } from '../src/utils/win32-cmd.js';
 
 // ============================================================================
 // win32-cmd.ts

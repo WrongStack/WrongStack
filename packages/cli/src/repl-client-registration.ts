@@ -1,9 +1,6 @@
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
-import {
-  getSharedProjectMailbox,
-  resolveProjectDir,
-} from '@wrongstack/core/coordination';
+import { getSharedProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { startCliHqConnection } from './hq-publisher.js';
 import type { ReplOptions } from './repl-options.js';
@@ -30,10 +27,8 @@ export function registerReplClient(opts: ReplOptions): ReplClientRegistration {
     appConfig: opts.appConfig,
     capabilities: ['telemetry.publish', 'mailbox.summary'],
   });
-  const clientMailbox = getSharedProjectMailbox(
-    projectDir,
-    undefined,
-    () => hqConnection.getPublisher(),
+  const clientMailbox = getSharedProjectMailbox(projectDir, undefined, () =>
+    hqConnection.getPublisher(),
   );
   let closed = false;
   let clientHeartbeat: ReturnType<typeof setInterval> | undefined;

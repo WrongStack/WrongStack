@@ -20,7 +20,12 @@ async function setup(): Promise<{ dir: string; transcript: string }> {
     { type: 'user_input', content: 'Update the handler.' },
     { type: 'tool_use', id: 'read-1', name: 'read', input: { path: 'handler.ts' } },
     { type: 'tool_result', id: 'read-1', content: 'legacy handler', isError: false },
-    { type: 'tool_use', id: 'edit-1', name: 'edit', input: { path: 'handler.ts', newText: 'modern handler' } },
+    {
+      type: 'tool_use',
+      id: 'edit-1',
+      name: 'edit',
+      input: { path: 'handler.ts', newText: 'modern handler' },
+    },
     { type: 'tool_call_end', id: 'edit-1', name: 'edit', ok: false },
   ];
   await fs.writeFile(transcript, events.map((event) => JSON.stringify(event)).join('\n'), 'utf8');
@@ -45,8 +50,12 @@ describe('wstack bench mine', () => {
     const d = deps(dir, { transcript: path.basename(transcript), out: 'evals' });
 
     await expect(benchCmd(['mine'], d)).resolves.toBe(0);
-    expect(d.renderer.writeInfo).toHaveBeenCalledWith(expect.stringContaining('Mined 1 edit attempt'));
-    await expect(fs.access(path.join(dir, 'evals', 'trace-eval-drafts.json'))).resolves.toBeUndefined();
+    expect(d.renderer.writeInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Mined 1 edit attempt'),
+    );
+    await expect(
+      fs.access(path.join(dir, 'evals', 'trace-eval-drafts.json')),
+    ).resolves.toBeUndefined();
   });
 
   it('requires a source transcript', async () => {
@@ -54,6 +63,8 @@ describe('wstack bench mine', () => {
     const d = deps(dir, {});
 
     await expect(benchCmd(['mine'], d)).resolves.toBe(1);
-    expect(d.renderer.writeError).toHaveBeenCalledWith(expect.stringContaining('Usage: wstack bench mine'));
+    expect(d.renderer.writeError).toHaveBeenCalledWith(
+      expect.stringContaining('Usage: wstack bench mine'),
+    );
   });
 });

@@ -24,40 +24,45 @@
  * accidentally captured in a probe log can never echo to the terminal
  * in plaintext.
  */
+
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { SecretScrubber } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import type { ProbeOptions, ProbeResult } from '@wrongstack/runtime/probe';
+import { probeLocalLlm } from '@wrongstack/runtime/probe';
 import {
   mutateConfigProviders,
   normalizeKeys,
   nowIso,
   writeKeysBack,
 } from '../provider-config-utils.js';
+import {
+  type AuthAuditEvent,
+  type AuthAuditLogger,
+  decideAuthLocalEvents,
+  NOOP_AUDIT_LOGGER,
+} from './auth-menu-audit.js';
 import { loadProviders } from './helpers.js';
 import { LOCAL_LLM_PRESETS, type LocalLlmPresetEntry } from './local-presets.js';
 import { suggestLabel } from './shared.js';
 import type { AuthMenuDeps } from './types.js';
-import { probeLocalLlm } from '@wrongstack/runtime/probe';
-import type { ProbeOptions, ProbeResult } from '@wrongstack/runtime/probe';
-import {
-  type AuthAuditLogger,
-  type AuthAuditEvent,
-  decideAuthLocalEvents,
-  NOOP_AUDIT_LOGGER,
-} from './auth-menu-audit.js';
 
 // Re-export from the runtime package so consumers (CLI tests, the
 // top-level CLI barrel) keep a stable import path. The runtime
 // package owns the canonical implementation — the WebUI server
 // imports from there too, so the probe runs in both contexts without
 // pulling the full CLI into the WebUI dependency graph.
-export { probeLocalLlm, type ProbeOptions, type ProbeResult };
-
 // Preset data + type live in a dependency-free module so the startup
 // provider picker can import them without pulling in the probe/config
 // machinery this file depends on. Re-exported here to keep the public
 // import path (`@wrongstack/cli` barrel, tests) stable.
-export { LOCAL_LLM_PRESETS, type LocalLlmPresetEntry };
+export {
+  LOCAL_LLM_PRESETS,
+  type LocalLlmPresetEntry,
+  type ProbeOptions,
+  type ProbeResult,
+  probeLocalLlm,
+};
 
 const PRESET_BY_ID = new Map(LOCAL_LLM_PRESETS.map((p) => [p.id, p]));
 
@@ -272,38 +277,43 @@ export async function runAuthLocal(
   }
 
   try {
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const p = all[chosen.id] ?? { type: chosen.id };
-      if (!p.type) p.type = chosen.id;
-      // Wire family is always openai-compatible for these three.
-      if (!p.family) p.family = 'openai-compatible';
-      if (!p.baseUrl) p.baseUrl = baseUrl;
-      // vLLM and LM Studio both rely on the `openai-compatible` family
-      // for the right token-limit param. No env vars to probe — local
-      // servers don't read process env for auth.
-      if (!p.envVars) p.envVars = [];
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const p = all[chosen.id] ?? { type: chosen.id };
+        if (!p.type) p.type = chosen.id;
+        // Wire family is always openai-compatible for these three.
+        if (!p.family) p.family = 'openai-compatible';
+        if (!p.baseUrl) p.baseUrl = baseUrl;
+        // vLLM and LM Studio both rely on the `openai-compatible` family
+        // for the right token-limit param. No env vars to probe — local
+        // servers don't read process env for auth.
+        if (!p.envVars) p.envVars = [];
 
-      // Pre-populate `models` when the user passed --model. Three
-      // shapes from the resolver:
-      //   - `null`  → flag not passed; don't touch p.models
-      //   - `[]`    → empty list (user passed --model "" to clear)
-      //   - non-empty → overwrite with the resolved list
-      // The merge is intentionally write-on-write: the user's
-      // explicit --model value always wins over any pre-existing
-      // models entry. To preserve an existing list, simply omit the
-      // flag.
-      if (resolvedModels !== null) {
-        p.models = [...resolvedModels];
-      }
+        // Pre-populate `models` when the user passed --model. Three
+        // shapes from the resolver:
+        //   - `null`  → flag not passed; don't touch p.models
+        //   - `[]`    → empty list (user passed --model "" to clear)
+        //   - non-empty → overwrite with the resolved list
+        // The merge is intentionally write-on-write: the user's
+        // explicit --model value always wins over any pre-existing
+        // models entry. To preserve an existing list, simply omit the
+        // flag.
+        if (resolvedModels !== null) {
+          p.models = [...resolvedModels];
+        }
 
-      if (apiKey) {
-        const list = normalizeKeys(p);
-        list.push({ label: finalLabel, apiKey, createdAt: nowIso() });
-        writeKeysBack(p, list);
-        if (!p.activeKey) p.activeKey = finalLabel;
-      }
-      all[chosen.id] = p;
-    }, deps.profileConfigPath);
+        if (apiKey) {
+          const list = normalizeKeys(p);
+          list.push({ label: finalLabel, apiKey, createdAt: nowIso() });
+          writeKeysBack(p, list);
+          if (!p.activeKey) p.activeKey = finalLabel;
+        }
+        all[chosen.id] = p;
+      },
+      deps.profileConfigPath,
+    );
   } catch (err) {
     deps.renderer.writeError(`Failed to save ${chosen.id}: ${(err as Error).message}`);
     return 1;
@@ -321,12 +331,13 @@ export async function runAuthLocal(
     previousModels,
     newModels: resolvedModels,
     keyLabel: apiKey ? finalLabel : undefined,
-    probeFailedSave: probeFailedAndSaved && probe
-      ? {
-          status: probe.status,
-          ...(probe.detail !== undefined ? { detail: probe.detail } : {}),
-        }
-      : undefined,
+    probeFailedSave:
+      probeFailedAndSaved && probe
+        ? {
+            status: probe.status,
+            ...(probe.detail !== undefined ? { detail: probe.detail } : {}),
+          }
+        : undefined,
   });
   for (const event of events) {
     audit.emit(event);
@@ -349,14 +360,10 @@ export async function runAuthLocal(
   // null (no flag passed) or [] (empty literal), keep the placeholder
   // hint so the UX stays informative.
   const firstModel = resolvedModels && resolvedModels.length > 0 ? resolvedModels[0] : null;
-  const modelHint = firstModel
-    ? color.cyan(firstModel)
-    : color.dim('<model-id>');
+  const modelHint = firstModel ? color.cyan(firstModel) : color.dim('<model-id>');
 
   deps.renderer.write(
-    color.dim(
-      `  Launch: wstack --provider ${chosen.id} --model ${modelHint} "<task>"\n`,
-    ),
+    color.dim(`  Launch: wstack --provider ${chosen.id} --model ${modelHint} "<task>"\n`),
   );
   return 0;
 }
@@ -435,9 +442,7 @@ function renderProbeResult(
         probe.modelCount !== undefined
           ? color.dim(`, ${probe.modelCount} model${probe.modelCount === 1 ? '' : 's'}`)
           : '';
-      deps.renderer.write(
-        `  ${color.green('●')} ${label} health probe ok${models}${elapsed}\n`,
-      );
+      deps.renderer.write(`  ${color.green('●')} ${label} health probe ok${models}${elapsed}\n`);
       break;
     }
     case 'timeout': {
@@ -462,9 +467,7 @@ function renderProbeResult(
     case 'http_error': {
       const status = probe.httpStatus !== undefined ? ` HTTP ${probe.httpStatus}` : '';
       const detail = probe.detail ? ` ${color.dim(`— ${probe.detail}`)}` : '';
-      deps.renderer.write(
-        `  ${color.yellow('●')} ${label} health probe got${status}${detail}\n`,
-      );
+      deps.renderer.write(`  ${color.yellow('●')} ${label} health probe got${status}${detail}\n`);
       break;
     }
     case 'invalid_response': {
@@ -490,8 +493,7 @@ function renderProbeResult(
 async function promptSaveAnyway(deps: AuthMenuDeps): Promise<boolean> {
   const answer = (
     await deps.reader.readLine(
-      `\n${color.amber('?')} ${color.bold('Save anyway?')} ` +
-        `${color.dim('[y/N]')}: `,
+      `\n${color.amber('?')} ${color.bold('Save anyway?')} ` + `${color.dim('[y/N]')}: `,
     )
   )
     .trim()
@@ -516,9 +518,7 @@ async function pickLocalPreset(deps: AuthMenuDeps): Promise<LocalLlmPresetEntry 
       `    ${color.dim(`${idx}.`.padStart(4))} ${color.bold(entry.label.padEnd(12))} ` +
         `${color.cyan(entry.defaultBaseUrl.padEnd(34))} ${auth}\n`,
     );
-    deps.renderer.write(
-      `        ${color.dim(entry.hint)}\n`,
-    );
+    deps.renderer.write(`        ${color.dim(entry.hint)}\n`);
     idx++;
   }
 

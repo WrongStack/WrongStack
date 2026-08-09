@@ -19,16 +19,16 @@ import { helpCmd, versionCmd } from '../subcommands/handlers/version-help.js';
  * The renderer is a stub that writes to stdout — help text is plain
  * `write` calls, no TTY needed.
  */
-export async function handleHelpVersionShortCircuit(
-  argv: string[],
-): Promise<number | null> {
+export async function handleHelpVersionShortCircuit(argv: string[]): Promise<number | null> {
   const earlyFlags = parseArgs(argv).flags;
   if (earlyFlags['help'] !== true && earlyFlags['version'] !== true) {
     return null;
   }
 
   const stubRenderer = {
-    write: (line: string) => { process.stdout.write(line); },
+    write: (line: string) => {
+      process.stdout.write(line);
+    },
   } as never as Parameters<typeof helpCmd>[1]['renderer'];
   const handler = earlyFlags['help'] === true ? helpCmd : versionCmd;
   return await handler([], { renderer: stubRenderer } as Parameters<typeof helpCmd>[1]);

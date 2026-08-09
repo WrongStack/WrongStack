@@ -14,9 +14,9 @@
  *
  * @module hq-command-controller
  */
-import type { HqPublisherCommandResult } from '@wrongstack/core/hq';
+
 import type { RemoteMailbox } from '@wrongstack/core/coordination';
-import type { HqCommand } from '@wrongstack/core/hq';
+import type { HqCommand, HqPublisherCommandResult } from '@wrongstack/core/hq';
 
 /**
  * Mutable holder for the command dispatch targets. Each field is populated
@@ -49,11 +49,20 @@ export interface HqCommandController {
  */
 export function createHqCommandDispatcher(
   controller: HqCommandController,
-): (command: { commandId: string; type: string; payload: unknown }) => Promise<HqPublisherCommandResult> {
+): (command: {
+  commandId: string;
+  type: string;
+  payload: unknown;
+}) => Promise<HqPublisherCommandResult> {
   return async (command) => {
     const cmd = command as { commandId: string; type: string; payload: Record<string, unknown> };
     try {
-      const result = await dispatch(controller, cmd.commandId, cmd.type as HqCommand['type'], cmd.payload);
+      const result = await dispatch(
+        controller,
+        cmd.commandId,
+        cmd.type as HqCommand['type'],
+        cmd.payload,
+      );
       return result;
     } catch (err) {
       return {
@@ -80,7 +89,8 @@ async function dispatch(
       const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
       const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ steer';
       const body = typeof payload['body'] === 'string' ? payload['body'] : '';
-      const priority = payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
       const from = `hq@${controller.sessionTag()}`;
       await mailbox.send({ from, to, type: 'steer', subject, body, priority });
       return { commandId, status: 'accepted', message: `steered ${to}` };
@@ -98,7 +108,8 @@ async function dispatch(
       const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
       const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ note';
       const body = typeof payload['body'] === 'string' ? payload['body'] : '';
-      const priority = payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
       const from = `hq@${controller.sessionTag()}`;
       await mailbox.send({ from, to, type: 'btw', subject, body, priority });
       return { commandId, status: 'accepted', message: `noted ${to}` };
@@ -116,7 +127,8 @@ async function dispatch(
       const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
       const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ prompt';
       const body = typeof payload['body'] === 'string' ? payload['body'] : '';
-      const priority = payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
       const from = `hq@${controller.sessionTag()}`;
       await mailbox.send({ from, to, type: 'note', subject, body, priority });
       return { commandId, status: 'accepted', message: `queued for ${to}` };
@@ -129,7 +141,8 @@ async function dispatch(
       }
       const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ broadcast';
       const body = typeof payload['body'] === 'string' ? payload['body'] : '';
-      const priority = payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const priority =
+        payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
       const from = `hq@${controller.sessionTag()}`;
       await mailbox.send({ from, to: 'all', type: 'broadcast', subject, body, priority });
       return { commandId, status: 'accepted', message: 'broadcast sent' };
@@ -165,7 +178,8 @@ async function dispatch(
     case 'spawn': {
       const role = typeof payload['role'] === 'string' ? payload['role'] : '';
       const task = typeof payload['task'] === 'string' ? payload['task'] : undefined;
-      const maxIterations = typeof payload['maxIterations'] === 'number' ? payload['maxIterations'] : undefined;
+      const maxIterations =
+        typeof payload['maxIterations'] === 'number' ? payload['maxIterations'] : undefined;
       if (controller.spawnAgent === undefined) {
         return { commandId, status: 'rejected', message: 'no director active' };
       }

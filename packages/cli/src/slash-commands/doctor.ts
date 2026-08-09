@@ -1,14 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { atomicWrite, color } from '@wrongstack/core/utils';
+import { atomicWrite, color, toErrorMessage } from '@wrongstack/core/utils';
 import { type DoctorFinding, diagnoseConfig, type PluginSchemaInfo } from '../config-doctor.js';
 import { appendHistory } from '../config-history.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { filterSafeForProject } from '../settings-menu.js';
-import { parseSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { parseSubcommand } from './helpers.js';
 
 /**
  * `/doctor` — diagnose and auto-repair the persisted config files.
@@ -192,7 +191,8 @@ export function buildDoctorCommand(opts: SlashCommandContext): SlashCommand {
             if (!(key in safe)) {
               report.findings.push({
                 path: key,
-                problem: 'not project-safe — belongs in the active profile config (move it manually)',
+                problem:
+                  'not project-safe — belongs in the active profile config (move it manually)',
                 severity: 'warning',
               });
             }

@@ -59,6 +59,7 @@ const instanceId = randomUUID();
 const authToken = randomBytes(32).toString('hex');
 const idleInput = Number(process.env['WRONGSTACK_SESSION_CATALOG_IDLE_MS']);
 const idleMs = Number.isFinite(idleInput) && idleInput >= 100 ? idleInput : 5 * 60_000;
+const disconnectedIdleMs = Math.min(idleMs, 250);
 const serverInfo: SessionCatalogServerInfo = {
   protocolVersion: SESSION_CATALOG_PROTOCOL_VERSION,
   pid: process.pid,
@@ -465,16 +466,16 @@ function onData(state: ClientState, chunk: string): void {
   }
 }
 
-function scheduleIdleStop(): void {
+function scheduleIdleStop(emptyIdleMs = idleMs): void {
   if (stopping || clients.size > 0 || activeRequests > 0 || idleTimer) return;
   const hasLiveLease = requiredStore().listLive().length > 0;
   idleTimer = setTimeout(
     () => {
       idleTimer = undefined;
-      if (hasLiveLease) scheduleIdleStop();
+      if (requiredStore().listLive().length > 0) scheduleIdleStop(emptyIdleMs);
       else void stop('idle timeout');
     },
-    hasLiveLease ? 5_000 : idleMs,
+    hasLiveLease ? 5_000 : emptyIdleMs,
   );
   idleTimer.unref?.();
 }
@@ -535,7 +536,11 @@ const server = net.createServer((socket) => {
   socket.on('data', (chunk: string) => onData(state, chunk));
   socket.on('close', () => {
     clients.delete(state);
-    scheduleIdleStop();
+    // Once the last client leaves and no live lease remains, this process no
+    // longer represents an active project. Keep only a tiny disconnect grace
+    // for socket churn; the longer startup idle window applies before the
+    // first client connects.
+    scheduleIdleStop(disconnectedIdleMs);
   });
 });
 

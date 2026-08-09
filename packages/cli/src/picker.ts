@@ -1,15 +1,19 @@
 import os from 'node:os';
 import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
-import { color, expectDefined, setOutputLineGuard, setRawMode, stripAnsi, writeOut } from '@wrongstack/core/utils';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import {
+  color,
+  expectDefined,
+  setOutputLineGuard,
+  setRawMode,
+  stripAnsi,
+  toErrorMessage,
+  writeOut,
+} from '@wrongstack/core/utils';
 import { LOCAL_LLM_PRESETS } from './auth-menu/local-presets.js';
 import { appendHistory, backupCurrent } from './config-history.js';
 import type { ReadlineInputReader } from './input-reader.js';
 import { applyPickerKey, type ProviderPickerState } from './picker-key-state.js';
-import {
-  LIVE_PICKER_MAX_VISIBLE,
-  runLiveModelPicker,
-} from './picker-model-picker.js';
+import { LIVE_PICKER_MAX_VISIBLE, runLiveModelPicker } from './picker-model-picker.js';
 import {
   boxBottom,
   boxDivider,
@@ -24,7 +28,11 @@ import { hasApiKey, isKeylessLocalProvider, visibleModelIds } from './provider-h
 import type { TerminalRenderer } from './renderer.js';
 
 export { applyPickerKey, type ProviderPickerState } from './picker-key-state.js';
-export { filterModels, LIVE_PICKER_MAX_VISIBLE, renderLiveModelList } from './picker-model-picker.js';
+export {
+  filterModels,
+  LIVE_PICKER_MAX_VISIBLE,
+  renderLiveModelList,
+} from './picker-model-picker.js';
 export { codexPickerPreamble } from './picker-ui.js';
 
 /**

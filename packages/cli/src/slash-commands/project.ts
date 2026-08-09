@@ -205,7 +205,9 @@ async function projectIdentityCommand(
     confirmed = true;
   }
   if (!confirmed) {
-    return { message: `Rekey requires confirmation. Pass ${color.cyan('--yes')} or ${color.cyan('-y')}.` };
+    return {
+      message: `Rekey requires confirmation. Pass ${color.cyan('--yes')} or ${color.cyan('-y')}.`,
+    };
   }
 
   const result = await rekeyProjectIdentity(root);

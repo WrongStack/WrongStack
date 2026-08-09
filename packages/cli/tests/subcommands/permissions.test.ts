@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { registerBuiltinToolTier } from '@wrongstack/tools/tool-tier';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,17 +17,20 @@ function mkRig() {
   const out = { buf: '' };
   const err = { buf: '' };
   const renderer = {
-    write: (msg: string) => { out.buf += msg; },
-    writeError: (msg: string) => { err.buf += msg; },
-    writeInfo: (msg: string) => { out.buf += msg + '\n'; },
+    write: (msg: string) => {
+      out.buf += msg;
+    },
+    writeError: (msg: string) => {
+      err.buf += msg;
+    },
+    writeInfo: (msg: string) => {
+      out.buf += msg + '\n';
+    },
   };
   return { out, err, renderer };
 }
 
-function mkDeps(
-  rig: ReturnType<typeof mkRig>,
-  over: Partial<SubcommandDeps> = {},
-): SubcommandDeps {
+function mkDeps(rig: ReturnType<typeof mkRig>, over: Partial<SubcommandDeps> = {}): SubcommandDeps {
   const registry = new ToolRegistry();
   registerBuiltinToolTier({ registry, tier: normalizeTokenSavingTier(undefined) });
   return {
@@ -93,10 +96,10 @@ describe('permissions subcommand (#281 wiring)', () => {
     const rig = mkRig();
     const deps = mkDeps(rig);
     const toolName = deps.toolRegistry!.list()[0]!.name;
-    const code = await subcommands['permissions']!(
-      ['explain', toolName],
-      { ...deps, flags: { input: '{not-json' } },
-    );
+    const code = await subcommands['permissions']!(['explain', toolName], {
+      ...deps,
+      flags: { input: '{not-json' },
+    });
     expect(code).toBe(1);
     expect(rig.err.buf).toMatch(/Invalid --input JSON/);
   });

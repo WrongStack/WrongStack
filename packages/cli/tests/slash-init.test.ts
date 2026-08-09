@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { Context } from '@wrongstack/core/agent';
-import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildBuiltinSlashCommands } from '../src/slash-commands/index.js';
 
 class FakeRenderer {

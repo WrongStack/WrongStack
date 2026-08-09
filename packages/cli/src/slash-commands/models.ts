@@ -1,10 +1,14 @@
 import * as fs from 'node:fs/promises';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { atomicWrite, color } from '@wrongstack/core/utils';
-import { type CustomModelDefinition, ConfigError, type SlashCommand, ToolValidationError } from '@wrongstack/core/types';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
-import { parseSubcommand, unknownSubcommand } from './helpers.js';
+import {
+  ConfigError,
+  type CustomModelDefinition,
+  type SlashCommand,
+  ToolValidationError,
+} from '@wrongstack/core/types';
+import { atomicWrite, color, toErrorMessage } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
+import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
 async function patchProfileConfig(
   mutate: (cfg: Record<string, unknown>) => void,

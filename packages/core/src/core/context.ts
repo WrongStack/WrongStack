@@ -516,7 +516,14 @@ export class Context implements RunEnv {
                     version: 1,
                     messages: [...change.messages],
                   }
-                : null;
+                : change.kind === 'messages_dropped'
+                  ? {
+                      type: 'messages_dropped',
+                      ts,
+                      version: 1,
+                      count: change.count,
+                    }
+                  : null;
         if (!event) return;
         this.enqueueConversationJournal(event, this.session);
       });

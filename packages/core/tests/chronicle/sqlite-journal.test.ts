@@ -381,8 +381,66 @@ describe('ChronicleSqliteJournal', () => {
       .prepare('PRAGMA max_page_count')
       .get() as { max_page_count: number };
 
-    // 512 MB - 16 MB fixed overhead - 64 MB capped journal reserve = 432 MB.
-    expect(maxPages.max_page_count * pageSize).toBe(432 * 1024 * 1024);
+    // 512 MB - 16 MB fixed overhead - 32 MB capped WAL reserve = 464 MB.
+    expect(maxPages.max_page_count * pageSize).toBe(464 * 1024 * 1024);
+  });
+
+  /**
+   * The quota used to force DELETE mode so the rollback journal could be
+   * budgeted, which made every append create, fsync and unlink a sidecar file.
+   * WAL plus a bounded `journal_size_limit` gives the quota the same thing it
+   * needed — a sidecar whose size is capped independently of the database — for
+   * a fraction of the per-transaction cost.
+   */
+  it('runs in WAL mode with a bounded sidecar even under a byte quota', async () => {
+    journal.close();
+    const walDir = path.join(dir, 'wal-quota');
+    await fs.mkdir(walDir, { recursive: true });
+    journal = new ChronicleSqliteJournal({
+      directory: walDir,
+      maxBytes: 512 * 1024 * 1024,
+    });
+    await journal.append(input());
+
+    const db = (journal as unknown as { db: DatabaseSync }).db;
+    expect((db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode).toBe(
+      'wal',
+    );
+    // Durability must match the DELETE-mode behaviour this replaced: FULL fsyncs
+    // the WAL on every commit, so a committed event still survives power loss.
+    expect((db.prepare('PRAGMA synchronous').get() as { synchronous: number }).synchronous).toBe(2);
+    const limit = (db.prepare('PRAGMA journal_size_limit').get() as { journal_size_limit: number })
+      .journal_size_limit;
+    expect(limit).toBe(16 * 1024 * 1024);
+  });
+
+  /**
+   * Eviction is the steady state of a journal at its ceiling, so running it on
+   * every append meant paying a prefix delete plus an index update per secondary
+   * index forever. The slack lets the table drift above `maxEvents` and cut back
+   * in one pass — but only proportionally, so small ceilings keep the exact bound
+   * they document.
+   */
+  it('amortises eviction for large ceilings and keeps small ones exact', async () => {
+    journal.close();
+    const exactDir = path.join(dir, 'trim-exact');
+    await fs.mkdir(exactDir, { recursive: true });
+    journal = new ChronicleSqliteJournal({ directory: exactDir, maxEvents: 3 });
+    for (let i = 0; i < 8; i++) await journal.append(input());
+    // 3 * 0.02 floors to 0: no slack, so the bound holds exactly.
+    expect((await journal.readAll()).length).toBe(3);
+    journal.close();
+
+    const slackDir = path.join(dir, 'trim-slack');
+    await fs.mkdir(slackDir, { recursive: true });
+    journal = new ChronicleSqliteJournal({ directory: slackDir, maxEvents: 100 });
+    for (let i = 0; i < 101; i++) await journal.append(input());
+    // 100 * 0.02 = 2 slack, so 101 rows are still under the eviction trigger.
+    expect((await journal.readAll()).length).toBe(101);
+    for (let i = 0; i < 2; i++) await journal.append(input());
+    // 103 > 100 + 2 trips it, and the cut lands on the ceiling itself.
+    expect((await journal.readAll()).length).toBe(100);
+    await expect(journal.verify()).resolves.toMatchObject({ ok: true });
   });
 
   it('projects only values that remain recoverable from the payload', async () => {

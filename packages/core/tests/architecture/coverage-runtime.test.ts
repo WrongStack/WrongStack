@@ -5,6 +5,14 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  checkZeroCoverage,
+  compareZeroCoverage,
+  isDirectRun as isZeroCoverageDirectRun,
+  normalizeCoveragePath,
+  runDirect as runZeroCoverageDirect,
+  zeroStatementFiles,
+} from '../../../../scripts/check-zero-coverage.mjs';
+import {
   createCoverageLock,
   defaultCheckProcessAlive,
   executeCoverageLock,
@@ -369,6 +377,7 @@ describe('coverage runner script', () => {
   it('defines every coverage gate including script coverage', () => {
     expect(COVERAGE_RUNS).toEqual([
       { label: 'Node packages', args: ['test:coverage:root'] },
+      { label: 'Zero-statement file ratchet', args: ['check:coverage-zero'] },
       {
         label: 'LSP package per-file gate',
         args: ['--filter', '@wrongstack/plug-lsp', 'test:coverage'],
@@ -472,6 +481,116 @@ describe('coverage runner script', () => {
         process.env.npm_execpath = originalNpmExecPath;
       }
     }
+  });
+});
+
+describe('zero-coverage ratchet script', () => {
+  const summary = {
+    total: { statements: { total: 3, covered: 1 } },
+    'D:\\repo\\packages\\core\\src\\covered.ts': {
+      statements: { total: 1, covered: 1 },
+    },
+    'D:\\repo\\packages\\core\\src\\zero.ts': {
+      statements: { total: 2, covered: 0 },
+    },
+  };
+
+  it('normalizes paths and finds only executable zero-statement files', () => {
+    expect(normalizeCoveragePath('D:\\repo\\packages\\core\\src\\zero.ts', 'D:\\repo')).toBe(
+      'packages/core/src/zero.ts',
+    );
+    expect(zeroStatementFiles(summary, 'D:\\repo')).toEqual(['packages/core/src/zero.ts']);
+    expect(normalizeCoveragePath('./packages/core/src/zero.ts', 'D:\\repo')).toBe(
+      'packages/core/src/zero.ts',
+    );
+    expect(
+      zeroStatementFiles(
+        {
+          total: { statements: { total: 1, covered: 0 } },
+          invalid: null,
+          empty: { statements: { total: 0, covered: 0 } },
+          covered: { statements: { total: 1, covered: 1 } },
+        },
+        'D:\\repo',
+      ),
+    ).toEqual([]);
+    expect(normalizeCoveragePath('packages/core/src/zero.ts')).toBe('packages/core/src/zero.ts');
+    expect(
+      zeroStatementFiles({
+        'packages/core/src/zero.ts': { statements: { total: 1, covered: 0 } },
+      }),
+    ).toEqual(['packages/core/src/zero.ts']);
+  });
+
+  it('distinguishes new zero files from resolved baseline debt', () => {
+    expect(
+      compareZeroCoverage(summary, { files: ['packages/core/src/old-zero.ts'] }, 'D:\\repo'),
+    ).toMatchObject({
+      unexpected: ['packages/core/src/zero.ts'],
+      resolved: ['packages/core/src/old-zero.ts'],
+    });
+    expect(compareZeroCoverage({}, {})).toEqual({ actual: [], unexpected: [], resolved: [] });
+  });
+
+  it('fails new zero files and passes known debt', () => {
+    const error = vi.fn();
+    const log = vi.fn();
+    const readJson = vi
+      .fn()
+      .mockReturnValueOnce(summary)
+      .mockReturnValueOnce({ schemaVersion: 1, files: [] });
+    expect(checkZeroCoverage({ readJson, repoRoot: 'D:\\repo', error, log })).toBe(1);
+    expect(error).toHaveBeenCalledWith('  - packages/core/src/zero.ts');
+
+    const knownReadJson = vi
+      .fn()
+      .mockReturnValueOnce(summary)
+      .mockReturnValueOnce({ schemaVersion: 1, files: ['packages/core/src/zero.ts'] });
+    expect(checkZeroCoverage({ readJson: knownReadJson, repoRoot: 'D:\\repo', log })).toBe(0);
+
+    const resolvedReadJson = vi
+      .fn()
+      .mockReturnValueOnce({ total: { statements: { total: 0, covered: 0 } } })
+      .mockReturnValueOnce({ schemaVersion: 1, files: ['packages/core/src/zero.ts'] });
+    expect(checkZeroCoverage({ readJson: resolvedReadJson, repoRoot: 'D:\\repo', log })).toBe(0);
+    expect(log).toHaveBeenCalledWith('Remove 1 resolved file(s) from the zero-coverage baseline.');
+  });
+
+  it('rejects malformed baselines and recognizes direct execution', () => {
+    expect(() =>
+      checkZeroCoverage({
+        readJson: vi
+          .fn()
+          .mockReturnValueOnce(summary)
+          .mockReturnValueOnce({ schemaVersion: 2, files: [] }),
+      }),
+    ).toThrow('coverage zero baseline');
+    const scriptPath = path.join(repoRoot, 'scripts', 'check-zero-coverage.mjs');
+    const scriptUrl = pathToFileURL(scriptPath).href;
+    expect(isZeroCoverageDirectRun(scriptUrl, scriptPath)).toBe(true);
+    expect(isZeroCoverageDirectRun(scriptUrl, null as never)).toBe(false);
+  });
+
+  it('converts direct-run failures to exit code 1', () => {
+    const error = vi.fn();
+    expect(runZeroCoverageDirect({ check: () => 0, error })).toBe(0);
+    expect(
+      runZeroCoverageDirect({
+        check: () => {
+          throw new Error('missing summary');
+        },
+        error,
+      }),
+    ).toBe(1);
+    expect(error).toHaveBeenCalledWith('coverage zero ratchet failed: missing summary');
+    expect(
+      runZeroCoverageDirect({
+        check: () => {
+          throw 'broken';
+        },
+        error,
+      }),
+    ).toBe(1);
   });
 });
 

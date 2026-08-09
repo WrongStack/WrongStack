@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '@wrongstack/core/agent';
+import { describe, expect, it, vi } from 'vitest';
 import { buildShadowCommand } from '../src/slash-commands/shadow.js';
 
 function ctx(): Context {
@@ -57,7 +57,9 @@ describe('buildShadowCommand', () => {
         tools: expect.arrayContaining(['fleet', 'terminate_subagent']),
       }),
     );
-    const spawnOpts = (onSpawn.mock.calls as unknown[][])[0]?.[1] as { tools?: string[]; allowedCapabilities?: unknown; shadowIntervalMs?: number } | undefined;
+    const spawnOpts = (onSpawn.mock.calls as unknown[][])[0]?.[1] as
+      | { tools?: string[]; allowedCapabilities?: unknown; shadowIntervalMs?: number }
+      | undefined;
     expect(spawnOpts?.tools).not.toContain('spawn_subagent');
     expect(spawnOpts?.tools).not.toContain('assign_task');
     expect(spawnOpts?.tools).not.toContain('cron_schedule');
@@ -204,9 +206,12 @@ describe('buildShadowCommand', () => {
   it('stop waits for async termination before clearing the controller', async () => {
     const controller = shadowController('sub-shadow');
     let resolveTerminate!: (ok: boolean) => void;
-    const onFleetTerminate = vi.fn(() => new Promise<boolean>((resolve) => {
-      resolveTerminate = resolve;
-    }));
+    const onFleetTerminate = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveTerminate = resolve;
+        }),
+    );
     const cmd = buildShadowCommand({
       onFleetTerminate,
       shadowController: controller,

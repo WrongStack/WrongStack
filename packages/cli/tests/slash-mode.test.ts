@@ -15,7 +15,9 @@ const modes: Mode[] = [
   { id: 'teach', name: 'Teach', description: 'Mentor mode', prompt: '', tags: [] },
 ];
 
-const makeStore = (active: Mode | null = modes[0] ?? null): ModeStore & {
+const makeStore = (
+  active: Mode | null = modes[0] ?? null,
+): ModeStore & {
   setActiveMode: ReturnType<typeof vi.fn>;
 } => {
   let current = active;

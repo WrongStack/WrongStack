@@ -4,7 +4,12 @@
  * one place so the logic doesn't drift between call sites.
  */
 import { hasProviderCredential } from '@wrongstack/core/models';
-import type { Config, ModelsRegistry, ProviderConfig, ResolvedProvider } from '@wrongstack/core/types';
+import type {
+  Config,
+  ModelsRegistry,
+  ProviderConfig,
+  ResolvedProvider,
+} from '@wrongstack/core/types';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 
 // (Removed) CATALOG_REFRESHABLE_MODEL_PROVIDERS — a four-entry hand-list that
@@ -150,7 +155,12 @@ export async function buildPickableProviders(
     const inherited = catalogById.get(catalogType) ?? catalogById.get(cfg.type ?? id);
     const family = cfg.family ?? inherited?.family ?? 'unsupported';
     if (family === 'unsupported') continue;
-    const models = visibleModelIds(id, config, (inherited?.models ?? []).map((m) => m.id), cfg);
+    const models = visibleModelIds(
+      id,
+      config,
+      (inherited?.models ?? []).map((m) => m.id),
+      cfg,
+    );
     out.push({ id, family, models });
   }
   for (const p of catalog) {

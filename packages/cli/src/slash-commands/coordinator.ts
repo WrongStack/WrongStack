@@ -6,9 +6,11 @@ export function buildCoordinatorCommand(opts: SlashCommandContext): SlashCommand
   const getStop = () => opts.onCoordinatorStop ?? opts.coordinatorController?.onCoordinatorStop;
   const getTasks = () => opts.onCoordinatorTasks ?? opts.coordinatorController?.onCoordinatorTasks;
   const getClaim = () => opts.onCoordinatorClaim ?? opts.coordinatorController?.onCoordinatorClaim;
-  const getComplete = () => opts.onCoordinatorComplete ?? opts.coordinatorController?.onCoordinatorComplete;
+  const getComplete = () =>
+    opts.onCoordinatorComplete ?? opts.coordinatorController?.onCoordinatorComplete;
   const getFail = () => opts.onCoordinatorFail ?? opts.coordinatorController?.onCoordinatorFail;
-  const getStatus = () => opts.onCoordinatorStatus ?? opts.coordinatorController?.onCoordinatorStatus;
+  const getStatus = () =>
+    opts.onCoordinatorStatus ?? opts.coordinatorController?.onCoordinatorStatus;
 
   return {
     name: 'coordinator',
@@ -44,7 +46,10 @@ export function buildCoordinatorCommand(opts: SlashCommandContext): SlashCommand
       if (verb === 'start') {
         const goal = rest.join(' ').trim();
         if (!goal) {
-          return { message: 'Usage: /coordinator start <goal>\nA goal is required to start the coordinator.' };
+          return {
+            message:
+              'Usage: /coordinator start <goal>\nA goal is required to start the coordinator.',
+          };
         }
         getStart()?.(goal);
         return {
@@ -67,11 +72,15 @@ export function buildCoordinatorCommand(opts: SlashCommandContext): SlashCommand
           return { message: 'No coordinator is active. Start one with /coordinator start <goal>.' };
         }
         if (tasks.length === 0) {
-          return { message: 'No pending coordinator tasks. Use /coordinator status for overall progress.' };
+          return {
+            message: 'No pending coordinator tasks. Use /coordinator status for overall progress.',
+          };
         }
         const lines = ['Pending coordinator tasks available to claim:'];
         for (const task of tasks) {
-          lines.push(`  ${task.id}  [${task.priority}] ${task.title}${task.tags.length > 0 ? `  · ${task.tags.join(', ')}` : ''}`);
+          lines.push(
+            `  ${task.id}  [${task.priority}] ${task.title}${task.tags.length > 0 ? `  · ${task.tags.join(', ')}` : ''}`,
+          );
         }
         lines.push('', 'Claim one with /coordinator claim <id> (id prefix allowed).');
         return { message: lines.join('\n') };
@@ -141,7 +150,9 @@ export function buildCoordinatorCommand(opts: SlashCommandContext): SlashCommand
         if (statusFn) {
           const stats = await statusFn();
           if (!stats) {
-            return { message: 'No coordinator is active. Start one with /coordinator start <goal>.' };
+            return {
+              message: 'No coordinator is active. Start one with /coordinator start <goal>.',
+            };
           }
           const lines = [
             'Coordinator Status:',

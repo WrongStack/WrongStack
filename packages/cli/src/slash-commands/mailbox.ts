@@ -24,19 +24,19 @@
  *   /mailbox history [n]                      — last n messages on the project (default 20)
  */
 
-import { color, wstackGlobalRoot } from '@wrongstack/core/utils';
 import {
   getSharedProjectMailbox,
   type MailboxAgentStatus,
   type MailboxAudience,
   type MailboxMessage,
   type MailboxMessageType,
-  type RemoteMailbox,
   mailboxSessionTag,
+  type RemoteMailbox,
   resolveMailboxIdentity,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
 import type { SlashCommand } from '@wrongstack/core/types';
+import { color, wstackGlobalRoot } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 
 function buildMailbox(opts: SlashCommandContext): RemoteMailbox | null {
@@ -168,7 +168,15 @@ function parseTypeFlag(
   defaultType: MailboxMessageType,
 ): { type: MailboxMessageType; audience?: MailboxAudience; body: string } {
   const VALID: ReadonlySet<MailboxMessageType> = new Set<MailboxMessageType>([
-    'note', 'ask', 'assign', 'steer', 'btw', 'broadcast', 'status', 'result', 'review',
+    'note',
+    'ask',
+    'assign',
+    'steer',
+    'btw',
+    'broadcast',
+    'status',
+    'result',
+    'review',
   ]);
   let type: MailboxMessageType = defaultType;
   let audience: MailboxAudience | undefined;
@@ -265,7 +273,8 @@ export function buildMailboxCommand(opts: SlashCommandContext): SlashCommand {
         const { type, audience, body } = parseTypeFlag(parts.slice(2), 'note');
         if (!to || !body) {
           return {
-            message: 'Usage: /mailbox send <agentId> [type=<type>] <message>\nValid types: note, ask, assign, steer, btw, broadcast, status, result, review.',
+            message:
+              'Usage: /mailbox send <agentId> [type=<type>] <message>\nValid types: note, ask, assign, steer, btw, broadcast, status, result, review.',
           };
         }
         const msg = await mb.send({
@@ -290,7 +299,8 @@ export function buildMailboxCommand(opts: SlashCommandContext): SlashCommand {
         const { type, audience, body } = parseTypeFlag(parts.slice(1), 'broadcast');
         if (!body) {
           return {
-            message: 'Usage: /mailbox broadcast [type=<type>] <message>\nValid types: note, ask, assign, steer, btw, broadcast, status, result, review.',
+            message:
+              'Usage: /mailbox broadcast [type=<type>] <message>\nValid types: note, ask, assign, steer, btw, broadcast, status, result, review.',
           };
         }
         const msg = await mb.send({
@@ -303,9 +313,10 @@ export function buildMailboxCommand(opts: SlashCommandContext): SlashCommand {
         });
         const typeTag = type === 'broadcast' ? '' : color.dim(` [${type}]`);
         return {
-          message: color.green(
-            `✓ Broadcast to ${audience === 'leaders' ? 'leader agents' : 'all agents'} on the project (id ${msg.id.slice(0, 8)}…).`,
-          ) + typeTag,
+          message:
+            color.green(
+              `✓ Broadcast to ${audience === 'leaders' ? 'leader agents' : 'all agents'} on the project (id ${msg.id.slice(0, 8)}…).`,
+            ) + typeTag,
         };
       }
 

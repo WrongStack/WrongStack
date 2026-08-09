@@ -115,6 +115,21 @@ export class SessionCatalogProjectClient {
     return this.request({ type: 'request', op, args }, options.timeoutMs ?? CALL_TIMEOUT_MS);
   }
 
+  /**
+   * Call an already-running project daemon without starting one.
+   *
+   * Cross-project discovery must use this path: observing another project is
+   * never sufficient authority to wake that project's IPC owner.
+   */
+  async callExisting<O extends SessionCatalogOperationName>(
+    op: O,
+    args: SessionCatalogOperations[O]['args'],
+    options: { timeoutMs?: number } = {},
+  ): Promise<SessionCatalogOperations[O]['result']> {
+    await this.ensureConnected(false);
+    return this.request({ type: 'request', op, args }, options.timeoutMs ?? CALL_TIMEOUT_MS);
+  }
+
   ping(): Promise<SessionCatalogOperations['ping']['result']> {
     return this.call('ping', {}, { timeoutMs: 3_000 });
   }
@@ -133,7 +148,8 @@ export class SessionCatalogProjectClient {
     }
     return async () => {
       this.eventListeners.delete(listener);
-      if (this.eventListeners.size === 0) await this.call('unsubscribe', {}).catch(() => undefined);
+      if (this.eventListeners.size === 0)
+        await this.callExisting('unsubscribe', {}).catch(() => undefined);
     };
   }
 

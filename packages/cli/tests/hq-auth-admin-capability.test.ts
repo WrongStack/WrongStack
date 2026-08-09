@@ -25,8 +25,8 @@ import {
 } from '@wrongstack/core/hq';
 import { generateTotp, generateTotpSecret, verifyTotpCounter } from '@wrongstack/core/security';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createHqAuthState, projectAuthFile } from '../src/hq-server/auth-state.js';
 import { hqAuthRequired, readHqSessionCookie } from '../src/hq-server/auth.js';
+import { createHqAuthState, projectAuthFile } from '../src/hq-server/auth-state.js';
 import { LoginAttemptStore } from '../src/hq-server/login-attempt-store.js';
 import { callerCanAdministerAuth } from '../src/hq-server/routes/auth-handlers.js';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
@@ -78,8 +78,7 @@ describe('WS-101 — one projection, one floor evaluation', () => {
         onApplied: (live) => {
           applied.push({ hasPassword: live.passwordHash !== undefined });
           // Stand-in for `assessHqExposure` on a non-loopback bind.
-          live.requireAuthFloor =
-            live.browserTokens.size === 0 && live.passwordHash === undefined;
+          live.requireAuthFloor = live.browserTokens.size === 0 && live.passwordHash === undefined;
         },
       },
     );

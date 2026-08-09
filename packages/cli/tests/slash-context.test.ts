@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DefaultConfigStore } from '@wrongstack/core/storage';
 import type { Context } from '@wrongstack/core/agent';
+import { DefaultConfigStore } from '@wrongstack/core/storage';
 import { describe, expect, it, vi } from 'vitest';
 import { buildContextCommand } from '../src/slash-commands/context.js';
 
@@ -56,7 +56,12 @@ describe('buildContextCommand', () => {
     const cmd = buildContextCommand({ renderer } as never);
     const ctx = fakeCtx({
       tokenCounter: {
-        cacheStats: () => ({ readTokens: 12_000, writeTokens: 3_000, hitRatio: 0.4, savedUsd: 0.34 }),
+        cacheStats: () => ({
+          readTokens: 12_000,
+          writeTokens: 3_000,
+          hitRatio: 0.4,
+          savedUsd: 0.34,
+        }),
       },
     });
     const res = await cmd.run('', ctx);
@@ -97,7 +102,12 @@ describe('buildContextCommand', () => {
     const ctx = fakeCtx({
       provider: { id: 'openai', capabilities: { cacheControl: 'auto' } },
       tokenCounter: {
-        cacheStats: () => ({ readTokens: 20_000, writeTokens: 1_000, hitRatio: 0.5, savedUsd: 0.42 }),
+        cacheStats: () => ({
+          readTokens: 20_000,
+          writeTokens: 1_000,
+          hitRatio: 0.5,
+          savedUsd: 0.42,
+        }),
       },
       meta: {
         providerCacheLedger: {
@@ -122,7 +132,9 @@ describe('buildContextCommand', () => {
     const cmd = buildContextCommand({ renderer } as never);
     const ctx = fakeCtx({
       provider: { id: 'google', capabilities: { cacheControl: 'none' } },
-      tokenCounter: { cacheStats: () => ({ readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 }) },
+      tokenCounter: {
+        cacheStats: () => ({ readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 }),
+      },
     });
     const res = await cmd.run('cache', ctx);
     expect(res?.message).toContain('cachedContents');

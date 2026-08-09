@@ -33,9 +33,7 @@ describe('SimpleUI embedded server lifecycle', () => {
   });
 
   it('announces readiness and accepts a WebSocket on the shared HTTP port', async () => {
-    let listeningInfo:
-      | { httpPort: number; wsPort: number; host: string; url: string }
-      | undefined;
+    let listeningInfo: { httpPort: number; wsPort: number; host: string; url: string } | undefined;
     let signalReady: (() => void) | undefined;
     const listening = new Promise<void>((resolve) => {
       signalReady = resolve;
@@ -72,9 +70,7 @@ describe('SimpleUI embedded server lifecycle', () => {
     expect(csp).toContain(`ws://127.0.0.1:${listeningInfo!.httpPort}`);
     expect(csp).not.toContain('ws://127.0.0.1:3456');
 
-    const { ws, waitForMessage } = await openWs(
-      `ws://127.0.0.1:${listeningInfo!.wsPort}`,
-    );
+    const { ws, waitForMessage } = await openWs(`ws://127.0.0.1:${listeningInfo!.wsPort}`);
     expect((await waitForMessage('session.start')).type).toBe('session.start');
     ws.close();
   });

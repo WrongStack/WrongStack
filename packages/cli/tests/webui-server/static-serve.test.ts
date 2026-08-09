@@ -1,10 +1,10 @@
-import type { Server } from 'node:http';
 import { EventEmitter } from 'node:events';
+import type { Server } from 'node:http';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  type StaticServeHandle,
   resolveDistDir,
+  type StaticServeHandle,
   startStaticServe,
 } from '../../src/webui-server/static-serve.js';
 

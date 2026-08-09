@@ -230,7 +230,12 @@ function parseUpdateArgs(args: string[]): ParsedUpdateArgs {
     if (pmEq) {
       const pm = parsePackageManager(pmEq);
       if (!pm)
-        return { checkOnly, packageManager, allowScripts, error: `Invalid package manager: ${pmEq}` };
+        return {
+          checkOnly,
+          packageManager,
+          allowScripts,
+          error: `Invalid package manager: ${pmEq}`,
+        };
       packageManager = pm;
       continue;
     }
@@ -313,9 +318,7 @@ function buildUpdateCommand(
     case 'yarn':
       return command(
         packageManager,
-        ignoreScripts
-          ? ['global', 'add', '--ignore-scripts', target]
-          : ['global', 'add', target],
+        ignoreScripts ? ['global', 'add', '--ignore-scripts', target] : ['global', 'add', target],
       );
     case 'bun':
       return command(
@@ -325,9 +328,7 @@ function buildUpdateCommand(
     case 'npm':
       return command(
         packageManager,
-        ignoreScripts
-          ? ['install', '-g', '--ignore-scripts', target]
-          : ['install', '-g', target],
+        ignoreScripts ? ['install', '-g', '--ignore-scripts', target] : ['install', '-g', target],
       );
   }
 }

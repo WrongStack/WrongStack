@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 const mockSetupProvider = vi.fn();
 
 vi.mock('../../src/wiring/provider.js', async () => {
-  const actual = await vi.importActual<typeof import('../../src/wiring/provider.js')>('../../src/wiring/provider.js');
+  const actual = await vi.importActual<typeof import('../../src/wiring/provider.js')>(
+    '../../src/wiring/provider.js',
+  );
   return {
     ...actual,
     setupProvider: mockSetupProvider,
@@ -15,7 +17,8 @@ vi.mock('../../src/wiring/provider.js', async () => {
 const mockCapabilitiesFor = vi.fn();
 
 vi.mock('@wrongstack/providers', async () => {
-  const actual = await vi.importActual<typeof import('@wrongstack/providers')>('@wrongstack/providers');
+  const actual =
+    await vi.importActual<typeof import('@wrongstack/providers')>('@wrongstack/providers');
   return {
     ...actual,
     capabilitiesFor: mockCapabilitiesFor.mockImplementation(actual.capabilitiesFor),
@@ -51,6 +54,7 @@ vi.mock('@wrongstack/providers', async () => {
  */
 
 const { resolveModeAndCapabilities } = await import('../../src/boot/system-prompt.js');
+
 import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
 
 function makeLogger(): Logger {

@@ -6,8 +6,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { detectProjectKind, runProjectCheck } from '../src/pre-launch/project-check.js';
 import type { ReadlineInputReader } from '../src/input-reader.js';
+import { detectProjectKind, runProjectCheck } from '../src/pre-launch/project-check.js';
 import type { TerminalRenderer } from '../src/renderer.js';
 
 let dir: string;
@@ -100,7 +100,9 @@ describe('runProjectCheck', () => {
     const { reader, renderer } = fakeIo(['y', 'y']);
     const result = await runProjectCheck({ projectRoot: dir, cwd: dir, renderer, reader });
     expect(result).toBe(true);
-    expect(renderer.write).toHaveBeenCalledWith(expect.stringContaining('Git repository initialized'));
+    expect(renderer.write).toHaveBeenCalledWith(
+      expect.stringContaining('Git repository initialized'),
+    );
   });
 
   it('cancels in a scratch dir when the user answers q to git init', async () => {

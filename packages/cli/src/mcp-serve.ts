@@ -10,12 +10,18 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { AutoApprovePermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
 import { Context } from '@wrongstack/core/agent';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
-import type { PermissionPolicy, Provider, SessionWriter, TokenCounter, Tool } from '@wrongstack/core/types';
-import { ToolRegistry } from '@wrongstack/core/registry';
 import { ToolExecutor } from '@wrongstack/core/execution';
+import { ToolRegistry } from '@wrongstack/core/registry';
+import { AutoApprovePermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
+import type {
+  PermissionPolicy,
+  Provider,
+  SessionWriter,
+  TokenCounter,
+  Tool,
+} from '@wrongstack/core/types';
+import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import {
   DEFAULT_MCP_INSERTION_MAX_BYTES,
   MCPServer,

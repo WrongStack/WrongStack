@@ -11,8 +11,8 @@
  */
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
 import { ToolValidationError } from '@wrongstack/core/types';
+import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 
 const DEFAULT_SHADOW_INTERVAL_MS = 30_000;
@@ -125,32 +125,38 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
           }
           if (!modelRef.provider || !modelRef.model) {
             return {
-              message: '/shadow start: no leader provider/model is configured; pass --model=provider/model',
+              message:
+                '/shadow start: no leader provider/model is configured; pass --model=provider/model',
             };
           }
 
-          const spawnId = await opts.onSpawn(
-            `Shadow Agent — one-shot quiet fleet check`,
-            {
-              provider: modelRef.provider,
-              model: modelRef.model,
-              tools: [
-                'fleet', 'fleet', 'fleet',
-                'mailbox', 'mail_inbox', 'mail_send',
-                'terminate_subagent',
-              ],
-              name: 'shadow',
-              shadowIntervalMs: intervalMs,
-            },
-          );
+          const spawnId = await opts.onSpawn(`Shadow Agent — one-shot quiet fleet check`, {
+            provider: modelRef.provider,
+            model: modelRef.model,
+            tools: [
+              'fleet',
+              'fleet',
+              'fleet',
+              'mailbox',
+              'mail_inbox',
+              'mail_send',
+              'terminate_subagent',
+            ],
+            name: 'shadow',
+            shadowIntervalMs: intervalMs,
+          });
 
-          return { message: `${color.green('✓')} Shadow Agent queued: ${spawnId}\n${color.dim('Mode:')} one-shot quiet check\n${color.dim('Model:')} ${modelRef.label}` };
+          return {
+            message: `${color.green('✓')} Shadow Agent queued: ${spawnId}\n${color.dim('Mode:')} one-shot quiet check\n${color.dim('Model:')} ${modelRef.label}`,
+          };
         }
 
         case 'stop': {
           const activeId = opts.shadowController?.activeId;
           if (!activeId) {
-            return { message: `${color.yellow('⚠')} No active Shadow Agent is registered for this session.` };
+            return {
+              message: `${color.yellow('⚠')} No active Shadow Agent is registered for this session.`,
+            };
           }
           if (!opts.onFleetTerminate) {
             return { message: '/shadow stop requires fleet termination support in this session.' };
@@ -179,7 +185,10 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
         case 'hoop': {
           const [targetId, ...extraArgs] = rest;
           if (!targetId) {
-            return { message: '/shadow hoop <agent-id> [--reason=<text>]\nStops the target agent immediately and sends notification.' };
+            return {
+              message:
+                '/shadow hoop <agent-id> [--reason=<text>]\nStops the target agent immediately and sends notification.',
+            };
           }
 
           // Parse --reason flag
@@ -231,7 +240,9 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
           const [modelId] = rest;
           const defaultModelRef = getDefaultModelRef(opts);
           if (!modelId) {
-            return { message: `/shadow model <provider/model> — change Shadow Agent analysis model.\nCurrent default: ${defaultModelRef.label}` };
+            return {
+              message: `/shadow model <provider/model> — change Shadow Agent analysis model.\nCurrent default: ${defaultModelRef.label}`,
+            };
           }
           let parsed: ParsedModelRef;
           try {
@@ -240,13 +251,17 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
             return { message: `/shadow model: ${(e as Error).message}` };
           }
           opts.shadowController?.setDefaults?.({ provider: parsed.provider, model: parsed.model });
-          return { message: `/shadow model ${parsed.label}\n${color.dim('Model will be applied on next /shadow start')}` };
+          return {
+            message: `/shadow model ${parsed.label}\n${color.dim('Model will be applied on next /shadow start')}`,
+          };
         }
 
         case 'interval': {
           const [msStr] = rest;
           if (!msStr) {
-            return { message: `/shadow interval <ms> — update the legacy Shadow interval default.\nCurrent default: ${DEFAULT_SHADOW_INTERVAL_MS}ms (30 seconds)` };
+            return {
+              message: `/shadow interval <ms> — update the legacy Shadow interval default.\nCurrent default: ${DEFAULT_SHADOW_INTERVAL_MS}ms (30 seconds)`,
+            };
           }
           let ms: number;
           try {
@@ -255,7 +270,9 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
             return { message: `/shadow interval: ${(e as Error).message}` };
           }
           opts.shadowController?.setDefaults?.({ intervalMs: ms });
-          return { message: `/shadow interval ${ms}ms\n${color.dim('Interval will be applied on next /shadow start')}` };
+          return {
+            message: `/shadow interval ${ms}ms\n${color.dim('Interval will be applied on next /shadow start')}`,
+          };
         }
 
         default: {
@@ -279,14 +296,13 @@ interface ParsedModelRef {
 function getDefaultModelRef(opts: SlashCommandContext): ParsedModelRef {
   const shadowDefaults = opts.shadowController?.getDefaults?.();
   const liveConfig = opts.configStore?.get?.();
-  const provider = shadowDefaults?.provider?.trim()
-    || liveConfig?.provider?.trim()
-    || opts.llmProvider?.id?.trim()
-    || '';
-  const model = shadowDefaults?.model?.trim()
-    || liveConfig?.model?.trim()
-    || opts.llmModel?.trim()
-    || '';
+  const provider =
+    shadowDefaults?.provider?.trim() ||
+    liveConfig?.provider?.trim() ||
+    opts.llmProvider?.id?.trim() ||
+    '';
+  const model =
+    shadowDefaults?.model?.trim() || liveConfig?.model?.trim() || opts.llmModel?.trim() || '';
   return {
     provider,
     model,

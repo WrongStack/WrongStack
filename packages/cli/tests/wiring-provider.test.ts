@@ -243,7 +243,12 @@ describe('setupProvider', () => {
     });
 
     const ce = await expectConfigError(
-      () => setupProvider({ config: fakeConfig({ provider: 'weird' }), modelsRegistry, logger: fakeLogger() }),
+      () =>
+        setupProvider({
+          config: fakeConfig({ provider: 'weird' }),
+          modelsRegistry,
+          logger: fakeLogger(),
+        }),
       {
         code: 'CONFIG_INVALID',
         context: { provider: 'weird', family: 'weird-sdk', kind: 'unsupported' },
@@ -256,7 +261,12 @@ describe('setupProvider', () => {
     buildProviderFactoriesFromRegistry.mockRejectedValue(new Error('ENOENT'));
 
     const ce = await expectConfigError(
-      () => setupProvider({ config: fakeConfig(), modelsRegistry: fakeModelsRegistry(), logger: fakeLogger() }),
+      () =>
+        setupProvider({
+          config: fakeConfig(),
+          modelsRegistry: fakeModelsRegistry(),
+          logger: fakeLogger(),
+        }),
       { code: 'CONFIG_INVALID', context: { phase: 'registry-build', provider: 'anthropic' } },
     );
     expect(ce.cause).toBeInstanceOf(Error);
@@ -273,7 +283,12 @@ describe('setupProvider', () => {
     });
 
     const ce = await expectConfigError(
-      () => setupProvider({ config: fakeConfig({ provider: 'novel' }), modelsRegistry: fakeModelsRegistry(), logger: fakeLogger() }),
+      () =>
+        setupProvider({
+          config: fakeConfig({ provider: 'novel' }),
+          modelsRegistry: fakeModelsRegistry(),
+          logger: fakeLogger(),
+        }),
       { code: 'CONFIG_INVALID', context: { phase: 'provider-create', provider: 'novel' } },
     );
     expect(ce.cause).toBeInstanceOf(Error);
@@ -288,7 +303,12 @@ describe('setupProvider', () => {
     });
 
     const ce = await expectConfigError(
-      () => setupProvider({ config: fakeConfig(), modelsRegistry: fakeModelsRegistry(), logger: fakeLogger() }),
+      () =>
+        setupProvider({
+          config: fakeConfig(),
+          modelsRegistry: fakeModelsRegistry(),
+          logger: fakeLogger(),
+        }),
       { context: { phase: 'provider-create' } },
     );
     expect(ce.cause).toBe('plain string');
@@ -299,7 +319,12 @@ describe('setupProvider', () => {
     buildProviderFactoriesFromRegistry.mockRejectedValue('registry boom');
 
     const ce = await expectConfigError(
-      () => setupProvider({ config: fakeConfig(), modelsRegistry: fakeModelsRegistry(), logger: fakeLogger() }),
+      () =>
+        setupProvider({
+          config: fakeConfig(),
+          modelsRegistry: fakeModelsRegistry(),
+          logger: fakeLogger(),
+        }),
       { context: { phase: 'registry-build' } },
     );
     expect(ce.cause).toBe('registry boom');

@@ -32,8 +32,7 @@ export async function onSDDOutput(output: string): Promise<string[]> {
   } = await import('../services/sdd-runtime.js');
   const messages: string[] = [];
   const specSaved = await trySaveSpecFromAIOutput(output);
-  if (specSaved)
-    messages.push('✓ Spec detected and saved! Use /sdd approve to continue.');
+  if (specSaved) messages.push('✓ Spec detected and saved! Use /sdd approve to continue.');
   const planSaved = trySaveImplementationPlan(output);
   if (planSaved) messages.push('✓ Implementation plan saved!');
   const tasksSaved = await trySaveTasksFromAIOutput(output);

@@ -51,7 +51,11 @@ export function makeFakeMemoryStore(): MemoryPort {
       const hits = entries.filter((e) => e.scope === scope && e.text.toLowerCase().includes(q));
       return limit === undefined ? hits : hits.slice(0, limit);
     },
-    async scoreRelevant(_ctx: MemoryRelevanceContext, scope = 'project-memory', limit = 8): Promise<ScoredEntry[]> {
+    async scoreRelevant(
+      _ctx: MemoryRelevanceContext,
+      scope = 'project-memory',
+      limit = 8,
+    ): Promise<ScoredEntry[]> {
       return entries
         .filter((e) => e.scope === scope)
         .slice(0, limit)
@@ -61,12 +65,17 @@ export function makeFakeMemoryStore(): MemoryPort {
       return entries.map((e) => `- ${e.text}`).join('\n');
     },
     async read(scope) {
-      return entries.filter((e) => e.scope === scope).map((e) => `- ${e.text}`).join('\n');
+      return entries
+        .filter((e) => e.scope === scope)
+        .map((e) => `- ${e.text}`)
+        .join('\n');
     },
     async consolidate() {},
     async clear(scope) {
       if (scope === undefined) entries.length = 0;
-      else for (let i = entries.length - 1; i >= 0; i--) if (entries[i]?.scope === scope) entries.splice(i, 1);
+      else
+        for (let i = entries.length - 1; i >= 0; i--)
+          if (entries[i]?.scope === scope) entries.splice(i, 1);
     },
     withTraceId() {
       return store;

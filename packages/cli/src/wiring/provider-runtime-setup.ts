@@ -19,8 +19,8 @@ import type {
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { withCatalogCapabilities } from '@wrongstack/providers';
 import { getSageService } from '@wrongstack/sage';
-import { createFallbackGate } from './fallback-gate.js';
 import { patchConfig } from '../utils.js';
+import { createFallbackGate } from './fallback-gate.js';
 
 export function serializeProviderRuntimeSnapshot(snapshot: unknown): string {
   return JSON.stringify(snapshot);

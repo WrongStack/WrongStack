@@ -1,12 +1,17 @@
 import * as fs from 'node:fs/promises';
-import { atomicWrite, color, expectDefined } from '@wrongstack/core/utils';
-import type { Capabilities } from '@wrongstack/core/types';
 import type { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
-import { ConfigError, type CustomModelDefinition, type ProviderConfig, type WireFamily } from '@wrongstack/core/types';
+import type { Capabilities } from '@wrongstack/core/types';
+import {
+  ConfigError,
+  type CustomModelDefinition,
+  type ProviderConfig,
+  type WireFamily,
+} from '@wrongstack/core/types';
+import { atomicWrite, color, expectDefined } from '@wrongstack/core/utils';
+import { activeProfileConfigPath } from '../../profile-config-path.js';
 import { mutateConfigProviders } from '../../provider-config-utils.js';
 import { visibleModelIds } from '../../provider-helpers.js';
-import { activeProfileConfigPath } from '../../profile-config-path.js';
 import type { SubcommandHandler } from '../index.js';
 export const providersCmd: SubcommandHandler = async (args, deps) => {
   // This file DOCUMENTS the stripped-flag problem and ships `subcommandFlags`
@@ -292,7 +297,10 @@ async function discoverProviderModels(
 async function getCatalogProviderForConfigProvider(
   providerId: string,
   deps: Parameters<SubcommandHandler>[1],
-): Promise<{ providerId: string; provider: Awaited<ReturnType<typeof deps.modelsRegistry.getProvider>> }> {
+): Promise<{
+  providerId: string;
+  provider: Awaited<ReturnType<typeof deps.modelsRegistry.getProvider>>;
+}> {
   const cfg = deps.config.providers?.[providerId];
   const lookupId = aliasProviderId(providerId, cfg);
   const provider = await deps.modelsRegistry.getProvider(lookupId);
@@ -323,7 +331,10 @@ async function modelsHide(args: string[], deps: Parameters<SubcommandHandler>[1]
     deps.renderer.writeError(`Provider "${providerId}" is not configured.`);
     return 1;
   }
-  const { providerId: lookupId, provider } = await getCatalogProviderForConfigProvider(providerId, deps);
+  const { providerId: lookupId, provider } = await getCatalogProviderForConfigProvider(
+    providerId,
+    deps,
+  );
   if (!provider) {
     deps.renderer.writeError(
       lookupId !== providerId
@@ -339,11 +350,15 @@ async function modelsHide(args: string[], deps: Parameters<SubcommandHandler>[1]
     return 0;
   }
   const nextVisible = visible.filter((id) => id !== modelId);
-  await mutateConfigProviders(activeProfileConfigPath(deps.paths, deps.config), deps.vault, (providers) => {
-    const p = providers[providerId];
-    if (!p) return;
-    p.models = nextVisible;
-  });
+  await mutateConfigProviders(
+    activeProfileConfigPath(deps.paths, deps.config),
+    deps.vault,
+    (providers) => {
+      const p = providers[providerId];
+      if (!p) return;
+      p.models = nextVisible;
+    },
+  );
   deps.config.providers = {
     ...(deps.config.providers ?? {}),
     [providerId]: { ...saved, models: nextVisible },
@@ -352,7 +367,11 @@ async function modelsHide(args: string[], deps: Parameters<SubcommandHandler>[1]
     `Hidden ${providerId}/${modelId}. Visible: ${nextVisible.length}, hidden: ${Math.max(0, knownIds.length - nextVisible.length)}.`,
   );
   if (nextVisible.length === 0) {
-    deps.renderer.write(color.dim('This provider now has no visible models. Use `wstack models show` or `wstack models reset` to restore.\n'));
+    deps.renderer.write(
+      color.dim(
+        'This provider now has no visible models. Use `wstack models show` or `wstack models reset` to restore.\n',
+      ),
+    );
   }
   return 0;
 }
@@ -369,7 +388,10 @@ async function modelsShow(args: string[], deps: Parameters<SubcommandHandler>[1]
     deps.renderer.writeError(`Provider "${providerId}" is not configured.`);
     return 1;
   }
-  const { providerId: lookupId, provider } = await getCatalogProviderForConfigProvider(providerId, deps);
+  const { providerId: lookupId, provider } = await getCatalogProviderForConfigProvider(
+    providerId,
+    deps,
+  );
   if (!provider) {
     deps.renderer.writeError(
       lookupId !== providerId
@@ -384,11 +406,15 @@ async function modelsShow(args: string[], deps: Parameters<SubcommandHandler>[1]
     return 0;
   }
   const nextVisible = uniqueStrings([...saved.models, modelId]);
-  await mutateConfigProviders(activeProfileConfigPath(deps.paths, deps.config), deps.vault, (providers) => {
-    const p = providers[providerId];
-    if (!p) return;
-    p.models = nextVisible;
-  });
+  await mutateConfigProviders(
+    activeProfileConfigPath(deps.paths, deps.config),
+    deps.vault,
+    (providers) => {
+      const p = providers[providerId];
+      if (!p) return;
+      p.models = nextVisible;
+    },
+  );
   deps.config.providers = {
     ...(deps.config.providers ?? {}),
     [providerId]: { ...saved, models: nextVisible },
@@ -400,7 +426,10 @@ async function modelsShow(args: string[], deps: Parameters<SubcommandHandler>[1]
   return 0;
 }
 
-async function modelsHidden(args: string[], deps: Parameters<SubcommandHandler>[1]): Promise<number> {
+async function modelsHidden(
+  args: string[],
+  deps: Parameters<SubcommandHandler>[1],
+): Promise<number> {
   const providerId = args[0] ?? deps.config.provider;
   if (!providerId) {
     deps.renderer.writeError('Usage: wstack models hidden <provider>');
@@ -411,7 +440,10 @@ async function modelsHidden(args: string[], deps: Parameters<SubcommandHandler>[
     deps.renderer.writeError(`Provider "${providerId}" is not configured.`);
     return 1;
   }
-  const { providerId: lookupId, provider } = await getCatalogProviderForConfigProvider(providerId, deps);
+  const { providerId: lookupId, provider } = await getCatalogProviderForConfigProvider(
+    providerId,
+    deps,
+  );
   if (!provider) {
     deps.renderer.writeError(
       lookupId !== providerId
@@ -429,11 +461,16 @@ async function modelsHidden(args: string[], deps: Parameters<SubcommandHandler>[
     return 0;
   }
   for (const id of hidden) deps.renderer.write(`  ${id}\n`);
-  deps.renderer.write(color.dim(`\nRestore: wstack models show ${providerId} <model> · reset ${providerId}\n`));
+  deps.renderer.write(
+    color.dim(`\nRestore: wstack models show ${providerId} <model> · reset ${providerId}\n`),
+  );
   return 0;
 }
 
-async function modelsReset(args: string[], deps: Parameters<SubcommandHandler>[1]): Promise<number> {
+async function modelsReset(
+  args: string[],
+  deps: Parameters<SubcommandHandler>[1],
+): Promise<number> {
   const providerId = args[0];
   if (!providerId) {
     deps.renderer.writeError('Usage: wstack models reset <provider>');
@@ -448,18 +485,24 @@ async function modelsReset(args: string[], deps: Parameters<SubcommandHandler>[1
     deps.renderer.writeInfo(`${providerId} already shows the full catalog model list.`);
     return 0;
   }
-  await mutateConfigProviders(activeProfileConfigPath(deps.paths, deps.config), deps.vault, (providers) => {
-    const p = providers[providerId];
-    if (!p) return;
-    delete p.models;
-  });
+  await mutateConfigProviders(
+    activeProfileConfigPath(deps.paths, deps.config),
+    deps.vault,
+    (providers) => {
+      const p = providers[providerId];
+      if (!p) return;
+      delete p.models;
+    },
+  );
   const nextProvider = { ...saved };
   delete nextProvider.models;
   deps.config.providers = {
     ...(deps.config.providers ?? {}),
     [providerId]: nextProvider,
   };
-  deps.renderer.writeInfo(`Reset visible model list for ${providerId} to the full catalog default.`);
+  deps.renderer.writeInfo(
+    `Reset visible model list for ${providerId} to the full catalog default.`,
+  );
   return 0;
 }
 
@@ -475,7 +518,9 @@ async function modelsCaps(args: string[], deps: Parameters<SubcommandHandler>[1]
   const resolved = await deps.modelsRegistry.getModel(providerId, modelId);
   if (!resolved) {
     deps.renderer.writeError('Model not found in catalog: ' + providerId + '/' + modelId);
-    deps.renderer.write(color.dim('Run `wstack models refresh` or add a custom model if this is expected.\n'));
+    deps.renderer.write(
+      color.dim('Run `wstack models refresh` or add a custom model if this is expected.\n'),
+    );
     return 1;
   }
 
@@ -488,26 +533,61 @@ async function modelsCaps(args: string[], deps: Parameters<SubcommandHandler>[1]
   const rc = caps.reasoningConfig;
   const cost = resolved.cost;
 
-  deps.renderer.write(color.bold('Model capabilities') + ' ' + color.dim(providerId + '/' + modelId) + '\n');
-  deps.renderer.write('  context:      ' + (caps.maxContext ? color.yellow(String(caps.maxContext)) : color.dim('?')) + '\n');
+  deps.renderer.write(
+    color.bold('Model capabilities') + ' ' + color.dim(providerId + '/' + modelId) + '\n',
+  );
+  deps.renderer.write(
+    '  context:      ' +
+      (caps.maxContext ? color.yellow(String(caps.maxContext)) : color.dim('?')) +
+      '\n',
+  );
   if (caps.maxOutput !== undefined) {
     deps.renderer.write('  max output:   ' + color.yellow(String(caps.maxOutput)) + '\n');
   }
   if (caps.knowledge) deps.renderer.write('  knowledge:    ' + caps.knowledge + '\n');
-  deps.renderer.write('  flags:        ' + (flags.length > 0 ? flags.join(', ') : color.dim('(none)')) + '\n');
-  deps.renderer.write('  pricing/1M:   input ' + fmtPrice(cost?.input) + '  output ' + fmtPrice(cost?.output) + '  cacheR ' + fmtPrice(cost?.cache_read) + '\n');
-  if (cost?.cache_write !== undefined || cost?.cache_write_5m !== undefined || cost?.cache_write_1h !== undefined) {
-    const cacheWrite1h = cost.cache_write_1h ?? (cost.input !== undefined ? cost.input * 2 : undefined);
-    deps.renderer.write('  cache write:  default ' + fmtPrice(cost.cache_write) + '  5m ' + fmtPrice(cost.cache_write_5m ?? cost.cache_write) + '  1h ' + fmtPrice(cacheWrite1h) + '\n');
+  deps.renderer.write(
+    '  flags:        ' + (flags.length > 0 ? flags.join(', ') : color.dim('(none)')) + '\n',
+  );
+  deps.renderer.write(
+    '  pricing/1M:   input ' +
+      fmtPrice(cost?.input) +
+      '  output ' +
+      fmtPrice(cost?.output) +
+      '  cacheR ' +
+      fmtPrice(cost?.cache_read) +
+      '\n',
+  );
+  if (
+    cost?.cache_write !== undefined ||
+    cost?.cache_write_5m !== undefined ||
+    cost?.cache_write_1h !== undefined
+  ) {
+    const cacheWrite1h =
+      cost.cache_write_1h ?? (cost.input !== undefined ? cost.input * 2 : undefined);
+    deps.renderer.write(
+      '  cache write:  default ' +
+        fmtPrice(cost.cache_write) +
+        '  5m ' +
+        fmtPrice(cost.cache_write_5m ?? cost.cache_write) +
+        '  1h ' +
+        fmtPrice(cacheWrite1h) +
+        '\n',
+    );
   }
   if (rc) {
     deps.renderer.write('  reasoning:\n');
     deps.renderer.write('    default:    ' + rc.default + '\n');
-    deps.renderer.write('    disable:    ' + (rc.disableSupported ? 'supported' : 'unsupported') + '\n');
-    deps.renderer.write('    effort:     ' + (rc.effortSupported ? rc.effortLevels.join(', ') : 'unsupported') + '\n');
+    deps.renderer.write(
+      '    disable:    ' + (rc.disableSupported ? 'supported' : 'unsupported') + '\n',
+    );
+    deps.renderer.write(
+      '    effort:     ' + (rc.effortSupported ? rc.effortLevels.join(', ') : 'unsupported') + '\n',
+    );
     deps.renderer.write('    preserve:   ' + rc.preserveThinking + '\n');
   } else if (caps.reasoning) {
-    deps.renderer.write(color.dim('  reasoning:    supported, but no detailed config in catalog\n'));
+    deps.renderer.write(
+      color.dim('  reasoning:    supported, but no detailed config in catalog\n'),
+    );
   }
   return 0;
 }

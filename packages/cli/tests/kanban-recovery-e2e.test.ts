@@ -1,9 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { SubagentConfig } from '@wrongstack/core/types';
-import type { TaskResult, TaskSpec } from '@wrongstack/core/types';
 import { makeKanbanQueueTool } from '@wrongstack/core/coordination';
+import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/core/types';
 import {
   addTask,
   assignTask,
@@ -232,9 +231,7 @@ describe('Kanban recovery E2E (file-backed dispatch + recover_stale + retry)', (
 
     const recoveryEvent = events.find((event) => event.type === 'task.stale_recovered');
     expect(recoveryEvent?.note).toContain('simulated dead worker');
-    const completedEvent = events.find(
-      (event) => event.type === 'task.assignment.completed',
-    );
+    const completedEvent = events.find((event) => event.type === 'task.assignment.completed');
     expect(completedEvent?.runTaskId).toBe(taskIdsReturned[1]);
     // Sprint 1 contract: `release` wipes routing metadata, so the retry's
     // claim yields a fresh assignment without a preserved agentId. The

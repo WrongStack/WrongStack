@@ -1,8 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EventBus } from '@wrongstack/core/kernel';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createGoalHost, type GoalHostDeps } from '../src/goal-host.js';
 
 // A minimal fake MultiAgentHost: makeSubagentFactory() returns a factory whose
@@ -26,7 +26,9 @@ function fakeHost(opts: {
     },
     dispose: async () => {},
   });
-  return { makeSubagentFactory: (_cfg: unknown) => factory } as never as GoalHostDeps['multiAgentHost'];
+  return {
+    makeSubagentFactory: (_cfg: unknown) => factory,
+  } as never as GoalHostDeps['multiAgentHost'];
 }
 
 const ONE_PHASE_PLAN = [
@@ -36,7 +38,9 @@ const ONE_PHASE_PLAN = [
     priority: 'high',
     estimateHours: 1,
     parallelizable: false,
-    tasks: [{ title: 'task one', description: '', type: 'feature', priority: 'high', estimateHours: 1 }],
+    tasks: [
+      { title: 'task one', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+    ],
   },
 ];
 

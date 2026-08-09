@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { GovernanceAttachmentBrokerController } from './attachment-broker-controller.js';
 import {
   acquireGovernanceDaemonStartupLease,
@@ -23,12 +24,12 @@ import { GovernanceProjectServer } from './project-server.js';
 
 const BOOTSTRAP_REQUEST_TIMEOUT_MS = 10_000;
 
-interface DaemonArguments {
+export interface GovernanceDaemonArguments {
   readonly projectRoot: string;
   readonly projectId: string;
 }
 
-function parseArguments(argv: readonly string[]): DaemonArguments {
+export function parseGovernanceDaemonArguments(argv: readonly string[]): GovernanceDaemonArguments {
   const values = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
@@ -45,6 +46,13 @@ function parseArguments(argv: readonly string[]): DaemonArguments {
     throw new Error('Governance daemon requires valid --project-root and --project-id values.');
   }
   return { projectRoot: path.resolve(projectRoot), projectId };
+}
+
+export function isGovernanceProjectDaemonEntrypoint(
+  entrypoint = process.argv[1],
+  moduleUrl = import.meta.url,
+): boolean {
+  return Boolean(entrypoint && path.resolve(entrypoint) === path.resolve(fileURLToPath(moduleUrl)));
 }
 
 function send(message: GovernanceDaemonBootstrapMessage, callback?: (error?: Error) => void): void {
@@ -65,7 +73,7 @@ async function run(): Promise<void> {
   if (!process.send || !process.connected) {
     throw new Error('Governance daemon must be launched with a private bootstrap IPC channel.');
   }
-  const parsed = parseArguments(process.argv.slice(2));
+  const parsed = parseGovernanceDaemonArguments(process.argv.slice(2));
   const instanceId = randomUUID();
   const startedAt = new Date().toISOString();
   const metadata = createGovernanceDaemonMetadata({
@@ -305,7 +313,9 @@ async function run(): Promise<void> {
   });
 }
 
-void run().catch(() => {
-  process.exitCode = 1;
-  if (process.connected) process.disconnect?.();
-});
+if (isGovernanceProjectDaemonEntrypoint()) {
+  void run().catch(() => {
+    process.exitCode = 1;
+    if (process.connected) process.disconnect?.();
+  });
+}

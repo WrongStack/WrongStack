@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
 import type { EventBus } from '@wrongstack/core/kernel';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { buildReviewCommand } from '../src/slash-commands/review.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildReviewCommand } from '../src/slash-commands/review.js';
 
 // vi.mock is hoisted to top-of-file, so we use vi.hoisted to define mocks early
 const { mockSpawn, mockAccess, mockReadFile } = vi.hoisted(() => ({
@@ -70,9 +70,7 @@ describe('buildReviewCommand', () => {
   });
 
   it('returns no-changed-files when git status has only .wrongstack/', async () => {
-    mockSpawn.mockReturnValue(
-      fakeChild(['M  .wrongstack/config.json\n'], 0),
-    );
+    mockSpawn.mockReturnValue(fakeChild(['M  .wrongstack/config.json\n'], 0));
     const cmd = buildReviewCommand(makeOpts());
     const res = await cmd.run('', { cwd: '/tmp' } as never);
     expect(res?.message).toMatch(/No changed files/);
@@ -92,9 +90,7 @@ describe('buildReviewCommand', () => {
     mockReadFile.mockResolvedValue('content of foo.ts');
 
     const emitCustom = vi.fn();
-    const cmd = buildReviewCommand(
-      makeOpts({ events: { emitCustom } as never }),
-    );
+    const cmd = buildReviewCommand(makeOpts({ events: { emitCustom } as never }));
     const res = await cmd.run('', {
       cwd: '/tmp',
       provider: { id: 'test' },
@@ -119,16 +115,12 @@ describe('buildReviewCommand', () => {
   });
 
   it('filters files by --files substring', async () => {
-    mockSpawn.mockReturnValue(
-      fakeChild(['M  src/bar.ts\nM  src/foo.ts\n'], 0),
-    );
+    mockSpawn.mockReturnValue(fakeChild(['M  src/bar.ts\nM  src/foo.ts\n'], 0));
     mockAccess.mockResolvedValue(undefined);
     mockReadFile.mockResolvedValue('content');
 
     const emitCustom = vi.fn();
-    const cmd = buildReviewCommand(
-      makeOpts({ events: { emitCustom } as never }),
-    );
+    const cmd = buildReviewCommand(makeOpts({ events: { emitCustom } as never }));
     const res = await cmd.run('--files foo', {
       cwd: '/tmp',
       provider: { id: 'test' },
@@ -139,9 +131,7 @@ describe('buildReviewCommand', () => {
     expect(emitCustom).toHaveBeenCalledWith(
       'chimera.review_needed',
       expect.objectContaining({
-        files: expect.arrayContaining([
-          expect.objectContaining({ path: 'src/foo.ts' }),
-        ]),
+        files: expect.arrayContaining([expect.objectContaining({ path: 'src/foo.ts' })]),
       }),
     );
   });
@@ -153,9 +143,7 @@ describe('buildReviewCommand', () => {
     mockReadFile.mockResolvedValue('content');
 
     const emitCustom = vi.fn();
-    const cmd = buildReviewCommand(
-      makeOpts({ events: { emitCustom } as never }),
-    );
+    const cmd = buildReviewCommand(makeOpts({ events: { emitCustom } as never }));
     const res = await cmd.run('--limit 2', {
       cwd: '/tmp',
       provider: { id: 'test' },

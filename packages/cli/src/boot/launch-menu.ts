@@ -157,7 +157,6 @@ export function shouldSkipMenu(
   return false;
 }
 
-
 interface RunLaunchMenuDeps {
   argv: string[];
   flags: Record<string, string | boolean>;

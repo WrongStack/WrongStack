@@ -934,6 +934,12 @@ export async function startWebUI(
   // transcript replay, and per-client lifecycle. Both live in their own
   // modules so `startWebUI` reads as orchestration.
   const routes = buildRoutes(state, deps, cb);
+  // The Kanban supervisor is created inside the dispatcher (deterministic
+  // background auditor + optional agentic mode). Expose its disposer so the
+  // shutdown hook below can stop the periodic timer and clear internal maps
+  // before the WS connections close.
+  // Assigned synchronously inside createMessageDispatcher; invoked from onShutdown.
+  let kanbanSupervisorDispose: (() => void) | null = null;
   const handleMessage = createMessageDispatcher({
     state,
     deps,
@@ -942,6 +948,9 @@ export async function startWebUI(
     codebaseIndexing,
     runLock: runLockControl,
     pendingConfirms,
+    onDispose: (dispose) => {
+      kanbanSupervisorDispose = dispose;
+    },
   });
   // Fire-and-forget callback wired on the connection lifecycle for
   // `unsafe_key` / `too_deep` decoder rejections. Sends a high-priority
@@ -1038,6 +1047,13 @@ export async function startWebUI(
       wssPrimary,
       ...(wssSecondary ? [wssSecondary] : []),
     ],
+    onPreShutdown: () => {
+      // Stop the Kanban supervisor's periodic timer **before** the WS layer
+      // tears down so no audit tick fires mid-shutdown — and so no in-flight
+      // `kanban.*` broadcast races a `WebSocketServer.close()`.
+      kanbanSupervisorDispose?.();
+      kanbanSupervisorDispose = null;
+    },
     onShutdown: async () => {
       unregisterShutdown();
       await todosCheckpoint.detach();

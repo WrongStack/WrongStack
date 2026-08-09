@@ -26,7 +26,10 @@ export async function reportTaskResultToLeader({
     const mailbox = getSharedProjectMailbox(mailboxProjectDir, events);
     const ok = n.status === 'success';
     const MAX_BODY = 700;
-    const failureText = [n.errorText ?? n.status, n.partialText ? `Partial output:\n${n.partialText}` : '']
+    const failureText = [
+      n.errorText ?? n.status,
+      n.partialText ? `Partial output:\n${n.partialText}` : '',
+    ]
       .filter(Boolean)
       .join('\n\n');
     const successText = n.report ? formatSubagentStructuredReport(n.report) : n.resultText;

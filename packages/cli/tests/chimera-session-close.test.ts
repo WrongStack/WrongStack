@@ -12,9 +12,10 @@
  * This test verifies that ordering: append must be called and resolved
  * before close() is allowed to proceed.
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+
 import { EventBus } from '@wrongstack/core/kernel';
 import type { SessionEvent, SessionWriter } from '@wrongstack/core/types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface ChimeraReviewNeededPayload {
   files: Array<{ path: string; status: string }>;
@@ -71,7 +72,11 @@ describe('chimera session.close ordering', () => {
    * Simulates the fixed chimera handler + finally block logic.
    * This mirrors packages/cli/src/execution.ts lines ~256-360 and ~1489-1494.
    */
-  function runSessionEndFlow(events: EventBus, session: SessionWriter, director: ReturnType<typeof makeDirector>) {
+  function runSessionEndFlow(
+    events: EventBus,
+    session: SessionWriter,
+    director: ReturnType<typeof makeDirector>,
+  ) {
     let pendingChimeraWork: Promise<void> | undefined;
 
     // Chimera handler (mirrors execution.ts:261-361)
@@ -83,7 +88,10 @@ describe('chimera session.close ordering', () => {
         const results = await director.awaitTasks(['task-1']);
         const result = results[0];
         if (result?.status === 'success') {
-          const reviewText = typeof result.result === 'string' ? result.result.trim() : JSON.stringify(result.result);
+          const reviewText =
+            typeof result.result === 'string'
+              ? result.result.trim()
+              : JSON.stringify(result.result);
           if (reviewText) {
             await session.append({
               type: 'llm_response',
@@ -135,7 +143,10 @@ describe('chimera session.close ordering', () => {
         const results = await director.awaitTasks(['task-1']);
         const result = results[0];
         if (result?.status === 'success') {
-          const reviewText = typeof result.result === 'string' ? result.result.trim() : JSON.stringify(result.result);
+          const reviewText =
+            typeof result.result === 'string'
+              ? result.result.trim()
+              : JSON.stringify(result.result);
           if (reviewText) {
             await session.append({
               type: 'llm_response',

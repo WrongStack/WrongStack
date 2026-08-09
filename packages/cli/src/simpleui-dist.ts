@@ -49,9 +49,7 @@ export interface EnsureSimpleUiDistDeps extends SimpleUiDistDeps {
  * automatically (~600 ms) and retries resolution. The build output is
  * printed to stderr so the user sees what happened.
  */
-export async function ensureSimpleUiDistDir(
-  deps: EnsureSimpleUiDistDeps = {},
-): Promise<string> {
+export async function ensureSimpleUiDistDir(deps: EnsureSimpleUiDistDeps = {}): Promise<string> {
   try {
     return resolveSimpleUiDistDir(deps);
   } catch {
@@ -86,11 +84,17 @@ export async function ensureSimpleUiDistDir(
     });
 
   const workspaceRoot = findRoot(packageDir);
-  console.warn(JSON.stringify({ level: 'warn', event: 'simpleui.auto_build', message: 'Frontend not built — building now', timestamp: new Date().toISOString() }));
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'simpleui.auto_build',
+      message: 'Frontend not built — building now',
+      timestamp: new Date().toISOString(),
+    }),
+  );
 
   const runBuild =
-    deps.runBuild ??
-    ((cwd: string) => runPnpmBuild(cwd, '@wrongstack/simpleui', 120_000));
+    deps.runBuild ?? ((cwd: string) => runPnpmBuild(cwd, '@wrongstack/simpleui', 120_000));
 
   try {
     await runBuild(workspaceRoot);

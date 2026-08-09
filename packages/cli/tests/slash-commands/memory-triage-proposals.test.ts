@@ -11,9 +11,9 @@
  *   3. /memory candidates → listCandidates() should return the proposals
  */
 
-import { describe, expect, it } from 'vitest';
-import type { SageSurface, MemoryCandidate, CreateCandidateInput } from '@wrongstack/sage';
+import type { CreateCandidateInput, MemoryCandidate, SageSurface } from '@wrongstack/sage';
 import { runTriage } from '@wrongstack/sage';
+import { describe, expect, it } from 'vitest';
 import { fileProposals as internFileProposals } from '../../src/slash-commands/memory-triage.js';
 
 // ── Mock Sage surface ─────────────────────────────────────────
@@ -46,8 +46,9 @@ function makeMockSage(options: MockSageOptions = {}) {
         throw options.errorToThrow ?? new Error('mock createCandidate failure');
       }
       if (options.failFor?.has(input.targetMemoryId ?? '')) {
-        throw options.errorToThrow ?? new Error(
-          `mock createCandidate failure for ${input.targetMemoryId}`,
+        throw (
+          options.errorToThrow ??
+          new Error(`mock createCandidate failure for ${input.targetMemoryId}`)
         );
       }
       // Mirrors `createSqliteCandidate`'s defaulting so the mock cannot drift

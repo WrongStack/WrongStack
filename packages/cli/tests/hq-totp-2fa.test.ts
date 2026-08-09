@@ -8,7 +8,12 @@ import {
   mutateHqAuthFile,
   writeHqAuthFile,
 } from '@wrongstack/core/hq';
-import { generateTotp, generateTotpSecret, generateRecoveryCodes, hashRecoveryCode } from '@wrongstack/core/security';
+import {
+  generateRecoveryCodes,
+  generateTotp,
+  generateTotpSecret,
+  hashRecoveryCode,
+} from '@wrongstack/core/security';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
@@ -259,7 +264,9 @@ describe('HQ server — TOTP 2FA', () => {
     handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
 
     const { res: pendingRes, cookie: pendingCookie } = await login(PASSWORD);
-    expect((await pendingRes.json()) as { totpRequired?: boolean }).toMatchObject({ totpRequired: true });
+    expect((await pendingRes.json()) as { totpRequired?: boolean }).toMatchObject({
+      totpRequired: true,
+    });
     const verified = await loginAndVerify(generateTotp(secret), pendingCookie!);
     const cookie = verified.headers.get('set-cookie')?.split(';')[0] ?? null;
     expect(verified.status).toBe(200);

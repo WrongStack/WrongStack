@@ -1,5 +1,3 @@
-import type { SlashCommand } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
 import {
   buildConsolidationInstruction,
   captureLearnedFromAgentOutput,
@@ -10,10 +8,12 @@ import {
   loadProjectAgentIdentity,
   loadProjectAgentLearned,
   loadRoleKnowledgeManifest,
-  resetProjectAgentIdentity,
   refreshProjectAgentIdentity,
+  resetProjectAgentIdentity,
   updateProjectAgentIdentity,
 } from '@wrongstack/core/agent-catalog';
+import type { SlashCommand } from '@wrongstack/core/types';
+import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 
 /**
@@ -32,10 +32,12 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
 
   function listRoles(): string[] {
     try {
-      return require('node:fs').readdirSync(
-        require('node:path').join(projectRoot, '.wrongstack', 'agents'),
-        { withFileTypes: true },
-      ).filter((d: import('node:fs').Dirent) => d.isDirectory()).map((d: import('node:fs').Dirent) => d.name);
+      return require('node:fs')
+        .readdirSync(require('node:path').join(projectRoot, '.wrongstack', 'agents'), {
+          withFileTypes: true,
+        })
+        .filter((d: import('node:fs').Dirent) => d.isDirectory())
+        .map((d: import('node:fs').Dirent) => d.name);
     } catch {
       return [];
     }
@@ -111,7 +113,10 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
           const kn = loadRoleKnowledgeManifest(role, projectRoot);
           const lines: string[] = [`${color.bold(role)} project identity:`];
           if (cfg) lines.push(`  config: ${JSON.stringify(cfg)}`);
-          if (kn) lines.push(`  knowledge: ${kn.checklist.length} checks, ${Object.keys(kn.liveQueries ?? {}).length} live queries`);
+          if (kn)
+            lines.push(
+              `  knowledge: ${kn.checklist.length} checks, ${Object.keys(kn.liveQueries ?? {}).length} live queries`,
+            );
           if (idText) lines.push(`  identity: ${idText.length} chars`);
           if (learned) lines.push(`  learned: ${learned.length} chars`);
           if (!cfg && !idText && !learned && !kn) {
@@ -180,10 +185,7 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
         }
 
         case 'reset': {
-          const removed = resetProjectAgentIdentity(
-            role === '*' ? undefined : role,
-            projectRoot,
-          );
+          const removed = resetProjectAgentIdentity(role === '*' ? undefined : role, projectRoot);
           const msg =
             removed.length > 0
               ? `Reset ${color.cyan(role)} project identity. Removed: ${removed.join(', ')}`

@@ -1,15 +1,11 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import type {
-  MemoryAudienceSelector,
-  SageSurface,
-  UpdateSageInput,
-} from '@wrongstack/sage';
+import type { MemoryAudienceSelector, SageSurface, UpdateSageInput } from '@wrongstack/sage';
 import { getSageSurface } from '@wrongstack/sage';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import { runCompact } from './memory-compact.js';
-import { runTriageCommand } from './memory-triage.js';
+import { parseForFileFlags, parseMemoryFlags } from './memory-flags.js';
 import {
   formatAudit,
   formatCandidates,
@@ -24,7 +20,7 @@ import {
   formatVerification,
   requiresSage,
 } from './memory-formatters.js';
-import { parseForFileFlags, parseMemoryFlags } from './memory-flags.js';
+import { runTriageCommand } from './memory-triage.js';
 
 export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
   return {
@@ -44,10 +40,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
         case 'list': {
           // Sage path: show stats + structured entries when available
           if (Sage) {
-            const [stats, allMemories] = await Promise.all([
-              Sage.stats(),
-              Sage.listSage(),
-            ]);
+            const [stats, allMemories] = await Promise.all([Sage.stats(), Sage.listSage()]);
             if (allMemories.length === 0) {
               return { message: '🧠 SAGE is empty.' };
             }
@@ -318,14 +311,40 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
           }
 
           // Runtime-validate --status against known SageStatus values
-          const VALID_STATUSES = ['active', 'stale', 'superseded', 'contradicted', 'archived', 'deleted'] as const;
-          if (statusVal !== undefined && !(VALID_STATUSES as readonly string[]).includes(statusVal)) {
-            return { message: `Invalid --status "${statusVal}". Valid: ${VALID_STATUSES.join(', ')}` };
+          const VALID_STATUSES = [
+            'active',
+            'stale',
+            'superseded',
+            'contradicted',
+            'archived',
+            'deleted',
+          ] as const;
+          if (
+            statusVal !== undefined &&
+            !(VALID_STATUSES as readonly string[]).includes(statusVal)
+          ) {
+            return {
+              message: `Invalid --status "${statusVal}". Valid: ${VALID_STATUSES.join(', ')}`,
+            };
           }
-          const resolvedStatus = statusVal as typeof VALID_STATUSES[number] | undefined;
+          const resolvedStatus = statusVal as (typeof VALID_STATUSES)[number] | undefined;
 
           // Runtime-validate --kind against known SageKind values
-          const VALID_KINDS = ['fact', 'decision', 'convention', 'preference', 'warning', 'anti_pattern', 'workflow', 'bug_root_cause', 'file_note', 'symbol_note', 'command_note', 'summary', 'memory_review'] as const;
+          const VALID_KINDS = [
+            'fact',
+            'decision',
+            'convention',
+            'preference',
+            'warning',
+            'anti_pattern',
+            'workflow',
+            'bug_root_cause',
+            'file_note',
+            'symbol_note',
+            'command_note',
+            'summary',
+            'memory_review',
+          ] as const;
           if (kindVal !== undefined && !(VALID_KINDS as readonly string[]).includes(kindVal)) {
             return { message: `Invalid --kind "${kindVal}". Valid: ${VALID_KINDS.join(', ')}` };
           }
@@ -343,15 +362,21 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
             // Build output
             const lines: string[] = [];
             lines.push(`## 📋 Memory Gather — ${page.total} matched`);
-            lines.push(`Filter: status=${resolvedStatus ?? 'active'}${kindVal ? `, kind=${kindVal}` : ''}${query ? `, query="${query}"` : ''}`);
+            lines.push(
+              `Filter: status=${resolvedStatus ?? 'active'}${kindVal ? `, kind=${kindVal}` : ''}${query ? `, query="${query}"` : ''}`,
+            );
             if (page.statusCounts && Object.keys(page.statusCounts).length > 0) {
-              const bar = Object.entries(page.statusCounts).map(([s, n]) => `${s}: ${n}`).join(', ');
+              const bar = Object.entries(page.statusCounts)
+                .map(([s, n]) => `${s}: ${n}`)
+                .join(', ');
               lines.push(`Status counts: ${bar}`);
             }
             lines.push('');
             for (const mem of page.memories) {
               const preview = mem.text.length > 120 ? `${mem.text.slice(0, 118)}…` : mem.text;
-              lines.push(`  ${mem.kind} [${mem.importance.toFixed(2)}|${mem.confidence.toFixed(2)}] ${mem.id} — ${preview}`);
+              lines.push(
+                `  ${mem.kind} [${mem.importance.toFixed(2)}|${mem.confidence.toFixed(2)}] ${mem.id} — ${preview}`,
+              );
             }
             // Relations (requires graphFor on the backend)
             if (includeRelations) {
@@ -369,7 +394,9 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
                     for (const edge of graph) {
                       edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
                     }
-                  } catch { /* best-effort */ }
+                  } catch {
+                    /* best-effort */
+                  }
                 }
                 // Deduplicate
                 const seen = new Set<string>();
@@ -391,7 +418,9 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
             const moreAvailable = page.total > page.memories.length;
             if (moreAvailable) {
               lines.push('');
-              lines.push(`*Showing ${page.memories.length} of ${page.total} — use --limit ${Math.min(500, limit * 2)} for more*`);
+              lines.push(
+                `*Showing ${page.memories.length} of ${page.total} — use --limit ${Math.min(500, limit * 2)} for more*`,
+              );
             }
             return { message: lines.join('\n') };
           } catch (err) {
@@ -670,10 +699,7 @@ function formatAudienceSelector(audience: MemoryAudienceSelector): string {
   return parts.join(' · ');
 }
 
-async function runAudienceMemory(
-  store: SageSurface,
-  rest: string[],
-): Promise<{ message: string }> {
+async function runAudienceMemory(store: SageSurface, rest: string[]): Promise<{ message: string }> {
   const sub = rest[0]?.toLowerCase() ?? 'list';
 
   // /memory audience list [--role <r>] [--task-type <t>] [--mode <m>]

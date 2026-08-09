@@ -12,8 +12,13 @@
  * refresh token; the provider mints fresh Copilot tokens from it transparently.
  */
 
+import {
+  FetchError,
+  ParseError,
+  type ProviderApiKey,
+  type ProviderConfig,
+} from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import { FetchError, ParseError, type ProviderApiKey, type ProviderConfig } from '@wrongstack/core/types';
 import { copilotBaseUrlFromToken, refreshCopilotToken } from '@wrongstack/providers';
 import {
   mutateConfigProviders,
@@ -43,7 +48,6 @@ interface DeviceCode {
   interval: number;
   expires_in: number;
 }
-
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -320,19 +324,24 @@ async function saveCopilotTokens(
     tokenType: 'bearer',
   };
   try {
-    await mutateConfigProviders(deps.profileConfigPath, deps.vault, (all) => {
-      const existing = all[providerId];
-      const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
-      p.family = 'github-copilot';
-      if (!p.baseUrl) p.baseUrl = copilotBaseUrlFromToken(copilotToken);
-      if (models.length > 0) p.models = models;
-      else if (!p.models || p.models.length === 0) p.models = ['gpt-4o'];
-      const keys = normalizeKeys(p).filter((k) => k.label !== entry.label);
-      keys.push(entry);
-      writeKeysBack(p, keys);
-      p.activeKey = entry.label;
-      all[providerId] = p;
-    }, deps.profileConfigPath);
+    await mutateConfigProviders(
+      deps.profileConfigPath,
+      deps.vault,
+      (all) => {
+        const existing = all[providerId];
+        const p: ProviderConfig = existing ? { ...existing } : { type: providerId };
+        p.family = 'github-copilot';
+        if (!p.baseUrl) p.baseUrl = copilotBaseUrlFromToken(copilotToken);
+        if (models.length > 0) p.models = models;
+        else if (!p.models || p.models.length === 0) p.models = ['gpt-4o'];
+        const keys = normalizeKeys(p).filter((k) => k.label !== entry.label);
+        keys.push(entry);
+        writeKeysBack(p, keys);
+        p.activeKey = entry.label;
+        all[providerId] = p;
+      },
+      deps.profileConfigPath,
+    );
     return true;
   } catch (err) {
     deps.renderer.writeError(`  Failed to save tokens: ${(err as Error).message}`);

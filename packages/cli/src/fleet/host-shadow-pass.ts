@@ -21,10 +21,7 @@ export interface HostShadowPassContext {
   requestShadowPass: (reason: string) => void;
 }
 
-export async function runHostShadowPass(
-  ctx: HostShadowPassContext,
-  reason: string,
-): Promise<void> {
+export async function runHostShadowPass(ctx: HostShadowPassContext, reason: string): Promise<void> {
   try {
     const director = ctx.getDirector();
     if (!director) return;

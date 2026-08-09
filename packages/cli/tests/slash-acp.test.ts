@@ -78,7 +78,9 @@ describe('/acp dispatch', () => {
     ]);
     const res = await cmd().run('', {} as never);
     expect((res as { message?: string })?.message).toContain('gemini-cli');
-    expect((res as { message?: string })?.message).toContain('1 of 2 bundled agents installed locally');
+    expect((res as { message?: string })?.message).toContain(
+      '1 of 2 bundled agents installed locally',
+    );
   });
 
   it('shows help for `help`', async () => {
@@ -101,7 +103,9 @@ describe('/acp dispatch', () => {
     expect(arg.agentIds).toEqual(['gemini-cli', 'claude-code']);
     expect((res as { message?: string })?.message).toContain('✓ gemini-cli');
     expect((res as { message?: string })?.message).toContain('✗ claude-code');
-    expect((res as { message?: string })?.message).toContain('1 of 2 agents completed the ACP handshake');
+    expect((res as { message?: string })?.message).toContain(
+      '1 of 2 agents completed the ACP handshake',
+    );
   });
 
   it('routes parallel to runEnsemble', async () => {
@@ -115,7 +119,11 @@ describe('/acp dispatch', () => {
   });
 
   it('runs a single agent inline and renders the result', async () => {
-    resolveAcpAgentCommand.mockReturnValue({ command: 'gemini', args: ['--experimental-acp'], role: 'gemini-cli' });
+    resolveAcpAgentCommand.mockReturnValue({
+      command: 'gemini',
+      args: ['--experimental-acp'],
+      role: 'gemini-cli',
+    });
     runOneAcpTask.mockResolvedValue({ result: 'all done', iterations: 2, toolCalls: 3 });
     const opts = fakeOpts();
     const res = await cmd(opts).run('gemini-cli "explain x"', {} as never);
@@ -174,7 +182,11 @@ describe('/acp dispatch', () => {
   });
 
   it('syncs the official registry via refreshAcpRegistry', async () => {
-    refreshAcpRegistry.mockResolvedValue({ count: 37, location: '/tmp/cache/acp-registry.json', fetchedAt: 'now' });
+    refreshAcpRegistry.mockResolvedValue({
+      count: 37,
+      location: '/tmp/cache/acp-registry.json',
+      fetchedAt: 'now',
+    });
     const res = await cmd().run('sync', {} as never);
     expect(refreshAcpRegistry).toHaveBeenCalledTimes(1);
     expect((res as { message?: string })?.message).toContain('Synced 37 agents');
@@ -188,7 +200,9 @@ describe('/acp dispatch', () => {
   });
 
   it('list surfaces synced-registry agents when a cache exists', async () => {
-    ensembleList.mockResolvedValue([{ id: 'gemini-cli', displayName: 'Gemini CLI', installed: true }]);
+    ensembleList.mockResolvedValue([
+      { id: 'gemini-cli', displayName: 'Gemini CLI', installed: true },
+    ]);
     loadCachedAcpRegistry.mockResolvedValue({
       fetchedAt: 'now',
       byId: { gemini: { command: 'npx', args: [] } },
@@ -208,12 +222,18 @@ describe('/acp dispatch', () => {
       byId: { gemini: { command: 'npx', args: ['-y', '@google/gemini-cli', '--acp'] } },
       agents: [],
     });
-    resolveAcpAgentCommand.mockReturnValue({ command: 'npx', args: ['-y', '@google/gemini-cli', '--acp'], role: 'gemini' });
+    resolveAcpAgentCommand.mockReturnValue({
+      command: 'npx',
+      args: ['-y', '@google/gemini-cli', '--acp'],
+      role: 'gemini',
+    });
     runOneAcpTask.mockResolvedValue({ result: 'ok', iterations: 1, toolCalls: 0 });
     await cmd().run('gemini "hi"', {} as never);
     // 3rd arg to resolveAcpAgentCommand is the live byId map.
     const call = resolveAcpAgentCommand.mock.calls[0]!;
-    expect(call[2]).toEqual({ gemini: { command: 'npx', args: ['-y', '@google/gemini-cli', '--acp'] } });
+    expect(call[2]).toEqual({
+      gemini: { command: 'npx', args: ['-y', '@google/gemini-cli', '--acp'] },
+    });
   });
 
   it('passes the user config override map into resolveAcpAgentCommand', async () => {

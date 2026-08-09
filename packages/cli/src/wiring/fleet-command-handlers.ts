@@ -9,8 +9,8 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import { loadDirectorState } from '@wrongstack/core/storage';
 import { AgentError } from '@wrongstack/core/types';
 import { color, expectDefined } from '@wrongstack/core/utils';
-import type { MultiAgentHost } from '../multi-agent.js';
 import { formatFleetBudgetLines } from '../fleet/host-status.js';
+import type { MultiAgentHost } from '../multi-agent.js';
 import { fmtTaskResultLine } from '../utils.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
@@ -40,9 +40,7 @@ export interface FleetCommandHandlersInput {
   fleetRoot: string;
 }
 
-export function createFleetCommandHandlers(
-  input: FleetCommandHandlersInput,
-): FleetCommandHandlers {
+export function createFleetCommandHandlers(input: FleetCommandHandlersInput): FleetCommandHandlers {
   return {
     onSpawn: async (description, options) => {
       const { subagentId, taskId } = await input.multiAgentHost.spawn(description, options);
@@ -56,8 +54,8 @@ export function createFleetCommandHandlers(
     },
     onSpawnAndWait: async (description, options) => {
       const result = await input.multiAgentHost.spawnAndWait(description, options);
-      const tags = [options?.provider, options?.model, options?.name].filter(
-        (tag): tag is string => Boolean(tag),
+      const tags = [options?.provider, options?.model, options?.name].filter((tag): tag is string =>
+        Boolean(tag),
       );
       const suffix = tags.length > 0 ? ` (${tags.join(' / ')})` : '';
       const seconds = (result.durationMs / 1000).toFixed(result.durationMs < 10_000 ? 1 : 0);
@@ -224,7 +222,9 @@ function formatFleetStatus(host: MultiAgentHost): string {
     }),
   );
   const icons: Record<string, string> = { running: '●', idle: '○', stopped: '⊘' };
-  const active = status.live.filter((agent) => agent.status === 'running' || agent.status === 'idle');
+  const active = status.live.filter(
+    (agent) => agent.status === 'running' || agent.status === 'idle',
+  );
   if (active.length > 0) {
     lines.push('', color.dim('  Active'));
     for (const agent of active) {
@@ -488,9 +488,7 @@ async function retryInterruptedTasks(
         const owner = task.subagentId
           ? prior.subagents.find((subagent) => subagent.id === task.subagentId)
           : undefined;
-        const tag = owner
-          ? `${owner.name ?? owner.id} (${owner.role ?? 'no-role'})`
-          : 'no-owner';
+        const tag = owner ? `${owner.name ?? owner.id} (${owner.role ?? 'no-role'})` : 'no-owner';
         return `  ${task.taskId.slice(0, 12)}  ${task.status.padEnd(8)} ${tag}  ${(task.description ?? '').slice(0, 60)}`;
       }),
       'Run `/fleet retry <taskId>` or `/fleet retry all` to re-assign.',

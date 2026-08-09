@@ -1,11 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { Context } from '@wrongstack/core/agent';
-import { buildIntakeCommand } from '../src/slash-commands/intake.js';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
+import { buildIntakeCommand } from '../src/slash-commands/intake.js';
 
 const REQUEST_TEXT = 'Add email-based password reset so users can recover access.';
 

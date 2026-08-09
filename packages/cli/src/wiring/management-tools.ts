@@ -1,11 +1,11 @@
 import * as fs from 'node:fs/promises';
-import type { Config } from '@wrongstack/core/types';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import {
   createFallbackManageTools,
   createPluginManagerTool,
   type PluginManagerHookRunner,
 } from '@wrongstack/core/tools';
-import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config } from '@wrongstack/core/types';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from '../plugin-management.js';
 
 type ConfigStoreLike = {

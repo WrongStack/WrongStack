@@ -126,9 +126,7 @@ describe('models-add-help', () => {
       // at the bottom. customBody entries don't get this footer
       // because the dedicated help module owns the closing lines.
       const fromDeep = renderDeepHelpToString('models:add');
-      expect(fromDeep).not.toContain(
-        'Tip: `wstack --help` lists every top-level command.',
-      );
+      expect(fromDeep).not.toContain('Tip: `wstack --help` lists every top-level command.');
     });
   });
 

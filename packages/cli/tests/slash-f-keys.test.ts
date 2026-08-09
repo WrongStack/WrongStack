@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildFKeysCommand, buildFKeyAliasCommands } from '../src/slash-commands/f-keys.js';
+import { buildFKeyAliasCommands, buildFKeysCommand } from '../src/slash-commands/f-keys.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 
 function makeOpts(overrides: Partial<SlashCommandContext> = {}): SlashCommandContext {
@@ -22,9 +22,7 @@ describe('buildFKeysCommand', () => {
 
   it('opens panel for valid F-key number via onPanelOpen', async () => {
     const onPanelOpen = vi.fn().mockReturnValue(true);
-    const cmd = buildFKeysCommand(
-      makeOpts({ onPanelOpen: { current: onPanelOpen } }),
-    );
+    const cmd = buildFKeysCommand(makeOpts({ onPanelOpen: { current: onPanelOpen } }));
     const res = await cmd.run('1');
     expect(onPanelOpen).toHaveBeenCalledWith('projectPickerOpen');
     expect(res?.message).toBeUndefined();
@@ -32,9 +30,7 @@ describe('buildFKeysCommand', () => {
 
   it('falls back to REPL message when onPanelOpen returns false', async () => {
     const onPanelOpen = vi.fn().mockReturnValue(false);
-    const cmd = buildFKeysCommand(
-      makeOpts({ onPanelOpen: { current: onPanelOpen } }),
-    );
+    const cmd = buildFKeysCommand(makeOpts({ onPanelOpen: { current: onPanelOpen } }));
     const res = await cmd.run('2');
     expect(onPanelOpen).toHaveBeenCalledWith('toggleMonitor');
     expect(res?.message).toMatch(/Opening fleet orchestration monitor/);
@@ -76,9 +72,7 @@ describe('buildFKeysCommand', () => {
     for (let i = 1; i <= 12; i++) {
       const cmd = buildFKeysCommand(makeOpts());
       const res = await cmd.run(String(i));
-      expect(res?.message).toMatch(
-        new RegExp(`Opening ${labels[i - 1]}`),
-      );
+      expect(res?.message).toMatch(new RegExp(`Opening ${labels[i - 1]}`));
     }
   });
 });
@@ -99,9 +93,7 @@ describe('buildFKeyAliasCommands', () => {
 
   it('alias opens panel via onPanelOpen', async () => {
     const onPanelOpen = vi.fn().mockReturnValue(true);
-    const aliases = buildFKeyAliasCommands(
-      makeOpts({ onPanelOpen: { current: onPanelOpen } }),
-    );
+    const aliases = buildFKeyAliasCommands(makeOpts({ onPanelOpen: { current: onPanelOpen } }));
     const res = await aliases[0]!.run('');
     expect(onPanelOpen).toHaveBeenCalledWith('projectPickerOpen');
     expect(res?.message).toBeUndefined();

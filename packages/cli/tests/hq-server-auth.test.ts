@@ -104,7 +104,13 @@ describe('HQ browser origin validation', () => {
 
     it('still enforces the Host check when file origins are enabled', () => {
       expect(
-        hasTrustedBrowserOrigin(request('file://', 'attacker.example'), '127.0.0.1', 3499, new Set(), true),
+        hasTrustedBrowserOrigin(
+          request('file://', 'attacker.example'),
+          '127.0.0.1',
+          3499,
+          new Set(),
+          true,
+        ),
       ).toBe(false);
     });
   });

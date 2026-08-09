@@ -12,11 +12,15 @@
  * shape, severity parsing, agent selection) is exercised. The Director is
  * mocked so no real LLM calls happen.
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+
 import { EventBus } from '@wrongstack/core/kernel';
+import type {
+  ChimeraCascadeNeededPayload,
+  ChimeraReviewCompletePayload,
+  ReviewContextBundle,
+} from '@wrongstack/core/plugin';
 import { createAutoReviewPlugin } from '@wrongstack/core/plugin';
-import type { ChimeraCascadeNeededPayload, ChimeraReviewCompletePayload } from '@wrongstack/core/plugin';
-import type { ReviewContextBundle } from '@wrongstack/core/plugin';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── A Critical review report with a security finding (SQL injection) ──
 // Matches the chimera-review.md report format that parseReviewSeverity expects.
@@ -215,7 +219,7 @@ describe('Cascade chain: review_complete → cascade_needed (plugin level)', () 
     expect(cascadeNeededPayloads).toHaveLength(0);
   });
 
-  it("does NOT emit cascade_needed for a clean report (no findings)", () => {
+  it('does NOT emit cascade_needed for a clean report (no findings)', () => {
     setupPlugin('high');
     emitReviewComplete(makeBundle('high'), CLEAN_REPORT);
 
@@ -278,7 +282,11 @@ describe('Cascade chain: cascade_needed → follow-up agent spawn (execution han
           const role = agentKind === 'security-scanner' ? 'security-scanner' : 'bug-hunter';
           const cfg = { name: `chimera-cascade-${agentKind}`, role };
           await director.spawn(cfg);
-          await director.assign({ id: 'cascade-task', description: 'cascade task', subagentId: 'x' });
+          await director.assign({
+            id: 'cascade-task',
+            description: 'cascade task',
+            subagentId: 'x',
+          });
           const results = await director.awaitTasks(['cascade-task']);
           const result = results[0];
           if (result?.status === 'success') {
@@ -497,12 +505,7 @@ describe('Cascade re-review depth guard (closed loop)', () => {
       depth++; // Simulate the re-review incrementing depth
     }
     // Should re-review at depths 0, 1, 2, then stop at 3
-    expect(decisions).toEqual([
-      '0:re-review',
-      '1:re-review',
-      '2:re-review',
-      '3:stop-at-limit',
-    ]);
+    expect(decisions).toEqual(['0:re-review', '1:re-review', '2:re-review', '3:stop-at-limit']);
   });
 
   it('bundle carries cascadeDepth+1 on re-review emission', () => {

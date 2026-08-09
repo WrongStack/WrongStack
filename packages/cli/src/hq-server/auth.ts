@@ -265,9 +265,7 @@ export function parseCookieHeader(cookieHeader: string | undefined): Record<stri
  * `cookieSecret` — but preference order is the layer whose only job is to stop
  * the attacker-controlled name from winning, so it should not be inverted.
  */
-export function readHqSessionCookie(
-  cookieHeader: string | undefined,
-): string | undefined {
+export function readHqSessionCookie(cookieHeader: string | undefined): string | undefined {
   const cookies = parseCookieHeader(cookieHeader);
   return cookies[HQ_SESSION_COOKIE_SECURE] ?? cookies[HQ_SESSION_COOKIE];
 }

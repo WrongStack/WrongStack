@@ -1,14 +1,7 @@
 /** Registers provider-neutral one-shot, council, and context-summary tools. */
-import type {
-  Config,
-  CouncilProfileConfig,
-  CouncilToolConfig,
-  OneShotModelRouter,
-  Provider,
-} from '@wrongstack/core/types';
-import { createContextManagerTool } from '@wrongstack/core/infrastructure';
-import { createCouncilTool, createOneShotLLMTool } from '@wrongstack/core/tools';
+
 import type { FallbackProfileManager } from '@wrongstack/core/agent';
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import {
   type CouncilPersonaRegistry,
   type CouncilProfileRegistry,
@@ -16,9 +9,17 @@ import {
   createCouncilProfileRegistry,
   OneShotOrchestrator,
 } from '@wrongstack/core/execution';
+import { createContextManagerTool } from '@wrongstack/core/infrastructure';
 import { ModelRouter } from '@wrongstack/core/models';
-import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import { createCouncilTool, createOneShotLLMTool } from '@wrongstack/core/tools';
+import type {
+  Config,
+  CouncilProfileConfig,
+  CouncilToolConfig,
+  OneShotModelRouter,
+  Provider,
+} from '@wrongstack/core/types';
 
 export interface ProviderUtilityToolsInput {
   toolRegistry: ToolRegistry;
@@ -26,7 +27,9 @@ export interface ProviderUtilityToolsInput {
   getConfig: () => Config;
   fallbackProfileManager: FallbackProfileManager;
   statusTracker: ProviderModelStatusTracker;
-  wrapProviderCall: NonNullable<import('@wrongstack/core/types').OneShotOrchestratorOptions['wrapProviderCall']>;
+  wrapProviderCall: NonNullable<
+    import('@wrongstack/core/types').OneShotOrchestratorOptions['wrapProviderCall']
+  >;
   compactor: NonNullable<Parameters<typeof createContextManagerTool>[0]>['compactor'];
 }
 

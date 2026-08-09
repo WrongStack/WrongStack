@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
 import type {
   Config,
   ModelsRegistry,
@@ -6,6 +5,7 @@ import type {
   ResolvedProvider,
   Response,
 } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildModelSmokeTargets,
   parseModelSmokeOptions,

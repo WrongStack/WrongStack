@@ -9,9 +9,9 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULTS,
-  STATUSLINE_CONFIG_KEYS,
   ensureStatuslineConfig,
   loadStatuslineConfig,
+  STATUSLINE_CONFIG_KEYS,
   saveStatuslineConfig,
 } from '../src/services/statusline-config.js';
 

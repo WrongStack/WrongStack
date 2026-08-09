@@ -48,15 +48,10 @@ export async function runLaunchPrompts(opts: {
   /** Saved launch preferences from a previous session (persisted to config). */
   lastChoices?: LaunchModeChoices | undefined;
 }): Promise<LaunchModeChoices> {
-  const { renderer, reader, modePinned, yoloPinned, autonomyPinned, lastChoices } =
-    opts;
+  const { renderer, reader, modePinned, yoloPinned, autonomyPinned, lastChoices } = opts;
 
   // If EVERY field is pinned by CLI flags, skip all prompts entirely.
-  if (
-    modePinned !== undefined &&
-    yoloPinned !== undefined &&
-    autonomyPinned !== undefined
-  ) {
+  if (modePinned !== undefined && yoloPinned !== undefined && autonomyPinned !== undefined) {
     return {
       mode: modePinned,
       yolo: yoloPinned,

@@ -8,6 +8,10 @@ export const COVERAGE_RUNS = [
     args: ['test:coverage:root'],
   },
   {
+    label: 'Zero-statement file ratchet',
+    args: ['check:coverage-zero'],
+  },
+  {
     label: 'LSP package per-file gate',
     args: ['--filter', '@wrongstack/plug-lsp', 'test:coverage'],
   },

@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Sage } from '../src/types.js';
-import type { LlmTriageResult } from '../src/triage/llm-evaluator.js';
 import { dispatchAction, dispatchBatch } from '../src/triage/action-dispatcher.js';
+import type { LlmTriageResult } from '../src/triage/llm-evaluator.js';
+import type { Sage } from '../src/types.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ function makeMemory(overrides: Partial<Sage> = {}): Sage {
 function makeValueScore(total: number) {
   return {
     total,
-    band: total >= 70 ? 'keep' as const : total <= 29 ? 'discard' as const : 'gray' as const,
+    band: total >= 70 ? ('keep' as const) : total <= 29 ? ('discard' as const) : ('gray' as const),
     anchor: 15,
     usage: 10,
     freshness: 15,
@@ -179,6 +179,40 @@ describe('action dispatcher — stale', () => {
     const { proposal } = dispatchAction(result);
     expect(proposal).toBeNull();
   });
+
+  it('reduces importance after repeated below-score rejection', () => {
+    const m = makeMemory({ importance: 0.6 });
+    const result = makeLlmResult(m, 3, 'stale', 35);
+    result.valueScore.rejectionGate = 'belowScore';
+    result.valueScore.rejectionCount = 5;
+
+    const { autoApply } = dispatchAction(result);
+    expect(autoApply?.updates).toContainEqual(
+      expect.objectContaining({ field: 'importance', value: 0.5 }),
+    );
+  });
+
+  it('does not reduce importance for keep, policy gates, or sub-threshold noise', () => {
+    const cases = [
+      { action: 'keep' as const, gate: 'belowScore' as const, count: 5 },
+      {
+        action: 'propose_archive_safety_stale' as const,
+        gate: 'belowScore' as const,
+        count: 10,
+      },
+      { action: 'stale' as const, gate: 'budget' as const, count: 10 },
+      { action: 'stale' as const, gate: 'belowScore' as const, count: 2 },
+    ];
+
+    for (const item of cases) {
+      const result = makeLlmResult(makeMemory(), 3, item.action, 35);
+      result.valueScore.rejectionGate = item.gate;
+      result.valueScore.rejectionCount = item.count;
+      const { autoApply } = dispatchAction(result);
+      const importanceUpdates = autoApply?.updates.filter((u) => u.field === 'importance') ?? [];
+      expect(importanceUpdates).toHaveLength(0);
+    }
+  });
 });
 
 // ── Propose archive ─────────────────────────────────────────────────────
@@ -194,7 +228,9 @@ describe('action dispatcher — propose_archive', () => {
   });
 
   it('creates archive proposal', () => {
-    const m = makeMemory({ text: 'Outdated memory about a removed feature that no longer exists.' });
+    const m = makeMemory({
+      text: 'Outdated memory about a removed feature that no longer exists.',
+    });
     const result = makeLlmResult(m, 2, 'propose_archive', 25);
     const { proposal } = dispatchAction(result);
     expect(proposal).not.toBeNull();
@@ -257,9 +293,7 @@ describe('batch dispatch', () => {
 
   it('counts skipped (no auto-update, no proposal)', () => {
     const m = makeMemory({ confidence: 0.95 });
-    const results: LlmTriageResult[] = [
-      makeLlmResult(m, 5, 'keep', 85),
-    ];
+    const results: LlmTriageResult[] = [makeLlmResult(m, 5, 'keep', 85)];
 
     const dispatch = dispatchBatch(results);
     expect(dispatch.autoApply).toHaveLength(0); // confidence already >= 0.8
@@ -280,7 +314,9 @@ describe('batch dispatch', () => {
 describe('memory preview', () => {
   it('truncates memory text to 80 chars in autoApply', () => {
     const m = makeMemory({
-      text: 'A'.repeat(200) + ' This describes a very specific architectural decision about the caching layer.',
+      text:
+        'A'.repeat(200) +
+        ' This describes a very specific architectural decision about the caching layer.',
       confidence: 0.5,
     });
     const result = makeLlmResult(m, 5, 'keep');

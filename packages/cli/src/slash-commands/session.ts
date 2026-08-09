@@ -1,9 +1,8 @@
 import type { SessionRegistry } from '@wrongstack/core/storage';
-import type { SlashCommand } from '@wrongstack/core/types';
-import { color, isPidAlive } from '@wrongstack/core/utils';
 import { SessionRecovery } from '@wrongstack/core/storage';
+import type { SlashCommand } from '@wrongstack/core/types';
+import { color, isPidAlive, toErrorMessage } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 // ── Live session helpers (SessionRegistry) ──────────────────────────────
 
@@ -143,7 +142,11 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
       if (first === 'rename') {
         const targetId = parts[1];
         if (!targetId) {
-          return { message: color.yellow('Usage: /sessions rename <sessionId> [name...]  (empty name clears)') };
+          return {
+            message: color.yellow(
+              'Usage: /sessions rename <sessionId> [name...]  (empty name clears)',
+            ),
+          };
         }
         if (!opts.sessionStore) {
           return { message: color.yellow('No session store configured.') };
@@ -176,12 +179,17 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
         const currentId = opts.context?.session?.id;
         if (targetId === currentId) {
           return {
-            message: color.yellow('Cannot delete the active session. Resume or start another first.'),
+            message: color.yellow(
+              'Cannot delete the active session. Resume or start another first.',
+            ),
           };
         }
         const force = parts.includes('--force') || parts.includes('-y');
         if (!force && opts.confirm) {
-          const ok = await opts.confirm(`Delete session ${targetId}? This cannot be undone.`, false);
+          const ok = await opts.confirm(
+            `Delete session ${targetId}? This cannot be undone.`,
+            false,
+          );
           if (ok !== true) return { message: color.dim('Delete cancelled.') };
         }
         try {
@@ -301,7 +309,9 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
         const date = color.dim(s.startedAt.slice(0, 16).replace('T', ' '));
         const isCurrent = s.id === currentId;
         const marker = isCurrent ? color.cyan(' (current)') : '';
-        const label = s.name ? `${color.bold(s.id)} ${color.cyan(`(${s.name})`)}` : color.bold(s.id);
+        const label = s.name
+          ? `${color.bold(s.id)} ${color.cyan(`(${s.name})`)}`
+          : color.bold(s.id);
         return `  ${label}${marker}\n    ${date}  ${stat}\n    ${color.dim(s.title)}`;
       });
       const msg = [
@@ -575,10 +585,7 @@ async function killSession(
   // default on non-TTY/EOF, so scripted callers proceed without hanging; pass
   // --force to skip the prompt entirely (confirm omitted).
   if (confirm) {
-    const ok = await confirm(
-      `Terminate ${entry.projectName} (PID ${entry.pid})?`,
-      false,
-    );
+    const ok = await confirm(`Terminate ${entry.projectName} (PID ${entry.pid})?`, false);
     if (ok !== true) {
       return { message: color.dim('Kill cancelled.') };
     }
@@ -595,9 +602,7 @@ async function killSession(
     };
   } catch (err) {
     return {
-      message: color.red(
-        `Failed to kill session: ${toErrorMessage(err)}`,
-      ),
+      message: color.red(`Failed to kill session: ${toErrorMessage(err)}`),
     };
   }
 }

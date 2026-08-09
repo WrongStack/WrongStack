@@ -1,6 +1,6 @@
-import { restoreFlags } from '../flags.js';
 import { runPluginManagementCommand } from '../../plugin-management.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
+import { restoreFlags } from '../flags.js';
 import type { SubcommandHandler } from '../index.js';
 
 export const pluginCmd: SubcommandHandler = async (args, deps) => {

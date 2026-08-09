@@ -14,37 +14,35 @@
  * main() needs, or a numeric exit code when a short-circuit fires.
  */
 
-import { boot } from './boot.js';
+import type { EventBus } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/core/kernel';
+import type { ConfigStore } from '@wrongstack/core/types';
+import { writeErr } from '@wrongstack/core/utils';
+import { setOAuthTokenPersister } from '@wrongstack/providers';
 import { parseArgs } from './arg-parser.js';
-import { handleHelpVersionShortCircuit } from './boot/short-circuit-flags.js';
+import { wireContainer } from './boot/container-wiring.js';
+import {
+  applyLaunchMenuToArgv,
+  persistMenuChoice,
+  runLaunchMenu,
+  toPersistedMenuChoice,
+} from './boot/launch-menu.js';
 import { handleDesktopShortCircuit } from './boot/short-circuit-desktop.js';
+import { handleHelpVersionShortCircuit } from './boot/short-circuit-flags.js';
 import { handleHqShortCircuit } from './boot/short-circuit-hq.js';
 import {
   parseWebuiSessionChildOptions,
   type WebuiSessionChildOptions,
   writeWebuiSessionChildError,
 } from './boot/webui-session-child.js';
-import {
-  applyLaunchMenuToArgv,
-  runLaunchMenu,
-  persistMenuChoice,
-  toPersistedMenuChoice,
-} from './boot/launch-menu.js';
-import { ReadlineInputReader } from './input-reader.js';
-import { TerminalRenderer } from './renderer.js';
-import { runPreflight } from './preflight.js';
-import { applyNodeEnvDefault, applySessionShellDefault } from './preflight.js';
-import { wireContainer } from './boot/container-wiring.js';
-import { bindReplayToContainer } from './wiring/replay.js';
-import { setOAuthTokenPersister } from '@wrongstack/providers';
-import { mutateConfigProviders, normalizeKeys, writeKeysBack } from './provider-config-utils.js';
-import { activeProfileConfigPath } from './profile-config-path.js';
-import { TOKENS } from '@wrongstack/core/kernel';
-import { writeErr } from '@wrongstack/core/utils';
-
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ConfigStore } from '@wrongstack/core/types';
 import type { BootContext } from './boot.js';
+import { boot } from './boot.js';
+import { ReadlineInputReader } from './input-reader.js';
+import { applyNodeEnvDefault, applySessionShellDefault, runPreflight } from './preflight.js';
+import { activeProfileConfigPath } from './profile-config-path.js';
+import { mutateConfigProviders, normalizeKeys, writeKeysBack } from './provider-config-utils.js';
+import { TerminalRenderer } from './renderer.js';
+import { bindReplayToContainer } from './wiring/replay.js';
 
 // ── Context type ──────────────────────────────────────────────────────────
 
@@ -102,7 +100,9 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
       if (readyFile) {
         await writeWebuiSessionChildError(readyFile, {
           runtimeId:
-            typeof _earlyForMenu['runtime-id'] === 'string' ? _earlyForMenu['runtime-id'] : undefined,
+            typeof _earlyForMenu['runtime-id'] === 'string'
+              ? _earlyForMenu['runtime-id']
+              : undefined,
           parentShellId:
             typeof _earlyForMenu['parent-shell-id'] === 'string'
               ? _earlyForMenu['parent-shell-id']
@@ -170,14 +170,17 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
 
   const effectiveFlags = parseArgs(effectiveArgv).flags;
   try {
-    webuiSessionChild = webuiSessionChild ?? parseWebuiSessionChildOptions(effectiveFlags) ?? undefined;
+    webuiSessionChild =
+      webuiSessionChild ?? parseWebuiSessionChildOptions(effectiveFlags) ?? undefined;
   } catch (err) {
     const readyFile =
       typeof effectiveFlags['ready-file'] === 'string' ? effectiveFlags['ready-file'] : undefined;
     if (readyFile) {
       await writeWebuiSessionChildError(readyFile, {
         runtimeId:
-          typeof effectiveFlags['runtime-id'] === 'string' ? effectiveFlags['runtime-id'] : undefined,
+          typeof effectiveFlags['runtime-id'] === 'string'
+            ? effectiveFlags['runtime-id']
+            : undefined,
         parentShellId:
           typeof effectiveFlags['parent-shell-id'] === 'string'
             ? effectiveFlags['parent-shell-id']
@@ -187,7 +190,9 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
         error: err,
       }).catch(() => undefined);
     }
-    writeErr(`WebUI session child argument error: ${err instanceof Error ? err.message : String(err)}\n`);
+    writeErr(
+      `WebUI session child argument error: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     return 2;
   }
 
@@ -248,16 +253,7 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
     }
   }
 
-  const {
-    config,
-    vault,
-    wpaths,
-    cwd,
-    modelsRegistry,
-    renderer,
-    reader,
-    logger,
-  } = ctx;
+  const { config, vault, wpaths, cwd, modelsRegistry, renderer, reader, logger } = ctx;
 
   // Preflight (update-notice, debug-stream).
   const { updateInfo: refreshedUpdateInfo } = await runPreflight(config, ctx.updateInfo);
@@ -269,7 +265,9 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
       const p = all[providerId];
       if (!p) return;
       const keys = normalizeKeys(p);
-      const active = p.activeKey ? keys.find((k: { label: string }) => k.label === p.activeKey) : keys[0];
+      const active = p.activeKey
+        ? keys.find((k: { label: string }) => k.label === p.activeKey)
+        : keys[0];
       if (!active) return;
       active.apiKey = creds.accessToken;
       active.refreshToken = creds.refreshToken;

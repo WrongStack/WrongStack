@@ -191,7 +191,9 @@ describe('setupSessionRegistry', () => {
   it('wires shutdown to mark closing, stop tracking, and remove the exact owner', async () => {
     await setupSessionRegistry(makeDeps());
 
-    const shutdownArg = (t.createGracefulShutdownMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
+    const shutdownArg = (
+      t.createGracefulShutdownMock.mock.calls as unknown[][]
+    )[0]?.[0] as unknown as {
       run: () => Promise<void>;
     };
     await shutdownArg.run();
@@ -211,7 +213,9 @@ describe('setupSessionRegistry', () => {
 
     await setupSessionRegistry(makeDeps());
 
-    const shutdownArg = (t.createGracefulShutdownMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
+    const shutdownArg = (
+      t.createGracefulShutdownMock.mock.calls as unknown[][]
+    )[0]?.[0] as unknown as {
       run: () => Promise<void>;
     };
     await expect(shutdownArg.run()).resolves.toBeUndefined();
@@ -335,7 +339,9 @@ describe('setupSessionRegistry', () => {
       expect.objectContaining({ sessionId: 'sess_next', pid: process.pid }),
     );
 
-    const shutdownArg = (t.createGracefulShutdownMock.mock.calls as unknown[][])[0]?.[0] as unknown as {
+    const shutdownArg = (
+      t.createGracefulShutdownMock.mock.calls as unknown[][]
+    )[0]?.[0] as unknown as {
       run: () => Promise<void>;
     };
     await expect(shutdownArg.run()).resolves.toBeUndefined();

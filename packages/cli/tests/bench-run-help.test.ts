@@ -155,9 +155,7 @@ describe('bench-run-help', () => {
 
     it('the deep entry does NOT render the standard Tip footer (customBody owns the layout)', () => {
       const fromDeep = renderDeepHelpToString('bench:run');
-      expect(fromDeep).not.toContain(
-        'Tip: `wstack --help` lists every top-level command.',
-      );
+      expect(fromDeep).not.toContain('Tip: `wstack --help` lists every top-level command.');
     });
   });
 

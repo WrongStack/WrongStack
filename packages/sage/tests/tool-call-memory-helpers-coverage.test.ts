@@ -291,7 +291,15 @@ describe('tool-call memory selection and scoring helpers', () => {
       { memory: sage('two', { text: ' same   TEXT ' }), relationStrength: 1, retrievalReasons: [] },
     ];
     expect(coverage.dedupeRetrievedByText(duplicate)).toHaveLength(1);
-    expect(coverage.selectDiverseMemories([sage('one')], 0)).toEqual([]);
+    expect(coverage.selectDiverseMemories([sage('one')], 0)).toEqual({
+      selected: [],
+      dropped: [
+        {
+          memory: expect.objectContaining({ id: 'one' }),
+          reason: 'diversity cap is 0 (limit=0)',
+        },
+      ],
+    });
 
     const memories = Array.from({ length: 8 }, (_, index) =>
       sage(String(index), { kind: index < 5 ? 'fact' : 'decision' }),
@@ -306,10 +314,10 @@ describe('tool-call memory selection and scoring helpers', () => {
       ['6', []],
       ['7', []],
     ]);
-    const selected = coverage.selectDiverseMemories(memories, 6, reasons);
+    const { selected } = coverage.selectDiverseMemories(memories, 6, reasons);
     expect(selected.length).toBeLessThanOrEqual(6);
     expect(selected.map((memory) => memory.id)).toContain('5');
-    expect(coverage.selectDiverseMemories(memories, 2)).toHaveLength(2);
+    expect(coverage.selectDiverseMemories(memories, 2).selected).toHaveLength(2);
 
     const deferred = Array.from({ length: 9 }, (_, index) =>
       sage(`deferred-${index}`, { kind: 'fact' }),
@@ -325,7 +333,7 @@ describe('tool-call memory selection and scoring helpers', () => {
     deferredReasons.set('deferred-7', ['query:third']);
     deferredReasons.set('deferred-8', []);
     expect(
-      coverage.selectDiverseMemories(deferred, 20, deferredReasons).map((item) => item.id),
+      coverage.selectDiverseMemories(deferred, 20, deferredReasons).selected.map((item) => item.id),
     ).toEqual([
       'deferred-0',
       'deferred-1',
@@ -335,19 +343,22 @@ describe('tool-call memory selection and scoring helpers', () => {
       'deferred-6',
       'deferred-8',
     ]);
-    expect(
-      coverage
-        .selectDiverseMemories(
-          deferred.slice(0, 5),
-          4,
-          new Map([
-            ['deferred-0', ['anchor:path-match']],
-            ['deferred-1', ['anchor:path-match']],
-            ['deferred-2', ['anchor:path-match']],
-          ]),
-        )
-        .map((item) => item.id),
-    ).toEqual(['deferred-0', 'deferred-1', 'deferred-2', 'deferred-3']);
+    const capped = coverage.selectDiverseMemories(
+      deferred.slice(0, 5),
+      4,
+      new Map([
+        ['deferred-0', ['anchor:path-match']],
+        ['deferred-1', ['anchor:path-match']],
+        ['deferred-2', ['anchor:path-match']],
+      ]),
+    );
+    expect(capped.selected.map((item) => item.id)).toEqual([
+      'deferred-0',
+      'deferred-1',
+      'deferred-2',
+      'deferred-3',
+    ]);
+    expect(capped.dropped.map((item) => item.memory.id)).toEqual(['deferred-4']);
   });
 
   it('computes visible context and byte-aware output budgets', () => {
@@ -529,6 +540,42 @@ describe('tool-call middleware failure coverage', () => {
         }),
       );
     }
+  });
+
+  it('caps per-memory rejection details while preserving the full rejection count', async () => {
+    const events = { emit: vi.fn() };
+    const memories = Array.from({ length: 25 }, (_, index) =>
+      sage(`below-${index}`, {
+        importance: 0.1,
+        anchors: [{ type: 'file', path: 'src/a.ts' }],
+      }),
+    );
+    const middleware = createSageToolCallMiddleware({
+      memory: {
+        retrieveForPath: vi.fn(async () => memories),
+        searchSage: vi.fn(async () => []),
+      },
+      events: events as never,
+    });
+
+    await middleware.handler(payload(), async (next) => next);
+
+    expect(events.emit).toHaveBeenCalledWith(
+      'memory.injector_run',
+      expect.objectContaining({
+        outcome: 'empty',
+        rejectedDetail: expect.arrayContaining([
+          expect.objectContaining({ id: 'below-0', gate: 'belowScore' }),
+        ]),
+        rejectedDetailTotal: 25,
+      }),
+    );
+    const trace = events.emit.mock.calls.find(
+      ([event]) => event === 'memory.injector_run',
+    )?.[1] as {
+      rejectedDetail: unknown[];
+    };
+    expect(trace.rejectedDetail).toHaveLength(20);
   });
 
   it('keeps injected context and traces an audit-write failure', async () => {

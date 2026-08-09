@@ -23,7 +23,9 @@ function registry(catalog: Record<string, { models?: { id: string }[] }>): Model
 describe('autoSelectSavedProvider', () => {
   it('adopts a custom provider using its saved models allowlist', async () => {
     const picked = await autoSelectSavedProvider(
-      cfg({ 'custom-1': { type: 'custom-1', family: 'openai-compatible', models: ['m-a', 'm-b'] } }),
+      cfg({
+        'custom-1': { type: 'custom-1', family: 'openai-compatible', models: ['m-a', 'm-b'] },
+      }),
       registry({}),
     );
     expect(picked).toEqual({ provider: 'custom-1', model: 'm-a' });
@@ -53,7 +55,9 @@ describe('autoSelectSavedProvider', () => {
 
   it('returns undefined when no provider yields a concrete model', async () => {
     const picked = await autoSelectSavedProvider(
-      cfg({ 'custom-1': { type: 'custom-1', family: 'openai-compatible', baseUrl: 'http://x/v1' } }),
+      cfg({
+        'custom-1': { type: 'custom-1', family: 'openai-compatible', baseUrl: 'http://x/v1' },
+      }),
       registry({}),
     );
     expect(picked).toBeUndefined();

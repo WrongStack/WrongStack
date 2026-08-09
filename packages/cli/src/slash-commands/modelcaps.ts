@@ -98,14 +98,9 @@ export function buildModelCapsCommand(opts: SlashCommandContext): SlashCommand {
             if (!entry) continue;
             const prov = entry.provider ?? leaderProvider;
             const label = key === '*' ? '* (default)' : key;
-            lines.push(
-              `  ${color.bold(label.padEnd(20))} ${color.cyan(`${prov}/${entry.model}`)}`,
-            );
+            lines.push(`  ${color.bold(label.padEnd(20))} ${color.cyan(`${prov}/${entry.model}`)}`);
           }
-          lines.push(
-            '',
-            color.dim('  Resolution order per role: role → phase → * → leader.'),
-          );
+          lines.push('', color.dim('  Resolution order per role: role → phase → * → leader.'));
         }
         lines.push(
           '',

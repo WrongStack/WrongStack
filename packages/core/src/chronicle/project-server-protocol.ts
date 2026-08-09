@@ -14,6 +14,20 @@ export const CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION = 2;
 export const CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS = 64 * 1024 * 1024;
 
 /**
+ * Most events one `append` call may carry.
+ *
+ * This lives in the protocol module because both ends must agree on it, and
+ * they did not: the server rejected anything above this bound while the client
+ * drained its entire backlog into a single call, with a backpressure ceiling ten
+ * times higher. A client that ever accumulated more than this — which only
+ * happens when the daemon is slow or restarting, exactly when the telemetry
+ * matters — had its whole batch rejected as malformed and lost every event in
+ * it, rather than persisting what it could. A shared constant is what keeps the
+ * producer's chunking and the consumer's validation from drifting apart again.
+ */
+export const CHRONICLE_MAX_APPEND_BATCH = 10_000;
+
+/**
  * What the daemon tells a connecting client about itself. Carries NO secret —
  * see {@link ChronicleProjectServerMetadata}.
  */

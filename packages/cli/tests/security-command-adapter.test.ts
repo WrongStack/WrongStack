@@ -76,11 +76,7 @@ describe('createCliSecurityCommand', () => {
         model: 'host-model',
       }),
     );
-    expect(backend.run).toHaveBeenNthCalledWith(
-      2,
-      'help',
-      expect.any(Object),
-    );
+    expect(backend.run).toHaveBeenNthCalledWith(2, 'help', expect.any(Object));
   });
 
   it('preserves current execution context and strips JSON from backend arguments', async () => {
@@ -142,10 +138,7 @@ describe('createCliSecurityCommand', () => {
 
   it('uses an empty model when neither current nor host context supplies one', async () => {
     const backend = { run: vi.fn().mockResolvedValue({ message: 'ok' }) };
-    const command = createCliSecurityCommand(
-      { cwd: 'C:/cwd', projectRoot: 'C:/project' },
-      backend,
-    );
+    const command = createCliSecurityCommand({ cwd: 'C:/cwd', projectRoot: 'C:/project' }, backend);
 
     await command.run('scan', {} as never);
     expect(backend.run).toHaveBeenCalledWith(

@@ -2,12 +2,12 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { appendJournal, emptyGoal, goalFilePath, saveGoal } from '@wrongstack/core/goal';
 import { HybridCompactor } from '@wrongstack/core/execution';
+import { appendJournal, emptyGoal, goalFilePath, saveGoal } from '@wrongstack/core/goal';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildAutonomyCommand, type AutonomyMode } from '../src/slash-commands/autonomy.js';
+import { type AutonomyMode, buildAutonomyCommand } from '../src/slash-commands/autonomy.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 
 class FakeRenderer {

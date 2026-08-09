@@ -1,12 +1,12 @@
-import type { SlashCommand } from '@wrongstack/core/types';
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { resolveProjectDir } from '@wrongstack/core/coordination';
+import type { SlashCommand } from '@wrongstack/core/types';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import type { SlashCommandContext } from './command-context.js';
 import { buildWin32CmdShimInvocation } from '../utils/win32-cmd.js';
+import type { SlashCommandContext } from './command-context.js';
 
 /**
  * `/mailbox-serve` — start the mailbox HTTP bridge from inside the REPL.
@@ -28,7 +28,8 @@ export function buildMailboxServeCommand(opts: SlashCommandContext): SlashComman
   return {
     name: 'mailbox-serve',
     category: 'Run',
-    description: 'Start the mailbox HTTP bridge so external agents (Claude Code, Aider, scripts) can read/send messages on the project mailbox.',
+    description:
+      'Start the mailbox HTTP bridge so external agents (Claude Code, Aider, scripts) can read/send messages on the project mailbox.',
     argsHint: '[--host <ip>] [--port <n>] [--strict-port]',
     help: [
       'Spawns `wstack mailbox serve` as a detached child process so the REPL stays interactive.',
@@ -71,7 +72,10 @@ export function buildMailboxServeCommand(opts: SlashCommandContext): SlashComman
       // the actual file the child will create.
       const projectDir = resolveProjectDir(cwd, wstackGlobalRoot());
       const tokenPath = path.join(projectDir, '.mailbox.token');
-      const pidFile = path.join(os.tmpdir(), `wstack-mailbox-bridge-${path.basename(projectDir)}.pid`);
+      const pidFile = path.join(
+        os.tmpdir(),
+        `wstack-mailbox-bridge-${path.basename(projectDir)}.pid`,
+      );
 
       // Locate the `wstack` binary. Prefer process.argv[1]'s sibling — the
       // node entry of the running CLI — so dev builds (running from
@@ -148,14 +152,18 @@ export function buildMailboxServeCommand(opts: SlashCommandContext): SlashComman
       r.write('Mailbox bridge spawned in the background.\n');
       if (child.pid !== undefined) r.write(`  PID:        ${child.pid}\n`);
       r.write(`  Project:    ${projectDir}\n`);
-      r.write(`  Token file: ${tokenPath} (mode 0600; reused if a bridge is already running, freshly minted otherwise)\n`);
+      r.write(
+        `  Token file: ${tokenPath} (mode 0600; reused if a bridge is already running, freshly minted otherwise)\n`,
+      );
       r.write(`  PID file:   ${pidFile}\n`);
       if (banner) {
         r.write('\n--- bridge startup banner ---\n');
         r.write(`${banner}\n`);
         r.write('--- end banner ---\n');
       } else {
-        r.write('\n(Bridge did not print a banner within 3 s — check `tail -f` on its stdout if you redirected it.)\n');
+        r.write(
+          '\n(Bridge did not print a banner within 3 s — check `tail -f` on its stdout if you redirected it.)\n',
+        );
       }
       r.write(`\nTo stop: kill the PID above, or run 'kill $(cat ${pidFile})'.\n`);
       r.write('The bridge survives this REPL exiting — it keeps running until you stop it.\n');

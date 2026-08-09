@@ -17,17 +17,15 @@
  */
 
 import type { Sage } from '../types.js';
-import { preFilterBatch } from './pre-filter.js';
-import { computeValueScore } from './value-score.js';
-import { evaluateBatch } from './llm-evaluator.js';
-import { detectMerges } from './merge-detection.js';
+import type { AutoApplyAction, TriageProposal } from './action-dispatcher.js';
 import { dispatchBatch } from './action-dispatcher.js';
 import type { LlmCallFn } from './llm-evaluator.js';
-import type {
-  AutoApplyAction,
-  TriageProposal,
-} from './action-dispatcher.js';
+import { evaluateBatch } from './llm-evaluator.js';
 import type { MergeAction, OverlapProposal } from './merge-detection.js';
+import { detectMerges } from './merge-detection.js';
+import { preFilterBatch } from './pre-filter.js';
+import type { InjectorEvidence } from './value-score.js';
+import { computeValueScore } from './value-score.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -77,6 +75,20 @@ export interface TriageReport {
 export interface RunTriageOptions {
   /** If true, do not mark any memories as needing updates — just compute. */
   dryRun?: boolean;
+  /**
+   * Optional provider that supplies SAGE injector gate evidence per
+   * memory id. The Phase 2 value scorer folds this evidence into its
+   * `rejectionPressure`, `rejectionGate`, and `usage` sub-score
+   * calculations. When omitted, `computeValueScore` falls back to its
+   * pre-A4 behavior (no pressure, no gate, no usage penalty).
+   *
+   * The provider is invoked once per Phase 2 entry. A `undefined`
+   * return means "no evidence for this memory" — the scorer treats it
+   * identically to omitting the option. The CLI runner will wire a
+   * concrete provider in a follow-up; today, callers can pass any
+   * `(memoryId) => InjectorEvidence | undefined` to opt in.
+   */
+  injectorEvidenceProvider?: (memoryId: string) => InjectorEvidence | undefined;
   /** Max LLM calls for Phase 3. Default: 1000. */
   maxPhase3Calls?: number;
   /** Max pairs for Phase 4. Default: 50. */
@@ -112,14 +124,18 @@ export async function runTriage(
   const phase1 = preFilterBatch(memories);
 
   // ── Phase 2: Value score ─────────────────────────────────────
-  if (verbose) process.stderr.write(`[triage] Phase 2: scoring ${phase1.uncertain.length} uncertain...\n`);
+  if (verbose)
+    process.stderr.write(`[triage] Phase 2: scoring ${phase1.uncertain.length} uncertain...\n`);
   const valueScores = new Map<string, ReturnType<typeof computeValueScore>>();
   let phase2Keep = 0;
   let phase2Gray = 0;
   let phase2Discard = 0;
 
   for (const memory of phase1.uncertain) {
-    const score = computeValueScore(memory);
+    const evidence = options.injectorEvidenceProvider?.(memory.id);
+    const score = evidence
+      ? computeValueScore(memory, { injectorEvidence: evidence })
+      : computeValueScore(memory);
     valueScores.set(memory.id, score);
     if (score.band === 'keep') phase2Keep++;
     else if (score.band === 'gray') phase2Gray++;
@@ -132,7 +148,8 @@ export async function runTriage(
     return s?.band === 'gray';
   });
 
-  if (verbose) process.stderr.write(`[triage] Phase 3: LLM triage on ${grayMemories.length} gray-zone...\n`);
+  if (verbose)
+    process.stderr.write(`[triage] Phase 3: LLM triage on ${grayMemories.length} gray-zone...\n`);
   const maxPhase3 = options.maxPhase3Calls ?? DEFAULT_MAX_PHASE3_CALLS;
   const llmResults = await evaluateBatch(grayMemories, valueScores, callLlm, {
     maxBatchSize: maxPhase3,
@@ -207,10 +224,16 @@ export function formatTriageReport(report: TriageReport): string {
   lines.push('## Phase Statistics');
   lines.push('');
   lines.push(`- Input: ${report.phaseStats.input} memories`);
-  lines.push(`- Phase 1: ${report.phaseStats.phase1Keep} keep, ${report.phaseStats.phase1Discard} discard, ${report.phaseStats.phase1Uncertain} uncertain`);
-  lines.push(`- Phase 2: ${report.phaseStats.phase2Keep} keep, ${report.phaseStats.phase2Gray} gray, ${report.phaseStats.phase2Discard} discard`);
+  lines.push(
+    `- Phase 1: ${report.phaseStats.phase1Keep} keep, ${report.phaseStats.phase1Discard} discard, ${report.phaseStats.phase1Uncertain} uncertain`,
+  );
+  lines.push(
+    `- Phase 2: ${report.phaseStats.phase2Keep} keep, ${report.phaseStats.phase2Gray} gray, ${report.phaseStats.phase2Discard} discard`,
+  );
   lines.push(`- Phase 3: ${report.phaseStats.phase3Evaluated} LLM evaluations`);
-  lines.push(`- Phase 4: ${report.phaseStats.phase4Clusters} clusters, ${report.phaseStats.phase4PairsEvaluated} pairs`);
+  lines.push(
+    `- Phase 4: ${report.phaseStats.phase4Clusters} clusters, ${report.phaseStats.phase4PairsEvaluated} pairs`,
+  );
   lines.push('');
 
   lines.push('## Actions');

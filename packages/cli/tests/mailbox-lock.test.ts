@@ -1,9 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import * as fs from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import { acquireOrJoin, finalize, release, type MailboxBridgeLock } from '@wrongstack/core/coordination';
+import {
+  acquireOrJoin,
+  finalize,
+  type MailboxBridgeLock,
+  release,
+} from '@wrongstack/core/coordination';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 /**
  * Tests for the single-instance mailbox-bridge lock.
@@ -43,10 +48,7 @@ describe('acquireOrJoin', () => {
     if (result.kind !== 'acquired') return;
 
     // Lock file exists with the right shape.
-    const raw = await fs.readFile(
-      path.join(projectDir, '.mailbox-bridge.lock'),
-      'utf-8',
-    );
+    const raw = await fs.readFile(path.join(projectDir, '.mailbox-bridge.lock'), 'utf-8');
     const lock = JSON.parse(raw) as MailboxBridgeLock;
     expect(lock.pid).toBe(process.pid);
     expect(lock.host).toBe('127.0.0.1');
@@ -80,19 +82,13 @@ describe('acquireOrJoin', () => {
     expect(finalized.port).toBe(12345);
     expect(finalized.url).toBe('http://127.0.0.1:12345');
 
-    const raw = await fs.readFile(
-      path.join(projectDir, '.mailbox-bridge.lock'),
-      'utf-8',
-    );
+    const raw = await fs.readFile(path.join(projectDir, '.mailbox-bridge.lock'), 'utf-8');
     const persisted = JSON.parse(raw) as MailboxBridgeLock;
     expect(persisted.port).toBe(12345);
     expect(persisted.url).toBe('http://127.0.0.1:12345');
 
     // Token file is also written with the same token.
-    const tokenFile = await fs.readFile(
-      path.join(projectDir, '.mailbox.token'),
-      'utf-8',
-    );
+    const tokenFile = await fs.readFile(path.join(projectDir, '.mailbox.token'), 'utf-8');
     expect(tokenFile).toBe(finalized.token);
   });
 
@@ -107,12 +103,8 @@ describe('acquireOrJoin', () => {
     await finalize(projectDir, acq.lock, 11111);
     await release(projectDir, acq.lock.generation);
 
-    await expect(
-      fs.access(path.join(projectDir, '.mailbox-bridge.lock')),
-    ).rejects.toThrow();
-    await expect(
-      fs.access(path.join(projectDir, '.mailbox.token')),
-    ).rejects.toThrow();
+    await expect(fs.access(path.join(projectDir, '.mailbox-bridge.lock'))).rejects.toThrow();
+    await expect(fs.access(path.join(projectDir, '.mailbox.token'))).rejects.toThrow();
   });
 
   it('release() leaves a foreign-generation lock alone', async () => {
@@ -135,10 +127,7 @@ describe('acquireOrJoin', () => {
     await release(projectDir, acq.lock.generation); // our generation, now stale
 
     // The foreign lock survived.
-    const raw = await fs.readFile(
-      path.join(projectDir, '.mailbox-bridge.lock'),
-      'utf-8',
-    );
+    const raw = await fs.readFile(path.join(projectDir, '.mailbox-bridge.lock'), 'utf-8');
     const persisted = JSON.parse(raw) as MailboxBridgeLock;
     expect(persisted.generation).toBe(99);
   });
@@ -158,10 +147,7 @@ describe('acquireOrJoin', () => {
     expect(result.kind).toBe('acquired');
     if (result.kind !== 'acquired') return;
     // New lock overwrote the malformed one.
-    const raw = await fs.readFile(
-      path.join(projectDir, '.mailbox-bridge.lock'),
-      'utf-8',
-    );
+    const raw = await fs.readFile(path.join(projectDir, '.mailbox-bridge.lock'), 'utf-8');
     const lock = JSON.parse(raw) as MailboxBridgeLock;
     expect(lock.generation).toBe(1);
   });
@@ -222,11 +208,7 @@ describe('acquireOrJoin', () => {
         JSON.stringify(ownerLock, null, 2),
         'utf-8',
       );
-      await fs.writeFile(
-        path.join(projectDir, '.mailbox.token'),
-        ownerLock.token,
-        { mode: 0o600 },
-      );
+      await fs.writeFile(path.join(projectDir, '.mailbox.token'), ownerLock.token, { mode: 0o600 });
 
       const result = await acquireOrJoin({
         projectDir,
@@ -277,9 +259,7 @@ describe('acquireOrJoin', () => {
   });
 
   it('isolates two projects — lock in A does not affect acquire in B', async () => {
-    const otherProject = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'mailbox-lock-other-'),
-    );
+    const otherProject = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-lock-other-'));
     try {
       const a = await acquireOrJoin({
         projectDir,

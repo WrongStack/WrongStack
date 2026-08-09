@@ -307,7 +307,9 @@ describe('checkConfigDoctor', () => {
 describe('buildDeepPrompt', () => {
   it('embeds non-ok findings and asks for a plan', () => {
     const report = runTuneup(
-      baseInput({ config: { fallbackAuto: false, fallbackModels: [] } as unknown as TuneupInput['config'] }),
+      baseInput({
+        config: { fallbackAuto: false, fallbackModels: [] } as unknown as TuneupInput['config'],
+      }),
     );
     const prompt = buildDeepPrompt(report);
     expect(prompt).toContain('optimization');

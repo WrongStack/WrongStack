@@ -11,9 +11,9 @@ import {
   claimReadyTask,
   copyTaskToBoard,
   createBoard,
+  createBoardFromText,
   duplicateBoard,
   exportBoardToTaskGraph,
-  createBoardFromText,
   getBoard,
   getKanbanOrchestrationSnapshot,
   getKanbanQueueHealth,
@@ -47,10 +47,8 @@ import {
   updateTask,
 } from '@wrongstack/kanban';
 import type { WebSocket } from 'ws';
-import type { WSClientMessage, WSServerMessage } from './types.js';
-import { handleKanbanTaskDispatch, type KanbanTaskDispatcher } from './kanban-dispatch.js';
 import { handleKanbanDecompositionRoute } from './kanban-decomposition-routes.js';
-import { handleKanbanTaskRoute } from './kanban-task-routes.js';
+import { handleKanbanTaskDispatch, type KanbanTaskDispatcher } from './kanban-dispatch.js';
 import {
   activityContext,
   fail,
@@ -60,14 +58,25 @@ import {
   syncSessionSource,
 } from './kanban-route-helpers.js';
 import { paginateKanbanBoards } from './kanban-route-pagination.js';
+import type { KanbanSupervisor } from './kanban-supervisor.js';
+import { handleKanbanTaskRoute } from './kanban-task-routes.js';
+import type { WSClientMessage, WSServerMessage } from './types.js';
+
+export { type KanbanBoardPage, paginateKanbanBoards } from './kanban-route-pagination.js';
 export { KANBAN_CLIENT_MESSAGE_TYPES } from './kanban-route-protocol.js';
-export { paginateKanbanBoards, type KanbanBoardPage } from './kanban-route-pagination.js';
 
 export interface KanbanRouteContext {
   projectRoot: string;
   context?: Context | undefined;
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
   dispatchTask?: KanbanTaskDispatcher | undefined;
+  /**
+   * Background supervisor (if enabled). When present, the `kanban.supervisor.audit`
+   * and `kanban.supervisor.status` routes delegate to its in-process audit cycle
+   * instead of running a second reconcile/health/recover chain — preventing the
+   * double-audit that happens when both paths refresh the same board concurrently.
+   */
+  supervisor?: KanbanSupervisor | undefined;
 }
 
 export async function handleKanbanRoute(
@@ -136,6 +145,20 @@ export async function handleKanbanRoute(
         if (!board) {
           fail(ws, type, `Board not found: ${boardId}`);
           return true;
+        }
+        // Delegate to the background supervisor when available so the
+        // background tick and the on-demand route share a single reconcile /
+        // health / recover chain. The supervisor's `auditNow` returns the
+        // exact snapshot shape this route emits, so we forward it verbatim.
+        if (ctx.supervisor) {
+          const snapshots = await ctx.supervisor.auditNow(boardId);
+          const snapshot = snapshots[0];
+          if (snapshot) {
+            ok(ws, type, snapshot);
+            return true;
+          }
+          // Supervisor audit could not run (board gone, race, etc.); fall
+          // through to the standalone path so the client still gets an answer.
         }
         const reconciled = await reconcileKanbanBoard(ctx.projectRoot, boardId);
         let health = await getKanbanQueueHealth(ctx.projectRoot, { boardId });

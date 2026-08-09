@@ -82,7 +82,9 @@ export function buildFleetHostStatus(input: FleetHostStatusInputs): FleetHostSta
   const pending = (input.fleetStatus?.pending ?? []).filter((p) =>
     activeSubagentIds.has(p.subagentId),
   );
-  const completed = (input.completedResults ?? []).filter((r) => !input.shadowTaskIds.has(r.taskId));
+  const completed = (input.completedResults ?? []).filter(
+    (r) => !input.shadowTaskIds.has(r.taskId),
+  );
   const completedCount = completed.length;
   const liveCount = live.filter((s) => s.status === 'running' || s.status === 'idle').length;
   const summary =
@@ -112,8 +114,7 @@ export function formatFleetBudgetLines(
   const bold = colorize?.bold ?? ((s: string) => s);
   const dim = colorize?.dim ?? ((s: string) => s);
   const amber = colorize?.amber ?? ((s: string) => s);
-  const fmtNum = (n: number): string =>
-    Number.isFinite(n) ? String(n) : '∞';
+  const fmtNum = (n: number): string => (Number.isFinite(n) ? String(n) : '∞');
   const sourceSuffix = budget.effectiveSource
     ? `  ${dim(`(source: ${budget.effectiveSource})`)}`
     : '';

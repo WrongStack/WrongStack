@@ -95,10 +95,7 @@ function forwardedChain(req: http.IncomingMessage): string[] {
  *   destroyed socket). `'unknown'` is a single shared bucket by design — it
  *   should throttle, not exempt.
  */
-export function resolveClientAddress(
-  req: http.IncomingMessage,
-  trustedProxyHops = 0,
-): string {
+export function resolveClientAddress(req: http.IncomingMessage, trustedProxyHops = 0): string {
   const socketAddress = req.socket.remoteAddress
     ? normalizeAddress(req.socket.remoteAddress)
     : undefined;
@@ -108,7 +105,10 @@ export function resolveClientAddress(
 
   // chain[0] is the peer we actually accepted the connection from; each further
   // element is one hop further out, i.e. the header read right to left.
-  const chain = [...(socketAddress !== undefined ? [socketAddress] : []), ...forwardedChain(req).reverse()];
+  const chain = [
+    ...(socketAddress !== undefined ? [socketAddress] : []),
+    ...forwardedChain(req).reverse(),
+  ];
   // Under-filled chain — do not reach past what trusted proxies wrote.
   if (hops >= chain.length) return socketAddress ?? 'unknown';
   return chain[hops] ?? socketAddress ?? 'unknown';

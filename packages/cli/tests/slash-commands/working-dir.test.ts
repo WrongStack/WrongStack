@@ -1,12 +1,12 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import type { Provider, SessionWriter } from '@wrongstack/core/types';
+import * as path from 'node:path';
 import { Context } from '@wrongstack/core/agent';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { buildWorkingDirCommand } from '../../src/slash-commands/working-dir.js';
+import type { Provider, SessionWriter } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../../src/slash-commands/index.js';
+import { buildWorkingDirCommand } from '../../src/slash-commands/working-dir.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -20,10 +20,7 @@ const fakeSession = {
   close: async () => undefined,
 } as never as SessionWriter;
 
-function mkContext(overrides: {
-  projectRoot: string;
-  workingDir?: string | undefined;
-}): Context {
+function mkContext(overrides: { projectRoot: string; workingDir?: string | undefined }): Context {
   return new Context({
     systemPrompt: [{ type: 'text', text: 'hi' }],
     provider: fakeProvider,
@@ -42,7 +39,18 @@ function mkDeps(): SlashCommandContext {
     registry: { register: () => undefined, dispatch: async () => undefined, list: () => [] },
     toolRegistry: { register: () => undefined, tools: [] },
     tokenCounter: new DefaultTokenCounter(),
-    renderer: { write: () => {}, writeLine: () => {}, writeBlock: () => {}, writeToolCall: () => {}, writeToolResult: () => {}, writeDiff: () => {}, writeWarning: () => {}, writeError: () => {}, writeInfo: () => {}, clear: () => {} },
+    renderer: {
+      write: () => {},
+      writeLine: () => {},
+      writeBlock: () => {},
+      writeToolCall: () => {},
+      writeToolResult: () => {},
+      writeDiff: () => {},
+      writeWarning: () => {},
+      writeError: () => {},
+      writeInfo: () => {},
+      clear: () => {},
+    },
     events: { emit: () => {}, on: () => () => {}, off: () => {} },
     cwd: '/tmp',
     projectRoot: '/tmp',
@@ -55,7 +63,10 @@ let tmpRoot: string;
 let subDir: string;
 
 beforeEach(async () => {
-  tmpRoot = path.join(os.tmpdir(), `wstack-wd-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  tmpRoot = path.join(
+    os.tmpdir(),
+    `wstack-wd-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  );
   await fs.mkdir(tmpRoot, { recursive: true });
   subDir = path.join(tmpRoot, 'src');
   await fs.mkdir(subDir, { recursive: true });

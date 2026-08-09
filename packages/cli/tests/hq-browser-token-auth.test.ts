@@ -1,8 +1,8 @@
-import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
-import type { HqBrowserToken } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { HqBrowserToken } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';

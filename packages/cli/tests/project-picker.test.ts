@@ -1,12 +1,12 @@
+import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PickerItem } from '../src/project-picker.js';
 import {
   buildPickerItems,
-  filterItems,
   effectiveVisibleHeight,
+  filterItems,
   skipDivider,
 } from '../src/project-picker.js';
 
@@ -47,7 +47,9 @@ afterAll(async () => {
   await fs.rm(tempDir, { recursive: true, force: true });
 });
 
-async function writeManifest(projects: Array<{ name: string; root: string; slug: string; lastSeen?: string }>) {
+async function writeManifest(
+  projects: Array<{ name: string; root: string; slug: string; lastSeen?: string }>,
+) {
   await fs.writeFile(projectsJsonPath, JSON.stringify({ projects }), 'utf8');
 }
 
@@ -162,18 +164,12 @@ describe('skipDivider', () => {
   });
 
   it('stays at last item when skipping forward at end', () => {
-    const items: PickerItem[] = [
-      projectItem({ key: 'a', label: 'A' }),
-      dividerItem(),
-    ];
+    const items: PickerItem[] = [projectItem({ key: 'a', label: 'A' }), dividerItem()];
     expect(skipDivider(items, 1, 1)).toBe(1); // clamped
   });
 
   it('stays at first item when skipping backward at start', () => {
-    const items: PickerItem[] = [
-      dividerItem(),
-      projectItem({ key: 'a', label: 'A' }),
-    ];
+    const items: PickerItem[] = [dividerItem(), projectItem({ key: 'a', label: 'A' })];
     expect(skipDivider(items, 0, -1)).toBe(0);
   });
 });
@@ -245,7 +241,12 @@ describe('buildPickerItems', () => {
 
   it('marks current project with ● marker', async () => {
     await writeManifest([
-      { name: 'Current', root: '/a/current', slug: 'current-abc', lastSeen: '2025-06-01T00:00:00Z' },
+      {
+        name: 'Current',
+        root: '/a/current',
+        slug: 'current-abc',
+        lastSeen: '2025-06-01T00:00:00Z',
+      },
       { name: 'Other', root: '/a/other', slug: 'other-abc', lastSeen: '2025-06-01T00:00:00Z' },
     ]);
     const items = await buildPickerItems({
@@ -278,9 +279,7 @@ describe('buildPickerItems', () => {
   });
 
   it('shows "never" for projects without lastSeen', async () => {
-    await writeManifest([
-      { name: 'NeverSeen', root: '/n', slug: 'never-abc' },
-    ]);
+    await writeManifest([{ name: 'NeverSeen', root: '/n', slug: 'never-abc' }]);
     const items = await buildPickerItems({ globalConfigPath: projectsJsonPath });
     const p = items.find((i) => i.kind === 'project');
     expect(p?.meta).toBe('never');
@@ -314,9 +313,7 @@ describe('integration: buildPickerItems + filterItems', () => {
   });
 
   it('filtering returns no projects but keeps actions when no match', async () => {
-    await writeManifest([
-      { name: 'Only Project', root: '/only', slug: 'only-abc' },
-    ]);
+    await writeManifest([{ name: 'Only Project', root: '/only', slug: 'only-abc' }]);
     const items = await buildPickerItems({ globalConfigPath: projectsJsonPath });
     const filtered = filterItems(items, 'zzzz_no_match_at_all');
     expect(filtered.filter((i) => i.kind === 'project')).toHaveLength(0);

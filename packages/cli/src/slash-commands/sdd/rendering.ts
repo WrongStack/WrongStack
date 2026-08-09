@@ -57,7 +57,7 @@ export function sddHelp(): string {
     '',
     '  ┌─ 🧹 Lifecycle (after /sdd stop) ───────────────────────┐',
     '  │  /sdd clean          Remove run worktrees + branches     │',
-    '  │  /sdd rollback       Revert the run\'s merged commits     │',
+    "  │  /sdd rollback       Revert the run's merged commits     │",
     '  │  /sdd destroy        Delete the whole SDD project         │',
     '  └─────────────────────────────────────────────────────────┘',
     '',

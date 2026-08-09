@@ -7,7 +7,9 @@ describe('shouldPrintYoloNotice', () => {
   });
 
   it('returns false when saved launch choices exist (not first run)', () => {
-    expect(shouldPrintYoloNotice({ mode: 'tui', yolo: true, autonomy: 'auto' }, undefined, true)).toBe(false);
+    expect(
+      shouldPrintYoloNotice({ mode: 'tui', yolo: true, autonomy: 'auto' }, undefined, true),
+    ).toBe(false);
   });
 
   it('returns false when --no-yolo was explicitly passed', () => {
@@ -23,6 +25,8 @@ describe('shouldPrintYoloNotice', () => {
   });
 
   it('returns false when both saved choices exist and yolo is explicitly off', () => {
-    expect(shouldPrintYoloNotice({ mode: 'tui', yolo: true, autonomy: 'auto' }, false, false)).toBe(false);
+    expect(shouldPrintYoloNotice({ mode: 'tui', yolo: true, autonomy: 'auto' }, false, false)).toBe(
+      false,
+    );
   });
 });

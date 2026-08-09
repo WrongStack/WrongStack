@@ -1,10 +1,9 @@
 /** Final runtime preparation before a CLI surface is dispatched. */
 import type { Agent, Context } from '@wrongstack/core/agent';
-import type { Config, MemoryPort } from '@wrongstack/core/types';
-import type { ConfigStore } from '@wrongstack/core/types';
 import type { EventBus } from '@wrongstack/core/kernel';
-import { getToolDescriptionMode } from '@wrongstack/core/utils';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config, ConfigStore, MemoryPort } from '@wrongstack/core/types';
+import { getToolDescriptionMode } from '@wrongstack/core/utils';
 import type { PluginPickerItem, ToolPickerItem } from '../execute-deps.js';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from '../plugin-management.js';
 import { patchConfig } from '../utils.js';

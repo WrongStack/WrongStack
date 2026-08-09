@@ -1,11 +1,11 @@
 import type { Context } from '@wrongstack/core/agent';
-import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { HybridCompactor } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it, vi } from 'vitest';
 import { buildBuiltinSlashCommands } from '../src/slash-commands/index.js';
-import { parseMcpArgs } from '../src/slash-commands/mcp-utils.js';
 import type { McpParsedArgs } from '../src/slash-commands/mcp-utils.js';
+import { parseMcpArgs } from '../src/slash-commands/mcp-utils.js';
 
 class FakeRenderer {
   output = '';
@@ -110,8 +110,7 @@ describe('parseMcpArgs', () => {
   it('"add" with extra whitespace between args', () =>
     check('add   github   --enable', { action: 'add', name: 'github', enable: true }));
 
-  it('flags can appear before name', () =>
-    check('--enable add filesystem', null));
+  it('flags can appear before name', () => check('--enable add filesystem', null));
 });
 
 describe('/mcp slash command', () => {

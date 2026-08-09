@@ -1,6 +1,5 @@
 import type { Agent } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
-import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 import type { BrainAutoRisk } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { TrustBoundary } from '@wrongstack/core/security';
@@ -14,6 +13,7 @@ import type {
   SkillLoader,
 } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
+import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 
 /**
  * CLI-shaped webui options. Distinct from the standalone

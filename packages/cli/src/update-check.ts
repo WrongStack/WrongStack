@@ -169,8 +169,7 @@ export async function fetchLatestFromNpm(
   signal?: AbortSignal | undefined,
 ): Promise<string> {
   const packageName = typeof packageOrTimeout === 'number' ? 'wrongstack' : packageOrTimeout;
-  const effectiveTimeoutMs =
-    typeof packageOrTimeout === 'number' ? packageOrTimeout : timeoutMs;
+  const effectiveTimeoutMs = typeof packageOrTimeout === 'number' ? packageOrTimeout : timeoutMs;
   const url = npmRegistryUrl(packageName);
   const timeoutSignal = AbortSignal.timeout(effectiveTimeoutMs);
   const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;

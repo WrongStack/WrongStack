@@ -1,8 +1,13 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { randomBytes } from 'node:crypto';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
-import { randomBytes } from 'node:crypto';
-import { getVault, loadSavedProviders, saveProviders, createProviderConfigStore } from '../../src/webui-server/provider-config.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createProviderConfigStore,
+  getVault,
+  loadSavedProviders,
+  saveProviders,
+} from '../../src/webui-server/provider-config.js';
 
 describe('provider-config', () => {
   let tempDir: string;

@@ -1,18 +1,21 @@
 import * as fs from 'node:fs/promises';
-import { color } from '@wrongstack/core/utils';
-import type { Config, ModelMatrixEntry, ProviderConfig } from '@wrongstack/core/types';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { makeProviderFromConfig, setOAuthTokenPersister } from '@wrongstack/providers';
 import type { DefaultModelsRegistry } from '@wrongstack/core/models';
-import type { SubcommandHandler } from '../index.js';
+import type { Config, ModelMatrixEntry, ProviderConfig } from '@wrongstack/core/types';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
+import { makeProviderFromConfig, setOAuthTokenPersister } from '@wrongstack/providers';
 import { discoverAndMergeProviders } from '../../boot/auto-discover-providers.js';
-import { mutateConfigProviders, normalizeKeys, writeKeysBack } from '../../provider-config-utils.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import {
+  mutateConfigProviders,
+  normalizeKeys,
+  writeKeysBack,
+} from '../../provider-config-utils.js';
+import type { SubcommandHandler } from '../index.js';
+import {
   buildModelSmokeTargets,
+  type ModelSmokeResult,
   parseModelSmokeOptions,
   runModelSmokeTests,
-  type ModelSmokeResult,
 } from './model-smoke-test.js';
 
 /**
@@ -27,6 +30,8 @@ import {
 // ---------------------------------------------------------------------------
 
 import {
+  type CacheModel,
+  type CacheProvider,
   checkMark,
   costLabel,
   EVAL_CATEGORIES,
@@ -39,8 +44,6 @@ import {
   roleCat,
   scoreBar,
   speedLabel,
-  type CacheModel,
-  type CacheProvider,
 } from './modeldiag-profiles.js';
 
 function createProviderForId(
@@ -391,7 +394,11 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
         cacheDir: deps.paths.cacheDir,
       });
     }
-    const targets = await buildModelSmokeTargets(config as Config, deps.modelsRegistry, smokeOptions);
+    const targets = await buildModelSmokeTargets(
+      config as Config,
+      deps.modelsRegistry,
+      smokeOptions,
+    );
     const byProvider = new Map<string, number>();
     for (const target of targets) {
       byProvider.set(target.providerId, (byProvider.get(target.providerId) ?? 0) + 1);
@@ -426,7 +433,9 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
       const message =
         'No provider/model targets matched. Check the active profile or remove filters.';
       if (smokeOptions.json) {
-        writeLine(JSON.stringify({ results: [], summary: { passed: 0, failed: 0 }, error: message }));
+        writeLine(
+          JSON.stringify({ results: [], summary: { passed: 0, failed: 0 }, error: message }),
+        );
       } else {
         writeLine(color.amber(message));
       }
@@ -438,8 +447,7 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
       deps.flags?.['yes'] === 'true' ||
       args.slice(1).includes('--yes');
     if (targets.length > 50 && !confirmed) {
-      const message =
-        `${targets.length} live requests are planned. Review with --plan, then add --yes to run them.`;
+      const message = `${targets.length} live requests are planned. Review with --plan, then add --yes to run them.`;
       if (smokeOptions.json) {
         writeLine(JSON.stringify({ error: message, targetCount: targets.length }));
       } else {
@@ -523,13 +531,13 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
               : {}),
             ...saved,
             type: providerId,
-            ...(saved?.family ?? resolved?.family
+            ...((saved?.family ?? resolved?.family)
               ? { family: saved?.family ?? resolved?.family }
               : {}),
-            ...(saved?.baseUrl ?? resolved?.apiBase
+            ...((saved?.baseUrl ?? resolved?.apiBase)
               ? { baseUrl: saved?.baseUrl ?? resolved?.apiBase }
               : {}),
-            ...(saved?.envVars ?? resolved?.envVars
+            ...((saved?.envVars ?? resolved?.envVars)
               ? { envVars: saved?.envVars ?? resolved?.envVars }
               : {}),
           };
@@ -559,7 +567,9 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
             results,
             summary,
             ...(oauthPersistenceError
-              ? { warning: `OAuth token refresh worked in-memory but could not be saved: ${oauthPersistenceError}` }
+              ? {
+                  warning: `OAuth token refresh worked in-memory but could not be saved: ${oauthPersistenceError}`,
+                }
               : {}),
           },
           null,
@@ -574,9 +584,7 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
         }`,
       );
       if (!smokeOptions.allModels) {
-        writeLine(
-          color.dim('Use --all-models to test every catalog-visible model sequentially.'),
-        );
+        writeLine(color.dim('Use --all-models to test every catalog-visible model sequentially.'));
       }
       if (oauthPersistenceError) {
         writeLine(

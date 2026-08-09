@@ -26,7 +26,7 @@
 import { spawn } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { readLiveLock, type MailboxBridgeLock } from '@wrongstack/core/coordination';
+import { type MailboxBridgeLock, readLiveLock } from '@wrongstack/core/coordination';
 import { buildWin32CmdShimInvocation } from './utils/win32-cmd.js';
 
 export const MAILBOX_BRIDGE_BOOTSTRAP_TIMEOUT_MS = 5_000;
@@ -252,7 +252,7 @@ function defaultSpawn(args: string[], cwd: string): SpawnedChild {
 }
 
 // Re-export for tests
-export { readLiveLock, type MailboxBridgeLock };
+export { type MailboxBridgeLock, readLiveLock };
 
 // Helper to keep the fs import alive for future token-file fallback
 // reads (currently unused but exported for callers that want to

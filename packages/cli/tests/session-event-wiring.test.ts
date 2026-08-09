@@ -201,33 +201,30 @@ describe('wireSessionEvents', () => {
 
   // ── file-author tracking ────────────────────────────────────────────────
 
-  it.each(['write', 'edit', 'replace', 'patch'])(
-    'calls recordFileAction on %s when ok',
-    (tool) => {
-      const { deps, emit } = makeDeps();
-      wireSessionEvents(deps);
+  it.each(['write', 'edit', 'replace', 'patch'])('calls recordFileAction on %s when ok', (tool) => {
+    const { deps, emit } = makeDeps();
+    wireSessionEvents(deps);
 
-      emit('tool.executed', {
+    emit('tool.executed', {
+      sessionId: 'sess-ctx',
+      name: tool,
+      id: 't3',
+      ok: true,
+      input: { path: 'src/foo.ts' },
+    });
+
+    expect(recordFileAction).toHaveBeenCalledTimes(1);
+    expect(recordFileAction).toHaveBeenCalledWith(
+      { storageDir: '/tmp/root/projects/test-proj', projectRoot: '/tmp/project' },
+      {
+        filePath: 'src/foo.ts',
+        action: tool === 'write' ? 'create' : 'edit',
+        agentId: 'leader',
+        agentName: 'Leader',
         sessionId: 'sess-ctx',
-        name: tool,
-        id: 't3',
-        ok: true,
-        input: { path: 'src/foo.ts' },
-      });
-
-      expect(recordFileAction).toHaveBeenCalledTimes(1);
-      expect(recordFileAction).toHaveBeenCalledWith(
-        { storageDir: '/tmp/root/projects/test-proj', projectRoot: '/tmp/project' },
-        {
-          filePath: 'src/foo.ts',
-          action: tool === 'write' ? 'create' : 'edit',
-          agentId: 'leader',
-          agentName: 'Leader',
-          sessionId: 'sess-ctx',
-        },
-      );
-    },
-  );
+      },
+    );
+  });
 
   it('does NOT call recordFileAction when tool.ok is false', () => {
     const { deps, emit } = makeDeps();

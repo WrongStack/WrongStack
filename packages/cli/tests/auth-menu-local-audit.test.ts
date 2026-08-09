@@ -14,10 +14,7 @@ import {
   memAuthAuditSink,
   resolveAuditSink,
 } from '../src/auth-menu/auth-menu-audit.js';
-import {
-  type AuthMenuDeps,
-  runAuthLocal,
-} from '../src/auth-menu/index.js';
+import { type AuthMenuDeps, runAuthLocal } from '../src/auth-menu/index.js';
 import type { ReadlineInputReader } from '../src/input-reader.js';
 import type { TerminalRenderer } from '../src/renderer.js';
 
@@ -339,10 +336,7 @@ describe('resolveAuditSink', () => {
   });
 
   it('returns a file sink for `--audit <path>`', async () => {
-    const tmpFile = path.join(
-      await mkTempDir('wstack-resolve-audit-sink-'),
-      'audit.jsonl',
-    );
+    const tmpFile = path.join(await mkTempDir('wstack-resolve-audit-sink-'), 'audit.jsonl');
     const sink = resolveAuditSink(tmpFile);
     expect(sink).toBeDefined();
     // Smoke-test: writing to the sink actually appends to disk.
@@ -581,9 +575,7 @@ describe('runAuthLocal — clear → undo round-trip (audit log + on-disk state)
     });
     // Construct the logger the way the production dispatch does
     // it: `createAuthAuditLogger(resolveAuditSink(flag))`.
-    const audit = createAuthAuditLogger(
-      resolveAuditSink(auditFile) as AuthAuditSink,
-    );
+    const audit = createAuthAuditLogger(resolveAuditSink(auditFile) as AuthAuditSink);
     // Clear
     await runAuthLocal(deps, { name: 'ollama', models: '', noProbe: true, audit });
     // Undo

@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as path from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getProjectPickerItems, onProjectSelect } from '../src/boot/tui-project-picker-callback.js';
 import type { ProjectEntry } from '../src/services/project-manifest.js';
 
@@ -76,7 +76,11 @@ describe('TUI project picker callbacks', () => {
   });
 
   it('warns about active work, updates lastSeen, saves, and switches projects', async () => {
-    const project: ProjectEntry = { slug: 'next', root: path.join(process.cwd(), 'next'), name: 'Next' };
+    const project: ProjectEntry = {
+      slug: 'next',
+      root: path.join(process.cwd(), 'next'),
+      name: 'Next',
+    };
     mocks.loadManifest.mockResolvedValueOnce({ projects: [project] });
     const ctx = context({
       director: {

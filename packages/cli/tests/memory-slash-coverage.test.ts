@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock @wrongstack/sage — controls getSageSurface return per-test
 const mockGetSageSurface = vi.hoisted(() => vi.fn((): any => null));
@@ -28,8 +28,8 @@ vi.mock('../src/slash-commands/memory-compact.js', () => ({
   runCompact: vi.fn(async () => ({ message: 'Compacted.' })),
 }));
 
-import { buildMemoryCommand } from '../src/slash-commands/memory.js';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
+import { buildMemoryCommand } from '../src/slash-commands/memory.js';
 
 /** Narrow the slash-command execute/run union (which includes `void`) to its message. */
 function runMessage(result: unknown): string | undefined {
@@ -45,7 +45,15 @@ function makeCtx(): SlashCommandContext {
       list: vi.fn(async () => []),
       search: vi.fn(async () => []),
     },
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function (this: any) { return this; }) },
+    logger: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn(function (this: any) {
+        return this;
+      }),
+    },
     broadcast: vi.fn(),
     send: vi.fn(),
   } as any;
@@ -54,10 +62,30 @@ function makeCtx(): SlashCommandContext {
 function makeSageStub(extra: Record<string, unknown> = {}) {
   return {
     stats: vi.fn(async () => ({ total: 1, byStatus: { active: 1 }, byKind: {}, edges: 0 })),
-    listSage: vi.fn(async () => [{ id: 'm1', kind: 'fact', status: 'active', text: 'hello', tags: [] }]),
-    getSage: vi.fn(async () => ({ id: 'm1', kind: 'fact', status: 'active', text: 'hello', tags: [] })),
-    rememberSage: vi.fn(async () => ({ id: 'mem-new', kind: 'fact', status: 'active', text: 'new', tags: ['t'] })),
-    updateSage: vi.fn(async () => ({ id: 'm1', kind: 'fact', status: 'active', text: 'updated', tags: [] })),
+    listSage: vi.fn(async () => [
+      { id: 'm1', kind: 'fact', status: 'active', text: 'hello', tags: [] },
+    ]),
+    getSage: vi.fn(async () => ({
+      id: 'm1',
+      kind: 'fact',
+      status: 'active',
+      text: 'hello',
+      tags: [],
+    })),
+    rememberSage: vi.fn(async () => ({
+      id: 'mem-new',
+      kind: 'fact',
+      status: 'active',
+      text: 'new',
+      tags: ['t'],
+    })),
+    updateSage: vi.fn(async () => ({
+      id: 'm1',
+      kind: 'fact',
+      status: 'active',
+      text: 'updated',
+      tags: [],
+    })),
     deleteSage: vi.fn(async () => undefined),
     listSagePage: vi.fn(async () => ({ memories: [], nextCursor: null, total: 0 })),
     graphFor: vi.fn(async () => []),
@@ -144,7 +172,9 @@ describe('memory slash command', () => {
     it('handles SAGE rememberSage errors', async () => {
       mockGetSageSurface.mockReturnValue({
         ...makeSageStub(),
-        rememberSage: vi.fn(async () => { throw new Error('SAGE down'); }),
+        rememberSage: vi.fn(async () => {
+          throw new Error('SAGE down');
+        }),
       });
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('remember test');

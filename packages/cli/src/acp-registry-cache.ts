@@ -8,14 +8,11 @@
  * load time; resolution falls back to the bundled static catalog when no
  * cache exists.
  */
-import {
-  type ACPAgentDescriptor,
-  type AcpLiveCatalog,
-  fetchAcpRegistry,
-} from '@wrongstack/acp';
-import type { WstackPaths } from '@wrongstack/core/utils';
+
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { type ACPAgentDescriptor, type AcpLiveCatalog, fetchAcpRegistry } from '@wrongstack/acp';
+import type { WstackPaths } from '@wrongstack/core/utils';
 
 interface CacheEnvelope {
   fetchedAt: string;
@@ -36,9 +33,7 @@ export function acpRegistryCachePath(paths: WstackPaths): string {
 }
 
 /** Read the cached registry, or `null` if it's missing or unreadable. */
-export async function loadCachedAcpRegistry(
-  paths: WstackPaths,
-): Promise<LoadedAcpRegistry | null> {
+export async function loadCachedAcpRegistry(paths: WstackPaths): Promise<LoadedAcpRegistry | null> {
   try {
     const raw = await fs.readFile(acpRegistryCachePath(paths), 'utf8');
     const env = JSON.parse(raw) as CacheEnvelope;

@@ -12,13 +12,14 @@
  *
  * @vitest-environment node
  */
-import { readHqAuthFile } from '@wrongstack/core/hq';
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { readHqAuthFile } from '@wrongstack/core/hq';
+import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hqCmd } from '../src/subcommands/handlers/hq.js';
-import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
 import type { SubcommandDeps } from '../src/subcommands/index.js';
 
 vi.mock('../src/hq-server.js', () => ({ startHqServer: vi.fn() }));
@@ -49,7 +50,8 @@ type RendererWithCapture = SubcommandDeps['renderer'] & {
   writeLine: ((text?: string) => void) & ReturnType<typeof vi.fn>;
   writeBlock: ((block: ContentBlock) => void) & ReturnType<typeof vi.fn>;
   writeToolCall: ((name: string, input: unknown) => void) & ReturnType<typeof vi.fn>;
-  writeToolResult: ((name: string, content: unknown, isError: boolean) => void) & ReturnType<typeof vi.fn>;
+  writeToolResult: ((name: string, content: unknown, isError: boolean) => void) &
+    ReturnType<typeof vi.fn>;
   writeDiff: ((unifiedDiff: string) => void) & ReturnType<typeof vi.fn>;
   clear: (() => void) & ReturnType<typeof vi.fn>;
   captured: CapturedRenderer;
@@ -63,19 +65,33 @@ function renderText(input: string | TextBlock): string {
 function makeDeps(overrides: Partial<SubcommandDeps> = {}): TestDeps {
   const captured: CapturedRenderer = { out: [], err: [], warn: [] };
   const renderer = {
-    write: vi.fn((input: string | TextBlock) => { captured.out.push(renderText(input)); }),
-    writeLine: vi.fn((text = '') => { captured.out.push(text ? `${text}\n` : '\n'); }),
+    write: vi.fn((input: string | TextBlock) => {
+      captured.out.push(renderText(input));
+    }),
+    writeLine: vi.fn((text = '') => {
+      captured.out.push(text ? `${text}\n` : '\n');
+    }),
     writeBlock: vi.fn((block: ContentBlock) => {
       if (block.type === 'text') captured.out.push(block.text);
     }),
-    writeToolCall: vi.fn((name: string) => { captured.out.push(name); }),
+    writeToolCall: vi.fn((name: string) => {
+      captured.out.push(name);
+    }),
     writeToolResult: vi.fn((name: string, content: unknown) => {
       captured.out.push(typeof content === 'string' ? `${name}:${content}` : name);
     }),
-    writeDiff: vi.fn((diff: string) => { captured.out.push(diff); }),
-    writeError: vi.fn((s: string) => { captured.err.push(s); }),
-    writeWarning: vi.fn((s: string) => { captured.warn.push(s); }),
-    writeInfo: vi.fn((s: string) => { captured.out.push(s); }) as never,
+    writeDiff: vi.fn((diff: string) => {
+      captured.out.push(diff);
+    }),
+    writeError: vi.fn((s: string) => {
+      captured.err.push(s);
+    }),
+    writeWarning: vi.fn((s: string) => {
+      captured.warn.push(s);
+    }),
+    writeInfo: vi.fn((s: string) => {
+      captured.out.push(s);
+    }) as never,
     clear: vi.fn() as never,
     captured,
   };

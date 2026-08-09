@@ -1,10 +1,15 @@
 import * as fs from 'node:fs/promises';
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { atomicWrite, color, configureChildEnvGitIdentity, getChildEnvGitIdentity } from '@wrongstack/core/utils';
-import { ConfigError, type SlashCommand } from '@wrongstack/core/types';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
-import type { SlashCommandContext } from './command-context.js';
+import { ConfigError, type SlashCommand } from '@wrongstack/core/types';
+import {
+  atomicWrite,
+  color,
+  configureChildEnvGitIdentity,
+  getChildEnvGitIdentity,
+  toErrorMessage,
+} from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
+import type { SlashCommandContext } from './command-context.js';
 
 /** Loose email shape check — git itself accepts nearly anything, so only
  * guard against the obvious "forgot the email" argument-order mistake. */
@@ -73,7 +78,7 @@ export function buildGitIdCommand(opts: SlashCommandContext): SlashCommand {
     '  /gitid                            Show the commit identity in effect',
     '  /gitid set <name...> <email>      Set commit name + email (email last)',
     '  /gitid set <email>                Set commit email only',
-    '  /gitid clear                      Remove — git\'s own config applies again',
+    "  /gitid clear                      Remove — git's own config applies again",
     '',
     'Add --session to set/clear for this session only (no config write).',
     '',
@@ -87,17 +92,13 @@ export function buildGitIdCommand(opts: SlashCommandContext): SlashCommand {
   function currentView(): string {
     const active = getChildEnvGitIdentity();
     const persisted = opts.configStore.get().git?.identity;
-    const lines = [
-      `${color.bold('WrongStack')} ${color.dim('— Commit identity')}`,
-      '',
-    ];
+    const lines = [`${color.bold('WrongStack')} ${color.dim('— Commit identity')}`, ''];
     if (active) {
       lines.push(
         `  ${color.bold('name')}   ${active.name ? color.cyan(active.name) : color.dim('(unset — git config applies)')}`,
         `  ${color.bold('email')}  ${active.email ? color.cyan(active.email) : color.dim('(unset — git config applies)')}`,
       );
-      const isPersisted =
-        persisted?.name === active.name && persisted?.email === active.email;
+      const isPersisted = persisted?.name === active.name && persisted?.email === active.email;
       lines.push(
         '',
         `  ${color.dim(isPersisted ? 'persisted in the active profile config' : 'session-only (not persisted)')}`,

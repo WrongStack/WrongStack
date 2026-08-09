@@ -37,12 +37,10 @@ export async function buildHostSubagentProvider(
     // provider carries only the wire-family baseline, where `maxOutput` is
     // undefined and every response gets capped at the adapter's last-resort
     // 8192 regardless of what the model actually supports.
-    provider = await withCatalogCapabilities(
-      deps.modelsRegistry,
-      providerId,
-      provider,
-      { ...cfgWithType, model: resolvedModel },
-    );
+    provider = await withCatalogCapabilities(deps.modelsRegistry, providerId, provider, {
+      ...cfgWithType,
+      model: resolvedModel,
+    });
     await refreshRuntimeModelCatalog({
       modelsRegistry: deps.modelsRegistry,
       reason: `${providerId}/${resolvedModel}`,
@@ -116,7 +114,8 @@ export function resolveHostSubagentModelSelection(
     ? [
         { provider: effProvider, model: effModel },
         ...(modelPolicy.fallbacks ?? []),
-        ...(closedModelPolicy || (effProvider === liveConfig.provider && effModel === liveConfig.model)
+        ...(closedModelPolicy ||
+        (effProvider === liveConfig.provider && effModel === liveConfig.model)
           ? []
           : [{ provider: liveConfig.provider, model: liveConfig.model }]),
       ]

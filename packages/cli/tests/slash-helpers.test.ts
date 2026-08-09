@@ -228,10 +228,7 @@ describe('slash-commands/helpers — detectProjectFacts', () => {
   });
 
   it('defaults to npm when no lockfile is present', async () => {
-    await writeFile(
-      path.join(tmp, 'package.json'),
-      JSON.stringify({ scripts: { build: 'tsc' } }),
-    );
+    await writeFile(path.join(tmp, 'package.json'), JSON.stringify({ scripts: { build: 'tsc' } }));
     const facts = await detectProjectFacts(tmp);
     expect(facts.build).toBe('npm run build');
   });

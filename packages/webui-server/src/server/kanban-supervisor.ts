@@ -41,12 +41,25 @@ export interface KanbanSupervisorDispatchOptions {
 }
 
 export interface KanbanSupervisorDeps {
-  projectRoot: string;
+  projectRoot: string | (() => string);
   broadcast: (message: { type: string; payload: unknown }) => void;
   dispatchTask?:
     | ((description: string, opts?: KanbanSupervisorDispatchOptions) => Promise<string>)
     | undefined;
   log?: ((message: string) => void) | undefined;
+}
+
+/**
+ * Resolve the supervisor's project root on demand. Accepting a getter
+ * (`() => string`) instead of a captured `string` keeps the supervisor tied
+ * to the live workspace — without it, the snapshot field stays pinned to the
+ * project that was active at construction, so a project swap leaves
+ * previously audited boards in the wrong workspace until the process is
+ * recreated.
+ */
+function resolveProjectRoot(deps: KanbanSupervisorDeps): string {
+  const root = deps.projectRoot;
+  return typeof root === 'function' ? root() : root;
 }
 
 export interface KanbanSupervisor {
@@ -138,20 +151,21 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
       return snapshot;
     }
 
-    const reconciled = await reconcileKanbanBoard(deps.projectRoot, board.id);
+    const reconciled = await reconcileKanbanBoard(resolveProjectRoot(deps), board.id);
     // Completion-gate sweep: catch tasks whose worker marked its assignment
     // completed through a path that never called finalizeTaskCompletion
     // (third-party board writers). They are parked in review by
     // updateTaskAssignment; run the gate so they reach a final state.
     const gateSwept = await sweepGateParkedTasks(deps, reconciled?.board ?? board);
-    let health = await getKanbanQueueHealth(deps.projectRoot, { boardId: board.id });
+    let health = await getKanbanQueueHealth(resolveProjectRoot(deps), { boardId: board.id });
     const recovered = health.staleAssignments.count
-      ? await recoverStaleTaskAssignments(deps.projectRoot, board.id, {
+      ? await recoverStaleTaskAssignments(resolveProjectRoot(deps), board.id, {
           mode: config.recoveryMode ?? 'auto',
           reason: 'Kanban supervisor found an expired worker lease.',
         })
       : null;
-    if (recovered) health = await getKanbanQueueHealth(deps.projectRoot, { boardId: board.id });
+    if (recovered)
+      health = await getKanbanQueueHealth(resolveProjectRoot(deps), { boardId: board.id });
 
     const anomalyCount = countAnomalies(health);
     const snapshot: KanbanSupervisorSnapshot = {
@@ -171,7 +185,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     if (changedBoard) {
       // The sweep can retire a board, so the list is genuinely stale here.
       await publishKanbanBoard(deps.broadcast, changedBoard, () =>
-        listBoards(deps.projectRoot),
+        listBoards(resolveProjectRoot(deps)),
       );
     }
 
@@ -219,13 +233,13 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
         // tool-runtime boundary gate (`evaluateToolKanbanBoundary`) can resolve
         // the live board policy instead of failing open. Whole-board agentic
         // runs have no taskId, so only boardId is propagated.
-        context: { kanban: { boardId: board.id, projectRoot: deps.projectRoot } },
+        context: { kanban: { boardId: board.id, projectRoot: resolveProjectRoot(deps) } },
         onDone: async (result) => {
           clearTimeout(watchdog);
           agentRunning.delete(board.id);
           // A long-running supervisor agent can finish after its board was
           // deleted. Do not resurrect the removed board's snapshot entry.
-          if ((await getBoard(deps.projectRoot, board.id)) === null) return;
+          if ((await getBoard(resolveProjectRoot(deps), board.id)) === null) return;
           const current = snapshots.get(board.id) ?? snapshot;
           publish({
             ...current,
@@ -251,7 +265,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   const auditNow = async (boardId?: string): Promise<KanbanSupervisorSnapshot[]> => {
     let boards: KanbanBoard[];
     if (boardId) {
-      const board = await getBoard(deps.projectRoot, boardId);
+      const board = await getBoard(resolveProjectRoot(deps), boardId);
       if (board === null) {
         forgetBoard(boardId);
         boards = [];
@@ -259,10 +273,12 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
         boards = [board];
       }
     } else {
-      const summaries = await listBoards(deps.projectRoot);
+      const summaries = await listBoards(resolveProjectRoot(deps));
       pruneAbsentBoards(new Set(summaries.map((summary) => summary.id)));
       boards = (
-        await Promise.all(summaries.map((summary) => getBoard(deps.projectRoot, summary.id)))
+        await Promise.all(
+          summaries.map((summary) => getBoard(resolveProjectRoot(deps), summary.id)),
+        )
       ).filter((board): board is KanbanBoard => Boolean(board));
     }
     const results: KanbanSupervisorSnapshot[] = [];
@@ -308,11 +324,11 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     if (disposed) return;
     try {
       const now = Date.now();
-      const summaries = await listBoards(deps.projectRoot);
+      const summaries = await listBoards(resolveProjectRoot(deps));
       pruneAbsentBoards(new Set(summaries.map((summary) => summary.id)));
       for (const summary of summaries) {
         if ((nextDue.get(summary.id) ?? 0) > now) continue;
-        const board = await getBoard(deps.projectRoot, summary.id);
+        const board = await getBoard(resolveProjectRoot(deps), summary.id);
         if (board) await auditBoard(board);
       }
     } catch (error) {
@@ -371,7 +387,7 @@ async function sweepGateParkedTasks(
   let lastBoard: KanbanBoard | undefined;
   for (const task of parked) {
     try {
-      const finalized = await finalizeTaskCompletion(deps.projectRoot, board.id, task.id, {
+      const finalized = await finalizeTaskCompletion(resolveProjectRoot(deps), board.id, task.id, {
         eventContext: { actor: 'kanban-supervisor' },
       });
       if (finalized) lastBoard = finalized.board;

@@ -1,6 +1,6 @@
 import type { AgentPipelines } from '@wrongstack/core/agent';
-import type { Config, Logger, MemoryPort } from '@wrongstack/core/types';
 import type { EventBus } from '@wrongstack/core/kernel';
+import type { Config, Logger, MemoryPort } from '@wrongstack/core/types';
 import {
   createSageContextMonitorMiddleware,
   createSageToolCallMiddleware,

@@ -66,7 +66,12 @@ describe('runPicker model visibility', () => {
       },
     } as never as Config;
 
-    await runPicker({ modelsRegistry, renderer: renderer as never, reader: reader as never, config });
+    await runPicker({
+      modelsRegistry,
+      renderer: renderer as never,
+      reader: reader as never,
+      config,
+    });
 
     const text = output.join('\n');
     // `providers.<id>.models` is additive, not a filter. It used to hide every

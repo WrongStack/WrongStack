@@ -34,6 +34,13 @@ export interface LifecycleResources {
    * logged, never thrown — cleanup must not block a clean shutdown.
    */
   onShutdown?: (() => Promise<void> | void) | undefined;
+  /**
+   * Fires **before** any HTTP/WS servers close. Use this for cleanup that must
+   * finish while the network is still up — e.g. telling a Kanban supervisor
+   * to flush its periodic tick so no in-flight `kanban.*` broadcast races a
+   * `WebSocketServer.close()`.
+   */
+  onPreShutdown?: (() => Promise<void> | void) | undefined;
   /** Output sink. Defaults to `console.log`. */
   log?: ((msg: string) => void) | undefined;
   /** Process exit. Defaults to `process.exit`. Injectable for tests. */
@@ -73,6 +80,15 @@ export function createShutdown(res: LifecycleResources): () => Promise<void> {
         ws.terminate?.();
       } catch {
         // Already gone.
+      }
+    }
+    if (res.onPreShutdown) {
+      try {
+        await res.onPreShutdown();
+      } catch (e) {
+        log(
+          `[WebUI] Error during pre-shutdown cleanup: ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
     }
     for (const server of res.servers) server?.close();

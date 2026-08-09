@@ -30,11 +30,18 @@ async function pathExists(p: string): Promise<boolean> {
   }
 }
 
-import { GoalPlanner, type PhaseGraph, PhaseGraphBuilder, PhaseOrchestrator, type PhaseProgress, PhaseStore } from '@wrongstack/core/goal';
 import { assignNickname, type BrainArbiter } from '@wrongstack/core/coordination';
-import { buildChildEnv } from '@wrongstack/core/utils';
-import type { Config, TaskNode } from '@wrongstack/core/types';
+import {
+  GoalPlanner,
+  type PhaseGraph,
+  PhaseGraphBuilder,
+  PhaseOrchestrator,
+  type PhaseProgress,
+  PhaseStore,
+} from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
+import type { Config, TaskNode } from '@wrongstack/core/types';
+import { buildChildEnv } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 
 /** Default concurrent tasks within a single phase (override via env). */
@@ -807,9 +814,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
       };
       active = { graph, orchestrator, abort, unsubscribe };
       void orchestrator.start().catch((err) => {
-        log(
-          '❌ Goal orchestrator error: ' + (err instanceof Error ? err.message : String(err)),
-        );
+        log('❌ Goal orchestrator error: ' + (err instanceof Error ? err.message : String(err)));
         if (active?.graph.id === graph.id) {
           active.unsubscribe();
           active = null;

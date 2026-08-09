@@ -11,8 +11,8 @@ import * as path from 'node:path';
 import { DefaultSecretVault } from '@wrongstack/core/security';
 import type { ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AuthMenuDeps } from '../src/auth-menu/types.js';
 import { addFromCatalog } from '../src/auth-menu/add-provider.js';
+import type { AuthMenuDeps } from '../src/auth-menu/types.js';
 
 const pickerMock = vi.hoisted(() => ({
   runLiveProviderPicker: vi.fn(),
@@ -52,10 +52,9 @@ const CATALOG_ROW: ResolvedProvider = {
   envVars: ['ANTHROPIC_API_KEY'],
 } as never as ResolvedProvider;
 
-async function setup(opts: {
-  listProviders?: () => Promise<ResolvedProvider[]>;
-  preExisting?: object;
-} = {}) {
+async function setup(
+  opts: { listProviders?: () => Promise<ResolvedProvider[]>; preExisting?: object } = {},
+) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-auth-catalog-'));
   const configPath = path.join(tmpDir, 'config.json');
   if (opts.preExisting) {
@@ -175,7 +174,10 @@ describe('addFromCatalog — interactive picker path', () => {
 
   it('filters unsupported families out of the catalog', async () => {
     const { deps, answers } = await setup({
-      listProviders: async () => [CATALOG_ROW, { ...CATALOG_ROW, id: 'legacy', family: 'unsupported' } as never],
+      listProviders: async () => [
+        CATALOG_ROW,
+        { ...CATALOG_ROW, id: 'legacy', family: 'unsupported' } as never,
+      ],
     });
     pickerMock.runLiveProviderPicker.mockResolvedValue(CATALOG_ROW);
     answers.push('', '', '', 'default', 'sk-c-1234567890');
@@ -211,7 +213,13 @@ describe('addFromCatalog — interactive picker path', () => {
   it('still falls back to manual entry when the catalog is empty', async () => {
     // Augmenting an EMPTY list would silently retire that fallback.
     const { deps, answers } = await setup({ listProviders: async () => [] });
-    answers.push('my-provider', 'openai-compatible', 'https://example.test/v1', 'default', 'sk-1234567890');
+    answers.push(
+      'my-provider',
+      'openai-compatible',
+      'https://example.test/v1',
+      'default',
+      'sk-1234567890',
+    );
 
     expect(await addFromCatalog(deps)).toBe(true);
     expect(pickerMock.runLiveProviderPicker).not.toHaveBeenCalled();

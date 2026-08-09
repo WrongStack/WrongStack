@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import {
+  type Director,
   dispatchAgent,
   FleetSupervisor,
   getSharedProjectMailbox,
   mailboxSessionTag,
-  type Director,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config, SubagentConfig } from '@wrongstack/core/types';
@@ -49,8 +49,7 @@ export function createHostFleetSupervisor(input: HostFleetSupervisorInput): Flee
       isWorkComplete: () => director.isWorkComplete(),
     },
     actions: {
-      retargetPendingTask: (taskId, subagentId) =>
-        director.retargetPendingTask(taskId, subagentId),
+      retargetPendingTask: (taskId, subagentId) => director.retargetPendingTask(taskId, subagentId),
       spawnHelper: async ({ reason, task }) => {
         try {
           const routed = await dispatchAgent(task?.description ?? reason, {

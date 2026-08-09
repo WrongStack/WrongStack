@@ -37,18 +37,14 @@ describe('/mouse slash command', () => {
       expect(result?.message).toBeUndefined();
     });
 
-    it.each([
-      'on',
-      'enable',
-      'true',
-      '1',
-      'ON',
-      '  on  ',
-    ])('"%s" emits the on intent', async (arg) => {
-      const cmd = buildMouseCommand(makeCtx());
-      const result = await cmd.run!(arg);
-      expect(result?.metadata?.mouseToggle).toBe('on');
-    });
+    it.each(['on', 'enable', 'true', '1', 'ON', '  on  '])(
+      '"%s" emits the on intent',
+      async (arg) => {
+        const cmd = buildMouseCommand(makeCtx());
+        const result = await cmd.run!(arg);
+        expect(result?.metadata?.mouseToggle).toBe('on');
+      },
+    );
 
     it.each(['off', 'disable', 'false', '0', 'OFF'])('"%s" emits the off intent', async (arg) => {
       const cmd = buildMouseCommand(makeCtx());

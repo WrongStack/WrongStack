@@ -49,9 +49,9 @@ describe('resolveClientAddress — behind a declared proxy', () => {
   });
 
   it('hops=2 steps one further out through two trusted proxies', () => {
-    expect(
-      resolveClientAddress(req('10.0.0.1', '1.1.1.1, 198.51.100.5, 10.0.0.2'), 2),
-    ).toBe('198.51.100.5');
+    expect(resolveClientAddress(req('10.0.0.1', '1.1.1.1, 198.51.100.5, 10.0.0.2'), 2)).toBe(
+      '198.51.100.5',
+    );
   });
 
   it('separates two clients behind the same tunnel', () => {

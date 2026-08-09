@@ -1,13 +1,14 @@
 /** Runtime lifecycle callbacks shared by CLI execution surfaces. */
-import type { AutonomyStage, Config } from '@wrongstack/core/types';
-import type { JournalEntry } from '@wrongstack/core/goal';
+
 import type { Context } from '@wrongstack/core/agent';
 import type { EternalAutonomyEngine, ParallelEternalEngine } from '@wrongstack/core/execution';
+import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
+import type { AutonomyStage, Config } from '@wrongstack/core/types';
 import type { SddRunRegistry } from '@wrongstack/sdd';
 import type { LifecycleDeps } from '../execute-deps.js';
-import type { SessionStats } from '../session-stats.js';
 import { getSuggestions, setSuggestions } from '../services/suggestion-store.js';
+import type { SessionStats } from '../session-stats.js';
 
 export interface RuntimeLifecycleDepsInput {
   getConfig: () => Config;

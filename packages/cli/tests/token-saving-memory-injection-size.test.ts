@@ -2,13 +2,13 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
-import type { Config } from '@wrongstack/core/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { makeFakeMemoryStore } from './fake-memory-store.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setupTools } from '../src/wiring/tools.js';
+import { makeFakeMemoryStore } from './fake-memory-store.js';
 
 /**
  * Regression — memory injection size at every tier.
@@ -60,7 +60,7 @@ function makeWpaths(): WstackPaths {
 }
 
 function fakeConfig(tier: string): Config {
-  return ({
+  return {
     version: 1,
     provider: 'anthropic',
     model: 'anthropic-test-model',
@@ -80,14 +80,16 @@ function fakeConfig(tier: string): Config {
       perIterationOutputCapBytes: 100_000,
       descriptionMode: {},
     },
-  }) as unknown as Config;
+  } as unknown as Config;
 }
 
 function fakeCompactor() {
   return { compact: async () => ({ ok: true }) } as never;
 }
 
-async function measureMemoryBlock(tier: string): Promise<{ tier: string; total: number; memory: number }> {
+async function measureMemoryBlock(
+  tier: string,
+): Promise<{ tier: string; total: number; memory: number }> {
   const toolRegistry = new ToolRegistry();
   const memoryStore = makeFakeMemoryStore();
   const container = new Container();
@@ -96,14 +98,46 @@ async function measureMemoryBlock(tier: string): Promise<{ tier: string; total: 
   // Seed 8 bash-tagged entries — the relevance scorer ranks by tag/tool
   // overlap, so tagging every entry with 'bash' (the always-present tool)
   // ensures all 8 land in top-K at every tier.
-  await memoryStore.remember('Use pnpm not npm — bash builds assume pnpm-lock.yaml exists', 'project-memory', { type: 'convention', priority: 'critical', tags: ['bash', 'build'] });
-  await memoryStore.remember('Use bash with `set -euo pipefail` for shell scripts', 'project-memory', { type: 'convention', priority: 'high', tags: ['bash', 'style'] });
-  await memoryStore.remember('Bash tools must use the bash tool — never exec inline', 'project-memory', { type: 'decision', priority: 'critical', tags: ['bash', 'arch'] });
-  await memoryStore.remember('Project root is bash-friendly: paths use forward slashes', 'project-memory', { type: 'fact', priority: 'medium', tags: ['bash'] });
-  await memoryStore.remember('See docs/bash-tool.md for bash usage patterns', 'project-memory', { type: 'reference', priority: 'high', tags: ['bash', 'docs'] });
-  await memoryStore.remember('Bash completion is bash 4+ only', 'project-memory', { type: 'fact', priority: 'medium', tags: ['bash'] });
-  await memoryStore.remember('User prefers bash over sh for interactive scripts', 'project-memory', { type: 'preference', priority: 'low', tags: ['bash', 'user'] });
-  await memoryStore.remember('Never pipe secrets into bash -c', 'project-memory', { type: 'anti_pattern', priority: 'high', tags: ['bash', 'security'] });
+  await memoryStore.remember(
+    'Use pnpm not npm — bash builds assume pnpm-lock.yaml exists',
+    'project-memory',
+    { type: 'convention', priority: 'critical', tags: ['bash', 'build'] },
+  );
+  await memoryStore.remember(
+    'Use bash with `set -euo pipefail` for shell scripts',
+    'project-memory',
+    { type: 'convention', priority: 'high', tags: ['bash', 'style'] },
+  );
+  await memoryStore.remember(
+    'Bash tools must use the bash tool — never exec inline',
+    'project-memory',
+    { type: 'decision', priority: 'critical', tags: ['bash', 'arch'] },
+  );
+  await memoryStore.remember(
+    'Project root is bash-friendly: paths use forward slashes',
+    'project-memory',
+    { type: 'fact', priority: 'medium', tags: ['bash'] },
+  );
+  await memoryStore.remember('See docs/bash-tool.md for bash usage patterns', 'project-memory', {
+    type: 'reference',
+    priority: 'high',
+    tags: ['bash', 'docs'],
+  });
+  await memoryStore.remember('Bash completion is bash 4+ only', 'project-memory', {
+    type: 'fact',
+    priority: 'medium',
+    tags: ['bash'],
+  });
+  await memoryStore.remember(
+    'User prefers bash over sh for interactive scripts',
+    'project-memory',
+    { type: 'preference', priority: 'low', tags: ['bash', 'user'] },
+  );
+  await memoryStore.remember('Never pipe secrets into bash -c', 'project-memory', {
+    type: 'anti_pattern',
+    priority: 'high',
+    tags: ['bash', 'security'],
+  });
 
   const result = await setupTools({
     config: fakeConfig(tier),

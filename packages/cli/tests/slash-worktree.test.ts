@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '@wrongstack/core/agent';
-import type { SlashCommandContext, TokenCounter, ToolRegistry } from '../src/slash-commands/index.js';
+import { describe, expect, it, vi } from 'vitest';
+import type {
+  SlashCommandContext,
+  TokenCounter,
+  ToolRegistry,
+} from '../src/slash-commands/index.js';
 import { buildBuiltinSlashCommands } from '../src/slash-commands/index.js';
 import { buildWorktreeCommand } from '../src/slash-commands/worktree.js';
 

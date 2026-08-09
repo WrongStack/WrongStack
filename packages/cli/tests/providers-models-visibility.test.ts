@@ -4,9 +4,9 @@ import * as path from 'node:path';
 import { DefaultSecretScrubber, DefaultSecretVault } from '@wrongstack/core/security';
 import type { Config, ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { modelsCmd } from '../src/subcommands/handlers/providers-models.js';
 import type { ReadlineInputReader } from '../src/input-reader.js';
 import type { TerminalRenderer } from '../src/renderer.js';
+import { modelsCmd } from '../src/subcommands/handlers/providers-models.js';
 
 function makeRenderer() {
   const messages: string[] = [];
@@ -100,11 +100,32 @@ describe('models visibility commands', () => {
       version: 1,
       provider: 'anthropic',
       model: 'anthropic-test-model',
-      context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
+      context: {
+        warnThreshold: 0.7,
+        softThreshold: 0.8,
+        hardThreshold: 0.9,
+        preserveK: 4,
+        eliseThreshold: 0.95,
+      },
       tools: {},
       log: { level: 'info' },
-      features: { developerMode: false, mcp: true, plugins: true, memory: true, skills: true, modelsRegistry: true, tokenSavingMode: 'off', allowOutsideProjectRoot: false },
-      providers: { anthropic: { type: 'anthropic', apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
+      features: {
+        developerMode: false,
+        mcp: true,
+        plugins: true,
+        memory: true,
+        skills: true,
+        modelsRegistry: true,
+        tokenSavingMode: 'off',
+        allowOutsideProjectRoot: false,
+      },
+      providers: {
+        anthropic: {
+          type: 'anthropic',
+          apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }],
+          activeKey: 'default',
+        },
+      },
     } as never as Config;
     writeConfig(cfg);
     const { renderer, messages } = makeRenderer();
@@ -125,11 +146,33 @@ describe('models visibility commands', () => {
       version: 1,
       provider: 'anthropic',
       model: 'anthropic-test-model',
-      context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
+      context: {
+        warnThreshold: 0.7,
+        softThreshold: 0.8,
+        hardThreshold: 0.9,
+        preserveK: 4,
+        eliseThreshold: 0.95,
+      },
       tools: {},
       log: { level: 'info' },
-      features: { developerMode: false, mcp: true, plugins: true, memory: true, skills: true, modelsRegistry: true, tokenSavingMode: 'off', allowOutsideProjectRoot: false },
-      providers: { anthropic: { type: 'anthropic', models: ['anthropic-test-model'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
+      features: {
+        developerMode: false,
+        mcp: true,
+        plugins: true,
+        memory: true,
+        skills: true,
+        modelsRegistry: true,
+        tokenSavingMode: 'off',
+        allowOutsideProjectRoot: false,
+      },
+      providers: {
+        anthropic: {
+          type: 'anthropic',
+          models: ['anthropic-test-model'],
+          apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }],
+          activeKey: 'default',
+        },
+      },
     } as never as Config;
     writeConfig(cfg);
     const { renderer } = makeRenderer();
@@ -149,11 +192,33 @@ describe('models visibility commands', () => {
       version: 1,
       provider: 'anthropic',
       model: 'anthropic-test-model',
-      context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
+      context: {
+        warnThreshold: 0.7,
+        softThreshold: 0.8,
+        hardThreshold: 0.9,
+        preserveK: 4,
+        eliseThreshold: 0.95,
+      },
       tools: {},
       log: { level: 'info' },
-      features: { developerMode: false, mcp: true, plugins: true, memory: true, skills: true, modelsRegistry: true, tokenSavingMode: 'off', allowOutsideProjectRoot: false },
-      providers: { anthropic: { type: 'anthropic', models: ['anthropic-test-model'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
+      features: {
+        developerMode: false,
+        mcp: true,
+        plugins: true,
+        memory: true,
+        skills: true,
+        modelsRegistry: true,
+        tokenSavingMode: 'off',
+        allowOutsideProjectRoot: false,
+      },
+      providers: {
+        anthropic: {
+          type: 'anthropic',
+          models: ['anthropic-test-model'],
+          apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }],
+          activeKey: 'default',
+        },
+      },
     } as never as Config;
     writeConfig(cfg);
     const { renderer, messages } = makeRenderer();
@@ -172,11 +237,33 @@ describe('models visibility commands', () => {
       version: 1,
       provider: 'anthropic',
       model: 'anthropic-test-model',
-      context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
+      context: {
+        warnThreshold: 0.7,
+        softThreshold: 0.8,
+        hardThreshold: 0.9,
+        preserveK: 4,
+        eliseThreshold: 0.95,
+      },
       tools: {},
       log: { level: 'info' },
-      features: { developerMode: false, mcp: true, plugins: true, memory: true, skills: true, modelsRegistry: true, tokenSavingMode: 'off', allowOutsideProjectRoot: false },
-      providers: { anthropic: { type: 'anthropic', models: ['anthropic-test-model'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
+      features: {
+        developerMode: false,
+        mcp: true,
+        plugins: true,
+        memory: true,
+        skills: true,
+        modelsRegistry: true,
+        tokenSavingMode: 'off',
+        allowOutsideProjectRoot: false,
+      },
+      providers: {
+        anthropic: {
+          type: 'anthropic',
+          models: ['anthropic-test-model'],
+          apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }],
+          activeKey: 'default',
+        },
+      },
     } as never as Config;
     writeConfig(cfg);
     const { renderer } = makeRenderer();

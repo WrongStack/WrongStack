@@ -16,30 +16,28 @@
  * startup, so every mutation runs against the real running server.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { spawn } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-
 import { type MailboxMessage, resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
-
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { PostFn } from '../../core/tests/coordination/mailbox-mutation-fixtures.js';
 import {
-  addRouteMutationTests,
-  SEND_DEF,
-  QUERY_DEF,
-  CHECK_DEF,
   ACK_DEF,
   ACK_MANY_DEF,
+  AGENT_HEARTBEAT_DEF,
   AGENT_REG_DEF,
+  addRouteMutationTests,
+  CHECK_DEF,
   CLIENT_REG_DEF,
   HEARTBEAT_DEF,
-  AGENT_HEARTBEAT_DEF,
+  QUERY_DEF,
+  SEND_DEF,
 } from '../../core/tests/coordination/mailbox-mutation-fixtures.js';
-import type { PostFn } from '../../core/tests/coordination/mailbox-mutation-fixtures.js';
 
 let tmpProject: string;
 let baseUrl: string;
@@ -91,7 +89,9 @@ async function http(
  */
 function tamperedToken(): string {
   const flip =
-    token.length > 0 && token.charCodeAt(0) >= 48 ? String.fromCharCode(token.charCodeAt(0) - 1) : 'Z';
+    token.length > 0 && token.charCodeAt(0) >= 48
+      ? String.fromCharCode(token.charCodeAt(0) - 1)
+      : 'Z';
   return flip + token.slice(1);
 }
 
@@ -108,8 +108,12 @@ beforeAll(async () => {
   );
   serverChild = child;
   let stdout = '';
-  child.stdout?.on('data', (c: Buffer) => { stdout += c.toString('utf8'); });
-  child.stderr?.on('data', () => { /* swallow */ });
+  child.stdout?.on('data', (c: Buffer) => {
+    stdout += c.toString('utf8');
+  });
+  child.stderr?.on('data', () => {
+    /* swallow */
+  });
 
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(
@@ -142,7 +146,10 @@ afterAll(async () => {
     const child = serverChild;
     await new Promise<void>((resolve) => {
       const t = setTimeout(resolve, 3_000);
-      child.once('exit', () => { clearTimeout(t); resolve(); });
+      child.once('exit', () => {
+        clearTimeout(t);
+        resolve();
+      });
       child.kill('SIGINT');
     });
   }
@@ -170,7 +177,17 @@ const bridgePost: PostFn = async (route, body, headers) => {
 };
 
 addRouteMutationTests(
-  [SEND_DEF, QUERY_DEF, CHECK_DEF, ACK_DEF, ACK_MANY_DEF, AGENT_REG_DEF, CLIENT_REG_DEF, HEARTBEAT_DEF, AGENT_HEARTBEAT_DEF],
+  [
+    SEND_DEF,
+    QUERY_DEF,
+    CHECK_DEF,
+    ACK_DEF,
+    ACK_MANY_DEF,
+    AGENT_REG_DEF,
+    CLIENT_REG_DEF,
+    HEARTBEAT_DEF,
+    AGENT_HEARTBEAT_DEF,
+  ],
   bridgePost,
 );
 
@@ -331,14 +348,19 @@ describe('mailbox-bridge — staleness filter on query responses', () => {
 
     // And a fresh one with the same `recipient` so the addresses
     // collide and the bridge returns both side-by-side.
-    const sent = await http('POST', '/mailbox/send', {
-      from: 'live-bot',
-      to: recipient,
-      type: 'note',
-      subject: 'fresh',
-      body: 'inside any look-back window',
-      priority: 'normal',
-    }, auth());
+    const sent = await http(
+      'POST',
+      '/mailbox/send',
+      {
+        from: 'live-bot',
+        to: recipient,
+        type: 'note',
+        subject: 'fresh',
+        body: 'inside any look-back window',
+        priority: 'normal',
+      },
+      auth(),
+    );
     expect(sent.status).toBe(201);
 
     // Bare /query: the bridge host wires

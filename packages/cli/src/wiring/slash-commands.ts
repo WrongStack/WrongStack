@@ -1,9 +1,22 @@
-import type { CompactReport, HealthRegistry, InputReader, MemoryPort, MetricsSink, ModeStore, Provider, Renderer, SecretVault, SkillLoader, TokenCounter } from '@wrongstack/core/types';
-import type { WstackPaths } from '@wrongstack/core/utils';
-import type { ConfigStore, SessionStore } from '@wrongstack/core/types';
 import type { Context } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type {
+  CompactReport,
+  ConfigStore,
+  HealthRegistry,
+  InputReader,
+  MemoryPort,
+  MetricsSink,
+  ModeStore,
+  Provider,
+  Renderer,
+  SecretVault,
+  SessionStore,
+  SkillLoader,
+  TokenCounter,
+} from '@wrongstack/core/types';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MultiAgentHost } from '../multi-agent.js';
 import {
   ensureStatuslineConfig,

@@ -23,12 +23,25 @@ export type OAuthMenuKind = 'chatgpt' | 'claude' | 'copilot';
  * three never drift into accepting different spellings of the same thing.
  */
 const OAUTH_ALIASES: Record<OAuthMenuKind, readonly string[]> = {
-  chatgpt: ['chatgpt', 'openai', 'codex', 'codex-cli', 'openai-codex', 'chatgpt-plus', 'plus', 'pro'],
+  chatgpt: [
+    'chatgpt',
+    'openai',
+    'codex',
+    'codex-cli',
+    'openai-codex',
+    'chatgpt-plus',
+    'plus',
+    'pro',
+  ],
   claude: ['claude', 'anthropic', 'claude-pro', 'claude-max', 'anthropic-oauth', 'max'],
   copilot: ['copilot', 'github', 'gh', 'github-copilot'],
 };
 
-const OAUTH_NUMERIC: Record<string, OAuthMenuKind> = { '1': 'chatgpt', '2': 'claude', '3': 'copilot' };
+const OAUTH_NUMERIC: Record<string, OAuthMenuKind> = {
+  '1': 'chatgpt',
+  '2': 'claude',
+  '3': 'copilot',
+};
 
 /**
  * Normalize a user-typed subscription name to an OAuth kind.
@@ -78,6 +91,8 @@ export async function runOAuthLoginMenu(deps: AuthMenuDeps): Promise<void> {
       `    ${color.bold('2')}  Claude Pro/Max    ${color.dim('(→ anthropic-oauth)')}\n` +
       `    ${color.bold('3')}  GitHub Copilot    ${color.dim('(→ github-copilot)')}\n`,
   );
-  const pick = await deps.reader.readLine(`  ${color.amber('?')} Pick ${color.dim('(or b to go back)')}: `);
+  const pick = await deps.reader.readLine(
+    `  ${color.amber('?')} Pick ${color.dim('(or b to go back)')}: `,
+  );
   await runOAuthLoginChoice(deps, pick);
 }

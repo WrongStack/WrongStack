@@ -1,4 +1,4 @@
-import { runEnsemble, renderEnsembleText } from '@wrongstack/acp';
+import { renderEnsembleText, runEnsemble } from '@wrongstack/acp';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';

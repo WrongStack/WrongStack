@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isParseError } from '@wrongstack/core/types';
-import { expectFetchError } from './helpers/fetch-error.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   isUsableCopilotChatModel,
   pollForGitHubToken,
   startDeviceFlow,
 } from '../src/auth-menu/github-copilot-oauth.js';
+import { expectFetchError } from './helpers/fetch-error.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();

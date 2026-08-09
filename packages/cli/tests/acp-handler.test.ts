@@ -10,7 +10,7 @@
  * processes, opens stdio JSON-RPC, talks to LLM providers. We mock it
  * and assert on the dispatch / aggregation logic in this CLI layer.
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock @wrongstack/acp — we don't want to spawn real agents in unit tests.
 // We mock `runEnsemble` (used by parallel) and `runOneAcpTask` (used by
@@ -26,7 +26,8 @@ vi.mock('@wrongstack/acp', () => ({
   runEnsemble: (...a: unknown[]) => runEnsemble(...a),
   runOneAcpTask: (...a: unknown[]) => runOneAcpTask(...a),
   runAcpBench: (...a: unknown[]) => runAcpBench(...a),
-  renderAcpBenchText: (...a: unknown[]) => (renderAcpBenchText as ((...a: unknown[]) => unknown))(...a),
+  renderAcpBenchText: (...a: unknown[]) =>
+    (renderAcpBenchText as (...a: unknown[]) => unknown)(...a),
   probeAcpAgents: (...a: unknown[]) => probeAcpAgents(...a),
   defaultPermissionPolicy: { evaluate: () => ({ permission: 'auto' }) },
   EnsembleRegistry: class {
@@ -72,14 +73,10 @@ function fakeDeps() {
 }
 
 function flattenWriteCalls(deps: ReturnType<typeof fakeDeps>): string {
-  return (deps.renderer.write as ReturnType<typeof vi.fn>).mock.calls
-    .map((c) => c[0])
-    .join('');
+  return (deps.renderer.write as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]).join('');
 }
 function flattenWriteInfoCalls(deps: ReturnType<typeof fakeDeps>): string {
-  return (deps.renderer.writeInfo as ReturnType<typeof vi.fn>).mock.calls
-    .map((c) => c[0])
-    .join('');
+  return (deps.renderer.writeInfo as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]).join('');
 }
 function flattenWriteErrorCalls(deps: ReturnType<typeof fakeDeps>): string {
   return (deps.renderer.writeError as ReturnType<typeof vi.fn>).mock.calls
@@ -99,10 +96,22 @@ function flattenWriteWarningCalls(deps: ReturnType<typeof fakeDeps>): string {
  * CLI's renderer wrapper should handle each status correctly.
  */
 function mockEnsembleRun(
-  results: Record<string, { status: 'success' | 'failed'; result?: unknown; error?: { kind: string; message: string }; iterations?: number; toolCalls?: number }>,
+  results: Record<
+    string,
+    {
+      status: 'success' | 'failed';
+      result?: unknown;
+      error?: { kind: string; message: string };
+      iterations?: number;
+      toolCalls?: number;
+    }
+  >,
 ) {
   runEnsemble.mockImplementation(async (opts: { agentIds: string; signal?: AbortSignal }) => {
-    const ids = opts.agentIds.split(',').map((s) => s.trim()).filter(Boolean);
+    const ids = opts.agentIds
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const aborted = opts.signal?.aborted === true;
     const ensembleResults = ids.map((id) => {
       if (aborted) {
@@ -213,7 +222,10 @@ describe('acpCmd — parallel', () => {
     // `goose` is missing → renderer should print a warning; the two
     // installed agents should each get a "===" header and a success footer.
     runEnsemble.mockImplementationOnce(async (opts: { agentIds: string; signal?: AbortSignal }) => {
-      const ids = opts.agentIds.split(',').map((s) => s.trim()).filter(Boolean);
+      const ids = opts.agentIds
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       const ensembleResults = [
         {
           agentId: 'claude-code',
@@ -271,7 +283,10 @@ describe('acpCmd — parallel', () => {
 
   it('returns 1 when ALL agents fail', async () => {
     mockEnsembleRun({
-      'claude-code': { status: 'failed', error: { kind: 'bridge_failed', message: 'spawn failed' } },
+      'claude-code': {
+        status: 'failed',
+        error: { kind: 'bridge_failed', message: 'spawn failed' },
+      },
       'gemini-cli': { status: 'failed', error: { kind: 'timeout', message: 'timed out' } },
     });
     const deps = fakeDeps();
@@ -289,8 +304,22 @@ describe('acpCmd — parallel', () => {
       task: '',
       requested: ['goose', 'openhands'],
       results: [
-        { agentId: 'goose', status: 'skipped', reason: 'not installed', durationMs: 0, iterations: 0, toolCalls: 0 },
-        { agentId: 'openhands', status: 'skipped', reason: 'not installed', durationMs: 0, iterations: 0, toolCalls: 0 },
+        {
+          agentId: 'goose',
+          status: 'skipped',
+          reason: 'not installed',
+          durationMs: 0,
+          iterations: 0,
+          toolCalls: 0,
+        },
+        {
+          agentId: 'openhands',
+          status: 'skipped',
+          reason: 'not installed',
+          durationMs: 0,
+          iterations: 0,
+          toolCalls: 0,
+        },
       ],
       summary: { succeeded: 0, failed: 0, skipped: 2, cancelled: 0 },
       totalDurationMs: 0,

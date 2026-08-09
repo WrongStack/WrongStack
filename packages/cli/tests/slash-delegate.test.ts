@@ -61,9 +61,7 @@ describe('buildDelegateCommand', () => {
 
   it('spawns explicit role when --role is given', async () => {
     const onFleetSpawn = vi.fn().mockResolvedValue('sub-abc');
-    const cmd = buildDelegateCommand(
-      ctx({ onFleetSpawn } as never as Record<string, unknown>),
-    );
+    const cmd = buildDelegateCommand(ctx({ onFleetSpawn } as never as Record<string, unknown>));
     const res = await cmd.run('--role=bug-hunter find the race condition');
     expect(onFleetSpawn).toHaveBeenCalledWith('bug-hunter');
     expect(res?.message).toContain('bug-hunter');
@@ -72,18 +70,14 @@ describe('buildDelegateCommand', () => {
 
   it('parses --role with space separator', async () => {
     const onFleetSpawn = vi.fn().mockResolvedValue('sub-xyz');
-    const cmd = buildDelegateCommand(
-      ctx({ onFleetSpawn } as never as Record<string, unknown>),
-    );
+    const cmd = buildDelegateCommand(ctx({ onFleetSpawn } as never as Record<string, unknown>));
     await cmd.run('--role security-scanner scan configs');
     expect(onFleetSpawn).toHaveBeenCalledWith('security-scanner');
   });
 
   it('parses --name flag', async () => {
     const onFleetSpawn = vi.fn().mockResolvedValue('sub-1');
-    const cmd = buildDelegateCommand(
-      ctx({ onFleetSpawn } as never as Record<string, unknown>),
-    );
+    const cmd = buildDelegateCommand(ctx({ onFleetSpawn } as never as Record<string, unknown>));
     const res = await cmd.run('--role=bug-hunter --name="My Fixer" fix it');
     expect(onFleetSpawn).toHaveBeenCalledWith('bug-hunter');
     expect(res?.message).toContain('bug-hunter');
@@ -91,9 +85,7 @@ describe('buildDelegateCommand', () => {
 
   it('auto-dispatches when no --role given', async () => {
     const onFleetSpawn = vi.fn().mockResolvedValue('sub-disp');
-    const cmd = buildDelegateCommand(
-      ctx({ onFleetSpawn } as never as Record<string, unknown>),
-    );
+    const cmd = buildDelegateCommand(ctx({ onFleetSpawn } as never as Record<string, unknown>));
     const res = await cmd.run('fix the crash when the app starts');
     // Heuristic dispatcher should route crash/fix → debugger
     expect(onFleetSpawn).toHaveBeenCalledWith('debugger');
@@ -102,12 +94,8 @@ describe('buildDelegateCommand', () => {
   });
 
   it('surfaces spawn errors', async () => {
-    const onFleetSpawn = vi
-      .fn()
-      .mockRejectedValue(new Error('Provider timeout'));
-    const cmd = buildDelegateCommand(
-      ctx({ onFleetSpawn } as never as Record<string, unknown>),
-    );
+    const onFleetSpawn = vi.fn().mockRejectedValue(new Error('Provider timeout'));
+    const cmd = buildDelegateCommand(ctx({ onFleetSpawn } as never as Record<string, unknown>));
     const res = await cmd.run('--role=bug-hunter fix it');
     expect(res?.message).toContain('Spawn failed');
     expect(res?.message).toContain('Provider timeout');

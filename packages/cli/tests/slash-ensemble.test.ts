@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock @wrongstack/acp so we can drive runEnsemble deterministically.
 const mockRunEnsemble = vi.fn();
-const mockRenderEnsembleText = vi.fn((result: { summary: { succeeded: number; failed: number; skipped: number; cancelled: number } }) => {
-  return `RENDERED: ok=${result.summary.succeeded} fail=${result.summary.failed} skip=${result.summary.skipped} cancel=${result.summary.cancelled}`;
-});
+const mockRenderEnsembleText = vi.fn(
+  (result: {
+    summary: { succeeded: number; failed: number; skipped: number; cancelled: number };
+  }) => {
+    return `RENDERED: ok=${result.summary.succeeded} fail=${result.summary.failed} skip=${result.summary.skipped} cancel=${result.summary.cancelled}`;
+  },
+);
 
 vi.mock('@wrongstack/acp', () => ({
   runEnsemble: mockRunEnsemble,

@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
 import { ToolValidationError } from '@wrongstack/core/types';
+import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -52,7 +52,7 @@ function runCommand(
       resolve({
         stdout,
         stderr,
-        exitCode: (typeof error?.code === 'number' ? error.code : 0),
+        exitCode: typeof error?.code === 'number' ? error.code : 0,
         killed: error?.killed ?? false,
       });
     });

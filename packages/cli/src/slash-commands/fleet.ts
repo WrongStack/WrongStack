@@ -1,11 +1,10 @@
 import type { AgentPhase } from '@wrongstack/core/agent-catalog';
-import type { SlashCommand } from '@wrongstack/core/types';
 import { AGENTS_BY_PHASE } from '@wrongstack/core/agent-catalog';
-import { color } from '@wrongstack/core/utils';
 import { dispatchAgent } from '@wrongstack/core/coordination';
+import type { SlashCommand } from '@wrongstack/core/types';
+import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { formatFleetBudgetLines } from '../fleet/host-status.js';
 import type { SlashCommandContext } from './command-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 const PHASE_ORDER: { phase: AgentPhase; label: string }[] = [
   { phase: 'discovery', label: '1 · Discovery' },
@@ -320,7 +319,10 @@ async function handleKill(
   return { message: msg };
 }
 
-async function handleTerminate(opts: SlashCommandContext, subargs: string[]): Promise<{ message: string }> {
+async function handleTerminate(
+  opts: SlashCommandContext,
+  subargs: string[],
+): Promise<{ message: string }> {
   const targetId = subargs[0];
   if (!targetId) {
     const msg = `${color.amber('⚠ /fleet terminate requires a subagentId.')} Use /fleet to see active ids.`;
@@ -440,14 +442,10 @@ async function handleDispatch(
       const id = await opts.onFleetSpawn(decision.role);
       lines.push(`  ${color.green('✓ spawned')} ${color.bold(decision.role)} as ${color.dim(id)}`);
     } catch (err) {
-      lines.push(
-        `  ${color.amber('⚠ spawn failed:')} ${toErrorMessage(err)}`,
-      );
+      lines.push(`  ${color.amber('⚠ spawn failed:')} ${toErrorMessage(err)}`);
     }
   } else {
-    lines.push(
-      `  ${color.dim('(no fleet active — try spawning a task)')}`,
-    );
+    lines.push(`  ${color.dim('(no fleet active — try spawning a task)')}`);
   }
   const msg = lines.join('\n');
   opts.renderer.write(msg);

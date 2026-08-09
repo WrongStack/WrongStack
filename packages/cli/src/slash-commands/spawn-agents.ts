@@ -1,7 +1,7 @@
 import type { SlashCommand } from '@wrongstack/core/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { parseSpawnFlags } from '../arg-parser.js';
 import type { SlashCommandContext } from './command-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 export function buildSpawnCommand(opts: SlashCommandContext): SlashCommand {
   return {

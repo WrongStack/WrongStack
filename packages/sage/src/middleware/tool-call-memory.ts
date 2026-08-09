@@ -134,6 +134,108 @@ const DEFAULT_MAX_HINTS = 8;
 const DEFAULT_MAX_CHARS = 2800;
 /** `0` = once per session. See `applyCooldown`. */
 const DEFAULT_REPEAT_COOLDOWN_MS = 0;
+
+/**
+ * Maximum entries kept in `memory.injector_run.rejectedDetail` per run.
+ * The full pre-cap count is preserved on `rejectedDetailTotal` so the
+ * chronicle can still report the true number when truncation happened.
+ * Picked at 20 to match the plan: small enough for fast sanitize, large
+ * enough to surface every gate in a typical busy run.
+ */
+const MAX_REJECTED_DETAIL = 20;
+
+/**
+ * Rolling-window threshold for `memory.injector_rejection_burst`. A memory
+ * that crosses `BURST_THRESHOLD` rejections by the `belowScore` gate within
+ * `BURST_WINDOW_MS` triggers a single burst event per window.
+ */
+const BURST_THRESHOLD = 3;
+const BURST_WINDOW_MS = 5 * 60_000;
+
+/**
+ * Process-local burst detector. Tracks per-memory rejection timestamps and
+ * fires `memory.injector_rejection_burst` once per (memoryId, window) when
+ * the threshold is crossed. A fresh process loses its history; the chronicle
+ * journal is the durable record.
+ */
+const burstRejectionHistory = new Map<string, number[]>();
+let burstSweepCounter = 0;
+
+function observeBurstRejections(
+  rejectedDetail: RejectedDetailEntry[],
+  events: EventBus | undefined,
+  now: number,
+): void {
+  if (!events) return;
+  // Periodic eviction: drop entries whose last push is outside the rolling
+  // window so long-running processes don't leak the Map monotonically as new
+  // memoryIds pass through. The cadence is bounded by the WINDOW_MS — a
+  // burst-detection window is short relative to the lifetime of any memory
+  // id, so a periodic sweep every K=8 invocations is plenty.
+  burstSweepCounter++;
+  if (burstSweepCounter % 8 === 0) {
+    for (const [id, history] of burstRejectionHistory) {
+      const freshest = history[history.length - 1];
+      if (freshest === undefined || now - freshest > BURST_WINDOW_MS) {
+        burstRejectionHistory.delete(id);
+      }
+    }
+  }
+  const cutoff = now - BURST_WINDOW_MS;
+  // Aggregate the rejectedDetail entries by memoryId for the belowScore gate.
+  const countsByMemory = new Map<string, { count: number; reason: string }>();
+  for (const entry of rejectedDetail) {
+    if (entry.gate !== 'belowScore') continue;
+    const slot = countsByMemory.get(entry.id);
+    if (slot) {
+      slot.count++;
+      slot.reason = entry.reason;
+    } else {
+      countsByMemory.set(entry.id, { count: 1, reason: entry.reason });
+    }
+  }
+  for (const [memoryId, slot] of countsByMemory) {
+    const history = burstRejectionHistory.get(memoryId) ?? [];
+    // Trim expired timestamps from the rolling window.
+    while (history.length > 0 && (history[0] ?? 0) < cutoff) history.shift();
+    history.push(now);
+    burstRejectionHistory.set(memoryId, history);
+    // Bound the history so a memory that's been rejected forever doesn't grow
+    // the map unboundedly. BURST_THRESHOLD * 2 is plenty for the threshold check.
+    if (history.length > BURST_THRESHOLD * 2) {
+      history.splice(0, history.length - BURST_THRESHOLD * 2);
+    }
+    if (history.length === BURST_THRESHOLD) {
+      // Crossed the threshold *exactly this run* — emit. Subsequent runs in
+      // the same window stay silent so the event stays rate-bounded.
+      // Bind `events.emit` via `.call(events, …)` so EventBus's protected
+      // `this.listeners` / `this.wildcards` / `this.logger` references
+      // resolve correctly — a detached cast would leave them undefined and
+      // every burst would silently no-op.
+      (events.emit as unknown as (this: EventBus, event: string, payload: unknown) => void).call(
+        events,
+        'memory.injector_rejection_burst',
+        {
+          memoryId,
+          gate: 'belowScore',
+          windowMs: BURST_WINDOW_MS,
+          count: history.length,
+          reason: slot.reason,
+          at: new Date(now).toISOString(),
+        },
+      );
+    }
+  }
+}
+
+/**
+ * ISO timestamp helper. Available at module scope because the chain pushes
+ * per-memory rejection entries from inside filter callbacks that close
+ * over a stable reference; allocating per-call would defeat the purpose.
+ */
+function nowIso(): string {
+  return new Date().toISOString();
+}
 /**
  * Evidence floor for automatic injection.
  *
@@ -174,6 +276,10 @@ export function createSageToolCallMiddleware(
     name: 'sage.tool-result-injection',
     owner: 'sage',
     async handler(payload, next) {
+      // Single timestamp for this handler invocation — reused by the burst
+      // detector (which keys off `now`) and the cooldown pruner. Declared
+      // up front so both sites read the same wall-clock value.
+      const now = Date.now();
       const nextPayload = await next(payload);
       if (opts.enabled === false) return nextPayload;
       let attemptedTrigger: ExtractedTriggerContext | undefined;
@@ -219,15 +325,86 @@ export function createSageToolCallMiddleware(
           opts.getSessionId?.(),
         );
         const alreadyVisible = visibleContextText(nextPayload);
+        // Per-memory rejection evidence. FIFO-capped at 20 with a separate
+        // `rejectedDetailTotal` summary so the chronicle / triage can still
+        // see the full pre-cap count when truncation happens.
+        const rejectedDetail: RejectedDetailEntry[] = [];
+        const rejectedDetailRaw: RejectedDetailEntry[] = [];
+        const pushRejection = (entry: RejectedDetailEntry) => {
+          rejectedDetailRaw.push(entry);
+          if (rejectedDetail.length < MAX_REJECTED_DETAIL) {
+            rejectedDetail.push(entry);
+          }
+        };
         const deduped = dedupeRetrievedByText(memories);
-        const scoreEligible = deduped.filter(
-          ({ memory, relationStrength }) =>
-            memory.importance >= minImportance &&
-            relationStrength >= relationFloor &&
-            contextualInjectionScore(memory, relationStrength) >= minScore,
+        // Tag duplicate drops: the dedupe normalizes text; everything that
+        // lost a normalized-text match is recorded as a duplicate.
+        const droppedDuplicates = memories.filter(
+          (candidate) =>
+            !deduped.some((dedupedCandidate) => dedupedCandidate.memory.id === candidate.memory.id),
         );
+        for (const { memory } of droppedDuplicates) {
+          pushRejection({
+            id: memory.id,
+            kind: memory.kind,
+            gate: 'duplicate',
+            reason: 'normalized-text duplicate of an earlier candidate',
+            at: nowIso(),
+          });
+        }
+        const scoreEligible = deduped.filter(({ memory, relationStrength }) => {
+          if (memory.importance < minImportance) {
+            pushRejection({
+              id: memory.id,
+              kind: memory.kind,
+              gate: 'belowScore',
+              reason: `importance ${memory.importance.toFixed(2)} below floor ${minImportance.toFixed(2)}`,
+              score: memory.importance,
+              at: nowIso(),
+            });
+            return false;
+          }
+          if (relationStrength < relationFloor) {
+            pushRejection({
+              id: memory.id,
+              kind: memory.kind,
+              gate: 'belowScore',
+              reason: `relationStrength ${relationStrength.toFixed(2)} below floor ${relationFloor.toFixed(2)}`,
+              relationStrength,
+              score: relationStrength,
+              at: nowIso(),
+            });
+            return false;
+          }
+          const score = contextualInjectionScore(memory, relationStrength);
+          if (score < minScore) {
+            pushRejection({
+              id: memory.id,
+              kind: memory.kind,
+              gate: 'belowScore',
+              reason: `score ${score.toFixed(2)} below floor ${minScore.toFixed(2)}`,
+              relationStrength,
+              score,
+              at: nowIso(),
+            });
+            return false;
+          }
+          return true;
+        });
         const eligibleItems = scoreEligible
-          .filter(({ memory }) => !containsMemoryText(alreadyVisible, memory.text))
+          .filter(({ memory }) => {
+            const visible = containsMemoryText(alreadyVisible, memory.text);
+            if (visible) {
+              pushRejection({
+                id: memory.id,
+                kind: memory.kind,
+                gate: 'alreadyVisible',
+                reason: 'memory text already present in context',
+                at: nowIso(),
+              });
+            }
+            return !visible;
+          })
           .sort(
             (a, b) =>
               contextualInjectionScore(b.memory, b.relationStrength) -
@@ -246,13 +423,38 @@ export function createSageToolCallMiddleware(
           opts.repeatCooldownMs ?? DEFAULT_REPEAT_COOLDOWN_MS,
           sessionId,
         );
+        // Cooldown drops: diff eligible against fresh. Use a Set on the
+        // smaller `fresh` side for O(1) lookup instead of repeated
+        // `.includes()` over the (potentially large) `eligible` array.
+        const freshIds = new Set(fresh.map((m) => m.id));
+        const cooldownDropped = eligible.filter((m) => !freshIds.has(m.id));
+        for (const memory of cooldownDropped) {
+          pushRejection({
+            id: memory.id,
+            kind: memory.kind,
+            gate: 'cooldown',
+            reason: `recently injected within ${opts.repeatCooldownMs ?? DEFAULT_REPEAT_COOLDOWN_MS}ms`,
+            at: nowIso(),
+          });
+        }
+        // `selectDiverseMemories` (called below) is the only site that drops
+        // for the `budget` gate; it runs after cooldown but before the emit
+        // sites. We track the count here so the integer totals stay consistent
+        // and we can `pushRejection` for each dropped memory.
         const rejectedBase = {
-          duplicate: memories.length - deduped.length,
+          duplicate: droppedDuplicates.length,
           belowScore: deduped.length - scoreEligible.length,
-          alreadyVisible: scoreEligible.length - eligible.length,
-          cooldown: eligible.length - fresh.length,
+          alreadyVisible: scoreEligible.length - eligibleItems.length,
+          cooldown: cooldownDropped.length,
           budget: 0,
         };
+        // Surface the burst signal once a memory has been rejected by
+        // `belowScore` ≥ BURST_THRESHOLD times within BURST_WINDOW_MS.
+        // Process-local: a fresh process loses its history, but the chronicle
+        // journal keeps the durable record.
+        observeBurstRejections(rejectedDetailRaw, opts.events, now);
+        const rejectedDetailTotal =
+          rejectedDetailRaw.length > MAX_REJECTED_DETAIL ? rejectedDetailRaw.length : undefined;
         if (fresh.length === 0) {
           const measurement = {
             candidates: memories.length,
@@ -269,6 +471,8 @@ export function createSageToolCallMiddleware(
             candidates: memories.length,
             eligible: eligible.length,
             rejected: rejectedBase,
+            rejectedDetail,
+            rejectedDetailTotal,
             activated: [],
             injected: [],
             injectedChars: 0,
@@ -278,11 +482,23 @@ export function createSageToolCallMiddleware(
         }
 
         const maxChars = availableHintChars(nextPayload, plan.maxChars);
-        const selected = selectDiverseMemories(
+        const { selected, dropped: budgetDropped } = selectDiverseMemories(
           fresh,
           maxHints,
           new Map(eligibleItems.map((item) => [item.memory.id, item.retrievalReasons])),
         );
+        // Tag every diversity-cap drop with the `budget` gate so triage and
+        // Chronicle can attribute "almost injected but lost the diversity lottery"
+        // back to a memory, not just an integer count.
+        for (const { memory, reason } of budgetDropped) {
+          pushRejection({
+            id: memory.id,
+            kind: memory.kind,
+            gate: 'budget',
+            reason,
+            at: nowIso(),
+          });
+        }
         const rendered = formatMemoryHintsDetailed(selected, {
           maxChars,
           heading:
@@ -306,6 +522,8 @@ export function createSageToolCallMiddleware(
             candidates: memories.length,
             eligible: eligible.length,
             rejected: { ...rejectedBase, budget: fresh.length },
+            rejectedDetail,
+            rejectedDetailTotal,
             activated: selected.map((memory) =>
               toTraceMemory(
                 eligibleItems.find((candidate) => candidate.memory.id === memory.id)!,
@@ -325,14 +543,23 @@ export function createSageToolCallMiddleware(
         // source bytes from advisory memory. Context owns one bounded slot;
         // request construction renders it as an ephemeral system suffix.
         storeProviderMemoryEvidence(nextPayload.ctx, rendered.text, plan.maxChars);
-        const now = Date.now();
-        for (const memoryId of rendered.memoryIds) seen.set(cooldownKey(memoryId, sessionId), now);
-        pruneCooldowns(seen, pruneState, now, opts.repeatCooldownMs ?? DEFAULT_REPEAT_COOLDOWN_MS);
+        // Fresh timestamp at injection time — distinct from the handler-entry
+        // `now` used by the burst detector. The cooldown ledger and tracker
+        // want the moment the injection actually happened.
+        const injectedAt = Date.now();
+        for (const memoryId of rendered.memoryIds)
+          seen.set(cooldownKey(memoryId, sessionId), injectedAt);
+        pruneCooldowns(
+          seen,
+          pruneState,
+          injectedAt,
+          opts.repeatCooldownMs ?? DEFAULT_REPEAT_COOLDOWN_MS,
+        );
         if (opts.tracker) {
           const injectedById = new Map(selected.map((memory) => [memory.id, memory]));
           for (const memoryId of rendered.memoryIds) {
             const memory = injectedById.get(memoryId)!;
-            opts.tracker.record(memoryId, memory.text, now, sessionId, rendered.text);
+            opts.tracker.record(memoryId, memory.text, injectedAt, sessionId, rendered.text);
           }
         }
         let auditError: string | undefined;
@@ -362,6 +589,8 @@ export function createSageToolCallMiddleware(
             ...rejectedBase,
             budget: Math.max(0, fresh.length - rendered.memoryIds.length),
           },
+          rejectedDetail,
+          rejectedDetailTotal,
           activated: selected.flatMap((memory) => {
             return [toTraceMemory(selectedById.get(memory.id)!, plan)];
           }),
@@ -393,6 +622,7 @@ export function createSageToolCallMiddleware(
             candidates: 0,
             eligible: 0,
             rejected: { duplicate: 0, belowScore: 0, alreadyVisible: 0, cooldown: 0, budget: 0 },
+            rejectedDetail: [],
             activated: [],
             injected: [],
             injectedChars: 0,
@@ -462,6 +692,21 @@ interface InjectorTraceInput {
     cooldown: number;
     budget: number;
   };
+  /**
+   * Per-memory rejection evidence. Same keys as `rejected`, but each entry
+   * carries the memory id + the gate that rejected it + a one-line reason,
+   * so downstream consumers (triage, Chronicle, observability surfaces)
+   * can reason about *which* memories were almost injected.
+   *
+   * Capped at 20 by the SAGE injector with FIFO eviction; `rejectedDetailTotal`
+   * carries the pre-cap count when truncated.
+   */
+  rejectedDetail: RejectedDetailEntry[];
+  /**
+   * Pre-cap size of `rejectedDetail` when truncation happened. Undefined
+   * when no truncation occurred.
+   */
+  rejectedDetailTotal?: number | undefined;
   activated: InjectorTraceMemory[];
   injected: InjectorTraceMemory[];
   injectedChars: number;
@@ -471,6 +716,22 @@ interface InjectorTraceInput {
    */
   thresholds: { minScore: number; minImportance: number; relationFloor: number };
   error?: string | undefined;
+}
+
+/**
+ * Per-memory rejection record. Mirrors the structural
+ * `RejectedMemoryTraceEntry` shape in `@wrongstack/core`; declared
+ * independently here to keep the SAGE package self-contained against the
+ * runtime EventBus path (which never re-uses the typed event surface).
+ */
+interface RejectedDetailEntry {
+  id: string;
+  kind: string;
+  gate: 'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget';
+  reason: string;
+  relationStrength?: number;
+  score?: number;
+  at: string;
 }
 
 let injectorTraceSequence = 0;
@@ -502,6 +763,10 @@ function emitInjectorTrace(events: EventBus | undefined, input: InjectorTraceInp
     candidates: input.candidates,
     eligible: input.eligible,
     rejected: input.rejected,
+    rejectedDetail: input.rejectedDetail,
+    ...(input.rejectedDetailTotal !== undefined
+      ? { rejectedDetailTotal: input.rejectedDetailTotal }
+      : {}),
     activated: input.activated,
     injected: input.injected,
     injectedChars: input.injectedChars,
@@ -1210,8 +1475,14 @@ function selectDiverseMemories(
   memories: Sage[],
   limit: number,
   reasonsById: Map<string, string[]> = new Map(),
-): Sage[] {
-  if (limit <= 0) return [];
+): { selected: Sage[]; dropped: ReadonlyArray<{ memory: Sage; reason: string }> } {
+  const dropped: { memory: Sage; reason: string }[] = [];
+  if (limit <= 0) {
+    for (const memory of memories) {
+      dropped.push({ memory, reason: `diversity cap is 0 (limit=${limit})` });
+    }
+    return { selected: [], dropped };
+  }
   const selected: Sage[] = [];
   const deferred: Sage[] = [];
   const byKind = new Map<Sage['kind'], number>();
@@ -1222,8 +1493,14 @@ function selectDiverseMemories(
     const hasPath = reasons.some((reason) => reason.startsWith('anchor:'));
     const hasGraph = reasons.some((reason) => reason.startsWith('graph:'));
     const hasQuery = reasons.some((reason) => reason.startsWith('query:'));
-    if (!hasPath && hasGraph && graphOnly >= 1) continue;
-    if (!hasPath && !hasGraph && hasQuery && queryOnly >= 2) continue;
+    if (!hasPath && hasGraph && graphOnly >= 1) {
+      dropped.push({ memory, reason: `graph-only diversity cap (1) for kind=${memory.kind}` });
+      continue;
+    }
+    if (!hasPath && !hasGraph && hasQuery && queryOnly >= 2) {
+      dropped.push({ memory, reason: `query-only diversity cap (2) for kind=${memory.kind}` });
+      continue;
+    }
     const count = byKind.get(memory.kind) ?? 0;
     if (count >= 3) {
       deferred.push(memory);
@@ -1233,21 +1510,45 @@ function selectDiverseMemories(
     if (!hasPath && hasGraph) graphOnly++;
     else if (!hasPath && hasQuery) queryOnly++;
     byKind.set(memory.kind, count + 1);
-    if (selected.length >= limit) return selected;
+    if (selected.length >= limit) {
+      // Hit the limit here; drain the rest of `memories` AND any pending
+      // `deferred` entries from earlier iterations — without the latter drain
+      // those memories would be silently absent from the dropped trace.
+      for (let i = memories.indexOf(memory) + 1; i < memories.length; i++) {
+        const rest = memories[i]!;
+        dropped.push({ memory: rest, reason: `limit=${limit} reached before kind-diversity` });
+      }
+      for (const pending of deferred) {
+        dropped.push({
+          memory: pending,
+          reason: `limit=${limit} reached before kind-diversity (deferred drain)`,
+        });
+      }
+      return { selected, dropped };
+    }
   }
   for (const memory of deferred) {
+    if (selected.length >= limit) {
+      dropped.push({ memory, reason: `deferred list exhausted; limit=${limit}` });
+      continue;
+    }
     const reasons = reasonsById.get(memory.id) ?? [];
     const hasPath = reasons.some((reason) => reason.startsWith('anchor:'));
     const hasGraph = reasons.some((reason) => reason.startsWith('graph:'));
     const hasQuery = reasons.some((reason) => reason.startsWith('query:'));
-    if (!hasPath && hasGraph && graphOnly >= 1) continue;
-    if (!hasPath && !hasGraph && hasQuery && queryOnly >= 2) continue;
+    if (!hasPath && hasGraph && graphOnly >= 1) {
+      dropped.push({ memory, reason: `graph-only diversity cap (1) for kind=${memory.kind}` });
+      continue;
+    }
+    if (!hasPath && !hasGraph && hasQuery && queryOnly >= 2) {
+      dropped.push({ memory, reason: `query-only diversity cap (2) for kind=${memory.kind}` });
+      continue;
+    }
     selected.push(memory);
     if (!hasPath && hasGraph) graphOnly++;
     else if (!hasPath && hasQuery) queryOnly++;
-    if (selected.length >= limit) break;
   }
-  return selected;
+  return { selected, dropped };
 }
 
 function availableHintChars(payload: ToolCallPipelinePayload, configured: number): number {

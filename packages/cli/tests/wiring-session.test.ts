@@ -310,12 +310,15 @@ describe('setupSession', () => {
     });
     // No "Restored X todos" message — but the function should have completed.
     expect(renderer.writeError).not.toHaveBeenCalled();
-    expect(events.emit).toHaveBeenCalledWith('storage.error', expect.objectContaining({
-      sessionId: 'resumed-3',
-      traceId: expect.any(String),
-      store: 'todos',
-      operation: 'load',
-    }));
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.error',
+      expect.objectContaining({
+        sessionId: 'resumed-3',
+        traceId: expect.any(String),
+        store: 'todos',
+        operation: 'load',
+      }),
+    );
   });
 
   it('flushes the old todo checkpoint before rebinding to a new session', async () => {
@@ -378,8 +381,7 @@ describe('setupSession', () => {
 
     const todoWrites = events.emit.mock.calls.filter(
       ([event, payload]) =>
-        event === 'storage.write' &&
-        (payload as { store?: string } | undefined)?.store === 'todos',
+        event === 'storage.write' && (payload as { store?: string } | undefined)?.store === 'todos',
     );
     expect(todoWrites).toHaveLength(0);
     await result.detachTodosCheckpoint();

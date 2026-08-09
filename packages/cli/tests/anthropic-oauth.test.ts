@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isParseError } from '@wrongstack/core/types';
-import { expectFetchError } from './helpers/fetch-error.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAuthorizeUrl,
   exchangeAuthorizationCode,
   generatePkce,
   parseAuthorizationInput,
 } from '../src/auth-menu/anthropic-oauth.js';
+import { expectFetchError } from './helpers/fetch-error.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -107,20 +107,17 @@ describe('exchangeAuthorizationCode', () => {
   it('non-2xx response throws a structured FetchError (anthropic-oauth provider context)', async () => {
     // Locks in the structured FetchError shape so the migration can't
     // accidentally regress to a bare Error.
-    const fe = await expectFetchError(
-      () => exchangeAuthorizationCode('C', 'S', 'V'),
-      {
-        status: 400,
-        body: '{"error":"invalid_grant"}',
-        context: {
-          provider: 'anthropic-oauth',
-          op: 'exchange',
-          // The token endpoint URL flows through `context` so consumers can
-          // distinguish a 400 from the Claude token endpoint vs. any other URL.
-          url: 'https://platform.claude.com/v1/oauth/token',
-        },
+    const fe = await expectFetchError(() => exchangeAuthorizationCode('C', 'S', 'V'), {
+      status: 400,
+      body: '{"error":"invalid_grant"}',
+      context: {
+        provider: 'anthropic-oauth',
+        op: 'exchange',
+        // The token endpoint URL flows through `context` so consumers can
+        // distinguish a 400 from the Claude token endpoint vs. any other URL.
+        url: 'https://platform.claude.com/v1/oauth/token',
       },
-    );
+    });
     // `fe` returned for any additional per-test assertions (currently none).
     expect(fe).toBeDefined();
   });

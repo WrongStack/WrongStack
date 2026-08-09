@@ -49,9 +49,21 @@ export class ProjectSessionRegistry {
 
   constructor(private readonly globalRoot: string) {}
 
+  private bindingKey(projectDir: string): string {
+    const resolved = path.resolve(projectDir);
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  }
+
+  private async closeBinding(binding: ProjectBinding): Promise<void> {
+    if (this.current?.binding === binding) return;
+    const key = this.bindingKey(binding.projectDir);
+    if (this.clients.get(key) === binding) this.clients.delete(key);
+    await binding.client.close();
+  }
+
   private binding(projectSlug: string, projectRoot: string): ProjectBinding {
     const projectDir = path.join(this.globalRoot, 'projects', projectSlug);
-    const key = process.platform === 'win32' ? projectDir.toLowerCase() : projectDir;
+    const key = this.bindingKey(projectDir);
     let binding = this.clients.get(key);
     if (!binding) {
       if (this.clients.size >= MAX_PROJECT_CLIENTS) {
@@ -98,19 +110,27 @@ export class ProjectSessionRegistry {
       return;
     }
     const nextBinding = this.binding(full.projectSlug, full.projectRoot);
-    const nextCredential = await nextBinding.client.call('claim_new', {
-      entry: full,
-      ownerInstanceId: this.instanceId,
-    });
+    let nextCredential: SessionLeaseCredential;
+    try {
+      nextCredential = await nextBinding.client.call('claim_new', {
+        entry: full,
+        ownerInstanceId: this.instanceId,
+      });
+    } catch (error) {
+      await this.closeBinding(nextBinding).catch(() => undefined);
+      throw error;
+    }
     const previous = this.current;
     this.current = { binding: nextBinding, credential: nextCredential, entry: full };
     this.agentRevision = 0;
     this.cancelAgentTimer();
     this.startHeartbeat();
-    if (previous)
+    if (previous) {
       await previous.binding.client
         .call('release', { credential: previous.credential })
         .catch(() => undefined);
+      if (previous.binding !== nextBinding) await this.closeBinding(previous.binding);
+    }
   }
 
   /** Reserve before transcript hydration; activation swaps ownership only after the writer opened. */
@@ -120,11 +140,17 @@ export class ProjectSessionRegistry {
     projectRoot: string;
   }): Promise<SessionResumeClaim> {
     const binding = this.binding(target.projectSlug, target.projectRoot);
-    const reservation = await binding.client.call('reserve_resume', {
-      targetSessionId: target.sessionId,
-      requesterInstanceId: this.instanceId,
-      ...(this.current ? { currentSessionId: this.current.entry.sessionId } : {}),
-    });
+    let reservation: ResumeReservation;
+    try {
+      reservation = await binding.client.call('reserve_resume', {
+        targetSessionId: target.sessionId,
+        requesterInstanceId: this.instanceId,
+        ...(this.current ? { currentSessionId: this.current.entry.sessionId } : {}),
+      });
+    } catch (error) {
+      await this.closeBinding(binding).catch(() => undefined);
+      throw error;
+    }
     let settled = false;
     return {
       reservation,
@@ -141,20 +167,26 @@ export class ProjectSessionRegistry {
         this.agentRevision = 0;
         this.cancelAgentTimer();
         this.startHeartbeat();
-        if (previous)
+        if (previous) {
           await previous.binding.client
             .call('release', { credential: previous.credential })
             .catch(() => undefined);
+          if (previous.binding !== binding) await this.closeBinding(previous.binding);
+        }
       },
       cancel: async () => {
         if (settled) return;
         settled = true;
-        await binding.client
-          .call('cancel_reservation', {
-            reservationId: reservation.reservationId,
-            requesterInstanceId: this.instanceId,
-          })
-          .catch(() => undefined);
+        try {
+          await binding.client
+            .call('cancel_reservation', {
+              reservationId: reservation.reservationId,
+              requesterInstanceId: this.instanceId,
+            })
+            .catch(() => undefined);
+        } finally {
+          await this.closeBinding(binding).catch(() => undefined);
+        }
       },
     };
   }
@@ -214,7 +246,13 @@ export class ProjectSessionRegistry {
     this.cancelAgentTimer();
     const current = this.current;
     this.current = undefined;
-    if (current) await current.binding.client.call('release', { credential: current.credential });
+    if (current) {
+      try {
+        await current.binding.client.call('release', { credential: current.credential });
+      } finally {
+        await this.closeBinding(current.binding);
+      }
+    }
   }
 
   async list(): Promise<SessionRegistryEntry[]> {
@@ -231,14 +269,21 @@ export class ProjectSessionRegistry {
     const snapshots = await Promise.all(
       directories.map(async (slug) => {
         const projectDir = path.join(projectsDir, slug);
+        let client: SessionCatalogProjectClient | undefined;
         try {
           const metadata = JSON.parse(
             await fs.readFile(sessionCatalogProjectServerMetadataPath(projectDir), 'utf8'),
           ) as { projectRoot?: unknown };
           if (typeof metadata.projectRoot !== 'string' || !metadata.projectRoot) return [];
-          return await this.binding(slug, metadata.projectRoot).client.call('list_live', {});
+          client = new SessionCatalogProjectClient({
+            projectDir,
+            projectRoot: metadata.projectRoot,
+          });
+          return await client.callExisting('list_live', {});
         } catch {
           return [];
+        } finally {
+          await client?.close().catch(() => undefined);
         }
       }),
     );
@@ -246,21 +291,23 @@ export class ProjectSessionRegistry {
   }
 
   async listByProject(projectSlug: string): Promise<SessionRegistryEntry[]> {
-    const existing = [...this.clients.values()].find(
-      (binding) => path.basename(binding.projectDir) === projectSlug,
-    );
-    if (existing) return existing.client.call('list_live', {}).catch(() => []);
+    const current = this.current;
+    if (current && path.basename(current.binding.projectDir) === projectSlug) {
+      return current.binding.client.call('list_live', {}).catch(() => []);
+    }
     const projectDir = path.join(this.globalRoot, 'projects', projectSlug);
+    let client: SessionCatalogProjectClient | undefined;
     try {
       const metadata = JSON.parse(
         await fs.readFile(sessionCatalogProjectServerMetadataPath(projectDir), 'utf8'),
       ) as { projectRoot?: unknown };
       if (typeof metadata.projectRoot !== 'string') return [];
-      return this.binding(projectSlug, metadata.projectRoot)
-        .client.call('list_live', {})
-        .catch(() => []);
+      client = new SessionCatalogProjectClient({ projectDir, projectRoot: metadata.projectRoot });
+      return await client.callExisting('list_live', {}).catch(() => []);
     } catch {
       return [];
+    } finally {
+      await client?.close().catch(() => undefined);
     }
   }
 
@@ -273,7 +320,11 @@ export class ProjectSessionRegistry {
     projectRoot: string,
     listener: (event: SessionCatalogEvent) => void,
   ): Promise<() => Promise<void>> {
-    return this.binding(projectSlug, projectRoot).client.subscribe(listener);
+    const binding = this.binding(projectSlug, projectRoot);
+    return binding.client.subscribe(listener).then((unsubscribe) => async () => {
+      await unsubscribe();
+      await this.closeBinding(binding);
+    });
   }
 
   get registryPath(): string {

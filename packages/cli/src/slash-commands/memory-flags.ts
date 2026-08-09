@@ -87,13 +87,11 @@ export function parseMemoryFlags(tokens: string[]): ParsedMemoryFlags {
     if (skip) i++;
     switch (name) {
       case 'kind':
-        if (value && (MEMORY_KINDS as string[]).includes(value))
-          out.kind = value as SageKind;
+        if (value && (MEMORY_KINDS as string[]).includes(value)) out.kind = value as SageKind;
         else errors.push(`--kind must be one of: ${MEMORY_KINDS.join(', ')}.`);
         break;
       case 'scope':
-        if (value && (MEMORY_SCOPES as string[]).includes(value))
-          out.scope = value as SageScope;
+        if (value && (MEMORY_SCOPES as string[]).includes(value)) out.scope = value as SageScope;
         else errors.push(`--scope must be one of: ${MEMORY_SCOPES.join(', ')}.`);
         break;
       case 'status':

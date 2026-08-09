@@ -1,8 +1,8 @@
+import { color } from '@wrongstack/core/utils';
+import type { TerminalRenderer } from './renderer.js';
 import { theme } from './theme.js';
 import { fmtTok } from './utils.js';
 import { CLI_VERSION } from './version.js';
-import type { TerminalRenderer } from './renderer.js';
-import { color } from '@wrongstack/core/utils';
 
 const FILLED = '█';
 const EMPTY = '░';

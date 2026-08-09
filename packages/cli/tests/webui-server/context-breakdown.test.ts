@@ -44,9 +44,7 @@ import { describe, expect, it } from 'vitest';
  * token count of one block.
  */
 
-const { estimateContextBreakdown } = await import(
-  '../../src/webui-server/context-breakdown.js'
-);
+const { estimateContextBreakdown } = await import('../../src/webui-server/context-breakdown.js');
 
 describe('estimateContextBreakdown (PR 3 of #30)', () => {
   it('empty inputs: totals are 0, breakdowns are []', () => {

@@ -18,6 +18,7 @@ export default defineConfig({
       reportsDirectory: 'coverage/scripts',
       include: [
         'scripts/coverage-lock.mjs',
+        'scripts/check-zero-coverage.mjs',
         'scripts/test-coverage.mjs',
         'scripts/lib/architecture-health.mjs',
         'scripts/lib/build-lineage.mjs',
@@ -30,6 +31,7 @@ export default defineConfig({
         functions: 90,
         statements: 90,
         branches: 85,
+        perFile: true,
       },
     },
   },

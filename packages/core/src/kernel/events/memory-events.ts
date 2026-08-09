@@ -33,6 +33,32 @@ export interface MemoryInjectorTraceMemory {
   scoreTerms: Array<{ label: string; value: number }>;
 }
 
+/**
+ * Per-memory rejection evidence emitted inside `memory.injector_run.rejectedDetail`.
+ *
+ * `gate` is one of the keys of the `rejected` integer map; `reason` is the
+ * same one-line rationale the SAGE injector attaches to `activated[].activationReasons`,
+ * so triage and Chronicle do not need to re-derive it. `relationStrength`
+ * and `score` are populated for the gates that compute them (`belowScore`,
+ * `budget`); other gates omit them.
+ *
+ * Structural on purpose: defined here (core) rather than in `@wrongstack/sage`
+ * because `MemoryEventMap` is structural and core must not depend on sage.
+ */
+export interface RejectedMemoryTraceEntry {
+  id: string;
+  kind: string;
+  gate: 'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget';
+  /** Bounded to 200 chars at the emitter. */
+  reason: string;
+  /** Present when gate === 'belowScore' | 'budget'. */
+  relationStrength?: number | undefined;
+  /** Present when gate === 'belowScore' | 'budget'. */
+  score?: number | undefined;
+  /** ISO timestamp of the run. */
+  at: string;
+}
+
 export interface MemoryEventMap {
   /** Cache hit on session store load — used by observability layers. */
   'storage.cache_hit': {
@@ -227,10 +253,47 @@ export interface MemoryEventMap {
       cooldown: number;
       budget: number;
     };
+    /**
+     * Per-memory rejection evidence. The `rejected` integer map above is
+     * preserved for cheap aggregation; `rejectedDetail` lets downstream
+     * consumers (triage, Chronicle, observability surfaces) reason about
+     * *which* memories were almost injected and *which* gate rejected them.
+     *
+     * Capped at 20 entries by the SAGE injector with FIFO eviction;
+     * `rejectedDetailTotal` carries the pre-cap count when truncated.
+     * Full history lives in the Chronicle journal.
+     */
+    rejectedDetail: Array<RejectedMemoryTraceEntry>;
+    /**
+     * Pre-cap size of `rejectedDetail` when truncation happened. Undefined
+     * when `rejectedDetail.length === rejectedDetailTotal` (no truncation).
+     */
+    rejectedDetailTotal?: number | undefined;
     activated: MemoryInjectorTraceMemory[];
     injected: MemoryInjectorTraceMemory[];
     injectedChars: number;
     error?: string | undefined;
+    sessionId?: string | undefined;
+    traceId?: string | undefined;
+  };
+  /**
+   * Threshold-crossed rejection-burst signal. Emitted when a memory is
+   * rejected by `belowScore` >= 3 times within a 5-minute rolling window.
+   *
+   * The threshold and window are SAGE-side; the shape is structural here.
+   * Triage reads this to fold fresh per-memory evidence into
+   * `computeValueScore` without scanning the entire chronicle.
+   *
+   * Volume is bounded by the threshold — at most one event per memory
+   * per window.
+   */
+  'memory.injector_rejection_burst': {
+    memoryId: string;
+    gate: 'belowScore';
+    windowMs: number;
+    count: number;
+    reason: string;
+    at: string;
     sessionId?: string | undefined;
     traceId?: string | undefined;
   };

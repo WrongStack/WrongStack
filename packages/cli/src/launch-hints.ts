@@ -224,9 +224,7 @@ function wrapWords(value: string, firstWidth: number, continuationWidth = firstW
 function renderHintLines(item: Hint, termWidth: number): string[] {
   const inline = `${HINT_INDENT}${item.key}  — ${item.blurb}`;
   if (displayWidth(inline) <= termWidth) {
-    return [
-      `${HINT_INDENT}${color.bold(item.key)}  ${color.dim('—')} ${color.dim(item.blurb)}`,
-    ];
+    return [`${HINT_INDENT}${color.bold(item.key)}  ${color.dim('—')} ${color.dim(item.blurb)}`];
   }
 
   const lines: string[] = [];
@@ -273,9 +271,7 @@ function renderFooterLines(termWidth: number): string[] {
     ];
   }
 
-  return [
-    ...wrapWords(footer, termWidth - 2).map((line) => `  ${color.dim(line)}`),
-  ];
+  return [...wrapWords(footer, termWidth - 2).map((line) => `  ${color.dim(line)}`)];
 }
 
 /**

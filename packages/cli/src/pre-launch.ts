@@ -4,15 +4,13 @@
 // re-exports the public symbols so callers don't need to know about the split.
 
 export {
-  type ProjectKind,
-  detectProjectKind,
-  runProjectCheck,
-} from './pre-launch/project-check.js';
-
-export {
-  type LaunchModeChoices,
   LaunchAbortedError,
+  type LaunchModeChoices,
   persistLaunchChoices,
   runLaunchPrompts,
 } from './pre-launch/launch-prompts.js';
-
+export {
+  detectProjectKind,
+  type ProjectKind,
+  runProjectCheck,
+} from './pre-launch/project-check.js';

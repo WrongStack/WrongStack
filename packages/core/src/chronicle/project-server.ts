@@ -28,6 +28,7 @@ import {
   ensureChronicleProjectServerSocketDirectory,
 } from './project-server-endpoint.js';
 import {
+  CHRONICLE_MAX_APPEND_BATCH,
   CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS,
   CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION,
   type ChronicleProjectServerClientMessage,
@@ -46,7 +47,8 @@ import type { ChronicleSqliteQueryEngine } from './sqlite-query.js';
 import type { ChronicleEvent, ChronicleEventInput } from './types.js';
 
 const DEFAULT_IDLE_MS = 5 * 60_000;
-const MAX_APPEND_BATCH = 10_000;
+/** Re-exported name kept local for readability; the bound is the protocol's. */
+const MAX_APPEND_BATCH = CHRONICLE_MAX_APPEND_BATCH;
 /** Outbound bytes queued for one client before it is dropped as unresponsive. */
 const MAX_CLIENT_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
 
@@ -535,7 +537,8 @@ async function sendAcknowledgement(
   message: ChronicleProjectServerMessage,
 ): Promise<void> {
   const encoded = encodeResponse(state, message);
-  if (encoded === undefined) throw new Error('Chronicle client disconnected before acknowledgement');
+  if (encoded === undefined)
+    throw new Error('Chronicle client disconnected before acknowledgement');
   await new Promise<void>((resolve, reject) => {
     state.socket.write(encoded, (error) => {
       if (error) reject(error);

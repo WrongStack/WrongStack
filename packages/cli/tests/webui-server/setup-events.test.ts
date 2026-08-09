@@ -1,5 +1,5 @@
-import { EventBus } from '@wrongstack/core/kernel';
 import type { Context } from '@wrongstack/core/agent';
+import { EventBus } from '@wrongstack/core/kernel';
 import { describe, expect, it, vi } from 'vitest';
 import { createSetupEvents } from '../../src/webui-server/setup-events.js';
 

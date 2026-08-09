@@ -168,9 +168,11 @@ describe('resolveModelList', () => {
 
   describe("'<N>' shape (positive integer)", () => {
     it('returns the first N probe ids', () => {
-      expect(
-        resolveModelList('3', okProbe(['a', 'b', 'c', 'd', 'e']), scrubber),
-      ).toEqual(['a', 'b', 'c']);
+      expect(resolveModelList('3', okProbe(['a', 'b', 'c', 'd', 'e']), scrubber)).toEqual([
+        'a',
+        'b',
+        'c',
+      ]);
     });
 
     it('caps at the available list size when N is larger', () => {
@@ -185,11 +187,7 @@ describe('resolveModelList', () => {
   describe("'<csv>' shape (literal list)", () => {
     it('splits, trims, and deduplicates', () => {
       expect(
-        resolveModelList(
-          'llama3:8b, qwen2.5:7b ,llama3:8b,mistral:7b',
-          undefined,
-          scrubber,
-        ),
+        resolveModelList('llama3:8b, qwen2.5:7b ,llama3:8b,mistral:7b', undefined, scrubber),
       ).toEqual(['llama3:8b', 'qwen2.5:7b', 'mistral:7b']);
     });
 
@@ -231,7 +229,7 @@ describe('runAuthLocal — --model + probe integration', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("saves the first probe id when --model first is passed", async () => {
+  it('saves the first probe id when --model first is passed', async () => {
     globalThis.fetch = buildFetch(() =>
       jsonResponse({ data: [{ id: 'llama3.1:8b' }, { id: 'qwen2.5:7b' }, { id: 'mistral:7b' }] }),
     ) as typeof fetch;
@@ -281,7 +279,7 @@ describe('runAuthLocal — --model + probe integration', () => {
     expect((saved['ollama'] as { models?: string[] }).models).toBeUndefined();
   });
 
-  it("overwrites a pre-existing models list when --model is passed (explicit win)", async () => {
+  it('overwrites a pre-existing models list when --model is passed (explicit win)', async () => {
     globalThis.fetch = buildFetch(() =>
       jsonResponse({ data: [{ id: 'new-server-model' }] }),
     ) as typeof fetch;
@@ -337,10 +335,7 @@ describe('runAuthLocal — --model + probe integration', () => {
     expect(code).toBe(0);
     expect(fetchImpl).not.toHaveBeenCalled();
     const saved = await readSaved(configPath);
-    expect((saved['ollama'] as { models: string[] }).models).toEqual([
-      'llama3.1:8b',
-      'qwen2.5:7b',
-    ]);
+    expect((saved['ollama'] as { models: string[] }).models).toEqual(['llama3.1:8b', 'qwen2.5:7b']);
   });
 
   it('writes no models when --model first is passed but the probe failed (keyless preset auto-saves)', async () => {
@@ -396,7 +391,7 @@ describe('runAuthLocal — --model + probe integration', () => {
     expect((saved['ollama'] as { models: string[] }).models).toEqual([]);
   });
 
-  it("includes the picked model id in the Launch: hint after --model first", async () => {
+  it('includes the picked model id in the Launch: hint after --model first', async () => {
     globalThis.fetch = buildFetch(() =>
       jsonResponse({ data: [{ id: 'qwen2.5-coder:7b' }, { id: 'llama3.1:8b' }] }),
     ) as typeof fetch;
@@ -409,7 +404,7 @@ describe('runAuthLocal — --model + probe integration', () => {
     expect(allWrite).toContain('wstack --provider ollama --model qwen2.5-coder:7b');
   });
 
-  it("uses the <model-id> placeholder when --model was not passed", async () => {
+  it('uses the <model-id> placeholder when --model was not passed', async () => {
     globalThis.fetch = buildFetch(() =>
       jsonResponse({ data: [{ id: 'server-model' }] }),
     ) as typeof fetch;

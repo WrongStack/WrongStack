@@ -1,4 +1,9 @@
-import type { ContentBlock, Renderer, TextBlock, ToolResultRenderMode } from '@wrongstack/core/types';
+import type {
+  ContentBlock,
+  Renderer,
+  TextBlock,
+  ToolResultRenderMode,
+} from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { renderDiff } from './diff-renderer.js';
 import { theme } from './theme.js';
@@ -201,11 +206,7 @@ export class TerminalRenderer implements Renderer {
     }
 
     // EXTEND mode: full preview, up to 10 lines for read-like tools.
-    const previewLines = isEditLike
-      ? 0
-      : isReadLike
-        ? TerminalRenderer.EXTEND_PREVIEW_LINES
-        : 2;
+    const previewLines = isEditLike ? 0 : isReadLike ? TerminalRenderer.EXTEND_PREVIEW_LINES : 2;
 
     const lines = bodyText.split('\n');
     const head = lines.slice(0, previewLines).map((l: string) => l.replace(/\s+$/, ''));
@@ -527,11 +528,12 @@ function summarizeRead(o: Record<string, unknown>): string {
 }
 
 function summarizeBash(o: Record<string, unknown>): string {
-  const exit = typeof o['exitCode'] === 'number'
-    ? (o['exitCode'] as number)
-    : typeof o['exit_code'] === 'number'
-      ? (o['exit_code'] as number)
-      : undefined;
+  const exit =
+    typeof o['exitCode'] === 'number'
+      ? (o['exitCode'] as number)
+      : typeof o['exit_code'] === 'number'
+        ? (o['exit_code'] as number)
+        : undefined;
   const stdout = typeof o['stdout'] === 'string' ? (o['stdout'] as string) : '';
   const stderr = typeof o['stderr'] === 'string' ? (o['stderr'] as string) : '';
   const outLines = stdout ? stdout.split('\n').length : 0;

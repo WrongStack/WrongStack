@@ -1,6 +1,6 @@
+import { goalFilePath, loadGoal, summarizeUsage } from '@wrongstack/core/goal';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import { goalFilePath, loadGoal, summarizeUsage } from '@wrongstack/core/goal';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import type { SlashCommandContext } from './command-context.js';
 

@@ -21,14 +21,14 @@
  * `buildProviderStatusCommand(tracker).run('waiting')` to verify the user-
  * facing render reflects the new wiring within the same turn.
  */
-import { describe, expect, it, vi } from 'vitest';
-import { createFallbackModelExtension } from '@wrongstack/core/agent';
+
 import type { Context } from '@wrongstack/core/agent';
-import type { Config } from '@wrongstack/core/types';
-import type { Provider, Request, Response } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
-import { EventBus } from '@wrongstack/core/kernel';
+import { createFallbackModelExtension } from '@wrongstack/core/agent';
 import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import { EventBus } from '@wrongstack/core/kernel';
+import type { Config, Provider, Request, Response } from '@wrongstack/core/types';
+import { ProviderError } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
 import { buildProviderStatusCommand } from '../src/slash-commands/provider-status.js';
 
 function makeProvider(id: string): Provider {
@@ -92,13 +92,7 @@ describe('Chimera subagent 429 → /provider-status waiting room', () => {
     const inner = vi
       .fn()
       .mockRejectedValueOnce(
-        new ProviderError(
-          'rate limited',
-          429,
-          true,
-          'reviewer-primary',
-          { kind: 'rate_limit' },
-        ),
+        new ProviderError('rate limited', 429, true, 'reviewer-primary', { kind: 'rate_limit' }),
       )
       .mockResolvedValueOnce(okResponse);
 

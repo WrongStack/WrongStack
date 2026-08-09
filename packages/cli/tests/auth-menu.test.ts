@@ -13,7 +13,9 @@ const oauthMocks = vi.hoisted(() => ({
   runCopilotOAuthLogin: vi.fn(async () => 0),
 }));
 
-const mockRunLiveProviderPicker = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
+const mockRunLiveProviderPicker = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+);
 
 vi.mock('../src/auth-menu/openai-codex-oauth.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/auth-menu/openai-codex-oauth.js')>()),
@@ -265,7 +267,9 @@ describe('runAuthMenu', () => {
     const code = await runAuthMenu(deps);
 
     expect(code).toBe(0);
-    expect(deps.renderer.write).toHaveBeenCalledWith(expect.stringContaining('OAuth login options'));
+    expect(deps.renderer.write).toHaveBeenCalledWith(
+      expect.stringContaining('OAuth login options'),
+    );
     expect(oauthMocks.runCopilotOAuthLogin).toHaveBeenCalledWith(deps);
   });
 
@@ -597,7 +601,13 @@ describe('runAuthMenu', () => {
       renderer: makeRenderer(),
       reader: makeReader([], ['sk-secret']),
       modelsRegistry: makeModelsRegistry({
-        myprov: { id: 'myprov', name: 'My', family: 'openai', envVars: [], models: [] } as ResolvedProvider,
+        myprov: {
+          id: 'myprov',
+          name: 'My',
+          family: 'openai',
+          envVars: [],
+          models: [],
+        } as ResolvedProvider,
       }),
       vault,
       profileConfigPath: dirAsConfig,
@@ -616,7 +626,13 @@ describe('runAuthMenu', () => {
       renderer: makeRenderer(),
       reader: makeReader([], ['sk-secret']),
       modelsRegistry: makeModelsRegistry({
-        myprov: { id: 'myprov', name: 'My', family: 'openai', envVars: [], models: [] } as ResolvedProvider,
+        myprov: {
+          id: 'myprov',
+          name: 'My',
+          family: 'openai',
+          envVars: [],
+          models: [],
+        } as ResolvedProvider,
       }),
       vault,
       profileConfigPath: configPath,

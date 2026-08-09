@@ -3,9 +3,9 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
-  HookBlockedError,
-  createUserPromptSubmitMiddleware,
   createLifecycleHooksExtension,
+  createUserPromptSubmitMiddleware,
+  HookBlockedError,
 } from '../src/hooks-wiring.js';
 
 describe('HookBlockedError', () => {

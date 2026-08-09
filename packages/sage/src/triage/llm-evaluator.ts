@@ -78,9 +78,13 @@ const SYSTEM_PROMPT =
  * Target: ~80-120 tokens.
  */
 function buildUserPrompt(memory: Sage, vs: ValueScoreBreakdown): string {
-  const anchorSummary = memory.anchors.length > 0
-    ? memory.anchors.map((a) => a.path ?? a.symbol ?? a.command ?? a.type).slice(0, 3).join(', ')
-    : 'none';
+  const anchorSummary =
+    memory.anchors.length > 0
+      ? memory.anchors
+          .map((a) => a.path ?? a.symbol ?? a.command ?? a.type)
+          .slice(0, 3)
+          .join(', ')
+      : 'none';
   const age = daysSince(memory.createdAt);
 
   return [
@@ -88,7 +92,29 @@ function buildUserPrompt(memory: Sage, vs: ValueScoreBreakdown): string {
     `ANCHORS: ${anchorSummary} | KIND: ${memory.kind}`,
     `INJECTED: ${memory.injectionCount ?? 0}x | USED: ${memory.useCount ?? 0}x`,
     `AGE: ${age}d | SCORE: ${vs.total}/100 | IMPORTANCE: ${memory.importance.toFixed(1)}`,
-  ].join('\n');
+    formatInjectionEvidence(vs),
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * Format the SAGE injector-rejection evidence as a single bounded line for
+ * the LLM prompt. Only emits a line when the triage breakdown carries
+ * `rejectionPressure`; otherwise the line is omitted entirely so the prompt
+ * stays identical to the pre-evidence baseline.
+ *
+ * The line is hard-capped at 200 chars (truncate + ellipsis) so it never
+ * dominates the per-memory token budget — the rest of the prompt is
+ * already ~100 tokens, so a single 50-token evidence line is the budget
+ * ceiling we accept.
+ */
+function formatInjectionEvidence(vs: ValueScoreBreakdown): string {
+  if (vs.rejectionPressure === undefined) return '';
+  const pressure = vs.rejectionPressure.toFixed(2);
+  const gate = vs.rejectionGate ?? 'none';
+  const line = `REJ: pressure=${pressure} | gate=${gate}`;
+  return truncate(line, 200);
 }
 
 // ── Public API ──────────────────────────────────────────────────────────

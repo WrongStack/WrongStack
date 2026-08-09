@@ -1,8 +1,12 @@
-import { type Config, type Provider, ProviderError } from '@wrongstack/core/types';
+import {
+  createFallbackModelExtension,
+  effectiveFallbackChain,
+  parseModelRef,
+  smartDefaultFallbackChain,
+} from '@wrongstack/core/agent';
 import { EventBus } from '@wrongstack/core/kernel';
+import { type Config, type Provider, ProviderError } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import { createFallbackModelExtension, parseModelRef } from '@wrongstack/core/agent';
-import { effectiveFallbackChain, smartDefaultFallbackChain } from '@wrongstack/core/agent';
 
 const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() } as never;
 
@@ -17,7 +21,10 @@ function fakeProvider(id: string, modelId?: string): Provider {
 }
 
 function makeCtx(providerId: string, model: string) {
-  return { provider: fakeProvider(providerId), model } as never as import('@wrongstack/core/agent').Context;
+  return {
+    provider: fakeProvider(providerId),
+    model,
+  } as never as import('@wrongstack/core/agent').Context;
 }
 
 function overload(providerId: string) {
@@ -43,28 +50,32 @@ describe('parseModelRef', () => {
 describe('effectiveFallbackChain visibility filtering', () => {
   it('preserves explicit fallback entries even when provider has empty model list', () => {
     expect(
-      effectiveFallbackChain(cfg({
-        provider: 'anthropic',
-        model: 'opus',
-        fallbackModels: ['planner', 'openai/gpt-x'],
-        providers: {
-          anthropic: { type: 'anthropic', models: ['haiku'] },
-          openai: { type: 'openai', models: [] },
-        },
-      })),
+      effectiveFallbackChain(
+        cfg({
+          provider: 'anthropic',
+          model: 'opus',
+          fallbackModels: ['planner', 'openai/gpt-x'],
+          providers: {
+            anthropic: { type: 'anthropic', models: ['haiku'] },
+            openai: { type: 'openai', models: [] },
+          },
+        }),
+      ),
     ).toHaveLength(2); // explicit entries trusted; provider model lists only affect auto-derivation
   });
 
   it('smart default only uses visible provider models', () => {
     expect(
-      smartDefaultFallbackChain(cfg({
-        provider: 'anthropic',
-        model: 'opus',
-        providers: {
-          anthropic: { type: 'anthropic', apiKey: 'x', models: ['haiku'] },
-          openai: { type: 'openai', apiKey: 'y', models: ['gpt-x'] },
-        },
-      })),
+      smartDefaultFallbackChain(
+        cfg({
+          provider: 'anthropic',
+          model: 'opus',
+          providers: {
+            anthropic: { type: 'anthropic', apiKey: 'x', models: ['haiku'] },
+            openai: { type: 'openai', apiKey: 'y', models: ['gpt-x'] },
+          },
+        }),
+      ),
     ).toEqual(['anthropic/haiku', 'openai/gpt-x']);
   });
 });
@@ -371,7 +382,13 @@ describe('createFallbackModelExtension', () => {
 
   it('emits a context-window warning when fallback moves to a smaller model window', async () => {
     const events = new EventBus();
-    const fired: Array<{ contextWindowWarning?: { fromMaxContext: number; toMaxContext: number; currentTokens?: number } }> = [];
+    const fired: Array<{
+      contextWindowWarning?: {
+        fromMaxContext: number;
+        toMaxContext: number;
+        currentTokens?: number;
+      };
+    }> = [];
     events.on('provider.fallback', (p) => fired.push(p as never));
     const ext = createFallbackModelExtension({
       getConfig: () => cfg({ fallbackModels: ['openai/gpt-small'] }),

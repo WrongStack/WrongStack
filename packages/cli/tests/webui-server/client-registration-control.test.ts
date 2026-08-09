@@ -87,7 +87,11 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
     });
     await reg.register();
     const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
-      onCommand: (cmd: { commandId: string; type: string; payload: unknown }) => Promise<{ status: string }>;
+      onCommand: (cmd: {
+        commandId: string;
+        type: string;
+        payload: unknown;
+      }) => Promise<{ status: string }>;
     };
     const result = await opts.onCommand({
       commandId: 'c1',
@@ -108,7 +112,11 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
     });
     await reg.register();
     const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
-      onCommand: (cmd: { commandId: string; type: string; payload: unknown }) => Promise<{ status: string }>;
+      onCommand: (cmd: {
+        commandId: string;
+        type: string;
+        payload: unknown;
+      }) => Promise<{ status: string }>;
     };
     const result = await opts.onCommand({
       commandId: 'c2',
@@ -126,7 +134,11 @@ describe('createWebuiClientRegistration — HQ control capability', () => {
     });
     await reg.register();
     const opts = startCliHqConnection.mock.calls[0]?.[0] as unknown as {
-      onCommand: (cmd: { commandId: string; type: string; payload: unknown }) => Promise<{ status: string }>;
+      onCommand: (cmd: {
+        commandId: string;
+        type: string;
+        payload: unknown;
+      }) => Promise<{ status: string }>;
     };
     const result = await opts.onCommand({
       commandId: 'c3',

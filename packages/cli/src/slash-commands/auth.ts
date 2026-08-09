@@ -1,8 +1,8 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
+import { activeProfileConfigPath } from '../profile-config-path.js';
 import { loadConfigProviders } from '../provider-config-utils.js';
 import type { SlashCommandContext } from './command-context.js';
-import { activeProfileConfigPath } from '../profile-config-path.js';
 
 /** Levenshtein distance, capped iteration for short provider ids. */
 function editDistance(a: string, b: string): number {

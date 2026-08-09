@@ -33,7 +33,9 @@ describe('profile persistence routing', () => {
 
   it('never resolves a user-settings write to the root bootstrap', () => {
     expect(resolvePersistPath(deps())).toBe(profile);
-    expect(resolvePersistPath({ ...(deps('project') as object), forceGlobal: true } as never)).toBe(profile);
+    expect(resolvePersistPath({ ...(deps('project') as object), forceGlobal: true } as never)).toBe(
+      profile,
+    );
     expect(resolveActualTarget(deps(), { configScope: 'global' }, root)).toBe(profile);
   });
 
@@ -77,15 +79,13 @@ describe('deriveFsAccessPair', () => {
     // of truth and the resulting restrictToProjectRoot is its inverse.
     // This must NOT use restrictFsToRoot, even if it is the more
     // permissive-looking value.
-    expect(
-      deriveFsAccessPair({ allowOutsideProjectRoot: false, restrictFsToRoot: false }),
-    ).toEqual({
-      allowOutsideProjectRoot: false,
-      restrictToProjectRoot: true,
-    });
-    expect(
-      deriveFsAccessPair({ allowOutsideProjectRoot: true, restrictFsToRoot: true }),
-    ).toEqual({
+    expect(deriveFsAccessPair({ allowOutsideProjectRoot: false, restrictFsToRoot: false })).toEqual(
+      {
+        allowOutsideProjectRoot: false,
+        restrictToProjectRoot: true,
+      },
+    );
+    expect(deriveFsAccessPair({ allowOutsideProjectRoot: true, restrictFsToRoot: true })).toEqual({
       allowOutsideProjectRoot: true,
       restrictToProjectRoot: false,
     });

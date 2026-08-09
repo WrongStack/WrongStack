@@ -18,13 +18,26 @@
  *
  * @module subcommands/handlers/hq
  */
-import { HQ_AUTH_FILE_VERSION, HQ_CLI_DEFAULT_HOST, mutateHqAuthFile, mintHqToken, readHqAuthFile, resolveHqDataDir, logHqAuthAudit, hqAuthContentHash, hqAuthAuditPath, hqAuthFilePath } from '@wrongstack/core/hq';
-import { HqInsecureExposureError, type HqToken } from '@wrongstack/core/hq';
-import { expectDefined } from '@wrongstack/core/utils';
-import type { HqServerHandle } from '../../hq-server.js';
-import { resolveAuditActor } from '../../hq-server/audit-actor.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+
 import * as fs from 'node:fs/promises';
+import {
+  HQ_AUTH_FILE_VERSION,
+  HQ_CLI_DEFAULT_HOST,
+  HqInsecureExposureError,
+  type HqToken,
+  hqAuthAuditPath,
+  hqAuthContentHash,
+  hqAuthFilePath,
+  logHqAuthAudit,
+  mintHqToken,
+  mutateHqAuthFile,
+  readHqAuthFile,
+  resolveHqDataDir,
+} from '@wrongstack/core/hq';
+import { expectDefined } from '@wrongstack/core/utils';
+import { resolveAuditActor } from '../../hq-server/audit-actor.js';
+import type { HqServerHandle } from '../../hq-server.js';
+import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
 export { resolveAuditActor } from '../../hq-server/audit-actor.js';
 
@@ -39,7 +52,8 @@ export { resolveAuditActor } from '../../hq-server/audit-actor.js';
  * produces the same actor shape.
  */
 function resolveDataDir(deps: SubcommandDeps): string {
-  const override = typeof deps.flags?.['data-dir'] === 'string' ? deps.flags['data-dir'] : undefined;
+  const override =
+    typeof deps.flags?.['data-dir'] === 'string' ? deps.flags['data-dir'] : undefined;
   return resolveHqDataDir(override);
 }
 
@@ -253,9 +267,7 @@ async function hqAuditVerify(deps: SubcommandDeps): Promise<number> {
   // operator gets an honest "unavailable" when there's nothing to hash.
   const fileExists = await fileExistsQuiet(authPath);
   if (!fileExists) {
-    deps.renderer.write(
-      `contentHash: (unavailable — auth.json does not exist)\n`,
-    );
+    deps.renderer.write(`contentHash: (unavailable — auth.json does not exist)\n`);
     deps.renderer.write(
       `Compare historical entries in the audit log above against a known-good hash.\n`,
     );
@@ -268,9 +280,7 @@ async function hqAuditVerify(deps: SubcommandDeps): Promise<number> {
 
   const hash = hqAuthContentHash(authFile);
   if (hash === undefined) {
-    deps.renderer.write(
-      `contentHash: (unavailable — auth.json is unreadable or malformed)\n`,
-    );
+    deps.renderer.write(`contentHash: (unavailable — auth.json is unreadable or malformed)\n`);
     deps.renderer.write(
       `Compare historical entries in the audit log above against a known-good hash.\n`,
     );
@@ -381,7 +391,7 @@ function readCapabilitiesFlag(args: string[], deps: SubcommandDeps): string | bo
   const inline = args.find((arg) => arg.startsWith('--capabilities='));
   if (inline) return inline.slice('--capabilities='.length);
   const index = args.indexOf('--capabilities');
-  return index >= 0 ? args[index + 1] ?? true : undefined;
+  return index >= 0 ? (args[index + 1] ?? true) : undefined;
 }
 
 function resolveTokenCapabilities(
@@ -395,7 +405,14 @@ function resolveTokenCapabilities(
     return { error: '--capabilities requires a comma-separated value.' };
   }
 
-  const capabilities = [...new Set(raw.split(',').map((item) => item.trim()).filter(Boolean))];
+  const capabilities = [
+    ...new Set(
+      raw
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
   const allowed = new Set(TOKEN_CAPABILITIES[scope]);
   const invalid = capabilities.filter((capability) => !allowed.has(capability));
   if (invalid.length > 0) {
@@ -457,8 +474,7 @@ async function tokenCreate(args: string[], deps: SubcommandDeps): Promise<number
         ...hashField,
       },
       {
-        onError: (err) =>
-          deps.renderer.writeWarning(`(audit write failed: ${err.message})\n`),
+        onError: (err) => deps.renderer.writeWarning(`(audit write failed: ${err.message})\n`),
       },
     );
     const endpoint = scope === 'client' ? '/ws/client' : '/ws/browser';
@@ -525,21 +541,32 @@ async function tokenList(args: string[], deps: SubcommandDeps): Promise<number> 
   const tokens: HqToken[] = authFile[tokenField] ?? [];
 
   if (tokens.length === 0) {
-    deps.renderer.write(`No ${scope} tokens issued. ${scope === 'browser' ? 'Browsers' : 'Clients'} are in OPEN MODE.\n`);
-    deps.renderer.write(`Run \`wstack hq token create ${scope === 'client' ? '--client ' : ''}[label]\` to enter TOKEN MODE.\n`);
+    deps.renderer.write(
+      `No ${scope} tokens issued. ${scope === 'browser' ? 'Browsers' : 'Clients'} are in OPEN MODE.\n`,
+    );
+    deps.renderer.write(
+      `Run \`wstack hq token create ${scope === 'client' ? '--client ' : ''}[label]\` to enter TOKEN MODE.\n`,
+    );
     return 0;
   }
 
-  deps.renderer.write(`${scope === 'client' ? 'Client' : 'Browser'} tokens (${tokens.length}) — TOKEN MODE:\n`);
+  deps.renderer.write(
+    `${scope === 'client' ? 'Client' : 'Browser'} tokens (${tokens.length}) — TOKEN MODE:\n`,
+  );
   deps.renderer.write('\n');
   for (const t of tokens) {
     const masked = `${t.token.slice(0, 6)}…${t.token.slice(-4)} (${t.token.length} chars)`;
-    const capabilities = t.capabilities === undefined ? 'legacy-unscoped' : t.capabilities.join(',') || 'none';
+    const capabilities =
+      t.capabilities === undefined ? 'legacy-unscoped' : t.capabilities.join(',') || 'none';
     const expires = t.expiresAt ?? '(never)';
-    deps.renderer.write(`  ${t.id}  ${masked}  ${t.createdAt}  expires ${expires}${t.label ? `  "${t.label}"` : ''}  [${capabilities}]${t.lastUsedAt ? `  lastUsed ${t.lastUsedAt}` : ''}\n`);
+    deps.renderer.write(
+      `  ${t.id}  ${masked}  ${t.createdAt}  expires ${expires}${t.label ? `  "${t.label}"` : ''}  [${capabilities}]${t.lastUsedAt ? `  lastUsed ${t.lastUsedAt}` : ''}\n`,
+    );
   }
   deps.renderer.write('\n');
-  deps.renderer.write(`${scope === 'client' ? 'Clients' : 'Browsers'} must append ?token=<full-token> to /ws/${scope}.\n`);
+  deps.renderer.write(
+    `${scope === 'client' ? 'Clients' : 'Browsers'} must append ?token=<full-token> to /ws/${scope}.\n`,
+  );
   return 0;
 }
 
@@ -548,7 +575,9 @@ async function tokenRevoke(args: string[], deps: SubcommandDeps): Promise<number
   const pos = tokenPositionals(args);
   const idPrefix = pos[0];
   if (!idPrefix) {
-    deps.renderer.writeError(`Usage: wstack hq token revoke ${scope === 'client' ? '--client ' : ''}<id-prefix>\n`);
+    deps.renderer.writeError(
+      `Usage: wstack hq token revoke ${scope === 'client' ? '--client ' : ''}<id-prefix>\n`,
+    );
     return 1;
   }
 
@@ -589,7 +618,9 @@ async function tokenRevoke(args: string[], deps: SubcommandDeps): Promise<number
     deps.renderer.writeError(`No ${scope} token found matching id-prefix "${idPrefix}".\n`);
     return 1;
   }
-  deps.renderer.write(`Revoked ${scope} token ${revoked.id}${revoked.label ? ` ("${revoked.label}")` : ''}.\n`);
+  deps.renderer.write(
+    `Revoked ${scope} token ${revoked.id}${revoked.label ? ` ("${revoked.label}")` : ''}.\n`,
+  );
   const hashField = await computeAuditHashField(dataDir, (msg) =>
     deps.renderer.writeWarning(`${msg}\n`),
   );
@@ -605,8 +636,7 @@ async function tokenRevoke(args: string[], deps: SubcommandDeps): Promise<number
       ...hashField,
     },
     {
-      onError: (err) =>
-        deps.renderer.writeWarning(`(audit write failed: ${err.message})\n`),
+      onError: (err) => deps.renderer.writeWarning(`(audit write failed: ${err.message})\n`),
     },
   );
   return 0;
@@ -617,32 +647,56 @@ function printHelp(deps: SubcommandDeps): void {
   deps.renderer.write('\n');
   deps.renderer.write(`  wstack hq                      Start the HQ command center server.\n`);
   deps.renderer.write(`  wstack hq serve                Same as above (explicit form).\n`);
-  deps.renderer.write(`  wstack hq token create [label] [--ttl <dur>] Mint a browser token, enter token mode.\n`);
-  deps.renderer.write(`  wstack hq token create --client [label] [--ttl <dur>]  Mint a client token (/ws/client).\n`);
+  deps.renderer.write(
+    `  wstack hq token create [label] [--ttl <dur>] Mint a browser token, enter token mode.\n`,
+  );
+  deps.renderer.write(
+    `  wstack hq token create --client [label] [--ttl <dur>]  Mint a client token (/ws/client).\n`,
+  );
   deps.renderer.write(`  wstack hq token list           List issued browser tokens.\n`);
   deps.renderer.write(`  wstack hq token list --client   List issued client tokens.\n`);
-  deps.renderer.write(`  wstack hq token revoke <id>    Revoke a browser token (id prefix match).\n`);
+  deps.renderer.write(
+    `  wstack hq token revoke <id>    Revoke a browser token (id prefix match).\n`,
+  );
   deps.renderer.write(`  wstack hq token revoke --client <id>  Revoke a client token.\n`);
-  deps.renderer.write(`  wstack hq audit verify         Re-derive auth.json contentHash for forensic comparison.\n`);
+  deps.renderer.write(
+    `  wstack hq audit verify         Re-derive auth.json contentHash for forensic comparison.\n`,
+  );
   deps.renderer.write('\n');
   deps.renderer.write(`Flags (apply to all subcommands):\n`);
-  deps.renderer.write(`  --data-dir <path>   Override HQ data directory (default ~/.wrongstack/hq).\n`);
-  deps.renderer.write(`  --host <ip>         Bind host (default 0.0.0.0; use 127.0.0.1 for local-only).\n`);
-  deps.renderer.write(`  --tunnel            Publish a temporary *.trycloudflare.com URL (requires cloudflared).\n`);
+  deps.renderer.write(
+    `  --data-dir <path>   Override HQ data directory (default ~/.wrongstack/hq).\n`,
+  );
+  deps.renderer.write(
+    `  --host <ip>         Bind host (default 0.0.0.0; use 127.0.0.1 for local-only).\n`,
+  );
+  deps.renderer.write(
+    `  --tunnel            Publish a temporary *.trycloudflare.com URL (requires cloudflared).\n`,
+  );
   deps.renderer.write(`  --password <value>  Set or rotate the browser login password.\n`);
-  deps.renderer.write(`  --insecure-open     Allow a non-loopback bind with no token/password set.\n`);
+  deps.renderer.write(
+    `  --insecure-open     Allow a non-loopback bind with no token/password set.\n`,
+  );
   deps.renderer.write(`  --port <n>          Bind port (default 3499).\n`);
   deps.renderer.write(`  --strict-port       Fail if port is in use.\n`);
-  deps.renderer.write(`  --hq-token-ttl <dur>  Stamp an expiresAt on first-run tokens (e.g. 1h, 7d, 3600s).\n`);
+  deps.renderer.write(
+    `  --hq-token-ttl <dur>  Stamp an expiresAt on first-run tokens (e.g. 1h, 7d, 3600s).\n`,
+  );
   deps.renderer.write(
     `  --hq-trusted-proxy-hops <n>  Trust the rightmost n X-Forwarded-For entries when rate-limiting logins.\n` +
       `                        Default 0 (ignore the header). Set to the real hop count behind a tunnel,\n` +
       `                        otherwise every user shares one backoff bucket. Never guess high.\n`,
   );
   deps.renderer.write(`  --open              Open the dashboard in the default browser.\n`);
-  deps.renderer.write(`  --client, -c        Operate on client tokens instead of browser tokens.\n`);
-  deps.renderer.write(`  --capabilities <csv>  Token grants (browser: control.enqueue; client: telemetry.publish,control.execute).\n`);
-  deps.renderer.write(`  --ttl <duration>    Stamp an expiresAt on the token (e.g. --ttl 1h, --ttl 7d, --ttl 3600s).\n`);
+  deps.renderer.write(
+    `  --client, -c        Operate on client tokens instead of browser tokens.\n`,
+  );
+  deps.renderer.write(
+    `  --capabilities <csv>  Token grants (browser: control.enqueue; client: telemetry.publish,control.execute).\n`,
+  );
+  deps.renderer.write(
+    `  --ttl <duration>    Stamp an expiresAt on the token (e.g. --ttl 1h, --ttl 7d, --ttl 3600s).\n`,
+  );
   deps.renderer.write('\n');
   deps.renderer.write(`auth.json schema version: ${HQ_AUTH_FILE_VERSION}.\n`);
 }

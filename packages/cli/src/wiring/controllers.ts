@@ -8,16 +8,15 @@
  *   docs/plans/cli-main-executiondeps-refactor.md
  */
 
-import type { Config } from '@wrongstack/core/types';
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
+import type { Config, FleetChatVerbosity } from '@wrongstack/core/types';
 import type { StatuslineConfigKey } from '../services/statusline-config.js';
 import {
   DEFAULTS,
-  STATUSLINE_CONFIG_KEYS,
   ensureStatuslineConfig,
   loadStatuslineConfig,
-  saveStatuslineConfig,
+  STATUSLINE_CONFIG_KEYS,
   type StatuslineConfig,
+  saveStatuslineConfig,
 } from '../services/statusline-config.js';
 
 // ─── Fleet stream controller ───────────────────────────────────────
@@ -28,7 +27,9 @@ export interface FleetStreamController {
   setMode(mode: FleetChatVerbosity): void;
 }
 
-export function createFleetStreamController(initialMode: FleetChatVerbosity = 'off'): FleetStreamController {
+export function createFleetStreamController(
+  initialMode: FleetChatVerbosity = 'off',
+): FleetStreamController {
   return {
     mode: initialMode,
     setMode(this: FleetStreamController, mode: FleetChatVerbosity) {
@@ -46,9 +47,7 @@ export interface InterruptController {
     | ((info: { leaderActive: boolean; subagentCount: number }) => Promise<boolean>)
     | undefined;
   /** Installed by the TUI for all non-clear slash-command confirmations. */
-  confirmSlash?:
-    | ((question: string, defaultYes: boolean) => Promise<boolean | null>)
-    | undefined;
+  confirmSlash?: ((question: string, defaultYes: boolean) => Promise<boolean | null>) | undefined;
   /** Invalidate output buffers before a destructive session reset. */
   resetSession: () => void;
   /** Resolve after the currently aborted leader turn has fully unwound. */

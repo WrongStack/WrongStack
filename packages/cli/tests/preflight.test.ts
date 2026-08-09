@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../src/cli-update-notice.js', () => ({
   printUpdateNotice: vi.fn(async (info: unknown) => info),
 }));
+
 // `setDebugStreamEnabled` lives behind a dynamic import in
 // `applyDebugStreamSeed` so we don't need to mock the providers
 // package \u2014 the dynamic import path will just resolve against
@@ -26,8 +27,8 @@ vi.mock('../src/cli-update-notice.js', () => ({
 // setDebugStreamEnabled(true)`; we just assert the boolean
 // returned by runPreflight.
 
-import { applyNodeEnvDefault, applySessionShellDefault, runPreflight } from '../src/preflight.js';
 import type { Config } from '@wrongstack/core/types';
+import { applyNodeEnvDefault, applySessionShellDefault, runPreflight } from '../src/preflight.js';
 
 function makeConfig(overrides: Partial<Config> = {}): Config {
   return {

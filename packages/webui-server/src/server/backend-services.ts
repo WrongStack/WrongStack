@@ -325,20 +325,24 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   // Auto-compaction
   let autoCompactor: AutoCompactionMiddleware | undefined;
   if (config.context?.autoCompact !== false) {
-    let effectiveMaxContext = config.context?.effectiveMaxContext ?? 0;
-    if (!effectiveMaxContext) {
-      try {
-        const m = await resolveProviderModelMetadata(
-          modelsRegistry,
-          config.provider,
-          context.model,
-          config.providers?.[config.provider],
-        );
-        effectiveMaxContext = m?.capabilities?.maxContext ?? 0;
-      } catch {
-        // best-effort: fall through to provider capability
-      }
+    // Per-model catalog facts FIRST — mirrors the CLI's resolveRuntimeMaxContext
+    // chain. `config.context.effectiveMaxContext` is a single model-agnostic
+    // number; consulting it before the catalog pins every model to one window
+    // (a stale 128k there collapsed 1M-window models across the whole config).
+    // It stays as the fallback for models nothing published a window for.
+    let effectiveMaxContext = 0;
+    try {
+      const m = await resolveProviderModelMetadata(
+        modelsRegistry,
+        config.provider,
+        context.model,
+        config.providers?.[config.provider],
+      );
+      effectiveMaxContext = m?.capabilities?.maxContext ?? 0;
+    } catch {
+      // best-effort: fall through to the configured value / provider capability
     }
+    if (!effectiveMaxContext) effectiveMaxContext = config.context?.effectiveMaxContext ?? 0;
     if (!effectiveMaxContext) effectiveMaxContext = provider.capabilities.maxContext;
     autoCompactor = new AutoCompactionMiddlewareCtor(
       compactor,

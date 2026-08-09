@@ -146,14 +146,10 @@ export function renderAuthLocalHelpToString(): string {
   lines.push('');
   lines.push(color.dim('  See also: `wstack --help` for the top-level command list.'));
   lines.push(
-    color.dim(
-      '  Examples: `wstack auth local --name ollama --no-probe --model \'llama3.1:8b\'`',
-    ),
+    color.dim("  Examples: `wstack auth local --name ollama --no-probe --model 'llama3.1:8b'`"),
   );
   lines.push(
-    color.dim(
-      '            `wstack auth local --name ollama --audit /var/log/wstack-auth.jsonl`',
-    ),
+    color.dim('            `wstack auth local --name ollama --audit /var/log/wstack-auth.jsonl`'),
   );
 
   return lines.join('\n') + '\n';

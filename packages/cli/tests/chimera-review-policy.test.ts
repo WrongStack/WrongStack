@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { isChimeraAllClearReview } from '../src/chimera-review-task.js';
 import {
   applyChimeraReviewerReadOnlyPolicy,
   CHIMERA_REVIEW_READ_ONLY_TOOLS,
 } from '../src/execution.js';
-import { isChimeraAllClearReview } from '../src/chimera-review-task.js';
 
 describe('Chimera reviewer tool policy', () => {
   it('exposes only read-only inspection tools', () => {
@@ -47,9 +47,7 @@ describe('Chimera all-clear classification', () => {
 
   it('does not classify reports with findings as all-clear', () => {
     expect(
-      isChimeraAllClearReview(
-        '## 🦂 Chimera Review\n\n### High (1)\n1. [BUG] src/a.ts:1 — broken',
-      ),
+      isChimeraAllClearReview('## 🦂 Chimera Review\n\n### High (1)\n1. [BUG] src/a.ts:1 — broken'),
     ).toBe(false);
   });
 

@@ -11,8 +11,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildModelsCommand } from '../src/slash-commands/models.js';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
+import { buildModelsCommand } from '../src/slash-commands/models.js';
 
 let dir: string;
 let profilePath: string;
@@ -66,7 +66,7 @@ describe('buildModelsCommand — list', () => {
         capabilities: { maxContext: 128000, tools: true, vision: true },
         maxOutput: 4096,
       },
-      'bare': {},
+      bare: {},
     };
     const cmd = buildModelsCommand(c);
     const out = await cmd.run('');
@@ -103,7 +103,10 @@ describe('buildModelsCommand — add', () => {
     );
     expect(msg(out)).toContain('added');
     const onDisk = JSON.parse(await fs.readFile(profilePath, 'utf8')) as Record<string, unknown>;
-    const models = onDisk.models as Record<string, { provider?: string; capabilities?: Record<string, unknown> }>;
+    const models = onDisk.models as Record<
+      string,
+      { provider?: string; capabilities?: Record<string, unknown> }
+    >;
     expect(models['my-model']!.provider).toBe('openai');
     expect(models['my-model']!.capabilities).toMatchObject({
       maxContext: 128000,
@@ -126,14 +129,18 @@ describe('buildModelsCommand — add', () => {
     };
     await fs.writeFile(
       profilePath,
-      JSON.stringify({ models: { 'my-model': { capabilities: { maxContext: 64000, tools: true } } } }),
+      JSON.stringify({
+        models: { 'my-model': { capabilities: { maxContext: 64000, tools: true } } },
+      }),
       'utf8',
     );
     const cmd = buildModelsCommand(c);
     const out = await cmd.run('add my-model --vision');
     expect(msg(out)).toContain('updated');
     const onDisk = JSON.parse(await fs.readFile(profilePath, 'utf8')) as Record<string, unknown>;
-    const m = (onDisk.models as Record<string, { capabilities?: Record<string, unknown> }>)['my-model'];
+    const m = (onDisk.models as Record<string, { capabilities?: Record<string, unknown> }>)[
+      'my-model'
+    ];
     expect(m!.capabilities).toMatchObject({ maxContext: 64000, tools: true, vision: true });
   });
 

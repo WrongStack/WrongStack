@@ -16,8 +16,8 @@
  */
 
 import type { Sage } from '../types.js';
-import type { ValueScoreBreakdown } from './value-score.js';
 import type { LlmTriageResult, TriageAction } from './llm-evaluator.js';
+import type { ValueScoreBreakdown } from './value-score.js';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -64,6 +64,30 @@ export interface DispatchResult {
 
 const TRUNCATE_PREVIEW = 80;
 
+/**
+ * Lower-bound on `importance` after a repeated-rejection auto-apply.
+ * Mirrors the pre-filter rule "user-designated critical" floor — a memory
+ * pinned at 0.5 is still eligible for retrieval, just demoted enough to stop
+ * competing with stronger memories for the same injection slot.
+ */
+const REDUCE_INJECTION_PRESSURE_FLOOR = 0.5;
+
+/**
+ * Step size for the repeated-rejection adjustment. 0.15 is enough to
+ * shift a memory out of the "always considered" band without losing its
+ * tier in the larger importance histogram — recoverable on a single
+ * `memory_update({ importance: … })` call if the heuristic overreaches.
+ */
+const REDUCE_INJECTION_PRESSURE_DELTA = 0.15;
+
+/**
+ * Minimum `belowScore` rejection count before a low-value LLM verdict may
+ * lower importance. Lower than `BELOW_SCORE_TRIAGE_PENALTY_THRESHOLD` (5)
+ * because `stale`/`propose_archive` is itself an additional negative signal.
+ * Keep and safety-gated verdicts never take this adjustment.
+ */
+const REDUCE_INJECTION_PRESSURE_MIN_REJECTIONS = 3;
+
 // ── Public API ──────────────────────────────────────────────────────────
 
 /**
@@ -82,7 +106,10 @@ export function dispatchAction(result: LlmTriageResult): {
   const proposal = computeProposal(memory, action, evaluation);
 
   return {
-    autoApply: updates.updates.length > 0 ? { memoryId: memory.id, memoryText: preview, updates: updates.updates } : null,
+    autoApply:
+      updates.updates.length > 0
+        ? { memoryId: memory.id, memoryText: preview, updates: updates.updates }
+        : null,
     proposal,
   };
 }
@@ -130,6 +157,29 @@ function computeUpdates(
   action: TriageAction,
 ): { updates: MemoryFieldUpdate[] } {
   const updates: MemoryFieldUpdate[] = [];
+
+  // Mirrors the pre-filter "importance >= 0.9 → never destructive" rule:
+  // a memory the user pinned as critical must not have its importance lowered
+  // by the auto-apply, even when the injector has repeatedly rejected it. The
+  // owner of the memory has authority over the floor; triage is advisory only
+  // below it.
+  const shouldReduceInjectionPressure =
+    vs.rejectionGate === 'belowScore' &&
+    (vs.rejectionCount ?? 0) >= REDUCE_INJECTION_PRESSURE_MIN_REJECTIONS &&
+    (action === 'stale' || action === 'propose_archive') &&
+    memory.importance > REDUCE_INJECTION_PRESSURE_FLOOR &&
+    memory.importance < 0.9;
+  if (shouldReduceInjectionPressure) {
+    const next = Math.max(
+      REDUCE_INJECTION_PRESSURE_FLOOR,
+      memory.importance - REDUCE_INJECTION_PRESSURE_DELTA,
+    );
+    updates.push({
+      field: 'importance',
+      value: next,
+      reason: `injector rejected ${vs.rejectionCount}x for belowScore → importance lowered from ${memory.importance} to ${next}`,
+    });
+  }
 
   switch (action) {
     case 'keep': {

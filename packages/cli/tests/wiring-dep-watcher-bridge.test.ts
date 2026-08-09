@@ -212,7 +212,9 @@ describe('setupDepWatcherBridge', () => {
 
     setupDepWatcherBridge(deps);
 
-    const callArgs = (t.attachDepWatcherBridgeMock.mock.calls as unknown as AttachDepWatcherBridgeArgs[])[0]![0];
+    const callArgs = (
+      t.attachDepWatcherBridgeMock.mock.calls as unknown as AttachDepWatcherBridgeArgs[]
+    )[0]![0];
     expect(callArgs.mailbox).toBeDefined();
     expect(callArgs.mailbox).toBe(t.mailboxStub);
   });

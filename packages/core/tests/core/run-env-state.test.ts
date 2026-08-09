@@ -336,14 +336,16 @@ describe('ConversationState — write API and onChange', () => {
       }
       // Cap of 3 means 2 were dropped → toolAdjacencyDirty must be true.
       expect(ctx.toolAdjacencyDirty).toBe(true);
-      // Must emit messages_replaced so downstream consumers (journal replay,
-      // compaction) see the correct truncation event kind.
-      // The first N calls are message_appended (messages 0..2 fit within cap);
-      // the truncation call fires messages_replaced. The callback receives
-      // (change, state) — assert only the first argument.
-      expect(cb).toHaveBeenCalled();
+      // An overflowing append emits BOTH halves of what it did, in order: the
+      // message that arrived, then the eviction it caused. The append half is
+      // not optional — it used to ride along inside the `messages_replaced`
+      // snapshot, and dropping it when that became a delta silently lost every
+      // message that triggered an eviction. The callback receives
+      // (change, state); assert only the first argument.
+      const kinds = cb.mock.calls.map((call) => (call[0] as { kind: string }).kind);
+      expect(kinds.slice(-2)).toEqual(['message_appended', 'messages_dropped']);
       expect(cb).toHaveBeenLastCalledWith(
-        expect.objectContaining({ kind: 'messages_replaced' }),
+        expect.objectContaining({ kind: 'messages_dropped', count: 1 }),
         expect.anything(),
       );
     });

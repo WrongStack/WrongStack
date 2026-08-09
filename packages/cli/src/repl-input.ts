@@ -1,6 +1,6 @@
 import { color } from '@wrongstack/core/utils';
-import { theme } from './theme.js';
 import type { ReplOptions } from './repl-options.js';
+import { theme } from './theme.js';
 
 /**
  * Read a line, but support two multiline patterns:

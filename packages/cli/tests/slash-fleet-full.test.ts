@@ -1,6 +1,6 @@
+import type { Context } from '@wrongstack/core/agent';
 import { describe, expect, it, vi } from 'vitest';
 import { buildFleetCommand } from '../src/slash-commands/fleet.js';
-import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 
 function ctx(extra: object = {}): Context {
@@ -90,7 +90,9 @@ describe('buildFleetCommand', () => {
   });
 
   it('retry without handler forwards to onFleet', async () => {
-    const onFleet = vi.fn().mockResolvedValue('Retry is only available when director mode is active.');
+    const onFleet = vi
+      .fn()
+      .mockResolvedValue('Retry is only available when director mode is active.');
     const cmd = buildFleetCommand({ ...fleetCtx(), onFleet });
     const res = await cmd.run('retry', ctx());
     expect(res?.message).toContain('director mode');

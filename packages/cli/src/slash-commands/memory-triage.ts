@@ -21,9 +21,14 @@
  */
 
 import { toErrorMessage } from '@wrongstack/core/utils';
-import type { Sage, SageSurface, UpdateSageInput, CreateCandidateInput } from '@wrongstack/sage';
-import { runTriage, formatTriageReport, type TriageReport } from '@wrongstack/sage';
-import type { LlmCallFn } from '@wrongstack/sage';
+import type {
+  CreateCandidateInput,
+  LlmCallFn,
+  Sage,
+  SageSurface,
+  UpdateSageInput,
+} from '@wrongstack/sage';
+import { formatTriageReport, runTriage, type TriageReport } from '@wrongstack/sage';
 import type { SlashCommandContext } from './command-context.js';
 
 const DEFAULT_MAX_PHASE3 = 1000;
@@ -177,10 +182,7 @@ function getSage(opts: SlashCommandContext): SageSurface | null {
   }
 }
 
-async function loadActiveMemories(
-  Sage: SageSurface,
-  limit: number | undefined,
-): Promise<Sage[]> {
+async function loadActiveMemories(Sage: SageSurface, limit: number | undefined): Promise<Sage[]> {
   const all: Sage[] = [];
   let cursor: string | undefined;
 
@@ -204,10 +206,7 @@ async function loadActiveMemories(
   return limit ? all.slice(0, limit) : all;
 }
 
-async function applyDispatch(
-  Sage: SageSurface,
-  report: TriageReport,
-): Promise<string> {
+async function applyDispatch(Sage: SageSurface, report: TriageReport): Promise<string> {
   const lines: string[] = ['## Apply Results', ''];
 
   // Auto-apply updates
@@ -245,7 +244,9 @@ async function applyDispatch(
       mergeOk++;
     } catch (err) {
       mergeFail++;
-      lines.push(`  ✗ Failed to merge ${merge.supersededId} → ${merge.keeperId}: ${toErrorMessage(err)}`);
+      lines.push(
+        `  ✗ Failed to merge ${merge.supersededId} → ${merge.keeperId}: ${toErrorMessage(err)}`,
+      );
     }
   }
   lines.push(`**Merges:** ${mergeOk} succeeded, ${mergeFail} failed`);

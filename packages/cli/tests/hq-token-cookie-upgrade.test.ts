@@ -18,13 +18,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
 import { HQ_AUTH_FILE_VERSION, hqTokenKey, writeHqAuthFile } from '@wrongstack/core/hq';
-
-import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { handleApiTokenUpgrade } from '../src/hq-server/routes/auth-handlers.js';
 import type { HqSessionEntry } from '../src/hq-server/types.js';
+import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 
 const TOKEN = 'ws065-token-public';
 const COOKIE_SECRET = 'ws065-test-cookie-secret-do-not-use-in-prod';

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { Writable } from 'node:stream';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Spinner } from '../src/spinner.js';
 
 const originalNoColor = process.env.NO_COLOR;
@@ -86,9 +86,7 @@ describe('Spinner', () => {
   describe('setContext', () => {
     it('stores context info without throwing', () => {
       spinner.start('Thinking');
-      expect(() =>
-        spinner.setContext({ used: 50000, max: 200000 }),
-      ).not.toThrow();
+      expect(() => spinner.setContext({ used: 50000, max: 200000 })).not.toThrow();
     });
 
     it('can clear context by setting undefined', () => {
@@ -113,10 +111,9 @@ describe('Spinner', () => {
 // Test the static functions via integration
 describe('renderProgress (via Spinner)', () => {
   it('renders 0% as all empty bars', () => {
-    const spinner = new Spinner(
-      { write: vi.fn() } as never as NodeJS.WriteStream,
-      { enabled: true },
-    );
+    const spinner = new Spinner({ write: vi.fn() } as never as NodeJS.WriteStream, {
+      enabled: true,
+    });
     // Trigger a render with 0% context
     spinner.start('test');
     spinner.setContext({ used: 0, max: 100 });

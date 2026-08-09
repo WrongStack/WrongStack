@@ -127,6 +127,24 @@ export type SessionEvent =
     }
   | {
       /**
+       * The oldest `count` messages were evicted from the front of the history.
+       *
+       * A delta rather than a `messages_replaced` snapshot, because eviction is
+       * the one rewrite that repeats: once a long session reaches
+       * `Context.MAX_MESSAGES`, *every* subsequent append overflows by one and
+       * drops one. Emitting the surviving history each time made the journal
+       * quadratic in session length — measured at 2.1 GB for one session whose
+       * actual content was ~10 MB, and 17.9 GB across a 20 GB corpus. Replay
+       * splices the same prefix off, so the reconstructed conversation is
+       * identical to what the snapshot would have produced.
+       */
+      type: 'messages_dropped';
+      ts: string;
+      version: 1;
+      count: number;
+    }
+  | {
+      /**
        * Exact post-rewrite conversation state. Replay replaces all messages
        * reconstructed before this event, then continues applying later events.
        * Currently emitted after compaction.

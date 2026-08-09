@@ -6,13 +6,9 @@ import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionData, SessionEvent, SessionMetadata } from '../../types/session.js';
 import { repairToolUseAdjacency } from '../../utils/message-invariants.js';
-import {
-  applyContextSnapshot,
-  replayableMessage,
-  trackMessageToolState,
-} from './replay.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 import { extractToolCallEnds } from '../session-tool-call-ends.js';
+import { applyContextSnapshot, replayableMessage, trackMessageToolState } from './replay.js';
 
 type UsageTotals = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
@@ -206,8 +202,7 @@ export async function loadSessionDataFromFile(params: {
   };
 
   const toolCallEnds = extractToolCallEnds(events);
-  const pendingToolUseCount =
-    openToolUses && openToolUses.size > 0 ? openToolUses.size : undefined;
+  const pendingToolUseCount = openToolUses && openToolUses.size > 0 ? openToolUses.size : undefined;
   return {
     metadata: meta,
     events,
@@ -288,6 +283,21 @@ function replaySessionEvent(params: {
     } else {
       emitDamaged(params, 'Ignored malformed messages_replaced event');
     }
+  } else if (ev.type === 'messages_dropped' && ev.version === 1) {
+    // The delta form of the eviction that `messages_replaced` used to snapshot.
+    // It only means anything against a history this journal itself built, so it
+    // is ignored unless the exact journal is live — same guard as
+    // `message_updated`, and for the same reason: splicing a prefix off an
+    // array reconstructed from inferred events would cut the wrong messages.
+    if (exactJournalActive && Number.isInteger(ev.count) && ev.count > 0) {
+      messages.splice(0, Math.min(ev.count, messages.length));
+      openToolUses.clear();
+      for (const current of messages) trackMessageToolState(current, openToolUses);
+    } else if (!exactJournalActive) {
+      emitDamaged(params, 'Ignored messages_dropped event outside the exact journal');
+    } else {
+      emitDamaged(params, `Ignored malformed messages_dropped event (count ${String(ev.count)})`);
+    }
   } else if (ev.type === 'context_snapshot') {
     if (!applyContextSnapshot(messages, openToolUses, ev.messages)) {
       emitDamaged(params, 'Ignored malformed context_snapshot event');
@@ -342,10 +352,7 @@ function accumulateUsage(
   };
 }
 
-function emitDamaged(
-  params: { id: string; events?: EventBus | undefined },
-  detail: string,
-): void {
+function emitDamaged(params: { id: string; events?: EventBus | undefined }, detail: string): void {
   params.events?.emit('session.damaged', {
     sessionId: params.id,
     detail,

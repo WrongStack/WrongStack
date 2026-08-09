@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import { getVitestMaxWorkers } from './vitest.workers';
 import { coreAliases } from './scripts/vitest-core-aliases.mjs';
+import { getVitestMaxWorkers } from './vitest.workers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +21,17 @@ export default defineConfig({
       // Same for @wrongstack/tools: CLI tests import wiring that reaches the
       // tools package, and root Vitest must not require a prebuilt dist/.
       '@wrongstack/tools': path.resolve(__dirname, './packages/tools/src'),
+      '@wrongstack/providers/definitions': path.resolve(
+        __dirname,
+        './packages/providers/src/provider-definitions.ts',
+      ),
+      '@wrongstack/providers': path.resolve(__dirname, './packages/providers/src'),
+      '@wrongstack/runtime/probe': path.resolve(
+        __dirname,
+        './packages/runtime/src/local-llm-probe.ts',
+      ),
+      '@wrongstack/runtime': path.resolve(__dirname, './packages/runtime/src'),
+      '@wrongstack/governance': path.resolve(__dirname, './packages/governance/src'),
       // Packages extracted from core (sdd/kanban/security-scanner) — the core
       // barrel re-exports from them, so every test importing core needs these
       // resolved from source as well.

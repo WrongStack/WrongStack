@@ -295,22 +295,20 @@ describe('TUI settings adapter', () => {
     expect(settings['showAgentSwarmPanel']).toBe('off');
   });
 
-  it(
-    'nextStepsTool-only saves update disk and the live config store',
-    { timeout: 5000 },
-    async () => {
-      const { adapter, configStore, globalConfig } = makeAdapter();
+  it('nextStepsTool-only saves update disk and the live config store', {
+    timeout: 5000,
+  }, async () => {
+    const { adapter, configStore, globalConfig } = makeAdapter();
 
-      const err = await adapter.saveSettings({ nextStepsTool: true });
+    const err = await adapter.saveSettings({ nextStepsTool: true });
 
-      expect(err).toBeNull();
-      expect(JSON.parse(readFileSync(globalConfig, 'utf8')).tools.nextsteps).toEqual({
-        enabled: true,
-      });
-      expect(configStore.get().tools?.nextsteps).toEqual({ enabled: true });
-      expect(adapter.getSettings().nextStepsTool).toBe(true);
-    },
-  );
+    expect(err).toBeNull();
+    expect(JSON.parse(readFileSync(globalConfig, 'utf8')).tools.nextsteps).toEqual({
+      enabled: true,
+    });
+    expect(configStore.get().tools?.nextsteps).toEqual({ enabled: true });
+    expect(adapter.getSettings().nextStepsTool).toBe(true);
+  });
 
   it('restrictFsToRoot=true alone keeps both fs-access keys consistent', async () => {
     // Regression: the previous implementation wrote `tools.restrictToProjectRoot`
@@ -333,7 +331,18 @@ describe('TUI settings adapter', () => {
 
   it('restrictFsToRoot=false alone keeps both fs-access keys consistent', async () => {
     const { adapter, configStore, globalConfig } = makeAdapter(
-      baseConfig({ tools: { restrictToProjectRoot: true, maxIterations: 100, iterationTimeoutMs: 300_000, sessionTimeoutMs: 1_800_000, perIterationOutputCapBytes: 100_000, descriptionMode: {}, autoExtendLimit: true, defaultExecutionStrategy: 'smart' } }),
+      baseConfig({
+        tools: {
+          restrictToProjectRoot: true,
+          maxIterations: 100,
+          iterationTimeoutMs: 300_000,
+          sessionTimeoutMs: 1_800_000,
+          perIterationOutputCapBytes: 100_000,
+          descriptionMode: {},
+          autoExtendLimit: true,
+          defaultExecutionStrategy: 'smart',
+        },
+      }),
     );
 
     const err = await adapter.saveSettings({ restrictFsToRoot: false });

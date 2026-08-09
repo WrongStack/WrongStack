@@ -19,10 +19,10 @@
 // Every secret-shaped field now demonstrates a redaction; `normal` is
 // the only field that passes through.
 import type { Context, TodoItem } from '@wrongstack/core/agent';
-import type { Message } from '@wrongstack/core/types';
-import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { HybridCompactor } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
+import type { Message } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
   buildBuiltinSlashCommands,

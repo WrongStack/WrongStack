@@ -1,10 +1,22 @@
-import { color, getToolDescriptionMode, getToolResultRenderMode, normalizeToolDescriptionMode, normalizeToolResultRenderMode, setToolResultRenderMode } from '@wrongstack/core/utils';
 import { noOpVault } from '@wrongstack/core/security';
-import type { SlashCommand, ToolDescriptionMode, ToolResultRenderMode, ToolsConfig } from '@wrongstack/core/types';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import type {
+  SlashCommand,
+  ToolDescriptionMode,
+  ToolResultRenderMode,
+  ToolsConfig,
+} from '@wrongstack/core/types';
+import {
+  color,
+  getToolDescriptionMode,
+  getToolResultRenderMode,
+  normalizeToolDescriptionMode,
+  normalizeToolResultRenderMode,
+  setToolResultRenderMode,
+  toErrorMessage,
+} from '@wrongstack/core/utils';
+import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 import type { SlashCommandContext } from './command-context.js';
-import { activeProfileConfigPath } from '../profile-config-path.js';
 
 function fit(text: string, width: number): string {
   if (text.length <= width) return text.padEnd(width);
@@ -106,10 +118,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
    * through the same per-axis persistence path so the config stays
    * canonical (no combined field).
    */
-  function nextToolsConfigBoth(
-    name: string,
-    mode: ToolDescriptionMode,
-  ): ToolsConfig {
+  function nextToolsConfigBoth(name: string, mode: ToolDescriptionMode): ToolsConfig {
     // Both axes in one immutable ToolsConfig: start from a snapshot with
     // the desc entry set, then chain the result axis on top so the final
     // object carries both. Each helper reads `getCurrentTools()` itself,
@@ -145,10 +154,7 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
     return persistConfig(nextToolsConfigForAxis(name, axis, mode));
   }
 
-  async function persistModeBoth(
-    name: string,
-    mode: ToolDescriptionMode,
-  ): Promise<boolean> {
+  async function persistModeBoth(name: string, mode: ToolDescriptionMode): Promise<boolean> {
     return persistConfig(nextToolsConfigBoth(name, mode));
   }
 
@@ -198,7 +204,9 @@ export function buildToolCommand(opts: SlashCommandContext): SlashCommand {
         descSimple.length > 0 ? descSimple.map((n) => color.cyan(n)).join(', ') : color.dim('none')
       }`,
       `${formatResultRenderMode('simple')}: ${
-        resultSimple.length > 0 ? resultSimple.map((n) => color.cyan(n)).join(', ') : color.dim('none')
+        resultSimple.length > 0
+          ? resultSimple.map((n) => color.cyan(n)).join(', ')
+          : color.dim('none')
       }`,
       '',
     ];

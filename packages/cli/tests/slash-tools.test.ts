@@ -1,17 +1,29 @@
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it, vi } from 'vitest';
-import { buildToolsCommand } from '../src/slash-commands/tools.js';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
+import { buildToolsCommand } from '../src/slash-commands/tools.js';
 
 function makeRegistry(): ToolRegistry {
   return {
     listWithOwner: () => [
-      { tool: { name: 'read', description: 'Read a file', mutating: false, permission: 'auto' }, owner: 'system' },
-      { tool: { name: 'write', description: 'Write a file', mutating: true, permission: 'prompt' }, owner: 'system' },
-      { tool: { name: 'bash', description: 'Run command', mutating: true, permission: 'auto' }, owner: 'user' },
+      {
+        tool: { name: 'read', description: 'Read a file', mutating: false, permission: 'auto' },
+        owner: 'system',
+      },
+      {
+        tool: { name: 'write', description: 'Write a file', mutating: true, permission: 'prompt' },
+        owner: 'system',
+      },
+      {
+        tool: { name: 'bash', description: 'Run command', mutating: true, permission: 'auto' },
+        owner: 'user',
+      },
     ],
     listDisabled: () => [
-      { tool: { name: 'delete', description: 'Delete file', mutating: true, permission: 'never' }, owner: 'system' },
+      {
+        tool: { name: 'delete', description: 'Delete file', mutating: true, permission: 'never' },
+        owner: 'system',
+      },
     ],
     isDisabled: (name: string) => name === 'delete',
   } as never as ToolRegistry;
@@ -66,9 +78,7 @@ describe('buildToolsCommand', () => {
 
   it('opens TUI picker when onPanelOpen is wired', async () => {
     const onPanelOpen = vi.fn().mockReturnValue(true);
-    const cmd = buildToolsCommand(
-      makeOpts({ onPanelOpen: { current: onPanelOpen } }),
-    );
+    const cmd = buildToolsCommand(makeOpts({ onPanelOpen: { current: onPanelOpen } }));
     const res = await cmd.run('');
     expect(onPanelOpen).toHaveBeenCalledWith('toolsPickerOpen');
     expect(res?.message).toBe('');

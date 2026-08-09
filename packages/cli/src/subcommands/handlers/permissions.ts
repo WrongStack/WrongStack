@@ -1,7 +1,7 @@
+import type { Context } from '@wrongstack/core/agent';
 import { DefaultPermissionPolicy } from '@wrongstack/core/security';
 import type { PermissionTrace } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
-import type { Context } from '@wrongstack/core/agent';
 import type { SubcommandHandler } from '../contracts.js';
 
 /**
@@ -14,7 +14,13 @@ import type { SubcommandHandler } from '../contracts.js';
 export const permissionsCmd: SubcommandHandler = async (args, deps) => {
   const subCmd = args[0];
 
-  if (subCmd === 'help' || subCmd === '--help' || subCmd === '-h' || !subCmd || subCmd === 'explain' && !args[1]) {
+  if (
+    subCmd === 'help' ||
+    subCmd === '--help' ||
+    subCmd === '-h' ||
+    !subCmd ||
+    (subCmd === 'explain' && !args[1])
+  ) {
     if (subCmd !== 'explain' && subCmd !== 'help' && subCmd !== undefined) {
       deps.renderer.writeError(`Unknown permissions subcommand: ${subCmd}\n`);
     }
@@ -66,7 +72,12 @@ export const permissionsCmd: SubcommandHandler = async (args, deps) => {
   }
   const tool = deps.toolRegistry.get(toolName);
   if (!tool) {
-    deps.renderer.writeError(`Unknown tool: "${toolName}". Available tools: ${deps.toolRegistry.list().map(t => t.name).join(', ')}\n`);
+    deps.renderer.writeError(
+      `Unknown tool: "${toolName}". Available tools: ${deps.toolRegistry
+        .list()
+        .map((t) => t.name)
+        .join(', ')}\n`,
+    );
     return 1;
   }
 
@@ -133,7 +144,7 @@ function formatTrace(trace: PermissionTrace): string {
 function usage(): string {
   return (
     'Usage:\n' +
-    '  wstack permissions explain <tool> --input \'<json>\' [--json]\n\n' +
+    "  wstack permissions explain <tool> --input '<json>' [--json]\n\n" +
     'Examples:\n' +
     '  wstack permissions explain bash --input \'{"command":"rm -rf /"}\'\n' +
     '  wstack permissions explain read --input \'{"path":".env"}\' --json\n\n' +

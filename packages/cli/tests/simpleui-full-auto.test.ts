@@ -128,14 +128,27 @@ describe('SimpleUI full-auto launch profile', () => {
 describe('isSimpleUiFullAuto predicate', () => {
   it('is true only when both simpleui and full-auto are exactly `true`', () => {
     expect(isSimpleUiFullAuto({ simpleui: true, 'full-auto': true })).toBe(true);
-    expect(isSimpleUiFullAuto({ simpleui: true, 'full-auto': true, extra: 1 as unknown as boolean })).toBe(true);
+    expect(
+      isSimpleUiFullAuto({ simpleui: true, 'full-auto': true, extra: 1 as unknown as boolean }),
+    ).toBe(true);
   });
 
   it('rejects non-boolean truthy values for simpleui', () => {
-    expect(isSimpleUiFullAuto({ simpleui: 1 as unknown as boolean, 'full-auto': true })).toBe(false);
-    expect(isSimpleUiFullAuto({ simpleui: 'true' as unknown as boolean, 'full-auto': true })).toBe(false);
-    expect(isSimpleUiFullAuto({ simpleui: 'TRUE' as unknown as boolean, 'full-auto': true })).toBe(false);
-    expect(isSimpleUiFullAuto({ simpleui: 1 as unknown as boolean, 'full-auto': 'true' as unknown as boolean })).toBe(false);
+    expect(isSimpleUiFullAuto({ simpleui: 1 as unknown as boolean, 'full-auto': true })).toBe(
+      false,
+    );
+    expect(isSimpleUiFullAuto({ simpleui: 'true' as unknown as boolean, 'full-auto': true })).toBe(
+      false,
+    );
+    expect(isSimpleUiFullAuto({ simpleui: 'TRUE' as unknown as boolean, 'full-auto': true })).toBe(
+      false,
+    );
+    expect(
+      isSimpleUiFullAuto({
+        simpleui: 1 as unknown as boolean,
+        'full-auto': 'true' as unknown as boolean,
+      }),
+    ).toBe(false);
   });
 
   it('rejects when only one of the two flags is true', () => {

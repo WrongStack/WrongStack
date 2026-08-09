@@ -1,7 +1,7 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   appendHistory,
   backupCurrent,
@@ -82,7 +82,12 @@ describe('backupCurrent', () => {
 
 describe('appendHistory + listHistory + getHistoryEntry', () => {
   it('appends an entry and lists it', async () => {
-    const id = await appendHistory({ provider: 'a' }, { provider: 'b' }, 'switched providers', homeFn);
+    const id = await appendHistory(
+      { provider: 'a' },
+      { provider: 'b' },
+      'switched providers',
+      homeFn,
+    );
     expect(id).toBeTruthy();
 
     const list = await listHistory(homeFn);
@@ -178,12 +183,7 @@ describe('appendHistory + listHistory + getHistoryEntry', () => {
   });
 
   it('diffSummary reports nested-object change as [CHANGED]', async () => {
-    const id = await appendHistory(
-      { obj: { a: 1 } },
-      { obj: { a: 2 } },
-      'nested-obj',
-      homeFn,
-    );
+    const id = await appendHistory({ obj: { a: 1 } }, { obj: { a: 2 } }, 'nested-obj', homeFn);
     const entry = await getHistoryEntry(id, homeFn);
     expect(entry?.diffSummary).toContain('obj: [CHANGED]');
   });
@@ -299,7 +299,12 @@ describe('restoreFromHistory — credentials must survive', () => {
     await fs.writeFile(cfgPath(), JSON.stringify(live, null, 2));
 
     // A history entry taken when the model was different.
-    const id = await appendHistory({}, { ...live, model: 'claude-sonnet-5' }, 'switched model', homeFn);
+    const id = await appendHistory(
+      {},
+      { ...live, model: 'claude-sonnet-5' },
+      'switched model',
+      homeFn,
+    );
 
     const res = await restoreFromHistory(id, homeFn);
     expect(res.ok).toBe(true);

@@ -1,23 +1,22 @@
 /** Session/runtime slash-command adapters for the CLI command host. */
 import { spawn } from 'node:child_process';
-import { allServers } from '@wrongstack/core/infrastructure';
-import { color, writeOut } from '@wrongstack/core/utils';
-import type { Config, TokenCounter } from '@wrongstack/core/types';
-import type { ConfigStore } from '@wrongstack/core/types';
 import type { Context } from '@wrongstack/core/agent';
+import { allServers } from '@wrongstack/core/infrastructure';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { Config, ConfigStore, TokenCounter } from '@wrongstack/core/types';
+import { color, writeOut } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { MultiAgentHost } from '../multi-agent.js';
 import { runPluginManagementCommand } from '../plugin-management.js';
-import type { SessionStats } from '../session-stats.js';
 import type { CommitLLMProvider } from '../services/commit-message.js';
 import { generateCommitMessageWithLLM } from '../services/commit-message.js';
 import { makeProviderClassifier } from '../services/dispatch-classifier.js';
 import { parseMcpArgs, runMcpManagementCommand } from '../services/mcp-management.js';
 import { getSuggestions, setSuggestions } from '../services/suggestion-store.js';
-import type { BuiltinSlashCommandDeps } from './slash-commands.js';
+import type { SessionStats } from '../session-stats.js';
 import { patchConfig } from '../utils.js';
+import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type SlashCommandDeps = BuiltinSlashCommandDeps;
 export type SessionCommandHandlers = Pick<
@@ -229,8 +228,7 @@ function formatDiagnostics(input: SessionCommandHandlersInput): string {
           '',
           `${color.bold('Recent errors')} (last ${input.errorRing.length}):`,
           ...input.errorRing.map(
-            (error) =>
-              `  [${error.ts}] ${error.phase} ${error.code} — ${error.message}`,
+            (error) => `  [${error.ts}] ${error.phase} ${error.code} — ${error.message}`,
           ),
         ];
   const effects = input.context.sideEffects ?? [];

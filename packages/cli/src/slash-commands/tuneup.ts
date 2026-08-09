@@ -5,6 +5,7 @@ import type { SlashCommand } from '@wrongstack/core/types';
 import { atomicWrite, color } from '@wrongstack/core/utils';
 import { diagnoseConfig } from '../config-doctor.js';
 import { appendHistory } from '../config-history.js';
+import { activeProfileConfigPath } from '../profile-config-path.js';
 import {
   buildDeepPrompt,
   DEFAULT_EAGER_MAX_CHARS,
@@ -18,9 +19,8 @@ import {
   type TuneupTrustPolicy,
 } from '../tuneup.js';
 import { checkForUpdate } from '../update-check.js';
-import { parseSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
-import { activeProfileConfigPath } from '../profile-config-path.js';
+import { parseSubcommand } from './helpers.js';
 
 /**
  * `/tuneup` (alias `/checkup`) — broad session health, context-cost, and

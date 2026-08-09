@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createContextEvidenceState } from '@wrongstack/core/utils';
-import { loadCompletedWorkCheckpoint, saveTasks, type TaskFile } from '@wrongstack/core/storage';
 import type { Context } from '@wrongstack/core/agent';
+import { loadCompletedWorkCheckpoint, saveTasks, type TaskFile } from '@wrongstack/core/storage';
+import { createContextEvidenceState } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildTasksCommand } from '../src/slash-commands/tasks.js';
 
@@ -73,7 +73,9 @@ describe('buildTasksCommand', () => {
       source: 'task',
       summary: 'Wire completed-work ledger',
     });
-    expect(ctx.systemPrompt.some((block) => block.text.includes('[completed_work_ledger]'))).toBe(false);
+    expect(ctx.systemPrompt.some((block) => block.text.includes('[completed_work_ledger]'))).toBe(
+      false,
+    );
     const persisted = await loadCompletedWorkCheckpoint(completedWorkPath);
     expect(persisted?.[0]?.summary).toBe('Wire completed-work ledger');
   });

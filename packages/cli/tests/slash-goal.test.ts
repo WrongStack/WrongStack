@@ -10,8 +10,12 @@ import type { SlashCommandContext } from '../src/slash-commands/index.js';
 
 class FakeRenderer {
   output = '';
-  write(s: unknown): void { this.output += typeof s === 'string' ? s : ''; }
-  writeLine(s = ''): void { this.output += `${s}\n`; }
+  write(s: unknown): void {
+    this.output += typeof s === 'string' ? s : '';
+  }
+  writeLine(s = ''): void {
+    this.output += `${s}\n`;
+  }
   writeBlock(): void {}
   writeToolCall(): void {}
   writeToolResult(): void {}
@@ -19,7 +23,9 @@ class FakeRenderer {
   writeWarning(): void {}
   writeError(): void {}
   writeInfo(): void {}
-  clear(): void { this.output = ''; }
+  clear(): void {
+    this.output = '';
+  }
 }
 
 function rig(projectRoot: string) {
@@ -73,7 +79,10 @@ describe('/goal slash command', () => {
 
   it('/goal start requires onGoalStart to be wired', async () => {
     const { registry, goalCtx } = rig(tmp);
-    const result = await registry.dispatch('/goal start build something', goalCtx as never as Context);
+    const result = await registry.dispatch(
+      '/goal start build something',
+      goalCtx as never as Context,
+    );
     expect(result?.message).toMatch(/not available|❌/i);
   });
 

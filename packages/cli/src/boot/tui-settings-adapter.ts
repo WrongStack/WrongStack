@@ -18,6 +18,7 @@ import { normalizeTokenSavingTier, resolveFleetChatVerbosity } from '@wrongstack
 import { atomicWrite, deepMerge, type WstackPaths } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import type { LiveSettingsInput } from '../live-settings-input.js';
+import { activeProfileConfigPath } from '../profile-config-path.js';
 import {
   deriveFsAccessPair,
   filterSafeForProject,
@@ -25,7 +26,6 @@ import {
   resolvePersistPath,
 } from '../settings-menu.js';
 import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
-import { activeProfileConfigPath } from '../profile-config-path.js';
 
 /**
  * F-key panel ids in the canonical order. Mirrors `PANEL_IDS` in the TUI
@@ -246,13 +246,10 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       // UNDEFINED — an explicit `panelPositions.fleet: 'bottom'` must
       // NOT be reverted to `'sidebar'`.
       panelPositions: coercePanelPositionMap({
-        ...(autonomy?.panelPositions as
-          | Partial<Record<string, 'bottom' | 'sidebar'>>
-          | undefined),
+        ...(autonomy?.panelPositions as Partial<Record<string, 'bottom' | 'sidebar'>> | undefined),
         ...(coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel) === 'sidebar' &&
-        (autonomy?.panelPositions as
-          | Partial<Record<string, 'bottom' | 'sidebar'>>
-          | undefined)?.fleet === undefined
+        (autonomy?.panelPositions as Partial<Record<string, 'bottom' | 'sidebar'>> | undefined)
+          ?.fleet === undefined
           ? { fleet: 'sidebar' as const }
           : {}),
       }),

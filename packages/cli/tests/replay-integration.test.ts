@@ -1,10 +1,10 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ReplayLogStore } from '@wrongstack/core/storage';
 import { hashRequest, ReplayProviderRunner } from '@wrongstack/core/replay';
+import { ReplayLogStore } from '@wrongstack/core/storage';
 import type { ProviderRunner, Request, Response, RunProviderOptions } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * End-to-end test for idea #2 (Deterministic Replay).
@@ -49,7 +49,9 @@ function makeInner(responses: Response[]): ProviderRunner & { calls: number[] } 
   let i = 0;
   const calls: number[] = [];
   return {
-    get calls() { return calls; },
+    get calls() {
+      return calls;
+    },
     async run(_opts: RunProviderOptions): Promise<Response> {
       // We don't know which seed the request corresponds to without
       // inspecting the request — but for the test we just record the
@@ -117,9 +119,11 @@ describe('ReplayProviderRunner end-to-end record → reload → replay', () => {
       // B has a fresh "API" that returns garbage — but the replay
       // mode should never call it. We tag these so the test can
       // assert they were never produced.
-      [0, 1, 2, 3, 4].map(() => makeResponse(99).content
-        ? { ...makeResponse(99), content: [{ type: 'text', text: 'B-FRESH' as string }] }
-        : makeResponse(99)),
+      [0, 1, 2, 3, 4].map(() =>
+        makeResponse(99).content
+          ? { ...makeResponse(99), content: [{ type: 'text', text: 'B-FRESH' as string }] }
+          : makeResponse(99),
+      ),
     );
     const runnerB = new ReplayProviderRunner(innerB, {
       log: logB,

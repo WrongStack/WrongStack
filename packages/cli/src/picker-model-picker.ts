@@ -1,5 +1,11 @@
 import type { ModelsDevModel, ResolvedProvider } from '@wrongstack/core/types';
-import { color, expectDefined, setOutputLineGuard, setRawMode, writeOut } from '@wrongstack/core/utils';
+import {
+  color,
+  expectDefined,
+  setOutputLineGuard,
+  setRawMode,
+  writeOut,
+} from '@wrongstack/core/utils';
 import { applyPickerKey, type ProviderPickerState } from './picker-key-state.js';
 import {
   boxBottom,

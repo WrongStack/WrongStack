@@ -1,12 +1,11 @@
 import * as path from 'node:path';
-import type { AutonomyStage, Config, SessionWriter } from '@wrongstack/core/types';
 import type { Director } from '@wrongstack/core/coordination';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { EternalAutonomyEngine, ParallelEternalEngine } from '@wrongstack/core/execution';
-import { expectDefined } from '@wrongstack/core/utils';
 import { type AgentMonitorService, createAgentMonitorService } from '@wrongstack/core/coordination';
-import { sessionScopedPath } from '@wrongstack/core/utils';
+import type { EternalAutonomyEngine, ParallelEternalEngine } from '@wrongstack/core/execution';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { AutonomyStage, Config, SessionWriter } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import { expectDefined, sessionScopedPath } from '@wrongstack/core/utils';
 import { resolveFleetBudgetSources } from '../fleet/budget-source.js';
 
 // ---------------------------------------------------------------------------
@@ -88,15 +87,15 @@ export function setupDirectorAndAutonomy(deps: DirectorAutonomyDeps): DirectorAu
   // MultiAgentHost can still fall back to coordinator default (4) when callers
   // pass through undefined. Only flag/env/profile produce a concrete value;
   // pure default leaves it undefined.
-  const maxConcurrent =
-    maxConcurrentSource === 'default' ? undefined : resolvedMaxConcurrent;
+  const maxConcurrent = maxConcurrentSource === 'default' ? undefined : resolvedMaxConcurrent;
 
   // ── Autonomy mode ──────────────────────────────────────────────────────
   const autonomyMode: import('../services/autonomy-mode.js').AutonomyMode = (() => {
     const v = flags['autonomy'];
     if (v === 'auto' || v === 'suggest' || v === 'eternal' || v === 'eternal-parallel') return v;
     if (v === 'off') return 'off';
-    return (config.autonomy?.defaultMode ?? 'off') as import('../services/autonomy-mode.js').AutonomyMode;
+    return (config.autonomy?.defaultMode ??
+      'off') as import('../services/autonomy-mode.js').AutonomyMode;
   })();
   autonomyModeRef.current = autonomyMode;
 

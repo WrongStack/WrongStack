@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterAll, beforeEach } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * PR 1 of Issue #30 (webui-server 8-PR refactor):

@@ -78,14 +78,23 @@ describe('/compact slash command', () => {
   });
 
   it('includes repair counts when the report has a repaired field', async () => {
-    const compact = vi.fn(async () => ({
-      ...baseReport,
-      repaired: {
-        removedToolUses: ['t1', 't2'],
-        removedToolResults: ['r1'],
-        removedMessages: 3,
-      },
-    }) as typeof baseReport & { repaired: { removedToolUses: string[]; removedToolResults: string[]; removedMessages: number } });
+    const compact = vi.fn(
+      async () =>
+        ({
+          ...baseReport,
+          repaired: {
+            removedToolUses: ['t1', 't2'],
+            removedToolResults: ['r1'],
+            removedMessages: 3,
+          },
+        }) as typeof baseReport & {
+          repaired: {
+            removedToolUses: string[];
+            removedToolResults: string[];
+            removedMessages: number;
+          };
+        },
+    );
     const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
     const result = await cmd.run!('', makeFakeContext());
@@ -106,7 +115,10 @@ describe('/compact slash command', () => {
     const compact = vi.fn(async () => baseReport);
     const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
-    const result = await cmd.run!('', makeFakeContext({ provider: { capabilities: { maxContext: 200_000 } } as Provider }));
+    const result = await cmd.run!(
+      '',
+      makeFakeContext({ provider: { capabilities: { maxContext: 200_000 } } as Provider }),
+    );
     // 60k / 200k = 30%
     expect(result!.message).toContain('30%');
   });
@@ -140,7 +152,9 @@ describe('/compact slash command', () => {
     const compact = vi.fn(async () => baseReport);
     const ctx = makeCtx({ compact: compact as never });
     const cmd = buildCompactCommand(ctx);
-    const fakeCtx = makeFakeContext({ tokenCounter: { setCurrentRequestTokens: setSpy } } as unknown as Context);
+    const fakeCtx = makeFakeContext({
+      tokenCounter: { setCurrentRequestTokens: setSpy },
+    } as unknown as Context);
     await cmd.run!('', fakeCtx);
     expect(setSpy).toHaveBeenCalledWith(60_000);
   });
@@ -155,8 +169,10 @@ describe('/compact slash command', () => {
 
   it('handles undefined fullRequestTokensAfter gracefully', async () => {
     const compact = vi.fn(async () => ({
-      before: 50_000, after: 50_000,
-      fullRequestTokensBefore: undefined, fullRequestTokensAfter: undefined,
+      before: 50_000,
+      after: 50_000,
+      fullRequestTokensBefore: undefined,
+      fullRequestTokensAfter: undefined,
       reductions: [],
     }));
     const ctx = makeCtx({ compact: compact as never });

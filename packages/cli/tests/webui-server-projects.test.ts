@@ -18,7 +18,11 @@ beforeEach(async () => {
   globalConfigPath = path.join(tmpDir, 'config.json');
   await fs.promises.writeFile(
     globalConfigPath,
-    JSON.stringify({ providers: [{ id: 'test-provider', family: 'anthropic', models: [] }] }, null, 2),
+    JSON.stringify(
+      { providers: [{ id: 'test-provider', family: 'anthropic', models: [] }] },
+      null,
+      2,
+    ),
   );
 });
 
@@ -43,7 +47,9 @@ describe('runWebUI projects.select', () => {
     const wsPort = nextPort();
     const httpPort = wsPort; // single-port design: HTTP and WS share one listener
     let signalReady: (() => void) | undefined;
-    const listening = new Promise<void>((r) => { signalReady = r; });
+    const listening = new Promise<void>((r) => {
+      signalReady = r;
+    });
 
     const projectA = path.join(tmpDir, 'project-a');
     const projectB = path.join(tmpDir, 'project-b');
@@ -78,7 +84,7 @@ describe('runWebUI projects.select', () => {
       port: wsPort,
       httpPort,
       profileConfigPath: '/tmp/test-profile.json',
-  onListening: () => signalReady?.(),
+      onListening: () => signalReady?.(),
       events: new EventBus(),
       session: { id: 'old-session' } as never,
       agent: { ctx: ctx as never, run: vi.fn() } as never,
@@ -99,7 +105,11 @@ describe('runWebUI projects.select', () => {
 
     // The broadcast reset re-roots every client panel.
     const restarted = await waitForMessage('session.start');
-    const payload = restarted.payload as { cwd: string; reset?: boolean; clearedSessionId?: string };
+    const payload = restarted.payload as {
+      cwd: string;
+      reset?: boolean;
+      clearedSessionId?: string;
+    };
     expect(payload.reset).toBe(true);
     expect(payload.cwd).toBe(path.resolve(projectB));
     expect(payload.clearedSessionId).toBe('old-session');
@@ -116,7 +126,9 @@ describe('runWebUI projects.select', () => {
     const manifest = JSON.parse(
       await fs.promises.readFile(path.join(tmpDir, 'projects.json'), 'utf8'),
     ) as { projects: Array<{ root: string; name: string }> };
-    expect(manifest.projects.some((p) => path.resolve(p.root) === path.resolve(projectB))).toBe(true);
+    expect(manifest.projects.some((p) => path.resolve(p.root) === path.resolve(projectB))).toBe(
+      true,
+    );
 
     ws.close();
   });
@@ -125,7 +137,9 @@ describe('runWebUI projects.select', () => {
     const wsPort = nextPort();
     const httpPort = wsPort; // single-port design: HTTP and WS share one listener
     let signalReady: (() => void) | undefined;
-    const listening = new Promise<void>((r) => { signalReady = r; });
+    const listening = new Promise<void>((r) => {
+      signalReady = r;
+    });
 
     const projectA = path.join(tmpDir, 'project-a');
     const newProject = path.join(tmpDir, 'fresh-project');
@@ -143,7 +157,11 @@ describe('runWebUI projects.select', () => {
       meta: {},
       readFiles: new Set<string>(),
       fileMtimes: new Map<string, number>(),
-      tokenCounter: { total: () => ({ input: 0, output: 0 }), reset: vi.fn(), cacheStats: () => ({}) },
+      tokenCounter: {
+        total: () => ({ input: 0, output: 0 }),
+        reset: vi.fn(),
+        cacheStats: () => ({}),
+      },
       state: { replaceMessages: vi.fn(), replaceTodos: vi.fn() },
     };
 
@@ -151,7 +169,7 @@ describe('runWebUI projects.select', () => {
       port: wsPort,
       httpPort,
       profileConfigPath: '/tmp/test-profile.json',
-  onListening: () => signalReady?.(),
+      onListening: () => signalReady?.(),
       events: new EventBus(),
       session: { id: 'sess-1' } as never,
       agent: { ctx: ctx as never, run: vi.fn() } as never,
@@ -170,7 +188,9 @@ describe('runWebUI projects.select', () => {
     const manifest = JSON.parse(
       await fs.promises.readFile(path.join(tmpDir, 'projects.json'), 'utf8'),
     ) as { projects: Array<{ root: string }> };
-    expect(manifest.projects.some((p) => path.resolve(p.root) === path.resolve(newProject))).toBe(true);
+    expect(manifest.projects.some((p) => path.resolve(p.root) === path.resolve(newProject))).toBe(
+      true,
+    );
 
     // working_dir.set within the project root updates ctx.cwd + broadcasts.
     ws.send(JSON.stringify({ type: 'working_dir.set', payload: { path: 'src' } }));

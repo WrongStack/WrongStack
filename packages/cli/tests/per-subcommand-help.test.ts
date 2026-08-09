@@ -46,9 +46,7 @@ function makeRenderer() {
 }
 
 function capture(renderer: ReturnType<typeof makeRenderer>): string {
-  return (renderer.write as ReturnType<typeof vi.fn>).mock.calls
-    .map((call) => call[0])
-    .join('');
+  return (renderer.write as ReturnType<typeof vi.fn>).mock.calls.map((call) => call[0]).join('');
 }
 
 describe('renderFocusedHelp', () => {
@@ -242,8 +240,17 @@ describe('PerSubcommandHelp shape (data contract)', () => {
 
   it('doctor and diag focused help blocks do NOT render a Subcommands table (no subcommands)', () => {
     for (const name of [
-      'doctor', 'diag', 'init', 'version', 'tools', 'skills',
-      'projects', 'usage', 'update', 'quick', 'acp',
+      'doctor',
+      'diag',
+      'init',
+      'version',
+      'tools',
+      'skills',
+      'projects',
+      'usage',
+      'update',
+      'quick',
+      'acp',
     ]) {
       const renderer = makeRenderer();
       renderFocusedHelp(name, renderer);
@@ -254,8 +261,17 @@ describe('PerSubcommandHelp shape (data contract)', () => {
 
   it('mcp / plugin / models / config / sessions / bench / export / audit / replay / rewind / providers DO render a Subcommands table', () => {
     const withSubcommands = [
-      'mcp', 'plugin', 'models', 'config', 'sessions',
-      'bench', 'export', 'audit', 'replay', 'rewind', 'providers',
+      'mcp',
+      'plugin',
+      'models',
+      'config',
+      'sessions',
+      'bench',
+      'export',
+      'audit',
+      'replay',
+      'rewind',
+      'providers',
     ];
     for (const name of withSubcommands) {
       const renderer = makeRenderer();
@@ -289,7 +305,7 @@ describe('renderDeepHelp', () => {
     expect(renderDeepHelp('', renderer)).toBe(false);
   });
 
-  it('renders a block with the deep subcommand\'s title and usage', () => {
+  it("renders a block with the deep subcommand's title and usage", () => {
     const renderer = makeRenderer();
     expect(renderDeepHelp('mcp:add', renderer)).toBe(true);
     const out = capture(renderer);
@@ -513,17 +529,44 @@ describe('deepSubcommandsWithFocusedHelp', () => {
     // A future addition is a one-line change in the
     // `deepHelpTable`.
     const expected = new Set([
-      'mcp:add', 'mcp:remove', 'mcp:restart',
-      'plugin:add', 'plugin:remove', 'plugin:enable', 'plugin:disable',
-      'plugin:toggle', 'plugin:list', 'plugin:report', 'plugin:menu',
-      'plugin:official', 'plugin:officials',
-      'models:add', 'models:remove', 'models:refresh', 'models:list',
-      'audit:list', 'replay:list',
-      'sessions:resume', 'sessions:fork', 'sessions:fleet', 'sessions:show',
-      'sessions:list', 'sessions:config',
-      'config:show', 'config:edit', 'config:history', 'config:restore',
-      'rewind:list', 'rewind:all', 'rewind:last', 'rewind:to', 'rewind:resume',
-      'auth:list', 'auth:status', 'auth:remove', 'auth:local',
+      'mcp:add',
+      'mcp:remove',
+      'mcp:restart',
+      'plugin:add',
+      'plugin:remove',
+      'plugin:enable',
+      'plugin:disable',
+      'plugin:toggle',
+      'plugin:list',
+      'plugin:report',
+      'plugin:menu',
+      'plugin:official',
+      'plugin:officials',
+      'models:add',
+      'models:remove',
+      'models:refresh',
+      'models:list',
+      'audit:list',
+      'replay:list',
+      'sessions:resume',
+      'sessions:fork',
+      'sessions:fleet',
+      'sessions:show',
+      'sessions:list',
+      'sessions:config',
+      'config:show',
+      'config:edit',
+      'config:history',
+      'config:restore',
+      'rewind:list',
+      'rewind:all',
+      'rewind:last',
+      'rewind:to',
+      'rewind:resume',
+      'auth:list',
+      'auth:status',
+      'auth:remove',
+      'auth:local',
       'bench:run',
     ]);
     expect(new Set(deepSubcommandsWithFocusedHelp)).toEqual(expected);

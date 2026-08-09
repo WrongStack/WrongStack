@@ -9,7 +9,9 @@ describe('/metrics', () => {
   });
 
   it('exposes deep help and structured unavailable output', async () => {
-    const cmd = buildMetricsCommand({ metricsStatus: { collectionEnabled: false, httpExporter: 'disabled' } } as never);
+    const cmd = buildMetricsCommand({
+      metricsStatus: { collectionEnabled: false, httpExporter: 'disabled' },
+    } as never);
     expect(cmd.category).toBe('Inspect');
     expect(cmd.argsHint).toBe('[--json]');
     expect(cmd.help).toContain('Usage: /metrics [--json]');

@@ -38,7 +38,10 @@ export function openWs(url: string): Promise<WsClient> {
       else buffer.push(msg);
     });
 
-    const waitForMessage = (type: string, predicate?: (m: WsMessage) => boolean): Promise<WsMessage> =>
+    const waitForMessage = (
+      type: string,
+      predicate?: (m: WsMessage) => boolean,
+    ): Promise<WsMessage> =>
       new Promise((res, rej) => {
         const idx = buffer.findIndex((m) => m.type === type && (!predicate || predicate(m)));
         if (idx >= 0) {

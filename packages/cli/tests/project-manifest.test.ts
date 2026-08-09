@@ -27,9 +27,9 @@ import {
   findProject,
   generateSlug,
   loadManifest,
+  type ProjectsManifest,
   saveManifest,
   touchProjectInManifest,
-  type ProjectsManifest,
 } from '../src/services/project-manifest.js';
 
 let dir: string;

@@ -24,14 +24,13 @@
  * prove the wiring at the dep level. This test proves the wiring at the
  * end-user-visible surface (the slash command render).
  */
-import { describe, expect, it } from 'vitest';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
+
 import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import type {
   Config,
   ModelsRegistry,
@@ -43,6 +42,8 @@ import type {
   Tool,
 } from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
+import { makeLightSubagentFactory } from '@wrongstack/runtime';
+import { describe, expect, it } from 'vitest';
 import { buildProviderStatusCommand } from '../src/slash-commands/provider-status.js';
 
 const reasoningCaps = {
@@ -225,7 +226,13 @@ function makeDeps(statusTracker: ProviderModelStatusTracker): Deps {
       listProviders: async () => [],
       getProvider: async () => undefined,
       getModel: async () => ({
-        capabilities: { reasoningConfig: reasoningCaps, tools: true, vision: false, reasoning: false, maxContext: 0 },
+        capabilities: {
+          reasoningConfig: reasoningCaps,
+          tools: true,
+          vision: false,
+          reasoning: false,
+          maxContext: 0,
+        },
       }),
       suggestModel: async () => undefined,
       ageSeconds: async () => Infinity,

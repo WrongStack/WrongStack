@@ -145,18 +145,18 @@ export const MODELS_ADD_FLAGS: ReadonlyArray<ModelsAddFlag> = [
  * `MODELS_ADD_FLAGS` to keep the two in sync — a new boolean
  * flag added to `MODELS_ADD_FLAGS` shows up here automatically.
  */
-export const MODELS_ADD_BOOLEAN_FLAG_NAMES: ReadonlyArray<string> = MODELS_ADD_FLAGS
-  .filter((f) => f.kind === 'boolean')
-  .map((f) => f.name);
+export const MODELS_ADD_BOOLEAN_FLAG_NAMES: ReadonlyArray<string> = MODELS_ADD_FLAGS.filter(
+  (f) => f.kind === 'boolean',
+).map((f) => f.name);
 
 /**
  * The names of the value flags (the parser reads these via
  * `flags[name]` directly). Same derivation strategy as the
  * boolean list.
  */
-export const MODELS_ADD_VALUE_FLAG_NAMES: ReadonlyArray<string> = MODELS_ADD_FLAGS
-  .filter((f) => f.kind === 'value')
-  .map((f) => f.name);
+export const MODELS_ADD_VALUE_FLAG_NAMES: ReadonlyArray<string> = MODELS_ADD_FLAGS.filter(
+  (f) => f.kind === 'value',
+).map((f) => f.name);
 
 /**
  * The width of the flag column in the rendered help block.

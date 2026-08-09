@@ -7,7 +7,10 @@ interface NodePtyLoaderLogger {
   debug?: (message: string) => void;
 }
 
-export function createNodePtyLoader(importMetaUrl: string, logger: NodePtyLoaderLogger): () => unknown {
+export function createNodePtyLoader(
+  importMetaUrl: string,
+  logger: NodePtyLoaderLogger,
+): () => unknown {
   const requireFromCli = createRequire(importMetaUrl);
   let cachedNodePty: unknown;
 
@@ -36,7 +39,11 @@ export function createNodePtyLoader(importMetaUrl: string, logger: NodePtyLoader
     }
     // Strategy 3: workspace root node_modules/node-pty.
     try {
-      const cliPkgJson = path.join(path.dirname(fileURLToPath(importMetaUrl)), '..', 'package.json');
+      const cliPkgJson = path.join(
+        path.dirname(fileURLToPath(importMetaUrl)),
+        '..',
+        'package.json',
+      );
       let dir = path.dirname(cliPkgJson);
       for (let i = 0; i < 6; i++) {
         const candidate = path.join(dir, 'node_modules', 'node-pty');
@@ -55,7 +62,9 @@ export function createNodePtyLoader(importMetaUrl: string, logger: NodePtyLoader
       logger.debug?.(`[terminal] workspace-root walk failed: ${(err as Error).message}`);
     }
     cachedNodePty = null;
-    logger.debug?.('[terminal] node-pty resolution failed; terminal panel will report "unavailable"');
+    logger.debug?.(
+      '[terminal] node-pty resolution failed; terminal panel will report "unavailable"',
+    );
     return cachedNodePty;
   };
 }

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import type { ContentBlock, TextBlock } from '@wrongstack/core/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sessionsFleetCmd } from '../src/subcommands/handlers/sessions-fleet.js';
 import type { SubcommandDeps } from '../src/subcommands/index.js';
 
@@ -24,7 +24,8 @@ type TestRenderer = SubcommandDeps['renderer'] & {
   writeLine: ((text?: string) => void) & ReturnType<typeof vi.fn>;
   writeBlock: ((block: ContentBlock) => void) & ReturnType<typeof vi.fn>;
   writeToolCall: ((name: string, input: unknown) => void) & ReturnType<typeof vi.fn>;
-  writeToolResult: ((name: string, content: unknown, isError: boolean) => void) & ReturnType<typeof vi.fn>;
+  writeToolResult: ((name: string, content: unknown, isError: boolean) => void) &
+    ReturnType<typeof vi.fn>;
   writeDiff: ((unifiedDiff: string) => void) & ReturnType<typeof vi.fn>;
   clear: (() => void) & ReturnType<typeof vi.fn>;
 };

@@ -47,8 +47,8 @@
 
 import type { Config } from '@wrongstack/core/types';
 import { ensureSessionShell } from '@wrongstack/tools';
-import type { UpdateInfo } from './update-check.js';
 import { printUpdateNotice } from './cli-update-notice.js';
+import type { UpdateInfo } from './update-check.js';
 
 export interface PreflightResult {
   /** The (possibly refreshed) update info, after the 2-second

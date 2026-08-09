@@ -13,12 +13,7 @@ export function captureCompletedTaskLearningForHost(
   const finalText = typeof result.result === 'string' ? result.result : result.partial?.text;
   if (!role || !finalText) return;
   try {
-    const capture = captureLearnedFromAgentOutputDetailed(
-      finalText,
-      role,
-      deps.projectRoot,
-      false,
-    );
+    const capture = captureLearnedFromAgentOutputDetailed(finalText, role, deps.projectRoot, false);
     if (capture.captured > 0) {
       deps.container
         .safeResolve(TOKENS.Logger)

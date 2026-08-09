@@ -83,7 +83,9 @@ describe('interactive config backup recovery', () => {
       write: vi.fn(),
       writeWarning: vi.fn(),
     } as unknown as TerminalRenderer;
-    const reader: Pick<ReadlineInputReader, 'readLine'> = { readLine: vi.fn().mockResolvedValue('') } as never;
+    const reader: Pick<ReadlineInputReader, 'readLine'> = {
+      readLine: vi.fn().mockResolvedValue(''),
+    } as never;
 
     const restored = await maybeRestoreDefaultProfileFromBackup({
       globalRoot,

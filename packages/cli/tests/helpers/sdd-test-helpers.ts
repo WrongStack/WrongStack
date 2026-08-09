@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { TaskNode } from '@wrongstack/core/types';
-import { TaskTracker, DefaultTaskStore, AISpecBuilder, SpecStore } from '@wrongstack/sdd';
+import { AISpecBuilder, DefaultTaskStore, SpecStore, TaskTracker } from '@wrongstack/sdd';
 import { sddState } from '../../src/services/sdd/state.js';
 
 /**
@@ -63,10 +63,7 @@ export function createMockTracker(
  * @param tmpDir     Temp directory (the helper creates .wrongstack/ under it)
  * @returns The created AISpecBuilder instance
  */
-export async function createTestSddSession(
-  title: string,
-  tmpDir: string,
-): Promise<AISpecBuilder> {
+export async function createTestSddSession(title: string, tmpDir: string): Promise<AISpecBuilder> {
   const specsDir = path.join(tmpDir, '.wrongstack', 'specs');
   const sessionsDir = path.join(tmpDir, '.wrongstack', 'sessions');
   await fs.mkdir(specsDir, { recursive: true });

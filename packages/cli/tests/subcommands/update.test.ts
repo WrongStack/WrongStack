@@ -40,10 +40,18 @@ function mkDeps(rig: ReturnType<typeof mkRig>) {
   return {
     config: { providers: {}, log: { level: 'error' } } as never,
     renderer: {
-      writeInfo: (msg: string) => { rig.out.buf += msg + '\n'; },
-      write: (msg: string) => { rig.out.buf += msg; },
+      writeInfo: (msg: string) => {
+        rig.out.buf += msg + '\n';
+      },
+      write: (msg: string) => {
+        rig.out.buf += msg;
+      },
     },
-    reader: { readLine: vi.fn(async () => ''), readKey: vi.fn(async () => ''), close: vi.fn(async () => {}) } as never,
+    reader: {
+      readLine: vi.fn(async () => ''),
+      readKey: vi.fn(async () => ''),
+      close: vi.fn(async () => {}),
+    } as never,
     modelsRegistry: fakeRegistry() as never,
     paths: { globalRoot: '/tmp/g' } as never,
     cwd: '/tmp',

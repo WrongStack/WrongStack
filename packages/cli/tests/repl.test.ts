@@ -1,6 +1,6 @@
 import type { Agent, Context, RunResult, TodoItem } from '@wrongstack/core/agent';
-import type { AttachmentStore, TokenCounter } from '@wrongstack/core/types';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { AttachmentStore, TokenCounter } from '@wrongstack/core/types';
 import { AgentError } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReadlineInputReader } from '../src/input-reader.js';
@@ -169,7 +169,9 @@ describe('runRepl', () => {
 
     expect(run).not.toHaveBeenCalled();
     expect(reader.readLine).toHaveBeenCalledWith(expect.stringContaining('Proceed anyway?'));
-    const writes = (renderer.write as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0] ?? ''));
+    const writes = (renderer.write as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
+      String(c[0] ?? ''),
+    );
     expect(writes.join('')).toContain("'continue' has no anchor");
     expect(writes.join('')).toContain('Cancelled');
   });
@@ -425,15 +427,15 @@ describe('runRepl', () => {
 
       // Key assertion: suggest mode never auto-proceeds.
       // Verify the suggestion text was NOT fed as agent input.
-      const allTexts = run.mock.calls
-        .map((c: unknown[]) => {
-          const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
-          return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
-        });
+      const allTexts = run.mock.calls.map((c: unknown[]) => {
+        const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
+        return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
+      });
       expect(allTexts.some((t) => t.includes('Run tests'))).toBe(false);
       // Suggestions were displayed
-      const writes = (renderer.write as ReturnType<typeof vi.fn>).mock.calls
-        .map((c: unknown[]) => String(c[0] ?? ''));
+      const writes = (renderer.write as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) =>
+        String(c[0] ?? ''),
+      );
       expect(writes.some((w) => w.includes('Suggested next steps'))).toBe(true);
     });
 
@@ -473,11 +475,10 @@ describe('runRepl', () => {
       });
 
       // Suggestion fed directly — no validation gate needed in auto mode
-      const allTexts = run.mock.calls
-        .map((c: unknown[]) => {
-          const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
-          return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
-        });
+      const allTexts = run.mock.calls.map((c: unknown[]) => {
+        const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
+        return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
+      });
       expect(allTexts.some((t) => t.includes('Run pnpm test'))).toBe(true);
     });
 
@@ -512,11 +513,10 @@ describe('runRepl', () => {
       });
 
       // The suggestion IS fed — validation gate was removed, auto mode feeds directly
-      const allTexts = run.mock.calls
-        .map((c: unknown[]) => {
-          const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
-          return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
-        });
+      const allTexts = run.mock.calls.map((c: unknown[]) => {
+        const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
+        return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
+      });
       expect(allTexts.some((t) => t.includes('Risky migration'))).toBe(true);
     });
 
@@ -564,10 +564,7 @@ describe('runRepl', () => {
     });
 
     it('auto mode with no validator proceeds directly', async () => {
-      const finalTexts = [
-        '<nextsteps>\n1. Clean up\n</nextsteps>',
-        'Done cleaning.\n',
-      ];
+      const finalTexts = ['<nextsteps>\n1. Clean up\n</nextsteps>', 'Done cleaning.\n'];
       let turn = 0;
       const run = vi.fn(
         async (): Promise<RunResult> => ({
@@ -599,11 +596,10 @@ describe('runRepl', () => {
       });
 
       // Suggestion "Clean up" was auto-fed (no validator → proceeds directly)
-      const allTexts = run.mock.calls
-        .map((c: unknown[]) => {
-          const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
-          return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
-        });
+      const allTexts = run.mock.calls.map((c: unknown[]) => {
+        const blocks = c[0] as Array<{ type: string; text?: string }> | undefined;
+        return blocks?.map((b) => b.text ?? '').join(' ') ?? '';
+      });
       expect(allTexts.some((t) => t.includes('Clean up'))).toBe(true);
     });
 
@@ -648,10 +644,7 @@ describe('runRepl', () => {
     });
 
     it('consumes an auto-proceed suggestion before a turn with empty output', async () => {
-      const finalTexts = [
-        '<nextsteps>\n1. Run the focused check\n</nextsteps>',
-        '',
-      ];
+      const finalTexts = ['<nextsteps>\n1. Run the focused check\n</nextsteps>', ''];
       let turn = 0;
       const run = vi.fn(
         async (): Promise<RunResult> => ({
@@ -837,10 +830,7 @@ describe('runRepl', () => {
     // in_progress, the in-flight task list takes priority over new prompt
     // suggestions, regardless of autonomy mode.
 
-    function makeAgentWithTodos(
-      run: Agent['run'],
-      todos: TodoItem[],
-    ): Agent {
+    function makeAgentWithTodos(run: Agent['run'], todos: TodoItem[]): Agent {
       return {
         ctx: { todos } as unknown as Context,
         run,
@@ -1019,9 +1009,9 @@ describe('runRepl', () => {
       // The first todo-grounded turn is fed normally. One unchanged repeat is
       // steered explicitly; a third identical state is halted.
       expect(run.mock.calls.length).toBe(2);
-      const prompts = (
-        run.mock.calls as unknown as Array<[Array<{ text?: string }>]>
-      ).map((call) => call[0]?.[0]?.text ?? '');
+      const prompts = (run.mock.calls as unknown as Array<[Array<{ text?: string }>]>).map(
+        (call) => call[0]?.[0]?.text ?? '',
+      );
       expect(prompts[0]).toContain('finish refactor');
       expect(prompts[1]).toContain('todo board has not changed');
       // Both the steer and eventual halt are surfaced to the user.

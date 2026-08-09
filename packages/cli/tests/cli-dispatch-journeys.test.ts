@@ -189,7 +189,10 @@ describe.sequential('CLI production dispatch journeys', () => {
           sessionsDir: string,
         ) => void | Promise<void>;
       };
-      await boundary.onBeforeSessionTodosReplaced?.('next-session', path.join(tempRoot, 'sessions'));
+      await boundary.onBeforeSessionTodosReplaced?.(
+        'next-session',
+        path.join(tempRoot, 'sessions'),
+      );
     });
 
     await expect(within(runWebUIDispatch(ctx), 5_000)).resolves.toBe(0);

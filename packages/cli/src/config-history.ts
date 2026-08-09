@@ -2,10 +2,9 @@ import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import * as path from 'node:path';
-import { atomicWrite, resolveWstackPaths, writeErr } from '@wrongstack/core/utils';
-import { ERROR_CODES, FsError } from '@wrongstack/core/types';
 import { isSecretField } from '@wrongstack/core/security';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { ERROR_CODES, FsError } from '@wrongstack/core/types';
+import { atomicWrite, resolveWstackPaths, toErrorMessage, writeErr } from '@wrongstack/core/utils';
 
 // ── UID ownership ──────────────────────────────────────────────────────────
 
@@ -239,7 +238,11 @@ function historyDir(homeFn: HomeDirFn = defaultHomeDir, targetConfigPath?: strin
 }
 
 function historyIndexPath(homeFn: HomeDirFn = defaultHomeDir, targetConfigPath?: string): string {
-  return path.join(path.dirname(configPath(homeFn, targetConfigPath)), 'config.history', 'index.json');
+  return path.join(
+    path.dirname(configPath(homeFn, targetConfigPath)),
+    'config.history',
+    'index.json',
+  );
 }
 
 function configPath(homeFn: HomeDirFn = defaultHomeDir, targetConfigPath?: string): string {
@@ -366,9 +369,7 @@ export async function backupCurrent(
       // same 0600 the config itself gets.
       await atomicWrite(last, content, { mode: 0o600 });
     } catch (err) {
-      writeErr(
-        `[config-history] .last backup failed: ${toErrorMessage(err)}`,
-      );
+      writeErr(`[config-history] .last backup failed: ${toErrorMessage(err)}`);
     }
   }
 
@@ -378,9 +379,7 @@ export async function backupCurrent(
       const bakPath = `${cfg}.${ts}.bak`;
       await atomicWrite(bakPath, content, { mode: 0o600 });
     } catch (err) {
-      writeErr(
-        `[config-history] timestamped backup failed: ${toErrorMessage(err)}`,
-      );
+      writeErr(`[config-history] timestamped backup failed: ${toErrorMessage(err)}`);
     }
   }
 
@@ -396,9 +395,7 @@ export async function backupCurrent(
       await safeDelete(path.join(dir, f));
     }
   } catch (err) {
-    writeErr(
-      `[config-history] backup prune failed: ${toErrorMessage(err)}`,
-    );
+    writeErr(`[config-history] backup prune failed: ${toErrorMessage(err)}`);
   }
 }
 

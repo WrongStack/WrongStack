@@ -1,6 +1,6 @@
-import { restoreFlags } from '../flags.js';
-import { color, resolveWstackPaths } from '@wrongstack/core/utils';
 import { ReplayLogStore } from '@wrongstack/core/storage';
+import { color, resolveWstackPaths } from '@wrongstack/core/utils';
+import { restoreFlags } from '../flags.js';
 import type { SubcommandHandler } from '../index.js';
 
 /**

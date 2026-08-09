@@ -58,9 +58,7 @@ export function buildWorktreeCommand(opts: SlashCommandContext): SlashCommand {
           return { message: await opts.onWorktree('prune') };
         case 'clean': {
           if (
-            !(await confirmDestructive(
-              'Remove ALL wstack-managed worktrees and their branches?',
-            ))
+            !(await confirmDestructive('Remove ALL wstack-managed worktrees and their branches?'))
           ) {
             return { message: 'Clean cancelled.' };
           }

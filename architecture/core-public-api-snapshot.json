@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.302.0",
+  "packageVersion": "0.302.2",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1125,7 +1125,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 31,
-      "sourceLines": 8656
+      "sourceLines": 9326
     },
     {
       "directory": "coordination",
@@ -1139,7 +1139,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 40,
-      "sourceLines": 9991
+      "sourceLines": 10008
     },
     {
       "directory": "defaults",
@@ -1202,7 +1202,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3510
+      "sourceLines": 3573
     },
     {
       "directory": "middleware",
@@ -1279,7 +1279,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 7,
-      "sourceLines": 2636
+      "sourceLines": 2708
     },
     {
       "directory": "skills",
@@ -1293,7 +1293,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 77,
-      "sourceLines": 17501
+      "sourceLines": 17509
     },
     {
       "directory": "tasking",
@@ -1314,7 +1314,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 65,
-      "sourceLines": 10208
+      "sourceLines": 10226
     },
     {
       "directory": "utils",

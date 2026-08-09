@@ -26,7 +26,12 @@ describe('auth-menu-audit — stdout/stderr sinks', () => {
   it('--audit stderr routes events to stderr', () => {
     const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const logger = createAuthAuditLogger(resolveAuditSink('stderr'));
-    logger.emit({ type: 'auth.local.clear', providerId: 'ollama', baseUrl: 'http://x', previousModels: ['m'] });
+    logger.emit({
+      type: 'auth.local.clear',
+      providerId: 'ollama',
+      baseUrl: 'http://x',
+      previousModels: ['m'],
+    });
     expect(write).toHaveBeenCalledWith(expect.stringContaining('"type":"auth.local.clear"'));
   });
 });

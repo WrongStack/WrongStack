@@ -36,8 +36,8 @@ vi.mock('@wrongstack/mcp', () => ({
   MCPRegistry: class {},
 }));
 
-import { parseMcpArgs, runMcpManagementCommand } from '../src/services/mcp-management.js';
 import type { MCPServerConfig } from '@wrongstack/core/types';
+import { parseMcpArgs, runMcpManagementCommand } from '../src/services/mcp-management.js';
 
 const preset: MCPServerConfig = {
   name: 'preset',
@@ -118,10 +118,7 @@ describe('runMcpManagementCommand', () => {
         callLatency: { p95Ms: 12 },
       },
     ]);
-    const out = await runMcpManagementCommand(
-      { action: 'list', name: '' },
-      deps(),
-    );
+    const out = await runMcpManagementCommand({ action: 'list', name: '' }, deps());
     expect(out).toContain('Configured servers:');
     expect(out).toContain('files');
     expect(out).toContain('● enabled');
@@ -155,7 +152,10 @@ describe('runMcpManagementCommand', () => {
 
   it('adds a new preset and starts it', async () => {
     h.mcpRegistry.list.mockReturnValue([]);
-    const out = await runMcpManagementCommand({ action: 'add', name: 'github', enable: true }, deps());
+    const out = await runMcpManagementCommand(
+      { action: 'add', name: 'github', enable: true },
+      deps(),
+    );
     expect(out).toContain('Enabled and started');
     expect(h.mcpRegistry.start).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
     expect(h.updateJsonObjectFile).toHaveBeenCalled();
@@ -188,7 +188,10 @@ describe('runMcpManagementCommand', () => {
 
   it('reports a start failure as enabled-but-not-started', async () => {
     h.mcpRegistry.start.mockRejectedValue(new Error('spawn failed'));
-    const out = await runMcpManagementCommand({ action: 'add', name: 'github', enable: true }, deps());
+    const out = await runMcpManagementCommand(
+      { action: 'add', name: 'github', enable: true },
+      deps(),
+    );
     expect(out).toContain('failed to start');
     expect(out).toContain('spawn failed');
   });

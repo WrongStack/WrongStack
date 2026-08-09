@@ -10,8 +10,8 @@ import {
   getKanbanQueueHealth,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '@wrongstack/tools/kanban';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 let tmpDir = '';
 
@@ -74,9 +74,9 @@ describe('Kanban queue health (Sprint 2 helper)', () => {
     expect(health.dependencyBlocked.count).toBe(1);
     expect(health.dependencyBlocked.tasks[0]?.task.title).toBe('Waiting on blocker');
     expect(health.staleAssignments.count).toBe(2);
-    expect(health.staleAssignments.tasks.map((entry) => entry.task.assignment?.agentId).sort()).toEqual(
-      expect.arrayContaining(['worker-r', 'worker-s']),
-    );
+    expect(
+      health.staleAssignments.tasks.map((entry) => entry.task.assignment?.agentId).sort(),
+    ).toEqual(expect.arrayContaining(['worker-r', 'worker-s']));
     expect(health.heartbeatDue.count).toBe(2);
     expect(health.lastDispatchedAt).toBeTruthy();
     expect(health.lastStaleRecoveredAt).toBeUndefined();
@@ -116,8 +116,14 @@ describe('Kanban queue health (Sprint 2 helper)', () => {
     );
 
     expect(toolResult).toMatchObject({ ok: true });
-    const health = (toolResult as { queueHealth?: { counts: { pending: number; ready: number }; dependencyBlocked: { count: number; tasks: unknown[] } } })
-      .queueHealth;
+    const health = (
+      toolResult as {
+        queueHealth?: {
+          counts: { pending: number; ready: number };
+          dependencyBlocked: { count: number; tasks: unknown[] };
+        };
+      }
+    ).queueHealth;
     expect(health).toBeDefined();
     expect(health?.counts.pending).toBe(1);
     expect(health?.counts.ready).toBe(2);

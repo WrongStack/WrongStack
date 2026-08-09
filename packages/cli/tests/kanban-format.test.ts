@@ -4,7 +4,7 @@
  * runtime helpers from @wrongstack/kanban, so a targeted mock keeps these
  * tests hermetic (no kanban daemon or dist dependency).
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   areDependenciesMet: vi.fn(() => true),
@@ -134,14 +134,32 @@ describe('kanban-format — pure formatting coverage', () => {
       mergedFromTaskIds: ['m1', 'm2'],
       dependsOn: ['task-2'],
       successCriteria: [
-        { description: 'tests pass', status: 'passed', checkedBy: 'agent-a', checkedAt: iso(60_000) },
+        {
+          description: 'tests pass',
+          status: 'passed',
+          checkedBy: 'agent-a',
+          checkedAt: iso(60_000),
+        },
         { description: 'no regressions', status: 'failed' },
         { description: 'skipped one', status: 'skipped' },
         { description: 'pending one', status: 'pending' },
       ],
       goalMetrics: [
-        { name: 'coverage', current: 90, target: 95, unit: '%', status: 'in_progress', notes: 'nearly' },
-        { name: 'without target', current: 1, target: undefined, unit: undefined, status: 'pending' },
+        {
+          name: 'coverage',
+          current: 90,
+          target: 95,
+          unit: '%',
+          status: 'in_progress',
+          notes: 'nearly',
+        },
+        {
+          name: 'without target',
+          current: 1,
+          target: undefined,
+          unit: undefined,
+          status: 'pending',
+        },
       ],
       estimatedHours: 4,
       actualHours: 3,
@@ -231,7 +249,12 @@ describe('kanban-format — pure formatting coverage', () => {
         task: baseTask({ assignment: { provider: 'anthropic', model: 'claude' } }),
       },
       {
-        board: { id: 'board-abcdef1234', title: 'S2', taskCount: 1, completedTaskCount: 0 } as never,
+        board: {
+          id: 'board-abcdef1234',
+          title: 'S2',
+          taskCount: 1,
+          completedTaskCount: 0,
+        } as never,
         task: baseTask({ chain: { chainId: 'ch', order: 2 } }),
       },
     ]);
@@ -242,18 +265,35 @@ describe('kanban-format — pure formatting coverage', () => {
 
   it('formatKanbanSnapshot renders counts and next-ready list', () => {
     const empty = formatKanbanSnapshot({
-      boards: [], ready: [], queued: [], running: [], blocked: [], review: [], failed: [], completed: [],
+      boards: [],
+      ready: [],
+      queued: [],
+      running: [],
+      blocked: [],
+      review: [],
+      failed: [],
+      completed: [],
     } as never);
     expect(empty).toContain('Boards');
     const withReady = formatKanbanSnapshot({
       boards: [],
       ready: [
         {
-          board: { id: 'board-1234567890', title: 'S', taskCount: 1, completedTaskCount: 0 } as never,
+          board: {
+            id: 'board-1234567890',
+            title: 'S',
+            taskCount: 1,
+            completedTaskCount: 0,
+          } as never,
           task: baseTask(),
         },
       ],
-      queued: [], running: [], blocked: [], review: [], failed: [], completed: [],
+      queued: [],
+      running: [],
+      blocked: [],
+      review: [],
+      failed: [],
+      completed: [],
     } as never);
     expect(withReady).toContain('Next Ready');
     expect(withReady).toContain('board-12:task-1');
@@ -272,8 +312,18 @@ describe('kanban-format — pure formatting coverage', () => {
 
   it('formatTaskChain renders pending and failed status badges via fmtStatus', () => {
     const out = formatTaskChain([
-      baseTask({ id: 'c1', title: 'Pending task', status: 'pending', chain: { chainId: 'ch-2', order: 0 } }),
-      baseTask({ id: 'c2', title: 'Failed task', status: 'failed', chain: { chainId: 'ch-2', order: 1 } }),
+      baseTask({
+        id: 'c1',
+        title: 'Pending task',
+        status: 'pending',
+        chain: { chainId: 'ch-2', order: 0 },
+      }),
+      baseTask({
+        id: 'c2',
+        title: 'Failed task',
+        status: 'failed',
+        chain: { chainId: 'ch-2', order: 1 },
+      }),
     ]);
     // STATUS_BADGE: pending → dim, failed → bold red (lines 20, 24) — both
     // route through fmtStatus and render the underscore-replaced status.
@@ -292,9 +342,7 @@ describe('kanban-format — pure formatting coverage', () => {
     // in_progress icon in the dependency chain (line 240).
     const chain = formatDependencyChain(
       baseBoard({
-        tasks: [
-          baseTask({ id: 'ip', title: 'Active', status: 'in_progress', dependsOn: [] }),
-        ],
+        tasks: [baseTask({ id: 'ip', title: 'Active', status: 'in_progress', dependsOn: [] })],
       }),
       'ip',
     );

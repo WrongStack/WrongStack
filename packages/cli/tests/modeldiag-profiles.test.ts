@@ -1,21 +1,21 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  MODEL_PROFILES,
-  fmtTokens,
-  fmtMs,
-  fmtPrice,
+  type CacheProvider,
   checkMark,
   costLabel,
-  speedLabel,
-  scoreBar,
-  findProfile,
-  scoreModel,
-  rankModels,
-  roleCat,
-  ROLE_CATEGORY,
   EVAL_CATEGORIES,
   EVAL_TASKS,
-  type CacheProvider,
+  findProfile,
+  fmtMs,
+  fmtPrice,
+  fmtTokens,
+  MODEL_PROFILES,
+  ROLE_CATEGORY,
+  rankModels,
+  roleCat,
+  scoreBar,
+  scoreModel,
+  speedLabel,
 } from '../src/subcommands/handlers/modeldiag-profiles.js';
 
 describe('modeldiag-profiles', () => {
@@ -216,7 +216,9 @@ describe('modeldiag-profiles', () => {
     it('ranks models by score descending', () => {
       const providers: CacheProvider[] = [
         {
-          id: 'anthropic', name: 'Anthropic', family: 'anthropic',
+          id: 'anthropic',
+          name: 'Anthropic',
+          family: 'anthropic',
           models: [
             { id: 'claude-opus-4', capabilities: { contextWindow: 200000 } },
             { id: 'claude-haiku-3', capabilities: { contextWindow: 200000 } },
@@ -231,7 +233,9 @@ describe('modeldiag-profiles', () => {
     it('respects the limit parameter', () => {
       const providers: CacheProvider[] = [
         {
-          id: 'openai', name: 'OpenAI', family: 'openai',
+          id: 'openai',
+          name: 'OpenAI',
+          family: 'openai',
           models: [
             { id: 'gpt-4o', capabilities: { contextWindow: 128000 } },
             { id: 'gpt-4o-mini', capabilities: { contextWindow: 128000 } },
@@ -245,11 +249,16 @@ describe('modeldiag-profiles', () => {
     it('includes pricing data in scored models', () => {
       const providers: CacheProvider[] = [
         {
-          id: 'openai', name: 'OpenAI', family: 'openai',
-          models: [{
-            id: 'gpt-4o', capabilities: { contextWindow: 128000 },
-            pricing: { input: 2.5, output: 10 },
-          }],
+          id: 'openai',
+          name: 'OpenAI',
+          family: 'openai',
+          models: [
+            {
+              id: 'gpt-4o',
+              capabilities: { contextWindow: 128000 },
+              pricing: { input: 2.5, output: 10 },
+            },
+          ],
         },
       ];
       const result = rankModels(providers, () => true, 'coding', 5);

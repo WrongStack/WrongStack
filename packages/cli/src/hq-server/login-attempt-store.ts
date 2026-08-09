@@ -17,8 +17,8 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { atomicWrite } from '@wrongstack/core/utils';
 import { restrictFilePermissions } from '@wrongstack/core/security';
+import { atomicWrite } from '@wrongstack/core/utils';
 
 export interface LoginAttemptEntry {
   count: number;
@@ -128,11 +128,7 @@ export class LoginAttemptStore {
    *
    * Returns the updated IP entry (for the response Retry-After header).
    */
-  recordFailure(
-    ip: string,
-    password?: string,
-    maxBackoffMs = 16_000,
-  ): LoginAttemptEntry {
+  recordFailure(ip: string, password?: string, maxBackoffMs = 16_000): LoginAttemptEntry {
     const backoff = (prev: LoginAttemptEntry | undefined): LoginAttemptEntry => {
       const count = (prev?.count ?? 0) + 1;
       return {
