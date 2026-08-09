@@ -448,12 +448,12 @@ async function dispatchOperation(
       );
     case 'incomingCalls': {
       const callArgs = fixedArgs(message.args as CallRefsOpArgs);
-      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100]);
+      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100, callArgs.transitive ?? false]);
       return cachedRead(incomingCallsCache, cacheKey, () => incomingCallsService(callArgs));
     }
     case 'outgoingCalls': {
       const callArgs = fixedArgs(message.args as CallRefsOpArgs);
-      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100]);
+      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100, callArgs.transitive ?? false]);
       return cachedRead(outgoingCallsCache, cacheKey, () => outgoingCallsService(callArgs));
     }
     default:

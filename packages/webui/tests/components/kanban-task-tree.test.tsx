@@ -26,12 +26,12 @@ function boardWith(revision: number): KanbanBoard {
     id: 't1',
     title: 'Parent',
     status: 'pending',
+    priority: 'medium',
     order: 0,
     columnId: 'c1',
-    priority: 'medium',
     createdAt: '2026-07-20T12:00:00.000Z',
     updatedAt: '2026-07-21T12:00:00.000Z',
-  } satisfies KanbanTask;
+  } as KanbanTask;
   return {
     id: 'b1',
     title: 'Board',

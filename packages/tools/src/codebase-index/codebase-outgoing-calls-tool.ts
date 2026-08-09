@@ -59,6 +59,13 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
         minimum: 1,
         maximum: 200,
       },
+      transitive: {
+        type: 'boolean',
+        description:
+          'When true, traverse the full transitive dependency chain (callees of callees, to unlimited depth). ' +
+          'Default false: return only direct callees. Cycle-safe via SQL recursive CTE.',
+        default: false,
+      },
     },
     required: ['symbol'],
   },
@@ -87,6 +94,7 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
     }
 
     const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 50), 200));
+    const transitive = input.transitive === true;
     const { calls, symbolFound, unresolvedCount, totalMatches } = await outgoingCallsService(
       {
         projectRoot: ctx.projectRoot,
@@ -94,6 +102,7 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
         symbol: input.symbol,
         file: input.file,
         limit,
+        transitive,
       },
     );
 
@@ -154,6 +163,7 @@ interface OutgoingCallsInput {
   symbol: string;
   file?: string | undefined;
   limit?: number | undefined;
+  transitive?: boolean | undefined;
 }
 
 interface OutgoingCallsOutput {

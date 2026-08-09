@@ -1,9 +1,15 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
+import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
 import { checkUnixSocketPath } from '@wrongstack/core/utils';
 import { IndexTimeoutError, LockError } from './circuit-breaker.js';
+import {
+  encodeBinaryFrame,
+  isBinaryFrame,
+  decodeBinaryFrame,
+} from './binary-frame.js';
 import {
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
   projectIndexServerBuildId,
@@ -274,6 +280,12 @@ function cancellationError(signal: AbortSignal): Error {
 class ProjectServerConnection {
   private socket: net.Socket | null = null;
   private buffer = '';
+  /** P6: binary frame buffer — accumulates raw bytes when in binary mode. */
+  private binaryBuffer: Buffer[] = [];
+  /** P6: StringDecoder for safe UTF-8 multibyte handling in JSON mode. */
+  private textDecoder: StringDecoder | null = null;
+  /** P6: true once the server advertises binary support and client accepts. */
+  private useBinary = false;
   private info: ProjectIndexServerInfo | null = null;
   private activity: ProjectIndexServerActivity | null = null;
   private health: ProjectIndexServerClientHealth | null = null;
@@ -456,6 +468,8 @@ class ProjectServerConnection {
     this.info = null;
     this.activity = null;
     this.health = null;
+    this.useBinary = false;
+    this.binaryBuffer = [];
     this.connectReject?.(new Error('codebase-index client disconnected'));
     this.connectResolve = null;
     this.connectReject = null;
@@ -612,11 +626,17 @@ class ProjectServerConnection {
     this.activity = null;
     this.health = null;
     this.buffer = '';
+    // P6: reset binary mode state on reconnect — the server re-negotiates
+    // via the hello frame, so stale binaryBuffer/useBinary from the prior
+    // connection must not leak into the new one.
+    this.binaryBuffer = [];
+    this.useBinary = false;
+    this.textDecoder = null;
 
     return new Promise<void>((resolve, reject) => {
       const socket = net.createConnection(this.endpoint);
       this.socket = socket;
-      socket.setEncoding('utf8');
+      // P6: no setEncoding — raw Buffer chunks needed for binary frame support
       const timer = setTimeout(() => {
         reject(new Error('codebase-index server handshake timed out'));
         socket.destroy();
@@ -638,7 +658,7 @@ class ProjectServerConnection {
       this.connectResolve = finishResolve;
       this.connectReject = finishReject;
 
-      socket.on('data', (chunk: string) => this.onData(socket, chunk));
+      socket.on('data', (chunk: Buffer) => this.onData(socket, chunk));
       socket.on('error', (error) => {
         if (!this.info) finishReject(error);
       });
@@ -646,9 +666,21 @@ class ProjectServerConnection {
     });
   }
 
-  private onData(socket: net.Socket, chunk: string): void {
+  private onData(socket: net.Socket, chunk: Buffer): void {
     if (socket !== this.socket) return;
-    this.buffer += chunk;
+
+    // P6: Only parse binary frames when this socket has negotiated binary mode
+    // (after seeing binarySupported in the hello frame). Pre-negotiation chunks
+    // are always JSON text — a byte 0x57 ('W') is just an ASCII character.
+    if (this.useBinary) {
+      this.onBinaryData(socket, chunk);
+      return;
+    }
+
+    // JSON mode: use StringDecoder to safely handle multibyte UTF-8 chars
+    // that may be split across chunk boundaries (doc comments, non-ASCII names).
+    if (!this.textDecoder) this.textDecoder = new StringDecoder('utf8');
+    this.buffer += this.textDecoder.write(chunk);
     while (true) {
       const newline = this.buffer.indexOf('\n');
       if (newline < 0) {
@@ -675,6 +707,54 @@ class ProjectServerConnection {
     }
   }
 
+  /**
+   * P6: Parse binary frames from the raw buffer.
+   *
+   * Each frame is: [1 byte magic 0x57] [4 bytes uint32 BE length] [payload].
+   * The magic byte distinguishes binary from JSON — a JSON frame's first byte
+   * is `{` (0x7B), so there is no ambiguity even in a mixed-mode buffer.
+   */
+  private onBinaryData(socket: net.Socket, chunk: Buffer): void {
+    this.binaryBuffer.push(chunk);
+    const all = Buffer.concat(this.binaryBuffer);
+    let offset = 0;
+
+    while (offset + 5 <= all.length) {
+      if (!isBinaryFrame(all[offset]!)) {
+        // Not a binary frame — could be leftover JSON. Fall back to text path
+        // and reset useBinary so subsequent chunks parse as text, not binary.
+        this.useBinary = false;
+        this.buffer += all.subarray(offset).toString('utf8');
+        this.binaryBuffer = [];
+        return;
+      }
+      const frameLen = all.readUInt32BE(offset + 1);
+      // P6: Reject implausible frame lengths — a malicious or buggy server
+      // could claim a 4 GiB payload and hang the client waiting for it.
+      // 256 MB is far above any legitimate IPC response.
+      if (frameLen > 256 * 1024 * 1024) {
+        socket.destroy();
+        this.transition('offline', { error: 'binary frame length exceeds 256MB limit' });
+        return;
+      }
+      const totalLen = 5 + frameLen;
+      if (offset + totalLen > all.length) break; // incomplete frame, wait for more data
+
+      const payload = all.subarray(offset + 5, offset + 5 + frameLen);
+      try {
+        const message = decodeBinaryFrame(payload) as ProjectServerMessage;
+        this.onMessage(message);
+      } catch {
+        socket.destroy(new Error('invalid binary codebase-index server response'));
+        return;
+      }
+      offset += totalLen;
+    }
+
+    // Keep the remainder for the next chunk.
+    this.binaryBuffer = offset < all.length ? [all.subarray(offset)] : [];
+  }
+
   private onMessage(message: ProjectServerMessage): void {
     if (message.type === 'hello') {
       if (message.protocolVersion !== PROJECT_INDEX_SERVER_PROTOCOL_VERSION) {
@@ -694,6 +774,10 @@ class ProjectServerConnection {
       }
       this.info = message;
       this.markResponsive();
+      // P6: If the server supports binary framing, switch this socket to binary
+      // mode. The next write() call sends binary frames; the server detects the
+      // magic byte and switches its read path.
+      if (message.binarySupported) this.useBinary = true;
       this.transition('connected', { pid: message.pid });
       ensureHeartbeatLoop();
       this.connectResolve?.();
@@ -757,7 +841,12 @@ class ProjectServerConnection {
 
   private write(message: object): void {
     const socket = this.socket;
-    if (socket && !socket.destroyed) socket.write(encodeProjectServerMessage(message));
+    if (!socket || socket.destroyed) return;
+    if (this.useBinary) {
+      socket.write(encodeBinaryFrame(message));
+    } else {
+      socket.write(encodeProjectServerMessage(message));
+    }
   }
 
   private rejectStaleServer(message: ProjectIndexServerInfo, reason: string): void {

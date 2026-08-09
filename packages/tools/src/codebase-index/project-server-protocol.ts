@@ -15,6 +15,8 @@ export interface ProjectIndexServerInfo {
   indexDir: string;
   endpoint: string;
   startedAt: string;
+  /** P6: server can switch to binary MessagePack framing after handshake. */
+  binarySupported?: boolean;
 }
 
 export interface ProjectIndexServerActivity {

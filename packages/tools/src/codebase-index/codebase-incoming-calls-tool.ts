@@ -60,6 +60,13 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
         minimum: 1,
         maximum: 200,
       },
+      transitive: {
+        type: 'boolean',
+        description:
+          'When true, traverse the full transitive call chain (callers of callers, to unlimited depth). ' +
+          'Default false: return only direct callers. Cycle-safe via SQL recursive CTE.',
+        default: false,
+      },
     },
     required: ['symbol'],
   },
@@ -88,6 +95,7 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
     }
 
     const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 50), 200));
+    const transitive = input.transitive === true;
     const { calls, symbolFound, ambiguous, totalMatches } = await incomingCallsService(
       {
         projectRoot: ctx.projectRoot,
@@ -95,6 +103,7 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
         symbol: input.symbol,
         file: input.file,
         limit,
+        transitive,
       },
     );
 
@@ -155,6 +164,7 @@ interface IncomingCallsInput {
   symbol: string;
   file?: string | undefined;
   limit?: number | undefined;
+  transitive?: boolean | undefined;
 }
 
 interface IncomingCallsOutput {

@@ -47,13 +47,18 @@ import {
 import {
   type BulkSymbolRow,
   bulkInsertFtsWithStatement,
+  bulkInsertVectorsWithStatement,
+  type BulkVectorRow,
   bulkInsertRefsWithStatement,
   bulkInsertSymbolsWithStatement,
 } from './writer-bulk-insert.js';
 import {
   findIncomingCallsByName,
   findOutgoingCallsByName,
+  findReachableSymbolIds,
   findRefsFromWithStatement,
+  findTransitiveIncomingCallsByName,
+  findTransitiveOutgoingCallsByName,
   findRefsToWithStatement,
   getFileGraphWithStatement,
   getPackageGraphWithStatement,
@@ -71,6 +76,7 @@ import {
   REFS_TABLE_SQL,
   SYMBOL_INDEX_SQL,
   SYMBOLS_FTS_SQL,
+  SYMBOL_VECTORS_TABLE_SQL,
 } from './writer-schema.js';
 import {
   buildWriterSearchWhere,
@@ -81,6 +87,13 @@ import {
   type WriterSearchRow,
 } from './writer-search-helpers.js';
 import { StorePool } from './writer-store-pool.js';
+import {
+  cosineSimilarity,
+  decodeVector,
+  embedText,
+  encodeVector,
+  reciprocalRankFusion,
+} from './vector-search.js';
 
 export { codebaseIndexDirOverride, resolveIndexDir } from './writer-helpers.js';
 export { StorePool } from './writer-store-pool.js';
@@ -105,6 +118,13 @@ export class IndexStore {
    * When false, ranked search falls back to the LIKE + in-process BM25 path.
    */
   private ftsAvailable = false;
+
+  /**
+   * Phase 3: true when the `symbol_vectors` table was created successfully.
+   * When false, hybrid search skips the vector pass and falls back to FTS5
+   * (or LIKE) only.
+   */
+  private vectorsAvailable = false;
 
   /**
    * Cache of prepared statements keyed by their SQL text. `DatabaseSync`
@@ -210,7 +230,13 @@ export class IndexStore {
    */
   private repairMissingColumns(): void {
     const expected: ReadonlyArray<{ table: string; columns: ReadonlyArray<[string, string]> }> = [
-      { table: 'files', columns: [['package', "TEXT NOT NULL DEFAULT ''"]] },
+      {
+        table: 'files',
+        columns: [
+          ['package', "TEXT NOT NULL DEFAULT ''"],
+          ['content_hash', "TEXT NOT NULL DEFAULT ''"],
+        ],
+      },
       {
         table: 'refs',
         columns: [
@@ -251,6 +277,7 @@ export class IndexStore {
         DROP TABLE IF EXISTS symbols;
         DROP TABLE IF EXISTS files;
         DROP TABLE IF EXISTS refs;
+        DROP TABLE IF EXISTS symbol_vectors;
       `);
       this.db.exec('DROP TABLE IF EXISTS symbols_fts');
       this.stmt('UPDATE metadata SET value = ? WHERE key = ?').run(
@@ -279,6 +306,17 @@ export class IndexStore {
     // in-process BM25 build: MATCH uses the inverted index and bm25() ranks
     // natively. Kept in sync explicitly in insertSymbols/delete*/clearAll.
     try {
+      // Phase 3 migration: if the FTS table was created with the old unicode61
+      // tokenizer, drop it so the IF NOT EXISTS below recreates with trigram.
+      // The trigram tokenizer indexes 3-char sliding windows, enabling substring
+      // and partial-identifier matching that unicode61 cannot do. The rebuild
+      // is handled by the symbolCount/ftsCount drift check below.
+      const ftsSchema = this.stmt(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='symbols_fts'",
+      ).get() as { sql?: string } | undefined;
+      if (ftsSchema?.sql && ftsSchema.sql.includes('unicode61')) {
+        this.db.exec('DROP TABLE IF EXISTS symbols_fts');
+      }
       this.db.exec(SYMBOLS_FTS_SQL);
       this.ftsAvailable = true;
       // A database may have been populated by a runtime without FTS5. Backfill
@@ -294,6 +332,7 @@ export class IndexStore {
       );
       if (symbolCount !== ftsCount) {
         this.db.exec('DELETE FROM symbols_fts');
+        if (this.vectorsAvailable) this.db.exec('DELETE FROM symbol_vectors');
         const rows = this.stmt(
           'SELECT id, name, signature, doc_comment FROM symbols ORDER BY id',
         ).all() as Array<{ id: number; name: string; signature: string; doc_comment: string }>;
@@ -315,6 +354,17 @@ export class IndexStore {
     } catch {
       // SQLite built without FTS5 — searchRanked falls back to LIKE + BM25.
       this.ftsAvailable = false;
+    }
+
+    // Phase 3: symbol embedding vectors table (always available — no
+    // extension dependency, vectors are stored as BLOBs and similarity is
+    // computed in JS). Created unconditionally so the hybrid search path
+    // is ready whenever vectors are populated.
+    try {
+      this.db.exec(SYMBOL_VECTORS_TABLE_SQL);
+      this.vectorsAvailable = true;
+    } catch {
+      this.vectorsAvailable = false;
     }
 
     // Seed the symbol-id sequence once. Subsequent allocations are O(1)
@@ -442,6 +492,7 @@ export class IndexStore {
         const result: IndexSymbol[] = [];
         const bulk: BulkSymbolRow[] = [];
         const ftsRows: Array<{ id: number; text: string }> = [];
+        const vectorRows: BulkVectorRow[] = [];
 
         for (const s of symbols) {
           const id = nextId++;
@@ -461,6 +512,10 @@ export class IndexStore {
           if (this.ftsAvailable) {
             ftsRows.push({ id, text: buildIndexableText(s.name, s.signature, s.docComment) });
           }
+          vectorRows.push({
+            id,
+            vector: encodeVector(embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment))),
+          });
           result.push({ ...s, id });
         }
         bulkInsertSymbolsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, bulk);
@@ -470,6 +525,13 @@ export class IndexStore {
           this.ftsAvailable,
           ftsRows,
         );
+        if (this.vectorsAvailable) {
+          bulkInsertVectorsWithStatement(
+            (sql) => this.stmt(sql),
+            IndexStore.MAX_SQL_VARS,
+            vectorRows,
+          );
+        }
 
         this.db.exec('COMMIT');
         return result;
@@ -489,6 +551,11 @@ export class IndexStore {
         if (this.ftsAvailable) {
           this.stmt(
             'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
+          ).run(file);
+        }
+        if (this.vectorsAvailable) {
+          this.stmt(
+            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
           ).run(file);
         }
         this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
@@ -517,6 +584,11 @@ export class IndexStore {
             'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
           ).run(file);
         }
+        if (this.vectorsAvailable) {
+          this.stmt(
+            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+          ).run(file);
+        }
         this.stmt(
           'DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
         ).run(file);
@@ -536,14 +608,22 @@ export class IndexStore {
   upsertFile(meta: FileMeta): void {
     this.runWithRetry(() => {
       this.stmt(
-        `INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed)
-         VALUES (?, ?, ?, ?, ?)
+        `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(file) DO UPDATE SET
            lang = excluded.lang,
            mtime_ms = excluded.mtime_ms,
+           content_hash = excluded.content_hash,
            symbol_count = excluded.symbol_count,
            last_indexed = excluded.last_indexed`,
-      ).run(meta.file, meta.lang, meta.mtimeMs, meta.symbolCount, meta.lastIndexed);
+      ).run(
+        meta.file,
+        meta.lang,
+        meta.mtimeMs,
+        meta.contentHash ?? '',
+        meta.symbolCount,
+        meta.lastIndexed,
+      );
     });
   }
 
@@ -757,11 +837,30 @@ export class IndexStore {
       effectiveKind = mapped;
     }
 
-    // Each token is quoted (neutralises FTS5 query syntax) and prefix-starred.
-    const match = tokens.map((t) => `"${t.replaceAll('"', '')}"*`).join(' OR ');
+    // With the trigram tokenizer, FTS5 indexes 3-character sliding windows.
+    // A MATCH on a token ≥ 3 chars matches any text containing it as a
+    // substring — better recall than the old unicode61 prefix-star approach
+    // ("hel" finds both "hello" and "MathHelper"). Tokens shorter than 3
+    // chars can't produce a trigram; those are handled by the LIKE fallback
+    // branch below.
+    const longTokens = tokens.filter((t) => t.length >= 3);
+    const shortTokens = tokens.filter((t) => t.length < 3);
+
+    if (longTokens.length === 0) {
+      return this.searchRankedFallback(query, filter, safeLimit);
+    }
+
+    const match = longTokens.map((t) => `"${t.replaceAll('"', '')}"`).join(' OR ');
 
     const conditions: string[] = ['symbols_fts MATCH ?'];
     const values: (string | number)[] = [match];
+    // Short tokens (< 3 chars) can't produce a trigram, so they're filtered
+    // via LIKE on the symbol's text column. They use the LIKE ESCAPE clause
+    // to handle literal % and _ in the token.
+    for (const shortTok of shortTokens) {
+      conditions.push("s.text LIKE ? ESCAPE '\\'");
+      values.push(`%${escapeLike(shortTok)}%`);
+    }
     if (effectiveKind) {
       conditions.push('s.kind = ?');
       values.push(effectiveKind);
@@ -782,7 +881,7 @@ export class IndexStore {
     const total = countRows[0] ? Number(countRows[0].n) : 0;
     if (total === 0) return { results: [], total: 0 };
 
-    const rows = this.stmt(
+    const bm25Rows = this.stmt(
       `SELECT s.id, s.lang, s.kind, s.name, s.file, s.line, s.col, s.signature, s.doc_comment,
                 -bm25(symbols_fts) AS score,
                 snippet(symbols_fts, 0, '', '', '…', 12) AS snippet
@@ -808,8 +907,53 @@ export class IndexStore {
       snippet: string;
     }[];
 
+    // Phase 3: hybrid search — fuse BM25 results with vector similarity.
+    // If vectors are available, compute a vector pass over the same candidate
+    // set and merge rankings via Reciprocal Rank Fusion (k=60). This lets a
+    // query like "user authentication handler" match verifySession() even
+    // though no token overlaps — the n-gram embeddings capture conceptual
+    // similarity.
+    if (this.vectorsAvailable && bm25Rows.length > 0) {
+      const queryVec = embedText(query);
+      const candidateIds = bm25Rows.map((r) => r.id);
+      const placeholders = candidateIds.map(() => '?').join(',');
+      const vecRows = this.stmt(
+        `SELECT sv.symbol_id, sv.vector FROM symbol_vectors sv WHERE sv.symbol_id IN (${placeholders})`,
+      ).all(...candidateIds) as { symbol_id: number; vector: Buffer }[];
+
+      // Compute cosine similarity for each candidate and rank.
+      const vecScores: Array<{ id: number; sim: number }> = vecRows
+        .map((r) => ({
+          id: r.symbol_id,
+          sim: cosineSimilarity(queryVec, decodeVector(r.vector)),
+        }))
+        .sort((a, b) => b.sim - a.sim);
+
+      const bm25Rank = new Map<number, number>();
+      bm25Rows.forEach((r, i) => bm25Rank.set(r.id, i));
+      const vecRank = new Map<number, number>();
+      vecScores.forEach((r, i) => vecRank.set(r.id, i));
+
+      const fused = reciprocalRankFusion(bm25Rank, vecRank, 60);
+
+      // Build a lookup for re-sorting.
+      const fusedScore = new Map(fused);
+
+      // Re-sort BM25 results by fused score (highest = most relevant).
+      const sorted = [...bm25Rows].sort(
+        (a, b) => (fusedScore.get(b.id) ?? 0) - (fusedScore.get(a.id) ?? 0),
+      );
+
+      return {
+        results: sorted.map((row) =>
+          mapWriterSearchRow(row, filter?.lspKind, Math.max(0.0001, row.score), row.snippet),
+        ),
+        total,
+      };
+    }
+
     return {
-      results: rows.map((row) =>
+      results: bm25Rows.map((row) =>
         mapWriterSearchRow(row, filter?.lspKind, Math.max(0.0001, row.score), row.snippet),
       ),
       total,
@@ -977,6 +1121,7 @@ export class IndexStore {
         this.db.exec('DROP TABLE IF EXISTS files');
         this.db.exec('DROP TABLE IF EXISTS metadata');
         if (this.ftsAvailable) this.db.exec('DROP TABLE IF EXISTS symbols_fts');
+        this.db.exec('DROP TABLE IF EXISTS symbol_vectors');
         this.db.exec('COMMIT');
         // Clear statement cache — prepared stmts reference the now-dropped tables.
         this.stmtCache.clear();
@@ -1057,6 +1202,7 @@ export class IndexStore {
       refs: Ref[];
       mtimeMs: number;
       symbolCount: number;
+      contentHash?: string | undefined;
     }>,
     options: { deleteForFiles?: string[] | undefined } = {},
   ): IndexSymbol[] {
@@ -1083,6 +1229,11 @@ export class IndexStore {
               `DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
             ).run(...options.deleteForFiles);
           }
+          if (this.vectorsAvailable) {
+            this.stmt(
+              `DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
+            ).run(...options.deleteForFiles);
+          }
           // Refs first (FK direction: refs.from_id → symbols.id).
           this.stmt(
             `DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
@@ -1100,6 +1251,7 @@ export class IndexStore {
         const refsToInsert: Ref[] = [];
         const bulkSyms: BulkSymbolRow[] = [];
         const ftsRows: Array<{ id: number; text: string }> = [];
+        const vectorRows: BulkVectorRow[] = [];
 
         for (const entry of entries) {
           const insertedForEntry: IndexSymbol[] = [];
@@ -1124,6 +1276,10 @@ export class IndexStore {
                 text: buildIndexableText(s.name, s.signature, s.docComment),
               });
             }
+            vectorRows.push({
+              id,
+              vector: encodeVector(embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment))),
+            });
             const inserted = { ...s, id };
             allInserted.push(inserted);
             insertedForEntry.push(inserted);
@@ -1138,23 +1294,38 @@ export class IndexStore {
           this.ftsAvailable,
           ftsRows,
         );
+        if (this.vectorsAvailable) {
+          bulkInsertVectorsWithStatement(
+            (sql) => this.stmt(sql),
+            IndexStore.MAX_SQL_VARS,
+            vectorRows,
+          );
+        }
 
         // 3) Multi-row insert all refs.
         bulkInsertRefsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, refsToInsert);
 
         // 4) Upsert file metadata for every entry (small N — single-row is fine).
         const upsertStmt = this.stmt(
-          `INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed)
-           VALUES (?, ?, ?, ?, ?)
+          `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
+           VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(file) DO UPDATE SET
              lang = excluded.lang,
              mtime_ms = excluded.mtime_ms,
+             content_hash = excluded.content_hash,
              symbol_count = excluded.symbol_count,
              last_indexed = excluded.last_indexed`,
         );
         const now = Date.now();
         for (const entry of entries) {
-          upsertStmt.run(entry.file, entry.lang, entry.mtimeMs, entry.symbolCount, now);
+          upsertStmt.run(
+            entry.file,
+            entry.lang,
+            entry.mtimeMs,
+            entry.contentHash ?? '',
+            entry.symbolCount,
+            now,
+          );
         }
 
         this.resolveRefsForNamesUnsafe(affectedNames);
@@ -1259,19 +1430,32 @@ export class IndexStore {
             'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
           ).run(meta.file);
         }
+        if (this.vectorsAvailable) {
+          this.stmt(
+            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+          ).run(meta.file);
+        }
         this.stmt(
           'DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
         ).run(meta.file);
         this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(meta.file);
         this.stmt(
-          `INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed)
-           VALUES (?, ?, ?, ?, ?)
+          `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
+           VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(file) DO UPDATE SET
              lang = excluded.lang,
              mtime_ms = excluded.mtime_ms,
+             content_hash = excluded.content_hash,
              symbol_count = excluded.symbol_count,
              last_indexed = excluded.last_indexed`,
-        ).run(meta.file, meta.lang, meta.mtimeMs, meta.symbolCount, meta.lastIndexed);
+        ).run(
+          meta.file,
+          meta.lang,
+          meta.mtimeMs,
+          meta.contentHash ?? '',
+          meta.symbolCount,
+          meta.lastIndexed,
+        );
         this.resolveRefsForNamesUnsafe(affectedNames);
         this.db.exec('COMMIT');
       } catch (err) {
@@ -1346,6 +1530,34 @@ export class IndexStore {
    */
   findOutgoingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
     return findOutgoingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
+  }
+
+  /**
+   * Transitive incoming-call tree: all symbols that transitively call the
+   * target, to an unbounded depth (cycle-safe via SQL UNION deduplication).
+   * Used by `codebase-incoming-calls` when the caller wants the full call
+   * chain rather than just direct callers.
+   */
+  findTransitiveIncomingCallsByName(symbolName: string, file?: string, limit = 200): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
+    return findTransitiveIncomingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
+  }
+
+  /**
+   * Transitive outgoing-call tree: all symbols the target transitively calls.
+   * Used by `codebase-outgoing-calls` when the caller wants the full
+   * dependency chain rather than just direct callees.
+   */
+  findTransitiveOutgoingCallsByName(symbolName: string, file?: string, limit = 200): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
+    return findTransitiveOutgoingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
+  }
+
+  /**
+   * Compute the set of symbol IDs reachable from the given seed IDs using a
+   * native SQLite recursive CTE. Used by dead-code detection to replace the
+   * in-memory BFS.
+   */
+  findReachableSymbolIds(seedIds: number[]): Set<number> {
+    return findReachableSymbolIds((sql) => this.stmt(sql), seedIds);
   }
 
   /**

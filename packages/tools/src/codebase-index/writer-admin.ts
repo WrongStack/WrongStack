@@ -72,13 +72,14 @@ export function getFileMetaWithStatement(
   file: string,
 ): FileMeta | null {
   const rows = stmt(
-    'SELECT file, lang, mtime_ms, symbol_count, last_indexed FROM files WHERE file = ?',
+    'SELECT file, lang, mtime_ms, symbol_count, last_indexed, content_hash FROM files WHERE file = ?',
   ).all(file) as Array<{
     file: string;
     lang: string;
     mtime_ms: number;
     symbol_count: number;
     last_indexed: number;
+    content_hash: string;
   }>;
   const r = rows[0];
   if (!r) return null;
@@ -88,17 +89,21 @@ export function getFileMetaWithStatement(
     mtimeMs: r.mtime_ms,
     symbolCount: r.symbol_count,
     lastIndexed: r.last_indexed,
+    contentHash: r.content_hash,
   };
 }
 
 export function getAllFileMetasWithStatement(stmt: PrepareStatement): FileMeta[] {
   return (
-    stmt('SELECT file, lang, mtime_ms, symbol_count, last_indexed FROM files').all() as Array<{
+    stmt(
+      'SELECT file, lang, mtime_ms, symbol_count, last_indexed, content_hash FROM files',
+    ).all() as Array<{
       file: string;
       lang: string;
       mtime_ms: number;
       symbol_count: number;
       last_indexed: number;
+      content_hash: string;
     }>
   ).map((r) => ({
     file: r.file,
@@ -106,6 +111,7 @@ export function getAllFileMetasWithStatement(stmt: PrepareStatement): FileMeta[]
     mtimeMs: r.mtime_ms,
     symbolCount: r.symbol_count,
     lastIndexed: r.last_indexed,
+    contentHash: r.content_hash,
   }));
 }
 

@@ -72,7 +72,9 @@ describe('manual entry: token paste + click Connect', () => {
     expect(s2.headers.get('set-cookie')).toMatch(/HttpOnly/i);
 
     // Step 3: page reload, /api/snapshot must succeed with the new cookie.
-    const cookie = (s2.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+    const cookie = s2.headers.get('set-cookie')?.split(';', 1)[0];
+    expect(cookie).toBeTruthy();
+    if (!cookie) throw new Error('HQ auth upgrade did not return a session cookie');
     const s3 = await fetch(`${base}/api/snapshot`, {
       headers: { Cookie: cookie, Origin: base },
     });

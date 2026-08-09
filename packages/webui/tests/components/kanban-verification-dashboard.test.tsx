@@ -26,23 +26,23 @@ function boardWith(revision: number): KanbanBoard {
     id: 't1',
     title: 'Ship it',
     status: 'completed',
+    priority: 'medium',
     order: 0,
     columnId: 'c1',
-    priority: 'medium',
     createdAt: '2026-07-20T12:00:00.000Z',
     updatedAt: '2026-07-21T12:00:00.000Z',
     verificationReport: {
       taskId: 't1',
       taskTitle: 'Ship it',
       boardId: 'b1',
-      startedAt: '2026-07-21T11:59:00.000Z',
+      startedAt: '2026-07-20T12:00:00.000Z',
       completedAt: '2026-07-21T12:00:00.000Z',
       verdict: 'passed',
       checks: [],
-      markdownSummary: 'Verification passed.',
+      markdownSummary: '',
       attachments: [],
     },
-  } satisfies KanbanTask;
+  } as KanbanTask;
   return {
     id: 'b1',
     title: 'Board',

@@ -10,6 +10,12 @@ export const CORE_TABLES_SQL = `
     file TEXT PRIMARY KEY,
     lang TEXT NOT NULL,
     mtime_ms INTEGER NOT NULL,
+    -- Phase 2: xxHash64 of the file's UTF-8 bytes. Empty string when the
+    -- indexer hasn't populated it yet (legacy rows, schema repaired by
+    -- repairMissingColumns). Compared on incremental re-index so that a
+    -- touch or branch-switch that leaves content byte-identical skips the
+    -- expensive parse phase entirely (refactoring proposal Phase 2).
+    content_hash TEXT NOT NULL DEFAULT '',
     symbol_count INTEGER NOT NULL DEFAULT 0,
     last_indexed INTEGER NOT NULL,
     -- Code Atlas grouping label, computed at index time from the ecosystem's
@@ -94,4 +100,18 @@ export const LANG_FAMILY_TABLE_SQL = `
 export const LANG_FAMILY_WILDCARD = '*';
 
 export const SYMBOLS_FTS_SQL =
-  "CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(text, tokenize = 'unicode61')";
+  "CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(text, tokenize = 'trigram')";
+
+/**
+ * Phase 3: stores 384-dimensional float32 embedding vectors for each symbol.
+ * Vectors are computed from the symbol's indexable text (name + signature +
+ * doc_comment) via the character n-gram hashing embedding in vector-search.ts.
+ * One row per symbol, kept in sync via insertSymbols, delete, and clearAll.
+ */
+export const SYMBOL_VECTORS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS symbol_vectors (
+    symbol_id INTEGER PRIMARY KEY,
+    vector BLOB NOT NULL,
+    FOREIGN KEY (symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
+  );
+`;

@@ -26,8 +26,15 @@ import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
 import { ModuleResolver } from './module-resolver.js';
 import { assignPackageLabels, detectModuleRoots } from './module-roots.js';
 import { parseFileContent } from './parser-dispatch.js';
+import { getParserPool, WORKER_POOL_THRESHOLD } from './parser-worker-pool.js';
 import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
+import { xxhash64String as contentHashHex } from './content-hash.js';
 import { IndexStore } from './writer.js';
+
+// Phase 5 parser worker pool infrastructure lives in parser-worker-pool.ts and
+// parser-worker-script.ts. The indexer integration (post-batch pool delegation)
+// is deferred — see the comment at the parse call site below for why pool
+// delegation cannot happen inside the Promise.allSettled callback.
 
 /** Yield the event loop every N files so the main thread stays responsive. */
 const YIELD_EVERY_N = 50;
@@ -508,6 +515,7 @@ export async function runIndexerWithStore(
           lang: string;
           parsed: Awaited<ReturnType<typeof parseFileContent>> | null;
           content?: string;
+          contentHash?: string;
           skippedMeta?: FileMeta;
           error?: string;
           missing?: boolean;
@@ -561,22 +569,129 @@ export async function runIndexerWithStore(
             };
           }
 
-          let parsed: Awaited<ReturnType<typeof parseFileContent>>;
-          try {
-            parsed = await parseFileContent(file, content, lang as SymbolLang);
-          } catch (e) {
+          // Phase 2: content-hash short-circuit. mtime can change without the
+          // bytes changing (git checkout, touch, formatter that's a no-op).
+          // When the content hash matches what's stored, skip the expensive
+          // parse pass entirely — but still update mtime so the next run's
+          // fast path (the mtime check above) hits again.
+          //
+          // Compute the hash once here — it's reused in the return object so
+          // the batch-write path doesn't hash the same content a second time.
+          // Skip the short-circuit when there's no stored hash yet (first
+          // index of this file, or a legacy v4 DB that hasn't been populated).
+          // Without this guard, an empty stored hash would match an empty
+          // computed hash on every run, skipping parsing forever.
+          const contentHash = contentHashHex(content);
+          if (!force && meta && meta.contentHash && contentHash === meta.contentHash) {
             return {
               file,
               stat,
               lang,
               parsed: null,
-              error: `parse error: ${e instanceof Error ? e.message : String(e)}`,
+              content,
+              contentHash,
+              skippedMeta: { ...meta, mtimeMs: Math.floor(stat.mtimeMs) },
             };
           }
-          return { file, stat, lang, parsed, content };
+
+          // Phase 5: Parsing is deferred to a post-batch pass to avoid
+          // concurrent-mutation races inside Promise.allSettled callbacks.
+          // The callback returns the read content; the main thread decides
+          // whether to parse inline or delegate to the worker pool after all
+          // stat+hash checks have settled.
+          return { file, stat, lang, parsed: null, content, contentHash };
         },
       ),
     );
+
+    // Phase 1.5: Post-batch parse pass. Files were stat+hash-checked and
+    // content-read in the parallel pass above, but parsing was deferred to
+    // avoid the concurrent-mutation race that an inline pool delegation
+    // inside each Promise.allSettled callback would create. Here we collect
+    // all files that need parsing, then either delegate to the worker pool
+    // (when available and the batch is large enough) or parse inline — both
+    // single-threaded, no race.
+    const toParse: Array<{
+      index: number;
+      file: string;
+      content: string;
+      lang: SymbolLang;
+    }> = [];
+    for (let pi = 0; pi < statReadParse.length; pi++) {
+      const s = statReadParse[pi]!;
+      if (s.status !== 'fulfilled') continue;
+      const r = s.value;
+      if (r.error || r.skippedMeta || !r.lang || r.parsed) continue;
+      if (r.content === undefined) continue;
+      toParse.push({
+        index: pi,
+        file: batchFiles[pi]!,
+        content: r.content,
+        lang: r.lang as SymbolLang,
+      });
+    }
+
+    if (toParse.length > 0) {
+      // Try the worker pool for large batches (Phase 5 — threshold-gated).
+      // Falls back to inline parsing when the pool isn't available or the
+      // batch is too small to justify spawn overhead. Activation is based on
+      // files-to-parse count, not total file count, so stat-skipped batches
+      // don't waste pool overhead on a tiny workload.
+      let pool = toParse.length >= WORKER_POOL_THRESHOLD ? getParserPool() : null;
+      if (pool) {
+        try {
+          await pool.ensureReady();
+          const parsedResults = await pool.parseFiles(
+            toParse.map((p) => ({ file: p.file, content: p.content, lang: p.lang })),
+          );
+          // Match by file path — pool results arrive in completion order
+          // (worker N may finish before worker M), not positional alignment.
+          // Files that errored inside a worker are absent from parsedResults;
+          // record them as parse errors so the commit loop doesn't silently
+          // index them with zero symbols.
+          const byFile = new Map(parsedResults.map((r) => [r.file, r]));
+          for (const item of toParse) {
+            const parsed = byFile.get(item.file);
+            const settled = statReadParse[item.index]!;
+            if (settled.status !== 'fulfilled') continue;
+            if (parsed) {
+              settled.value.parsed = parsed;
+            } else {
+              settled.value.error = `parse error: worker returned no result for ${item.file}`;
+            }
+          }
+        } catch {
+          // Pool failure — fall through to inline parsing for all files.
+          pool = null;
+        }
+      }
+
+      // Inline fallback (or when pool wasn't available). Parse in parallel
+      // — this is the same parallelism the pre-refactor code had via the
+      // single Promise.allSettled callback. Sequential parsing would
+      // regress incremental indexing latency.
+      if (!pool) {
+        await Promise.all(
+          toParse.map(async (item) => {
+            try {
+              const parsed = await parseFileContent(item.file, item.content, item.lang);
+              const settled = statReadParse[item.index]!;
+              if (settled.status === 'fulfilled') {
+                settled.value.parsed = parsed;
+              }
+            } catch (e) {
+              // Parse error — record it so the commit loop reports it
+              // instead of treating the file as successfully indexed with
+              // zero symbols.
+              const settled = statReadParse[item.index]!;
+              if (settled.status === 'fulfilled') {
+                settled.value.error = `parse error: ${e instanceof Error ? e.message : String(e)}`;
+              }
+            }
+          }),
+        );
+      }
+    }
 
     // Phase 2: Sequential SQLite writes — amortized across the whole batch.
     //
@@ -592,6 +707,7 @@ export async function runIndexerWithStore(
       refs: Ref[];
       mtimeMs: number;
       symbolCount: number;
+      contentHash: string;
     }> = [];
     const deleteForFiles: string[] = [];
 
@@ -622,6 +738,20 @@ export async function runIndexerWithStore(
         langStats[lang] = (langStats[lang] ?? 0) + result.skippedMeta.symbolCount;
         symbolsIndexed += result.skippedMeta.symbolCount;
         filesIndexed++;
+        // Content-hash short-circuit (Phase 2): mtime changed but content
+        // didn't. Persist the new mtime so the next run's fast path hits
+        // without re-reading the file.
+        const stored = existingMeta.get(file);
+        if (stored && stored.mtimeMs !== result.skippedMeta.mtimeMs) {
+          store.upsertFile({
+            file,
+            lang: lang as SymbolLang,
+            mtimeMs: result.skippedMeta.mtimeMs,
+            symbolCount: result.skippedMeta.symbolCount,
+            lastIndexed: Date.now(),
+            contentHash: result.skippedMeta.contentHash,
+          });
+        }
         continue;
       }
 
@@ -633,6 +763,7 @@ export async function runIndexerWithStore(
             mtimeMs: Math.floor(stat.mtimeMs),
             symbolCount: 0,
             lastIndexed: Date.now(),
+            contentHash: result.contentHash ?? '',
           });
           filesIndexed++;
         }
@@ -648,6 +779,7 @@ export async function runIndexerWithStore(
           mtimeMs: Math.floor(stat.mtimeMs),
           symbolCount: 0,
           lastIndexed: Date.now(),
+          contentHash: result.contentHash ?? '',
         });
         filesIndexed++;
         continue;
@@ -660,6 +792,7 @@ export async function runIndexerWithStore(
         refs: parsed.refs ?? [],
         mtimeMs: Math.floor(stat.mtimeMs),
         symbolCount: parsed.symbols.length,
+        contentHash: result.contentHash ?? '',
       });
       deleteForFiles.push(file);
     }
@@ -701,6 +834,7 @@ export async function runIndexerWithStore(
               mtimeMs: entry.mtimeMs,
               symbolCount: entry.symbolCount,
               lastIndexed: Date.now(),
+              contentHash: entry.contentHash,
             });
           } catch (innerErr) {
             errors.push(

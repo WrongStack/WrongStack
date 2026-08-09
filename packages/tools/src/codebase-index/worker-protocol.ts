@@ -55,6 +55,8 @@ export interface CallRefsOpArgs extends StatsOpArgs {
   symbol: string;
   file?: string | undefined;
   limit?: number | undefined;
+  /** When true, follow the call graph transitively (callers-of-callers / callees-of-callees) via recursive CTE. */
+  transitive?: boolean | undefined;
 }
 
 export interface SearchOpResult {

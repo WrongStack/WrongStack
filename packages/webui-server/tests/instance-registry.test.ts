@@ -99,7 +99,8 @@ describe('instance-registry', () => {
       await registerInstance(sampleRecord, '/tmp/base');
 
       expect(mockAtomicWrite).toHaveBeenCalled();
-      const writeCall = mockAtomicWrite.mock.calls[0];
+      const writeCall = mockAtomicWrite.mock.calls.at(-1);
+      expect(writeCall).toBeDefined();
       if (!writeCall) throw new Error('Expected registry write');
       const [filePath, content] = writeCall;
       expect(filePath).toContain('webui-instances.json');
@@ -131,7 +132,8 @@ describe('instance-registry', () => {
         '/tmp/base',
       );
 
-      const writeCall = mockAtomicWrite.mock.calls[0];
+      const writeCall = mockAtomicWrite.mock.calls.at(-1);
+      expect(writeCall).toBeDefined();
       if (!writeCall) throw new Error('Expected registry write');
       const [, content] = writeCall;
       const parsed = JSON.parse(content);
@@ -162,7 +164,8 @@ describe('instance-registry', () => {
       await unregisterInstance(99999, '/tmp/base');
 
       expect(mockAtomicWrite).toHaveBeenCalled();
-      const writeCall = mockAtomicWrite.mock.calls[0];
+      const writeCall = mockAtomicWrite.mock.calls.at(-1);
+      expect(writeCall).toBeDefined();
       if (!writeCall) throw new Error('Expected registry write');
       const [, content] = writeCall;
       const parsed = JSON.parse(content);

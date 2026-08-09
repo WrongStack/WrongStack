@@ -100,6 +100,13 @@ export interface FileMeta {
   mtimeMs: number;
   symbolCount: number;
   lastIndexed: number; // unix ms
+  /**
+   * xxHash64 of the file's UTF-8 bytes (Phase 2). `undefined` for callers
+   * that don't compute it; the writer stores an empty string in that case.
+   * The indexer compares this against the current file's hash to skip
+   * re-parsing when content is byte-identical despite an mtime change.
+   */
+  contentHash?: string | undefined;
 }
 
 /** Statistics about the index. */

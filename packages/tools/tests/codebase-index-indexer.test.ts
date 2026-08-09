@@ -105,7 +105,12 @@ describe('runIndexer', () => {
     expect(res.filesIndexed).toBe(2);
     const store = new IndexStore(dir, { indexDir: indexDir() });
     try {
-      expect(store.searchRanked('tracked', {}, 10).results).toHaveLength(1);
+      // Trigram FTS5 matches substrings: 'tracked' appears in both 'tracked'
+      // and 'untracked', so the query returns both. The RRF fusion re-ranks
+      // the exact-match ahead of the substring-match.
+      const trackedResults = store.searchRanked('tracked', {}, 10).results;
+      expect(trackedResults.length).toBeGreaterThanOrEqual(1);
+      expect(trackedResults[0].name).toBe('tracked');
       expect(store.searchRanked('untracked', {}, 10).results).toHaveLength(1);
       expect(store.searchRanked('ignored', {}, 10).results).toHaveLength(0);
     } finally {

@@ -456,12 +456,6 @@ interface SymbolRow {
   line: number;
 }
 
-interface RefsRow {
-  fromId: number;
-  toId: number;
-  callType: string;
-}
-
 /**
  * Try to resolve a relative module specifier (e.g. './foo', '../bar/index.js')
  * against an importing file's directory to find an indexed source file.
@@ -570,9 +564,8 @@ export function runDeadCodeScan(
   const store = opts.store ?? indexStorePool.acquire(projectRoot, { indexDir: opts.indexDir });
 
   try {
-    // Phase 1: load the full symbol universe + refs graph.
+    // Phase 1: load the full symbol universe (for classification, not traversal).
     const allSymbols: SymbolRow[] = store.getAllSymbols();
-    const allRefs: RefsRow[] = store.getAllResolvedRefs();
 
     // Build lookup: id → symbol
     const symbolById = new Map<number, SymbolRow>();
@@ -580,24 +573,11 @@ export function runDeadCodeScan(
       symbolById.set(s.id, s);
     }
 
-    // Build reference index: fromId → Set<toId> (symbols THIS symbol references)
-    const references = new Map<number, Set<number>>();
-    for (const ref of allRefs) {
-      let set = references.get(ref.fromId);
-      if (!set) {
-        set = new Set();
-        references.set(ref.fromId, set);
-      }
-      set.add(ref.toId);
-    }
-
     // Phase 2: discover entry points and map to symbol ids.
     const discoveredFiles = discoverEntryPoints(projectRoot, opts.userEntryPoints);
     const entryFileSet = new Set(discoveredFiles.map((f) => path.resolve(f)));
 
     // Build a set of all indexed files for module-path resolution.
-    // We need both files with symbols AND files without (pure barrels) so
-    // resolveModulePath can find intermediate barrels in re-export chains.
     const indexedFiles = new Set<string>();
     for (const s of allSymbols) indexedFiles.add(s.file);
     for (const fm of store.getAllFileMetas()) indexedFiles.add(fm.file);
@@ -622,21 +602,7 @@ export function runDeadCodeScan(
     }
 
     // ── Recursive barrel-file scanner ─────────────────────────────────
-    // The ts-parser stores re-export refs (`export { X } from '..'`,
-    // `export * from '..'`) with fromId=0 — file-level, not attached to
-    // any specific symbol.  The BFS below only traverses refs from symbol
-    // ids (≥1), so fromId=0 refs are never visited.
-    //
-    // For **pure** barrels (zero own declarations), the refs never enter the
-    // database because assignRefsToSymbols returns [] when symbols is empty.
-    // The regex-based scanner seeds those symbols directly.
-    //
-    // For **mixed** barrels (declarations + re-exports), assignRefsToSymbols
-    // attaches the re-export ref to the first declaration (ordered[0]) so
-    // the BFS CAN follow them.  The scanner is idempotent over mixed barrels
-    // (redundant but harmless due to Set.add) and only runs when the file
-    // is in the entryFileSet anyway.  We keep scanning all entry files for
-    // simplicity — the overhead is negligible.
+    // (unchanged — this part needs file I/O, not graph traversal)
     const scannedBarrels = new Set<string>();
     const barrelWorkList = [...entryFileSet];
     while (barrelWorkList.length > 0) {
@@ -646,21 +612,9 @@ export function runDeadCodeScan(
 
       try {
         const content = fs.readFileSync(epFile, 'utf8');
-        // Strip comments (not strings!) so the re-export regex doesn't get
-        // fooled by commented-out exports but can still match module paths
-        // like `'./a'` inside `export { X } from '<modulePath>'`.
-        // Stripping strings would destroy those module specifiers.
         const strippedContent = content
           .replace(/\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length))
           .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
-        // Match: export { X } from '..' (single/multi-line),
-        // export type { X } from '..', export * from '..', export * as X from '..'
-        // [\s\S]*? spans newlines so multi-line export blocks match.
-        // Note: module specifiers containing embedded quotes (e.g. "module's")
-        // are not supported — [^'"]+ stops at the embedded quote.  This is an
-        // accepted limitation because module paths with quotes are vanishingly
-        // rare in practice and would only result in a false-positive dead report
-        // for that single file while the rest of the chain is unaffected.
         const reExportRe =
           /export\s+(?:(?:type\s+)?\{[\s\S]*?\}\s+from|\*\s+as\s+\w+\s+from|\*\s+from)\s+['"]([^'"]+)['"]/g;
         for (;;) {
@@ -671,9 +625,6 @@ export function runDeadCodeScan(
           for (const rf of resolvedFiles) {
             const fileSyms = fileToSymbolIds.get(rf);
             if (fileSyms) {
-              // Named re-export (export { X } from ...) → only seed
-              // matching symbols. Wildcard (export * from ...) →
-              // seed all symbols from the source file.
               const namedSymbols = parseNamedExportSymbols(match[0]);
               if (namedSymbols) {
                 const nameSet = new Set(namedSymbols);
@@ -685,18 +636,12 @@ export function runDeadCodeScan(
                 for (const sid of fileSyms) seedIds.add(sid);
               }
             }
-            // If the resolved file hasn't been scanned yet, add it to the
-            // work list for recursive scanning — re-export chains may go
-            // through mixed barrels whose fromId=0 refs the BFS can't follow.
             if (!scannedBarrels.has(rf)) {
               barrelWorkList.push(rf);
             }
           }
         }
       } catch (err) {
-        // Silently skip files that can't be read (deleted, moved, binary).
-        // A few false-negative dead reports from one barrel is better than
-        // crashing the scan over an I/O glitch.
         if (err instanceof Error && (err as NodeJS.ErrnoException).code !== 'ENOENT') {
           console.warn(
             JSON.stringify({
@@ -711,31 +656,12 @@ export function runDeadCodeScan(
       }
     }
 
-    // Phase 3: BFS traversal from seed symbols.
-    // alive = every symbol transitively reachable from an entry point via refs.
-    const alive = new Set<number>(seedIds);
-    const frontier = [...seedIds];
-
-    // Track which refs we've already traversed to avoid revisiting.
-    const visitedEdges = new Set<string>();
-
-    while (frontier.length > 0) {
-      const current = frontier.pop()!;
-      // Follow outgoing edges: what does THIS symbol reference?
-      const outgoing = references.get(current);
-      if (!outgoing) continue;
-
-      for (const toId of outgoing) {
-        const edgeKey = `${current}->${toId}`;
-        if (visitedEdges.has(edgeKey)) continue;
-        visitedEdges.add(edgeKey);
-
-        if (!alive.has(toId)) {
-          alive.add(toId);
-          frontier.push(toId);
-        }
-      }
-    }
+    // Phase 3: CTE-based reachability scan (replaces in-memory BFS).
+    // Instead of loading ALL refs into JS memory and traversing with a
+    // Map<number, Set<number>>, we delegate to a native SQLite recursive CTE.
+    // The CTE stays inside SQLite's optimized query engine, avoiding
+    // hundreds of MB of JS heap for large monorepos.
+    const alive = store.findReachableSymbolIds([...seedIds]);
 
     // Phase 4: classify dead symbols.
     const dead: DeadSymbol[] = [];

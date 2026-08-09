@@ -71,6 +71,28 @@ export function bulkInsertFtsWithStatement(
   }
 }
 
+export interface BulkVectorRow {
+  id: number;
+  vector: Uint8Array;
+}
+
+export function bulkInsertVectorsWithStatement(
+  stmt: PrepareStatement,
+  maxSqlVars: number,
+  rows: BulkVectorRow[],
+): void {
+  if (rows.length === 0) return;
+  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 2));
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => '(?, ?)').join(', ');
+    const insert = stmt(`INSERT INTO symbol_vectors(symbol_id, vector) VALUES ${placeholders}`);
+    const binds: (number | Uint8Array)[] = [];
+    for (const r of chunk) binds.push(r.id, r.vector);
+    insert.run(...binds);
+  }
+}
+
 export function bulkInsertRefsWithStatement(
   stmt: PrepareStatement,
   maxSqlVars: number,

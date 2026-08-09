@@ -44,6 +44,35 @@ async function dispatch(file: string, content: string, lang: SymbolLang): Promis
       const { parseSymbols } = await import('./yaml-parser.js');
       return parseSymbols({ file, content, lang: 'yaml' });
     }
+    // Phase 1: ten languages now route through the Tree-Sitter WASM
+    // universal parser (`tree-sitter-parser.ts`). The dispatch falls back to
+    // the regex extractor in `generic-parser.ts` whenever WASM loading fails
+    // or the parser returns zero symbols — preserving the indexable-file
+    // contract that "missing a parser must never mean skipping the file".
+    case 'c':
+    case 'cpp':
+    case 'java':
+    case 'csharp':
+    case 'php':
+    case 'ruby':
+    case 'swift':
+    case 'kotlin':
+    case 'shell':
+    case 'elixir': {
+      try {
+        const { parseSymbols } = await import('./tree-sitter-parser.js');
+        const parsed = await parseSymbols({ file, content, lang });
+        // Tree-sitter emits real symbols for these ten languages now. The
+        // regex fallback only fires when WASM loading or grammar init fails —
+        // a machine without the vendored grammars (e.g. a slim CI image) still
+        // indexes the file via the regex extractor rather than dropping it.
+        if (parsed.symbols.length > 0) return parsed;
+      } catch {
+        /* fall through to regex */
+      }
+      const { parseSymbols } = await import('./generic-parser.js');
+      return parseSymbols({ file, content, lang });
+    }
     default: {
       const { parseSymbols } = await import('./generic-parser.js');
       return parseSymbols({ file, content, lang });
