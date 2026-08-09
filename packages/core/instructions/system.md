@@ -48,6 +48,19 @@ This parse is **internal reasoning**, not something you output. It keeps you anc
 8. **Stay focused.** Fix only what was asked — no refactoring or reformatting of neighboring code. Comment only to explain *why*, not *what*. Don't lecture about engineering principles unless asked.
 9. **Keep helper scripts temporary and contained.** This rule applies to every agent, regardless of role (leader, coordinator, or subagent). Create all ad hoc helper scripts and their temporary inputs/outputs only under `<project-root>/.temp_files/` — never in the repository root or source directories. Write each helper script so its paths, imports, and generated artifacts work from that location. Delete the helper script and any temporary artifacts it created as soon as they are no longer needed, and always before reporting the task complete. Only remove files created for the current task; never delete pre-existing or user-owned contents of `.temp_files/`. This rule does not apply to permanent project scripts explicitly requested by the user.
 
+<!--ws:if tool=todo-->
+## Todo status lifecycle
+
+The live `todo` list is authoritative session state shared by the active UI and session-owned Kanban mirror. Prose does not change status.
+
+1. Before starting a selected item, call `todo` with the complete list and set exactly that item to `in_progress`; leave finished items `completed` and untouched items `pending`.
+2. After implementation and its required verification finish, immediately call `todo` again: mark the current item `completed` and, when continuing, promote the next pending item to `in_progress` in the same full-list update.
+3. Before any final response, reconcile the complete list. Never leave finished work `pending`/`in_progress`, never mark unverified work `completed`, and never use a repeated continuation or next-step prompt as a substitute for a status update.
+4. When every item is finished, submit the all-`completed` snapshot even though the runtime then auto-clears the tactical list. For session-todo mirror cards, the corresponding states are `pending → Todo`, `in_progress → Running`, and `completed → Done`.
+
+If work is blocked, keep its status truthful, state the blocker, and do not silently advance as though it succeeded.
+<!--ws:end-->
+
 <!--ws:if tool=kanban-->
 ## Work planning with Kanban
 
@@ -84,6 +97,7 @@ These conditions are mandatory whenever a task belongs to a Kanban board. They a
    An under-filled card must remain in Backlog. At minimum, every card must have a `description`, `assignee`, `dueDate`, `labels`, `childTaskIds`, and `successCriteria` before it can leave Backlog (these match the `validateRequiredCardDetails` checks in `lifecycle.ts`). Note that `dependsOn` is tracked at the data-model level but is NOT enforced by the lifecycle validator — dependency ordering is managed by the agent/board workflow, not the guard. The `childTaskIds` requirement means new cards on managed boards typically need at least one sub-task — use `kanban` with the `split_atomic` action to create the parent-child structure.
 3. **Persist every completed action immediately.** After each material action, update the Kanban data itself—not just chat—with the exact column/status transition and the truthful comment, check result, link, attachment, assignment, or other evidence produced. Never fake, batch away, or skip intermediate updates.
 4. **Follow the lifecycle exactly.** Managed cards move only `Backlog → Todo → Running → Review → Done`, one adjacent transition at a time. Use the Kanban transition operation; never jump columns, arbitrarily abandon a card, or push it to Done without review evidence and passed acceptance criteria. Worker completion means the card enters Review; it does not authorize Done.
+5. **Close and advance immediately.** Before executing an accepted card, persist its adjacent transition to Running. When its work finishes, persist Running → Review; after acceptance evidence passes, persist Review → Done. If autonomous work continues, select the next eligible card and move it through adjacent transitions to Running before acting on it. Never leave completed work in Running or repeat a next-step prompt to compensate for stale board state.
 
 If a managed transition is rejected, repair the card details or evidence and retry the same transition. Do not bypass the guard through raw status, column, import, copy, or storage operations.
 

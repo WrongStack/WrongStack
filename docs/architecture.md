@@ -156,12 +156,14 @@ HybridCompactor and the context-window policy keep provider payloads within the
 selected model's usable window. The built-in context modes control when
 compaction begins and how much recent content/tool output stays verbatim.
 
-Conversation history is deliberately file-based, not part of the shared SQLite
-service family: DefaultSessionStore persists scrubbed session events in sharded
-JSONL files under the resolved WrongStack state directory. It maintains an
-index, per-session summaries, manifests, replay/search helpers, checkpoint CAS,
-and bounded in-memory load caches. Session JSONL is an append/replay format; it
-is not the source of truth for mailbox, Kanban, SAGE, Chronicle, or index state.
+Conversation content remains deliberately file-based: DefaultSessionStore
+persists scrubbed session events in sharded JSONL files under the resolved
+WrongStack state directory. JSONL is the transcript/replay authority. The
+project Session Catalog daemon owns the rebuildable SQLite catalog, session
+claims, resume reservations, maintenance exclusion, and bounded live presence;
+clients retain local replay/search helpers, checkpoint CAS, and bounded load
+caches. Session JSONL is not the source of truth for mailbox, Kanban, SAGE,
+Chronicle, or code-index state.
 
 ---
 
@@ -194,6 +196,7 @@ fallbacks.
 | SAGE memory | packages/sage/src/project-server.ts owns the SQLite memory graph/search store. | RemoteMemoryPort implements the memory-port contract for all hosts. Retrieval/memory injection and tools use the port, not direct store construction. |
 | Kanban | packages/kanban/src/server/project-server.ts owns SqliteKanbanStorage at .wrongstack/kanbans/_kanban.sqlite. | Domain calls, board events, workflow state, and supervisor integration go through the Kanban client/store facade. Legacy board data is migrated transactionally by storage. |
 | Codebase Index | packages/tools/src/codebase-index/project-server.ts owns the SQLite index, write queue, index job, and external file watcher. | Search/index/call-graph tools and Code Atlas use the shared client. Read work can overlap; writes and full-index coalescing stay with the owner. |
+| Session Catalog | core/session-catalog/project-server.ts owns catalog.sqlite plus durable hashed lease proofs, two-phase resume reservations, maintenance leases, and bounded live presence. Sharded session JSONL remains transcript authority. | DefaultSessionStore publishes coarse summary boundaries; ProjectSessionRegistry supplies claim/heartbeat/presence compatibility; TUI, WebUI, SimpleUI, and local HQ query or subscribe over authenticated IPC. The device-global session-registry.json is no longer a production authority. |
 
 connections.health in the WebUI server exposes a common operational view of
 these services: owner identity, endpoint/storage state, clients, queue/watcher

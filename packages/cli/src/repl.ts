@@ -349,6 +349,20 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
             const resolved = resolveContinuation({ todos, suggestions: [] });
             top = resolved.source === 'todo' ? resolved.text : '';
             groundedTodo = top !== '';
+            if (resolved.source === 'todo' && resolved.todoId) {
+              const selected = todos.find((todo) => todo.id === resolved.todoId);
+              if (selected?.status === 'pending') {
+                opts.agent.ctx.state.replaceTodos(
+                  todos.map((todo) =>
+                    todo.id === resolved.todoId
+                      ? { ...todo, status: 'in_progress' as const }
+                      : todo.status === 'in_progress'
+                        ? { ...todo, status: 'pending' as const }
+                        : todo,
+                  ),
+                );
+              }
+            }
           }
 
           if (!top) {
@@ -546,6 +560,20 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
           todos: opts.agent.ctx.todos,
           suggestions: getSuggestions(),
         });
+        if (resolved.source === 'todo' && resolved.todoId) {
+          const selected = opts.agent.ctx.todos.find((todo) => todo.id === resolved.todoId);
+          if (selected?.status === 'pending') {
+            opts.agent.ctx.state.replaceTodos(
+              opts.agent.ctx.todos.map((todo) =>
+                todo.id === resolved.todoId
+                  ? { ...todo, status: 'in_progress' as const }
+                  : todo.status === 'in_progress'
+                    ? { ...todo, status: 'pending' as const }
+                    : todo,
+              ),
+            );
+          }
+        }
         // Make the resolution — and its drift risk — visible instead of
         // silently guessing. A grounded resolution (todo/suggestion) prints
         // its target and proceeds; the `open` guess warns that "continue" has

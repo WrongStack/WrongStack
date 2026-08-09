@@ -4,7 +4,7 @@ import {
   AgentStatusTracker,
   FleetNotifier,
   getSessionRegistry,
-  type SessionRegistry,
+  type SessionResumeClaim,
 } from '@wrongstack/core/storage';
 import type { Config, Logger } from '@wrongstack/core/types';
 import { WebSocket } from 'ws';
@@ -22,9 +22,19 @@ export interface StandaloneSessionIdentityOptions {
   paths: StandaloneSessionIdentityPaths;
   workingDir: string;
   initialSessionId: string;
-  sessionRegistry?: SessionRegistry | undefined;
+  sessionRegistry?: SessionIdentityRegistry | undefined;
   /** Test/embedding escape hatch; production defaults to enabled. */
   enableHqTelemetry?: boolean | undefined;
+}
+
+interface SessionIdentityRegistry {
+  register(entry: Parameters<ReturnType<typeof getSessionRegistry>['register']>[0]): Promise<void>;
+  updateAgents(
+    agents: Parameters<ReturnType<typeof getSessionRegistry>['updateAgents']>[0],
+  ): Promise<void>;
+  markClosing(): Promise<void>;
+  unregister(): Promise<void>;
+  reserveResume?: ReturnType<typeof getSessionRegistry>['reserveResume'] | undefined;
 }
 
 export interface SessionIdentityTarget {
@@ -65,7 +75,9 @@ export async function createStandaloneSessionIdentityLifecycle(
     projectName: path.basename(paths.projectRoot),
     workingDir: opts.workingDir,
   };
-  let pendingClaim: { sessionId: string; previousSessionId: string; token: symbol } | undefined;
+  let pendingClaim:
+    | { sessionId: string; token: symbol; claim: SessionResumeClaim; target: SessionIdentityTarget }
+    | undefined;
   let stopped = false;
   let transition = Promise.resolve();
 
@@ -235,6 +247,14 @@ export async function createStandaloneSessionIdentityLifecycle(
     transition = transition.then(async () => {
       if (stopped) return;
       if (pendingClaim?.sessionId === sessionId) {
+        await pendingClaim.claim.activate({
+          sessionId,
+          ...target,
+          clientType: 'webui',
+          pid: process.pid,
+          startedAt: new Date().toISOString(),
+          agents: statusTracker.getAgents(),
+        });
         pendingClaim = undefined;
       } else {
         await register(sessionId, true, target);
@@ -260,14 +280,35 @@ export async function createStandaloneSessionIdentityLifecycle(
       throw new Error(`Session transition to ${pendingClaim.sessionId} is already in progress.`);
     }
     if (sessionId === activeSessionId) return async () => {};
-    const previousSessionId = activeSessionId;
-    const previousTarget = activeTarget;
     const token = Symbol(sessionId);
-    await register(sessionId, true, target);
-    pendingClaim = { sessionId, previousSessionId, token };
+    if ('reserveResume' in registry && typeof registry.reserveResume === 'function') {
+      const reservation = await registry.reserveResume({
+        sessionId,
+        projectSlug: target.projectSlug,
+        projectRoot: target.projectRoot,
+      });
+      pendingClaim = { sessionId, token, claim: reservation, target };
+    } else {
+      await register(sessionId, true, target);
+      pendingClaim = {
+        sessionId,
+        token,
+        target,
+        claim: {
+          reservation: {
+            reservationId: 'legacy',
+            targetSessionId: sessionId,
+            requesterInstanceId: 'legacy',
+            expiresAt: Number.MAX_SAFE_INTEGER,
+          },
+          activate: async () => undefined,
+          cancel: async () => register(activeSessionId, true, activeTarget),
+        },
+      };
+    }
     return async () => {
       if (pendingClaim?.token !== token) return;
-      await register(previousSessionId, true, previousTarget);
+      await pendingClaim.claim.cancel();
       pendingClaim = undefined;
     };
   };

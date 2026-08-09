@@ -1,4 +1,3 @@
-import { watch as fsWatch } from 'node:fs';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import type { WstackPaths } from '@wrongstack/core/utils';
@@ -26,8 +25,8 @@ export function registerSetupEventsFleetBroadcaster(
   const disposers: Array<() => void> = [];
   const broadcastSessions = async () => {
     try {
-      const { SessionRegistry } = await import('@wrongstack/core/storage');
-      const registry = new SessionRegistry(globalRoot);
+      const { getSessionRegistry } = await import('@wrongstack/core/storage');
+      const registry = getSessionRegistry(globalRoot);
       const sessions = await registry.list();
       const ownEntry = sessions.find((s) => s.pid === process.pid);
       const mySlug = ownEntry?.projectSlug ?? wpaths?.projectSlug;
@@ -80,7 +79,7 @@ export function registerSetupEventsFleetBroadcaster(
 
   onFleetBroadcaster?.(broadcastSessions);
 
-  let regWatchLive = false;
+  let subscriptionLive = false;
   let statusTimer: ReturnType<typeof setTimeout> | undefined;
   const scheduleStatusPoll = (): void => {
     if (isDisposed()) return;
@@ -89,7 +88,7 @@ export function registerSetupEventsFleetBroadcaster(
         void broadcastSessions();
         scheduleStatusPoll();
       },
-      regWatchLive ? 30_000 : 5_000,
+      subscriptionLive ? 30_000 : 5_000,
     );
     if (statusTimer.unref) statusTimer.unref();
   };
@@ -97,30 +96,26 @@ export function registerSetupEventsFleetBroadcaster(
     if (statusTimer) clearTimeout(statusTimer);
   });
 
-  let regDebounce: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const regWatcher = fsWatch(globalRoot, { persistent: false }, (_event, filename) => {
-      const name = filename ? String(filename) : '';
-      if (!name.startsWith('session-registry.json') || name.endsWith('.lock')) return;
-      if (regDebounce) clearTimeout(regDebounce);
-      regDebounce = setTimeout(() => void broadcastSessions(), 150);
+  let eventDebounce: ReturnType<typeof setTimeout> | undefined;
+  let unsubscribe: (() => Promise<void>) | undefined;
+  void import('@wrongstack/core/storage')
+    .then(async ({ getSessionRegistry }) => {
+      const registry = getSessionRegistry(globalRoot);
+      const projectSlug = wpaths?.projectSlug;
+      if (!projectSlug || isDisposed()) return;
+      unsubscribe = await registry.subscribeProject(projectSlug, context.projectRoot, () => {
+        if (eventDebounce) clearTimeout(eventDebounce);
+        eventDebounce = setTimeout(() => void broadcastSessions(), 25);
+      });
+      subscriptionLive = true;
+    })
+    .catch(() => {
+      subscriptionLive = false;
     });
-    regWatcher.on('error', () => {
-      regWatchLive = false;
-      try {
-        regWatcher.close();
-      } catch {
-        /* already closed */
-      }
-    });
-    regWatchLive = true;
-    disposers.push(() => {
-      if (regDebounce) clearTimeout(regDebounce);
-      regWatcher.close();
-    });
-  } catch {
-    // Watch unsupported on this platform — the 5s poll still covers it.
-  }
+  disposers.push(() => {
+    if (eventDebounce) clearTimeout(eventDebounce);
+    void unsubscribe?.();
+  });
   scheduleStatusPoll();
   void broadcastSessions();
 

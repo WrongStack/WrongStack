@@ -1,11 +1,11 @@
-import { restoreFlags } from '../flags.js';
-import * as path from 'node:path';
 import {
   DefaultSessionRewinder,
   DefaultSessionStore,
-  SessionRegistry,
+  type MaintenanceLease,
+  SessionCatalogProjectClient,
 } from '@wrongstack/core/storage';
 import { color, expectDefined, resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
+import { restoreFlags } from '../flags.js';
 import type { SubcommandHandler } from '../index.js';
 
 interface RewindFlags {
@@ -94,21 +94,19 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
     return 0;
   }
 
-  let claimedRegistry: SessionRegistry | undefined;
+  let maintenance: { client: SessionCatalogProjectClient; lease: MaintenanceLease } | undefined;
   const claimForHistoryMutation = async (): Promise<void> => {
     if (!flags.resume) return;
-    const registry = new SessionRegistry(wpaths.globalRoot);
-    await registry.register({
-      sessionId: targetSessionId,
-      projectSlug: wpaths.projectSlug,
+    const client = new SessionCatalogProjectClient({
+      projectDir: wpaths.projectDir,
       projectRoot: deps.projectRoot,
-      projectName: path.basename(deps.projectRoot),
-      workingDir: deps.cwd,
-      clientType: 'cli',
-      pid: process.pid,
-      startedAt: new Date().toISOString(),
     });
-    claimedRegistry = registry;
+    const lease = await client.call('acquire_maintenance', {
+      sessionId: targetSessionId,
+      operation: 'rewind',
+      holderId: `rewind:${process.pid}`,
+    });
+    maintenance = { client, lease };
   };
 
   // Perform rewind
@@ -150,7 +148,7 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
       deps.renderer.write('No files to revert.\n');
       if (flags.resume) {
         // Still truncate even if no files changed
-        const store = new DefaultSessionStore({ dir: sessionsDir });
+        const store = new DefaultSessionStore({ dir: sessionsDir, projectRoot: deps.projectRoot });
         const resumed = await store.resume(targetSessionId);
         const toIdx = result.toPromptIndex;
         await resumed.writer.truncateToCheckpoint(toIdx);
@@ -166,7 +164,7 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
     }
 
     if (flags.resume) {
-      const store = new DefaultSessionStore({ dir: sessionsDir });
+      const store = new DefaultSessionStore({ dir: sessionsDir, projectRoot: deps.projectRoot });
       const resumed = await store.resume(targetSessionId);
       const toIdx = result.toPromptIndex;
       const removed = await resumed.writer.truncateToCheckpoint(toIdx);
@@ -196,6 +194,11 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
     deps.renderer.writeError(toErrorMessage(err));
     return 1;
   } finally {
-    await claimedRegistry?.unregister().catch(() => undefined);
+    if (maintenance) {
+      await maintenance.client
+        .call('release_maintenance', { lease: maintenance.lease })
+        .catch(() => undefined);
+      await maintenance.client.close().catch(() => undefined);
+    }
   }
 };

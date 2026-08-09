@@ -31,6 +31,7 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 |---|---|---|
 | [architecture.md](architecture.md) | Package layout, layer model, dependency direction, IPC contracts | **Read first** — the canonical architecture entry point |
 | [architecture-rules.md](architecture-rules.md) | Seven-layer internal runtime-import ordering with automated enforcement | Read when adding a new file to `packages/core/src/` |
+| [plans/session-catalog-project-service-2026-08.md](plans/session-catalog-project-service-2026-08.md) | Detailed project plan for daemon-owned session claims, live presence, and shared session catalog operations | Read before changing session ownership, resume, registry, session index, or cross-surface presence |
 | [webui.md](webui.md) | WebUI architecture: Vite + React 19 + WebSocket + Monaco | Read when working on `packages/webui/` |
 | [plans/hq-command-center-2026-07.md](plans/hq-command-center-2026-07.md) | HQ command center enhancement plan — `packages/webui-hq/` React app (Phase 5) | Read when working on the cross-machine HQ dashboard |
 | [agent-monitoring.md](agent-monitoring.md) | Agent monitoring system: FleetBus → AgentMonitorService → HQ browser + TUI timeline | Read when working on subagent visibility or HQ integration |

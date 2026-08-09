@@ -191,6 +191,28 @@ describe('renderInstructionLayer — placeholders', () => {
 });
 
 describe('bundled instruction tool-reference integrity', () => {
+  it('keeps the Todo/Kanban status lifecycle contract in default, lite, and pro variants', async () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const instructions = path.resolve(here, '..', '..', 'instructions');
+
+    for (const name of ['system.md', 'system-lite.md', 'system-pro.md']) {
+      const raw = await fs.readFile(path.join(instructions, name), 'utf8');
+      const withTracking = renderInstructionLayer(raw, ctx(['todo', 'kanban']));
+      expect(withTracking, name).toContain('## Todo status lifecycle');
+      expect(withTracking, name).toContain('completed → Done');
+      expect(withTracking, name).toContain('Never leave completed work in Running');
+      expect(withTracking, name).toContain('next-step prompt');
+
+      const kanbanOnly = renderInstructionLayer(raw, ctx(['kanban']));
+      expect(kanbanOnly, name).not.toContain('## Todo status lifecycle');
+      expect(kanbanOnly, name).toContain('## Kanban Agent hard conditions');
+
+      const todoOnly = renderInstructionLayer(raw, ctx(['todo']));
+      expect(todoOnly, name).toContain('## Todo status lifecycle');
+      expect(todoOnly, name).not.toContain('## Kanban Agent hard conditions');
+    }
+  });
+
   it('keeps every bundled instruction free of unknown callable names and deprecated aliases', async () => {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const root = path.resolve(here, '..', '..', 'instructions');

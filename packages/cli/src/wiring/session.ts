@@ -66,6 +66,12 @@ export interface SessionResult {
   resumedProvider?: string | undefined;
 }
 
+export interface SessionClaimHandle {
+  rollback(): Promise<void>;
+  /** Convert the pre-hydration reservation into the live writer lease. */
+  activate(): Promise<void>;
+}
+
 export async function setupSession(params: {
   config: {
     model: string;
@@ -86,7 +92,9 @@ export async function setupSession(params: {
    * Atomically reserve an explicitly resumed session in the cross-process
    * SessionRegistry. Returns a rollback used when loading the session fails.
    */
-  claimSession?: ((sessionId: string) => Promise<() => Promise<void>>) | undefined;
+  claimSession?:
+    | ((sessionId: string) => Promise<SessionClaimHandle | (() => Promise<void>)>)
+    | undefined;
   /** Optional EventBus for emitting storage.* events from todo/queue/task stores. */
   events?: import('@wrongstack/core/kernel').EventBus;
   /** Logger for structured storage warnings. */
@@ -127,12 +135,18 @@ export async function setupSession(params: {
   let resumedModel: string | undefined;
   let resumedProvider: string | undefined;
   if (resumeId) {
-    let releaseClaim: (() => Promise<void>) | undefined;
+    let claimHandle: SessionClaimHandle | undefined;
     try {
       if (sessionStore.resolveId) resumeId = await sessionStore.resolveId(resumeId);
-      releaseClaim = await claimSession?.(resumeId);
+      const claimed = await claimSession?.(resumeId);
+      if (typeof claimed === 'function') {
+        claimHandle = { rollback: claimed, activate: async () => {} };
+      } else {
+        claimHandle = claimed;
+      }
       const resumed = await sessionStore.resume(resumeId);
       session = resumed.writer;
+      await claimHandle?.activate();
       restoredMessages = resumed.data.messages;
       // Sessions written before tool_call_end events existed (or alternate
       // store impls) may not carry toolCallEnds — missing must not turn a
@@ -147,7 +161,7 @@ export async function setupSession(params: {
         `Resumed session ${resumed.data.metadata.id} — ${restoredMessages.length} messages, ${restoredToolCalls.length} tool executions, ${resumed.data.usage.input + resumed.data.usage.output} tokens used previously.`,
       );
     } catch (err) {
-      await releaseClaim?.().catch(() => undefined);
+      await claimHandle?.rollback().catch(() => undefined);
       renderer.writeError(`Resume failed: ${toErrorMessage(err)}`);
       throw Object.assign(new Error('RESUME_FAILED'), { exitCode: 2 });
     }

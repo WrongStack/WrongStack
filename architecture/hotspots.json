@@ -15,7 +15,7 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1185,
+      "lines": 1193,
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
@@ -195,8 +195,8 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1001,
-      "relativeImports": 150
+      "lines": 1004,
+      "relativeImports": 152
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
       "lines": 1063,
@@ -210,13 +210,17 @@
       "lines": 830,
       "relativeImports": 9
     },
+    "packages/core/src/session-catalog/store.ts": {
+      "lines": 1041,
+      "relativeImports": 8
+    },
     "packages/core/src/storage/file-session-writer.ts": {
       "lines": 1150,
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1070,
-      "relativeImports": 37
+      "lines": 1237,
+      "relativeImports": 38
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
       "lines": 924,
@@ -283,7 +287,7 @@
       "relativeImports": 12
     },
     "packages/sage/src/middleware/tool-call-memory.ts": {
-      "lines": 1286,
+      "lines": 1292,
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
@@ -295,7 +299,7 @@
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 884,
+      "lines": 902,
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
@@ -455,8 +459,8 @@
       "relativeImports": 2
     },
     "packages/webui/src/components/FileActivityDrawer.tsx": {
-      "lines": 868,
-      "relativeImports": 1
+      "lines": 881,
+      "relativeImports": 2
     },
     "packages/webui/src/components/FileExplorer.tsx": {
       "lines": 821,
@@ -467,7 +471,7 @@
       "relativeImports": 15
     },
     "packages/webui/src/components/MemoryManager/index.tsx": {
-      "lines": 1098,
+      "lines": 1115,
       "relativeImports": 10
     },
     "packages/webui/src/components/OfficeMapCanvas.tsx": {
@@ -535,7 +539,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/connections-health-route.ts": {
-      "lines": 1164,
+      "lines": 1226,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/context-editor.ts": {
@@ -563,7 +567,7 @@
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1090,
+      "lines": 1134,
       "relativeImports": 18
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

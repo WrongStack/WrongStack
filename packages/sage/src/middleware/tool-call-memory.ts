@@ -928,7 +928,13 @@ function durableMemoryKind(kind: Sage['kind']): boolean {
     kind === 'bug_root_cause' ||
     kind === 'file_note' ||
     kind === 'symbol_note' ||
-    kind === 'command_note'
+    kind === 'command_note' ||
+    kind === 'tool_outcome' ||
+    kind === 'error_pattern' ||
+    kind === 'role_operational' ||
+    kind === 'task_outcome' ||
+    kind === 'security_signal' ||
+    kind === 'fleet_convention'
   );
 }
 

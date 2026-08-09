@@ -58,10 +58,7 @@ export async function resumeSession(
   // the current writer and registry identity untouched.
   const { replaySessionMessages } = await import('@wrongstack/tui');
 
-  // Refuse to resume a session that a LIVE process owns — two
-  // writers on one session JSONL corrupt it. Thrown (not null) so
-  // the resume picker surfaces the reason instead of a generic
-  // failure. Best-effort: a broken registry must not block resume.
+  // Resolve before reserving so every contender races on one canonical key.
   let canonicalSessionId = sessionId;
   try {
     if (state.activeSessionStore.resolveId) {
@@ -81,24 +78,9 @@ export async function resumeSession(
     );
     return null;
   }
-  try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const registry = new SessionRegistry(path.dirname(state.wpaths.globalConfig));
-    const live = (await registry.list()).find(
-      (s) => s.sessionId === canonicalSessionId && s.status !== 'stale' && s.pid !== process.pid,
-    );
-    if (live) {
-      throw new Error(
-        `Session is open in another running wstack (pid ${live.pid}) — it cannot be resumed here while live.`,
-      );
-    }
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith('Session is open')) throw err;
-    // registry unreadable — fall through to the normal resume path
-  }
-
   const previousSessionId = agent.ctx.session?.id;
   let identityClaimed = false;
+  let resumeClaim: import('@wrongstack/core/storage').SessionResumeClaim | undefined;
   let writerSwapped = false;
   let openedWriter: SessionWriter | undefined;
   // Hoisted so the outer `catch` can restore them when a failure
@@ -123,12 +105,36 @@ export async function resumeSession(
   let oldTaskPath: unknown;
 
   try {
-    if (state.activateSessionIdentity) {
+    if (state.wpaths.projectSlug && state.wpaths.globalRoot) {
+      const { getSessionRegistry } = await import('@wrongstack/core/storage');
+      const registry = getSessionRegistry(state.wpaths.globalRoot);
+      resumeClaim = await registry.reserveResume({
+        sessionId: canonicalSessionId,
+        projectSlug: state.wpaths.projectSlug,
+        projectRoot: state.projectRoot,
+      });
+    } else if (state.activateSessionIdentity) {
+      // Host adapters predating the reservation API still provide an atomic
+      // claim callback. Production WstackPaths always takes the branch above.
       await state.activateSessionIdentity(canonicalSessionId);
       identityClaimed = true;
     }
     const resumed = await state.activeSessionStore.resume(canonicalSessionId);
     openedWriter = resumed.writer;
+    if (resumeClaim) {
+      await resumeClaim.activate({
+        sessionId: canonicalSessionId,
+        projectSlug: state.wpaths.projectSlug,
+        projectRoot: state.projectRoot,
+        projectName: path.basename(state.projectRoot),
+        workingDir: agent.ctx.workingDir,
+        clientType: 'tui',
+        pid: process.pid,
+        startedAt: new Date().toISOString(),
+      });
+      identityClaimed = true;
+      await state.activateSessionIdentity?.(canonicalSessionId);
+    }
     const meta = resumed.data.metadata;
     const entries = replaySessionMessages(
       resumed.data.messages,
@@ -193,12 +199,8 @@ export async function resumeSession(
     oldTodos = agent.ctx.state.todos
       ? [...(agent.ctx.state.todos as import('@wrongstack/core/agent').TodoItem[])]
       : [];
-    oldPlanPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
-      'plan.path'
-    ];
-    oldTaskPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.[
-      'task.path'
-    ];
+    oldPlanPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.['plan.path'];
+    oldTaskPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.['task.path'];
     await Promise.resolve(previousDetachFn?.()).catch(() => undefined);
     agent.ctx.state.setMeta(
       'plan.path',
@@ -361,6 +363,7 @@ export async function resumeSession(
     void oldWriterFinalize;
     return result;
   } catch (err) {
+    if (!identityClaimed) await resumeClaim?.cancel().catch(() => undefined);
     if (identityClaimed && previousSessionId) {
       // Roll identity back regardless of writerSwapped. If we crashed
       // pre-swap, the resume never took effect so the identity must

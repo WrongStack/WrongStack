@@ -991,7 +991,14 @@ export async function startWebUI(
         .catch((err: unknown) => {
           // Best-effort — a failure here must not crash the message handler
           // or block future messages.
-          console.warn(`[WebUI] security-rejection mailbox note failed: ${String(err)}`);
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'webui.security_rejection_mailbox_note_failed',
+              message: String(err),
+              timestamp: new Date().toISOString(),
+            }),
+          );
         });
     },
     goalHandler,
@@ -1014,7 +1021,8 @@ export async function startWebUI(
   // host (LAN exposure). Loopback binds skip the token check, mirroring
   // the WS verifyClient loopback-bootstrap policy.
 
-  registerShutdown({
+  let unregisterShutdown = (): void => {};
+  unregisterShutdown = registerShutdown({
     flushSession: async () => {
       await session.append({
         type: 'session_end',
@@ -1031,6 +1039,7 @@ export async function startWebUI(
       ...(wssSecondary ? [wssSecondary] : []),
     ],
     onShutdown: async () => {
+      unregisterShutdown();
       await todosCheckpoint.detach();
       await stopHeapWatchdog();
       credentialWatcherClose?.();

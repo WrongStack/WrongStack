@@ -20,6 +20,10 @@ const mocks = vi.hoisted(() => ({
     register: vi.fn(),
     unregister: vi.fn(),
   },
+  catalogInstance: {
+    call: vi.fn(),
+    close: vi.fn(),
+  },
 }));
 const { rewindInstance, storeInstance, registryInstance } = mocks;
 
@@ -47,11 +51,16 @@ vi.mock('@wrongstack/core/storage', async (orig) => {
     register = mocks.registryInstance.register;
     unregister = mocks.registryInstance.unregister;
   }
+  class FakeCatalogClient {
+    call = mocks.catalogInstance.call;
+    close = mocks.catalogInstance.close;
+  }
   return {
     ...actual,
     DefaultSessionRewinder: FakeRewinder,
     DefaultSessionStore: FakeStore,
     SessionRegistry: FakeRegistry,
+    SessionCatalogProjectClient: FakeCatalogClient,
   };
 });
 
@@ -90,6 +99,19 @@ beforeEach(() => {
   storeInstance.resume.mockReset();
   registryInstance.register.mockReset().mockResolvedValue(undefined);
   registryInstance.unregister.mockReset().mockResolvedValue(undefined);
+  mocks.catalogInstance.call.mockReset().mockImplementation(async (op: string) => {
+    if (op === 'acquire_maintenance') {
+      return {
+        sessionId: 'auto-session-1',
+        operation: 'rewind',
+        holderId: `rewind:${process.pid}`,
+        leaseId: 'lease-test',
+        expiresAt: Date.now() + 60_000,
+      };
+    }
+    return undefined;
+  });
+  mocks.catalogInstance.close.mockReset().mockResolvedValue(undefined);
 });
 
 describe('rewindCmd', () => {
@@ -262,16 +284,19 @@ describe('rewindCmd', () => {
     });
     const deps = fakeDeps();
     await rewindCmd(['--last', '1', '--resume'], deps);
-    expect(registryInstance.register).toHaveBeenCalledWith(
+    expect(mocks.catalogInstance.call).toHaveBeenCalledWith(
+      'acquire_maintenance',
       expect.objectContaining({
         sessionId: 'auto-session-1',
-        clientType: 'cli',
-        pid: process.pid,
+        operation: 'rewind',
       }),
     );
     expect(truncate).toHaveBeenCalledWith(5);
     expect(close).toHaveBeenCalled();
-    expect(registryInstance.unregister).toHaveBeenCalledOnce();
+    expect(mocks.catalogInstance.call).toHaveBeenCalledWith(
+      'release_maintenance',
+      expect.any(Object),
+    );
   });
 
   it('--resume with no reverted files still truncates', async () => {
@@ -292,7 +317,7 @@ describe('rewindCmd', () => {
   });
 
   it('--resume refuses to mutate a session owned by another live PID', async () => {
-    registryInstance.register.mockRejectedValue(
+    mocks.catalogInstance.call.mockRejectedValueOnce(
       new Error('Session auto-session-1 is already open in another running wstack (pid 4242).'),
     );
     const deps = fakeDeps();
@@ -305,7 +330,7 @@ describe('rewindCmd', () => {
     expect(deps.renderer.writeError).toHaveBeenCalledWith(
       'Session auto-session-1 is already open in another running wstack (pid 4242).',
     );
-    expect(registryInstance.unregister).not.toHaveBeenCalled();
+    expect(mocks.catalogInstance.close).not.toHaveBeenCalled();
   });
 
   it('returns 1 when rewind produces errors', async () => {

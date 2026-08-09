@@ -243,8 +243,11 @@ function MemoryCard({
           </Button>
         )}
 
-        {/* Pending-review triple action — destructive action gated on suggestedAction. */}
-        {review && (
+        {/* Pending-review triple action — destructive action gated on suggestedAction.
+            When the parent integration is read-only (e.g. FileActivityDrawer's
+            'memory' tab), none of the action handlers are wired, so we hide
+            the whole block instead of rendering buttons that would be no-ops. */}
+        {review && (onAcceptDeletion || onKeep || onUpdate || onMarkPermanent) && (
           <>
             {review.suggestedAction === 'delete' && (
               <Button

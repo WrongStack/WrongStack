@@ -20,6 +20,7 @@
         "export * from './observability/network-telemetry.js';",
         "export * from './observability/process-telemetry.js';",
         "export * from './prompts/index.js';",
+        "export * from './session-catalog/index.js';",
         "export * from './skills/index.js';",
         "export * from './storage/index.js';",
         "export * from './types/index.js';",
@@ -38,6 +39,7 @@
         "export type { ReportEventType, ReportLifecycleStatus, ReviewReport, ReviewReportCounts, ReviewReportEvent, ReviewReportFile, } from './plugins/review-report-types.js';",
         "export type { RotatableSecretVault, SecretVault } from './types/secret-vault.js';",
         "export type { SecretScrubber } from './types/secret-scrubber.js';",
+        "export type { SessionLiveStatus, SessionRegistryEntry, } from './session-registry.js';",
         "export type { ToolWrapper } from './registry/tool-registry.js';",
         "export { ACP_AGENTS, ALL_FLEET_AGENTS, applyRosterBudget, FLEET_ROSTER, FLEET_ROSTER_BUDGETS, FLEET_ROSTER_WITHACP, type FleetRosterBudget, } from './coordination/fleet.js';",
         "export { AGENT_CATALOG, AGENTS_BY_PHASE, type AgentDefinition, type AgentPhase, ALL_AGENT_DEFINITIONS, getAgentDefinition, } from './coordination/agents/index.js';",
@@ -117,7 +119,7 @@
         "export { expectDefined } from './utils/expect-defined.js';",
         "export { extractRunEnv, type RunEnv } from './core/run-env.js';",
         "export { formatSubagentStructuredReport, MAX_SUBAGENT_STRUCTURED_REPORT_CHARS, makeSubagentResultTool, normalizeSubagentStructuredReport, readSubagentStructuredReport, SUBAGENT_STRUCTURED_REPORT_META_KEY, } from './coordination/subagent-result-tool.js';",
-        "export { getSessionRegistry, hasSessionRegistry, type SessionLiveStatus, SessionRegistry, type SessionRegistryEntry, } from './session-registry.js';",
+        "export { getProjectSessionRegistry as getSessionRegistry, hasProjectSessionRegistry as hasSessionRegistry, ProjectSessionRegistry as SessionRegistry, } from './session-catalog/registry.js';",
         "export { getTermSize, isInteractive, isStdinTTY, isStdoutTTY, type OutputLineGuard, onResize, setOutputLineGuard, setRawMode, writeErr, writeOut, } from './utils/term.js';",
         "export { hashRequest, stableStringify, } from './replay/hash.js';",
         "export { isMailboxLeader, isMailboxMessageVisibleTo, mailboxIdentityBase, normalizeRecipient, } from './coordination/mailbox-types.js';",
@@ -730,49 +732,67 @@
       },
       "source": "packages/core/src/storage/index.ts",
       "declarations": [
-        "export type { SessionReader, DefaultSessionReaderOptions } from '../types/session-reader.js';",
-        "export type { SyncConfig, SyncCategory } from '../types/config.js';",
+        "export type { AgentEntry, AgentLiveStatus, SessionLiveStatus, SessionRegistryEntry, SessionWebUIEndpointHint, } from '../session-registry.js';",
+        "export type { DefaultSessionReaderOptions, SessionReader } from '../types/session-reader.js';",
+        "export type { SyncCategory, SyncConfig } from '../types/config.js';",
+        "export { ALL_SYNC_CATEGORIES, CloudSync, type SyncResult, } from './cloud-sync.js';",
         "export { AgentStatusTracker, type AgentStatusTrackerOptions, } from '../agent-status-tracker.js';",
-        "export { AnnotationsStore, type Annotation, type AnnotationsStoreOptions, } from './annotations-store.js';",
         "export { CONFIG_BEHAVIOR_DEFAULTS, type ConfigDefaultRepair, type ConfigDefaultRepairReport, type ConfigLoaderOptions, type ConfigSource, DefaultConfigLoader, repairConfigDefaults, } from './config-loader.js';",
-        "export { CloudSync, type SyncResult, ALL_SYNC_CATEGORIES, } from './cloud-sync.js';",
-        "export { DefaultAttachmentStore, type AttachmentStoreOptions, } from './attachment-store.js';",
         "export { DefaultConfigStore } from './config-store.js';",
-        "export { DefaultPromptStore, migratePromptEntry, promptChecksum, type PromptStore, type PromptEntry, } from './prompt-store.js';",
+        "export { DefaultPromptStore, migratePromptEntry, type PromptEntry, type PromptStore, promptChecksum, } from './prompt-store.js';",
         "export { DefaultSessionReader } from './session-reader.js';",
         "export { DefaultSessionRewinder, type SessionRewinderOptions, } from './session-rewinder.js';",
         "export { DefaultSessionStore, type SessionStoreOptions, } from './session-store.js';",
-        "export { DirectorStateCheckpoint, loadDirectorState, type DirectorStateSnapshot, type DirectorTaskState, type DirectorSubagentState, } from './director-state.js';",
+        "export { DirectorStateCheckpoint, type DirectorStateSnapshot, type DirectorSubagentState, type DirectorTaskState, loadDirectorState, } from './director-state.js';",
         "export { FileMemoryBackend, type FileMemoryBackendOptions, type MemoryBackend, parseEntries, } from './memory-backend.js';",
         "export { FleetNotifier, type FleetNotifierOptions, } from '../fleet-notifier.js';",
         "export { GraphMemoryBackend, type GraphMemoryBackendOptions, } from './memory-graph-backend.js';",
-        "export { InputHistoryStore, INPUT_HISTORY_DEFAULT_MAX, } from './input-history-store.js';",
-        "export { PromptUsageStore, type PromptUsage } from './prompt-usage-store.js';",
-        "export { QUEUE_MAX_BYTES, QUEUE_MAX_ITEM_BYTES, QUEUE_MAX_ITEMS, QueueStore, retainPersistedQueueItems, type PersistedQueueItem, } from './queue-store.js';",
-        "export { RecoveryLock, type RecoveryLockOptions, type AbandonedSession, } from './recovery-lock.js';",
-        "export { ReplayLogStore, type ReplayEntry, type ReplayLogStoreOptions, } from './replay-log-store.js';",
+        "export { INPUT_HISTORY_DEFAULT_MAX, InputHistoryStore, } from './input-history-store.js';",
         "export { SessionAnalyzer } from './session-analyzer.js';",
-        "export { SessionCheckpointCas, type CheckpointGitResult, type SessionCheckpointCasOptions, } from './session-checkpoint-cas.js';",
-        "export { SessionMemoryConsolidator, type MemoryConsolidatorOptions, type ConsolidationOp, type ConsolidatorSage, } from './memory-consolidator.js';",
-        "export { SessionRecovery, type StaleSession, type RecoveryPlan, } from './session-recovery.js';",
-        "export { SessionRegistry, getSessionRegistry, hasSessionRegistry, type SessionRegistryEntry, type SessionWebUIEndpointHint, type AgentEntry, type AgentLiveStatus, type SessionLiveStatus, } from '../session-registry.js';",
-        "export { ToolAuditLog, type AuditEntry, type ToolAuditLogOptions, type VerifyResult, } from './tool-audit-log.js';",
-        "export { applyGoalDeliverableCompletions, coordinateGoalIteration, isGoalDeliverableComplete, parseCompletedGoalDeliverables, recomputeGoalProgress, stripGoalDeliverableMarker, type CompletedGoalDeliverable, type CoordinateGoalIterationOptions, type GoalCoordinationResult, } from './goal-coordination.js';",
+        "export { SessionRegistry as LegacySessionRegistry } from '../session-registry.js';",
+        "export { addPlanItem, attachPlanCheckpoint, clearPlan, deriveTodosFromPlanItem, emptyPlan, formatPlan, loadPlan, mutatePlan, type PlanFile, type PlanItem, removePlanItem, savePlan, setPlanItemStatus, } from './plan-store.js';",
+        "export { appendJournal, emptyGoal, formatGoal, type GoalFile, goalFilePath, type JournalEntry, loadGoal, MAX_JOURNAL_ENTRIES, MAX_PROGRESS_HISTORY, type ProgressSnapshot, parseProgressFromText, recordProgress, saveGoal, setProgress, summarizeUsage, } from './goal-store.js';",
+        "export { applyGoalDeliverableCompletions, type CompletedGoalDeliverable, type CoordinateGoalIterationOptions, coordinateGoalIteration, type GoalCoordinationResult, isGoalDeliverableComplete, parseCompletedGoalDeliverables, recomputeGoalProgress, stripGoalDeliverableMarker, } from './goal-coordination.js';",
         "export { applyNamespacePayload, buildNamespacePayloads, CLOUD_SYNC_CONTRACT, CLOUD_SYNC_NAMESPACES, CloudConfigSync, type CloudConfigSyncDeps, type CloudConfigSyncSettings, type CloudSyncPassSummary, LOCAL_ONLY_TOP_LEVEL, NAMESPACE_SCHEMA_VERSIONS, stripSecretMaterial, } from './cloud-config-sync.js';",
-        "export { applyRewindToConversation, type ApplyRewindOptions, type ApplyRewindResult, type RewindableConversation, } from './session-rewind-apply.js';",
-        "export { attachPlanCheckpoint, loadPlan, savePlan, emptyPlan, addPlanItem, removePlanItem, setPlanItemStatus, clearPlan, formatPlan, deriveTodosFromPlanItem, mutatePlan, type PlanItem, type PlanFile, } from './plan-store.js';",
         "export { attachTodosCheckpoint, loadTodosCheckpoint, saveTodosCheckpoint, type TodosCheckpointFile, } from './todos-checkpoint.js';",
-        "export { createGoalKanbanBoard, findGoalKanbanBoard, deleteGoalKanbanBoard, findGoalBoardByTag, formatGoalKanbanPreview, formatGoalEvent, formatGoalAutonomyChoice, parseAutonomyChoice, type GoalFileWithKanban, } from './goal-kanban.js';",
-        "export { createSessionEventBridge, resolveAuditLevel, resolveSessionLoggingConfig, type SessionEventBridge, type AuditLevel, type SessionEventBridgeOptions, type SessionSamplingOptions, type ToolProgressSamplingOptions, CORE_RECONSTRUCT_EVENTS, STANDARD_AUDIT_EVENTS, } from './session-event-bridge.js';",
+        "export { createGoalKanbanBoard, deleteGoalKanbanBoard, findGoalBoardByTag, findGoalKanbanBoard, formatGoalAutonomyChoice, formatGoalEvent, formatGoalKanbanPreview, type GoalFileWithKanban, parseAutonomyChoice, } from './goal-kanban.js';",
+        "export { emptyTaskFile, loadTasks, mutateTasks, saveTasks, type TaskFile, } from './task-store.js';",
+        "export { formatPlanTemplates, getPlanTemplate, listPlanTemplates, type PlanTemplate, } from './plan-templates.js';",
         "export { generateSessionId, sanitizeModel } from './session-id.js';",
-        "export { listPlanTemplates, getPlanTemplate, formatPlanTemplates, type PlanTemplate, } from './plan-templates.js';",
-        "export { loadCompletedWorkCheckpoint, saveCompletedWorkCheckpoint, type CompletedWorkCheckpointFile, } from './completed-work-checkpoint.js';",
-        "export { loadGoal, saveGoal, emptyGoal, appendJournal, formatGoal, setProgress, recordProgress, parseProgressFromText, goalFilePath, summarizeUsage, MAX_JOURNAL_ENTRIES, MAX_PROGRESS_HISTORY, type GoalFile, type JournalEntry, type ProgressSnapshot, } from './goal-store.js';",
-        "export { loadTasks, saveTasks, emptyTaskFile, mutateTasks, type TaskFile, } from './task-store.js';",
-        "export { readProviderSnapshot, watchProviderConfig, type ProviderConfigSnapshot, type WatchProviderConfigOptions, } from './provider-config-watcher.js';",
-        "export { resolveSessionId, sessionIdResolutionError, type SessionIdResolution, } from './session-id-resolver.js';",
-        "export { runConfigMigrations, ConfigMigrationError, DEFAULT_CONFIG_MIGRATIONS, type ConfigMigration, type MigrationContext, type MigrationResult, } from './config-migration.js';",
-        "export { scrubPersistedSessionData, scrubPersistedSessionEvent, scrubPersistedSessionSummary, } from './session-read-scrubber.js';"
+        "export { getProjectSessionRegistry as getSessionRegistry, hasProjectSessionRegistry as hasSessionRegistry, ProjectSessionRegistry as SessionRegistry, } from '../session-catalog/registry.js';",
+        "export { resolveSessionId, type SessionIdResolution, sessionIdResolutionError, } from './session-id-resolver.js';",
+        "export { scrubPersistedSessionData, scrubPersistedSessionEvent, scrubPersistedSessionSummary, } from './session-read-scrubber.js';",
+        "export { type AbandonedSession, RecoveryLock, type RecoveryLockOptions, } from './recovery-lock.js';",
+        "export { type Annotation, AnnotationsStore, type AnnotationsStoreOptions, } from './annotations-store.js';",
+        "export { type ApplyRewindOptions, type ApplyRewindResult, applyRewindToConversation, type RewindableConversation, } from './session-rewind-apply.js';",
+        "export { type AttachmentStoreOptions, DefaultAttachmentStore, } from './attachment-store.js';",
+        "export { type AuditEntry, ToolAuditLog, type ToolAuditLogOptions, type VerifyResult, } from './tool-audit-log.js';",
+        "export { type AuditLevel, CORE_RECONSTRUCT_EVENTS, createSessionEventBridge, resolveAuditLevel, resolveSessionLoggingConfig, type SessionEventBridge, type SessionEventBridgeOptions, type SessionSamplingOptions, STANDARD_AUDIT_EVENTS, type ToolProgressSamplingOptions, } from './session-event-bridge.js';",
+        "export { type CatalogSessionRecord, type MaintenanceLease, type ResumeReservation, type SessionCatalogHealth, SessionCatalogProjectClient, type SessionCatalogProjectClientOptions, type SessionLeaseCredential, type SessionResumeClaim, } from '../session-catalog/index.js';",
+        "export { type CheckpointGitResult, SessionCheckpointCas, type SessionCheckpointCasOptions, } from './session-checkpoint-cas.js';",
+        "export { type CompletedWorkCheckpointFile, loadCompletedWorkCheckpoint, saveCompletedWorkCheckpoint, } from './completed-work-checkpoint.js';",
+        "export { type ConfigMigration, ConfigMigrationError, DEFAULT_CONFIG_MIGRATIONS, type MigrationContext, type MigrationResult, runConfigMigrations, } from './config-migration.js';",
+        "export { type ConsolidationOp, type ConsolidatorSage, type MemoryConsolidatorOptions, SessionMemoryConsolidator, } from './memory-consolidator.js';",
+        "export { type PersistedQueueItem, QUEUE_MAX_BYTES, QUEUE_MAX_ITEM_BYTES, QUEUE_MAX_ITEMS, QueueStore, retainPersistedQueueItems, } from './queue-store.js';",
+        "export { type PromptUsage, PromptUsageStore } from './prompt-usage-store.js';",
+        "export { type ProviderConfigSnapshot, readProviderSnapshot, type WatchProviderConfigOptions, watchProviderConfig, } from './provider-config-watcher.js';",
+        "export { type RecoveryPlan, SessionRecovery, type StaleSession, } from './session-recovery.js';",
+        "export { type ReplayEntry, ReplayLogStore, type ReplayLogStoreOptions, } from './replay-log-store.js';"
+      ]
+    },
+    {
+      "subpath": "./session-catalog",
+      "target": {
+        "types": "./dist/session-catalog/index.d.ts",
+        "import": "./dist/session-catalog/index.js"
+      },
+      "source": "packages/core/src/session-catalog/index.ts",
+      "declarations": [
+        "export * from './client.js';",
+        "export * from './endpoint.js';",
+        "export * from './protocol.js';",
+        "export * from './registry.js';",
+        "export * from './store.js';"
       ]
     },
     {
@@ -1119,7 +1139,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 40,
-      "sourceLines": 9895
+      "sourceLines": 9991
     },
     {
       "directory": "defaults",
@@ -1140,7 +1160,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 52,
-      "sourceLines": 18362
+      "sourceLines": 18377
     },
     {
       "directory": "extension",
@@ -1255,6 +1275,13 @@
       "sourceLines": 6009
     },
     {
+      "directory": "session-catalog",
+      "classification": "storage/repository implementation",
+      "intendedOwner": "project-scoped ownership and catalog subsystem",
+      "sourceFiles": 7,
+      "sourceLines": 2636
+    },
+    {
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
@@ -1266,7 +1293,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 77,
-      "sourceLines": 17320
+      "sourceLines": 17501
     },
     {
       "directory": "tasking",
@@ -1287,14 +1314,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 65,
-      "sourceLines": 10196
+      "sourceLines": 10208
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 10038
+      "sourceLines": 10136
     },
     {
       "directory": "worktree",

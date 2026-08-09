@@ -91,6 +91,7 @@ describe('resolveContinuation', () => {
       suggestions: ['a stale suggestion'],
     });
     expect(r.source).toBe('todo');
+    expect(r.todoId).toBe('Second task');
     // Uses activeForm for the in-progress item.
     expect(r.text).toContain('Doing the second task');
     expect(r.text).toContain('(1/3 todos complete.)');

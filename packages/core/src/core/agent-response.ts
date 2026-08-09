@@ -9,6 +9,7 @@ import type { Provider, Request, Response } from '../types/provider.js';
 import { deriveCachePrefixKey } from '../utils/cache-key.js';
 import {
   buildCompletedWorkLedgerBlock,
+  buildConversationContinuityBlock,
   markAssistantReferencedEvidence,
 } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
@@ -90,6 +91,11 @@ export function buildLiveNextStepsGateBlock(
   });
   const omitted = openTodos.length - todoSnapshot.length;
   if (omitted > 0) todoSnapshot.push(`- …and ${omitted} more open todo(s)`);
+  const todoReconciliation = ctx.tools?.some((tool) => tool.name === 'todo')
+    ? [
+        'Before ending the turn, you MUST call the `todo` tool with the complete current list to reconcile actual progress: finished items completed, exactly one actively worked item in_progress, and untouched items pending. A prose claim that work is done does not update the Todo/Kanban state.',
+      ]
+    : [];
 
   return {
     type: 'text',
@@ -97,6 +103,7 @@ export function buildLiveNextStepsGateBlock(
       '[nextsteps_gate]',
       `Authoritative live state for this request: open todos = ${openTodos.length}.`,
       'You MUST omit <nextsteps> entirely while these todos remain open. Continue or finish the tracked work; do not propose unrelated follow-on work.',
+      ...todoReconciliation,
       'Open todo snapshot:',
       ...todoSnapshot,
       '[/nextsteps_gate]',
@@ -175,11 +182,15 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     }
     stabilizePromptEpoch();
     const volatileLedger = buildCompletedWorkLedgerBlock(a.ctx);
+    const continuity = buildConversationContinuityBlock(a.ctx);
     const liveNextStepsGate = buildLiveNextStepsGateBlock(a.ctx);
     const memoryEvidence = buildMemoryEvidenceBlocks(a.ctx);
-    const volatileBlocks = [volatileLedger, liveNextStepsGate, ...memoryEvidence].filter(
-      (block): block is TextBlock => block !== undefined,
-    );
+    const volatileBlocks = [
+      volatileLedger,
+      continuity,
+      liveNextStepsGate,
+      ...memoryEvidence,
+    ].filter((block): block is TextBlock => block !== undefined);
     const system =
       volatileBlocks.length > 0 ? [...a.ctx.systemPrompt, ...volatileBlocks] : a.ctx.systemPrompt;
     // A picker/WebUI switch can still be building a provider while

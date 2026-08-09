@@ -15,7 +15,6 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-
   buildCspHeader,
   createHttpServer,
   decodeSessionId,
@@ -33,7 +32,6 @@ const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
     ...init,
     headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
   });
-
 
 let distDir: string;
 let server: import('node:http').Server;
@@ -510,6 +508,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   let projectDir: string;
   let evServer: import('node:http').Server;
   let evBase: string;
+  let sessionRegistry: import('@wrongstack/core/storage').SessionRegistry;
   const sessionId = 'test-watch-1';
   const projectRoot = path.join(os.tmpdir(), 'watch-proj-fixture');
 
@@ -517,7 +516,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
     gRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'webui-watch-'));
 
-    // One live session in the registry pointing at our fixture project.
+    // One live session in the project-scoped catalog pointing at our fixture project.
     const entry = {
       sessionId,
       projectSlug: 'fixture',
@@ -532,11 +531,6 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
       agentCount: 0,
       agents: [],
     };
-    await fs.writeFile(
-      path.join(gRoot, 'session-registry.json'),
-      JSON.stringify({ [sessionId]: entry }),
-    );
-
     // The session's JSONL, written to the same path the handler resolves.
     const paths = resolveWstackPaths({ projectRoot, globalRoot: gRoot });
     projectDir = paths.projectDir;
@@ -563,6 +557,9 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
         .map((e) => JSON.stringify(e))
         .join('\n') + '\n';
     await fs.writeFile(path.join(paths.projectSessions, `${sessionId}.jsonl`), lines);
+    const { SessionRegistry } = await import('@wrongstack/core/storage');
+    sessionRegistry = new SessionRegistry(gRoot);
+    await sessionRegistry.register(entry);
 
     evServer = createHttpServer({
       host: '127.0.0.1',
@@ -578,6 +575,9 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
 
   afterAll(async () => {
     await new Promise<void>((resolve) => evServer.close(() => resolve()));
+    await sessionRegistry.dispose();
+    const { SessionCatalogProjectClient } = await import('@wrongstack/core/session-catalog');
+    await new SessionCatalogProjectClient({ projectDir, projectRoot }).shutdown('test cleanup');
     // Posting a message starts the project's detached mailbox owner, which
     // keeps `<gRoot>/projects/<slug>/_mailbox.sqlite` open; leave it running
     // and the rm below blocks on EBUSY past the hook timeout.

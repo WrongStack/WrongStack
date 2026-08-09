@@ -19,6 +19,7 @@ describe('selectAutoProceedCandidate', () => {
     });
 
     expect(candidate?.source).toBe('todo');
+    expect(candidate?.todoId).toBe('fix');
     expect(candidate?.prompt).toContain('Finish the todo lifecycle fix');
     expect(candidate?.prompt).not.toContain('obsolete');
   });
@@ -80,6 +81,51 @@ describe('useNextStepsAutoSubmit', () => {
       | undefined;
     expect(blocks?.[0]?.text).toContain('Close the finished todo');
     expect(blocks?.[0]?.text).not.toContain('stale next step');
+  });
+
+  it('marks a pending grounded todo running through ConversationState before submitting it', async () => {
+    const todos: Array<{
+      id: string;
+      content: string;
+      status: 'pending' | 'in_progress' | 'completed';
+    }> = [
+      { id: 'next', content: 'Implement the lifecycle fix', status: 'pending' },
+      { id: 'later', content: 'Run broad validation', status: 'pending' },
+    ];
+    const replaceTodos = vi.fn((next: typeof todos) => {
+      todos.splice(0, todos.length, ...next);
+    });
+    const runBlocks = vi.fn(async () => undefined);
+
+    renderHook(() =>
+      useNextStepsAutoSubmit({
+        state: createTestState({ status: 'idle' }),
+        autonomyLive: 'auto',
+        agent: { ctx: { todos, state: { replaceTodos } } } as never,
+        getAutonomy: () => 'auto',
+        getSettings: () => ({ delayMs: 0, autoProceedMaxIterations: 50 }) as never,
+        getSuggestions: () => [],
+        getAutoSuggestions: () => [],
+        getYolo: () => false,
+        setSuggestions: vi.fn(),
+        autonomyNextPrompt: undefined,
+        dispatch: vi.fn(),
+        clearDraft: vi.fn(),
+        runBlocksRef: { current: runBlocks },
+      }),
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+
+    expect(replaceTodos).toHaveBeenCalledTimes(1);
+    expect(todos.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: 'next', status: 'in_progress' },
+      { id: 'later', status: 'pending' },
+    ]);
+    expect(runBlocks).toHaveBeenCalledTimes(1);
   });
 
   // ── Advancement path ─────────────────────────────────────────────────

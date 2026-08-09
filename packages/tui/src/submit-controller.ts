@@ -505,6 +505,20 @@ export function createSubmitController(host: SubmitControllerHost) {
             suggestions: getSuggestions?.() ?? [],
           })
         : null;
+    if (continueResolved?.source === 'todo' && continueResolved.todoId) {
+      const selected = agent.ctx.todos.find((todo) => todo.id === continueResolved.todoId);
+      if (selected?.status === 'pending') {
+        agent.ctx.state.replaceTodos(
+          agent.ctx.todos.map((todo) =>
+            todo.id === continueResolved.todoId
+              ? { ...todo, status: 'in_progress' as const }
+              : todo.status === 'in_progress'
+                ? { ...todo, status: 'pending' as const }
+                : todo,
+          ),
+        );
+      }
+    }
 
     // Resolve SDD state once and reuse it below. An active spec conversation
     // already owns its topic boundary, so the generic advisor must stay out.

@@ -71,6 +71,8 @@ const coreEntries = entryMap([
   'src/plugin/index.ts',
   'src/chronicle/index.ts',
   'src/chronicle/project-server.ts',
+  'src/session-catalog/index.ts',
+  'src/session-catalog/project-server.ts',
   'src/storage/index.ts',
   'src/security/index.ts',
   'src/models/index.ts',

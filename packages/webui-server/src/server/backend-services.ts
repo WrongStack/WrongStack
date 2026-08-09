@@ -61,7 +61,6 @@ import {
   mailboxSessionTag,
   ObservableBrainArbiter as ObservableBrainArbiterCtor,
 } from '@wrongstack/core/coordination';
-import { DEFAULT_TOOLS_CONFIG } from '@wrongstack/core/types';
 import { installDesignStudioMiddleware } from '@wrongstack/core/design';
 import {
   AutoCompactionMiddleware as AutoCompactionMiddlewareCtor,
@@ -74,6 +73,7 @@ import { TOKENS } from '@wrongstack/core/kernel';
 import { type AnnotationsStore, SessionMemoryConsolidator } from '@wrongstack/core/storage';
 import {
   type Config,
+  DEFAULT_TOOLS_CONFIG,
   type ProviderConfig,
   resolveContextWindowPolicy,
 } from '@wrongstack/core/types';
@@ -247,6 +247,11 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
           taskAware: config.Sage?.inject?.taskAware,
           minScore: config.Sage?.inject?.minScore,
           minImportance: config.Sage?.inject?.minImportance,
+          // Forward the explicit relation floor so an operator-configured
+          // `Sage.inject.relationFloor` is honored in WebUI sessions. Without
+          // this we silently fall back to MIN_RELATION_STRENGTH (0.85), which
+          // is the CLI default but masks operator overrides.
+          relationFloor: config.Sage?.inject?.relationFloor,
           repeatCooldownMs: config.Sage?.inject?.repeatCooldownMs,
           verifyOnMutation: config.Sage?.hygiene?.autoOnFileChange,
           triggers: config.Sage?.inject?.triggers,
@@ -273,6 +278,10 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
           maxMemories: config.Sage?.inject?.maxTurnMemories,
           maxChars: config.Sage?.inject?.maxCharsPerTurn,
           minScore: config.Sage?.inject?.minScore,
+          // CLI parity: honor `Sage.retrieval.metadataWeight` so the same config
+          // value drives both runtimes instead of silently falling back to the
+          // 0.3 default. The undefined case keeps the middleware's own default.
+          metadataWeight: config.Sage?.retrieval?.metadataWeight,
           getSessionId: getSageSessionId,
           tracker: sageInjectionTracker,
         }),
@@ -303,6 +312,11 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     strategy: config.context?.strategy,
     preserveK: config.context?.preserveK ?? 10,
     eliseThreshold: config.context?.eliseThreshold ?? 2000,
+    // Match the CLI/TUI runtime: keep corrections, errors and decisions
+    // verbatim while collapsing routine assistant chatter/tool protocol.
+    // Without this WebUI's hybrid strategy builds an ever-growing lossless
+    // digest and eventually relies on blunt emergency head/tail trimming.
+    smart: true,
     summarizerModel: config.context?.summarizerModel,
     llmSelector: config.context?.llmSelector,
   });

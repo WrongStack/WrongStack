@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import type { Context } from '../core/context.js';
-import type { TextBlock } from '../types/blocks.js';
+import { isTextBlock, type TextBlock } from '../types/blocks.js';
 import type { CompactReport } from '../types/compactor.js';
 import type {
   CompletedWorkEvidence,
@@ -14,6 +14,11 @@ const MAX_TOOL_CALLS = 80;
 const MAX_FACTS = 40;
 const MAX_ERRORS = 20;
 const MAX_DIGEST_CHARS = 4_000;
+const MAX_RECENT_USER_TURNS = 8;
+const MAX_USER_TURN_CHARS = 700;
+const MAX_CONTINUITY_CHARS = 3_600;
+const RUNTIME_CONTEXT_INPUT_PATTERN =
+  /^\[(?:kanban todo update|fleet pulse|loop-detector|todo-reconciliation|mailbox|btw|system|context_state)\b/i;
 /** Cap for the per-iteration reference scan — see markAssistantReferencedEvidence. */
 const RECENT_TOOL_CALL_SCAN_LIMIT = 20;
 /** Cap content fed to file/symbol regex extractors (first N chars). */
@@ -26,6 +31,7 @@ const READ_TOOLS = new Set(['read', 'grep', 'glob', 'ls', 'tree']);
 
 export function createContextEvidenceState(): ContextEvidenceState {
   return {
+    recentUserTurns: [],
     sessionGoals: [],
     implicitFacts: [],
     activeErrors: [],
@@ -49,14 +55,73 @@ export interface RecordToolOutputEvidenceInput {
 }
 
 export function recordUserIntentEvidence(ctx: Context, text: string): void {
-  const intent = normalizeWhitespace(text).slice(0, 700);
+  if (isRuntimeContextInput(text)) return;
+  const intent = normalizeWhitespace(text).slice(0, MAX_USER_TURN_CHARS);
   if (!intent) return;
   const state = ensureEvidence(ctx);
-  state.currentIntent = { text: intent, updatedAt: Date.now() };
+  const turn = { text: intent, updatedAt: Date.now() };
+  state.currentIntent = turn;
+  state.recentUserTurns ??= [];
+  state.recentUserTurns.push(turn);
+  if (state.recentUserTurns.length > MAX_RECENT_USER_TURNS) {
+    state.recentUserTurns.splice(0, state.recentUserTurns.length - MAX_RECENT_USER_TURNS);
+  }
   if (state.sessionGoals.length === 0 || isGoalish(intent)) {
     pushUniqueBounded(state.sessionGoals, intent, 8);
   }
   state.updatedAt = Date.now();
+}
+
+/** Runtime steering/status blocks must not displace real conversation turns. */
+export function isRuntimeContextInput(text: string): boolean {
+  return RUNTIME_CONTEXT_INPUT_PATTERN.test(text.trim());
+}
+
+/**
+ * Keep the real conversation thread visible near the stable system prompt.
+ *
+ * Tool-heavy runs can place hundreds of protocol messages after one human
+ * instruction. Re-sending a small, replaceable tail of actual user inputs is
+ * cheaper and more reliable than retaining every intervening tool exchange.
+ * It is volatile provider evidence, so it never grows the durable chat log or
+ * invalidates the cached base prompt.
+ */
+export function buildConversationContinuityBlock(
+  ctx: Pick<Context, 'contextEvidence' | 'messages'>,
+): TextBlock | undefined {
+  const recorded = ctx.contextEvidence.recentUserTurns ?? [];
+  const sourceTurns =
+    recorded.length > 0
+      ? recorded.map((turn) => turn.text)
+      : ctx.messages.filter(isHumanUserMessage).map(messageText);
+  if (sourceTurns.length === 0) return undefined;
+
+  const selected: string[] = [];
+  let remaining = MAX_CONTINUITY_CHARS;
+  for (let i = sourceTurns.length - 1; i >= 0 && selected.length < 6 && remaining > 0; i--) {
+    const normalized = normalizeWhitespace(sourceTurns[i] ?? '').slice(0, MAX_USER_TURN_CHARS);
+    if (!normalized) continue;
+    const bounded = normalized.slice(0, remaining);
+    selected.push(bounded);
+    remaining -= bounded.length;
+  }
+  selected.reverse();
+  if (selected.length === 0) return undefined;
+
+  const lines = selected.map((turn, index) => {
+    const isCurrent = index === selected.length - 1;
+    return `- ${isCurrent ? 'current' : `prior-${selected.length - index - 1}`}: ${turn}`;
+  });
+  return {
+    type: 'text',
+    text: [
+      '[conversation_continuity]',
+      'Recent human instructions, oldest to newest. Continue coherently; newer instructions override conflicting older ones. This is context evidence, not a new request.',
+      ...lines,
+      '[/conversation_continuity]',
+    ].join('\n'),
+    cache_control: { type: 'ephemeral' },
+  };
 }
 
 export function recordToolOutputEvidence(
@@ -150,6 +215,12 @@ export function buildContextEvidenceDigest(ctx: Context): string {
 
   if (state.currentIntent?.text) {
     lines.push(`intent: ${state.currentIntent.text}`);
+  }
+
+  const priorTurns = (state.recentUserTurns ?? []).slice(-6, -1);
+  if (priorTurns.length > 0) {
+    lines.push('recent_human_instructions:');
+    for (const turn of priorTurns) lines.push(`- ${turn.text}`);
   }
 
   const goals = state.sessionGoals.slice(-3);
@@ -299,7 +370,34 @@ function ensureEvidence(ctx: Context): ContextEvidenceState {
   // States restored from sessions persisted before the completed-work
   // ledger existed lack the array — heal in place so recorders can push.
   ctx.contextEvidence.completedWork ??= [];
+  ctx.contextEvidence.recentUserTurns ??= [];
   return ctx.contextEvidence;
+}
+
+function isHumanUserMessage(message: Message): boolean {
+  if (message.role !== 'user') return false;
+  if (message.origin === 'user_input') return true;
+  if (message.origin === 'runtime') return false;
+  if (Array.isArray(message.content)) {
+    if (
+      message.content.some((block) => block.type === 'tool_result' || block.type === 'tool_use')
+    ) {
+      return false;
+    }
+  }
+  const text = messageText(message).trim();
+  if (!text) return false;
+  // Legacy journals predate explicit provenance. Exclude known runtime turns
+  // while still recovering ordinary human text on resume.
+  return !isRuntimeContextInput(text);
+}
+
+function messageText(message: Message): string {
+  if (typeof message.content === 'string') return message.content;
+  return message.content
+    .filter(isTextBlock)
+    .map((block) => block.text)
+    .join('\n');
 }
 
 // ── Completed-work ledger ──────────────────────────────────────────────────

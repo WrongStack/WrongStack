@@ -21,15 +21,27 @@ export default async function globalSetup(config: FullConfig) {
     return;
   }
 
+  const configuredBaseURL = (config.projects[0]?.use as { baseURL?: unknown } | undefined)
+    ?.baseURL;
+  const expectedURL =
+    typeof configuredBaseURL === 'string'
+      ? new URL(configuredBaseURL)
+      : new URL('http://127.0.0.1:3456');
+
   // Start the CLI in webui mode.
   const cliPath = process.env.CLI_PATH ?? 'packages/cli/dist/index.js';
   const server = spawn('node', [cliPath, '--webui'], {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
-    // The CLI validates ports as 1..65535 and already auto-advances when the
-    // default HTTP/WS pair is occupied. Passing PORT=0 made global setup exit
-    // before any browser test actually ran.
-    env: { ...process.env },
+    // Playwright resolves `use.baseURL` before global setup runs. Pin the CLI
+    // to that exact address so auto-port fallback cannot start a healthy server
+    // somewhere the browser workers will never visit.
+    env: {
+      ...process.env,
+      WEBUI_HOST: expectedURL.hostname,
+      WEBUI_PORT: expectedURL.port || (expectedURL.protocol === 'https:' ? '443' : '80'),
+      WEBUI_STRICT_PORT: '1',
+    },
   });
 
   // Capture server output for debugging.
@@ -43,6 +55,16 @@ export default async function globalSetup(config: FullConfig) {
     throw new Error('WebUI server failed to start within 60s');
   }
 
+  if (new URL(url).origin !== expectedURL.origin) {
+    server.kill();
+    throw new Error(`WebUI started at ${url}, but Playwright is configured for ${expectedURL.origin}`);
+  }
+
+  if (!(await waitForUrl(url, 10_000))) {
+    server.kill();
+    throw new Error(`WebUI announced ${url}, but it never became reachable`);
+  }
+
   // Give the WebSocket port a moment to stabilise.
   await sleep(500);
 
@@ -51,29 +73,37 @@ export default async function globalSetup(config: FullConfig) {
   (config as FullConfig & { _serverProcess: typeof server })._serverProcess = server;
 }
 
-/** Poll stdout until we see a "running on http://..." line. */
+/** Wait for the canonical HTTP-ready line, an early exit, or the deadline. */
 async function waitForServerOutput(
   server: ReturnType<typeof spawn>,
   timeout: number,
 ): Promise<string | null> {
-  const deadline = Date.now() + timeout;
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (url: string | null): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      server.stdout?.off('data', handler);
+      server.off('exit', onExit);
+      server.off('error', onError);
+      resolve(url);
+    };
     function handler(chunk: Buffer) {
       const line = chunk.toString();
-      // Match HTTP server URL (ws:// is the WS server, not what browser uses for HTTP).
-      // Handles both "localhost" (Windows console) and "127.0.0.1".
-      const match = line.match(/https?:\/\/(?:127\.0\.0\.1|localhost):(\d+)/);
+      const match = line.match(/\[WebUI\] HTTP server running on (https?:\/\/[^\s]+)/);
       if (match) {
-        const port = match[1]!;
-        const url = `http://127.0.0.1:${port}`;
-        server.stdout?.off('data', handler);
-        resolve(url);
-      } else if (Date.now() > deadline) {
-        server.stdout?.off('data', handler);
-        resolve(null);
+        const announced = new URL(match[1]!);
+        announced.search = '';
+        finish(announced.origin);
       }
     }
+    const onExit = (): void => finish(null);
+    const onError = (): void => finish(null);
+    const timer = setTimeout(() => finish(null), timeout);
     server.stdout?.on('data', handler);
+    server.once('exit', onExit);
+    server.once('error', onError);
   });
 }
 

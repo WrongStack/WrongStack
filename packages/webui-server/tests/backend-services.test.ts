@@ -84,8 +84,9 @@ vi.mock('../src/server/codebase-indexing.js', () => ({
 vi.mock('../src/server/discover-mailbox-bridge.js', () => ({ discoverMailboxBridgeForWebui: vi.fn(async () => undefined) }));
 vi.mock('../src/server/model-catalog.js', () => ({ resolveProviderModelMetadata: vi.fn(async () => null) }));
 
-import { makeLightSubagentFactory } from '@wrongstack/runtime';
+import { createStrategyCompactor } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
+import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import { createAgentServices } from '../src/server/backend-services.js';
 
 function makeInput(): any {
@@ -170,6 +171,9 @@ describe('createAgentServices', () => {
     expect(services.collabHandler).toBeDefined();
     expect(typeof services.disposeRealtimeHandlers).toBe('function');
     expect(typeof services.updateAutoCompactionMaxContext).toBe('function');
+    expect(vi.mocked(createStrategyCompactor)).toHaveBeenCalledWith(
+      expect.objectContaining({ strategy: 'hybrid', smart: true }),
+    );
   });
 
   it('installs one trusted boundary and forwards it to light subagents', async () => {

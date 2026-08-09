@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   delete: vi.fn(),
   buildPrompt: vi.fn(),
   setQueuedMessagesSnapshot: vi.fn(),
+  reserveResume: vi.fn(),
+  activateClaim: vi.fn(),
+  cancelClaim: vi.fn(),
 }));
 
 vi.mock('@wrongstack/core/storage', async (original) => {
@@ -18,6 +21,7 @@ vi.mock('@wrongstack/core/storage', async (original) => {
       create = mocks.create;
       delete = mocks.delete;
     },
+    getSessionRegistry: () => ({ reserveResume: mocks.reserveResume }),
   };
 });
 
@@ -56,6 +60,12 @@ describe('TUI project switch identity', () => {
     mocks.delete.mockReset().mockResolvedValue(undefined);
     mocks.buildPrompt.mockReset().mockResolvedValue('new system prompt');
     mocks.setQueuedMessagesSnapshot.mockReset();
+    mocks.activateClaim.mockReset().mockResolvedValue(undefined);
+    mocks.cancelClaim.mockReset().mockResolvedValue(undefined);
+    mocks.reserveResume.mockReset().mockResolvedValue({
+      activate: mocks.activateClaim,
+      cancel: mocks.cancelClaim,
+    });
   });
 
   afterEach(async () => {

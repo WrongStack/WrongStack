@@ -1490,6 +1490,7 @@
     "changes": "Cambios",
     "context": "Contexto",
     "logs": "Registros",
+    "memory": "Memoria",
     "lines": "líneas",
     "resizeHint": "Arrastra para redimensionar · doble clic para restablecer",
     "refresh": "Actualizar evidencia del archivo",

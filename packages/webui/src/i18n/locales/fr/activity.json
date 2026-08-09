@@ -1490,6 +1490,7 @@
     "changes": "Modifications",
     "context": "Contexte",
     "logs": "Journaux",
+    "memory": "Mémoire",
     "lines": "lignes",
     "resizeHint": "Faites glisser pour redimensionner · double-cliquez pour réinitialiser",
     "refresh": "Actualiser les preuves du fichier",

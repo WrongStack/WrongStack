@@ -33,16 +33,18 @@ import {
   type HqCommandAuditEntry,
   HqCommandAuditLog,
   type HqEventEnvelope,
+  type HqToken,
   type HqTranscriptEntry,
   hqTokenKey,
   hqTokenVerifier,
+  isLoopbackHost,
+  isTokenExpired,
   mintHqCookieSecret,
   mutateHqAuthFile,
   toAlertMessage,
   watchHqAuthFile,
 } from '@wrongstack/core/hq';
 import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
-import { isLoopbackHost } from '@wrongstack/core/hq';
 import { WebSocket, WebSocketServer } from 'ws';
 import { HQ_HTML } from './hq-recovery-html.js';
 import * as HqServerAuth from './hq-server/auth.js';
@@ -292,6 +294,7 @@ async function startHqServerWithAuth(
     const trustedPublicOrigins = new Set<string>();
     let listeningPort = port;
     const clients = new Map<WebSocket, ConnectedClient>();
+    const clientSocketTokens = new Map<WebSocket, HqToken | undefined>();
     const browsers = new Set<WebSocket>();
     const sessions = new Map<string, HqSessionEntry>();
     const eventLog: HqEventEnvelope[] = [];
@@ -734,7 +737,8 @@ async function startHqServerWithAuth(
               JSON.stringify({
                 level: 'warn',
                 event: 'hq.ws_token_from_query_rejected',
-                message: 'Browser token in WS query rejected on non-loopback — use session cookie instead.',
+                message:
+                  'Browser token in WS query rejected on non-loopback — use session cookie instead.',
                 timestamp: new Date().toISOString(),
               }),
             );
@@ -756,7 +760,10 @@ async function startHqServerWithAuth(
             // Idle timeout on WS too — a stolen cookie shouldn't stay live
             // indefinitely without activity.
             const now2 = Date.now();
-            if (!session.pending2fa && now2 - session.lastSeenAt > HqServerAuth.HQ_SESSION_IDLE_TIMEOUT_MS)
+            if (
+              !session.pending2fa &&
+              now2 - session.lastSeenAt > HqServerAuth.HQ_SESSION_IDLE_TIMEOUT_MS
+            )
               return false;
             // Bump lastSeenAt (sliding refresh).
             session.lastSeenAt = now2;
@@ -800,6 +807,11 @@ async function startHqServerWithAuth(
         HqServerWs.handleBrowser(ws, snapshotBroadcaster, browsers, eventLog);
       } else {
         const token = new URL(req.url ?? '/', `http://${host}:${port}`).searchParams.get('token');
+        const authToken = token
+          ? mutableAuth.clientTokenObjs.get(hqTokenVerifier(token))
+          : undefined;
+        clientSocketTokens.set(ws, authToken);
+        ws.once('close', () => clientSocketTokens.delete(ws));
         HqServerWs.handleClient(
           ws,
           clients,
@@ -810,7 +822,7 @@ async function startHqServerWithAuth(
             // so the presented secret is hashed before lookup. Indexing with the
             // raw value silently returned undefined, which downgraded a scoped
             // token to "no capabilities record" at the capability gate.
-            ...(token ? { token: mutableAuth.clientTokenObjs.get(hqTokenVerifier(token)) } : {}),
+            ...(authToken ? { token: authToken } : {}),
             getOperatorPolicy: () => mutableAuth.operatorPolicyOverride,
           },
           snapshotBroadcaster,
@@ -826,10 +838,45 @@ async function startHqServerWithAuth(
     const authWatcher = watchHqAuthFile(
       dataDir,
       (next) => {
+        const previousBrowserTokens = mutableAuth.browserTokens;
+        const previousPasswordHash = mutableAuth.passwordHash;
+        const previousCookieSecret = mutableAuth.cookieSecret;
         // `apply` re-latches `requireAuthFloor` through the `onApplied` hook
         // installed above — the operator can restore service by minting a
         // token or setting a password; both clear it on the next apply.
         authState.apply(next);
+
+        const browserTokensChanged =
+          previousBrowserTokens.size !== mutableAuth.browserTokens.size ||
+          [...previousBrowserTokens].some((token) => !mutableAuth.browserTokens.has(token));
+        const passwordChanged = previousPasswordHash !== mutableAuth.passwordHash;
+        const cookieSecretChanged = previousCookieSecret !== mutableAuth.cookieSecret;
+        if (browserTokensChanged || passwordChanged || cookieSecretChanged) {
+          const liveBrowserTokenIds = new Set(
+            [...mutableAuth.browserTokenObjs.values()].map((token) => token.id),
+          );
+          for (const [sessionId, session] of sessions) {
+            if (
+              passwordChanged ||
+              cookieSecretChanged ||
+              (session.kind === 'token' &&
+                (session.tokenId === undefined || !liveBrowserTokenIds.has(session.tokenId)))
+            ) {
+              sessions.delete(sessionId);
+            }
+          }
+          for (const browser of browsers) browser.close(1008, 'Browser authentication changed');
+        }
+
+        const clientAuthRequired = HqServerAuth.hqClientAuthRequired(mutableAuth);
+        for (const [clientSocket, authToken] of clientSocketTokens) {
+          const stillAuthorized =
+            authToken === undefined
+              ? !clientAuthRequired
+              : !isTokenExpired(authToken) &&
+                mutableAuth.clientTokenObjs.has(hqTokenKey(authToken));
+          if (!stillAuthorized) clientSocket.close(1008, 'Client authentication revoked');
+        }
         if (
           (options.requireBrowserAuth || mutableAuth.requireAuthFloor) &&
           mutableAuth.browserTokens.size === 0 &&

@@ -272,17 +272,25 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     events,
     logger,
     claimSession: async (sessionId) => {
-      await sessionRegistry.register({
+      const claim = await sessionRegistry.reserveResume({
         sessionId,
         projectSlug: wpaths.projectSlug,
         projectRoot,
-        projectName: path.basename(projectRoot),
-        workingDir: cwd,
-        clientType: flags.webui || flags.simpleui ? 'webui' : tuiOwnsScreen ? 'tui' : 'cli',
-        pid: process.pid,
-        startedAt: new Date().toISOString(),
       });
-      return async () => sessionRegistry.unregister();
+      return {
+        rollback: () => claim.cancel(),
+        activate: () =>
+          claim.activate({
+            sessionId,
+            projectSlug: wpaths.projectSlug,
+            projectRoot,
+            projectName: path.basename(projectRoot),
+            workingDir: cwd,
+            clientType: flags.webui || flags.simpleui ? 'webui' : tuiOwnsScreen ? 'tui' : 'cli',
+            pid: process.pid,
+            startedAt: new Date().toISOString(),
+          }),
+      };
     },
   });
   const { context, planPath, session } = sessResult;

@@ -40,6 +40,10 @@ vi.mock('@wrongstack/core/storage', () => ({
       return mocks.registryList();
     }
   },
+  getSessionRegistry: (root: string) => {
+    mocks.registryRoots.push(root);
+    return { list: () => mocks.registryList() };
+  },
 }));
 
 import {

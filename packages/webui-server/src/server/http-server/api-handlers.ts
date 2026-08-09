@@ -20,8 +20,8 @@ export async function handleApiSessions(
   }
 
   try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const registry = new SessionRegistry(globalRoot);
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
+    const registry = getSessionRegistry(globalRoot);
     const sessions = await registry.list();
 
     const result = sessions.map((s) => ({
@@ -66,8 +66,8 @@ export async function handleApiSessionAgents(
   }
 
   try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const registry = new SessionRegistry(globalRoot);
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
+    const registry = getSessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
 
     if (!entry) {
@@ -77,20 +77,22 @@ export async function handleApiSessionAgents(
     }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      sessionId: entry.sessionId,
-      projectName: entry.projectName,
-      status: entry.status,
-      agents: entry.agents.map((a) => ({
-        id: a.id,
-        name: a.name,
-        status: a.status,
-        currentTool: a.currentTool,
-        iterations: a.iterations,
-        toolCalls: a.toolCalls,
-        lastActivityAt: a.lastActivityAt,
-      })),
-    }));
+    res.end(
+      JSON.stringify({
+        sessionId: entry.sessionId,
+        projectName: entry.projectName,
+        status: entry.status,
+        agents: entry.agents.map((a) => ({
+          id: a.id,
+          name: a.name,
+          status: a.status,
+          currentTool: a.currentTool,
+          iterations: a.iterations,
+          toolCalls: a.toolCalls,
+          lastActivityAt: a.lastActivityAt,
+        })),
+      }),
+    );
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: sanitizeApiError(err) }));
@@ -126,7 +128,9 @@ function blocksToText(content: unknown): string {
     return content
       .filter(
         (b): b is { type: string; text: string } =>
-          !!b && typeof b === 'object' && (b as { type?: unknown }).type === 'text' &&
+          !!b &&
+          typeof b === 'object' &&
+          (b as { type?: unknown }).type === 'text' &&
           typeof (b as { text?: unknown }).text === 'string',
       )
       .map((b) => b.text)
@@ -256,10 +260,11 @@ export async function handleApiSessionEvents(
   }
 
   try {
-    const { SessionRegistry, DefaultSessionStore, DefaultSessionReader } =
-      await import('@wrongstack/core/storage');
+    const { getSessionRegistry, DefaultSessionStore, DefaultSessionReader } = await import(
+      '@wrongstack/core/storage'
+    );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
     if (!entry) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -268,7 +273,10 @@ export async function handleApiSessionEvents(
     }
 
     const paths = resolveWstackPaths({ projectRoot: entry.projectRoot, globalRoot });
-    const store = new DefaultSessionStore({ dir: paths.projectSessions });
+    const store = new DefaultSessionStore({
+      dir: paths.projectSessions,
+      projectRoot: entry.projectRoot,
+    });
     const reader = new DefaultSessionReader({ store });
 
     // Bounded tail fold.
@@ -410,10 +418,12 @@ export async function handleApiSessionMessage(
       : 'Message from Fleet HQ';
 
   try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import(
+      '@wrongstack/core/coordination'
+    );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
     if (!entry) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -458,10 +468,12 @@ export async function handleApiSessionMailbox(
     return;
   }
   try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import(
+      '@wrongstack/core/coordination'
+    );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
     if (!entry) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -545,10 +557,12 @@ export async function handleApiSessionInterrupt(
       ? (body['from'] as string).trim()
       : 'human@webui';
   try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import(
+      '@wrongstack/core/coordination'
+    );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const entry = await registry.get(sessionId);
     if (!entry) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -610,10 +624,12 @@ export async function handleApiFleetBroadcast(
       ? (body['from'] as string).trim()
       : 'human@webui';
   try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    const { getSharedProjectMailbox, mailboxSessionTag } = await import('@wrongstack/core/coordination');
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
+    const { getSharedProjectMailbox, mailboxSessionTag } = await import(
+      '@wrongstack/core/coordination'
+    );
     const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const all = await registry.list();
     // Scope to the WebUI host's own project (its pid's entry), like the live
     // status poll does. Fall back to every non-stale session if not found.
@@ -627,13 +643,8 @@ export async function handleApiFleetBroadcast(
       return;
     }
     // Cache one mailbox per project dir (targets here share a slug).
-    const mbByDir = new Map<
-      string,
-      ReturnType<typeof getSharedProjectMailbox>
-    >();
-    const mailboxFor = (
-      projectRoot: string,
-    ): ReturnType<typeof getSharedProjectMailbox> => {
+    const mbByDir = new Map<string, ReturnType<typeof getSharedProjectMailbox>>();
+    const mailboxFor = (projectRoot: string): ReturnType<typeof getSharedProjectMailbox> => {
       const dir = resolveWstackPaths({ projectRoot, globalRoot }).projectDir;
       let mb = mbByDir.get(dir);
       if (!mb) {

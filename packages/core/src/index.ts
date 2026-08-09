@@ -834,12 +834,15 @@ export {
   validateTrustPolicy,
 } from './security/permission-policy-schema.js';
 export { DefaultSecretScrubber } from './security/secret-scrubber.js';
+export * from './session-catalog/index.js';
 export {
-  getSessionRegistry,
-  hasSessionRegistry,
-  type SessionLiveStatus,
-  SessionRegistry,
-  type SessionRegistryEntry,
+  getProjectSessionRegistry as getSessionRegistry,
+  hasProjectSessionRegistry as hasSessionRegistry,
+  ProjectSessionRegistry as SessionRegistry,
+} from './session-catalog/registry.js';
+export type {
+  SessionLiveStatus,
+  SessionRegistryEntry,
 } from './session-registry.js';
 export * from './skills/index.js';
 export * from './storage/index.js';

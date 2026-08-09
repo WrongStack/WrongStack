@@ -8,14 +8,35 @@ vi.mock('ws', () => {
 vi.mock('../src/server/ws-auth.js', () => ({ verifyClient: vi.fn(() => true) }));
 vi.mock('../src/server/port-utils.js', () => ({ findFreePort: vi.fn(async (_host: string, port: number) => port) }));
 vi.mock('../src/server/http-server.js', () => ({ createHttpServer: vi.fn(() => ({ on: vi.fn(), listen: vi.fn(), close: vi.fn() })) }));
-vi.mock('../src/server/lifecycle.js', () => ({ registerShutdownHandlers: vi.fn() }));
+vi.mock('../src/server/lifecycle.js', () => ({
+  registerShutdownHandlers: vi.fn(() => () => undefined),
+}));
 vi.mock('../src/server/model-catalog.js', () => ({ resolveProviderModelMetadata: vi.fn(async () => ({ capabilities: { maxContext: 128000 } })) }));
 vi.mock('../src/server/usage-cost.js', () => ({ getCostRates: vi.fn(() => ({ input: 0, output: 0, cacheRead: 0 })) }));
 vi.mock('../src/server/setup-events.js', () => ({ setupEvents: vi.fn(() => () => undefined), FileWatcherMetrics: {} }));
 
-import { resolvePorts, createSessionStartPayload } from '../src/server/server-runtime.js';
+import { registerShutdownHandlers } from '../src/server/lifecycle.js';
+import {
+  resolvePorts,
+  createSessionStartPayload,
+  registerShutdown,
+} from '../src/server/server-runtime.js';
 
 describe('server-runtime', () => {
+  it('returns the shutdown-listener disposer to its owner', () => {
+    const unregister = vi.fn();
+    vi.mocked(registerShutdownHandlers).mockReturnValueOnce(unregister);
+
+    const result = registerShutdown({
+      flushSession: vi.fn().mockResolvedValue(undefined),
+      clients: () => new Map().values(),
+      servers: [],
+      onShutdown: vi.fn(),
+    });
+
+    expect(result).toBe(unregister);
+  });
+
   describe('resolvePorts', () => {
     const oldEnv = { ...process.env };
 

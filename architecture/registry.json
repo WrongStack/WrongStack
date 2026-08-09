@@ -37,6 +37,10 @@
     "registry": { "classification": "agent-domain", "targetOwner": "core" },
     "replay": { "classification": "feature-runtime", "targetOwner": "runtime-review-required" },
     "security": { "classification": "agent-domain", "targetOwner": "core" },
+    "session-catalog": {
+      "classification": "persistence-runtime",
+      "targetOwner": "session-catalog"
+    },
     "skills": { "classification": "feature-runtime", "targetOwner": "skills" },
     "storage": { "classification": "persistence-runtime", "targetOwner": "storage" },
     "tasking": { "classification": "agent-domain", "targetOwner": "core-review-required" },

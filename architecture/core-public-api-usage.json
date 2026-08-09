@@ -21,7 +21,7 @@
     "@wrongstack/core/coordination": {
       "files": 168,
       "typeOnly": 71,
-      "runtimeOrMixed": 144
+      "runtimeOrMixed": 147
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 55,
+      "files": 56,
       "typeOnly": 17,
-      "runtimeOrMixed": 55
+      "runtimeOrMixed": 56
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -66,7 +66,7 @@
     "@wrongstack/core/hq": {
       "files": 111,
       "typeOnly": 74,
-      "runtimeOrMixed": 65
+      "runtimeOrMixed": 64
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -123,15 +123,20 @@
       "typeOnly": 22,
       "runtimeOrMixed": 103
     },
+    "@wrongstack/core/session-catalog": {
+      "files": 9,
+      "typeOnly": 0,
+      "runtimeOrMixed": 9
+    },
     "@wrongstack/core/skills": {
       "files": 6,
       "typeOnly": 3,
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/storage": {
-      "files": 88,
+      "files": 92,
       "typeOnly": 28,
-      "runtimeOrMixed": 88
+      "runtimeOrMixed": 100
     },
     "@wrongstack/core/tasking": {
       "files": 30,
@@ -146,7 +151,7 @@
     "@wrongstack/core/types": {
       "files": 860,
       "typeOnly": 811,
-      "runtimeOrMixed": 219
+      "runtimeOrMixed": 218
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -2262,7 +2267,7 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/tests/hq-server.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 5
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -3201,6 +3206,12 @@
       "runtimeOrMixed": 0
     },
     {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/webui-server/tests/backend-services.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/extension",
       "file": "packages/cli/src/hooks-wiring.ts",
       "typeOnly": 1,
@@ -3420,7 +3431,7 @@
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -7257,6 +7268,60 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/cli/tests/hq-mailbox-actions.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/cli/tests/hq-mailbox-mutation.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/cli/tests/hq-server.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/cli/tests/hq-subagent-disk-transcript.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui-server/src/server/connections-health-route.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui-server/tests/fleet-control-endpoints.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui-server/tests/http-server.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui/tests/server/fleet-control-endpoints.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui/tests/server/http-server.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/skills",
       "file": "packages/cli/src/webui-server.ts",
       "typeOnly": 0,
@@ -7308,13 +7373,13 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/boot/tui-project-switch.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/boot/tui-session-resume.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -7758,7 +7823,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/src/server/setup-events-fleet-broadcaster.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -7792,6 +7857,18 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/fleet-control-endpoints.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/http-server.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/tests/project-session-identity.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7813,6 +7890,18 @@
       "file": "packages/webui-server/tests/standalone-session-identity.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui/tests/server/fleet-control-endpoints.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui/tests/server/http-server.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -12618,7 +12707,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/backend-services.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/types",

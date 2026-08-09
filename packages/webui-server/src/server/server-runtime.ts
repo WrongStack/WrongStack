@@ -448,8 +448,8 @@ interface ShutdownDeps {
   onShutdown: () => Promise<void> | void;
 }
 
-export function registerShutdown(deps: ShutdownDeps): void {
-  registerShutdownHandlers({
+export function registerShutdown(deps: ShutdownDeps): () => void {
+  return registerShutdownHandlers({
     flushSession: deps.flushSession,
     clients: deps.clients,
     servers: deps.servers,

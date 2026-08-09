@@ -82,10 +82,10 @@ export async function readLocalSubagentTranscript(
   subagentId: string,
 ): Promise<HqTranscriptEntry[] | null> {
   try {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
     const { resolveWstackPaths, sessionScopedPath } = await import('@wrongstack/core/utils');
     const globalRoot = path.dirname(resolveHqDataDir());
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const entry = await registry.get(sessionId).catch(() => null);
     if (!entry) return null; // remote session — no local disk to read
     const paths = resolveWstackPaths({ projectRoot: entry.projectRoot, globalRoot });

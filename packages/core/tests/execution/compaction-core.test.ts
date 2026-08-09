@@ -747,6 +747,20 @@ describe('buildLosslessDigest', () => {
 });
 
 describe('findPreserveStart', () => {
+  it('demonstrates protocol messages consume only the raw-tool retention window', () => {
+    const messages: Message[] = [
+      { ...text('user', 'human task'), origin: 'user_input' },
+      toolUse(),
+      toolResult('one'),
+      toolUse(),
+      toolResult('two'),
+      text('assistant', 'working'),
+    ];
+    // Raw tool retention remains deliberately protocol-sized. Human-turn
+    // continuity is carried separately by conversation_continuity evidence.
+    expect(findPreserveStart(messages, 2)).toBe(3);
+  });
+
   it('walks back K user/assistant turns', () => {
     const messages: Message[] = [
       text('user', '1'),

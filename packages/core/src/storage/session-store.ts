@@ -1,9 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '../kernel/events.js';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
+import {
+  resolveSessionCatalogProjectServerUrl,
+  SessionCatalogProjectClient,
+} from '../session-catalog/client.js';
 import type { Logger } from '../types/logger.js';
 import type { Message } from '../types/messages.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
@@ -81,6 +86,9 @@ export class DefaultSessionStore implements SessionStore {
   private readonly logger: Logger | undefined;
   private readonly onAppend?: ((event: SessionEvent) => void) | undefined;
   private readonly onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
+  /** Present in built production output; source-only tests retain the local compatibility path. */
+  private readonly catalogClient: SessionCatalogProjectClient | undefined;
+  private readonly maintenanceHolderId = randomUUID();
 
   /**
    * In-memory cache for load() results, keyed by session ID. The cache is
@@ -116,6 +124,16 @@ export class DefaultSessionStore implements SessionStore {
     this.logger = opts.logger;
     this.onAppend = opts.onAppend;
     this.onAppendBatch = opts.onAppendBatch;
+    const builtRuntime = import.meta.url.includes('/dist/');
+    this.catalogClient =
+      this.projectRoot &&
+      (builtRuntime || process.env['WRONGSTACK_SESSION_CATALOG_FORCE'] === '1') &&
+      resolveSessionCatalogProjectServerUrl()
+        ? new SessionCatalogProjectClient({
+            projectDir: path.dirname(this.dir),
+            projectRoot: this.projectRoot,
+          })
+        : undefined;
   }
 
   /**
@@ -140,6 +158,11 @@ export class DefaultSessionStore implements SessionStore {
    */
   clearLoadCache(sessionId?: string): void {
     this.loadCache.clear(sessionId);
+  }
+
+  async dispose(): Promise<void> {
+    await this.catalogClient?.close();
+    this.clearLoadCache();
   }
 
   // â”€â”€ Storage event helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -212,8 +235,23 @@ export class DefaultSessionStore implements SessionStore {
             ? {}
             : { name: sessionContentText(this.secretScrubber.scrub(current.name)) };
         },
-        onClose: (s) => this.appendToIndex(s),
+        onClose: (s) => this.persistCatalogSummary(s),
       });
+      if (this.catalogClient) {
+        await this.catalogClient.call('upsert_summary', {
+          summary: {
+            id,
+            title: meta.title ?? '',
+            startedAt,
+            model: meta.model ?? '',
+            provider: meta.provider ?? '',
+            tokenTotal: 0,
+            lastActivityAt: startedAt,
+          },
+          transcriptRelativePath: `${id}.jsonl`,
+          summaryRelativePath: `${id}.summary.json`,
+        });
+      }
       emitSessionStoreWrite(this.events, id, file, 'create', 'success', Date.now() - t0);
       return writer;
       /* v8 ignore start -- defensive: FileSessionWriter ctor does not throw in practice */
@@ -248,6 +286,9 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async resolveId(query: string): Promise<string> {
+    if (this.catalogClient) {
+      return this.catalogClient.call('resolve_id', { query });
+    }
     const normalized = query.trim();
     if (!normalized) throw new Error('Session not found: (empty query)');
     if (normalized) {
@@ -390,7 +431,7 @@ export class DefaultSessionStore implements SessionStore {
               ? {}
               : { name: sessionContentText(this.secretScrubber.scrub(current.name)) };
           },
-          onClose: (s) => this.appendToIndex(s),
+          onClose: (s) => this.persistCatalogSummary(s),
         },
       );
       emitSessionStoreWrite(this.events, canonicalId, file, 'resume', 'success', Date.now() - t0);
@@ -528,6 +569,10 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async list(limit = 20): Promise<SessionSummary[]> {
+    if (this.catalogClient) {
+      const records = await this.catalogClient.call('list_catalog', { limit });
+      return this.scrubSummaries(records);
+    }
     try {
       // Try the index first; fall back to directory scan if the index is
       // missing, empty, or unreadable.
@@ -566,6 +611,15 @@ export class DefaultSessionStore implements SessionStore {
     limit?: number | undefined;
   }): Promise<SessionSummary[]> {
     const limit = criteria.limit ?? 100;
+    if (this.catalogClient) {
+      const records = await this.catalogClient.call('list_catalog', {
+        limit: Math.min(1_000, Math.max(limit, 100)),
+        ...(criteria.titleContains ? { search: criteria.titleContains } : {}),
+      });
+      return this.scrubSummaries(records)
+        .filter((summary) => matchesSessionFilter(summary, criteria))
+        .slice(0, limit);
+    }
     try {
       const indexed = await this.readIndex();
       if (indexed.length === 0) {
@@ -633,6 +687,19 @@ export class DefaultSessionStore implements SessionStore {
     // so it can include the traceId. Do NOT emit here to avoid duplicates.
     await this.appendToIndexStrict(summary).catch(() => {
       // best-effort — error surfaced via the storage.write event in doClose()
+    });
+  }
+
+  /** Final summary boundary: daemon is authoritative when available. */
+  private async persistCatalogSummary(summary: SessionSummary): Promise<void> {
+    if (!this.catalogClient) {
+      await this.appendToIndex(summary);
+      return;
+    }
+    await this.catalogClient.call('upsert_summary', {
+      summary,
+      transcriptRelativePath: `${summary.id}.jsonl`,
+      summaryRelativePath: `${summary.id}.summary.json`,
     });
   }
 
@@ -765,6 +832,10 @@ export class DefaultSessionStore implements SessionStore {
    * fresh _index.jsonl. Useful after manual cleanup or index corruption.
    */
   async rebuildIndex(): Promise<number> {
+    if (this.catalogClient) {
+      const result = await this.catalogClient.call('rebuild_catalog', {}, { timeoutMs: 120_000 });
+      return result.indexed;
+    }
     const ids = await this.collectSessionIds(this.dir);
     /* v8 ignore next -- summaryFor() never rejects for a collected id (its .jsonl exists) */
     const summaries = await Promise.all(
@@ -963,11 +1034,36 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async delete(id: string): Promise<void> {
+    if (this.catalogClient) {
+      const canonical = await this.resolveId(id);
+      const lease = await this.catalogClient.call('acquire_maintenance', {
+        sessionId: canonical,
+        operation: 'delete',
+        holderId: this.maintenanceHolderId,
+      });
+      try {
+        await this.catalogClient.call('delete', { sessionId: canonical, lease });
+      } catch (error) {
+        await this.catalogClient.call('release_maintenance', { lease }).catch(() => undefined);
+        throw error;
+      }
+      this.clearLoadCache(canonical);
+      return;
+    }
     await assertSessionCanBeDeleted(id, this.isSessionInUse);
     await this.deleteSession(id);
   }
 
   async rename(id: string, name: string): Promise<SessionSummary> {
+    if (this.catalogClient) {
+      const canonical = await this.resolveId(id);
+      const summary = await this.catalogClient.call('rename', {
+        sessionId: canonical,
+        name: sessionContentText(this.secretScrubber.scrub(name)),
+      });
+      this.clearLoadCache(canonical);
+      return summary;
+    }
     const trimmed = sessionContentText(this.secretScrubber.scrub(name));
     const manifest = this.sessionPath(id, '.summary.json');
     const jsonlPath = this.sessionPath(id, '.jsonl');
@@ -1029,6 +1125,12 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async prune(maxAgeDays = 30): Promise<number> {
+    if (this.catalogClient) {
+      return this.catalogClient.call('prune', {
+        maxAgeDays,
+        holderId: this.maintenanceHolderId,
+      });
+    }
     const deleted = await pruneSessionFiles(this.dir, maxAgeDays, (id) => this.deleteSession(id));
     if (deleted > 0) {
       // Compact the index to remove tombstones for deleted sessions.
@@ -1039,23 +1141,88 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async clearHistory(id: string): Promise<void> {
-    await this.ensureShardDir(id);
-    const file = this.sessionPath(id, '.jsonl');
-    const meta = this.sessionPath(id, '.summary.json');
+    const canonical = this.catalogClient ? await this.resolveId(id) : id;
+    const maintenance = this.catalogClient
+      ? await this.catalogClient.call('acquire_maintenance', {
+          sessionId: canonical,
+          operation: 'clear',
+          holderId: this.maintenanceHolderId,
+        })
+      : undefined;
+    await this.ensureShardDir(canonical);
+    const file = this.sessionPath(canonical, '.jsonl');
+    const meta = this.sessionPath(canonical, '.summary.json');
+    const backupSuffix = maintenance ? `.${maintenance.leaseId}.clear-backup` : undefined;
+    const fileBackup = backupSuffix ? `${file}${backupSuffix}` : undefined;
+    const metaBackup = backupSuffix ? `${meta}${backupSuffix}` : undefined;
+    let fileStaged = false;
+    let metaStaged = false;
     const record = `${JSON.stringify({
       type: 'session_start',
       ts: new Date().toISOString(),
-      id,
+      id: canonical,
       model: 'unknown',
       provider: 'unknown',
     })}\n`;
-    await atomicWrite(file, record);
-    await fsp.unlink(meta).catch(() => undefined);
+    try {
+      if (fileBackup) {
+        try {
+          await fsp.rename(file, fileBackup);
+          fileStaged = true;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        }
+      }
+      if (metaBackup) {
+        try {
+          await fsp.rename(meta, metaBackup);
+          metaStaged = true;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        }
+      }
+      await atomicWrite(file, record);
+      if (!metaBackup) await fsp.unlink(meta).catch(() => undefined);
+      if (this.catalogClient) {
+        const now = new Date().toISOString();
+        await this.catalogClient.call('upsert_summary', {
+          summary: {
+            id: canonical,
+            title: '',
+            startedAt: now,
+            model: 'unknown',
+            provider: 'unknown',
+            tokenTotal: 0,
+            lastActivityAt: now,
+          },
+          transcriptRelativePath: `${canonical}.jsonl`,
+          summaryRelativePath: `${canonical}.summary.json`,
+        });
+      }
+      if (fileStaged && fileBackup) await fsp.unlink(fileBackup).catch(() => undefined);
+      if (metaStaged && metaBackup) await fsp.unlink(metaBackup).catch(() => undefined);
+    } catch (error) {
+      if (fileStaged && fileBackup) {
+        await fsp.unlink(file).catch(() => undefined);
+        await fsp.rename(fileBackup, file).catch(() => undefined);
+      }
+      if (metaStaged && metaBackup) {
+        await fsp.unlink(meta).catch(() => undefined);
+        await fsp.rename(metaBackup, meta).catch(() => undefined);
+      }
+      throw error;
+    } finally {
+      if (maintenance && this.catalogClient) {
+        await this.catalogClient
+          .call('release_maintenance', { lease: maintenance })
+          .catch(() => undefined);
+      }
+    }
     // Invalidate the parsed-session cache so the cleared `SessionData`
     // graph cannot survive in `SessionLoadCache` (50 entries / 64 MiB).
     // Without this, a `replaceMessages([])` on a previous hot session can
     // keep an unbounded body graph reachable for the process lifetime.
-    this.clearLoadCache(id);
+    this.clearLoadCache(canonical);
   }
 
   private async summarize(id: string, mtime: string): Promise<SessionSummary> {

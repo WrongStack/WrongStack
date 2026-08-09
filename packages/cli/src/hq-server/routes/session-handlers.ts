@@ -1,9 +1,9 @@
-import * as path from 'node:path';
 import type * as http from 'node:http';
+import * as path from 'node:path';
 import {
   buildTranscriptFromEvents,
-  resolveHqDataDir,
   type HqTranscriptEntry,
+  resolveHqDataDir,
 } from '@wrongstack/core/hq';
 import type { TranscriptRing } from '../types.js';
 import {
@@ -15,10 +15,10 @@ import {
 } from '../utils.js';
 
 export async function handleApiSessions(res: http.ServerResponse): Promise<void> {
-  const { SessionRegistry } = await import('@wrongstack/core/storage');
+  const { getSessionRegistry } = await import('@wrongstack/core/storage');
   const globalRoot = path.dirname(resolveHqDataDir());
   try {
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const sessions = (await registry.list()) as unknown as Array<Record<string, unknown>>;
     const result = sessions
       .filter((s: { status?: string }) => s.status !== 'stale')
@@ -57,7 +57,7 @@ export async function handleApiSessionEvents(
   match: RegExpMatchArray,
   transcripts: Map<string, TranscriptRing>,
 ): Promise<void> {
-  const { SessionRegistry, DefaultSessionStore } = await import('@wrongstack/core/storage');
+  const { getSessionRegistry, DefaultSessionStore } = await import('@wrongstack/core/storage');
   const { resolveWstackPaths } = await import('@wrongstack/core/utils');
   const url = new URL(req.url ?? '/', 'http://localhost');
   const full = url.searchParams.get('full') === '1';
@@ -72,7 +72,7 @@ export async function handleApiSessionEvents(
 
   const globalRoot = path.dirname(resolveHqDataDir());
   try {
-    const registry = new SessionRegistry(globalRoot);
+    const registry = getSessionRegistry(globalRoot);
     const entry = await registry.get(sessionId).catch(() => null);
 
     let entries: HqTranscriptEntry[] = [];
@@ -86,7 +86,10 @@ export async function handleApiSessionEvents(
         projectRoot: (entry as { projectRoot: string }).projectRoot,
         globalRoot,
       });
-      const store = new DefaultSessionStore({ dir: paths.projectSessions });
+      const store = new DefaultSessionStore({
+        dir: paths.projectSessions,
+        projectRoot: (entry as { projectRoot: string }).projectRoot,
+      });
       const data = await store.load(sessionId).catch(() => null);
       if (data) {
         entries = buildTranscriptFromEvents(
@@ -154,7 +157,9 @@ export async function handleApiSessionAgentMessages(
   const disk = await readLocalSubagentTranscript(sid, aid);
   const source: 'disk' | 'stream' = disk !== null ? 'disk' : 'stream';
   const all =
-    disk !== null ? disk : (agentMessages.get(agentRingKey(sid, aid)) ?? agentMessages.get(aid) ?? []);
+    disk !== null
+      ? disk
+      : (agentMessages.get(agentRingKey(sid, aid)) ?? agentMessages.get(aid) ?? []);
   const entries = full ? all : all.slice(-200);
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ subagentId: aid, sessionId: sid, source, total: all.length, entries }));

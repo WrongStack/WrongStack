@@ -49,6 +49,7 @@ export interface AutoProceedCandidate {
   source: 'todo' | 'suggestion' | 'auto-suggestion';
   prompt: string;
   label: string;
+  todoId?: string | undefined;
 }
 
 /** Resolve one grounded automatic turn without mutating either suggestion store. */
@@ -61,7 +62,7 @@ export function selectAutoProceedCandidate({
 }: AutoProceedCandidateInput): AutoProceedCandidate | null {
   const todo = resolveContinuation({ todos, suggestions: [] });
   if (todo.source === 'todo') {
-    return { source: 'todo', prompt: todo.text, label: todo.label };
+    return { source: 'todo', prompt: todo.text, label: todo.label, todoId: todo.todoId };
   }
 
   const automatic = yolo
@@ -115,6 +116,7 @@ export function useNextStepsAutoSubmit({
   // repetition goes through the guard's steer-then-halt path instead of
   // halting on the first identical re-feed.
   const nextStepsAutoSubmitSourceRef = useRef<AutoProceedCandidate['source'] | null>(null);
+  const nextStepsAutoSubmitTodoIdRef = useRef<string | null>(null);
   // Snapshot of the todo list taken when the candidate was selected, so the
   // countdown handler can re-evaluate todos if the grounded prompt stalls.
   const nextStepsAutoSubmitTodosRef = useRef<readonly TodoItem[]>([]);
@@ -168,6 +170,7 @@ export function useNextStepsAutoSubmit({
       setNextStepsAutoSubmitLabel(null);
       nextStepsAutoSubmitSuggestionRef.current = null;
       nextStepsAutoSubmitSourceRef.current = null;
+      nextStepsAutoSubmitTodoIdRef.current = null;
       return;
     }
 
@@ -252,6 +255,7 @@ export function useNextStepsAutoSubmit({
 
     nextStepsAutoSubmitSuggestionRef.current = candidate.prompt;
     nextStepsAutoSubmitSourceRef.current = candidate.source;
+    nextStepsAutoSubmitTodoIdRef.current = candidate.todoId ?? null;
     const start = Date.now();
     setNextStepsAutoSubmitCountdown(Math.ceil(delay / 1000));
     setNextStepsAutoSubmitLabel(candidate.label);
@@ -266,14 +270,38 @@ export function useNextStepsAutoSubmit({
         if ((getAutonomy?.() ?? autonomyLive) !== 'auto') {
           nextStepsAutoSubmitSuggestionRef.current = null;
           nextStepsAutoSubmitSourceRef.current = null;
+          nextStepsAutoSubmitTodoIdRef.current = null;
           return;
         }
         // Auto-submit the suggestion
         const suggestion = nextStepsAutoSubmitSuggestionRef.current;
         const source = nextStepsAutoSubmitSourceRef.current;
+        const todoId = nextStepsAutoSubmitTodoIdRef.current;
         nextStepsAutoSubmitSuggestionRef.current = null;
         nextStepsAutoSubmitSourceRef.current = null;
+        nextStepsAutoSubmitTodoIdRef.current = null;
         if (suggestion) {
+          // Starting grounded work is a real lifecycle transition. Route it
+          // through ConversationState so TUI, WebUI, persistence, and the
+          // session Kanban mirror all observe Running before the prompt is
+          // submitted. Never mutate ctx.todos directly.
+          if (source === 'todo' && todoId) {
+            if (agent?.ctx?.state) {
+              const liveTodos = agent.ctx.todos;
+              const selected = liveTodos.find((todo) => todo.id === todoId);
+              if (selected?.status === 'pending') {
+                agent.ctx.state.replaceTodos(
+                  liveTodos.map((todo) =>
+                    todo.id === todoId
+                      ? { ...todo, status: 'in_progress' as const }
+                      : todo.status === 'in_progress'
+                        ? { ...todo, status: 'pending' as const }
+                        : todo,
+                  ),
+                );
+              }
+            }
+          }
           // ── Loop guard ──────────────────────────────────────────────────
           // The streak cap above is a generic runaway net. This guard
           // catches the specific loop the user reported: the model emits
@@ -335,19 +363,19 @@ export function useNextStepsAutoSubmit({
                     );
                   if (nextTodo) {
                     // ── Guaranteed marking ───────────────────────────
-                    // Directly demote the stalled todo off "in_progress"
-                    // so the next resolveContinuation call does NOT
-                    // re-select it — the agent's steer text is only a
-                    // suggestion, but this mutation is guaranteed.
-                    // The todos array IS agent.ctx.todos (same reference),
-                    // so the change is live for the next agent turn.
-                    const stalledTodo = todos.find((t) => t.id === stalled.id);
-                    if (stalledTodo) {
-                      stalledTodo.status = 'pending';
-                    }
-                    // Also update the ref snapshot for consistency with
-                    // subsequent advancement lookups.
-                    const freshTodos = [...todos];
+                    // Advance through the canonical state API. This emits a
+                    // todos_replaced event, checkpoints the list, broadcasts
+                    // it to WebUI, and mirrors Running/Pending to Kanban.
+                    const freshTodos = todos.map((todo) =>
+                      todo.id === stalled.id
+                        ? { ...todo, status: 'pending' as const }
+                        : todo.id === nextTodo.id
+                          ? { ...todo, status: 'in_progress' as const }
+                          : todo.status === 'in_progress'
+                            ? { ...todo, status: 'pending' as const }
+                            : todo,
+                    );
+                    agent?.ctx?.state?.replaceTodos(freshTodos);
                     nextStepsAutoSubmitTodosRef.current = freshTodos;
 
                     // Build a varied advancement prompt and feed it instead
@@ -489,6 +517,7 @@ export function useNextStepsAutoSubmit({
     setNextStepsAutoSubmitLabel(null);
     nextStepsAutoSubmitSuggestionRef.current = null;
     nextStepsAutoSubmitSourceRef.current = null;
+    nextStepsAutoSubmitTodoIdRef.current = null;
   }, []);
 
   return {

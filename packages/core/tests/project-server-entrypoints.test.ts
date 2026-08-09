@@ -35,4 +35,11 @@ describe('project server entrypoint argument guards', () => {
       'codebase-index project server requires --project-root',
     );
   });
+
+  it('rejects a Session Catalog launch without its project identity', async () => {
+    process.argv = [process.execPath, 'session-catalog-project-server'];
+    await expect(import('../src/session-catalog/project-server.js')).rejects.toThrow(
+      'Session Catalog project server requires --project-dir',
+    );
+  });
 });

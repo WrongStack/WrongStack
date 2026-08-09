@@ -1,0 +1,185 @@
+import type { SessionRegistryEntry } from '../session-registry-types.js';
+import type { SessionSummary } from '../types/session.js';
+
+export const SESSION_CATALOG_PROTOCOL_VERSION = 1;
+export const SESSION_CATALOG_MAX_FRAME_CHARS = 4 * 1024 * 1024;
+export const SESSION_CATALOG_DEFAULT_LEASE_MS = 30_000;
+export const SESSION_CATALOG_DEFAULT_RESERVATION_MS = 15_000;
+export const SESSION_CATALOG_MAX_AGENTS = 128;
+
+export interface SessionLeaseCredential {
+  sessionId: string;
+  leaseId: string;
+  leaseSecret: string;
+  ownerInstanceId: string;
+  expiresAt: number;
+}
+
+export interface ResumeReservation {
+  reservationId: string;
+  targetSessionId: string;
+  requesterInstanceId: string;
+  expiresAt: number;
+}
+
+export interface MaintenanceLease {
+  sessionId: string;
+  operation: 'delete' | 'prune' | 'clear' | 'truncate' | 'rewind' | 'repair';
+  holderId: string;
+  leaseId: string;
+  expiresAt: number;
+}
+
+export interface SessionCatalogServerInfo {
+  protocolVersion: number;
+  pid: number;
+  projectDir: string;
+  projectRoot: string;
+  endpoint: string;
+  databasePath: string;
+  instanceId: string;
+  startedAt: string;
+}
+
+export interface SessionCatalogHealth extends SessionCatalogServerInfo {
+  checkedAt: number;
+  uptimeMs: number;
+  clients: number;
+  activeRequests: number;
+  catalogRows: number;
+  damagedRows: number;
+  liveLeases: number;
+  reservations: number;
+  maintenanceLeases: number;
+  generation: number;
+  lastReconciliation?: string | undefined;
+  memory: { rss: number; heapUsed: number; heapTotal: number; external: number };
+  handles: number;
+}
+
+export interface SessionCatalogMetadata extends SessionCatalogServerInfo {
+  authToken: string;
+}
+
+export interface CatalogSessionRecord extends SessionSummary {
+  transcriptRelativePath: string;
+  summaryRelativePath: string;
+  transcriptSize: number;
+  transcriptMtimeMs: number;
+  summaryRevision: number;
+  indexedAt: string;
+  damaged: boolean;
+}
+
+export type SessionCatalogEventKind =
+  | 'session.claimed'
+  | 'session.presence_changed'
+  | 'session.closing'
+  | 'session.released'
+  | 'session.catalog_changed'
+  | 'session.deleted'
+  | 'session.rebuild_started'
+  | 'session.rebuild_completed';
+
+export interface SessionCatalogEvent {
+  instanceId: string;
+  sequence: number;
+  kind: SessionCatalogEventKind;
+  sessionId?: string | undefined;
+  generation: number;
+  at: string;
+}
+
+export interface SessionCatalogOperations {
+  ping: { args: Record<string, never>; result: SessionCatalogHealth };
+  claim_new: {
+    args: { entry: SessionRegistryEntry; ownerInstanceId: string; leaseMs?: number };
+    result: SessionLeaseCredential;
+  };
+  reconnect_lease: {
+    args: SessionLeaseCredential;
+    result: SessionLeaseCredential;
+  };
+  reserve_resume: {
+    args: {
+      targetSessionId: string;
+      requesterInstanceId: string;
+      currentSessionId?: string;
+      reservationMs?: number;
+    };
+    result: ResumeReservation;
+  };
+  activate_reservation: {
+    args: { reservation: ResumeReservation; entry: SessionRegistryEntry; leaseMs?: number };
+    result: SessionLeaseCredential;
+  };
+  cancel_reservation: {
+    args: { reservationId: string; requesterInstanceId: string };
+    result: void;
+  };
+  heartbeat: {
+    args: { credential: SessionLeaseCredential; status?: SessionRegistryEntry['status'] };
+    result: SessionLeaseCredential;
+  };
+  publish_agents: {
+    args: {
+      credential: SessionLeaseCredential;
+      revision: number;
+      agents: SessionRegistryEntry['agents'];
+    };
+    result: { accepted: boolean; revision: number };
+  };
+  mark_closing: { args: { credential: SessionLeaseCredential }; result: void };
+  release: { args: { credential: SessionLeaseCredential }; result: void };
+  list_live: { args: Record<string, never>; result: SessionRegistryEntry[] };
+  get_live: { args: { sessionId: string }; result: SessionRegistryEntry | null };
+  subscribe: { args: { cursor?: number }; result: { instanceId: string; sequence: number } };
+  unsubscribe: { args: Record<string, never>; result: void };
+  upsert_summary: {
+    args: {
+      summary: SessionSummary;
+      transcriptRelativePath?: string;
+      summaryRelativePath?: string;
+    };
+    result: CatalogSessionRecord;
+  };
+  list_catalog: { args: { limit?: number; search?: string }; result: CatalogSessionRecord[] };
+  resolve_id: { args: { query: string }; result: string };
+  get_summary: { args: { sessionId: string }; result: CatalogSessionRecord | null };
+  rename: { args: { sessionId: string; name: string }; result: CatalogSessionRecord };
+  acquire_maintenance: {
+    args: {
+      sessionId: string;
+      operation: MaintenanceLease['operation'];
+      holderId: string;
+      leaseMs?: number;
+    };
+    result: MaintenanceLease;
+  };
+  release_maintenance: { args: { lease: MaintenanceLease }; result: void };
+  delete: { args: { sessionId: string; lease: MaintenanceLease }; result: void };
+  prune: { args: { maxAgeDays: number; holderId: string }; result: number };
+  rebuild_catalog: { args: Record<string, never>; result: { indexed: number; damaged: number } };
+}
+
+export type SessionCatalogOperationName = keyof SessionCatalogOperations;
+
+export type SessionCatalogClientMessage =
+  | {
+      type: 'request';
+      id: number;
+      op: SessionCatalogOperationName;
+      args: unknown;
+      authToken?: string;
+    }
+  | { type: 'shutdown'; id: number; reason?: string; authToken?: string };
+
+export type SessionCatalogServerMessage =
+  | ({ type: 'hello' } & SessionCatalogServerInfo)
+  | { type: 'event'; event: SessionCatalogEvent }
+  | { type: 'response'; id: number; ok: true; result: unknown }
+  | { type: 'response'; id: number; ok: false; error: string; errorName?: string };
+
+export function encodeSessionCatalogMessage(message: object): string {
+  return `${JSON.stringify(message)}\n`;
+}

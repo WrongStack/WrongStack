@@ -99,8 +99,9 @@ export interface SessionHandlersContext {
    * swapped. Without this, a run started in the previous session keeps
    * streaming/tool-calling in the background after session.new/resume.
    */
-  abortActiveRun?: (() => void) | undefined;
-  isRunActive?: (() => boolean) | undefined;
+  /** When sessionId is provided, abort only that session's run; otherwise abort all. */
+  abortActiveRun?: ((sessionId?: string) => void) | undefined;
+  isRunActive?: ((sessionId?: string) => boolean) | undefined;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
 }
 
@@ -190,7 +191,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       // provider stream would otherwise keep running (and emitting events)
       // in the background after session.new/resume.
       try {
-        ctx.abortActiveRun?.();
+        ctx.abortActiveRun?.(current.id);
       } catch {
         // Aborting is best-effort; ownership/session finalization must still
         // advance so a faulty host callback cannot strand a claimed session.

@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import {
+  buildConversationContinuityBlock,
   buildContextEvidenceDigest,
   createContextEvidenceState,
   markAssistantReferencedEvidence,
@@ -33,6 +34,16 @@ describe('recordUserIntentEvidence', () => {
     expect(s.sessionGoals).toContain('Implement the auth module');
   });
 
+  it('bounds the real-user continuity tail independently of tool messages', () => {
+    const ctx = makeCtx();
+    for (let i = 0; i < 12; i++) recordUserIntentEvidence(ctx, `instruction ${i}`);
+    const state = (ctx as never as { contextEvidence: { recentUserTurns: Array<{ text: string }> } })
+      .contextEvidence;
+    expect(state.recentUserTurns).toHaveLength(8);
+    expect(state.recentUserTurns[0]?.text).toBe('instruction 4');
+    expect(state.recentUserTurns.at(-1)?.text).toBe('instruction 11');
+  });
+
   it('does not add non-goalish text when goals already exist', () => {
     const ctx = makeCtx();
     recordUserIntentEvidence(ctx, 'Implement feature X');
@@ -47,6 +58,24 @@ describe('recordUserIntentEvidence', () => {
     expect((ctx as never as { contextEvidence?: unknown }).contextEvidence).toBeUndefined();
   });
 
+  it('does not let runtime Kanban/status steering displace human turns', () => {
+    const ctx = makeCtx();
+    recordUserIntentEvidence(ctx, 'Keep working on the context task');
+    recordUserIntentEvidence(ctx, '[KANBAN TODO UPDATE] internal board refresh');
+    const state = (
+      ctx as never as {
+        contextEvidence: {
+          currentIntent: { text: string };
+          recentUserTurns: Array<{ text: string }>;
+        };
+      }
+    ).contextEvidence;
+    expect(state.currentIntent.text).toBe('Keep working on the context task');
+    expect(state.recentUserTurns.map((turn) => turn.text)).toEqual([
+      'Keep working on the context task',
+    ]);
+  });
+
   it('dedups + bounds sessionGoals', () => {
     const ctx = makeCtx();
     for (let i = 0; i < 12; i++) recordUserIntentEvidence(ctx, `goal ${i}`);
@@ -54,6 +83,41 @@ describe('recordUserIntentEvidence', () => {
     const s = (ctx as never as { contextEvidence: { sessionGoals: string[] } }).contextEvidence;
     expect(s.sessionGoals.length).toBe(8);
     expect(s.sessionGoals.at(-1)).toBe('goal 0');
+  });
+});
+
+describe('buildConversationContinuityBlock', () => {
+  it('keeps recent human instructions visible with a fixed-size volatile block', () => {
+    const ctx = makeCtx();
+    recordUserIntentEvidence(ctx, 'Fix cancellation without invoking fallbacks');
+    recordUserIntentEvidence(ctx, 'Continue, and keep the second session running');
+    const block = buildConversationContinuityBlock(ctx);
+
+    expect(block?.text).toContain('[conversation_continuity]');
+    expect(block?.text).toContain('prior-1: Fix cancellation');
+    expect(block?.text).toContain('current: Continue');
+    expect(block?.cache_control).toEqual({ type: 'ephemeral' });
+    expect(block?.text.length).toBeLessThan(4_000);
+  });
+
+  it('rebuilds continuity from journaled user_input provenance on resume', () => {
+    const ctx = {
+      contextEvidence: createContextEvidenceState(),
+      messages: [
+        { role: 'user', content: 'real instruction', origin: 'user_input' },
+        { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] },
+        {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 't1', content: 'large output' }],
+        },
+        { role: 'user', content: '[loop-detector] retry', origin: 'runtime' },
+      ],
+    } as never as Context;
+
+    const block = buildConversationContinuityBlock(ctx);
+    expect(block?.text).toContain('real instruction');
+    expect(block?.text).not.toContain('large output');
+    expect(block?.text).not.toContain('loop-detector');
   });
 });
 

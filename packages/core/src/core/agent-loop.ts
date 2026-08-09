@@ -6,8 +6,12 @@ import { isTextBlock, isToolUseBlock } from '../types/blocks.js';
 import { toWrongStackError } from '../types/errors.js';
 import type { Request, Response } from '../types/provider.js';
 import { effectiveInputTokens } from '../types/provider.js';
-import { recordUserIntentEvidence } from '../utils/context-evidence.js';
+import {
+  isRuntimeContextInput,
+  recordUserIntentEvidence,
+} from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
+import { hasOpenTodos } from '../utils/todos-format.js';
 import {
   estimateMessageTokens,
   estimateRequestTokens,
@@ -483,7 +487,7 @@ export function createAgentLoopHandler(
 
   function foldBlockIntoConversation(block: TextBlock): void {
     if (!a.ctx.state.appendBlockToLastUserMessage(block)) {
-      a.ctx.state.appendMessage({ role: 'user', content: [block] });
+      a.ctx.state.appendMessage({ role: 'user', content: [block], origin: 'runtime' });
     }
   }
 
@@ -594,7 +598,12 @@ export function createAgentLoopHandler(
       ts: new Date().toISOString(),
       content: inputPayload.content,
     });
-    a.ctx.state.appendMessage({ role: 'user', content: inputPayload.content });
+    const inputOrigin = isRuntimeContextInput(inputPayload.text) ? 'runtime' : 'user_input';
+    a.ctx.state.appendMessage({
+      role: 'user',
+      content: inputPayload.content,
+      origin: inputOrigin,
+    });
     const promptIndex = a.ctx.messages.filter((m) => m.role === 'user').length - 1;
     const preview = inputPayload.text.slice(0, 80) + (inputPayload.text.length > 80 ? '…' : '');
     await a.ctx.session.writeCheckpoint(promptIndex, preview);
@@ -638,6 +647,7 @@ export function createAgentLoopHandler(
     const recentCallKeys: string[] = [];
     const steeredCallKeys = new Set<string>();
     let pendingLoopSteer: string | null = null;
+    let todoReconcileSteers = 0;
 
     function queueLoopSteer(text: string): void {
       pendingLoopSteer = pendingLoopSteer ? `${pendingLoopSteer}\n${text}` : text;
@@ -1054,6 +1064,29 @@ export function createAgentLoopHandler(
             ctx: a.ctx,
             index: i,
           });
+          // A turn-ending prose response is not proof that the tracked work
+          // list advanced. Without this gate a leader can say that an item is
+          // finished while leaving it `in_progress`; TUI auto mode then
+          // re-submits the exact same grounded continuation until its loop
+          // guard halts. Give the model a bounded in-run reconciliation chance
+          // before exposing the turn as complete. The todo tool remains the
+          // authority: this gate never guesses that work succeeded or marks a
+          // card done from prose alone.
+          if (
+            a.ctx.agentId === 'leader' &&
+            a.tools.get('todo') !== undefined &&
+            hasOpenTodos(a.ctx.todos) &&
+            todoReconcileSteers < 2
+          ) {
+            todoReconcileSteers++;
+            queueLoopSteer(
+              '[todo-reconciliation] The live todo/Kanban list still has open work, but you tried to end the turn without reconciling it. ' +
+                'Call the `todo` tool now with the complete current list. Mark work you actually finished as completed, put the one item you are actively working on in_progress, and leave the rest pending. ' +
+                'If the current item is genuinely unfinished, continue doing the work before answering; do not merely repeat the previous final response or emit <nextsteps>.',
+            );
+            await a.extensions.runAfterIteration(a.ctx, i);
+            continue;
+          }
           if (autonomousContinue && responseResult.directive === 'continue') {
             await a.extensions.runAfterIteration(a.ctx, i);
             continue;

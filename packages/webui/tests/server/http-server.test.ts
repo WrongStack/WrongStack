@@ -286,6 +286,7 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
   let projectDir: string;
   let evServer: import('node:http').Server;
   let evBase: string;
+  let sessionRegistry: import('@wrongstack/core/storage').SessionRegistry;
   const sessionId = 'test-watch-1';
   const projectRoot = path.join(os.tmpdir(), 'watch-proj-fixture');
 
@@ -308,11 +309,6 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
       agentCount: 0,
       agents: [],
     };
-    await fs.writeFile(
-      path.join(gRoot, 'session-registry.json'),
-      JSON.stringify({ [sessionId]: entry }),
-    );
-
     // The session's JSONL, written to the same path the handler resolves.
     const paths = resolveWstackPaths({ projectRoot, globalRoot: gRoot });
     projectDir = paths.projectDir;
@@ -339,6 +335,9 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
         .map((e) => JSON.stringify(e))
         .join('\n') + '\n';
     await fs.writeFile(path.join(paths.projectSessions, `${sessionId}.jsonl`), lines);
+    const { SessionRegistry } = await import('@wrongstack/core/storage');
+    sessionRegistry = new SessionRegistry(gRoot);
+    await sessionRegistry.register(entry);
 
     evServer = createHttpServer({
       host: '127.0.0.1',
@@ -354,6 +353,9 @@ describe('GET /api/sessions/:id/events (watch stream)', () => {
 
   afterAll(async () => {
     await new Promise<void>((resolve) => evServer.close(() => resolve()));
+    await sessionRegistry.dispose();
+    const { SessionCatalogProjectClient } = await import('@wrongstack/core/session-catalog');
+    await new SessionCatalogProjectClient({ projectDir, projectRoot }).shutdown('test cleanup');
     // Posting a message starts the project's detached mailbox owner, which
     // keeps `<gRoot>/projects/<slug>/_mailbox.sqlite` open; leave it running
     // and the rm below blocks on EBUSY past the hook timeout.

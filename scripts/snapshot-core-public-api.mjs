@@ -17,7 +17,9 @@ const write = process.argv.includes('--write');
  * Linux, causing "snapshot is stale" CI failures that pass locally.
  */
 function readNormalized(file) {
-  return readFileSync(file, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+  return readFileSync(file, 'utf8')
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '\n');
 }
 const apiPolicy = JSON.parse(
   readNormalized(path.join(architectureRoot, 'core-api-policy.json'), 'utf8'),
@@ -49,6 +51,10 @@ const ownership = {
   registry: ['concrete runtime default', 'Runtime composition'],
   replay: ['storage/repository implementation', 'repository/runtime implementation'],
   security: ['concrete runtime default', 'Runtime security subsystem'],
+  'session-catalog': [
+    'storage/repository implementation',
+    'project-scoped ownership and catalog subsystem',
+  ],
   skills: ['product feature', 'skills implementation package or Runtime'],
   storage: ['storage/repository implementation', 'repositories over dependency-free persistence'],
   tasking: ['agent-domain contract', 'Core tasking subpath'],
@@ -222,16 +228,14 @@ function buildUsageSnapshot() {
     for (const match of source.matchAll(staticPattern)) {
       const clause = match[3] ?? '';
       const named = clause.match(/\{([\s\S]*?)\}/u)?.[1];
-      const allNamedTypeOnly =
-        named
-          ?.split(',')
-          .map((part) => part.trim())
-          .filter(Boolean)
-          .every((part) => /^type\s+/u.test(part));
+      const allNamedTypeOnly = named
+        ?.split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .every((part) => /^type\s+/u.test(part));
       record(file, match[4], !!match[2] || allNamedTypeOnly);
     }
-    const sideEffectPattern =
-      /\bimport\s*['"](@wrongstack\/core(?:\/[^'"]*)?)['"]/gu;
+    const sideEffectPattern = /\bimport\s*['"](@wrongstack\/core(?:\/[^'"]*)?)['"]/gu;
     for (const match of source.matchAll(sideEffectPattern)) record(file, match[1], false);
     const dynamicPattern =
       /\b(import|require)\s*\(\s*['"](@wrongstack\/core(?:\/[^'"]*)?)['"]\s*\)/gu;

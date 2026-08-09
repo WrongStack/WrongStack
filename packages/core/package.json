@@ -96,6 +96,10 @@
       "types": "./dist/storage/index.d.ts",
       "import": "./dist/storage/index.js"
     },
+    "./session-catalog": {
+      "types": "./dist/session-catalog/index.d.ts",
+      "import": "./dist/session-catalog/index.js"
+    },
     "./security": {
       "types": "./dist/security/index.d.ts",
       "import": "./dist/security/index.js"

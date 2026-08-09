@@ -11,11 +11,12 @@
  *  - `wstack hq token list --client` reads from clientTokens
  *  - `wstack hq token revoke --client` removes from clientTokens
  */
-import { HQ_AUTH_FILE_VERSION, readHqAuthFile, writeHqAuthFile } from '@wrongstack/core/hq';
-import type { HqAuthFile } from '@wrongstack/core/hq';
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { HqAuthFile } from '@wrongstack/core/hq';
+import { HQ_AUTH_FILE_VERSION, readHqAuthFile, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
@@ -61,6 +62,20 @@ function waitForRejection(ws: WebSocket, timeout = 5_000): Promise<boolean> {
     ws.on('close', () => done(true));
     // If it opens, it wasn't rejected
     ws.on('open', () => done(false));
+  });
+}
+
+function waitForCloseCode(ws: WebSocket, timeout = 5_000): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('WS close timeout')), timeout);
+    ws.once('close', (code) => {
+      clearTimeout(timer);
+      resolve(code);
+    });
+    ws.once('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
   });
 }
 
@@ -121,9 +136,7 @@ describe('HQ Phase 4 — client token auth', () => {
     const authFile: HqAuthFile = {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
-      clientTokens: [
-        { id: 'test-ct-2', token: clientToken, createdAt: new Date().toISOString() },
-      ],
+      clientTokens: [{ id: 'test-ct-2', token: clientToken, createdAt: new Date().toISOString() }],
     };
     await writeHqAuthFile(dataDir, authFile);
 
@@ -141,9 +154,7 @@ describe('HQ Phase 4 — client token auth', () => {
     const authFile: HqAuthFile = {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
-      browserTokens: [
-        { id: 'bt-1', token: browserToken, createdAt: new Date().toISOString() },
-      ],
+      browserTokens: [{ id: 'bt-1', token: browserToken, createdAt: new Date().toISOString() }],
       clientTokens: [
         { id: 'ct-1', token: 'real-client-token', createdAt: new Date().toISOString() },
       ],
@@ -154,7 +165,9 @@ describe('HQ Phase 4 — client token auth', () => {
     handle = await startHqServer({ port, dataDir });
 
     // Browser token should work on /ws/browser
-    const browserWs = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/browser?token=${browserToken}`);
+    const browserWs = new WebSocket(
+      `ws://127.0.0.1:${handle.port}/ws/browser?token=${browserToken}`,
+    );
     await waitForOpen(browserWs);
     expect(browserWs.readyState).toBe(WebSocket.OPEN);
 
@@ -202,9 +215,7 @@ describe('HQ Phase 4 — live auth.json reload', () => {
     const authFile: HqAuthFile = {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
-      clientTokens: [
-        { id: 'live-ct-1', token: newToken, createdAt: new Date().toISOString() },
-      ],
+      clientTokens: [{ id: 'live-ct-1', token: newToken, createdAt: new Date().toISOString() }],
     };
     await writeHqAuthFile(dataDir, authFile);
 
@@ -226,11 +237,13 @@ describe('HQ Phase 4 — live auth.json reload', () => {
 
   it('picks up a revoked client token without restart', async () => {
     const clientToken = 'will-be-revoked-token';
+    const survivingToken = 'still-valid-client-token';
     const authFile: HqAuthFile = {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
       clientTokens: [
         { id: 'revoke-ct-1', token: clientToken, createdAt: new Date().toISOString() },
+        { id: 'survive-ct-1', token: survivingToken, createdAt: new Date().toISOString() },
       ],
     };
     await writeHqAuthFile(dataDir, authFile);
@@ -241,25 +254,65 @@ describe('HQ Phase 4 — live auth.json reload', () => {
     // Verify token works initially
     const ws1 = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client?token=${clientToken}`);
     await waitForOpen(ws1);
-    ws1.close();
+    const revokedSocketClosed = waitForCloseCode(ws1);
 
-    // Remove the token by writing an empty clientTokens list
+    // Remove only this token; another token keeps the endpoint in auth mode.
     const updatedAuth: HqAuthFile = {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
-      clientTokens: [],
+      clientTokens: [
+        { id: 'survive-ct-1', token: survivingToken, createdAt: new Date().toISOString() },
+      ],
     };
     await writeHqAuthFile(dataDir, updatedAuth);
 
-    // Wait for watcher (debounce + fs event latency on Windows)
-    await new Promise((r) => setTimeout(r, 1000));
+    expect(await revokedSocketClosed).toBe(1008);
 
-    // Now the old token should no longer be valid, but open mode should be active
-    // (empty clientTokens = open mode for /ws/client)
-    const ws2 = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
-    await waitForOpen(ws2);
-    expect(ws2.readyState).toBe(WebSocket.OPEN);
-    ws2.close();
+    const revokedReconnect = new WebSocket(
+      `ws://127.0.0.1:${handle.port}/ws/client?token=${clientToken}`,
+    );
+    expect(await waitForRejection(revokedReconnect, 3_000)).toBe(true);
+
+    const survivingWs = new WebSocket(
+      `ws://127.0.0.1:${handle.port}/ws/client?token=${survivingToken}`,
+    );
+    await waitForOpen(survivingWs);
+    survivingWs.close();
+  });
+
+  it('closes active browser sockets when browser credentials change', async () => {
+    const revokedToken = 'browser-token-to-revoke';
+    const survivingToken = 'browser-token-to-keep';
+    await writeHqAuthFile(dataDir, {
+      version: HQ_AUTH_FILE_VERSION,
+      updatedAt: new Date().toISOString(),
+      browserTokens: [
+        { id: 'browser-revoke-1', token: revokedToken, createdAt: new Date().toISOString() },
+        { id: 'browser-survive-1', token: survivingToken, createdAt: new Date().toISOString() },
+      ],
+    });
+
+    const port = getPort();
+    handle = await startHqServer({ port, dataDir });
+    const browserWs = new WebSocket(
+      `ws://127.0.0.1:${handle.port}/ws/browser?token=${revokedToken}`,
+    );
+    await waitForOpen(browserWs);
+    const revokedSocketClosed = waitForCloseCode(browserWs);
+
+    await writeHqAuthFile(dataDir, {
+      version: HQ_AUTH_FILE_VERSION,
+      updatedAt: new Date().toISOString(),
+      browserTokens: [
+        { id: 'browser-survive-1', token: survivingToken, createdAt: new Date().toISOString() },
+      ],
+    });
+
+    expect(await revokedSocketClosed).toBe(1008);
+    const revokedReconnect = new WebSocket(
+      `ws://127.0.0.1:${handle.port}/ws/browser?token=${revokedToken}`,
+    );
+    expect(await waitForRejection(revokedReconnect, 3_000)).toBe(true);
   });
 });
 
@@ -275,9 +328,15 @@ describe('HQ Phase 4 — token subcommand --client flag', () => {
   function makeStubRenderer(): SubcommandDeps['renderer'] & { captured: CapturedRenderer } {
     const captured: CapturedRenderer = { out: [], err: [], warn: [] };
     const r = {
-      write: (s: string) => { captured.out.push(s); },
-      writeError: (s: string) => { captured.err.push(s); },
-      writeWarning: (s: string) => { captured.warn.push(s); },
+      write: (s: string) => {
+        captured.out.push(s);
+      },
+      writeError: (s: string) => {
+        captured.err.push(s);
+      },
+      writeWarning: (s: string) => {
+        captured.warn.push(s);
+      },
       captured,
     };
     return r as SubcommandDeps['renderer'] & { captured: CapturedRenderer };
@@ -573,9 +632,7 @@ describe('HQ — HTTP route token auth (browser TOKEN MODE)', () => {
     const authFile: HqAuthFile = {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
-      clientTokens: [
-        { id: 'ct-http-1', token: clientToken, createdAt: new Date().toISOString() },
-      ],
+      clientTokens: [{ id: 'ct-http-1', token: clientToken, createdAt: new Date().toISOString() }],
     };
     await writeHqAuthFile(dataDir, authFile);
 

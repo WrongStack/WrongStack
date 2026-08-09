@@ -1,3 +1,4 @@
+import * as net from 'node:net';
 import {
   ChronicleProjectServerClient,
   createChronicleProjectAccess,
@@ -7,15 +8,14 @@ import {
   isMailboxProjectServerAvailable,
   MailboxProjectServerConnection,
 } from '@wrongstack/core/coordination';
+import type { TrustBoundary } from '@wrongstack/core/security';
+import { SessionCatalogProjectClient } from '@wrongstack/core/session-catalog';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   closeKanbanServerConnections,
   getKanbanServerConnection,
   isKanbanServerAvailable,
 } from '@wrongstack/kanban';
-import * as net from 'node:net';
-import type { TrustBoundary } from '@wrongstack/core/security';
-import { authorizeWebUIAction } from './privileged-actions.js';
 import { readGovernanceDaemonOperatorStatus } from '@wrongstack/runtime/governance-bootstrap';
 import { isSageProjectServerAvailable, SageProjectServerConnection } from '@wrongstack/sage';
 import {
@@ -26,12 +26,21 @@ import {
   shutdownCodebaseIndexServer,
 } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
+import { authorizeWebUIAction } from './privileged-actions.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 
 export type ConnectionHealthStatus = 'healthy' | 'degraded' | 'offline' | 'unavailable' | 'error';
 
 export interface ConnectionHealthService {
-  id: 'webui' | 'chronicle' | 'codebase-index' | 'sage' | 'kanban' | 'mailbox' | 'governance';
+  id:
+    | 'webui'
+    | 'session-catalog'
+    | 'chronicle'
+    | 'codebase-index'
+    | 'sage'
+    | 'kanban'
+    | 'mailbox'
+    | 'governance';
   label: string;
   status: ConnectionHealthStatus;
   required: boolean;
@@ -113,6 +122,7 @@ export async function collectConnectionsHealth(options: {
 }): Promise<ConnectionsHealthReport> {
   const services = await Promise.all([
     Promise.resolve(webuiHealth(options.backend)),
+    sessionCatalogHealth(options.projectRoot),
     chronicleHealth(options.projectRoot),
     codebaseIndexHealth(options.projectRoot, options.indexDir),
     sageHealth(options.projectRoot),
@@ -133,6 +143,54 @@ export async function collectConnectionsHealth(options: {
     projectRoot: options.projectRoot,
     services,
   };
+}
+
+async function sessionCatalogHealth(projectRoot: string): Promise<ConnectionHealthService> {
+  const startedAt = Date.now();
+  try {
+    const paths = resolveWstackPaths({ projectRoot });
+    const client = new SessionCatalogProjectClient({
+      projectDir: paths.projectDir,
+      projectRoot,
+    });
+    try {
+      const health = await client.ping();
+      return {
+        id: 'session-catalog',
+        label: 'Session Catalog',
+        status: health.damagedRows > 0 ? 'degraded' : 'healthy',
+        required: true,
+        mode: 'project-daemon',
+        detail:
+          health.damagedRows > 0
+            ? `${health.damagedRows} damaged catalog row(s); rebuild is required.`
+            : `${health.catalogRows} catalog session(s), ${health.liveLeases} live lease(s), ${health.reservations} reservation(s).`,
+        ownerPid: health.pid,
+        endpoint: health.endpoint,
+        storage: health.databasePath,
+        uptimeMs: health.uptimeMs,
+        latencyMs: Date.now() - startedAt,
+        clients: health.clients,
+        activeRequests: health.activeRequests,
+        queuedWork: health.reservations + health.maintenanceLeases,
+        control: 'none',
+      };
+    } finally {
+      await client.close().catch(() => undefined);
+    }
+  } catch (error) {
+    return {
+      id: 'session-catalog',
+      label: 'Session Catalog',
+      status: 'error',
+      required: true,
+      mode: 'project-daemon',
+      detail: 'Project-scoped session ownership and catalog are unavailable.',
+      latencyMs: Date.now() - startedAt,
+      lastError: error instanceof Error ? error.message : String(error),
+      control: 'none',
+    };
+  }
 }
 
 function webuiHealth(backend: ConnectionsHealthReport['backend']): ConnectionHealthService {
@@ -828,7 +886,11 @@ async function restartSageServer(projectRoot: string): Promise<ServiceActionResu
   const verifyConn = new SageProjectServerConnection(projectRoot);
   try {
     // call() uses ensureConnected(true) which spawns + has auth retry loop
-    await verifyConn.call('ping', {}, { timeoutMs: 10_000, meta: { clientId: `sage-restart-${process.pid}` } });
+    await verifyConn.call(
+      'ping',
+      {},
+      { timeoutMs: 10_000, meta: { clientId: `sage-restart-${process.pid}` } },
+    );
     return {
       serviceId: 'sage',
       action: 'restart',

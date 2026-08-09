@@ -74,6 +74,7 @@ export async function switchProjectInPlace(
   if (!stat?.isDirectory()) return `Cannot switch: not a directory: ${resolved}`;
 
   const oldWriter = context.session;
+  const oldSessionStore = state.activeSessionStore;
   const oldUsage = tokenCounter.total();
   const oldProjectRoot = state.projectRoot;
   const nextWpaths = resolveWstackPaths({
@@ -98,23 +99,55 @@ export async function switchProjectInPlace(
   } catch (err) {
     await nextWriter.close().catch(() => undefined);
     await nextSessionStore.delete(nextWriter.id).catch(() => undefined);
+    await nextSessionStore.dispose?.();
     return `Cannot switch: ${err instanceof Error ? err.message : String(err)}`;
   }
   if (!state.activateSessionIdentity) {
     await nextWriter.close().catch(() => undefined);
     await nextSessionStore.delete(nextWriter.id).catch(() => undefined);
+    await nextSessionStore.dispose?.();
     return 'Cannot switch: session ownership registry is unavailable.';
   }
+  let targetClaim: import('@wrongstack/core/storage').SessionResumeClaim | undefined;
+  let targetActivated = false;
   try {
-    await state.activateSessionIdentity(nextWriter.id, {
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
+    const registry = getSessionRegistry(state.wpaths.globalRoot);
+    targetClaim = await registry.reserveResume({
+      sessionId: nextWriter.id,
+      projectSlug: nextWpaths.projectSlug,
+      projectRoot: resolved,
+    });
+    const target = {
       projectSlug: nextWpaths.projectSlug,
       projectRoot: resolved,
       projectName: displayName || path.basename(resolved),
       workingDir: resolved,
+    };
+    await targetClaim.activate({
+      sessionId: nextWriter.id,
+      ...target,
+      clientType: 'tui',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
     });
+    targetActivated = true;
+    await state.activateSessionIdentity(nextWriter.id, target);
   } catch (err) {
+    if (!targetActivated) await targetClaim?.cancel().catch(() => undefined);
+    else if (oldWriter) {
+      await state
+        .activateSessionIdentity(oldWriter.id, {
+          projectSlug: state.wpaths.projectSlug,
+          projectRoot: oldProjectRoot,
+          projectName: path.basename(oldProjectRoot),
+          workingDir: context.workingDir,
+        })
+        .catch(() => undefined);
+    }
     await nextWriter.close().catch(() => undefined);
     await nextSessionStore.delete(nextWriter.id).catch(() => undefined);
+    await nextSessionStore.dispose?.();
     return `Cannot switch: ${err instanceof Error ? err.message : String(err)}`;
   }
 
@@ -204,6 +237,7 @@ export async function switchProjectInPlace(
       }),
     );
   }
+  await oldSessionStore?.dispose?.().catch(() => undefined);
   const emitUntyped = events.emit as never as (event: string, payload: unknown) => void;
   emitUntyped('project.switched', { from: oldProjectRoot, to: resolved, name: displayName });
   return null;

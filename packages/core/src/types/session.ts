@@ -528,6 +528,8 @@ export interface SessionStore {
    * number of sessions indexed.
    */
   rebuildIndex?(): Promise<number>;
+  /** Release project-daemon connections owned by this store. */
+  dispose?(): Promise<void>;
   /**
    * Streaming event-level search. Walks the JSONL once without buffering
    * the whole file, calling `predicate(event, eventIndex, ts)` for each

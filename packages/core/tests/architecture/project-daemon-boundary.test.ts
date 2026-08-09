@@ -1,7 +1,8 @@
 /**
  * Project-daemon invariant.
  *
- * Kanban, Mailbox, SAGE memory, Codebase Index and Chronicle telemetry are all
+ * Kanban, Mailbox, SAGE memory, Codebase Index, Chronicle telemetry, and the
+ * Session Catalog are all
  * meant to be the same shape: exactly one detached daemon per project, reached
  * only over IPC, with SQLite as the sole backing store. Two properties keep
  * that true, and both are easy to lose silently:
@@ -71,6 +72,12 @@ const DAEMONS: readonly DaemonSpec[] = [
     accessModule: 'packages/kanban/src/server/kanban-store.ts',
     inlineEnv: 'WRONGSTACK_KANBAN_SERVER',
   },
+  {
+    name: 'session-catalog',
+    endpointModule: 'packages/core/src/session-catalog/endpoint.ts',
+    accessModule: 'packages/core/src/session-catalog/client.ts',
+    inlineEnv: 'WRONGSTACK_SESSION_CATALOG_INLINE',
+  },
 ];
 
 /**
@@ -136,6 +143,36 @@ async function readSource(relative: string): Promise<string> {
 }
 
 describe('project daemon boundary', () => {
+  it('keeps the legacy device-global session registry out of production consumers', async () => {
+    const packageRoot = path.join(ROOT, 'packages');
+    const violations: string[] = [];
+    const visit = async (directory: string): Promise<void> => {
+      for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+        const full = path.join(directory, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== 'tests' && entry.name !== 'dist' && entry.name !== 'node_modules') {
+            await visit(full);
+          }
+          continue;
+        }
+        if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+        const relative = path.relative(ROOT, full).replaceAll('\\', '/');
+        if (relative === 'packages/core/src/session-registry.ts') continue;
+        const source = await fs.readFile(full, 'utf8');
+        if (source.includes('session-registry.json')) violations.push(relative);
+        if (
+          /import\s+(?!type\b)[^;]{0,300}?from\s+['"](?:\.\.\/|\.\/)session-registry\.js['"]/u.test(
+            source,
+          )
+        ) {
+          violations.push(`${relative}: imports legacy registry behavior`);
+        }
+      }
+    };
+    await visit(packageRoot);
+    expect(violations).toEqual([]);
+  });
+
   it('derives every IPC endpoint from a hashed project directory and a protocol version', async () => {
     const violations: string[] = [];
 

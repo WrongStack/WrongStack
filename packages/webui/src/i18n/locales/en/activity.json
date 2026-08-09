@@ -1495,6 +1495,7 @@
     "changes": "Changes",
     "context": "Context",
     "logs": "Logs",
+    "memory": "Memory",
     "lines": "lines",
     "resizeHint": "Drag to resize · double-click to reset",
     "refresh": "Refresh file evidence",

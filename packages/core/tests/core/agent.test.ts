@@ -337,6 +337,53 @@ describe('Agent', () => {
     expect(provider.calls).toBe(2);
   });
 
+  it('reconciles an open todo before accepting a turn-ending response', async () => {
+    let ctxRef: Context | undefined;
+    const todo: Tool = {
+      name: 'todo',
+      description: 'replace todos',
+      inputSchema: { type: 'object' },
+      permission: 'auto',
+      mutating: false,
+      async execute(input) {
+        const todos = (input as { todos: Context['todos'] }).todos;
+        ctxRef?.state.replaceTodos(todos);
+        return { count: todos.length };
+      },
+    };
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'The work is complete.' }], stopReason: 'end_turn' },
+      {
+        content: [
+          {
+            type: 'tool_use',
+            id: 'todo-1',
+            name: 'todo',
+            input: {
+              todos: [{ id: 'fix', content: 'Fix lifecycle', status: 'completed' }],
+            },
+          },
+        ],
+        stopReason: 'tool_use',
+      },
+      { content: [{ type: 'text', text: 'Done and reconciled.' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, ctx, tmp } = await buildAgent(provider, [todo]);
+    ctxRef = ctx;
+    ctx.agentId = 'leader';
+    cleanupDirs.push(tmp);
+    ctx.state.replaceTodos([{ id: 'fix', content: 'Fix lifecycle', status: 'in_progress' }]);
+
+    const result = await agent.run('finish the tracked work');
+
+    expect(result.status).toBe('done');
+    expect(result.finalText).toBe('Done and reconciled.');
+    expect(provider.calls).toBe(3);
+    expect(ctx.todos).toEqual([]);
+    const secondRequest = provider.receivedRequests[1];
+    expect(JSON.stringify(secondRequest?.messages)).toContain('[todo-reconciliation]');
+  });
+
   it('never sends a tool_confirm_pending block to the provider after a confirm', async () => {
     // Regression: a confirmed tool returns `tool_confirm_pending` from the
     // executor (no confirmAwaiter). The agent resolves it via the

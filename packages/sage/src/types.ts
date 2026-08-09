@@ -43,7 +43,18 @@ export type SageKind =
   | 'symbol_note'
   | 'command_note'
   | 'summary'
-  | 'memory_review';
+  | 'memory_review'
+  // ── New SAGE-only kinds (added 2026-08-08, retrospective analysis) ───
+  // All map to legacy `MemoryType='fact'` for backward compat — they are
+  // semantically distinct in SAGE so retrieval + the WebUI can render them
+  // differently, but the legacy `MemoryStore` surface stays closed.
+  | 'tool_outcome' // durable result of a successful tool call (e.g. command exited 0)
+  | 'error_pattern' // recurring error signature → root cause + fix
+  | 'session_digest' // per-session outcome summary (owned by session, expires)
+  | 'role_operational' // guidance for a specific agent role / task type
+  | 'task_outcome' // what worked (or didn't) for a Kanban/task type
+  | 'security_signal' // denial patterns, secret-scrubber hits, path-guard rejections
+  | 'fleet_convention'; // cross-agent handoff / roster etiquette
 
 export type SageStatus =
   | 'active'
@@ -838,6 +849,13 @@ export function kindToLegacyType(kind: SageKind): MemoryType {
     case 'bug_root_cause':
     case 'summary':
     case 'memory_review':
+    case 'tool_outcome':
+    case 'error_pattern':
+    case 'session_digest':
+    case 'role_operational':
+    case 'task_outcome':
+    case 'security_signal':
+    case 'fleet_convention':
     case 'fact':
       return 'fact';
   }

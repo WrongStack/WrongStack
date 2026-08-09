@@ -1,4 +1,3 @@
-import { useAppTranslation } from '@/i18n';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,30 +12,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConfigStore, useUIStore } from '@/stores';
-import type {
-  SageEntry,
-  SageGraphEdge,
-  SageStats,
-  SageStatus,
-} from '@/types';
+import type { SageEntry, SageGraphEdge, SageStats, SageStatus } from '@/types';
+import { DeleteMemoryDialog } from './DeleteMemoryDialog';
 import { MemoryDetail } from './MemoryDetail';
 import { MemoryDrawer } from './MemoryDrawer';
 import { MemoryEditor } from './MemoryEditor';
 import { MemoryFilters } from './MemoryFilters';
 import { MemoryList } from './MemoryList';
-import type { MemoryDraft } from './shared';
-import {
-  draftFromMemory,
-  emptyDraft,
-  MetricCard,
-  normalizeAnchors,
-  splitList,
-} from './shared';
-import { DeleteMemoryDialog } from './DeleteMemoryDialog';
 import { MemoryManagerEmpty } from './MemoryManagerEmpty';
 import { collectMemoryTags, filterMemories, selectRelatedMemories } from './selectors';
+import type { MemoryDraft } from './shared';
+import { draftFromMemory, emptyDraft, MetricCard, normalizeAnchors, splitList } from './shared';
 
 export function MemoryManager() {
   const { t } = useAppTranslation();
@@ -100,6 +89,22 @@ export function MemoryManager() {
   const mutationGenerationRef = useRef(0);
   const listCleanupRef = useRef<(() => void) | null>(null);
   const mutationCleanupRef = useRef<(() => void) | null>(null);
+
+  // Derive the set of file paths anchored by any loaded memory. Drives the
+  // `<datalist>` for the file-drawer selector: every entry is a known good
+  // path; free-typed values that don't match leave the existing selection
+  // alone so the user can keep editing without losing context.
+  const knownFilePaths = useMemo(() => {
+    const paths = new Set<string>();
+    for (const memory of memories) {
+      for (const anchor of memory.anchors ?? []) {
+        if (anchor.type === 'file' && anchor.path) {
+          paths.add(anchor.path);
+        }
+      }
+    }
+    return paths;
+  }, [memories]);
 
   const dirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(baselineDraft),
@@ -305,9 +310,7 @@ export function MemoryManager() {
       // selection and `submitUpdate` later wrote that draft to the *new*
       // record's id (silent wrong-record overwrite).
       const target =
-        id !== undefined
-          ? (memories.find((memory) => memory.id === id) ?? null)
-          : selectedMemory;
+        id !== undefined ? (memories.find((memory) => memory.id === id) ?? null) : selectedMemory;
       if (!target || target.status === 'deleted') return;
       if (id !== undefined) setSelectedId(id);
       const next = draftFromMemory(target);
@@ -375,7 +378,11 @@ export function MemoryManager() {
         setSelectedId(saved.id);
         setCreating(false);
         setEditing(false);
-        setNotice(action === 'create' ? t('activity:memoryManager.memoryCaptured') : t('activity:memoryManager.memoryUpdated'));
+        setNotice(
+          action === 'create'
+            ? t('activity:memoryManager.memoryCaptured')
+            : t('activity:memoryManager.memoryUpdated'),
+        );
         loadMemories();
       };
 
@@ -584,10 +591,7 @@ export function MemoryManager() {
 
   const allTags = useMemo(() => collectMemoryTags(memories), [memories]);
 
-  const relatedMemories = useMemo(
-    () => selectRelatedMemories(selectedMemory),
-    [selectedMemory],
-  );
+  const relatedMemories = useMemo(() => selectRelatedMemories(selectedMemory), [selectedMemory]);
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
@@ -672,7 +676,9 @@ export function MemoryManager() {
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-bold sm:text-lg">{t('activity:memoryManager.sageHeading')}</h1>
+              <h1 className="text-base font-bold sm:text-lg">
+                {t('activity:memoryManager.sageHeading')}
+              </h1>
               <span className="border border-success/35 bg-success/10 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-success">
                 {t('activity:memoryManager.projectKnowledge')}
               </span>
@@ -688,7 +694,10 @@ export function MemoryManager() {
                 wsConnected ? 'border-success/30 text-success' : 'border-warning/30 text-warning',
               )}
             >
-              <span className="size-1.5 bg-current" /> {wsConnected ? t('activity:memoryManager.liveStore') : t('activity:memoryManager.reconnecting')}
+              <span className="size-1.5 bg-current" />{' '}
+              {wsConnected
+                ? t('activity:memoryManager.liveStore')
+                : t('activity:memoryManager.reconnecting')}
             </span>
             <Button
               variant="outline"
@@ -897,31 +906,35 @@ export function MemoryManager() {
               <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                 {t('activity:memoryManager.fileDrawerLabel')}
               </span>
-              <select
+              <input
+                type="text"
+                list="memory-drawer-file-list"
                 value={currentFilePath ?? ''}
                 onChange={(e) => {
-                  const next = e.target.value || null;
-                  setCurrentFilePath(next);
-                  if (next) setDrawerOpen(true);
+                  const next = e.target.value.trim() || null;
+                  // Only auto-open the drawer when the typed value exactly
+                  // matches a known anchor path. Free-typed non-matching
+                  // values leave `currentFilePath` untouched so the user
+                  // keeps their previous valid selection while editing.
+                  if (next && knownFilePaths.has(next)) {
+                    setCurrentFilePath(next);
+                    setDrawerOpen(true);
+                  } else if (!next) {
+                    setCurrentFilePath(null);
+                  } else {
+                    setCurrentFilePath(next);
+                  }
                 }}
+                placeholder={t('activity:memoryManager.selectFilePlaceholder')}
                 className="min-w-0 max-w-[260px] flex-1 truncate rounded-sm border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-mono"
                 aria-label={t('activity:memoryManager.fileForDrawerAria')}
                 data-testid="memory-drawer-file-select"
-              >
-                <option value="">{t('activity:memoryManager.selectFilePlaceholder')}</option>
-                {memories
-                  .flatMap((memory) => memory.anchors ?? [])
-                  .filter((anchor) => anchor.type === 'file' && anchor.path)
-                  .map((anchor, idx) => (
-                    <option
-                      key={`${anchor.path}-${idx}`}
-                      value={anchor.path}
-                      title={anchor.path}
-                    >
-                      {anchor.path}
-                    </option>
-                  ))}
-              </select>
+              />
+              <datalist id="memory-drawer-file-list">
+                {[...knownFilePaths].sort().map((path) => (
+                  <option key={path} value={path} />
+                ))}
+              </datalist>
               <Button
                 type="button"
                 size="sm"
@@ -933,14 +946,20 @@ export function MemoryManager() {
                 disabled={!currentFilePath}
                 className="h-7 shrink-0 gap-1 px-2 text-[11px]"
                 aria-pressed={drawerActive}
-                title={drawerActive ? t('activity:memoryManager.hideFileDrawer') : t('activity:memoryManager.showFileDrawer')}
+                title={
+                  drawerActive
+                    ? t('activity:memoryManager.hideFileDrawer')
+                    : t('activity:memoryManager.showFileDrawer')
+                }
               >
                 {drawerActive ? (
                   <PanelRightOpen className="size-3" />
                 ) : (
                   <PanelRight className="size-3" />
                 )}
-                {drawerActive ? t('activity:memoryManager.hideDrawer') : t('activity:memoryManager.showDrawer')}
+                {drawerActive
+                  ? t('activity:memoryManager.hideDrawer')
+                  : t('activity:memoryManager.showDrawer')}
               </Button>
             </div>
           )}
@@ -1028,9 +1047,7 @@ export function MemoryManager() {
                     () => updateSage(memoryId, { persistence: 'permanent' }),
                     (payload) => {
                       if (payload.error || !payload.memory) {
-                        setMutationError(
-                          payload.error ?? 'The server returned no memory record.',
-                        );
+                        setMutationError(payload.error ?? 'The server returned no memory record.');
                         return;
                       }
                       setNotice(`Memory ${memoryId.slice(0, 12)}… promoted to permanent.`);

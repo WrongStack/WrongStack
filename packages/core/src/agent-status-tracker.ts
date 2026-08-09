@@ -14,9 +14,9 @@ import {
   addMailTotal,
   addToolActivity,
   boundedText,
+  type CompletedToolPayload,
   clampPct,
   compactTodos,
-  type CompletedToolPayload,
   completedToolReceipt,
   emptyActivityTotals,
   type PendingTool,
@@ -28,8 +28,11 @@ import type {
   AgentRecentMail,
   AgentRecentTool,
   AgentTodoItem,
-  SessionRegistry,
 } from './session-registry.js';
+
+interface SessionPresenceRegistry {
+  updateAgents(agents: AgentEntry[]): Promise<void>;
+}
 
 /** A finished (idle/error) subagent older than this is reaped from the fleet view. */
 const AGENT_REAP_MS = 30_000;
@@ -56,7 +59,7 @@ const PROMPT_TEXT_CAP = 6000;
 
 export interface AgentStatusTrackerOptions {
   events: EventBus;
-  registry: SessionRegistry;
+  registry: SessionPresenceRegistry;
   /** Session id whose live agent state is mirrored by this tracker. */
   sessionId?: string | (() => string | undefined) | undefined;
   /** Leader agent name shown in the registry. Default: "leader". */
@@ -71,7 +74,7 @@ export interface AgentStatusTrackerOptions {
 
 export class AgentStatusTracker {
   private readonly events: EventBus;
-  private readonly registry: SessionRegistry;
+  private readonly registry: SessionPresenceRegistry;
   private readonly sessionId: string | (() => string | undefined) | undefined;
   private readonly leaderName: string;
 

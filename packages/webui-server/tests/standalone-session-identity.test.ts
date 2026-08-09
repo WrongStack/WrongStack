@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
-import { SessionRegistry } from '@wrongstack/core/storage';
+import { LegacySessionRegistry as SessionRegistry } from '@wrongstack/core/storage';
 import type { Logger } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createStandaloneSessionIdentityLifecycle } from '../src/server/standalone-session-identity.js';

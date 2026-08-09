@@ -282,8 +282,8 @@ export async function bootConfig(options: BootConfigOptions = {}): Promise<BootC
   // Initialize the cross-process session registry so /sessions status works
   // and the agent status tracker can register entries later.
   try {
-    const { getSessionRegistry } = await import('./session-registry.js');
-    getSessionRegistry(wpaths.globalRoot);
+    const { getProjectSessionRegistry } = await import('./session-catalog/registry.js');
+    getProjectSessionRegistry(wpaths.globalRoot);
   } catch {
     // Non-critical — session tracking degrades gracefully
   }

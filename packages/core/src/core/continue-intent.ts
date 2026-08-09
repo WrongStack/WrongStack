@@ -206,6 +206,8 @@ export interface ContinuationInput {
 
 export interface ResolvedContinuation {
   source: ContinuationSource;
+  /** Stable todo id when the continuation is grounded in the live work list. */
+  todoId?: string | undefined;
   /**
    * The concrete instruction injected as the next user turn in place of the
    * bare "continue". Written for the model, not the human.
@@ -283,7 +285,12 @@ export function resolveContinuation(input: ContinuationInput): ResolvedContinuat
         '',
         'If this item is already done, mark it complete and move to the next open todo. Keep the board honest as you work — mark finished items completed and split items that need more than one turn. When every todo is complete, stop and give a short summary — do not invent new work.',
       ].join('\n');
-      return { source: 'todo', text, label: `▶ Continue → todo: ${ellipsize(item)}` };
+      return {
+        source: 'todo',
+        todoId: next.id,
+        text,
+        label: `▶ Continue → todo: ${ellipsize(item)}`,
+      };
     }
   }
 

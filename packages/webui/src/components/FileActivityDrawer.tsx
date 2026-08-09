@@ -2,6 +2,7 @@ import { computeLineDiff } from '@wrongstack/tools/tool-diff';
 import {
   Activity,
   Bot,
+  BrainCircuit,
   ChevronDown,
   ChevronUp,
   CircleDot,
@@ -29,8 +30,9 @@ import {
 } from '@/stores';
 import type { ChronicleEventView, ChronicleFileLineageRow, WSServerMessage } from '@/types';
 import { DiffView } from './DiffView';
+import { MemoryDrawer } from './MemoryManager/MemoryDrawer';
 
-type DrawerTab = 'overview' | 'changes' | 'context' | 'logs';
+type DrawerTab = 'overview' | 'changes' | 'context' | 'memory' | 'logs';
 
 interface ActivityRecord {
   id: string;
@@ -258,7 +260,9 @@ export function FileActivityDrawer({ file }: { file: OpenFile }) {
     setChronicleLoading(true);
     if (typeof client.getGitDiff === 'function') client.getGitDiff(file.path);
     const supports =
-      typeof client.supportsCapability === 'function' ? client.supportsCapability.bind(client) : null;
+      typeof client.supportsCapability === 'function'
+        ? client.supportsCapability.bind(client)
+        : null;
     if (supports?.('chronicle.query')) {
       client.send({
         type: 'chronicle.query',
@@ -270,7 +274,10 @@ export function FileActivityDrawer({ file }: { file: OpenFile }) {
     // Full-history lineage rollup from the metrics store (indexed by path) —
     // cheap regardless of journal size, unlike the bounded query scan above.
     if (supports?.('chronicle.metrics')) {
-      client.send({ type: 'chronicle.metrics', payload: { view: 'files', path: file.path, limit: 1000 } });
+      client.send({
+        type: 'chronicle.metrics',
+        payload: { view: 'files', path: file.path, limit: 1000 },
+      });
     }
   }, [client, file.path]);
 
@@ -291,9 +298,7 @@ export function FileActivityDrawer({ file }: { file: OpenFile }) {
       if (message.type !== 'chronicle.metrics_result' || message.payload.view !== 'files') return;
       // The server filtered by path; keep a defensive same-file guard in case a
       // stale response for a previously-open file arrives after a fast switch.
-      setLineage(
-        message.payload.data.filter((row) => pathsReferToSameFile(row.path, file.path)),
-      );
+      setLineage(message.payload.data.filter((row) => pathsReferToSameFile(row.path, file.path)));
     });
     const offChronicleError = client.on('chronicle.error', (message: WSServerMessage) => {
       if (message.type !== 'chronicle.error') return;
@@ -408,6 +413,7 @@ export function FileActivityDrawer({ file }: { file: OpenFile }) {
     { id: 'changes', label: t('activity:fileActivity.changes'), icon: <FileDiff /> },
     { id: 'context', label: t('activity:fileActivity.context'), icon: <ListTree /> },
     { id: 'logs', label: t('activity:fileActivity.logs'), icon: <TerminalSquare /> },
+    { id: 'memory', label: t('activity:fileActivity.memory'), icon: <BrainCircuit /> },
   ];
 
   return (
@@ -546,6 +552,11 @@ export function FileActivityDrawer({ file }: { file: OpenFile }) {
               />
             )}
             {tab === 'logs' && <LogsTab records={records} loading={chronicleLoading} />}
+            {tab === 'memory' && (
+              <div className="h-full min-h-[120px]">
+                <MemoryDrawer filePath={file.path} open onClose={() => setTab('overview')} />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -695,7 +706,9 @@ function LifetimeLineage({ lifetime }: { lifetime: FileLineageSummary }) {
           className="mt-1 truncate font-mono text-[8px] text-muted-foreground"
           title={lifetime.tools.join(', ')}
         >
-          {t('activity:fileActivity.lifetimeTools', { tools: lifetime.tools.slice(0, 6).join(', ') })}
+          {t('activity:fileActivity.lifetimeTools', {
+            tools: lifetime.tools.slice(0, 6).join(', '),
+          })}
         </div>
       )}
     </div>

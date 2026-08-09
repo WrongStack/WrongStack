@@ -1,13 +1,13 @@
-import { createProjectMailbox } from '@wrongstack/core/coordination';
-import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createProjectMailbox } from '@wrongstack/core/coordination';
+import { HQ_AUTH_FILE_VERSION, HQ_PROTOCOL_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
-import { HQ_HTML, type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { createCliHqPublisher } from '../src/hq-publisher.js';
+import { HQ_HTML, type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import { removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 
 let handle: HqServerHandle | null = null;
@@ -66,7 +66,9 @@ async function stopProjectMailboxOwners(): Promise<void> {
   }
 }
 
-async function startOpenHqServer(options: Omit<Parameters<typeof startHqServer>[0], 'dataDir'> = {}): Promise<HqServerHandle> {
+async function startOpenHqServer(
+  options: Omit<Parameters<typeof startHqServer>[0], 'dataDir'> = {},
+): Promise<HqServerHandle> {
   await writeHqAuthFile(dataDir, {
     version: HQ_AUTH_FILE_VERSION,
     updatedAt: new Date().toISOString(),
@@ -207,7 +209,10 @@ describe('HQ server', () => {
     expect(handle.host).toBe('127.0.0.1');
     const runtimePath = path.join(dataDir, 'runtime.json');
 
-    const runtime = JSON.parse(await fs.readFile(runtimePath, 'utf8')) as { url: string; pid: number };
+    const runtime = JSON.parse(await fs.readFile(runtimePath, 'utf8')) as {
+      url: string;
+      pid: number;
+    };
     expect(runtime).toMatchObject({ url: `http://127.0.0.1:${handle.port}`, pid: process.pid });
 
     await handle.close();
@@ -220,8 +225,12 @@ describe('HQ server', () => {
     await writeHqAuthFile(dataDir, {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
-      browserTokens: [{ id: 'bt-existing', token: 'existing-browser-token', createdAt: new Date().toISOString() }],
-      clientTokens: [{ id: 'ct-existing', token: 'existing-client-token', createdAt: new Date().toISOString() }],
+      browserTokens: [
+        { id: 'bt-existing', token: 'existing-browser-token', createdAt: new Date().toISOString() },
+      ],
+      clientTokens: [
+        { id: 'ct-existing', token: 'existing-client-token', createdAt: new Date().toISOString() },
+      ],
     });
     const port = getPort();
 
@@ -253,7 +262,9 @@ describe('HQ server', () => {
     const port = getPort();
     const blocker = await occupyPort(port);
     try {
-      await expect(startOpenHqServer({ port, strictPort: true })).rejects.toMatchObject({ code: 'EADDRINUSE' });
+      await expect(startOpenHqServer({ port, strictPort: true })).rejects.toMatchObject({
+        code: 'EADDRINUSE',
+      });
     } finally {
       await closeHttpServer(blocker);
     }
@@ -353,7 +364,12 @@ describe('HQ server', () => {
         incompleteMailboxMessages: number;
         activeProjects: number;
       };
-      projects: Array<{ projectName: string; projectRootDisplay: string; machineIds: string[]; gitBranch?: string }>;
+      projects: Array<{
+        projectName: string;
+        projectRootDisplay: string;
+        machineIds: string[];
+        gitBranch?: string;
+      }>;
       mailboxes: Array<{ mailboxId: string; unreadCount: number }>;
       clients: unknown[];
     };
@@ -380,7 +396,9 @@ describe('HQ server', () => {
 
     const first = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
     await waitForOpen(first);
-    const firstClosed = new Promise<number>((resolve) => first.once('close', (code) => resolve(code)));
+    const firstClosed = new Promise<number>((resolve) =>
+      first.once('close', (code) => resolve(code)),
+    );
     const helloPayload = {
       protocolVersion: HQ_PROTOCOL_VERSION,
       client: {
@@ -400,7 +418,8 @@ describe('HQ server', () => {
     };
     first.send(JSON.stringify({ type: 'client.hello', payload: helloPayload }));
     await browserCol.nextMessage(
-      (m) => m.type === 'hq.snapshot' && (m as HqSnapshotMessage).snapshot.totals.activeClients === 1,
+      (m) =>
+        m.type === 'hq.snapshot' && (m as HqSnapshotMessage).snapshot.totals.activeClients === 1,
     );
 
     const second = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
@@ -429,35 +448,69 @@ describe('HQ server', () => {
 
     const first = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
     await waitForOpen(first);
-    const firstClosed = new Promise<number>((resolve) => first.once('close', (code) => resolve(code)));
-    first.send(JSON.stringify({
-      type: 'client.hello',
-      payload: {
-        protocolVersion: HQ_PROTOCOL_VERSION,
-        client: { clientId: 'first', kind: 'tui', machineId: 'machine', pid: 4242, startedAt: new Date().toISOString() },
-        project: { projectId: 'project', projectRoot: '/project', projectName: 'Project', machineId: 'machine', workspaceKind: 'git' },
-        capabilities: ['telemetry.publish'],
-      },
-    }));
+    const firstClosed = new Promise<number>((resolve) =>
+      first.once('close', (code) => resolve(code)),
+    );
+    first.send(
+      JSON.stringify({
+        type: 'client.hello',
+        payload: {
+          protocolVersion: HQ_PROTOCOL_VERSION,
+          client: {
+            clientId: 'first',
+            kind: 'tui',
+            machineId: 'machine',
+            pid: 4242,
+            startedAt: new Date().toISOString(),
+          },
+          project: {
+            projectId: 'project',
+            projectRoot: '/project',
+            projectName: 'Project',
+            machineId: 'machine',
+            workspaceKind: 'git',
+          },
+          capabilities: ['telemetry.publish'],
+        },
+      }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     const second = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
     await waitForOpen(second);
-    second.send(JSON.stringify({
-      type: 'client.hello',
-      payload: {
-        protocolVersion: HQ_PROTOCOL_VERSION,
-        client: { clientId: 'second', kind: 'tui', machineId: 'machine', pid: 4242, startedAt: new Date().toISOString() },
-        project: { projectId: 'project', projectRoot: '/project', projectName: 'Project', machineId: 'machine', workspaceKind: 'git' },
-        capabilities: ['telemetry.publish'],
-      },
-    }));
+    second.send(
+      JSON.stringify({
+        type: 'client.hello',
+        payload: {
+          protocolVersion: HQ_PROTOCOL_VERSION,
+          client: {
+            clientId: 'second',
+            kind: 'tui',
+            machineId: 'machine',
+            pid: 4242,
+            startedAt: new Date().toISOString(),
+          },
+          project: {
+            projectId: 'project',
+            projectRoot: '/project',
+            projectName: 'Project',
+            machineId: 'machine',
+            workspaceKind: 'git',
+          },
+          capabilities: ['telemetry.publish'],
+        },
+      }),
+    );
 
     expect(await firstClosed).toBe(4001);
-    await expect.poll(async () => {
-      const snapshot = (await (await fetch(`http://127.0.0.1:${handle!.port}/api/snapshot`)).json()) as { clients: { clientId: string }[] };
-      return snapshot.clients.map((client) => client.clientId);
-    }).toEqual(['second']);
+    await expect
+      .poll(async () => {
+        const snapshot = (await (
+          await fetch(`http://127.0.0.1:${handle!.port}/api/snapshot`)
+        ).json()) as { clients: { clientId: string }[] };
+        return snapshot.clients.map((client) => client.clientId);
+      })
+      .toEqual(['second']);
     second.close();
   });
 
@@ -502,7 +555,9 @@ describe('HQ server', () => {
     const browser = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/browser`);
     await waitForOpen(browser);
     const browserCol = makeBrowserCollector(browser);
-    const snapshot = (await browserCol.nextMessage((m) => m.type === 'hq.snapshot')) as HqSnapshotMessage;
+    const snapshot = (await browserCol.nextMessage(
+      (m) => m.type === 'hq.snapshot',
+    )) as HqSnapshotMessage;
     expect(snapshot.type).toBe('hq.snapshot');
 
     browserCol.dispose();
@@ -556,7 +611,10 @@ describe('HQ server', () => {
       mailboxes: Array<{ mailboxId: string; unreadCount: number }>;
     };
 
-    expect(body.projects[0]).toMatchObject({ projectName: 'HQ Integration Project', activeClients: 1 });
+    expect(body.projects[0]).toMatchObject({
+      projectName: 'HQ Integration Project',
+      activeClients: 1,
+    });
     expect(body.clients[0]).toMatchObject({ kind: 'tui' });
     expect(body.mailboxes.length).toBeGreaterThanOrEqual(1);
 
@@ -1090,9 +1148,9 @@ describe('HQ server frame validation', () => {
     // Send a valid-looking client.event before sending client.hello. The
     // server must drop it (no broadcast, no error) because the client is
     // not registered yet.
-    const beforeSnapshot = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) =>
+    const beforeSnapshot = (await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) =>
       r.json(),
-    ) as { totals: { activeClients: number } };
+    )) as { totals: { activeClients: number } };
     expect(beforeSnapshot.totals.activeClients).toBe(0);
 
     client.send(
@@ -1113,7 +1171,9 @@ describe('HQ server frame validation', () => {
     // Give the server a tick to process the dropped frame.
     await new Promise((r) => setTimeout(r, 30));
 
-    const afterPre = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) => r.json()) as { totals: { activeClients: number; unreadMailboxMessages: number } };
+    const afterPre = (await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) =>
+      r.json(),
+    )) as { totals: { activeClients: number; unreadMailboxMessages: number } };
     expect(afterPre.totals.activeClients).toBe(0);
     expect(afterPre.totals.unreadMailboxMessages).toBe(0);
 
@@ -1141,7 +1201,9 @@ describe('HQ server frame validation', () => {
       }),
     );
     await new Promise((r) => setTimeout(r, 30));
-    const afterHello = await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) => r.json()) as { totals: { activeClients: number } };
+    const afterHello = (await fetch(`http://127.0.0.1:${port}/api/snapshot`).then((r) =>
+      r.json(),
+    )) as { totals: { activeClients: number } };
     expect(afterHello.totals.activeClients).toBe(1);
 
     client.close();
@@ -1336,7 +1398,6 @@ describe('HQ server frame validation', () => {
     expect(summary!).toContain('REDACTED');
 
     client.close();
-
   });
 });
 
@@ -1520,33 +1581,89 @@ describe('HQ server Kanban synchronization', () => {
 });
 
 describe('HQ server fleet telemetry', () => {
-  function helloFrame(clientId: string, machineId: string, projectId: string, kind = 'tui'): string {
+  function helloFrame(
+    clientId: string,
+    machineId: string,
+    projectId: string,
+    kind = 'tui',
+  ): string {
     return JSON.stringify({
       type: 'client.hello',
       payload: {
         protocolVersion: HQ_PROTOCOL_VERSION,
-        client: { clientId, kind, machineId, hostname: machineId + '.local', pid: 4242, startedAt: new Date().toISOString() },
-        project: { projectId, projectRoot: '/r/' + projectId, projectName: projectId, machineId, workspaceKind: 'git' },
+        client: {
+          clientId,
+          kind,
+          machineId,
+          hostname: machineId + '.local',
+          pid: 4242,
+          startedAt: new Date().toISOString(),
+        },
+        project: {
+          projectId,
+          projectRoot: '/r/' + projectId,
+          projectName: projectId,
+          machineId,
+          workspaceKind: 'git',
+        },
         capabilities: ['telemetry.publish'],
         redactionPolicy: { rawContent: true, toolArgs: 'summary', paths: 'project-relative' },
       },
     });
   }
 
-  function sessionSnapshotFrame(clientId: string, machineId: string, projectId: string, sessionId: string, seq = 1): string {
+  function sessionSnapshotFrame(
+    clientId: string,
+    machineId: string,
+    projectId: string,
+    sessionId: string,
+    seq = 1,
+  ): string {
     return JSON.stringify({
       type: 'client.event',
       event: {
-        id: 'snap-' + sessionId + '-' + seq, type: 'session.snapshot', schemaVersion: HQ_PROTOCOL_VERSION,
-        timestamp: new Date().toISOString(), clientId, projectId, sessionId, seq,
+        id: 'snap-' + sessionId + '-' + seq,
+        type: 'session.snapshot',
+        schemaVersion: HQ_PROTOCOL_VERSION,
+        timestamp: new Date().toISOString(),
+        clientId,
+        projectId,
+        sessionId,
+        seq,
         payload: {
-          sessionId, clientKind: 'tui', machineId, hostname: machineId + '.local', pid: 4242,
-          projectId, projectName: projectId, projectRoot: '/r/' + projectId, gitBranch: 'main',
-          status: 'active', startedAt: new Date().toISOString(), lastActivityAt: new Date().toISOString(),
+          sessionId,
+          clientKind: 'tui',
+          machineId,
+          hostname: machineId + '.local',
+          pid: 4242,
+          projectId,
+          projectName: projectId,
+          projectRoot: '/r/' + projectId,
+          gitBranch: 'main',
+          status: 'active',
+          startedAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString(),
           agentCount: 2,
           agents: [
-            { id: 'leader', name: 'leader', status: 'running', iterations: 3, toolCalls: 5, costUsd: 0.12, model: 'opus', lastActivityAt: new Date().toISOString() },
-            { id: 'sub-1', name: 'bug-hunter', status: 'streaming', iterations: 1, toolCalls: 2, currentTool: 'grep', lastActivityAt: new Date().toISOString() },
+            {
+              id: 'leader',
+              name: 'leader',
+              status: 'running',
+              iterations: 3,
+              toolCalls: 5,
+              costUsd: 0.12,
+              model: 'opus',
+              lastActivityAt: new Date().toISOString(),
+            },
+            {
+              id: 'sub-1',
+              name: 'bug-hunter',
+              status: 'streaming',
+              iterations: 1,
+              toolCalls: 2,
+              currentTool: 'grep',
+              lastActivityAt: new Date().toISOString(),
+            },
           ],
         },
       },
@@ -1578,7 +1695,9 @@ describe('HQ server fleet telemetry', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(ownerClosed).toBe(false);
-    const snapshot = (await (await fetch(`http://127.0.0.1:${handle.port}/api/snapshot`)).json()) as {
+    const snapshot = (await (
+      await fetch(`http://127.0.0.1:${handle.port}/api/snapshot`)
+    ).json()) as {
       clients: { clientId: string }[];
       liveSessions: { sessionId: string }[];
       totals: { activeClients: number };
@@ -1604,9 +1723,20 @@ describe('HQ server fleet telemetry', () => {
     await new Promise((r) => setTimeout(r, 30));
 
     const fleet = (await (await fetch(`http://127.0.0.1:${handle.port}/api/fleet`)).json()) as {
-      machines: { machineId: string; hostname?: string; sessionCount: number; agentCount: number }[];
+      machines: {
+        machineId: string;
+        hostname?: string;
+        sessionCount: number;
+        agentCount: number;
+      }[];
       liveSessions: { sessionId: string; clientId?: string; agents: { id: string }[] }[];
-      totals: { activeMachines: number; activeSessions: number; activeAgents: number; activeSubagents: number; totalCostUsd: number };
+      totals: {
+        activeMachines: number;
+        activeSessions: number;
+        activeAgents: number;
+        activeSubagents: number;
+        totalCostUsd: number;
+      };
     };
 
     expect(fleet.totals.activeMachines).toBe(1);
@@ -1646,9 +1776,23 @@ describe('HQ server fleet telemetry', () => {
       JSON.stringify({
         type: 'client.event',
         event: {
-          id: 'dead-fleet', type: 'fleet.snapshot', schemaVersion: HQ_PROTOCOL_VERSION,
-          timestamp: new Date().toISOString(), clientId: 'c1', projectId: 'projX', sessionId: 's-dead', runId: 'run-dead', seq: 2,
-          payload: { runId: 'run-dead', activeSubagents: 1, queuedTasks: 0, completedTasks: 0, failedTasks: 0, subagents: [{ subagentId: 'shadow-dead', status: 'running' }] },
+          id: 'dead-fleet',
+          type: 'fleet.snapshot',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: new Date().toISOString(),
+          clientId: 'c1',
+          projectId: 'projX',
+          sessionId: 's-dead',
+          runId: 'run-dead',
+          seq: 2,
+          payload: {
+            runId: 'run-dead',
+            activeSubagents: 1,
+            queuedTasks: 0,
+            completedTasks: 0,
+            failedTasks: 0,
+            subagents: [{ subagentId: 'shadow-dead', status: 'running' }],
+          },
         },
       }),
     );
@@ -1656,8 +1800,14 @@ describe('HQ server fleet telemetry', () => {
       JSON.stringify({
         type: 'client.event',
         event: {
-          id: 'dead-mcp', type: 'mcp.health.snapshot', schemaVersion: HQ_PROTOCOL_VERSION,
-          timestamp: new Date().toISOString(), clientId: 'c1', projectId: 'projX', sessionId: 's-dead', seq: 3,
+          id: 'dead-mcp',
+          type: 'mcp.health.snapshot',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: new Date().toISOString(),
+          clientId: 'c1',
+          projectId: 'projX',
+          sessionId: 's-dead',
+          seq: 3,
           payload: { servers: [] },
         },
       }),
@@ -1710,10 +1860,17 @@ describe('HQ server fleet telemetry', () => {
         JSON.stringify({
           type: 'client.event',
           event: {
-            id: 'tr-1', type: 'session.transcript', schemaVersion: HQ_PROTOCOL_VERSION,
-            timestamp: new Date().toISOString(), clientId: 'c1', projectId: 'projX', sessionId: 's-remote', seq: 2,
+            id: 'tr-1',
+            type: 'session.transcript',
+            schemaVersion: HQ_PROTOCOL_VERSION,
+            timestamp: new Date().toISOString(),
+            clientId: 'c1',
+            projectId: 'projX',
+            sessionId: 's-remote',
+            seq: 2,
             payload: {
-              sessionId: 's-remote', fromSeq: 0,
+              sessionId: 's-remote',
+              fromSeq: 0,
               entries: [
                 { ts: new Date().toISOString(), role: 'user', text: 'hello there' },
                 { ts: new Date().toISOString(), role: 'assistant', text: 'hi! working on it' },
@@ -1725,10 +1882,14 @@ describe('HQ server fleet telemetry', () => {
       );
       await new Promise((r) => setTimeout(r, 30));
 
-      const res = await fetch(`http://127.0.0.1:${handle.port}/api/sessions/s-remote/events?full=1`);
+      const res = await fetch(
+        `http://127.0.0.1:${handle.port}/api/sessions/s-remote/events?full=1`,
+      );
       expect(res.status).toBe(200);
       const body = (await res.json()) as {
-        source: string; total: number; entries: { role: string; text: string; tool?: string }[];
+        source: string;
+        total: number;
+        entries: { role: string; text: string; tool?: string }[];
       };
       expect(body.source).toBe('stream');
       expect(body.total).toBe(3);
@@ -1755,9 +1916,21 @@ describe('HQ server fleet telemetry', () => {
       return JSON.stringify({
         type: 'client.event',
         event: {
-          id: 'am-' + seq, type: 'agent.message', schemaVersion: HQ_PROTOCOL_VERSION,
-          timestamp: new Date().toISOString(), clientId: 'c1', projectId: 'projX', seq,
-          payload: { subagentId: 'sub-9', agentName: 'bug-hunter', content, kind, iteration: seq, ts: new Date().toISOString() },
+          id: 'am-' + seq,
+          type: 'agent.message',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: new Date().toISOString(),
+          clientId: 'c1',
+          projectId: 'projX',
+          seq,
+          payload: {
+            subagentId: 'sub-9',
+            agentName: 'bug-hunter',
+            content,
+            kind,
+            iteration: seq,
+            ts: new Date().toISOString(),
+          },
         },
       });
     }
@@ -1768,7 +1941,11 @@ describe('HQ server fleet telemetry', () => {
 
     const res = await fetch(`http://127.0.0.1:${handle.port}/api/agents/sub-9/messages?full=1`);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { subagentId: string; total: number; entries: { role: string; text: string }[] };
+    const body = (await res.json()) as {
+      subagentId: string;
+      total: number;
+      entries: { role: string; text: string }[];
+    };
     expect(body.subagentId).toBe('sub-9');
     expect(body.total).toBe(3);
     expect(body.entries[0]).toMatchObject({ role: 'assistant', text: 'starting investigation' });
@@ -1792,9 +1969,22 @@ describe('HQ server fleet telemetry', () => {
       return JSON.stringify({
         type: 'client.event',
         event: {
-          id: `lm-${sessionId}-${seq}`, type: 'agent.message', schemaVersion: HQ_PROTOCOL_VERSION,
-          timestamp: new Date().toISOString(), clientId: 'c1', projectId: 'projX', seq, sessionId,
-          payload: { subagentId: 'leader', agentName: 'leader', content, kind: 'text', iteration: seq, ts: new Date().toISOString() },
+          id: `lm-${sessionId}-${seq}`,
+          type: 'agent.message',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: new Date().toISOString(),
+          clientId: 'c1',
+          projectId: 'projX',
+          seq,
+          sessionId,
+          payload: {
+            subagentId: 'leader',
+            agentName: 'leader',
+            content,
+            kind: 'text',
+            iteration: seq,
+            ts: new Date().toISOString(),
+          },
         },
       });
     }
@@ -1835,8 +2025,14 @@ describe('HQ server fleet telemetry', () => {
       JSON.stringify({
         type: 'client.event',
         event: {
-          id: 'fs-1', type: 'fleet.snapshot', schemaVersion: HQ_PROTOCOL_VERSION,
-          timestamp: new Date().toISOString(), clientId: 'c1', projectId: 'projX', runId: 's-fleet', seq: 3,
+          id: 'fs-1',
+          type: 'fleet.snapshot',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: new Date().toISOString(),
+          clientId: 'c1',
+          projectId: 'projX',
+          runId: 's-fleet',
+          seq: 3,
           payload: {
             runId: 's-fleet',
             activeSubagents: 2,
@@ -1903,8 +2099,21 @@ describe('HQ control plane (Phase 3)', () => {
       type: 'client.hello',
       payload: {
         protocolVersion: HQ_PROTOCOL_VERSION,
-        client: { clientId, kind: 'tui', machineId, hostname: machineId + '.local', pid: 1, startedAt: new Date().toISOString() },
-        project: { projectId, projectRoot: '/r/' + projectId, projectName: projectId, machineId, workspaceKind: 'git' },
+        client: {
+          clientId,
+          kind: 'tui',
+          machineId,
+          hostname: machineId + '.local',
+          pid: 1,
+          startedAt: new Date().toISOString(),
+        },
+        project: {
+          projectId,
+          projectRoot: '/r/' + projectId,
+          projectName: projectId,
+          machineId,
+          workspaceKind: 'git',
+        },
         capabilities: ['telemetry.publish', 'control.receive'],
       },
     });
@@ -1916,14 +2125,31 @@ describe('HQ control plane (Phase 3)', () => {
       type: 'client.hello',
       payload: {
         protocolVersion: HQ_PROTOCOL_VERSION,
-        client: { clientId, kind: 'tui', machineId, hostname: machineId + '.local', pid: 1, startedAt: new Date().toISOString() },
-        project: { projectId, projectRoot: '/r/' + projectId, projectName: projectId, machineId, workspaceKind: 'git' },
+        client: {
+          clientId,
+          kind: 'tui',
+          machineId,
+          hostname: machineId + '.local',
+          pid: 1,
+          startedAt: new Date().toISOString(),
+        },
+        project: {
+          projectId,
+          projectRoot: '/r/' + projectId,
+          projectName: projectId,
+          machineId,
+          workspaceKind: 'git',
+        },
         capabilities: ['telemetry.publish'],
       },
     });
   }
 
-  function nextMessage(ws: WebSocket, predicate: (m: { type: string }) => boolean, timeout = 3000): Promise<unknown> {
+  function nextMessage(
+    ws: WebSocket,
+    predicate: (m: { type: string }) => boolean,
+    timeout = 3000,
+  ): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('timeout waiting for message')), timeout);
       const handler = (raw: { toString: () => string }): void => {
@@ -1964,7 +2190,11 @@ describe('HQ control plane (Phase 3)', () => {
     const postRes = await fetch(`http://127.0.0.1:${handle.port}/api/command`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId: 'ctrl-1', type: 'steer', payload: { to: 'leader', subject: 'pivot', body: 'switch to plan B' } }),
+      body: JSON.stringify({
+        clientId: 'ctrl-1',
+        type: 'steer',
+        payload: { to: 'leader', subject: 'pivot', body: 'switch to plan B' },
+      }),
     });
     expect(postRes.status).toBe(202);
     const postBody = (await postRes.json()) as { commandId: string; queued: boolean };
@@ -1986,7 +2216,9 @@ describe('HQ control plane (Phase 3)', () => {
         message.type === 'hq.command_status' &&
         (message as { command?: { status?: string } }).command?.status === 'delivered',
     );
-    client.send(JSON.stringify({ type: 'client.command_poll', clientId: 'ctrl-1', projectId: 'projC' }));
+    client.send(
+      JSON.stringify({ type: 'client.command_poll', clientId: 'ctrl-1', projectId: 'projC' }),
+    );
     const batch = (await nextMessage(client, (m) => m.type === 'hq.command_batch')) as {
       type: 'hq.command_batch';
       commands: { commandId: string; type: string; payload: { to: string; subject: string } }[];
@@ -2102,7 +2334,11 @@ describe('HQ control plane (Phase 3)', () => {
     const postRes = await fetch(`http://127.0.0.1:${handle.port}/api/command`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId: 'ghost', type: 'steer', payload: { to: 'leader', subject: 'x', body: 'y' } }),
+      body: JSON.stringify({
+        clientId: 'ghost',
+        type: 'steer',
+        payload: { to: 'leader', subject: 'x', body: 'y' },
+      }),
     });
     expect(postRes.status).toBe(404);
   });
@@ -2144,11 +2380,19 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
       startedAt: new Date().toISOString(),
     });
     return async () => {
-      await registry.unregister().catch(() => {});
+      await registry.dispose().catch(() => {});
+      const { SessionCatalogProjectClient } = await import('@wrongstack/core/session-catalog');
+      const projectDir = path.join(globalRoot, 'projects', projectSlug);
+      await new SessionCatalogProjectClient({ projectDir, projectRoot })
+        .shutdown('test cleanup')
+        .catch(() => undefined);
     };
   }
 
-  async function startTokenHqServer(port: number, capabilities?: string[]): Promise<HqServerHandle> {
+  async function startTokenHqServer(
+    port: number,
+    capabilities?: string[],
+  ): Promise<HqServerHandle> {
     await writeHqAuthFile(dataDir, {
       version: HQ_AUTH_FILE_VERSION,
       updatedAt: new Date().toISOString(),
@@ -2267,7 +2511,7 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
       // The message must be readable from the SAME project mailbox the server
       // resolved — proving the write landed with zero connected clients.
       const { createProjectMailbox, resolveProjectDir } = await import(
-        '@wrongstack/core/coordination',
+        '@wrongstack/core/coordination'
       );
       const projectDir = resolveProjectDir(projectRoot, globalRoot);
       const mailbox = createProjectMailbox({ projectDir, isolatedConnection: true });
@@ -2294,7 +2538,12 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
       const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: 'sess-mb-q', type: 'queue', to: 'leader', body: 'later task' }),
+        body: JSON.stringify({
+          sessionId: 'sess-mb-q',
+          type: 'queue',
+          to: 'leader',
+          body: 'later task',
+        }),
       });
       expect(res.status).toBe(202);
       const body = (await res.json()) as { type: string };
@@ -2302,7 +2551,7 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
       expect(body.type).toBe('note');
 
       const { createProjectMailbox, resolveProjectDir } = await import(
-        '@wrongstack/core/coordination',
+        '@wrongstack/core/coordination'
       );
       const mailbox = createProjectMailbox({
         projectDir: resolveProjectDir(projectRoot, globalRoot),
@@ -2350,7 +2599,7 @@ describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
       });
 
       const { createProjectMailbox, resolveProjectDir } = await import(
-        '@wrongstack/core/coordination',
+        '@wrongstack/core/coordination'
       );
       const mailbox = createProjectMailbox({
         projectDir: resolveProjectDir(projectRoot, globalRoot),

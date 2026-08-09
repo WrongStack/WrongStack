@@ -61,6 +61,8 @@ export interface CompletedWorkEvidence {
 
 export interface ContextEvidenceState {
   currentIntent?: ContextIntentEvidence | undefined;
+  /** Recent real human inputs, bounded and rendered as volatile continuity evidence. */
+  recentUserTurns?: ContextIntentEvidence[] | undefined;
   sessionGoals: string[];
   implicitFacts: string[];
   activeErrors: string[];

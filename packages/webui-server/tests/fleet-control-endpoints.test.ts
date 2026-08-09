@@ -9,11 +9,12 @@
  * Session ids contain a literal '/', so the requests percent-encode it — these
  * tests also exercise the decodeSessionId path through to the registry lookup.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createHttpServer } from '@wrongstack/webui-server';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // Security scan 2026-08-04, finding H3: the HTTP API now requires a token on
 // every bind, including loopback. These suites previously exercised the
@@ -25,8 +26,6 @@ const authFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
     headers: { ...((init.headers as Record<string, string>) ?? {}), 'x-ws-token': TEST_API_TOKEN },
   });
 
-
-
 const SESSION_ID = '2026-06-19/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
 const ENC = encodeURIComponent(SESSION_ID);
 
@@ -36,6 +35,7 @@ let distDir: string;
 let projectDir: string;
 let server: import('node:http').Server;
 let baseUrl: string;
+let sessionRegistry: import('@wrongstack/core/storage').SessionRegistry;
 
 beforeAll(async () => {
   globalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'webui-fleet-'));
@@ -58,7 +58,7 @@ beforeAll(async () => {
     gitBranch: 'main',
     clientType: 'tui',
     status: 'active',
-    pid: 999_999, // not this test process — broadcast falls back to all sessions
+    pid: process.pid,
     startedAt: new Date('2026-06-19T12:00:00Z').toISOString(),
     lastHeartbeatAt: new Date().toISOString(),
     agentCount: 1,
@@ -66,17 +66,16 @@ beforeAll(async () => {
       {
         id: 'leader',
         name: 'leader',
-        status: 'streaming',
+        status: 'streaming' as const,
         iterations: 0,
         toolCalls: 0,
         lastActivityAt: new Date().toISOString(),
       },
     ],
   };
-  await fs.writeFile(
-    path.join(globalRoot, 'session-registry.json'),
-    JSON.stringify({ [SESSION_ID]: entry }),
-  );
+  const { SessionRegistry } = await import('@wrongstack/core/storage');
+  sessionRegistry = new SessionRegistry(globalRoot);
+  await sessionRegistry.register(entry);
 
   server = createHttpServer({ host: '127.0.0.1', distDir, globalRoot, apiToken: TEST_API_TOKEN });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -86,7 +85,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
+  await sessionRegistry?.unregister().catch(() => undefined);
+  await sessionRegistry?.dispose().catch(() => undefined);
+  const { SessionCatalogProjectClient } = await import('@wrongstack/core/session-catalog');
+  const catalogClient = new SessionCatalogProjectClient({ projectDir, projectRoot });
+  await catalogClient.shutdown('test complete').catch(() => undefined);
+  await catalogClient.close().catch(() => undefined);
   // Delivering mail starts the project's detached mailbox owner, which keeps
   // `<globalRoot>/projects/<slug>/_mailbox.sqlite` open. Leave it running and
   // the removal below blocks on EBUSY past the hook timeout.
@@ -117,7 +122,13 @@ describe('Fleet HQ control endpoints', () => {
     const thr = await authFetch(`${baseUrl}/api/sessions/${ENC}/mailbox`);
     expect(thr.status).toBe(200);
     const body = (await thr.json()) as {
-      thread: Array<{ id: string; type: string; body: string; fromLeader: boolean; readByLeader: string | null }>;
+      thread: Array<{
+        id: string;
+        type: string;
+        body: string;
+        fromLeader: boolean;
+        readByLeader: string | null;
+      }>;
     };
     const found = body.thread.find((m) => m.id === sent.id);
     expect(found).toBeDefined();

@@ -2,13 +2,16 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { getSharedProjectMailbox, type MailboxMessage, resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  getSharedProjectMailbox,
+  type MailboxMessage,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { startHqServer, type HqServerHandle } from '../src/hq-server.js';
+import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
 import {
   disposeProjectMailbox,
   disposeProjectMailboxesUnder,
@@ -60,7 +63,7 @@ interface ProjectFixture {
 const seedProject = async (slug: string): Promise<ProjectFixture> => {
   const globalRoot = path.dirname(dataDir);
   const projectRoot = path.join(dataDir, slug);
-  await fs.mkdir(projectRoot, {recursive: true});
+  await fs.mkdir(projectRoot, { recursive: true });
   const { SessionRegistry } = await import('@wrongstack/core/storage');
   const registry = new SessionRegistry(globalRoot);
   await registry.register({
@@ -78,7 +81,12 @@ const seedProject = async (slug: string): Promise<ProjectFixture> => {
       // The gateway reached a real project owner over IPC; that daemon has
       // to exit before the temp tree it sits in can be removed.
       await disposeProjectMailbox(resolveProjectDir(projectRoot, wstackGlobalRoot()));
-      await registry.unregister().catch(() => {});
+      await registry.dispose().catch(() => {});
+      const { SessionCatalogProjectClient } = await import('@wrongstack/core/session-catalog');
+      const projectDir = path.join(globalRoot, 'projects', slug);
+      await new SessionCatalogProjectClient({ projectDir, projectRoot })
+        .shutdown('test cleanup')
+        .catch(() => undefined);
     },
   };
 };
@@ -90,10 +98,10 @@ const post = async (
   url: string,
   body: unknown,
   headers: Record<string, string> = {},
-): Promise<{status: number; json: unknown}> => {
+): Promise<{ status: number; json: unknown }> => {
   const res = await fetch(url, {
     method: 'POST',
-    headers: {'Content-Type': 'application/json', ...headers},
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(5_000),
   });
@@ -104,13 +112,13 @@ const post = async (
   } catch {
     parsed = text;
   }
-  return {status: res.status, json: parsed};
+  return { status: res.status, json: parsed };
 };
 
 const countMessages = async (projectRoot: string): Promise<number> => {
   const mb = getSharedProjectMailbox(resolveProjectDir(projectRoot, wstackGlobalRoot()));
   try {
-    const all = await mb.query({limit: 1_000});
+    const all = await mb.query({ limit: 1_000 });
     return all.length;
   } finally {
     await mb.close();
@@ -132,11 +140,10 @@ const runMutation = async (m: Mutation): Promise<void> => {
   m.mutate(body);
   const res = await post(gatewayUrl(handle!, m.projectId, m.route), body, auth());
   const expectedStatus = m.rejectStatus ?? 400;
-  expect(
-    res.status,
-    `mutation "${m.name}" expected ${expectedStatus} but got ${res.status}`,
-  ).toBe(expectedStatus);
-  const err = (res.json as {error?: {code?: string; message?: string}}).error;
+  expect(res.status, `mutation "${m.name}" expected ${expectedStatus} but got ${res.status}`).toBe(
+    expectedStatus,
+  );
+  const err = (res.json as { error?: { code?: string; message?: string } }).error;
   expect(err?.code, `mutation "${m.name}" expected VALIDATION_ERROR envelope`).toBe(
     'VALIDATION_ERROR',
   );
@@ -171,7 +178,7 @@ beforeEach(async () => {
   // full-suite load).
   tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-mailbox-mut-'));
   dataDir = path.join(tempRoot, 'hq');
-  await fs.mkdir(dataDir, {recursive: true});
+  await fs.mkdir(dataDir, { recursive: true });
   // Pin WRONGSTACK_HOME so `wstackGlobalRoot()` (used by the test to
   // compute the backdated-record path) and the HQ server (which derives
   // its global root from `dirname(dataDir)`) point at the SAME root.
@@ -243,7 +250,7 @@ describe('HQ mailbox — /mailbox/send validator mutations', () => {
       },
     },
   ])('rejects malformed `send` body (case: $rejectContains)', async (row) => {
-    const {projectRoot, cleanup} = await seedProject('mut-send');
+    const { projectRoot, cleanup } = await seedProject('mut-send');
     try {
       const baseline = await countMessages(projectRoot);
       await runMutation({
@@ -262,7 +269,7 @@ describe('HQ mailbox — /mailbox/send validator mutations', () => {
 });
 
 describe('HQ mailbox — /mailbox/query validator mutations', () => {
-  const validQuery = {to: 'leader', limit: 5};
+  const validQuery = { to: 'leader', limit: 5 };
 
   it.each([
     {
@@ -290,7 +297,7 @@ describe('HQ mailbox — /mailbox/query validator mutations', () => {
       },
     },
   ])('rejects malformed `query` body (case: $rejectContains)', async (row) => {
-    const {projectRoot, cleanup} = await seedProject('mut-query');
+    const { projectRoot, cleanup } = await seedProject('mut-query');
     try {
       const baseline = await countMessages(projectRoot);
       await runMutation({
@@ -314,14 +321,10 @@ describe('HQ mailbox — /mailbox/ack-many validator mutations + empty-array bou
   };
 
   it('accepts an empty acks array as a documented no-op through the gateway', async () => {
-    const {projectRoot, cleanup} = await seedProject('mut-ackmany');
+    const { projectRoot, cleanup } = await seedProject('mut-ackmany');
     try {
       const baseline = await countMessages(projectRoot);
-      const res = await post(
-        gatewayUrl(handle!, 'mut-ackmany', '/ack-many'),
-        { acks: [] },
-        auth(),
-      );
+      const res = await post(gatewayUrl(handle!, 'mut-ackmany', '/ack-many'), { acks: [] }, auth());
       expect(res.status).toBe(200);
       expect((res.json as { count?: number }).count).toBe(0);
       expect(await countMessages(projectRoot), 'empty ack-many leaked side effects').toBe(baseline);
@@ -333,18 +336,24 @@ describe('HQ mailbox — /mailbox/ack-many validator mutations + empty-array bou
   it.each([
     {
       rejectContains: '"acks"',
-      mutate: (b: Record<string, unknown>): void => { b['acks'] = 'not-an-array'; },
+      mutate: (b: Record<string, unknown>): void => {
+        b['acks'] = 'not-an-array';
+      },
     },
     {
       rejectContains: '"acks"',
-      mutate: (b: Record<string, unknown>): void => { b['acks'] = null; },
+      mutate: (b: Record<string, unknown>): void => {
+        b['acks'] = null;
+      },
     },
     {
       rejectContains: '"acks"',
-      mutate: (b: Record<string, unknown>): void => { delete b['acks']; },
+      mutate: (b: Record<string, unknown>): void => {
+        delete b['acks'];
+      },
     },
   ])('rejects malformed `ack-many` body (case: $rejectContains)', async (row) => {
-    const {projectRoot, cleanup} = await seedProject('mut-ackmany');
+    const { projectRoot, cleanup } = await seedProject('mut-ackmany');
     try {
       const baseline = await countMessages(projectRoot);
       await runMutation({
@@ -397,7 +406,7 @@ describe('HQ mailbox — /mailbox/agents/register validator mutations', () => {
       },
     },
   ])('rejects malformed agent registration (case: $rejectContains)', async (row) => {
-    const {projectRoot, cleanup} = await seedProject('mut-agent');
+    const { projectRoot, cleanup } = await seedProject('mut-agent');
     try {
       const baseline = await countMessages(projectRoot);
       await runMutation({
@@ -422,12 +431,18 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
   const actionUrl = (mailId: string): string =>
     `http://127.0.0.1:${handle!.port}/api/mailbox/messages/${encodeURIComponent(mailId)}/action`;
 
-  const seedMessage = async (): Promise<{mailId: string; cleanup: () => Promise<void>}> => {
-    const {projectRoot, cleanup} = await seedProject(actionProjectId);
+  const seedMessage = async (): Promise<{ mailId: string; cleanup: () => Promise<void> }> => {
+    const { projectRoot, cleanup } = await seedProject(actionProjectId);
     const mb = getSharedProjectMailbox(resolveProjectDir(projectRoot, wstackGlobalRoot()));
     try {
-      const sent = await mb.send({from: 'leader@x', to: 'op-mut', type: 'note', subject: 't', body: 'b'});
-      return {mailId: sent.id, cleanup};
+      const sent = await mb.send({
+        from: 'leader@x',
+        to: 'op-mut',
+        type: 'note',
+        subject: 't',
+        body: 'b',
+      });
+      return { mailId: sent.id, cleanup };
     } finally {
       await mb.close();
     }
@@ -437,36 +452,44 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
     mailId: string,
     body: unknown,
     headers: Record<string, string> = {},
-  ): Promise<{status: number; json: unknown}> => {
+  ): Promise<{ status: number; json: unknown }> => {
     const res = await fetch(actionUrl(mailId), {
       method: 'POST',
-      headers: {'Content-Type': 'application/json', ...headers},
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(5_000),
     });
     const text = await res.text();
     let parsed: unknown = null;
-    try { parsed = JSON.parse(text); } catch { parsed = text; }
-    return {status: res.status, json: parsed};
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = text;
+    }
+    return { status: res.status, json: parsed };
   };
 
   it.each([
     {
       rejectContains: 'unrecognized action',
-      mutate: (b: Record<string, unknown>): void => { b['action'] = 'explode'; },
+      mutate: (b: Record<string, unknown>): void => {
+        b['action'] = 'explode';
+      },
     },
     {
       rejectContains: 'sessionId or projectId',
-      mutate: (b: Record<string, unknown>): void => { delete b['sessionId']; },
+      mutate: (b: Record<string, unknown>): void => {
+        delete b['sessionId'];
+      },
     },
   ])('rejects malformed action body (case: $rejectContains)', async (row) => {
-    const {mailId, cleanup} = await seedMessage();
+    const { mailId, cleanup } = await seedMessage();
     try {
       const body = JSON.parse(JSON.stringify(validAction)) as Record<string, unknown>;
       row.mutate(body);
       const res = await postAction(mailId, body, auth());
       expect(res.status, `expected 400 for ${row.rejectContains}`).toBe(400);
-      const err = (res.json as {error?: string}).error;
+      const err = (res.json as { error?: string }).error;
       expect(err, `expected error message containing "${row.rejectContains}"`).toContain(
         row.rejectContains,
       );
@@ -481,15 +504,32 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
   // identity, which makes the body value irrelevant rather than invalid — the
   // three former "malformed readerId" rejection cases no longer apply.
   it.each([
-    { label: 'absent', mutate: (b: Record<string, unknown>): void => { delete b['readerId']; } },
-    { label: 'empty', mutate: (b: Record<string, unknown>): void => { b['readerId'] = ''; } },
-    { label: 'non-string', mutate: (b: Record<string, unknown>): void => { b['readerId'] = 42; } },
+    {
+      label: 'absent',
+      mutate: (b: Record<string, unknown>): void => {
+        delete b['readerId'];
+      },
+    },
+    {
+      label: 'empty',
+      mutate: (b: Record<string, unknown>): void => {
+        b['readerId'] = '';
+      },
+    },
+    {
+      label: 'non-string',
+      mutate: (b: Record<string, unknown>): void => {
+        b['readerId'] = 42;
+      },
+    },
     {
       label: 'impersonating another operator',
-      mutate: (b: Record<string, unknown>): void => { b['readerId'] = 'someone-else'; },
+      mutate: (b: Record<string, unknown>): void => {
+        b['readerId'] = 'someone-else';
+      },
     },
   ])('ignores a body readerId when authenticated (case: $label)', async (row) => {
-    const {mailId, cleanup} = await seedMessage();
+    const { mailId, cleanup } = await seedMessage();
     try {
       const body = JSON.parse(JSON.stringify(validAction)) as Record<string, unknown>;
       row.mutate(body);
@@ -501,7 +541,7 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
   });
 
   it('rejects an unknown mailId (404)', async () => {
-    const {cleanup} = await seedProject(actionProjectId);
+    const { cleanup } = await seedProject(actionProjectId);
     try {
       const res = await postAction('no-such-mail', validAction, auth());
       expect(res.status).toBe(404);
@@ -511,9 +551,15 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
   });
 
   it('rejects a message from an unresolved project (404)', async () => {
-    const res = await postAction('some-mail', {
-      action: 'mark-read', readerId: 'op-mut', projectId: 'no-such-project',
-    }, auth());
+    const res = await postAction(
+      'some-mail',
+      {
+        action: 'mark-read',
+        readerId: 'op-mut',
+        projectId: 'no-such-project',
+      },
+      auth(),
+    );
     expect(res.status).toBe(404);
   });
 
@@ -527,25 +573,25 @@ describe('HQ mailbox — gateway-level contract', () => {
   it('rejects an unknown project with 404', async () => {
     const res = await post(
       gatewayUrl(handle!, 'no-such-project', '/send'),
-      {from: 'x', to: 'y', type: 'note', subject: 's', body: 'b'},
+      { from: 'x', to: 'y', type: 'note', subject: 's', body: 'b' },
       auth(),
     );
     expect(res.status).toBe(404);
-    const err = (res.json as {error?: {code?: string}}).error;
+    const err = (res.json as { error?: { code?: string } }).error;
     expect(err?.code).toBe('NOT_FOUND');
   });
 
   it('returns 403 for a token lacking control.enqueue', async () => {
-    const {cleanup} = await seedProject('mut-nocap');
+    const { cleanup } = await seedProject('mut-nocap');
     try {
       await restartServer(['telemetry.publish']);
       const res = await post(
         gatewayUrl(handle!, 'mut-nocap', '/send'),
-        {from: 'x', to: 'y', type: 'note', subject: 's', body: 'b'},
+        { from: 'x', to: 'y', type: 'note', subject: 's', body: 'b' },
         auth(),
       );
       expect(res.status).toBe(403);
-      const err = (res.json as {error?: {code?: string}}).error;
+      const err = (res.json as { error?: { code?: string } }).error;
       expect(err?.code).toBe('FORBIDDEN');
     } finally {
       await cleanup();
@@ -553,13 +599,17 @@ describe('HQ mailbox — gateway-level contract', () => {
   });
 
   it('returns 401 without an Authorization header', async () => {
-    const res = await post(gatewayUrl(handle!, 'proj', '/mut-send'), {
-      from: 'x',
-      to: 'y',
-      type: 'note',
-      subject: 's',
-      body: 'b',
-    }, {});
+    const res = await post(
+      gatewayUrl(handle!, 'proj', '/mut-send'),
+      {
+        from: 'x',
+        to: 'y',
+        type: 'note',
+        subject: 's',
+        body: 'b',
+      },
+      {},
+    );
     expect(res.status).toBe(401);
   });
 
@@ -571,11 +621,7 @@ describe('HQ mailbox — gateway-level contract', () => {
     expect(res.status).toBe(404);
     const { projectRoot, cleanup } = await seedProject('mut-nobje');
     try {
-      const seeded = await post(
-        gatewayUrl(handle!, 'mut-nobje', '/send'),
-        null,
-        auth(),
-      );
+      const seeded = await post(gatewayUrl(handle!, 'mut-nobje', '/send'), null, auth());
       expect(seeded.status).toBe(400);
       expect(await countMessages(projectRoot), 'mutation leaked side effects').toBe(0);
     } finally {
@@ -737,10 +783,7 @@ describe('HQ mailbox — staleness filter on gateway query responses', () => {
       expect(allRes.status).toBe(200);
       expect(allBody.count).toBe(2);
       expect(allBody.data).toHaveLength(2);
-      expect(allBody.data.map((m) => m.subject).sort()).toEqual([
-        'fresh memory',
-        'old memory',
-      ]);
+      expect(allBody.data.map((m) => m.subject).sort()).toEqual(['fresh memory', 'old memory']);
     } finally {
       await cleanup();
     }

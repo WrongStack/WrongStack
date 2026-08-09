@@ -6,9 +6,9 @@ export function resolveHqProjectRoot(
 ): Promise<string | undefined> {
   // Dynamic import to avoid pulling in SessionRegistry at module level.
   const fn = async (): Promise<string | undefined> => {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
+    const { getSessionRegistry } = await import('@wrongstack/core/storage');
     try {
-      const registry = new SessionRegistry(globalRoot);
+      const registry = getSessionRegistry(globalRoot);
       if (typeof ids.sessionId === 'string') {
         const entry = await registry.get(ids.sessionId).catch(() => null);
         if (entry?.projectRoot) return entry.projectRoot;

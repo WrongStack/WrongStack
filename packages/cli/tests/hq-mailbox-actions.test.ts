@@ -22,10 +22,7 @@ import {
 import { HQ_AUTH_FILE_VERSION, writeHqAuthFile } from '@wrongstack/core/hq';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type HqServerHandle, startHqServer } from '../src/hq-server.js';
-import {
-  disposeProjectMailbox,
-  removeMailboxTempRoot,
-} from './helpers/mailbox-daemon.js';
+import { disposeProjectMailbox, removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 
 let handle: HqServerHandle | null = null;
 let tempRoot: string;
@@ -83,7 +80,12 @@ async function seedSession(
     startedAt: new Date().toISOString(),
   });
   return async () => {
-    await registry.unregister().catch(() => {});
+    await registry.dispose().catch(() => {});
+    const { SessionCatalogProjectClient } = await import('@wrongstack/core/session-catalog');
+    const projectDir = path.join(globalRoot, 'projects', projectSlug);
+    await new SessionCatalogProjectClient({ projectDir, projectRoot })
+      .shutdown('test cleanup')
+      .catch(() => undefined);
   };
 }
 
