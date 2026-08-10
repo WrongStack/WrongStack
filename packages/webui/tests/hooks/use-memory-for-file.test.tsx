@@ -212,6 +212,16 @@ describe('useMemoryForFile', () => {
     await waitFor(() => expect(result.current.data?.totalCount).toBe(1));
   });
 
+  it('accepts a response whose path only differs by separator or "./" prefix', async () => {
+    const { result } = renderHook(() =>
+      useMemoryForFile({ filePath: './packages\\tools\\src\\a.ts' }),
+    );
+    // The server answers with the normalized project-relative path.
+    act(() => emit({ response: response('packages/tools/src/a.ts', { totalCount: 4 }) }));
+    await waitFor(() => expect(result.current.data?.totalCount).toBe(4));
+    expect(result.current.loading).toBe(false);
+  });
+
   it('drops a stale response once the path changed', async () => {
     const { result, rerender } = renderHook(
       ({ filePath }: { filePath: string }) => useMemoryForFile({ filePath }),

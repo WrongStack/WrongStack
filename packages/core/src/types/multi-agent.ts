@@ -184,6 +184,14 @@ export interface SubagentConfig {
    */
   skillNames?: string[] | undefined;
 
+  /**
+   * Every skill this role may draw on, before per-project ranking. The catalog
+   * sets this to the full curated set while `skillNames` holds the default
+   * eager slice; the spawn path ranks the pool by project skill-affinity so a
+   * skill the project actually developed can displace an unused sibling.
+   */
+  skillPool?: string[] | undefined;
+
   /** Optional smart-dispatch metadata for dynamically created project roles. */
   dispatch?:
     | {

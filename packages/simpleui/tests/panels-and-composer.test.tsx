@@ -101,7 +101,7 @@ describe('SimpleUI socket-backed panels', () => {
       (container.querySelector('.memory-drawer-search button') as HTMLButtonElement).click(),
     );
     expect(socket.send).toHaveBeenCalledWith('memory.sage.forFile', {
-      path: 'src/app.ts',
+      filePath: 'src/app.ts',
       limit: 20,
     });
 
@@ -109,17 +109,19 @@ describe('SimpleUI socket-backed panels', () => {
       handlers.at(-1)?.({
         type: 'memory.sage.forFile',
         payload: {
-          primaryMatches: [
-            {
-              memory: {
-                id: 'm1',
-                text: 'Keep this contract.',
-                kind: 'decision',
-                tags: ['ipc', 'owner'],
-                anchors: [{ type: 'file', path: 'src/app.ts' }],
+          response: {
+            primaryMatches: [
+              {
+                memory: {
+                  id: 'm1',
+                  text: 'Keep this contract.',
+                  kind: 'decision',
+                  tags: ['ipc', 'owner'],
+                  anchors: [{ type: 'file', path: 'src/app.ts' }],
+                },
               },
-            },
-          ],
+            ],
+          },
         },
       });
     });

@@ -142,13 +142,13 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     // 3. Approve the spec → implementation turn emits tasks → graph built.
     await handler.handleMessage({ type: 'sdd.spec.approve', payload: {} });
     snap = requireLastOfType(ws, 'sdd.spec.snapshot').payload;
-    expect(snap.taskCount).toBe(2);
+    expect(snap.taskCount).toBe(3);
     expect(snap.graphId).toBeTruthy();
 
     // 4. Start the run → wizard hands off with a runId.
     await handler.handleMessage({ type: 'sdd.run.start', payload: {} });
     expect(startRunCalls).toHaveLength(1);
-    expect(startRunCalls[0]?.taskCount).toBe(2);
+    expect(startRunCalls[0]?.taskCount).toBe(3);
     expect(requireLastOfType(ws, 'sdd.run.started').payload.runId).toBe('run-xyz');
   });
 

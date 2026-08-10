@@ -19,6 +19,7 @@ import {
 } from '@wrongstack/core/storage';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { formatTaskList, formatTodosList } from '@wrongstack/core/utils';
+import { todoTool } from '@wrongstack/tools';
 import type { SlashCommandContext } from './command-context.js';
 
 /** Find a plan item by 1-based index, exact id, or case-insensitive title substring. */
@@ -147,6 +148,8 @@ export function buildPlanCommand(opts: SlashCommandContext): SlashCommand {
       let outputMessage = '';
       let outputError: { code: string; message: string } | undefined;
       let outputExtra: Record<string, unknown> = {};
+      let todosToReplace: NonNullable<ReturnType<typeof deriveTodosFromPlanItem>>['todos'] | null =
+        null;
       const finalPlan = await mutatePlan(planPath, sessionId, async (plan) => {
         switch (verb) {
           case 'add': {
@@ -190,6 +193,18 @@ export function buildPlanCommand(opts: SlashCommandContext): SlashCommand {
               outputError = { code: 'usage', message: outputMessage };
               return plan;
             }
+            const itemIdx = findPlanItemIndex(plan, restJoined);
+            const item = itemIdx >= 0 ? plan.items[itemIdx] : undefined;
+            if (!item) {
+              outputMessage = `No plan item matched "${restJoined}".`;
+              outputError = { code: 'item_not_found', message: outputMessage };
+              return plan;
+            }
+            if (item.status !== 'done') {
+              outputMessage = `Plan item "${item.title}" is unfinished and cannot be removed. Complete it first.`;
+              outputError = { code: 'unfinished_item', message: outputMessage };
+              return plan;
+            }
             const updated = removePlanItem(plan, restJoined);
             outputMessage = formatPlan(updated);
             return updated;
@@ -217,7 +232,7 @@ export function buildPlanCommand(opts: SlashCommandContext): SlashCommand {
               outputError = { code: 'item_not_found', message: outputMessage };
               return plan;
             }
-            opts.context?.state?.replaceTodos(derived.todos);
+            todosToReplace = derived.todos;
             const label = verb === 'derive' ? 'Derived' : 'Promoted to';
             outputMessage = `${label} ${derived.todos.length} todo(s):\n${formatTodosList(derived.todos)}\n\n${formatPlan(derived.plan)}`;
             outputExtra = { todos: derived.todos };
@@ -251,6 +266,12 @@ export function buildPlanCommand(opts: SlashCommandContext): SlashCommand {
             return plan;
           }
           case 'clear': {
+            const unfinished = plan.items.filter((item) => item.status !== 'done');
+            if (unfinished.length > 0) {
+              outputMessage = `Plan contains unfinished items and cannot be cleared: ${unfinished.map((item) => item.id).join(', ')}.`;
+              outputError = { code: 'unfinished_items', message: outputMessage };
+              return plan;
+            }
             const updated = clearPlan(plan);
             outputMessage = 'Plan cleared.';
             return updated;
@@ -261,6 +282,12 @@ export function buildPlanCommand(opts: SlashCommandContext): SlashCommand {
             return plan;
         }
       });
+
+      if (todosToReplace && opts.context) {
+        await todoTool.execute({ todos: todosToReplace }, opts.context, {
+          signal: AbortSignal.timeout(30_000),
+        });
+      }
 
       const payload = outputError
         ? { ok: false, plan: finalPlan, error: outputError }

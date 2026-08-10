@@ -51,6 +51,10 @@ const commandRows: Array<[string, string]> = [
   ['/mcp', 'Add, update, discover, restart and inspect MCP servers.'],
   ['/auth', 'Open the API-key status dashboard.'],
   ['/spawn', 'Create an isolated specialist subagent.'],
+  [
+    '/agent-improve',
+    "Inspect and develop a roster agent for this project: captured directives, per-skill project addenda, skill affinity and the optimization pass.",
+  ],
   ['/agents', 'Monitor agents, timeline events and per-agent transcripts.'],
   ['/director', '(Obsolete) Director Mode is permanently on — fleet tools always available.'],
   ['/delegate', 'Hand a bounded task to a specialist role.'],
@@ -162,6 +166,7 @@ const categories: Record<Exclude<CommandCategory, 'All'>, string[]> = {
   ],
   Agents: [
     '/spawn',
+    '/agent-improve',
     '/agents',
     '/director',
     '/delegate',

@@ -348,12 +348,14 @@ export interface WSCompletionResult {
 export interface WSTodosUpdated {
   type: 'todos.updated';
   payload: SessionScopedPayload & {
-    todos: Array<{
-      id: string;
-      content: string;
-      status: 'pending' | 'in_progress' | 'completed';
-      activeForm?: string | undefined;
-    }>;
+      todos: Array<{
+        id: string;
+        content: string;
+        status: 'pending' | 'in_progress' | 'completed';
+        activeForm?: string | undefined;
+        kanbanBoardId?: string | undefined;
+        kanbanTaskId?: string | undefined;
+      }>;
   };
 }
 

@@ -1,0 +1,10 @@
+{
+  "consolidatedAt": "2026-08-09T17:33:07.927Z",
+  "sourceEntryCount": 0,
+  "sourceBytes": 387,
+  "consolidatedBytes": 1004,
+  "trigger": "manual",
+  "model": "MiniMax-M3",
+  "pruned": true,
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\executor\\archive\\learned-2026-08-09T17-33-07-927Z.md"
+}

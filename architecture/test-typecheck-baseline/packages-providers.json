@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "project": "packages/providers",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "961c6de3ac8df219": 1,

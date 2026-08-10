@@ -1,9 +1,18 @@
 import type { Agent } from '@wrongstack/core/agent';
 import type { CoordinatorEvent, Director } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { QueueStore } from '@wrongstack/core/storage';
-import type { AttachmentStore, AutonomyStage, ContextSnapshot, FleetChatVerbosity, Message, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
-import type { EventBus } from '@wrongstack/core/kernel';
+import type {
+  AttachmentStore,
+  AutonomyStage,
+  ConfigStore,
+  ContextSnapshot,
+  FleetChatVerbosity,
+  Message,
+  TokenCounter,
+  TokenSavingTier,
+} from '@wrongstack/core/types';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type React from 'react';
@@ -64,7 +73,9 @@ export interface AppProps {
   /** Live on/off control for the animated terminal title. Lets `/settings`
    *  toggle the title animation within the running session, and `setModel`
    *  pushes model changes to the title without a restart. */
-  titleController?: { setEnabled: (on: boolean) => void; setModel: (model: string) => void } | undefined;
+  titleController?:
+    | { setEnabled: (on: boolean) => void; setModel: (model: string) => void }
+    | undefined;
   /**
    * Token-saving mode tier. Rendered as a `💾 <tier>` chip on the status bar
    * line 2 (hidden when tier is `'off'`) so the user knows which system-prompt
@@ -184,13 +195,17 @@ export interface AppProps {
    * 'eternal' the TUI drives `runOneIteration()` from a post-slash hook
    * so the engine and TUI never race for the shared Context.
    */
-  getEternalEngine?: (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null) | undefined;
+  getEternalEngine?:
+    | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
+    | undefined;
   /**
    * Access the parallel-eternal engine. When autonomy mode goes to
    * 'eternal-parallel' the TUI drives `runOneIteration()` from a post-slash
    * hook so the engine and TUI never race for the shared Context.
    */
-  getParallelEngine?: (() => import('@wrongstack/core/execution').ParallelEternalEngine | null) | undefined;
+  getParallelEngine?:
+    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | undefined;
   /**
    * Access the active SDD parallel run's control surface (or null). The SIGINT
    * handler uses it to stop a running `/sdd parallel` on the first Ctrl+C — the
@@ -235,10 +250,26 @@ export interface AppProps {
   /** Settings shape — shared between getSettings and saveSettings. */
   getSettings?: (() => Settings) | undefined;
   /**
+   * Live view over the persisted user config. The TUI uses this to:
+   * - apply `themePreset` on boot (so `/theme` choices persist across
+   *   restarts), and
+   * - write `themePreset` back when the picker Enter handler fires
+   *   (so the picker shows `[active]` on the right row next session).
+   *
+   * Optional for hosts that don't expose a config store (e.g. tests);
+   * when omitted the TUI stays on the default catppuccin palette and
+   * picker changes are ephemeral.
+   */
+  configStore?: ConfigStore | undefined;
+  /**
    * Persist settings changes. Returns null on success, or an
    * error string on failure (so the TUI can display it as a hint).
    */
   saveSettings?: ((s: Settings) => string | null | Promise<string | null>) | undefined;
+  /** Persist the active theme preset to disk so the next boot starts with it. */
+  saveThemePreset?:
+    | ((preset: import('@wrongstack/core/types').ThemePresetId) => Promise<void>)
+    | undefined;
   /** Load toggleable plugin rows for the interactive plugin picker. */
   getPluginItems?: (() => PluginPickerItem[]) | undefined;
   /** Toggle one plugin from the interactive picker and return the refreshed rows. */

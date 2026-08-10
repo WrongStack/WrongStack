@@ -78,6 +78,23 @@ export function exportBoardAsMarkdown(board: KanbanBoard): string {
   const lines: string[] = [`# ${board.title}`];
   if (board.description) lines.push('', board.description);
   if (board.tags?.length) lines.push('', `Tags: ${board.tags.map((tag) => `#${tag}`).join(' ')}`);
+  if (board.contractGraph) {
+    lines.push('', `## Contract Graph (${board.contractGraph.enforcement})`, '');
+    if (board.contractGraph.nodes.length === 0) {
+      lines.push('_No contract nodes_');
+    } else {
+      for (const node of board.contractGraph.nodes) {
+        const owner = board.tasks.find((task) => task.id === node.taskId);
+        lines.push(
+          `- **${node.kind}** ${node.title} — ${node.state} / ${node.enforcement}` +
+            `${owner ? ` (task: ${owner.title})` : ''}`,
+        );
+      }
+      for (const edge of board.contractGraph.edges) {
+        lines.push(`  - ${edge.from} --${edge.type}--> ${edge.to} [${edge.enforcement}]`);
+      }
+    }
+  }
   for (const column of [...board.columns].sort((a, b) => a.order - b.order)) {
     lines.push('', `## ${column.title}`, '');
     const tasks = board.tasks

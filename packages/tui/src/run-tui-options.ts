@@ -1,9 +1,23 @@
 import type { Agent } from '@wrongstack/core/agent';
-import type { AutonomousCoordinator, CoordinatorEvent, Director } from '@wrongstack/core/coordination';
+import type {
+  AutonomousCoordinator,
+  CoordinatorEvent,
+  Director,
+} from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { QueueStore } from '@wrongstack/core/storage';
-import type { AttachmentStore, AutonomyStage, ContextSnapshot, FleetChatVerbosity, Message, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
+import type {
+  AttachmentStore,
+  AutonomyStage,
+  ConfigStore,
+  ContextSnapshot,
+  FleetChatVerbosity,
+  Message,
+  ThemePresetId,
+  TokenCounter,
+  TokenSavingTier,
+} from '@wrongstack/core/types';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type { AgentTranscriptReader } from './components/agents-monitor.js';
@@ -53,13 +67,17 @@ export interface RunTuiOptions {
    * 'eternal' the TUI drives `runOneIteration()` from the post-slash hook
    * so the engine and TUI never race for the shared Context.
    */
-  getEternalEngine?: (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null) | undefined;
+  getEternalEngine?:
+    | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
+    | undefined;
   /**
    * Access the parallel-eternal engine. When autonomy mode flips to
    * 'eternal-parallel' the TUI drives `runOneIteration()` from the post-slash
    * hook so the engine and TUI never race for the shared Context.
    */
-  getParallelEngine?: (() => import('@wrongstack/core/execution').ParallelEternalEngine | null) | undefined;
+  getParallelEngine?:
+    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | undefined;
   /**
    * Access the active SDD parallel run's control surface (or null). The TUI's
    * SIGINT handler uses it to stop a running `/sdd parallel` on the first Ctrl+C.
@@ -393,6 +411,16 @@ export interface RunTuiOptions {
   saveSettings?:
     | ((s: import('./app-state.js').Settings) => string | null | Promise<string | null>)
     | undefined;
+  /** Persist the active theme preset to disk so the next boot starts with it. */
+  saveThemePreset?: ((preset: ThemePresetId) => Promise<void>) | undefined;
+  /**
+   * Live ConfigStore — passed through to the TUI so the `/theme` slash
+   * command can read the current `themePreset`, apply it via
+   * `setActiveTheme()`, and persist the user's pick back to disk.
+   * Subscribes via `ConfigStore.watch` so any external write (CLI REPL,
+   * WebUI, profile migration) is reflected immediately.
+   */
+  configStore?: ConfigStore | undefined;
   /** Load toggleable plugin rows for the interactive plugin picker. */
   getPluginItems?: (() => PluginPickerItem[]) | undefined;
   /** Toggle one plugin from the interactive picker and return refreshed rows. */

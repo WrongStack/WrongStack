@@ -90,6 +90,12 @@ export interface SessionCatalogEvent {
   at: string;
 }
 
+/**
+ * NOTE: adding a field to any `args` below also requires adding it to
+ * `OPERATION_KEYS` in `project-server.ts` — the daemon validates every
+ * request against that allowlist and rejects unknown fields at runtime,
+ * which TypeScript cannot catch.
+ */
 export interface SessionCatalogOperations {
   ping: { args: Record<string, never>; result: SessionCatalogHealth };
   claim_new: {
@@ -153,6 +159,9 @@ export interface SessionCatalogOperations {
       operation: MaintenanceLease['operation'];
       holderId: string;
       leaseMs?: number;
+      /** Caller's OS pid. The server runs in the detached catalog daemon, so
+       *  it cannot use its own `process.pid` to recognise the session owner. */
+      holderPid?: number;
     };
     result: MaintenanceLease;
   };

@@ -6,8 +6,11 @@ export const KANBAN_READ_ACTIONS = [
   'search_tasks',
   'ready_tasks',
   'snapshot',
+  'workbench',
   'get_task',
   'get_chain',
+  'get_contract_graph',
+  'evaluate_contract_graph',
   'events',
   'queue_health',
 ] as const;
@@ -26,6 +29,7 @@ export const KANBAN_MANAGE_ACTIONS = [
   'add_task',
   'split_task',
   'copy_task',
+  'start_task',
   'update_task',
   'transition_task',
   'repair_managed_projection',
@@ -38,6 +42,9 @@ export const KANBAN_MANAGE_ACTIONS = [
   'heartbeat_assignment',
   'recover_stale',
   'add_dependency',
+  'configure_contract_graph',
+  'upsert_contract_node',
+  'link_contract_nodes',
   'add_goal_metric',
   'update_goal_metric',
   'add_check',
@@ -57,6 +64,8 @@ export const KANBAN_DESTRUCTIVE_ACTIONS = [
   'delete_task',
   'merge_tasks',
   'transfer_task',
+  'remove_contract_node',
+  'remove_contract_edge',
 ] as const;
 
 export type KanbanReadAction = (typeof KANBAN_READ_ACTIONS)[number];

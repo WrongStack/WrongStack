@@ -1,6 +1,7 @@
 import { Settings, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { AUTONOMY_MODES, type AutonomyMode, type SimplePrefs } from './lib/prefs-model.js';
+import { PALETTES, type PaletteId } from './lib/palettes.js';
 import type { AgentMode } from './types.js';
 
 interface SettingsPanelProps {
@@ -8,10 +9,12 @@ interface SettingsPanelProps {
   prefs: SimplePrefs;
   modes: AgentMode[];
   activeModeId: string;
+  palette: PaletteId;
   connection: string;
   onClose: () => void;
   onAutonomyChange: (mode: AutonomyMode) => void;
   onModeChange: (id: string) => void;
+  onPaletteChange: (palette: PaletteId) => void;
   onPrefChange: (patch: Partial<SimplePrefs>) => void;
 }
 
@@ -52,10 +55,12 @@ export function SettingsPanel({
   prefs,
   modes,
   activeModeId,
+  palette,
   connection,
   onClose,
   onAutonomyChange,
   onModeChange,
+  onPaletteChange,
   onPrefChange,
 }: SettingsPanelProps) {
   const panelRef = useRef<HTMLElement | null>(null);
@@ -176,6 +181,33 @@ export function SettingsPanel({
             </label>
             <small className="settings-hint">
               {modes.find((mode) => mode.id === activeModeId)?.description ?? 'Default behaviour.'}
+            </small>
+          </section>
+
+          <section className="settings-group" aria-label="Color Palette">
+            <h2>COLOR PALETTE</h2>
+            <div className="settings-palettes">
+              {PALETTES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`settings-palette${palette === option.id ? ' active' : ''}`}
+                  aria-pressed={palette === option.id}
+                  onClick={() => onPaletteChange(option.id)}
+                >
+                  <span
+                    className="settings-palette-swatch"
+                    aria-hidden="true"
+                    style={{
+                      background: `linear-gradient(90deg, ${option.swatch} 0 50%, ${option.swatchSecondary} 50% 100%)`,
+                    }}
+                  />
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <small className="settings-hint">
+              Pick the main color accent for the interface.
             </small>
           </section>
 

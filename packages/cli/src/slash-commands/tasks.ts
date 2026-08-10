@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { TodoItem } from '@wrongstack/core/agent';
 import {
   addPlanItem,
   emptyPlan,
@@ -16,6 +17,7 @@ import {
   formatTaskProgress,
   recordCompletedWorkEvidence,
 } from '@wrongstack/core/utils';
+import { todoTool } from '@wrongstack/tools';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 
@@ -155,6 +157,7 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
       // completed-work ledger (evidence + system-prompt block + checkpoint)
       // after the lock is released.
       let completedTask: { id: string; title: string } | null = null;
+      let todosToReplace: TodoItem[] | null = null;
       await mutateTasks(taskPath, sessionId, async (file) => {
         switch (cmd) {
           case 'add': {
@@ -221,7 +224,18 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
               done: 'Completed',
               fail: 'Failed',
             };
-            found.item.status = statusMap[cmd] ?? 'pending';
+            const nextStatus = statusMap[cmd] ?? 'pending';
+            if (nextStatus === 'in_progress' || nextStatus === 'completed') {
+              const unmet = (found.item.dependsOn ?? []).filter(
+                (dependencyId) =>
+                  file.tasks.find((task) => task.id === dependencyId)?.status !== 'completed',
+              );
+              if (unmet.length > 0) {
+                outputMessage = `Cannot mark "${found.item.title}" ${nextStatus}; dependencies are unfinished: ${unmet.join(', ')}.`;
+                return file;
+              }
+            }
+            found.item.status = nextStatus;
             found.item.updatedAt = new Date().toISOString();
             if (cmd === 'done') {
               completedTask = { id: found.item.id, title: found.item.title };
@@ -245,6 +259,20 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
               outputMessage = `No task matched "${targetId}".`;
               return file;
             }
+            if (
+              newStatus === 'in_progress' ||
+              newStatus === 'review' ||
+              newStatus === 'completed'
+            ) {
+              const unmet = (found.item.dependsOn ?? []).filter(
+                (dependencyId) =>
+                  file.tasks.find((task) => task.id === dependencyId)?.status !== 'completed',
+              );
+              if (unmet.length > 0) {
+                outputMessage = `Cannot mark "${found.item.title}" ${newStatus}; dependencies are unfinished: ${unmet.join(', ')}.`;
+                return file;
+              }
+            }
             found.item.status = newStatus;
             found.item.updatedAt = new Date().toISOString();
             if (newStatus === 'completed') {
@@ -265,6 +293,26 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
             if (!found) {
               outputMessage = `No task matched "${targetId}".`;
               return file;
+            }
+            const knownIds = new Set(file.tasks.map((task) => task.id));
+            const missing = depIds.filter((dependencyId) => !knownIds.has(dependencyId));
+            if (missing.length > 0) {
+              outputMessage = `Unknown dependency task IDs: ${missing.join(', ')}.`;
+              return file;
+            }
+            if (
+              found.item.status === 'in_progress' ||
+              found.item.status === 'review' ||
+              found.item.status === 'completed'
+            ) {
+              const unmet = depIds.filter(
+                (dependencyId) =>
+                  file.tasks.find((task) => task.id === dependencyId)?.status !== 'completed',
+              );
+              if (unmet.length > 0) {
+                outputMessage = `Cannot add unfinished dependencies to active task "${found.item.title}": ${unmet.join(', ')}.`;
+                return file;
+              }
             }
             found.item.dependsOn = depIds;
             found.item.updatedAt = new Date().toISOString();
@@ -298,6 +346,14 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
               outputMessage = `No task matched "${restJoined}".`;
               return file;
             }
+            const unmet = (found.item.dependsOn ?? []).filter(
+              (dependencyId) =>
+                file.tasks.find((task) => task.id === dependencyId)?.status !== 'completed',
+            );
+            if (unmet.length > 0) {
+              outputMessage = `Cannot promote "${found.item.title}"; dependencies are unfinished: ${unmet.join(', ')}.`;
+              return file;
+            }
             found.item.status = 'in_progress';
             found.item.updatedAt = new Date().toISOString();
             const todos: Array<{
@@ -329,7 +385,7 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
             const existing = ctx.state.todos.filter(
               (t) => (t as { promotedFromTask?: string }).promotedFromTask !== found.item.id,
             );
-            ctx.state.replaceTodos([...existing, ...todos]);
+            todosToReplace = [...existing, ...todos];
             outputMessage = `Promoted to ${todos.length} todo(s): "${found.item.title}"\n\n${formatTaskProgress(file.tasks)}`;
             break;
           }
@@ -337,6 +393,11 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
             const n = file.tasks.length;
             if (n === 0) {
               outputMessage = 'Tasks were already empty.';
+              return file;
+            }
+            const unfinished = file.tasks.filter((task) => task.status !== 'completed');
+            if (unfinished.length > 0) {
+              outputMessage = `Cannot clear unfinished tasks: ${unfinished.map((task) => task.id).join(', ')}. Complete them first.`;
               return file;
             }
             file.tasks = [];
@@ -366,6 +427,12 @@ export function buildTasksCommand(_opts: SlashCommandContext): SlashCommand {
         }
         return file;
       });
+
+      if (todosToReplace) {
+        await todoTool.execute({ todos: todosToReplace }, ctx, {
+          signal: AbortSignal.timeout(30_000),
+        });
+      }
 
       if (completedTask) {
         // Ledger update: in-memory evidence + [completed_work_ledger] system

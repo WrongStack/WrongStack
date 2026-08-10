@@ -377,8 +377,20 @@ function validateProductCatalog() {
   }
 }
 
-function commandSlug(name: string) {
-  return name.slice(1).replace(/_/g, '-');
+/**
+ * Build-time slug for a command row.
+ *
+ * Takes the BARE name (`mailbox`), not the display name (`/mailbox`) — every
+ * build-time parser here (`parseWebsiteCommands`, `parsePluginCommands`, the
+ * rich-detail capture) already strips the leading slash. The app-side
+ * `commandSlug` in `src/data/content-commands.ts` takes the display name and
+ * slices it off itself; calling this one with a bare name and slicing again
+ * dropped the first letter of every route, so the prerendered directories and
+ * every sitemap command URL read `/commands/ailbox` instead of
+ * `/commands/mailbox`.
+ */
+function commandSlug(bareName: string) {
+  return bareName.replace(/_/g, '-');
 }
 
 function contentRoutes() {

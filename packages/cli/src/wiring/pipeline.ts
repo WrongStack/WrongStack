@@ -260,6 +260,7 @@ export function createAgent(params: {
     tracer: params.tracer,
     logger,
     hookRunner: params.hookRunner,
+    requireKanbanGovernance: true,
   };
   const toolExecutor = new ToolExecutor(params.tools, toolExecutorOptions);
 

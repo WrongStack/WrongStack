@@ -1,3 +1,4 @@
+import type { TodoItem } from '@wrongstack/core/agent';
 import {
   addPlanItem,
   emptyPlan,
@@ -9,7 +10,6 @@ import {
   savePlan,
   setPlanItemStatus,
 } from '@wrongstack/core/storage';
-import type { TodoItem } from '@wrongstack/core/agent';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from '../types.js';
 import { validatePlanTemplateUsePayload } from '../ws-payload-validation.js';
@@ -23,6 +23,26 @@ export interface WorklistContext {
   send: (ws: WebSocket, msg: WSServerMessage) => void;
   broadcast: (msg: WSServerMessage) => void;
   replaceTodos?: ((todos: TodoItem[]) => void) | undefined;
+  mutateTodos?:
+    | ((todos: TodoItem[]) => Promise<{ todos: TodoItem[]; warnings?: string[] | undefined }>)
+    | undefined;
+  mutateTaskStatus?:
+    | ((
+        id: string,
+        status: 'pending' | 'in_progress' | 'blocked' | 'failed' | 'review' | 'completed',
+      ) => Promise<{ ok: boolean; message: string }>)
+    | undefined;
+  mutatePlan?:
+    | ((
+        operation:
+          | { action: 'template_use'; template: string }
+          | {
+              action: 'status';
+              target: string;
+              status: 'open' | 'in_progress' | 'done';
+            },
+      ) => Promise<{ ok: boolean; message: string }>)
+    | undefined;
 }
 
 export interface WorklistMessage {
@@ -65,17 +85,44 @@ export function handleTodosGet(ctx: WorklistContext, ws: WebSocket): void {
   });
 }
 
-export function handleTodosClear(ctx: WorklistContext, ws: WebSocket): void {
-  ctx.replaceTodos?.([]);
-  sendResult(ctx, ws, true, 'Todos cleared');
-  ctx.broadcast({ type: 'todos.updated', payload: sessionPayload(ctx, { todos: [] }) });
+async function commitTodos(
+  ctx: WorklistContext,
+  todos: TodoItem[],
+): Promise<{ todos: TodoItem[]; warnings: string[] }> {
+  if (ctx.mutateTodos) {
+    const result = await ctx.mutateTodos(todos);
+    return { todos: result.todos, warnings: result.warnings ?? [] };
+  }
+  ctx.replaceTodos?.(todos);
+  return { todos: [...todos], warnings: [] };
 }
 
-export function handleTodosRemove(
+function managedProjectionMessage(): string {
+  return 'Kanban-bound todos are task projections. Change or remove the task from Kanban.';
+}
+
+export async function handleTodosClear(ctx: WorklistContext, ws: WebSocket): Promise<void> {
+  if (ctx.context.todos.some((todo) => todo.kanbanBoardId && todo.kanbanTaskId)) {
+    sendResult(ctx, ws, false, managedProjectionMessage());
+    return;
+  }
+  try {
+    const result = await commitTodos(ctx, []);
+    sendResult(ctx, ws, true, 'Todos cleared');
+    ctx.broadcast({
+      type: 'todos.updated',
+      payload: sessionPayload(ctx, { todos: result.todos }),
+    });
+  } catch (error) {
+    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+  }
+}
+
+export async function handleTodosRemove(
   ctx: WorklistContext,
   ws: WebSocket,
   payload: { id?: string | undefined; index?: number | undefined } | undefined,
-): void {
+): Promise<void> {
   if (!payload) {
     sendResult(ctx, ws, false, 'Missing id or index');
     return;
@@ -92,17 +139,46 @@ export function handleTodosRemove(
     sendResult(ctx, ws, false, 'Todo not found');
     return;
   }
+  if (removed.kanbanBoardId && removed.kanbanTaskId) {
+    sendResult(ctx, ws, false, managedProjectionMessage());
+    return;
+  }
   const next = [...todos.slice(0, targetIndex), ...todos.slice(targetIndex + 1)];
-  ctx.replaceTodos?.(next);
-  sendResult(ctx, ws, true, `Removed: ${removed.content}`);
-  ctx.broadcast({ type: 'todos.updated', payload: sessionPayload(ctx, { todos: next }) });
+  try {
+    const result = await commitTodos(ctx, next);
+    sendResult(ctx, ws, true, `Removed: ${removed.content}`);
+    ctx.broadcast({
+      type: 'todos.updated',
+      payload: sessionPayload(ctx, { todos: result.todos }),
+    });
+  } catch (error) {
+    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+  }
 }
 
-export function handleTodoUpdate(
+export async function handleTodoUpdate(
   ctx: WorklistContext,
   ws: WebSocket,
-  payload: { id: string; status?: TodoItem['status'] | undefined; activeForm?: string | undefined },
-): void {
+  payload:
+    | {
+        id?: string | undefined;
+        status?: TodoItem['status'] | undefined;
+        activeForm?: string | undefined;
+      }
+    | undefined,
+): Promise<void> {
+  if (
+    !payload ||
+    typeof payload.id !== 'string' ||
+    (payload.status !== undefined &&
+      payload.status !== 'pending' &&
+      payload.status !== 'in_progress' &&
+      payload.status !== 'completed') ||
+    (payload.activeForm !== undefined && typeof payload.activeForm !== 'string')
+  ) {
+    sendResult(ctx, ws, false, 'Invalid todo update payload');
+    return;
+  }
   const index = ctx.context.todos.findIndex((todo) => todo.id === payload.id);
   const existing = ctx.context.todos[index];
   if (index === -1 || !existing) {
@@ -115,9 +191,32 @@ export function handleTodoUpdate(
     status: payload.status ?? existing.status,
     activeForm: payload.activeForm !== undefined ? payload.activeForm : existing.activeForm,
   };
-  ctx.replaceTodos?.(next);
-  sendResult(ctx, ws, true, `Todo "${existing.content}" updated`);
-  ctx.broadcast({ type: 'todos.updated', payload: sessionPayload(ctx, { todos: next }) });
+  try {
+    const result = await commitTodos(ctx, next);
+    const projected = result.todos.find((todo) => todo.id === existing.id);
+    const requestedStatus = payload.status ?? existing.status;
+    const projectionRejected =
+      Boolean(existing.kanbanBoardId && existing.kanbanTaskId) &&
+      projected?.status !== requestedStatus;
+    const warning = result.warnings[0];
+    sendResult(
+      ctx,
+      ws,
+      !projectionRejected,
+      projectionRejected
+        ? (warning ??
+            `Kanban kept "${existing.content}" at ${projected?.status ?? 'its current state'}.`)
+        : warning
+          ? `Todo "${existing.content}" updated. ${warning}`
+          : `Todo "${existing.content}" updated`,
+    );
+    ctx.broadcast({
+      type: 'todos.updated',
+      payload: sessionPayload(ctx, { todos: result.todos }),
+    });
+  } catch (error) {
+    sendResult(ctx, ws, false, error instanceof Error ? error.message : String(error));
+  }
 }
 
 export async function handleTasksGet(ctx: WorklistContext, ws: WebSocket): Promise<void> {
@@ -154,14 +253,32 @@ export async function handleTaskUpdate(
     return;
   }
   try {
-    const file = await mutateTasks(taskPath, currentSessionId(ctx), async (tasks) => {
-      const task = tasks.tasks.find((candidate) => candidate.id === payload.id);
-      if (!task) return tasks;
-      task.status = payload.status;
-      task.updatedAt = new Date().toISOString();
-      return tasks;
-    });
-    sendResult(ctx, ws, true, `Task status updated to "${payload.status}".`);
+    let file;
+    if (ctx.mutateTaskStatus) {
+      const result = await ctx.mutateTaskStatus(payload.id, payload.status);
+      if (!result.ok) {
+        sendResult(ctx, ws, false, result.message);
+        return;
+      }
+      file = await loadTasks(taskPath);
+      if (!file) throw new Error('Task mutation succeeded but its persisted snapshot is missing.');
+      sendResult(ctx, ws, true, result.message);
+    } else {
+      let matched = false;
+      file = await mutateTasks(taskPath, currentSessionId(ctx), async (tasks) => {
+        const task = tasks.tasks.find((candidate) => candidate.id === payload.id);
+        if (!task) return tasks;
+        matched = true;
+        task.status = payload.status;
+        task.updatedAt = new Date().toISOString();
+        return tasks;
+      });
+      if (!matched) {
+        sendResult(ctx, ws, false, `Task "${payload.id}" not found.`);
+        return;
+      }
+      sendResult(ctx, ws, true, `Task status updated to "${payload.status}".`);
+    }
     ctx.broadcast({
       type: 'tasks.updated',
       payload: sessionPayload(ctx, { tasks: file.tasks }),
@@ -214,6 +331,18 @@ export async function handlePlanTemplateUse(
     return;
   }
   try {
+    if (ctx.mutatePlan) {
+      const result = await ctx.mutatePlan({ action: 'template_use', template });
+      if (!result.ok) {
+        sendResult(ctx, ws, false, result.message);
+        return;
+      }
+      const plan = await loadPlan(planPath);
+      if (!plan) throw new Error('Plan mutation succeeded but its persisted snapshot is missing.');
+      sendResult(ctx, ws, true, result.message);
+      ctx.broadcast({ type: 'plan.updated', payload: sessionPayload(ctx, { plan }) });
+      return;
+    }
     const templateDefinition = getPlanTemplate(template);
     if (!templateDefinition) {
       sendResult(ctx, ws, false, `Unknown template "${template}".`);
@@ -247,6 +376,22 @@ export async function handlePlanItemUpdate(
     return;
   }
   try {
+    if (ctx.mutatePlan) {
+      const result = await ctx.mutatePlan({
+        action: 'status',
+        target: payload.target,
+        status: payload.status,
+      });
+      if (!result.ok) {
+        sendResult(ctx, ws, false, result.message);
+        return;
+      }
+      const plan = await loadPlan(planPath);
+      if (!plan) throw new Error('Plan mutation succeeded but its persisted snapshot is missing.');
+      sendResult(ctx, ws, true, result.message);
+      ctx.broadcast({ type: 'plan.updated', payload: sessionPayload(ctx, { plan }) });
+      return;
+    }
     let changed = false;
     const plan = await mutatePlan(planPath, currentSessionId(ctx), async (currentPlan) => {
       const before = currentPlan.updatedAt;
@@ -275,20 +420,26 @@ export async function handleWorklistMessage(
       handleTodosGet(ctx, ws);
       return;
     case 'todos.clear':
-      handleTodosClear(ctx, ws);
+      await handleTodosClear(ctx, ws);
       return;
     case 'todos.remove':
-      handleTodosRemove(ctx, ws, message.payload as { id?: string; index?: number } | undefined);
-      return;
-    case 'todo.update':
-      handleTodoUpdate(
+      await handleTodosRemove(
         ctx,
         ws,
-        message.payload as {
-          id: string;
-          status?: TodoItem['status'];
-          activeForm?: string;
-        },
+        message.payload as { id?: string; index?: number } | undefined,
+      );
+      return;
+    case 'todo.update':
+      await handleTodoUpdate(
+        ctx,
+        ws,
+        message.payload as
+          | {
+              id?: string;
+              status?: TodoItem['status'];
+              activeForm?: string;
+            }
+          | undefined,
       );
       return;
     case 'tasks.get':

@@ -251,9 +251,18 @@ export class SddInterviewDriver {
    * emitted a parseable task array.
    */
   async ensureTaskGraph(): Promise<TaskGraph | null> {
-    if (this.graph) return this.graph;
     const spec = this.builder.getSession().spec;
     if (!spec) return null;
+
+    if (this.graph && this.tracker) {
+      const generator = new TaskGenerator({
+        taskTracker: this.tracker,
+        verificationFromAcceptance: process.env['WRONGSTACK_SDD_VERIFY_FROM_ACCEPTANCE'] === '1',
+      });
+      generator.ensureRequirementCoverage(spec, this.graph);
+      await this.persistGraph(this.graph);
+      return this.graph;
+    }
 
     const tracker = new TaskTracker({ store: this.o.graphStore });
     const generator = new TaskGenerator({
@@ -404,6 +413,13 @@ export class SddInterviewDriver {
         if (depId && depId !== nodeId) tracker.addDependency(depId, nodeId);
       }
     }
+    // Model-authored task arrays are proposals, not scope authority. Reconcile
+    // them against the approved spec and deterministically add every omitted
+    // requirement before the graph can be executed.
+    new TaskGenerator({
+      taskTracker: tracker,
+      verificationFromAcceptance: process.env['WRONGSTACK_SDD_VERIFY_FROM_ACCEPTANCE'] === '1',
+    }).ensureRequirementCoverage(spec, graph);
     await this.persistGraph(graph);
     await this.builder.setTaskGraphId(graph.id);
     // Flush so a reconnect resumes with the graph linked (see ensureTaskGraph).
@@ -421,6 +437,11 @@ function normalizeTaskRef(ref: string): string {
 }
 
 function addTaskToTracker(tracker: TaskTracker, task: Record<string, unknown>): TaskNode {
+  const rawRequirementId = task.specRequirementId ?? task.requirementId;
+  const specRequirementId =
+    typeof rawRequirementId === 'string' && rawRequirementId.trim()
+      ? rawRequirementId.trim()
+      : undefined;
   return tracker.addNode({
     title: String(task.title),
     description: String(task.description ?? ''),
@@ -433,6 +454,7 @@ function addTaskToTracker(tracker: TaskTracker, task: Record<string, unknown>): 
     status: 'pending',
     estimateHours: Number(task.estimateHours) || 2,
     tags: Array.isArray(task.tags) ? task.tags.map(String) : [],
+    ...(specRequirementId ? { specRequirementId } : {}),
   });
 }
 

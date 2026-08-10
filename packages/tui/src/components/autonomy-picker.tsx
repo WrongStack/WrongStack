@@ -1,4 +1,5 @@
 import { Box, Text } from '../ink.js';
+import { useWindowedPicker } from '../hooks/use-windowed-picker.js';
 import type React from 'react';
 
 export interface AutonomyOption {
@@ -52,23 +53,36 @@ export function AutonomyPicker({
   selected,
   hint,
 }: AutonomyPickerProps): React.ReactElement {
+  const { start, end, hasAbove, hasBelow } = useWindowedPicker({
+    total: options.length,
+    selected,
+    chromeRows: 4,
+  });
+  const visibleOptions = options.slice(start, end);
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1}>
       <Text color="cyan" bold>
         ━━ Autonomy Mode ━━
       </Text>
       <Text dimColor>↑/↓ navigate · Enter select · Esc cancel · Ctrl+C exit</Text>
-      {options.map((opt, i) => (
-        <Text
-          key={opt.mode}
-          inverse={i === selected}
-          {...(i === selected ? { color: opt.color } : {})}
-        >
-          {i === selected ? '› ' : '  '}
-          <Text bold>{opt.label.padEnd(12)}</Text>
-          <Text dimColor>{opt.description}</Text>
-        </Text>
-      ))}
+      {hasAbove ? <Text dimColor>  … {start} more above</Text> : null}
+      {visibleOptions.map((opt, j) => {
+        const i = start + j;
+        return (
+          <Text
+            key={opt.mode}
+            inverse={i === selected}
+            {...(i === selected ? { color: opt.color } : {})}
+          >
+            {i === selected ? '› ' : '  '}
+            <Text bold>{opt.label.padEnd(12)}</Text>
+            <Text dimColor>{opt.description}</Text>
+          </Text>
+        );
+      })}
+      {hasBelow ? (
+        <Text dimColor>  … {options.length - end} more below</Text>
+      ) : null}
       {hint ? <Text color="yellow">{hint}</Text> : null}
     </Box>
   );

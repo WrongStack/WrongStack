@@ -31,29 +31,28 @@ describe('KanbanSupervisor.dispose()', () => {
     vi.useFakeTimers();
     const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
     try {
+      // The constructor calls void scheduleNext(), which arms a real
+      // setTimeout for tick() inside the supervisor's closure. Spy on
+      // clearTimeout BEFORE dispose() so the supervisor's own cancellation
+      // is observable; do NOT mockClear() between create and dispose — that
+      // hid the very call we are testing.
+      createKanbanSupervisor(makeDeps()).dispose();
+
+      // First dispose must clear the supervisor-armed timer. Without this
+      // call, a regression that simply nulls `nextTimer` without calling
+      // clearTimeout would still leave an orphan background chain ticking.
+      expect(clearSpy).toHaveBeenCalled();
+
+      // Second dispose on the SAME supervisor must be a no-op: no new
+      // clearTimeout calls, no stale-ref clearing on a handle that was
+      // already nulled. (Idempotency is also covered by the next test;
+      // we assert it here in the same fake-timer context so the spy stays
+      // consistent.)
       const supervisor = createKanbanSupervisor(makeDeps());
-
-      // Arm a timer the same way scheduleNext() does.
-      // We don't call auditNow (real disk I/O) — the dispose body only cares
-      // that nextTimer !== undefined when invoked.
-      const expectedTimer = setTimeout(() => {}, 60_000);
-      clearSpy.mockClear();
-
-      // Force nextTimer assignment by exposing it: rather than peek at the
-      // closure, swap the timeout we just armed via a fresh supervisor that
-      // has gone through at least one tick. The minimal guarantee under test
-      // is that dispose clears the active timer; we simulate by stubbing.
       supervisor.dispose();
-
-      // Even without an internal handle, dispose must be idempotent and a
-      // second dispose must NOT invoke clearTimeout on a stale ref.
       clearSpy.mockClear();
       supervisor.dispose();
       expect(clearSpy).not.toHaveBeenCalled();
-
-      // Use the timer we manually armed to prove clearTimeout was wired.
-      // (We never hand this to supervisor; it documents the wiring rule.)
-      clearTimeout(expectedTimer);
     } finally {
       vi.useRealTimers();
       clearSpy.mockRestore();

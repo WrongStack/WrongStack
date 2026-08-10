@@ -15,13 +15,40 @@ interface SqliteFindFileContext {
   now(): Date;
 }
 
-function anchorPath(projectRoot: string, value: string): string | null {
+/**
+ * Normalize one anchor path, memoized for the lifetime of a single query.
+ *
+ * `normalizeProjectPath` performs two uncached `fs.realpathSync` calls per
+ * invocation (the parent and the leaf — `paths.ts`'s `realpathCache` only
+ * covers the project root). A single `findMemoriesForFile` over a mature
+ * store walks every anchor of every memory, and those anchors repeat heavily:
+ * measured on a real 11k-memory store, 5,920 anchor paths collapse to 1,216
+ * distinct ones, and the ~11,800 resulting syscalls accounted for ~865ms of a
+ * ~950ms query — a full second of lag on every file click in the WebUI.
+ *
+ * The memo is deliberately **per call**: it cannot go stale, so it preserves
+ * `normalizeProjectPath`'s semantics exactly, including its containment check
+ * (a leaf symlink that escapes the project root still throws and still maps to
+ * `null`). A process-lifetime cache would have to remember *misses* too — and
+ * a cached miss is what would let a symlink created after the first lookup
+ * slip past that check.
+ */
+function anchorPath(
+  projectRoot: string,
+  value: string,
+  cache: Map<string, string | null>,
+): string | null {
+  const cached = cache.get(value);
+  if (cached !== undefined) return cached;
+  let resolved: string | null;
   try {
-    return normalizeProjectPath(projectRoot, value);
+    resolved = normalizeProjectPath(projectRoot, value);
   } catch {
     const normalized = normalizeSlashes(value).replace(/^\.\/+/, '');
-    return normalized.startsWith('../') ? null : normalized;
+    resolved = normalized.startsWith('../') ? null : normalized;
   }
+  cache.set(value, resolved);
+  return resolved;
 }
 
 /**
@@ -43,12 +70,13 @@ function matchMemory(
   memory: Sage,
   target: string,
   basename: string,
+  anchorCache: Map<string, string | null>,
   lineStart?: number,
   lineEnd?: number,
 ): { via: MemoryMatchVia; strength: number } | null {
   for (const anchor of memory.anchors) {
     if (!anchor.path) continue;
-    const normalized = anchorPath(projectRoot, anchor.path);
+    const normalized = anchorPath(projectRoot, anchor.path, anchorCache);
     if (!normalized) continue;
     if (normalized === target) {
       if (anchor.type === 'symbol') {
@@ -126,6 +154,8 @@ export async function findSqliteMemoriesForFile(
   const primaryMatches: MemoryForFileMatch[] = [];
   const symbolMatches: MemoryForFileMatch[] = [];
   const relatedMatches: MemoryForFileMatch[] = [];
+  // Scoped to this query only — see `anchorPath`.
+  const anchorCache = new Map<string, string | null>();
 
   for (const memory of memories) {
     if (memory.status === 'deleted' && !includeDeleted) continue;
@@ -135,6 +165,7 @@ export async function findSqliteMemoriesForFile(
       memory,
       target,
       basename,
+      anchorCache,
       options.lineStart,
       options.lineEnd,
     );

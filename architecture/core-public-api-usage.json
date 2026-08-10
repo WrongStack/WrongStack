@@ -4,14 +4,14 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 249,
-      "typeOnly": 198,
+      "files": 252,
+      "typeOnly": 201,
       "runtimeOrMixed": 68
     },
     "@wrongstack/core/agent-catalog": {
-      "files": 10,
+      "files": 13,
       "typeOnly": 2,
-      "runtimeOrMixed": 10
+      "runtimeOrMixed": 14
     },
     "@wrongstack/core/chronicle": {
       "files": 6,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 35
     },
     "@wrongstack/core/kernel": {
-      "files": 205,
+      "files": 206,
       "typeOnly": 109,
-      "runtimeOrMixed": 106
+      "runtimeOrMixed": 108
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 19
     },
     "@wrongstack/core/registry": {
-      "files": 96,
+      "files": 98,
       "typeOnly": 50,
-      "runtimeOrMixed": 47
+      "runtimeOrMixed": 49
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -136,12 +136,12 @@
     "@wrongstack/core/storage": {
       "files": 92,
       "typeOnly": 28,
-      "runtimeOrMixed": 98
+      "runtimeOrMixed": 97
     },
     "@wrongstack/core/tasking": {
-      "files": 30,
+      "files": 31,
       "typeOnly": 10,
-      "runtimeOrMixed": 20
+      "runtimeOrMixed": 21
     },
     "@wrongstack/core/tools": {
       "files": 4,
@@ -149,8 +149,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/types": {
-      "files": 860,
-      "typeOnly": 794,
+      "files": 869,
+      "typeOnly": 804,
       "runtimeOrMixed": 217
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 479,
+      "files": 481,
       "typeOnly": 53,
-      "runtimeOrMixed": 451
+      "runtimeOrMixed": 453
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -460,6 +460,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/slash-commands/suggest.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/slash-commands/tasks.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1173,6 +1179,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/codebase-index-tree-sitter-polyglot.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/codebase-index.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1210,6 +1222,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/kanban-managed-lifecycle-auto.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-start-task.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1731,6 +1749,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent-catalog",
+      "file": "packages/cli/src/slash-commands/clear.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent-catalog",
       "file": "packages/cli/src/slash-commands/delegate.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -1749,6 +1773,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent-catalog",
+      "file": "packages/cli/tests/slash-agent-improve.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent-catalog",
       "file": "packages/cli/tests/slash-setmodel.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -1758,6 +1788,12 @@
       "file": "packages/tools/src/skill.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent-catalog",
+      "file": "scripts/apply-agent-learning-cli-patch.mjs",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/chronicle",
@@ -5528,6 +5564,12 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "scripts/apply-agent-learning-cli-patch.mjs",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
       "specifier": "@wrongstack/core/kernel/events.js",
       "file": "packages/sdd/tests/auto-executor.test.ts",
       "typeOnly": 0,
@@ -6183,6 +6225,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/slash-agent-improve.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/slash-autonomy.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6226,6 +6274,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/slash-techstack.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/slash-theme.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7649,7 +7703,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tools/src/task.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -8037,6 +8091,12 @@
     },
     {
       "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/tests/requirement-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
       "file": "packages/sdd/tests/sdd-board-projector.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8352,6 +8412,12 @@
       "file": "packages/cli/src/boot/tui-settings-adapter.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/boot/tui-theme-adapter.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -9159,6 +9225,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/theme.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/todos.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9868,6 +9940,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/simpleui-full-auto.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/slash-agent-improve.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11457,6 +11535,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/src/requirement-coverage.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/sdd-board-projector.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11572,6 +11656,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/tests/coverage-completion.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/tests/requirement-coverage.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12088,7 +12178,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/task.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -12263,7 +12353,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/app-props.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 7
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12417,6 +12507,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/hooks/use-theme-state.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/hooks/use-token-counter-refresh.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12525,6 +12621,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/theme.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/token-previews.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12532,6 +12634,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/tui-host-capabilities.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/workbench-slash.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12707,7 +12815,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/agent-roster-handlers.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -13275,6 +13383,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "scripts/apply-agent-learning-cli-patch.mjs",
+      "typeOnly": 3,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "scripts/generate-plugin-projections.mjs",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13726,6 +13840,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/boot/tui-settings-adapter.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/boot/tui-theme-adapter.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14362,6 +14482,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/telegram-setup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/theme.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

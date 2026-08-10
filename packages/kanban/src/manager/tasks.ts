@@ -33,7 +33,12 @@ import {
   requireNonBlank,
   stampAtomicityAssessment,
 } from './_internal.js';
-import { assertManagedTaskPatchAllowed, initializeAndValidateManagedTask } from './lifecycle.js';
+import { cloneContractGraphForBoard, removeTaskContractGraphState } from './contract-graph.js';
+import {
+  assertManagedTaskPatchAllowed,
+  initializeAndValidateManagedTask,
+  KanbanLifecycleError,
+} from './lifecycle.js';
 
 function taskEventSnapshot(task: KanbanTask): Record<string, unknown> {
   return {
@@ -146,6 +151,7 @@ export async function copyTaskToBoard(
       initializeAndValidateManagedTask(targetBoard, task);
     }
     targetBoard.tasks.push(task);
+    cloneContractGraphForBoard(sourceBoard, targetBoard, new Map([[sourceTask.id, task.id]]));
     placeTaskInColumn(targetBoard, task, task.columnId, task.order);
     targetBoard.updatedAt = nowIso();
     event = createKanbanEvent(targetBoard.id, task, 'task.copied', {
@@ -257,10 +263,44 @@ export async function removeTask(
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const taskToRemove = findTask(board, taskId);
     if (!taskToRemove) return false;
+    const requirementId = taskToRemove.origin?.specRequirementId;
+    const graphId = taskToRemove.origin?.graphId;
+    const declaredByScope = Boolean(
+      graphId &&
+        board.requirementScopes?.some(
+          (scope) =>
+            scope.graphId === graphId && scope.requirementIds.includes(requirementId ?? ''),
+        ),
+    );
+    const declaredByLegacyFlatList = Boolean(
+      requirementId && board.requiredRequirementIds?.includes(requirementId),
+    );
+    if (
+      requirementId &&
+      (declaredByScope || declaredByLegacyFlatList) &&
+      !board.tasks.some(
+        (task) =>
+          task.id !== taskToRemove.id &&
+          task.origin?.specRequirementId === requirementId &&
+          (!declaredByScope || task.origin?.graphId === graphId),
+      )
+    ) {
+      throw new KanbanLifecycleError(
+        `Cannot remove the last task covering required requirement ${requirementId}.`,
+        [
+          {
+            code: 'requirement-coverage-incomplete',
+            field: 'origin.specRequirementId',
+            message: `Cannot remove the last task covering required requirement ${requirementId}.`,
+          },
+        ],
+      );
+    }
     const index = board.tasks.findIndex((task) => task.id === taskToRemove.id);
     if (index === -1) return false;
     event = createKanbanEvent(board.id, taskToRemove, 'task.removed');
     board.tasks.splice(index, 1);
+    removeTaskContractGraphState(board, taskToRemove.id);
     for (const task of board.tasks) {
       if (task.dependsOn?.includes(taskToRemove.id)) {
         task.dependsOn = task.dependsOn.filter((depId) => depId !== taskToRemove.id);

@@ -19,6 +19,7 @@ import {
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanCleanerAlert } from './KanbanCleanerAlert';
 import { KanbanColumnView } from './KanbanColumnView';
+import { KanbanContractGraphDashboard } from './KanbanContractGraphDashboard';
 import { KanbanDecompositionApprovalCard } from './KanbanDecompositionPanel';
 import { KanbanQueueHealthBar } from './KanbanQueueHealthBar';
 import { RunControlBar, StartAsBar } from './KanbanRunControls.js';
@@ -26,6 +27,7 @@ import { KanbanTaskInspector } from './KanbanTaskInspector';
 import { KanbanTaskTree } from './KanbanTaskTree';
 import { KanbanVerificationDashboard } from './KanbanVerificationDashboard';
 import { type KanbanViewMode, KanbanViewModeTabs } from './KanbanViewModeTabs';
+import { KanbanWorkbench } from './KanbanWorkbench';
 import { useKanbanRegistrySessionIds } from './useKanbanRegistrySessionIds';
 
 export const TASK_ACTIVITY_LOAD_LIMIT = 5_000;
@@ -49,6 +51,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     error,
     queueHealth,
     supervisorSnapshot,
+    workbench,
     setActiveBoardId,
     setError,
   } = useKanbanStore();
@@ -69,6 +72,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   const [taskActivityRefresh, setTaskActivityRefresh] = useState(0);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<KanbanViewMode>('board');
+  const pendingWorkbenchTaskRef = useRef<{ boardId: string; taskId: string } | null>(null);
   const [confirmDeleteBoard, setConfirmDeleteBoard] = useState(false);
   // The board the armed delete belongs to. A click can only delete when the
   // armed board is still the active one — otherwise a board switch that
@@ -158,6 +162,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
 
   useEffect(() => {
     refreshBoards();
+    sendKanban('kanban.workbench', { limitPerLane: 8, alertLimit: 8 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -188,6 +193,16 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       setSelectedTaskId(null);
     }
   }, [activeBoard, selectedTaskId]);
+
+  useEffect(() => {
+    const pending = pendingWorkbenchTaskRef.current;
+    if (!pending || activeBoard?.id !== pending.boardId) return;
+    if (activeBoard.tasks.some((task) => task.id === pending.taskId)) {
+      setSelectedTaskId(pending.taskId);
+      setViewMode('board');
+    }
+    pendingWorkbenchTaskRef.current = null;
+  }, [activeBoard]);
 
   useEffect(() => {
     if (activeBoardId) {
@@ -222,6 +237,13 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     }, 8000);
     return () => clearInterval(interval);
   }, [activeSessionIds, boardPage, ws]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      ws.send({ type: 'kanban.workbench', payload: { limitPerLane: 8, alertLimit: 8 } });
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [ws]);
 
   const changeBoardPage = (page: number) => {
     setBoardPage(page);
@@ -500,7 +522,15 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
             onSelectTask={setSelectedTaskId}
           />
         )}
-        {activeBoard && <KanbanViewModeTabs viewMode={viewMode} onViewModeChange={setViewMode} />}
+        <KanbanViewModeTabs
+          viewMode={viewMode}
+          onViewModeChange={(nextMode) => {
+            setViewMode(nextMode);
+            if (nextMode === 'focus') {
+              sendKanban('kanban.workbench', { limitPerLane: 8, alertLimit: 8 });
+            }
+          }}
+        />
 
         {error && (
           <div className="flex h-9 shrink-0 items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 text-sm text-destructive">
@@ -521,7 +551,19 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
           ref={boardScrollRef}
           className="kanban-scroll-area min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain"
         >
-          {activeBoard ? (
+          {viewMode === 'focus' ? (
+            <KanbanWorkbench
+              snapshot={workbench}
+              loading={loading}
+              error={error}
+              onRetry={() => sendKanban('kanban.workbench', { limitPerLane: 8, alertLimit: 8 })}
+              onSelectTask={(boardId, taskId) => {
+                pendingWorkbenchTaskRef.current = { boardId, taskId };
+                setActiveBoardId(boardId);
+                sendKanban('kanban.get', { boardId });
+              }}
+            />
+          ) : activeBoard ? (
             <>
               {queueHealth && (
                 <KanbanQueueHealthBar
@@ -533,6 +575,11 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                 <KanbanTaskTree
                   board={activeBoard}
                   selectedTaskId={selectedTaskId}
+                  onSelectTask={setSelectedTaskId}
+                />
+              ) : viewMode === 'contracts' ? (
+                <KanbanContractGraphDashboard
+                  board={activeBoard}
                   onSelectTask={setSelectedTaskId}
                 />
               ) : viewMode === 'dashboard' ? (

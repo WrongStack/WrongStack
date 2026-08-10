@@ -655,6 +655,18 @@ export async function handleSageForFile(
     send(ws, { type: 'memory.sage.forFile', payload: { error: 'filePath is required' } });
     return;
   }
+  // The wire request uses the UI-facing `showSuperseded` / `showDeleted`
+  // names; the store option names are `includeSuperseded` / `includeDeleted`.
+  // Both spellings are accepted so a caller written against either contract
+  // gets the filter it asked for instead of silently falling back to the
+  // defaults (include superseded, exclude deleted).
+  const includeSuperseded =
+    typeof payload['showSuperseded'] === 'boolean'
+      ? (payload['showSuperseded'] as boolean)
+      : typeof payload['includeSuperseded'] === 'boolean'
+        ? (payload['includeSuperseded'] as boolean)
+        : undefined;
+  const includeDeleted = payload['showDeleted'] === true || payload['includeDeleted'] === true;
   try {
     const response = await Sage.findMemoriesForFile(filePath, {
       ...(typeof payload['lineStart'] === 'number'
@@ -662,9 +674,14 @@ export async function handleSageForFile(
         : {}),
       ...(typeof payload['lineEnd'] === 'number' ? { lineEnd: payload['lineEnd'] as number } : {}),
       ...(typeof payload['limit'] === 'number' ? { limit: payload['limit'] as number } : {}),
-      ...(payload['includeDeleted'] === true ? { includeDeleted: true } : {}),
+      ...(includeSuperseded !== undefined ? { includeSuperseded } : {}),
+      ...(includeDeleted ? { includeDeleted: true } : {}),
     });
-    send(ws, { type: 'memory.sage.forFile', payload: response });
+    // The response travels under `payload.response` — the same envelope the
+    // error branch below uses (`payload.error`). Sending the bucket object
+    // as the payload itself made every client read `payload.response` as
+    // `undefined` and render "no memories" for files that had matches.
+    send(ws, { type: 'memory.sage.forFile', payload: { response } });
   } catch (err) {
     send(ws, { type: 'memory.sage.forFile', payload: { error: errMessage(err) } });
   }

@@ -595,6 +595,37 @@ export function normalizeBoard(board: KanbanBoard): KanbanBoard {
     kind: normalizeBoardKind(board),
     columns,
     tasks,
+    ...(board.contractGraph
+      ? { contractGraph: normalizeContractGraph(board.contractGraph, now) }
+      : {}),
+  };
+}
+
+function normalizeContractGraph(
+  graph: NonNullable<KanbanBoard['contractGraph']>,
+  now: string,
+): NonNullable<KanbanBoard['contractGraph']> {
+  const enforcement = ['off', 'advisory', 'strict'].includes(graph.enforcement)
+    ? graph.enforcement
+    : 'advisory';
+  return {
+    version: 1,
+    enforcement,
+    nodes: (Array.isArray(graph.nodes) ? graph.nodes : []).map((node) => ({
+      ...node,
+      enforcement: node.enforcement ?? 'blocking',
+      state: node.state ?? 'unknown',
+      createdAt: node.createdAt ?? now,
+      updatedAt: node.updatedAt ?? now,
+      ...(node.waiver ? { waiver: { ...node.waiver } } : {}),
+      ...(node.metadata ? { metadata: { ...node.metadata } } : {}),
+    })),
+    edges: (Array.isArray(graph.edges) ? graph.edges : []).map((edge) => ({
+      ...edge,
+      enforcement: edge.enforcement ?? 'informational',
+      createdAt: edge.createdAt ?? now,
+    })),
+    updatedAt: graph.updatedAt ?? now,
   };
 }
 

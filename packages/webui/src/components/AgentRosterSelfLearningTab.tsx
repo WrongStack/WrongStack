@@ -17,6 +17,37 @@ import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useUIStore } from '@/stores';
 import type { CustomRosterStats } from './agent-roster-data.js';
 
+/** Whether the background scheduler considers a role due for distillation. */
+interface AutoOptimizeStatus {
+  enabled: boolean;
+  eligible: boolean;
+  reason: string;
+}
+
+/** Human wording for the scheduler's decision. */
+const AUTO_REASON_LABEL: Record<string, string> = {
+  size: 'buffer reached the size threshold',
+  'pending-skills': 'directives are waiting to reach their skill',
+  disabled: 'auto-optimization is off',
+  'learning-paused': 'learning is paused for this agent',
+  'too-few-entries': 'not enough directives yet',
+  'below-threshold': 'below the threshold',
+  'cooling-down': 'recently optimized — cooling down',
+};
+
+/** One skill a role may draw on, with what this project has done to it. */
+interface RoleSkill {
+  skill: string;
+  developed: boolean;
+  affinity: {
+    loaded: number;
+    succeeded: number;
+    failed: number;
+    learned: number;
+    pinned?: boolean;
+  } | null;
+}
+
 export function SelfLearningTab({
   customStats,
   onRefresh,
@@ -35,6 +66,9 @@ export function SelfLearningTab({
   const [consolidatedContent, setConsolidatedContent] = useState<string | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const [bulkOptimizing, setBulkOptimizing] = useState(false);
+  const [skills, setSkills] = useState<RoleSkill[] | null>(null);
+  const [autoStatus, setAutoStatus] = useState<AutoOptimizeStatus | null>(null);
+  const [openSkill, setOpenSkill] = useState<{ skill: string; content: string } | null>(null);
 
   const populated = useMemo(
     () => [...customStats].sort((a, b) => a.role.localeCompare(b.role)),
@@ -130,6 +164,69 @@ export function SelfLearningTab({
     [onRefresh],
   );
 
+  const loadAutoStatus = useCallback(async (role: string) => {
+    try {
+      const data = (await sendRosterMessage('agent-roster.auto-optimize-status', { role })) as {
+        policy?: { enabled?: boolean };
+        roles?: Array<{ role: string; eligible: boolean; reason: string }>;
+      };
+      const entry = data.roles?.find((r) => r.role === role);
+      setAutoStatus(
+        entry
+          ? {
+              enabled: data.policy?.enabled !== false,
+              eligible: entry.eligible,
+              reason: entry.reason,
+            }
+          : null,
+      );
+    } catch {
+      setAutoStatus(null);
+    }
+  }, []);
+
+  // Load the role's skills and which of them this project has developed.
+  const loadSkills = useCallback(async (role: string) => {
+    try {
+      const data = (await sendRosterMessage('agent-roster.skills', { role })) as {
+        skills?: RoleSkill[];
+      };
+      setSkills(data.skills ?? []);
+    } catch {
+      setSkills([]);
+    }
+  }, []);
+
+  const toggleSkillBody = useCallback(
+    async (role: string, skill: string) => {
+      if (openSkill?.skill === skill) {
+        setOpenSkill(null);
+        return;
+      }
+      try {
+        const data = (await sendRosterMessage('agent-roster.read-skill', { role, skill })) as {
+          content?: string;
+        };
+        setOpenSkill({ skill, content: data.content ?? '' });
+      } catch {
+        setOpenSkill({ skill, content: '' });
+      }
+    },
+    [openSkill],
+  );
+
+  const toggleSkillPin = useCallback(
+    async (role: string, skill: string, pinned: boolean) => {
+      try {
+        await sendRosterMessage('agent-roster.pin-skill', { role, skill, pinned });
+        await loadSkills(role);
+      } catch {
+        /* ignore */
+      }
+    },
+    [loadSkills],
+  );
+
   // Load consolidated content
   const loadConsolidated = useCallback(async (role: string) => {
     try {
@@ -177,6 +274,8 @@ export function SelfLearningTab({
           // so gating on a possibly-stale `selectedRole` closure is unnecessary and
           // could leave the freshly-optimized document out of sync.
           await loadConsolidated(role);
+          await loadSkills(role);
+          await loadAutoStatus(role);
           setTeachFeedback({ ok: true, msg: t('activity:agentRoster.optimizedOk') });
           toast.success(
             data.model
@@ -223,7 +322,7 @@ export function SelfLearningTab({
         setOptimizing(false);
       }
     },
-    [onRefresh, loadConsolidated],
+    [onRefresh, loadConsolidated, loadSkills, loadAutoStatus],
   );
 
   // Bulk optimize — consolidates each agent headlessly on the server. Agents
@@ -400,6 +499,9 @@ export function SelfLearningTab({
                         setSelectedRole(first.role);
                         setReviewEntries(null);
                         setConsolidatedContent(null);
+                        setOpenSkill(null);
+                        void loadSkills(first.role);
+                        void loadAutoStatus(first.role);
                       }
                     }}
                     className="ml-auto text-[9px] text-warning underline hover:text-warning/80 shrink-0"
@@ -435,6 +537,9 @@ export function SelfLearningTab({
                 setSelectedRole(stat.role);
                 setReviewEntries(null);
                 setConsolidatedContent(null);
+                setOpenSkill(null);
+                void loadSkills(stat.role);
+                void loadAutoStatus(stat.role);
               }}
               className={cn(
                 'w-full text-left rounded-lg border px-3 py-2 transition-colors',
@@ -602,6 +707,27 @@ export function SelfLearningTab({
                   {optimizing ? t('activity:agentRoster.optimizing') : 'Optimize'}
                 </button>
               </div>
+              {autoStatus && (
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <span
+                    className={cn(
+                      'inline-block h-1.5 w-1.5 rounded-full',
+                      !autoStatus.enabled
+                        ? 'bg-muted-foreground'
+                        : autoStatus.eligible
+                          ? 'bg-warning'
+                          : 'bg-success',
+                    )}
+                  />
+                  <span className="text-muted-foreground">
+                    {!autoStatus.enabled
+                      ? 'Automatic optimization is off — run it manually.'
+                      : autoStatus.eligible
+                        ? `Queued automatically: ${AUTO_REASON_LABEL[autoStatus.reason] ?? autoStatus.reason}.`
+                        : `Automatic — ${AUTO_REASON_LABEL[autoStatus.reason] ?? autoStatus.reason}.`}
+                  </span>
+                </div>
+              )}
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 Synthesizes all {selectedStats.entryCount} raw entries into a single reviewed
                 document — narrowly scoped to this agent's skills, preserving every fact but
@@ -650,6 +776,83 @@ export function SelfLearningTab({
                 </div>
               )}
             </div>
+
+            {/* Project-developed skills */}
+            {skills && skills.length > 0 && (
+              <div className="space-y-2 border border-border rounded-lg p-3 bg-card">
+                <div className="flex items-center gap-1.5">
+                  <BookOpen className="h-4 w-4 text-brand-2" />
+                  <span className="text-xs font-semibold">Skills</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {skills.filter((s) => s.developed).length} of {skills.length} developed for this
+                    project
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  A developed skill carries a project addendum injected right after the bundled
+                  skill body — the agent reads one skill, refined for this codebase. Pin a skill to
+                  keep it loaded regardless of ranking.
+                </p>
+                <div className="space-y-1">
+                  {skills.map((entry) => (
+                    <div key={entry.skill} className="rounded border border-border/60">
+                      <div className="flex items-center gap-2 px-2 py-1.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleSkillBody(selectedRole, entry.skill)}
+                          disabled={!entry.developed}
+                          className={cn(
+                            'text-[11px] font-mono text-left flex-1 truncate',
+                            entry.developed
+                              ? 'text-primary hover:underline'
+                              : 'text-muted-foreground cursor-default',
+                          )}
+                          title={
+                            entry.developed
+                              ? 'View the project addendum'
+                              : 'No project addendum yet — capture a directive tagged with this skill, then Optimize'
+                          }
+                        >
+                          {entry.skill}
+                        </button>
+                        {entry.developed && (
+                          <span className="text-[9px] rounded bg-success/15 text-success px-1.5 py-0.5">
+                            developed
+                          </span>
+                        )}
+                        {entry.affinity && (
+                          <span className="text-[9px] text-muted-foreground tabular-nums">
+                            {entry.affinity.learned > 0 && `${entry.affinity.learned} learned · `}
+                            {entry.affinity.succeeded}✓/{entry.affinity.failed}✗
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            toggleSkillPin(selectedRole, entry.skill, !entry.affinity?.pinned)
+                          }
+                          className={cn(
+                            'text-[9px] rounded border px-1.5 py-0.5 transition-colors',
+                            entry.affinity?.pinned
+                              ? 'border-primary/50 text-primary'
+                              : 'border-border/50 text-muted-foreground hover:bg-accent',
+                          )}
+                        >
+                          {entry.affinity?.pinned ? 'pinned' : 'pin'}
+                        </button>
+                      </div>
+                      {openSkill?.skill === entry.skill && (
+                        <div className="max-h-60 overflow-y-auto border-t border-border/50 bg-background/50 p-2">
+                          <pre className="text-[10px] whitespace-pre-wrap font-sans leading-relaxed">
+                            {openSkill.content || '(empty)'}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Review entries */}
             {selectedStats.entryCount > 0 && (

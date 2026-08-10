@@ -4,7 +4,13 @@ import { randomUUID } from 'node:crypto';
  * factory is created lazily on the first `/spawn` so users who never use
  * subagents don't pay the construction cost.
  */
-import { createProjectAgentRoster } from '@wrongstack/core/agent-catalog';
+import {
+  createProjectAgentRoster,
+  LearningOptimizationScheduler,
+  type LearningOptimizerLlm,
+  listProjectAgentRoles,
+  resolveAutoOptimizePolicy,
+} from '@wrongstack/core/agent-catalog';
 import {
   AdaptiveConcurrencyController,
   type AgentFactory,
@@ -18,6 +24,7 @@ import {
   makeDirectorSessionFactory,
   makeFleetEmitTool,
   resolveProjectDir,
+  resolveSubagentModelTarget,
   type TaskResultNotification,
 } from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';
@@ -58,6 +65,7 @@ import {
   type FleetHostStatus,
   type FleetHostUsage,
 } from './host-status.js';
+import { buildHostSubagentProvider } from './host-provider.js';
 import { createHostSubagentFactory } from './host-subagent-factory.js';
 import { createHostFleetSupervisor } from './host-supervisor.js';
 import { reportTaskResultToLeader } from './host-task-result-report.js';
@@ -100,6 +108,9 @@ export class MultiAgentHost {
    *  Bounded to 20 entries with LRU eviction to prevent unbounded memory growth. */
   private readonly acpRunnerCache = new HostAcpRunnerCache();
   private readonly learningRoles = new HostLearningRoleTracker();
+  /** Background distillation of captured learning into per-skill addenda. */
+  private learningOptimizer: LearningOptimizationScheduler | null = null;
+  private learningSwept = false;
   /** Adaptive concurrency controller — created in buildDirector() when config has
    *  adaptiveConcurrency.enabled = true. Monitors FleetBus for 429 errors and
    *  automatically adjusts maxConcurrent to prevent rate limiting. */
@@ -179,6 +190,9 @@ export class MultiAgentHost {
   private async buildDirector(): Promise<void> {
     if (this.director) return; // Already built — idempotent.
     const config: Config = this.deps.configStore.get() as Config;
+    // First real fleet activity in this session: catch up on any role whose
+    // learning became eligible for distillation while nobody was looking.
+    this.sweepLearningOptimization();
 
     // Create the FleetManager FIRST so we can pass it to the Director.
     // The FleetManager owns pending task tracking (addPendingTask /
@@ -510,7 +524,8 @@ export class MultiAgentHost {
       sessionFactory: this.sessionFactory,
       filterTools: (allow) => this.filterTools(allow),
       mailboxProjectDir: () => this.mailboxProjectDir(),
-      recordLearningRole: (subagentId, role) => this.recordLearningRole(subagentId, role),
+      recordLearningRole: (subagentId, role, skills) =>
+        this.recordLearningRole(subagentId, role, skills),
       subagentToolRegistry: (allow) => this.subagentToolRegistry(allow),
     });
   }
@@ -540,6 +555,10 @@ export class MultiAgentHost {
     const coordinator = this.getCoordinator();
 
     const acpRunner = await this.buildACPRunner(subagentId);
+    // ACP agents never pass through the subagent factory, so nothing recorded
+    // their role and every `## LEARNED` block they wrote was discarded. Their
+    // subagentId *is* the role name (see the spawn call below).
+    this.recordLearningRole(subagentId, subagentId);
     coordinator.setRunner(acpRunner);
     // Mark that we've set the runner so buildDirector (called by a concurrent
     // _spawnAndAssign) doesn't overwrite the ACP runner with the routing runner.
@@ -796,12 +815,83 @@ export class MultiAgentHost {
     emitHostLifecycleCompleted(this.deps.events, this.deps.session.id, taskId, result);
   }
 
-  private recordLearningRole(subagentId: string, role: string): void {
-    this.learningRoles.record(subagentId, role);
+  private recordLearningRole(
+    subagentId: string,
+    role: string,
+    skills: readonly string[] = [],
+  ): void {
+    this.learningRoles.record(subagentId, role, skills);
   }
 
   private captureCompletedTaskLearning(result: TaskResult): void {
-    this.learningRoles.capture(result, this.deps);
+    this.learningRoles.capture(result, this.deps, (role) =>
+      this.getLearningOptimizer()?.notifyCaptured(role),
+    );
+  }
+
+  /**
+   * Lazily built so a session that never spawns a subagent pays nothing, and
+   * so the policy is read from the live config rather than frozen at boot.
+   * Returns null when auto-optimization is switched off.
+   */
+  private getLearningOptimizer(): LearningOptimizationScheduler | null {
+    const settings = this.deps.configStore.get().fleet?.learning?.autoOptimize;
+    if (settings?.enabled === false) return null;
+    if (!this.learningOptimizer) {
+      this.learningOptimizer = new LearningOptimizationScheduler({
+        projectRoot: this.deps.projectRoot,
+        getPolicy: () =>
+          resolveAutoOptimizePolicy(this.deps.configStore.get().fleet?.learning?.autoOptimize),
+        getLlm: () => this.resolveOptimizerLlm(),
+        onEvent: (event) => {
+          this.deps.events.emit('agent.learning.optimized', {
+            sessionId: this.deps.session.id,
+            role: event.role,
+            trigger: event.trigger,
+            status: event.result?.status ?? 'failed',
+            skills: event.result?.skills ?? [],
+            ...(event.error ? { error: event.error } : {}),
+          });
+        },
+      });
+    }
+    return this.learningOptimizer;
+  }
+
+  /**
+   * Resolve a model for the distillation pass. Uses the `memory-curator` slot
+   * of the model matrix when one is configured — curating learned knowledge is
+   * exactly that role's job — and the session default otherwise. A failure
+   * here is not fatal: the pass still writes the deterministic skill addenda.
+   */
+  private async resolveOptimizerLlm(): Promise<LearningOptimizerLlm | undefined> {
+    try {
+      const config = this.deps.configStore.get() as Config;
+      const target = resolveSubagentModelTarget(config, 'memory-curator');
+      const providerId = target?.provider ?? config.provider;
+      const model = target?.model ?? config.model;
+      if (!providerId || !model) return undefined;
+      const provider = await buildHostSubagentProvider(this.deps, config, providerId, model);
+      return { provider, model };
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Evaluate every role with learning data once per session. Without it, a
+   * role that became eligible before this session would wait for its next
+   * capture — which for a rarely-used role can be never.
+   */
+  private sweepLearningOptimization(): void {
+    if (this.learningSwept) return;
+    this.learningSwept = true;
+    if (this.deps.configStore.get().fleet?.learning?.autoOptimize?.sweepOnStart === false) return;
+    try {
+      this.getLearningOptimizer()?.sweep(listProjectAgentRoles(this.deps.projectRoot));
+    } catch {
+      // A sweep is an optimization, never a startup dependency.
+    }
   }
 
   status(): FleetHostStatus {
@@ -938,6 +1028,8 @@ export class MultiAgentHost {
    * Safe to call multiple times — subsequent calls are no-ops.
    */
   async dispose(): Promise<void> {
+    this.learningOptimizer?.dispose();
+    this.learningOptimizer = null;
     this.clearShadowAgent();
     for (const off of this.shadowActivityOffHandles) {
       off();

@@ -26,6 +26,7 @@ import {
   settingsPickerJumpNames,
 } from '../components/settings-picker.js';
 import { STATUSLINE_ITEMS, type StatuslineItem } from '../components/statusline-picker.js';
+import { THEME_OPTIONS } from '../theme.js';
 
 interface TuiSlashCommandOptions {
   slashRegistry: AppProps['slashRegistry'];
@@ -558,6 +559,57 @@ export function useTuiSlashCommands({
       slashRegistry.unregister('autonomy');
     };
   }, [slashRegistry, switchAutonomy]);
+
+  // Register the TUI-only `/theme` command — opens an interactive theme picker
+  // that switches the active palette and persists the choice to configStore.
+  //
+  // The picker is opened by dispatching `themePickerOpen`. Picking an option
+  // and pressing Enter is handled by `use-picker-keys.ts` (Enter on the active
+  // row calls `setActiveTheme()` and writes `themePreset` via configStore).
+  //
+  // Registered as a TUI-owned official command so it overrides the CLI's
+  // text-only `/theme <preset>` shortcut — bare `/theme` in the TUI must
+  // always open the picker, never echo the option list.
+  useEffect(() => {
+    const cmd = {
+      name: 'theme',
+      description: 'Pick a TUI color theme preset interactively (picker).',
+      argsHint: '[preset]',
+      help:
+        'Usage:\n' +
+        '  /theme                Open the interactive theme picker\n' +
+        '  /theme <preset>       Apply a preset directly (e.g. catppuccin, tokyo-night)\n\n' +
+        'Available presets: catppuccin, tokyo-night, nord, cyberpunk, dracula',
+      async run(args: string) {
+        const arg = (args ?? '').trim();
+        if (arg) {
+          const preset = arg.toLowerCase();
+          const presetIdx = THEME_OPTIONS.findIndex((o) => o.id === preset);
+          if (presetIdx < 0) {
+            const names = THEME_OPTIONS.map((o) => o.id).join(', ');
+            return {
+              message: `Unknown theme preset "${arg}". Available: ${names}`,
+            };
+          }
+          // Direct apply path — open the picker on the matching row so the
+          // user sees the [active] marker land on their pick. The picker
+          // closes on Enter (`onThemePickerEnter`), which also persists to
+          // disk via `saveThemePreset`.
+          dispatch({
+            type: 'themePickerOpen',
+            selected: presetIdx,
+          });
+          return { message: undefined };
+        }
+        dispatch({ type: 'themePickerOpen' });
+        return { message: undefined };
+      },
+    };
+    slashRegistry.register(cmd, 'tui', { official: true });
+    return () => {
+      slashRegistry.unregister('theme');
+    };
+  }, [slashRegistry, dispatch]);
 
   // Register the TUI-only `/resume` command — opens the session resume picker.
   // Lists recent sessions; selecting one triggers onResumeSession to load and

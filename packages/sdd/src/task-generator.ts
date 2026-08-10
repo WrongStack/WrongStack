@@ -1,5 +1,12 @@
 import type { TaskStore, TaskTracker } from '@wrongstack/core/tasking';
-import type { Specification, TaskGraph, TaskPriority, TaskType } from '@wrongstack/core/types';
+import type {
+  Specification,
+  SpecRequirement,
+  TaskGraph,
+  TaskNode,
+  TaskPriority,
+  TaskType,
+} from '@wrongstack/core/types';
 import { type AtomicityRuleSetConfig, assessAtomicity } from '@wrongstack/kanban';
 
 /** Named estimate constants shared with the atomicity candidate mapping. */
@@ -107,6 +114,11 @@ export class TaskGenerator {
 
   async generateFromSpec(spec: Specification): Promise<TaskGraph> {
     const graph = await this.opts.taskTracker.createGraph(spec.id, spec.title);
+    graph.requiredRequirementIds = Array.from(
+      new Set(
+        (spec.requirements ?? []).map((requirement) => requirement.id.trim()).filter(Boolean),
+      ),
+    );
 
     // Overview task
     const overviewSection = spec.sections?.find((s) => s.type === 'overview');
@@ -135,43 +147,7 @@ export class TaskGenerator {
     );
 
     for (const req of sorted) {
-      const estimateHours = REQUIREMENT_ESTIMATE_HOURS[req.priority] ?? 1;
-
-      const tags: string[] = [req.type, req.priority];
-
-      const acLines = (req.acceptanceCriteria ?? []).map((ac) => `- ${ac}`).join('\n');
-      const blockedLine = req.blockedBy?.length
-        ? `\n\n**Blocked by:** ${req.blockedBy.join(', ')}`
-        : '';
-      const description =
-        `${req.description}\n\n**Type:** ${req.type}` +
-        (acLines ? `\n\n**Acceptance Criteria:**\n${acLines}` : '') +
-        blockedLine;
-
-      const metadata: Record<string, unknown> = {
-        ...this.atomicityMetadata({
-          title: req.description,
-          description,
-          estimateHours,
-          acceptanceCriteria: req.acceptanceCriteria ?? [],
-        }),
-      };
-      if (this.opts.verificationFromAcceptance) {
-        const cmd = extractVerificationCommand(req.acceptanceCriteria ?? []);
-        if (cmd) metadata.verificationCommand = cmd;
-      }
-
-      this.opts.taskTracker.addNode({
-        title: req.description,
-        description,
-        type: 'feature',
-        priority: req.priority,
-        status: 'pending',
-        estimateHours,
-        tags,
-        specRequirementId: req.id,
-        ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
-      });
+      this.addRequirementTask(req);
     }
 
     // API endpoint tasks
@@ -241,6 +217,81 @@ export class TaskGenerator {
     });
 
     return graph;
+  }
+
+  /**
+   * Repair an LLM-authored or resumed graph against the authoritative spec.
+   * Missing requirements become deterministic tasks, so omission is never
+   * rewarded by a smaller task list or an earlier "complete" result.
+   */
+  ensureRequirementCoverage(spec: Specification, graph: TaskGraph): TaskNode[] {
+    if (graph.specId !== spec.id) {
+      throw new Error(
+        `Task graph spec mismatch: graph targets "${graph.specId}" but spec is "${spec.id}".`,
+      );
+    }
+    graph.requiredRequirementIds = Array.from(
+      new Set(
+        (spec.requirements ?? []).map((requirement) => requirement.id.trim()).filter(Boolean),
+      ),
+    );
+    const required = new Set(graph.requiredRequirementIds);
+    for (const node of graph.nodes.values()) {
+      if (node.specRequirementId && !required.has(node.specRequirementId)) {
+        // A model typo must not permanently wedge the run. Drop the untrusted
+        // mapping; the canonical requirement receives a deterministic task
+        // below while the proposed task remains as additional work.
+        delete node.specRequirementId;
+      }
+    }
+    const covered = new Set(
+      Array.from(graph.nodes.values()).flatMap((node) =>
+        node.specRequirementId ? [node.specRequirementId] : [],
+      ),
+    );
+    const added: TaskNode[] = [];
+    for (const requirement of spec.requirements ?? []) {
+      if (covered.has(requirement.id)) continue;
+      added.push(this.addRequirementTask(requirement));
+      covered.add(requirement.id);
+    }
+    return added;
+  }
+
+  private addRequirementTask(req: SpecRequirement): TaskNode {
+    const estimateHours = REQUIREMENT_ESTIMATE_HOURS[req.priority] ?? 1;
+    const tags: string[] = [req.type, req.priority];
+    const acLines = (req.acceptanceCriteria ?? []).map((ac) => `- ${ac}`).join('\n');
+    const blockedLine = req.blockedBy?.length
+      ? `\n\n**Blocked by:** ${req.blockedBy.join(', ')}`
+      : '';
+    const description =
+      `${req.description}\n\n**Type:** ${req.type}` +
+      (acLines ? `\n\n**Acceptance Criteria:**\n${acLines}` : '') +
+      blockedLine;
+    const metadata: Record<string, unknown> = {
+      ...this.atomicityMetadata({
+        title: req.description,
+        description,
+        estimateHours,
+        acceptanceCriteria: req.acceptanceCriteria ?? [],
+      }),
+    };
+    if (this.opts.verificationFromAcceptance) {
+      const command = extractVerificationCommand(req.acceptanceCriteria ?? []);
+      if (command) metadata.verificationCommand = command;
+    }
+    return this.opts.taskTracker.addNode({
+      title: req.description,
+      description,
+      type: 'feature',
+      priority: req.priority,
+      status: 'pending',
+      estimateHours,
+      tags,
+      specRequirementId: req.id,
+      ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+    });
   }
 
   async generateSubtasks(parentTaskId: string, spec: Specification): Promise<void> {

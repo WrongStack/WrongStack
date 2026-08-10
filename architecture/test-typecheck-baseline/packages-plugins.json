@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "project": "packages/plugins",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "8f5dd365832d8c53": 1,
@@ -77,7 +78,6 @@
     "e17e8cc2e4e5d04e": 2,
     "dc34f67557532745": 1,
     "f442facc9a09e76f": 1,
-    "e21505c2b809edd5": 2,
     "206187b63e2dc5b5": 1,
     "a2a9df9e00911f43": 7,
     "a2406bff311acd26": 3,

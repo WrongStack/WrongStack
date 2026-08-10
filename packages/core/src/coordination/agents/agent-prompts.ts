@@ -161,7 +161,12 @@ export function agentPrompt(id: string): string {
   const cacheBypass =
     (globalThis as { __WS_DISABLE_PROMPT_CACHE__?: boolean }).__WS_DISABLE_PROMPT_CACHE__ ===
     true;
-  const cacheKey = `${envDir}\u0000${policyOn ? 1 : 0}\u0000${id}`;
+  // The cached value embeds the project-contextualized overlay (identity,
+  // learned instructions, knowledge checklist), so the project root is part of
+  // the cached string's identity. Omitting it let a single process serve one
+  // project's learned content for another project's prompt.
+  const promptProjectRoot = process.env['WRONGSTACK_PROJECT_ROOT'] || process.cwd();
+  const cacheKey = `${envDir}\u0000${policyOn ? 1 : 0}\u0000${promptProjectRoot}\u0000${id}`;
   const cached = cacheBypass ? undefined : promptCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
@@ -198,8 +203,7 @@ export function agentPrompt(id: string): string {
   // Uses the current working directory as project root when no explicit
   // WRONGSTACK_PROJECT_ROOT is set, allowing the project-specific agent
   // identity mechanism to work without any code changes.
-  const projectRoot = process.env['WRONGSTACK_PROJECT_ROOT'] || process.cwd();
-  resolved = buildProjectContextualizedPrompt(resolved, id, projectRoot);
+  resolved = buildProjectContextualizedPrompt(resolved, id, promptProjectRoot);
   if (!cacheBypass) promptCache.set(cacheKey, resolved);
   return resolved;
 }

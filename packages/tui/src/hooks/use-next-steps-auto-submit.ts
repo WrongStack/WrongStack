@@ -8,6 +8,7 @@ import {
   MAX_ADVANCEMENT_ATTEMPTS,
   matchTodoIdFromPrompt,
 } from '@wrongstack/tools/auto-proceed-loop-guard';
+import { todoTool } from '@wrongstack/tools/todo';
 import {
   type Dispatch,
   type MutableRefObject,
@@ -50,6 +51,19 @@ export interface AutoProceedCandidate {
   prompt: string;
   label: string;
   todoId?: string | undefined;
+}
+
+async function commitTodoTransition(
+  agent: AppProps['agent'],
+  todos: TodoItem[],
+): Promise<string | null> {
+  if (!agent?.ctx?.state) return null;
+  try {
+    await todoTool.execute({ todos }, agent.ctx, { signal: AbortSignal.timeout(30_000) });
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 /** Resolve one grounded automatic turn without mutating either suggestion store. */
@@ -260,7 +274,7 @@ export function useNextStepsAutoSubmit({
     setNextStepsAutoSubmitCountdown(Math.ceil(delay / 1000));
     setNextStepsAutoSubmitLabel(candidate.label);
 
-    nextStepsAutoSubmitTimerRef.current = setInterval(() => {
+    nextStepsAutoSubmitTimerRef.current = setInterval(async () => {
       const remaining = Math.max(0, Math.ceil((delay - (Date.now() - start)) / 1000));
       if (remaining <= 0) {
         clearInterval(nextStepsAutoSubmitTimerRef.current);
@@ -290,7 +304,8 @@ export function useNextStepsAutoSubmit({
               const liveTodos = agent.ctx.todos;
               const selected = liveTodos.find((todo) => todo.id === todoId);
               if (selected?.status === 'pending') {
-                agent.ctx.state.replaceTodos(
+                const transitionError = await commitTodoTransition(
+                  agent,
                   liveTodos.map((todo) =>
                     todo.id === todoId
                       ? { ...todo, status: 'in_progress' as const }
@@ -299,6 +314,16 @@ export function useNextStepsAutoSubmit({
                         : todo,
                   ),
                 );
+                if (transitionError) {
+                  dispatch({
+                    type: 'addEntry',
+                    entry: {
+                      kind: 'error',
+                      text: `Todo/Kanban transition failed: ${transitionError}`,
+                    },
+                  });
+                  return;
+                }
               }
             }
           }
@@ -375,7 +400,17 @@ export function useNextStepsAutoSubmit({
                             ? { ...todo, status: 'pending' as const }
                             : todo,
                     );
-                    agent?.ctx?.state?.replaceTodos(freshTodos);
+                    const transitionError = await commitTodoTransition(agent, freshTodos);
+                    if (transitionError) {
+                      dispatch({
+                        type: 'addEntry',
+                        entry: {
+                          kind: 'error',
+                          text: `Todo/Kanban transition failed: ${transitionError}`,
+                        },
+                      });
+                      return;
+                    }
                     nextStepsAutoSubmitTodosRef.current = freshTodos;
 
                     // Build a varied advancement prompt and feed it instead

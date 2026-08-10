@@ -168,4 +168,61 @@ describe('SessionCatalogStore', () => {
     await expect(fs.stat(transcript)).rejects.toMatchObject({ code: 'ENOENT' });
     store.close();
   });
+
+  it('allows non-destructive maintenance from the owning pid but rejects foreign pids', async () => {
+    const { store } = await fixture();
+    const id = '2026-08-08/sess_self_vs_foreign';
+
+    // Same pid as the test process → /clear path. Non-destructive ops
+    // must succeed even though claimNew has already taken a lease.
+    const self = store.claimNew(entry(id), 'owner-a');
+    const clearLease = store.acquireMaintenance(id, 'clear', 'self');
+    expect(clearLease.operation).toBe('clear');
+    store.releaseMaintenance(clearLease);
+    const rewindLease = store.acquireMaintenance(id, 'rewind', 'self');
+    expect(rewindLease.operation).toBe('rewind');
+    store.releaseMaintenance(rewindLease);
+    // delete is still strict even for the owning pid — preserve the
+    // safety guarantee that a live writer cannot have its JSONL yanked.
+    expect(() => store.acquireMaintenance(id, 'delete', 'self')).toThrow(/live/);
+    store.release(self);
+
+    // Foreign pid (simulated via entry(pid=999_999)). All operations,
+    // including non-destructive ones, must be rejected with /live/.
+    const foreign = store.claimNew(entry(id, 999_999), 'owner-foreign');
+    expect(() => store.acquireMaintenance(id, 'clear', 'self')).toThrow(/live/);
+    expect(() => store.acquireMaintenance(id, 'rewind', 'self')).toThrow(/live/);
+    expect(() => store.acquireMaintenance(id, 'truncate', 'self')).toThrow(/live/);
+    expect(() => store.acquireMaintenance(id, 'delete', 'self')).toThrow(/live/);
+    store.release(foreign);
+    store.close();
+  });
+
+  it('recognises the session owner by the caller pid, not the store process pid', async () => {
+    // Regression: in the built runtime this store lives inside the detached
+    // project-catalog daemon, so `process.pid` is the daemon's. Without an
+    // explicit caller pid every lease looked foreign and `/clear` failed with
+    // "Session … is live" at an idle prompt with nothing running.
+    const { store } = await fixture();
+    const id = '2026-08-08/sess_daemon_hosted';
+    const ownerPid = 999_999; // the TUI, a different process than this one
+    const live = store.claimNew(entry(id, ownerPid), 'owner-tui');
+
+    // Daemon's own pid → the lease is genuinely foreign.
+    expect(() => store.acquireMaintenance(id, 'clear', 'holder')).toThrow(/live/);
+    // Some third process → still foreign.
+    expect(() => store.acquireMaintenance(id, 'clear', 'holder', undefined, 12_345)).toThrow(/live/);
+
+    // The lease owner itself → non-destructive maintenance is granted.
+    const clearLease = store.acquireMaintenance(id, 'clear', 'holder', undefined, ownerPid);
+    expect(clearLease.operation).toBe('clear');
+    store.releaseMaintenance(clearLease);
+    // `delete` stays strict even for the owner.
+    expect(() => store.acquireMaintenance(id, 'delete', 'holder', undefined, ownerPid)).toThrow(
+      /live/,
+    );
+
+    store.release(live);
+    store.close();
+  });
 });

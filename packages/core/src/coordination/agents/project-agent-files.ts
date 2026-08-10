@@ -13,16 +13,34 @@ import {
   roleDir,
   writeTextAtomically,
 } from './project-agent-paths.js';
-import { renderLearnedInstructions } from './project-agent-learning-structured.js';
+import { splitLearnedEntries } from './project-agent-learning-entries.js';
+import {
+  classifyLearnedEntry,
+  MIN_INSTRUCTIVE_LENGTH,
+} from './project-agent-learning-normalize.js';
+import {
+  mergeStructuredEntries,
+  parseStructuredLearnedEntriesFromContent,
+  renderLearnedInstructions,
+} from './project-agent-learning-structured.js';
 import type {
   ProjectAgentConfig,
   RoleKnowledgeManifest,
 } from './project-agent-identity-types.js';
 
 /**
- * Write or update the learned wisdom file for a given role.
- * Appends to existing content when `mode` is 'append'; replaces when
- * it is 'replace'. Returns the full path written so callers can log it.
+ * Write or update the learned instruction buffer for a given role.
+ *
+ * `append` (the "teach this agent" flow) merges the text into the **structured**
+ * entry list rather than concatenating it after the rendered document. Raw
+ * concatenation used to be silently destructive: the structured parser only
+ * falls back to the legacy chunk path when it finds no stamped entries, so a
+ * taught paragraph appended to a stamped buffer was invisible to the parser and
+ * the next capture — which re-renders the whole file from parsed entries —
+ * deleted it without a trace.
+ *
+ * `replace` writes the content verbatim (the review/edit surfaces own the
+ * document at that point).
  */
 export function updateProjectAgentLearned(
   role: string,
@@ -33,6 +51,11 @@ export function updateProjectAgentLearned(
   const dir = roleDir(role, projectRoot);
   mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, 'learned.md');
+  if (mode === 'replace') {
+    writeTextAtomically(filePath, content);
+    return filePath;
+  }
+
   const existing = (() => {
     try {
       return readFileSync(filePath, 'utf8');
@@ -40,11 +63,36 @@ export function updateProjectAgentLearned(
       return '';
     }
   })();
-  const newContent =
-    mode === 'append' && existing
-      ? `${existing.trimEnd()}\n\n---\n\n${content.trimStart()}`
-      : content;
-  writeTextAtomically(filePath, newContent);
+  const now = new Date().toISOString();
+  const entries = parseStructuredLearnedEntriesFromContent(
+    existing,
+    splitLearnedEntries(existing),
+  );
+  // Taught text is authored by a human and is not held to the automatic
+  // capture quality bar; it is only stripped of decoration and split into
+  // directives so it participates in dedup, categorisation and rendering.
+  const clean = (chunk: string): string =>
+    chunk
+      .replace(/^>\s?/gm, '')
+      .replace(/^[-*]\s+/gm, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const chunks = content.split(/\n{2,}/).map(clean).filter(Boolean);
+  const longEnough = chunks.filter((chunk) => chunk.length >= MIN_INSTRUCTIVE_LENGTH);
+  // Taught text is never dropped for being terse. Splitting on blank lines is
+  // a convenience for multi-rule input; when no paragraph clears the bar the
+  // whole note is kept as one directive rather than discarded.
+  const directives = longEnough.length > 0 ? longEnough : chunks.length > 0 ? [clean(content)] : [];
+  const merged = directives.reduce(
+    (acc, text) =>
+      mergeStructuredEntries(acc, {
+        text,
+        category: classifyLearnedEntry(text),
+        capturedAt: now,
+      }),
+    entries,
+  );
+  writeTextAtomically(filePath, renderLearnedInstructions(role, merged, now));
   return filePath;
 }
 

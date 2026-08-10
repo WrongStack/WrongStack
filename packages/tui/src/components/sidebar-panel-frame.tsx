@@ -79,7 +79,7 @@ export function SidebarSectionHeader({
       <Text color={color} bold>
         {left}
       </Text>
-      <Text color={theme.borderSubtle}>{'·'.repeat(fillCount)}</Text>
+      <Text color={theme.borderSubtle}>{'╌'.repeat(fillCount)}</Text>
       {fitsBadge ? (
         <Text color={badgeColor ?? color} bold>
           {' '}

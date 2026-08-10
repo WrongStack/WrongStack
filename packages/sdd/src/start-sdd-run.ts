@@ -21,6 +21,10 @@ import {
   subscribeKanbanWorkflowCommands,
   writeKanbanWorkflowState,
 } from '@wrongstack/kanban';
+import {
+  assertTaskGraphExecutionIntegrity,
+  assertTaskGraphRequirementCoverage,
+} from './requirement-coverage.js';
 import { SddBoardProjector } from './sdd-board-projector.js';
 import type { SddBoardStore } from './sdd-board-store.js';
 import {
@@ -131,6 +135,12 @@ export function applySddControlCommand(run: SddParallelRun, command: SddControlC
  * Orphaned in_progress tasks are reset up-front so a crashed prior run re-executes.
  */
 export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
+  assertTaskGraphExecutionIntegrity(opts.graph);
+  // Legacy graphs did not declare requirement scope. New SDD graphs do, and
+  // cannot start after a requirement task was omitted or deleted.
+  if (opts.graph.requiredRequirementIds !== undefined) {
+    assertTaskGraphRequirementCoverage(opts.graph);
+  }
   // Resume safety: orphaned in_progress tasks (from a prior crash, no agent
   // running them) are reset to pending so the run re-executes them.
   SddParallelRun.resetOrphans(opts.tracker);

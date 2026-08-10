@@ -18,6 +18,7 @@ import { useFileMention } from './hooks/use-file-mention.js';
 import { useGlobalShortcuts } from './hooks/use-global-shortcuts.js';
 import { useImageAttachments } from './hooks/use-image-attachments.js';
 import { useModelCatalog } from './hooks/use-model-catalog.js';
+import { usePalette } from './hooks/use-palette.js';
 import { useServerOutage } from './hooks/use-server-outage.js';
 import { useSettings } from './hooks/use-settings.js';
 import { useSimpleMailbox } from './hooks/use-simple-mailbox.js';
@@ -394,6 +395,8 @@ export function SimpleUiSession() {
 
   const { attachedImages, attachImages, removeImage, setAttachedImages } = useImageAttachments();
   attachedImagesRef.current = attachedImages;
+
+  const { palette, setPalette } = usePalette();
 
   useGlobalShortcuts({
     socketRef,
@@ -998,10 +1001,12 @@ export function SimpleUiSession() {
           prefs={prefs}
           modes={modes}
           activeModeId={activeModeId}
+          palette={palette}
           connection={connection}
           onClose={() => setSettingsOpen(false)}
           onAutonomyChange={switchAutonomy}
           onModeChange={switchMode}
+          onPaletteChange={setPalette}
           onPrefChange={updatePrefs}
         />
       </ErrorBoundary>

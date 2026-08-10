@@ -22,10 +22,21 @@ export interface StructuredLearnedEntry {
   what: string;
   /** Why this directive exists — derived from category and directive signals. */
   why: string;
-  /** Concrete, runnable anchor — commands, file paths, package names. */
+  /**
+   * Concrete, runnable anchors — commands, file paths, package names.
+   * One anchor per line, WITHOUT any list marker: the renderer owns the
+   * markup. Storing markup here is what produced the `- *How:*   - *How:*`
+   * nesting that compounded on every capture.
+   */
   how: string;
   /** ISO timestamp of when this entry was originally captured. */
   capturedAt: string;
+  /**
+   * Skill this directive develops, when capture could route it. Entries with a
+   * skill are distilled into `.wrongstack/agents/<role>/skills/<skill>.md` by
+   * the optimization pass; unrouted entries stay role-level.
+   */
+  skill?: string | undefined;
 }
 
 export function parseLearnedEntryStamp(entry: string): {
@@ -116,15 +127,80 @@ function extractHow(text: string): string {
     const inner = raw.replace(/`/g, '').trim();
     if (inner.length > 0 && inner.length <= 120) anchors.add(inner);
   }
+  // Extension alternation is longest-first. Regex alternation is first-match,
+  // so listing `js` before `json` truncated every `foo.json` anchor to
+  // `foo.js` — a path that does not exist, handed to the agent as guidance.
   const pathMatches =
     text.match(
-      /(?:[a-zA-Z0-9_.-]+\/)+[a-zA-Z0-9_.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|yaml|yml)/g,
+      /(?:[a-zA-Z0-9_.-]+\/)+[a-zA-Z0-9_.-]+\.(?:tsx|jsonc|json|jsx|yaml|mjs|cjs|yml|ts|js|md)\b/g,
     ) ?? [];
   for (const p of pathMatches) anchors.add(p);
   const scoped = text.match(/@[a-z0-9][\w.-]*\/[a-z0-9][\w.-]*/gi) ?? [];
   for (const p of scoped) anchors.add(p);
   if (anchors.size === 0) return '';
-  return [...anchors].map((a) => `- \`${a}\``).join('\n');
+  return [...anchors].map((anchor) => `\`${anchor}\``).join('\n');
+}
+
+/**
+ * Strip any accumulated list/label markup from a stored `How` line.
+ *
+ * Older buffers were written with the `- *How:* ` label baked into the stored
+ * value, so each re-render prefixed it again and produced
+ * `- *How:*   - *How:*   - *How:* …`. Cleaning on read means the next capture
+ * silently repairs an already-corrupted file.
+ */
+function cleanHowLine(line: string): string {
+  let value = line.trim();
+  let previous: string;
+  do {
+    previous = value;
+    value = value
+      .replace(/^[-*]\s+/, '')
+      .replace(/^\*How:\*\s*/i, '')
+      .trim();
+  } while (value !== previous);
+  return value;
+}
+
+/** `category=warning; capturedAt=...; skill=testing` → a lookup map. */
+function parseStampAttributes(body: string): Record<string, string> {
+  const attributes: Record<string, string> = {};
+  for (const part of body.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    const key = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (key) attributes[key] = value;
+  }
+  return attributes;
+}
+
+/**
+ * Parse one rendered entry body (everything between its stamp and the next
+ * stamp / section heading) into what / why / how.
+ *
+ * Line-oriented on purpose: the previous single mega-regex captured every
+ * `*How:*` line into one group with the dotAll flag, so re-rendering wrapped
+ * the already-labelled text in another label on every capture.
+ */
+function parseEntryBody(body: string): { what: string; why: string; how: string } | undefined {
+  const lines: string[] = [];
+  for (const line of body.split('\n')) {
+    // Stop at the next section boundary; the footer and headings are not part
+    // of any entry.
+    if (/^##\s/.test(line) || /^---\s*$/.test(line) || /^<!--/.test(line)) break;
+    lines.push(line);
+  }
+  const text = lines.join('\n');
+  const what = /^-\s+\*\*([\s\S]+?)\*\*\s*$/m.exec(text)?.[1]?.replace(/\s+/g, ' ').trim() ?? '';
+  if (!what) return undefined;
+  const why = /^\s+-\s+\*Why:\*\s+(.+)$/m.exec(text)?.[1]?.trim() ?? '';
+  const how = lines
+    .filter((line) => /^\s+-\s+\*How:\*/i.test(line))
+    .map((line) => cleanHowLine(line))
+    .filter(Boolean)
+    .join('\n');
+  return { what, why, how };
 }
 
 export function parseStructuredLearnedEntriesFromContent(
@@ -133,22 +209,25 @@ export function parseStructuredLearnedEntriesFromContent(
 ): StructuredLearnedEntry[] {
   if (!raw) return [];
   const structured: StructuredLearnedEntry[] = [];
-  const entryPattern =
-    /<!--\s*learned-stamp:\s*category=([\w-]+);\s*capturedAt=([^;]+?)\s*-->\s*\n-\s+\*\*(.+?)\*\*(?:\s*\n\s+-\s+\*Why:\*\s+(.+?))?(?:\s*\n\s+-\s+\*How:\*\s+(.+?))?(?=\n(?:<!--|##|---|\n|$))/gs;
-  for (const m of raw.matchAll(entryPattern)) {
-    const category = parseLearnedCategory(m[1]) ?? 'fact';
-    const capturedAt = (m[2] ?? '').trim();
-    const what = (m[3] ?? '').trim();
-    const why = (m[4] ?? '').trim();
-    const howRaw = (m[5] ?? '').trim();
-    if (what.length < MIN_INSTRUCTIVE_LENGTH) continue;
+  const stampPattern = /<!--\s*learned-stamp:\s*([^>]*?)\s*-->/g;
+  const stamps = [...raw.matchAll(stampPattern)];
+  for (const [index, stamp] of stamps.entries()) {
+    const attributes = parseStampAttributes(stamp[1] ?? '');
+    const category = parseLearnedCategory(attributes['category']) ?? 'fact';
+    const capturedAt = attributes['capturedAt'] ?? '';
+    const skill = attributes['skill'];
+    const start = (stamp.index ?? 0) + stamp[0].length;
+    const end = stamps[index + 1]?.index ?? raw.length;
+    const parsed = parseEntryBody(raw.slice(start, end));
+    if (!parsed || parsed.what.length < MIN_INSTRUCTIVE_LENGTH) continue;
     structured.push({
-      key: directiveKey(what),
+      key: directiveKey(parsed.what),
       category,
-      what,
-      why: why || WHY_BY_CATEGORY[category],
-      how: howRaw,
+      what: parsed.what,
+      why: parsed.why || WHY_BY_CATEGORY[category],
+      how: parsed.how,
       capturedAt,
+      ...(skill ? { skill } : {}),
     });
   }
   if (structured.length === 0) {
@@ -173,7 +252,12 @@ export function parseStructuredLearnedEntriesFromContent(
 
 export function mergeStructuredEntries(
   existing: StructuredLearnedEntry[],
-  fresh: { text: string; category: LearnedEntryCategory; capturedAt: string },
+  fresh: {
+    text: string;
+    category: LearnedEntryCategory;
+    capturedAt: string;
+    skill?: string | undefined;
+  },
 ): StructuredLearnedEntry[] {
   const { what, why, how } = decomposeLearnedEntry(fresh.text, fresh.category);
   const freshEntry: StructuredLearnedEntry = {
@@ -183,6 +267,7 @@ export function mergeStructuredEntries(
     why,
     how,
     capturedAt: fresh.capturedAt,
+    ...(fresh.skill ? { skill: fresh.skill } : {}),
   };
   const merged = existing.filter((entry) => tokenOverlap(entry.key, freshEntry.key) < 0.55);
   merged.push(freshEntry);
@@ -249,13 +334,18 @@ export function renderLearnedInstructions(
     sections.push(SECTION_TITLE[category]);
     sections.push('');
     for (const entry of list) {
-      const stamp = `<!-- learned-stamp: category=${entry.category}; capturedAt=${entry.capturedAt} -->`;
-      sections.push(stamp);
+      const attributes = [
+        `category=${entry.category}`,
+        `capturedAt=${entry.capturedAt}`,
+        ...(entry.skill ? [`skill=${entry.skill}`] : []),
+      ].join('; ');
+      sections.push(`<!-- learned-stamp: ${attributes} -->`);
       sections.push(`- **${entry.what}**`);
       sections.push(`  - *Why:* ${entry.why}`);
-      if (entry.how) {
-        for (const line of entry.how.split('\n'))
-          sections.push(`  - *How:* ${line.replace(/^- /, '')}`);
+      // `entry.how` holds bare anchors, one per line. The label is applied
+      // exactly once, here, so a parse→render round-trip is a fixed point.
+      for (const line of entry.how.split('\n').map(cleanHowLine).filter(Boolean)) {
+        sections.push(`  - *How:* ${line}`);
       }
       sections.push('');
     }
@@ -263,4 +353,45 @@ export function renderLearnedInstructions(
 
   const footer = ['---', `*Last capture: ${capturedAt} · ${entries.length} entries*`, ''];
   return [...headerLines, ...sections, ...footer].join('\n');
+}
+
+/** Drop order when the buffer must shrink: cheapest knowledge goes first. */
+const DROP_PRIORITY: Record<LearnedEntryCategory, number> = {
+  fact: 0,
+  pattern: 1,
+  convention: 2,
+  warning: 3,
+};
+
+/**
+ * Keep the rendered buffer within `maxBytes` by evicting the least valuable
+ * entries — oldest first, plain facts before hard-won warnings.
+ *
+ * This replaces the old "block every automatic capture once the file passes
+ * 8 KB" gate. That gate had no way to ever clear itself (consolidation wrote a
+ * separate file and never touched the raw buffer), so the roles that had
+ * learned the most were exactly the roles that had permanently stopped
+ * learning. Bounding the buffer is the same protection without the deadlock.
+ */
+export function enforceLearnedBudget(
+  entries: readonly StructuredLearnedEntry[],
+  capturedAt: string,
+  maxBytes: number,
+  role = 'agent',
+): { kept: StructuredLearnedEntry[]; dropped: StructuredLearnedEntry[] } {
+  const kept = [...entries];
+  const dropped: StructuredLearnedEntry[] = [];
+  const size = (list: StructuredLearnedEntry[]): number =>
+    Buffer.byteLength(renderLearnedInstructions(role, list, capturedAt), 'utf8');
+  while (kept.length > 1 && size(kept) > maxBytes) {
+    let victimIndex = 0;
+    for (let i = 1; i < kept.length; i++) {
+      const a = kept[i] as StructuredLearnedEntry;
+      const b = kept[victimIndex] as StructuredLearnedEntry;
+      const byPriority = DROP_PRIORITY[a.category] - DROP_PRIORITY[b.category];
+      if (byPriority < 0 || (byPriority === 0 && a.capturedAt < b.capturedAt)) victimIndex = i;
+    }
+    dropped.push(...kept.splice(victimIndex, 1));
+  }
+  return { kept, dropped };
 }

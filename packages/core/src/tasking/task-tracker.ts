@@ -207,6 +207,19 @@ export class TaskTracker {
     if (!this.graph) return false;
     const node = this.graph.nodes.get(id);
     if (!node) return false;
+    if (
+      node.specRequirementId &&
+      this.graph.requiredRequirementIds?.includes(node.specRequirementId) &&
+      !Array.from(this.graph.nodes.values()).some(
+        (candidate) =>
+          candidate.id !== id && candidate.specRequirementId === node.specRequirementId,
+      )
+    ) {
+      // The declared requirement scope is authority, not the mutable task list.
+      // Removing its last implementing task would make the work disappear from
+      // the scheduler and falsely improve completion percentage.
+      return false;
+    }
     this.graph.nodes.delete(id);
     this.graph.edges = this.graph.edges.filter((e) => e.from !== id && e.to !== id);
     this.graph.rootNodes = this.graph.rootNodes.filter((r) => r !== id);

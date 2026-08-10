@@ -18,6 +18,7 @@
  */
 
 import path from 'node:path';
+import { planTool, taskTool, todoTool } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
 import type { ClientTransportRouteHandlers } from './client-transport-routes.js';
@@ -101,6 +102,21 @@ export function createMessageDispatcher(
       send: (w, m) => send(w, m),
       broadcast: (m) => broadcast(state.getClients(), m),
       replaceTodos: (todos) => deps.context.state.replaceTodos(todos),
+      mutateTodos: async (todos) => {
+        const result = await todoTool.execute({ todos }, deps.context, {
+          signal: AbortSignal.timeout(30_000),
+        });
+        return {
+          todos: [...deps.context.todos],
+          ...(result.kanban_warnings ? { warnings: result.kanban_warnings } : {}),
+        };
+      },
+      mutateTaskStatus: async (id, status) =>
+        taskTool.execute({ action: 'status', id, status }, deps.context, {
+          signal: AbortSignal.timeout(30_000),
+        }),
+      mutatePlan: async (operation) =>
+        planTool.execute(operation, deps.context, { signal: AbortSignal.timeout(30_000) }),
     };
   }
 
@@ -340,6 +356,7 @@ export function createMessageDispatcher(
       agentRoster: {
         rosterHandler: new AgentRosterWSHandler({
           projectRoot: state.getProjectRoot,
+          getAutoOptimizeSettings: () => state.getConfig().fleet?.learning?.autoOptimize,
           getLlm: () => {
             const ctx = deps.agent.ctx;
             return ctx.provider && ctx.model

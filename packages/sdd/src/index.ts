@@ -9,6 +9,13 @@ export {
   type TaskGeneratorOptions,
   type GeneratedTask,
 } from './task-generator.js';
+export {
+  assertSpecTaskGraphCoverage,
+  assertTaskGraphExecutionIntegrity,
+  assertTaskGraphRequirementCoverage,
+  evaluateTaskGraphRequirementCoverage,
+  type TaskGraphRequirementCoverage,
+} from './requirement-coverage.js';
 // TaskTracker and DefaultTaskStore moved to @wrongstack/core/tasking in
 // PR-10; re-exported here so existing `@wrongstack/sdd` consumers keep
 // working. New code should import directly from `@wrongstack/core/tasking`.

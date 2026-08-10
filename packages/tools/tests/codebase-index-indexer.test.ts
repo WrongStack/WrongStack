@@ -110,7 +110,7 @@ describe('runIndexer', () => {
       // the exact-match ahead of the substring-match.
       const trackedResults = store.searchRanked('tracked', {}, 10).results;
       expect(trackedResults.length).toBeGreaterThanOrEqual(1);
-      expect(trackedResults[0].name).toBe('tracked');
+      expect(trackedResults[0]?.name).toBe('tracked');
       expect(store.searchRanked('untracked', {}, 10).results).toHaveLength(1);
       expect(store.searchRanked('ignored', {}, 10).results).toHaveLength(0);
     } finally {

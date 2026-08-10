@@ -36,6 +36,23 @@ describe('plan-store', () => {
     }
   });
 
+  it('mutatePlan rejects omission of unfinished plan coverage', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-plan-'));
+    const file = path.join(dir, 'coverage.plan.json');
+    try {
+      let plan = emptyPlan('sess');
+      ({ plan } = addPlanItem(plan, 'Still open'));
+      await savePlan(file, plan);
+
+      await expect(
+        mutatePlan(file, 'sess', (current) => ({ ...current, items: [] })),
+      ).rejects.toThrow('unfinished items cannot be omitted');
+      expect((await loadPlan(file))?.items.map((item) => item.title)).toEqual(['Still open']);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('updates and removes by index', () => {
     let plan = emptyPlan('s');
     ({ plan } = addPlanItem(plan, 'one'));

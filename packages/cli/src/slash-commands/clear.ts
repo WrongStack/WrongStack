@@ -1,3 +1,4 @@
+import { resetCaptureWindows } from '@wrongstack/core/agent-catalog';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { createContextEvidenceState } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
@@ -93,6 +94,11 @@ export function buildClearCommand(opts: SlashCommandContext): SlashCommand {
       if (opts.sessionStore) {
         await opts.sessionStore.clearHistory(ctx?.session.id ?? '');
       }
+      // A real session boundary. The learning capture budget is documented as
+      // "per session", and the time-boxed window already prevents a daemon from
+      // starving; resetting here makes the boundary exact so a fresh session
+      // starts with its full capture allowance.
+      resetCaptureWindows();
       opts.onClear?.();
       await opts.onNewSession?.();
       opts.renderer.clear();

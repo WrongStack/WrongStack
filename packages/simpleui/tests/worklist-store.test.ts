@@ -10,10 +10,24 @@ describe('SimpleUI worklist store', () => {
   it('parses valid work items and drops malformed server entries', () => {
     expect(
       parseSimpleTodos([
-        { id: 'todo-1', content: 'Ship it', status: 'pending' },
+        {
+          id: 'todo-1',
+          content: 'Ship it',
+          status: 'pending',
+          kanbanBoardId: 'board-1',
+          kanbanTaskId: 'task-1',
+        },
         { id: 'bad', content: { unsafe: true }, status: 'pending' },
       ]),
-    ).toEqual([{ id: 'todo-1', content: 'Ship it', status: 'pending' }]);
+    ).toEqual([
+      {
+        id: 'todo-1',
+        content: 'Ship it',
+        status: 'pending',
+        kanbanBoardId: 'board-1',
+        kanbanTaskId: 'task-1',
+      },
+    ]);
 
     expect(
       parseSimpleTasks([
@@ -58,5 +72,32 @@ describe('SimpleUI worklist store', () => {
     ).toBe(false);
     expect(store.getSnapshot().todos).toHaveLength(1);
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('stores the project-scoped bounded Kanban workbench independently of session lists', () => {
+    const store = createWorklistStore();
+    const workbench = {
+      generatedAt: '2026-08-09T12:00:00.000Z',
+      boardCount: 2,
+      totals: { active: 3, now: 1, next: 1, blocked: 1, review: 0, failed: 0, completed: 4 },
+      flow: [],
+      lanes: {
+        now: { total: 1, omitted: 0, items: [] },
+        next: { total: 1, omitted: 0, items: [] },
+        blocked: { total: 1, omitted: 0, items: [] },
+        review: { total: 0, omitted: 0, items: [] },
+      },
+      alerts: [],
+      alertTotal: 0,
+      alertsOmitted: 0,
+    };
+
+    expect(
+      store.applyMessage({
+        type: 'kanban.workbench' as never,
+        payload: { success: true, data: workbench },
+      }),
+    ).toBe(true);
+    expect(store.getSnapshot().workbench).toEqual(workbench);
   });
 });

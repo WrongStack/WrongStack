@@ -54,6 +54,13 @@ export interface PickerKeysHost {
   onShadowStop: (() => Promise<void> | void) | undefined;
   onFKeyPickerEnter: (() => void) | undefined;
   onPickerEnter: (() => Promise<void>) | undefined;
+  /**
+   * Enter-handler for the `/theme` picker. The key dispatcher delegates
+   * the apply step here so the parent can call `setActiveTheme()` and
+   * persist the choice to configStore. Optional — omitted hosts simply
+   * leave Enter as a no-op (the picker still navigates, just doesn't apply).
+   */
+  onThemePickerEnter?: (() => void) | undefined;
 
   onSlashPickerTab: (() => void) | undefined;
 }

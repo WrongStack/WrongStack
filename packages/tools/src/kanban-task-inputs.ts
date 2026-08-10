@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { AssignKanbanTaskInput, KanbanAgentAssignment } from '@wrongstack/kanban';
 import { clampSubagentCapabilities } from '@wrongstack/core/security';
+import type { AssignKanbanTaskInput, KanbanAgentAssignment } from '@wrongstack/kanban';
 import type { KanbanToolInput } from './kanban-tool-types.js';
 
 export function taskInput(input: KanbanToolInput) {
@@ -78,12 +78,15 @@ export function taskInput(input: KanbanToolInput) {
           ],
         }
       : {}),
-    ...(input.graphId !== undefined
+    ...([input.graphId, input.specId, input.specRequirementId].some((value) => value !== undefined)
       ? {
           origin: {
             system: input.sourceSystem ?? 'kanban-tool',
             ...(input.graphId !== undefined ? { graphId: input.graphId } : {}),
             ...(input.specId !== undefined ? { specId: input.specId } : {}),
+            ...(input.specRequirementId !== undefined
+              ? { specRequirementId: input.specRequirementId }
+              : {}),
             ...(input.phaseId !== undefined ? { phaseId: input.phaseId } : {}),
           },
         }

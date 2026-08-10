@@ -78,4 +78,35 @@ describe('codemap graph cache', () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('includes WAL file stats in the fingerprint so WAL-mode writes invalidate the cache', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codemap-cache-wal-'));
+    try {
+      const dbPath = path.join(dir, 'index.db');
+      const walPath = path.join(dir, 'index.db-wal');
+      fs.writeFileSync(dbPath, 'sqlite');
+
+      // Without WAL — base fingerprint.
+      const versionNoWal = indexDbVersion('/any', dir);
+
+      // Simulate a WAL write (indexer writes to index.db-wal, not index.db).
+      fs.writeFileSync(walPath, 'wal-data');
+      const versionWithWal = indexDbVersion('/any', dir);
+
+      // The fingerprint must change when a WAL file appears.
+      expect(versionWithWal).not.toBe(versionNoWal);
+      expect(versionWithWal).toContain('wal-data'.length.toString());
+
+      // A subsequent WAL append (more data written) must also invalidate.
+      fs.writeFileSync(walPath, 'wal-data-appended');
+      const versionAfterAppend = indexDbVersion('/any', dir);
+      expect(versionAfterAppend).not.toBe(versionWithWal);
+
+      // Deleting the WAL (post-checkpoint) reverts to the base fingerprint.
+      fs.rmSync(walPath);
+      expect(indexDbVersion('/any', dir)).toBe(versionNoWal);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -315,7 +315,12 @@
     "palettePurplePink": "Violett & Pink",
     "paletteCyanTeal": "Cyan & Türkis",
     "paletteRoseCopper": "Rosa & Kupfer",
-    "paletteIndigoAmber": "Indigo & Bernstein"
+    "paletteIndigoAmber": "Indigo & Bernstein",
+    "paletteSageSand": "Salbei & Sand",
+    "paletteSlateViolet": "Schiefer & Violett",
+    "paletteCoralMint": "Koralle & Minze",
+    "paletteArcticEmber": "Arktis & Glut",
+    "paletteMossRust": "Moos & Rost"
   },
   "agent": {
     "autonomyHeading": "Autonomie & Verhalten",

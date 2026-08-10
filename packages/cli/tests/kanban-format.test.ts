@@ -8,11 +8,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   areDependenciesMet: vi.fn(() => true),
+  evaluateContractGraph: vi.fn(() => ({ issues: [] })),
+  evaluateContractGraphReadiness: vi.fn(() => ({ ready: true, issues: [] })),
   findBlockedTasks: vi.fn(() => []),
 }));
 
 vi.mock('@wrongstack/kanban', () => ({
   areDependenciesMet: h.areDependenciesMet,
+  evaluateContractGraph: h.evaluateContractGraph,
+  evaluateContractGraphReadiness: h.evaluateContractGraphReadiness,
   findBlockedTasks: h.findBlockedTasks,
 }));
 
@@ -65,6 +69,8 @@ function baseBoard(over: Record<string, unknown> = {}): never {
 
 beforeEach(() => {
   h.areDependenciesMet.mockReturnValue(true);
+  h.evaluateContractGraph.mockReturnValue({ issues: [] });
+  h.evaluateContractGraphReadiness.mockReturnValue({ ready: true, issues: [] });
   h.findBlockedTasks.mockReturnValue([]);
   vi.setSystemTime(now);
 });
@@ -177,6 +183,7 @@ describe('kanban-format — pure formatting coverage', () => {
     expect(out).toContain('⏭️ skipped one');
     expect(out).toContain('⬜ pending one');
     expect(out).toContain('coverage');
+    expect(out).toContain('Start ready');
     expect(out).toContain('Est.');
     expect(out).toContain('PR');
     expect(out).toContain('remember');

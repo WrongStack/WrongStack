@@ -1,15 +1,15 @@
 ---
 name: wrongstack-kanban
 description: >-
-  Monitor and manage a WrongStack project's IPC-backed Kanban through the
-  dedicated tool actions. Enforces deterministic task lifecycle, prevents
-  fake-progress, and ensures every card carries verifiable evidence before
-  completion. Use this skill whenever working with Kanban boards, tasks,
-  dispatch, verification, or the kanban tool.
+  Make WrongStack's IPC-backed Kanban the mandatory execution record for every
+  actionable project request, from a one-line atomic task through multi-agent
+  programmes. Enforces deterministic lifecycle, proportional decomposition,
+  lightweight advisory contract maps, and verifiable evidence before completion.
 triggers:
   - user says "kanban", "board", "task dispatch", "kanban queue"
   - working with the kanban tool or kanban_queue
   - managing project work through boards
+  - performing any actionable project work while kanban is available
 required-capabilities: [work.plan]
 required-tools: [kanban, kanban_queue]
 ---
@@ -18,9 +18,25 @@ required-tools: [kanban, kanban_queue]
 
 ## Core contract
 
-The Kanban board is the **single source of truth** for tracked work. Chat
-messages, session logs, and agent self-reports are **not** completion evidence.
-Only persisted board mutations with verifiable evidence count.
+The Kanban board is the **single source of truth for all actionable project
+work**. Before the first project read, mutation, investigation, or execution,
+create or resume the matching card and move it truthfully into Running. Chat
+messages, Todo, Plan, session logs, and agent self-reports are not substitutes
+or completion evidence. Pure conversation with no project action is the only
+exception. If Kanban persistence fails, stop and record/report the blocker.
+
+## Proportional task hierarchy
+
+- A small, genuinely atomic request uses one fully detailed executable leaf
+  card. It does not need fake children.
+- Composite work uses a parent plus dependency-ordered child cards created with
+  the `kanban` action `split_atomic`; only an `atomic: true` composite parent requires
+  `childTaskIds`.
+- Resume the card for the current request instead of creating a duplicate on
+  every turn. Scale card count to complexity, but never omit tracking.
+- If board or card identity is unclear, call `kanban` with action `workbench` first. Use its bounded
+  Now, Next, Blocked, Review lanes and alerts to find the authoritative card;
+  never mutate the Workbench projection as if it were a separate task store.
 
 ## Anti-fake-progress rules
 
@@ -100,6 +116,20 @@ The lifecycle guard enforces these mechanically. Do not attempt to bypass them.
    accept the card (transition Review → Done with action text and an attachment).
    Worker completion alone never reaches Done.
 
+5. **Keep Contract Map advisory by default.** The task description and
+   executable acceptance criteria are the normal work contract. Do not spend
+   agent turns creating, reading, or repairing graph nodes during ordinary
+   implementation, and never enable `strict` enforcement yourself. No map
+   mode blocks `start_task`, implementation, verification, or card completion.
+   Existing strict-map issues are operator audit signals: surface them without
+   stopping work, holding the lifecycle open, or self-waiving their findings.
+
+6. **Preserve requirement identity and scope.** Todo, task, and plan rows are
+   Kanban requirement projections. Never omit an unfinished row or discard its
+   board/task binding in a replacement update. Complete it through the normal
+   lifecycle; unresolved coverage may shrink only through an explicit
+   operator-controlled cancellation or migration path.
+
 ## Event tracking
 
 Every material action must produce a board mutation:
@@ -123,6 +153,7 @@ Every material action must produce a board mutation:
 | Skipping Review | Reviewer acceptance is mandatory before Done |
 | Working without a lease | Untracked; may conflict with another agent |
 | Soft-completing on managed boards | Gate enforcement is strict; soft is not honored |
+| Omitting unfinished Todo/Task/Plan rows | Requirement identity and coverage would be lost |
 
 ## Skills in scope
 

@@ -38,6 +38,8 @@ export interface TaskEdge {
 export interface TaskGraph {
   id: string;
   specId: string;
+  /** Canonical spec scope declared by the planner/generator. */
+  requiredRequirementIds?: string[] | undefined;
   title: string;
   nodes: Map<string, TaskNode>;
   edges: TaskEdge[];

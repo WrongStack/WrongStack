@@ -6,6 +6,7 @@ import {
   Pause,
   RotateCcw,
   ShieldAlert,
+  Workflow,
   X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -77,7 +78,7 @@ function todoItems(
     tone: statusTone(item.status),
     ...(item.status === 'pending'
       ? { complete: () => onStatusChange(item.id, 'completed') }
-      : item.status === 'completed'
+      : item.status === 'completed' && !(item.kanbanBoardId && item.kanbanTaskId)
         ? { reopen: () => onStatusChange(item.id, 'pending') }
         : {}),
   }));
@@ -90,7 +91,11 @@ function taskItems(
   return tasks.map((item) => ({
     id: item.id,
     title: item.title,
-    detail: [item.type, item.priority !== 'medium' ? item.priority : '', item.assignee ? `@${item.assignee}` : '']
+    detail: [
+      item.type,
+      item.priority !== 'medium' ? item.priority : '',
+      item.assignee ? `@${item.assignee}` : '',
+    ]
       .filter(Boolean)
       .join(' · '),
     status: item.status,
@@ -101,9 +106,7 @@ function taskItems(
     ...(item.status === 'in_progress'
       ? { complete: () => onStatusChange(item.id, 'completed') }
       : {}),
-    ...(item.status === 'completed'
-      ? { reopen: () => onStatusChange(item.id, 'pending') }
-      : {}),
+    ...(item.status === 'completed' ? { reopen: () => onStatusChange(item.id, 'pending') } : {}),
   }));
 }
 
@@ -124,6 +127,7 @@ function planItems(
 }
 
 const VIEW_COPY: Record<WorklistView, { empty: string; noun: string }> = {
+  flow: { empty: 'No active Kanban work across the project.', noun: 'work item' },
   todos: { empty: 'No todos in this session yet.', noun: 'todo' },
   tasks: { empty: 'No structured tasks in this session yet.', noun: 'task' },
   plan: { empty: 'No persistent plan in this session yet.', noun: 'plan item' },
@@ -143,7 +147,9 @@ export function WorklistSidebar({
         ? todoItems(snapshot.todos, onTodoStatusChange)
         : view === 'tasks'
           ? taskItems(snapshot.tasks, onTaskStatusChange)
-          : planItems(snapshot.planItems, onPlanStatusChange);
+          : view === 'plan'
+            ? planItems(snapshot.planItems, onPlanStatusChange)
+            : [];
     return next.sort(
       (left, right) => (STATUS_ORDER[left.status] ?? 9) - (STATUS_ORDER[right.status] ?? 9),
     );
@@ -152,6 +158,8 @@ export function WorklistSidebar({
   const active = items.filter((item) => item.tone !== 'done');
   const visible = showCompleted ? [...active, ...completed] : active;
   const copy = VIEW_COPY[view];
+
+  if (view === 'flow') return <FlowWorkbench snapshot={snapshot} />;
 
   if (items.length === 0) {
     return (
@@ -205,6 +213,84 @@ export function WorklistSidebar({
               <ShieldAlert size={12} className="worklist-alert" aria-label={item.tone} />
             )}
           </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FlowWorkbench({ snapshot }: { snapshot: WorklistSnapshot }) {
+  const workbench = snapshot.workbench;
+  if (!workbench) {
+    return (
+      <div className="tool-sidebar-empty worklist-empty">
+        <Workflow size={20} strokeWidth={1.5} aria-hidden="true" />
+        <span>Project flow has not been loaded yet.</span>
+        <small>Open FLOW again to refresh the bounded Kanban workbench.</small>
+      </div>
+    );
+  }
+  return (
+    <div className="worklist-content flow-workbench">
+      <div className="worklist-summary">
+        <span>{workbench.totals.active} ACTIVE</span>
+        <span>{workbench.boardCount} BOARDS</span>
+        <span>{workbench.alertTotal} ALERTS</span>
+      </div>
+      <section className="flow-pipeline" aria-label="Kanban task flow">
+        {workbench.flow.map((step, index) => (
+          <div className="flow-step" key={step.id} title={step.explanation}>
+            <b>{step.count}</b>
+            <span>{step.label}</span>
+            {index < workbench.flow.length - 1 ? <i>→</i> : null}
+          </div>
+        ))}
+      </section>
+      {workbench.alerts.length > 0 ? (
+        <div className="flow-alerts">
+          {workbench.alerts.map((alert) => (
+            <div key={alert.id} className={`flow-alert ${alert.severity}`}>
+              <ShieldAlert size={12} aria-hidden="true" />
+              <span>
+                <b>{alert.title}</b>
+                {alert.detail}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className="flow-lanes">
+        {(['now', 'next', 'blocked', 'review'] as const).map((lane) => (
+          <section className={`flow-lane ${lane}`} key={lane}>
+            <header>
+              <b>{lane.toUpperCase()}</b>
+              <span>{workbench.lanes[lane].total}</span>
+            </header>
+            {workbench.lanes[lane].items.map((item) => (
+              <article key={`${item.boardId}:${item.taskId}`}>
+                <strong>{item.title}</strong>
+                <span>
+                  {item.boardTitle} · {item.source}
+                </span>
+                <small>{item.reason}</small>
+                {item.contractStatus ? (
+                  <small>
+                    CONTRACT ·{' '}
+                    {item.contractStatus.startReady
+                      ? 'START READY'
+                      : `${item.contractStatus.setupGaps} SETUP GAPS`}{' '}
+                    ·{' '}
+                    {item.contractStatus.closed
+                      ? 'CLOSED'
+                      : `${item.contractStatus.completionOpen} COMPLETION OPEN`}
+                  </small>
+                ) : null}
+              </article>
+            ))}
+            {workbench.lanes[lane].omitted > 0 ? (
+              <small>+{workbench.lanes[lane].omitted} more hidden</small>
+            ) : null}
+          </section>
         ))}
       </div>
     </div>

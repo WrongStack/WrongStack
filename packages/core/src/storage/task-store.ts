@@ -1,9 +1,9 @@
 import * as fsp from 'node:fs/promises';
 import type { EventBus } from '../kernel/events.js';
+import { SessionError } from '../types/errors.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { TaskItem } from '../utils/task-format.js';
-import { SessionError } from '../types/errors.js';
 
 // ---------------------------------------------------------------------------
 // Task file persistence — one JSON file per session, resolved via
@@ -19,6 +19,59 @@ export interface TaskFile {
   sessionId: string;
   updatedAt: string;
   tasks: TaskItem[];
+}
+
+function assertTaskMutationInvariants(previous: TaskFile, updated: TaskFile): void {
+  const ids = updated.tasks.map((task) => task.id);
+  const uniqueIds = new Set(ids);
+  if (uniqueIds.size !== ids.length) {
+    throw new SessionError({
+      message: 'Task mutation rejected: task IDs must be unique.',
+      code: 'SESSION_WRITE_FAILED',
+      sessionId: updated.sessionId,
+      context: { operation: 'mutateTasks', invariant: 'unique_task_ids' },
+    });
+  }
+
+  const omittedUnfinished = previous.tasks.filter(
+    (task) => task.status !== 'completed' && !uniqueIds.has(task.id),
+  );
+  if (omittedUnfinished.length > 0) {
+    throw new SessionError({
+      message: `Task mutation rejected: unfinished tasks cannot be omitted: ${omittedUnfinished
+        .map((task) => task.id)
+        .join(', ')}. Complete them first.`,
+      code: 'SESSION_WRITE_FAILED',
+      sessionId: updated.sessionId,
+      context: { operation: 'mutateTasks', invariant: 'unfinished_task_coverage' },
+    });
+  }
+
+  const byId = new Map(updated.tasks.map((task) => [task.id, task]));
+  for (const task of updated.tasks) {
+    const missing = (task.dependsOn ?? []).filter((dependencyId) => !byId.has(dependencyId));
+    if (missing.length > 0) {
+      throw new SessionError({
+        message: `Task mutation rejected: task "${task.id}" references missing dependencies: ${missing.join(', ')}.`,
+        code: 'SESSION_WRITE_FAILED',
+        sessionId: updated.sessionId,
+        context: { operation: 'mutateTasks', invariant: 'dependency_identity' },
+      });
+    }
+    if (task.status === 'in_progress' || task.status === 'review' || task.status === 'completed') {
+      const unmet = (task.dependsOn ?? []).filter(
+        (dependencyId) => byId.get(dependencyId)?.status !== 'completed',
+      );
+      if (unmet.length > 0) {
+        throw new SessionError({
+          message: `Task mutation rejected: task "${task.id}" cannot be ${task.status} before dependencies complete: ${unmet.join(', ')}.`,
+          code: 'SESSION_WRITE_FAILED',
+          sessionId: updated.sessionId,
+          context: { operation: 'mutateTasks', invariant: 'dependency_completion' },
+        });
+      }
+    }
+  }
 }
 
 export function emptyTaskFile(sessionId: string): TaskFile {
@@ -168,7 +221,9 @@ export async function mutateTasks(
 ): Promise<TaskFile> {
   return withFileLock(filePath, async () => {
     const file = (await loadTasks(filePath, events, traceId)) ?? emptyTaskFile(sessionId);
+    const previous = structuredClone(file);
     const updated = await fn(file);
+    assertTaskMutationInvariants(previous, updated);
     const persisted = await saveTasks(filePath, updated, events, traceId);
     if (!persisted) {
       throw new SessionError({

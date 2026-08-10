@@ -117,6 +117,12 @@ export type Action =
   | { type: 'autonomyPickerClose' }
   | { type: 'autonomyPickerMove'; delta: number }
   | { type: 'autonomyPickerHint'; text?: string | undefined }
+  /** Theme picker — opened by `/theme`. Selecting a row swaps the palette and
+   *  persists the choice via the ConfigStore bridge from the host. */
+  | { type: 'themePickerOpen'; selected?: number }
+  | { type: 'themePickerClose' }
+  | { type: 'themePickerMove'; delta: number }
+  | { type: 'themePickerHint'; text?: string | undefined }
   | {
       type: 'modePickerOpen';
       modes: ModeOption[];

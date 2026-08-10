@@ -19,8 +19,8 @@
       "relativeImports": 42
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 982,
-      "relativeImports": 20
+      "lines": 1074,
+      "relativeImports": 21
     },
     "packages/cli/src/goal-host.ts": {
       "lines": 922,
@@ -47,7 +47,7 @@
       "relativeImports": 11
     },
     "packages/cli/src/repl.ts": {
-      "lines": 1022,
+      "lines": 1031,
       "relativeImports": 13
     },
     "packages/cli/src/slash-commands/brain.ts": {
@@ -79,7 +79,7 @@
       "relativeImports": 20
     },
     "packages/core/src/chronicle/metrics-store.ts": {
-      "lines": 1090,
+      "lines": 1133,
       "relativeImports": 6
     },
     "packages/core/src/chronicle/query.ts": {
@@ -91,8 +91,8 @@
       "relativeImports": 5
     },
     "packages/core/src/coordination/agents/project-agent-identity.ts": {
-      "lines": 1002,
-      "relativeImports": 23
+      "lines": 1125,
+      "relativeImports": 33
     },
     "packages/core/src/coordination/autonomous-coordinator.ts": {
       "lines": 982,
@@ -135,11 +135,11 @@
       "relativeImports": 3
     },
     "packages/core/src/core/agent-loop.ts": {
-      "lines": 1160,
+      "lines": 1167,
       "relativeImports": 27
     },
     "packages/core/src/core/context.ts": {
-      "lines": 920,
+      "lines": 933,
       "relativeImports": 13
     },
     "packages/core/src/core/fallback-model.ts": {
@@ -179,7 +179,7 @@
       "relativeImports": 8
     },
     "packages/core/src/execution/tool-executor.ts": {
-      "lines": 1049,
+      "lines": 1051,
       "relativeImports": 21
     },
     "packages/core/src/hq/auth-store.ts": {
@@ -211,7 +211,7 @@
       "relativeImports": 9
     },
     "packages/core/src/session-catalog/store.ts": {
-      "lines": 1041,
+      "lines": 1071,
       "relativeImports": 8
     },
     "packages/core/src/storage/file-session-writer.ts": {
@@ -219,7 +219,7 @@
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1237,
+      "lines": 1241,
       "relativeImports": 38
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
@@ -243,16 +243,16 @@
       "relativeImports": 6
     },
     "packages/kanban/src/manager/assignment.ts": {
-      "lines": 848,
-      "relativeImports": 10
+      "lines": 905,
+      "relativeImports": 12
     },
     "packages/kanban/src/manager/_internal.ts": {
       "lines": 965,
       "relativeImports": 15
     },
     "packages/kanban/src/types.ts": {
-      "lines": 815,
-      "relativeImports": 1
+      "lines": 829,
+      "relativeImports": 2
     },
     "packages/kanban/src/verification/verification-context.ts": {
       "lines": 1022,
@@ -326,28 +326,28 @@
       "lines": 868,
       "relativeImports": 7
     },
-    "packages/tools/src/codebase-index/dead-code-scan.ts": {
-      "lines": 867,
-      "relativeImports": 3
+    "packages/tools/src/codebase-index/indexer.ts": {
+      "lines": 891,
+      "relativeImports": 9
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
-      "lines": 942,
-      "relativeImports": 4
+      "lines": 1031,
+      "relativeImports": 5
     },
     "packages/tools/src/codebase-index/project-server.ts": {
       "lines": 813,
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 1484,
-      "relativeImports": 16
+      "lines": 1696,
+      "relativeImports": 17
     },
     "packages/tools/src/kanban.ts": {
-      "lines": 944,
+      "lines": 1019,
       "relativeImports": 11
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 942,
+      "lines": 1093,
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
@@ -355,16 +355,16 @@
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 854,
+      "lines": 861,
       "relativeImports": 12
     },
     "packages/tui/src/app-view.tsx": {
-      "lines": 982,
-      "relativeImports": 51
+      "lines": 991,
+      "relativeImports": 52
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1227,
-      "relativeImports": 66
+      "lines": 1280,
+      "relativeImports": 69
     },
     "packages/tui/src/components/agents-monitor.tsx": {
       "lines": 997,
@@ -399,7 +399,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-content.tsx": {
-      "lines": 807,
+      "lines": 879,
       "relativeImports": 10
     },
     "packages/tui/src/components/sidebar-panels.tsx": {
@@ -411,7 +411,7 @@
       "relativeImports": 17
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
-      "lines": 987,
+      "lines": 1024,
       "relativeImports": 6
     },
     "packages/tui/src/input-validation.ts": {
@@ -427,12 +427,16 @@
       "relativeImports": 1
     },
     "packages/tui/src/submit-controller.ts": {
-      "lines": 815,
+      "lines": 820,
       "relativeImports": 13
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
       "lines": 965,
       "relativeImports": 5
+    },
+    "packages/webui/src/components/AgentRosterSelfLearningTab.tsx": {
+      "lines": 1000,
+      "relativeImports": 1
     },
     "packages/webui/src/components/AudienceMemoryPanel.tsx": {
       "lines": 906,
@@ -511,7 +515,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
-      "lines": 843,
+      "lines": 846,
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
@@ -555,7 +559,7 @@
       "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
-      "lines": 989,
+      "lines": 990,
       "relativeImports": 9
     },
     "packages/webui-server/src/server/provider-handlers.ts": {

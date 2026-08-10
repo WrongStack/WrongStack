@@ -1,0 +1,22 @@
+{
+  "role": "frontend",
+  "liveQueries": {
+    "react": {
+      "registry": "https://registry.npmjs.org/react/latest",
+      "key": "version",
+      "description": "React latest stable"
+    },
+    "vite": {
+      "registry": "https://registry.npmjs.org/vite/latest",
+      "key": "version",
+      "description": "Vite latest stable"
+    }
+  },
+  "checklist": [
+    "React version from package.json",
+    "Vite version from devDependencies",
+    "TypeScript version from tsconfig",
+    "Browser targets from browserslist"
+  ],
+  "verifyThreshold": 0.5
+}

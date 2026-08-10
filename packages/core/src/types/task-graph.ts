@@ -34,6 +34,8 @@ export interface TaskEdge {
 export interface TaskGraph {
   id: string;
   specId: string;
+  /** Canonical spec scope. When present, execution must retain at least one task per id. */
+  requiredRequirementIds?: string[] | undefined;
   title: string;
   nodes: Map<string, TaskNode>;
   edges: TaskEdge[];

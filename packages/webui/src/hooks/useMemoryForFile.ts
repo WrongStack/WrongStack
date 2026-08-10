@@ -42,6 +42,22 @@ export interface UseMemoryForFileResult {
   refetch: () => void;
 }
 
+/**
+ * The server answers with the *normalized* project-relative path, which can
+ * differ from what the caller sent (backslashes on Windows, a `./` prefix,
+ * doubled separators). Comparing the raw strings made every such response
+ * look like it belonged to another consumer, and the cross-instance guard
+ * below dropped it — leaving the drawer stuck on "Loading…". Normalize both
+ * sides before deciding a response is foreign.
+ */
+function normalizePathForCompare(value: string): string {
+  return value
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\/{2,}/g, '/')
+    .toLowerCase();
+}
+
 const EMPTY_RESPONSE: MemoryForFileResponse = {
   filePath: '',
   primaryMatches: [],
@@ -120,7 +136,12 @@ export function useMemoryForFile(options: UseMemoryForFileOptions): UseMemoryFor
       const response = message.payload.response;
       // Cross-instance guard: even if our seq is current, a response for
       // a different file belongs to a different consumer.
-      if (response && response.filePath !== requestedFilePath) return;
+      if (
+        response &&
+        normalizePathForCompare(response.filePath) !==
+          normalizePathForCompare(requestedFilePath)
+      )
+        return;
       if (message.payload.error) {
         setError(message.payload.error);
         setData(null);

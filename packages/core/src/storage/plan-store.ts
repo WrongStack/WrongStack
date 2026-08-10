@@ -1,10 +1,10 @@
-import * as fsp from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import type { EventBus } from '../kernel/events.js';
+import * as fsp from 'node:fs/promises';
 import type { ConversationState } from '../core/conversation-state.js';
+import type { EventBus } from '../kernel/events.js';
+import { SessionError } from '../types/errors.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
-import { SessionError } from '../types/errors.js';
 
 /**
  * Plan items are the strategic counterpart to todos. Where `ctx.todos`
@@ -32,6 +32,33 @@ export interface PlanFile {
   title?: string | undefined;
   updatedAt: string;
   items: PlanItem[];
+}
+
+function assertPlanMutationInvariants(previous: PlanFile, updated: PlanFile): void {
+  const ids = updated.items.map((item) => item.id);
+  const uniqueIds = new Set(ids);
+  if (uniqueIds.size !== ids.length) {
+    throw new SessionError({
+      message: 'Plan mutation rejected: plan item IDs must be unique.',
+      code: 'SESSION_WRITE_FAILED',
+      sessionId: updated.sessionId,
+      context: { operation: 'mutatePlan', invariant: 'unique_plan_item_ids' },
+    });
+  }
+
+  const omittedUnfinished = previous.items.filter(
+    (item) => item.status !== 'done' && !uniqueIds.has(item.id),
+  );
+  if (omittedUnfinished.length > 0) {
+    throw new SessionError({
+      message: `Plan mutation rejected: unfinished items cannot be omitted: ${omittedUnfinished
+        .map((item) => item.id)
+        .join(', ')}. Complete them first.`,
+      code: 'SESSION_WRITE_FAILED',
+      sessionId: updated.sessionId,
+      context: { operation: 'mutatePlan', invariant: 'unfinished_plan_coverage' },
+    });
+  }
 }
 
 export async function loadPlan(filePath: string, events?: EventBus): Promise<PlanFile | null> {
@@ -295,7 +322,9 @@ export async function mutatePlan(
 ): Promise<PlanFile> {
   return withFileLock(filePath, async () => {
     const plan = (await loadPlan(filePath)) ?? emptyPlan(sessionId);
+    const previous = structuredClone(plan);
     const updated = await fn(plan);
+    assertPlanMutationInvariants(previous, updated);
     const persisted = await savePlan(filePath, updated);
     if (!persisted) {
       throw new SessionError({

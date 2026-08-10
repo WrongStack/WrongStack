@@ -36,6 +36,28 @@ describe('Context', () => {
     expect(ctx.meta).toEqual({});
   });
 
+  it('persists the active Kanban identity in observable context metadata', () => {
+    const ctx = mkContext();
+    ctx.meta['kanban'] = { projectRoot: '/tmp', leaseId: 'lease-1' };
+    const changes = vi.fn();
+    ctx.state.onChange(changes);
+
+    ctx.setCurrentKanbanTask('task-2', 'board-1');
+
+    expect(ctx.currentKanbanTaskId).toBe('task-2');
+    expect(ctx.currentKanbanBoardId).toBe('board-1');
+    expect(ctx.meta['kanban']).toEqual({
+      projectRoot: '/tmp',
+      leaseId: 'lease-1',
+      taskId: 'task-2',
+      boardId: 'board-1',
+    });
+    expect(changes).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'meta_set', key: 'kanban' }),
+      ctx.state,
+    );
+  });
+
   it('replaces and bounds provider memory evidence by source', () => {
     const ctx = mkContext();
 

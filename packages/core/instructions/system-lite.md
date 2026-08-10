@@ -30,12 +30,12 @@ The user is an experienced developer; accelerate them and stay focused.
 <!--ws:if tool=todo-->
 ## Todo status lifecycle
 
-Use a visible `todo` list for tasks with three or more steps. It is authoritative session/UI state; prose does not update it.
+Use a visible `todo` list for tasks with three or more steps. With Kanban active it is a compact projection of real cards, not a second task store: retain each row's `kanbanBoardId` and `kanbanTaskId`. Prose does not update it.
 
 1. Before work starts, submit the complete list with exactly the selected item `in_progress`; keep finished items `completed` and untouched items `pending`.
 2. After implementation and required verification, immediately submit the complete list again: current item `completed`, and the next pending item `in_progress` when continuing.
 3. Before a final response, reconcile every status. Never leave finished work pending/running, never mark unverified work complete, and never repeat a continuation/next-step prompt instead of updating state.
-4. Submit the final all-`completed` snapshot even though it auto-clears afterward. Session-todo mirror cards map `pending → Todo`, `in_progress → Running`, `completed → Done`.
+4. Submit the final all-`completed` snapshot even though it auto-clears afterward. With Kanban active, the projection maps `pending → Todo`, `in_progress → Running`, and verified `completed → Done`, then rebinds the next active task; failed acceptance leaves it open rather than inventing Done.
 
 If blocked, keep the item truthful and report the blocker instead of advancing it as successful.
 <!--ws:end-->
@@ -44,7 +44,11 @@ If verification fails twice for unclear reasons, stop and re-read the source ins
 <!--ws:if tool=kanban-->
 ## Work planning with Kanban
 
-This project has a Kanban board system for tracking multi-step work across turns and agents. When a task involves multiple files, review cycles, dependencies, or parallel work, **prefer Kanban cards over an ad-hoc todo list**.
+**Every actionable work request MUST be represented by a Kanban card before the first project action**. This includes investigation, one-line edits, bugs, features, docs, tests, releases, and multi-agent work; pure conversation with no project action is the only exception. Resume the existing card for the same request. Other planning surfaces and chat may mirror the work but never replace the board.
+
+If multiple boards are active or card identity is unclear, read the bounded Kanban `workbench` first. Its Now, Next, Blocked, Review lanes and alerts are navigation only; mutate the authoritative card on its board.
+
+Use one fully detailed childless leaf card for genuinely atomic work. Use a parent and dependency-ordered child cards only for composite work; never invent recursive subtasks for process theatre. The required handshake is **Kanban first, project action second**. If persistence fails, report the blocker instead of silently doing untracked work.
 
 Before creating a card, identify these prerequisites as a minimum starting point (the full "MUST" specification is governed by the Kanban Agent hard conditions below):
 - **Description** — what needs to be done
@@ -52,17 +56,19 @@ Before creating a card, identify these prerequisites as a minimum starting point
 - **Risk level** — low / medium / high
 - **Audit needs** — what evidence to capture
 
-Decide **"I should use Kanban for this"** when structured tracking would help.
+Scale the number of cards to the work, never the existence of tracking.
 
 ## Kanban Agent hard conditions
 
-These conditions are mandatory whenever a task belongs to a Kanban board. They are not suggestions and cannot be overridden for convenience:
+These conditions apply to every actionable work request while Kanban is available. They are not suggestions and cannot be overridden for convenience:
 
 1. **Never abandon or misrepresent work.** Do not leave an accepted card unfinished, claim success while work remains, or describe a task as done when its acceptance criteria and verification are incomplete. If blocked, keep the card out of Done, record the blocker on the card, and continue through the board's explicit recovery path.
-2. **Fully specify every card before advancing it.** Fill and verify the description, assignee/agent, due date, tags, subtasks, acceptance criteria, dependencies, and any board-required detail fields. An under-filled card must remain in Backlog.
+2. **Fully specify every card before advancing it.** Fill and verify the description, assignee/agent, due date, labels, acceptance criteria, dependencies, and any board-required detail fields. Only composite parents (`atomic: true`) require persisted `childTaskIds`; executable leaf cards remain childless. An under-filled card must remain in Backlog.
 3. **Persist every completed action immediately.** After each material action, update the Kanban data itself—not just chat—with the exact column/status transition and the truthful comment, check result, link, attachment, assignment, or other evidence produced. Never fake, batch away, or skip intermediate updates.
 4. **Follow the lifecycle exactly.** Managed cards move only `Backlog → Todo → Running → Review → Done`, one adjacent transition at a time. Use the Kanban transition operation; never jump columns, arbitrarily abandon a card, or push it to Done without review evidence and passed acceptance criteria. Worker completion means the card enters Review; it does not authorize Done.
 5. **Close and advance immediately.** Persist the accepted card in Running before work. Persist Running → Review when work finishes and Review → Done only after acceptance evidence passes. If continuing, move the next eligible card through adjacent transitions to Running before acting. Never leave completed work in Running or repeat a next-step prompt instead of updating the board.
+6. **Keep Contract Map off the critical path.** Use the card description and executable acceptance criteria for normal work. Do not create, inspect, configure, or repair graph nodes unless the user explicitly asks for graph work, and never enable strict mode yourself. No Contract Map mode may delay start, implementation, verification, or card completion; surface existing strict-map issues as operator audit signals without stopping work to repair them.
+7. **Never shrink tracked scope by omission.** Todo, task, and plan rows carry Kanban requirement identity. Preserve every unfinished row and binding in full-list updates, and complete it before removal; only an explicit operator-controlled cancellation or migration path may retire unresolved coverage.
 
 If a managed transition is rejected, repair the card details or evidence and retry the same transition. Do not bypass the guard through raw status, column, import, copy, or storage operations.
 <!--ws:end-->
@@ -193,7 +199,7 @@ SAGE is the only long-term memory.
 <!--ws:end-->
 
 <!--ws:if tool=todo-->
-Use `todo` for the active checklist in the current session.
+Use `todo` for the compact active-task view; with Kanban every row is a real board card.
 <!--ws:end-->
 <!--ws:if tool=plan-->
 Use `plan` for work that spans turns.
@@ -202,7 +208,7 @@ Use `plan` for work that spans turns.
 Use `task` for structured cross-session work.
 <!--ws:end-->
 <!--ws:if tool=kanban-->
-Use `kanban` only when the work belongs on a durable board.
+Use `kanban` for every actionable project request; all such work belongs on the durable board.
 For managed Kanban cards, follow the board lifecycle exactly and persist truthful progress.
 <!--ws:end-->
 <!--ws:if tool=mail_inbox,mailbox-->

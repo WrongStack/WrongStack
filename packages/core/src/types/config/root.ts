@@ -1,5 +1,10 @@
 import type { ConfiguredHook, HookEvent } from '../hooks.js';
 import type {
+  AdaptiveConcurrencyConfig,
+  CircuitBreakerRuntimeConfig,
+  ContextConfig,
+} from './context.js';
+import type {
   AutonomyConfig,
   ChronicleConfig,
   IndexingConfig,
@@ -7,11 +12,6 @@ import type {
   SessionLoggingConfig,
   SyncConfig,
 } from './autonomy.js';
-import type {
-  AdaptiveConcurrencyConfig,
-  CircuitBreakerRuntimeConfig,
-  ContextConfig,
-} from './context.js';
 import type {
   FeaturesConfig,
   LogConfig,
@@ -28,6 +28,7 @@ import type {
   SystemPromptConfig,
 } from './runtime.js';
 import type { BrainConfig, FleetConfig, SkillsConfig } from './skills-fleet-brain.js';
+import type { ThemePresetId } from './ui.js';
 import type { ToolsConfig } from './tools.js';
 
 export interface GitBehaviorConfig {
@@ -69,6 +70,15 @@ export interface Config {
    * unset, surfaces fall back to their own browser/system detection.
    */
   uiLocale?: string | undefined;
+  /**
+   * TUI color theme preset — read by the TUI on boot to apply the matching
+   * palette, and written by the `/theme` slash command (CLI REPL and TUI) so
+   * the choice persists across restarts. Unconstrained string at the config
+   * layer: the TUI owns the canonical preset list and applies a fallback
+   * (`catppuccin`) when the stored value is unknown, so a forward-compat
+   * drift on the TUI side never breaks the config round-trip.
+   */
+  themePreset?: ThemePresetId | undefined;
   providers?: Record<string, ProviderConfig>;
   /**
    * Top-level custom models (maps modelId → definition). Merged with

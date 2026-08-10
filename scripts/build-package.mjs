@@ -197,6 +197,7 @@ const profiles = {
   '@wrongstack/kanban': {
     entries: {
       index: 'src/index.ts',
+      'contract-graph': 'src/contract-graph.ts',
       'project-server': 'src/server/project-server.ts',
       'test-support': 'src/test-support.ts',
     },

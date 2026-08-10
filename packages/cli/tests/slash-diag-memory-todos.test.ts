@@ -273,6 +273,23 @@ describe('buildTodosCommand', () => {
     expect(res?.message ?? '').toContain('Marked done: fix the bug');
   });
 
+  it('does not bulk-complete Kanban task projections outside their lifecycle', async () => {
+    const ctxState = makeCtx([
+      {
+        id: 'bound',
+        content: 'real task',
+        status: 'in_progress',
+        kanbanBoardId: 'board-1',
+        kanbanTaskId: 'task-1',
+      } as never,
+    ]);
+    const cmd = buildTodosCommand(emptyCtx({ context: ctxState as never }));
+    const res = await cmd.run('done-all');
+
+    expect(res?.message ?? '').toContain('real task lifecycle');
+    expect(ctxState.todos[0]?.status).toBe('in_progress');
+  });
+
   it('done with no match reports not found', async () => {
     const cmd = buildTodosCommand(emptyCtx({ context: makeCtx() as never }));
     const res = await cmd.run('done nope');

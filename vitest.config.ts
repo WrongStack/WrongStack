@@ -171,6 +171,9 @@ export default defineConfig({
         'packages/plug-lsp/src/tools/codebase-index/index.ts',
         // Tools shim — thin sqlite wrapper; exercised via integration tests
         'packages/tools/src/shim/**/*.ts',
+        // Worker-thread bootstrap is exercised through the parser pool. V8
+        // coverage from the child worker is not merged into the parent suite.
+        'packages/tools/src/codebase-index/parser-worker-script.ts',
         // Language parsers — external-language support tested via integration
         'packages/plug-lsp/src/auto-doc/ts-parser.ts',
         'packages/plug-lsp/src/auto-doc/rs-parser.ts',

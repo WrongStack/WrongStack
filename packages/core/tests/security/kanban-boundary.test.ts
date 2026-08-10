@@ -1,7 +1,14 @@
 import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { addTask, assignTask, createBoard } from '@wrongstack/kanban';
+import {
+  addCheckToTask,
+  addTask,
+  assignTask,
+  createBoard,
+  transitionTask,
+  updateTaskAssignment,
+} from '@wrongstack/kanban';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
@@ -16,6 +23,165 @@ afterEach(async () => {
 });
 
 describe('tool Kanban boundary integration', () => {
+  it('hard-blocks product mutation when mandatory governance has no active card', async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-governance-empty-'));
+    roots.push(projectRoot);
+    const ctx = {
+      projectRoot,
+      workingDir: projectRoot,
+      meta: {},
+    } as unknown as Context;
+    const writeTool = {
+      name: 'write',
+      mutating: true,
+      capabilities: ['fs.write'],
+    } as unknown as Tool;
+
+    await expect(
+      evaluateToolKanbanBoundary(writeTool, { path: 'src/index.ts' }, ctx, {
+        requireGovernance: true,
+      }),
+    ).resolves.toMatchObject({
+      decision: 'block',
+      reason: expect.stringContaining('Kanban governance is mandatory'),
+    });
+  });
+
+  it('enforces mandatory governance inside ToolExecutor before tool execution', async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-governance-executor-'));
+    roots.push(projectRoot);
+    const execute = vi.fn(async () => ({ ok: true }));
+    const tool = {
+      name: 'write',
+      permission: 'auto',
+      mutating: true,
+      capabilities: ['fs.write'],
+      inputSchema: {
+        type: 'object',
+        properties: { path: { type: 'string' }, content: { type: 'string' } },
+        required: ['path', 'content'],
+      },
+      execute,
+    } as unknown as Tool;
+    const executor = new ToolExecutor(
+      { get: () => tool, list: () => [tool] },
+      {
+        permissionPolicy: {
+          evaluate: async () => ({ permission: 'auto', source: 'yolo' }),
+          trust: async () => {},
+          deny: async () => {},
+          denyOnce: () => {},
+          allowOnce: () => {},
+          reload: async () => {},
+        },
+        secretScrubber: {
+          scrub: (value: string) => value,
+          scrubObject: <T>(value: T) => value,
+        },
+        requireKanbanGovernance: true,
+      },
+    );
+    const ctx = {
+      projectRoot,
+      workingDir: projectRoot,
+      meta: {},
+      signal: new AbortController().signal,
+      session: { id: 'governance-executor-test' },
+    } as unknown as Context;
+
+    const result = await executor.executeBatch(
+      [
+        {
+          type: 'tool_use',
+          id: 'write-without-card',
+          name: 'write',
+          input: { path: 'src/index.ts', content: 'blocked' },
+        },
+      ],
+      ctx,
+      'sequential',
+    );
+
+    expect(result.outputs[0]?.result).toMatchObject({ is_error: true });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('allows governed mutation on a running detailed card without a Contract Map', async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-governance-no-contract-map-'));
+    roots.push(projectRoot);
+    const board = await createBoard(projectRoot, {
+      title: 'Lightweight governed work',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'running',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const added = await addTask(projectRoot, board.id, {
+      title: 'Implement the requested change',
+      description: 'Use the card and its acceptance check without graph setup.',
+      assignedAgent: 'agent-1',
+      dueDate: '2026-08-10T00:00:00.000Z',
+      labels: ['runtime'],
+    });
+    const taskId = added!.task.id;
+    await addCheckToTask(projectRoot, board.id, taskId, {
+      description: 'Focused regression test passes',
+      type: 'test',
+    });
+    await transitionTask(projectRoot, board.id, taskId, {
+      to: 'todo',
+      actor: 'agent-1',
+      comment: 'Card is ready.',
+    });
+    await updateTaskAssignment(projectRoot, board.id, taskId, {
+      status: 'running',
+      agentId: 'agent-1',
+      leaseId: 'lease-1',
+      claimedAt: '2026-08-09T00:00:00.000Z',
+      heartbeatAt: '2026-08-09T00:00:00.000Z',
+      leaseExpiresAt: '2026-08-10T00:00:00.000Z',
+      attempt: 1,
+      maxAttempts: 3,
+    });
+    await transitionTask(projectRoot, board.id, taskId, {
+      to: 'running',
+      actor: 'agent-1',
+      comment: 'Implementation started.',
+    });
+
+    const ctx = {
+      projectRoot,
+      workingDir: projectRoot,
+      currentKanbanBoardId: board.id,
+      currentKanbanTaskId: taskId,
+      meta: {},
+    } as unknown as Context;
+    const writeTool = {
+      name: 'write',
+      mutating: true,
+      capabilities: ['fs.write'],
+    } as unknown as Tool;
+
+    await expect(
+      evaluateToolKanbanBoundary(writeTool, { path: 'src/index.ts' }, ctx, {
+        requireGovernance: true,
+      }),
+    ).resolves.toMatchObject({ decision: 'allow' });
+  });
+
   it('resolves the current task and evaluates structured paths and shell calls', async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-boundary-'));
     roots.push(projectRoot);
@@ -316,11 +482,7 @@ describe('tool Kanban boundary integration', () => {
       } as unknown as Context;
       const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
 
-      const result = await evaluateToolKanbanBoundary(
-        writeTool,
-        { path: 'src/test.ts' },
-        ctx,
-      );
+      const result = await evaluateToolKanbanBoundary(writeTool, { path: 'src/test.ts' }, ctx);
       expect(result.decision).toBe('block');
       expect(result.reason).toContain('lease mismatch');
       expect(result.reason).toContain(workerLeaseId);
@@ -358,11 +520,7 @@ describe('tool Kanban boundary integration', () => {
       } as unknown as Context;
       const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
 
-      const result = await evaluateToolKanbanBoundary(
-        writeTool,
-        { path: 'src/test.ts' },
-        ctx,
-      );
+      const result = await evaluateToolKanbanBoundary(writeTool, { path: 'src/test.ts' }, ctx);
       // Lease matches — the boundary allow rule governs
       expect(result.decision).toBe('allow');
     });
@@ -430,11 +588,7 @@ describe('tool Kanban boundary integration', () => {
       } as unknown as Context;
       const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
 
-      const result = await evaluateToolKanbanBoundary(
-        writeTool,
-        { path: 'src/test.ts' },
-        ctx,
-      );
+      const result = await evaluateToolKanbanBoundary(writeTool, { path: 'src/test.ts' }, ctx);
       // No leaseId in ctx.meta.kanban → identity.leaseId is undefined
       // → lease check is skipped → boundary layers govern
       expect(result.decision).toBe('allow');

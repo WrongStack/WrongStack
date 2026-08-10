@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   Map as MapIcon,
   PanelRight,
+  Workflow,
   Wrench,
   X,
 } from 'lucide-react';
@@ -51,6 +52,7 @@ const EMPTY_WORKLISTS: ReturnType<WorklistStore['getSnapshot']> = {
   todos: [],
   tasks: [],
   planItems: [],
+  workbench: null,
 };
 
 function displayValue(value: unknown): string {
@@ -99,6 +101,7 @@ export function ToolSidebar({
   );
   const worklistCounts: Record<WorklistView, number> = useMemo(
     () => ({
+      flow: worklistSnapshot.workbench?.totals.active ?? 0,
       todos: worklistSnapshot.todos.filter((item) => item.status !== 'completed').length,
       tasks: worklistSnapshot.tasks.filter((item) => item.status !== 'completed').length,
       plan: worklistSnapshot.planItems.filter((item) => item.status !== 'done').length,
@@ -129,7 +132,13 @@ export function ToolSidebar({
   useEffect(() => {
     const onOpen = (event: Event) => {
       const view = (event as CustomEvent<{ view?: SidebarView }>).detail?.view;
-      if (view === 'tools' || view === 'todos' || view === 'tasks' || view === 'plan') {
+      if (
+        view === 'tools' ||
+        view === 'flow' ||
+        view === 'todos' ||
+        view === 'tasks' ||
+        view === 'plan'
+      ) {
         openView(view);
       }
     };
@@ -140,6 +149,13 @@ export function ToolSidebar({
   useEffect(() => {
     requested.current.clear();
   }, [worklistSnapshot.sessionId]);
+
+  useEffect(() => {
+    if (view !== 'flow') return;
+    requestWorklist?.('flow');
+    const interval = window.setInterval(() => requestWorklist?.('flow'), 15_000);
+    return () => window.clearInterval(interval);
+  }, [requestWorklist, view]);
 
   useEffect(() => {
     if (!open) return;
@@ -155,6 +171,7 @@ export function ToolSidebar({
 
   const viewMeta = {
     tools: { label: 'TOOLS', icon: Wrench },
+    flow: { label: 'FLOW', icon: Workflow },
     todos: { label: 'TODOS', icon: ListChecks },
     tasks: { label: 'TASKS', icon: ClipboardList },
     plan: { label: 'PLAN', icon: MapIcon },
@@ -176,6 +193,7 @@ export function ToolSidebar({
         {(
           [
             ['tools', 'TOOLS', PanelRight, calls.length],
+            ['flow', 'FLOW', Workflow, worklistCounts.flow],
             ['todos', 'TODOS', ListChecks, worklistCounts.todos],
             ['tasks', 'TASKS', ClipboardList, worklistCounts.tasks],
             ['plan', 'PLAN', MapIcon, worklistCounts.plan],
@@ -223,7 +241,11 @@ export function ToolSidebar({
               <span>{viewMeta[view].label}</span>
               <b>{view === 'tools' ? agentName : 'SESSION WORK'}</b>
             </div>
-            <button type="button" aria-label={`Close ${viewMeta[view].label.toLowerCase()}`} onClick={() => setView(null)}>
+            <button
+              type="button"
+              aria-label={`Close ${viewMeta[view].label.toLowerCase()}`}
+              onClick={() => setView(null)}
+            >
               <X size={15} aria-hidden="true" />
             </button>
           </header>

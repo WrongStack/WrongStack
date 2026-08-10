@@ -35,6 +35,7 @@ import {
 } from './boot/tui-sdd-callback.js';
 import { resumeSession } from './boot/tui-session-resume.js';
 import { createSettingsAdapter } from './boot/tui-settings-adapter.js';
+import { createThemeAdapter } from './boot/tui-theme-adapter.js';
 import { createBrainPanelHost } from './brain-menu/panel-service.js';
 import { buildMutatingAgentLadder } from './chimera-reviewer-policy.js';
 import type { ExecuteDeps } from './execute-deps.js';
@@ -421,6 +422,8 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
             fleetStreamController,
             applyLiveSettings,
           }),
+          ...createThemeAdapter({ configStore, wpaths }),
+          configStore,
           effectiveMaxContext,
           titleAnimation:
             ((config.autonomy as Record<string, unknown> | undefined)?.[

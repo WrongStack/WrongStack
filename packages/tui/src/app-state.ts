@@ -196,6 +196,13 @@ export type State = {
     selected: number;
     hint?: string | undefined;
   };
+  /** Single-step theme picker — opened by `/theme`. Lists every preset and
+   *  applies the chosen one instantly (in-place palette mutation + persist). */
+  themePicker: {
+    open: boolean;
+    selected: number;
+    hint?: string | undefined;
+  };
   /** Agent mode picker — opened by `/mode`. Selects teach/brief/code-reviewer/etc. */
   modePicker: {
     open: boolean;

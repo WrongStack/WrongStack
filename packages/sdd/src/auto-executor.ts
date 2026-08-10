@@ -2,6 +2,10 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { TaskTracker } from '@wrongstack/core/tasking';
 import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { analyzeCriticalPath } from './critical-path.js';
+import {
+  assertSpecTaskGraphCoverage,
+  assertTaskGraphExecutionIntegrity,
+} from './requirement-coverage.js';
 
 export interface AutoExecutorOptions {
   tracker: TaskTracker;
@@ -72,6 +76,8 @@ export class AutoExecutor {
    * Execute all tasks in the graph, respecting dependencies.
    */
   async execute(graph: TaskGraph, spec: Specification): Promise<ExecutionSummary> {
+    assertSpecTaskGraphCoverage(graph, spec);
+    assertTaskGraphExecutionIntegrity(graph);
     this.stopped = false;
     this.retryMap.clear();
     const startTime = Date.now();
@@ -161,8 +167,8 @@ export class AutoExecutor {
 
       // Check if all blockers are completed
       const blockers = graph.edges
-        .filter((e) => e.type === 'depends_on' && e.from === node.id)
-        .map((e) => graph.nodes.get(e.to))
+        .filter((e) => e.type === 'depends_on' && e.to === node.id)
+        .map((e) => graph.nodes.get(e.from))
         .filter(Boolean) as TaskNode[];
 
       const allBlockersDone = blockers.every((b) => b.status === 'completed');
@@ -243,16 +249,16 @@ export class AutoExecutor {
   /** Get tasks that this task depends on. */
   private getTaskDependencies(taskId: string, graph: TaskGraph): TaskNode[] {
     return graph.edges
-      .filter((e) => e.type === 'depends_on' && e.from === taskId)
-      .map((e) => graph.nodes.get(e.to))
+      .filter((e) => e.type === 'depends_on' && e.to === taskId)
+      .map((e) => graph.nodes.get(e.from))
       .filter(Boolean) as TaskNode[];
   }
 
   /** Get tasks that depend on this task. */
   private getTaskDependents(taskId: string, graph: TaskGraph): TaskNode[] {
     return graph.edges
-      .filter((e) => e.type === 'depends_on' && e.to === taskId)
-      .map((e) => graph.nodes.get(e.from))
+      .filter((e) => e.type === 'depends_on' && e.from === taskId)
+      .map((e) => graph.nodes.get(e.to))
       .filter(Boolean) as TaskNode[];
   }
 
@@ -266,8 +272,8 @@ export class AutoExecutor {
 
     return remaining.every((node) => {
       const blockers = graph.edges
-        .filter((e) => e.type === 'depends_on' && e.from === node.id)
-        .map((e) => graph.nodes.get(e.to))
+        .filter((e) => e.type === 'depends_on' && e.to === node.id)
+        .map((e) => graph.nodes.get(e.from))
         .filter(Boolean) as TaskNode[];
 
       return blockers.some((b) => b.status === 'failed');

@@ -196,7 +196,7 @@ describe('SddInterviewDriver — gap coverage', () => {
       ].join('\n');
       await driver.ingestAgentOutput(tasks);
       const snap = driver.snapshot();
-      expect(snap.taskCount).toBe(2);
+      expect(snap.taskCount).toBe(4);
       expect(snap.board).toBeDefined();
       expect(snap.board!.tasks.length).toBeGreaterThan(0);
       expect(snap.board!.columns.length).toBeGreaterThan(0);

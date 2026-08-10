@@ -140,6 +140,43 @@ export interface FleetConfig {
     | undefined;
   /** Brain-gated fleet supervisor (rebalance/steer/spawn-helper). */
   supervisor?: FleetSupervisorConfig | undefined;
+  /** Roster-agent self-learning: capture → optimize → per-skill addenda. */
+  learning?: AgentLearningConfig | undefined;
+}
+
+/**
+ * Automatic optimization of roster-agent learning.
+ *
+ * Capture is always automatic. This section governs the *distillation* pass
+ * that turns captured directives into per-skill project addenda and a
+ * consolidated role document, then archives and resets the raw buffer.
+ */
+export interface AgentLearningConfig {
+  autoOptimize?:
+    | {
+        /** Run the distillation pass automatically. Default true. */
+        enabled?: boolean | undefined;
+        /** Raw buffer size (bytes) that makes a role eligible. Default 8192. */
+        thresholdBytes?: number | undefined;
+        /** Never optimize a buffer with fewer directives than this. Default 4. */
+        minEntries?: number | undefined;
+        /**
+         * Directives routed to a skill that has no addendum yet. Reaching this
+         * count makes a role eligible even below `thresholdBytes`. Default 3.
+         */
+        minPendingSkillDirectives?: number | undefined;
+        /** Minimum gap between automatic passes for one role. Default 6h. */
+        minIntervalMs?: number | undefined;
+        /** Quiet period after the last capture before a pass starts. Default 20s. */
+        debounceMs?: number | undefined;
+        /**
+         * Evaluate every role once when the fleet host starts, so roles that
+         * became eligible before this session are not stuck waiting for their
+         * next capture. Default true.
+         */
+        sweepOnStart?: boolean | undefined;
+      }
+    | undefined;
 }
 
 /** Config surface for the brain-gated FleetSupervisor. */

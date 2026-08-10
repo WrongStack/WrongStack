@@ -75,7 +75,12 @@
     "palettePurplePink": "Purple & Pink",
     "paletteCyanTeal": "Cyan & Teal",
     "paletteRoseCopper": "Rose & Copper",
-    "paletteIndigoAmber": "Indigo & Amber"
+    "paletteIndigoAmber": "Indigo & Amber",
+    "paletteSageSand": "Sage & Sand",
+    "paletteSlateViolet": "Slate & Violet",
+    "paletteCoralMint": "Coral & Mint",
+    "paletteArcticEmber": "Arctic & Ember",
+    "paletteMossRust": "Moss & Rust"
   },
   "model": {
     "heading": "Model",

@@ -81,6 +81,20 @@ describe('planTool', () => {
     expect(out.count).toBe(2);
   });
 
+  it('supports exact status changes for UI callers', async () => {
+    await planTool.execute({ action: 'add', title: 'one' }, sb.ctx, { signal: newSignal() });
+    await planTool.execute({ action: 'status', target: '1', status: 'in_progress' }, sb.ctx, {
+      signal: newSignal(),
+    });
+    const reopened = await planTool.execute(
+      { action: 'status', target: '1', status: 'open' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    expect(reopened.ok).toBe(true);
+    expect(JSON.parse(await fs.readFile(sb.planPath, 'utf8')).items[0]?.status).toBe('open');
+  });
+
   it('add without title returns ok=false', async () => {
     const out = await planTool.execute({ action: 'add' }, sb.ctx, { signal: newSignal() });
     expect(out.ok).toBe(false);
@@ -101,9 +115,33 @@ describe('planTool', () => {
 
   it('clear empties the plan', async () => {
     await planTool.execute({ action: 'add', title: 'x' }, sb.ctx, { signal: newSignal() });
+    await planTool.execute({ action: 'done', target: '1' }, sb.ctx, { signal: newSignal() });
     const out = await planTool.execute({ action: 'clear' }, sb.ctx, { signal: newSignal() });
     expect(out.count).toBe(0);
     expect(out.open).toBe(0);
+  });
+
+  it('cannot remove or clear unfinished plan items', async () => {
+    await planTool.execute({ action: 'add', title: 'must finish' }, sb.ctx, {
+      signal: newSignal(),
+    });
+
+    const removed = await planTool.execute(
+      { action: 'remove', target: '1' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    const cleared = await planTool.execute(
+      { action: 'clear' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    expect(removed.ok).toBe(false);
+    expect(removed.message).toContain('is not done');
+    expect(cleared.ok).toBe(false);
+    expect(cleared.message).toContain('unfinished items');
+    expect(cleared.count).toBe(1);
   });
 
   it('template_use applies a template', async () => {

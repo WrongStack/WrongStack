@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/simpleui",
-  "version": "0.302.2",
+  "version": "0.302.3",
   "license": "MIT",
   "description": "A deliberately minimal WrongStack browser chat surface.",
   "type": "module",
@@ -31,6 +31,7 @@
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@wrongstack/tools": "workspace:*",
+    "@wrongstack/kanban": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "lucide-react": "^1.26.0",
     "react": "^19.2.8",

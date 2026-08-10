@@ -279,6 +279,7 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
     secretScrubber: new DefaultSecretScrubber(),
     maxToolTimeoutMs: deps.config.tools?.maxToolTimeoutMs ?? 300_000,
     perIterationOutputCapBytes: 1_000_000,
+    requireKanbanGovernance: true,
   });
 
   // Pre-compute the exposed set so tools/list and tools/call agree, and so a

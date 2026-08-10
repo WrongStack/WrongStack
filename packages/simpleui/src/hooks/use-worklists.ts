@@ -53,6 +53,10 @@ export function useWorklists(options: UseWorklistsOptions): UseWorklistsResult {
   const requestWorklist = useCallback(
     (view: WorklistView) => {
       const sessionId = sessionIdRef.current;
+      if (view === 'flow') {
+        socketRef.current?.send('kanban.workbench', { limitPerLane: 6, alertLimit: 6 });
+        return;
+      }
       if (!sessionId) return;
       // Exhaustive view→wire-op mapping: an unhandled `WorklistView` member
       // is a compile error (never assert) instead of silently hitting

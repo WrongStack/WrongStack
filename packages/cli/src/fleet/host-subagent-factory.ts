@@ -43,7 +43,7 @@ import type {
   TextBlock,
   Tool,
 } from '@wrongstack/core/types';
-import { resolveHostSubagentSkillContent, retrieveHostSubagentMemory } from './host-context.js';
+import { resolveHostSubagentSkillResolution, retrieveHostSubagentMemory } from './host-context.js';
 import { installSubagentEventBridge } from './host-event-bridge.js';
 import {
   isAgentAvailable,
@@ -65,7 +65,7 @@ export interface HostSubagentFactoryContext {
   sessionFactory?: DirectorSessionFactory | undefined;
   filterTools: (allow?: string[]) => Tool[];
   mailboxProjectDir: () => string;
-  recordLearningRole: (subagentId: string, role: string) => void;
+  recordLearningRole: (subagentId: string, role: string, skills?: readonly string[]) => void;
   subagentToolRegistry: (allow?: string[]) => ToolRegistry;
 }
 
@@ -206,17 +206,29 @@ export function createHostSubagentFactory(
       });
     }
 
-    const roleSkillContent = await resolveHostSubagentSkillContent(
+    const skillResolution = await resolveHostSubagentSkillResolution(
       host.deps,
       host.roster,
       effectiveCfg,
       subagentTools.map((tool) => tool.name),
     );
-    if (roleSkillContent) {
+    if (skillResolution.content) {
       for (let index = baseSystem.length - 1; index >= 0; index--) {
         if (baseSystem[index]?.text.includes('# Active Skills')) baseSystem.splice(index, 1);
       }
-      baseSystem.push({ type: 'text', text: roleSkillContent });
+      baseSystem.push({ type: 'text', text: skillResolution.content });
+    }
+    const droppedSkills = Object.entries(skillResolution.dropped);
+    if (droppedSkills.length > 0) {
+      // A skill that silently fails to load leaves the agent believing it has
+      // guidance it never received. Surface it on the event bus so the drop is
+      // observable instead of a bare console.warn nobody reads.
+      host.deps.events.emit('subagent.skills.dropped', {
+        sessionId: host.deps.session.id,
+        role: effectiveCfg.role,
+        selected: skillResolution.selected,
+        dropped: Object.fromEntries(droppedSkills),
+      });
     }
 
     const rawRolePrompt =
@@ -235,7 +247,7 @@ export function createHostSubagentFactory(
 
     const subagentName = effectiveCfg.id ?? effectiveCfg.name ?? `sub_${randomUUID().slice(0, 8)}`;
     if (effectiveCfg.role) {
-      host.recordLearningRole(subagentName, effectiveCfg.role);
+      host.recordLearningRole(subagentName, effectiveCfg.role, skillResolution.selected);
     }
     let subSession: SessionWriter;
     if (host.sessionFactory) {
@@ -296,6 +308,7 @@ export function createHostSubagentFactory(
       maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
       perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
       tracer: undefined,
+      requireKanbanGovernance: true,
     });
 
     const subagentConfigStore = host.deps.configStore;

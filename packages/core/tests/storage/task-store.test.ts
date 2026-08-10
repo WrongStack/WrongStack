@@ -162,6 +162,46 @@ describe('task-store', () => {
     }
   });
 
+  it('mutateTasks rejects omission of unfinished task coverage', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-tasks-'));
+    const fp = path.join(dir, 'coverage.tasks.json');
+    try {
+      await saveTasks(fp, {
+        ...emptyTaskFile('sess'),
+        tasks: [makeTask({ id: 'open-task', status: 'pending' })],
+      });
+      await expect(
+        mutateTasks(fp, 'sess', (file) => ({ ...file, tasks: [] })),
+      ).rejects.toThrow('unfinished tasks cannot be omitted');
+      expect((await loadTasks(fp))?.tasks.map((task) => task.id)).toEqual(['open-task']);
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('mutateTasks rejects active task status while a dependency is unfinished', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-tasks-'));
+    const fp = path.join(dir, 'dependencies.tasks.json');
+    try {
+      await saveTasks(fp, {
+        ...emptyTaskFile('sess'),
+        tasks: [
+          makeTask({ id: 'dependency', status: 'pending' }),
+          makeTask({ id: 'dependent', status: 'pending', dependsOn: ['dependency'] }),
+        ],
+      });
+      await expect(
+        mutateTasks(fp, 'sess', (file) => {
+          file.tasks[1]!.status = 'in_progress';
+          return file;
+        }),
+      ).rejects.toThrow('before dependencies complete');
+      expect((await loadTasks(fp))?.tasks[1]?.status).toBe('pending');
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   // ── storage.* event tests ─────────────────────────────────────────────────
 
   it('emits storage.read with outcome success when loadTasks finds a valid file', async () => {

@@ -154,12 +154,11 @@ const LANG_QUERIES: Partial<Record<SymbolLang, NodeQueries>> = {
     // C# 10+ `namespace Foo.Bar;` produces this node type. The legacy block
     // form `namespace Foo.Bar { ... }` produces `namespace_declaration`. Both
     // carry a `qualified_name` child whose text already includes the dots.
-    // `using_directive` is also declared here so the C# test's `using
-    // Example.Services;` produces a symbol with the full dotted name, which
-    // the ModuleResolver then matches against the namespace declaration.
+    // `using_directive` is intentionally not a declaration. Imports are
+    // extracted separately; indexing a using directive as a namespace makes
+    // the resolver bind it to its own source file before the real declaration.
     declKinds: {
       file_scoped_namespace_declaration: 'namespace',
-      using_directive: 'namespace',
       class_declaration: 'class',
       interface_declaration: 'interface',
       struct_declaration: 'struct',

@@ -13,6 +13,7 @@ import { leaderTimelineFromEntries } from './components/agents-monitor.js';
 import type { HistoryScrollController } from './components/scrollable-history.js';
 import type { StatusBarClickMap } from './components/status-bar-types.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
+import { useActiveTheme } from './hooks/use-active-theme.js';
 import { useAppPickerKeys } from './hooks/use-app-picker-keys.js';
 import { useAppRuntimeRefs } from './hooks/use-app-runtime-refs.js';
 import { useAppSessionState } from './hooks/use-app-session-state.js';
@@ -55,6 +56,7 @@ import { useStableKeyHandler } from './hooks/use-stable-key-handler.js';
 import { useStatusbarViewModel } from './hooks/use-statusbar-view-model.js';
 import { useStatuslineHiddenSync } from './hooks/use-statusline-hidden-sync.js';
 import { useStreamChipExpiration } from './hooks/use-stream-chip-expiration.js';
+import { useThemeState } from './hooks/use-theme-state.js';
 import { useTuiActivity } from './hooks/use-tui-activity.js';
 import { useTuiControllers } from './hooks/use-tui-controllers.js';
 import { useTuiEnvironmentState } from './hooks/use-tui-environment-state.js';
@@ -64,6 +66,7 @@ import { useWorkingDirChip } from './hooks/use-working-dir-chip.js';
 import { useApp, useStdout } from './ink.js';
 import { createRunBlocksController } from './run-blocks-controller.js';
 import { createSubmitController } from './submit-controller.js';
+import { getActiveThemeName, setActiveTheme, THEME_OPTIONS, type ThemeName } from './theme.js';
 
 export {
   type Action,
@@ -206,9 +209,22 @@ export function App(props: AppProps): React.ReactElement {
     coordinatorRunning = false,
     clientId,
     memoryStore,
+    configStore,
   } = props;
   const { exit } = useApp();
   const { stdout } = useStdout();
+  // Subscribe to theme changes so this App tree re-renders whenever
+  // `setActiveTheme()` mutates the global palette. Children read `theme`
+  // directly via destructuring, so a single root re-render propagates the
+  // new palette into the whole subtree (matches the autonomyPicker /
+  // modePicker pattern that drives every other live state surface).
+  useActiveTheme();
+  // Boot-time: apply `config.themePreset` once on mount, then keep the
+  // live palette in sync with config writes (REPL `/theme <preset>`,
+  // future settings UI, hot-reload). Both empty and undefined store
+  // values are no-ops, so legacy configs without `themePreset` keep the
+  // catppuccin default.
+  useThemeState({ configStore });
   const environment = useTuiEnvironmentState({
     events,
     memoryStore,
@@ -903,6 +919,42 @@ export function App(props: AppProps): React.ReactElement {
     tokenPreviewsRef,
   });
 
+  // Enter-handler for the /theme picker: apply the highlighted preset,
+  // persist to configStore, then close the picker. The persistence write
+  // is best-effort — if ConfigStore.update throws (e.g. transient disk
+  // failure) the picker still closes and the visual palette reflects the
+  // user's pick; the next session will fall back to whatever's on disk.
+  const onThemePickerEnter = useCallback(() => {
+    const preset = THEME_OPTIONS[Math.max(0, state.themePicker.selected)];
+    const presetName: ThemeName | undefined = preset?.id;
+    if (!presetName) return;
+    setActiveTheme(presetName);
+    try {
+      configStore?.update({ themePreset: presetName });
+      void props.saveThemePreset?.(presetName).catch((err) => {
+        dispatch({
+          type: 'addEntry',
+          entry: {
+            kind: 'warn',
+            text: `Theme applied in-memory but could not persist to disk: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        });
+      });
+    } catch {
+      /* best-effort — see comment above */
+    }
+    dispatch({
+      type: 'addEntry',
+      entry: {
+        kind: 'info',
+        text: `Theme preset switched to "${presetName}"${
+          getActiveThemeName() === presetName ? '' : ` (fallback applied: ${getActiveThemeName()})`
+        }.`,
+      },
+    });
+    dispatch({ type: 'themePickerClose' });
+  }, [configStore, dispatch, state.themePicker.selected]);
+
   const tryPickerKey = useAppPickerKeys({
     host: props,
     state,
@@ -924,6 +976,7 @@ export function App(props: AppProps): React.ReactElement {
     handleShadowStop,
     statuslineHiddenForPicker,
     onPickerEnter,
+    onThemePickerEnter,
   });
   const { interruptsSyncRef, runInterruptLadder } = useInterruptLadder({
     stateRef,

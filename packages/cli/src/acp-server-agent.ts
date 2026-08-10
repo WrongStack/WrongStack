@@ -363,6 +363,7 @@ export function buildAcpServerAgentFactory(
       maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
       perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
       tracer: undefined,
+      requireKanbanGovernance: true,
     });
 
     return new Agent({

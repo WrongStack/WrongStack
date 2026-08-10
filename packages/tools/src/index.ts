@@ -169,6 +169,7 @@ export {
   SESSION_KANBAN_COLUMNS,
 } from './session-kanban.js';
 export { makeSkillTool } from './skill.js';
+export { taskTool } from './task.js';
 export { testTool } from './test.js';
 export { todoTool } from './todo.js';
 export { toolHelpTool } from './tool-help.js';

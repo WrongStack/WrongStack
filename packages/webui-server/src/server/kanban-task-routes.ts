@@ -1,12 +1,12 @@
 import type { Context } from '@wrongstack/core/agent';
 import {
+  getKanbanWorkbench,
   getTask,
   listTaskActivity,
   recordTaskActivity,
   removeTask,
 } from '@wrongstack/kanban';
 import type { WebSocket } from 'ws';
-import type { WSServerMessage } from './types.js';
 import {
   activityContext,
   fail,
@@ -14,6 +14,7 @@ import {
   syncSessionSource,
   touchTaskPresence,
 } from './kanban-route-helpers.js';
+import type { WSServerMessage } from './types.js';
 
 export interface KanbanTaskRouteContext {
   projectRoot: string;
@@ -28,6 +29,18 @@ export async function handleKanbanTaskRoute(
   ctx: KanbanTaskRouteContext,
 ): Promise<boolean> {
   switch (type) {
+    case 'kanban.workbench':
+      ok(
+        ws,
+        type,
+        await getKanbanWorkbench(ctx.projectRoot, {
+          ...(typeof payload?.limitPerLane === 'number'
+            ? { limitPerLane: payload.limitPerLane }
+            : {}),
+          ...(typeof payload?.alertLimit === 'number' ? { alertLimit: payload.alertLimit } : {}),
+        }),
+      );
+      return true;
     case 'kanban.task.remove':
       await handleTaskRemove(ws, type, payload, ctx);
       return true;
@@ -148,10 +161,7 @@ async function handleTaskActivityAdd(
         ? { details: payload.details.trim() }
         : {}),
     },
-    activityContext(
-      ctx,
-      (payload?.actor as string | undefined) ?? ctx.context?.agentId ?? 'webui',
-    ),
+    activityContext(ctx, (payload?.actor as string | undefined) ?? ctx.context?.agentId ?? 'webui'),
   );
   board ? ok(ws, type, board) : fail(ws, type, 'Board or task not found');
 }

@@ -1,15 +1,19 @@
 import {
-  buildConsolidationInstruction,
-  captureLearnedFromAgentOutput,
+  captureLearnedFromAgentOutputDetailed,
   getProjectAgentLearnStats,
-  isConsolidated,
+  listProjectSkillAugmentations,
   loadConsolidationMetadata,
   loadProjectAgentConfig,
   loadProjectAgentIdentity,
   loadProjectAgentLearned,
+  loadProjectSkillAugmentation,
   loadRoleKnowledgeManifest,
+  loadSkillAffinity,
+  optimizeProjectAgentLearning,
   refreshProjectAgentIdentity,
   resetProjectAgentIdentity,
+  resolveRoleSkillCandidates,
+  setSkillPinned,
   updateProjectAgentIdentity,
 } from '@wrongstack/core/agent-catalog';
 import type { SlashCommand } from '@wrongstack/core/types';
@@ -23,7 +27,10 @@ import type { SlashCommandContext } from './command-context.js';
  *   show         — display current customization for one or all roles
  *   update       — write new identity/learned content (prompts for content)
  *   refresh     — reset identity.md + learned.md to empty templates (keep config/knowledge)
- *   consolidate  — optimize raw learned entries into a reviewed, consolidated document
+ *   capture      — re-scan the last turn for ## LEARNED blocks
+ *   optimize     — distil captures into per-skill addenda + a consolidated document
+ *                  (alias: consolidate)
+ *   skills       — list skills with project affinity; show or pin one
  *   reset        — delete ALL project customizations for a role (rm -rf the dir)
  *   reset-all    — delete customizations for EVERY role
  */
@@ -47,7 +54,7 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
     name: 'agent-improve',
     category: 'Config',
     description:
-      'Manage project-custom agent identities: show, update, refresh or reset per-role overrides.',
+      "Inspect and develop a roster agent for this project: learned directives, per-skill project addenda and the optimization pass.",
     help: [
       'Usage:',
       '  /agent-improve [role]                Show customization for a role (or all roles)',
@@ -55,20 +62,26 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
       '  /agent-improve [role] update         Update identity + learned content',
       '  /agent-improve [role] refresh        Reset identity + learned to empty templates',
       '  /agent-improve [role] capture        Scan last output for ## LEARNED blocks and persist them',
-      '  /agent-improve [role] consolidate    Optimize raw learned entries into a consolidated document',
+      '  /agent-improve [role] optimize       Distil learning into skill addenda + a consolidated doc',
+      "  /agent-improve [role] skills         Show the role's skills, affinity and project addenda",
+      "  /agent-improve [role] skills <skill> Show one skill's project addendum",
+      '  /agent-improve [role] skills <skill> pin|unpin   Always/never keep this skill loaded',
       '  /agent-improve [role] reset          Delete ALL custom files for this role',
       '  /agent-improve * reset               Delete ALL custom files for every role',
       '',
       'Use without arguments to see which roles have project-customizations.',
       '',
-      'Knowledge automation:',
-      '  Agents output a ## LEARNED section in their response to persist',
-      '  project-specific patterns. The runtime captures these automatically.',
-      '  Use "capture" to manually re-scan any text for LEARNED blocks.',
-      '  Use "consolidate" to synthesize all raw entries into a single',
-      '  narrowly-scoped document that replaces raw entries in the agent prompt.',
+      'Learning loop (runs on its own):',
+      '  Agents end a run with a ## LEARNED block, optionally tagged with the',
+      '  skill it refines: `## LEARNED [skill: testing]`. The runtime captures it,',
+      '  routes it to that skill, and a background pass distils it into that skill’s',
+      '  project addendum — injected beneath the bundled skill body on the next spawn.',
+      '  Capture also runs on failed tasks. Use "capture" to re-scan the last turn',
+      '  by hand and "optimize" to force a distillation early.',
       '',
-      'Files live under: .wrongstack/agents/<role>/',
+      'Files live under: .wrongstack/agents/<role>/ (committed; skills/affinity.json',
+      'and archive/ stay local). Disable the automatic pass with',
+      'fleet.learning.autoOptimize.enabled = false.',
     ].join('\n'),
 
     async run(args: string) {
@@ -111,7 +124,11 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
           const idText = loadProjectAgentIdentity(role, projectRoot);
           const learned = loadProjectAgentLearned(role, projectRoot);
           const kn = loadRoleKnowledgeManifest(role, projectRoot);
+          const developedSkills = listProjectSkillAugmentations(role, projectRoot);
           const lines: string[] = [`${color.bold(role)} project identity:`];
+          if (developedSkills.length > 0) {
+            lines.push(`  skills developed: ${developedSkills.join(', ')}`);
+          }
           if (cfg) lines.push(`  config: ${JSON.stringify(cfg)}`);
           if (kn)
             lines.push(
@@ -149,39 +166,129 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
         case 'capture': {
           const storedOutput = opts.context?.meta['lastAgentOutput'];
           const recentOutput = typeof storedOutput === 'string' ? storedOutput : '';
-          const captured = captureLearnedFromAgentOutput(recentOutput, role, projectRoot, true);
-          if (captured > 0) {
-            const msg = `Captured ${captured} learned item(s) for role "${role}". Use /agent-improve ${role} to see them.`;
+          if (!recentOutput) {
+            return {
+              message:
+                'No agent output recorded yet in this session. Run a turn first, then re-run capture.',
+            };
+          }
+          const result = captureLearnedFromAgentOutputDetailed(
+            recentOutput,
+            role,
+            projectRoot,
+            true,
+          );
+          if (result.captured > 0) {
+            const routed = result.skills?.length
+              ? ` Routed to skill(s): ${result.skills.join(', ')}.`
+              : '';
+            const msg = `Captured ${result.captured} learned item(s) for role "${role}".${routed} Use /agent-improve ${role} to see them.`;
             opts.renderer.write(msg);
             return { message: msg };
           }
           return {
-            message: `No ## LEARNED blocks found in recent output for role "${role}".`,
+            message:
+              result.reason ??
+              `No ## LEARNED blocks found in recent output for role "${role}" (status: ${result.status}).`,
           };
         }
 
+        case 'optimize':
         case 'consolidate': {
           const stats = getProjectAgentLearnStats(role, projectRoot);
           if (stats.entryCount === 0) {
-            const msg = `No raw learned entries for role "${role}" to consolidate.`;
+            const msg = `No raw learned entries for role "${role}" to optimize.`;
             opts.renderer.write(msg);
             return { message: msg };
           }
-          const { instruction } = buildConsolidationInstruction(role, projectRoot);
-          const prompt = `Optimize what the "${role}" agent has learned for its skills. ${instruction}`;
-          const consolidatedAlready = isConsolidated(role, projectRoot);
-          const meta = loadConsolidationMetadata(role, projectRoot);
-          const summary =
-            `${color.cyan(role)}: ${stats.entryCount} raw entries (${stats.totalBytes}B)` +
-            (consolidatedAlready && meta
-              ? ` · last consolidated ${meta.consolidatedAt.slice(0, 10)} (${meta.sourceBytes}B → ${meta.consolidatedBytes}B)`
-              : ' · no prior consolidation') +
-            '\n\nSending consolidation instruction to the agent...';
-          opts.renderer.write(summary);
-          return {
-            message: summary,
-            runText: prompt,
-          };
+          const before = loadConsolidationMetadata(role, projectRoot);
+          opts.renderer.write(
+            `${color.cyan(role)}: optimizing ${stats.entryCount} directive(s) (${stats.totalBytes}B)` +
+              (before
+                ? ` · last optimized ${before.consolidatedAt.slice(0, 10)}`
+                : ' · no prior optimization') +
+              '…',
+          );
+          const llm =
+            opts.llmProvider && opts.llmModel
+              ? { provider: opts.llmProvider, model: opts.llmModel }
+              : undefined;
+          const result = await optimizeProjectAgentLearning(role, projectRoot, {
+            ...(llm ? { llm } : {}),
+            trigger: 'manual',
+          });
+          const skillNote = result.skills.length
+            ? ` Skill addenda refreshed: ${result.skills.join(', ')}.`
+            : '';
+          switch (result.status) {
+            case 'optimized': {
+              const after = loadConsolidationMetadata(role, projectRoot);
+              const msg =
+                `Optimized "${role}": ${result.rawEntryCount} directive(s) → ${after?.consolidatedBytes ?? 0}B consolidated.` +
+                skillNote +
+                (result.pruned ? ' Raw buffer archived and reset.' : '');
+              opts.renderer.write(msg);
+              return { message: msg };
+            }
+            case 'empty-synthesis':
+              return {
+                message: `Model "${result.model}" returned an empty document; the existing knowledge for "${role}" was left untouched.${skillNote}`,
+              };
+            case 'failed':
+              return { message: `Optimization failed for "${role}": ${result.error}${skillNote}` };
+            case 'no-llm':
+              // No provider on this session — hand the role-level instruction
+              // to the chat agent, which can write the document itself.
+              return {
+                message: `No active model; routing the "${role}" consolidation through the agent.${skillNote}`,
+                runText:
+                  `${result.instruction}\n\n---\n\nWhen the document is ready, save it to ` +
+                  `.wrongstack/agents/${role}/consolidated.md — or re-run the optimization ` +
+                  `with a model configured so the runtime persists it for you.`,
+              };
+            default:
+              return { message: `Nothing to optimize for "${role}".` };
+          }
+        }
+
+        case 'skills': {
+          const candidates = resolveRoleSkillCandidates(role, projectRoot);
+          const developed = listProjectSkillAugmentations(role, projectRoot);
+          const affinity = loadSkillAffinity(role, projectRoot);
+          const target = parts[2];
+          if (target && parts[3]) {
+            const skillAction = parts[3];
+            if (skillAction !== 'pin' && skillAction !== 'unpin') {
+              return { message: `Unknown skill action "${skillAction}". Use pin or unpin.` };
+            }
+            setSkillPinned(role, target, skillAction === 'pin', projectRoot);
+            const msg = `${skillAction === 'pin' ? 'Pinned' : 'Unpinned'} skill "${target}" for role "${role}".`;
+            opts.renderer.write(msg);
+            return { message: msg };
+          }
+          if (target) {
+            const body = loadProjectSkillAugmentation(role, target, projectRoot);
+            const msg = body
+              ? `${color.bold(`${role} · ${target}`)}\n\n${body}`
+              : `No project addendum for skill "${target}" on role "${role}" yet.`;
+            opts.renderer.write(msg);
+            return { message: msg };
+          }
+          const skillLines = candidates.map((skill) => {
+            const entry = affinity.entries[skill];
+            const marks = [
+              developed.includes(skill) ? 'developed' : '',
+              entry?.pinned ? 'pinned' : '',
+              entry?.learned ? `${entry.learned} learned` : '',
+              entry ? `${entry.succeeded}✓/${entry.failed}✗ of ${entry.loaded} loads` : 'unused',
+            ].filter(Boolean);
+            return `  ${color.cyan(skill.padEnd(22))} ${marks.join(' · ')}`;
+          });
+          const msg = candidates.length
+            ? `Skills for ${color.bold(role)}:\n${skillLines.join('\n')}`
+            : `Role "${role}" has no curated skills.`;
+          opts.renderer.write(msg);
+          return { message: msg };
         }
 
         case 'reset': {
@@ -206,7 +313,7 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
 
         default:
           return {
-            message: `Unknown action "${action}". Use: show, update, refresh, capture, consolidate, reset, or reset-all.`,
+            message: `Unknown action "${action}". Use: show, update, refresh, capture, optimize, skills, reset, or reset-all.`,
           };
       }
     },

@@ -48,6 +48,13 @@ export function subjectForToolInput(
 
   if (subjectKey) {
     const value = obj[subjectKey];
+    if (Array.isArray(value)) {
+      // Structured batch tools (for example `todo`) still need a stable,
+      // per-invocation permission subject. JSON preserves array order and
+      // object insertion order from the validated input; escaping glob
+      // metacharacters keeps the stored trust rule literal.
+      return escapeGlobSubject(JSON.stringify(value));
+    }
     if (typeof value === 'string') {
       if (isPathSubjectKey(subjectKey)) {
         const normalized = normalizePathSubject(value);

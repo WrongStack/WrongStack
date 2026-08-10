@@ -202,6 +202,15 @@ describe('bundled instruction tool-reference integrity', () => {
       expect(withTracking, name).toContain('completed → Done');
       expect(withTracking, name).toContain('Never leave completed work in Running');
       expect(withTracking, name).toContain('next-step prompt');
+      expect(withTracking, name).toContain('Keep Contract Map off the critical path');
+      expect(withTracking, name).toContain('never enable');
+      expect(withTracking, name).toContain('No Contract Map mode');
+      expect(withTracking, name).toContain('Never shrink tracked scope by omission');
+      expect(withTracking, name).toContain('Every actionable work request MUST');
+      expect(withTracking, name).toContain('Kanban first, project action second');
+      expect(withTracking, name).toContain('one-line edit');
+      expect(withTracking, name).toContain('executable leaf');
+      expect(withTracking, name).not.toContain('Use `kanban` only when');
 
       const kanbanOnly = renderInstructionLayer(raw, ctx(['kanban']));
       expect(kanbanOnly, name).not.toContain('## Todo status lifecycle');

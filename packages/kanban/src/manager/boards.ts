@@ -1,3 +1,4 @@
+import { normalizeKanbanBoundaryPolicy } from '../boundary.js';
 import {
   createBoardObject,
   deleteBoard,
@@ -16,7 +17,6 @@ import type {
   UpdateKanbanBoardInput,
   UpdateKanbanColumnInput,
 } from '../types.js';
-import { normalizeKanbanBoundaryPolicy } from '../boundary.js';
 import {
   applyCompletedAtForStatus,
   cloneTaskForBoard,
@@ -33,6 +33,7 @@ import {
   statusForColumn,
   uniqueColumnId,
 } from './_internal.js';
+import { cloneContractGraphForBoard } from './contract-graph.js';
 import { initializeAndValidateManagedTask, validateManagedLifecyclePolicy } from './lifecycle.js';
 import { withLiveKanbanPresence } from './presence.js';
 
@@ -80,7 +81,10 @@ export async function listBoards(projectRoot: string) {
   return (await listBoardSummaries(projectRoot)).map((board) => ({
     ...board,
     ...(board.presence !== undefined
-      ? { presence: withLiveKanbanPresence({ ...board, columns: [], tasks: [], version: 1 }).presence }
+      ? {
+          presence: withLiveKanbanPresence({ ...board, columns: [], tasks: [], version: 1 })
+            .presence,
+        }
       : {}),
   }));
 }
@@ -114,10 +118,11 @@ export async function updateBoard(
     }
     if (input.lifecycle !== undefined) {
       if (input.lifecycle === null) delete board.lifecycle;
-      else board.lifecycle = {
-        ...input.lifecycle,
-        columns: { ...input.lifecycle.columns },
-      };
+      else
+        board.lifecycle = {
+          ...input.lifecycle,
+          columns: { ...input.lifecycle.columns },
+        };
     }
     if (input.boundary !== undefined) {
       if (input.boundary === null) delete board.boundary;
@@ -167,7 +172,9 @@ export async function duplicateBoard(
       : {}),
     ...(source.boundary !== undefined ? { boundary: { ...source.boundary } } : {}),
     ...(source.atomicity !== undefined ? { atomicity: { ...source.atomicity } } : {}),
-    ...(source.completionGate !== undefined ? { completionGate: { ...source.completionGate } } : {}),
+    ...(source.completionGate !== undefined
+      ? { completionGate: { ...source.completionGate } }
+      : {}),
   });
 
   if (input.includeTasks !== false) {
@@ -197,6 +204,7 @@ export async function duplicateBoard(
       if (!original || !cloned) continue;
       remapTaskReferences(cloned, original, idMap);
     }
+    cloneContractGraphForBoard(source, board, idMap);
   }
 
   await writeBoard(projectRoot, board);

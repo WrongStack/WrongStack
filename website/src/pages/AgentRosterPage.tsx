@@ -1,4 +1,4 @@
-import { ArrowDown, Bot, Check, Gauge, Search, Sparkles, Workflow } from 'lucide-react';
+import { ArrowDown, Bot, Check, Gauge, GraduationCap, Search, Sparkles, Workflow } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   ExternalDoc,
@@ -339,6 +339,47 @@ export function AgentRosterPage() {
             <code className="font-mono text-xs text-brand">/fleet spawn &lt;role&gt;</code> when you
             already know the specialist.
           </p>
+        </div>
+      </section>
+
+      <section className="border-y border-line bg-surface">
+        <div className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10">
+          <SectionIntro
+            index="06"
+            eyebrow="Self-learning"
+            title="Every role develops its skills in your project."
+            description="A role ships with a base definition. What it becomes here is learned from the work — and what grows are its skills, not a side pile of recalled facts."
+          />
+          <div className="mt-12 grid gap-6 lg:grid-cols-3">
+            {[
+              {
+                title: 'It learns from real runs',
+                body: 'A subagent closes a task with a durable directive tagged to the skill it refines. Narrative session logs are rejected at the gate; only cross-session rules survive. Failed and cancelled runs are captured too.',
+              },
+              {
+                title: 'The lesson becomes part of the skill',
+                body: 'A background pass distils the directives into a project addendum for that skill, injected directly beneath the bundled body on the next spawn. Your verifier does not remember a fact about this repo — its testing skill is better here.',
+              },
+              {
+                title: 'It compounds, and it travels',
+                body: 'Skill selection is ranked by what the project actually developed, the buffer is archived and reset after each pass so an agent can never fill up and stop learning, and the whole thing is committed — a fresh clone starts trained.',
+              },
+            ].map(({ title, body }) => (
+              <article key={title} className="rounded-2xl border border-line bg-card p-7">
+                <GraduationCap className="size-5 text-brand" />
+                <h2 className="mt-8 text-xl font-black text-fg">{title}</h2>
+                <p className="mt-4 text-sm leading-7 text-muted">{body}</p>
+              </article>
+            ))}
+          </div>
+          <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+            <Check className="mt-1 size-4 shrink-0 text-emerald-500" />
+            <p className="text-sm leading-7 text-muted">
+              It runs unattended. Use{' '}
+              <code className="font-mono text-xs text-brand">/agent-improve &lt;role&gt;</code> to
+              read what an agent has learned, teach it directly, or force a distillation early.
+            </p>
+          </div>
         </div>
       </section>
 

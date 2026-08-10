@@ -20,32 +20,41 @@
 
 import {
   applyProjectAgentConfig,
-  buildConsolidationInstruction,
   captureLearnedFromAgentOutputDetailed,
   clearProjectAgentConsolidated,
+  clearProjectSkillAugmentation,
   createProjectAgent,
   detectLearnedConflicts,
+  evaluateAutoOptimize,
   FLEET_ROSTER,
   getProjectAgentLearnStats,
   isConsolidated,
   listProjectAgentLearnedEntries,
   listProjectAgentRoles,
+  listProjectSkillAugmentations,
   loadConsolidationMetadata,
   loadProjectAgentConfig,
   loadProjectAgentConsolidated,
   loadProjectAgentIdentity,
   loadProjectAgentLearned,
   loadProjectAgentProfile,
+  loadProjectSkillAugmentation,
+  loadSkillAffinity,
+  optimizeProjectAgentLearning,
+  readRawLearnedEntries,
   resetProjectAgentIdentity,
+  resolveAutoOptimizePolicy,
+  resolveRoleSkillCandidates,
   saveProjectAgentConsolidated,
+  saveProjectSkillAugmentation,
+  setSkillPinned,
   slugifyProjectAgentRole,
   updateProjectAgentConfig,
   updateProjectAgentIdentity,
   updateProjectAgentLearned,
   updateProjectAgentLearningPolicy,
 } from '@wrongstack/core/coordination';
-import { isTextBlock } from '@wrongstack/core/types';
-import type { Provider, Request } from '@wrongstack/core/types';
+import type { Provider } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 
@@ -74,89 +83,28 @@ export interface AgentRosterHandlerOptions {
    * clients refresh the affected roster card without a manual reload.
    */
   broadcast?: (msg: WSServerMessage) => void;
+  /**
+   * Live read of `fleet.learning.autoOptimize`. Optional: without it the
+   * status endpoint reports the built-in defaults, which is still the right
+   * answer for a host that never overrode them.
+   */
+  getAutoOptimizeSettings?: (() => Record<string, unknown> | undefined) | undefined;
 }
-
-/** Hard cap on synthesized consolidation output. */
-const CONSOLIDATION_MAX_TOKENS = 8000;
-/** Wall-clock budget for a single headless consolidation LLM call. */
-const CONSOLIDATION_TIMEOUT_MS = 120_000;
 
 export class AgentRosterWSHandler {
   private readonly getProjectRoot: () => string;
   private readonly getLlm: () => AgentRosterLlm | undefined;
   private readonly broadcast: (msg: WSServerMessage) => void;
+  private readonly getAutoOptimizeSettings:
+    | (() => Record<string, unknown> | undefined)
+    | undefined;
 
   constructor(opts: AgentRosterHandlerOptions) {
     this.getProjectRoot =
       typeof opts.projectRoot === 'function' ? opts.projectRoot : () => opts.projectRoot as string;
     this.getLlm = opts.getLlm ?? (() => undefined);
     this.broadcast = opts.broadcast ?? (() => {});
-  }
-
-  /**
-   * Run the consolidation LLM synthesis headlessly and return the cleaned
-   * document text. Returns undefined when no LLM is available so the caller
-   * can fall back to the instruction-only path.
-   */
-  private async synthesizeConsolidation(
-    instruction: string,
-  ): Promise<{ content: string; model: string } | undefined> {
-    const llm = this.getLlm();
-    if (!llm) return undefined;
-
-    const req: Request = {
-      model: llm.model,
-      system: [
-        {
-          type: 'text',
-          text:
-            'You are a precise technical editor. You consolidate an AI agent role\'s ' +
-            'captured learning entries into a single, durable, role-scoped instruction ' +
-            'document. Output ONLY the consolidated markdown document — no preamble, no ' +
-            'code fences, no commentary about the consolidation process.',
-        },
-      ],
-      messages: [{ role: 'user', content: instruction }],
-      maxTokens: CONSOLIDATION_MAX_TOKENS,
-    };
-
-    const timer = new AbortController();
-    let timedOut = false;
-    const to = setTimeout(() => {
-      timedOut = true;
-      timer.abort(new Error('consolidation timeout'));
-    }, CONSOLIDATION_TIMEOUT_MS);
-    to.unref();
-    try {
-      const res = await llm.provider.complete(req, { signal: timer.signal });
-      const text = res.content
-        .filter(isTextBlock)
-        .map((block) => block.text)
-        .join('\n')
-        .trim();
-      // Strip an accidental ```markdown / ``` fence wrapper if the model wrapped
-      // the WHOLE document in one. Gate on a single wrapper fence that spans the
-      // entire output so a doc that legitimately starts or ends with a real code
-      // block is not corrupted (that doc has an interior closing/opening fence,
-      // so the whole-document pattern below will not match).
-      const wholeDocFence = /^```(?:markdown|md)?[^\n]*\n([\s\S]*?)\n?```\s*$/i;
-      const wrapped = wholeDocFence.exec(text);
-      const inner = wrapped?.[1];
-      const unfenced = inner !== undefined ? inner.trim() : text;
-      return { content: unfenced, model: llm.model };
-    } catch (err) {
-      // Providers surface an abort as a generic AbortError; translate the
-      // timeout case into a clear, caller-facing message.
-      if (timedOut) {
-        throw new Error(`consolidation timed out after ${CONSOLIDATION_TIMEOUT_MS}ms`);
-      }
-      throw err;
-    } finally {
-      // The AbortController exists solely to cancel the in-flight request on
-      // timeout; the timeout path aborts itself. On the success path there is
-      // nothing left to cancel, so only clear the pending timer here.
-      clearTimeout(to);
-    }
+    this.getAutoOptimizeSettings = opts.getAutoOptimizeSettings;
   }
 
   /** Handle an incoming client message. Returns a response payload. */
@@ -400,88 +348,54 @@ export class AgentRosterWSHandler {
         return { type, payload: { conflicts } };
       }
 
-      // ── Consolidate learned entries (headless LLM synthesis) ──────────
-      // Runs the whole optimization on the server: read raw entries →
-      // synthesize with the active model → write consolidated.md +
-      // consolidation.json. No chat round-trip. When no LLM is available the
-      // handler degrades to returning the instruction so a caller (e.g. the
-      // chat agent) can still perform the consolidation manually.
-      case 'agent-roster.consolidate': {
+      // ── Optimize: distil captures into skill addenda + a consolidated doc,
+      // then archive and reset the raw buffer. Shared implementation with the
+      // CLI (`optimizeProjectAgentLearning`) so both surfaces persist the same
+      // artifacts instead of the CLI producing markdown nobody saved.
+      case 'agent-roster.consolidate':
+      case 'agent-roster.optimize': {
         if (!role) return { type, payload: { error: 'role required' } };
-        const { instruction, rawEntries, hasExistingConsolidation } =
-          buildConsolidationInstruction(role, projectRoot);
-
-        // Nothing to optimize — surface a clear, non-error signal.
-        if (rawEntries.length === 0) {
+        const hasExistingConsolidation = isConsolidated(role, projectRoot);
+        // Resolve the model only when there is something to optimize: pulling
+        // the active provider is not free, and a role with no captures must
+        // not touch it at all.
+        const pending = readRawLearnedEntries(role, projectRoot);
+        if (pending.length === 0) {
           return {
             type: 'agent-roster.consolidate',
             payload: {
               role,
               consolidated: false,
               rawEntryCount: 0,
+              skills: [],
               hasExistingConsolidation,
               currentStats: getProjectAgentLearnStats(role, projectRoot),
             },
           };
         }
+        const llm = this.getLlm();
+        const result = await optimizeProjectAgentLearning(role, projectRoot, {
+          ...(llm ? { llm } : {}),
+          trigger: 'manual',
+        });
+        const currentStats = getProjectAgentLearnStats(role, projectRoot);
+        const metadata = loadConsolidationMetadata(role, projectRoot);
+        const basePayload = {
+          role,
+          rawEntryCount: result.rawEntryCount,
+          skills: result.skills,
+          hasExistingConsolidation,
+          currentStats,
+        };
 
-        // Headless path: synthesize + persist directly on the server.
-        let synth: { content: string; model: string } | undefined;
-        try {
-          synth = await this.synthesizeConsolidation(instruction);
-        } catch (err) {
-          return {
-            type: 'agent-roster.consolidate',
-            payload: {
-              role,
-              consolidated: false,
-              rawEntryCount: rawEntries.length,
-              hasExistingConsolidation,
-              currentStats: getProjectAgentLearnStats(role, projectRoot),
-              error: err instanceof Error ? err.message : 'consolidation failed',
-            },
-          };
-        }
-
-        if (synth && synth.content.length > 0) {
-          let stats: ReturnType<typeof getProjectAgentLearnStats>;
-          let metadata: ReturnType<typeof loadConsolidationMetadata>;
-          try {
-            saveProjectAgentConsolidated(role, synth.content, projectRoot, {
-              trigger: 'manual',
-              model: synth.model,
-            });
-            stats = getProjectAgentLearnStats(role, projectRoot);
-            metadata = loadConsolidationMetadata(role, projectRoot);
-          } catch (err) {
-            // Persisting the consolidated document failed (e.g. filesystem
-            // error). Surface a structured failure instead of rejecting.
-            return {
-              type: 'agent-roster.consolidate',
-              payload: {
-                role,
-                consolidated: false,
-                rawEntryCount: rawEntries.length,
-                hasExistingConsolidation,
-                currentStats: getProjectAgentLearnStats(role, projectRoot),
-                error: err instanceof Error ? err.message : 'failed to persist consolidation',
-              },
-            };
-          }
-          // Push a fresh roster card to every other connected client so they
-          // reflect the new consolidated state without a manual reload. The
-          // document is already persisted, so a broadcast failure (e.g. a
-          // disconnected client iterator) must not reject the handler and
-          // swallow the success response below.
+        if (result.status === 'optimized') {
           try {
             this.broadcast({
               type: 'agent-roster.updated',
-              payload: { role, reason: 'consolidated', currentStats: stats, metadata },
+              payload: { role, reason: 'consolidated', currentStats, metadata },
             });
           } catch (e) {
-            // Best-effort notification only; the consolidation itself succeeded.
-            // Log so a real bug in `broadcast` (TypeError, malformed message) is
-            // surfaced instead of silently swallowed alongside dead-client errors.
+            // Best-effort notification only; the optimization itself succeeded.
             console.warn(
               JSON.stringify({
                 level: 'warn',
@@ -495,54 +409,114 @@ export class AgentRosterWSHandler {
           return {
             type: 'agent-roster.consolidate',
             payload: {
-              role,
+              ...basePayload,
               consolidated: true,
-              rawEntryCount: rawEntries.length,
-              content: synth.content,
-              model: synth.model,
-              currentStats: stats,
+              content: result.content,
+              model: result.model,
+              pruned: result.pruned,
               metadata,
             },
           };
         }
 
-        // The model was available and ran, but produced only whitespace /
-        // fencing. This is distinct from "no model available": signal it
-        // explicitly so a caller can tell an empty synthesis apart from the
-        // instruction-fallback path below and avoid corrupting the doc.
-        if (synth) {
-          return {
-            type: 'agent-roster.consolidate',
-            payload: {
-              role,
-              consolidated: false,
-              emptySynthesis: true,
-              model: synth.model,
-              rawEntryCount: rawEntries.length,
-              hasExistingConsolidation,
-              currentStats: getProjectAgentLearnStats(role, projectRoot),
-            },
-          };
-        }
-
-        // Fallback path (no active model): return the instruction so a
-        // caller can drive the consolidation through the chat agent.
         return {
           type: 'agent-roster.consolidate',
           payload: {
-            role,
+            ...basePayload,
             consolidated: false,
-            instruction,
-            rawEntryCount: rawEntries.length,
-            hasExistingConsolidation,
-            currentStats: getProjectAgentLearnStats(role, projectRoot),
-            // Instruction for the leader agent to execute the consolidation
-            leaderInstruction:
-              `Optimize what the "${role}" agent has learned. Read its raw learned entries, ` +
-              `synthesize them into a single narrowly-scoped document preserving every fact, and ` +
-              `save the result. The instruction text contains the full details and raw entries.`,
+            ...(result.status === 'empty-synthesis'
+              ? { emptySynthesis: true, model: result.model }
+              : {}),
+            ...(result.status === 'failed' ? { error: result.error } : {}),
+            ...(result.status === 'no-llm'
+              ? {
+                  instruction: result.instruction,
+                  leaderInstruction:
+                    `Optimize what the "${role}" agent has learned. Read its raw learned entries, ` +
+                    `synthesize them into a single narrowly-scoped document preserving every fact, and ` +
+                    `save the result. The instruction text contains the full details and raw entries.`,
+                }
+              : {}),
           },
         };
+      }
+
+      // ── Automatic-optimization status ─────────────────────────────────
+      // Read-only: says whether the background scheduler considers each role
+      // eligible right now, and why not when it does not. Surfacing the reason
+      // is what keeps "nothing happened" from looking like a broken feature.
+      case 'agent-roster.auto-optimize-status': {
+        const policy = resolveAutoOptimizePolicy(
+          this.getAutoOptimizeSettings?.() ?? undefined,
+        );
+        const roles = role ? [role] : listProjectAgentRoles(projectRoot);
+        return {
+          type,
+          payload: {
+            policy,
+            roles: roles.map((current) => {
+              try {
+                const decision = evaluateAutoOptimize(current, projectRoot, policy);
+                return { role: current, ...decision };
+              } catch {
+                return { role: current, eligible: false, reason: 'disabled' as const };
+              }
+            }),
+          },
+        };
+      }
+
+      // ── Skill layer: what this project has developed for each role skill ──
+      case 'agent-roster.skills': {
+        if (!role) return { type, payload: { error: 'role required' } };
+        const candidates = resolveRoleSkillCandidates(role, projectRoot);
+        const developed = listProjectSkillAugmentations(role, projectRoot);
+        const affinity = loadSkillAffinity(role, projectRoot);
+        return {
+          type,
+          payload: {
+            role,
+            skills: candidates.map((skill) => ({
+              skill,
+              developed: developed.includes(skill),
+              affinity: affinity.entries[skill] ?? null,
+            })),
+          },
+        };
+      }
+
+      case 'agent-roster.read-skill': {
+        const skill = typeof p.skill === 'string' ? p.skill : '';
+        if (!role || !skill) return { type, payload: { error: 'role and skill required' } };
+        return {
+          type,
+          payload: { role, skill, content: loadProjectSkillAugmentation(role, skill, projectRoot) },
+        };
+      }
+
+      case 'agent-roster.save-skill': {
+        const skill = typeof p.skill === 'string' ? p.skill : '';
+        if (!role || !skill || typeof p.content !== 'string') {
+          return { type, payload: { error: 'role, skill and content required' } };
+        }
+        const savedPath = saveProjectSkillAugmentation(role, skill, p.content, projectRoot);
+        return { type, payload: { role, skill, path: savedPath, success: true } };
+      }
+
+      case 'agent-roster.clear-skill': {
+        const skill = typeof p.skill === 'string' ? p.skill : '';
+        if (!role) return { type, payload: { error: 'role required' } };
+        clearProjectSkillAugmentation(role, skill || undefined, projectRoot);
+        return { type, payload: { role, skill: skill || null, success: true } };
+      }
+
+      case 'agent-roster.pin-skill': {
+        const skill = typeof p.skill === 'string' ? p.skill : '';
+        if (!role || !skill || typeof p.pinned !== 'boolean') {
+          return { type, payload: { error: 'role, skill and boolean pinned required' } };
+        }
+        const affinity = setSkillPinned(role, skill, p.pinned, projectRoot);
+        return { type, payload: { role, skill, pinned: p.pinned, affinity, success: true } };
       }
 
       // ── Save consolidated document ────────────────────────────────────

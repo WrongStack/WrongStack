@@ -218,6 +218,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       purpose: 'switch',
     },
     autonomyPicker: { open: false, options: [], selected: 0 },
+    themePicker: { open: false, selected: 0 },
     modePicker: { open: false, modes: [], selected: 0 },
     designPicker: { open: false, kits: [], selected: 0, stack: 'web' },
     promptPicker: {

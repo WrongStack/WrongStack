@@ -1,36 +1,250 @@
-import type { TodoItem } from '@wrongstack/core/agent';
+import type { Context, TodoItem } from '@wrongstack/core/agent';
+import {
+  loadPlan,
+  loadTasks,
+  savePlan,
+  saveTasks,
+  setPlanItemStatus,
+} from '@wrongstack/core/storage';
 import type { Tool } from '@wrongstack/core/types';
-import { loadPlan, loadTasks, savePlan, saveTasks, setPlanItemStatus } from '@wrongstack/core/storage';
-import { mirrorSessionTodosToKanban } from './session-kanban.js';
+import { getBoard, type KanbanBoard, type KanbanTask } from '@wrongstack/kanban';
+import { kanbanTool } from './kanban.js';
+import { applyManagedKanbanBoardToTodos, mirrorSessionTodosToKanban } from './session-kanban.js';
 
 interface TodoInput {
   todos: TodoItem[];
 }
 
-interface TodoOutput {
+export interface TodoOutput {
   count: number;
   in_progress: number;
+  kanban_synced?: number | undefined;
+  kanban_warnings?: string[] | undefined;
+  kanban_bindings?:
+    | Array<{
+        todoId: string;
+        boardId: string;
+        taskId: string;
+        taskStatus: KanbanTask['status'];
+      }>
+    | undefined;
+}
+
+function normalizedTitle(value: string): string {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+}
+
+function activeBoardId(items: readonly TodoItem[], ctx: Context): string {
+  const metaKanban = ctx.meta?.['kanban'];
+  const metaBoardId =
+    metaKanban && typeof metaKanban === 'object'
+      ? (metaKanban as Record<string, unknown>)['boardId']
+      : undefined;
+  return (
+    ctx.currentKanbanBoardId ??
+    (typeof metaBoardId === 'string' ? metaBoardId : undefined) ??
+    items.find((item) => item.kanbanBoardId)?.kanbanBoardId ??
+    ''
+  );
+}
+
+function bindTodosToBoard(
+  items: readonly TodoItem[],
+  previous: readonly TodoItem[],
+  board: KanbanBoard,
+): TodoItem[] {
+  const previousById = new Map(previous.map((item) => [item.id, item]));
+  const available = board.tasks
+    .filter(
+      (task) =>
+        task.status !== 'archived' &&
+        task.mergedIntoTaskId === undefined &&
+        (!task.childTaskIds || task.childTaskIds.length === 0),
+    )
+    .sort(
+      (left, right) => left.createdAt.localeCompare(right.createdAt) || left.order - right.order,
+    );
+  const used = new Set<string>();
+
+  return items.map((item) => {
+    const previousItem = previousById.get(item.id);
+    const requestedTaskId =
+      item.kanbanBoardId === board.id
+        ? item.kanbanTaskId
+        : previousItem?.kanbanBoardId === board.id
+          ? previousItem.kanbanTaskId
+          : undefined;
+    const title = normalizedTitle(item.content);
+    const candidates: Array<KanbanTask | undefined> = [
+      requestedTaskId ? board.tasks.find((task) => task.id === requestedTaskId) : undefined,
+      board.tasks.find((task) => task.id === item.id),
+      board.tasks.find((task) => task.origin?.taskId === item.id),
+      available.find((task) => !used.has(task.id) && normalizedTitle(task.title) === title),
+    ];
+    const task = candidates.find((candidate) => candidate && !used.has(candidate.id));
+    if (!task) return { ...item };
+    used.add(task.id);
+    return { ...item, kanbanBoardId: board.id, kanbanTaskId: task.id };
+  });
+}
+
+async function synchronizeManagedKanban(
+  items: readonly TodoItem[],
+  board: KanbanBoard,
+  ctx: Context,
+  signal: AbortSignal,
+): Promise<{ synced: number; warnings: string[] }> {
+  let synced = 0;
+  const warnings: string[] = [];
+  const actor = ctx.agentId?.trim() || ctx.agentName?.trim() || 'kanban-agent';
+  const execute = async (input: Parameters<(typeof kanbanTool)['execute']>[0]) => {
+    const result = await kanbanTool.execute(input, ctx, { signal });
+    if (!result.ok) warnings.push(result.message);
+    else {
+      synced++;
+      if (result.message.includes('Warning:')) warnings.push(result.message);
+    }
+    return result;
+  };
+
+  // A host may select another Todo (manual continue, auto-proceed, WebUI)
+  // by demoting the old in-progress row. Keep the real managed card in lockstep
+  // instead of leaving two cards in Running while the compact list shows one.
+  for (const item of items) {
+    if (item.status !== 'pending' || item.kanbanBoardId !== board.id || !item.kanbanTaskId) {
+      continue;
+    }
+    const task = board.tasks.find((candidate) => candidate.id === item.kanbanTaskId);
+    if (task?.lifecycle?.currentStage !== 'running') continue;
+    const released = await execute({
+      action: 'mark_assignment',
+      boardId: board.id,
+      taskId: task.id,
+      assignmentStatus: 'assigned',
+      agentId: actor,
+      lastResult: `Todo returned to queue: ${item.content}`,
+    });
+    if (!released.ok) continue;
+    await execute({
+      action: 'transition_task',
+      boardId: board.id,
+      taskId: task.id,
+      lifecycleStage: 'todo',
+      author: actor,
+      transitionComment: `Todo returned to queue: ${item.content}`,
+    });
+  }
+
+  for (const item of items) {
+    if (item.status !== 'completed' || item.kanbanBoardId !== board.id || !item.kanbanTaskId) {
+      continue;
+    }
+    const task = board.tasks.find((candidate) => candidate.id === item.kanbanTaskId);
+    if (!task || task.status === 'completed') continue;
+    await execute({
+      action: 'mark_assignment',
+      boardId: board.id,
+      taskId: task.id,
+      assignmentStatus: 'completed',
+      agentId: actor,
+      lastResult: `Todo completed: ${item.content}`,
+    });
+  }
+
+  // Composite parents are intentionally absent from the compact Todo list.
+  // Roll them up once every child is Done, otherwise all visible work can be
+  // complete while the board remains forever open on an invisible parent.
+  const attemptedParents = new Set<string>();
+  let afterCompletions = await getBoard(ctx.projectRoot, board.id);
+  while (afterCompletions) {
+    const parent = afterCompletions.tasks.find(
+      (task) =>
+        task.atomic === true &&
+        task.status !== 'completed' &&
+        Boolean(task.childTaskIds?.length) &&
+        !attemptedParents.has(task.id) &&
+        task.childTaskIds?.every(
+          (childId) =>
+            afterCompletions?.tasks.find((candidate) => candidate.id === childId)?.status ===
+            'completed',
+        ),
+    );
+    if (!parent) break;
+    attemptedParents.add(parent.id);
+    const started = await execute({
+      action: 'start_task',
+      boardId: board.id,
+      taskId: parent.id,
+      author: actor,
+      agentId: actor,
+      transitionComment: 'All child tasks completed; validating composite parent.',
+    });
+    if (started.ok) {
+      await execute({
+        action: 'mark_assignment',
+        boardId: board.id,
+        taskId: parent.id,
+        assignmentStatus: 'completed',
+        agentId: actor,
+        lastResult: 'All child tasks completed; composite result ready for verification.',
+      });
+    }
+    afterCompletions = await getBoard(ctx.projectRoot, board.id);
+  }
+  const completionPending = items.some(
+    (item) =>
+      item.status === 'completed' &&
+      item.kanbanBoardId === board.id &&
+      Boolean(item.kanbanTaskId) &&
+      afterCompletions?.tasks.find((task) => task.id === item.kanbanTaskId)?.status !== 'completed',
+  );
+
+  const active = items.find(
+    (item) =>
+      item.status === 'in_progress' &&
+      item.kanbanBoardId === board.id &&
+      Boolean(item.kanbanTaskId),
+  );
+  if (active?.kanbanTaskId) {
+    await execute({
+      action: 'start_task',
+      boardId: board.id,
+      taskId: active.kanbanTaskId,
+      author: actor,
+      agentId: actor,
+      transitionComment: `Todo activated: ${active.content}`,
+    });
+  }
+  if (active?.kanbanTaskId && completionPending) {
+    warnings.push(
+      'A completed todo is still awaiting acceptance; the next independent Kanban task was started.',
+    );
+  } else if (!active && ctx.currentKanbanBoardId === board.id) {
+    ctx.setCurrentKanbanTask(undefined, board.id);
+  }
+  return { synced, warnings };
 }
 
 export const todoTool: Tool<TodoInput, TodoOutput> = {
   name: 'todo',
   category: 'Session',
   description:
-    'Manage the session-level todo list. This is the primary mechanism for tracking multi-step work. ' +
-    'The list is fully replaced on every call (not appended).',
+    'Manage the compact active-work list. With a managed Kanban binding, every row resolves to a real card and status changes advance that card; without Kanban it remains session-only state. ' +
+    'Each call replaces ordering and supplied fields, but unfinished omitted rows are retained until completed.',
   usageHint:
     'BEST PRACTICE for complex tasks:\n' +
     '- At the beginning of a non-trivial task, create a clear todo list with specific, actionable items.\n' +
     '- Only **one** item should be `in_progress` at any time.\n' +
     '- Update the list frequently as work progresses (mark items done, add new ones, change status).\n' +
-    '- **Re-order items** to reflect current priorities — the full list is replaced each call, so item order is entirely under your control.\n' +
+    '- **Re-order items** to reflect current priorities. Omission is not cancellation: unfinished rows are retained until completed.\n' +
     '- When all items are completed the board auto-clears — you do NOT need to send an empty list.\n' +
     '- The system and user can see this list, so keep it honest and up-to-date.\n' +
     'This tool is extremely valuable for maintaining focus and giving the user visibility into your plan.',
-  permission: 'auto',
-  mutating: false, // mutates only conversation state (ctx.todos), not external state — no confirmation needed
-  timeoutMs: 5_000,
-  capabilities: ['session.todo'],
+  permission: 'confirm',
+  mutating: true,
+  timeoutMs: 30_000,
+  capabilities: ['session.todo', 'fs.write'],
+  subjectKey: 'todos',
   icon: 'todo',
   inputSchema: {
     type: 'object',
@@ -58,19 +272,48 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
               description:
                 'Optional present-tense form shown while the task is active (e.g. "Fixing auth bug").',
             },
+            kanbanBoardId: {
+              type: 'string',
+              description: 'Kanban board that owns this UI row when Kanban is active.',
+            },
+            kanbanTaskId: {
+              type: 'string',
+              description: 'Real Kanban task represented by this UI row.',
+            },
           },
           required: ['id', 'content', 'status'],
         },
-        description: 'The complete new list of todos. This replaces the previous list entirely.',
+        description:
+          'The desired todo list. Supplied rows are replaced/reordered; unfinished omitted rows are retained.',
       },
     },
     required: ['todos'],
   },
-  async execute(input, ctx) {
+  async execute(input, ctx, call) {
     if (!Array.isArray(input?.todos)) {
       throw new Error('todo: todos must be an array');
     }
     const items = input.todos.filter((t): t is TodoItem => Boolean(t?.id && t.content));
+    const todoIdentity = (item: TodoItem): string =>
+      item.kanbanBoardId && item.kanbanTaskId
+        ? `kanban:${item.kanbanBoardId}:${item.kanbanTaskId}`
+        : item.promotedFromTask
+          ? `task:${item.promotedFromTask}`
+          : item.promotedFromPlan
+            ? `plan:${item.promotedFromPlan}`
+            : `todo:${item.id}`;
+    const requestedIdentities = new Set(items.map(todoIdentity));
+    for (const previous of ctx.todos ?? []) {
+      const identity = todoIdentity(previous);
+      if (previous.status === 'completed' || requestedIdentities.has(identity)) {
+        continue;
+      }
+      // Replacement is still allowed to reorder and update work, but omission
+      // is not a cancellation mechanism. Retain unfinished rows so a shorter
+      // model-generated list cannot make work disappear.
+      items.push({ ...previous });
+      requestedIdentities.add(identity);
+    }
     const inProgress = items.filter((t) => t.status === 'in_progress');
     if (inProgress.length > 1) {
       // Keep only the first as in_progress, mark rest pending
@@ -82,7 +325,36 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
         }
       }
     }
-    ctx.state.replaceTodos(items);
+    const boardId = activeBoardId(items, ctx);
+    const board = boardId ? await getBoard(ctx.projectRoot, boardId) : null;
+    const boundItems =
+      board?.lifecycle?.mode === 'managed'
+        ? bindTodosToBoard(items, ctx.todos ?? [], board)
+        : items;
+    ctx.state.replaceTodos(boundItems);
+
+    const kanbanSync =
+      board?.lifecycle?.mode === 'managed'
+        ? await synchronizeManagedKanban(boundItems, board, ctx, call.signal)
+        : { synced: 0, warnings: [] as string[] };
+    if (board?.lifecycle?.mode === 'managed') {
+      const unresolved = boundItems.filter(
+        (item) => item.kanbanBoardId !== board.id || !item.kanbanTaskId,
+      );
+      if (unresolved.length > 0) {
+        kanbanSync.warnings.push(
+          `${unresolved.length} Todo row(s) did not match a real Kanban task and were not applied. Preserve kanbanBoardId/kanbanTaskId when updating the projection.`,
+        );
+      }
+    }
+    let projectedBoard = board;
+    if (board?.lifecycle?.mode === 'managed') {
+      const refreshed = await getBoard(ctx.projectRoot, board.id);
+      if (refreshed) {
+        projectedBoard = refreshed;
+        applyManagedKanbanBoardToTodos(ctx, refreshed);
+      }
+    }
 
     // Kanban is the session work surface. Mirror the requested list (rather
     // than ctx.todos) so the final all-completed snapshot reaches Done even
@@ -90,7 +362,9 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     // Fire-and-forget: the mirror is observational and must not block the tool
     // response (or consume the tool's timeout budget) waiting on kanban file
     // locks that may be held by other agents.
-    mirrorSessionTodosToKanban(ctx.projectRoot, items, ctx.session?.id ?? 'session');
+    if (board?.lifecycle?.mode !== 'managed') {
+      mirrorSessionTodosToKanban(ctx.projectRoot, items, ctx.session?.id ?? 'session');
+    }
 
     // Auto-complete parent plan items / tasks when all their promoted
     // todos are done. Runs after state mutation so the UI sees the new
@@ -151,7 +425,29 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
 
     return {
       count: items.length,
-      in_progress: items.filter((t) => t.status === 'in_progress').length,
+      in_progress: (ctx.todos ?? boundItems).filter((t) => t.status === 'in_progress').length,
+      ...(kanbanSync.synced > 0 ? { kanban_synced: kanbanSync.synced } : {}),
+      ...(kanbanSync.warnings.length > 0 ? { kanban_warnings: kanbanSync.warnings } : {}),
+      ...(projectedBoard?.lifecycle?.mode === 'managed'
+        ? {
+            kanban_bindings: boundItems.flatMap((item) => {
+              if (item.kanbanBoardId !== projectedBoard.id || !item.kanbanTaskId) return [];
+              const task = projectedBoard.tasks.find(
+                (candidate) => candidate.id === item.kanbanTaskId,
+              );
+              return task
+                ? [
+                    {
+                      todoId: item.id,
+                      boardId: projectedBoard.id,
+                      taskId: task.id,
+                      taskStatus: task.status,
+                    },
+                  ]
+                : [];
+            }),
+          }
+        : {}),
     };
   },
 };

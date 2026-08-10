@@ -193,6 +193,40 @@ async function removeEmptySessionBoard(
   });
 }
 
+async function removeOwnedSessionBoard(
+  projectRoot: string,
+  boardId: string,
+  sessionId: string,
+): Promise<string | null> {
+  return enqueueBoardWork(projectRoot, sessionId, async () => {
+    if (isSessionBoardActive(projectRoot, sessionId)) return null;
+    const board = await getBoard(projectRoot, boardId);
+    if (!board || !isOwnedSessionBoard(board.tags)) return null;
+    if (sessionIdFromTags(board.tags) !== sessionId) return null;
+    return (await removeBoard(projectRoot, board.id)) ? board.id : null;
+  });
+}
+
+/**
+ * Remove an inactive session's observational mirror, including its cards.
+ * The durable source remains the session todo/task/plan files; retaining the
+ * mirror after detach only creates historical duplicate work in project views.
+ */
+export async function cleanupSessionKanbanBoard(
+  projectRoot: string | undefined,
+  sessionId: string,
+): Promise<string[]> {
+  if (!projectRoot || !sessionId || process.env[MIRROR_DISABLED_ENV] === '0') return [];
+  if (isSessionBoardActive(projectRoot, sessionId)) return [];
+  const candidates = (await listBoards(projectRoot)).filter(
+    (board) => isOwnedSessionBoard(board.tags) && sessionIdFromTags(board.tags) === sessionId,
+  );
+  const removed = await Promise.all(
+    candidates.map((board) => removeOwnedSessionBoard(projectRoot, board.id, sessionId)),
+  );
+  return removed.filter((boardId): boardId is string => Boolean(boardId));
+}
+
 /** Remove a particular inactive session's system-owned board when it has no cards. */
 export async function cleanupSessionKanbanBoardIfEmpty(
   projectRoot: string | undefined,
@@ -291,9 +325,22 @@ function queueLatestMirror(
             pending.graph,
             pending.sourceSystem,
           );
-        } catch {
-          // Mirrors are observational. A newer pending snapshot, if present,
-          // still gets a chance after a transient lock or filesystem failure.
+        } catch (error) {
+          // A mirror must never fail silently: scope-shrink rejection and IPC
+          // failures otherwise look like successful plan/task/todo updates
+          // while the authoritative board intentionally retains older work.
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'session-kanban.mirror-failed',
+              sessionId: pending.sessionId,
+              sourceSystem: pending.sourceSystem,
+              message: error instanceof Error ? error.message : String(error),
+              timestamp: new Date().toISOString(),
+            }),
+          );
+          // A newer pending snapshot, if present, still gets a chance after a
+          // transient lock or filesystem failure.
         }
       }
     } finally {
@@ -318,6 +365,7 @@ export function todoListToSerializedGraph(
   todos: readonly TodoItem[],
   sessionId: string,
 ): SerializedTaskGraph {
+  const graphId = `todo:${sessionId}`;
   const nodes = todos.map((todo, index) => ({
     id: todo.id,
     title: todo.content,
@@ -325,12 +373,14 @@ export function todoListToSerializedGraph(
     type: 'chore' as const,
     priority: 'medium' as const,
     status: todo.status,
+    specRequirementId: `${graphId}:${todo.id}`,
     createdAt: index,
     updatedAt: index,
   }));
   return {
-    id: `todo:${sessionId}`,
-    specId: `todo:${sessionId}`,
+    id: graphId,
+    specId: graphId,
+    requiredRequirementIds: nodes.map((node) => node.specRequirementId),
     title: 'Session todos',
     nodes,
     edges: [],
@@ -344,6 +394,7 @@ export function taskFileToSerializedGraph(
   tasks: readonly TaskItem[],
   sessionId: string,
 ): SerializedTaskGraph {
+  const graphId = `session:${sessionId}`;
   const ids = new Set(tasks.map((task) => task.id));
   const nodes = tasks.map((task, index) => ({
     id: task.id,
@@ -352,6 +403,7 @@ export function taskFileToSerializedGraph(
     type: task.type,
     priority: task.priority,
     status: task.status,
+    specRequirementId: `${graphId}:${task.id}`,
     ...(task.assignee ? { assignee: task.assignee } : {}),
     ...(task.estimateHours !== undefined ? { estimateHours: task.estimateHours } : {}),
     createdAt: index,
@@ -371,8 +423,9 @@ export function taskFileToSerializedGraph(
   const rootNodes = nodes.filter((node) => !hasIncoming.has(node.id)).map((node) => node.id);
   return {
     // Keep the historical graph id so existing mirrored task cards are reused.
-    id: `session:${sessionId}`,
-    specId: `session:${sessionId}`,
+    id: graphId,
+    specId: graphId,
+    requiredRequirementIds: nodes.map((node) => node.specRequirementId),
     title: 'Session tasks',
     nodes,
     edges,
@@ -392,6 +445,7 @@ export function planFileToSerializedGraph(
   items: readonly PlanItem[],
   sessionId: string,
 ): SerializedTaskGraph {
+  const graphId = `plan:${sessionId}`;
   const nodes = items.map((item, index) => ({
     id: item.id,
     title: item.title,
@@ -399,12 +453,14 @@ export function planFileToSerializedGraph(
     type: 'chore' as const,
     priority: 'medium' as const,
     status: PLAN_STATUS_TO_TASK[item.status],
+    specRequirementId: `${graphId}:${item.id}`,
     createdAt: index,
     updatedAt: index,
   }));
   return {
-    id: `plan:${sessionId}`,
-    specId: `plan:${sessionId}`,
+    id: graphId,
+    specId: graphId,
+    requiredRequirementIds: nodes.map((node) => node.specRequirementId),
     title: 'Session plan',
     nodes,
     edges: [],
@@ -572,7 +628,7 @@ export function attachSessionKanbanMirror(context: Context): () => void {
       releaseActiveSessionBoard(attachedProjectRoot, registeredSessionId);
       fireAndForget(
         'cleanup-board',
-        cleanupSessionKanbanBoardIfEmpty(attachedProjectRoot, registeredSessionId),
+        cleanupSessionKanbanBoard(attachedProjectRoot, registeredSessionId),
       );
     }
     registeredSessionId = currentSessionId;
@@ -591,6 +647,17 @@ export function attachSessionKanbanMirror(context: Context): () => void {
   let presenceTimer: NodeJS.Timeout | null = null;
 
   const sessionId = () => context.session?.id ?? '';
+  const activeManagedBoardId = () => {
+    const metaKanban = context.meta['kanban'];
+    const metaBoardId =
+      metaKanban && typeof metaKanban === 'object'
+        ? (metaKanban as Record<string, unknown>)['boardId']
+        : undefined;
+    return (
+      context.currentKanbanBoardId ??
+      (typeof metaBoardId === 'string' && metaBoardId ? metaBoardId : '')
+    );
+  };
   const refreshFiles = async () => {
     const id = sessionId();
     if (!id) return;
@@ -609,13 +676,24 @@ export function attachSessionKanbanMirror(context: Context): () => void {
   const refreshBoard = async () => {
     if (!watchedBoardId) return;
     const board = await getBoard(context.projectRoot, watchedBoardId);
-    if (board) applySessionKanbanBoardToTodos(context, board);
+    if (!board) return;
+    if (board.lifecycle?.mode === 'managed') applyManagedKanbanBoardToTodos(context, board);
+    else applySessionKanbanBoardToTodos(context, board);
   };
 
   const configureBoardWatcher = async () => {
     const id = sessionId();
-    const board = id ? await ensureSessionKanbanBoard(context.projectRoot, id) : null;
-    if (!board || board.id === watchedBoardId) return;
+    const managedBoardId = activeManagedBoardId();
+    const board = managedBoardId
+      ? await getBoard(context.projectRoot, managedBoardId)
+      : id
+        ? await ensureSessionKanbanBoard(context.projectRoot, id)
+        : null;
+    if (!board) return;
+    if (board.id === watchedBoardId) {
+      await refreshBoard();
+      return;
+    }
     unsubscribeBoardEvents?.();
     unsubscribeBoardEvents = null;
     watchedBoardId = board.id;
@@ -640,6 +718,11 @@ export function attachSessionKanbanMirror(context: Context): () => void {
       if (presenceTimer) clearInterval(presenceTimer);
       presenceTimer = setInterval(() => fireAndForget('touch-presence', touchPresence()), 60_000);
       presenceTimer.unref?.();
+      // Managed boards are authoritative immediately. Session boards were
+      // already hydrated from the local checkpoint above; applying their
+      // initially empty board here can erase a newer local todo update before
+      // its queued mirror reaches disk.
+      if (board.lifecycle?.mode === 'managed') applyManagedKanbanBoardToTodos(context, board);
     } catch {
       unsubscribeBoardEvents = null;
       watchedBoardId = '';
@@ -681,6 +764,15 @@ export function attachSessionKanbanMirror(context: Context): () => void {
 
   const unsubscribe = context.state.onChange((change) => {
     if (change.kind === 'todos_replaced' && !suppressedTodoMirrors.has(context)) {
+      const snapshot = change.completedSnapshot ?? change.todos;
+      if (
+        snapshot.length > 0 &&
+        snapshot.every(
+          (todo) => todo.kanbanBoardId === activeManagedBoardId() && Boolean(todo.kanbanTaskId),
+        )
+      ) {
+        return;
+      }
       // ConversationState auto-clears an all-done tactical list. Project the
       // pre-clear completion snapshot so every card reaches Done atomically.
       mirrorSessionTodosToKanban(
@@ -690,11 +782,17 @@ export function attachSessionKanbanMirror(context: Context): () => void {
       );
       return;
     }
-    if (change.kind === 'meta_set' && (change.key === 'plan.path' || change.key === 'task.path')) {
+    if (
+      change.kind === 'meta_set' &&
+      (change.key === 'plan.path' || change.key === 'task.path' || change.key === 'kanban')
+    ) {
       syncActiveSessionRegistration();
       configureWatcher();
-      fireAndForget('ensure-board', ensureSessionKanbanBoard(context.projectRoot, sessionId()));
+      if (!activeManagedBoardId()) {
+        fireAndForget('ensure-board', ensureSessionKanbanBoard(context.projectRoot, sessionId()));
+      }
       fireAndForget('configure-watcher', configureBoardWatcher());
+      fireAndForget('refresh-board', refreshBoard());
       fireAndForget('refresh-files', refreshFiles());
     }
   });
@@ -714,7 +812,7 @@ export function attachSessionKanbanMirror(context: Context): () => void {
       releaseActiveSessionBoard(attachedProjectRoot, registeredSessionId);
       fireAndForget(
         'cleanup-board',
-        cleanupSessionKanbanBoardIfEmpty(attachedProjectRoot, registeredSessionId),
+        cleanupSessionKanbanBoard(attachedProjectRoot, registeredSessionId),
       );
       registeredSessionId = '';
     }
@@ -768,12 +866,26 @@ function todoStatus(task: KanbanTask): TodoItem['status'] {
   return 'pending';
 }
 
-function sessionTodoFromTask(task: KanbanTask): TodoItem {
+function sessionTodoFromTask(task: KanbanTask, boardId: string): TodoItem {
   return {
     id: task.origin?.taskId ?? task.id,
     content: task.title,
     status: todoStatus(task),
+    kanbanBoardId: boardId,
+    kanbanTaskId: task.id,
     ...(task.description ? { activeForm: task.description } : {}),
+  };
+}
+
+function managedTodoFromTask(task: KanbanTask, boardId: string): TodoItem {
+  return {
+    ...sessionTodoFromTask(task, boardId),
+    status:
+      task.status === 'completed'
+        ? 'completed'
+        : task.status === 'in_progress'
+          ? 'in_progress'
+          : 'pending',
   };
 }
 
@@ -788,7 +900,9 @@ function sameTodos(left: readonly TodoItem[], right: readonly TodoItem[]): boole
         candidate.status === todo.status &&
         candidate.activeForm === todo.activeForm &&
         candidate.promotedFromPlan === todo.promotedFromPlan &&
-        candidate.promotedFromTask === todo.promotedFromTask
+        candidate.promotedFromTask === todo.promotedFromTask &&
+        candidate.kanbanBoardId === todo.kanbanBoardId &&
+        candidate.kanbanTaskId === todo.kanbanTaskId
       );
     })
   );
@@ -829,12 +943,49 @@ export function applySessionKanbanBoardToTodos(context: Context, board: KanbanBo
         left.createdAt.localeCompare(right.createdAt)
       );
     })
-    .map(sessionTodoFromTask);
+    .map((task) => sessionTodoFromTask(task, board.id));
 
   const allCompleted =
     projectedTodos.length > 0 && projectedTodos.every((todo) => todo.status === 'completed');
   const effectiveTodos = allCompleted ? [] : projectedTodos;
   if (sameTodos(context.todos, effectiveTodos)) return [...context.todos];
+  suppressedTodoMirrors.add(context);
+  try {
+    context.state.replaceTodos(projectedTodos);
+  } finally {
+    suppressedTodoMirrors.delete(context);
+  }
+  notifyTodoUpdate(context, context.todos);
+  broadcastTodoUpdate(context, context.todos);
+  return [...context.todos];
+}
+
+/** Project a durable managed board into the session's compact todo surface. */
+export function applyManagedKanbanBoardToTodos(context: Context, board: KanbanBoard): TodoItem[] {
+  const metaKanban = context.meta['kanban'];
+  const metaBoardId =
+    metaKanban && typeof metaKanban === 'object'
+      ? (metaKanban as Record<string, unknown>)['boardId']
+      : undefined;
+  const activeBoardId =
+    context.currentKanbanBoardId ?? (typeof metaBoardId === 'string' ? metaBoardId : undefined);
+  if (!activeBoardId || board.id !== activeBoardId || board.lifecycle?.mode !== 'managed') {
+    return [...context.todos];
+  }
+
+  const projectedTodos = board.tasks
+    .filter(
+      (task) =>
+        task.status !== 'archived' &&
+        task.mergedIntoTaskId === undefined &&
+        (!task.childTaskIds || task.childTaskIds.length === 0),
+    )
+    .sort(
+      (left, right) => left.createdAt.localeCompare(right.createdAt) || left.order - right.order,
+    )
+    .map((task) => managedTodoFromTask(task, board.id));
+
+  if (sameTodos(context.todos, projectedTodos)) return [...context.todos];
   suppressedTodoMirrors.add(context);
   try {
     context.state.replaceTodos(projectedTodos);

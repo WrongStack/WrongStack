@@ -298,6 +298,26 @@ export class SessionCatalogStore {
       .get(sessionId) as unknown as LeaseRow | undefined;
   }
 
+  /**
+   * True when `sessionId` has a live `session_leases` row owned by a
+   * different OS process than the *caller*. Used by
+   * `acquireMaintenance` to distinguish "another running wstack" (which
+   * must be fenced off) from "this very TUI owning its own session"
+   * (which is allowed to claim a non-destructive maintenance lease on
+   * its own transcript).
+   *
+   * `callerPid` must be the pid of the process that asked for the lease,
+   * NOT `process.pid`. In the built runtime this store lives inside the
+   * detached project-catalog daemon, so `process.pid` is the daemon's and
+   * would mark every lease — including the caller's own session — foreign,
+   * making `/clear` and `/rewind` fail with "Session … is live". Callers
+   * that run the store in-process may omit it.
+   */
+  private foreignLiveLease(sessionId: string, callerPid = process.pid): boolean {
+    const live = this.leaseRow(sessionId);
+    return Boolean(live) && live!.owner_pid !== callerPid;
+  }
+
   private verifyCredential(credential: SessionLeaseCredential): LeaseRow {
     assertId(credential.sessionId);
     const row = this.leaseRow(credential.sessionId);
@@ -749,11 +769,21 @@ export class SessionCatalogStore {
     operation: MaintenanceLease['operation'],
     holderId: string,
     leaseMs?: number,
+    holderPid?: number,
   ): MaintenanceLease {
     assertId(sessionId);
     return this.transaction(() => {
       this.reapExpired();
-      if (this.leaseRow(sessionId)) throw conflict(`Session ${sessionId} is live`);
+      const live = this.leaseRow(sessionId);
+      // `delete` physically removes the JSONL: refuse any live lease
+      // (foreign OR self) so a concurrent writer cannot append to a file
+      // we are about to unlink. Other operations only need to exclude
+      // *other running wstack processes*; the same TUI that owns the
+      // session is allowed to rewind/clear/truncate its own transcript
+      // without a release → re-claim round-trip.
+      if (live && (operation === 'delete' || this.foreignLiveLease(sessionId, holderPid))) {
+        throw conflict(`Session ${sessionId} is live`);
+      }
       const reservation = this.db
         .prepare(
           'SELECT 1 AS yes FROM resume_reservations WHERE target_session_id=? AND expires_at>?',

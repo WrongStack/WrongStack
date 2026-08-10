@@ -11,6 +11,9 @@ const srcRoot = path.resolve(import.meta.dirname, '../../src');
 const ISOLATED_COLOR_SURFACES = new Set([
   'components/CommandPalette/export-utils.ts', // Standalone exported HTML document.
   'components/DesignGalleryView.tsx', // Previews arbitrary user-selected design-kit tokens.
+  'components/KanbanContractGraphDashboard.tsx', // Rendered SVG contract graph nodes.
+  'components/KanbanContractGraphView.ts', // Graph canvas node colors and canvas backgrounds.
+  'components/KanbanWorkbench.tsx', // Kanban status badge highlights.
   'components/SetupScreen/ProviderKeyCard.tsx', // QR encoder requires explicit dark/light colors.
   'components/TerminalPanel.tsx', // xterm owns a complete terminal ANSI palette.
   'components/monaco-theme.ts', // Monaco owns a complete editor/syntax palette.

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { evaluateContractGraph, evaluateContractGraphReadiness } from '../contract-graph.js';
 import { mutateBoard, summarizeBoard } from '../storage.js';
 import type {
   AssignKanbanTaskInput,
@@ -38,6 +39,7 @@ import {
   syncTaskColumnForStatus,
 } from './_internal.js';
 import { collectBoardsForHealth } from './board-health.js';
+import { getDependencyReadinessIssues } from './task-readiness.js';
 
 /**
  * Staleness window for queued/running assignments that carry NO lease stamp
@@ -47,11 +49,12 @@ import { collectBoardsForHealth } from './board-health.js';
  * recovery of a dead one.
  */
 const STAMPLESS_ASSIGNMENT_STALE_MS = 10 * 60 * 1000;
+
+import { resolveKindFilter } from './board-kind-filter.js';
 import { getBoard, listBoards } from './boards.js';
 import { areDependenciesMet } from './dependencies.js';
-import { StaleWriteError } from './lifecycle.js';
+import { KanbanLifecycleError, StaleWriteError } from './lifecycle.js';
 import { classifyTaskForQueue } from './task-classifier.js';
-import { resolveKindFilter } from './board-kind-filter.js';
 
 let lastGlobalClaimBoardId: string | undefined;
 
@@ -194,6 +197,29 @@ export async function updateTaskAssignment(
       task.assignment?.leaseId !== eventContext.expectedLeaseId
     ) {
       return null;
+    }
+    const nextStatus = patch.status ?? task.assignment?.status;
+    if (nextStatus === 'running') {
+      const dependencyIssues = getDependencyReadinessIssues(board, task);
+      if (dependencyIssues.length > 0) {
+        const details = dependencyIssues
+          .map((issue) =>
+            issue.status === 'missing'
+              ? `${issue.dependencyId} (missing)`
+              : `${issue.dependencyId} (${issue.taskStatus ?? 'incomplete'})`,
+          )
+          .join(', ');
+        throw new KanbanLifecycleError(
+          `Running requires every dependency to exist and be completed: ${details}.`,
+          [
+            {
+              code: 'dependency-incomplete',
+              field: 'dependsOn',
+              message: `Running requires every dependency to exist and be completed: ${details}.`,
+            },
+          ],
+        );
+      }
     }
     const previousColumnId = task.columnId;
     const beforeAssignment = task.assignment ? { ...task.assignment } : undefined;
@@ -509,8 +535,12 @@ export async function claimReadyTask(
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
   if (input.boardId) return claimReadyTaskOnBoard(projectRoot, input.boardId, input);
   const kindResolved = resolveKindFilter({
-    ...(input.includeBoardKinds !== undefined ? { includeBoardKinds: input.includeBoardKinds } : {}),
-    ...(input.excludeBoardKinds !== undefined ? { excludeBoardKinds: input.excludeBoardKinds } : {}),
+    ...(input.includeBoardKinds !== undefined
+      ? { includeBoardKinds: input.includeBoardKinds }
+      : {}),
+    ...(input.excludeBoardKinds !== undefined
+      ? { excludeBoardKinds: input.excludeBoardKinds }
+      : {}),
   });
   const boards = await listBoards(projectRoot);
   // Deterministic ordering: most-recently-active boards first, then rotate the
@@ -569,10 +599,7 @@ export async function releaseTaskClaim(
     // whose task was recovered and reassigned must not delete the LIVE
     // owner's claim. Checked inside the board mutation lock; callers that
     // omit the token (operator-driven manual release) stay unconditional.
-    if (
-      input.expectedLeaseId !== undefined &&
-      task.assignment?.leaseId !== input.expectedLeaseId
-    ) {
+    if (input.expectedLeaseId !== undefined && task.assignment?.leaseId !== input.expectedLeaseId) {
       return null;
     }
     const isManaged = board.lifecycle?.mode === 'managed';
@@ -628,14 +655,18 @@ export async function getKanbanOrchestrationSnapshot(
   } = {},
 ): Promise<KanbanOrchestrationSnapshot> {
   const kindResolved = resolveKindFilter({
-    ...(input.includeBoardKinds !== undefined ? { includeBoardKinds: input.includeBoardKinds } : {}),
-    ...(input.excludeBoardKinds !== undefined ? { excludeBoardKinds: input.excludeBoardKinds } : {}),
+    ...(input.includeBoardKinds !== undefined
+      ? { includeBoardKinds: input.includeBoardKinds }
+      : {}),
+    ...(input.excludeBoardKinds !== undefined
+      ? { excludeBoardKinds: input.excludeBoardKinds }
+      : {}),
   });
   const boards = input.boardId
     ? [await getBoard(projectRoot, input.boardId)].filter((board): board is KanbanBoard =>
         Boolean(board),
       )
-    : (await Promise.all(
+    : await Promise.all(
         (await listBoards(projectRoot))
           .filter((summary) => {
             const kind = summary.kind ?? 'project';
@@ -643,7 +674,7 @@ export async function getKanbanOrchestrationSnapshot(
             return !kindResolved.exclude.has(kind);
           })
           .map((board) => getBoard(projectRoot, board.id)),
-      ).then((items) => items.filter((board): board is KanbanBoard => Boolean(board))));
+      ).then((items) => items.filter((board): board is KanbanBoard => Boolean(board)));
   const snapshot: KanbanOrchestrationSnapshot = {
     generatedAt: nowIso(),
     boards: boards.map((board) => summarizeBoard(board)),
@@ -659,7 +690,27 @@ export async function getKanbanOrchestrationSnapshot(
     const summary = summarizeBoard(board);
     for (const task of board.tasks) {
       if (!matchesKanbanSearch(board, task, input)) continue;
-      const result = { board: summary, task };
+      const readiness =
+        board.kind === 'session_mirror'
+          ? undefined
+          : evaluateContractGraphReadiness(board, task.id);
+      const completion =
+        board.kind === 'session_mirror' ? undefined : evaluateContractGraph(board, task.id);
+      const result: KanbanSearchResult = {
+        board: summary,
+        task,
+        ...(readiness && completion
+          ? {
+              contractStatus: {
+                enforcement: completion.enforcement,
+                startReady: readiness.ready,
+                setupGaps: readiness.issues.length,
+                completionOpen: completion.issues.length,
+                closed: readiness.ready && completion.issues.length === 0,
+              },
+            }
+          : {}),
+      };
       if (isTaskReadyForWork(board, task)) snapshot.ready.push(result);
       if (task.assignment?.status === 'queued' || task.assignment?.status === 'assigned') {
         snapshot.queued.push(result);
@@ -707,8 +758,12 @@ export async function getKanbanQueueHealth(
   const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 60_000;
   const now = input.now ?? nowIso();
   const boards = await collectBoardsForHealth(projectRoot, input.boardId, {
-    ...(input.includeBoardKinds !== undefined ? { includeBoardKinds: input.includeBoardKinds } : {}),
-    ...(input.excludeBoardKinds !== undefined ? { excludeBoardKinds: input.excludeBoardKinds } : {}),
+    ...(input.includeBoardKinds !== undefined
+      ? { includeBoardKinds: input.includeBoardKinds }
+      : {}),
+    ...(input.excludeBoardKinds !== undefined
+      ? { excludeBoardKinds: input.excludeBoardKinds }
+      : {}),
   });
   const boardIds = boards.map((board) => board.id);
 
@@ -744,7 +799,9 @@ export async function getKanbanQueueHealth(
     archived: 0,
     not_dispatchable: 0,
   };
-  const classificationDiagnostics: NonNullable<KanbanQueueHealth['classifications']>['diagnostics'] = [];
+  const classificationDiagnostics: NonNullable<
+    KanbanQueueHealth['classifications']
+  >['diagnostics'] = [];
 
   for (const board of boards) {
     const summary = summarizeBoard(board);

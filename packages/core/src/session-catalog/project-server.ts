@@ -122,7 +122,7 @@ const OPERATION_KEYS: Record<SessionCatalogOperationName, readonly string[]> = {
   resolve_id: ['query'],
   get_summary: ['sessionId'],
   rename: ['sessionId', 'name'],
-  acquire_maintenance: ['sessionId', 'operation', 'holderId', 'leaseMs'],
+  acquire_maintenance: ['sessionId', 'operation', 'holderId', 'leaseMs', 'holderPid'],
   release_maintenance: ['lease'],
   delete: ['sessionId', 'lease'],
   prune: ['maxAgeDays', 'holderId'],
@@ -315,6 +315,7 @@ async function dispatch<O extends SessionCatalogOperationName>(
         value.operation,
         value.holderId,
         value.leaseMs,
+        value.holderPid,
       ) as SessionCatalogOperations[O]['result'];
     }
     case 'release_maintenance': {

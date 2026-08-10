@@ -421,6 +421,55 @@ describe('validateManagedTaskTransition', () => {
     const issues = validateManagedTaskTransition(b, t, { to: 'review', actor: 'a', comment: 'c' });
     expect(issues.some((i) => i.code === 'review-evidence-missing')).toBe(true);
   });
+  it('blocks every Running transition until dependencies exist and are completed', () => {
+    const dependency = card({ id: 'dep-1', status: 'in_progress' });
+    const task = card({
+      id: 'task-1',
+      columnId: 'todo',
+      status: 'ready',
+      dependsOn: ['dep-1', 'missing-dep'],
+      lifecycle: { currentStage: 'todo', stageEnteredAt: nowIso(), history: [] },
+      description: 'Detailed work.',
+      assignee: 'agent-1',
+      dueDate: '2026-08-10T00:00:00.000Z',
+      labels: ['test'],
+      successCriteria: [
+        { id: 'check-1', description: 'Passes', type: 'manual', status: 'pending' },
+      ],
+      assignment: {
+        status: 'running',
+        leaseId: 'lease-1',
+        claimedAt: nowIso(),
+        heartbeatAt: nowIso(),
+        leaseExpiresAt: '2026-08-11T00:00:00.000Z',
+      },
+    });
+    const board = managedBoard();
+    board.tasks = [dependency, task];
+
+    const issues = validateManagedTaskTransition(board, task, {
+      to: 'running',
+      actor: 'agent-1',
+      comment: 'Start.',
+    });
+
+    expect(issues.find((issue) => issue.code === 'dependency-incomplete')?.message).toContain(
+      'dep-1 (in_progress)',
+    );
+    expect(issues.find((issue) => issue.code === 'dependency-incomplete')?.message).toContain(
+      'missing-dep (missing)',
+    );
+
+    dependency.status = 'completed';
+    task.dependsOn = ['dep-1'];
+    expect(
+      validateManagedTaskTransition(board, task, {
+        to: 'running',
+        actor: 'agent-1',
+        comment: 'Start.',
+      }).some((issue) => issue.code === 'dependency-incomplete'),
+    ).toBe(false);
+  });
 });
 
 // ── End-to-end transition flows for full validation paths ─────────────

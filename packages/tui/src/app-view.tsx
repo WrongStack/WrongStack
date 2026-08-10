@@ -66,6 +66,7 @@ import {
 import { SlashConfirmPanel } from './components/slash-confirm-panel.js';
 import { SlashMenu } from './components/slash-menu.js';
 import { StatuslinePicker } from './components/statusline-picker.js';
+import { ThemePicker } from './components/theme-picker.js';
 import { ToolsPicker } from './components/tools-picker.js';
 import { TopicCheckPanel } from './components/topic-check-panel.js';
 import {
@@ -74,7 +75,7 @@ import {
   useSidebarProcessList,
 } from './hooks/use-sidebar-panel-data.js';
 import { Box, Text, useStdout } from './ink.js';
-import { theme } from './theme.js';
+import { THEME_OPTIONS, getActiveThemeName, theme } from './theme.js';
 import { PANEL_IDS, type PanelId, type SendMode, SIDEBAR_PANEL_LIMIT } from './ui-contracts.js';
 
 const CONTINUE_CONFIRM_DELAY_MS = 4000;
@@ -334,6 +335,14 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   modes={state.modePicker.modes}
                   selected={state.modePicker.selected}
                   hint={state.modePicker.hint}
+                />
+              ) : null}
+              {state.themePicker.open ? (
+                <ThemePicker
+                  options={THEME_OPTIONS}
+                  selected={state.themePicker.selected}
+                  activeId={getActiveThemeName()}
+                  hint={state.themePicker.hint}
                 />
               ) : null}
               {state.designPicker.open ? (

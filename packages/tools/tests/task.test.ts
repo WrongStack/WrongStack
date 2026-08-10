@@ -86,6 +86,77 @@ describe('taskTool', () => {
     expect(onDisk[0]?.id).toBe('t1');
   });
 
+  it('replace cannot omit unfinished persisted tasks', async () => {
+    await taskTool.execute(
+      {
+        action: 'replace',
+        tasks: [
+          {
+            id: 'keep',
+            title: 'Must remain',
+            type: 'feature',
+            priority: 'high',
+            status: 'pending',
+          },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const out = await taskTool.execute(
+      { action: 'replace', tasks: [] },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    expect(out.ok).toBe(false);
+    expect(out.message).toContain('cannot omit unfinished tasks: keep');
+    expect(await readTasksOnDisk(sb.taskPath)).toHaveLength(1);
+  });
+
+  it('cannot start or complete a task before its dependencies complete', async () => {
+    await taskTool.execute(
+      {
+        action: 'replace',
+        tasks: [
+          {
+            id: 'dependency',
+            title: 'Dependency',
+            type: 'feature',
+            priority: 'high',
+            status: 'pending',
+          },
+          {
+            id: 'dependent',
+            title: 'Dependent',
+            type: 'feature',
+            priority: 'high',
+            status: 'pending',
+            dependsOn: ['dependency'],
+          },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const started = await taskTool.execute(
+      { action: 'status', id: 'dependent', status: 'in_progress' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    const completed = await taskTool.execute(
+      { action: 'status', id: 'dependent', status: 'completed' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    expect(started.ok).toBe(false);
+    expect(completed.ok).toBe(false);
+    expect(started.message).toContain('dependencies complete: dependency');
+  });
+
   // -------------------------------------------------------------------
   // add
   // -------------------------------------------------------------------

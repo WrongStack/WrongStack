@@ -13,6 +13,19 @@ export const commandDetailsPart2: CommandDetailMap = {
       'Terminate idle agents to free resources. Review transcripts for completed agents to extract results.',
   },
 
+  '/agent-improve': {
+    purpose:
+      "Inspect and develop a roster agent for this project — what it has learned, which of its skills the project has extended, and when the next distillation runs.",
+    behavior:
+      "`/agent-improve` lists roles with project customization; `<role> show` summarizes its identity, learned directives and developed skills. `<role> capture` re-scans the last turn for `## LEARNED` blocks. `<role> optimize` distils captured directives into per-skill project addenda plus a consolidated role document, archives the raw buffer and resets it. `<role> skills` shows each skill with its project affinity; add a skill name to print its addendum, or `pin`/`unpin` to force it in or out of the eager load set.",
+    before:
+      'Nothing is required — capture and distillation run automatically. Reach for the command when you want to read what an agent has learned, teach it something directly, or force a pass early.',
+    during:
+      'Optimization synthesizes one document per developed skill and one for the role. With no model configured it still writes the skill addenda deterministically and routes the role document through the chat agent.',
+    after:
+      'The addendum is injected beneath that skill on the next spawn. Files live under `.wrongstack/agents/<role>/` and are committed, so the roster arrives trained on a fresh clone.',
+  },
+
   '/director': {
     purpose:
       '(Obsolete — Director Mode is permanently on) Previously used to promote the session into Director orchestration mode.',

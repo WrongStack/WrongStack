@@ -306,9 +306,18 @@ export const SHADOW_AGENT_SKILLS = skillSet(
   'security-scanner',
 );
 
-const MAX_EAGER_ROSTER_SKILLS = 3;
+export const MAX_EAGER_ROSTER_SKILLS = 3;
 
-/** Attach a bounded, fresh skill-name array so catalog templates remain mutation-safe. */
+/**
+ * Attach a bounded, fresh skill-name array so catalog templates remain
+ * mutation-safe.
+ *
+ * `skillNames` stays capped at `MAX_EAGER_ROSTER_SKILLS` — it is the default
+ * eager set for a project with no learning history. The full curated set is
+ * also carried as `skillPool` so the spawn path can rank *all* candidates by
+ * project affinity instead of being permanently limited to whichever three
+ * happened to be written first in this file.
+ */
 export function assignSkillsToAgents(definitions: readonly AgentDefinition[]): AgentDefinition[] {
   return definitions.map((definition) => {
     const role = definition.config.role;
@@ -324,6 +333,7 @@ export function assignSkillsToAgents(definitions: readonly AgentDefinition[]): A
         ...definition.config,
         capabilities: inferRuntimeCapabilities(definition.config.tools ?? []),
         skillNames: skills.slice(0, MAX_EAGER_ROSTER_SKILLS),
+        skillPool: [...skills],
       },
     };
   });

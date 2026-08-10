@@ -492,6 +492,8 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           projectRoot: opts.projectRoot,
           getSettings: opts.getSettings,
           saveSettings: opts.saveSettings,
+          saveThemePreset: opts.saveThemePreset,
+          configStore: opts.configStore,
           getPluginItems: opts.getPluginItems,
           onPluginToggle: opts.onPluginToggle,
           getMcpServers: opts.getMcpServers,

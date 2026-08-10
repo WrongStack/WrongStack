@@ -54,7 +54,16 @@ export interface CustomRosterStats {
     consolidatedBytes: number;
     trigger: 'manual' | 'automatic';
     model?: string;
+    /** Raw buffer archived and reset after the pass. */
+    pruned?: boolean;
+    archivePath?: string;
+    /** Skill addenda refreshed by the pass. */
+    skills?: string[];
   } | null;
+  /** Skills this project has written a dedicated addendum for. */
+  skills?: string[];
+  /** Captured directives already routed to a skill, awaiting distillation. */
+  skilledEntryCount?: number;
 }
 
 // ── Tab definitions ────────────────────────────────────────────────────

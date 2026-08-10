@@ -1,4 +1,3 @@
-import { useAppTranslation } from '@/i18n';
 import type {
   KanbanBoard,
   KanbanBoardPresence,
@@ -24,15 +23,16 @@ import { useEffect, useState } from 'react';
 import { useKanbanMeta } from '@/hooks/useKanbanMeta';
 import { useProviderModels } from '@/hooks/useProviderModels';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
+import { useAppTranslation } from '@/i18n';
 import { kanbanMetadataText } from '@/lib/kanban-metadata';
 import { cn } from '@/lib/utils';
 import { ChipMultiSelect } from './ChipMultiSelect';
 import { AgentRunPanel } from './KanbanAgentRunPanel.js';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
 import { KanbanDecompositionPanel } from './KanbanDecompositionPanel';
+import { type RunLink, RunTaskControls } from './KanbanRunControls.js';
 import { KanbanTaskActivityRecorder } from './KanbanTaskActivityRecorder';
 import { KanbanTaskCompletionChecks } from './KanbanTaskCompletionChecks';
-import { RunTaskControls, type RunLink } from './KanbanRunControls.js';
 import { columnTitle, Field, Metric, SelectField } from './KanbanTaskFields.js';
 import { KNOWN_CAPABILITIES, KNOWN_ROLES } from './KanbanTaskOptions';
 import { ModelPicker } from './ModelPicker';
@@ -814,10 +814,10 @@ export function KanbanTaskInspector({
             onAddCheck={addCheck}
             sendKanban={sendKanban}
           />
-
-          {board && (
-            <TaskVerificationSection boardId={board.id} task={task} sendKanban={sendKanban} />
-          )}
+          {/*
+            The contract graph and executable evidence share one verification surface.
+          */}
+          {board && <TaskVerificationSection board={board} task={task} sendKanban={sendKanban} />}
 
           {board && (
             <KanbanDecompositionPanel

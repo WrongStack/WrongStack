@@ -179,6 +179,27 @@ export function useSubagentEvents(
       }
     });
 
+    // Background learning distillation. Nobody triggered it, so without a line
+    // here the roster silently gets better and the user never learns that its
+    // skills changed under them.
+    const offLearningOptimized = events.on('agent.learning.optimized', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
+      if (mode() === 'off') return;
+      if (e.status !== 'optimized' && e.status !== 'no-llm') return;
+      const l = lbl(e.role);
+      const skills = e.skills.length > 0 ? ` — skills: ${e.skills.join(', ')}` : '';
+      dispatch({
+        type: 'addEntry',
+        entry: {
+          kind: 'subagent',
+          agentLabel: l.label,
+          agentColor: l.color,
+          icon: '✦',
+          text: `learning distilled into project skills${skills}`,
+        },
+      });
+    });
+
     const offStarted = events.on('subagent.task_started', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
@@ -474,6 +495,7 @@ export function useSubagentEvents(
 
     return () => {
       offSpawned();
+      offLearningOptimized();
       offStarted();
       offCompleted();
       offRemoved();

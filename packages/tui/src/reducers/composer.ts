@@ -3,11 +3,8 @@ import type { Action } from '../app-action-type.js';
 import type { QueueItem, State } from '../app-state.js';
 import { filterPromptPicker } from '../components/prompt-picker.js';
 import { retainTuiHistory } from '../history-retention.js';
-import {
-  closePanels,
-  MAX_TOOL_STREAM_RETAINED_CHARS,
-  retainStreamTail,
-} from './helpers.js';
+import { getActiveThemeName, THEME_OPTIONS } from '../theme.js';
+import { closePanels, MAX_TOOL_STREAM_RETAINED_CHARS, retainStreamTail } from './helpers.js';
 
 const composerActionTypes = [
   'brainPromptSet',
@@ -44,6 +41,10 @@ const composerActionTypes = [
   'autonomyPickerClose',
   'autonomyPickerMove',
   'autonomyPickerHint',
+  'themePickerOpen',
+  'themePickerClose',
+  'themePickerMove',
+  'themePickerHint',
   'modePickerOpen',
   'modePickerClose',
   'modePickerMove',
@@ -409,6 +410,42 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       return {
         ...state,
         autonomyPicker: { ...state.autonomyPicker, hint: action.text },
+      };
+    case 'themePickerOpen': {
+      // Initial selection lands on the currently active theme so the user
+      // sees which preset is in effect before they confirm. Caller can
+      // override via `action.selected` (used by `/theme <preset>` to drop
+      // the user on the matching row). Safe to read synchronously —
+      // `theme.ts` is module-scoped state, not a hook.
+      const fallback = Math.max(
+        0,
+        THEME_OPTIONS.findIndex((o) => o.id === getActiveThemeName()),
+      );
+      const selected = action.selected ?? fallback;
+      return {
+        ...state,
+        ...closePanels(state),
+        themePicker: { open: true, selected, hint: undefined },
+      };
+    }
+    case 'themePickerClose':
+      return {
+        ...state,
+        themePicker: { open: false, selected: 0 },
+      };
+    case 'themePickerMove': {
+      const n = THEME_OPTIONS.length;
+      const next = (state.themePicker.selected + action.delta + n) % n;
+      if (next === state.themePicker.selected) return state;
+      return {
+        ...state,
+        themePicker: { ...state.themePicker, selected: next, hint: undefined },
+      };
+    }
+    case 'themePickerHint':
+      return {
+        ...state,
+        themePicker: { ...state.themePicker, hint: action.text },
       };
     case 'modePickerOpen':
       return {

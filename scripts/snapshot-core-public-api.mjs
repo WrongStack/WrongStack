@@ -221,7 +221,7 @@ function buildUsageSnapshot() {
     usages.set(key, entry);
   };
   for (const file of files) {
-    if (file.startsWith(path.join(coreRoot, 'dist'))) continue;
+    if (/(?:^|[\\/])dist[\\/]/u.test(file)) continue;
     const source = withoutComments(readNormalized(file, 'utf8'));
     const staticPattern =
       /\b(import|export)\s+(type\s+)?([^;]*?)\s+from\s+['"](@wrongstack\/core(?:\/[^'"]*)?)['"]/gu;

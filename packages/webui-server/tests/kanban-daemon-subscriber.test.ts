@@ -47,6 +47,7 @@ describe('subscribeKanbanDaemonEvents', () => {
       await daemonHandler?.({ event: 'board.updated', data: { boardId: 'board-1' } });
       await daemonHandler?.({ event: 'task.added', data: { boardId: 'board-1' } });
       await daemonHandler?.({ event: 'column.updated', data: { boardId: 'board-1' } });
+      await daemonHandler?.({ event: 'contract.node.updated', data: { boardId: 'board-1' } });
       expect(getBoard).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(350);

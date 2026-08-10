@@ -1,17 +1,24 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import * as path from 'node:path';
 import { splitLearnedEntries } from './project-agent-learning-entries.js';
+import {
+  parseStructuredLearnedEntriesFromContent,
+  renderLearnedInstructions,
+  type StructuredLearnedEntry,
+} from './project-agent-learning-structured.js';
 import { assertProjectAgentRole, roleDir, writeTextAtomically } from './project-agent-paths.js';
 
 export interface ConsolidationMetadata {
   /** ISO timestamp of the last consolidation. */
   consolidatedAt: string;
-  /** Number of raw learned.md entries that were synthesized. */
+  /**
+   * Number of raw `learned.md` **directives** that were synthesized.
+   *
+   * Counted with the structured parser. It used to be counted with
+   * `splitLearnedEntries`, which returns 2 for any structured buffer, so the
+   * freshness comparison in `buildProjectContextualizedPrompt` compared 2
+   * against 2 forever and the delta-injection branch was unreachable.
+   */
   sourceEntryCount: number;
   /** Byte size of the raw learned.md at consolidation time. */
   sourceBytes: number;
@@ -21,6 +28,12 @@ export interface ConsolidationMetadata {
   trigger: 'manual' | 'automatic';
   /** Optional model that produced the consolidation. */
   model?: string | undefined;
+  /** Whether the raw buffer was archived and reset after synthesis. */
+  pruned?: boolean | undefined;
+  /** Archive file holding the pre-prune raw buffer, when pruned. */
+  archivePath?: string | undefined;
+  /** Skill addenda refreshed by this pass. */
+  skills?: string[] | undefined;
 }
 
 function learnedPath(role: string, projectRoot?: string): string {
@@ -35,8 +48,13 @@ function loadProjectAgentLearnedText(role: string, projectRoot?: string): string
   }
 }
 
-function listProjectAgentLearnedTextEntries(role: string, projectRoot?: string): string[] {
-  return splitLearnedEntries(loadProjectAgentLearnedText(role, projectRoot));
+/** Structured directives in the raw buffer, with legacy-format fallback. */
+export function readRawLearnedEntries(
+  role: string,
+  projectRoot?: string,
+): StructuredLearnedEntry[] {
+  const raw = loadProjectAgentLearnedText(role, projectRoot);
+  return parseStructuredLearnedEntriesFromContent(raw, splitLearnedEntries(raw));
 }
 
 function consolidationPath(role: string, projectRoot?: string): string {
@@ -45,6 +63,14 @@ function consolidationPath(role: string, projectRoot?: string): string {
 
 function consolidationMetaPath(role: string, projectRoot?: string): string {
   return path.join(roleDir(role, projectRoot), 'consolidation.json');
+}
+
+function archivePath(role: string, at: string, projectRoot?: string): string {
+  return path.join(
+    roleDir(role, projectRoot),
+    'archive',
+    `learned-${at.replace(/[:.]/g, '-')}.md`,
+  );
 }
 
 export function loadProjectAgentConsolidated(role: string, projectRoot?: string): string {
@@ -80,30 +106,65 @@ export function isConsolidated(role: string, projectRoot?: string): boolean {
   return existsSync(consolidationMetaPath(role, projectRoot));
 }
 
+export interface SaveConsolidationOptions extends Partial<ConsolidationMetadata> {
+  /**
+   * Archive the raw buffer and reset it to an empty structured document.
+   *
+   * Consolidation used to leave `learned.md` untouched, so a role whose buffer
+   * had crossed the soft limit stayed over it forever and never captured
+   * again. Pruning is what actually closes the optimize→learn loop; the
+   * pre-prune buffer is kept under `archive/` for audit.
+   */
+  prune?: boolean | undefined;
+}
+
 export function saveProjectAgentConsolidated(
   role: string,
   content: string,
   projectRoot?: string,
-  metadata?: Partial<ConsolidationMetadata>,
+  options?: SaveConsolidationOptions,
 ): string {
-  if (!content.trim()) {
-    return consolidationPath(assertProjectAgentRole(role), projectRoot);
-  }
   const normalizedRole = assertProjectAgentRole(role);
+  if (!content.trim()) return consolidationPath(normalizedRole, projectRoot);
   const dir = roleDir(normalizedRole, projectRoot);
   mkdirSync(dir, { recursive: true });
   const fp = consolidationPath(normalizedRole, projectRoot);
   writeTextAtomically(fp, content);
 
-  const rawEntries = listProjectAgentLearnedTextEntries(normalizedRole, projectRoot);
-  const rawBytes = Buffer.byteLength(loadProjectAgentLearnedText(normalizedRole, projectRoot), 'utf8');
+  const consolidatedAt = new Date().toISOString();
+  let archived: string | undefined;
+  if (options?.prune) {
+    const rawText = loadProjectAgentLearnedText(normalizedRole, projectRoot);
+    if (rawText) {
+      archived = archivePath(normalizedRole, consolidatedAt, projectRoot);
+      writeTextAtomically(archived, rawText);
+    }
+    // Reset the active buffer. Every directive it held is now represented in
+    // consolidated.md (and in the per-skill addenda), so the next capture
+    // starts from a clean, well under-budget document.
+    writeTextAtomically(
+      learnedPath(normalizedRole, projectRoot),
+      renderLearnedInstructions(normalizedRole, [], consolidatedAt),
+    );
+  }
+
+  // Snapshot the buffer state *after* any prune so the freshness gate in
+  // `buildProjectContextualizedPrompt` compares like with like.
+  const rawEntries = readRawLearnedEntries(normalizedRole, projectRoot);
+  const rawBytes = Buffer.byteLength(
+    loadProjectAgentLearnedText(normalizedRole, projectRoot),
+    'utf8',
+  );
   const meta: ConsolidationMetadata = {
-    consolidatedAt: new Date().toISOString(),
+    consolidatedAt,
     sourceEntryCount: rawEntries.length,
     sourceBytes: rawBytes,
     consolidatedBytes: Buffer.byteLength(content, 'utf8'),
-    trigger: metadata?.trigger ?? 'manual',
-    ...(metadata?.model ? { model: metadata.model } : {}),
+    trigger: options?.trigger ?? 'manual',
+    ...(options?.model ? { model: options.model } : {}),
+    ...(options?.prune ? { pruned: true } : {}),
+    ...(archived ? { archivePath: archived } : {}),
+    ...(options?.skills?.length ? { skills: [...options.skills] } : {}),
   };
   writeTextAtomically(
     consolidationMetaPath(normalizedRole, projectRoot),
@@ -135,7 +196,10 @@ export function buildConsolidationInstruction(
   hasExistingConsolidation: boolean;
 } {
   const normalizedRole = assertProjectAgentRole(role);
-  const rawEntries = listProjectAgentLearnedTextEntries(normalizedRole, projectRoot);
+  const entries = readRawLearnedEntries(normalizedRole, projectRoot);
+  const rawEntries = entries.map((entry) =>
+    entry.how ? `${entry.what}\n   Anchors: ${entry.how.split('\n').join(', ')}` : entry.what,
+  );
   const existingConsolidation = loadProjectAgentConsolidated(normalizedRole, projectRoot);
   const rawBody = rawEntries.map((entry, i) => `### Entry ${i + 1}\n\n${entry}`).join('\n\n');
 

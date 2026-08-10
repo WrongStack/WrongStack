@@ -55,6 +55,7 @@ interface SerializedPhaseNode {
 interface SerializedTaskGraph {
   id: string;
   specId: string;
+  requiredRequirementIds?: string[] | undefined;
   title: string;
   nodes: SerializedTaskNode[];
   edges: TaskEdge[];
@@ -257,6 +258,7 @@ export class PhaseStore {
     return {
       id: graph.id,
       specId: graph.specId,
+      requiredRequirementIds: graph.requiredRequirementIds,
       title: graph.title,
       nodes: Array.from(graph.nodes.values()).map((n) => this.serializeTaskNode(n)),
       edges: graph.edges,
@@ -334,6 +336,7 @@ export class PhaseStore {
     return {
       id: serialized.id,
       specId: serialized.specId,
+      requiredRequirementIds: serialized.requiredRequirementIds,
       title: serialized.title,
       nodes,
       edges: serialized.edges ?? [],

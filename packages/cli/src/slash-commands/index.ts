@@ -68,6 +68,7 @@ import { buildExitCommand, buildLoadCommand, buildSaveCommand } from './session.
 import { buildSetModelCommand } from './setmodel.js';
 import { buildSuggestCommand } from './suggest.js';
 import { buildDesktopCommand, buildWebuiCommand } from './surfaces.js';
+import { buildThemeCommand } from './theme.js';
 
 // modeldiag is now a CLI subcommand (wstack modeldiag), not a slash command.
 
@@ -151,6 +152,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildBtwCommand(opts),
     buildNextCommand(opts),
     buildModeCommand(opts),
+    buildThemeCommand(opts),
     buildDesignCommand(opts),
     buildMailboxDemoCommand(opts),
     buildMailboxCommand(opts),

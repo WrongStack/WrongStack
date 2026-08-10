@@ -12,7 +12,7 @@
  * the same order), and an i18n label key in all 7 locale files. The default
  * "signal" palette needs no CSS block — it is the base token set.
  */
-export type PaletteId = 'signal' | 'emerald-gold' | 'blue-navy' | 'purple-pink' | 'cyan-teal' | 'rose-copper' | 'indigo-amber';
+export type PaletteId = 'signal' | 'emerald-gold' | 'blue-navy' | 'purple-pink' | 'cyan-teal' | 'rose-copper' | 'indigo-amber' | 'sage-sand' | 'slate-violet' | 'coral-mint' | 'arctic-ember' | 'moss-rust';
 
 export interface PaletteDefinition {
   id: PaletteId;
@@ -71,6 +71,36 @@ export const PALETTES: readonly PaletteDefinition[] = [
     labelKey: 'settings:general.paletteIndigoAmber',
     swatch: 'hsl(233 74% 58%)',
     swatchSecondary: 'hsl(38 96% 54%)',
+  },
+  {
+    id: 'sage-sand',
+    labelKey: 'settings:general.paletteSageSand',
+    swatch: 'hsl(130 28% 55%)',
+    swatchSecondary: 'hsl(36 55% 72%)',
+  },
+  {
+    id: 'slate-violet',
+    labelKey: 'settings:general.paletteSlateViolet',
+    swatch: 'hsl(248 50% 55%)',
+    swatchSecondary: 'hsl(285 52% 62%)',
+  },
+  {
+    id: 'coral-mint',
+    labelKey: 'settings:general.paletteCoralMint',
+    swatch: 'hsl(12 85% 62%)',
+    swatchSecondary: 'hsl(162 55% 55%)',
+  },
+  {
+    id: 'arctic-ember',
+    labelKey: 'settings:general.paletteArcticEmber',
+    swatch: 'hsl(195 85% 58%)',
+    swatchSecondary: 'hsl(14 85% 55%)',
+  },
+  {
+    id: 'moss-rust',
+    labelKey: 'settings:general.paletteMossRust',
+    swatch: 'hsl(100 45% 38%)',
+    swatchSecondary: 'hsl(18 70% 48%)',
   },
 ] as const satisfies readonly PaletteDefinition[];
 

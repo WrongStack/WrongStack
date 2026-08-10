@@ -323,6 +323,42 @@
       "reviewBy": "2026-10-01",
       "removeWhen": "Codebase-index IPC types move to a dependency-leaf module consumed by both index-service and worker-protocol.",
       "canonicalTask": "T1"
+    },
+    {
+      "id": "ARCH-CYCLE-TYPE-29",
+      "kind": "type-module-cycle",
+      "members": [
+        "packages/core/src/coordination/agents/agent-prompts.ts",
+        "packages/core/src/coordination/agents/index.ts",
+        "packages/core/src/coordination/agents/phase1-discovery.ts",
+        "packages/core/src/coordination/agents/phase2-planning.ts",
+        "packages/core/src/coordination/agents/phase3-build.ts",
+        "packages/core/src/coordination/agents/phase3-wave1-platform.ts",
+        "packages/core/src/coordination/agents/phase3-wave2-meta.ts",
+        "packages/core/src/coordination/agents/phase4-verify.ts",
+        "packages/core/src/coordination/agents/phase5-review.ts",
+        "packages/core/src/coordination/agents/phase6-domain.ts",
+        "packages/core/src/coordination/agents/phase7-knowledge.ts",
+        "packages/core/src/coordination/agents/phase8-delivery.ts",
+        "packages/core/src/coordination/agents/phase8-wave3-products.ts",
+        "packages/core/src/coordination/agents/phase9-meta.ts",
+        "packages/core/src/coordination/agents/phase9-wave4-platform-meta.ts",
+        "packages/core/src/coordination/agents/project-agent-auto-optimize.ts",
+        "packages/core/src/coordination/agents/project-agent-identity.ts",
+        "packages/core/src/coordination/agents/project-agent-optimizer.ts",
+        "packages/core/src/coordination/dispatcher.ts",
+        "packages/core/src/coordination/fleet.ts",
+        "packages/core/src/coordination/multi-agent-coordinator.ts",
+        "packages/core/src/execution/parallel-eternal-engine.ts",
+        "packages/core/src/types/autonomy.ts",
+        "packages/core/src/types/index.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Type-level module SCC in core coordination agents.",
+      "introduced": "2026-08-09",
+      "reviewBy": "2026-10-01",
+      "removeWhen": "Core agent definitions are decoupled from phase registries.",
+      "canonicalTask": "D2"
     }
   ]
 }

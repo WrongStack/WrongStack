@@ -30,11 +30,13 @@ describe('canCaptureNewLearned', () => {
     expect(result).toBeUndefined();
   });
 
-  it('blocks non-manual capture when over soft limit', () => {
+  it('does not block automatic capture on buffer size', () => {
+    // Size no longer gates capture. The old soft-limit block had no path that
+    // could ever clear it — consolidation wrote a separate file and never
+    // touched the raw buffer — so a role that crossed 8 KB stopped learning
+    // permanently. Over-budget buffers are now trimmed at write time instead.
     const root = uniqueRoot();
-    const result = canCaptureNewLearned('bug-hunter', 999_999, false, root);
-    expect(result).toBeDefined();
-    expect(result).toContain('soft limit');
+    expect(canCaptureNewLearned('bug-hunter', 999_999, false, root)).toBeUndefined();
   });
 
   it('allows manual capture when over soft limit', () => {

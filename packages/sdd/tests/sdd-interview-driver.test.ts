@@ -106,10 +106,19 @@ describe('SddInterviewDriver', () => {
     expect(res.tasksDetected).toBe(true);
     expect(res.graphId).toBeTruthy();
     const graph = h.driver.getGraph();
-    expect(graph?.nodes.size).toBe(2);
+    // The two model-proposed tasks are retained, and the two approved
+    // requirements receive deterministic traceable tasks because the proposal
+    // did not map itself to requirement ids.
+    expect(graph?.nodes.size).toBe(4);
+    expect(graph?.requiredRequirementIds).toEqual(['REQ-1', 'REQ-2']);
+    expect(
+      [...(graph?.nodes.values() ?? [])]
+        .flatMap((node) => (node.specRequirementId ? [node.specRequirementId] : []))
+        .sort(),
+    ).toEqual(['REQ-1', 'REQ-2']);
     // Loadable from disk by id.
     const loaded = await h.graphStore.load(res.graphId as string);
-    expect(loaded?.nodes.size).toBe(2);
+    expect(loaded?.nodes.size).toBe(4);
   });
 
   it('wires dependsOn references into real dependency edges', async () => {
@@ -141,7 +150,7 @@ describe('SddInterviewDriver', () => {
     await h.driver.ingestAgentOutput(TASKS_WITH_DEPS);
     const tracker = h.driver.getTracker();
     const graph = h.driver.getGraph();
-    expect(graph?.nodes.size).toBe(2);
+    expect(graph?.nodes.size).toBe(4);
     const nodes = [...(graph?.nodes.values() ?? [])];
     const mw = nodes.find((n) => n.title === 'Create auth middleware');
     const tests = nodes.find((n) => n.title === 'Write auth tests');

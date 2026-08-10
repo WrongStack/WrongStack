@@ -11,12 +11,16 @@ import {
   applySessionKanbanTaskToSource,
   attachSessionKanbanMirror,
   cleanupEmptySessionKanbanBoards,
+  cleanupSessionKanbanBoard,
   cleanupSessionKanbanBoardIfEmpty,
   ensureSessionKanbanBoard,
   mirrorSessionTodosToKanban,
   projectSessionPlanToKanban,
   projectSessionTasksToKanban,
   projectSessionTodosToKanban,
+  taskFileToSerializedGraph,
+  todoListToSerializedGraph,
+  planFileToSerializedGraph,
 } from '../src/session-kanban.js';
 
 describe('unified session kanban', () => {
@@ -73,6 +77,71 @@ describe('unified session kanban', () => {
     );
     expect(board?.tasks.find((task) => task.origin?.taskId === 'task-1')?.columnId).toBe('review');
     expect(board?.tasks.find((task) => task.origin?.taskId === 'plan-1')?.columnId).toBe('done');
+    expect(board?.requirementScopes).toHaveLength(3);
+    expect(board?.requiredRequirementIds).toHaveLength(3);
+    expect(
+      board?.tasks.every(
+        (task) =>
+          task.origin?.specRequirementId &&
+          board.requiredRequirementIds?.includes(task.origin.specRequirementId),
+      ),
+    ).toBe(true);
+  });
+
+  it('declares every persisted plan, task, and todo row as required graph scope', () => {
+    const todoGraph = todoListToSerializedGraph(
+      [{ id: 'same', content: 'Todo', status: 'pending' }],
+      'scope-session',
+    );
+    const taskGraph = taskFileToSerializedGraph(
+      [
+        {
+          id: 'same',
+          title: 'Task',
+          type: 'feature',
+          priority: 'high',
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      'scope-session',
+    );
+    const planGraph = planFileToSerializedGraph(
+      [
+        {
+          id: 'same',
+          title: 'Plan',
+          status: 'open',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      'scope-session',
+    );
+
+    expect(todoGraph.requiredRequirementIds).toEqual(['todo:scope-session:same']);
+    expect(taskGraph.requiredRequirementIds).toEqual(['session:scope-session:same']);
+    expect(planGraph.requiredRequirementIds).toEqual(['plan:scope-session:same']);
+  });
+
+  it('rejects silent scope shrink when a later snapshot omits recorded work', async () => {
+    await projectSessionTodosToKanban(
+      dir,
+      [
+        { id: 'keep', content: 'Keep', status: 'pending' },
+        { id: 'omitted', content: 'Must be explicitly resolved', status: 'pending' },
+      ],
+      'shrink-session',
+    );
+
+    await expect(
+      projectSessionTodosToKanban(
+        dir,
+        [{ id: 'keep', content: 'Keep', status: 'pending' }],
+        'shrink-session',
+      ),
+    ).rejects.toThrow('requirement scope cannot shrink');
   });
 
   it('projects a final completed todo into Done instead of leaving it in Todo', async () => {
@@ -139,8 +208,12 @@ describe('unified session kanban', () => {
     expect(remainingIds.has(populated!.id)).toBe(true);
   });
 
-  it('keeps an attached session board until that session detaches', async () => {
-    const board = await ensureSessionKanbanBoard(dir, 'live-session');
+  it('keeps an attached session board until detach, then removes the populated mirror', async () => {
+    const board = await projectSessionTodosToKanban(
+      dir,
+      [{ id: 'todo-1', content: 'Tactical work', status: 'completed' }],
+      'live-session',
+    );
     const context = {
       projectRoot: dir,
       session: { id: 'live-session' },
@@ -153,7 +226,7 @@ describe('unified session kanban', () => {
     expect(await getBoard(dir, board!.id)).not.toBeNull();
 
     detach();
-    await cleanupSessionKanbanBoardIfEmpty(dir, 'live-session');
+    await cleanupSessionKanbanBoard(dir, 'live-session');
     expect(await getBoard(dir, board!.id)).toBeNull();
   });
 

@@ -1,4 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  addCheckToTask,
+  addTask,
+  createBoard,
+  transitionTask,
+  updateTaskAssignment,
+} from '@wrongstack/kanban';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@wrongstack/providers', () => ({
   // Fresh capabilities object per call (each provider owns its own), with the
@@ -48,6 +58,14 @@ import { type MultiAgentDeps, MultiAgentHost } from '../src/multi-agent.js';
 
 beforeEach(() => {
   vi.mocked(capabilitiesFor).mockClear();
+});
+
+const writerRoots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    writerRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 /**
@@ -1205,6 +1223,10 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
     cfg: Partial<SubagentConfig>,
   ): Promise<{ result: { type: string; is_error?: boolean }; tool: Tool; dispose?: () => void }> {
     const deps = depsWithTools();
+    const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-subagent-writer-'));
+    writerRoots.push(projectRoot);
+    deps.projectRoot = projectRoot;
+    deps.cwd = projectRoot;
     const tool = writerTool();
     deps.toolRegistry.register(tool);
     const host = new MultiAgentHost(deps);
@@ -1214,6 +1236,59 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
       role: 'general',
       ...cfg,
     });
+    const board = await createBoard(projectRoot, {
+      title: 'Capability test board',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'running',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const added = await addTask(projectRoot, board.id, {
+      title: 'Exercise writer capability',
+      description: 'Verify the subagent capability grant reaches the writer tool.',
+      assignedAgent: agent.ctx.agentId,
+      dueDate: '2026-08-10T00:00:00.000Z',
+      labels: ['capability-test'],
+    });
+    const taskId = added!.task.id;
+    await addCheckToTask(projectRoot, board.id, taskId, {
+      description: 'Writer tool executes once',
+      type: 'test',
+    });
+    await transitionTask(projectRoot, board.id, taskId, {
+      to: 'todo',
+      actor: agent.ctx.agentId ?? 'subagent',
+      comment: 'Capability test is ready.',
+    });
+    await updateTaskAssignment(projectRoot, board.id, taskId, {
+      status: 'running',
+      agentId: agent.ctx.agentId ?? 'subagent',
+      leaseId: 'capability-test-lease',
+      claimedAt: '2026-08-10T00:00:00.000Z',
+      heartbeatAt: '2026-08-10T00:00:00.000Z',
+      leaseExpiresAt: '2026-08-11T00:00:00.000Z',
+      attempt: 1,
+      maxAttempts: 1,
+    });
+    await transitionTask(projectRoot, board.id, taskId, {
+      to: 'running',
+      actor: agent.ctx.agentId ?? 'subagent',
+      comment: 'Capability test started.',
+    });
+    agent.ctx.setCurrentKanbanTask(taskId, board.id);
     const r = await agent.toolExecutor.executeBatch(
       [{ type: 'tool_use', id: 'u1', name: 'writer', input: {} }],
       agent.ctx,

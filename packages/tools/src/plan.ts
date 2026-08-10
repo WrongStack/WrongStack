@@ -15,6 +15,7 @@ import {
 import type { Tool } from '@wrongstack/core/types';
 import { formatTaskList } from '@wrongstack/core/utils';
 import { projectSessionPlanToKanban } from './session-kanban.js';
+import { todoTool } from './todo.js';
 
 /**
  * `planTool` — the LLM-callable counterpart to the `/plan` slash command.
@@ -33,6 +34,7 @@ interface PlanInput {
   action:
     | 'show'
     | 'add'
+    | 'status'
     | 'start'
     | 'done'
     | 'remove'
@@ -46,6 +48,8 @@ interface PlanInput {
   details?: string | undefined;
   /** Required for start/done/remove/promote — accepts plan item id OR 1-based index OR title substring. */
   target?: string | undefined;
+  /** Exact status for action=status. */
+  status?: PlanFile['items'][number]['status'] | undefined;
   /** Optional subtasks for promote. If omitted, a single todo is created from the plan item title. */
   subtasks?: string[] | undefined;
   /** Required for template_use — the template name (e.g. "new-feature", "bug-fix"). */
@@ -89,8 +93,10 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
   usageHint:
     'RECOMMENDED FOR COMPLEX, MULTI-PHASE WORK:\n\n' +
     '- Start by creating a high-level plan with `action: "add"` or using templates (`template_use`).\n' +
+    '- Use `action: "status"` with `open`, `in_progress`, or `done` for exact status changes.\n' +
     '- Use `promote` to turn a plan item into actionable todos.\n' +
     '- Use `taskify` to convert a plan item into a structured task (with type/priority/deps).\n' +
+    '- Unfinished plan items cannot be removed or cleared; complete them first.\n' +
     '- Keep plans at the "why and what" level, and todos at the "how and next step" level.\n' +
     '- Common templates: "new-feature", "bug-fix", "refactor", "release", "security-audit".\n\n' +
     'This tool is excellent for maintaining long-term direction across many turns within a session. Plans survive resume but are not shared across separate sessions.\n' +
@@ -102,7 +108,7 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
   mutating: true,
   capabilities: ['fs.write'],
   icon: 'plan',
-  timeoutMs: 2_000,
+  timeoutMs: 30_000,
   inputSchema: {
     type: 'object',
     properties: {
@@ -111,6 +117,7 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
         enum: [
           'show',
           'add',
+          'status',
           'start',
           'done',
           'remove',
@@ -133,6 +140,11 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
         type: 'string',
         description:
           'Identifier for the target plan item (id, 1-based index, or partial title). Required for most actions except add/show/clear.',
+      },
+      status: {
+        type: 'string',
+        enum: ['open', 'in_progress', 'done'],
+        description: 'Exact plan item status for action=status.',
       },
       subtasks: {
         type: 'array',
@@ -194,6 +206,7 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
     // Track taskify data — task write happens after the plan lock releases
     const taskifyMeta = { title: '', details: '' };
     let didTaskify = false;
+    let todosToReplace: NonNullable<PlanOutput['todos']> | null = null;
 
     let plan: PlanFile;
     try {
@@ -234,6 +247,23 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
             return next;
           }
 
+          case 'status': {
+            if (!input.target || !input.status) {
+              early = mkResult(
+                p,
+                false,
+                'status requires `target` (id|index|substring) and `status`.',
+              );
+              return p;
+            }
+            const next = setPlanItemStatus(p, input.target, input.status);
+            if (next === p) {
+              early = mkResult(p, false, `No plan item matched "${input.target}".`);
+              return p;
+            }
+            return next;
+          }
+
           case 'remove': {
             if (!input.target) {
               early = mkResult(p, false, 'remove requires `target` (id|index|substring).');
@@ -242,6 +272,16 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
             const next = removePlanItem(p, input.target);
             if (next === p) {
               early = mkResult(p, false, `No plan item matched "${input.target}".`);
+              return p;
+            }
+            const nextIds = new Set(next.items.map((item) => item.id));
+            const removed = p.items.find((item) => !nextIds.has(item.id));
+            if (removed?.status !== 'done') {
+              early = mkResult(
+                p,
+                false,
+                `Plan item "${removed?.title ?? input.target}" is not done and cannot be removed. Complete it first.`,
+              );
               return p;
             }
             return next;
@@ -261,7 +301,7 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
               early = mkResult(p, false, `No plan item matched "${input.target}".`);
               return p;
             }
-            ctx.state.replaceTodos(derived.todos);
+            todosToReplace = derived.todos;
             early = mkResult(
               derived.plan,
               true,
@@ -295,6 +335,14 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
           }
 
           case 'clear':
+            if (p.items.some((item) => item.status !== 'done')) {
+              early = mkResult(
+                p,
+                false,
+                'Plan contains unfinished items and cannot be cleared. Complete them first.',
+              );
+              return p;
+            }
             return clearPlan(p);
 
           case 'taskify': {
@@ -352,6 +400,12 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
     // A successful plan mutation includes its projection onto the unified
     // session board; callers never observe plan state ahead of Kanban state.
     await projectSessionPlanToKanban(ctx.projectRoot, plan.items, sessionId);
+
+    if (todosToReplace) {
+      await todoTool.execute({ todos: todosToReplace }, ctx, {
+        signal: AbortSignal.timeout(30_000),
+      });
+    }
 
     // If the callback set an early-return result, use it
     if (early) return early;

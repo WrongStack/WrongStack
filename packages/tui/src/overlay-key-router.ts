@@ -36,6 +36,7 @@ const POINTER_OVERLAY_ROUTES: readonly PointerOverlayRoute[] = [
   },
   { isOpen: (s) => s.modePicker.open, cancel: () => ({ type: 'modePickerClose' }) },
   { isOpen: (s) => s.autonomyPicker.open, cancel: () => ({ type: 'autonomyPickerClose' }) },
+  { isOpen: (s) => s.themePicker.open, cancel: () => ({ type: 'themePickerClose' }) },
   { isOpen: (s) => s.designPicker.open, cancel: () => ({ type: 'designPickerClose' }) },
   { isOpen: (s) => s.promptPicker.open, cancel: () => ({ type: 'promptPickerClose' }) },
   { isOpen: (s) => s.resumePicker.open, cancel: () => ({ type: 'resumePickerClose' }) },

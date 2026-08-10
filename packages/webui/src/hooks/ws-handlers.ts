@@ -466,6 +466,8 @@ export function handleTodosUpdated(msg: WSServerMessage) {
       content: string;
       status: 'pending' | 'in_progress' | 'completed';
       activeForm?: string | undefined;
+      kanbanBoardId?: string | undefined;
+      kanbanTaskId?: string | undefined;
     }>;
   };
   useSessionStore.getState().setTodos(p.todos ?? []);
@@ -618,6 +620,7 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
     'kanban.list': handleKanbanResult,
     'kanban.get': handleKanbanResult,
     'kanban.health': handleKanbanResult,
+    'kanban.workbench': handleKanbanResult,
     'kanban.create': handleKanbanResult,
     'kanban.duplicate': handleKanbanResult,
     'kanban.update': handleKanbanResult,

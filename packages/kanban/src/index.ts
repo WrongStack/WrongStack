@@ -5,6 +5,7 @@ export * from './boundary.js';
 export {
   addCheckToTask,
   addColumn,
+  addContractEdge,
   addDependency,
   addGoalMetricToTask,
   addLinkToTask,
@@ -14,22 +15,30 @@ export {
   assessTaskAtomicity,
   assignTask,
   attachVerificationReport,
+  cancelKanbanDispatch,
   claimReadyTask,
+  completeKanbanDispatch,
+  configureContractGraph,
   copyTaskToBoard,
   createBoard,
   createBoardFromTaskGraph,
   createBoardsFromPhaseGraph,
   duplicateBoard,
   enforceCompletionGate,
+  evaluateTaskContractGraph,
   exportBoardMarkdown,
   exportBoardToTaskGraph,
+  failKanbanDispatch,
   finalizeTaskCompletion,
   getBoard,
   getBoardWithLivePresence,
+  getContractGraph,
   getKanbanOrchestrationSnapshot,
   getKanbanQueueHealth,
+  getKanbanWorkbench,
   getTask,
   getTaskChain,
+  heartbeatKanbanDispatch,
   heartbeatTaskAssignment,
   listBoards,
   listKanbanEvents,
@@ -38,6 +47,7 @@ export {
   mergeTasks,
   moveTask,
   proposeTaskDecomposition,
+  pruneSessionBoards,
   reconcileKanbanBoard,
   recordTaskActivity,
   recordTaskFileActivity,
@@ -45,12 +55,16 @@ export {
   releaseTaskClaim,
   removeBoard,
   removeColumn,
+  removeContractEdge,
+  removeContractNode,
   removeTask,
   repairManagedTaskProjection,
+  reserveKanbanDispatch,
   resolveDecompositionProposal,
   searchKanban,
   setTaskChain,
   splitTask,
+  startKanbanDispatch,
   syncBoardFromTaskGraph,
   touchKanbanPresence,
   transferTaskToBoard,
@@ -61,15 +75,15 @@ export {
   updateGoalMetricOnTask,
   updateTask,
   updateTaskAssignment,
+  upsertContractNode,
   verifyTaskCompletion,
-  reserveKanbanDispatch,
-  startKanbanDispatch,
-  completeKanbanDispatch,
-  failKanbanDispatch,
-  cancelKanbanDispatch,
-  heartbeatKanbanDispatch,
-  pruneSessionBoards,
 } from './client-domain.js';
+export {
+  createEmptyContractGraph,
+  evaluateContractGraph,
+  evaluateContractGraphReadiness,
+  taskContractEndpoint,
+} from './contract-graph.js';
 export * from './manager.js';
 export {
   closeKanbanServerConnections,
@@ -107,6 +121,7 @@ export {
   writeBoard,
   writeKanbanMetadata,
 } from './storage.js';
+export * from './types.js';
 // Exported so `packages/tools/tests/regex-guard-parity.test.ts` can hold this
 // copy to the same verdicts as the canonical guard in `tools/src/_regex.ts`.
 // Kanban sits below tools in the layer DAG and cannot import it directly.
@@ -116,7 +131,6 @@ export {
   MAX_SUBJECT_LEN,
   type SafeRegexResult,
 } from './verification/safe-regex.js';
-export * from './types.js';
 export {
   drainKanbanWorkflowCommands,
   type EnqueueKanbanWorkflowCommandInput,

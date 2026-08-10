@@ -7,6 +7,7 @@ import {
 import type { Director } from '@wrongstack/core/coordination';
 import type { AttachmentStore, ContentBlock } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { todoTool } from '@wrongstack/tools/todo';
 import type { Action, State } from './app-reducer.js';
 import type { SendMode } from './components/send-mode-picker.js';
 import type { ShellCommandWarningDecision } from './components/shell-command-warning.js';
@@ -508,14 +509,18 @@ export function createSubmitController(host: SubmitControllerHost) {
     if (continueResolved?.source === 'todo' && continueResolved.todoId) {
       const selected = agent.ctx.todos.find((todo) => todo.id === continueResolved.todoId);
       if (selected?.status === 'pending') {
-        agent.ctx.state.replaceTodos(
-          agent.ctx.todos.map((todo) =>
-            todo.id === continueResolved.todoId
-              ? { ...todo, status: 'in_progress' as const }
-              : todo.status === 'in_progress'
-                ? { ...todo, status: 'pending' as const }
-                : todo,
-          ),
+        await todoTool.execute(
+          {
+            todos: agent.ctx.todos.map((todo) =>
+              todo.id === continueResolved.todoId
+                ? { ...todo, status: 'in_progress' as const }
+                : todo.status === 'in_progress'
+                  ? { ...todo, status: 'pending' as const }
+                  : todo,
+            ),
+          },
+          agent.ctx,
+          { signal: AbortSignal.timeout(30_000) },
         );
       }
     }

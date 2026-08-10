@@ -1147,6 +1147,10 @@ export class DefaultSessionStore implements SessionStore {
           sessionId: canonical,
           operation: 'clear',
           holderId: this.maintenanceHolderId,
+          // The catalog store runs inside the detached project daemon; without
+          // our pid it cannot tell "this TUI clearing its own session" from
+          // "another running wstack" and refuses every /clear as `is live`.
+          holderPid: process.pid,
         })
       : undefined;
     await this.ensureShardDir(canonical);

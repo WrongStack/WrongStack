@@ -203,3 +203,12 @@ AGENTS.md
 !.wrongstack/instructions/**
 !.wrongstack/design-kits/
 !.wrongstack/design-kits/**
+# Roster agents' project-developed skills and learning. Committed on purpose:
+# what the `verifier` agent learned about testing *this* codebase is a project
+# asset, not a per-clone scratch file — otherwise every checkout and every CI
+# run starts the agents from zero. Runtime counters and the pre-optimization
+# archive stay local.
+!.wrongstack/agents/
+!.wrongstack/agents/**
+.wrongstack/agents/**/archive/
+.wrongstack/agents/**/skills/affinity.json

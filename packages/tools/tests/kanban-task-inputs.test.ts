@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  taskInput,
-  taskPatch,
   assignmentInput,
   mergedDependsOn,
+  taskInput,
+  taskPatch,
 } from '../src/kanban-task-inputs.js';
 
 describe('taskInput', () => {
@@ -179,12 +179,28 @@ describe('taskInput', () => {
       title: 'Graph task',
       graphId: 'graph-1',
       specId: 'spec-1',
+      specRequirementId: 'REQ-1',
       phaseId: 'phase-1',
       sourceSystem: 'import',
     });
     expect(result.origin?.graphId).toBe('graph-1');
     expect(result.origin?.specId).toBe('spec-1');
+    expect(result.origin?.specRequirementId).toBe('REQ-1');
     expect(result.origin?.system).toBe('import');
+  });
+
+  it('keeps requirement traceability even when no graph id is supplied', () => {
+    const result = taskInput({
+      action: 'add_task',
+      title: 'Requirement task',
+      specId: 'spec-1',
+      specRequirementId: 'REQ-1',
+    });
+    expect(result.origin).toMatchObject({
+      system: 'kanban-tool',
+      specId: 'spec-1',
+      specRequirementId: 'REQ-1',
+    });
   });
 
   it('handles assignee override', () => {

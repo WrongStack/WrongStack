@@ -10,6 +10,7 @@ import {
 } from '@wrongstack/core/utils';
 import { readClipboardImage, routeImagesForModel } from '@wrongstack/runtime';
 import { createAutoProceedLoopGuard } from '@wrongstack/tools/auto-proceed-loop-guard';
+import { todoTool } from '@wrongstack/tools/todo';
 import { contextOverflowHint } from './context-overflow-diagnostic.js';
 import { type PredictLLMProvider, predictNextTasks } from './next-task-predictor.js';
 import { runAutoProceed } from './repl-auto-proceed.js';
@@ -353,14 +354,18 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
             if (resolved.source === 'todo' && resolved.todoId) {
               const selected = todos.find((todo) => todo.id === resolved.todoId);
               if (selected?.status === 'pending') {
-                opts.agent.ctx.state.replaceTodos(
-                  todos.map((todo) =>
-                    todo.id === resolved.todoId
-                      ? { ...todo, status: 'in_progress' as const }
-                      : todo.status === 'in_progress'
-                        ? { ...todo, status: 'pending' as const }
-                        : todo,
-                  ),
+                await todoTool.execute(
+                  {
+                    todos: todos.map((todo) =>
+                      todo.id === resolved.todoId
+                        ? { ...todo, status: 'in_progress' as const }
+                        : todo.status === 'in_progress'
+                          ? { ...todo, status: 'pending' as const }
+                          : todo,
+                    ),
+                  },
+                  opts.agent.ctx,
+                  { signal: AbortSignal.timeout(30_000) },
                 );
               }
             }
@@ -565,14 +570,18 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
         if (resolved.source === 'todo' && resolved.todoId) {
           const selected = opts.agent.ctx.todos.find((todo) => todo.id === resolved.todoId);
           if (selected?.status === 'pending') {
-            opts.agent.ctx.state.replaceTodos(
-              opts.agent.ctx.todos.map((todo) =>
-                todo.id === resolved.todoId
-                  ? { ...todo, status: 'in_progress' as const }
-                  : todo.status === 'in_progress'
-                    ? { ...todo, status: 'pending' as const }
-                    : todo,
-              ),
+            await todoTool.execute(
+              {
+                todos: opts.agent.ctx.todos.map((todo) =>
+                  todo.id === resolved.todoId
+                    ? { ...todo, status: 'in_progress' as const }
+                    : todo.status === 'in_progress'
+                      ? { ...todo, status: 'pending' as const }
+                      : todo,
+                ),
+              },
+              opts.agent.ctx,
+              { signal: AbortSignal.timeout(30_000) },
             );
           }
         }

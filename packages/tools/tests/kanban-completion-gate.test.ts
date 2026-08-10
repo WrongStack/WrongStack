@@ -119,7 +119,7 @@ describe('kanban tool — universal completion gate', () => {
     expect(softResult.task?.status).toBe('completed');
   });
 
-  it('managed assignment completion preserves the lifecycle projection', async () => {
+  it('managed assignment completion auto-accepts passed criteria without graph repair', async () => {
     const columns = [
       { id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 },
       { id: 'todo', title: 'Todo', order: 1, wipLimit: 0 },
@@ -177,19 +177,15 @@ describe('kanban tool — universal completion gate', () => {
     );
 
     expect(result.ok).toBe(true);
-    // Managed lifecycle auto-transition: completed assignment advances
-    // Running → Review. The gate is not involved because this path goes
-    // through the managed lifecycle block, not finalizeTaskCompletion.
-    // The auto-verifier passes (verdict 'passed') but the advance to Done
-    // fails because validateDoneEvidence requires an `action` field that
-    // the auto-advance transitionTask call doesn't supply — the card stays
-    // in Review for manual acceptance.
+    // Managed lifecycle auto-transition advances Running → Review, verifies
+    // the executable criterion, and auto-accepts Review → Done. Contract Map
+    // findings are audit metadata and cannot hold this lifecycle open.
     expect(result.gate).toBeUndefined();
     const after = await getBoard(dir, board.id);
     expect(after?.tasks[0]).toMatchObject({
-      columnId: 'review',
-      status: 'review',
-      lifecycle: { currentStage: 'review' },
+      columnId: 'done',
+      status: 'completed',
+      lifecycle: { currentStage: 'done' },
       assignment: { status: 'completed', lastResult: 'Implementation passed.' },
     });
   });

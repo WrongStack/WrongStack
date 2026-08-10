@@ -119,7 +119,9 @@ describe('bundled operational skills → prompt context', () => {
       expect(text).toContain(`**${name}**`);
       expect(text).toContain(`- ${name}`);
     }
-    expect(text).toContain('Available skills (load with the `skill` tool)');
+    expect(text).toMatch(
+      /(?:Available skills \(load|Other available skills \(not injected — load) with the `skill` tool\)/,
+    );
     expect(text).not.toContain('## Skill: mnemosyne');
   });
 });

@@ -17,6 +17,28 @@ vi.mock('@wrongstack/kanban', () => {
     updateCheckOnTask: vi.fn().mockResolvedValue(board),
     addNoteToTask: vi.fn().mockResolvedValue(board),
     addLinkToTask: vi.fn().mockResolvedValue(board),
+    getContractGraph: vi.fn().mockResolvedValue({
+      board,
+      graph: { version: 1, enforcement: 'strict', nodes: [], edges: [], updatedAt: 'now' },
+    }),
+    configureContractGraph: vi.fn().mockResolvedValue(board),
+    upsertContractNode: vi.fn().mockResolvedValue({
+      board,
+      node: { id: 'node-1', title: 'Objective' },
+    }),
+    addContractEdge: vi.fn().mockResolvedValue({ board, edge: { id: 'edge-1' } }),
+    removeContractNode: vi.fn().mockResolvedValue(board),
+    removeContractEdge: vi.fn().mockResolvedValue(board),
+    evaluateTaskContractGraph: vi.fn().mockResolvedValue({
+      board,
+      evaluation: {
+        taskId: 't1',
+        enforcement: 'strict',
+        allowed: true,
+        evaluatedNodeIds: [],
+        issues: [],
+      },
+    }),
     getBoard: vi.fn().mockResolvedValue(board),
     splitTask: vi.fn().mockResolvedValue({ board, children: [] }),
   };
@@ -44,6 +66,91 @@ describe('handleKanbanDetailAction', () => {
       action: 'list_boards' as never,
     });
     expect(result).toBeUndefined();
+  });
+
+  describe('contract graph', () => {
+    it('keeps strict enforcement operator-owned and refuses autonomous loosening', async () => {
+      const { configureContractGraph, getContractGraph } = await import('@wrongstack/kanban');
+      vi.mocked(getContractGraph)
+        .mockResolvedValueOnce({
+          board: { id: 'board-1', title: 'Test Board', tasks: [], columns: [], metadata: {} },
+          graph: {
+            version: 1,
+            enforcement: 'advisory',
+            nodes: [],
+            edges: [],
+            updatedAt: 'now',
+          },
+        } as never)
+        .mockResolvedValueOnce({
+          board: { id: 'board-1', title: 'Test Board', tasks: [], columns: [], metadata: {} },
+          graph: {
+            version: 1,
+            enforcement: 'strict',
+            nodes: [],
+            edges: [],
+            updatedAt: 'now',
+          },
+        } as never);
+
+      const configured = await handleKanbanDetailAction(projectRoot, {
+        action: 'configure_contract_graph',
+        boardId: 'b1',
+        contractGraphEnforcement: 'strict',
+      });
+      expect(configured).toMatchObject({ ok: false });
+      expect(configured?.message).toContain('operator-owned');
+      expect(configureContractGraph).not.toHaveBeenCalled();
+
+      const loosened = await handleKanbanDetailAction(projectRoot, {
+        action: 'configure_contract_graph',
+        boardId: 'b1',
+        contractGraphEnforcement: 'advisory',
+      });
+      expect(loosened).toMatchObject({ ok: false });
+      expect(loosened?.message).toContain('may not loosen');
+    });
+
+    it('creates nodes, links evidence, and evaluates closure', async () => {
+      const node = await handleKanbanDetailAction(projectRoot, {
+        action: 'upsert_contract_node',
+        boardId: 'b1',
+        taskId: 't1',
+        contractNodeKind: 'objective',
+        title: 'Latency target',
+        metricId: 'metric-1',
+      });
+      expect(node?.message).toContain('Contract node saved');
+
+      const edge = await handleKanbanDetailAction(projectRoot, {
+        action: 'link_contract_nodes',
+        boardId: 'b1',
+        fromNodeId: 'node-1',
+        toNodeId: 'node-2',
+        contractEdgeType: 'verified_by',
+      });
+      expect(edge?.message).toContain('Contract edge added');
+
+      const evaluation = await handleKanbanDetailAction(projectRoot, {
+        action: 'evaluate_contract_graph',
+        boardId: 'b1',
+        taskId: 't1',
+      });
+      expect(evaluation).toMatchObject({ ok: true, message: 'Contract graph is closed.' });
+    });
+
+    it('requires a complete waiver identity', async () => {
+      const result = await handleKanbanDetailAction(projectRoot, {
+        action: 'upsert_contract_node',
+        boardId: 'b1',
+        taskId: 't1',
+        contractNodeKind: 'guardrail',
+        contractNodeState: 'waived',
+        title: 'Compatibility',
+      });
+      expect(result).toMatchObject({ ok: false });
+      expect(result?.message).toContain('may not waive');
+    });
   });
 
   describe('add_dependency', () => {

@@ -88,7 +88,9 @@ export function subscribeKanbanDaemonEvents(
       // every SDD/AutoPhase checkpoint fanned a PHANTOM kanban.delete to
       // every connected WS client.
       const family = event.event?.split('.')[0];
-      if (family !== 'board' && family !== 'task' && family !== 'column') return;
+      if (family !== 'board' && family !== 'task' && family !== 'column' && family !== 'contract') {
+        return;
+      }
       const evData = event.data as { boardId?: string } | undefined;
       const boardId = evData?.boardId;
       if (!boardId) return;

@@ -4,6 +4,7 @@ import type { TrustBoundary } from '@wrongstack/core/security';
 import type { Logger, MemoryPort } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
+import { planTool, taskTool, todoTool } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
 import { createAutonomyRouteHandlers } from './autonomy-routes.js';
@@ -391,6 +392,21 @@ export function createEmbeddedMessageRouter(
       send,
       broadcast: deps.providerCtx.broadcast,
       replaceTodos: (todos) => opts.agent.ctx.state.replaceTodos(todos),
+      mutateTodos: async (todos) => {
+        const result = await todoTool.execute({ todos }, opts.agent.ctx, {
+          signal: AbortSignal.timeout(30_000),
+        });
+        return {
+          todos: [...opts.agent.ctx.todos],
+          ...(result.kanban_warnings ? { warnings: result.kanban_warnings } : {}),
+        };
+      },
+      mutateTaskStatus: async (id, status) =>
+        taskTool.execute({ action: 'status', id, status }, opts.agent.ctx, {
+          signal: AbortSignal.timeout(30_000),
+        }),
+      mutatePlan: async (operation) =>
+        planTool.execute(operation, opts.agent.ctx, { signal: AbortSignal.timeout(30_000) }),
     }),
   });
   const processRoutes: ProcessRouteHandlers = {
@@ -482,6 +498,8 @@ export function createEmbeddedMessageRouter(
       agentRoster: {
         rosterHandler: new AgentRosterWSHandler({
           projectRoot,
+          getAutoOptimizeSettings: () =>
+            deps.agentConfigCtx.getConfig?.()?.fleet?.learning?.autoOptimize,
           getLlm: () => {
             const ctx = opts.agent.ctx;
             return ctx.provider && ctx.model

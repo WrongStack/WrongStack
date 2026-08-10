@@ -55,6 +55,7 @@ function sampleInput(tool: Tool): Record<string, unknown> {
   const input: Record<string, unknown> = {};
   for (const [key, schema] of Object.entries(props ?? {})) {
     if (schema?.type === 'string') input[key] = 'X';
+    else if (schema?.type === 'array') input[key] = [{ id: 'X' }];
   }
   return input;
 }

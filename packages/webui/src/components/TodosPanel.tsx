@@ -1,15 +1,17 @@
-import { getWSClient } from '@/lib/ws-client';
-import { cn } from '@/lib/utils';
-import { useAppTranslation } from '@/i18n';
-import { useSessionStore } from '@/stores';
 import { CheckCircle2, Circle, Clock, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { getWSClient } from '@/lib/ws-client';
+import { useSessionStore } from '@/stores';
 
 interface TodoItem {
   id: string;
   content: string;
   status: 'pending' | 'in_progress' | 'completed';
   activeForm?: string | undefined;
+  kanbanBoardId?: string | undefined;
+  kanbanTaskId?: string | undefined;
 }
 
 const STATUS_ORDER: Record<TodoItem['status'], number> = {
@@ -79,7 +81,8 @@ export function TodosPanel(): React.ReactElement | null {
     const label = todo.status === 'in_progress' && todo.activeForm ? todo.activeForm : todo.content;
     const isInProgress = todo.status === 'in_progress';
     const isCompleted = todo.status === 'completed';
-    const isToggleable = !isInProgress;
+    const isManagedProjection = Boolean(todo.kanbanBoardId && todo.kanbanTaskId);
+    const isToggleable = !isInProgress && !(isManagedProjection && isCompleted);
 
     return (
       <div
@@ -128,15 +131,17 @@ export function TodosPanel(): React.ReactElement | null {
         >
           {label}
         </span>
-        <button
-          type="button"
-          onClick={() => handleRemove(todo.id)}
-          className="relative shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-50 hover:opacity-100 hover:bg-destructive/10 transition-all"
-          title={t('activity:todos.removeTitle')}
-          aria-label={t('activity:todos.removeAria', { content: todo.content })}
-        >
-          <Trash2 className="w-3 h-3 text-muted-foreground" />
-        </button>
+        {!isManagedProjection && (
+          <button
+            type="button"
+            onClick={() => handleRemove(todo.id)}
+            className="relative shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-50 hover:opacity-100 hover:bg-destructive/10 transition-all"
+            title={t('activity:todos.removeTitle')}
+            aria-label={t('activity:todos.removeAria', { content: todo.content })}
+          >
+            <Trash2 className="w-3 h-3 text-muted-foreground" />
+          </button>
+        )}
       </div>
     );
   };

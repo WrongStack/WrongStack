@@ -61,6 +61,8 @@ interface SessionState {
     content: string;
     status: 'pending' | 'in_progress' | 'completed';
     activeForm?: string | undefined;
+    kanbanBoardId?: string | undefined;
+    kanbanTaskId?: string | undefined;
   }>;
   /** Client-side wall-clock at the last successful session.start. Survives
    *  F5 because it's in partialize. Used by the resilience verifier view

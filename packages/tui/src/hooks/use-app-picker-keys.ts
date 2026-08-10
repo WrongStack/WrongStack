@@ -39,6 +39,7 @@ interface UseAppPickerKeysOptions {
   handleShadowStop: () => Promise<void>;
   statuslineHiddenForPicker: () => StatuslineItem[];
   onPickerEnter: () => Promise<void>;
+  onThemePickerEnter?: () => void;
 }
 
 export function useAppPickerKeys({
@@ -62,6 +63,7 @@ export function useAppPickerKeys({
   handleShadowStop,
   statuslineHiddenForPicker,
   onPickerEnter,
+  onThemePickerEnter,
 }: UseAppPickerKeysOptions) {
   const {
     agent,
@@ -350,5 +352,6 @@ export function useAppPickerKeys({
       if (action) dispatch(action);
     },
     onPickerEnter,
+    onThemePickerEnter,
   });
 }

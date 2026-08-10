@@ -5,6 +5,7 @@ import type {
   KanbanQueueHealth,
   KanbanSupervisorSnapshot,
   KanbanTask,
+  KanbanWorkbenchSnapshot,
 } from '@wrongstack/kanban';
 import { create } from 'zustand';
 import { isKanbanBoardActive } from '../lib/kanban-board-active.js';
@@ -34,6 +35,7 @@ interface KanbanState {
   error: string | null;
   queueHealth: KanbanQueueHealth | null;
   supervisorSnapshot: KanbanSupervisorSnapshot | null;
+  workbench: KanbanWorkbenchSnapshot | null;
   /** Live verification runs keyed by `${boardId}:${taskId}` (spinner state). */
   verificationActivity: Record<string, { startedAt: number }>;
   setLoading: (loading: boolean) => void;
@@ -71,6 +73,7 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   error: null,
   queueHealth: null,
   supervisorSnapshot: null,
+  workbench: null,
   verificationActivity: {},
   setLoading: (loading) => set({ loading }),
   sendKanban: (type, _payload) => {
@@ -126,6 +129,10 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
     }
     if (type === 'kanban.health' && payload.data) {
       set({ queueHealth: payload.data as KanbanQueueHealth, loading: false, error: null });
+      return;
+    }
+    if (type === 'kanban.workbench' && payload.data) {
+      set({ workbench: payload.data as KanbanWorkbenchSnapshot, loading: false, error: null });
       return;
     }
     if (type === 'kanban.list') {

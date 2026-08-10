@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
   loadPlan,
@@ -7,7 +8,20 @@ import {
   saveTasks,
   type TaskFile,
 } from '@wrongstack/core/storage';
+import {
+  addCheckToTask,
+  addGoalMetricToTask,
+  addTask,
+  configureContractGraph,
+  createBoard,
+  getBoard,
+  splitTask,
+  updateTask,
+  updateGoalMetricOnTask,
+  upsertContractNode,
+} from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { kanbanTool } from '../src/kanban.js';
 import { todoTool } from '../src/todo.js';
 import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';
 
@@ -59,6 +73,24 @@ describe('todo tool', () => {
     );
     expect(out.count).toBe(2);
     expect(out.in_progress).toBe(1);
+  });
+
+  it('retains unfinished rows omitted by a later replacement', async () => {
+    await todoTool.execute(
+      {
+        todos: [
+          { id: 'keep', content: 'Must remain', status: 'pending' },
+          { id: 'active', content: 'Active work', status: 'in_progress' },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const out = await todoTool.execute({ todos: [] }, sb.ctx, { signal: newSignal() });
+
+    expect(out.count).toBe(2);
+    expect(sb.ctx.todos?.map((item) => item.id).sort()).toEqual(['active', 'keep']);
   });
 
   it('enforces single in_progress', async () => {
@@ -236,9 +268,440 @@ describe('todo tool', () => {
 
     board = await projectSessionTodosToKanban(
       sb.dir,
-      [{ id: 'todo-1', content: 'Inspect', status: 'completed' }],
+      [
+        { id: 'todo-1', content: 'Inspect', status: 'completed' },
+        { id: 'todo-2', content: 'Implement', status: 'in_progress' },
+        { id: 'todo-3', content: 'Ship', status: 'completed' },
+      ],
       'sess',
     );
     expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-1')?.columnId).toBe('done');
+  });
+
+  it('advances the real managed cards and rebinds runtime context when todo progress moves', async () => {
+    sb.ctx.agentId = 'test-agent';
+    sb.ctx.agentName = 'Test Agent';
+    sb.ctx.setCurrentKanbanTask = (taskId, boardId) => {
+      sb.ctx.currentKanbanTaskId = taskId;
+      sb.ctx.currentKanbanBoardId = boardId;
+      sb.ctx.meta['kanban'] = { taskId, boardId };
+    };
+    await fs.writeFile(path.join(sb.dir, 'completion.txt'), 'verified', 'utf8');
+    const board = await createBoard(sb.dir, {
+      title: 'Canonical work',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'running',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    await configureContractGraph(sb.dir, board.id, 'strict');
+    const seed = async (title: string) => {
+      const added = await addTask(sb.dir, board.id, {
+        title,
+        description: `${title} completely.`,
+        assignedAgent: 'test-agent',
+        dueDate: '2026-08-10T00:00:00.000Z',
+        labels: ['todo-sync'],
+      });
+      await addCheckToTask(sb.dir, board.id, added!.task.id, {
+        description: 'completion.txt',
+        type: 'file_exists',
+      });
+      await addGoalMetricToTask(sb.dir, board.id, added!.task.id, {
+        name: `${title} result`,
+        target: 'complete',
+      });
+      const task = (await getBoard(sb.dir, board.id))!.tasks.find(
+        (candidate) => candidate.id === added!.task.id,
+      )!;
+      const checkId = task.successCriteria![0]!.id;
+      const metricId = task.goalMetrics![0]!.id;
+      await updateGoalMetricOnTask(sb.dir, board.id, task.id, metricId, {
+        current: 'complete',
+        status: 'met',
+      });
+      await upsertContractNode(sb.dir, board.id, {
+        taskId: task.id,
+        kind: 'objective',
+        title: `${title} objective`,
+        metricId,
+      });
+      await upsertContractNode(sb.dir, board.id, {
+        taskId: task.id,
+        kind: 'guardrail',
+        title: `${title} guardrail`,
+        checkId,
+      });
+      await upsertContractNode(sb.dir, board.id, {
+        taskId: task.id,
+        kind: 'risk',
+        title: `${title} risk`,
+        enforcement: 'advisory',
+      });
+      await upsertContractNode(sb.dir, board.id, {
+        taskId: task.id,
+        kind: 'component',
+        title: 'Tools package',
+      });
+      await upsertContractNode(sb.dir, board.id, {
+        taskId: task.id,
+        kind: 'verification',
+        title: `${title} verification`,
+        checkId,
+        enforcement: 'advisory',
+      });
+      return task.id;
+    };
+    const firstTaskId = await seed('First real task');
+    const secondTaskId = await seed('Second real task');
+
+    const started = await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId: firstTaskId,
+        author: 'test-agent',
+        transitionComment: 'Starting first card.',
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    expect(started.ok, started.message).toBe(true);
+
+    const advanced = await todoTool.execute(
+      {
+        todos: [
+          { id: 'ui-1', content: 'First real task', status: 'completed' },
+          { id: 'ui-2', content: 'Second real task', status: 'in_progress' },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const afterAdvance = await getBoard(sb.dir, board.id);
+    expect(advanced.kanban_warnings, JSON.stringify(advanced)).toBeUndefined();
+    expect(advanced.kanban_bindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          todoId: 'ui-1',
+          boardId: board.id,
+          taskId: firstTaskId,
+          taskStatus: 'completed',
+        }),
+        expect.objectContaining({
+          todoId: 'ui-2',
+          boardId: board.id,
+          taskId: secondTaskId,
+          taskStatus: 'in_progress',
+        }),
+      ]),
+    );
+    const firstAfterAdvance = afterAdvance?.tasks.find((task) => task.id === firstTaskId);
+    expect(firstAfterAdvance?.status, JSON.stringify(firstAfterAdvance?.verificationReport)).toBe(
+      'completed',
+    );
+    expect(afterAdvance?.tasks.find((task) => task.id === secondTaskId)?.status).toBe(
+      'in_progress',
+    );
+    expect(sb.ctx.currentKanbanTaskId).toBe(secondTaskId);
+    expect(sb.ctx.todos.find((todo) => todo.kanbanTaskId === secondTaskId)?.status).toBe(
+      'in_progress',
+    );
+
+    await todoTool.execute(
+      {
+        todos: [
+          {
+            id: 'ui-1',
+            content: 'First real task',
+            status: 'completed',
+            kanbanBoardId: board.id,
+            kanbanTaskId: firstTaskId,
+          },
+          {
+            id: 'ui-2',
+            content: 'Second real task',
+            status: 'pending',
+            kanbanBoardId: board.id,
+            kanbanTaskId: secondTaskId,
+          },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const afterDemotion = await getBoard(sb.dir, board.id);
+    const demoted = afterDemotion?.tasks.find((task) => task.id === secondTaskId);
+    expect(demoted?.lifecycle?.currentStage).toBe('todo');
+    expect(demoted?.assignment?.status).toBe('assigned');
+
+    await todoTool.execute(
+      {
+        todos: [
+          {
+            id: 'ui-1',
+            content: 'First real task',
+            status: 'completed',
+            kanbanBoardId: board.id,
+            kanbanTaskId: firstTaskId,
+          },
+          {
+            id: 'ui-2',
+            content: 'Second real task',
+            status: 'in_progress',
+            kanbanBoardId: board.id,
+            kanbanTaskId: secondTaskId,
+          },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    await todoTool.execute(
+      {
+        todos: [
+          {
+            id: 'ui-1',
+            content: 'First real task',
+            status: 'completed',
+            kanbanBoardId: board.id,
+            kanbanTaskId: firstTaskId,
+          },
+          {
+            id: 'ui-2',
+            content: 'Second real task',
+            status: 'completed',
+            kanbanBoardId: board.id,
+            kanbanTaskId: secondTaskId,
+          },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const finished = await getBoard(sb.dir, board.id);
+    expect(finished?.tasks.every((task) => task.status === 'completed')).toBe(true);
+    expect(sb.ctx.todos.every((todo) => todo.status === 'completed')).toBe(true);
+  });
+
+  it('starts the next managed card while the previous card awaits acceptance', async () => {
+    sb.ctx.agentId = 'test-agent';
+    sb.ctx.setCurrentKanbanTask = (taskId, boardId) => {
+      sb.ctx.currentKanbanTaskId = taskId;
+      sb.ctx.currentKanbanBoardId = boardId;
+      sb.ctx.meta['kanban'] = { taskId, boardId };
+    };
+    const board = await createBoard(sb.dir, {
+      title: 'Non-blocking review queue',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'running',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const seed = async (title: string, checkPath: string) => {
+      const added = await addTask(sb.dir, board.id, {
+        title,
+        description: `${title} completely.`,
+        assignedAgent: 'test-agent',
+        dueDate: '2026-08-10T00:00:00.000Z',
+        labels: ['todo-sync'],
+      });
+      await addCheckToTask(sb.dir, board.id, added!.task.id, {
+        description: checkPath,
+        type: 'file_exists',
+      });
+      return added!.task.id;
+    };
+    const firstTaskId = await seed('Needs another pass', 'missing-result.txt');
+    const secondTaskId = await seed('Independent next task', 'next-result.txt');
+    await fs.writeFile(path.join(sb.dir, 'next-result.txt'), 'ready', 'utf8');
+
+    await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId: firstTaskId,
+        author: 'test-agent',
+        transitionComment: 'Starting first card.',
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    const result = await todoTool.execute(
+      {
+        todos: [
+          { id: 'ui-1', content: 'Needs another pass', status: 'completed' },
+          { id: 'ui-2', content: 'Independent next task', status: 'in_progress' },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const refreshed = await getBoard(sb.dir, board.id);
+    expect(refreshed?.tasks.find((task) => task.id === firstTaskId)?.status).toBe('review');
+    expect(refreshed?.tasks.find((task) => task.id === secondTaskId)?.status).toBe('in_progress');
+    expect(sb.ctx.currentKanbanTaskId).toBe(secondTaskId);
+    expect(result.kanban_warnings).toContain(
+      'A completed todo is still awaiting acceptance; the next independent Kanban task was started.',
+    );
+  });
+
+  it('rolls up an invisible atomic parent after every visible child reaches Done', async () => {
+    sb.ctx.agentId = 'test-agent';
+    sb.ctx.setCurrentKanbanTask = (taskId, boardId) => {
+      sb.ctx.currentKanbanTaskId = taskId;
+      sb.ctx.currentKanbanBoardId = boardId;
+      sb.ctx.meta['kanban'] = { taskId, boardId };
+    };
+    await Promise.all([
+      fs.writeFile(path.join(sb.dir, 'parent.done'), 'yes', 'utf8'),
+      fs.writeFile(path.join(sb.dir, 'child-a.done'), 'yes', 'utf8'),
+      fs.writeFile(path.join(sb.dir, 'child-b.done'), 'yes', 'utf8'),
+    ]);
+    const board = await createBoard(sb.dir, {
+      title: 'Composite completion',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'running',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const parent = await addTask(sb.dir, board.id, {
+      title: 'Composite parent',
+      description: 'Aggregate both child results.',
+      assignedAgent: 'test-agent',
+      dueDate: '2026-08-10T00:00:00.000Z',
+      labels: ['composite'],
+      successCriteria: [
+        { id: 'parent-check', description: 'parent.done', type: 'file_exists', status: 'pending' },
+      ],
+    });
+    const split = await splitTask(sb.dir, board.id, parent!.task.id, {
+      titles: ['Child A', 'Child B'],
+      atomic: true,
+      inheritAssignment: true,
+      childSpecs: [
+        {
+          description: 'Complete child A.',
+          successCriteria: [
+            {
+              id: 'child-a-check',
+              description: 'child-a.done',
+              type: 'file_exists',
+              status: 'pending',
+            },
+          ],
+        },
+        {
+          description: 'Complete child B.',
+          successCriteria: [
+            {
+              id: 'child-b-check',
+              description: 'child-b.done',
+              type: 'file_exists',
+              status: 'pending',
+            },
+          ],
+        },
+      ],
+    });
+    const [childA, childB] = split!.children;
+    for (const child of split!.children) {
+      await updateTask(sb.dir, board.id, child.id, {
+        dueDate: '2026-08-10T00:00:00.000Z',
+        labels: ['composite'],
+      });
+    }
+
+    await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId: childA!.id,
+        author: 'test-agent',
+        transitionComment: 'Starting first child.',
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    await todoTool.execute(
+      {
+        todos: [
+          { id: 'a', content: 'Child A', status: 'completed' },
+          { id: 'b', content: 'Child B', status: 'in_progress' },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    await todoTool.execute(
+      {
+        todos: [
+          {
+            id: 'a',
+            content: 'Child A',
+            status: 'completed',
+            kanbanBoardId: board.id,
+            kanbanTaskId: childA!.id,
+          },
+          {
+            id: 'b',
+            content: 'Child B',
+            status: 'completed',
+            kanbanBoardId: board.id,
+            kanbanTaskId: childB!.id,
+          },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const completed = await getBoard(sb.dir, board.id);
+    expect(completed?.tasks.find((task) => task.id === parent!.task.id)?.status).toBe('completed');
+    expect(completed?.tasks.every((task) => task.status === 'completed')).toBe(true);
   });
 });

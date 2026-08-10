@@ -148,7 +148,7 @@ See [docs/plugin-author-guide.md](../../docs/plugin-author-guide.md).
 
 ## Path layout
 
-All developer-level state lives under `~/.wrongstack/`. Per-project state is keyed by `sha256(absoluteProjectRoot).slice(0,12)` under `~/.wrongstack/projects/<hash>/`. The only thing inside the project tree itself is the optional, committable `.wrongstack/AGENTS.md` and `.wrongstack/skills/`. See `WstackPaths` in [utils/wstack-paths.ts](src/utils/wstack-paths.ts) for the full layout.
+All developer-level state lives under `~/.wrongstack/`. Per-project state is keyed by `sha256(absoluteProjectRoot).slice(0,12)` under `~/.wrongstack/projects/<hash>/`. The only things inside the project tree itself are the optional, committable `.wrongstack/AGENTS.md`, `.wrongstack/skills/` and `.wrongstack/agents/` (roster-agent identity, learned directives and project-developed skill addenda). See `WstackPaths` in [utils/wstack-paths.ts](src/utils/wstack-paths.ts) for the full layout.
 
 ## Security model
 

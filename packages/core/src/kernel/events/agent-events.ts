@@ -148,6 +148,34 @@ export interface AgentEventMap {
      */
     transcriptPath?: string | undefined;
   };
+  /**
+   * A spawn resolved fewer skills than it selected. Emitted so a skill that
+   * silently failed to load — missing from the loader, gated by a capability
+   * the subagent lacks, or cut by the prompt budget — is observable instead of
+   * leaving the agent believing it received guidance it never got.
+   */
+  'subagent.skills.dropped': {
+    sessionId?: string | undefined;
+    role?: string | undefined;
+    /** Skills whose body (and project addendum) reached the prompt. */
+    selected: string[];
+    /** skill → reason it was dropped. */
+    dropped: Record<string, string>;
+  };
+  /**
+   * A background learning-distillation pass finished for a roster role.
+   * Emitted by the fleet host's auto-optimize scheduler so surfaces can show
+   * that an agent's skills were refined without a user action.
+   */
+  'agent.learning.optimized': {
+    sessionId?: string | undefined;
+    role: string;
+    trigger: string;
+    status: string;
+    /** Skill addenda refreshed by the pass. */
+    skills: string[];
+    error?: string | undefined;
+  };
   'subagent.task_started': {
     /** Parent/host session id. */
     sessionId?: string | undefined;

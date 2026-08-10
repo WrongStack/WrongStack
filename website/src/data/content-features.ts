@@ -2,6 +2,7 @@ import {
   BrainCircuit,
   Database,
   GitBranch,
+  GraduationCap,
   Layers3,
   MemoryStick,
   MessageSquareMore,
@@ -58,6 +59,21 @@ export const featureStories: Feature[] = [
     ],
     icon: MemoryStick,
     accent: 'purple',
+  },
+  {
+    slug: 'self-developing-agents',
+    eyebrow: 'Learning',
+    title: 'Roster agents develop skills for your codebase',
+    summary:
+      "A subagent ends a run with a tagged directive; the runtime routes it to the skill it refines and distils it into a project addendum injected beneath that skill on every future spawn. The agent doesn't recall a fact about your repo — its skill is better here.",
+    details: [
+      'Directives are captured from failed runs too, then quality-gated into what / why / how',
+      'Distillation runs unattended, debounced and rate-limited, with a manual override',
+      'Which skills load is ranked by what the project actually developed',
+      'Committed under .wrongstack/agents/, so a fresh clone starts trained',
+    ],
+    icon: GraduationCap,
+    accent: 'green',
   },
   {
     slug: 'multi-agent-fleet',

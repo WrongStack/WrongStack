@@ -46,6 +46,7 @@ export function isPickerOverlayOpen(state: State): boolean {
     state.shadowPanel.open ||
     state.fKeyPicker.open ||
     state.authPanel.open ||
+    state.themePicker.open ||
     state.picker.open
   );
 }

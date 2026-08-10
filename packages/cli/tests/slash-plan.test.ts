@@ -41,6 +41,19 @@ describe('/plan', () => {
     await fs.unlink(tmp).catch(() => {});
   });
 
+  it('refuses to remove or clear unfinished plan coverage', async () => {
+    const tmp = path.join(os.tmpdir(), `plan-${Date.now()}-coverage.json`);
+    const cmd = buildPlanCommand(makeCtx(tmp));
+    await cmd.run('add Required step');
+
+    const removed = await cmd.run('remove 1');
+    const cleared = await cmd.run('clear');
+
+    expect((removed as { message?: string })?.message).toContain('cannot be removed');
+    expect((cleared as { message?: string })?.message).toContain('cannot be cleared');
+    await fs.unlink(tmp).catch(() => {});
+  });
+
   it('lists bundled templates', async () => {
     const tmp = path.join(os.tmpdir(), `plan-${Date.now()}.json`);
     const cmd = buildPlanCommand(makeCtx(tmp));

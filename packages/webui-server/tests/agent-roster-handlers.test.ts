@@ -223,7 +223,12 @@ describe('AgentRosterWSHandler', () => {
     const meta = JSON.parse(fs.readFileSync(path.join(dir, 'consolidation.json'), 'utf8'));
     expect(meta.trigger).toBe('manual');
     expect(meta.model).toBe('test-model');
-    expect(meta.sourceEntryCount).toBeGreaterThan(0);
+    // The raw buffer is archived and reset after a successful pass, and the
+    // metadata snapshots the buffer *after* the prune — so the freshness gate
+    // compares like with like and the size gate can never wedge the role.
+    expect(meta.pruned).toBe(true);
+    expect(meta.sourceEntryCount).toBe(0);
+    expect(fs.readFileSync(meta.archivePath, 'utf8')).toContain('focused package test');
 
     // Other connected clients are notified via agent-roster.updated.
     const updated = broadcasts.find((b) => b.type === 'agent-roster.updated');

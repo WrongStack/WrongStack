@@ -25,7 +25,11 @@ const NARRATIVE_SENTENCE_STARTS: readonly RegExp[] = [
 ];
 
 const EPHEMERAL_PATTERNS: readonly { pattern: RegExp; replacement: string }[] = [
-  { pattern: /\b[0-9a-f]{7,40}\b/g, replacement: '' },
+  // Commit SHAs. A bare `[0-9a-f]{7,40}` also matches ordinary English words
+  // spelled entirely from hex letters ("defaced", "acceded", "effaced"), so
+  // require at least one digit — every real abbreviated SHA has one in
+  // practice, and the false-positive class disappears.
+  { pattern: /\b(?=[0-9a-f]{7,40}\b)[a-f]*\d[0-9a-f]*\b/g, replacement: '' },
   {
     pattern: /\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b/g,
     replacement: '',

@@ -23,7 +23,13 @@ import * as path from 'node:path';
 import { clampSubagentCapabilities } from '../../security/capabilities.js';
 import type { SubagentConfig } from '../../types/multi-agent.js';
 import { inferRuntimeCapabilities } from './capability-manifest.js';
-import { validateProjectAgentConfig } from './project-agent-config-validation.js';
+import {
+  CAPTURE_COOLDOWN_MS,
+  CAPTURE_MAX_PER_SESSION,
+  captureWindowState,
+  recordCaptureAttempt,
+} from './project-agent-capture-window.js';
+import { loadProjectAgentConfig } from './project-agent-config-io.js';
 import {
   type ConsolidationMetadata,
   isConsolidated,
@@ -48,6 +54,7 @@ import {
   type ProjectAgentLearningPolicy,
 } from './project-agent-learning-policy.js';
 import {
+  enforceLearnedBudget,
   mergeStructuredEntries,
   parseStructuredLearnedEntriesFromContent,
   renderLearnedInstructions,
@@ -59,8 +66,59 @@ import {
   roleDir,
   writeTextAtomically,
 } from './project-agent-paths.js';
+import {
+  listProjectSkillAugmentations,
+  recordSkillLearned,
+  resolveRoleSkillCandidates,
+  routeDirectiveToSkill,
+} from './project-agent-skill-layer.js';
 
 export { validateProjectAgentConfig } from './project-agent-config-validation.js';
+export { loadProjectAgentConfig } from './project-agent-config-io.js';
+export {
+  CAPTURE_SESSION_WINDOW_MS,
+  resetCaptureWindow,
+  resetCaptureWindows,
+} from './project-agent-capture-window.js';
+export { CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION };
+export {
+  buildSkillDistillInstruction,
+  clearProjectSkillAugmentation,
+  DEFAULT_EAGER_SKILL_LIMIT,
+  listProjectSkillAugmentations,
+  loadProjectSkillAugmentation,
+  loadSkillAffinity,
+  rankRoleSkills,
+  recordSkillLoad,
+  recordSkillOutcome,
+  renderSkillAugmentation,
+  resolveRoleSkillCandidates,
+  routeDirectiveToSkill,
+  saveProjectSkillAugmentation,
+  setSkillPinned,
+  SKILL_AUGMENTATION_MAX_BYTES,
+  type SkillAffinity,
+  type SkillAffinityEntry,
+} from './project-agent-skill-layer.js';
+export { readRawLearnedEntries, type SaveConsolidationOptions } from './project-agent-consolidation.js';
+export {
+  type AutoOptimizeDecision,
+  type AutoOptimizeEvent,
+  type AutoOptimizePolicy,
+  type AutoOptimizePolicyOverrides,
+  DEFAULT_AUTO_OPTIMIZE_POLICY,
+  evaluateAutoOptimize,
+  LearningOptimizationScheduler,
+  type LearningOptimizationSchedulerOptions,
+  resolveAutoOptimizePolicy,
+} from './project-agent-auto-optimize.js';
+export {
+  type LearningOptimizerLlm,
+  type OptimizeLearningOptions,
+  type OptimizeLearningResult,
+  optimizeProjectAgentLearning,
+  unwrapWholeDocumentFence,
+} from './project-agent-optimizer.js';
 export {
   buildConsolidationInstruction,
   type ConsolidationMetadata,
@@ -92,12 +150,15 @@ export {
 } from './project-agent-learning-policy.js';
 export {
   decomposeLearnedEntry,
+  enforceLearnedBudget,
   mergeStructuredEntries,
   parseLearnedEntryStamp,
   renderLearnedInstructions,
   type StructuredLearnedEntry,
 } from './project-agent-learning-structured.js';
 export { assertProjectAgentRole } from './project-agent-paths.js';
+export { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
+export { parseStructuredLearnedEntriesFromContent } from './project-agent-learning-structured.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -203,23 +264,6 @@ export function createProjectAgentRoster(
 // ---------------------------------------------------------------------------
 // Project agent config loading
 // ---------------------------------------------------------------------------
-
-/**
- * Load the project-level agent config for a given role.
- * Returns `undefined` when no project override exists.
- */
-export function loadProjectAgentConfig(
-  role: string,
-  projectRoot?: string,
-): ProjectAgentConfig | undefined {
-  const cfgPath = path.join(roleDir(role, projectRoot), 'config.json');
-  try {
-    const raw = readFileSync(cfgPath, 'utf8');
-    return validateProjectAgentConfig(JSON.parse(raw));
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * Load the project-level identity appendix for a given role.
@@ -431,40 +475,51 @@ export function buildProjectContextualizedPrompt(
   let learnedLabel = '';
   if (learningPolicy.enabled) {
     const consolidated = loadProjectAgentConsolidated(role, projectRoot);
+    const rawLearned = loadProjectAgentLearned(role, projectRoot);
     if (consolidated) {
       const meta = loadConsolidationMetadata(role, projectRoot);
-      // Read the raw buffer once; split it for entry counting.
-      const rawLearned = loadProjectAgentLearned(role, projectRoot);
-      const rawEntries = splitLearnedEntries(rawLearned);
+      // Count with the structured parser, exactly as the metadata writer does.
+      // Counting with `splitLearnedEntries` here produced 2-vs-2 forever, so
+      // the delta branch below could never be taken and every post-
+      // consolidation capture silently fell back to the full raw buffer.
+      const rawEntries = parseStructuredLearnedEntriesFromContent(
+        rawLearned,
+        splitLearnedEntries(rawLearned),
+      );
       const rawBytes = Buffer.byteLength(rawLearned, 'utf8');
-      // Freshness gate: consolidated.md is preferred, but only while the
-      // raw buffer hasn't grown past the snapshot at consolidation time.
-      // We check both entry count and byte size — either exceeding the
-      // recorded snapshot means the consolidated document is stale. When
-      // metadata is missing entirely we cannot verify freshness, so treat
-      // it as stale to avoid orphaning new captures.
+      // The delta is identified by capture timestamp, not by list position.
+      // The structured buffer is sorted (warnings first, then alphabetically),
+      // so `entries.slice(sourceEntryCount)` returns whichever directives
+      // happen to sort last — not the new ones.
+      const freshEntries =
+        meta === undefined
+          ? []
+          : rawEntries.filter((entry) => entry.capturedAt > meta.consolidatedAt);
       const stale =
         meta === undefined ||
+        freshEntries.length > 0 ||
         rawEntries.length > meta.sourceEntryCount ||
         rawBytes > meta.sourceBytes;
-      if (stale) {
-        if (meta !== undefined && meta.sourceEntryCount < rawEntries.length) {
-          // New countable entries arrived since consolidation — append just
-          // the delta to preserve the context optimization while surfacing
-          // freshly captured knowledge (capture→inject loop).
-          const deltaEntries = rawEntries.slice(meta.sourceEntryCount);
-          learnedContent = `${consolidated}\n\n---\n\n## Recently captured (pending next optimization)\n\n${deltaEntries.join('\n\n---\n\n')}`;
-        } else {
-          // Metadata missing, or raw grew without new countable entries —
-          // cannot compute a precise delta, so serve the full raw buffer.
-          learnedContent = rawLearned;
-        }
-      } else {
+      if (!stale) {
         learnedContent = consolidated;
+        learnedLabel = 'Consolidated knowledge for this project';
+      } else if (freshEntries.length > 0) {
+        // New directives arrived since consolidation — append just the delta
+        // so the optimization keeps paying off while fresh knowledge still
+        // reaches the agent (capture→inject loop).
+        const delta = freshEntries.map((entry) => `- **${entry.what}**`).join('\n');
+        learnedContent = `${consolidated}\n\n---\n\n## Recently captured (pending next optimization)\n\n${delta}`;
+        learnedLabel = 'Consolidated knowledge for this project';
+      } else {
+        // No usable metadata (e.g. a hand-written consolidated.md): the
+        // consolidation cannot be trusted as complete, so serve the raw
+        // buffer — and say so, rather than labelling raw content
+        // "Consolidated", which is what the previous code did.
+        learnedContent = rawLearned;
+        learnedLabel = 'Learned instructions for this project (structured: what / why / how)';
       }
-      learnedLabel = 'Consolidated knowledge for this project';
     } else {
-      learnedContent = loadProjectAgentLearned(role, projectRoot);
+      learnedContent = rawLearned;
       learnedLabel = 'Learned instructions for this project (structured: what / why / how)';
     }
   }
@@ -499,6 +554,7 @@ export function buildProjectContextualizedPrompt(
         `- **Generic** — no commit SHAs, timestamps, specific line numbers, or PR/issue numbers. File paths, package names, and command names are fine when they anchor the lesson.\n` +
         `- **Self-contained** — understandable without the surrounding session context.\n` +
         `- **Front-load concrete anchors** — commands in backticks, package names like \`@wrongstack/core\`, file paths like \`packages/core/src/.../foo.ts\`. The structured-list renderer extracts these as the "how" for the entry.\n\n` +
+        `**Tag the skill you are developing.** When a directive refines one of your skills, mark it: \`## LEARNED [skill: testing]\`. Tagged directives are distilled into that skill's project addendum, so the lesson arrives as part of the skill itself on every future run instead of as a loose fact. Untagged directives are routed automatically when the wording makes the target obvious, and stay role-level otherwise.\n\n` +
         `**Bad** (session log — rejected at capture time):\n\n` +
         `\`\`\`\n## LEARNED\nWhen I worked on the telegram plugin today, commit 9c7682b84 had a race condition in poll-lock at line 42 because writeFileSync wasn't using the 'wx' flag.\n\`\`\`\n\n` +
         `**Good** (directive — persists, then merges into the structured list):\n\n` +
@@ -508,10 +564,47 @@ export function buildProjectContextualizedPrompt(
   }
 
   const knowledge = loadRoleKnowledgeManifest(role, projectRoot);
-  if (knowledge && knowledge.checklist.length > 0) {
-    const checklist = knowledge.checklist.map((item) => `- ${item}`).join('\n');
+  if (knowledge) {
+    const knowledgeSections: string[] = [];
+    if (knowledge.checklist.length > 0) {
+      knowledgeSections.push(
+        `Verify these before answering:\n${knowledge.checklist.map((item) => `- ${item}`).join('\n')}`,
+      );
+    }
+    // `liveQueries` was declared and populated but never reached a prompt, so
+    // the "check the live registry instead of trusting training data" contract
+    // was documentation only. Emit the endpoints as concrete fetch targets.
+    const liveQueries = Object.entries(knowledge.liveQueries ?? {});
+    if (liveQueries.length > 0) {
+      const threshold = Number.isFinite(knowledge.verifyThreshold)
+        ? knowledge.verifyThreshold
+        : 0.5;
+      knowledgeSections.push(
+        `When your confidence in any of the following is below ${threshold}, fetch the live value rather than recalling it:\n` +
+          liveQueries
+            .map(
+              ([topic, query]) =>
+                `- **${topic}** — ${query.description}: \`${query.registry}\` → field \`${query.key}\``,
+            )
+            .join('\n'),
+      );
+    }
+    if (knowledgeSections.length > 0) {
+      parts.push(`\n\n## Current knowledge requirements\n\n${knowledgeSections.join('\n\n')}`);
+    }
+  }
+
+  // Skills this project has actually developed for the role. The bodies are
+  // injected next to their bundled skill at spawn time; this index tells the
+  // agent which of its skills carry project-specific practice so it knows to
+  // apply them rather than the generic method.
+  const developedSkills = listProjectSkillAugmentations(role, projectRoot);
+  if (developedSkills.length > 0) {
     parts.push(
-      `\n\n## Current knowledge requirements\n\nVerify these before answering:\n${checklist}`,
+      `\n\n## Project-developed skills\n\n` +
+        `These skills have been extended with practice learned in this project: ` +
+        `${developedSkills.map((skill) => `\`${skill}\``).join(', ')}. ` +
+        `Their project addendum is attached to the skill body — follow it over the generic method when the two differ.`,
     );
   }
 
@@ -573,44 +666,38 @@ export function buildProjectContextualizedPrompt(
 
 // ─── Automation guardrails ───────────────────────────────────────────────────
 
-const captureCooldowns = new Map<string, number>(); // role → timestamp
-const captureFrequency = new Map<string, number>(); // role → count
-
-export const CAPTURE_COOLDOWN_MS = 120_000; // 2 minutes
-export const CAPTURE_MAX_PER_SESSION = 3;
+function resolveCaptureKey(role: string, projectRoot?: string): string {
+  return `${path.resolve(projectRoot ?? process.cwd())}\0${assertProjectAgentRole(role)}`;
+}
 
 /**
  * Check whether a new capture is allowed for this role. Returns a rejection
  * reason string when blocked, or undefined when capture may proceed.
+ *
+ * `existingSize` is accepted for call-site compatibility but no longer gates
+ * anything: an over-budget buffer is now trimmed at write time
+ * (`enforceLearnedBudget`) instead of blocking every future capture. The old
+ * size gate had no self-clearing path, so the roles with the most learning
+ * were the ones that had silently stopped learning.
  */
 export function canCaptureNewLearned(
   role: string,
-  existingSize: number,
+  _existingSize: number,
   isManual: boolean,
   projectRoot?: string,
 ): string | undefined {
-  const key = `${path.resolve(projectRoot ?? process.cwd())}\0${assertProjectAgentRole(role)}`;
-  // Cooldown gate (bypassed for manual captures)
-  if (!isManual) {
-    const last = captureCooldowns.get(key);
-    if (last && Date.now() - last < CAPTURE_COOLDOWN_MS) {
-      return `Cooldown active for role "${role}" (${Math.ceil((CAPTURE_COOLDOWN_MS - (Date.now() - last)) / 1000)}s remaining)`;
-    }
-  }
+  if (isManual) return undefined;
+  const key = resolveCaptureKey(role, projectRoot);
+  const now = Date.now();
+  const state = captureWindowState(key, now);
 
-  // Frequency cap (bypassed for manual captures)
-  if (!isManual) {
-    const count = captureFrequency.get(key) ?? 0;
-    if (count >= CAPTURE_MAX_PER_SESSION) {
-      return `Frequency cap reached for role "${role}" (${count}/${CAPTURE_MAX_PER_SESSION}). Use /agent-improve ${role} capture for manual override.`;
-    }
+  if (state.lastCaptureAt !== undefined && now - state.lastCaptureAt < CAPTURE_COOLDOWN_MS) {
+    const remaining = Math.ceil((CAPTURE_COOLDOWN_MS - (now - state.lastCaptureAt)) / 1000);
+    return `Cooldown active for role "${role}" (${remaining}s remaining)`;
   }
-
-  // Size gate: when over SOFT_LIMIT, require manual approval
-  if (existingSize > LEARNED_SOFT_LIMIT && !isManual) {
-    return `learned.md for role "${role}" exceeds soft limit (${existingSize}B / ${LEARNED_SOFT_LIMIT}B). Run /agent-improve ${role} capture manually or /agent-improve ${role} refresh to reset.`;
+  if (state.remaining <= 0) {
+    return `Frequency cap reached for role "${role}" (${state.count}/${CAPTURE_MAX_PER_SESSION} in this window). Use /agent-improve ${role} capture for manual override.`;
   }
-
   return undefined;
 }
 
@@ -639,6 +726,10 @@ export interface ProjectAgentLearnStats {
   isConsolidated: boolean;
   /** Consolidation metadata, if a consolidation has been performed. */
   consolidation?: ConsolidationMetadata | undefined;
+  /** Skills this project has developed a dedicated addendum for. */
+  skills: string[];
+  /** Directives already routed to a skill and awaiting distillation. */
+  skilledEntryCount: number;
 }
 
 export function getProjectAgentLearnStats(
@@ -660,19 +751,23 @@ export function getProjectAgentLearnStats(
   // raw chunks split by `---` (the structured document also uses `---` for
   // section dividers and the footer, which would inflate chunk counts).
   const entries = parseStructuredLearnedEntries(role, projectRoot);
+  const skillAugmentations = listProjectSkillAugmentations(role, projectRoot);
   const exists = existsSync(dir);
   const policy = loadProjectAgentLearningPolicy(role, projectRoot);
-  const captureKey = `${path.resolve(projectRoot ?? process.cwd())}\0${assertProjectAgentRole(role)}`;
-  const runtimeLastTs = captureCooldowns.get(captureKey) ?? null;
+  const captureKey = resolveCaptureKey(role, projectRoot);
+  const window = captureWindowState(captureKey);
+  const runtimeLastTs = window.lastCaptureAt ?? null;
   const persistedLastTs = policy.lastCaptureAt ? Date.parse(policy.lastCaptureAt) : Number.NaN;
   const lastTs = runtimeLastTs ?? (Number.isFinite(persistedLastTs) ? persistedLastTs : null);
   const cooldownRemaining = lastTs ? Math.max(0, CAPTURE_COOLDOWN_MS - (Date.now() - lastTs)) : 0;
-  const freq = captureFrequency.get(captureKey) ?? 0;
+  const freq = window.count;
 
   return {
     role,
     exists,
     entryCount: entries.length,
+    skills: skillAugmentations,
+    skilledEntryCount: entries.filter((entry) => entry.skill).length,
     totalBytes: Buffer.byteLength(learnedText, 'utf8'),
     lastCapture: lastTs ? new Date(lastTs).toISOString() : null,
     lastCaptureTimestamp: lastTs,
@@ -715,9 +810,18 @@ export function detectLearnedConflicts(projectRoot?: string): Array<{
   const roles = listProjectAgentRoles(projectRoot);
   const entries: { role: string; normalized: string; raw: string }[] = [];
   for (const role of roles) {
-    const text = loadProjectAgentLearned(role, projectRoot);
-    if (!text || text.trim().length < 50) continue;
-    entries.push({ role, normalized: normalizeForComparison(text), raw: text });
+    // Compare individual directives, not whole documents. Every rendered
+    // buffer shares the same header and the same per-category "Why" template,
+    // so a document-level Jaccard is dominated by boilerplate and reports two
+    // unrelated roles as conflicting almost every time.
+    for (const entry of parseStructuredLearnedEntries(role, projectRoot)) {
+      if (entry.what.trim().length < 50) continue;
+      entries.push({
+        role,
+        normalized: normalizeForComparison(entry.what),
+        raw: entry.what,
+      });
+    }
   }
   const conflicts: Array<{
     roleA: string;
@@ -816,15 +920,20 @@ export function captureLearnedFromAgentOutputDetailed(
     };
   }
 
-  const regex = /^##\s*LEARNED\s*$/gim;
-  const candidates: string[] = [];
+  // The heading may carry a skill tag — `## LEARNED [skill: testing]` — so it
+  // is matched loosely and kept alongside the block; routing reads both.
+  const regex = /^##[ \t]*LEARNED\b[^\n]*$/gim;
+  const candidates: { heading: string; body: string }[] = [];
   let startMatch = regex.exec(output);
   while (startMatch !== null) {
     const blockStart = startMatch.index + startMatch[0].length;
     const rest = output.slice(blockStart);
     const nextHeading = /^##\s/gm.exec(rest);
     const blockEnd = nextHeading ? blockStart + nextHeading.index : output.length;
-    candidates.push(output.slice(blockStart, blockEnd).trim());
+    candidates.push({
+      heading: startMatch[0],
+      body: output.slice(blockStart, blockEnd).trim(),
+    });
     regex.lastIndex = Math.max(regex.lastIndex, blockEnd);
     startMatch = regex.exec(output);
   }
@@ -853,25 +962,20 @@ export function captureLearnedFromAgentOutputDetailed(
   // capture loop can reject near-duplicates using the same normalization
   // the structured renderer applies. This replaces the old chunked-text
   // dedup path which could not see through the structured document format.
-  const normalizedEntries = parseStructuredLearnedEntries(normalizedRole, projectRoot).map(
-    (entry) => entry.key,
-  );
   let structuredEntries = parseStructuredLearnedEntries(normalizedRole, projectRoot);
+  const normalizedEntries = structuredEntries.map((entry) => entry.key);
+  const skillCandidates = resolveRoleSkillCandidates(normalizedRole, projectRoot);
+  const routedSkills: string[] = [];
   let captured = 0;
   let skipped = 0;
   const now = new Date();
   const nowIso = now.toISOString();
+  const key = resolveCaptureKey(normalizedRole, projectRoot);
   const remainingSessionCaptures = isManual
     ? Number.POSITIVE_INFINITY
-    : Math.max(
-        0,
-        CAPTURE_MAX_PER_SESSION -
-          (captureFrequency.get(
-            `${path.resolve(projectRoot ?? process.cwd())}\0${normalizedRole}`,
-          ) ?? 0),
-      );
+    : captureWindowState(key, now.getTime()).remaining;
 
-  for (const content of candidates) {
+  for (const { heading, body: content } of candidates) {
     if (captured >= remainingSessionCaptures) {
       skipped++;
       continue;
@@ -903,6 +1007,14 @@ export function captureLearnedFromAgentOutputDetailed(
       continue;
     }
     normalizedEntries.push(candidateNorm);
+    // Route the directive to the skill it develops. `content` (pre-normalize)
+    // is used for the explicit `[skill: x]` tag because normalization strips
+    // bracketed noise; the normalized text drives keyword routing.
+    const skill =
+      routeDirectiveToSkill(heading, skillCandidates) ??
+      routeDirectiveToSkill(content, skillCandidates) ??
+      routeDirectiveToSkill(normalized.text, skillCandidates);
+    if (skill) routedSkills.push(skill);
     // Merge the new directive into the structured list, deduplicating against
     // existing entries by content similarity. The buffer is rewritten as a
     // structured instruction list (what / why / how) at the end of this
@@ -912,6 +1024,7 @@ export function captureLearnedFromAgentOutputDetailed(
       text: normalized.text,
       category: normalized.category,
       capturedAt: nowIso,
+      ...(skill ? { skill } : {}),
     });
     captured++;
   }
@@ -927,27 +1040,30 @@ export function captureLearnedFromAgentOutputDetailed(
     };
   }
 
-  // Render the merged list as a structured instruction document. This is the
-  // single source of truth — the buffer is rewritten in full on every
-  // capture so the file always reflects the current, merged state.
-  let newContent = renderLearnedInstructions(normalizedRole, structuredEntries, nowIso);
-  if (Buffer.byteLength(newContent, 'utf8') >= LEARNED_HARD_LIMIT) {
-    // Trim oldest entries when the document exceeds the hard limit. Keep
-    // the structured form intact by re-rendering after pruning.
-    const trimmed = structuredEntries.slice(-Math.max(1, Math.floor(structuredEntries.length / 2)));
-    newContent = renderLearnedInstructions(normalizedRole, trimmed, nowIso);
-  }
+  // Bound the buffer before writing. The soft limit is the working target and
+  // the hard limit is the ceiling; evicting the cheapest entries keeps the
+  // file useful without ever blocking a future capture.
+  const budget = enforceLearnedBudget(
+    structuredEntries,
+    nowIso,
+    Math.max(LEARNED_SOFT_LIMIT, Math.min(LEARNED_HARD_LIMIT, LEARNED_SOFT_LIMIT)),
+    normalizedRole,
+  );
+  const newContent = renderLearnedInstructions(normalizedRole, budget.kept, nowIso);
 
   writeTextAtomically(path.join(roleDir(normalizedRole, projectRoot), 'learned.md'), newContent);
-  const captureKey = `${path.resolve(projectRoot ?? process.cwd())}\0${normalizedRole}`;
-  captureCooldowns.set(captureKey, now.getTime());
-  // Increment the frequency counter by 1 per capture attempt (not by
-  // `captured`, the number of LEARNED blocks appended). Otherwise a single
-  // response that yields N blocks immediately exhausts the
-  // CAPTURE_MAX_PER_SESSION budget for the rest of the session, while a
-  // response that yields 0 blocks consumes nothing — both diverge from the
-  // documented "attempts per session" semantics the cap is meant to enforce.
-  captureFrequency.set(captureKey, (captureFrequency.get(captureKey) ?? 0) + 1);
+  // Count one attempt per capture call (not per LEARNED block). Otherwise a
+  // single response with N blocks exhausts the whole window budget while a
+  // response with none consumes nothing — both diverge from the documented
+  // "attempts per window" semantics.
+  recordCaptureAttempt(key, now.getTime());
+  for (const skill of new Set(routedSkills)) {
+    try {
+      recordSkillLearned(normalizedRole, skill, projectRoot);
+    } catch {
+      // Affinity bookkeeping must never fail a capture.
+    }
+  }
   const nextPolicy: ProjectAgentLearningPolicy = {
     ...policy,
     lifetimeCaptureCount: policy.lifetimeCaptureCount + captured,
@@ -958,7 +1074,14 @@ export function captureLearnedFromAgentOutputDetailed(
     learningPolicyPath(normalizedRole, projectRoot),
     `${JSON.stringify(nextPolicy, null, 2)}\n`,
   );
-  return { role: normalizedRole, captured, skipped, status: 'captured' };
+  return {
+    role: normalizedRole,
+    captured,
+    skipped,
+    status: 'captured',
+    ...(routedSkills.length > 0 ? { skills: [...new Set(routedSkills)] } : {}),
+    ...(budget.dropped.length > 0 ? { evicted: budget.dropped.length } : {}),
+  };
 }
 
 /**

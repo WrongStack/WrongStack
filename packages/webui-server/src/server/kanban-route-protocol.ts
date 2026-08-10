@@ -42,4 +42,5 @@ export const KANBAN_CLIENT_MESSAGE_TYPES = [
   'kanban.taskgraph.export',
   'kanban.taskgraph.sync',
   'kanban.update',
+  'kanban.workbench',
 ] as const;

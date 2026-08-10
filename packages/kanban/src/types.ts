@@ -6,9 +6,7 @@
  * The model is intentionally provider-free: LLMs can manipulate kanban data
  * through tools, but core CRUD stays deterministic and file-based.
  */
-
 export type KanbanTaskPriority = 'critical' | 'high' | 'medium' | 'low';
-
 /** Kind of work a task represents (mirrors core's TaskType). Optional/persisted;
  *  when unset it is inferred at task-graph export from the title/description. */
 export type KanbanTaskType = 'feature' | 'bugfix' | 'refactor' | 'docs' | 'test' | 'chore';
@@ -407,7 +405,17 @@ export interface KanbanTaskOrigin {
   graphId?: string | undefined;
   phaseId?: string | undefined;
   taskId?: string | undefined;
+  /** Requirement within specId implemented by this task (not the spec id itself). */
+  specRequirementId?: string | undefined;
   specId?: string | undefined;
+}
+
+export interface KanbanRequirementScope {
+  graphId: string;
+  specId: string;
+  sourceSystem: string;
+  requirementIds: string[];
+  updatedAt: string;
 }
 
 export type KanbanLifecycleStage = 'backlog' | 'todo' | 'running' | 'review' | 'done';
@@ -756,6 +764,10 @@ export interface KanbanBoard {
   updatedAt: string;
   completedAt?: string | undefined;
   generatedBy?: string | undefined;
+  /** Canonical requirement scope declared by the imported task graph. */
+  requiredRequirementIds?: string[] | undefined;
+  /** Per-graph scope ledger; prevents independent mirrors from overwriting each other. */
+  requirementScopes?: KanbanRequirementScope[] | undefined;
   /** Quiet health/reconciliation policy for this board. */
   supervisor?: KanbanSupervisorConfig | undefined;
   /** Opt-in strict Kanban Agent lifecycle policy. */
@@ -766,6 +778,8 @@ export interface KanbanBoard {
   atomicity?: KanbanBoardAtomicityPolicy | undefined;
   /** Completion-gate policy; defaults resolved by resolveGateEnforcement(). */
   completionGate?: KanbanCompletionGatePolicy | undefined;
+  /** Goodhart-safe objective/impact/guardrail/evidence graph for autonomous work. */
+  contractGraph?: import('./types-operations.js').KanbanContractGraph | undefined;
   /** Sessions and agents that recently read or mutated this board. */
   presence?: KanbanBoardPresence[] | undefined;
   version: number;

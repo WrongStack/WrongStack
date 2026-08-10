@@ -15,6 +15,7 @@ import type {
 } from '../types.js';
 import { applyTaskPatch, findTask, nowIso } from './_internal.js';
 import { KanbanLifecycleError } from './lifecycle-error.js';
+import { getDependencyReadinessIssues } from './task-readiness.js';
 
 export {
   decodeLifecycleIssues,
@@ -425,14 +426,40 @@ export function validateManagedTaskTransition(
 
   if (toIndex > fromIndex) {
     validateRequiredCardDetails(task, issues);
-    if (input.to === 'running') validateRunningOwnership(task, issues);
     if (input.to === 'review') validateReviewEvidence(task, input, issues);
     if (input.to === 'done') {
-      validateDoneEvidence(task, input, issues);
+      validateDoneEvidence(board, task, input, issues);
       validateParentChildGate(board, task, issues);
     }
   }
+  // Running is executable state regardless of direction. Review -> Running is
+  // a repair loop, but it still must not bypass the dependency DAG.
+  if (input.to === 'running') {
+    validateRunningOwnership(task, issues);
+    validateRunningDependencies(board, task, issues);
+  }
   return issues;
+}
+
+function validateRunningDependencies(
+  board: KanbanBoard,
+  task: KanbanTask,
+  issues: KanbanLifecycleValidationIssue[],
+): void {
+  const dependencyIssues = getDependencyReadinessIssues(board, task);
+  if (!dependencyIssues.length) return;
+  const details = dependencyIssues
+    .map((issue) =>
+      issue.status === 'missing'
+        ? `${issue.dependencyId} (missing)`
+        : `${issue.dependencyId} (${issue.taskStatus ?? 'incomplete'})`,
+    )
+    .join(', ');
+  issues.push({
+    code: 'dependency-incomplete',
+    field: 'dependsOn',
+    message: `Running requires every dependency to exist and be completed: ${details}.`,
+  });
 }
 
 /**
@@ -661,7 +688,7 @@ function validateReviewEvidence(
 export function validateDefinitionOfDone(
   task: KanbanTask,
   report?: KanbanVerificationReport,
-  options: { requireCriteria?: boolean | undefined } = {},
+  options: { requireCriteria?: boolean | undefined; board?: KanbanBoard | undefined } = {},
 ): KanbanLifecycleValidationIssue[] {
   const issues: KanbanLifecycleValidationIssue[] = [];
   const requireCriteria = options.requireCriteria !== false;
@@ -694,11 +721,12 @@ export function validateDefinitionOfDone(
 }
 
 function validateDoneEvidence(
+  board: KanbanBoard,
   task: KanbanTask,
   input: KanbanTaskTransitionInput,
   issues: KanbanLifecycleValidationIssue[],
 ): void {
-  issues.push(...validateDefinitionOfDone(task, task.verificationReport));
+  issues.push(...validateDefinitionOfDone(task, task.verificationReport, { board }));
   if (!hasAttachmentUrl(input.attachment) || !hasText(input.action)) {
     issues.push({
       code: 'review-evidence-missing',

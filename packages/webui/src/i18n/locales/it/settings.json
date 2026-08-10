@@ -315,7 +315,12 @@
     "palettePurplePink": "Viola e rosa",
     "paletteCyanTeal": "Ciano e turchese",
     "paletteRoseCopper": "Rosa e rame",
-    "paletteIndigoAmber": "Indaco e ambra"
+    "paletteIndigoAmber": "Indaco e ambra",
+    "paletteSageSand": "Salvia e sabbia",
+    "paletteSlateViolet": "Ardesia e violetto",
+    "paletteCoralMint": "Corallo e menta",
+    "paletteArcticEmber": "Artico e brace",
+    "paletteMossRust": "Muschio e ruggine"
   },
   "agent": {
     "autonomyHeading": "Autonomia e Comportamento",

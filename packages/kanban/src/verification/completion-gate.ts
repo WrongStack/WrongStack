@@ -18,8 +18,7 @@
 // Import from defining leaf modules, not the `../manager.js` barrel, which
 // re-exports this file — importing the barrel would form a module cycle
 // (manager.ts ↔ verification/completion-gate.ts) that check:architecture flags.
-import { getBoard } from '../manager/boards.js';
-import { validateDefinitionOfDone } from '../manager/lifecycle.js';
+
 import {
   createKanbanEvent,
   emitKanbanEvent,
@@ -27,6 +26,8 @@ import {
   nowIso,
   syncTaskColumnForStatus,
 } from '../manager/_internal.js';
+import { getBoard } from '../manager/boards.js';
+import { validateDefinitionOfDone } from '../manager/lifecycle.js';
 import { mutateBoard } from '../storage.js';
 import type {
   KanbanBoard,
@@ -107,6 +108,7 @@ export async function enforceCompletionGate(
     // Soft mode lets criterion-less tasks complete quietly; strict demands
     // explicit acceptance criteria, matching the managed Done contract.
     requireCriteria: enforcement === 'strict',
+    board,
   });
   const allowed = result.report.verdict === 'passed' && issues.length === 0;
   return { allowed, enforcement, verdict: result.report.verdict, report: result.report, issues };
@@ -165,12 +167,10 @@ export async function finalizeTaskCompletion(
   taskId: string,
   options: CompletionGateOptions = {},
 ): Promise<FinalizeTaskCompletionResult | null> {
-  const gate = await enforceCompletionGate(projectRoot, boardId, taskId, options).catch(
-    (error) => {
-      if (error instanceof Error && /not found/i.test(error.message)) return null;
-      throw error;
-    },
-  );
+  const gate = await enforceCompletionGate(projectRoot, boardId, taskId, options).catch((error) => {
+    if (error instanceof Error && /not found/i.test(error.message)) return null;
+    throw error;
+  });
   if (!gate) return null;
 
   const events: KanbanEvent[] = [];

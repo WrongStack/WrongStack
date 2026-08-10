@@ -255,22 +255,12 @@ export interface MemoryCandidateEntry {
 export interface WSMemorySageBackfillRecoverable {
   type: 'memory.sage.backfillRecoverable';
   payload: {
-    /** Records that were backfilled into a fresh active version (dryRun=false). */
-    recoveredRecords?:
-      | Array<{
-          originalId: string;
-          newActiveId: string;
-          kind: string;
-          scope: string;
-          textPreview: string;
-          deletedAt: string;
-          persistence: string;
-        }>
-      | undefined;
-    /** Total count of records recovered in this run. */
-    recovered?: number | undefined;
-    /** Total count examined. */
+    /** Total count of deleted records examined. */
     examined?: number | undefined;
+    /** How many of those were judged recoverable. */
+    recoverable?: number | undefined;
+    /** How many were actually written back as fresh active versions. */
+    recovered?: number | undefined;
     /** True when the request was a dry-run (no writes). */
     dryRun?: boolean | undefined;
     error?: string | undefined;

@@ -554,6 +554,21 @@ describe('updateTaskAssignment edges', () => {
     expect(task.status).toBe('in_progress');
     expect(task.assignment?.dispatchedAt).toBeDefined();
   });
+  it('cannot mark an assignment running while a dependency is incomplete', async () => {
+    const b = await makeBoard();
+    const dependency = await addTask(tmpDir, b.id, { title: 'Dependency' });
+    const task = await addTask(tmpDir, b.id, {
+      title: 'Blocked task',
+      dependsOn: [dependency!.task.id],
+    });
+
+    await expect(
+      updateTaskAssignment(tmpDir, b.id, task!.task.id, { status: 'running' }),
+    ).rejects.toThrow('every dependency');
+
+    const persisted = await getBoard(tmpDir, b.id);
+    expect(persisted!.tasks.find((item) => item.id === task!.task.id)?.assignment).toBeUndefined();
+  });
   it('re-queues a completed task back to ready on queued status', async () => {
     const b = await makeBoard();
     const t = await addTask(tmpDir, b.id, { title: 'X' });

@@ -1,15 +1,17 @@
 import { createBoardObject, mutateBoard, readBoard, writeBoard } from '../storage.js';
-import { DEFAULT_COLUMNS, type KanbanBoard } from '../types.js';
 import type { PhaseGraph, PhaseNode } from '../types/phase-graph.js';
 import type { TaskGraph, TaskNode } from '../types/task-graph.js';
+import { DEFAULT_COLUMNS, type KanbanBoard } from '../types.js';
 import type {
   CreateKanbanBoardFromTaskGraphOptions,
   SyncKanbanBoardFromTaskGraphOptions,
 } from './task-graph-contracts.js';
+
 export type {
   CreateKanbanBoardFromTaskGraphOptions,
   SyncKanbanBoardFromTaskGraphOptions,
 } from './task-graph-contracts.js';
+
 import {
   assertNoDependencyCycles,
   createTaskObject,
@@ -38,6 +40,7 @@ export async function createBoardFromTaskGraph(
   graph: TaskGraph,
   options: CreateKanbanBoardFromTaskGraphOptions = {},
 ): Promise<{ board: KanbanBoard; taskIdMap: Map<string, string> }> {
+  assertDeclaredRequirementCoverage(graph);
   const board = createBoardObject({
     title: requireNonBlank(options.title ?? graph.title, 'Kanban board title'),
     description: options.description ?? `Imported from task graph ${graph.id}`,
@@ -45,6 +48,9 @@ export async function createBoardFromTaskGraph(
     generatedBy: options.generatedBy ?? `${options.sourceSystem ?? 'task-graph'}:${graph.id}`,
     columns: DEFAULT_COLUMNS.map((column) => ({ ...column })),
   });
+  if (graph.requiredRequirementIds !== undefined) {
+    applyDeclaredRequirementScope(board, graph, options.sourceSystem ?? 'task-graph', true);
+  }
   const taskIdMap = new Map<string, string>();
   const nodes = Array.from(graph.nodes.values())
     .filter((node) => options.includeCompletedTasks !== false || node.status !== 'completed')
@@ -67,6 +73,9 @@ export async function createBoardFromTaskGraph(
         graphId: graph.id,
         taskId: node.id,
         specId: graph.specId,
+        ...(node.specRequirementId !== undefined
+          ? { specRequirementId: node.specRequirementId }
+          : {}),
         ...(options.phaseId !== undefined ? { phaseId: options.phaseId } : {}),
       },
     });
@@ -108,6 +117,7 @@ export async function syncBoardFromTaskGraph(
   updatedTaskIds: string[];
   archivedTaskIds: string[];
 } | null> {
+  assertDeclaredRequirementCoverage(graph);
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     if (board.lifecycle?.mode === 'managed') {
       throw new Error(
@@ -129,6 +139,12 @@ export async function syncBoardFromTaskGraph(
     if (options.description !== undefined) board.description = options.description;
     if (options.tags !== undefined) board.tags = options.tags;
     board.generatedBy = options.generatedBy ?? `${sourceSystem}:${graph.id}`;
+    applyDeclaredRequirementScope(
+      board,
+      graph,
+      sourceSystem,
+      options.allowRequirementScopeShrink === true,
+    );
 
     for (const node of nodes) {
       let task = findTaskByOrigin(board, graph.id, node.id, options.phaseId);
@@ -171,6 +187,68 @@ export async function syncBoardFromTaskGraph(
   });
 
   return updated ? { board: updated.board, ...updated.result } : null;
+}
+
+function assertDeclaredRequirementCoverage(graph: TaskGraph): void {
+  if (graph.requiredRequirementIds === undefined) return;
+  const required = new Set(graph.requiredRequirementIds.map((id) => id.trim()).filter(Boolean));
+  const mapped = new Set(
+    Array.from(graph.nodes.values()).flatMap((node) =>
+      node.specRequirementId ? [node.specRequirementId] : [],
+    ),
+  );
+  const missing = Array.from(required).filter((id) => !mapped.has(id));
+  const unknown = Array.from(mapped).filter((id) => !required.has(id));
+  if (!missing.length && !unknown.length) return;
+  const problems = [
+    missing.length ? `missing task coverage for ${missing.join(', ')}` : '',
+    unknown.length ? `unknown requirement mappings ${unknown.join(', ')}` : '',
+  ].filter(Boolean);
+  throw new Error(`Task graph requirement coverage is invalid: ${problems.join('; ')}.`);
+}
+
+function applyDeclaredRequirementScope(
+  board: KanbanBoard,
+  graph: TaskGraph,
+  sourceSystem: string,
+  allowShrink: boolean,
+): void {
+  if (graph.requiredRequirementIds === undefined) return;
+  const nextIds = uniqueStrings(graph.requiredRequirementIds);
+  const scopes = [...(board.requirementScopes ?? [])];
+  const index = scopes.findIndex((scope) => scope.graphId === graph.id);
+  const previous = index >= 0 ? scopes[index] : undefined;
+  if (previous && !allowShrink) {
+    const next = new Set(nextIds);
+    const removed = previous.requirementIds.filter((id) => !next.has(id));
+    const unresolved = removed.filter((requirementId) => {
+      const coveringTasks = board.tasks.filter(
+        (task) =>
+          task.origin?.graphId === graph.id && task.origin?.specRequirementId === requirementId,
+      );
+      return (
+        coveringTasks.length === 0 || coveringTasks.some((task) => task.status !== 'completed')
+      );
+    });
+    if (unresolved.length > 0) {
+      throw new Error(
+        `Task graph requirement scope cannot shrink during ordinary sync; explicitly resolve or cancel: ${unresolved.join(', ')}.`,
+      );
+    }
+  }
+  const scope = {
+    graphId: graph.id,
+    specId: graph.specId,
+    sourceSystem,
+    requirementIds: nextIds,
+    updatedAt: nowIso(),
+  };
+  if (index >= 0) scopes[index] = scope;
+  else scopes.push(scope);
+  board.requirementScopes = scopes;
+  board.requiredRequirementIds = uniqueStrings(
+    scopes.flatMap((candidate) => candidate.requirementIds),
+  );
 }
 
 export interface ExportKanbanBoardToTaskGraphOptions {
@@ -220,6 +298,9 @@ export function buildTaskGraphFromKanbanBoard(
   const graph: TaskGraph = {
     id: graphId,
     specId,
+    ...(board.requiredRequirementIds !== undefined
+      ? { requiredRequirementIds: [...board.requiredRequirementIds] }
+      : {}),
     title: options.title ?? board.title,
     nodes: new Map<string, TaskNode>(),
     edges: [],

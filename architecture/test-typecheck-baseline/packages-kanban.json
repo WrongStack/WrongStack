@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
+  "project": "packages/kanban",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "489d64b8e1a0d644": 1,
     "4eff16124ac60a09": 1,
     "8a0876845696c3f1": 6,
-    "12febec5328cb504": 1,
-    "738a1e5a53e8001b": 1
+    "12febec5328cb504": 1
   }
 }

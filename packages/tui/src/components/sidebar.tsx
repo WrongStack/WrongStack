@@ -91,13 +91,20 @@ export function RightSidebar({ width, maxHeight, focused = false, children }: Ri
       overflowY="hidden"
       flexShrink={0}
       borderStyle={focused ? 'double' : 'round'}
-      borderColor={focused ? theme.accent : theme.borderSubtle}
+      borderColor={focused ? theme.borderActive : theme.borderSubtle}
       paddingX={1}
     >
       {children ?? (
-        <Text color={theme.textMuted} wrap="truncate">
-          ◧ sidebar
-        </Text>
+        <Box flexDirection="row" justifyContent="space-between">
+          <Text color={theme.textMuted} wrap="truncate">
+            ◧ SIDEBAR
+          </Text>
+          {focused ? (
+            <Text color={theme.borderActive} bold>
+              [FOCUS]
+            </Text>
+          ) : null}
+        </Box>
       )}
     </Box>
   );

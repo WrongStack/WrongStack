@@ -36,6 +36,7 @@ type PanelResetState = Pick<
   | 'sddBoard'
   | 'worktreeMonitorOpen'
   | 'coordinator'
+  | 'themePicker'
 >;
 
 export function closePanels(state: State): PanelResetState {
@@ -71,6 +72,7 @@ export function closePanels(state: State): PanelResetState {
     sddBoard: state.sddBoard ? { ...state.sddBoard, monitorOpen: false } : state.sddBoard,
     worktreeMonitorOpen: false,
     coordinator: { ...state.coordinator, monitorOpen: false },
+    themePicker: { ...state.themePicker, open: false },
   };
 }
 

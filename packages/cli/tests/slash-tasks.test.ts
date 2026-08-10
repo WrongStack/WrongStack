@@ -79,4 +79,33 @@ describe('buildTasksCommand', () => {
     const persisted = await loadCompletedWorkCheckpoint(completedWorkPath);
     expect(persisted?.[0]?.summary).toBe('Wire completed-work ledger');
   });
+
+  it('refuses to start a task before its dependency completes', async () => {
+    const taskPath = path.join(tmpDir, 'dependencies.json');
+    const completedWorkPath = path.join(tmpDir, 'completed-work.json');
+    const file = makeTaskFile('sess-1');
+    file.tasks.push({
+      ...file.tasks[0]!,
+      id: 'task-2',
+      title: 'Dependent work',
+      dependsOn: ['task-1'],
+    });
+    await saveTasks(taskPath, file);
+    const cmd = buildTasksCommand({} as never);
+
+    const res = await cmd.run('start task-2', makeCtx(taskPath, completedWorkPath));
+
+    expect(res?.message).toContain('dependencies are unfinished');
+  });
+
+  it('refuses to clear unfinished task coverage', async () => {
+    const taskPath = path.join(tmpDir, 'coverage.json');
+    const completedWorkPath = path.join(tmpDir, 'completed-work.json');
+    await saveTasks(taskPath, makeTaskFile('sess-1'));
+    const cmd = buildTasksCommand({} as never);
+
+    const res = await cmd.run('clear', makeCtx(taskPath, completedWorkPath));
+
+    expect(res?.message).toContain('Cannot clear unfinished tasks');
+  });
 });

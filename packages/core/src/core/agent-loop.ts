@@ -903,6 +903,13 @@ export function createAgentLoopHandler(
         // Synchronize route-scoped limits before any post-response compaction,
         // but do not perform a second provider metadata request.
         await refreshProviderContextLimit(responseProvider, req.model, { probe: false });
+        // Expose the turn's assistant text so post-turn surfaces can re-read it.
+        // `/agent-improve <role> capture` reads `lastAgentOutput` to rescan for
+        // `## LEARNED` blocks; nothing wrote the key, so the command could only
+        // ever report "no blocks found".
+        if (responseResult.finalText) {
+          a.ctx.meta['lastAgentOutput'] = responseResult.finalText;
+        }
         if (responseResult.aborted) {
           return {
             status: 'aborted',

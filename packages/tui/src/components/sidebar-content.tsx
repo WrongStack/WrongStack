@@ -228,7 +228,7 @@ function SectionHeader({
       <Text color={color} bold>
         {left}
       </Text>
-      <Text color={theme.borderSubtle}>{'·'.repeat(fillCount)}</Text>
+      <Text color={theme.borderSubtle}>{'╌'.repeat(fillCount)}</Text>
       {fitsBadge ? (
         <Text color={badgeColor ?? color} bold>
           {' '}
@@ -498,11 +498,16 @@ export function SidebarContent({
     <Box flexDirection="column" gap={0} marginTop={scrollOffset > 0 ? -scrollOffset : undefined}>
       {/* ── Focus indicator ── */}
       {focused ? (
-        <Box width={innerWidth} marginBottom={1}>
-          <Text color={theme.accent} bold>
-            ↑↓
+        <Box
+          width={innerWidth}
+          marginBottom={1}
+          justifyContent="space-between"
+          {...(theme.supportsBackground ? { backgroundColor: theme.surfaceRaised } : {})}
+        >
+          <Text color={theme.borderActive} bold>
+            ⌨ FOCUS
           </Text>
-          <Text color={theme.textMuted}> scroll · Shift+Tab exits</Text>
+          <Text color={theme.textMuted}>↑↓ scroll · Shift+Tab exits</Text>
         </Box>
       ) : null}
 
@@ -635,13 +640,16 @@ export function SidebarContent({
           <Box>
             <Text color={running > 0 ? theme.success : theme.textMuted}>▎</Text>
             <Text color={running > 0 ? theme.textSecondary : theme.textMuted} wrap="truncate">
-              {running > 0 ? ` ${running} running` : ' idle'}
+              {running > 0 ? ` ${running} active node${running > 1 ? 's' : ''}` : ' all nodes idle'}
             </Text>
           </Box>
-          {shownAgents.map((entry) => {
+          {shownAgents.map((entry, idx) => {
             const { icon, color } = statusGlyph(entry);
             const isRunning = entry.status === 'running';
-            const name = trunc(entry.name || entry.id, innerWidth - 8);
+            const isLeader = entry.id === 'leader' || entry.name === 'Leader Agent';
+            const isLast = idx === shownAgents.length - 1;
+            const treePrefix = isLeader ? '👑 ' : isLast ? '└─ ' : '├─ ';
+            const name = trunc(entry.name || entry.id, innerWidth - (isLeader ? 8 : 10));
             const ctxPctAgent = entry.ctxPct != null ? `${Math.round(entry.ctxPct * 100)}%` : '';
             const statusLabel =
               entry.status === 'running'
@@ -650,14 +658,15 @@ export function SidebarContent({
                   ? 'idle'
                   : entry.status;
             const tool = entry.currentTool?.name
-              ? trunc(entry.currentTool.name, innerWidth - statusLabel.length - 6)
+              ? trunc(entry.currentTool.name, Math.max(4, innerWidth - statusLabel.length - 8))
               : '';
             return (
               <Box key={entry.id} flexDirection="column">
-                {/* Line 1: accent rail + identity + context telemetry. */}
+                {/* Line 1: accent rail + tree node + identity + context telemetry. */}
                 <Box flexDirection="row">
                   <Text color={color}>▎</Text>
-                  <Text color={color}> {icon} </Text>
+                  <Text color={theme.borderSubtle}>{treePrefix}</Text>
+                  <Text color={color}>{icon} </Text>
                   <Text
                     color={isRunning ? theme.textPrimary : theme.textSecondary}
                     bold={isRunning}
@@ -670,11 +679,11 @@ export function SidebarContent({
                     <Text color={contextBarColor(entry.ctxPct ?? 0)}>{ctxPctAgent}</Text>
                   ) : null}
                 </Box>
-                {/* Line 2: status + current tool, aligned beneath identity. */}
+                {/* Line 2: status + current tool, aligned beneath node identity. */}
                 <Box flexDirection="row">
                   <Text color={color}>▎</Text>
+                  <Text color={theme.borderSubtle}>{isLeader ? '   ' : isLast ? '   ' : '│  '}</Text>
                   <Text color={theme.textMuted} wrap="truncate">
-                    {'   '}
                     {statusLabel}
                     {tool ? ` · ${tool}` : ''}
                   </Text>
@@ -699,6 +708,19 @@ export function SidebarContent({
             badgeColor={mission.done === mission.total ? theme.success : theme.warn}
             innerWidth={innerWidth}
           />
+          {/* Progress matrix bar */}
+          <Box width={innerWidth} marginBottom={1}>
+            <Text color={theme.success}>
+              {'█'.repeat(Math.round((mission.done / Math.max(1, mission.total)) * Math.max(4, innerWidth - 8)))}
+            </Text>
+            <Text color={theme.borderSubtle}>
+              {'░'.repeat(Math.max(0, Math.max(4, innerWidth - 8) - Math.round((mission.done / Math.max(1, mission.total)) * Math.max(4, innerWidth - 8))))}
+            </Text>
+            <Text color={theme.textMuted}>
+              {' '}
+              {Math.round((mission.done / Math.max(1, mission.total)) * 100)}%
+            </Text>
+          </Box>
           {mission.rows.map((m) => {
             if (m.status === 'completed') {
               return (
@@ -801,6 +823,56 @@ export function SidebarContent({
           ) : null}
         </Card>
       ) : null}
+
+      {/* ── Live Tool Stream Ticker card ── */}
+      {(() => {
+        const liveTools: Array<{ agent: string; name: string; status: string; color: string }> = [];
+        for (const entry of Object.values(entries)) {
+          if (entry.currentTool?.name) {
+            liveTools.push({
+              agent: entry.name || entry.id,
+              name: entry.currentTool.name,
+              status: 'RUNNING',
+              color: theme.success,
+            });
+          } else if (entry.recentTools && entry.recentTools.length > 0) {
+            const lastTool = entry.recentTools[entry.recentTools.length - 1];
+            if (lastTool?.name) {
+              liveTools.push({
+                agent: entry.name || entry.id,
+                name: lastTool.name,
+                status: lastTool.ok === false ? 'FAIL' : 'OK',
+                color: lastTool.ok === false ? theme.error : theme.textMuted,
+              });
+            }
+          }
+        }
+        if (liveTools.length === 0) return null;
+        return (
+          <Card innerWidth={innerWidth} marginBottom={0}>
+            <SectionHeader
+              glyph={glyphs.tools}
+              label="TOOL TICKER"
+              color={theme.accent}
+              badge={liveTools.some((t) => t.status === 'RUNNING') ? '● STREAM' : 'OFFLINE'}
+              badgeColor={liveTools.some((t) => t.status === 'RUNNING') ? theme.success : theme.textMuted}
+              innerWidth={innerWidth}
+            />
+            {liveTools.slice(0, 3).map((item, i) => (
+              <Box key={`ticker-${i}`} flexDirection="row" width={innerWidth}>
+                <Text color={theme.accent}>⚡ </Text>
+                <Text color={theme.textSecondary} wrap="truncate">
+                  {trunc(item.name, Math.max(6, innerWidth - item.status.length - 4))}
+                </Text>
+                <Box flexGrow={1} />
+                <Text color={item.color} bold>
+                  {item.status}
+                </Text>
+              </Box>
+            ))}
+          </Card>
+        );
+      })()}
     </Box>
   );
 }

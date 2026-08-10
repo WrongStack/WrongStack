@@ -63,7 +63,7 @@ describe('Sidebar 12+ subagent visual snapshot', () => {
     expect(frame).toContain('+1 more');
 
     // Verify: each visible agent has a status line
-    const statusLines = frame.split('\n').filter((l) => l.includes('▎   running'));
+    const statusLines = frame.split('\n').filter((l) => l.includes('▎') && l.includes('running') && !l.includes('LIVE') && !l.includes('running active'));
     // 1 leader + 11 subagents = 12 aligned, accent-railed status lines
     expect(statusLines.length).toBe(12);
   });

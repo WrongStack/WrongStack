@@ -379,6 +379,7 @@ project-service owner.
 - [MCP server architecture](mcp-server.md)
 - [Director and fleet architecture](director-architecture.md)
 - [Kanban architecture](kanban-architecture.md)
+- [Kanban contract graph](kanban-contract-graph.md)
 - [Kanban orchestration contract](kanban-orchestration-contract.md)
 - [Todo/plan storage](todos_architecture.md)
 - [Skills](skills.md)

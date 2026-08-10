@@ -5,6 +5,13 @@ import type {
   KanbanBoard,
   KanbanBoardSummary,
   KanbanCompletionGateEnforcement,
+  KanbanContractEdgeType,
+  KanbanContractEnforcement,
+  KanbanContractGraph,
+  KanbanContractGraphEnforcement,
+  KanbanContractGraphEvaluation,
+  KanbanContractNodeKind,
+  KanbanContractNodeState,
   KanbanDecompositionSubtask,
   KanbanEvent,
   KanbanLifecycleStage,
@@ -16,6 +23,7 @@ import type {
   KanbanTaskStatus,
   KanbanTaskType,
   KanbanVerificationReport,
+  KanbanWorkbenchSnapshot,
 } from '@wrongstack/kanban';
 
 export type KanbanAction =
@@ -35,6 +43,7 @@ export type KanbanAction =
   | 'search_tasks'
   | 'ready_tasks'
   | 'snapshot'
+  | 'workbench'
   | 'add_column'
   | 'update_column'
   | 'delete_column'
@@ -44,6 +53,7 @@ export type KanbanAction =
   | 'copy_task'
   | 'transfer_task'
   | 'get_task'
+  | 'start_task'
   | 'update_task'
   | 'transition_task'
   | 'repair_managed_projection'
@@ -51,6 +61,13 @@ export type KanbanAction =
   | 'delete_task'
   | 'set_chain'
   | 'get_chain'
+  | 'get_contract_graph'
+  | 'configure_contract_graph'
+  | 'upsert_contract_node'
+  | 'link_contract_nodes'
+  | 'remove_contract_node'
+  | 'remove_contract_edge'
+  | 'evaluate_contract_graph'
   | 'claim_task'
   | 'release_task'
   | 'assign_task'
@@ -79,6 +96,18 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   targetBoardId?: string | undefined;
   taskIds?: string[] | undefined;
   chainId?: string | undefined;
+  contractNodeId?: string | undefined;
+  contractNodeKind?: KanbanContractNodeKind | undefined;
+  contractNodeState?: KanbanContractNodeState | undefined;
+  contractEnforcement?: KanbanContractEnforcement | undefined;
+  contractGraphEnforcement?: KanbanContractGraphEnforcement | undefined;
+  contractEdgeId?: string | undefined;
+  contractEdgeType?: KanbanContractEdgeType | undefined;
+  fromNodeId?: string | undefined;
+  toNodeId?: string | undefined;
+  contractRationale?: string | undefined;
+  baseline?: string | number | undefined;
+  threshold?: string | number | undefined;
   title?: string | undefined;
   description?: string | undefined;
   dueDate?: string | undefined;
@@ -145,7 +174,16 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   transitionComment?: string | undefined;
   attachmentUrl?: string | undefined;
   attachmentTitle?: string | undefined;
-  attachmentType?: 'issue' | 'pr' | 'doc' | 'commit' | 'design' | 'file' | 'url' | 'other' | undefined;
+  attachmentType?:
+    | 'issue'
+    | 'pr'
+    | 'doc'
+    | 'commit'
+    | 'design'
+    | 'file'
+    | 'url'
+    | 'other'
+    | undefined;
   releaseStatus?: 'pending' | 'ready' | 'blocked' | undefined;
   releaseReason?: string | undefined;
   clearAssignee?: boolean | undefined;
@@ -158,6 +196,7 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   taskGraph?: unknown;
   graphId?: string | undefined;
   specId?: string | undefined;
+  specRequirementId?: string | undefined;
   sourceSystem?: string | undefined;
   phaseId?: string | undefined;
   preserveOriginTaskIds?: boolean | undefined;
@@ -202,6 +241,9 @@ export interface KanbanToolOutput {
   children?: KanbanTask[] | undefined;
   chain?: KanbanTask[] | undefined;
   snapshot?: KanbanOrchestrationSnapshot | undefined;
+  workbench?: KanbanWorkbenchSnapshot | undefined;
+  contractGraph?: KanbanContractGraph | undefined;
+  contractEvaluation?: KanbanContractGraphEvaluation | undefined;
   taskGraph?: SerializedTaskGraph | undefined;
   markdown?: string | undefined;
 }

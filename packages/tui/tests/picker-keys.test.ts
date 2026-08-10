@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React, { useEffect } from 'react';
-import { usePickerKeys, type PickerKeysHost } from '../src/hooks/use-picker-keys.js';
-import type { KeyEvent } from '../src/components/input.js';
+import { describe, expect, it, vi } from 'vitest';
 import type { State } from '../src/app-reducer.js';
-import type { ProviderOption } from '../src/components/model-picker.js';
+import type { KeyEvent } from '../src/components/input.js';
 import type { ModeOption } from '../src/components/mode-picker.js';
+import type { ProviderOption } from '../src/components/model-picker.js';
+import { type PickerKeysHost, usePickerKeys } from '../src/hooks/use-picker-keys.js';
 
 function key(overrides: Partial<KeyEvent> = {}): KeyEvent {
   return {
@@ -47,6 +47,7 @@ function baseState(overrides: Partial<State> | Record<string, unknown> = {}): St
     },
     modePicker: { open: false, modes: [], selected: 0 },
     autonomyPicker: { open: false, options: [], selected: 0 },
+    themePicker: { open: false, selected: 0 },
     designPicker: { open: false, kits: [], selected: 0, stack: 'web' },
     promptPicker: {
       open: false,
@@ -961,6 +962,52 @@ describe('usePickerKeys — autonomy picker', () => {
 
     runPickerKey(host, '', key(), true);
     expect(switchAutonomy).not.toHaveBeenCalled();
+  });
+});
+
+describe('usePickerKeys — theme picker', () => {
+  it('navigates, applies, and closes the theme picker', () => {
+    const onThemePickerEnter = vi.fn();
+    const host = makeHost(baseState({ themePicker: { open: true, selected: 0 } }), {
+      onThemePickerEnter,
+    });
+
+    runPickerKey(host, '', key({ downArrow: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'themePickerMove', delta: 1 });
+
+    host.dispatch.mockClear();
+    runPickerKey(host, '', key({ upArrow: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'themePickerMove', delta: -1 });
+
+    host.dispatch.mockClear();
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: -1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'themePickerMove', delta: 1 });
+
+    host.lastEnterAtRef.current = 0;
+    runPickerKey(host, '', key(), true);
+    expect(onThemePickerEnter).toHaveBeenCalledTimes(1);
+    expect(host.inputGateRef.current).toBe(false);
+
+    host.dispatch.mockClear();
+    runPickerKey(host, '', key({ escape: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'themePickerClose' });
   });
 });
 

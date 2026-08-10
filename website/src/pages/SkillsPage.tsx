@@ -1,4 +1,4 @@
-import { FileText, Globe, PackageOpen } from 'lucide-react';
+import { FileText, Globe, GraduationCap, PackageOpen } from 'lucide-react';
 import { ExternalDoc, PageHero, PageNext, SectionIntro } from '@/components/site/primitives';
 
 export function SkillsPage() {
@@ -45,9 +45,21 @@ export function SkillsPage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
+        <SectionIntro index="04" eyebrow="Project practice" title="Skills grow into your codebase." description="A bundled skill teaches the general method. What it means to apply that method here is learned from the work — captured from real runs, distilled, and attached to the skill itself." />
+        <div className="mt-12 grid gap-6 lg:grid-cols-3">
+          {[
+            { title: 'Captured', path: '## LEARNED [skill: testing]', body: 'A roster agent ends a run with a durable directive and tags the skill it refines. Untagged directives are routed by wording. Failed runs count too — an agent that hit a wall and wrote down why is the best source there is.' },
+            { title: 'Distilled', path: '.wrongstack/agents/<role>/skills/<skill>.md', body: 'A background pass groups the directives per skill and writes the delta between the general method and how it must be applied in this repository. It runs unattended; /agent-improve <role> optimize forces it early.' },
+            { title: 'Applied', path: 'Injected beneath the bundled skill body', body: 'On the next spawn the addendum sits directly under that skill, with the instruction to prefer it where the two differ. Which skills load is ranked by what this project actually developed.' },
+          ].map(({ title, path, body }) => (<article key={title} className="rounded-2xl border border-line bg-card p-7"><GraduationCap className="size-5 text-brand" /><h2 className="mt-8 text-xl font-black text-fg">{title}</h2><code className="mt-2 block font-mono text-xs text-faint">{path}</code><p className="mt-4 text-sm leading-7 text-muted">{body}</p></article>))}
+        </div>
+        <p className="mt-8 text-sm leading-7 text-muted">These files are committed, so a fresh clone starts with the roster already trained on your conventions.</p>
+      </section>
+
       <section className="border-y border-line bg-surface">
         <div className="mx-auto max-w-[1380px] px-4 py-20 sm:px-6 sm:py-28 lg:px-10">
-          <SectionIntro index="04" eyebrow="Authoring" title="Write a skill once, use it everywhere." description="Every skill is a markdown file with YAML frontmatter. The model can help you author one with /skill-gen." />
+          <SectionIntro index="05" eyebrow="Authoring" title="Write a skill once, use it everywhere." description="Every skill is a markdown file with YAML frontmatter. The model can help you author one with /skill-gen." />
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
             {[
               { label: 'name', body: 'Unique identifier. Used for installation and resolution.' },

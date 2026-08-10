@@ -34,12 +34,34 @@ function deleteCachedCodemapBody(key: string): boolean {
   return cache.delete(key);
 }
 
-/** Filesystem fingerprint of the index DB used as the cache generation key. */
+/**
+ * Filesystem fingerprint of the index DB used as the cache generation key.
+ *
+ * The index uses WAL mode (`PRAGMA journal_mode = WAL`), so indexer writes land
+ * in `index.db-wal` and only move into `index.db` on a checkpoint. Fingerprinting
+ * `index.db` alone returns the same mtime/size across an entire indexing run,
+ * which makes a stale empty-graph response cached before the first successful
+ * index look like a permanent cache hit — the CodeMap canvas shows
+ * "No indexed nodes at this level" indefinitely.
+ *
+ * Including the WAL file's mtime/size (and falling back gracefully when no WAL
+ * exists yet) ensures the fingerprint changes as soon as the indexer writes.
+ */
 export function indexDbVersion(projectRoot: string, indexDir?: string): string {
   try {
     const dir = resolveIndexDir(projectRoot, indexDir);
     const st = fs.statSync(path.join(dir, DB_FILE));
-    return `${st.mtimeMs}:${st.size}`;
+    // Fold the WAL fingerprint in so WAL-mode writes invalidate the cache even
+    // when the main DB file hasn't been checkpointed. A missing WAL (pre-write
+    // or post-checkpoint) is harmless — the main DB stat already covers those.
+    let wal = '';
+    try {
+      const walSt = fs.statSync(path.join(dir, `${DB_FILE}-wal`));
+      wal = `:${walSt.mtimeMs}:${walSt.size}`;
+    } catch {
+      /* WAL not present — main DB fingerprint is sufficient */
+    }
+    return `${st.mtimeMs}:${st.size}${wal}`;
   } catch {
     return 'missing';
   }

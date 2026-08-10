@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "project": "packages/tools",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "dd7d3d222440a890": 1,
@@ -69,8 +70,6 @@
     "880d7cb2b423a8af": 2,
     "c99558ac3c42620d": 1,
     "94a34156e4199f4f": 1,
-    "efc919a4d27305cd": 6,
-    "08682bcc1a76ac55": 1,
     "18e64604fb0571a8": 2,
     "bc439774c295ac71": 1,
     "1dc212c0319afdd7": 1,
@@ -89,7 +88,6 @@
     "85e7a55e78ee2adf": 2,
     "08af310c3b5f2736": 13,
     "ec13495986d28347": 3,
-    "7174728dc9fb4e58": 8,
     "a404928c65ceb4c9": 6,
     "a6d17d21fb1be601": 1,
     "cbb5e067165fd5be": 1,

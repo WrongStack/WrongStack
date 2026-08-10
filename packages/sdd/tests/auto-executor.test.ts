@@ -46,7 +46,7 @@ function makeGraph(nodes: TaskNode[], edges: Array<{ from: string; to: string }>
       to: e.to,
       type: 'depends_on',
     })),
-    rootNodes: nodes.filter((n) => !edges.some((e) => e.from === n.id)).map((n) => n.id),
+    rootNodes: nodes.filter((n) => !edges.some((e) => e.to === n.id)).map((n) => n.id),
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -100,7 +100,7 @@ describe('AutoExecutor', () => {
   it('respects dependency order', async () => {
     const a = makeNode('a');
     const b = makeNode('b');
-    const graph = makeGraph([a, b], [{ from: 'b', to: 'a' }]);
+    const graph = makeGraph([a, b], [{ from: 'a', to: 'b' }]);
     await store.saveGraph(graph);
     await tracker.loadGraph(graph.id);
 
@@ -271,19 +271,7 @@ describe('AutoExecutor', () => {
   it('retries thrown errors and provides dependency context', async () => {
     const a = makeNode('a', { priority: 'low' });
     const b = makeNode('b', { priority: 'critical' });
-    const graph = makeGraph([a, b], [{ from: 'b', to: 'a' }]);
-    graph.edges.push({
-      id: 'missing-dependency',
-      from: 'b',
-      to: 'missing',
-      type: 'depends_on',
-    });
-    graph.edges.push({
-      id: 'missing-dependent',
-      from: 'missing',
-      to: 'a',
-      type: 'depends_on',
-    });
+    const graph = makeGraph([a, b], [{ from: 'a', to: 'b' }]);
     graph.edges.push({ id: 'related', from: 'a', to: 'b', type: 'relates_to' });
     await store.saveGraph(graph);
     await tracker.loadGraph(graph.id);
@@ -348,7 +336,7 @@ describe('AutoExecutor', () => {
   it('stops when failed blockers deadlock remaining tasks', async () => {
     const failed = makeNode('a', { status: 'failed' });
     const pending = makeNode('b');
-    const graph = makeGraph([failed, pending], [{ from: 'b', to: 'a' }]);
+    const graph = makeGraph([failed, pending], [{ from: 'a', to: 'b' }]);
     await store.saveGraph(graph);
     await tracker.loadGraph(graph.id);
     const executeTask = vi.fn(async () => ({ success: true }));
@@ -363,7 +351,7 @@ describe('AutoExecutor', () => {
   it('stops without a deadlock when no task is currently ready', async () => {
     const active = makeNode('a', { status: 'in_progress' });
     const pending = makeNode('b');
-    const graph = makeGraph([active, pending], [{ from: 'b', to: 'a' }]);
+    const graph = makeGraph([active, pending], [{ from: 'a', to: 'b' }]);
     await store.saveGraph(graph);
     await tracker.loadGraph(graph.id);
     const executeTask = vi.fn(async () => ({ success: true }));

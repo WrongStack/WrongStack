@@ -7,7 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- **Roster agents now develop their skills per project, not just accumulate notes.** A subagent ends a run with a directive tagged to the skill it refines (`## LEARNED [skill: testing]`, or routed automatically from the wording). A background pass distils the directives for each skill into `.wrongstack/agents/<role>/skills/<skill>.md` and the runtime injects that addendum directly beneath the bundled skill body on the next spawn, instructing the agent to prefer it where the two differ.
+- **Skill selection is ranked by project affinity.** The full curated skill pool for a role (carried as the new `SubagentConfig.skillPool`) is ranked by routed learning, task outcome and usage before the eager-load cap is applied, so a skill this project developed can displace an unused sibling. `skills/affinity.json` holds the counters; a skill can be pinned.
+- **The distillation pass runs unattended.** `fleet.learning.autoOptimize` (default on) triggers on buffer size or on directives waiting to reach their skill, with a 20 s debounce, a 6 h per-role cooldown, process-wide serialization, exponential failure backoff and a start-up sweep. Each pass emits `agent.learning.optimized`.
+- **New surfaces:** `/agent-improve <role> optimize|skills [<skill>] [pin|unpin]`; WebUI Self-Learning skills panel with affinity, addendum bodies and auto-optimize status; a TUI feed line when a background pass completes; `subagent.skills.dropped` for skills that fail to load.
+- `scripts/repair-agent-learning.mjs` migrates and repairs pre-existing `learned.md` buffers.
+
+### Changed
+
+- **`.wrongstack/agents/` is now committed.** What an agent learned about this codebase is a project asset; leaving it ignored meant every clone and CI run started the roster untrained. `archive/` and `skills/affinity.json` stay local.
+- **Learning capture also runs on failed and cancelled tasks**, and on ACP-delegated agents, which previously discarded every `## LEARNED` block they produced.
+- **The capture frequency cap is a rolling 30-minute window** instead of a per-process counter that never reset — in a long-lived project daemon it had become "3 captures per role, ever". `/clear` resets it explicitly.
+- Consolidation archives the raw buffer and resets it, and its metadata now snapshots the post-prune state so the freshness gate compares like with like.
+
+### Fixed
+
+- **Roles silently stopped learning once `learned.md` passed 8 KB.** The size gate blocked every automatic capture and had no path that could clear it, because consolidation wrote a separate file and never touched the raw buffer. Over-budget buffers are now trimmed at write time (cheapest entries first) and size never blocks a capture.
+- **Repeated captures corrupted the buffer.** Stored `How` anchors carried their own list markup, so each re-render wrapped them again (`- *How:*   - *How:* …`). Anchors are stored bare and the renderer owns the label, making a parse→render round-trip a fixed point.
+- **`.json` path anchors were truncated to `.js`** by a first-match extension alternation, handing agents file paths that do not exist.
+- **`/agent-improve <role> capture` could never succeed** — it read a `lastAgentOutput` context key nothing ever wrote. **`consolidate` persisted nothing** on the CLI path; both surfaces now share one implementation.
+- **Post-consolidation deltas selected the wrong directives.** The structured buffer is sorted, so slicing by entry count returned whichever entries sorted last; the delta is now selected by capture timestamp. Entry counting no longer uses `splitLearnedEntries`, which returns 2 for any structured document.
+- **The "teach this agent" flow was silently destructive** — appended text was invisible to the structured parser and the next capture rewrote the file without it.
+- Cross-role conflict detection compared whole documents, so shared boilerplate made almost any two roles look like they conflicted; it now compares individual directives.
+- The commit-SHA scrubber no longer deletes ordinary words spelled from hex letters (`defaced`, `acceded`).
+- `knowledge.json` `liveQueries` and `verifyThreshold` reached a prompt for the first time; the agent-prompt cache key now includes the project root.
+- **Website: every prerendered command route and sitemap URL lost its first letter** (`/commands/mailbox` was emitted as `/commands/ailbox`). The build-time slug helper double-stripped the leading slash. 98 command URLs corrected.
+
 
 ## [0.302.2] — 2026-08-09
 

@@ -28,6 +28,7 @@ import { coerceAgainstSchema, validateAgainstSchema } from '../utils/json-schema
 import { createToolOutputSerializer } from '../utils/tool-output-serializer.js';
 import { resolveToolResultRenderMode } from '../utils/tool-result-render-mode.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
+import { toolErrorResult } from './tool-error-taxonomy.js';
 import {
   logToolFailure as logToolFailureEvent,
   logToolSuccess as logToolSuccessEvent,
@@ -38,7 +39,6 @@ import {
   malformedInputResult,
   unknownToolResult,
 } from './tool-executor-results.js';
-import { toolErrorResult } from './tool-error-taxonomy.js';
 import { executeStreamedTool } from './tool-executor-stream.js';
 import {
   abortReasonToError,
@@ -326,7 +326,9 @@ export class ToolExecutor {
       // Kanban boundaries are an execution-time ceiling, not prompt advice.
       // Resolve the live board/task on every call so edits made in WebUI/TUI
       // take effect during an already-running agent assignment.
-      const boundary = await evaluateToolKanbanBoundary(tool, use.input, ctx);
+      const boundary = await evaluateToolKanbanBoundary(tool, use.input, ctx, {
+        requireGovernance: this.opts.requireKanbanGovernance,
+      });
       if (boundary.decision === 'block') {
         const result = {
           type: 'tool_result' as const,

@@ -1,6 +1,8 @@
 import { color } from '@wrongstack/core/utils';
 import {
   areDependenciesMet,
+  evaluateContractGraph,
+  evaluateContractGraphReadiness,
   findBlockedTasks,
   type KanbanBoard,
   type KanbanBoardSummary,
@@ -194,6 +196,20 @@ export function formatTaskDetail(board: KanbanBoard, task: KanbanTask): string {
       lines.push(`   ${metric.name}: ${metric.current ?? '—'}${target} ${DIM(metric.status)}`);
       if (metric.notes) lines.push(`      ${DIM(metric.notes)}`);
     }
+  }
+
+  const readiness = evaluateContractGraphReadiness(board, task.id);
+  const completion = evaluateContractGraph(board, task.id);
+  lines.push('');
+  lines.push(HEADING('  Contract Map:'));
+  lines.push(
+    `   ${readiness.ready ? color.green('● Start ready') : color.yellow(`△ ${readiness.issues.length} setup gaps`)} · ${completion.issues.length === 0 ? color.green('closed') : color.yellow(`${completion.issues.length} completion open`)}`,
+  );
+  for (const issue of readiness.issues.slice(0, 5)) {
+    lines.push(`      ${color.yellow('!')} ${issue.message}`);
+  }
+  if (readiness.issues.length > 5) {
+    lines.push(`      ${DIM(`+${readiness.issues.length - 5} more setup gaps`)}`);
   }
 
   if (task.estimatedHours || task.actualHours) {

@@ -20,6 +20,10 @@ export interface TodoItem {
   promotedFromPlan?: string | undefined;
   /** When promoted from a task, stores the task's id. */
   promotedFromTask?: string | undefined;
+  /** Durable Kanban owner when the todo row is a UI projection of a real card. */
+  kanbanBoardId?: string | undefined;
+  /** Durable Kanban card represented by this todo row. */
+  kanbanTaskId?: string | undefined;
 }
 
 export interface RunOptions {
@@ -740,6 +744,15 @@ export class Context implements RunEnv {
   setCurrentKanbanTask(taskId: string | undefined, boardId?: string | undefined): void {
     this.currentKanbanTaskId = taskId;
     this.currentKanbanBoardId = boardId;
+    const existing =
+      this.meta['kanban'] && typeof this.meta['kanban'] === 'object'
+        ? (this.meta['kanban'] as Record<string, unknown>)
+        : {};
+    this.state.setMeta('kanban', {
+      ...existing,
+      ...(taskId ? { taskId } : { taskId: undefined }),
+      ...(boardId ? { boardId } : { boardId: undefined }),
+    });
   }
 
   /**

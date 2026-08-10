@@ -14,6 +14,7 @@ import type { KeyEvent } from '../components/input.js';
 import { settingsPickerJumpField } from '../components/settings-picker.js';
 import { STATUSLINE_ITEMS } from '../components/statusline-picker.js';
 import type { PickerKeysHost } from './use-picker-keys-types.js';
+
 export type { PickerKeysHost } from './use-picker-keys-types.js';
 
 const ENTER_DOUBLE_TAP_MS = 50;
@@ -312,6 +313,42 @@ export function usePickerKeys(
             return true;
           }
           dispatch({ type: 'autonomyPickerClose' });
+          return true;
+        }
+        return true;
+      }
+
+      // ── Theme picker ──────────────────────────────────────────
+      // Same wire-protocol as the autonomy picker: ↑/↓ navigates, Enter
+      // applies, Esc cancels. The actual `setActiveTheme()` and
+      // `configStore.update({ themePreset })` happen via the picker enter
+      // callback wired in `use-app-picker-keys.ts` (mirrors how autonomy
+      // routes through `switchAutonomy`).
+      if (state.themePicker.open) {
+        if (key.escape) {
+          dispatch({ type: 'themePickerClose' });
+          return true;
+        }
+        if (key.mouse?.kind === 'wheel') {
+          dispatch({ type: 'themePickerMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+          return true;
+        }
+        if (key.upArrow) {
+          dispatch({ type: 'themePickerMove', delta: -1 });
+          return true;
+        }
+        if (key.downArrow) {
+          dispatch({ type: 'themePickerMove', delta: 1 });
+          return true;
+        }
+        if (isEnter) {
+          if (debouncedEnter(host)) return true;
+          host.inputGateRef.current = true;
+          try {
+            host.onThemePickerEnter?.();
+          } finally {
+            host.inputGateRef.current = false;
+          }
           return true;
         }
         return true;

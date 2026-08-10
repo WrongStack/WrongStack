@@ -66,15 +66,17 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
       if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
 
-      const payload = msg.payload as Record<string, unknown> | undefined;
-      if (payload?.['error']) {
-        setError(String(payload['error']));
+      const envelope = msg.payload as Record<string, unknown> | undefined;
+      if (envelope?.['error']) {
+        setError(String(envelope['error']));
         setResults([]);
         setLoading(false);
         return;
       }
       // Server sends three buckets (primaryMatches / symbolMatches / relatedMatches),
-      // each containing MemoryForFileMatch objects with a nested `memory` property.
+      // each containing MemoryForFileMatch objects with a nested `memory` property,
+      // under `payload.response`.
+      const payload = envelope?.['response'] as Record<string, unknown> | undefined;
       const primary = Array.isArray(payload?.['primaryMatches'])
         ? (payload!['primaryMatches'] as Record<string, unknown>[])
         : [];
@@ -91,7 +93,9 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
     };
 
     unsubRef.current = socket.onMessage(handler);
-    socket.send('memory.sage.forFile', { path: path.trim(), limit: 20 });
+    // The request field is `filePath` — sending `path` made the server
+    // reject every search with "filePath is required".
+    socket.send('memory.sage.forFile', { filePath: path.trim(), limit: 20 });
     // Unsubscribe after 5s max (safety net)
     timeoutRef.current = setTimeout(() => {
       if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }

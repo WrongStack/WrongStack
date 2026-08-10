@@ -1,10 +1,12 @@
 import { cn } from '@/lib/utils';
 
-export type KanbanViewMode = 'board' | 'tree' | 'dashboard';
+export type KanbanViewMode = 'focus' | 'board' | 'tree' | 'contracts' | 'dashboard';
 
 const KANBAN_VIEW_MODES = [
+  ['focus', 'Focus'],
   ['board', 'Board'],
   ['tree', 'Tree'],
+  ['contracts', 'Contract Map'],
   ['dashboard', 'Verification'],
 ] as const satisfies ReadonlyArray<readonly [KanbanViewMode, string]>;
 
@@ -24,7 +26,9 @@ export function KanbanViewModeTabs({
           onClick={() => onViewModeChange(mode)}
           className={cn(
             'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
-            viewMode === mode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted',
+            viewMode === mode
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-muted',
           )}
         >
           {label}

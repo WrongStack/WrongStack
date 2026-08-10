@@ -1,6 +1,7 @@
 import { realpath } from 'node:fs/promises';
 import * as path from 'node:path';
 import {
+  evaluateContractGraphReadiness,
   evaluateKanbanBoundaryOpaque,
   evaluateKanbanBoundaryPath,
   type KanbanBoundaryEvaluation,
@@ -14,6 +15,13 @@ export interface ToolKanbanBoundaryEvaluation extends KanbanBoundaryEvaluation {
   boardId?: string | undefined;
   taskId?: string | undefined;
 }
+
+export interface ToolKanbanGovernanceOptions {
+  /** Require every product mutation to run inside a ready, running Kanban card. */
+  requireGovernance?: boolean | undefined;
+}
+
+const GOVERNANCE_CONTROL_TOOLS = new Set(['kanban', 'plan', 'task', 'todo']);
 
 const PATH_KEYS = new Set([
   'path',
@@ -46,14 +54,76 @@ export async function evaluateToolKanbanBoundary(
   tool: Tool,
   input: Record<string, unknown>,
   ctx: Context,
+  options: ToolKanbanGovernanceOptions = {},
 ): Promise<ToolKanbanBoundaryEvaluation> {
+  // The Kanban control plane must remain reachable so an agent can record
+  // evidence or start the next card. Contract maps stay advisory unless an
+  // operator explicitly configured strict enforcement.
+  if (tool.name === 'kanban') return { decision: 'allow' };
   const identity = resolveKanbanIdentity(ctx);
-  if (!identity.boardId) return { decision: 'allow' };
+  const governanceRequired = options.requireGovernance && isGovernedMutation(tool, input);
+  if (!identity.boardId) {
+    return governanceRequired
+      ? {
+          decision: 'block',
+          reason:
+            'Kanban governance is mandatory before product mutation. Create a managed card, add its required details and executable acceptance criteria, then call kanban start_task to bind it to this run.',
+        }
+      : { decision: 'allow' };
+  }
   const board = await readBoard(identity.policyRoot ?? ctx.projectRoot, identity.boardId);
-  if (!board) return { decision: 'allow' };
+  if (!board) {
+    return governanceRequired
+      ? {
+          decision: 'block',
+          reason: `Active Kanban board not found: ${identity.boardId}. Recreate or select a valid managed card before mutation.`,
+          boardId: identity.boardId,
+          ...(identity.taskId ? { taskId: identity.taskId } : {}),
+        }
+      : { decision: 'allow' };
+  }
   const task = identity.taskId
     ? board.tasks.find((candidate) => candidate.id === identity.taskId)
     : undefined;
+
+  if (governanceRequired) {
+    if (!identity.taskId) {
+      return {
+        decision: 'block',
+        reason:
+          'Kanban governance requires an active task, not only a board. Complete the card details and call kanban start_task before mutation.',
+        boardId: board.id,
+      };
+    }
+    if (!task) {
+      return {
+        decision: 'block',
+        reason: `Active Kanban task not found: ${identity.taskId}. Call kanban start_task with a valid card.`,
+        boardId: board.id,
+        taskId: identity.taskId,
+      };
+    }
+    const readiness = evaluateContractGraphReadiness(board, task.id);
+    if (!readiness.ready) {
+      return {
+        decision: 'block',
+        reason:
+          'Active card is not implementation-ready: ' +
+          readiness.issues.map((issue) => issue.message).join(' | '),
+        boardId: board.id,
+        taskId: task.id,
+      };
+    }
+    if (task.lifecycle?.currentStage !== 'running' || task.assignment?.status !== 'running') {
+      return {
+        decision: 'block',
+        reason:
+          'Active card must be in Running with a live assignment before product mutation. Call kanban start_task after completing the required card details.',
+        boardId: board.id,
+        taskId: task.id,
+      };
+    }
+  }
 
   // Lease ownership check: when the subagent was dispatched with a frozen
   // leaseId, verify the task's current assignment still matches. A mismatch
@@ -114,6 +184,26 @@ export async function evaluateToolKanbanBoundary(
   };
 }
 
+function isGovernedMutation(tool: Tool, input: Record<string, unknown>): boolean {
+  if (!tool.mutating || GOVERNANCE_CONTROL_TOOLS.has(tool.name)) return false;
+  if (tool.capabilities?.includes('tool.meta')) return false;
+  if (tool.name === 'git') {
+    const command = input['command'];
+    if (command === 'status' || command === 'log' || command === 'diff') return false;
+    if (command === 'worktree' && input['worktreeAction'] === 'list') return false;
+  }
+  const capabilities = tool.capabilities ?? [];
+  return capabilities.some(
+    (capability) =>
+      capability === 'fs.write' ||
+      capability === 'fs.write.outside-project' ||
+      capability === 'package.install' ||
+      capability === 'tool.mutate.any' ||
+      capability.startsWith('shell.') ||
+      capability === 'net.outbound',
+  );
+}
+
 function resolveKanbanIdentity(ctx: Context): {
   boardId?: string;
   taskId?: string;
@@ -133,8 +223,7 @@ function resolveKanbanIdentity(ctx: Context): {
     (typeof record?.['taskId'] === 'string' ? record['taskId'] : undefined);
   const policyRoot =
     typeof record?.['projectRoot'] === 'string' ? record['projectRoot'] : undefined;
-  const leaseId =
-    typeof record?.['leaseId'] === 'string' ? record['leaseId'] : undefined;
+  const leaseId = typeof record?.['leaseId'] === 'string' ? record['leaseId'] : undefined;
   return {
     ...(boardId ? { boardId } : {}),
     ...(taskId ? { taskId } : {}),

@@ -1,6 +1,7 @@
 import type {
   KanbanAgentAssignment,
   KanbanAgentRunStatus,
+  KanbanAtomicityAssessment,
   KanbanBoard,
   KanbanBoardAtomicityPolicy,
   KanbanBoardKind,
@@ -21,26 +22,27 @@ import type {
   KanbanLink,
   KanbanModelRoutingMode,
   KanbanNote,
+  KanbanQueueClassificationSummary,
   KanbanRecoveryMode,
   KanbanRecoveryPolicy,
   KanbanRetryPolicy,
   KanbanSupervisorConfig,
+  KanbanTask,
   KanbanTaskChainRef,
   KanbanTaskLifecycle,
   KanbanTaskOrigin,
-  KanbanTask,
   KanbanTaskPriority,
-  KanbanQueueClassificationSummary,
   KanbanTaskStatus,
   KanbanTaskType,
   KanbanVerificationReport,
-  KanbanAtomicityAssessment,
 } from './types.js';
+import type { KanbanContractGraphEnforcement } from './types-contract-graph.js';
 
 export type {
   KanbanDecompositionProposal,
   KanbanDecompositionSubtask,
 } from './types.js';
+export * from './types-contract-graph.js';
 
 export interface CreateKanbanBoardInput {
   title: string;
@@ -208,7 +210,10 @@ export interface KanbanLifecycleValidationIssue {
     | 'task-detail-missing'
     | 'review-evidence-missing'
     | 'acceptance-criteria-incomplete'
-    | 'parent-child-incomplete';
+    | 'contract-graph-incomplete'
+    | 'parent-child-incomplete'
+    | 'dependency-incomplete'
+    | 'requirement-coverage-incomplete';
   field?: string | undefined;
   message: string;
 }
@@ -425,6 +430,89 @@ export interface KanbanOrchestrationSnapshot {
   completed: KanbanSearchResult[];
 }
 
+export type KanbanWorkbenchLane = 'now' | 'next' | 'blocked' | 'review';
+
+export interface KanbanWorkbenchItem {
+  boardId: string;
+  boardTitle: string;
+  boardKind: KanbanBoardKind;
+  taskId: string;
+  title: string;
+  lane: KanbanWorkbenchLane;
+  status: KanbanTaskStatus;
+  priority: KanbanTaskPriority;
+  updatedAt: string;
+  reason: string;
+  source: 'session' | 'managed';
+  assignee?: string | undefined;
+  blockedBy?: number | undefined;
+  childProgress?: { completed: number; total: number } | undefined;
+  contractStatus?: KanbanWorkbenchContractStatus | undefined;
+}
+
+export interface KanbanWorkbenchContractStatus {
+  enforcement: KanbanContractGraphEnforcement;
+  startReady: boolean;
+  setupGaps: number;
+  completionOpen: number;
+  closed: boolean;
+}
+
+export interface KanbanWorkbenchLaneSnapshot {
+  total: number;
+  omitted: number;
+  items: KanbanWorkbenchItem[];
+}
+
+export interface KanbanWorkbenchAlert {
+  id: string;
+  severity: 'warning' | 'critical';
+  kind: 'stale_running' | 'heartbeat_due' | 'failed_retryable' | 'duplicate_active';
+  title: string;
+  detail: string;
+  boardId?: string | undefined;
+  taskId?: string | undefined;
+  relatedTaskIds?: string[] | undefined;
+}
+
+/**
+ * Bounded, cross-board projection for human-facing work surfaces. It is a
+ * navigation aid over the authoritative boards, never a second task store.
+ */
+export interface KanbanWorkbenchSnapshot {
+  generatedAt: string;
+  boardCount: number;
+  totals: {
+    active: number;
+    now: number;
+    next: number;
+    blocked: number;
+    review: number;
+    failed: number;
+    completed: number;
+  };
+  flow: Array<{
+    id: 'capture' | 'ready' | 'execute' | 'review' | 'verified';
+    label: string;
+    count: number;
+    explanation: string;
+  }>;
+  lanes: Record<KanbanWorkbenchLane, KanbanWorkbenchLaneSnapshot>;
+  alerts: KanbanWorkbenchAlert[];
+  alertTotal: number;
+  alertsOmitted: number;
+}
+
+export interface GetKanbanWorkbenchInput {
+  /** Maximum cards returned per lane. Clamped to 1..50; default 8. */
+  limitPerLane?: number | undefined;
+  /** Maximum alerts returned. Clamped to 1..50; default 8. */
+  alertLimit?: number | undefined;
+  now?: string | undefined;
+  includeBoardKinds?: KanbanBoardKind[] | undefined;
+  excludeBoardKinds?: KanbanBoardKind[] | undefined;
+}
+
 export interface KanbanGenerationInput {
   description: string;
   context?: string | undefined;
@@ -450,6 +538,7 @@ export interface KanbanSearchInput {
 export interface KanbanSearchResult {
   board: KanbanBoardSummary;
   task: KanbanTask;
+  contractStatus?: KanbanWorkbenchContractStatus | undefined;
 }
 
 export const DEFAULT_COLUMNS: KanbanColumn[] = [

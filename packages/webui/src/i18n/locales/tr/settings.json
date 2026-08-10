@@ -315,7 +315,12 @@
     "palettePurplePink": "Mor & Pembe",
     "paletteCyanTeal": "Camgöbeği & Deniz Mavisi",
     "paletteRoseCopper": "Gül & Bakır",
-    "paletteIndigoAmber": "Çivit Mavisi & Kehribar"
+    "paletteIndigoAmber": "Çivit Mavisi & Kehribar",
+    "paletteSageSand": "Adaçayı & Kum",
+    "paletteSlateViolet": "Lacivert & Menekşe",
+    "paletteCoralMint": "Mercan & Nane",
+    "paletteArcticEmber": "Kuzey & Ateş",
+    "paletteMossRust": "Çim & Pas"
   },
   "agent": {
     "autonomyHeading": "Otonomi ve Davranış",

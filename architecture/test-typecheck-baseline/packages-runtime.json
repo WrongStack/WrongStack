@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "project": "packages/runtime",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
     "8e28d0286a14302f": 1,

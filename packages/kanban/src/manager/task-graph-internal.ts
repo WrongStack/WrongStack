@@ -64,7 +64,9 @@ export function taskInputFromGraphNode(
     priority: node.priority,
     type: node.type,
     status: taskGraphStatusToKanbanStatus(node.status),
-    ...(node.assignee !== undefined ? { assignee: node.assignee, assignedAgent: node.assignee } : {}),
+    ...(node.assignee !== undefined
+      ? { assignee: node.assignee, assignedAgent: node.assignee }
+      : {}),
     ...(node.estimateHours !== undefined ? { estimatedHours: node.estimateHours } : {}),
     ...(node.actualHours !== undefined ? { actualHours: node.actualHours } : {}),
     ...(node.tags !== undefined ? { labels: node.tags } : {}),
@@ -76,6 +78,9 @@ export function taskInputFromGraphNode(
       graphId: graph.id,
       taskId: node.id,
       specId: graph.specId,
+      ...(node.specRequirementId !== undefined
+        ? { specRequirementId: node.specRequirementId }
+        : {}),
       ...(options.phaseId !== undefined ? { phaseId: options.phaseId } : {}),
     },
   };
@@ -111,6 +116,7 @@ export function applyGraphNodeToTask(
     graphId: graph.id,
     taskId: node.id,
     specId: graph.specId,
+    ...(node.specRequirementId !== undefined ? { specRequirementId: node.specRequirementId } : {}),
     ...(options.phaseId !== undefined ? { phaseId: options.phaseId } : {}),
   };
   task.updatedAt = isoFromTimestamp(node.updatedAt, now);
@@ -218,7 +224,9 @@ export function taskToTaskGraphNode(
     ...(task.estimatedHours !== undefined ? { estimateHours: task.estimatedHours } : {}),
     ...(task.actualHours !== undefined ? { actualHours: task.actualHours } : {}),
     ...(task.labels !== undefined ? { tags: task.labels } : {}),
-    ...(task.origin?.specId !== undefined ? { specRequirementId: task.origin.specId } : {}),
+    ...(task.origin?.specRequirementId !== undefined
+      ? { specRequirementId: task.origin.specRequirementId }
+      : {}),
     ...(parentId !== undefined ? { parentId } : {}),
     ...(children.length ? { children } : {}),
     ...(task.completedAt !== undefined

@@ -1,14 +1,9 @@
+import type { KanbanWorkbenchSnapshot } from '@wrongstack/kanban';
 import type { ServerMessage } from '../types.js';
 
-export type WorklistView = 'todos' | 'tasks' | 'plan';
+export type WorklistView = 'flow' | 'todos' | 'tasks' | 'plan';
 export type TodoStatus = 'pending' | 'in_progress' | 'completed';
-export type TaskStatus =
-  | 'pending'
-  | 'in_progress'
-  | 'blocked'
-  | 'failed'
-  | 'review'
-  | 'completed';
+export type TaskStatus = 'pending' | 'in_progress' | 'blocked' | 'failed' | 'review' | 'completed';
 export type PlanStatus = 'open' | 'in_progress' | 'done';
 
 export interface SimpleTodoItem {
@@ -16,6 +11,8 @@ export interface SimpleTodoItem {
   content: string;
   status: TodoStatus;
   activeForm?: string | undefined;
+  kanbanBoardId?: string | undefined;
+  kanbanTaskId?: string | undefined;
 }
 
 export interface SimpleTaskItem {
@@ -41,6 +38,7 @@ export interface WorklistSnapshot {
   todos: SimpleTodoItem[];
   tasks: SimpleTaskItem[];
   planItems: SimplePlanItem[];
+  workbench: KanbanWorkbenchSnapshot | null;
 }
 
 export interface WorklistStore {
@@ -67,12 +65,7 @@ const TASK_TYPES = new Set<SimpleTaskItem['type']>([
   'test',
   'chore',
 ]);
-const TASK_PRIORITIES = new Set<SimpleTaskItem['priority']>([
-  'critical',
-  'high',
-  'medium',
-  'low',
-]);
+const TASK_PRIORITIES = new Set<SimpleTaskItem['priority']>(['critical', 'high', 'medium', 'low']);
 const PLAN_STATUSES = new Set<PlanStatus>(['open', 'in_progress', 'done']);
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -102,6 +95,12 @@ export function parseSimpleTodos(value: unknown): SimpleTodoItem[] {
         status: status as TodoStatus,
         ...(optionalString(item?.['activeForm']) && {
           activeForm: optionalString(item?.['activeForm']),
+        }),
+        ...(optionalString(item?.['kanbanBoardId']) && {
+          kanbanBoardId: optionalString(item?.['kanbanBoardId']),
+        }),
+        ...(optionalString(item?.['kanbanTaskId']) && {
+          kanbanTaskId: optionalString(item?.['kanbanTaskId']),
         }),
       },
     ];
@@ -171,7 +170,9 @@ export function parseSimplePlan(value: unknown): SimplePlanItem[] {
 }
 
 function payloadSessionId(payload: Record<string, unknown>): string | null {
-  return typeof payload['sessionId'] === 'string' && payload['sessionId'] ? payload['sessionId'] : null;
+  return typeof payload['sessionId'] === 'string' && payload['sessionId']
+    ? payload['sessionId']
+    : null;
 }
 
 /**
@@ -180,7 +181,13 @@ function payloadSessionId(payload: Record<string, unknown>): string | null {
  * render when only the sidebar badge or its open panel needs to change.
  */
 export function createWorklistStore(): WorklistStore {
-  let snapshot: WorklistSnapshot = { sessionId: null, todos: [], tasks: [], planItems: [] };
+  let snapshot: WorklistSnapshot = {
+    sessionId: null,
+    todos: [],
+    tasks: [],
+    planItems: [],
+    workbench: null,
+  };
   const listeners = new Set<() => void>();
 
   const publish = (next: WorklistSnapshot): void => {
@@ -195,13 +202,20 @@ export function createWorklistStore(): WorklistStore {
       return () => listeners.delete(listener);
     },
     reset: (sessionId) => {
-      publish({ sessionId, todos: [], tasks: [], planItems: [] });
+      publish({ sessionId, todos: [], tasks: [], planItems: [], workbench: null });
     },
     applyMessage: (message) => {
       const payload = message.payload ?? {};
       const incomingSessionId = payloadSessionId(payload);
       if (incomingSessionId && snapshot.sessionId && incomingSessionId !== snapshot.sessionId) {
         return false;
+      }
+
+      if ((message.type as string) === 'kanban.workbench') {
+        const envelope = record(payload['data']);
+        if (!envelope || !record(envelope['lanes']) || !record(envelope['totals'])) return false;
+        publish({ ...snapshot, workbench: envelope as unknown as KanbanWorkbenchSnapshot });
+        return true;
       }
 
       switch (message.type) {

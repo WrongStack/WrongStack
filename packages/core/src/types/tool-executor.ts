@@ -94,6 +94,8 @@ export interface ToolExecutorOptions {
    * to the result the model sees).
    */
   hookRunner?: import('../hooks/runner.js').HookRunner | undefined;
+  /** Hard-block product mutations outside a ready, running strict Kanban contract. */
+  requireKanbanGovernance?: boolean | undefined;
   /**
    * Per-tool on-screen result render mode map (`tools.resultRenderMode[name]`).
    * When set, the executor reads this map to decide whether the next

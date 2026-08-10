@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 vi.mock('ws', () => {
@@ -12,17 +12,17 @@ vi.mock('@wrongstack/sage', () => ({ getSageSurface: mockGetSageSurface }));
 
 import {
   handleMemoryList,
-  handleSageList,
-  handleSageListPage,
+  handleSageBackfillRecoverable,
+  handleSageCandidateResolve,
+  handleSageDelete,
+  handleSageForFile,
   handleSageGet,
   handleSageGraph,
-  handleSageUpdate,
-  handleSageRemember,
-  handleSageDelete,
+  handleSageList,
+  handleSageListPage,
   handleSageRecover,
-  handleSageCandidateResolve,
-  handleSageBackfillRecoverable,
-  handleSageForFile,
+  handleSageRemember,
+  handleSageUpdate,
 } from '../src/server/memory-handlers.js';
 
 function mockWs(): any {
@@ -35,14 +35,31 @@ function msg(payload: Record<string, unknown> = {}) {
 
 function makeSage(extra: Record<string, unknown> = {}) {
   return {
-    stats: vi.fn(async () => ({ total: 2, byStatus: { active: 1, stale: 0, archived: 1 }, byKind: {}, edges: 0 })),
+    stats: vi.fn(async () => ({
+      total: 2,
+      byStatus: { active: 1, stale: 0, archived: 1 },
+      byKind: {},
+      edges: 0,
+    })),
     listSage: vi.fn(async () => [
       { id: 'mem-001', kind: 'fact', status: 'active', text: 'hello world', tags: ['t1'] },
       { id: 'mem-002', kind: 'decision', status: 'archived', text: 'old', tags: [] },
     ]),
     getSage: vi.fn(async () => null),
-    updateSage: vi.fn(async (_id: string, _patch: Record<string, unknown>) => ({ id: 'mem-001', kind: 'fact', status: 'active', text: 'updated', tags: [] })),
-    rememberSage: vi.fn(async () => ({ id: 'mem-003', kind: 'fact', status: 'active', text: 'new', tags: [] })),
+    updateSage: vi.fn(async (_id: string, _patch: Record<string, unknown>) => ({
+      id: 'mem-001',
+      kind: 'fact',
+      status: 'active',
+      text: 'updated',
+      tags: [],
+    })),
+    rememberSage: vi.fn(async () => ({
+      id: 'mem-003',
+      kind: 'fact',
+      status: 'active',
+      text: 'new',
+      tags: [],
+    })),
     deleteSage: vi.fn(async () => undefined),
     acceptCandidate: vi.fn(async () => null),
     rejectCandidate: vi.fn(async () => null),
@@ -90,7 +107,9 @@ describe('memory-handlers', () => {
     it('sends error text on exception', async () => {
       const ws = mockWs();
       mockGetSageSurface.mockReturnValue({
-        stats: vi.fn(async () => { throw new Error('boom'); }),
+        stats: vi.fn(async () => {
+          throw new Error('boom');
+        }),
         listSage: vi.fn(async () => []),
       });
       await handleMemoryList(ws, { readAll: vi.fn() } as any);
@@ -121,7 +140,9 @@ describe('memory-handlers', () => {
     it('sends error on exception', async () => {
       const ws = mockWs();
       mockGetSageSurface.mockReturnValue({
-        stats: vi.fn(async () => { throw new Error('fail'); }),
+        stats: vi.fn(async () => {
+          throw new Error('fail');
+        }),
         listSage: vi.fn(async () => []),
       });
       await handleSageList(ws, {} as any);
@@ -190,7 +211,9 @@ describe('memory-handlers', () => {
     it('sends error on exception', async () => {
       const ws = mockWs();
       mockGetSageSurface.mockReturnValue({
-        listSage: vi.fn(async () => { throw new Error('db'); }),
+        listSage: vi.fn(async () => {
+          throw new Error('db');
+        }),
         stats: vi.fn(async () => ({ total: 0 })),
       });
       await handleSageListPage(ws, msg(), {} as any);
@@ -227,7 +250,15 @@ describe('memory-handlers', () => {
 
     it('sends memory on success', async () => {
       const ws = mockWs();
-      const sage = makeSage({ getSage: vi.fn(async () => ({ id: 'mem-1', kind: 'fact', status: 'active', text: 'hi', tags: [] })) });
+      const sage = makeSage({
+        getSage: vi.fn(async () => ({
+          id: 'mem-1',
+          kind: 'fact',
+          status: 'active',
+          text: 'hi',
+          tags: [],
+        })),
+      });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageGet(ws, msg({ id: 'mem-1' }), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
@@ -260,7 +291,13 @@ describe('memory-handlers', () => {
       const ws = mockWs();
       const sage = makeSage({
         graphFor: vi.fn(async () => [{ from: 'mem:abc', to: 'mem:def', relation: 'rel' }]),
-        getSage: vi.fn(async () => ({ id: 'abc', kind: 'fact', status: 'active', text: 't', tags: [] })),
+        getSage: vi.fn(async () => ({
+          id: 'abc',
+          kind: 'fact',
+          status: 'active',
+          text: 't',
+          tags: [],
+        })),
       });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageGraph(ws, msg({ query: 'test' }), {} as any);
@@ -271,7 +308,11 @@ describe('memory-handlers', () => {
 
     it('sends error on exception', async () => {
       const ws = mockWs();
-      const sage = makeSage({ graphFor: vi.fn(async () => { throw new Error('graph-fail'); }) });
+      const sage = makeSage({
+        graphFor: vi.fn(async () => {
+          throw new Error('graph-fail');
+        }),
+      });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageGraph(ws, msg({ query: 'test' }), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
@@ -341,7 +382,10 @@ describe('memory-handlers', () => {
       const sage = makeSage();
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageDelete(ws, msg({ id: 'mem-1' }), {} as any);
-      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, { force: false, neverInject: false });
+      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, {
+        force: false,
+        neverInject: false,
+      });
     });
 
     it('respects explicit force:true', async () => {
@@ -349,7 +393,10 @@ describe('memory-handlers', () => {
       const sage = makeSage();
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageDelete(ws, msg({ id: 'mem-1', force: true, neverInject: true }), {} as any);
-      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, { force: true, neverInject: true });
+      expect(sage.deleteSage).toHaveBeenCalledWith('mem-1', undefined, {
+        force: true,
+        neverInject: true,
+      });
     });
   });
 
@@ -364,7 +411,10 @@ describe('memory-handlers', () => {
 
     it('sends error when id missing', async () => {
       const ws = mockWs();
-      mockGetSageSurface.mockReturnValue({ recoverSage: vi.fn(), getSage: vi.fn(async () => null) });
+      mockGetSageSurface.mockReturnValue({
+        recoverSage: vi.fn(),
+        getSage: vi.fn(async () => null),
+      });
       await handleSageRecover(ws, msg({}), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.error).toBe('id is required');
@@ -374,7 +424,13 @@ describe('memory-handlers', () => {
       const ws = mockWs();
       mockGetSageSurface.mockReturnValue({
         recoverSage: vi.fn(),
-        getSage: vi.fn(async () => ({ id: 'mem-1', status: 'active', kind: 'fact', text: 't', tags: [] })),
+        getSage: vi.fn(async () => ({
+          id: 'mem-1',
+          status: 'active',
+          kind: 'fact',
+          text: 't',
+          tags: [],
+        })),
       });
       await handleSageRecover(ws, msg({ id: 'mem-1' }), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
@@ -401,7 +457,9 @@ describe('memory-handlers', () => {
 
     it('accepts a candidate', async () => {
       const ws = mockWs();
-      const sage = makeSage({ acceptCandidate: vi.fn(async () => ({ id: 'c1', status: 'active' })) });
+      const sage = makeSage({
+        acceptCandidate: vi.fn(async () => ({ id: 'c1', status: 'active' })),
+      });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageCandidateResolve(ws, msg({ candidateId: 'c1', action: 'accept' }), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
@@ -413,7 +471,11 @@ describe('memory-handlers', () => {
       const ws = mockWs();
       const sage = makeSage({ rejectCandidate: vi.fn(async () => true) });
       mockGetSageSurface.mockReturnValue(sage);
-      await handleSageCandidateResolve(ws, msg({ candidateId: 'c1', action: 'reject', reason: 'dup' }), {} as any);
+      await handleSageCandidateResolve(
+        ws,
+        msg({ candidateId: 'c1', action: 'reject', reason: 'dup' }),
+        {} as any,
+      );
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.resolvedAction).toBe('reject');
     });
@@ -422,7 +484,11 @@ describe('memory-handlers', () => {
       const ws = mockWs();
       const sage = makeSage({ acceptCandidate: vi.fn(async () => null) });
       mockGetSageSurface.mockReturnValue(sage);
-      await handleSageCandidateResolve(ws, msg({ candidateId: 'gone', action: 'accept' }), {} as any);
+      await handleSageCandidateResolve(
+        ws,
+        msg({ candidateId: 'gone', action: 'accept' }),
+        {} as any,
+      );
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.error).toContain('not found');
     });
@@ -439,7 +505,9 @@ describe('memory-handlers', () => {
 
     it('runs dry-run by default', async () => {
       const ws = mockWs();
-      const sage = makeSage({ backfillRecoverable: vi.fn(async () => ({ examined: 10, recovered: 0, recoverable: 5 })) });
+      const sage = makeSage({
+        backfillRecoverable: vi.fn(async () => ({ examined: 10, recovered: 0, recoverable: 5 })),
+      });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageBackfillRecoverable(ws, msg({}), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
@@ -449,7 +517,9 @@ describe('memory-handlers', () => {
 
     it('applies when requested', async () => {
       const ws = mockWs();
-      const sage = makeSage({ backfillRecoverable: vi.fn(async () => ({ examined: 10, recovered: 5, recoverable: 5 })) });
+      const sage = makeSage({
+        backfillRecoverable: vi.fn(async () => ({ examined: 10, recovered: 5, recoverable: 5 })),
+      });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageBackfillRecoverable(ws, msg({ apply: true }), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
@@ -470,20 +540,81 @@ describe('memory-handlers', () => {
 
     it('sends error when filePath missing', async () => {
       const ws = mockWs();
-      const sage = makeSage({ findMemoriesForFile: vi.fn(async () => ({ primary: [], symbol: [], related: [] })) });
+      const sage = makeSage({
+        findMemoriesForFile: vi.fn(async () => ({ primary: [], symbol: [], related: [] })),
+      });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageForFile(ws, msg({}), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.error).toBe('filePath is required');
     });
 
-    it('returns bucketed response', async () => {
+    it('returns the bucketed response under payload.response', async () => {
       const ws = mockWs();
-      const sage = makeSage({ findMemoriesForFile: vi.fn(async () => ({ primary: [{ id: 'm1' }], symbol: [], related: [] })) });
+      const sage = makeSage({
+        findMemoriesForFile: vi.fn(async () => ({
+          filePath: 'src/x.ts',
+          primaryMatches: [{ memory: { id: 'm1' }, matchedVia: 'anchor_file', matchStrength: 0.9 }],
+          symbolMatches: [],
+          relatedMatches: [],
+          totalCount: 1,
+          activeCount: 1,
+          supersededCount: 0,
+          reviewPendingCount: 0,
+        })),
+      });
       mockGetSageSurface.mockReturnValue(sage);
       await handleSageForFile(ws, msg({ filePath: 'src/x.ts' }), {} as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
-      expect(sent.payload.primary).toHaveLength(1);
+      expect(sent.payload.response.primaryMatches).toHaveLength(1);
+      expect(sent.payload.response.filePath).toBe('src/x.ts');
+    });
+
+    it('maps the wire showSuperseded / showDeleted flags onto store options', async () => {
+      const ws = mockWs();
+      const findMemoriesForFile = vi.fn(
+        async (_filePath: string, _options?: Record<string, unknown>) => ({
+          filePath: 'src/x.ts',
+          primaryMatches: [],
+          symbolMatches: [],
+          relatedMatches: [],
+          totalCount: 0,
+          activeCount: 0,
+          supersededCount: 0,
+          reviewPendingCount: 0,
+        }),
+      );
+      mockGetSageSurface.mockReturnValue(makeSage({ findMemoriesForFile }));
+      await handleSageForFile(
+        ws,
+        msg({ filePath: 'src/x.ts', showSuperseded: false, showDeleted: true }),
+        {} as any,
+      );
+      expect(findMemoriesForFile).toHaveBeenCalledWith(
+        'src/x.ts',
+        expect.objectContaining({ includeSuperseded: false, includeDeleted: true }),
+      );
+    });
+
+    it('leaves includeSuperseded unset when the request omits the flag', async () => {
+      const ws = mockWs();
+      const findMemoriesForFile = vi.fn(
+        async (_filePath: string, _options?: Record<string, unknown>) => ({
+          filePath: 'src/x.ts',
+          primaryMatches: [],
+          symbolMatches: [],
+          relatedMatches: [],
+          totalCount: 0,
+          activeCount: 0,
+          supersededCount: 0,
+          reviewPendingCount: 0,
+        }),
+      );
+      mockGetSageSurface.mockReturnValue(makeSage({ findMemoriesForFile }));
+      await handleSageForFile(ws, msg({ filePath: 'src/x.ts' }), {} as any);
+      const options = findMemoriesForFile.mock.calls[0]?.[1] as Record<string, unknown>;
+      expect(options).not.toHaveProperty('includeSuperseded');
+      expect(options).not.toHaveProperty('includeDeleted');
     });
   });
 });
