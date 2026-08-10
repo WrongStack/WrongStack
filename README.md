@@ -4,7 +4,7 @@
 
 ### _Built on the wrong stack. Shipped anyway._
 
-**A fully autonomous, from-scratch AI coding agent — not an orchestration wrapper around someone else's CLI. It reads your code, edits files, runs commands, and reasons through bugs across a terminal REPL, a full-screen TUI, a browser UI, an Electron desktop shell, and a cross-machine HQ command center, while you keep your hand on every permission.**
+**A fully autonomous, from-scratch AI coding agent that gets better at _your_ codebase. WrongStack reads code, edits files, runs commands, and verifies work across a terminal REPL, full-screen TUI, browser UI, Electron desktop shell, and cross-machine HQ — while every tool call stays behind an explicit permission boundary.**
 
 [![npm](https://img.shields.io/npm/v/wrongstack?style=flat-square&color=0b7285&label=npm)](https://www.npmjs.com/package/wrongstack)
 [![downloads](https://img.shields.io/npm/dm/wrongstack?style=flat-square&color=0b7285)](https://www.npmjs.com/package/wrongstack)
@@ -28,8 +28,8 @@ Brain-governed policy decisions, and collaborative debugging — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban/task boards** with atomic verification, an **inter-agent mailbox** that
 links every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **61 built-in tools**, **29 bundled skills**, **71 managed first-party
-plugin rows**, and **~140 providers** pulled live from
+It ships with **61 built-in tools**, **29 bundled skills**, **72 managed first-party
+plugins**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
 
@@ -52,26 +52,25 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.300.0
+### What's new in 0.303.0
 
-- **Make the WebUI yours.** Choose emerald-gold, blue-navy, or purple-pink
-  palettes on top of light or dark mode. Palette choices persist locally,
-  synchronize between tabs, and runtime UI colors now resolve through semantic
-  theme tokens.
-- **Control a compact chat input.** Auto-collapse is an explicit, persisted
-  preference that starts off. When enabled, the input responds to transcript
-  and session transitions, re-expands at completion, and keeps its toggle
-  available even in the collapsed state.
-- **Trust Council outcomes under pressure.** Council timing, cancellation,
-  diversity checks, usage accounting, and open-question resolution now retain
-  their meaning across retries, fallbacks, and interrupted runs. A fresh vote
-  cannot show the previous run's verdict.
-- **Local API and agent state are more deliberately protected.** WebUI and
-  SimpleUI HTTP endpoints authenticate every bind, including the legitimate
-  FleetNotifier path; configuration, trust, and authentication state cannot be
-  silently overwritten through ordinary write paths.
+- **Turn completed work into project-specific skill.** Agents now route what
+  they learned to the relevant skill, retain it as a versioned project asset,
+  and load that practical addendum on the next matching assignment. Affinity
+  ranking promotes skills that have proven useful in this repository.
+- **Keep the learning loop healthy without babysitting it.** Automatic
+  optimization distils buffered directives on a bounded, backoff-aware schedule;
+  failures, cancellations, and ACP-delegated runs still contribute their useful
+  lessons. Inspect, pin, or optimize a role with `/agent-improve`.
+- **Search a large codebase with more signal.** The Codebase Index gained
+  tree-sitter extraction for ten more languages, content-hash invalidation,
+  hybrid substring/semantic search, recursive call graphs, and a bounded parser
+  worker pool for larger repositories.
+- **Update reliably on Windows.** `wstack update` now avoids project-local
+  package-manager shims and explains how to recover when a running native file
+  prevents an in-place update.
 
-See the complete [0.300.0 release notes](CHANGELOG.md).
+See the complete [0.303.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -80,7 +79,7 @@ See the complete [0.300.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.300.0](#whats-new-in-03000)
+- [What's new in 0.303.0](#whats-new-in-03030)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -109,7 +108,7 @@ See the complete [0.300.0 release notes](CHANGELOG.md).
 - 🗂️ **Real work tracking** — durable **Kanban boards** and typed tasks with dependencies, lifecycle stages, and **atomic verification** gates.
 - 📬 **Agents that talk** — one **inter-agent mailbox** links every client, session, and worktree so parallel agents coordinate instead of collide.
 - 🦂 **Chimera auto-review** — changed files get critiqued by a review agent (severity-ranked, `file:line`, one-line fixes), with fixer agents to follow up.
-- 📈 **Agents that learn** — roster roles accumulate project-specific `learned.md` / `consolidated.md` playbooks via `/agent-improve`, getting sharper the more you use them.
+- 📈 **Agents that learn the project** — each role turns useful outcomes into skill-specific practice, ranks the skills that work here, and applies that learning on its next relevant task.
 - 🔀 **Per-role model routing** — assign different providers/models per role or phase, with automatic **fallback chains** when a model is overloaded.
 - 🔌 **~140 providers, zero lock-in** — Anthropic, OpenAI, Google, and ~125 OpenAI-compatible endpoints, catalog refreshed from models.dev at boot.
 - 🏠 **Local & custom endpoints** — one-command presets for **Ollama / vLLM / LM Studio**, plus any custom `baseUrl` or **OmniRoute**-style gateway; run fully on localhost.
@@ -257,8 +256,10 @@ required**. Deep reference lives in [`docs/reference.md`](docs/reference.md).
 ### Tools & code intelligence
 
 **61 built-in tools** span filesystem edits, code quality (`lint`/`format`/
-`typecheck`/`test`), execution, web search/fetch, a SQLite/FTS5 codebase index,
-git, packages, and browser/E2E controls. Full map:
+`typecheck`/`test`), execution, web search/fetch, git, packages, browser/E2E
+controls, and a project-owned Codebase Index. The index combines SQLite/FTS5
+substring search, local semantic ranking, content-hash invalidation, symbol and
+call-graph navigation, and bounded parser workers for large repositories. Full map:
 [reference → tools](docs/reference.md#built-in-tools-61).
 
 ### Autonomy & goals
@@ -278,12 +279,16 @@ and [agents](docs/agents.md).
 ### Self-improving roster agents
 
 Every roster role has a base definition, but each **project can teach it**. Under
-`.wrongstack/agents/<role>/`, an agent accumulates an `identity.md` (project tone
-and rules), a structured `learned.md` (what / why / how it has learned), and a
-reviewed, LLM-synthesized `consolidated.md`. `/agent-improve <role> capture`
-harvests `## LEARNED` blocks from a run and `consolidate` optimizes them into a
-durable playbook — so your bug-hunter, reviewer, and executor get sharper the more
-you use them, per project.
+`.wrongstack/agents/<role>/`, the role keeps its identity, a structured learning
+buffer, and skill-specific practice at `skills/<skill>.md`. A run can end with a
+`## LEARNED [skill: testing]` directive (or let WrongStack route it from the
+wording); the next matching spawn receives that project practice immediately below
+the bundled skill it refines. `/agent-improve <role> capture`, `optimize`, and
+`skills` make the loop visible, while automatic optimization distils safely in the
+background. Useful skills gain affinity from usage and outcomes, can be pinned,
+and rise into the role's bounded eager-load set — so your bug-hunter, reviewer,
+and executor improve where it matters without turning every prompt into a dump of
+old notes.
 
 ### Inter-agent mailbox
 
@@ -343,7 +348,8 @@ implement one at a time, and validate against the spec before closing.
 
 ### Plugin ecosystem
 
-**71 managed first-party plugin rows** (7 host-owned + 64 in `@wrongstack/plugins`)
+**72 managed first-party plugins** (6 core, 64 in `@wrongstack/plugins`, and 2
+bridges)
 extend the agent with focused, single-purpose capabilities. See
 [plugin management](docs/plugin-management.md) and the
 [plugin author guide](docs/plugin-author-guide.md).

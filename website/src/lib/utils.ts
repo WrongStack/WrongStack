@@ -321,9 +321,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.303.0',
+    date: '2026-08-10',
+    latest: true,
+    tagline: 'Project-learning agents, deeper codebase intelligence, and dependable Windows updates',
+    highlights: [
+      'Agents now route learned directives into skill-specific project practice, inject that practice beneath the matching bundled skill on the next spawn, and rank their full curated skill pool by project affinity',
+      'Automatic learning optimization is bounded by debounce, per-role cooldown, process-wide serialization, and exponential backoff; failed, cancelled, and ACP-delegated runs can still contribute useful learning',
+      'The Codebase Index adds tree-sitter extraction for ten additional languages, content-addressed invalidation, hybrid FTS5 and local semantic search, recursive SQLite call graphs, and bounded parser workers for larger repositories',
+      'The project-server protocol can negotiate MessagePack frames with JSON fallback, preserving safe interoperability while reducing framing overhead',
+      'wstack update on Windows resolves a global package-manager executable instead of a project-local shim and gives actionable guidance for locked native files',
+    ],
+  },
+  {
     version: '0.302.2',
     date: '2026-08-09',
-    latest: true,
     tagline: 'Authoritative fallback chains and session-scoped Stop cancellation',
     highlights: [
       'Setting fallbackModels or a named fallbackProfile now produces an authoritative chain; auto-derivation, favorites, the default profile, and resolveAllConfigured depth only fire when no explicit chain resolved to usable models',

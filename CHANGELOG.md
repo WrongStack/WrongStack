@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.303.0] — 2026-08-10
+
 ### Added
 
 - **Roster agents now develop their skills per project, not just accumulate notes.** A subagent ends a run with a directive tagged to the skill it refines (`## LEARNED [skill: testing]`, or routed automatically from the wording). A background pass distils the directives for each skill into `.wrongstack/agents/<role>/skills/<skill>.md` and the runtime injects that addendum directly beneath the bundled skill body on the next spawn, instructing the agent to prefer it where the two differ.
@@ -14,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The distillation pass runs unattended.** `fleet.learning.autoOptimize` (default on) triggers on buffer size or on directives waiting to reach their skill, with a 20 s debounce, a 6 h per-role cooldown, process-wide serialization, exponential failure backoff and a start-up sweep. Each pass emits `agent.learning.optimized`.
 - **New surfaces:** `/agent-improve <role> optimize|skills [<skill>] [pin|unpin]`; WebUI Self-Learning skills panel with affinity, addendum bodies and auto-optimize status; a TUI feed line when a background pass completes; `subagent.skills.dropped` for skills that fail to load.
 - `scripts/repair-agent-learning.mjs` migrates and repairs pre-existing `learned.md` buffers.
+- **The Codebase Index now has a deeper incremental intelligence path.** Tree-sitter WASM adds C, C++, Java, C#, PHP, Ruby, Swift, Kotlin, Elixir, and Shell extraction with a safe regex fallback; content-addressed invalidation avoids reparsing unchanged content; and hybrid trigram/semantic search combines FTS5 and local 384-dimensional TF-IDF vectors with reciprocal-rank fusion. (`188eb5f17`)
+- **Call-graph and indexing work scale beyond an in-memory scan.** Recursive SQLite CTEs power transitive callers, callees, and dead-code reachability; large seed sets stay correct through temporary tables; and sufficiently large repositories can use a bounded parser-worker pool. The project-server protocol can negotiate MessagePack frames while retaining a JSON fallback. (`188eb5f17`)
 
 ### Changed
 
@@ -34,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The commit-SHA scrubber no longer deletes ordinary words spelled from hex letters (`defaced`, `acceded`).
 - `knowledge.json` `liveQueries` and `verifyThreshold` reached a prompt for the first time; the agent-prompt cache key now includes the project root.
 - **Website: every prerendered command route and sitemap URL lost its first letter** (`/commands/mailbox` was emitted as `/commands/ailbox`). The build-time slug helper double-stripped the leading slash. 98 command URLs corrected.
+- **Windows self-update now resolves the global package manager rather than a project-local shim.** `wstack update` also gives a recoverable locked-native-file diagnosis instead of leaving a failed update ambiguous. (`958d785a3`)
 
 
 ## [0.302.2] — 2026-08-09
