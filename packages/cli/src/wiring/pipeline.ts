@@ -260,7 +260,13 @@ export function createAgent(params: {
     tracer: params.tracer,
     logger,
     hookRunner: params.hookRunner,
-    requireKanbanGovernance: true,
+    // Kanban tracks work; it does not gate it. When this was `true` a mutating
+    // tool was refused until a managed card existed, carried a description and
+    // acceptance criteria, and had been started — so the session spent its
+    // effort on card ceremony instead of the work the card describes. Cards
+    // still advance and boards still mirror; path-scoped `boundary` policies
+    // (the actual access control) are unaffected and still enforced.
+    requireKanbanGovernance: false,
   };
   const toolExecutor = new ToolExecutor(params.tools, toolExecutorOptions);
 

@@ -363,7 +363,8 @@ export function buildAcpServerAgentFactory(
       maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
       perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
       tracer: undefined,
-      requireKanbanGovernance: true,
+      // Kanban tracks work; it does not gate it. See wiring/pipeline.ts.
+      requireKanbanGovernance: false,
     });
 
     return new Agent({

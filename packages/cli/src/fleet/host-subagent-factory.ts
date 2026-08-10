@@ -219,7 +219,7 @@ export function createHostSubagentFactory(
       baseSystem.push({ type: 'text', text: skillResolution.content });
     }
     const droppedSkills = Object.entries(skillResolution.dropped);
-    if (droppedSkills.length > 0) {
+    if (droppedSkills.length > 0 || skillResolution.trimmed.length > 0) {
       // A skill that silently fails to load leaves the agent believing it has
       // guidance it never received. Surface it on the event bus so the drop is
       // observable instead of a bare console.warn nobody reads.
@@ -228,6 +228,7 @@ export function createHostSubagentFactory(
         role: effectiveCfg.role,
         selected: skillResolution.selected,
         dropped: Object.fromEntries(droppedSkills),
+        ...(skillResolution.trimmed.length > 0 ? { trimmed: skillResolution.trimmed } : {}),
       });
     }
 
@@ -308,7 +309,8 @@ export function createHostSubagentFactory(
       maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
       perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
       tracer: undefined,
-      requireKanbanGovernance: true,
+      // Kanban tracks work; it does not gate it. See wiring/pipeline.ts.
+      requireKanbanGovernance: false,
     });
 
     const subagentConfigStore = host.deps.configStore;
