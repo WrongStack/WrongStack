@@ -33,6 +33,7 @@ export type KanbanAction =
   | 'duplicate_board'
   | 'update_board'
   | 'adopt_managed_lifecycle'
+  | 'release_managed_lifecycle'
   | 'delete_board'
   | 'generate_board'
   | 'export_markdown'

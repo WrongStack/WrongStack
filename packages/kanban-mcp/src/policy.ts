@@ -20,6 +20,7 @@ export const KANBAN_MANAGE_ACTIONS = [
   'duplicate_board',
   'update_board',
   'adopt_managed_lifecycle',
+  'release_managed_lifecycle',
   'generate_board',
   'sync_task_graph',
   'create_from_graph',

@@ -105,3 +105,68 @@ describe('kanban tool — acceptance criteria are agent-writable', () => {
     expect(result.message).toContain('Check not found');
   });
 });
+
+describe('kanban tool — managed lifecycle is reversible', () => {
+  let dir: string;
+  const ctx = () => ({ projectRoot: dir }) as unknown as Context;
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-release-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('releases a board from the strict lifecycle without touching its cards', async () => {
+    const board = await createBoard(dir, {
+      title: 'Adopted board',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+    });
+    await addTask(dir, board.id, { title: 'Existing work', description: 'Has to survive' });
+
+    const adopted = await kanbanTool.execute(
+      {
+        action: 'adopt_managed_lifecycle',
+        boardId: board.id,
+        author: 'tester',
+        transitionComment: 'adopting',
+        columns: ['backlog', 'todo', 'running', 'review', 'done'],
+      },
+      ctx(),
+      { signal: newSignal() },
+    );
+    expect(adopted.ok).toBe(true);
+    expect((await getBoard(dir, board.id))?.lifecycle?.mode).toBe('managed');
+
+    const released = await kanbanTool.execute(
+      { action: 'release_managed_lifecycle', boardId: board.id },
+      ctx(),
+      { signal: newSignal() },
+    );
+    expect(released.ok).toBe(true);
+
+    // Adoption was a one-way door before this action existed. Leaving must
+    // drop only the gates — the work on the board is not the ceremony.
+    const after = await getBoard(dir, board.id);
+    expect(after?.lifecycle).toBeUndefined();
+    expect(after?.tasks).toHaveLength(1);
+    expect(after?.tasks[0]?.title).toBe('Existing work');
+    expect(after?.columns).toHaveLength(5);
+  });
+
+  it('reports a missing board instead of silently succeeding', async () => {
+    const result = await kanbanTool.execute(
+      { action: 'release_managed_lifecycle', boardId: 'no-such-board' },
+      ctx(),
+      { signal: newSignal() },
+    );
+    expect(result.ok).toBe(false);
+  });
+});

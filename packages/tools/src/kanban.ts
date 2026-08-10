@@ -139,6 +139,22 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               ? okBoard(board, 'Managed lifecycle adopted without moving existing cards.')
               : fail('Board not found.');
           }
+          // Adoption used to be a one-way door: the strict lifecycle carries
+          // acceptance-criteria, verification-report, review-evidence and
+          // one-stage-at-a-time gates, and nothing on the tool surface could
+          // undo it, so a board adopted once kept its ceremony forever. The
+          // gates are worth having where a fleet is supervised; they are not
+          // worth being unable to leave. Cards and columns are untouched.
+          case 'release_managed_lifecycle': {
+            if (!input.boardId) return fail('release_managed_lifecycle requires boardId.');
+            const board = await updateBoard(projectRoot, input.boardId, { lifecycle: null });
+            return board
+              ? okBoard(
+                  board,
+                  'Managed lifecycle released; the board now tracks work without strict gates.',
+                )
+              : fail('Board not found.');
+          }
           case 'duplicate_board': {
             if (!input.boardId) return fail('duplicate_board requires boardId.');
             const board = await duplicateBoard(
