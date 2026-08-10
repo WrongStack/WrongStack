@@ -1,10 +1,10 @@
 import type { JSONSchema } from '@wrongstack/core/types';
 
 export const KANBAN_TOOL_DESCRIPTION =
-  'Manage and audit project-scoped multi-kanban boards through the shared IPC Kanban server and its SQLite store. Managed cards enforce fully specified details and adjacent Backlog → Todo → Running → Review → Done transitions with persistent comments and evidence. Contract Map actions are optional advisory metadata unless an operator explicitly enabled strict enforcement. Use verify_completion to validate executable success criteria before Done.';
+  'Durable project task boards: create and move cards, record checks, notes, links and assignments. The board is a record of the work, not a permit for it — nothing here gates other tools. Managed boards additionally enforce ordered Backlog → Todo → Running → Review → Done transitions; release_managed_lifecycle turns that off.';
 
 export const KANBAN_TOOL_USAGE_HINT =
-  'Use this for durable project kanban state. Read workbench when orienting across boards; it returns bounded Now, Next, Blocked, Review lanes and operational alerts. Before coding mutation, create a fully detailed card on a managed board with executable acceptance criteria, then call start_task. The runtime blocks product mutations until start_task binds a ready Running card. Do not create, inspect, repair, or enable a Contract Map during ordinary work; every map mode stays off the execution and completion path. Worker completion enters Review; Done requires passed acceptance criteria and review evidence. Surface existing strict-map findings for operator review without stopping work to repair them.';
+  'Track substantial or multi-step work so it survives the session; a trivial edit or a question needs no card. Common flow: get_board or search_tasks to orient, add_task to record work, start_task when you begin, update_check with checkStatus "passed" to tick acceptance criteria (read their ids from get_task), then transition_task. On a managed board a refused transition names the field it wants — supply it and retry.';
 
 export const KANBAN_INPUT_SCHEMA: JSONSchema = {
   type: 'object',
@@ -47,13 +47,6 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
         'delete_task',
         'set_chain',
         'get_chain',
-        'get_contract_graph',
-        'configure_contract_graph',
-        'upsert_contract_node',
-        'link_contract_nodes',
-        'remove_contract_node',
-        'remove_contract_edge',
-        'evaluate_contract_graph',
         'claim_task',
         'release_task',
         'assign_task',
@@ -79,37 +72,8 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
     taskId: { type: 'string' },
     taskIds: { type: 'array', items: { type: 'string' } },
     chainId: { type: 'string' },
-    contractNodeId: { type: 'string' },
-    contractNodeKind: {
-      type: 'string',
-      enum: ['objective', 'guardrail', 'risk', 'component', 'artifact', 'verification'],
-    },
-    contractNodeState: {
-      type: 'string',
-      enum: ['unknown', 'active', 'satisfied', 'violated', 'resolved'],
-    },
-    contractEnforcement: {
-      type: 'string',
-      enum: ['blocking', 'advisory', 'informational'],
-    },
-    contractGraphEnforcement: { type: 'string', enum: ['off', 'advisory', 'strict'] },
-    contractEdgeId: { type: 'string' },
-    contractEdgeType: {
-      type: 'string',
-      enum: [
-        'targets',
-        'affects',
-        'must_preserve',
-        'exposes',
-        'verified_by',
-        'conflicts_with',
-        'derived_from',
-        'relates_to',
-      ],
-    },
     fromNodeId: { type: 'string' },
     toNodeId: { type: 'string' },
-    contractRationale: { type: 'string' },
     baseline: { oneOf: [{ type: 'string' }, { type: 'number' }] },
     threshold: { oneOf: [{ type: 'string' }, { type: 'number' }] },
     columnId: { type: 'string' },

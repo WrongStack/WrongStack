@@ -1,19 +1,12 @@
 import {
   addCheckToTask,
-  addContractEdge,
   addDependency,
   addGoalMetricToTask,
   addLinkToTask,
   addNoteToTask,
-  configureContractGraph,
-  evaluateTaskContractGraph,
-  getContractGraph,
   getKanbanWorkbench,
-  removeContractEdge,
-  removeContractNode,
   updateCheckOnTask,
   updateGoalMetricOnTask,
-  upsertContractNode,
 } from '@wrongstack/kanban';
 import { handleSplitTask } from './kanban-split-task-handler.js';
 import { fail, okBoard } from './kanban-tool-results.js';
@@ -35,151 +28,6 @@ export async function handleKanbanDetailAction(
         message: `${workbench.totals.now} now, ${workbench.totals.next} next, ${workbench.totals.blocked} blocked, ${workbench.totals.review} review; ${workbench.alertTotal} alert(s).`,
         workbench,
       };
-    }
-    case 'get_contract_graph': {
-      if (!input.boardId) return fail('get_contract_graph requires boardId.');
-      const result = await getContractGraph(projectRoot, input.boardId);
-      return result
-        ? {
-            ok: true,
-            message: result.graph
-              ? `${result.graph.nodes.length} contract node(s), ${result.graph.edges.length} edge(s).`
-              : 'Contract graph is not configured.',
-            board: result.board,
-            ...(result.graph ? { contractGraph: result.graph } : {}),
-          }
-        : fail('Board not found.');
-    }
-    case 'configure_contract_graph': {
-      if (!input.boardId || !input.contractGraphEnforcement) {
-        return fail('configure_contract_graph requires boardId and contractGraphEnforcement.');
-      }
-      const current = await getContractGraph(projectRoot, input.boardId);
-      if (!current) return fail('Board not found.');
-      if (input.contractGraphEnforcement === 'strict' && current.graph?.enforcement !== 'strict') {
-        return fail(
-          'Strict Contract Map enforcement is operator-owned. Autonomous agents may use advisory maps but may not turn them into an execution gate.',
-        );
-      }
-      if (current.graph?.enforcement === 'strict' && input.contractGraphEnforcement !== 'strict') {
-        return fail('An autonomous agent may not loosen a strict contract graph.');
-      }
-      const board = await configureContractGraph(
-        projectRoot,
-        input.boardId,
-        input.contractGraphEnforcement,
-      );
-      return board ? okBoard(board, 'Contract graph configured.') : fail('Board not found.');
-    }
-    case 'upsert_contract_node': {
-      if (!input.boardId || !input.taskId || !input.contractNodeKind || !input.title) {
-        return fail('upsert_contract_node requires boardId, taskId, contractNodeKind, and title.');
-      }
-      if (input.contractNodeState === 'waived') {
-        return fail(
-          'The autonomous kanban tool may not waive contract nodes; a human-owned review surface must record that exception.',
-        );
-      }
-      if (input.contractNodeId) {
-        const current = await getContractGraph(projectRoot, input.boardId);
-        const existing = current?.graph?.nodes.find((node) => node.id === input.contractNodeId);
-        if (
-          current?.graph?.enforcement === 'strict' &&
-          existing &&
-          (existing.kind !== input.contractNodeKind ||
-            (input.contractEnforcement !== undefined &&
-              input.contractEnforcement !== existing.enforcement))
-        ) {
-          return fail(
-            'The autonomous kanban tool may not change the kind or enforcement of an existing strict contract node.',
-          );
-        }
-      }
-      const result = await upsertContractNode(projectRoot, input.boardId, {
-        ...(input.contractNodeId ? { id: input.contractNodeId } : {}),
-        taskId: input.taskId,
-        kind: input.contractNodeKind,
-        title: input.title,
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.contractEnforcement !== undefined
-          ? { enforcement: input.contractEnforcement }
-          : {}),
-        ...(input.contractNodeState !== undefined ? { state: input.contractNodeState } : {}),
-        ...(input.checkId !== undefined ? { checkId: input.checkId } : {}),
-        ...(input.metricId !== undefined ? { metricId: input.metricId } : {}),
-        ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
-        ...(input.threshold !== undefined ? { threshold: input.threshold } : {}),
-        ...(input.author !== undefined ? { createdBy: input.author } : {}),
-      });
-      return result
-        ? {
-            ...okBoard(result.board, 'Contract node saved.'),
-            contractGraph: result.board.contractGraph,
-          }
-        : fail('Task not found.');
-    }
-    case 'link_contract_nodes': {
-      if (!input.boardId || !input.fromNodeId || !input.toNodeId || !input.contractEdgeType) {
-        return fail(
-          'link_contract_nodes requires boardId, fromNodeId, toNodeId, and contractEdgeType.',
-        );
-      }
-      const result = await addContractEdge(projectRoot, input.boardId, {
-        from: input.fromNodeId,
-        to: input.toNodeId,
-        type: input.contractEdgeType,
-        ...(input.contractEdgeId ? { id: input.contractEdgeId } : {}),
-        ...(input.contractEnforcement ? { enforcement: input.contractEnforcement } : {}),
-        ...(input.contractRationale ? { rationale: input.contractRationale } : {}),
-        ...(input.author ? { createdBy: input.author } : {}),
-      });
-      return result
-        ? {
-            ...okBoard(result.board, 'Contract edge added.'),
-            contractGraph: result.board.contractGraph,
-          }
-        : fail('Board not found.');
-    }
-    case 'remove_contract_node': {
-      if (!input.boardId || !input.contractNodeId) {
-        return fail('remove_contract_node requires boardId and contractNodeId.');
-      }
-      const current = await getContractGraph(projectRoot, input.boardId);
-      const node = current?.graph?.nodes.find((candidate) => candidate.id === input.contractNodeId);
-      if (current?.graph?.enforcement === 'strict' && node?.enforcement === 'blocking') {
-        return fail('The autonomous kanban tool may not remove a blocking strict contract node.');
-      }
-      const board = await removeContractNode(projectRoot, input.boardId, input.contractNodeId);
-      return board ? okBoard(board, 'Contract node removed.') : fail('Contract node not found.');
-    }
-    case 'remove_contract_edge': {
-      if (!input.boardId || !input.contractEdgeId) {
-        return fail('remove_contract_edge requires boardId and contractEdgeId.');
-      }
-      const current = await getContractGraph(projectRoot, input.boardId);
-      const edge = current?.graph?.edges.find((candidate) => candidate.id === input.contractEdgeId);
-      if (current?.graph?.enforcement === 'strict' && edge?.enforcement === 'blocking') {
-        return fail('The autonomous kanban tool may not remove a blocking strict contract edge.');
-      }
-      const board = await removeContractEdge(projectRoot, input.boardId, input.contractEdgeId);
-      return board ? okBoard(board, 'Contract edge removed.') : fail('Contract edge not found.');
-    }
-    case 'evaluate_contract_graph': {
-      if (!input.boardId || !input.taskId) {
-        return fail('evaluate_contract_graph requires boardId and taskId.');
-      }
-      const result = await evaluateTaskContractGraph(projectRoot, input.boardId, input.taskId);
-      return result
-        ? {
-            ok: result.evaluation.allowed,
-            message: result.evaluation.allowed
-              ? 'Contract graph is closed.'
-              : `Contract graph has ${result.evaluation.issues.length} unresolved issue(s).`,
-            board: result.board,
-            contractGraph: result.board.contractGraph,
-            contractEvaluation: result.evaluation,
-          }
-        : fail('Task not found.');
     }
     case 'add_dependency': {
       if (!input.boardId || !input.taskId || !input.dependencyTaskId) {

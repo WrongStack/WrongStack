@@ -200,10 +200,12 @@ describe('bundled instruction tool-reference integrity', () => {
       const withTracking = renderInstructionLayer(raw, ctx(['todo', 'kanban']));
       expect(withTracking, name).toContain('## Todo status lifecycle');
       expect(withTracking, name).toContain('completed → Done');
-      expect(withTracking, name).toContain('do not leave finished work sitting in Running');
-      expect(withTracking, name).toContain('Keep Contract Map off the critical path');
-      expect(withTracking, name).toContain('never enable');
-      expect(withTracking, name).toContain('No Contract Map mode');
+      expect(withTracking, name).toContain('leave finished work sitting in Running');
+      // Contract Map is no longer part of the agent-facing surface: its seven
+      // actions were withdrawn from the tool schema, so a prompt rule telling
+      // the model not to use them was pure weight. The library and the WebUI
+      // panel are untouched.
+      expect(withTracking, name).not.toContain('Contract Map');
       expect(withTracking, name).toContain('Never shrink tracked scope by omission');
       expect(withTracking, name).toContain('executable leaf');
       expect(withTracking, name).not.toContain('Use `kanban` only when');

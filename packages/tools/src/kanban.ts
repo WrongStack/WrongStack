@@ -1031,6 +1031,18 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               queueHealth: health,
             };
           }
+          // Not every action is handled above. These are dispatched from here,
+          // and the split has already cost real time: an agent that read this
+          // file concluded `add_check` / `update_check` did not exist, wrote
+          // that on a card, and spent a session trying to satisfy a gate it
+          // already had the tool to clear. Keep this index in step with the
+          // handlers.
+          //
+          //   kanban-detail-actions.ts  workbench · add_dependency ·
+          //     add_goal_metric · update_goal_metric · add_check ·
+          //     update_check · add_note · add_link · split_atomic
+          //   kanban-decomposition-actions.ts  verify_completion ·
+          //     assess_atomicity · propose_decomposition
           default:
             {
               const detailResult = await handleKanbanDetailAction(projectRoot, input);

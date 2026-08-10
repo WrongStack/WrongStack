@@ -148,27 +148,11 @@ Keep the board informative, not ceremonial: **the board follows the work, the wo
 
 These apply to what you write on the board, not to whether you may work. They exist so the board can be trusted by whoever reads it next; none of them is a reason to stall:
 
-1. **Never abandon or misrepresent work.** Do not leave an accepted card unfinished, claim success while work remains, or describe a task as done when its acceptance criteria and verification are incomplete. If blocked, keep the card out of Done, record the blocker on the card, and continue through the board's explicit recovery path.
-2. **Fully specify every card before advancing it.** Fill and verify these fields before moving a card out of Backlog:
-   - `title` (required) — short, actionable name
-   - `description` — context and scope
-   - `assignee` or `assignedAgent` — who owns the card
-   - `dueDate` — when it must be done
-   - `labels` — categorization tags (the Kanban model uses `labels`, not `tags`)
-   - `childTaskIds` — atomic sub-tasks when the card is a parent
-   - `successCriteria` — how completion is verified
-   - `dependsOn` — prerequisite card IDs
-
-   Fill what is genuinely known; a thin card is still better than untracked work, and missing fields are filled in as they become known rather than blocking the start. `childTaskIds` is required only when `atomic: true` marks a composite parent; executable leaf cards remain childless. `dependsOn` is enforced by the domain for every Running assignment and lifecycle transition: every referenced prerequisite must exist and be completed. Use the `kanban` action `split_atomic` only when the work is genuinely composite.
-3. **Persist every completed action immediately.** After each material action, update the Kanban data itself—not just chat—with the exact column/status transition and the truthful comment, check result, link, attachment, assignment, or other evidence produced. Never fake, batch away, or skip intermediate updates.
-4. **Managed boards have a fixed column order.** On a board in managed mode, cards move `Backlog → Todo → Running → Review → Done`, one step at a time, via the Kanban transition operation. If a transition is refused, the message names the field or action it wants — supply that and retry. If the board's ceremony is not serving this work, the `kanban` action `release_managed_lifecycle` returns it to plain tracking; cards and history are kept.
-5. **Keep the board current as you go.** Move a card to Running when you actually start it, to Review when the work is done, and to Done once it is accepted. Update it as the work happens rather than reconstructing it afterwards, and do not leave finished work sitting in Running. Updating the card follows the action; it does not authorize it.
-6. **Keep Contract Map off the critical path.** The card description and executable acceptance criteria are the normal implementation contract. Do not create, configure, read, or repair Contract Map nodes during ordinary work, and never enable `strict` enforcement yourself. No Contract Map mode may delay `kanban.start_task`, implementation, verification, or card completion. An existing operator-owned strict map is an audit signal: surface its issues for review, but do not stop work or hold the lifecycle open to repair it.
-7. **Never shrink tracked scope by omission.** Todo, task, and plan rows are identity-bearing projections of Kanban requirements, not disposable prose. Keep every unfinished row and its board/task binding in full-list updates; complete it through the lifecycle before removal. Only an explicit operator-controlled cancellation or migration path may retire unresolved requirement coverage.
-
-If a managed transition is rejected, read the message: it names the parameter or action required. Supply it and retry, or use the `kanban` action `release_managed_lifecycle` if the gates are not earning their cost here. Do not fake the state through raw status, column, import, copy, or storage operations.
-
----
+1. **Never abandon or misrepresent work.** Do not leave an accepted card unfinished, claim success while work remains, or describe a task as done when its acceptance criteria and verification are incomplete. If blocked, keep the card out of Done and record the blocker on the card.
+2. **Describe a card well enough to be picked up by someone else.** `title` and `description` carry the work; `assignee`, `successCriteria` and `dependsOn` carry who owns it, how it is judged, and what must land first. Fill what is genuinely known — a thin card beats untracked work, and the rest is filled in as it becomes known. `childTaskIds` matters only when `atomic: true` marks a composite parent; leaf cards stay childless.
+3. **Keep the board current as you go.** Move a card to Running when you actually start it, to Review when the work is done, and to Done once accepted; record the transition, comment, check result or link on the card itself rather than only in chat. Update it as the work happens instead of reconstructing it afterwards, and do not leave finished work sitting in Running. Updating the card follows the action; it does not authorize it.
+4. **Managed boards have a fixed column order.** On a board in managed mode, cards move `Backlog → Todo → Running → Review → Done`, one step at a time. If a transition is refused, the message names the field or action it wants — supply that and retry. If the ceremony is not serving this work, the `kanban` action `release_managed_lifecycle` returns the board to plain tracking; cards and history are kept.
+5. **Never shrink tracked scope by omission.** Todo, task, and plan rows are identity-bearing projections of Kanban requirements, not disposable prose. Keep every unfinished row and its board/task binding in full-list updates; complete it before removal.
 
 ## Kanban scenarios and lifecycle
 

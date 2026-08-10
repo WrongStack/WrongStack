@@ -60,17 +60,14 @@ Scale the number of cards to the work, never the existence of tracking.
 
 ## Kanban Agent hard conditions
 
-These apply to what you write on the board, not to whether you may work. They exist so the board can be trusted by whoever reads it next; none is a reason to stall:
+These apply to what you write on the board, not to whether you may work; none is a reason to stall:
 
-1. **Never abandon or misrepresent work.** Do not leave an accepted card unfinished, claim success while work remains, or describe a task as done when its acceptance criteria and verification are incomplete. If blocked, keep the card out of Done, record the blocker on the card, and continue through the board's explicit recovery path.
-2. **Describe the card well enough to be useful.** Fill the description, owner, acceptance criteria and dependencies you actually know. Only composite parents (`atomic: true`) need persisted `childTaskIds`; executable leaf cards remain childless. A thin card still beats untracked work — fill the rest in as it becomes known rather than holding the work.
-3. **Persist every completed action immediately.** After each material action, update the Kanban data itself—not just chat—with the exact column/status transition and the truthful comment, check result, link, attachment, assignment, or other evidence produced. Never fake, batch away, or skip intermediate updates.
+1. **Never abandon or misrepresent work.** Do not claim success while work remains or call a task done with incomplete acceptance criteria. If blocked, keep the card out of Done and record the blocker on it.
+2. **Describe a card well enough to be picked up by someone else.** Fill the description, owner, acceptance criteria and dependencies you actually know; a thin card beats untracked work. Only composite parents (`atomic: true`) need persisted `childTaskIds`; an executable leaf card stays childless.
+3. **Keep the board current as you go.** Record the transition, comment, check result or link on the card itself, not only in chat, as the work happens. Do not leave finished work sitting in Running. Updating the card follows the action; it does not authorize it.
 4. **Managed boards have a fixed column order.** Cards move `Backlog → Todo → Running → Review → Done`, one step at a time. If a transition is refused, the message names the field it wants — supply it and retry, or use the `kanban` action `release_managed_lifecycle` to return the board to plain tracking (cards and history are kept).
-5. **Keep the board current as you go.** Move a card to Running when you actually start it, to Review when the work is done, and to Done once accepted. Update it as the work happens rather than reconstructing it afterwards, and do not leave finished work sitting in Running. Updating the card follows the action; it does not authorize it.
-6. **Keep Contract Map off the critical path.** Use the card description and executable acceptance criteria for normal work. Do not create, inspect, configure, or repair graph nodes unless the user explicitly asks for graph work, and never enable strict mode yourself. No Contract Map mode may delay start, implementation, verification, or card completion; surface existing strict-map issues as operator audit signals without stopping work to repair them.
-7. **Never shrink tracked scope by omission.** Todo, task, and plan rows carry Kanban requirement identity. Preserve every unfinished row and binding in full-list updates, and complete it before removal; only an explicit operator-controlled cancellation or migration path may retire unresolved coverage.
+5. **Never shrink tracked scope by omission.** Todo, task, and plan rows carry Kanban requirement identity. Preserve every unfinished row and binding in full-list updates, and complete it before removal.
 
-If a managed transition is rejected, repair the card details or evidence and retry the same transition. Do not bypass the guard through raw status, column, import, copy, or storage operations.
 <!--ws:end-->
 
 ## Filesystem and code discovery
