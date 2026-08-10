@@ -526,10 +526,18 @@ export async function recoverStaleTaskAssignments(
       board.updatedAt = now;
       board.lastStaleRecoveredAt = now;
       // Only a card sitting in Running needs walking back, and only when the
-      // work is meant to be attempted again. `fail` means the retry budget is
-      // spent — returning that card to Todo would hand it straight back to the
-      // next claimer and loop. It stays in Running for a human.
-      if (isManaged && mode !== 'fail' && task.lifecycle?.currentStage === 'running') {
+      // work is actually going to be attempted again. Read that from the state
+      // the branches above just produced, not from the requested mode: `retry`
+      // with an exhausted budget lands in exactly the same terminal `failed`
+      // state as `fail`, and keying on the mode walked those cards back to Todo
+      // — straight into the next claimer, which fails them again. A loop.
+      //
+      // Claimable-again means: the assignment was released (gone), or it was
+      // re-queued for another attempt ('assigned'). Anything else stays in
+      // Running for a human.
+      const requeueable =
+        task.assignment === undefined || task.assignment.status === 'assigned';
+      if (isManaged && requeueable && task.lifecycle?.currentStage === 'running') {
         managedNeedingRequeue.push({ taskId: task.id, mode });
       }
       recoveredTasks.push({

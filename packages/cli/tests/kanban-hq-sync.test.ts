@@ -19,6 +19,9 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   return { ...actual, rename: atomicWriteFs.rename };
 });
 
+/** The publisher's shipped default; the sync reads it to size boards for HQ. */
+const DEFAULT_POLICY = { rawContent: true, toolArgs: 'full', paths: 'full' } as const;
+
 const roots: string[] = [];
 const realSetTimeout = globalThis.setTimeout;
 
@@ -84,7 +87,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const publishEvent = vi.fn();
     const sync = createKanbanHqSync(root);
 
-    await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+    await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
 
     expect(publishEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -107,7 +110,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const publishEvent = vi.fn();
     const sync = createKanbanHqSync(root, 'large-project');
 
-    await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+    await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
 
     const calls = publishEvent.mock.calls.map(
       ([input]) => input as { payload: HqKanbanSnapshotPayload },
@@ -133,7 +136,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const sync = createKanbanHqSync(root, 'oversized-project');
 
     try {
-      await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+      await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
 
       expect(warning).toHaveBeenCalledWith(expect.stringContaining(board.id), {
         code: 'WRONGSTACK_HQ_KANBAN_OVERSIZED_RECORD',
@@ -164,7 +167,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const sync = createKanbanHqSync(root, 'dropped-project');
 
     try {
-      await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+      await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
 
       expect(warning).toHaveBeenCalledWith(expect.stringContaining(huge.id), {
         code: 'WRONGSTACK_HQ_KANBAN_BOARD_DROPPED',
@@ -194,12 +197,62 @@ describe('CLI Kanban HQ synchronization', () => {
     const sync = createKanbanHqSync(root, 'long-field-project');
 
     try {
-      await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+      await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
       const published = publishEvent.mock.calls
         .map(([input]) => input as { payload: HqKanbanSnapshotPayload })
         .flatMap(({ payload }) => payload.boards.map((record) => record.boardId));
       expect(published).toContain(board.id);
       expect(warning).not.toHaveBeenCalledWith(expect.anything(), {
+        code: 'WRONGSTACK_HQ_KANBAN_BOARD_DROPPED',
+      });
+    } finally {
+      warning.mockRestore();
+      sync.stop();
+    }
+  });
+
+  it('measures a board the way the publisher will redact it, not the generic way', async () => {
+    // `kanban.snapshot` is a project-state event, so raw-content keys (`outcome`,
+    // `body`, `text`…) SURVIVE redaction. The generic `redactHqValue` helper
+    // replaces them with a short marker instead — so measuring through it under
+    // a `rawContent: false` policy produced an estimate smaller than the real
+    // payload, and an oversized board sailed past the check to be silently
+    // rejected by HQ. This board hides its bulk in `outcome` fields.
+    const root = await tempProject();
+    const board = createBoardObject({ title: 'Raw content heavy' });
+    const filler = 'outcome text '.repeat(90);
+    let index = 0;
+    while (Buffer.byteLength(JSON.stringify(board), 'utf8') <= 800_000) {
+      board.tasks.push({
+        id: `raw-${index}`,
+        title: `Card ${index}`,
+        outcome: `${filler}#${index}`,
+        columnId: board.columns[0]?.id ?? 'todo',
+        order: index,
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2026-08-10T00:00:00.000Z',
+        updatedAt: '2026-08-10T00:00:00.000Z',
+      } as (typeof board.tasks)[number]);
+      index += 1;
+    }
+    await writeBoard(root, board);
+    const publishEvent = vi.fn();
+    const warning = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    const sync = createKanbanHqSync(root, 'raw-content-project');
+
+    try {
+      await sync.attachPublisher({
+        publishEvent,
+        // The strict policy is the one that used to expose the mismatch.
+        redactionPolicy: { rawContent: false, toolArgs: 'full', paths: 'full' },
+      } as unknown as HqPublisher);
+
+      const published = publishEvent.mock.calls
+        .map(([input]) => input as { payload: HqKanbanSnapshotPayload })
+        .flatMap(({ payload }) => payload.boards.map((record) => record.boardId));
+      expect(published).not.toContain(board.id);
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining(board.id), {
         code: 'WRONGSTACK_HQ_KANBAN_BOARD_DROPPED',
       });
     } finally {
@@ -221,7 +274,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const sync = createKanbanHqSync(root, 'retry-project');
 
     try {
-      await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+      await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
       const state = JSON.parse(
         (await readKanbanMetadata(root, 'hq-sync-state-v1')) ?? '{"boards":{}}',
       ) as { boards: Record<string, unknown> };
@@ -266,7 +319,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const publishEvent = vi.fn();
     const sync = createKanbanHqSync(root, 'retention-project');
 
-    await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+    await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
 
     const event = publishEvent.mock.calls[0]?.[0] as
       | { payload: HqKanbanSnapshotPayload }
@@ -292,7 +345,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const publishEvent = vi.fn();
     const sync = createKanbanHqSync(root, 'delta-project');
 
-    await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+    await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
     publishEvent.mockClear();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 
@@ -341,7 +394,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const publishEvent = vi.fn();
     const sync = createKanbanHqSync(root, 'scale-project');
 
-    await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+    await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
     publishEvent.mockClear();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 
@@ -412,7 +465,7 @@ describe('CLI Kanban HQ synchronization', () => {
     const root = await tempProject();
     const sync = createKanbanHqSync(root, 'shared-project');
     const publishEvent = vi.fn();
-    await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+    await sync.attachPublisher({ publishEvent, redactionPolicy: DEFAULT_POLICY } as unknown as HqPublisher);
 
     try {
       await expect(

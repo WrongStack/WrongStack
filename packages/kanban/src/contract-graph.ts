@@ -82,6 +82,20 @@ export function evaluateContractGraphReadiness(
       message: 'Add at least one explicit, executable acceptance criterion.',
     });
   }
+  // A composite parent must have persisted children before anyone starts it.
+  // This rule lived in `validateRequiredCardDetails` and in the queue
+  // classifier but not here, and here is the gate `start_task` consults — so a
+  // childless composite was reported "start ready", accepted by `start_task`,
+  // and then thrown out by the lifecycle transition a moment later. The
+  // workbench showed the same card as having no readiness gaps. Atomic LEAVES
+  // (falsy `atomic`) are executable directly and are deliberately not forced
+  // into recursive decomposition.
+  if (task.atomic && !task.childTaskIds?.some((id) => id.trim())) {
+    issues.push({
+      code: 'task-child-tasks-missing',
+      message: 'Break the work into at least one persisted subtask.',
+    });
+  }
 
   return { taskId, ready: issues.length === 0, issues };
 }

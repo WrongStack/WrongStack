@@ -198,7 +198,7 @@ describe('ChatInput — session-change composer reset', () => {
     // Set up conditions for the topic-check to fire: btw mode, 5+ user
     // messages, connected, capability supported. adviseTopic is a
     // never-resolving promise so we can observe the aborted state.
-    const neverResolve = new Promise(() => {});
+    const neverResolve = new Promise<never>(() => {});
     wsMock.adviseTopic.mockReturnValue(neverResolve);
     useChatStore.setState({
       messages: Array.from({ length: 5 }, (_, i) => ({

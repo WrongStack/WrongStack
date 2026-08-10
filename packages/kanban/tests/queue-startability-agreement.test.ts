@@ -3,6 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { evaluateContractGraphReadiness } from '../src/contract-graph.js';
+import { classifyTaskForQueue } from '../src/manager/task-classifier.js';
+import { validateManagedTaskTransition } from '../src/manager/lifecycle.js';
 import {
   addTask,
   assignTask,
@@ -95,6 +97,89 @@ async function verdicts(boardId: string, taskId: string) {
   };
 }
 
+/**
+ * All THREE detail predicates on one corpus.
+ *
+ *   - `classifyTaskForQueue`        → the queue bucket an agent reads
+ *   - `evaluateContractGraphReadiness` → the gate `start_task` consults
+ *   - `validateManagedTaskTransition`  → the gate that actually blocks the move
+ *
+ * They are supposed to demand the same fields. They did not: the contract graph
+ * had no `atomic → childTaskIds` rule, so a childless composite parent was
+ * reported "start ready", accepted by `start_task`, and thrown out by the
+ * transition a moment later — while the queue had already binned it as
+ * `detail_incomplete`. Three surfaces, three answers, one card.
+ */
+describe('managed card detail predicates agree', () => {
+  const policy = createManagedLifecyclePolicy();
+  const base = {
+    id: 't1',
+    title: 'Card',
+    columnId: policy.columns.todo,
+    order: 0,
+    priority: 'medium',
+    status: 'ready',
+    createdAt: '2026-08-10T00:00:00.000Z',
+    updatedAt: '2026-08-10T00:00:00.000Z',
+    description: 'A described card.',
+    assignee: 'owner-1',
+    successCriteria: [
+      { id: 'c', description: 'ok', type: 'manual' as const, status: 'pending' as const },
+    ],
+    lifecycle: {
+      currentStage: 'todo' as const,
+      stageEnteredAt: '2026-08-10T00:00:00.000Z',
+      history: [],
+    },
+  };
+
+  const CORPUS: Array<[string, Record<string, unknown>]> = [
+    ['fully specified leaf', {}],
+    ['missing description', { description: '  ' }],
+    ['missing owner', { assignee: undefined }],
+    ['missing success criteria', { successCriteria: [] }],
+    ['success criterion with a blank description', {
+      successCriteria: [{ id: 'c', description: '  ', type: 'manual', status: 'pending' }],
+    }],
+    ['composite parent with children', { atomic: true, childTaskIds: ['child-1'] }],
+    ['composite parent with NO children', { atomic: true, childTaskIds: [] }],
+    ['composite parent with blank child ids', { atomic: true, childTaskIds: ['  '] }],
+    ['leaf without children (allowed)', { atomic: false, childTaskIds: [] }],
+  ];
+
+  it.each(CORPUS)('agrees on "%s"', (_label, overrides) => {
+    const task = { ...base, ...overrides } as unknown as KanbanTask;
+    const board = {
+      id: 'b1',
+      title: 'Predicates',
+      columns: Object.values(policy.columns).map((id, index) => ({ id, title: id, order: index })),
+      tasks: [task],
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+      version: 1,
+      lifecycle: policy,
+    } as unknown as KanbanBoard;
+
+    const queueComplete =
+      classifyTaskForQueue(board, task, { now: '2026-08-10T12:00:00.000Z' }).bucket !==
+      'detail_incomplete';
+    const gateComplete = evaluateContractGraphReadiness(board, task.id).ready;
+    // The transition validator also enforces running-ownership, which is about
+    // holding a lease rather than card detail — filter to the detail issues.
+    const DETAIL_FIELDS = new Set(['description', 'assignee', 'childTaskIds', 'successCriteria']);
+    const transitionComplete = !validateManagedTaskTransition(board, task, {
+      to: 'running',
+      actor: 'tester',
+      comment: 'parity probe',
+    }).some((issue) => issue.code === 'task-detail-missing' && DETAIL_FIELDS.has(issue.field ?? ''));
+
+    expect({ queueComplete, gateComplete }).toEqual({
+      queueComplete: transitionComplete,
+      gateComplete: transitionComplete,
+    });
+  });
+});
+
 describe('queue startability agrees with the start gate', () => {
   it('offers a fully specified managed card', async () => {
     const board = await managedBoard();
@@ -176,6 +261,44 @@ describe('queue startability agrees with the start gate', () => {
     expect(v.gateAccepts).toBe(true);
     expect(v.startable).toBe(1);
     expect(v.inReadyList).toBe(true);
+  });
+
+  it('does not return a card to the queue once its retry budget is spent', async () => {
+    // `retry` with attempts exhausted marks the assignment failed — the same
+    // terminal state `fail` mode produces. Walking THAT card back to Todo hands
+    // it straight to the next claimer, which fails it again: a loop. The
+    // walk-back must key on the resulting state, not on the requested mode.
+    const board = await managedBoard();
+    const taskId = await todoCard(board);
+    await assignTask(tmpDir, board.id, taskId, { agentId: 'worker-1', name: 'worker' });
+    await updateTaskAssignment(tmpDir, board.id, taskId, {
+      status: 'running',
+      leaseId: 'lease-1',
+      claimedAt: '2026-08-01T00:00:00.000Z',
+      heartbeatAt: '2026-08-01T00:00:00.000Z',
+      leaseExpiresAt: '2026-08-01T00:01:00.000Z',
+      attempt: 3,
+      maxAttempts: 3,
+    });
+    await transitionTask(tmpDir, board.id, taskId, {
+      to: 'running',
+      actor: 'worker-1',
+      comment: 'Started.',
+    });
+
+    await recoverStaleTaskAssignments(tmpDir, board.id, {
+      mode: 'retry',
+      reason: 'Lease expired.',
+      now: '2026-08-02T00:00:00.000Z',
+    });
+
+    const v = await verdicts(board.id, taskId);
+    expect(v.task?.assignment?.status).toBe('failed');
+    expect(v.task?.lifecycle?.currentStage, 'an exhausted card must not be requeued').toBe(
+      'running',
+    );
+    expect(v.startable).toBe(0);
+    expect(v.inReadyList).toBe(false);
   });
 
   it('still clears the assignee on a legacy board, where it records the worker', async () => {

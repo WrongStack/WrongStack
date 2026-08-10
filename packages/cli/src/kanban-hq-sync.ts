@@ -4,7 +4,11 @@ import type {
   HqKanbanTombstone,
   HqPublisher,
 } from '@wrongstack/core/hq';
-import { deriveHqProjectId, MAX_HQ_KANBAN_BOARD_BYTES, redactHqValue } from '@wrongstack/core/hq';
+import {
+  deriveHqProjectId,
+  MAX_HQ_KANBAN_BOARD_BYTES,
+  redactHqEventPayload,
+} from '@wrongstack/core/hq';
 import {
   bridgeKanbanSupervisor,
   deleteBoard,
@@ -223,7 +227,7 @@ export function createKanbanHqSync(
       //
       // Skipping it here means the frame stays valid, and leaving the
       // fingerprint unwritten means the board is retried once it shrinks.
-      const wireBytes = hqWireBoardBytes(record.board);
+      const wireBytes = hqWireBoardBytes(record.board, target.redactionPolicy);
       if (wireBytes > MAX_HQ_KANBAN_BOARD_BYTES) {
         process.emitWarning(
           `Kanban board "${boardId}" serializes to ${wireBytes} bytes for HQ, over the ${MAX_HQ_KANBAN_BOARD_BYTES}-byte per-board limit. It will not appear in HQ until it shrinks; archive completed cards.`,
@@ -417,30 +421,42 @@ export function createKanbanHqSync(
 }
 
 /**
- * Bytes this board will occupy on the wire — measured AFTER the redaction the
- * publisher applies, not before.
+ * Bytes this board will occupy on the wire — measured through the SAME redaction
+ * the publisher will apply, not an approximation of it.
  *
- * This distinction is the whole point. `publishEvent` summarises every string
- * longer than `KANBAN_SNAPSHOT_SUMMARY_CAP` before sending, so a board that is
- * large only because one field is long shrinks to well under HQ's limit and
- * arrives fine. Measuring the raw board would drop it — turning a board that
- * reached HQ with a truncated description into one that never appears at all.
- * The boards that genuinely cannot fit are the ones with hundreds of cards,
- * where no single string is long enough to summarise and the total stays over.
+ * Two things make that distinction load-bearing, and both were learned the hard
+ * way against a live HQ:
  *
- * The cheap raw check runs first so the deep redaction walk only happens for
- * boards that look too big; for everything else this costs one `JSON.stringify`
- * the caller would do anyway.
+ *  - `publishEvent` summarises every string over `KANBAN_SNAPSHOT_SUMMARY_CAP`
+ *    before sending, so a board that is large only because ONE field is long
+ *    shrinks below the limit and arrives fine. Measuring the raw board would
+ *    drop it — trading a truncated description for a board that never appears.
+ *    The boards that genuinely cannot fit are the ones with hundreds of cards,
+ *    where no single string is long enough to summarise.
+ *  - `kanban.snapshot` is a project-state event, so raw-content keys survive
+ *    redaction. The generic `redactHqValue` helper replaces them with a short
+ *    marker instead; measuring through it under a `rawContent: false` policy
+ *    produced an estimate SMALLER than the real payload, which would let an
+ *    oversized board through to be silently rejected. `redactHqEventPayload`
+ *    takes the event type, so the mode cannot drift from the send.
  *
- * Redaction policy: the default is used here. An operator policy can only
- * redact more, never less, so a tightened policy makes this an over-estimate —
- * conservative in the direction that keeps a board out of HQ rather than
- * letting one through that HQ would reject.
+ * The publisher's own resolved policy is passed in for the same reason: a
+ * configured policy redacts differently from the default, and guessing which
+ * way is how the previous version got it wrong.
+ *
+ * The cheap raw check runs first, so the deep walk only happens for boards that
+ * look too big; everything else costs one `JSON.stringify`.
  */
-function hqWireBoardBytes(board: Record<string, unknown>): number {
+function hqWireBoardBytes(
+  board: Record<string, unknown>,
+  policy: HqPublisher['redactionPolicy'],
+): number {
   const raw = Buffer.byteLength(JSON.stringify(board), 'utf8');
   if (raw <= MAX_HQ_KANBAN_BOARD_BYTES) return raw;
-  const redacted = redactHqValue(board, { maxSummaryLength: KANBAN_SNAPSHOT_SUMMARY_CAP }).value;
+  const redacted = redactHqEventPayload('kanban.snapshot', board, {
+    policy,
+    maxSummaryLength: KANBAN_SNAPSHOT_SUMMARY_CAP,
+  }).value;
   return Buffer.byteLength(JSON.stringify(redacted), 'utf8');
 }
 

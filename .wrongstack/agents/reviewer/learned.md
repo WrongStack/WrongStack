@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=4; wins=4 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=5; wins=5 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -66,17 +66,13 @@
   - *How:* `connectOnce`
   - *How:* `useBinary`
 
-## Patterns to follow
-
-<!-- learned-stamp: category=pattern; capturedAt=2026-08-09T22:04:35.121Z; skill=chimera; applied=2; wins=2 -->
-- **When reviewing a change to a service function's return type in `packages/tools/src/codebase-index/index-service.ts`, always read the full body of each consuming tool file and match the destructuring pattern against the declared result interface field-by-field. A destructure of a non-existent property plus a later reference to the correct-but-unbound name (e.g. destructuring `ambiguous` from `OutgoingCallsResult` while using `unresolvedCount` below) passes visual diff review but fails `tsc` and throws `ReferenceError` on the happy path.**
-  - *Why:* This project's chosen approach — alternatives were considered and either conflict with existing architecture or were rejected for known reasons.
-  - *How:* `packages/tools/src/codebase-index/index-service.ts`
-  - *How:* `ambiguous`
-  - *How:* `OutgoingCallsResult`
-  - *How:* `unresolvedCount`
-  - *How:* `tsc`
-  - *How:* `ReferenceError`
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T21:24:04.188Z; skill=testing -->
+- **When validating a multi-predicate *parity* test (e.g. `classifyTaskForQueue` bucket vs `evaluateContractGraphReadiness` ready-vs `validateManagedTaskTransition` issues in `packages/kanban`), prove it is non-vacuous by tracing at least one corpus entry that resolves **ready=true** and one that resolves **ready=false** across *all* predicates — a corpus where every entry agrees on a single outcome cannot catch divergence.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `classifyTaskForQueue`
+  - *How:* `evaluateContractGraphReadiness`
+  - *How:* `validateManagedTaskTransition`
+  - *How:* `packages/kanban`
 
 ---
-*Last capture: 2026-08-10T19:58:34.866Z · 8 entries*
+*Last capture: 2026-08-10T21:24:04.188Z · 8 entries*

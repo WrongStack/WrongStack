@@ -105,11 +105,23 @@ export interface KanbanContractGraphEvaluation {
   issues: KanbanContractGraphIssue[];
 }
 
+/**
+ * Card-detail codes here must match what `validateRequiredCardDetails`
+ * (manager/lifecycle.ts) enforces and what the queue classifier buckets on:
+ * this is the gate `start_task` consults, and a rule missing from it means
+ * `start_task` accepts a card the transition then throws out.
+ * `queue-startability-agreement.test.ts` holds the three together.
+ *
+ * `task-due-date-missing` and `task-label-missing` are RETIRED — nothing emits
+ * them since due dates and labels stopped being required. Kept in the union so
+ * a stored or in-flight issue from an older build still type-checks.
+ */
 export type KanbanContractReadinessIssueCode =
   | 'managed-lifecycle-required'
   | 'task-not-found'
   | 'task-description-missing'
   | 'task-owner-missing'
+  | 'task-child-tasks-missing'
   | 'task-due-date-missing'
   | 'task-label-missing'
   | 'success-criteria-missing'

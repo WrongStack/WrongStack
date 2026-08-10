@@ -300,15 +300,32 @@ export function redactHqValue<T>(
   return redactHqValueInternal(value, options, false);
 }
 
+/**
+ * Redact a payload exactly as it would be redacted when published under `type`.
+ *
+ * Exported because a sender sometimes needs to know what will go on the wire
+ * before it commits to sending — the Kanban→HQ sync measures a board against
+ * HQ's per-board byte limit, and HQ drops an over-limit frame without a reply.
+ * That measurement has to run the SAME transform as the send, because the
+ * event type decides whether raw-content keys survive: `kanban.snapshot` is a
+ * project-state event and keeps them, while the generic `redactHqValue` path
+ * replaces them with a short marker. Measuring through the generic path made
+ * the estimate smaller than reality, so an oversized board could pass the check
+ * and still be rejected — the exact silent loss the check exists to prevent.
+ */
+export function redactHqEventPayload<TPayload>(
+  type: string,
+  payload: TPayload,
+  options: HqRedactOptions = {},
+): HqRedactionResult<TPayload> {
+  return redactHqValueInternal(payload, options, HQ_PROJECT_STATE_EVENT_TYPES.has(type));
+}
+
 export function redactHqEvent<TPayload>(
   event: HqEventEnvelope<TPayload>,
   options: HqRedactOptions = {},
 ): HqRedactionResult<HqEventEnvelope<TPayload>> {
-  const payload = redactHqValueInternal(
-    event.payload,
-    options,
-    HQ_PROJECT_STATE_EVENT_TYPES.has(event.type),
-  );
+  const payload = redactHqEventPayload(event.type, event.payload, options);
   const nextEvent = {
     ...event,
     payload: payload.value,
