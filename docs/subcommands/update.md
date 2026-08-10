@@ -27,6 +27,13 @@ wstack update --yarn
 
 Package lifecycle scripts are disabled for the update by default. Pass `--allow-scripts` (alias `--lifecycle-scripts`) only when the global package requires them.
 
+On Windows, the updater resolves the package-manager executable from PATH outside
+the current project. A project-local `node_modules/.bin/npm.cmd` must not be
+used for a global update. If npm reports `EBUSY`, `EPERM`, or a locked
+WrongStack native file, stop running WrongStack WebUI, Desktop, and background
+processes, then rerun the same update command. Do not delete npm's temporary
+`.wrongstack-*` staging directory while one of those processes is still running.
+
 Equivalent manual commands:
 
 ```bash

@@ -1,4 +1,7 @@
 import { EventEmitter } from 'node:events';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const updateMocks = vi.hoisted(() => ({
@@ -72,16 +75,21 @@ function makeFakeChild(
 }
 
 function expectSpawned(pm: 'npm' | 'pnpm' | 'yarn' | 'bun', args: string[]): void {
-  if (process.platform === 'win32' && pm !== 'bun') {
-    expect(updateMocks.spawn).toHaveBeenCalledWith(
-      process.env['COMSPEC'] ?? 'cmd.exe',
-      ['/d', '/c', ['call', `"${pm}"`, ...args.map((arg) => `"${arg}"`)].join(' ')],
-      expect.objectContaining({
-        cwd: '/tmp',
-        stdio: 'pipe',
-        windowsVerbatimArguments: true,
-      }),
-    );
+  if (process.platform === 'win32') {
+    const [executable, actualArgs, options] = updateMocks.spawn.mock.calls[0] as [
+      string,
+      string[],
+      Record<string, unknown>,
+    ];
+    if (executable === (process.env['COMSPEC'] ?? 'cmd.exe')) {
+      expect(actualArgs.slice(0, 2)).toEqual(['/d', '/c']);
+      expect(actualArgs[2]).toMatch(/^call "/);
+      for (const arg of args) expect(actualArgs[2]).toContain(`"${arg}"`);
+      expect(options).toMatchObject({ cwd: '/tmp', stdio: 'pipe', windowsVerbatimArguments: true });
+    } else {
+      expect(actualArgs).toEqual(args);
+      expect(options).toMatchObject({ cwd: '/tmp', stdio: 'pipe' });
+    }
     return;
   }
   expect(updateMocks.spawn).toHaveBeenCalledWith(
@@ -303,6 +311,30 @@ describe('updateCmd subcommand', () => {
     expect(out).toContain('bun add -g --ignore-scripts wrongstack@1.2.3');
   });
 
+  it('explains Windows native-file locks without relying on a user-specific path', async () => {
+    updateMocks.checkForUpdate.mockResolvedValue({
+      outdated: true,
+      current: '1.0.0',
+      latest: '1.2.3',
+    });
+    updateMocks.spawn.mockReturnValue(
+      makeFakeChild(1, undefined, [
+        'npm error code EBUSY\n',
+        'npm error EBUSY: resource busy or locked, copyfile .wrongstack-staging\\electron.exe\n',
+      ]),
+    );
+
+    expect(await updateCmd([], deps)).toBe(1);
+    const out = writes.join('');
+    if (process.platform === 'win32') {
+      expect(out).toContain('native file held by a running WrongStack process');
+      expect(out).toContain('Stop any WrongStack WebUI, Desktop, or background process');
+      expect(out).not.toMatch(/Users\\|AppData\\|PID \d+/);
+    } else {
+      expect(out).not.toContain('native file held by a running WrongStack process');
+    }
+  });
+
   it('treats signal-only child termination as failure', async () => {
     updateMocks.checkForUpdate.mockResolvedValue({
       outdated: true,
@@ -372,5 +404,40 @@ describe('detectUpdatePackageManager', () => {
     expect(
       detectUpdatePackageManager({ npm_config_user_agent: 'bun/1.2.0 npm/? node/v24' }, []),
     ).toBe('bun');
+  });
+});
+
+describe('Windows package-manager resolution', () => {
+  it('skips a project-local npm.cmd shim and invokes an external executable', async () => {
+    if (process.platform !== 'win32') return;
+    const root = mkdtempSync(path.join(tmpdir(), 'wrongstack-update-'));
+    const projectDir = path.join(root, 'project');
+    const projectBin = path.join(projectDir, 'node_modules', '.bin');
+    const globalBin = path.join(root, 'global-bin');
+    const externalNpm = path.join(globalBin, 'npm.CMD');
+    try {
+      mkdirSync(projectBin, { recursive: true });
+      mkdirSync(globalBin, { recursive: true });
+      writeFileSync(path.join(projectBin, 'npm.CMD'), '@echo broken');
+      writeFileSync(externalNpm, '@echo external');
+      deps.cwd = projectDir;
+      (deps as unknown as { environment: NodeJS.ProcessEnv }).environment = {
+        Path: `${projectBin};${globalBin}`,
+        PATHEXT: '.COM;.EXE;.BAT;.CMD',
+      };
+      updateMocks.checkForUpdate.mockResolvedValue({
+        outdated: true,
+        current: '1.0.0',
+        latest: '1.2.3',
+      });
+      updateMocks.spawn.mockReturnValue(makeFakeChild(0));
+
+      expect(await updateCmd([], deps)).toBe(0);
+      const [, args] = updateMocks.spawn.mock.calls[0] as [string, string[]];
+      expect(args[2]).toContain(`"${externalNpm}"`);
+      expect(args[2]).not.toContain(`"${path.join(projectBin, 'npm.CMD')}"`);
+    } finally {
+      rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+    }
   });
 });

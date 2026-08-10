@@ -76,6 +76,11 @@ wstack update
 published `wrongstack` in place. Lifecycle scripts are skipped by default
 (`--ignore-scripts`) for safety.
 
+On Windows, `wstack update` ignores project-local package-manager shims and
+uses an executable resolved outside the current project. If npm reports a
+locked WrongStack native file (`EBUSY`, `EPERM`, or `EACCES`), stop running
+WrongStack WebUI, Desktop, and background processes before retrying.
+
 ```
 Usage: wstack update [--check-only] [--pm npm|pnpm|yarn|bun] [--allow-scripts]
 ```

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
+import * as path from 'node:path';
 import type { TerminalRenderer } from '../../renderer.js';
 import { checkForUpdate, type UpdatePackageName } from '../../update-check.js';
 import { buildWin32CmdShimInvocation } from '../../utils/win32-cmd.js';
@@ -36,6 +37,8 @@ export interface UpdateCommandDeps {
   userHome: string;
   renderer: Pick<TerminalRenderer, 'write'>;
   flags?: SubcommandDeps['flags'] | undefined;
+  /** Test seam for a Windows PATH lookup; production uses process.env. */
+  environment?: NodeJS.ProcessEnv | undefined;
 }
 
 /** `wrongstack update` — Update the CLI via the detected global package manager. */
@@ -107,9 +110,18 @@ export async function runUpdateCommand(args: string[], deps: UpdateCommandDeps):
   }
 
   const packageManager = parsed.packageManager ?? detectUpdatePackageManager();
-  const updateCommand = buildUpdateCommand(packageManager, packageName, info.latest, {
-    allowScripts: parsed.allowScripts,
-  });
+  let updateCommand: UpdateCommand;
+  try {
+    updateCommand = buildUpdateCommand(packageManager, packageName, info.latest, {
+      allowScripts: parsed.allowScripts,
+      cwd,
+      env: deps.environment,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    deps.renderer.write(`\nUpdate failed: ${msg}\n`);
+    return 1;
+  }
 
   deps.renderer.write(`Updating wrongstack from v${info.current} to v${info.latest}...\n`);
   deps.renderer.write(`Running: ${updateCommand.display}\n`);
@@ -154,6 +166,8 @@ export async function runUpdateCommand(args: string[], deps: UpdateCommandDeps):
       deps.renderer.write(`\nUpdate ${termination}.\n`);
       const detail = `${result.stderr}\n${result.stdout}`.trim();
       if (detail) deps.renderer.write(`\n${detail}\n`);
+      const lockedFilesGuidance = windowsLockedFilesGuidance(detail);
+      if (lockedFilesGuidance) deps.renderer.write(`\n${lockedFilesGuidance}\n`);
       deps.renderer.write(
         `\nTry the matching global update command manually:\n  ${updateCommand.display}\n` +
           otherManagerCommands(packageManager, packageName, info.latest, {
@@ -300,7 +314,9 @@ function buildUpdateCommand(
   packageManager: PackageManager,
   packageName: UpdatePackageName,
   version: string,
-  opts: { allowScripts: boolean } = { allowScripts: false },
+  opts: { allowScripts: boolean; cwd?: string | undefined; env?: NodeJS.ProcessEnv | undefined } = {
+    allowScripts: false,
+  },
 ): UpdateCommand {
   // Default to --ignore-scripts so a compromised `wrongstack@latest` cannot
   // run arbitrary code in the user's postinstall. Opt back in with
@@ -314,29 +330,50 @@ function buildUpdateCommand(
       return command(
         packageManager,
         ignoreScripts ? ['add', '-g', '--ignore-scripts', target] : ['add', '-g', target],
+        opts.cwd,
+        opts.env,
       );
     case 'yarn':
       return command(
         packageManager,
         ignoreScripts ? ['global', 'add', '--ignore-scripts', target] : ['global', 'add', target],
+        opts.cwd,
+        opts.env,
       );
     case 'bun':
       return command(
         packageManager,
         ignoreScripts ? ['add', '-g', '--ignore-scripts', target] : ['add', '-g', target],
+        opts.cwd,
+        opts.env,
       );
     case 'npm':
       return command(
         packageManager,
         ignoreScripts ? ['install', '-g', '--ignore-scripts', target] : ['install', '-g', target],
+        opts.cwd,
+        opts.env,
       );
   }
 }
 
-function command(pm: PackageManager, args: string[]): UpdateCommand {
+function command(
+  pm: PackageManager,
+  args: string[],
+  cwd?: string,
+  env: NodeJS.ProcessEnv = process.env,
+): UpdateCommand {
   const display = `${pm} ${args.join(' ')}`;
-  if (process.platform === 'win32' && pm !== 'bun') {
-    const shim = buildWin32CmdShimInvocation(pm, args);
+  const resolvedExecutable = cwd ? resolveWin32PackageManagerPath(pm, cwd, env) : undefined;
+  if (process.platform === 'win32' && cwd && !resolvedExecutable) {
+    throw new Error(
+      `Could not find ${pm} outside the current project directory. ` +
+        `Install ${pm} globally or put its global executable directory on PATH.`,
+    );
+  }
+  const executable = resolvedExecutable ?? pm;
+  if (process.platform === 'win32' && (pm !== 'bun' || /\.(?:cmd|bat)$/i.test(executable))) {
+    const shim = buildWin32CmdShimInvocation(executable, args);
     return {
       executable: shim.command,
       args: shim.args,
@@ -344,7 +381,62 @@ function command(pm: PackageManager, args: string[]): UpdateCommand {
       windowsVerbatimArguments: shim.windowsVerbatimArguments,
     };
   }
-  return { executable: pm, args, display };
+  return { executable, args, display };
+}
+
+/**
+ * Resolve a global package-manager executable without consulting the project
+ * directory. `cmd.exe` searches its cwd before PATH, so `call npm` can pick a
+ * stale `node_modules/.bin/npm.cmd` and then look for npm below that project.
+ * A self-update must never use a project's package-manager shim.
+ */
+function resolveWin32PackageManagerPath(
+  packageManager: PackageManager,
+  cwd: string,
+  env: NodeJS.ProcessEnv = process.env,
+  pathExists: (candidate: string) => boolean = existsSync,
+): string | undefined {
+  if (process.platform !== 'win32') return undefined;
+
+  const pathValue = environmentValue(env, 'PATH');
+  if (!pathValue) return undefined;
+  const cwdPath = path.win32.resolve(cwd).toLowerCase();
+  const extensions = packageManager.includes('.')
+    ? ['']
+    : (environmentValue(env, 'PATHEXT')?.split(';').filter(Boolean) ?? [
+        '.COM',
+        '.EXE',
+        '.BAT',
+        '.CMD',
+      ]);
+
+  for (const rawEntry of pathValue.split(';')) {
+    const entry = rawEntry.trim().replace(/^"|"$/g, '');
+    // Empty and relative PATH entries resolve through the project cwd, exactly
+    // the shadowing route this helper is meant to avoid.
+    if (!entry || !path.win32.isAbsolute(entry)) continue;
+    const directory = path.win32.resolve(entry);
+    if (isPathInsideWin32(directory, cwdPath)) continue;
+    for (const extension of extensions) {
+      const candidate = path.win32.join(directory, `${packageManager}${extension}`);
+      if (pathExists(candidate)) return candidate;
+    }
+  }
+  return undefined;
+}
+
+function environmentValue(env: NodeJS.ProcessEnv, key: string): string | undefined {
+  const match = Object.entries(env).find(([name]) => name.toUpperCase() === key);
+  return typeof match?.[1] === 'string' ? match[1] : undefined;
+}
+
+function isPathInsideWin32(candidate: string, parent: string): boolean {
+  const normalizedCandidate = path.win32.resolve(candidate).toLowerCase();
+  const relative = path.win32.relative(parent, normalizedCandidate);
+  return (
+    relative === '' ||
+    (!relative.startsWith('..\\') && relative !== '..' && !path.win32.isAbsolute(relative))
+  );
 }
 
 function otherManagerCommands(
@@ -371,5 +463,20 @@ function installWarningSummary(output: string): string | null {
   return (
     'Install completed, but npm reported blocked lifecycle scripts. If a native optional ' +
     'feature is missing, rerun the update with npm script approval for the named package.'
+  );
+}
+
+function windowsLockedFilesGuidance(output: string): string | null {
+  if (process.platform !== 'win32') return null;
+  const hasLockError = /\b(?:EBUSY|EPERM|EACCES|ENOTEMPTY)\b/i.test(output);
+  const isWrongStackNativeFile =
+    /(?:\.wrongstack-|wrongstack[\\/]node_modules|electron\.exe|dd_pprof\.node|node-pty)/i.test(
+      output,
+    );
+  if (!hasLockError || !isWrongStackNativeFile) return null;
+  return (
+    'Windows could not replace a native file held by a running WrongStack process. ' +
+    'Stop any WrongStack WebUI, Desktop, or background process, then rerun the same update command. ' +
+    'Do not remove npm’s .wrongstack-* staging directory until those processes have stopped.'
   );
 }

@@ -123,15 +123,17 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     expect((snap.spec as { title: string }).title).toBe('OAuth login');
 
     // 3. Approve the spec → implementation turn emits tasks → graph built.
+    // The agent proposed 2 tasks; neither maps to REQ-1, so requirement
+    // coverage deterministically appends a third task for it.
     await handler.handleMessage({ type: 'sdd.spec.approve', payload: {} });
     snap = lastOfType(ws, 'sdd.spec.snapshot').payload;
-    expect(snap.taskCount).toBe(2);
+    expect(snap.taskCount).toBe(3);
     expect(snap.graphId).toBeTruthy();
 
     // 4. Start the run → wizard hands off with a runId.
     await handler.handleMessage({ type: 'sdd.run.start', payload: {} });
     expect(startRunCalls).toHaveLength(1);
-    expect(startRunCalls[0]?.taskCount).toBe(2);
+    expect(startRunCalls[0]?.taskCount).toBe(3);
     expect(lastOfType(ws, 'sdd.run.started').payload.runId).toBe('run-xyz');
   });
 
