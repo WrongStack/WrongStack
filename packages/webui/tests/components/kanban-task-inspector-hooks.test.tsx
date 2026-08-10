@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KanbanBoard, KanbanTask } from '@/types/kanban-types';
 
@@ -168,11 +168,20 @@ describe('KanbanView — TaskInspector hook-order regression (React error 310)',
     fireEvent.click(screen.getByRole('button', { name: `Select task: ${task.title}` }));
 
     expect(screen.getByRole('complementary', { name: 'Task inspector' })).toBeTruthy();
+    // Definition is the landing tab: the contract is what you read first.
     expect(screen.getByDisplayValue(task.title)).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Definition/ }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+    // Recording an outcome belongs to the card's history, so it lives one tab
+    // over rather than at the bottom of a single long scroll.
+    expect(screen.queryByLabelText('Task activity kind')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: /History/ }));
     expect(screen.getByLabelText('Task activity kind')).toBeTruthy();
     expect(screen.getByLabelText('Task activity outcome')).toBeTruthy();
     expect(screen.getByLabelText('Task activity details')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Record task decision or outcome' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /Definition/ }));
 
     const inspector = screen.getByRole('complementary', { name: 'Task inspector' });
     expect(inspector.getAttribute('data-expanded')).toBe('false');
@@ -189,6 +198,26 @@ describe('KanbanView — TaskInspector hook-order regression (React error 310)',
 
     fireEvent.click(screen.getByTitle('Close'));
     expect(screen.queryByRole('complementary', { name: 'Task inspector' })).toBeNull();
+  });
+
+  it('keeps status and the blocking dependency pinned across every tab', () => {
+    const blocker = makeTask({ id: 'dep-1', title: 'Migrate schema', status: 'pending' });
+    const blocked = makeTask({ id: 'task-1', title: 'Backfill rows', dependsOn: ['dep-1'] });
+    mockRefs.activeBoard = {
+      ...makeBoard(blocked),
+      tasks: [blocker, blocked],
+    } as KanbanBoard;
+    renderKanban();
+    fireEvent.click(screen.getByRole('button', { name: `Select task: ${blocked.title}` }));
+
+    // Whether this card can move is not a per-tab question, so the answer may
+    // never depend on which tab happens to be open.
+    for (const tab of ['Definition', 'Execution', 'Evidence', 'Breakdown', 'History']) {
+      fireEvent.click(screen.getByRole('tab', { name: new RegExp(tab) }));
+      const spine = screen.getByRole('region', { name: 'Task status' });
+      expect(within(spine).getByText(/Migrate schema/)).toBeTruthy();
+      expect(within(spine).getByText('pending')).toBeTruthy();
+    }
   });
 
   it('opens a task with object-valued provider metadata without rendering the object', () => {
@@ -213,6 +242,9 @@ describe('KanbanView — TaskInspector hook-order regression (React error 310)',
       fireEvent.click(screen.getByRole('button', { name: `Select task: ${task.title}` })),
     ).not.toThrow();
     expect(screen.getByRole('complementary', { name: 'Task inspector' })).toBeTruthy();
+    // Assignment metadata is execution detail; the guard is that the provider
+    // renders as its id and never leaks the raw object (including the key).
+    fireEvent.click(screen.getByRole('tab', { name: /Execution/ }));
     expect(screen.getAllByText('openai').length).toBeGreaterThan(0);
     expect(screen.queryByText('must-not-render')).toBeNull();
   });

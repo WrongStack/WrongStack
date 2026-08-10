@@ -14,6 +14,7 @@ import {
 } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
 import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-invariants.js';
+import { formatTodoForModel, hasKanbanBoundTodos } from '../utils/todos-format.js';
 import type { AgentInternals } from './agent-internals.js';
 import { type Context, type RunOptions, resolveEventSessionId } from './context.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
@@ -87,13 +88,20 @@ export function buildLiveNextStepsGateBlock(
       normalized.length > MAX_TODO_SNAPSHOT_CONTENT
         ? `${normalized.slice(0, MAX_TODO_SNAPSHOT_CONTENT - 1)}…`
         : normalized;
-    return `- [${todo.status}] ${content}`;
+    // Carry the Kanban binding: this snapshot is the model's live view of the
+    // list, and a row stripped of its ids cannot be echoed back intact.
+    return formatTodoForModel({ ...todo, content });
   });
   const omitted = openTodos.length - todoSnapshot.length;
   if (omitted > 0) todoSnapshot.push(`- …and ${omitted} more open todo(s)`);
   const todoReconciliation = ctx.tools?.some((tool) => tool.name === 'todo')
     ? [
         'Before ending the turn, you MUST call the `todo` tool with the complete current list to reconcile actual progress: finished items completed, exactly one actively worked item in_progress, and untouched items pending. A prose claim that work is done does not update the Todo/Kanban state.',
+        ...(hasKanbanBoundTodos(openTodos)
+          ? [
+              'Rows below carry a <kanban board/task> binding. Pass those exact ids back as `kanbanBoardId`/`kanbanTaskId` on every row you resend; a row that arrives without its binding is not applied to its card.',
+            ]
+          : []),
       ]
     : [];
 

@@ -507,6 +507,19 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
                 `start_task only accepts Backlog, Todo, Review repair, or live Running cards (current: ${stage ?? 'unknown'}).`,
               );
             }
+            // Only a managed board carries governance authority. Binding an
+            // observational board (session mirror, SDD mirror, plain import)
+            // as the run's Kanban identity used to be accepted, and every
+            // later mutation was then judged against a board that can never
+            // satisfy the managed contract — an unrecoverable block. Advance
+            // the card, but leave the governed identity untouched.
+            if (board.lifecycle?.mode !== 'managed') {
+              return okTask(
+                board,
+                task,
+                'Task is active. This board is not in managed lifecycle mode, so runtime Kanban governance was not bound to it.',
+              );
+            }
             ctx.setCurrentKanbanTask(task.id, board.id);
             return okTask(
               board,

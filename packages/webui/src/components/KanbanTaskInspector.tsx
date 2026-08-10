@@ -34,6 +34,14 @@ import { type RunLink, RunTaskControls } from './KanbanRunControls.js';
 import { KanbanTaskActivityRecorder } from './KanbanTaskActivityRecorder';
 import { KanbanTaskCompletionChecks } from './KanbanTaskCompletionChecks';
 import { columnTitle, Field, Metric, SelectField } from './KanbanTaskFields.js';
+import {
+  blockingTaskTitles,
+  type TaskInspectorTab,
+  TaskInspectorTabBar,
+  TaskStatusSpine,
+  TaskTabLayout,
+  taskTabBadges,
+} from './KanbanTaskInspectorChrome';
 import { KNOWN_CAPABILITIES, KNOWN_ROLES } from './KanbanTaskOptions';
 import { ModelPicker } from './ModelPicker';
 import { TaskActivityTimeline } from './TaskActivityTimeline';
@@ -103,6 +111,7 @@ export function KanbanTaskInspector({
   );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<TaskInspectorTab>('definition');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -211,8 +220,10 @@ export function KanbanTaskInspector({
     activityNote:
       changeReason.trim() ||
       `${t('activity:kanban.activityNoteTemplate', {
-        action: action === 'dispatch' ? t('activity:kanban.dispatched') : t('activity:kanban.assigned'),
-        target: name.trim() || agentId.trim() || role.trim() || t('activity:kanban.configuredAgentRoute'),
+        action:
+          action === 'dispatch' ? t('activity:kanban.dispatched') : t('activity:kanban.assigned'),
+        target:
+          name.trim() || agentId.trim() || role.trim() || t('activity:kanban.configuredAgentRoute'),
       })}`,
   });
 
@@ -333,6 +344,9 @@ export function KanbanTaskInspector({
   // hooks above unconditional, then render nothing until the user selects a task.
   if (!task) return null;
 
+  const blockedBy = blockingTaskTitles(board, task);
+  const taskEventCount = activityEvents.filter((event) => event.taskId === task.id).length;
+
   return (
     <aside
       aria-label={t('activity:kanban.taskInspector')}
@@ -351,8 +365,12 @@ export function KanbanTaskInspector({
         </div>
         <button
           type="button"
-          title={expanded ? t('activity:kanban.collapseDetails') : t('activity:kanban.expandDetails')}
-          aria-label={expanded ? t('activity:kanban.collapseDetails') : t('activity:kanban.expandDetails')}
+          title={
+            expanded ? t('activity:kanban.collapseDetails') : t('activity:kanban.expandDetails')
+          }
+          aria-label={
+            expanded ? t('activity:kanban.collapseDetails') : t('activity:kanban.expandDetails')
+          }
           aria-pressed={expanded}
           onClick={() => setExpanded((value) => !value)}
           className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -371,6 +389,21 @@ export function KanbanTaskInspector({
           <X size={16} />
         </button>
       </div>
+      <TaskStatusSpine
+        task={task}
+        blockedBy={blockedBy}
+        columnLabel={columnTitle(board, task.columnId)}
+        expanded={expanded}
+        blockedLabel={t('activity:kanbanInspector.waitingOn')}
+        regionLabel={t('activity:kanbanInspector.taskStatusSummary')}
+      />
+      <TaskInspectorTabBar
+        active={activeTab}
+        onSelect={setActiveTab}
+        badges={taskTabBadges(board, task, taskEventCount)}
+        labelFor={(labelKey) => t(labelKey)}
+        expanded={expanded}
+      />
       {task ? (
         <div
           ref={inspectorScrollRef}
@@ -379,475 +412,566 @@ export function KanbanTaskInspector({
             expanded && 'px-5 py-4 xl:px-7',
           )}
         >
-          <div className="space-y-3 rounded-md border bg-background p-2.5">
-            <KanbanBoundaryEditor
-              title={t('activity:kanban.taskBoundary')}
-              value={task.boundary}
-              inherited={board?.boundary}
-              onSave={(boundary) => {
-                if (!board) return;
-                sendKanban('kanban.task.update', {
-                  boardId: board.id,
-                  taskId: task.id,
-                  boundary,
-                  activityNote: 'Task boundary edited in WebUI.',
-                });
-              }}
-            />
-            <Field label={t('activity:kanban.title')} value={title} onChange={setTitle} />
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                {t('activity:kanbanInspector.descriptionWorkingContext')}
-              </span>
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={5}
-                className="w-full resize-y rounded-md border bg-background px-2 py-1.5 text-xs leading-5 outline-none focus:border-primary"
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {board?.lifecycle?.mode === 'managed' ? (
-                <div className="rounded-md border bg-muted/30 px-2 py-1.5">
-                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {t('activity:kanban.managedStage')}
-                  </div>
-                  <div className="mt-1 text-xs font-semibold capitalize">
-                    {task.lifecycle?.currentStage ?? 'Backlog'}
-                  </div>
+          <TaskTabLayout
+            expanded={expanded}
+            rail={
+              activeTab === 'definition' ? (
+                <div className="grid grid-cols-2 gap-2 text-xs xl:grid-cols-1">
+                  <Metric
+                    label={t('activity:kanban.source')}
+                    value={task.origin?.system ?? 'manual'}
+                  />
+                  <Metric label={t('activity:kanban.taskId')} value={task.id.slice(0, 8)} />
+                  <Metric
+                    label={t('activity:kanban.run')}
+                    value={task.assignment?.status ?? 'unassigned'}
+                  />
+                  <Metric
+                    label={t('activity:kanban.column')}
+                    value={columnTitle(board, task.columnId)}
+                  />
                 </div>
-              ) : (
-                <SelectField
-                  label={t('activity:kanban.status')}
-                  value={status}
-                  options={[
-                    'pending',
-                    'ready',
-                    'in_progress',
-                    'blocked',
-                    'review',
-                    'completed',
-                    'failed',
-                    'archived',
-                  ]}
-                  onChange={(value) => setStatus(value as KanbanTask['status'])}
-                />
-              )}
-              <SelectField
-                label={t('activity:kanban.priority')}
-                value={priority}
-                options={['critical', 'high', 'medium', 'low']}
-                onChange={(value) => setPriority(value as KanbanTask['priority'])}
-              />
-              <SelectField
-                label={t('activity:kanban.type')}
-                value={taskType}
-                options={['feature', 'bugfix', 'refactor', 'docs', 'test', 'chore']}
-                onChange={(value) => setTaskType(value as NonNullable<KanbanTask['type']>)}
-              />
-              <Field label={t('activity:kanban.labelsCommaSeparated')} value={labelsText} onChange={setLabelsText} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label={t('activity:kanban.dueDatePlaceholder')} value={dueDate} onChange={setDueDate} />
-              <Field label={t('activity:kanban.estimatedHours')} value={estimatedHours} onChange={setEstimatedHours} />
-              <Field label={t('activity:kanban.actualHours')} value={actualHours} onChange={setActualHours} />
-            </div>
-            <div>
-              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                {t('activity:kanbanInspector.dependencies')}
-              </span>
-              <ChipMultiSelect
-                options={(board?.tasks ?? [])
-                  .filter((candidate) => candidate.id !== task.id)
-                  .map((candidate) => ({
-                    value: candidate.id,
-                    label: candidate.title,
-                    description: candidate.status,
-                  }))}
-                selected={dependsOn}
-                onChange={setDependsOn}
-                placeholder={t('activity:kanban.selectBlockingTasks')}
-              />
-            </div>
-            <div>
-              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                {t('activity:kanbanInspector.taskChainSelectionOrder')}
-              </span>
-              <ChipMultiSelect
-                options={(board?.tasks ?? []).map((candidate) => ({
-                  value: candidate.id,
-                  label: candidate.title,
-                  description: candidate.status,
-                }))}
-                selected={chainMembers}
-                onChange={(next) =>
-                  setChainMembers(next.includes(task.id) ? next : [task.id, ...next])
-                }
-                placeholder={t('activity:kanban.selectSequentialChain')}
-              />
-              <label className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={enforceChainDependencies}
-                  onChange={(event) => setEnforceChainDependencies(event.target.checked)}
-                />
-                {t('activity:kanban.enforceChainOrder')}
-              </label>
-            </div>
-            <Field
-              label={t('activity:kanban.assignmentReason')}
-              value={changeReason}
-              onChange={setChangeReason}
-            />
-            <button
-              type="button"
-              onClick={saveDetails}
-              className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90"
-            >
-              <Save size={15} /> {t('activity:kanbanInspector.saveTaskContract')}
-            </button>
-            {board?.lifecycle?.mode === 'managed' && nextManagedStage && (
-              <section
-                aria-label={t('activity:kanban.managedLifecycle')}
-                className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-2.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-                      {t('activity:kanban.kanbanAgentTransition')}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {currentManagedStage} → {nextManagedStage}; no stages can be skipped.
-                    </div>
+              ) : activeTab === 'execution' && board ? (
+                <TaskRiskPanel board={board} task={task} events={activityEvents} />
+              ) : undefined
+            }
+          >
+            {activeTab === 'definition' && (
+              <>
+                <div className="space-y-3 rounded-md border bg-background p-2.5">
+                  <KanbanBoundaryEditor
+                    title={t('activity:kanban.taskBoundary')}
+                    value={task.boundary}
+                    inherited={board?.boundary}
+                    onSave={(boundary) => {
+                      if (!board) return;
+                      sendKanban('kanban.task.update', {
+                        boardId: board.id,
+                        taskId: task.id,
+                        boundary,
+                        activityNote: 'Task boundary edited in WebUI.',
+                      });
+                    }}
+                  />
+                  <Field label={t('activity:kanban.title')} value={title} onChange={setTitle} />
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                      {t('activity:kanbanInspector.descriptionWorkingContext')}
+                    </span>
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      rows={5}
+                      className="w-full resize-y rounded-md border bg-background px-2 py-1.5 text-xs leading-5 outline-none focus:border-primary"
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {board?.lifecycle?.mode === 'managed' ? (
+                      <div className="rounded-md border bg-muted/30 px-2 py-1.5">
+                        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          {t('activity:kanban.managedStage')}
+                        </div>
+                        <div className="mt-1 text-xs font-semibold capitalize">
+                          {task.lifecycle?.currentStage ?? 'Backlog'}
+                        </div>
+                      </div>
+                    ) : (
+                      <SelectField
+                        label={t('activity:kanban.status')}
+                        value={status}
+                        options={[
+                          'pending',
+                          'ready',
+                          'in_progress',
+                          'blocked',
+                          'review',
+                          'completed',
+                          'failed',
+                          'archived',
+                        ]}
+                        onChange={(value) => setStatus(value as KanbanTask['status'])}
+                      />
+                    )}
+                    <SelectField
+                      label={t('activity:kanban.priority')}
+                      value={priority}
+                      options={['critical', 'high', 'medium', 'low']}
+                      onChange={(value) => setPriority(value as KanbanTask['priority'])}
+                    />
+                    <SelectField
+                      label={t('activity:kanban.type')}
+                      value={taskType}
+                      options={['feature', 'bugfix', 'refactor', 'docs', 'test', 'chore']}
+                      onChange={(value) => setTaskType(value as NonNullable<KanbanTask['type']>)}
+                    />
+                    <Field
+                      label={t('activity:kanban.labelsCommaSeparated')}
+                      value={labelsText}
+                      onChange={setLabelsText}
+                    />
                   </div>
-                  <ShieldCheck size={16} className="text-primary" />
-                </div>
-                <Field
-                  label={t('activity:kanban.completedAction')}
-                  value={transitionAction}
-                  onChange={setTransitionAction}
-                />
-                <Field
-                  label={t('activity:kanban.progressComment')}
-                  value={transitionComment}
-                  onChange={setTransitionComment}
-                />
-                <Field
-                  label={t('activity:kanban.evidenceUrl')}
-                  value={transitionAttachmentUrl}
-                  onChange={setTransitionAttachmentUrl}
-                />
-                <button
-                  type="button"
-                  disabled={!transitionComment.trim()}
-                  onClick={advanceManagedTask}
-                  className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <MoveRight size={15} /> Advance to {nextManagedStage}
-                </button>
-              </section>
-            )}
-          </div>
-
-          {board && (
-            <>
-              <TaskIntelligencePanel
-                board={board}
-                task={task}
-                events={activityEvents}
-                presence={activityPresence}
-                sessionId={activitySessionId}
-                sessionProvider={sessionProvider}
-                sessionModel={sessionModel}
-              />
-              <TaskExecutionAttempts
-                task={task}
-                events={activityEvents}
-                sessionId={activitySessionId}
-              />
-              <TaskRiskPanel board={board} task={task} events={activityEvents} />
-            </>
-          )}
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <Metric label={t('activity:kanban.source')} value={task.origin?.system ?? 'manual'} />
-            <Metric label={t('activity:kanban.taskId')} value={task.id.slice(0, 8)} />
-            <Metric label={t('activity:kanban.run')} value={task.assignment?.status ?? 'unassigned'} />
-            <Metric label={t('activity:kanban.column')} value={columnTitle(board, task.columnId)} />
-          </div>
-
-          {task.assignment && <AgentRunPanel assignment={task.assignment} />}
-
-          {runLink && task.origin?.taskId && (
-            <RunTaskControls
-              runLink={runLink}
-              runTaskId={task.origin.taskId}
-              modelCandidates={modelCandidates}
-              sendRaw={sendRaw}
-            />
-          )}
-
-          {!runLink && (
-            <>
-              <div className="mt-4 space-y-3">
-                <SelectField
-                  label={t('activity:kanban.primaryModelSource')}
-                  value={routingMode}
-                  options={['session', 'fixed', 'fallback_profile']}
-                  onChange={(value) => setRoutingMode(value as KanbanModelRoutingMode)}
-                />
-                {routingMode === 'session' && (
-                  <div className="rounded-md border bg-info/5 px-2 py-1.5 text-[11px] text-muted-foreground">
-                    Uses the live session model: {sessionProvider ? `${sessionProvider}/` : ''}
-                    {sessionModel || 'not available'}.
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field
+                      label={t('activity:kanban.dueDatePlaceholder')}
+                      value={dueDate}
+                      onChange={setDueDate}
+                    />
+                    <Field
+                      label={t('activity:kanban.estimatedHours')}
+                      value={estimatedHours}
+                      onChange={setEstimatedHours}
+                    />
+                    <Field
+                      label={t('activity:kanban.actualHours')}
+                      value={actualHours}
+                      onChange={setActualHours}
+                    />
                   </div>
-                )}
-                {routingMode === 'fixed' && (
                   <div>
                     <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                      {t('activity:kanbanInspector.fixedProviderModel')}
+                      {t('activity:kanbanInspector.dependencies')}
                     </span>
-                    <ModelPicker
-                      value={model || undefined}
-                      provider={provider || undefined}
-                      candidates={modelCandidates}
-                      placeholder={t('activity:kanban.selectProviderModel')}
-                      onPick={(nextModel, nextProvider) => {
-                        setModel(nextModel);
-                        setProvider(nextProvider);
-                      }}
+                    <ChipMultiSelect
+                      options={(board?.tasks ?? [])
+                        .filter((candidate) => candidate.id !== task.id)
+                        .map((candidate) => ({
+                          value: candidate.id,
+                          label: candidate.title,
+                          description: candidate.status,
+                        }))}
+                      selected={dependsOn}
+                      onChange={setDependsOn}
+                      placeholder={t('activity:kanban.selectBlockingTasks')}
+                    />
+                  </div>
+                  <div>
+                    <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                      {t('activity:kanbanInspector.taskChainSelectionOrder')}
+                    </span>
+                    <ChipMultiSelect
+                      options={(board?.tasks ?? []).map((candidate) => ({
+                        value: candidate.id,
+                        label: candidate.title,
+                        description: candidate.status,
+                      }))}
+                      selected={chainMembers}
+                      onChange={(next) =>
+                        setChainMembers(next.includes(task.id) ? next : [task.id, ...next])
+                      }
+                      placeholder={t('activity:kanban.selectSequentialChain')}
+                    />
+                    <label className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={enforceChainDependencies}
+                        onChange={(event) => setEnforceChainDependencies(event.target.checked)}
+                      />
+                      {t('activity:kanban.enforceChainOrder')}
+                    </label>
+                  </div>
+                  <Field
+                    label={t('activity:kanban.assignmentReason')}
+                    value={changeReason}
+                    onChange={setChangeReason}
+                  />
+                  <button
+                    type="button"
+                    onClick={saveDetails}
+                    className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Save size={15} /> {t('activity:kanbanInspector.saveTaskContract')}
+                  </button>
+                </div>
+                {/* Expanded moves these to the rail; docked keeps them inline so the
+              numbers never disappear entirely. */}
+                {!expanded && (
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <Metric
+                      label={t('activity:kanban.source')}
+                      value={task.origin?.system ?? 'manual'}
+                    />
+                    <Metric label={t('activity:kanban.taskId')} value={task.id.slice(0, 8)} />
+                    <Metric
+                      label={t('activity:kanban.run')}
+                      value={task.assignment?.status ?? 'unassigned'}
+                    />
+                    <Metric
+                      label={t('activity:kanban.column')}
+                      value={columnTitle(board, task.columnId)}
                     />
                   </div>
                 )}
-                {routingMode === 'fallback_profile' && (
-                  <SelectField
-                    label={t('activity:kanban.fallbackProfile')}
-                    value={fallbackProfile}
-                    options={Object.keys(meta.fallbackProfiles)}
-                    placeholder={t('activity:kanban.selectProfile')}
-                    onChange={setFallbackProfile}
+              </>
+            )}
+
+            {/* Advancing a managed card is an act of running it, so it lives
+              with execution rather than with the contract that defines it. */}
+            {activeTab === 'execution' && (
+              <>
+                {board?.lifecycle?.mode === 'managed' && nextManagedStage && (
+                  <section
+                    aria-label={t('activity:kanban.managedLifecycle')}
+                    className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          {t('activity:kanban.kanbanAgentTransition')}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {currentManagedStage} → {nextManagedStage}; no stages can be skipped.
+                        </div>
+                      </div>
+                      <ShieldCheck size={16} className="text-primary" />
+                    </div>
+                    <Field
+                      label={t('activity:kanban.completedAction')}
+                      value={transitionAction}
+                      onChange={setTransitionAction}
+                    />
+                    <Field
+                      label={t('activity:kanban.progressComment')}
+                      value={transitionComment}
+                      onChange={setTransitionComment}
+                    />
+                    <Field
+                      label={t('activity:kanban.evidenceUrl')}
+                      value={transitionAttachmentUrl}
+                      onChange={setTransitionAttachmentUrl}
+                    />
+                    <button
+                      type="button"
+                      disabled={!transitionComment.trim()}
+                      onClick={advanceManagedTask}
+                      className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <MoveRight size={15} /> Advance to {nextManagedStage}
+                    </button>
+                  </section>
+                )}
+
+                {/* Who and what is running this card right now — provider,
+                    model, agent. Current-run facts, not history. */}
+                {board && (
+                  <TaskIntelligencePanel
+                    board={board}
+                    task={task}
+                    events={activityEvents}
+                    presence={activityPresence}
+                    sessionId={activitySessionId}
+                    sessionProvider={sessionProvider}
+                    sessionModel={sessionModel}
                   />
                 )}
 
-                {/* Fallback models — real multi-pick from the same live catalogue. */}
-                <div>
-                  <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                    {t('activity:kanban.fallbackModels')}
-                  </span>
-                  <ChipMultiSelect
-                    options={modelCandidates.map((c) => ({
-                      value: `${c.provider}/${c.model}`,
-                      label: c.label,
-                      description: c.description,
-                      tag: c.provider,
-                    }))}
-                    selected={fallbackModels}
-                    onChange={setFallbackModels}
-                    placeholder={t('activity:kanban.addFallbackModel')}
-                    emptyLabel="No models — add a provider in Settings"
+                {board && (
+                  <TaskExecutionAttempts
+                    task={task}
+                    events={activityEvents}
+                    sessionId={activitySessionId}
                   />
-                </div>
+                )}
 
-                <SelectField
-                  label={t('activity:kanban.role')}
-                  value={role}
-                  options={KNOWN_ROLES}
-                  placeholder={t('activity:kanban.selectRole')}
-                  onChange={setRole}
-                />
+                {task.assignment && <AgentRunPanel assignment={task.assignment} />}
 
-                <div>
-                  <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                    Agentic skills{' '}
-                    <span className="text-muted-foreground/70">{t('activity:kanbanInspector.forceLoadedIntoTheWorker')}</span>
-                  </span>
-                  <ChipMultiSelect
-                    options={meta.skills.map((skill) => ({
-                      value: skill.name,
-                      label: skill.name,
-                      description: skill.description,
-                      tag: skill.source,
-                    }))}
-                    selected={skills}
-                    onChange={setSkills}
-                    placeholder={t('activity:kanban.assignSkills')}
-                    emptyLabel="No skills registered"
+                {runLink && task.origin?.taskId && (
+                  <RunTaskControls
+                    runLink={runLink}
+                    runTaskId={task.origin.taskId}
+                    modelCandidates={modelCandidates}
+                    sendRaw={sendRaw}
                   />
-                </div>
+                )}
 
-                {/* Tools — real registered tools from the running agent. */}
-                <div>
-                  <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                    Tools{' '}
-                    <span className="text-muted-foreground/70">{t('activity:kanbanInspector.blankFullDefaultToolset')}</span>
-                  </span>
-                  <ChipMultiSelect
-                    options={meta.tools.map((tool) => ({
-                      value: tool.name,
-                      label: tool.name,
-                      description: tool.description,
-                    }))}
-                    selected={tools}
-                    onChange={setTools}
-                    placeholder={t('activity:kanban.restrictTools')}
-                    emptyLabel="Tool list unavailable on this server"
-                  />
-                </div>
-
-                {/* Advanced — optional name override + capability grants. */}
-                <div className="rounded-md border bg-background/60">
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvanced((v) => !v)}
-                    className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    {t('activity:kanbanInspector.advanced')}
-                    <ChevronDown
-                      size={13}
-                      className={cn('transition-transform', showAdvanced && 'rotate-180')}
-                    />
-                  </button>
-                  {showAdvanced && (
-                    <div className="space-y-3 border-t p-2">
-                      <Field label={t('activity:kanban.agentNameOptional')} value={name} onChange={setName} />
-                      <div className="grid grid-cols-2 gap-2">
+                {!runLink && (
+                  <>
+                    <div className="mt-4 space-y-3">
+                      <SelectField
+                        label={t('activity:kanban.primaryModelSource')}
+                        value={routingMode}
+                        options={['session', 'fixed', 'fallback_profile']}
+                        onChange={(value) => setRoutingMode(value as KanbanModelRoutingMode)}
+                      />
+                      {routingMode === 'session' && (
+                        <div className="rounded-md border bg-info/5 px-2 py-1.5 text-[11px] text-muted-foreground">
+                          Uses the live session model:{' '}
+                          {sessionProvider ? `${sessionProvider}/` : ''}
+                          {sessionModel || 'not available'}.
+                        </div>
+                      )}
+                      {routingMode === 'fixed' && (
+                        <div>
+                          <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                            {t('activity:kanbanInspector.fixedProviderModel')}
+                          </span>
+                          <ModelPicker
+                            value={model || undefined}
+                            provider={provider || undefined}
+                            candidates={modelCandidates}
+                            placeholder={t('activity:kanban.selectProviderModel')}
+                            onPick={(nextModel, nextProvider) => {
+                              setModel(nextModel);
+                              setProvider(nextProvider);
+                            }}
+                          />
+                        </div>
+                      )}
+                      {routingMode === 'fallback_profile' && (
                         <SelectField
-                          label={t('activity:kanban.retryPolicy')}
-                          value={retryPolicy}
-                          options={['off', 'incremental', 'exponential']}
-                          onChange={(value) =>
-                            setRetryPolicy(value as NonNullable<KanbanTask['retryPolicy']>)
-                          }
+                          label={t('activity:kanban.fallbackProfile')}
+                          value={fallbackProfile}
+                          options={Object.keys(meta.fallbackProfiles)}
+                          placeholder={t('activity:kanban.selectProfile')}
+                          onChange={setFallbackProfile}
                         />
-                        <Field label={t('activity:kanban.maxAttempts')} value={maxAttempts} onChange={setMaxAttempts} />
-                        <Field
-                          label={t('activity:kanban.costCeilingUsd')}
-                          value={costCeilingUsd}
-                          onChange={setCostCeilingUsd}
-                        />
-                      </div>
+                      )}
+
+                      {/* Fallback models — real multi-pick from the same live catalogue. */}
                       <div>
                         <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                          Capabilities{' '}
-                          <span className="text-muted-foreground/70">{t('activity:kanbanInspector.blankSafeDefaults')}</span>
+                          {t('activity:kanban.fallbackModels')}
                         </span>
                         <ChipMultiSelect
-                          options={KNOWN_CAPABILITIES}
-                          selected={allowedCapabilities}
-                          onChange={setAllowedCapabilities}
-                          placeholder={t('activity:kanban.grantCapability')}
+                          options={modelCandidates.map((c) => ({
+                            value: `${c.provider}/${c.model}`,
+                            label: c.label,
+                            description: c.description,
+                            tag: c.provider,
+                          }))}
+                          selected={fallbackModels}
+                          onChange={setFallbackModels}
+                          placeholder={t('activity:kanban.addFallbackModel')}
+                          emptyLabel="No models — add a provider in Settings"
                         />
                       </div>
+
+                      <SelectField
+                        label={t('activity:kanban.role')}
+                        value={role}
+                        options={KNOWN_ROLES}
+                        placeholder={t('activity:kanban.selectRole')}
+                        onChange={setRole}
+                      />
+
+                      <div>
+                        <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                          Agentic skills{' '}
+                          <span className="text-muted-foreground/70">
+                            {t('activity:kanbanInspector.forceLoadedIntoTheWorker')}
+                          </span>
+                        </span>
+                        <ChipMultiSelect
+                          options={meta.skills.map((skill) => ({
+                            value: skill.name,
+                            label: skill.name,
+                            description: skill.description,
+                            tag: skill.source,
+                          }))}
+                          selected={skills}
+                          onChange={setSkills}
+                          placeholder={t('activity:kanban.assignSkills')}
+                          emptyLabel="No skills registered"
+                        />
+                      </div>
+
+                      {/* Tools — real registered tools from the running agent. */}
+                      <div>
+                        <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                          Tools{' '}
+                          <span className="text-muted-foreground/70">
+                            {t('activity:kanbanInspector.blankFullDefaultToolset')}
+                          </span>
+                        </span>
+                        <ChipMultiSelect
+                          options={meta.tools.map((tool) => ({
+                            value: tool.name,
+                            label: tool.name,
+                            description: tool.description,
+                          }))}
+                          selected={tools}
+                          onChange={setTools}
+                          placeholder={t('activity:kanban.restrictTools')}
+                          emptyLabel="Tool list unavailable on this server"
+                        />
+                      </div>
+
+                      {/* Advanced — optional name override + capability grants. */}
+                      <div className="rounded-md border bg-background/60">
+                        <button
+                          type="button"
+                          onClick={() => setShowAdvanced((v) => !v)}
+                          className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                        >
+                          {t('activity:kanbanInspector.advanced')}
+                          <ChevronDown
+                            size={13}
+                            className={cn('transition-transform', showAdvanced && 'rotate-180')}
+                          />
+                        </button>
+                        {showAdvanced && (
+                          <div className="space-y-3 border-t p-2">
+                            <Field
+                              label={t('activity:kanban.agentNameOptional')}
+                              value={name}
+                              onChange={setName}
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <SelectField
+                                label={t('activity:kanban.retryPolicy')}
+                                value={retryPolicy}
+                                options={['off', 'incremental', 'exponential']}
+                                onChange={(value) =>
+                                  setRetryPolicy(value as NonNullable<KanbanTask['retryPolicy']>)
+                                }
+                              />
+                              <Field
+                                label={t('activity:kanban.maxAttempts')}
+                                value={maxAttempts}
+                                onChange={setMaxAttempts}
+                              />
+                              <Field
+                                label={t('activity:kanban.costCeilingUsd')}
+                                value={costCeilingUsd}
+                                onChange={setCostCeilingUsd}
+                              />
+                            </div>
+                            <div>
+                              <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                                Capabilities{' '}
+                                <span className="text-muted-foreground/70">
+                                  {t('activity:kanbanInspector.blankSafeDefaults')}
+                                </span>
+                              </span>
+                              <ChipMultiSelect
+                                options={KNOWN_CAPABILITIES}
+                                selected={allowedCapabilities}
+                                onChange={setAllowedCapabilities}
+                                placeholder={t('activity:kanban.grantCapability')}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={assign}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted"
-                >
-                  <UserPlus size={15} />
-                  {t('activity:kanbanInspector.assign')}
-                </button>
-                <button
-                  type="button"
-                  onClick={dispatch}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90"
-                >
-                  <Send size={15} />
-                  {t('activity:kanbanInspector.dispatch')}
-                </button>
-              </div>
-            </>
-          )}
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={assign}
+                        className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted"
+                      >
+                        <UserPlus size={15} />
+                        {t('activity:kanbanInspector.assign')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={dispatch}
+                        className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary text-sm text-primary-foreground hover:bg-primary/90"
+                      >
+                        <Send size={15} />
+                        {t('activity:kanbanInspector.dispatch')}
+                      </button>
+                    </div>
+                  </>
+                )}
 
-          {boards.length > 1 && !runLink ? (
-            <div className="mt-4 space-y-2 rounded-md border bg-background p-2">
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  {t('activity:kanban.targetBoard')}
-                </span>
-                <select
-                  value={targetBoardId}
-                  onChange={(event) => setTargetBoardId(event.target.value)}
-                  className="h-8 w-full rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
-                >
-                  {boards
-                    .filter((candidate) => candidate.id !== board?.id)
-                    .map((candidate) => (
-                      <option key={candidate.id} value={candidate.id}>
-                        {candidate.title}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={copyTask}
-                  disabled={!targetBoardId}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
-                >
-                  <Copy size={15} />
-                  {t('activity:kanbanInspector.copy')}
-                </button>
-                <button
-                  type="button"
-                  onClick={transferTask}
-                  disabled={!targetBoardId}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
-                >
-                  <MoveRight size={15} />
-                  {t('activity:kanbanInspector.transfer')}
-                </button>
-              </div>
-            </div>
-          ) : null}
+                {boards.length > 1 && !runLink ? (
+                  <div className="mt-4 space-y-2 rounded-md border bg-background p-2">
+                    <label className="block">
+                      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                        {t('activity:kanban.targetBoard')}
+                      </span>
+                      <select
+                        value={targetBoardId}
+                        onChange={(event) => setTargetBoardId(event.target.value)}
+                        className="h-8 w-full rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
+                      >
+                        {boards
+                          .filter((candidate) => candidate.id !== board?.id)
+                          .map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>
+                              {candidate.title}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={copyTask}
+                        disabled={!targetBoardId}
+                        className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
+                      >
+                        <Copy size={15} />
+                        {t('activity:kanbanInspector.copy')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={transferTask}
+                        disabled={!targetBoardId}
+                        className="inline-flex h-9 items-center justify-center gap-2 rounded-md border text-sm hover:bg-muted disabled:opacity-50"
+                      >
+                        <MoveRight size={15} />
+                        {t('activity:kanbanInspector.transfer')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
 
-          <KanbanTaskCompletionChecks
-            board={board}
-            task={task}
-            newCheck={newCheck}
-            onNewCheckChange={setNewCheck}
-            onAddCheck={addCheck}
-            sendKanban={sendKanban}
-          />
-          {/*
-            The contract graph and executable evidence share one verification surface.
-          */}
-          {board && <TaskVerificationSection board={board} task={task} sendKanban={sendKanban} />}
+            {activeTab === 'evidence' && (
+              <>
+                <KanbanTaskCompletionChecks
+                  board={board}
+                  task={task}
+                  newCheck={newCheck}
+                  onNewCheckChange={setNewCheck}
+                  onAddCheck={addCheck}
+                  sendKanban={sendKanban}
+                />
+                {/*
+                The contract graph and executable evidence share one verification surface.
+              */}
+                {board && (
+                  <TaskVerificationSection board={board} task={task} sendKanban={sendKanban} />
+                )}
+              </>
+            )}
 
-          {board && (
-            <KanbanDecompositionPanel
-              board={board}
-              task={task}
-              sendKanban={sendKanban}
-              onSelectTask={onSelectTask}
-            />
-          )}
+            {activeTab === 'breakdown' && board && (
+              <KanbanDecompositionPanel
+                board={board}
+                task={task}
+                sendKanban={sendKanban}
+                onSelectTask={onSelectTask}
+              />
+            )}
 
-          <TaskActivityTimeline
-            task={task}
-            events={activityEvents}
-            sessionId={activitySessionId}
-            loading={activityLoading}
-            error={activityError}
-            onRefresh={refreshActivity}
-          />
-
-          <KanbanTaskActivityRecorder
-            activityKind={newActivityKind}
-            activityOutcome={newActivityOutcome}
-            note={newNote}
-            details={newActivityDetails}
-            onActivityKindChange={setNewActivityKind}
-            onActivityOutcomeChange={setNewActivityOutcome}
-            onNoteChange={setNewNote}
-            onDetailsChange={setNewActivityDetails}
-            onRecordActivity={recordActivity}
-          />
+            {activeTab === 'history' && (
+              <>
+                <TaskActivityTimeline
+                  task={task}
+                  events={activityEvents}
+                  sessionId={activitySessionId}
+                  loading={activityLoading}
+                  error={activityError}
+                  onRefresh={refreshActivity}
+                />
+                <KanbanTaskActivityRecorder
+                  activityKind={newActivityKind}
+                  activityOutcome={newActivityOutcome}
+                  note={newNote}
+                  details={newActivityDetails}
+                  onActivityKindChange={setNewActivityKind}
+                  onActivityOutcomeChange={setNewActivityOutcome}
+                  onNoteChange={setNewNote}
+                  onDetailsChange={setNewActivityDetails}
+                  onRecordActivity={recordActivity}
+                />
+              </>
+            )}
+          </TaskTabLayout>
         </div>
       ) : null}
     </aside>

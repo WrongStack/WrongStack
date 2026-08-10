@@ -34,6 +34,47 @@ export function formatTodosList(todos: TodoItem[]): string {
 }
 
 /**
+ * Render one todo row for the model, including its Kanban binding.
+ *
+ * The binding is the whole contract: with Kanban active a row is not an
+ * independent note, it is a projection of a real card, and the model is
+ * required to echo `kanbanBoardId`/`kanbanTaskId` back on the next `todo`
+ * call or the card cannot be advanced. Every surface that replayed live todo
+ * state to the model used to strip these ids, so the only place they appeared
+ * was the `todo` tool's own return value — which ages out of context. Once it
+ * did, the next update fell back to fuzzy title matching, and a row whose
+ * title had drifted silently stopped applying to its card.
+ */
+export function formatTodoForModel(todo: TodoItem): string {
+  const binding =
+    todo.kanbanBoardId && todo.kanbanTaskId
+      ? ` <kanban ${todo.kanbanBoardId}/${todo.kanbanTaskId}>`
+      : '';
+  // Surface the blocking reason inline. The board already knows this on every
+  // mutation; without it in the row the model reads a flat list where blocked
+  // work looks exactly like ready work, and picks the next item by guesswork.
+  const blocked = todo.blockedBy?.length ? ` [blocked by: ${todo.blockedBy.join('; ')}]` : '';
+  return `- [${todo.status}]${blocked} ${todo.content} (${todo.id})${binding}`;
+}
+
+/** Multi-line `formatTodoForModel` rendering, or a stable empty-state line. */
+export function formatTodosForModel(
+  todos: readonly TodoItem[],
+  emptyLine = '- No active todos remain.',
+): string {
+  return todos.length ? todos.map(formatTodoForModel).join('\n') : emptyLine;
+}
+
+/**
+ * True when at least one row is bound to a real Kanban card, meaning the list
+ * is a managed projection rather than free-standing session state.
+ */
+export function hasKanbanBoundTodos(todos: readonly TodoItem[] | undefined | null): boolean {
+  if (!Array.isArray(todos)) return false;
+  return todos.some((todo) => Boolean(todo.kanbanBoardId && todo.kanbanTaskId));
+}
+
+/**
  * True when the todos list still has at least one unfinished item — either
  * `pending` (not started) or `in_progress` (underway). The REPL and other
  * post-turn handlers call this to decide whether to surface `<nextsteps>`

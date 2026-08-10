@@ -37,7 +37,11 @@ import {
 } from './_internal.js';
 import { initializeAndValidateManagedTask } from './lifecycle.js';
 import { searchKanban } from './serialization.js';
-export { areDependenciesMet } from './task-readiness.js';
+export {
+  areDependenciesMet,
+  getDependencyReadinessIssues,
+  type KanbanDependencyReadinessIssue,
+} from './task-readiness.js';
 
 export async function addDependency(
   projectRoot: string,

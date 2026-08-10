@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 252,
-      "typeOnly": 201,
+      "files": 253,
+      "typeOnly": 202,
       "runtimeOrMixed": 68
     },
     "@wrongstack/core/agent-catalog": {
@@ -1198,6 +1198,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/fixtures.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-acceptance-criteria.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

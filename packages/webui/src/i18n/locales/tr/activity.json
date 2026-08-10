@@ -2337,6 +2337,8 @@
     "learningOn": "Öğrenme açık",
     "lastCapture": "Son Yakalama",
     "lifetimeCaptures": "Toplam Yakalama",
+    "hitRate": "İsabet Oranı",
+    "neverUsed": "Hiç Kullanılmadı",
     "learningsLimitExceeded": "Öğrenilen veriler yumuşak sınırı aşıyor ({{bytes}}B / 8.192B). Ham kayıtları tek bir belgede birleştirmek ve bağlam hacmini azaltmak için optimize et.",
     "newPending": "yeni bekleyen",
     "viewAction": "Görüntüle",
@@ -3220,7 +3222,14 @@
     "assign": "Ata",
     "dispatch": "Gönder",
     "copy": "Kopyala",
-    "transfer": "Aktar"
+    "transfer": "Aktar",
+    "tabDefinition": "Tanım",
+    "tabExecution": "Yürütme",
+    "tabEvidence": "Kanıt",
+    "tabBreakdown": "Parçalar",
+    "tabHistory": "Geçmiş",
+    "waitingOn": "Bekliyor:",
+    "taskStatusSummary": "Görev durumu"
   },
   "memEditor": {
     "writeTheDurableFactOrDecision": "Kalıcı olguyu veya kararı eksiksiz, aranabilir bir dille yazın.",

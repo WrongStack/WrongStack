@@ -24,6 +24,17 @@ export interface TodoItem {
   kanbanBoardId?: string | undefined;
   /** Durable Kanban card represented by this todo row. */
   kanbanTaskId?: string | undefined;
+  /**
+   * Titles of the unfinished work this row waits on, derived from the Kanban
+   * card's dependencies. Always board-derived, never model-supplied.
+   *
+   * A blocked item is genuinely `pending` — it has not started — so this is an
+   * extra field rather than a fourth status. What was missing was never the
+   * state but the *reason*: the board computes readiness on every mutation,
+   * then the projection dropped it, leaving blocked work indistinguishable
+   * from ready work on screen and in the model's context.
+   */
+  blockedBy?: string[] | undefined;
 }
 
 export interface RunOptions {

@@ -2337,6 +2337,8 @@
     "learningOn": "Learning on",
     "lastCapture": "Last Capture",
     "lifetimeCaptures": "Lifetime Captures",
+    "hitRate": "Hit Rate",
+    "neverUsed": "Never Used",
     "learningsLimitExceeded": "Learned data exceeds soft limit ({{bytes}}B / 8,192B). Optimize to synthesize raw entries into a consolidated document and reduce context volume.",
     "newPending": "new pending",
     "viewAction": "View",
@@ -3220,7 +3222,14 @@
     "assign": "Assign",
     "dispatch": "Dispatch",
     "copy": "Copy",
-    "transfer": "Transfer"
+    "transfer": "Transfer",
+    "tabDefinition": "Definition",
+    "tabExecution": "Execution",
+    "tabEvidence": "Evidence",
+    "tabBreakdown": "Breakdown",
+    "tabHistory": "History",
+    "waitingOn": "Waiting on:",
+    "taskStatusSummary": "Task status"
   },
   "memEditor": {
     "writeTheDurableFactOrDecision": "Write the durable fact or decision in complete, searchable language.",

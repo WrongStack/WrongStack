@@ -1139,7 +1139,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 40,
-      "sourceLines": 10028
+      "sourceLines": 10052
     },
     {
       "directory": "defaults",
@@ -1272,7 +1272,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 6098
+      "sourceLines": 6112
     },
     {
       "directory": "session-catalog",
@@ -1321,7 +1321,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 10143
+      "sourceLines": 10184
     },
     {
       "directory": "worktree",

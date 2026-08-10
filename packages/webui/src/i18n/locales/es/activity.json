@@ -2337,6 +2337,8 @@
     "learningOn": "Aprendizaje activado",
     "lastCapture": "Última captura",
     "lifetimeCaptures": "Capturas totales",
+    "hitRate": "Tasa de acierto",
+    "neverUsed": "Nunca usado",
     "learningsLimitExceeded": "Los datos aprendidos superan el límite flexible ({{bytes}}B / 8.192B). Optimiza para sintetizar las entradas sin procesar en un documento consolidado y reducir el volumen del contexto.",
     "newPending": "nuevo pendiente",
     "viewAction": "Ver",
@@ -3220,7 +3222,14 @@
     "assign": "Asignar",
     "dispatch": "Despachar",
     "copy": "Copiar",
-    "transfer": "Transferir"
+    "transfer": "Transferir",
+    "tabDefinition": "Definición",
+    "tabExecution": "Ejecución",
+    "tabEvidence": "Evidencia",
+    "tabBreakdown": "Desglose",
+    "tabHistory": "Historial",
+    "waitingOn": "Esperando a:",
+    "taskStatusSummary": "Estado de la tarea"
   },
   "memEditor": {
     "writeTheDurableFactOrDecision": "Escribe el hecho o la decisión duradera con un lenguaje completo y buscable.",

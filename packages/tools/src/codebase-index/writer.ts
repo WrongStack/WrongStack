@@ -314,7 +314,7 @@ export class IndexStore {
       const ftsSchema = this.stmt(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='symbols_fts'",
       ).get() as { sql?: string } | undefined;
-      if (ftsSchema?.sql && ftsSchema.sql.includes('unicode61')) {
+      if (ftsSchema?.sql?.includes('unicode61')) {
         this.db.exec('DROP TABLE IF EXISTS symbols_fts');
       }
       this.db.exec(SYMBOLS_FTS_SQL);
@@ -930,9 +930,13 @@ export class IndexStore {
         .sort((a, b) => b.sim - a.sim);
 
       const bm25Rank = new Map<number, number>();
-      bm25Rows.forEach((r, i) => bm25Rank.set(r.id, i));
+      bm25Rows.forEach((r, i) => {
+        bm25Rank.set(r.id, i);
+      });
       const vecRank = new Map<number, number>();
-      vecScores.forEach((r, i) => vecRank.set(r.id, i));
+      vecScores.forEach((r, i) => {
+        vecRank.set(r.id, i);
+      });
 
       const fused = reciprocalRankFusion(bm25Rank, vecRank, 60);
 

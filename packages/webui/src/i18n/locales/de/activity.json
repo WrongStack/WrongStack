@@ -2337,6 +2337,8 @@
     "learningOn": "Lernen aktiv",
     "lastCapture": "Letzte Erfassung",
     "lifetimeCaptures": "Lebenszeit-Erfassungen",
+    "hitRate": "Trefferquote",
+    "neverUsed": "Nie verwendet",
     "learningsLimitExceeded": "Gelernte Daten überschreiten das weiche Limit ({{bytes}}B / 8.192B). Optimieren, um Roheinträge zu einem konsolidierten Dokument zusammenzufassen und das Kontextvolumen zu reduzieren.",
     "newPending": "neu ausstehend",
     "viewAction": "Anzeigen",
@@ -3220,7 +3222,14 @@
     "assign": "Zuweisen",
     "dispatch": "Versenden",
     "copy": "Kopieren",
-    "transfer": "Übertragen"
+    "transfer": "Übertragen",
+    "tabDefinition": "Definition",
+    "tabExecution": "Ausführung",
+    "tabEvidence": "Nachweis",
+    "tabBreakdown": "Aufteilung",
+    "tabHistory": "Verlauf",
+    "waitingOn": "Wartet auf:",
+    "taskStatusSummary": "Aufgabenstatus"
   },
   "memEditor": {
     "writeTheDurableFactOrDecision": "Formulieren Sie den dauerhaften Fakt oder die Entscheidung vollständig und durchsuchbar.",

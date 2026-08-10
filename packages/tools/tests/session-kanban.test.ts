@@ -3,24 +3,37 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
 import { loadPlan, loadTasks, savePlan, saveTasks } from '@wrongstack/core/storage';
-import { addTask, createBoard, getBoard, listBoards, moveTask } from '@wrongstack/kanban';
+import {
+  addDependency,
+  addTask,
+  compactSessionMirrorBoard,
+  createBoard,
+  getBoard,
+  listBoards,
+  moveTask,
+  updateTask,
+} from '@wrongstack/kanban';
 import { getKanbanPath } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   applySessionKanbanBoardToTodos,
   applySessionKanbanTaskToSource,
   attachSessionKanbanMirror,
+  blockingTitles,
   cleanupEmptySessionKanbanBoards,
   cleanupSessionKanbanBoard,
   cleanupSessionKanbanBoardIfEmpty,
   ensureSessionKanbanBoard,
+  hydrateSessionKanban,
   mirrorSessionTodosToKanban,
+  orderTasksForTodos,
+  planFileToSerializedGraph,
   projectSessionPlanToKanban,
   projectSessionTasksToKanban,
   projectSessionTodosToKanban,
+  takeSessionMirrorFailure,
   taskFileToSerializedGraph,
   todoListToSerializedGraph,
-  planFileToSerializedGraph,
 } from '../src/session-kanban.js';
 
 describe('unified session kanban', () => {
@@ -77,18 +90,11 @@ describe('unified session kanban', () => {
     );
     expect(board?.tasks.find((task) => task.origin?.taskId === 'task-1')?.columnId).toBe('review');
     expect(board?.tasks.find((task) => task.origin?.taskId === 'plan-1')?.columnId).toBe('done');
+    expect(board?.tasks.every((task) => Boolean(task.origin?.specRequirementId))).toBe(true);
     expect(board?.requirementScopes).toHaveLength(3);
-    expect(board?.requiredRequirementIds).toHaveLength(3);
-    expect(
-      board?.tasks.every(
-        (task) =>
-          task.origin?.specRequirementId &&
-          board.requiredRequirementIds?.includes(task.origin.specRequirementId),
-      ),
-    ).toBe(true);
   });
 
-  it('declares every persisted plan, task, and todo row as required graph scope', () => {
+  it('namespaces requirement scope for each session projection source', () => {
     const todoGraph = todoListToSerializedGraph(
       [{ id: 'same', content: 'Todo', status: 'pending' }],
       'scope-session',
@@ -125,23 +131,227 @@ describe('unified session kanban', () => {
     expect(planGraph.requiredRequirementIds).toEqual(['plan:scope-session:same']);
   });
 
-  it('rejects silent scope shrink when a later snapshot omits recorded work', async () => {
+  it('retains omitted work as an archived card instead of refusing the sync', async () => {
     await projectSessionTodosToKanban(
       dir,
       [
         { id: 'keep', content: 'Keep', status: 'pending' },
-        { id: 'omitted', content: 'Must be explicitly resolved', status: 'pending' },
+        { id: 'omitted', content: 'Dropped from the list', status: 'pending' },
       ],
       'shrink-session',
     );
 
-    await expect(
-      projectSessionTodosToKanban(
-        dir,
-        [{ id: 'keep', content: 'Keep', status: 'pending' }],
-        'shrink-session',
-      ),
-    ).rejects.toThrow('requirement scope cannot shrink');
+    const shrunk = await projectSessionTodosToKanban(
+      dir,
+      [{ id: 'keep', content: 'Keep', status: 'pending' }],
+      'shrink-session',
+    );
+
+    // The protection that matters is retention of the card, not refusal of the
+    // projection: the omitted row survives as an archived card, so the work is
+    // still on the board and recoverable.
+    expect(shrunk?.tasks.find((task) => task.origin?.taskId === 'omitted')?.status).toBe(
+      'archived',
+    );
+    // The ledger stays declared, and now tracks the current snapshot.
+    expect(shrunk?.requirementScopes).toHaveLength(1);
+    expect(shrunk?.requiredRequirementIds).toEqual(['todo:shrink-session:keep']);
+
+    // A later, independent update must still land. The defect was that one
+    // shrink froze the stored scope and every later projection failed on it.
+    const after = await projectSessionTodosToKanban(
+      dir,
+      [
+        { id: 'keep', content: 'Keep', status: 'completed' },
+        { id: 'fresh', content: 'Added later', status: 'pending' },
+      ],
+      'shrink-session',
+    );
+    expect(after?.tasks.find((task) => task.origin?.taskId === 'keep')?.status).toBe('completed');
+    expect(after?.tasks.find((task) => task.origin?.taskId === 'fresh')).toBeTruthy();
+  });
+
+  it('records no mirror failure when a background todo mirror keeps shrinking', async () => {
+    // Reproduces the reported `session-kanban.mirror-failed` warning, which
+    // arrived from the fire-and-forget queue rather than a direct projection:
+    // an unfinished row (here `f8-test-typecheck`) leaves the list, and every
+    // later mirror for that session used to fail against the recorded scope.
+    const rows: TodoItem[] = [
+      { id: 'f8-test-typecheck', content: 'Run typecheck', status: 'pending' },
+      { id: 'f9-ship', content: 'Ship it', status: 'pending' },
+    ];
+    await projectSessionTodosToKanban(dir, rows, 'mirror-shrink');
+    mirrorSessionTodosToKanban(dir, [rows[1]!], 'mirror-shrink');
+    mirrorSessionTodosToKanban(
+      dir,
+      [{ id: 'f9-ship', content: 'Ship it', status: 'completed' }],
+      'mirror-shrink',
+    );
+
+    const board = await ensureSessionKanbanBoard(dir, 'mirror-shrink');
+    const deadline = Date.now() + 5_000;
+    let current = await getBoard(dir, board!.id);
+    while (
+      current?.tasks.find((task) => task.origin?.taskId === 'f9-ship')?.status !== 'completed' &&
+      Date.now() < deadline
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      current = await getBoard(dir, board!.id);
+    }
+
+    expect(current?.tasks.find((task) => task.origin?.taskId === 'f9-ship')?.status).toBe(
+      'completed',
+    );
+    // The failure channel still exists and still reports real breakage — it
+    // simply has nothing to report for an ordinary shrink.
+    expect(takeSessionMirrorFailure(dir, 'mirror-shrink')).toBeUndefined();
+  });
+
+  it('recovers a board already wedged by a stale requirement scope', async () => {
+    const board = await projectSessionTodosToKanban(
+      dir,
+      [{ id: 'keep', content: 'Keep', status: 'pending' }],
+      'stale-scope',
+    );
+    const boardId = board?.id ?? '';
+    const kanbanPath = getKanbanPath(dir, boardId);
+    const raw = JSON.parse(await fs.readFile(kanbanPath, 'utf8')) as Record<string, unknown>;
+    raw['requirementScopes'] = [
+      {
+        graphId: 'todo:stale-scope',
+        specId: 'todo:stale-scope',
+        sourceSystem: 'session-todo',
+        requirementIds: ['todo:stale-scope:keep', 'todo:stale-scope:vanished'],
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+    raw['requiredRequirementIds'] = ['todo:stale-scope:keep', 'todo:stale-scope:vanished'];
+    await fs.writeFile(kanbanPath, JSON.stringify(raw), 'utf8');
+
+    const resynced = await projectSessionTodosToKanban(
+      dir,
+      [{ id: 'keep', content: 'Keep', status: 'completed' }],
+      'stale-scope',
+    );
+
+    // A scope entry that outlived its declaration used to fail every later
+    // projection for the whole session. It is now re-stated from the live
+    // snapshot, so the board heals on the next update instead of staying frozen.
+    expect(resynced?.requiredRequirementIds).toEqual(['todo:stale-scope:keep']);
+    expect(resynced?.tasks.find((task) => task.origin?.taskId === 'keep')?.status).toBe(
+      'completed',
+    );
+  });
+
+  it('enforces board retention on session start', async () => {
+    // Every session mirror is created with a 7-day `archive_after_ttl` policy,
+    // but nothing in production ever ran the sweep, so expired boards piled up
+    // forever. Session start is the shared entry point that now triggers it.
+    const stale = await ensureSessionKanbanBoard(dir, 'expired-session');
+    // An *empty* stale board is already removed outright by the pre-existing
+    // cleanup pass, so retention only ever governs boards that still hold
+    // cards. Give it one so this exercises the sweep and not the cleanup.
+    await addTask(dir, stale!.id, { title: 'Finished long ago' });
+    const stalePath = getKanbanPath(dir, stale!.id);
+    const raw = JSON.parse(await fs.readFile(stalePath, 'utf8')) as Record<string, unknown>;
+    raw['updatedAt'] = '2020-01-01T00:00:00.000Z';
+    await fs.writeFile(stalePath, JSON.stringify(raw), 'utf8');
+
+    const context = {
+      projectRoot: dir,
+      todos: [],
+      meta: {},
+      session: { id: 'fresh-session' },
+      state: { onChange: () => () => undefined, replaceTodos: () => undefined },
+    } as never as Context;
+    await hydrateSessionKanban(context);
+
+    // The sweep is detached so it cannot delay the session becoming ready.
+    const deadline = Date.now() + 5_000;
+    let swept = await getBoard(dir, stale!.id);
+    while (swept?.kind !== 'archive' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      swept = await getBoard(dir, stale!.id);
+    }
+    expect(swept?.kind).toBe('archive');
+    expect(swept?.retention?.archivedAt).toBeTruthy();
+
+    // The live session's own board is untouched — retention is about age, and
+    // archiving the board a session just created would be self-defeating.
+    const live = (await listBoards(dir)).find((candidate) =>
+      candidate.tags?.includes('session:fresh-session'),
+    );
+    expect(live).toBeTruthy();
+    expect((await getBoard(dir, live!.id))?.kind).toBe('session_mirror');
+  });
+
+  it('orders projected work by dependency and priority, not creation time', async () => {
+    const board = await createBoard(dir, {
+      title: 'Ordering',
+      columns: [{ id: 'todo', title: 'Todo', order: 0, wipLimit: 0 }],
+    });
+    // Created first, but depends on the card created last.
+    const last = await addTask(dir, board.id, { title: 'Ship', priority: 'critical' });
+    const first = await addTask(dir, board.id, { title: 'Build', priority: 'low' });
+    const middle = await addTask(dir, board.id, { title: 'Test', priority: 'medium' });
+    await addDependency(dir, board.id, last!.task.id, first!.task.id);
+    await addDependency(dir, board.id, middle!.task.id, first!.task.id);
+
+    const current = await getBoard(dir, board.id);
+    const ordered = orderTasksForTodos(current!, current!.tasks).map((task) => task.title);
+
+    // Build has no dependencies so it leads despite being 'low' and created
+    // second; Ship and Test only become available afterwards, and among them
+    // 'critical' outranks 'medium'.
+    expect(ordered).toEqual(['Build', 'Ship', 'Test']);
+  });
+
+  it('carries the blocking reason onto the projected todo row', async () => {
+    const board = await createBoard(dir, {
+      title: 'Blocking',
+      columns: [{ id: 'todo', title: 'Todo', order: 0, wipLimit: 0 }],
+    });
+    const blocker = await addTask(dir, board.id, { title: 'Migrate schema' });
+    const blocked = await addTask(dir, board.id, { title: 'Backfill rows' });
+    await addDependency(dir, board.id, blocked!.task.id, blocker!.task.id);
+
+    const current = await getBoard(dir, board.id);
+    const target = current!.tasks.find((task) => task.id === blocked!.task.id);
+    expect(blockingTitles(current!, target!)).toEqual(['Migrate schema']);
+
+    // An unblocked card reports nothing, so the field never adds noise.
+    const leader = current!.tasks.find((task) => task.id === blocker!.task.id);
+    expect(blockingTitles(current!, leader!)).toEqual([]);
+  });
+
+  it('bounds terminal cards on a live session mirror without dropping open work', async () => {
+    const board = await ensureSessionKanbanBoard(dir, 'growth-session');
+    for (let index = 0; index < 12; index++) {
+      const created = await addTask(dir, board!.id, { title: `Old ${index}` });
+      await updateTask(dir, board!.id, created!.task.id, { status: 'completed' });
+    }
+    const open = await addTask(dir, board!.id, { title: 'Still open' });
+
+    const result = await compactSessionMirrorBoard(dir, board!.id, { limit: 5 });
+    expect(result?.removedTaskIds).toHaveLength(7);
+
+    const after = await getBoard(dir, board!.id);
+    // Open work always survives, and exactly the retention window of terminal
+    // cards remains.
+    expect(after?.tasks.find((task) => task.id === open!.task.id)).toBeTruthy();
+    expect(after?.tasks.filter((task) => task.status === 'completed')).toHaveLength(5);
+  });
+
+  it('never compacts a durable project board', async () => {
+    const board = await createBoard(dir, { title: 'Durable project work' });
+    for (let index = 0; index < 6; index++) {
+      const created = await addTask(dir, board.id, { title: `Done ${index}` });
+      await updateTask(dir, board.id, created!.task.id, { status: 'completed' });
+    }
+
+    const result = await compactSessionMirrorBoard(dir, board.id, { limit: 1 });
+    expect(result?.removedTaskIds ?? []).toHaveLength(0);
+    expect((await getBoard(dir, board.id))?.tasks).toHaveLength(6);
   });
 
   it('projects a final completed todo into Done instead of leaving it in Todo', async () => {
@@ -186,6 +396,69 @@ describe('unified session kanban', () => {
 
     expect(current?.tasks.find((task) => task.origin?.taskId === 'burst')?.title).toBe('state-249');
     expect(current?.revision).toBeLessThanOrEqual((board?.revision ?? 0) + 2);
+  });
+
+  it('retains a skipped completion snapshot before removing the resolved requirement', async () => {
+    const sessionId = 'resolved-coalescing-session';
+    const board = await projectSessionTodosToKanban(
+      dir,
+      [
+        { id: 'keep', content: 'Keep working', status: 'pending' },
+        { id: 'f8-test-typecheck', content: 'Run verification', status: 'pending' },
+      ],
+      sessionId,
+    );
+    const boardPath = getKanbanPath(dir, board!.id);
+    const lockPath = path.join(path.dirname(boardPath), `.${path.basename(boardPath)}.lock`);
+    const lock = await fs.open(lockPath, 'wx');
+    await lock.writeFile(`${process.pid}:${Date.now()}`);
+
+    mirrorSessionTodosToKanban(
+      dir,
+      [
+        { id: 'keep', content: 'Keep working', status: 'pending' },
+        { id: 'f8-test-typecheck', content: 'Run verification', status: 'pending' },
+      ],
+      sessionId,
+    );
+    mirrorSessionTodosToKanban(
+      dir,
+      [
+        { id: 'keep', content: 'Keep working', status: 'in_progress' },
+        { id: 'f8-test-typecheck', content: 'Run verification', status: 'completed' },
+      ],
+      sessionId,
+    );
+    mirrorSessionTodosToKanban(
+      dir,
+      [{ id: 'keep', content: 'Keep working', status: 'in_progress' }],
+      sessionId,
+    );
+
+    await lock.close();
+    await fs.unlink(lockPath);
+
+    let current = await getBoard(dir, board!.id);
+    const deadline = Date.now() + 5_000;
+    while (
+      current?.tasks.find((task) => task.origin?.taskId === 'f8-test-typecheck')?.status !==
+        'archived' &&
+      Date.now() < deadline
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      current = await getBoard(dir, board!.id);
+    }
+
+    expect(current?.tasks.find((task) => task.origin?.taskId === 'f8-test-typecheck')?.status).toBe(
+      'archived',
+    );
+    expect(
+      current?.requirementScopes?.find((scope) => scope.graphId === `todo:${sessionId}`),
+    ).not.toEqual(
+      expect.objectContaining({
+        requirementIds: expect.arrayContaining([`todo:${sessionId}:f8-test-typecheck`]),
+      }),
+    );
   });
 
   it('cleans only inactive, empty, system-owned session boards', async () => {

@@ -16,6 +16,9 @@ const B = 0.75;
  * else (including underscores) becomes a separator. Built via the RegExp
  * constructor to avoid quoting fragility in automated edit tooling.
  */
+// The constructor form is deliberate: a literal here embeds a bare apostrophe
+// that automated edit tooling has repeatedly mangled.
+// biome-ignore lint/complexity/useRegexLiterals: keep the escaped-string form
 const TOKENISE_RE = new RegExp('[^\\p{L}\\p{N}$\']', 'gu');
 
 interface Bm25Doc {

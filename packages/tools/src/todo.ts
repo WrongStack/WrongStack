@@ -7,9 +7,14 @@ import {
   setPlanItemStatus,
 } from '@wrongstack/core/storage';
 import type { Tool } from '@wrongstack/core/types';
-import { getBoard, type KanbanBoard, type KanbanTask } from '@wrongstack/kanban';
+import { addTask, getBoard, type KanbanBoard, type KanbanTask } from '@wrongstack/kanban';
 import { kanbanTool } from './kanban.js';
-import { applyManagedKanbanBoardToTodos, mirrorSessionTodosToKanban } from './session-kanban.js';
+import {
+  applyManagedKanbanBoardToTodos,
+  blockingTitles,
+  mirrorSessionTodosToKanban,
+  takeSessionMirrorFailure,
+} from './session-kanban.js';
 
 interface TodoInput {
   todos: TodoItem[];
@@ -82,10 +87,84 @@ function bindTodosToBoard(
       available.find((task) => !used.has(task.id) && normalizedTitle(task.title) === title),
     ];
     const task = candidates.find((candidate) => candidate && !used.has(candidate.id));
-    if (!task) return { ...item };
+    if (!task) {
+      const { blockedBy: _discarded, ...rest } = item;
+      return { ...rest };
+    }
     used.add(task.id);
-    return { ...item, kanbanBoardId: board.id, kanbanTaskId: task.id };
+    // `blockedBy` is board-derived, never model-supplied: recompute it here so
+    // a stale or invented value in the request cannot mask real blocking.
+    const blockedBy = blockingTitles(board, task);
+    return {
+      ...item,
+      kanbanBoardId: board.id,
+      kanbanTaskId: task.id,
+      ...(blockedBy.length ? { blockedBy } : { blockedBy: undefined }),
+    };
   });
+}
+
+/**
+ * Refuse to start work whose dependencies are unmet.
+ *
+ * `start_task` already rejects a blocked card, but it did so *after* the row
+ * was recorded as `in_progress` — leaving the list claiming work had begun
+ * while the board never moved. Demote here so the two surfaces cannot
+ * disagree, and say why.
+ */
+function demoteBlockedInProgress(items: TodoItem[], warnings: string[]): TodoItem[] {
+  return items.map((item) => {
+    if (item.status !== 'in_progress' || !item.blockedBy?.length) return item;
+    warnings.push(
+      `"${item.content}" cannot start yet — it waits on: ${item.blockedBy.join('; ')}. ` +
+        'Kept as pending; complete the blocking work first.',
+    );
+    return { ...item, status: 'pending' as const };
+  });
+}
+
+/**
+ * Open real cards for rows a managed board has no task for.
+ *
+ * The board is the authority on state, but the compact list is where new work
+ * gets discovered mid-run. Previously an unmatched row was only reported as
+ * "did not match a real Kanban task and was not applied" — so work the model
+ * added during a run never reached the board, and the user saw a todo that no
+ * card would ever track. Creating the card keeps the two surfaces total.
+ *
+ * Returns the todoId -> new taskId bindings so the caller can attach them
+ * directly rather than re-deriving them from a title match.
+ */
+async function createMissingManagedCards(
+  items: readonly TodoItem[],
+  board: KanbanBoard,
+  ctx: Context,
+  warnings: string[],
+): Promise<Map<string, string>> {
+  const created = new Map<string, string>();
+  for (const item of items) {
+    if (item.kanbanBoardId === board.id && item.kanbanTaskId) continue;
+    try {
+      // A managed board rejects a card without a description, so derive one
+      // rather than letting creation fail and silently drop the row.
+      const result = await addTask(ctx.projectRoot, board.id, {
+        title: item.content,
+        description: item.activeForm?.trim() || `Added from the session todo list: ${item.content}`,
+      });
+      if (!result) {
+        warnings.push(`Could not open a Kanban card for "${item.content}": board not found.`);
+        continue;
+      }
+      created.set(item.id, result.task.id);
+    } catch (error) {
+      warnings.push(
+        `Could not open a Kanban card for "${item.content}": ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+  return created;
 }
 
 async function synchronizeManagedKanban(
@@ -133,6 +212,22 @@ async function synchronizeManagedKanban(
       author: actor,
       transitionComment: `Todo returned to queue: ${item.content}`,
     });
+  }
+
+  // Done is terminal on a managed board — transitions out of it are refused by
+  // design. A row that demotes a completed card therefore cannot be honoured,
+  // and the next board projection silently restores it to completed. Report the
+  // contradiction rather than letting the two surfaces quietly disagree.
+  for (const item of items) {
+    if (item.status === 'completed' || item.kanbanBoardId !== board.id || !item.kanbanTaskId) {
+      continue;
+    }
+    const task = board.tasks.find((candidate) => candidate.id === item.kanbanTaskId);
+    if (task?.status !== 'completed') continue;
+    warnings.push(
+      `"${item.content}" is already Done on the Kanban board and a completed card cannot be reopened; ` +
+        'the row stays completed. Create a follow-up card for any remaining work.',
+    );
   }
 
   for (const item of items) {
@@ -326,29 +421,50 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
       }
     }
     const boardId = activeBoardId(items, ctx);
-    const board = boardId ? await getBoard(ctx.projectRoot, boardId) : null;
-    const boundItems =
-      board?.lifecycle?.mode === 'managed'
-        ? bindTodosToBoard(items, ctx.todos ?? [], board)
-        : items;
+    let board = boardId ? await getBoard(ctx.projectRoot, boardId) : null;
+    const managed = board?.lifecycle?.mode === 'managed';
+    let boundItems = managed && board ? bindTodosToBoard(items, ctx.todos ?? [], board) : items;
+
+    // Rows that still resolve to no card are new work, not noise. Open cards
+    // for them and bind directly to the returned ids — never by re-running the
+    // title match, which is exactly the fuzzy step this avoids.
+    const creationWarnings: string[] = [];
+    if (managed && board) {
+      const managedBoardId = board.id;
+      const created = await createMissingManagedCards(boundItems, board, ctx, creationWarnings);
+      if (created.size > 0) {
+        boundItems = boundItems.map((item) => {
+          const taskId = created.get(item.id);
+          return taskId ? { ...item, kanbanBoardId: managedBoardId, kanbanTaskId: taskId } : item;
+        });
+        board = (await getBoard(ctx.projectRoot, managedBoardId)) ?? board;
+        boundItems = bindTodosToBoard(boundItems, ctx.todos ?? [], board);
+      }
+      boundItems = demoteBlockedInProgress(boundItems, creationWarnings);
+    }
     ctx.state.replaceTodos(boundItems);
 
     const kanbanSync =
-      board?.lifecycle?.mode === 'managed'
+      managed && board
         ? await synchronizeManagedKanban(boundItems, board, ctx, call.signal)
         : { synced: 0, warnings: [] as string[] };
-    if (board?.lifecycle?.mode === 'managed') {
+    kanbanSync.warnings.unshift(...creationWarnings);
+    if (managed && board) {
       const unresolved = boundItems.filter(
         (item) => item.kanbanBoardId !== board.id || !item.kanbanTaskId,
       );
       if (unresolved.length > 0) {
         kanbanSync.warnings.push(
-          `${unresolved.length} Todo row(s) did not match a real Kanban task and were not applied. Preserve kanbanBoardId/kanbanTaskId when updating the projection.`,
+          `${unresolved.length} Todo row(s) could not be bound to a Kanban task and were not applied. Preserve kanbanBoardId/kanbanTaskId when updating the projection.`,
         );
       }
     }
+    // A rejected background mirror leaves the board silently behind the list.
+    // Drain it here so the divergence is reported where it is actionable.
+    const mirrorFailure = takeSessionMirrorFailure(ctx.projectRoot, ctx.session?.id ?? '');
+    if (mirrorFailure) kanbanSync.warnings.push(mirrorFailure);
     let projectedBoard = board;
-    if (board?.lifecycle?.mode === 'managed') {
+    if (managed && board) {
       const refreshed = await getBoard(ctx.projectRoot, board.id);
       if (refreshed) {
         projectedBoard = refreshed;
@@ -362,7 +478,7 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     // Fire-and-forget: the mirror is observational and must not block the tool
     // response (or consume the tool's timeout budget) waiting on kanban file
     // locks that may be held by other agents.
-    if (board?.lifecycle?.mode !== 'managed') {
+    if (!managed) {
       mirrorSessionTodosToKanban(ctx.projectRoot, items, ctx.session?.id ?? 'session');
     }
 

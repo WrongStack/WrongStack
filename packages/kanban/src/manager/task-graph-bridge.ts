@@ -207,16 +207,38 @@ function assertDeclaredRequirementCoverage(graph: TaskGraph): void {
   throw new Error(`Task graph requirement coverage is invalid: ${problems.join('; ')}.`);
 }
 
+function writeRequirementScopes(
+  board: KanbanBoard,
+  scopes: NonNullable<KanbanBoard['requirementScopes']>,
+): void {
+  board.requirementScopes = scopes;
+  board.requiredRequirementIds = uniqueStrings(
+    scopes.flatMap((candidate) => candidate.requirementIds),
+  );
+}
+
 function applyDeclaredRequirementScope(
   board: KanbanBoard,
   graph: TaskGraph,
   sourceSystem: string,
   allowShrink: boolean,
 ): void {
-  if (graph.requiredRequirementIds === undefined) return;
-  const nextIds = uniqueStrings(graph.requiredRequirementIds);
   const scopes = [...(board.requirementScopes ?? [])];
   const index = scopes.findIndex((scope) => scope.graphId === graph.id);
+
+  // A graph that declares no scope is not spec-backed — observational session
+  // mirrors and ad-hoc imports have no requirement contract to uphold. Release
+  // any scope it registered under an older declaration instead of returning
+  // early: a stored scope that outlives its declaration makes every later sync
+  // fail the shrink guard below forever, silently freezing the board.
+  if (graph.requiredRequirementIds === undefined) {
+    if (index < 0) return;
+    scopes.splice(index, 1);
+    writeRequirementScopes(board, scopes);
+    return;
+  }
+
+  const nextIds = uniqueStrings(graph.requiredRequirementIds);
   const previous = index >= 0 ? scopes[index] : undefined;
   if (previous && !allowShrink) {
     const next = new Set(nextIds);
@@ -245,10 +267,7 @@ function applyDeclaredRequirementScope(
   };
   if (index >= 0) scopes[index] = scope;
   else scopes.push(scope);
-  board.requirementScopes = scopes;
-  board.requiredRequirementIds = uniqueStrings(
-    scopes.flatMap((candidate) => candidate.requirementIds),
-  );
+  writeRequirementScopes(board, scopes);
 }
 
 export interface ExportKanbanBoardToTaskGraphOptions {

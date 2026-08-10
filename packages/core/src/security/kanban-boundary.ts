@@ -86,7 +86,17 @@ export async function evaluateToolKanbanBoundary(
     ? board.tasks.find((candidate) => candidate.id === identity.taskId)
     : undefined;
 
-  if (governanceRequired) {
+  // Governance is a property of the board, not merely of "some board being
+  // bound". Only a managed board can satisfy the checks below: it is the only
+  // kind with a lifecycle, a contract graph, and a running assignment. An
+  // observational board — a session mirror, an SDD mirror, a plain import —
+  // structurally cannot, and task-graph sync explicitly refuses to make one
+  // managed. Demanding governance from such a board produced an inescapable
+  // deadlock: every mutating tool blocked, with the only stated remedy
+  // (put the board in managed mode) unreachable by construction. Those boards
+  // still fall through to the boundary layers below, which is where their
+  // real, path-scoped policy lives.
+  if (governanceRequired && board.lifecycle?.mode === 'managed') {
     if (!identity.taskId) {
       return {
         decision: 'block',
@@ -115,10 +125,14 @@ export async function evaluateToolKanbanBoundary(
       };
     }
     if (task.lifecycle?.currentStage !== 'running' || task.assignment?.status !== 'running') {
+      const lifecycleStage = task.lifecycle?.currentStage ?? 'missing';
+      const assignmentStatus = task.assignment?.status ?? 'missing';
       return {
         decision: 'block',
         reason:
-          'Active card must be in Running with a live assignment before product mutation. Call kanban start_task after completing the required card details.',
+          `Active card must be in Running with a live assignment before product mutation ` +
+          `(lifecycle: ${lifecycleStage}; assignment: ${assignmentStatus}). ` +
+          'Call kanban start_task after completing the required card details.',
         boardId: board.id,
         taskId: task.id,
       };

@@ -11,7 +11,7 @@ import {
   recordUserIntentEvidence,
 } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
-import { hasOpenTodos } from '../utils/todos-format.js';
+import { formatTodosForModel, hasKanbanBoundTodos, hasOpenTodos } from '../utils/todos-format.js';
 import {
   estimateMessageTokens,
   estimateRequestTokens,
@@ -1089,7 +1089,12 @@ export function createAgentLoopHandler(
             queueLoopSteer(
               '[todo-reconciliation] The live todo/Kanban list still has open work, but you tried to end the turn without reconciling it. ' +
                 'Call the `todo` tool now with the complete current list. Mark work you actually finished as completed, put the one item you are actively working on in_progress, and leave the rest pending. ' +
-                'If the current item is genuinely unfinished, continue doing the work before answering; do not merely repeat the previous final response or emit <nextsteps>.',
+                'If the current item is genuinely unfinished, continue doing the work before answering; do not merely repeat the previous final response or emit <nextsteps>.\n' +
+                'Canonical live list:\n' +
+                formatTodosForModel(a.ctx.todos) +
+                (hasKanbanBoundTodos(a.ctx.todos)
+                  ? '\nEach <kanban board/task> binding must be resent verbatim as `kanbanBoardId`/`kanbanTaskId`; a row without it is not applied to its card.'
+                  : ''),
             );
             await a.extensions.runAfterIteration(a.ctx, i);
             continue;
