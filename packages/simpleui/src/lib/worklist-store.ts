@@ -13,6 +13,8 @@ export interface SimpleTodoItem {
   activeForm?: string | undefined;
   kanbanBoardId?: string | undefined;
   kanbanTaskId?: string | undefined;
+  /** Board-derived titles of the unfinished work this row waits on. */
+  blockedBy?: string[] | undefined;
 }
 
 export interface SimpleTaskItem {
@@ -102,6 +104,9 @@ export function parseSimpleTodos(value: unknown): SimpleTodoItem[] {
         ...(optionalString(item?.['kanbanTaskId']) && {
           kanbanTaskId: optionalString(item?.['kanbanTaskId']),
         }),
+        ...(Array.isArray(item?.['blockedBy']) && item['blockedBy'].length
+          ? { blockedBy: item['blockedBy'].flatMap((entry) => optionalString(entry) ?? []) }
+          : {}),
       },
     ];
   });

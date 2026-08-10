@@ -10,6 +10,8 @@ interface TodoItem {
   content: string;
   status: 'pending' | 'in_progress' | 'completed';
   activeForm?: string | undefined;
+  /** Board-derived titles of the unfinished work this row waits on. */
+  blockedBy?: string[] | undefined;
   kanbanBoardId?: string | undefined;
   kanbanTaskId?: string | undefined;
 }
@@ -130,6 +132,14 @@ export function TodosPanel(): React.ReactElement | null {
           )}
         >
           {label}
+          {/* The board computes readiness on every mutation. Without it here a
+              blocked row reads exactly like a ready one, and the next item is
+              picked by guesswork. */}
+          {todo.blockedBy?.length ? (
+            <span className="mt-0.5 block text-[11px] text-destructive">
+              {t('activity:todos.blockedBy', { work: todo.blockedBy.join('; ') })}
+            </span>
+          ) : null}
         </span>
         {!isManagedProjection && (
           <button

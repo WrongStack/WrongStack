@@ -950,7 +950,8 @@
     "removeTitle": "Eliminar tarea",
     "removeAria": "Eliminar \"{{content}}\"",
     "completedCount_one": "{{count}} completada",
-    "completedCount_other": "{{count}} completadas"
+    "completedCount_other": "{{count}} completadas",
+    "blockedBy": "Esperando a: {{work}}"
   },
   "task": {
     "start": "Iniciar",

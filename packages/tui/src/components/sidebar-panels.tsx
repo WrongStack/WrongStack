@@ -686,7 +686,9 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
                 : t.status === 'in_progress'
                   ? theme.accent
                   : theme.textMuted;
-            const label = t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
+            const base = t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
+            // Blocked work reads as ordinary pending work without its reason.
+            const label = t.blockedBy?.[0] ? `${base} — waiting on ${t.blockedBy[0]}` : base;
             return (
               <SidebarWorklistRow
                 key={t.id}

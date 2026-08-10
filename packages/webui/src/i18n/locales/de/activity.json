@@ -950,7 +950,8 @@
     "removeTitle": "Todo entfernen",
     "removeAria": "\"{{content}}\" entfernen",
     "completedCount_one": "{{count}} erledigt",
-    "completedCount_other": "{{count}} erledigt"
+    "completedCount_other": "{{count}} erledigt",
+    "blockedBy": "Wartet auf: {{work}}"
   },
   "task": {
     "start": "Starten",

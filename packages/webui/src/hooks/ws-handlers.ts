@@ -466,6 +466,8 @@ export function handleTodosUpdated(msg: WSServerMessage) {
       content: string;
       status: 'pending' | 'in_progress' | 'completed';
       activeForm?: string | undefined;
+      /** Board-derived titles of the unfinished work this row waits on. */
+      blockedBy?: string[] | undefined;
       kanbanBoardId?: string | undefined;
       kanbanTaskId?: string | undefined;
     }>;

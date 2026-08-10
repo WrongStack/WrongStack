@@ -382,11 +382,18 @@ function buildMissionRows(
   // the row's column width when the sidebar is narrow, so the full todo
   // content stays visible. Vertical overflow is owned by RightSidebar's
   // overflowY="hidden" viewport (and the scroll-controlled SidebarContent).
-  const rows = shown.map<MissionRow>((t) => ({
-    id: t.id,
-    status: t.status,
-    label: t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content,
-  }));
+  // A blocked row is still `pending`, so without the reason on the label it
+  // is indistinguishable from ready work. Appended rather than given its own
+  // line: the sidebar cards run on a fixed row budget.
+  const rows = shown.map<MissionRow>((t) => {
+    const base = t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
+    const blocker = t.blockedBy?.[0];
+    return {
+      id: t.id,
+      status: t.status,
+      label: blocker ? `${base} — waiting on ${blocker}` : base,
+    };
+  });
   return { rows, overflow: ordered.length - shown.length, done, total };
 }
 

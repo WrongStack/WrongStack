@@ -75,7 +75,10 @@ function todoItems(
     id: item.id,
     title: item.status === 'in_progress' && item.activeForm ? item.activeForm : item.content,
     status: item.status,
-    tone: statusTone(item.status),
+    // A blocked row is still `pending`; the reason is what the surface was
+    // missing, so it takes the detail line instead of the bare status word.
+    ...(item.blockedBy?.length ? { detail: `waiting on: ${item.blockedBy.join('; ')}` } : {}),
+    tone: item.blockedBy?.length ? ('blocked' as const) : statusTone(item.status),
     ...(item.status === 'pending'
       ? { complete: () => onStatusChange(item.id, 'completed') }
       : item.status === 'completed' && !(item.kanbanBoardId && item.kanbanTaskId)

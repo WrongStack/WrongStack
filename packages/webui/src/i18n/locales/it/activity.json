@@ -950,7 +950,8 @@
     "removeTitle": "Rimuovi attività",
     "removeAria": "Rimuovi \"{{content}}\"",
     "completedCount_one": "{{count}} completata",
-    "completedCount_other": "{{count}} completate"
+    "completedCount_other": "{{count}} completate",
+    "blockedBy": "In attesa di: {{work}}"
   },
   "task": {
     "start": "Avvia",

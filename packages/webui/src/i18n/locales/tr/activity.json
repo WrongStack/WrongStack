@@ -950,7 +950,8 @@
     "removeTitle": "Todo'yu kaldır",
     "removeAria": "\"{{content}}\" kaldır",
     "completedCount_one": "{{count}} tamamlandı",
-    "completedCount_other": "{{count}} tamamlandı"
+    "completedCount_other": "{{count}} tamamlandı",
+    "blockedBy": "Bekliyor: {{work}}"
   },
   "task": {
     "start": "Başlat",

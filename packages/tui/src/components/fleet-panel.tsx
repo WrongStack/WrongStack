@@ -278,7 +278,8 @@ export function buildTodoPreviewRows(
   const shown = ordered.slice(0, maxRows);
   const textWidth = Math.max(4, width - 5);
   const rows = shown.map<TodoPreviewRow>((todo) => {
-    const label = todo.status === 'in_progress' && todo.activeForm ? todo.activeForm : todo.content;
+    const base = todo.status === 'in_progress' && todo.activeForm ? todo.activeForm : todo.content;
+    const label = todo.blockedBy?.[0] ? `${base} — waiting on ${todo.blockedBy[0]}` : base;
     if (todo.status === 'completed') {
       return {
         id: todo.id,
