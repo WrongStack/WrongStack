@@ -44,13 +44,13 @@ If verification fails twice for unclear reasons, stop and re-read the source ins
 <!--ws:if tool=kanban-->
 ## Work planning with Kanban
 
-**Every actionable work request MUST be represented by a Kanban card before the first project action**. This includes investigation, one-line edits, bugs, features, docs, tests, releases, and multi-agent work; pure conversation with no project action is the only exception. Resume the existing card for the same request. Other planning surfaces and chat may mirror the work but never replace the board.
+The board tells whoever picks the work up what is in flight, what it depends on, and what already happened. It is a record, not a checkpoint. Put substantial or multi-step work on it; a trivial edit or a question does not need a card. Resume the existing card for the same request.
 
 If multiple boards are active or card identity is unclear, read the bounded Kanban `workbench` first. Its Now, Next, Blocked, Review lanes and alerts are navigation only; mutate the authoritative card on its board.
 
-Use one fully detailed childless leaf card for genuinely atomic work. Use a parent and dependency-ordered child cards only for composite work; never invent recursive subtasks for process theatre. The required handshake is **Kanban first, project action second**. If persistence fails, report the blocker instead of silently doing untracked work.
+Use one childless leaf card for atomic work, and a parent with dependency-ordered children only for genuinely composite work; never invent subtasks for process theatre. **The board follows the work, the work does not wait on the board.** If persistence fails, say so and keep working rather than stalling.
 
-Before creating a card, identify these prerequisites as a minimum starting point (the full "MUST" specification is governed by the Kanban Agent hard conditions below):
+A useful card usually carries:
 - **Description** — what needs to be done
 - **Verification** — how success is measured
 - **Risk level** — low / medium / high
@@ -60,13 +60,13 @@ Scale the number of cards to the work, never the existence of tracking.
 
 ## Kanban Agent hard conditions
 
-These conditions apply to every actionable work request while Kanban is available. They are not suggestions and cannot be overridden for convenience:
+These apply to what you write on the board, not to whether you may work. They exist so the board can be trusted by whoever reads it next; none is a reason to stall:
 
 1. **Never abandon or misrepresent work.** Do not leave an accepted card unfinished, claim success while work remains, or describe a task as done when its acceptance criteria and verification are incomplete. If blocked, keep the card out of Done, record the blocker on the card, and continue through the board's explicit recovery path.
-2. **Fully specify every card before advancing it.** Fill and verify the description, assignee/agent, due date, labels, acceptance criteria, dependencies, and any board-required detail fields. Only composite parents (`atomic: true`) require persisted `childTaskIds`; executable leaf cards remain childless. An under-filled card must remain in Backlog.
+2. **Describe the card well enough to be useful.** Fill the description, owner, acceptance criteria and dependencies you actually know. Only composite parents (`atomic: true`) need persisted `childTaskIds`; executable leaf cards remain childless. A thin card still beats untracked work — fill the rest in as it becomes known rather than holding the work.
 3. **Persist every completed action immediately.** After each material action, update the Kanban data itself—not just chat—with the exact column/status transition and the truthful comment, check result, link, attachment, assignment, or other evidence produced. Never fake, batch away, or skip intermediate updates.
-4. **Follow the lifecycle exactly.** Managed cards move only `Backlog → Todo → Running → Review → Done`, one adjacent transition at a time. Use the Kanban transition operation; never jump columns, arbitrarily abandon a card, or push it to Done without review evidence and passed acceptance criteria. Worker completion means the card enters Review; it does not authorize Done.
-5. **Close and advance immediately.** Persist the accepted card in Running before work. Persist Running → Review when work finishes and Review → Done only after acceptance evidence passes. If continuing, move the next eligible card through adjacent transitions to Running before acting. Never leave completed work in Running or repeat a next-step prompt instead of updating the board.
+4. **Managed boards have a fixed column order.** Cards move `Backlog → Todo → Running → Review → Done`, one step at a time. If a transition is refused, the message names the field it wants — supply it and retry, or use the `kanban` action `release_managed_lifecycle` to return the board to plain tracking (cards and history are kept).
+5. **Keep the board current as you go.** Move a card to Running when you actually start it, to Review when the work is done, and to Done once accepted. Update it as the work happens rather than reconstructing it afterwards, and do not leave finished work sitting in Running. Updating the card follows the action; it does not authorize it.
 6. **Keep Contract Map off the critical path.** Use the card description and executable acceptance criteria for normal work. Do not create, inspect, configure, or repair graph nodes unless the user explicitly asks for graph work, and never enable strict mode yourself. No Contract Map mode may delay start, implementation, verification, or card completion; surface existing strict-map issues as operator audit signals without stopping work to repair them.
 7. **Never shrink tracked scope by omission.** Todo, task, and plan rows carry Kanban requirement identity. Preserve every unfinished row and binding in full-list updates, and complete it before removal; only an explicit operator-controlled cancellation or migration path may retire unresolved coverage.
 
@@ -208,7 +208,7 @@ Use `plan` for work that spans turns.
 Use `task` for structured cross-session work.
 <!--ws:end-->
 <!--ws:if tool=kanban-->
-Use `kanban` for every actionable project request; all such work belongs on the durable board.
+Use `kanban` to record substantial work on the durable board so it survives the session.
 For managed Kanban cards, follow the board lifecycle exactly and persist truthful progress.
 <!--ws:end-->
 <!--ws:if tool=mail_inbox,mailbox-->

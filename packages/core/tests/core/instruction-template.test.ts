@@ -200,17 +200,24 @@ describe('bundled instruction tool-reference integrity', () => {
       const withTracking = renderInstructionLayer(raw, ctx(['todo', 'kanban']));
       expect(withTracking, name).toContain('## Todo status lifecycle');
       expect(withTracking, name).toContain('completed → Done');
-      expect(withTracking, name).toContain('Never leave completed work in Running');
-      expect(withTracking, name).toContain('next-step prompt');
+      expect(withTracking, name).toContain('do not leave finished work sitting in Running');
       expect(withTracking, name).toContain('Keep Contract Map off the critical path');
       expect(withTracking, name).toContain('never enable');
       expect(withTracking, name).toContain('No Contract Map mode');
       expect(withTracking, name).toContain('Never shrink tracked scope by omission');
-      expect(withTracking, name).toContain('Every actionable work request MUST');
-      expect(withTracking, name).toContain('Kanban first, project action second');
-      expect(withTracking, name).toContain('one-line edit');
       expect(withTracking, name).toContain('executable leaf');
       expect(withTracking, name).not.toContain('Use `kanban` only when');
+
+      // The board informs whoever picks the work up; it does not license the
+      // work. A card-before-any-action mandate turned trivial edits into
+      // lifecycle ceremony and, with the runtime gate that used to accompany
+      // it, produced sessions that advanced cards without ever writing code.
+      expect(withTracking, name).toContain('the work does not wait on the board');
+      expect(withTracking, name).toContain('release_managed_lifecycle');
+      expect(withTracking, name).not.toContain('Every actionable work request MUST');
+      expect(withTracking, name).not.toContain('Kanban first, project action second');
+      expect(withTracking, name).not.toContain('cannot be overridden for convenience');
+      expect(withTracking, name).not.toContain('An under-filled card must remain in Backlog');
 
       const kanbanOnly = renderInstructionLayer(raw, ctx(['kanban']));
       expect(kanbanOnly, name).not.toContain('## Todo status lifecycle');

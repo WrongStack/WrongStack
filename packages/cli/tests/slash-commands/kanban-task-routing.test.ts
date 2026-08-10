@@ -466,20 +466,21 @@ describe('/kanban task move — managed routing', () => {
     const board = managedBoardFixture();
     const { boardId, taskId } = await seedRunningTask(root, board, 'move-me card');
 
-    // Moving running → review requires a reviewer evidence attachment. The
-    // lifecycle guard enforces `validateReviewEvidence`; without an
-    // `--attachment <url>` the move must fail, surfacing the diagnostic
-    // and leaving the card in `running`.
+    // Review no longer demands an evidence URL: real work often has no
+    // artifact to link, and requiring one made Review a dead end whose only
+    // remedy was a field on the transition call itself. The substantive
+    // requirement — a recorded implementation result — still applies, and
+    // `seedRunningTask` persists one, so the move routes through
+    // `transitionTask` and lands on the mapped review column.
     const reviewColumnId = board.lifecycle!.columns.review;
     const result = await runKanban(root, `task move ${boardId} ${taskId} ${reviewColumnId}`);
 
     expect(result.message).toBeDefined();
-    expect(result.message).toMatch(/review|evidence|implementation/i);
 
     const after = await getBoard(root, boardId);
     const card = findTask(after!, 'move-me card');
-    expect(card.status).toBe('in_progress');
-    expect(card.columnId).toBe(board.lifecycle!.columns.running);
+    expect(card.status).toBe('review');
+    expect(card.columnId).toBe(reviewColumnId);
   });
 
   it('forwards --attachment + --note through transitionTask for managed move', async () => {

@@ -65,7 +65,7 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(withTools[0]?.text).toContain('## Kanban Agent hard conditions');
     expect(withTools[0]?.text).toContain('Never abandon or misrepresent work');
     expect(withTools[0]?.text).toContain('Backlog → Todo → Running → Review → Done');
-    expect(withTools[0]?.text).toContain('Worker completion means the card enters Review');
+    expect(withTools[0]?.text).toContain('Managed boards have a fixed column order');
     expect(withTools[0]?.text).toContain('### Codebase-first discovery');
     expect(withTools[0]?.text).not.toContain('codebase-stats/codebase-search');
     expect(withTools[0]?.text).toContain('call live `codebase-index`');
