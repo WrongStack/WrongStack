@@ -20,6 +20,7 @@ import {
   FleetTokenCapError,
 } from './director/director-errors.js';
 import type * as Host from './director-host-contracts.js';
+import { instantiateRosterConfig } from './director-input-helpers.js';
 import {
   buildKanbanFleetTaskPrompt,
   buildKanbanSubagentConfig,
@@ -29,14 +30,7 @@ import {
   resultToText,
 } from './director-kanban-queue-helpers.js';
 import { dispatchAgent } from './dispatcher.js';
-import { instantiateRosterConfig } from './director-input-helpers.js';
 
-export { makeQualityGateTool } from './director-quality-gate-tool.js';
-export {
-  makeCollabDebugTool,
-  makeFleetEmitTool,
-  makeWorkCompleteTool,
-} from './director-collab-tools.js';
 export {
   makeAskResultTool,
   makeAskTool,
@@ -47,7 +41,12 @@ export {
   makeTerminateAllTool,
   makeTerminateTool,
 } from './director-basic-tools.js';
-
+export {
+  makeCollabDebugTool,
+  makeFleetEmitTool,
+  makeWorkCompleteTool,
+} from './director-collab-tools.js';
+export { makeQualityGateTool } from './director-quality-gate-tool.js';
 
 // ---------------------------------------------------------------------------
 // Director-facing tool factories.
@@ -90,15 +89,15 @@ export function makeSpawnTool(
   const inputSchema: JSONSchema = {
     type: 'object',
     properties: {
-      role: {
-        type: 'string',
-        description:
-          'Roster role id. When set, the spawn uses the matching config from the roster and ignores other fields.',
-      },
       description: {
         type: 'string',
         description:
-          "Free-form task description. When `role` is not set, the director uses the smart dispatcher to route this to the best-matching catalog agent. Use this when you don't know the exact role name.",
+          'What the subagent has to do, in free form. PREFER THIS over `role`: the dispatcher scores it against the capability metadata of every agent in the roster and picks the specialist, which is more reliable than recalling a role id from a list of 77. Only reach for `role` when you are certain which one you want.',
+      },
+      role: {
+        type: 'string',
+        description:
+          'Roster role id. When set, the spawn uses the matching config from the roster, ignores other fields, and SKIPS DISPATCH ENTIRELY — so a half-remembered id silently costs you the specialist. Prefer `description` unless the id is certain.',
       },
       name: {
         type: 'string',
@@ -151,7 +150,7 @@ export function makeSpawnTool(
     description:
       'Create a new subagent under this director (own LLM context, own budget). NON-BLOCKING: returns a `subagentId` immediately without triggering any model call. Pair with `assign_task` to send work and `await_tasks` to retrieve the result later — this is the async-delegation pattern that lets the leader keep working while the subagent runs in its own context.',
     usageHint:
-      'Pass `role` (matches the roster), `description` (smart dispatch to best agent), or `name` + `provider`/`model`. Returns `{ subagentId }`. Use this instead of `delegate` when you want to fan out to multiple subagents or keep the leader unblocked while work runs in parallel.',
+      'Pass `description` (what the work is — dispatched to the best-matching specialist), or `role` when you are certain of the id, or `name` + `provider`/`model`. Returns `{ subagentId }`. The roster is deep and specialised: there is very likely an agent built for this exact job, so describe the work rather than defaulting to a generalist. Use this instead of `delegate` when you want to fan out to multiple subagents or keep the leader unblocked while work runs in parallel.',
     permission: 'auto',
     mutating: false,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],

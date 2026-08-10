@@ -3,6 +3,7 @@ import { SageCachePragmas } from '@wrongstack/core/utils';
 
 export const SQLITE_SCHEMA_VERSION = 5;
 export const LEGACY_JSONL_MIGRATION_KEY = 'legacy_jsonl_migrated';
+export const FTS_INDEX_INITIALIZED_KEY = 'fts_index_initialized';
 // The audit log is a recent activity trail, not a compliance record.
 export const AUDIT_LOG_MAX_ROWS = 1000;
 // Prune opportunistically so growth stays bounded without a DELETE on every insert.
@@ -71,12 +72,20 @@ export function initSchema(db: DatabaseSync): void {
     'CREATE INDEX IF NOT EXISTS idx_status_updated_id ON memories(status, updated_at DESC, id DESC)',
   );
 
+  let ftsAvailable = false;
   try {
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
         text, tags, audience, content='memories', content_rowid='rowid'
       );
     `);
+    ftsAvailable = true;
+  } catch {
+    // FTS5 unavailable; search will use LIKE fallback. Do not write the
+    // initialization marker so a later FTS-capable runtime retries.
+  }
+
+  if (ftsAvailable) {
     db.exec(`
       CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
         INSERT INTO memories_fts(rowid, text, tags, audience)
@@ -109,10 +118,55 @@ export function initSchema(db: DatabaseSync): void {
           COALESCE(new.audience, ''));
       END;
     `);
-  } catch {
-    // FTS5 unavailable; search will use LIKE fallback.
+    ensureFtsIndexInitialized(db);
   }
 
+  initRemainingSchema(db);
+}
+
+/**
+ * Backfill the external-content FTS index once after FTS5 first becomes
+ * available for a database. The schema can legitimately predate FTS support:
+ * initSchema() used to catch CREATE VIRTUAL TABLE failures and continue with
+ * LIKE search, leaving existing memories unindexed when a later runtime added
+ * FTS5.
+ *
+ * The marker is committed in the same transaction as the rebuild. A process
+ * that cannot create/use FTS never writes it, so a later capable runtime
+ * retries. Rechecking after BEGIN IMMEDIATE makes concurrent initializers a
+ * single-writer no-op after the first successful rebuild.
+ */
+function ensureFtsIndexInitialized(db: DatabaseSync): void {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const initialized = db
+      .prepare('SELECT value FROM schema_meta WHERE key = ?')
+      .get(FTS_INDEX_INITIALIZED_KEY);
+    if (!initialized) {
+      db.exec("INSERT INTO memories_fts(memories_fts) VALUES('delete-all')");
+      db.exec(`
+        INSERT INTO memories_fts(rowid, text, tags, audience)
+        SELECT rowid,
+          CASE
+            WHEN json_valid(data) THEN COALESCE(json_extract(data, '$.text'), '')
+            ELSE ''
+          END,
+          COALESCE(tags, ''),
+          COALESCE(audience, '')
+        FROM memories
+      `);
+      db.prepare(
+        'INSERT INTO schema_meta (key, value) VALUES (?, 1) ON CONFLICT(key) DO UPDATE SET value = 1',
+      ).run(FTS_INDEX_INITIALIZED_KEY);
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+function initRemainingSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS edges (
       from_node TEXT NOT NULL,

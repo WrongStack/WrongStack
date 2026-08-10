@@ -39,10 +39,10 @@
  *
  * @public
  */
-import type { Plugin } from '@wrongstack/core/types';
+import type { Plugin, PluginAPI } from '@wrongstack/core/types';
 
 // ---------------------------------------------------------------------------
-// Module-scope state (H1 audit pattern)
+// Per-host state
 // ---------------------------------------------------------------------------
 
 interface PathGuardState {
@@ -53,13 +53,12 @@ interface PathGuardState {
   hookUnregister: null | (() => void);
 }
 
-const state: PathGuardState = {
-  invocations: 0,
-  blocks: 0,
-  warns: 0,
-  lastBlock: null,
-  hookUnregister: null,
-};
+function createState(): PathGuardState {
+  return { invocations: 0, blocks: 0, warns: 0, lastBlock: null, hookUnregister: null };
+}
+
+const states = new WeakMap<PluginAPI, PathGuardState>();
+let latestState = createState();
 
 // ---------------------------------------------------------------------------
 // Config
@@ -1769,19 +1768,19 @@ const plugin: Plugin = {
   },
 
   setup(api) {
-    // Idempotent re-init (H1 pattern).
-    state.invocations = 0;
-    state.blocks = 0;
-    state.warns = 0;
-    state.lastBlock = null;
-    if (state.hookUnregister) {
+    // Re-initializing the same host replaces only that host's hook. Distinct
+    // PluginAPI instances may coexist without unregistering each other.
+    const previous = states.get(api);
+    if (previous?.hookUnregister) {
       try {
-        state.hookUnregister();
+        previous.hookUnregister();
       } catch {
         // best-effort
       }
-      state.hookUnregister = null;
     }
+    const state = createState();
+    states.set(api, state);
+    latestState = state;
 
     const cfg = readConfig(api.config.extensions?.['path-guard']);
     const protectRes = cfg.protect.map(compilePathGlob);
@@ -1960,6 +1959,8 @@ const plugin: Plugin = {
   },
 
   teardown(api) {
+    const state = states.get(api);
+    if (!state) return;
     if (state.hookUnregister) {
       try {
         state.hookUnregister();
@@ -1973,10 +1974,12 @@ const plugin: Plugin = {
     state.blocks = 0;
     state.warns = 0;
     state.lastBlock = null;
+    states.delete(api);
     api.log.info('path-guard: teardown complete', { final });
   },
 
   async health() {
+    const state = latestState;
     return {
       ok: true,
       message:

@@ -138,16 +138,39 @@ function managedLifecycleStage(
     task.lifecycle?.currentStage) as KanbanLifecycleStage | undefined;
 }
 
-function missingManagedDispatchDetails(task: KanbanTask): string[] {
+/**
+ * Required card details for a managed board, as a list of missing field names.
+ *
+ * Exported because `isTaskReadyForWork` needs the same verdict: it drives
+ * `counts.startable`, `listReadyTasks` and `claimReadyTask`, and it used to
+ * ignore card detail entirely — so a managed card missing its owner was
+ * advertised as claimable while `start_task` refused it with "not
+ * implementation-ready". Keep this in step with `validateRequiredCardDetails`
+ * (manager/lifecycle.ts) and `evaluateContractGraphReadiness`
+ * (contract-graph.ts); the agreement corpus in `task-classifier.test.ts` and
+ * `queue-startability-agreement.test.ts` hold all of them together.
+ */
+export function missingManagedDispatchDetails(task: KanbanTask): string[] {
   const missing: string[] = [];
   if (!hasText(task.description)) missing.push('description');
-  if (![task.assignee, task.assignedAgent, task.assignment?.agentId, task.assignment?.name].some(hasText)) {
+  if (
+    ![task.assignee, task.assignedAgent, task.assignment?.agentId, task.assignment?.name].some(
+      hasText,
+    )
+  ) {
     missing.push('assignee');
   }
-  if (!hasText(task.dueDate) || !Number.isFinite(Date.parse(task.dueDate))) missing.push('dueDate');
-  if (!task.labels?.some(hasText)) missing.push('labels');
+  // `dueDate` and `labels` are deliberately absent — see the reasoning in
+  // `validateRequiredCardDetails` (manager/lifecycle.ts). They are not required
+  // to leave Backlog, so requiring them here reported a card as
+  // `detail_incomplete` while `isTaskReadyForWork`, `listReadyTasks` and
+  // `start_task` all accepted it. The Kanban Cleaner still surfaces both as
+  // advisory warnings; this is the blocking path and must agree with lifecycle.
   if (task.atomic && !task.childTaskIds?.some(hasText)) missing.push('childTaskIds');
-  if (!task.successCriteria?.length || task.successCriteria.some((check) => !hasText(check.description))) {
+  if (
+    !task.successCriteria?.length ||
+    task.successCriteria.some((check) => !hasText(check.description))
+  ) {
     missing.push('successCriteria');
   }
   return missing;

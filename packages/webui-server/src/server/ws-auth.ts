@@ -55,9 +55,10 @@ function effectivePort(url: URL): string {
  * those origins could then open a tokenless socket here and drive the agent.
  *
  * The `Host` header carries the authority the browser actually connected to, so
- * comparing the Origin's port against it is a genuine same-origin test and needs
- * no extra plumbing. Both sides must still be loopback, and non-http(s) schemes
- * (file://, data://) are rejected outright.
+ * comparing the Origin hostname and effective port against it is the authority
+ * portion of a genuine same-origin test and needs no extra plumbing. Loopback
+ * aliases are deliberately distinct (`localhost` is not `127.0.0.1`), and
+ * non-http(s) schemes (file://, data://) are rejected outright.
  */
 function isTrustedLoopbackOrigin(origin: string, hostHeader: string | undefined): boolean {
   try {
@@ -70,7 +71,27 @@ function isTrustedLoopbackOrigin(origin: string, hostHeader: string | undefined)
     const hostUrl = new URL(`${url.protocol}//${host}`);
     if (!isLoopbackHostname(hostUrl.hostname)) return false;
 
-    return effectivePort(url) === effectivePort(hostUrl);
+    return (
+      normalizeHostname(url.hostname) === normalizeHostname(hostUrl.hostname) &&
+      effectivePort(url) === effectivePort(hostUrl)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** True only when a browser Origin names the exact request authority. */
+function originMatchesHost(origin: string, hostHeader: string | undefined): boolean {
+  try {
+    const originUrl = new URL(origin);
+    if (originUrl.protocol !== 'http:' && originUrl.protocol !== 'https:') return false;
+    const host = (hostHeader ?? '').trim();
+    if (!host) return false;
+    const requestUrl = new URL(`${originUrl.protocol}//${host}`);
+    return (
+      normalizeHostname(originUrl.hostname) === normalizeHostname(requestUrl.hostname) &&
+      effectivePort(originUrl) === effectivePort(requestUrl)
+    );
   } catch {
     return false;
   }
@@ -133,7 +154,9 @@ export function extractToken(url: string): string | undefined {
  *
  * Returns `undefined` if the cookie header is absent or malformed.
  */
-export function extractTokenFromCookie(cookieHeader: string | string[] | undefined): string | undefined {
+export function extractTokenFromCookie(
+  cookieHeader: string | string[] | undefined,
+): string | undefined {
   if (!cookieHeader) return undefined;
   const raw = Array.isArray(cookieHeader) ? cookieHeader.join('; ') : cookieHeader;
   let plain: string | undefined;
@@ -365,18 +388,25 @@ export function verifyClient(input: VerifyClientInput): boolean {
       // reached through a tunnel) the cookie is the intended credential and the
       // app is legitimately served from another origin, so the port comparison
       // does not apply there.
-      if (requireToken || !isLoopbackBind(wsHost)) return cookieTokenOk;
+      if (requireToken || !isLoopbackBind(wsHost)) {
+        return (
+          cookieTokenOk &&
+          (originMatchesHost(origin, hostHeader) || Boolean(allowCrossPortLoopbackCookie))
+        );
+      }
       if (!isTrustedLoopbackOrigin(origin, hostHeader)) {
         return Boolean(allowCrossPortLoopbackCookie) && cookieTokenOk;
       }
       return true;
     }
     // Non-loopback browser origins normally authenticate via the HttpOnly cookie
-    // set by `/ws-auth`. When an operator supplies a separate public WS URL, the
-    // cookie may not cross hostnames, so an explicit opt-in keeps URL-token auth
-    // available for that tunnel endpoint.
+    // set by `/ws-auth`, but cookies are not port-bound and SameSite does not
+    // enforce same-origin. Bind cookie auth to the exact request authority so a
+    // sibling host/port cannot drive this control plane through CSWSH. When an
+    // operator supplies a separate public WS URL, the cookie may not cross
+    // hostnames, so the explicit allowlisted URL-token path remains available.
     return (
-      cookieTokenOk ||
+      (cookieTokenOk && originMatchesHost(origin, hostHeader)) ||
       (Boolean(allowBrowserUrlToken) &&
         urlTokenOk &&
         allowedHostname(originHostname, allowedHostnames))

@@ -21,6 +21,7 @@ function breakdown(): ContextBreakdown {
         'tool-usage': 6_000,
         environment: 4_000,
         skills: 2_000,
+        glossary: 0,
         mode: 0,
         plan: 0,
         'leader-after-task': 0,

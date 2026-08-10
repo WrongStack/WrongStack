@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { missingRequiredRuntimeTools } from '@wrongstack/core/agent-catalog';
 import { WIDE_SUBAGENT_CAPABILITIES } from '@wrongstack/core/security';
+import { stripFrontmatter } from '@wrongstack/core/skills';
 import type { WebUIDispatchContext } from './boot/dispatch-webui.js';
 import type { ExecuteDeps } from './execute-deps.js';
 import { resolveKanbanDispatchRoute } from './kanban-dispatch-route.js';
@@ -32,15 +34,50 @@ export function createKanbanDispatchHandler({
     } = resolveKanbanDispatchRoute(config, spawnOpts);
     let agentDescription = description;
     if (spawnOpts?.skills?.length && skillLoader) {
-      const loaded = await Promise.all(
-        spawnOpts.skills.map(async (skillName) => {
+      // Every other skill-injection site gates on capabilities/tools and strips
+      // the YAML frontmatter (see `buildFleetAgentContext` in fleet/host-context.ts).
+      // This one did neither: it force-fed the raw file — frontmatter included —
+      // into the worker prompt, and threw the whole dispatch away when a single
+      // skill was missing. A skill is prompt seasoning; it must not decide
+      // whether the task runs.
+      const availableToolNames = spawnOpts.tools;
+      const loaded: string[] = [];
+      for (const skillName of spawnOpts.skills) {
+        try {
           const manifest = await skillLoader.find(skillName);
-          if (!manifest) throw new Error(`Kanban skill not found: ${skillName}`);
-          const body = await skillLoader.readBody(skillName);
-          return `## Required skill: ${skillName}\n\n${body}`;
-        }),
-      );
-      agentDescription = `${description}\n\n# Required agentic skill instructions\n\n${loaded.join('\n\n')}`;
+          if (!manifest) {
+            process.emitWarning(`Kanban dispatch skill not found, skipped: ${skillName}`, {
+              code: 'WRONGSTACK_KANBAN_SKILL_SKIPPED',
+            });
+            continue;
+          }
+          // Tool names are only known when the caller pinned them; an unpinned
+          // worker gets the default set, which cannot be checked from here.
+          if (
+            availableToolNames !== undefined &&
+            missingRequiredRuntimeTools(manifest.requiredTools, availableToolNames).length > 0
+          ) {
+            process.emitWarning(
+              `Kanban dispatch skill "${skillName}" needs tools this worker does not have, skipped.`,
+              { code: 'WRONGSTACK_KANBAN_SKILL_SKIPPED' },
+            );
+            continue;
+          }
+          const body = stripFrontmatter(await skillLoader.readBody(skillName)).trim();
+          if (!body) continue;
+          loaded.push(`## Required skill: ${skillName}\n\n${body}`);
+        } catch (err) {
+          process.emitWarning(
+            `Kanban dispatch skill "${skillName}" could not be loaded, skipped: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+            { code: 'WRONGSTACK_KANBAN_SKILL_SKIPPED' },
+          );
+        }
+      }
+      if (loaded.length > 0) {
+        agentDescription = `${description}\n\n# Required agentic skill instructions\n\n${loaded.join('\n\n')}`;
+      }
     }
     void (async () => {
       const built = await sddSubagentFactory({

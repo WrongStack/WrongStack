@@ -156,6 +156,25 @@ describe('tool Kanban boundary integration', () => {
       attempt: 1,
       maxAttempts: 3,
     });
+
+    await expect(
+      evaluateToolKanbanBoundary(
+        { name: 'write', mutating: true, capabilities: ['fs.write'] } as unknown as Tool,
+        { path: 'src/index.ts' },
+        {
+          projectRoot,
+          workingDir: projectRoot,
+          currentKanbanBoardId: board.id,
+          currentKanbanTaskId: taskId,
+          meta: {},
+        } as unknown as Context,
+        { requireGovernance: true },
+      ),
+    ).resolves.toMatchObject({
+      decision: 'block',
+      reason: expect.stringContaining('lifecycle: todo; assignment: running'),
+    });
+
     await transitionTask(projectRoot, board.id, taskId, {
       to: 'running',
       actor: 'agent-1',

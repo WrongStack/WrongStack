@@ -20,11 +20,11 @@ export const WEBUI_WS_MAX_BUFFERED_BYTES = 32 * 1024 * 1024;
  * A socket above the cap cannot be trusted to catch up: keeping it alive would
  * let `ws` retain every subsequent broadcast in memory.
  */
-export function sendSerialized(ws: WebSocket, data: string): boolean {
+export function sendSerialized(ws: WebSocket, data: string, frameBytes?: number): boolean {
   if (ws.readyState !== WebSocket.OPEN) return false;
   const buffered = Number.isFinite(ws.bufferedAmount) ? ws.bufferedAmount : 0;
-  const frameBytes = Buffer.byteLength(data, 'utf8');
-  if (buffered + frameBytes > WEBUI_WS_MAX_BUFFERED_BYTES) {
+  const bytes = frameBytes ?? Buffer.byteLength(data, 'utf8');
+  if (buffered + bytes > WEBUI_WS_MAX_BUFFERED_BYTES) {
     try {
       ws.terminate();
     } catch {
@@ -57,13 +57,11 @@ export function send(ws: WebSocket, msg: object): void {
  * Swallows per-socket send errors — a client that disconnected between the
  * readyState check and `ws.send()` is cleaned up by its own `close` handler.
  */
-export function broadcast(
-  clients: Map<WebSocket, ConnectedClient>,
-  msg: object,
-): void {
+export function broadcast(clients: Map<WebSocket, ConnectedClient>, msg: object): void {
   const data = JSON.stringify(msg);
+  const frameBytes = Buffer.byteLength(data, 'utf8');
   for (const [ws] of clients) {
-    sendSerialized(ws, data);
+    sendSerialized(ws, data, frameBytes);
   }
 }
 
@@ -124,7 +122,8 @@ export function buildWebUIAccessUrl(opts: {
   publicUrl?: string | undefined;
 }): string {
   const protocol = opts.protocol ?? 'http';
-  const base = opts.publicUrl?.trim() || `${protocol}://${hostForBrowserUrl(opts.host)}:${opts.port}`;
+  const base =
+    opts.publicUrl?.trim() || `${protocol}://${hostForBrowserUrl(opts.host)}:${opts.port}`;
   if (!opts.token) return base;
   try {
     const url = new URL(base);

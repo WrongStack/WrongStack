@@ -13,6 +13,7 @@ import type {
   KanbanEventContext,
   KanbanOrchestrationSnapshot,
   KanbanQueueHealth,
+  KanbanRecoveryMode,
   KanbanSearchInput,
   KanbanSearchResult,
   KanbanTask,
@@ -39,7 +40,7 @@ import {
   syncTaskColumnForStatus,
 } from './_internal.js';
 import { collectBoardsForHealth } from './board-health.js';
-import { getDependencyReadinessIssues } from './task-readiness.js';
+import { formatDependencyReadinessIssues, getDependencyReadinessIssues } from './task-readiness.js';
 
 /**
  * Staleness window for queued/running assignments that carry NO lease stamp
@@ -53,7 +54,7 @@ const STAMPLESS_ASSIGNMENT_STALE_MS = 10 * 60 * 1000;
 import { resolveKindFilter } from './board-kind-filter.js';
 import { getBoard, listBoards } from './boards.js';
 import { areDependenciesMet } from './dependencies.js';
-import { KanbanLifecycleError, StaleWriteError } from './lifecycle.js';
+import { KanbanLifecycleError, StaleWriteError, transitionTask } from './lifecycle.js';
 import { classifyTaskForQueue } from './task-classifier.js';
 
 let lastGlobalClaimBoardId: string | undefined;
@@ -202,13 +203,7 @@ export async function updateTaskAssignment(
     if (nextStatus === 'running') {
       const dependencyIssues = getDependencyReadinessIssues(board, task);
       if (dependencyIssues.length > 0) {
-        const details = dependencyIssues
-          .map((issue) =>
-            issue.status === 'missing'
-              ? `${issue.dependencyId} (missing)`
-              : `${issue.dependencyId} (${issue.taskStatus ?? 'incomplete'})`,
-          )
-          .join(', ');
+        const details = formatDependencyReadinessIssues(dependencyIssues);
         throw new KanbanLifecycleError(
           `Running requires every dependency to exist and be completed: ${details}.`,
           [
@@ -381,6 +376,30 @@ export async function recoverStaleTaskAssignments(
 ): Promise<RecoverStaleKanbanAssignmentsResult | null> {
   const recoveredTasks: KanbanTask[] = [];
   const events: KanbanEvent[] = [];
+  /**
+   * Managed cards whose lifecycle stage must be walked back after the board
+   * mutation commits. The recovery below clears the assignment but leaves the
+   * stage alone (the stage is authoritative on a managed board and a raw
+   * status→column sync would corrupt it). That left the card in Running with
+   * no assignment — which `classifyTaskForQueue` reads as `running_no_lease`,
+   * i.e. NOT claimable. The card was recovered into a state nothing could pick
+   * up again without a human running repair_managed_projection.
+   *
+   * `transitionTask` is itself a `mutateBoard` call and cannot be nested inside
+   * this closure, so the ids are collected here and walked back afterwards —
+   * the same sequential shape `completeKanbanDispatch` uses in dispatch.ts.
+   *
+   * Related: on a managed board the release/retry branches below clear
+   * `assignedAgent` but keep `assignee`. `assignee` is a REQUIRED card detail
+   * there — `validateRequiredCardDetails` demands it before Todo → Running —
+   * so deleting it walked the card back into a Todo it could never leave.
+   * (What survives is whatever last claimed the card: `assignTask` overwrites
+   * `assignee` with the worker's name when the caller does not pass one. That
+   * conflation of owner and worker predates this code; the point here is only
+   * that a required field must not be emptied by recovery.) On a legacy board
+   * `assignee` is purely the worker record, so there it is still cleared.
+   */
+  const managedNeedingRequeue: Array<{ taskId: string; mode: KanbanRecoveryMode }> = [];
   const requestedMode = input.mode ?? 'retry';
   const checkedAt = input.now ?? nowIso();
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -442,7 +461,7 @@ export async function recoverStaleTaskAssignments(
         delete task.assignment;
         if (input.clearAssignee !== false) {
           delete task.assignedAgent;
-          delete task.assignee;
+          if (!isManaged) delete task.assignee;
         }
         // Managed boards: keep the card in its current lifecycle stage
         // (e.g. 'running'). The lifecycle transition todo→running is
@@ -485,7 +504,7 @@ export async function recoverStaleTaskAssignments(
           delete task.assignment.agentId;
           if (input.clearAssignee !== false) {
             delete task.assignedAgent;
-            delete task.assignee;
+            if (!isManaged) delete task.assignee;
           }
           // Managed boards: retry keeps the card in its current lifecycle
           // stage. The task is re-queued for dispatch but does not move
@@ -506,6 +525,13 @@ export async function recoverStaleTaskAssignments(
       task.updatedAt = now;
       board.updatedAt = now;
       board.lastStaleRecoveredAt = now;
+      // Only a card sitting in Running needs walking back, and only when the
+      // work is meant to be attempted again. `fail` means the retry budget is
+      // spent — returning that card to Todo would hand it straight back to the
+      // next claimer and loop. It stays in Running for a human.
+      if (isManaged && mode !== 'fail' && task.lifecycle?.currentStage === 'running') {
+        managedNeedingRequeue.push({ taskId: task.id, mode });
+      }
       recoveredTasks.push({
         ...task,
         assignment: task.assignment ? { ...task.assignment } : undefined,
@@ -523,7 +549,31 @@ export async function recoverStaleTaskAssignments(
   if (updated) {
     for (const staleEvent of events) await emitKanbanEvent(projectRoot, staleEvent);
   }
-  return updated?.result ? { board: updated.board, tasks: updated.result } : null;
+  if (!updated?.result) return null;
+
+  // Walk recovered managed cards back to Todo so the queue can serve them
+  // again. Running → Todo is a legal single step backwards, and backward
+  // transitions skip the card-detail guard, so this cannot fail on a card that
+  // was already good enough to be dispatched. Best-effort: the recovery itself
+  // has already committed, and a failed walk-back leaves exactly the state that
+  // existed before this fix — recoverable with repair_managed_projection.
+  let board = updated.board;
+  for (const { taskId, mode } of managedNeedingRequeue) {
+    try {
+      const walked = await transitionTask(projectRoot, boardId, taskId, {
+        to: 'todo',
+        actor: 'kanban-supervisor',
+        comment: `Stale assignment recovered (${mode}); card returned to the work queue.`,
+      });
+      if (walked) board = walked.board;
+    } catch (error) {
+      process.stderr.write(
+        `[kanban] recoverStaleTaskAssignments: could not return task ${taskId} to Todo: ` +
+          `${error instanceof Error ? error.message : String(error)}\n`,
+      );
+    }
+  }
+  return { board, tasks: updated.result };
 }
 
 export async function claimReadyTask(
@@ -739,6 +789,9 @@ export async function getKanbanOrchestrationSnapshot(
  *     consumes).
  *   * `dependencyBlocked` deduplicates `counts.ready` — a task ready but
  *     blocked by dependencies only appears in the blocked bucket.
+ *   * `counts.ready` tallies the stored `status` field; `counts.startable` is
+ *     the derived "can be started now" count that agrees with
+ *     `listReadyTasks`. Display surfaces want `startable`.
  *   * `staleAssignments` and `heartbeatDue` use `now ?? real-wall-clock`;
  *     callers (notably the recovery loop) should pass an explicit
  *     timestamp so time is deterministic.
@@ -753,6 +806,14 @@ export async function getKanbanQueueHealth(
     heartbeatIntervalMs?: number;
     includeBoardKinds?: readonly KanbanBoardKind[];
     excludeBoardKinds?: readonly KanbanBoardKind[];
+    /**
+     * `classifications.diagnostics` carries one entry per non-clean task, which
+     * is the only channel telling an agent *why* a card is unclaimable — so it
+     * stays on by default. Pass `false` from surfaces that render counts and
+     * never read the reasons (the WebUI polls health every five seconds); the
+     * diagnostics array is the bulk of the payload.
+     */
+    includeClassifications?: boolean;
   } = {},
 ): Promise<KanbanQueueHealth> {
   const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 60_000;
@@ -769,6 +830,7 @@ export async function getKanbanQueueHealth(
 
   const counts = {
     ready: 0,
+    startable: 0,
     queued: 0,
     running: 0,
     review: 0,
@@ -810,7 +872,7 @@ export async function getKanbanQueueHealth(
       const result = { board: summary, task };
       const classification = classifyTaskForQueue(board, task, { now, heartbeatIntervalMs });
       classificationCounts[classification.bucket] += 1;
-      if (classification.reasons.length > 0) {
+      if (input.includeClassifications !== false && classification.reasons.length > 0) {
         classificationDiagnostics.push({
           boardId: board.id,
           taskId: task.id,
@@ -840,6 +902,9 @@ export async function getKanbanQueueHealth(
       } else {
         counts[task.status as keyof typeof counts] += 1;
       }
+      // Derived readiness, computed with the same predicate `listReadyTasks`
+      // uses, so the two surfaces cannot disagree about the same board.
+      if (isTaskReadyForWork(board, task)) counts.startable += 1;
       const readyButBlocked = task.status === 'ready' && dependencyUnmet;
       const pendingButBlocked = task.status === 'pending' && dependencyUnmet;
       if (readyButBlocked || pendingButBlocked) {
@@ -894,10 +959,14 @@ export async function getKanbanQueueHealth(
     staleAssignments: { count: staleAssignments.length, tasks: staleAssignments },
     failedRetryable: { count: failedRetryable.length, tasks: failedRetryable },
     heartbeatDue: { count: heartbeatDue.length, tasks: heartbeatDue },
-    classifications: {
-      counts: classificationCounts,
-      diagnostics: classificationDiagnostics,
-    },
+    ...(input.includeClassifications === false
+      ? {}
+      : {
+          classifications: {
+            counts: classificationCounts,
+            diagnostics: classificationDiagnostics,
+          },
+        }),
     ...(lastDispatchedAt !== undefined ? { lastDispatchedAt } : {}),
     ...(lastStaleRecoveredAt !== undefined ? { lastStaleRecoveredAt } : {}),
   };

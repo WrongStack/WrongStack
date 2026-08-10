@@ -52,20 +52,17 @@ import {
 import {
   loadProjectAgentLearningPolicy,
   type ProjectAgentLearningPolicy,
+  updateProjectAgentLearningPolicy,
 } from './project-agent-learning-policy.js';
 import {
+  directiveTrials,
   enforceLearnedBudget,
   mergeStructuredEntries,
   parseStructuredLearnedEntriesFromContent,
   renderLearnedInstructions,
   type StructuredLearnedEntry,
 } from './project-agent-learning-structured.js';
-import {
-  assertProjectAgentRole,
-  learningPolicyPath,
-  roleDir,
-  writeTextAtomically,
-} from './project-agent-paths.js';
+import { assertProjectAgentRole, roleDir, writeTextAtomically } from './project-agent-paths.js';
 import {
   listProjectSkillAugmentations,
   recordSkillLearned,
@@ -73,14 +70,94 @@ import {
   routeDirectiveToSkill,
 } from './project-agent-skill-layer.js';
 
-export { validateProjectAgentConfig } from './project-agent-config-validation.js';
-export { loadProjectAgentConfig } from './project-agent-config-io.js';
+export {
+  type AutoOptimizeDecision,
+  type AutoOptimizeEvent,
+  type AutoOptimizePolicy,
+  type AutoOptimizePolicyOverrides,
+  DEFAULT_AUTO_OPTIMIZE_POLICY,
+  evaluateAutoOptimize,
+  LearningOptimizationScheduler,
+  type LearningOptimizationSchedulerOptions,
+  resolveAutoOptimizePolicy,
+} from './project-agent-auto-optimize.js';
 export {
   CAPTURE_SESSION_WINDOW_MS,
   resetCaptureWindow,
   resetCaptureWindows,
 } from './project-agent-capture-window.js';
-export { CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION };
+export { loadProjectAgentConfig } from './project-agent-config-io.js';
+export { validateProjectAgentConfig } from './project-agent-config-validation.js';
+export {
+  buildConsolidationInstruction,
+  type ConsolidationMetadata,
+  clearProjectAgentConsolidated,
+  consolidatedDocumentPath,
+  isConsolidated,
+  loadConsolidationMetadata,
+  loadProjectAgentConsolidated,
+  readRawLearnedEntries,
+  type SaveConsolidationOptions,
+  saveProjectAgentConsolidated,
+} from './project-agent-consolidation.js';
+export {
+  DIRECTIVE_QUARANTINE_MAX_UTILITY,
+  DIRECTIVE_QUARANTINE_MIN_APPLIED,
+  type DirectiveOutcomeResult,
+  directiveWasApplied,
+  recordDirectiveOutcomes,
+} from './project-agent-directive-outcome.js';
+export type {
+  CreateProjectAgentInput,
+  LearnedCaptureResult,
+  ProjectAgentConfig,
+  ProjectAgentProfile,
+  RoleKnowledgeManifest,
+} from './project-agent-identity-types.js';
+export { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
+export {
+  classifyLearnedEntry,
+  LEARNED_ENTRY_MAX_CHARS,
+  LEARNED_HARD_LIMIT,
+  LEARNED_SOFT_LIMIT,
+  type LearnedEntryCategory,
+  normalizeLearnedEntry,
+} from './project-agent-learning-normalize.js';
+export {
+  loadProjectAgentLearningPolicy,
+  type ProjectAgentLearningPolicy,
+  recordProjectAgentOptimizePass,
+  updateProjectAgentLearningPolicy,
+} from './project-agent-learning-policy.js';
+export {
+  DIRECTIVE_PROVEN_MIN_APPLIED,
+  DIRECTIVE_PROVEN_MIN_UTILITY,
+  decomposeLearnedEntry,
+  directiveTrials,
+  directiveUtility,
+  enforceLearnedBudget,
+  isProvenDirective,
+  mergeStructuredEntries,
+  parseLearnedEntryStamp,
+  parseStructuredLearnedEntriesFromContent,
+  renderLearnedInstructions,
+  type StructuredLearnedEntry,
+} from './project-agent-learning-structured.js';
+export {
+  type LearningOptimizerLlm,
+  type OptimizeLearningOptions,
+  type OptimizeLearningResult,
+  optimizeProjectAgentLearning,
+  unwrapWholeDocumentFence,
+} from './project-agent-optimizer.js';
+export { assertProjectAgentRole } from './project-agent-paths.js';
+export {
+  type QuarantinedDirective,
+  quarantinePath,
+  readQuarantinedDirectives,
+  retiredDirectivesToWarnAbout,
+  scrubRetiredLines,
+} from './project-agent-quarantine.js';
 export {
   buildSkillDistillInstruction,
   clearProjectSkillAugmentation,
@@ -94,71 +171,15 @@ export {
   renderSkillAugmentation,
   resolveRoleSkillCandidates,
   routeDirectiveToSkill,
-  saveProjectSkillAugmentation,
-  setSkillPinned,
   SKILL_AUGMENTATION_MAX_BYTES,
+  SKILL_EVIDENCE_HALF_LIFE_DAYS,
   type SkillAffinity,
   type SkillAffinityEntry,
+  saveProjectSkillAugmentation,
+  scoreSkillAffinity,
+  setSkillPinned,
 } from './project-agent-skill-layer.js';
-export { readRawLearnedEntries, type SaveConsolidationOptions } from './project-agent-consolidation.js';
-export {
-  type AutoOptimizeDecision,
-  type AutoOptimizeEvent,
-  type AutoOptimizePolicy,
-  type AutoOptimizePolicyOverrides,
-  DEFAULT_AUTO_OPTIMIZE_POLICY,
-  evaluateAutoOptimize,
-  LearningOptimizationScheduler,
-  type LearningOptimizationSchedulerOptions,
-  resolveAutoOptimizePolicy,
-} from './project-agent-auto-optimize.js';
-export {
-  type LearningOptimizerLlm,
-  type OptimizeLearningOptions,
-  type OptimizeLearningResult,
-  optimizeProjectAgentLearning,
-  unwrapWholeDocumentFence,
-} from './project-agent-optimizer.js';
-export {
-  buildConsolidationInstruction,
-  type ConsolidationMetadata,
-  clearProjectAgentConsolidated,
-  isConsolidated,
-  loadConsolidationMetadata,
-  loadProjectAgentConsolidated,
-  saveProjectAgentConsolidated,
-} from './project-agent-consolidation.js';
-export type {
-  CreateProjectAgentInput,
-  LearnedCaptureResult,
-  ProjectAgentConfig,
-  ProjectAgentProfile,
-  RoleKnowledgeManifest,
-} from './project-agent-identity-types.js';
-export {
-  classifyLearnedEntry,
-  LEARNED_ENTRY_MAX_CHARS,
-  LEARNED_HARD_LIMIT,
-  LEARNED_SOFT_LIMIT,
-  type LearnedEntryCategory,
-  normalizeLearnedEntry,
-} from './project-agent-learning-normalize.js';
-export {
-  loadProjectAgentLearningPolicy,
-  type ProjectAgentLearningPolicy,
-  updateProjectAgentLearningPolicy,
-} from './project-agent-learning-policy.js';
-export {
-  decomposeLearnedEntry,
-  enforceLearnedBudget,
-  mergeStructuredEntries,
-  parseLearnedEntryStamp,
-  renderLearnedInstructions,
-  type StructuredLearnedEntry,
-} from './project-agent-learning-structured.js';
-export { assertProjectAgentRole } from './project-agent-paths.js';
-export { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
-export { parseStructuredLearnedEntriesFromContent } from './project-agent-learning-structured.js';
+export { CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -554,6 +575,7 @@ export function buildProjectContextualizedPrompt(
         `- **Generic** — no commit SHAs, timestamps, specific line numbers, or PR/issue numbers. File paths, package names, and command names are fine when they anchor the lesson.\n` +
         `- **Self-contained** — understandable without the surrounding session context.\n` +
         `- **Front-load concrete anchors** — commands in backticks, package names like \`@wrongstack/core\`, file paths like \`packages/core/src/.../foo.ts\`. The structured-list renderer extracts these as the "how" for the entry.\n\n` +
+        `**Your directives are scored against real outcomes.** After every task the runtime checks which stored directives were actually exercised — it matches their anchors against the report — and folds that task's success or failure into each one's record. A directive that keeps correlating with success outlives newer arrivals and survives rewording; one that has been exercised repeatedly and kept correlating with failure is retired and stops being injected. Two consequences for how you write them: anchors are what make a directive *measurable*, not just runnable, so an anchorless directive can never earn a record; and a directive you are unsure about costs nothing to write, because the loop will find out.\n\n` +
         `**Tag the skill you are developing.** When a directive refines one of your skills, mark it: \`## LEARNED [skill: testing]\`. Tagged directives are distilled into that skill's project addendum, so the lesson arrives as part of the skill itself on every future run instead of as a loose fact. Untagged directives are routed automatically when the wording makes the target obvious, and stay role-level otherwise.\n\n` +
         `**Bad** (session log — rejected at capture time):\n\n` +
         `\`\`\`\n## LEARNED\nWhen I worked on the telegram plugin today, commit 9c7682b84 had a race condition in poll-lock at line 42 because writeFileSync wasn't using the 'wx' flag.\n\`\`\`\n\n` +
@@ -730,6 +752,20 @@ export interface ProjectAgentLearnStats {
   skills: string[];
   /** Directives already routed to a skill and awaiting distillation. */
   skilledEntryCount: number;
+  /**
+   * How the buffer is actually performing, not just how big it is.
+   *
+   * `lifetimeCaptureCount` measures volume, which says nothing about whether
+   * the role is learning the right things. These three do:
+   * `provenEntryCount` is directives with a real track record, `deadEntryCount`
+   * is directives that have never been exercised at all (a high share means the
+   * agent is writing things nobody uses), and `directiveHitRate` is the share
+   * of applications that ended in a successful task.
+   */
+  appliedEntryCount: number;
+  deadEntryCount: number;
+  /** `null` until at least one directive has been exercised. */
+  directiveHitRate: number | null;
 }
 
 export function getProjectAgentLearnStats(
@@ -762,12 +798,19 @@ export function getProjectAgentLearnStats(
   const cooldownRemaining = lastTs ? Math.max(0, CAPTURE_COOLDOWN_MS - (Date.now() - lastTs)) : 0;
   const freq = window.count;
 
+  const trials = entries.map((entry) => directiveTrials(entry));
+  const totalApplied = trials.reduce((sum, trial) => sum + trial.applied, 0);
+  const totalWins = trials.reduce((sum, trial) => sum + trial.wins, 0);
+
   return {
     role,
     exists,
     entryCount: entries.length,
     skills: skillAugmentations,
     skilledEntryCount: entries.filter((entry) => entry.skill).length,
+    appliedEntryCount: trials.filter((trial) => trial.applied > 0).length,
+    deadEntryCount: trials.filter((trial) => trial.applied === 0).length,
+    directiveHitRate: totalApplied > 0 ? totalWins / totalApplied : null,
     totalBytes: Buffer.byteLength(learnedText, 'utf8'),
     lastCapture: lastTs ? new Date(lastTs).toISOString() : null,
     lastCaptureTimestamp: lastTs,
@@ -1064,15 +1107,17 @@ export function captureLearnedFromAgentOutputDetailed(
       // Affinity bookkeeping must never fail a capture.
     }
   }
-  const nextPolicy: ProjectAgentLearningPolicy = {
-    ...policy,
-    lifetimeCaptureCount: policy.lifetimeCaptureCount + captured,
-    lastCaptureAt: now.toISOString(),
-    lastCaptureSource: isManual ? 'manual' : 'automatic',
-  };
-  writeTextAtomically(
-    learningPolicyPath(normalizedRole, projectRoot),
-    `${JSON.stringify(nextPolicy, null, 2)}\n`,
+  // Patch rather than write the object read at the top of this function: the
+  // optimization pass owns `lastOptimizeAt` in the same file and runs on its own
+  // schedule, so a whole-object write from a stale read reverts it.
+  updateProjectAgentLearningPolicy(
+    normalizedRole,
+    {
+      lifetimeCaptureCount: policy.lifetimeCaptureCount + captured,
+      lastCaptureAt: now.toISOString(),
+      lastCaptureSource: isManual ? 'manual' : 'automatic',
+    },
+    projectRoot,
   );
   return {
     role: normalizedRole,

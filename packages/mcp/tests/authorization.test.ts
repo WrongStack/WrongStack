@@ -292,6 +292,33 @@ describe('MCP authorization primitives', () => {
     ).toBe('https://auth.example.com/register');
   });
 
+  it('requires issuer-bound responses before accepting cross-origin OAuth endpoints', () => {
+    const metadata = {
+      issuer: 'https://issuer.example.com',
+      authorization_endpoint: 'https://login.example.net/authorize',
+      token_endpoint: 'https://tokens.example.net/token',
+      code_challenge_methods_supported: ['S256'],
+    };
+
+    expect(() => parseAuthorizationServerMetadata(metadata, 'https://issuer.example.com')).toThrow(
+      /cross-origin endpoints.*issuer parameter/,
+    );
+    expect(
+      parseAuthorizationServerMetadata(
+        { ...metadata, authorization_response_iss_parameter_supported: true },
+        'https://issuer.example.com',
+      ),
+    ).toMatchObject({
+      authorizationResponseIssuerParameterSupported: true,
+    });
+    expect(() =>
+      parseAuthorizationServerMetadata(
+        { ...metadata, authorization_response_iss_parameter_supported: 'true' },
+        'https://issuer.example.com',
+      ),
+    ).toThrow(/must be a boolean/);
+  });
+
   it('orchestrates RFC 9728 then RFC 8414/OIDC fallback order', async () => {
     const requested: string[] = [];
     const responses = new Map<string, unknown>([
@@ -487,10 +514,67 @@ describe('MCP authorization primitives', () => {
         `http://127.0.0.1:43123/callback?state=${session.state}`,
         session,
       ),
-    ).toThrow(/authorization code is empty/);
+    ).toThrow(/exactly one authorization code/);
     expect(() =>
       parseMcpAuthorizationCallback('http://127.0.0.1:43123/callback?code=auth-code', session),
-    ).toThrow(/state mismatch/);
+    ).toThrow(/exactly one state/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        `http://127.0.0.1:43123/callback?code=one&code=two&state=${session.state}`,
+        session,
+      ),
+    ).toThrow(/ambiguous response/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        `http://127.0.0.1:43123/callback?code=auth-code&state=${session.state}&state=${session.state}`,
+        session,
+      ),
+    ).toThrow(/exactly one state/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        `http://127.0.0.1:43123/callback?code=auth-code&error=access_denied&state=${session.state}`,
+        session,
+      ),
+    ).toThrow(/ambiguous response/);
+  });
+
+  it('validates the authorization-response issuer before exposing the code', () => {
+    const session = createMcpAuthorizationRequest({
+      authorizationServer: {
+        issuer: 'https://issuer.example.com',
+        authorizationEndpoint: 'https://login.example.net/authorize',
+        tokenEndpoint: 'https://tokens.example.net/token',
+        authorizationResponseIssuerParameterSupported: true,
+        scopesSupported: [],
+      },
+      clientId: 'wrongstack-public-client',
+      redirectUri: 'http://127.0.0.1:43123/callback',
+      resource: 'https://mcp.example.com/mcp',
+    });
+    const callback = (issuer = '') =>
+      `http://127.0.0.1:43123/callback?code=auth-code&state=${session.state}${issuer}`;
+
+    expect(() => parseMcpAuthorizationCallback(callback(), session)).toThrow(/exactly one issuer/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        callback(`&iss=${encodeURIComponent('https://attacker.example.com')}`),
+        session,
+      ),
+    ).toThrow(/issuer mismatch/);
+    expect(
+      parseMcpAuthorizationCallback(
+        callback(`&iss=${encodeURIComponent('https://issuer.example.com')}`),
+        session,
+      ),
+    ).toBe('auth-code');
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        callback(
+          `&iss=${encodeURIComponent('https://issuer.example.com')}&iss=${encodeURIComponent('https://issuer.example.com')}`,
+        ),
+        session,
+      ),
+    ).toThrow(/exactly one issuer/);
   });
 
   it('validates redirect URIs, scopes, and PKCE inputs', () => {

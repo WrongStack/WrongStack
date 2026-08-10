@@ -437,13 +437,18 @@ export class GoalWebSocketHandler {
           const { execFile } = await import('node:child_process');
           const result = await new Promise<string>((resolve) => {
             const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-            execFile(npxCommand, ['tsc', '--noEmit'], { cwd, timeout: 60_000 }, (err, stdout, stderr) => {
-              if (err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
-                resolve('[verify] tsc not found — skipping');
-                return;
-              }
-              resolve(stdout + stderr);
-            });
+            execFile(
+              npxCommand,
+              ['tsc', '--noEmit'],
+              { cwd, timeout: 60_000 },
+              (err, stdout, stderr) => {
+                if (err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+                  resolve('[verify] tsc not found — skipping');
+                  return;
+                }
+                resolve(stdout + stderr);
+              },
+            );
           });
           if (result.includes('[verify]') || result.trim().length === 0) {
             return { ok: true as const };
@@ -792,6 +797,7 @@ export class GoalWebSocketHandler {
       if (progress) this.broadcast({ type: 'goal.progress', payload: progress });
       this.broadcastState();
     }, 2000);
+    this.broadcastInterval.unref?.();
   }
 
   private stopBroadcast(): void {
@@ -947,8 +953,9 @@ export class GoalWebSocketHandler {
 
   private broadcast(msg: { type: string; payload: unknown }): void {
     const data = JSON.stringify(msg);
+    const frameBytes = Buffer.byteLength(data, 'utf8');
     for (const client of this.clients) {
-      sendSerialized(client.ws, data);
+      sendSerialized(client.ws, data, frameBytes);
     }
   }
 

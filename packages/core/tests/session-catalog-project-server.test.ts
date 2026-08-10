@@ -42,6 +42,41 @@ describe('Session Catalog project server IPC', () => {
       expect(ping).toMatchObject({ type: 'response', id: 2, ok: true });
       expect(ping.result).toMatchObject({ catalogRows: 0, liveLeases: 0 });
 
+      client.socket.write(
+        `${JSON.stringify({
+          type: 'request',
+          id: 20,
+          op: 'upsert_summary',
+          args: {
+            summary: {
+              id: '2026-08-08/sess_filter_ipc',
+              title: 'Filtered over IPC',
+              startedAt: '2026-08-08T09:00:00.000Z',
+              model: 'ipc-model',
+              provider: 'ipc-provider',
+              tokenTotal: 42,
+            },
+          },
+          authToken: metadata.authToken,
+        })}\n`,
+      );
+      expect(await client.nextFrame()).toMatchObject({ type: 'response', id: 20, ok: true });
+      client.socket.write(
+        `${JSON.stringify({
+          type: 'request',
+          id: 21,
+          op: 'list_catalog',
+          args: { provider: 'ipc-provider', model: 'ipc-model', minTokens: 40, limit: 1 },
+          authToken: metadata.authToken,
+        })}\n`,
+      );
+      expect(await client.nextFrame()).toMatchObject({
+        type: 'response',
+        id: 21,
+        ok: true,
+        result: [expect.objectContaining({ id: '2026-08-08/sess_filter_ipc' })],
+      });
+
       const now = new Date().toISOString();
       const claim = {
         entry: {

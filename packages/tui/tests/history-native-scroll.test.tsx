@@ -177,6 +177,10 @@ describe('<History /> native scrollback commits', () => {
 
   it('replays committed history when terminal width changes', { timeout: 5000 }, async () => {
     const screen = render(view([{ id: 1, kind: 'info', text: 'native-resize-history-marker' }]));
+    // Let Ink commit the initial render and attach useTerminalSize's effect.
+    // Under coverage load, emitting resize immediately after render can race
+    // the effect registration and lose the only resize event.
+    await new Promise((resolve) => setImmediate(resolve));
     screen.frames.length = 0;
     screen.stdout.columns = 72;
 
@@ -187,7 +191,10 @@ describe('<History /> native scrollback commits', () => {
     // `hooks/use-terminal-size.ts`), and a real resize fires on the stream Ink
     // holds. `helpers/real-tty.tsx` already does it this way.
     screen.stdout.emit('resize');
-    await new Promise((resolve) => setImmediate(resolve));
+    for (let attempt = 0; attempt < 50; attempt++) {
+      if (screen.frames.join('\n').includes('native-resize-history-marker')) break;
+      await new Promise((resolve) => setImmediate(resolve));
+    }
 
     expect(count(screen.frames.join('\n'), 'native-resize-history-marker')).toBe(1);
     screen.unmount();

@@ -99,9 +99,9 @@ describe('auditKanbanBoard', () => {
     const task = completeTask({ dueDate: undefined });
 
     expect(codes(auditKanbanBoard(board([task]), { now: NOW }))).not.toContain('missing-due-date');
-    expect(
-      codes(auditKanbanBoard(board([task]), { now: NOW, requireDueDate: true })),
-    ).toContain('missing-due-date');
+    expect(codes(auditKanbanBoard(board([task]), { now: NOW, requireDueDate: true }))).toContain(
+      'missing-due-date',
+    );
   });
 
   it('treats numeric and Date due dates as present', () => {
@@ -130,6 +130,8 @@ describe('auditKanbanBoard', () => {
       status: 'running' as const,
       agentId: 'agent-1',
       leaseId: 'lease-1',
+      claimedAt: '2026-07-15T12:00:00.000Z',
+      heartbeatAt: '2026-07-15T12:30:00.000Z',
       leaseExpiresAt: '2026-07-15T13:00:00.000Z',
     };
     const tasks = [

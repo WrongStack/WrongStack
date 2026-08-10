@@ -223,7 +223,9 @@ describe('DefaultSessionStore — resume file validation', () => {
     await resumed.writer.close();
   });
 
-  it('rebuilds stale sidecar counters from the JSONL before resume', { timeout: 5000 }, async () => {
+  it('rebuilds stale sidecar counters from the JSONL before resume', {
+    timeout: 5000,
+  }, async () => {
     const id = 'stale-summary';
     const writer = await store.create({ id, model: 'm', provider: 'p' });
     await writer.append({ type: 'user_input', ts: now(), content: 'persisted prompt' });
@@ -353,6 +355,53 @@ describe('FileSessionWriter — appendBatch', () => {
     await w.appendBatch([{ type: 'user_input', ts: now(), content: 'late' }]);
     const data = await store.load('ab2');
     expect(data.events.some((e) => e.type === 'user_input')).toBe(false);
+  });
+});
+
+describe('DefaultSessionStore — crash-torn append boundary', () => {
+  it('isolates a partial final JSON record before writing resumed events', async () => {
+    const id = 'torn-tail';
+    const file = path.join(tmp, `${id}.jsonl`);
+    const sessionStart = {
+      type: 'session_start',
+      ts: now(),
+      id,
+      model: 'm',
+      provider: 'p',
+    };
+    await fs.writeFile(file, `${JSON.stringify(sessionStart)}\n{"type":"tool_result"`, 'utf8');
+
+    const resumed = await store.resume(id);
+    await resumed.writer.append({ type: 'user_input', ts: now(), content: 'after crash' });
+    await resumed.writer.close();
+
+    const lines = (await fs.readFile(file, 'utf8')).trimEnd().split('\n');
+    expect(lines[1]).toBe('{"type":"tool_result"');
+    expect(lines.slice(2).map((line) => JSON.parse(line).type)).toEqual([
+      'session_resumed',
+      'user_input',
+    ]);
+    await expect(store.load(id)).resolves.toMatchObject({
+      messages: [expect.objectContaining({ role: 'user', content: 'after crash' })],
+    });
+  });
+
+  it('preserves a valid final JSON record that lacks only its newline', async () => {
+    const id = 'missing-newline';
+    const file = path.join(tmp, `${id}.jsonl`);
+    const records = [
+      { type: 'session_start', ts: now(), id, model: 'm', provider: 'p' },
+      { type: 'user_input', ts: now(), content: 'before resume' },
+    ];
+    await fs.writeFile(file, records.map((record) => JSON.stringify(record)).join('\n'), 'utf8');
+
+    const resumed = await store.resume(id);
+    await resumed.writer.append({ type: 'user_input', ts: now(), content: 'after resume' });
+    await resumed.writer.close();
+
+    const data = await store.load(id);
+    expect(data.events.filter((event) => event.type === 'user_input')).toHaveLength(2);
+    expect(data.events.some((event) => event.type === 'session_resumed')).toBe(true);
   });
 });
 
@@ -1128,7 +1177,25 @@ describe('DefaultSessionStore.rename', () => {
     expect(listed.find((summary) => summary.id === id)?.name).toBe('Fresh manifest name');
   });
 
-  it('rejects and rolls back the sidecar when the rename index update fails', { timeout: 5000 }, async () => {
+  it('invalidates a warm shard cache after another store changes the manifest', async () => {
+    const id = '2026-07-04/rn-cross-process';
+    const writer = await store.create({ id, model: 'm', provider: 'p' });
+    await writer.close();
+    await fs.rm(path.join(tmp, '_index.jsonl'), { force: true });
+
+    const warmStore = new DefaultSessionStore({ dir: tmp });
+    expect((await warmStore.list()).find((summary) => summary.id === id)?.name).toBeUndefined();
+
+    await store.rename(id, 'Changed by peer store');
+    await fs.rm(path.join(tmp, '_index.jsonl'), { force: true });
+
+    const refreshed = await warmStore.list();
+    expect(refreshed.find((summary) => summary.id === id)?.name).toBe('Changed by peer store');
+  });
+
+  it('rejects and rolls back the sidecar when the rename index update fails', {
+    timeout: 5000,
+  }, async () => {
     const id = '2026-07-04/rn-index-failure';
     const writer = await store.create({ id, model: 'm', provider: 'p' });
     await writer.close();

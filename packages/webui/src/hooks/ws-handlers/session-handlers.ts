@@ -1,14 +1,14 @@
+import type { SessionMarker } from '@wrongstack/core/types';
+import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import { toast } from '@/components/Toaster';
+import { isMobileViewport } from '@/hooks/useViewport';
 import { i18n } from '@/i18n';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
 import { streamCoalescer } from '@/lib/stream-coalescer';
-import { isMobileViewport } from '@/hooks/useViewport';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage, pipeViz } from '@/lib/ws-client-utils';
-import type { SessionMarker } from '@wrongstack/core/types';
-import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import type { ChatMessage, SessionHistoryEntry, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
@@ -22,8 +22,8 @@ import {
   useSessionStore,
   useUIStore,
 } from '@/stores';
-import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
+import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
 
 interface ReplayMessage {
@@ -1068,6 +1068,10 @@ export function handleSessionsList(msg: WSServerMessage) {
 export function handleError(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
   const payload = msg.payload as { phase: string; message: string };
+  // Benign session-guard rejection from the initial todos fetch — fires when a
+  // stale sessionId is used before the new session is established. Suppress so
+  // it doesn't pollute chat history on first open.
+  if (payload.phase === 'todos.get') return;
   flushThinkingLogForCurrentIteration();
   useChatStore.getState().addMessage({
     role: 'assistant',

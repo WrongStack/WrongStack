@@ -212,3 +212,4 @@ AGENTS.md
 !.wrongstack/agents/**
 .wrongstack/agents/**/archive/
 .wrongstack/agents/**/skills/affinity.json
+.wrongstack/agents/**/quarantine.md

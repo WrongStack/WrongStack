@@ -342,7 +342,8 @@ describe('project agent self-learning lifecycle', () => {
       'replace',
     );
 
-    const content = '# Consolidated knowledge for executor\n\n- Run pnpm typecheck before completion.';
+    const content =
+      '# Consolidated knowledge for executor\n\n- Run pnpm typecheck before completion.';
     saveProjectAgentConsolidated('executor', content, projectRoot);
 
     expect(isConsolidated('executor', projectRoot)).toBe(true);
@@ -381,7 +382,11 @@ describe('project agent self-learning lifecycle', () => {
       projectRoot,
       'replace',
     );
-    saveProjectAgentConsolidated('tester', '# Consolidated\n\n- Run focused tests first.', projectRoot);
+    saveProjectAgentConsolidated(
+      'tester',
+      '# Consolidated\n\n- Run focused tests first.',
+      projectRoot,
+    );
 
     const meta = loadConsolidationMetadata('tester', projectRoot);
     expect(meta!.sourceEntryCount).toBe(1);
@@ -500,7 +505,9 @@ describe('project agent self-learning lifecycle', () => {
 
     it('rejects entirely-narrative entries that cannot be salvaged', () => {
       // Pure session log — describes an event with no directive.
-      expect(normalizeLearnedEntry('Today I noticed that the test suite took 4 minutes to run.')).toBeNull();
+      expect(
+        normalizeLearnedEntry('Today I noticed that the test suite took 4 minutes to run.'),
+      ).toBeNull();
       expect(normalizeLearnedEntry('Yesterday I worked on the auth module.')).toBeNull();
       expect(normalizeLearnedEntry('I found that commit abc1234 had a bug.')).toBeNull();
     });
@@ -526,8 +533,9 @@ describe('project agent self-learning lifecycle', () => {
     });
 
     it('truncates over-long entries to the first instructive sentence cluster', () => {
-      const long = Array.from({ length: 30 }, (_, i) =>
-        `Always run a regression test on package ${i} before merging a change.`,
+      const long = Array.from(
+        { length: 30 },
+        (_, i) => `Always run a regression test on package ${i} before merging a change.`,
       ).join(' ');
       const result = normalizeLearnedEntry(long);
       expect(result).not.toBeNull();
@@ -544,7 +552,9 @@ describe('project agent self-learning lifecycle', () => {
     it('classifies entries by content into the correct category', () => {
       expect(classifyLearnedEntry('Always verify typecheck before merge.')).toBe('convention');
       expect(classifyLearnedEntry('Use pnpm for monorepo package management.')).toBe('pattern');
-      expect(classifyLearnedEntry('Avoid mutating shared state in async handlers.')).toBe('warning');
+      expect(classifyLearnedEntry('Avoid mutating shared state in async handlers.')).toBe(
+        'warning',
+      );
       expect(classifyLearnedEntry('The project uses vitest 2.x for unit tests.')).toBe('fact');
     });
 
@@ -743,6 +753,30 @@ describe('project agent self-learning lifecycle', () => {
       // Sorted warning-first.
       expect(different[0]!.category).toBe('warning');
       expect(different[1]!.category).toBe('convention');
+    });
+
+    it('does not let a proven directive suppress the same wording in another category', () => {
+      const existing = [
+        {
+          key: 'always run pnpm typecheck before declaring work complete',
+          category: 'convention' as const,
+          what: 'Always run pnpm typecheck before declaring work complete.',
+          why: 'guard against regressions',
+          how: '',
+          capturedAt: '2026-07-24T10:00:00Z',
+          applied: 5,
+          wins: 5,
+        },
+      ];
+
+      const merged = mergeStructuredEntries(existing, {
+        text: 'Always run pnpm typecheck before declaring work complete.',
+        category: 'warning',
+        capturedAt: '2026-07-24T10:00:01Z',
+      });
+
+      expect(merged).toHaveLength(2);
+      expect(merged.map((entry) => entry.category)).toEqual(['warning', 'convention']);
     });
 
     it('preserves historical entries through a re-capture (merge, not replace)', () => {

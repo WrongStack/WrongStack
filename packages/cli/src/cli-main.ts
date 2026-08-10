@@ -32,6 +32,8 @@ import { setupCommandHostState } from './wiring/command-host-state.js';
 import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
 import { setupDepWatcherBridge } from './wiring/dep-watcher-bridge.js';
 import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
+import { createDomainGlossaryAdapter } from './wiring/domain-glossary.js';
+import { refreshDomainTermsMirror } from './wiring/domain-terms-mirror.js';
 import { createEternalCommandHandlers } from './wiring/eternal-command-handlers.js';
 import { createFleetCommandHandlers } from './wiring/fleet-command-handlers.js';
 import { setupHqTelemetry } from './wiring/hq-telemetry.js';
@@ -145,6 +147,15 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     container,
     modeStore,
     memoryStore,
+    // Provide a narrow domain-term adapter so the prompt builder emits a
+    // compact `[Project Jargon Dictionary]` block. Closes over the resolved
+    // SAGE `memoryStore` (a `MemoryPort`) and uses the typed
+    // `SageServiceLike` capability (NOT `@wrongstack/sage-mcp` — the
+    // in-process consumer rule from `packages/sage/docs/direct-icp-usage.md`).
+    // Returns only memories tagged `domain-term` via the capability's
+    // `searchSage` op, which performs the tag-filter at the SQL layer rather
+    // than scanning the whole corpus on every prompt build.
+    domainGlossary: createDomainGlossaryAdapter(memoryStore),
     skillLoader,
     sessionRef,
     autonomyModeRef,
@@ -165,6 +176,14 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     pathJoiner: { join: (a, b) => path.join(a, b) },
     systemPromptBuilderToken: TOKENS.SystemPromptBuilder,
   });
+
+  // Refresh the `.wrongstack/domain-terms.md` mirror file from the
+  // current SAGE state. The mirror is *derived* state (SAGE is the
+  // source of truth, see `packages/sage/docs/direct-icp-usage.md`),
+  // so refreshing at every boot is safe and idempotent. The helper
+  // swallows IO errors and logs to stderr — a failed mirror write
+  // must not abort CLI boot.
+  await refreshDomainTermsMirror({ projectRoot, memoryStore });
 
   const toolRegistry = new ToolRegistry();
   registerBuiltinTools({

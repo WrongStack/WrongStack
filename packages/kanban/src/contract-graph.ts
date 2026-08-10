@@ -51,12 +51,15 @@ export function evaluateContractGraphReadiness(
       issues: [{ code: 'task-not-found', message: `Kanban task not found: ${taskId}` }],
     };
   }
+  // The card contract belongs to managed boards. On a plain board these rules
+  // describe nothing that is actually enforced, and treating their absence as
+  // unreadiness had two visible consequences: `start_task` refused every card
+  // on an ordinary board — its first stated reason being that the board was
+  // not managed, a demand no card can satisfy — and the workbench reported
+  // healthy cards as carrying "readiness gaps", so the surface meant to answer
+  // "what should I do next?" contradicted `ready_tasks` on the same board.
   if (board.lifecycle?.mode !== 'managed') {
-    issues.push({
-      code: 'managed-lifecycle-required',
-      message:
-        'Implementation requires a managed Backlog -> Todo -> Running -> Review -> Done board.',
-    });
+    return { taskId, ready: true, issues: [] };
   }
   if (!task.description?.trim()) {
     issues.push({ code: 'task-description-missing', message: 'Add a complete task description.' });
@@ -68,12 +71,8 @@ export function evaluateContractGraphReadiness(
   ) {
     issues.push({ code: 'task-owner-missing', message: 'Assign an owner or agent.' });
   }
-  if (!task.dueDate || !Number.isFinite(Date.parse(task.dueDate))) {
-    issues.push({ code: 'task-due-date-missing', message: 'Add a valid task due date.' });
-  }
-  if (!task.labels?.some((label) => label.trim())) {
-    issues.push({ code: 'task-label-missing', message: 'Add at least one task label.' });
-  }
+  // `dueDate` and `labels` are deliberately not required here either; see
+  // validateRequiredCardDetails in manager/lifecycle.ts for the reasoning.
   if (
     !task.successCriteria?.length ||
     task.successCriteria.some((check) => !check.description.trim())

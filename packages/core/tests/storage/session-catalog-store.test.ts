@@ -148,6 +148,48 @@ describe('SessionCatalogStore', () => {
     store.close();
   });
 
+  it('applies catalog filters before the page limit', async () => {
+    const { store } = await fixture();
+    for (let index = 0; index < 105; index++) {
+      store.upsertSummary({
+        id: `2026-08-09/sess_other_${String(index).padStart(3, '0')}`,
+        title: `Other ${index}`,
+        startedAt: `2026-08-09T12:${String(index % 60).padStart(2, '0')}:00.000Z`,
+        lastActivityAt: `2026-08-09T13:${String(index % 60).padStart(2, '0')}:00.000Z`,
+        model: 'other-model',
+        provider: 'other-provider',
+        tokenTotal: 10,
+      });
+    }
+    const targetId = '2026-08-08/sess_filtered_target';
+    store.upsertSummary({
+      id: targetId,
+      title: 'Literal 100% target_name',
+      startedAt: '2026-08-08T10:00:00.000Z',
+      endedAt: '2026-08-08T11:00:00.000Z',
+      model: 'target-model',
+      provider: 'target-provider',
+      tokenTotal: 5_000,
+    });
+
+    expect(
+      store.listCatalog({
+        limit: 1,
+        provider: 'target-provider',
+        model: 'target-model',
+        minTokens: 1_000,
+        until: '2026-08-08T23:59:59.999Z',
+      }),
+    ).toEqual([expect.objectContaining({ id: targetId })]);
+    expect(store.listCatalog({ search: '100%' })).toEqual([
+      expect.objectContaining({ id: targetId }),
+    ]);
+    expect(store.listCatalog({ search: 'target_' })).toEqual([
+      expect.objectContaining({ id: targetId }),
+    ]);
+    store.close();
+  });
+
   it('excludes maintenance while live and deletes only with an exact maintenance lease', async () => {
     const { root, store } = await fixture();
     const id = '2026-08-08/sess_delete';
@@ -211,7 +253,9 @@ describe('SessionCatalogStore', () => {
     // Daemon's own pid → the lease is genuinely foreign.
     expect(() => store.acquireMaintenance(id, 'clear', 'holder')).toThrow(/live/);
     // Some third process → still foreign.
-    expect(() => store.acquireMaintenance(id, 'clear', 'holder', undefined, 12_345)).toThrow(/live/);
+    expect(() => store.acquireMaintenance(id, 'clear', 'holder', undefined, 12_345)).toThrow(
+      /live/,
+    );
 
     // The lease owner itself → non-destructive maintenance is granted.
     const clearLease = store.acquireMaintenance(id, 'clear', 'holder', undefined, ownerPid);

@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
 import {
   extractTokenFromCookie,
   hostHeaderOk,
@@ -8,6 +7,7 @@ import {
   tokenMatches,
   verifyClient,
 } from '@wrongstack/webui-server';
+import { describe, expect, it } from 'vitest';
 
 const TOKEN = 'abc123def456';
 // A loopback Host header — required for the DNS-rebinding guard to pass on a
@@ -16,14 +16,20 @@ const LOOPBACK_HOST = '127.0.0.1:3456';
 
 describe('verifyClient (WebSocket auth)', () => {
   it('allows loopback browser origin without token (loopback bind)', () => {
-    // Same-origin: the Origin port must match the port the browser actually
-    // connected to, which is what LOOPBACK_HOST carries.
-    for (const origin of ['http://localhost:3456', 'http://127.0.0.1:3456', 'http://[::1]:3456']) {
+    // Same-origin: the hardened isTrustedLoopbackOrigin check requires exact
+    // hostname equality between Origin and Host — not merely "both loopback."
+    // Each alias is tested with its own matching Host header.
+    const cases = [
+      { origin: 'http://localhost:3456', hostHeader: 'localhost:3456' },
+      { origin: 'http://127.0.0.1:3456', hostHeader: '127.0.0.1:3456' },
+      { origin: 'http://[::1]:3456', hostHeader: '[::1]:3456' },
+    ];
+    for (const { origin, hostHeader } of cases) {
       expect(
         verifyClient({
           origin,
           url: '/',
-          hostHeader: LOOPBACK_HOST,
+          hostHeader,
           wsHost: '127.0.0.1',
           expectedToken: TOKEN,
         }),
@@ -82,8 +88,11 @@ describe('verifyClient (WebSocket auth)', () => {
   });
 
   it('requires a token on loopback binds when requireToken is enabled', () => {
+    // Origin must match the Host header exactly — the hardened
+    // originMatchesHost check enforces hostname + port equality, so the
+    // cookie authenticates only when the browser's origin IS this server.
     const base = {
-      origin: 'http://localhost:3000',
+      origin: 'http://127.0.0.1:3456',
       url: '/',
       hostHeader: LOOPBACK_HOST,
       wsHost: '127.0.0.1',
@@ -123,13 +132,19 @@ describe('verifyClient (WebSocket auth)', () => {
         ...base,
       }),
     ).toBe(false);
-    // The HttpOnly cookie is the accepted browser credential.
+    // The HttpOnly cookie is the accepted browser credential — but only when
+    // the browser Origin matches the request Host (originMatchesHost). On a
+    // loopback bind the Host is 127.0.0.1, so a 192.168.1.5 origin can never
+    // match. Use a public bind with a matching Host to exercise the cookie
+    // acceptance path.
     expect(
       verifyClient({
         origin: 'http://192.168.1.5:3000',
         url: '/',
         cookieHeader: `ws_token=${TOKEN}`,
-        ...base,
+        hostHeader: '192.168.1.5:3000',
+        wsHost: '0.0.0.0',
+        expectedToken: TOKEN,
       }),
     ).toBe(true);
   });
@@ -194,11 +209,15 @@ describe('verifyClient (WebSocket auth)', () => {
   });
 
   it('allows a non-loopback browser with the correct cookie on a public bind', () => {
+    // The hardened originMatchesHost check requires the browser Origin to
+    // match the request Host (hostname + port), so the Host header must be
+    // present and consistent with the Origin for cookie auth to succeed.
     expect(
       verifyClient({
         origin: 'http://10.0.0.5:3000',
         url: '/',
         cookieHeader: `ws_token=${TOKEN}`,
+        hostHeader: '10.0.0.5:3000',
         wsHost: '0.0.0.0',
         expectedToken: TOKEN,
       }),
@@ -208,6 +227,7 @@ describe('verifyClient (WebSocket auth)', () => {
       verifyClient({
         origin: 'http://10.0.0.5:3000',
         url: `/?token=${TOKEN}`,
+        hostHeader: '10.0.0.5:3000',
         wsHost: '0.0.0.0',
         expectedToken: TOKEN,
       }),
@@ -293,7 +313,12 @@ describe('verifyClient — IPv6 wildcard (::) bind parity with 0.0.0.0', () => {
 
   it('still admits a loopback peer on a :: bind with the correct token', () => {
     expect(
-      verifyClient({ url: `/?token=${TOKEN}`, remoteAddress: '::1', wsHost: '::', expectedToken: TOKEN }),
+      verifyClient({
+        url: `/?token=${TOKEN}`,
+        remoteAddress: '::1',
+        wsHost: '::',
+        expectedToken: TOKEN,
+      }),
     ).toBe(true);
   });
 
@@ -302,13 +327,19 @@ describe('verifyClient — IPv6 wildcard (::) bind parity with 0.0.0.0', () => {
       verifyClient({ origin: 'file://localhost', url: '/', wsHost: '::', expectedToken: TOKEN }),
     ).toBe(false);
     expect(
-      verifyClient({ origin: 'http://localhost:3000', url: '/', wsHost: '::', expectedToken: TOKEN }),
+      verifyClient({
+        origin: 'http://localhost:3000',
+        url: '/',
+        wsHost: '::',
+        expectedToken: TOKEN,
+      }),
     ).toBe(false);
     expect(
       verifyClient({
         origin: 'http://localhost:3000',
         url: '/',
         cookieHeader: `ws_token=${TOKEN}`,
+        hostHeader: 'localhost:3000',
         wsHost: '::',
         expectedToken: TOKEN,
       }),
@@ -382,9 +413,9 @@ describe('extractTokenFromCookie', () => {
   });
 
   it('extracts ws_token when it is one of several cookies', () => {
-    expect(
-      extractTokenFromCookie('session=xyz; ws_token=abc123def456; theme=dark'),
-    ).toBe('abc123def456');
+    expect(extractTokenFromCookie('session=xyz; ws_token=abc123def456; theme=dark')).toBe(
+      'abc123def456',
+    );
   });
 
   it('URL-decodes the cookie value (server stores the encoded form)', () => {
@@ -398,15 +429,16 @@ describe('extractTokenFromCookie', () => {
   });
 
   it('accepts string[] cookie headers (some Node http clients)', () => {
-    expect(extractTokenFromCookie(['ws_token=abc123def456', 'session=xyz'])).toBe(
-      'abc123def456',
-    );
+    expect(extractTokenFromCookie(['ws_token=abc123def456', 'session=xyz'])).toBe('abc123def456');
   });
 });
 
 describe('verifyClient — cookie auth (C-2 path)', () => {
   const TOKEN = 'cookie-token-abc123';
-  const LAN_HOST = '192.168.1.10:3457';
+  // The hardened originMatchesHost check requires the browser Origin to match
+  // the request Host (hostname + port). Use the public hostname the browser
+  // would actually see for both, so cookie auth succeeds.
+  const LAN_HOST = 'wrongstack.example.com';
 
   it('accepts a non-loopback browser origin when cookie matches expected token', () => {
     // LAN-exposed bind, browser origin (so not loopback-bootstrap), valid
@@ -596,7 +628,9 @@ describe('WebSocket rate limiter', () => {
     expect(limiter.check()).toBe(false);
     // Busy-wait for window to expire (1ms)
     const start = Date.now();
-    while (Date.now() - start < 5) { /* spin */ }
+    while (Date.now() - start < 5) {
+      /* spin */
+    }
     expect(limiter.check()).toBe(true);
   });
 });

@@ -19,8 +19,8 @@ type WsMessage = { type?: string | undefined; [key: string]: unknown };
 export function openWs(url: string): Promise<WsClient> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
-    const portSuffix = parsed.port ? `:${parsed.port}` : '';
-    const origin = `http://localhost${portSuffix}`;
+    const originProtocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
+    const origin = `${originProtocol}//${parsed.host}`;
     const ws = new WebSocket(url, { headers: { Origin: origin } });
     const buffer: WsMessage[] = [];
     const waiters: Array<{

@@ -76,6 +76,13 @@ import { mapWithConcurrency } from './storage-concurrency.js';
 
 export type { SessionStoreOptions } from './session-store/types.js';
 
+interface CachedShardManifest {
+  entry: ShardManifestEntry;
+  mtimeMs: number;
+  size: number;
+  ino: number;
+}
+
 export class DefaultSessionStore implements SessionStore {
   private readonly dir: string;
   private readonly events?: EventBus | undefined;
@@ -106,7 +113,7 @@ export class DefaultSessionStore implements SessionStore {
   >();
   private readonly loadCache = new SessionLoadCache(this._loadCache);
   private _indexCache: IndexCacheEntry | null = null;
-  private readonly shardManifestCache = new Map<string, ShardManifestEntry>();
+  private readonly shardManifestCache = new Map<string, CachedShardManifest>();
   private static readonly LIST_SCAN_CONCURRENCY = 32;
 
   constructor(opts: SessionStoreOptions) {
@@ -389,7 +396,7 @@ export class DefaultSessionStore implements SessionStore {
     };
     let handle: fsp.FileHandle;
     try {
-      handle = await fsp.open(file, 'a', 0o600);
+      handle = await openSessionForAppend(file);
       /* v8 ignore start -- defensive: load() above already validated the file is readable */
     } catch (err) {
       emitSessionStoreError(this.events, canonicalId, file, 'resume', toErrorMessage(err), false);
@@ -613,12 +620,10 @@ export class DefaultSessionStore implements SessionStore {
     const limit = criteria.limit ?? 100;
     if (this.catalogClient) {
       const records = await this.catalogClient.call('list_catalog', {
-        limit: Math.min(1_000, Math.max(limit, 100)),
-        ...(criteria.titleContains ? { search: criteria.titleContains } : {}),
+        limit,
+        ...criteria,
       });
-      return this.scrubSummaries(records)
-        .filter((summary) => matchesSessionFilter(summary, criteria))
-        .slice(0, limit);
+      return this.scrubSummaries(records);
     }
     try {
       const indexed = await this.readIndex();
@@ -897,12 +902,12 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   private async readOrBuildShardManifest(shardKey: string): Promise<ShardManifestEntry> {
-    const cached = this.shardManifestCache.get(shardKey);
+    const manifestPath = this.shardManifestPath(shardKey);
+    const cached = await this.freshShardManifestCacheEntry(shardKey, manifestPath);
     if (cached) return cached;
 
-    const manifestPath = this.shardManifestPath(shardKey);
     return withFileLock(manifestPath, async () => {
-      const lockedCached = this.shardManifestCache.get(shardKey);
+      const lockedCached = await this.freshShardManifestCacheEntry(shardKey, manifestPath);
       if (lockedCached) return lockedCached;
       const entry = await readOrBuildShardManifestEntry({
         shardKey,
@@ -913,9 +918,44 @@ export class DefaultSessionStore implements SessionStore {
         summaryHeaderFor: (ref) => this.summaryHeaderFor(ref),
         summaryFor: (id) => this.summaryFor(id),
       });
-      this.shardManifestCache.set(shardKey, entry);
+      try {
+        const stat = await fsp.stat(manifestPath);
+        this.shardManifestCache.set(shardKey, {
+          entry,
+          mtimeMs: stat.mtimeMs,
+          size: stat.size,
+          ino: stat.ino,
+        });
+      } catch {
+        // A failed/best-effort manifest write is still usable for this call,
+        // but must not become an unverifiable in-memory cache entry.
+        this.shardManifestCache.delete(shardKey);
+      }
       return entry;
     });
+  }
+
+  /**
+   * Shard manifests are invalidated by other store processes via atomic
+   * delete/rebuild. Validate the in-memory projection against the persisted
+   * file so one long-lived process cannot retain another process's stale view.
+   */
+  private async freshShardManifestCacheEntry(
+    shardKey: string,
+    manifestPath: string,
+  ): Promise<ShardManifestEntry | undefined> {
+    const cached = this.shardManifestCache.get(shardKey);
+    if (!cached) return undefined;
+    try {
+      const stat = await fsp.stat(manifestPath);
+      if (stat.mtimeMs === cached.mtimeMs && stat.size === cached.size && stat.ino === cached.ino) {
+        return cached.entry;
+      }
+    } catch {
+      // Missing/replaced manifest invalidates the process-local projection.
+    }
+    this.shardManifestCache.delete(shardKey);
+    return undefined;
   }
 
   private async collectSessionFilesInShard(shardKey: string): Promise<SessionFileRef[]> {
@@ -1236,5 +1276,29 @@ export class DefaultSessionStore implements SessionStore {
       mtime,
       secretScrubber: this.secretScrubber,
     });
+  }
+}
+
+/**
+ * Open an existing transcript for append without letting a crash-torn final
+ * record absorb the first event of the resumed run. A valid final JSON record
+ * without a newline is preserved; a partial record is isolated as its own
+ * malformed line, which the tolerant reader already skips.
+ */
+async function openSessionForAppend(file: string): Promise<fsp.FileHandle> {
+  const handle = await fsp.open(file, 'a+', 0o600);
+  try {
+    const stat = await handle.stat();
+    if (stat.size > 0) {
+      const tail = Buffer.allocUnsafe(1);
+      const { bytesRead } = await handle.read(tail, 0, 1, stat.size - 1);
+      if (bytesRead === 1 && tail[0] !== 0x0a) {
+        await handle.appendFile('\n', 'utf8');
+      }
+    }
+    return handle;
+  } catch (err) {
+    await handle.close().catch(() => undefined);
+    throw err;
   }
 }

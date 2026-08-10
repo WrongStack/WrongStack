@@ -108,18 +108,6 @@ export class CouncilOrchestrator {
   private readonly fallbackProfileManager: FallbackProfileManager | undefined;
   private readonly seatCaller: ((seatIndex: number) => CouncilLLMCaller) | undefined;
   private readonly judgeCaller: CouncilLLMCaller | undefined;
-  /**
-   * Normalized ad-hoc profiles keyed by the caller's config object identity.
-   * The Brain adapter reuses ONE profile object for every decision, so this
-   * avoids re-validating + re-freezing it on every ask() without caching
-   * string-keyed registry lookups (those are already O(1)).
-   *
-   * Hosts must treat ad-hoc profile configs as IMMUTABLE once passed to
-   * ask(): the cache is keyed by object identity and never invalidated, so
-   * mutating a cached profile would silently serve the first snapshot.
-   */
-  private readonly profileCache = new WeakMap<CouncilProfileConfig, ResolvedCouncilProfile>();
-
   constructor(opts: CouncilOrchestratorOptions) {
     if (!opts.caller && !opts.seatCaller && !opts.judgeCaller) {
       throw new Error('CouncilOrchestrator: provide `caller`, `seatCaller`, or `judgeCaller`.');
@@ -140,8 +128,9 @@ export class CouncilOrchestrator {
   /**
    * Resolve the effective profile for a question. String ids and the default
    * go through the registry (already O(1)); ad-hoc config objects are
-   * normalized once per stable object identity and cached, because hosts such
-   * as the Brain adapter pass the same profile object on every ask().
+   * normalized on each call. Callers are allowed to reuse and mutate an
+   * ad-hoc object between decisions, so object-identity caching would serve a
+   * stale snapshot.
    */
   private resolveProfile(
     profile: string | CouncilProfileConfig | undefined,
@@ -153,15 +142,11 @@ export class CouncilOrchestrator {
         defaultProfile: this.defaultProfile,
       });
     }
-    const cached = this.profileCache.get(profile);
-    if (cached) return cached;
-    const resolved = resolveCouncilProfile(profile, {
+    return resolveCouncilProfile(profile, {
       registry: this.profiles,
       personas: this.personas,
       defaultProfile: this.defaultProfile,
     });
-    this.profileCache.set(profile, resolved);
-    return resolved;
   }
 
   async ask(question: CouncilQuestion): Promise<CouncilResult> {

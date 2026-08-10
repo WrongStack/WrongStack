@@ -196,6 +196,25 @@ describe('MultiAgentHost', () => {
     }
   });
 
+  it('gives the dispatcher a model to break ties with', async () => {
+    // The dispatcher is two-stage by design — keyword heuristic, then a model —
+    // but nothing ever supplied stage two to the Director, so every description
+    // the keywords could not resolve fell through to the `executor` generalist.
+    // That is half of why a 77-role roster was served by a handful of agents.
+    const host = new MultiAgentHost(makeDeps());
+    const director = await host.ensureDirector();
+    expect(typeof director?.dispatchClassifier).toBe('function');
+
+    // With no usable provider in this harness it must decline rather than
+    // throw: routing degrades to the heuristic, it never fails a spawn.
+    await expect(
+      director?.dispatchClassifier?.('design a migration', [
+        { role: 'database', name: 'Database', summary: 'Schema and migrations.' },
+      ]),
+    ).resolves.toBeNull();
+    await host.stopAll();
+  });
+
   it('status() before any spawn reports "No subagents"', () => {
     const host = new MultiAgentHost(makeDeps());
     const s = host.status();

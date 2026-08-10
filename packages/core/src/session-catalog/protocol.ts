@@ -71,6 +71,17 @@ export interface CatalogSessionRecord extends SessionSummary {
   damaged: boolean;
 }
 
+export interface SessionCatalogListArgs {
+  limit?: number | undefined;
+  search?: string | undefined;
+  since?: string | undefined;
+  until?: string | undefined;
+  provider?: string | undefined;
+  model?: string | undefined;
+  minTokens?: number | undefined;
+  titleContains?: string | undefined;
+}
+
 export type SessionCatalogEventKind =
   | 'session.claimed'
   | 'session.presence_changed'
@@ -149,7 +160,7 @@ export interface SessionCatalogOperations {
     };
     result: CatalogSessionRecord;
   };
-  list_catalog: { args: { limit?: number; search?: string }; result: CatalogSessionRecord[] };
+  list_catalog: { args: SessionCatalogListArgs; result: CatalogSessionRecord[] };
   resolve_id: { args: { query: string }; result: string };
   get_summary: { args: { sessionId: string }; result: CatalogSessionRecord | null };
   rename: { args: { sessionId: string; name: string }; result: CatalogSessionRecord };

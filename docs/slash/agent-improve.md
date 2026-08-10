@@ -196,11 +196,82 @@ capture  →  route to a skill  →  optimize  →  <skill>.md  →  injected wi
    `.wrongstack/agents/<role>/skills/<skill>.md`: the *delta* between the
    general skill and how it must be applied in this codebase. Without an active
    model the addendum is still written deterministically from the directives,
-   so tagged learning is never stranded.
+   so tagged learning is never stranded — **merged onto** the existing addendum,
+   never over it. The buffer is pruned after each pass, so rendering from the
+   buffer alone and writing the result over the file deleted everything an
+   earlier pass had distilled.
 3. **Inject.** At spawn the addendum is appended directly beneath that skill's
    bundled body under `### Project practice for <skill>`, with the
    instruction to prefer it where the two differ. The agent reads one skill,
    refined for this project — not a skill plus a pile of recalled facts.
+
+## Directives are scored against real outcomes
+
+Capture records what an agent concluded. It cannot record whether the conclusion
+helped — and for a long time nothing else did either: the task outcome reached
+`affinity.json` and stopped there, so a directive that made every task worse was
+injected forever and could only leave the buffer by growing old.
+
+Every completed task now folds its outcome into the directives it exercised:
+
+1. **Attribution.** The task's report is scanned for each stored directive's
+   anchors — the exact commands, paths and package names capture already
+   extracts into its *how*. One anchor hit is enough. A directive with no
+   anchors falls back to distinctive wording at a deliberately high bar, so in
+   practice **anchors are what make a directive measurable**.
+2. **Credit.** Each exercised directive takes the task's success or failure onto
+   its own record, stored on the entry as `applied=N; wins=M`.
+3. **Use.** The record then decides things that used to be decided by age alone:
+
+| Decision | Before | Now |
+|---|---|---|
+| Which directive is evicted at budget | oldest of the cheapest category | worst record first, age only as a tie-break |
+| Whether a taught near-duplicate replaces an existing rule | always | not when the existing one is proven (≥5 applied, ≥0.7 utility) |
+| What a reword inherits | nothing — the record restarted | the ancestor's record, within the same category |
+| What distillation keeps | the model's own read of plausibility | the track record, shown to it per directive |
+| Whether a rule keeps being injected | forever | retired after ≥8 applications below 0.3 utility |
+
+Ordering matters and is pinned by tests: **attribution runs before capture**. A
+directive written by a task has not been tested by that task, and crediting it
+there would let every new directive open its record with a free win. A cancelled
+task (`stopped`) is not scored at all — that is a user pressing Escape, not a
+verdict on the work.
+
+Utility is Laplace-smoothed: `(wins + 1) / (applied + 2)`. An unproven directive
+sits at exactly 0.5 — a neutral prior, never a penalty.
+
+Retired directives are appended to `.wrongstack/agents/<role>/quarantine.md`
+(local, gitignored) rather than deleted: a directive can be right about a
+project that has since changed, and the log is the only place to see what the
+loop stopped believing.
+
+**Retirement reaches every copy, not just the buffer.** By the time a directive
+has been exercised eight times it has usually been distilled into
+`skills/<skill>.md` and `consolidated.md`, both of which are injected on every
+spawn and neither of which is rebuilt until the next optimization pass — up to
+six hours later. So retirement also scrubs the rule out of those documents in
+place, and deletes a skill addendum whose every rule was retired. The next
+distillation pass is additionally handed the retired list under *"do not
+reinstate"*, so the model cannot resurrect a retired rule from the existing
+document it is improving.
+
+One deliberate exception: a retired directive the agent has since **written
+again** is left off that list. Retirement archives rather than deletes precisely
+because a rule can be right about a project that has changed; a directive back
+in the buffer has a fresh record and has earned its retrial.
+
+`/agent-improve <role> show` reports the two numbers that actually describe
+learning quality — the hit rate over exercised directives, and how many have
+never been used at all. A high never-used share means the role is writing things
+nobody applies, which is a problem with the directives, not with the loop.
+
+The WebUI Agent Roster page shows the same thing under **Self-Learning**: hit
+rate and never-used tiles beside the volume tiles, a hit-rate chip on each role
+in the list (so the role worth opening first is the one whose directives keep
+failing), a **Retired** section listing what the loop stopped believing, and a
+`loaded` badge plus affinity score on each skill so the ranking is visible
+rather than inferred from raw counters. Served by `agent-roster.skills`
+(now carrying `score`/`eager`/`eagerLimit`) and `agent-roster.quarantine`.
 
 ### Which skills get loaded
 
@@ -210,17 +281,35 @@ three were written first in the catalog:
 
 | Signal | Effect |
 |---|---|
-| Directives routed to the skill | strongest — a skill this project developed outranks an unused sibling |
-| Task success rate while loaded | Laplace-smoothed, so one failure does not bury a skill |
-| Times loaded | small recency/usage nudge |
+| Directives routed to the skill | strongest — a skill this project developed outranks an unused sibling; logarithmic, so one busy skill cannot pin the top slot forever |
+| Task success rate while loaded | Laplace-smoothed around a 0.5 prior, so a losing record scores **below** an untried skill rather than above it |
+| Age of that evidence | decays with a 30-day half-life; a project that changed toolchains is not ruled by the old one's wins |
+| Times loaded | an exploration bonus that *decays* with load count — being selected is not evidence of being useful |
 | `pin` | always selected |
 
-With no recorded history every candidate scores equally and the curated order
-is preserved, so a fresh project behaves exactly as before.
+With no recorded history every candidate scores identically and the curated
+order is preserved, so a fresh project behaves exactly as before.
 
 A skill that cannot be loaded — missing from the loader, gated behind a
 capability the subagent lacks, or cut by the prompt budget — emits
 `subagent.skills.dropped` instead of failing silently.
+
+**The budget never spends its last bytes on generic text.** When a selected
+skill does not fit in the 16 000-char spawn budget, its *bundled body* is
+shortened (marked `_(body trimmed)_`) so the project addendum survives; the
+skill is only dropped outright when it has no addendum to protect, or when the
+remaining room is too small for the body to still be a usable method. The
+previous rule dropped the whole entry, which is the wrong half to lose: the
+bundled body is the general method every agent of that role already approximates,
+while the addendum exists nowhere else.
+
+This was not hypothetical. Measured on this repo's `reviewer` role, chimera
+(11 KB body + 1.9 KB addendum) and bug-hunter (12 KB body, no addendum) together
+left `testing` — the third-ranked skill, and one of only two carrying project
+learning — overflowing by 381 chars, so it was dropped on **every** spawn. Its
+`affinity.json` still reads `"testing": { "loaded": 0 }` next to
+`"chimera": { "loaded": 197 }`. Trimmed skills are reported in the same
+`subagent.skills.dropped` event under `trimmed`.
 
 ## Optimization (`optimize`)
 
@@ -262,7 +351,11 @@ that watches captures and distils on its own:
 - **Debounce** — a burst of captures for one role collapses into a single pass
   (`debounceMs`, default 20 s).
 - **Cooldown** — at most one automatic pass per role per `minIntervalMs`
-  (default 6 h). Manual `optimize` ignores it.
+  (default 6 h), measured from the last **pass**, not the last consolidation.
+  A model-less pass rewrites every skill addendum and writes no consolidation
+  metadata, so reading metadata alone let a headless setup re-run a full pass
+  after every capture; the stamp lives in `learning.json` as `lastOptimizeAt`.
+  Manual `optimize` ignores the cooldown.
 - **Serialized** — one pass at a time process-wide, so a busy fleet cannot fan
   out N concurrent model calls.
 - **Start-up sweep** — on the first fleet activity of a session every role is

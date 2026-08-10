@@ -1,4 +1,5 @@
 import {
+  DEFAULT_EAGER_SKILL_LIMIT,
   loadProjectSkillAugmentation,
   missingRequiredRuntimeTools,
   missingRuntimeCapabilities,
@@ -13,8 +14,13 @@ import { getSageRetrieval } from '@wrongstack/sage';
 
 import type { MultiAgentDeps } from './host-types.js';
 
-/** Eagerly-loaded skills per spawn. Kept small so the prompt stays affordable. */
-const EAGER_SKILL_LIMIT = 3;
+/**
+ * Eagerly-loaded skills per spawn. Kept small so the prompt stays affordable.
+ *
+ * Re-exported from core rather than redeclared: the ranking helper defaults to
+ * the same number, and two independent literals drift the moment one is tuned.
+ */
+const EAGER_SKILL_LIMIT = DEFAULT_EAGER_SKILL_LIMIT;
 
 /** Skills whose bodies were requested but did not make it into the prompt. */
 export interface SkillResolutionReport {
@@ -22,7 +28,15 @@ export interface SkillResolutionReport {
   selected: string[];
   /** skill → why it was dropped, so the omission is never silent. */
   dropped: Record<string, 'not-found' | 'missing-capability' | 'missing-tool' | 'budget' | 'empty'>;
+  /** Skills kept under budget by shortening their bundled body. */
+  trimmed: string[];
 }
+
+/**
+ * Floor on a bundled skill body once it is being shortened to fit. Below this
+ * the body stops being a usable method and the skill should be dropped instead.
+ */
+const MIN_TRIMMED_BODY_CHARS = 800;
 
 export async function resolveHostSubagentSkillResolution(
   deps: MultiAgentDeps,
@@ -56,11 +70,12 @@ export async function resolveHostSubagentSkillResolution(
     : pool.slice(0, EAGER_SKILL_LIMIT);
 
   if (skillNames.length === 0 || !deps.skillLoader) {
-    return { content: directContent ?? '', selected: [], dropped };
+    return { content: directContent ?? '', selected: [], dropped, trimmed: [] };
   }
 
   const resolved: string[] = [];
   const selected: string[] = [];
+  const trimmed: string[] = [];
   let usedChars = 0;
   const maxChars = 16_000;
   const maxCharsPerSkill = 4_000;
@@ -71,7 +86,9 @@ export async function resolveHostSubagentSkillResolution(
         dropped[skillName] = 'not-found';
         continue;
       }
-      if (missingRuntimeCapabilities(manifest.requiredCapabilities, availableToolNames).length > 0) {
+      if (
+        missingRuntimeCapabilities(manifest.requiredCapabilities, availableToolNames).length > 0
+      ) {
         dropped[skillName] = 'missing-capability';
         continue;
       }
@@ -97,24 +114,42 @@ export async function resolveHostSubagentSkillResolution(
       const augmentation = role
         ? loadProjectSkillAugmentation(role, skillName, deps.projectRoot)
         : '';
-      const entry = [
-        `## Skill: ${skillName}`,
-        '',
-        body.slice(0, maxCharsPerSkill),
-        ...(augmentation
-          ? [
-              '',
-              `### Project practice for \`${skillName}\``,
-              '',
-              'Learned in this project. Where this differs from the general method above, follow this.',
-              '',
-              augmentation,
-            ]
-          : []),
-      ].join('\n');
+      const compose = (bodyChars: number): string =>
+        [
+          `## Skill: ${skillName}`,
+          '',
+          body.length > bodyChars
+            ? `${body.slice(0, bodyChars).trimEnd()}\n\n_(body trimmed)_`
+            : body,
+          ...(augmentation
+            ? [
+                '',
+                `### Project practice for \`${skillName}\``,
+                '',
+                'Learned in this project. Where this differs from the general method above, follow this.',
+                '',
+                augmentation,
+              ]
+            : []),
+        ].join('\n');
+
+      let entry = compose(maxCharsPerSkill);
       if (usedChars + entry.length > maxChars) {
-        dropped[skillName] = 'budget';
-        continue;
+        // The bundled body is the generic method — every agent of this role
+        // already carries its gist. The addendum is what *this project* taught
+        // the role and exists nowhere else. Dropping the whole skill to stay
+        // under budget therefore threw away the only irreplaceable half, and it
+        // did so silently and reproducibly: reviewer's `testing` addendum lost
+        // its slot to 8 KB of generic body from two other skills, overflowing
+        // by a few hundred characters on every single spawn.
+        const overhead = entry.length - Math.min(body.length, maxCharsPerSkill);
+        const room = maxChars - usedChars - overhead;
+        if (!augmentation || room < MIN_TRIMMED_BODY_CHARS) {
+          dropped[skillName] = 'budget';
+          continue;
+        }
+        entry = compose(room);
+        trimmed.push(skillName);
       }
       resolved.push(entry);
       selected.push(skillName);
@@ -138,7 +173,7 @@ export async function resolveHostSubagentSkillResolution(
       ? `# Role-prioritized skills\n\nApply these skills first for this assignment.\n\n${resolved.join('\n\n---\n\n')}`
       : undefined,
   ].filter((section): section is string => Boolean(section));
-  return { content: sections.join('\n\n'), selected, dropped };
+  return { content: sections.join('\n\n'), selected, dropped, trimmed };
 }
 
 /** Backwards-compatible wrapper for callers that only need the prompt text. */

@@ -35,6 +35,7 @@ export async function prepareRuntimeDispatch(input: RuntimeDispatchStateInput) {
     logger: input.logger,
     events: input.events,
     getSessionId: () => input.agent.ctx.session.id,
+    projectRoot: input.projectRoot,
   });
   const disposeIndexing = await setupCodebaseIndexing({
     config: input.getConfig(),

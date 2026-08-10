@@ -22,6 +22,8 @@
 import { readdirSync, readFileSync, rmSync } from 'node:fs';
 import * as path from 'node:path';
 import { loadProjectAgentConfig } from './project-agent-config-io.js';
+import { tokenOverlap } from './project-agent-learning-entries.js';
+import { normalizeForComparison } from './project-agent-learning-normalize.js';
 import { assertProjectAgentRole, roleDir, writeTextAtomically } from './project-agent-paths.js';
 import { loadProjectAgentProfile } from './project-agent-profile.js';
 import { ROLE_SKILL_SETS } from './role-skills.js';
@@ -89,12 +91,37 @@ export function saveProjectSkillAugmentation(
   const trimmed = content.trim();
   // A distillation that produced nothing must not clobber a good addendum.
   if (!trimmed) return filePath;
-  const bounded =
-    Buffer.byteLength(trimmed, 'utf8') > SKILL_AUGMENTATION_MAX_BYTES
-      ? `${trimmed.slice(0, SKILL_AUGMENTATION_MAX_BYTES)}\n\n_(truncated at ${SKILL_AUGMENTATION_MAX_BYTES} bytes)_`
-      : trimmed;
-  writeTextAtomically(filePath, `${bounded}\n`);
+  writeTextAtomically(filePath, `${boundAugmentation(trimmed)}\n`);
   return filePath;
+}
+
+/**
+ * Keep an addendum under budget: its title, then as much of the **end** as fits.
+ *
+ * Two things the previous byte-offset slice got wrong. It could land inside a
+ * command or a path, and a half-written anchor is worse than a missing one —
+ * the agent is handed something that looks runnable and is not. And it kept the
+ * head, which in the append-fallback path is the oldest material, so the
+ * directives this project learned most recently were the first to be dropped.
+ */
+function boundAugmentation(text: string): string {
+  if (Buffer.byteLength(text, 'utf8') <= SKILL_AUGMENTATION_MAX_BYTES) return text;
+  const notice = `\n\n_(truncated at ${SKILL_AUGMENTATION_MAX_BYTES} bytes)_`;
+  const lines = text.split('\n');
+  const title = lines[0] ?? '';
+  let budget =
+    SKILL_AUGMENTATION_MAX_BYTES -
+    Buffer.byteLength(`${title}\n${notice}`, 'utf8') -
+    Buffer.byteLength('…\n', 'utf8');
+  const tail: string[] = [];
+  for (let i = lines.length - 1; i > 0; i--) {
+    const cost = Buffer.byteLength(`${lines[i] as string}\n`, 'utf8');
+    if (cost > budget) break;
+    tail.unshift(lines[i] as string);
+    budget -= cost;
+  }
+  if (tail.length === 0) return `${title.slice(0, SKILL_AUGMENTATION_MAX_BYTES)}${notice}`;
+  return `${title}\n…\n${tail.join('\n').trimEnd()}${notice}`;
 }
 
 export function clearProjectSkillAugmentation(
@@ -126,16 +153,52 @@ export function listProjectSkillAugmentations(role: string, projectRoot?: string
 }
 
 /**
- * Render a distilled skill addendum. Used as the deterministic fallback when
- * no LLM is available — the directives are already instructive, so emitting
- * them verbatim under a stable header is strictly better than no addendum.
+ * Render a distilled skill addendum. Used as the deterministic fallback when no
+ * LLM is available — the directives are already instructive, so emitting them
+ * verbatim under a stable header is strictly better than no addendum.
+ *
+ * `existing` is **not optional in practice**: this renderer only ever sees the
+ * directives currently sitting in the capture buffer, and the buffer is pruned
+ * after every successful optimization. Rendering from the buffer alone and
+ * writing the result over the file therefore deleted every directive distilled
+ * by an earlier pass. That happened silently on any headless box, and on a
+ * model-backed one whenever a single per-skill call timed out and the role-level
+ * consolidation then pruned; the only remaining copy was under `archive/`.
+ *
+ * Passing the current addendum in keeps it: prior body first, new directives
+ * appended, near-duplicates of lines already present dropped.
  */
 export function renderSkillAugmentation(
   role: string,
   skill: string,
   directives: readonly string[],
   updatedAt: string,
+  existing?: string,
 ): string {
+  const priorBody = stripAugmentationFooter(existing ?? '');
+  const priorLines = priorBody
+    .split('\n')
+    .map((line) => normalizeForComparison(line.replace(/^[-*]\s+/, '')))
+    .filter(Boolean);
+  const fresh = directives.filter(
+    (directive) =>
+      !priorLines.some((line) => tokenOverlap(line, normalizeForComparison(directive)) >= 0.55),
+  );
+  if (priorBody) {
+    // Nothing new to say: hand back the file exactly as it is, footer and all,
+    // so a repeated pass over an unchanged buffer is a true no-op. Returning
+    // the footer-stripped body would make every quiet pass a rewrite.
+    if (fresh.length === 0) return `${(existing ?? '').trim()}\n`;
+    return [
+      priorBody,
+      '',
+      ...fresh.map((directive) => `- ${directive}`),
+      '',
+      '---',
+      `*Distilled ${updatedAt} · ${fresh.length} new directive${fresh.length === 1 ? '' : 's'}*`,
+      '',
+    ].join('\n');
+  }
   return [
     `# Project practice: \`${skill}\` (role: \`${role}\`)`,
     '',
@@ -150,6 +213,14 @@ export function renderSkillAugmentation(
   ].join('\n');
 }
 
+/** Drop the trailing `--- / *Distilled …*` block so a re-render appends cleanly. */
+function stripAugmentationFooter(text: string): string {
+  return text
+    .replace(/\n*---\s*\n\*(?:Distilled|Truncated)[^\n]*\*\s*$/i, '')
+    .replace(/\n*_\(truncated at \d+ bytes\)_\s*$/i, '')
+    .trimEnd();
+}
+
 /**
  * Instruction for the optimization pass: turn the directives that capture
  * routed to one skill into that skill's project addendum.
@@ -159,6 +230,7 @@ export function buildSkillDistillInstruction(
   skill: string,
   directives: readonly string[],
   existing?: string,
+  retired: readonly string[] = [],
 ): string {
   const sections = [
     `You are refining the \`${skill}\` skill for the "${role}" agent **in this project**.`,
@@ -175,6 +247,7 @@ export function buildSkillDistillInstruction(
     '4. **Merge, do not append.** Combine overlapping directives into one sharper rule. The output must be shorter than the input.',
     '5. **Structure.** Short `##` sections when it helps (e.g. Commands, Conventions, Pitfalls); bullets otherwise.',
     '6. **Budget.** Stay under 400 words. Drop the weakest directives rather than compressing everything into noise.',
+    '7. **Weigh the track record.** Some directives carry one, shown as `[applied N×, M ok]` — the number of completed tasks that exercised the directive and how many of those succeeded. Lead with the ones that keep working. A directive applied several times with few successes has been tested and found wanting: drop it, or state the narrower condition under which it actually holds. A directive with no record is unproven, not bad — keep it if it is sound, but do not let it displace a proven one.',
     '',
     `## Directives captured for \`${skill}\` (${directives.length})`,
     '',
@@ -182,6 +255,16 @@ export function buildSkillDistillInstruction(
   ];
   if (existing?.trim()) {
     sections.push('', '## Existing addendum (improve upon it)', '', existing.trim());
+  }
+  if (retired.length > 0) {
+    sections.push(
+      '',
+      `## Retired — do not reinstate (${retired.length})`,
+      '',
+      'These were exercised repeatedly and kept correlating with failed tasks. If the existing addendum still states any of them, drop it.',
+      '',
+      ...retired.map((what) => `- ${what}`),
+    );
   }
   sections.push(
     '',
@@ -245,7 +328,8 @@ export function loadSkillAffinity(role: string, projectRoot?: string): SkillAffi
     return {
       role: normalizedRole,
       entries,
-      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date(0).toISOString(),
+      updatedAt:
+        typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date(0).toISOString(),
     };
   } catch {
     return { role: normalizedRole, entries: {}, updatedAt: new Date(0).toISOString() };
@@ -297,16 +381,25 @@ export function recordSkillLoad(
   });
 }
 
-/** Record the outcome of a task that ran with these skills loaded. */
+/**
+ * Record the outcome of a task that ran with these skills loaded.
+ *
+ * Also stamps `lastUsedAt`: an outcome is the strongest evidence that a skill
+ * was in use, and the recency decay in {@link scoreSkillAffinity} reads that
+ * stamp. Leaving it to `recordSkillLoad` alone meant an affinity file written
+ * only through this path looked like it had never been touched.
+ */
 export function recordSkillOutcome(
   role: string,
   skills: readonly string[],
   ok: boolean,
   projectRoot?: string,
 ): void {
+  const now = new Date().toISOString();
   mutateAffinity(role, skills, projectRoot, (entry) => {
     if (ok) entry.succeeded += 1;
     else entry.failed += 1;
+    entry.lastUsedAt = now;
   });
 }
 
@@ -329,18 +422,57 @@ export function setSkillPinned(
   });
 }
 
+/** Half-life of outcome evidence, in days. Older evidence fades toward neutral. */
+export const SKILL_EVIDENCE_HALF_LIFE_DAYS = 30;
+
 /**
- * Score a skill for this role. Higher wins. Deterministic and monotone:
- * with no recorded history every candidate scores the same, so ranking falls
- * back to the curated order and behaviour matches a fresh project exactly.
+ * Score a skill for this role. Higher wins. Deterministic and monotone: with no
+ * recorded history every candidate scores exactly the same, so ranking falls
+ * back to the curated order and a fresh project behaves as if this layer did
+ * not exist.
+ *
+ * Four properties the previous scoring got wrong, each of which showed up as a
+ * skill that could not be dislodged:
+ *
+ * 1. **Failure counts against a skill.** The old form skipped Laplace smoothing
+ *    when there were no outcomes, so "no evidence" scored 0 while ten straight
+ *    failures scored 0.25 — failure ranked as evidence of relevance. The
+ *    success rate is now centred on the 0.5 prior, so a losing record is
+ *    negative and an untried skill is exactly neutral.
+ * 2. **Exposure is not merit.** `min(loaded, 10) * 0.1` paid a skill up to a
+ *    full point for having been selected, which is a loop: selected skills
+ *    out-scored unselected ones because they had been selected. The term is now
+ *    an exploration bonus that *decays* with load count, so a skill that has
+ *    never been tried is the one with something to prove.
+ * 3. **Evidence goes stale.** Counters are lifetime totals; a project that
+ *    switched test runners four months ago still carried the old runner's wins
+ *    at full weight. Outcome evidence now decays with a
+ *    {@link SKILL_EVIDENCE_HALF_LIFE_DAYS}-day half-life.
+ * 4. **One chatty skill could pin the top slot.** `learned * 2` is unbounded, so
+ *    a skill that attracts routing dominates every other signal forever. It is
+ *    now logarithmic: still the strongest single term, no longer a lock.
+ *
+ * A missing `lastUsedAt` means "unknown", not "ancient" — legacy affinity files
+ * written before the field existed must not have their evidence zeroed.
  */
-export function scoreSkillAffinity(entry: SkillAffinityEntry | undefined): number {
-  if (!entry) return 0;
-  if (entry.pinned) return Number.POSITIVE_INFINITY;
-  // Laplace-smoothed success rate so a single failure does not bury a skill.
-  const outcomes = entry.succeeded + entry.failed;
-  const successRate = outcomes === 0 ? 0 : (entry.succeeded + 1) / (outcomes + 2);
-  return entry.learned * 2 + successRate * 3 + Math.min(entry.loaded, 10) * 0.1;
+export function scoreSkillAffinity(
+  entry: SkillAffinityEntry | undefined,
+  now: number = Date.now(),
+): number {
+  const record = entry ?? EMPTY_ENTRY;
+  if (record.pinned) return Number.POSITIVE_INFINITY;
+  const outcomes = record.succeeded + record.failed;
+  // Laplace-smoothed in every branch: no outcomes ⇒ exactly the 0.5 prior.
+  const successRate = (record.succeeded + 1) / (outcomes + 2);
+  const ageDays = record.lastUsedAt
+    ? (now - Date.parse(record.lastUsedAt)) / 86_400_000
+    : Number.NaN;
+  const recency = Number.isFinite(ageDays)
+    ? 0.5 ** (Math.max(0, ageDays) / SKILL_EVIDENCE_HALF_LIFE_DAYS)
+    : 1;
+  const evidence = (successRate - 0.5) * 4 * recency;
+  const exploration = 1 / Math.sqrt(1 + record.loaded);
+  return Math.log1p(record.learned) * 2 + evidence + exploration;
 }
 
 /**
@@ -361,13 +493,14 @@ export function rankRoleSkills(
   if (unique.length <= limit) return unique;
   const affinity = loadSkillAffinity(role, projectRoot);
   const augmented = new Set(listProjectSkillAugmentations(role, projectRoot));
+  const now = Date.now();
   return unique
     .map((skill, index) => ({
       skill,
       index,
       // An existing addendum is itself evidence the project developed this
       // skill, even when the affinity file was reset or hand-edited.
-      score: scoreSkillAffinity(affinity.entries[skill]) + (augmented.has(skill) ? 1 : 0),
+      score: scoreSkillAffinity(affinity.entries[skill], now) + (augmented.has(skill) ? 1 : 0),
     }))
     .sort((a, b) => (b.score === a.score ? a.index - b.index : b.score - a.score))
     .slice(0, limit)

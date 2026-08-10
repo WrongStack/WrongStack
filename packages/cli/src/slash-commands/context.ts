@@ -349,6 +349,7 @@ const SOURCE_LABELS: Record<SystemBlockSource | 'other', string> = {
   'leader-after-task': 'leader-after-task (post-tool summary)',
   contributor: 'contributor',
   ledger: 'completed-work ledger',
+  glossary: 'project jargon dictionary',
   nextsteps: 'next-steps gate',
   other: 'other (untagged)',
 };

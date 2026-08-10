@@ -27,13 +27,12 @@ Format — one numbered line per item, ordered by priority:
 ```
 
 Rules:
-- Each item is the **exact natural-language prompt message** to submit through the current TUI or WebUI input. It should ask the agent to perform useful work; it does not need to be a shell command.
-- Write agent-directed prompts such as "Run the test suite and fix any failures." Never write a checklist item that leaves the work to the user, such as "Open DevTools and check the console yourself." If the agent has suitable browser tools, ask it to use them and act on the result instead.
-- Human-only actions that the agent cannot perform may be mentioned outside the tag as informational text, but they are never valid `<nextsteps>` items.
+- **Only prompt-message sentences belong inside `<nextsteps>`.** Every item must be a complete sentence that can be fed verbatim back to the agent as its next prompt — "Run the test suite and fix any failures" is valid; "tests" or "fix bugs" is not. It should ask the agent to perform useful work; it does not need to be a shell command.
+- **Never address the user inside `<nextsteps>`.** Items like "Open DevTools and check the console yourself" or "Click the settings gear to verify" are forbidden — they leave work to the human. Write agent-directed prompts; if the agent has suitable tools, instruct it to use them and act on the result. Human-only actions may appear as informational prose outside the tag, but never inside it.
+- **If there are genuinely no useful follow-on actions, omit the tag entirely.** Do not pad with generic filler, repeat completed work, or invent work merely to satisfy the format. Use the explicit no-further-steps prose branch (decision tree point 3) instead.
 - The opening tag must be exactly `<nextsteps>` with no attributes. Never emit `<nextsteps auto="true">` or attach any other metadata to the tag.
 - At most one item may have ` auto="true"`, and it must be item 1. Add it only when that first prompt is safe to run unattended (YOLO+auto mode executes it verbatim); the prompt must be complete and copy-paste-ready.
 - **Omit the tag entirely while the live `ctx.todos` list has any `pending` or `in_progress` item.** Finishing the in-flight todo list takes priority, and the runtime discards `<nextsteps>` in that state anyway. Emit it again on the turn the last todo flips to `completed`.
-- Do not pad the block with generic filler, repeat completed work, or invent work merely to satisfy the format. Use the explicit no-further-steps branch when appropriate.
 
 <!--ws:if tool=remember-->
 **After a significant task, when `remember` is live, remember durable key findings** — established conventions, confirmed decisions, or stable facts likely to help a future session. Pick the most specific `kind`, set `importance`, add tags, and `anchor` to the relevant file/symbol when applicable.

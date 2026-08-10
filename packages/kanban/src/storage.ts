@@ -5,6 +5,7 @@ import { normalizeKanbanBoundaryPolicy } from './boundary.js';
 import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle.js';
 import { getProductionKanbanStorage } from './server/remote-storage.js';
 import { getInstalledKanbanStorageBackend } from './storage-backend.js';
+import { isInProcessTestMode } from './test-mode.js';
 import {
   CURRENT_KANBAN_VERSION,
   DEFAULT_COLUMNS,
@@ -25,11 +26,7 @@ function runtimeStorage(projectRoot: string) {
   if (installed) return installed;
   // Unit tests intentionally exercise the legacy file codec and locking
   // implementation in-process. Real IPC tests opt in explicitly.
-  if (
-    process.env['NODE_ENV'] === 'test' &&
-    process.env['VITEST'] === 'true' &&
-    process.env['WRONGSTACK_KANBAN_FORCE_IPC'] !== '1'
-  ) {
+  if (isInProcessTestMode()) {
     return undefined;
   }
   return getProductionKanbanStorage(projectRoot);
@@ -194,6 +191,19 @@ export const EVENT_LOG_MAX_ENTRIES = 10_000;
  * entries so recent audit history is always available.
  */
 export const EVENT_LOG_TRIM_TO = 5_000;
+
+/**
+ * Board size at which the subsystem starts complaining, in bytes of serialized
+ * JSON.
+ *
+ * Nothing enforces it — a board over this size still reads and writes normally.
+ * It exists because the next ceiling above it is silent and lossy: the HQ wire
+ * codec rejects any single board record over 750 KB
+ * (`MAX_HQ_KANBAN_BOARD_BYTES` in core), so a board that grows past it simply
+ * stops appearing in HQ. This threshold sits below that one so a board announces
+ * itself while there is still room to archive cards or compact a mirror.
+ */
+export const KANBAN_BOARD_SOFT_MAX_BYTES = 512 * 1024;
 
 interface KanbanEventLogState {
   size: number;

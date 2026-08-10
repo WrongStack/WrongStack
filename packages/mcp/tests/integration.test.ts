@@ -296,11 +296,20 @@ describe('MCPRegistry + MockMCPServer', () => {
 
   it('restart reconnects after stop', async () => {
     const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
-    await reg.start(stdioCfg('mock', scriptPath, { enabled: true }));
+    await reg.start(
+      stdioCfg('mock', scriptPath, {
+        enabled: true,
+        allowedTools: ['ping'],
+        permission: 'deny',
+      }),
+    );
     expect(reg.list()[0]!.state).toBe('connected');
     await reg.stop('mock');
     await reg.restart('mock');
     expect(reg.list()[0]!.state).toBe('connected');
+    expect(toolReg.list()).toEqual([
+      expect.objectContaining({ name: 'mcp__mock__ping', permission: 'deny' }),
+    ]);
     await reg.stopAll();
   });
 

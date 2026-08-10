@@ -118,7 +118,16 @@ const OPERATION_KEYS: Record<SessionCatalogOperationName, readonly string[]> = {
   subscribe: ['cursor'],
   unsubscribe: [],
   upsert_summary: ['summary', 'transcriptRelativePath', 'summaryRelativePath'],
-  list_catalog: ['limit', 'search'],
+  list_catalog: [
+    'limit',
+    'search',
+    'since',
+    'until',
+    'provider',
+    'model',
+    'minTokens',
+    'titleContains',
+  ],
   resolve_id: ['query'],
   get_summary: ['sessionId'],
   rename: ['sessionId', 'name'],
@@ -288,10 +297,7 @@ async function dispatch<O extends SessionCatalogOperationName>(
     }
     case 'list_catalog': {
       const value = args as SessionCatalogOperations['list_catalog']['args'];
-      return catalog.listCatalog(
-        value.limit,
-        value.search,
-      ) as SessionCatalogOperations[O]['result'];
+      return catalog.listCatalog(value) as SessionCatalogOperations[O]['result'];
     }
     case 'resolve_id':
       return catalog.resolveId(

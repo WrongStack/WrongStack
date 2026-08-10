@@ -7,6 +7,7 @@ import {
   type KanbanQueueHealth,
   type KanbanSupervisorConfig,
   type KanbanSupervisorSnapshot,
+  kanbanQueueAnomalyCount,
   listBoards,
   reconcileKanbanBoard,
   recoverStaleTaskAssignments,
@@ -167,7 +168,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     if (recovered)
       health = await getKanbanQueueHealth(resolveProjectRoot(deps), { boardId: board.id });
 
-    const anomalyCount = countAnomalies(health);
+    const anomalyCount = kanbanQueueAnomalyCount(health);
     const snapshot: KanbanSupervisorSnapshot = {
       boardId: board.id,
       status: anomalyCount > 0 ? 'attention' : 'healthy',
@@ -410,19 +411,14 @@ function dispatchRoute(routing: KanbanExecutionRouting): KanbanSupervisorDispatc
   };
 }
 
-function countAnomalies(health: KanbanQueueHealth): number {
-  return (
-    health.staleAssignments.count +
-    health.heartbeatDue.count +
-    health.counts.failed +
-    health.counts.blocked
-  );
-}
+// `countAnomalies` used to live here with its own arithmetic, which disagreed
+// with the route's and the WebUI health bar's. `kanbanQueueAnomalyCount` is the
+// single definition — see its JSDoc in @wrongstack/kanban.
 
 function healthSummary(health: KanbanQueueHealth): string {
   return [
     `${health.counts.running} running`,
-    `${health.counts.ready} ready`,
+    `${health.counts.startable} ready`,
     `${health.counts.review} review`,
     `${health.counts.blocked} blocked`,
     `${health.counts.failed} failed`,

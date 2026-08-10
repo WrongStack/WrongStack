@@ -72,6 +72,31 @@ export const GENERIC_AGENT = defineAgent('generic', 'Generic Project Agent');
  * audit/review specialists. Adding standalone `generic` and `shadow-agent`
  * roles produces 77 unique built-in role ids.
  */
+/**
+ * Carry the catalog's curated one-line capability onto the roster config.
+ *
+ * The catalog has written a precise summary for every agent — "Schema design,
+ * query optimization, and safe reversible migrations for SQL databases." — but
+ * it lived only on the definition, so the roster the leader is shown had to
+ * fall back to the first 80 characters of the role prompt. Every one of those
+ * begins "You are the X agent. Your job is…", which spends a third of the line
+ * on boilerplate and then truncates exactly where the distinguishing part
+ * starts. A leader choosing between 77 look-alike lines picks the handful whose
+ * *id* it can guess, which is what the usage data shows.
+ *
+ * The field already exists on `SubagentConfig` for project-created roles, so
+ * this simply makes built-ins carry the same shape. The definition object is
+ * never mutated — the catalog stays the single source.
+ */
+function withDispatchMetadata(definition: (typeof ALL_AGENT_DEFINITIONS)[number]): SubagentConfig {
+  const summary = definition.capability?.summary?.trim();
+  if (!summary) return definition.config;
+  return {
+    ...definition.config,
+    dispatch: { summary, keywords: [...(definition.capability.keywords ?? [])] },
+  };
+}
+
 export const FLEET_ROSTER: Record<string, SubagentConfig> = {
   'audit-log': AUDIT_LOG_AGENT,
   'bug-hunter': BUG_HUNTER_AGENT,
@@ -81,7 +106,7 @@ export const FLEET_ROSTER: Record<string, SubagentConfig> = {
   generic: GENERIC_AGENT,
   'shadow-agent': SHADOW_AGENT,
   ...Object.fromEntries(
-    ALL_AGENT_DEFINITIONS.map((d) => [d.config.role as string, d.config] as const),
+    ALL_AGENT_DEFINITIONS.map((d) => [d.config.role as string, withDispatchMetadata(d)] as const),
   ),
 };
 

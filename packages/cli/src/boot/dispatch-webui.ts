@@ -295,6 +295,9 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     return 1;
   }
 
+  // The shared `setupSage` wiring owns the process-scoped `session.ended`
+  // commit extractor for every dispatched surface. Do not duplicate it in
+  // WebUI's per-session lifecycle or the same commits would be scanned twice.
   const webuiPromise = runWebUI({
     agent,
     events,
@@ -478,5 +481,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
         resolve(1);
       });
   });
+  // Promisify `runWebUI` so `cli-main.ts` can `await` it. The
+  // `session.ended` commit mining is owned by the shared `setupSage` wiring.
   return webuiExit;
 }

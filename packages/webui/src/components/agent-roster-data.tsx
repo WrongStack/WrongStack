@@ -64,6 +64,18 @@ export interface CustomRosterStats {
   skills?: string[];
   /** Captured directives already routed to a skill, awaiting distillation. */
   skilledEntryCount?: number;
+  /**
+   * How the buffer is performing rather than how big it is.
+   *
+   * `lifetimeCaptureCount` measures volume, which says nothing about whether the
+   * agent is learning the right things. These do: how many directives have
+   * actually been exercised on a task, how many never have, and what share of
+   * those applications ended in a successful task. `directiveHitRate` is null
+   * until at least one directive has been exercised.
+   */
+  appliedEntryCount?: number;
+  deadEntryCount?: number;
+  directiveHitRate?: number | null;
 }
 
 // ── Tab definitions ────────────────────────────────────────────────────

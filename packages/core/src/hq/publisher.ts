@@ -219,7 +219,20 @@ function queuedFrameCoalesceKey(
   if (frame.type !== 'client.event' || !frame.event.type.endsWith('.snapshot')) {
     return undefined;
   }
-  return [frame.event.type, frame.event.sessionId ?? '', frame.event.runId ?? ''].join('|');
+  // Chunks of one snapshot are different content, not different versions of the
+  // same content. Without this the whole multi-chunk publish collapsed onto a
+  // single key while the socket was down, each chunk evicting the last, and
+  // only the final chunk survived the reconnect.
+  //
+  // A newer snapshot with FEWER chunks still leaves the older tail chunks
+  // queued. That is safe for the rollups this applies to: records carry their
+  // own revision, so a stale one loses on arrival.
+  const payload = frame.event.payload as { chunkIndex?: unknown } | undefined;
+  const chunk =
+    typeof payload?.chunkIndex === 'number' && Number.isFinite(payload.chunkIndex)
+      ? String(payload.chunkIndex)
+      : '';
+  return [frame.event.type, frame.event.sessionId ?? '', frame.event.runId ?? '', chunk].join('|');
 }
 
 function defaultSocketFactory(url: string): HqSocketLike {
@@ -646,6 +659,14 @@ export class HqPublisher {
     if (bytes > this.maxQueuedBytes) {
       this.droppedFrames += 1;
       this.droppedBytes += bytes;
+      // `droppedFrames` only moves a counter nobody polls. This is the one drop
+      // that is never recoverable — no later rollup supersedes a frame that was
+      // never queued — so name it once per frame. The frame body is not logged:
+      // it is telemetry that may carry project content.
+      process.emitWarning(
+        `HQ telemetry frame of ${bytes} bytes exceeds the ${this.maxQueuedBytes}-byte offline queue cap and was dropped.`,
+        { code: 'WRONGSTACK_HQ_FRAME_TOO_LARGE' },
+      );
       return;
     }
 

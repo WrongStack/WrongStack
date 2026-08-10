@@ -107,7 +107,7 @@ These apply to what you write on the board, not to whether you may work. They ex
 ### Card lifecycle in detail
 
 1. **Backlog** — The idea is captured with a `title` and `description`. Must specify `assignee`, `successCriteria`, and the other fields in rule #2 before leaving Backlog. `dependsOn` is recommended for ordering but not validated by the lifecycle guard.
-2. **Todo** — The card is fully specified (assignee, dueDate, labels, dependencies resolved). Ready for work.
+2. **Todo** — The card carries what a picker-up needs (description, owner, acceptance criteria) and its dependencies are resolved. Ready for work.
 3. **Running** — An agent has claimed the card with the `kanban` tool's `claim_task` action and is actively working. Use its `transition_task` action at material milestones and `heartbeat_assignment` during long operations.
 4. **Review** — The worker signals completion. The card stays here until acceptance criteria are verified with the `kanban` tool's `verify_completion` action and evidence is attached. A reviewer agent or the leader checks the output. Worker completion alone does **not** authorize Done.
 5. **Done** — All acceptance criteria met, verification report persisted. The card is complete.

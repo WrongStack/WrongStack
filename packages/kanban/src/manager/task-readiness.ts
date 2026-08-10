@@ -5,6 +5,12 @@ export interface KanbanDependencyReadinessIssue {
   dependencyId: string;
   status: 'missing' | 'incomplete';
   taskStatus?: string | undefined;
+  /**
+   * Title of the blocking card, when it still exists. Messages built from
+   * these issues are read by an agent deciding what to do next, and a bare
+   * UUID does not say what the work is waiting for.
+   */
+  dependencyTitle?: string | undefined;
 }
 
 /**
@@ -28,10 +34,30 @@ export function getDependencyReadinessIssues(
         dependencyId: dependency.id,
         status: 'incomplete',
         taskStatus: dependency.status,
+        dependencyTitle: dependency.title,
       });
     }
   }
   return issues;
+}
+
+/**
+ * Render dependency failures as a human sentence fragment.
+ *
+ * Shared by every caller that reports "this card cannot start yet" so the
+ * wording cannot drift between the assignment path and the lifecycle path.
+ * Names the blocking card, falling back to the id when the card is gone.
+ */
+export function formatDependencyReadinessIssues(
+  issues: readonly KanbanDependencyReadinessIssue[],
+): string {
+  return issues
+    .map((issue) =>
+      issue.status === 'missing'
+        ? `${issue.dependencyId} (missing)`
+        : `${issue.dependencyTitle ?? issue.dependencyId} (${issue.taskStatus ?? 'incomplete'})`,
+    )
+    .join(', ');
 }
 
 /**

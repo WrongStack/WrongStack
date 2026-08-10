@@ -4,7 +4,7 @@ import type {
   HqKanbanTombstone,
   HqPublisher,
 } from '@wrongstack/core/hq';
-import { deriveHqProjectId } from '@wrongstack/core/hq';
+import { deriveHqProjectId, MAX_HQ_KANBAN_BOARD_BYTES, redactHqValue } from '@wrongstack/core/hq';
 import {
   bridgeKanbanSupervisor,
   deleteBoard,
@@ -52,11 +52,24 @@ const KANBAN_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 // the next cycle.
 const MAX_BOARDS_PER_PUBLISH = 50;
 
+/**
+ * Summary cap handed to `publishEvent` for kanban snapshots, and therefore the
+ * cap `hqWireBoardBytes` must measure against. One constant so the estimate and
+ * the actual send cannot drift apart.
+ */
+const KANBAN_SNAPSHOT_SUMMARY_CAP = 100_000;
+
 // Kanban↔HQ sync is best-effort telemetry: every detached promise in this
 // module must land here instead of surfacing as an unhandled rejection (which
-// kills the host process on Node ≥15). Failed publishes self-heal — the state
-// fingerprint stays unwritten, so the next watcher event or reconnect
-// full-snapshot re-detects the same diff.
+// kills the host process on Node ≥15).
+//
+// A publish that THROWS self-heals: the throw skips `writeState`, so the state
+// fingerprint stays unwritten and the next watcher event re-detects the same
+// diff. That is only true of throws. A publish that succeeds locally but is
+// rejected by HQ does not self-heal — `writeState` has already run by then, and
+// the receiver drops an invalid frame without replying. (An earlier version of
+// this comment claimed the retry covered that case too; it never did. The
+// oversized-board skip above is what closes it.)
 function warnSyncFailure(error: unknown): void {
   process.emitWarning(
     `WrongStack kanban HQ sync failed (best-effort, will retry on next change): ${
@@ -197,6 +210,27 @@ export function createKanbanHqSync(
       }
       present.add(boardId);
       const record = boardRecord(board);
+      // `isHqKanbanSnapshotPayload` rejects the entire snapshot when one board
+      // record is over the limit, and HQ drops a rejected frame without a
+      // reply — so an oversized board simply stopped appearing in HQ and
+      // nothing anywhere said so. The fingerprint had already been written by
+      // then, so it never retried either: permanent, silent, invisible.
+      //
+      // (Its chunk-mates were never at risk: the chunk target above is 512 KB
+      // and the reject threshold is 750 KB, so any board big enough to be
+      // rejected is already alone in its chunk. The loss is one board, not a
+      // batch — which is why the fix is a warning and a retry, not isolation.)
+      //
+      // Skipping it here means the frame stays valid, and leaving the
+      // fingerprint unwritten means the board is retried once it shrinks.
+      const wireBytes = hqWireBoardBytes(record.board);
+      if (wireBytes > MAX_HQ_KANBAN_BOARD_BYTES) {
+        process.emitWarning(
+          `Kanban board "${boardId}" serializes to ${wireBytes} bytes for HQ, over the ${MAX_HQ_KANBAN_BOARD_BYTES}-byte per-board limit. It will not appear in HQ until it shrinks; archive completed cards.`,
+          { code: 'WRONGSTACK_HQ_KANBAN_BOARD_DROPPED' },
+        );
+        continue;
+      }
       const known = state.boards[boardId];
       const hadTombstone = state.tombstones[boardId] !== undefined;
       if (
@@ -254,7 +288,7 @@ export function createKanbanHqSync(
       target.publishEvent({
         type: 'kanban.snapshot',
         payload,
-        maxSummaryLength: 100_000,
+        maxSummaryLength: KANBAN_SNAPSHOT_SUMMARY_CAP,
       });
     }
   };
@@ -382,6 +416,34 @@ export function createKanbanHqSync(
   };
 }
 
+/**
+ * Bytes this board will occupy on the wire — measured AFTER the redaction the
+ * publisher applies, not before.
+ *
+ * This distinction is the whole point. `publishEvent` summarises every string
+ * longer than `KANBAN_SNAPSHOT_SUMMARY_CAP` before sending, so a board that is
+ * large only because one field is long shrinks to well under HQ's limit and
+ * arrives fine. Measuring the raw board would drop it — turning a board that
+ * reached HQ with a truncated description into one that never appears at all.
+ * The boards that genuinely cannot fit are the ones with hundreds of cards,
+ * where no single string is long enough to summarise and the total stays over.
+ *
+ * The cheap raw check runs first so the deep redaction walk only happens for
+ * boards that look too big; for everything else this costs one `JSON.stringify`
+ * the caller would do anyway.
+ *
+ * Redaction policy: the default is used here. An operator policy can only
+ * redact more, never less, so a tightened policy makes this an over-estimate —
+ * conservative in the direction that keeps a board out of HQ rather than
+ * letting one through that HQ would reject.
+ */
+function hqWireBoardBytes(board: Record<string, unknown>): number {
+  const raw = Buffer.byteLength(JSON.stringify(board), 'utf8');
+  if (raw <= MAX_HQ_KANBAN_BOARD_BYTES) return raw;
+  const redacted = redactHqValue(board, { maxSummaryLength: KANBAN_SNAPSHOT_SUMMARY_CAP }).value;
+  return Buffer.byteLength(JSON.stringify(redacted), 'utf8');
+}
+
 function boardRecord(board: KanbanBoard): HqKanbanBoardRecord {
   return {
     boardId: board.id,
@@ -463,7 +525,19 @@ function chunkSnapshotPayload(
 
   // An empty snapshot is meaningful on first attach: it registers the project
   // state channel even when the project has no boards yet.
-  return chunks.length > 0 ? chunks : [emptyPayload()];
+  const result = chunks.length > 0 ? chunks : [emptyPayload()];
+  // Stamp the ordinals only on a genuine split. The publisher's offline queue
+  // coalesces `*.snapshot` frames by scope; without a per-chunk discriminator
+  // every chunk of one publish shared a key and evicted its predecessor, so a
+  // reconnect delivered the last chunk alone. A single-chunk publish needs no
+  // discriminator and does not carry the fields.
+  if (result.length > 1) {
+    result.forEach((payload, index) => {
+      payload.chunkIndex = index;
+      payload.chunkCount = result.length;
+    });
+  }
+  return result;
 }
 
 /** Merge two pending remote snapshots into one, keeping — per boardId — the

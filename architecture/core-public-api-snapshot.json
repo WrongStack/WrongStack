@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.303.0",
+  "packageVersion": "0.304.0",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -150,6 +150,7 @@
         "export { type CreateOneShotLLMToolOptions, createOneShotLLMTool, ONE_SHOT_LLM_TOOL_NAME, } from './tools/one-shot-llm-tool.js';",
         "export { type CreatePluginManagerToolOptions, createPluginManagerTool, PLUGIN_MANAGER_TOOL_NAME, type PluginManagerCatalogEntry, type PluginManagerMutationResult, } from './tools/plugin-manager.js';",
         "export { type DirectorSessionFactory, type DirectorSessionFactoryOptions, makeDirectorSessionFactory, } from './coordination/director-session.js';",
+        "export { type DomainGlossary, type DomainGlossaryOptions, makeDomainGlossaryContributor, renderDomainGlossary, } from './core/system-prompt-glossary.js';",
         "export { type ErrorHistoryEntry, type ProviderModelState, type ProviderModelStatus, ProviderModelStatusTracker, type ProviderStatusSnapshot, type ProviderStatusTrackerConfig, } from './coordination/provider-status-tracker.js';",
         "export { type FindingsIntegrationResult, integrateFindings, } from './plugins/review-finding-integration.js';",
         "export { type FleetStatusToolOptions, makeFleetStatusTool, } from './coordination/fleet-status-tool.js';",
@@ -609,7 +610,7 @@
         "export type { MailboxProjectServerInfo, MailboxProjectServerStatus, } from './mailbox-project-server-protocol.js';",
         "export type { TaskAuctionOptions, TaskBid, } from './task-auctioneer.js';",
         "export { ACP_AGENTS, ALL_FLEET_AGENTS, AUDIT_LOG_AGENT, applyRosterBudget, BUG_HUNTER_AGENT, FLEET_ROSTER, FLEET_ROSTER_BUDGETS, FLEET_ROSTER_WITHACP, type FleetRosterBudget, GENERIC_AGENT, REFACTOR_PLANNER_AGENT, SECURITY_SCANNER_AGENT, } from './fleet.js';",
-        "export { AGENT_CATALOG, AGENTS_BY_PHASE, type AgentBudgetTier, type AgentCapability, type AgentDefinition, type AgentPhase, ALL_AGENT_DEFINITIONS, applyProjectAgentConfig, assertProjectAgentRole, BUILD_AGENTS, buildConsolidationInstruction, buildProjectContextualizedPrompt, buildSkillDistillInstruction, CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION, CAPTURE_SESSION_WINDOW_MS, type ConsolidationMetadata, type CreateProjectAgentInput, canCaptureNewLearned, captureLearnedFromAgentOutput, captureLearnedFromAgentOutputDetailed, clearProjectAgentConsolidated, clearProjectSkillAugmentation, createProjectAgent, createProjectAgentRoster, DEFAULT_EAGER_SKILL_LIMIT, DELIVERY_AGENTS, DISCOVERY_AGENTS, DOMAIN_AGENTS, detectLearnedConflicts, getAgentDefinition, getProjectAgentLearnStats, HEAVY_BUDGET, hintLearnedNeedsSummarization, isConsolidated, KNOWLEDGE_AGENTS, LEARNED_HARD_LIMIT, LEARNED_SOFT_LIMIT, type LearnedCaptureResult, type AutoOptimizeDecision, type AutoOptimizeEvent, type AutoOptimizePolicy, type AutoOptimizePolicyOverrides, DEFAULT_AUTO_OPTIMIZE_POLICY, evaluateAutoOptimize, LearningOptimizationScheduler, type LearningOptimizationSchedulerOptions, resolveAutoOptimizePolicy, type LearningOptimizerLlm, LIGHT_BUDGET, type OptimizeLearningOptions, type OptimizeLearningResult, optimizeProjectAgentLearning, unwrapWholeDocumentFence, listProjectAgentLearnedEntries, listProjectAgentRoles, listProjectSkillAugmentations, loadConsolidationMetadata, loadProjectAgentConfig, loadProjectAgentConsolidated, loadProjectAgentIdentity, loadProjectAgentLearned, loadProjectAgentLearningPolicy, loadProjectAgentProfile, loadProjectSkillAugmentation, loadRoleKnowledgeManifest, loadSkillAffinity, MEDIUM_BUDGET, META_AGENTS, PLANNING_AGENTS, type ProjectAgentConfig, type ProjectAgentLearningPolicy, type ProjectAgentProfile, REVIEW_AGENTS, type RoleKnowledgeManifest, rankRoleSkills, readRawLearnedEntries, recordSkillLoad, recordSkillOutcome, refreshProjectAgentIdentity, renderSkillAugmentation, resetCaptureWindow, resetCaptureWindows, resetProjectAgentIdentity, resolveRoleSkillCandidates, routeDirectiveToSkill, SKILL_AUGMENTATION_MAX_BYTES, type SaveConsolidationOptions, type SkillAffinity, type SkillAffinityEntry, saveProjectAgentConsolidated, saveProjectSkillAugmentation, setSkillPinned, slugifyProjectAgentRole, updateProjectAgentConfig, updateProjectAgentIdentity, updateProjectAgentKnowledge, updateProjectAgentLearned, updateProjectAgentLearningPolicy, VERIFY_AGENTS, validateProjectAgentConfig, } from './agents/index.js';",
+        "export { AGENT_CATALOG, AGENTS_BY_PHASE, type AgentBudgetTier, type AgentCapability, type AgentDefinition, type AgentPhase, ALL_AGENT_DEFINITIONS, type AutoOptimizeDecision, type AutoOptimizeEvent, type AutoOptimizePolicy, type AutoOptimizePolicyOverrides, applyProjectAgentConfig, assertProjectAgentRole, BUILD_AGENTS, buildConsolidationInstruction, buildProjectContextualizedPrompt, buildSkillDistillInstruction, CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION, CAPTURE_SESSION_WINDOW_MS, type ConsolidationMetadata, type CreateProjectAgentInput, canCaptureNewLearned, captureLearnedFromAgentOutput, captureLearnedFromAgentOutputDetailed, clearProjectAgentConsolidated, clearProjectSkillAugmentation, consolidatedDocumentPath, createProjectAgent, createProjectAgentRoster, DEFAULT_AUTO_OPTIMIZE_POLICY, DEFAULT_EAGER_SKILL_LIMIT, DELIVERY_AGENTS, DIRECTIVE_QUARANTINE_MAX_UTILITY, DIRECTIVE_QUARANTINE_MIN_APPLIED, DISCOVERY_AGENTS, type DirectiveOutcomeResult, DOMAIN_AGENTS, detectLearnedConflicts, directiveTrials, directiveUtility, directiveWasApplied, evaluateAutoOptimize, getAgentDefinition, getProjectAgentLearnStats, HEAVY_BUDGET, hintLearnedNeedsSummarization, isConsolidated, isProvenDirective, KNOWLEDGE_AGENTS, LEARNED_HARD_LIMIT, LEARNED_SOFT_LIMIT, type LearnedCaptureResult, LearningOptimizationScheduler, type LearningOptimizationSchedulerOptions, type LearningOptimizerLlm, LIGHT_BUDGET, listProjectAgentLearnedEntries, listProjectAgentRoles, listProjectSkillAugmentations, loadConsolidationMetadata, loadProjectAgentConfig, loadProjectAgentConsolidated, loadProjectAgentIdentity, loadProjectAgentLearned, loadProjectAgentLearningPolicy, loadProjectAgentProfile, loadProjectSkillAugmentation, loadRoleKnowledgeManifest, loadSkillAffinity, MEDIUM_BUDGET, META_AGENTS, type OptimizeLearningOptions, type OptimizeLearningResult, optimizeProjectAgentLearning, PLANNING_AGENTS, type ProjectAgentConfig, type ProjectAgentLearningPolicy, type ProjectAgentProfile, type QuarantinedDirective, quarantinePath, REVIEW_AGENTS, type RoleKnowledgeManifest, rankRoleSkills, readQuarantinedDirectives, readRawLearnedEntries, recordDirectiveOutcomes, recordSkillLoad, recordSkillOutcome, refreshProjectAgentIdentity, renderSkillAugmentation, resetCaptureWindow, resetCaptureWindows, resetProjectAgentIdentity, resolveAutoOptimizePolicy, resolveRoleSkillCandidates, retiredDirectivesToWarnAbout, routeDirectiveToSkill, type SaveConsolidationOptions, SKILL_AUGMENTATION_MAX_BYTES, type SkillAffinity, type SkillAffinityEntry, saveProjectAgentConsolidated, saveProjectSkillAugmentation, scoreSkillAffinity, scrubRetiredLines, setSkillPinned, slugifyProjectAgentRole, unwrapWholeDocumentFence, updateProjectAgentConfig, updateProjectAgentIdentity, updateProjectAgentKnowledge, updateProjectAgentLearned, updateProjectAgentLearningPolicy, VERIFY_AGENTS, validateProjectAgentConfig, } from './agents/index.js';",
         "export { AdaptiveConcurrencyController, type AdaptiveConcurrencyState, } from './adaptive-concurrency.js';",
         "export { AutonomousBrain } from './autonomous-brain.js';",
         "export { AutonomousCoordinator } from './autonomous-coordinator.js';",
@@ -1131,15 +1132,15 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 150,
-      "sourceLines": 44275
+      "sourceFiles": 152,
+      "sourceLines": 45259
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 40,
-      "sourceLines": 10052
+      "sourceFiles": 41,
+      "sourceLines": 10269
     },
     {
       "directory": "defaults",
@@ -1160,7 +1161,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 52,
-      "sourceLines": 18379
+      "sourceLines": 18364
     },
     {
       "directory": "extension",
@@ -1188,7 +1189,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8709
+      "sourceLines": 8757
     },
     {
       "directory": "infrastructure",
@@ -1272,14 +1273,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 6112
+      "sourceLines": 6110
     },
     {
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 7,
-      "sourceLines": 2748
+      "sourceLines": 2802
     },
     {
       "directory": "skills",
@@ -1293,7 +1294,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 77,
-      "sourceLines": 17597
+      "sourceLines": 17661
     },
     {
       "directory": "tasking",
@@ -1321,7 +1322,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 64,
-      "sourceLines": 10184
+      "sourceLines": 10195
     },
     {
       "directory": "worktree",

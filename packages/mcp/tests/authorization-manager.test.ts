@@ -165,6 +165,65 @@ describe('MCPAuthorizationManager', () => {
     );
   });
 
+  it('reserves capacity during concurrent discovery and rejects duplicate starts', async () => {
+    const fixture = await createFixture();
+    const resource = 'https://mcp.example.com/mcp';
+    const discoveries: Array<() => void> = [];
+    const manager = new MCPAuthorizationManager({
+      store: fixture.store,
+      discover: () =>
+        new Promise((resolve) => {
+          discoveries.push(() => resolve(discovery(resource)));
+        }),
+    });
+    const input = {
+      resource,
+      clientId: 'client',
+      redirectUri: 'http://127.0.0.1:43123/callback',
+    };
+
+    const starts = Array.from({ length: 32 }, (_, index) =>
+      manager.begin({ ...input, serverName: `remote-${index}` }),
+    );
+    await expect(manager.begin({ ...input, serverName: 'overflow' })).rejects.toThrow(
+      /Too many pending/,
+    );
+    await expect(manager.begin({ ...input, serverName: 'remote-0' })).rejects.toThrow(
+      /already in progress/,
+    );
+
+    for (const resolve of discoveries) resolve();
+    await expect(Promise.all(starts)).resolves.toHaveLength(32);
+  });
+
+  it('does not resurrect an authorization start cancelled by disconnect', async () => {
+    const fixture = await createFixture();
+    const resource = 'https://mcp.example.com/mcp';
+    let finishDiscovery: (() => void) | undefined;
+    const manager = new MCPAuthorizationManager({
+      store: fixture.store,
+      discover: () =>
+        new Promise((resolve) => {
+          finishDiscovery = () => resolve(discovery(resource));
+        }),
+    });
+
+    const started = manager.begin({
+      serverName: 'remote',
+      resource,
+      clientId: 'client',
+      redirectUri: 'http://127.0.0.1:43123/callback',
+    });
+    await vi.waitFor(() => expect(finishDiscovery).toBeTypeOf('function'));
+    await expect(manager.disconnect('remote', resource)).resolves.toBe(false);
+    finishDiscovery?.();
+
+    await expect(started).rejects.toThrow(/discovery was cancelled/);
+    await expect(manager.status('remote', resource)).resolves.toMatchObject({
+      state: 'not_authorized',
+    });
+  });
+
   it('validates server names and reports a no-op disconnect', async () => {
     const fixture = await createFixture();
     const onStateChange = vi.fn();

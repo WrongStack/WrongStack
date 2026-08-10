@@ -141,6 +141,19 @@ export interface SearchResult {
 /** Result of a full reindex. */
 export interface IndexResult {
   filesIndexed: number;
+  /** Outcome detail for this run. Optional for compatibility with older project daemons. */
+  fileOutcomes?:
+    | {
+        /** Files parsed and committed with one or more symbols. */
+        parsed: number;
+        /** Files reused from trusted metadata or an unchanged content hash. */
+        skipped: number;
+        /** Files successfully represented in the index with zero symbols. */
+        empty: number;
+        /** Files that could not be read, parsed, or committed. */
+        failed: number;
+      }
+    | undefined;
   symbolsIndexed: number;
   langStats: Record<SymbolLang, number>;
   durationMs: number;

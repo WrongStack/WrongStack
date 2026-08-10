@@ -85,6 +85,7 @@ interface PendingAuthorization {
  */
 export class MCPAuthorizationManager {
   private readonly pending = new Map<string, PendingAuthorization>();
+  private readonly starting = new Map<string, symbol>();
   private readonly pendingTtlMs: number;
   private readonly discover: DiscoverAuthorization;
   private readonly exchange: ExchangeAuthorizationCode;
@@ -104,34 +105,50 @@ export class MCPAuthorizationManager {
     const resource = canonicalMcpResource(input.resource);
     const key = authorizationKey(input.serverName, resource);
     this.pruneExpired();
-    if (!this.pending.has(key) && this.pending.size >= MAX_PENDING_AUTHORIZATIONS) {
+    if (this.starting.has(key)) {
+      throw new Error('MCP authorization discovery is already in progress for this server');
+    }
+    if (!this.pending.has(key) && this.activeAuthorizationCount() >= MAX_PENDING_AUTHORIZATIONS) {
       throw new Error('Too many pending MCP authorization sessions');
     }
-    const discovery = await this.discover(resource, {
-      challengeHeader: input.challengeHeader,
-      signal: input.signal,
-    });
-    const challengeScopes = parseMcpBearerChallenge(input.challengeHeader ?? null, resource).scopes;
-    const scopes = input.scopes ? [...input.scopes] : challengeScopes;
-    const session = createMcpAuthorizationRequest({
-      authorizationServer: discovery.authorizationServer,
-      clientId: input.clientId,
-      redirectUri: input.redirectUri,
-      resource,
-      scopes,
-    });
-    const normalizedScopes =
-      new URL(session.authorizationUrl).searchParams.get('scope')?.split(' ').filter(Boolean) ?? [];
-    const expiresAt = this.now() + this.pendingTtlMs;
-    this.pending.set(key, { session, discovery, scopes: normalizedScopes, expiresAt });
-    return {
-      serverName: boundedServerName(input.serverName),
-      resource,
-      authorizationUrl: session.authorizationUrl,
-      redirectUri: session.redirectUri,
-      scopes: [...normalizedScopes],
-      expiresAt,
-    };
+    const attempt = Symbol(key);
+    this.starting.set(key, attempt);
+    try {
+      const discovery = await this.discover(resource, {
+        challengeHeader: input.challengeHeader,
+        signal: input.signal,
+      });
+      if (this.starting.get(key) !== attempt) {
+        throw new Error('MCP authorization discovery was cancelled');
+      }
+      const challengeScopes = parseMcpBearerChallenge(
+        input.challengeHeader ?? null,
+        resource,
+      ).scopes;
+      const scopes = input.scopes ? [...input.scopes] : challengeScopes;
+      const session = createMcpAuthorizationRequest({
+        authorizationServer: discovery.authorizationServer,
+        clientId: input.clientId,
+        redirectUri: input.redirectUri,
+        resource,
+        scopes,
+      });
+      const normalizedScopes =
+        new URL(session.authorizationUrl).searchParams.get('scope')?.split(' ').filter(Boolean) ??
+        [];
+      const expiresAt = this.now() + this.pendingTtlMs;
+      this.pending.set(key, { session, discovery, scopes: normalizedScopes, expiresAt });
+      return {
+        serverName: boundedServerName(input.serverName),
+        resource,
+        authorizationUrl: session.authorizationUrl,
+        redirectUri: session.redirectUri,
+        scopes: [...normalizedScopes],
+        expiresAt,
+      };
+    } finally {
+      if (this.starting.get(key) === attempt) this.starting.delete(key);
+    }
   }
 
   async complete(input: MCPAuthorizationCompleteInput): Promise<MCPAuthorizationStatus> {
@@ -199,7 +216,9 @@ export class MCPAuthorizationManager {
   async disconnect(serverName: string, resource: string): Promise<boolean> {
     const normalizedName = boundedServerName(serverName);
     const normalizedResource = canonicalMcpResource(resource);
-    this.pending.delete(authorizationKey(normalizedName, normalizedResource));
+    const key = authorizationKey(normalizedName, normalizedResource);
+    this.starting.delete(key);
+    this.pending.delete(key);
     const removed = await this.options.store.remove(normalizedName, normalizedResource);
     if (removed) {
       this.options.onStateChange?.({
@@ -216,6 +235,14 @@ export class MCPAuthorizationManager {
     for (const [key, value] of this.pending) {
       if (value.expiresAt <= now) this.pending.delete(key);
     }
+  }
+
+  private activeAuthorizationCount(): number {
+    let count = this.pending.size;
+    for (const key of this.starting.keys()) {
+      if (!this.pending.has(key)) count++;
+    }
+    return count;
   }
 
   private emit(state: MCPAuthorizationStateEvent['state'], value: MCPStoredAuthorization): void {

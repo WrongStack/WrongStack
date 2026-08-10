@@ -358,6 +358,41 @@ describe('MCPRegistry', () => {
   });
 
   describe('onToolsChanged — re-registration edge cases', () => {
+    it('replaces the executable registry surface with the refreshed tool list', () => {
+      const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
+      toolReg.register({
+        name: 'mcp__dynamic__old_tool',
+        description: 'old',
+        permission: 'auto',
+        mutating: false,
+        inputSchema: { type: 'object', properties: {} },
+        execute: async () => 'old',
+      });
+      const slot = {
+        cfg: stdioCfg('dynamic'),
+        state: 'connected' as const,
+        toolNames: ['mcp__dynamic__old_tool'] as string[],
+        lazyTools: [] as Tool[],
+        attempts: 1,
+        reconnectPending: false,
+        reconnectCycles: 0,
+        lazy: false,
+        registeredLazy: false,
+        client: {
+          listTools: () => [{ name: 'new_tool', inputSchema: {} }],
+        } as never as any,
+      };
+      (reg as never as { servers: Map<string, typeof slot> }).servers.set('dynamic', slot);
+
+      (reg as never as RegistryInternals).onToolsChanged('dynamic', [
+        { name: 'new_tool' } as never,
+      ]);
+
+      expect(toolReg.get('mcp__dynamic__old_tool')).toBeUndefined();
+      expect(toolReg.get('mcp__dynamic__new_tool')).toBeDefined();
+      expect(slot.toolNames).toEqual(['mcp__dynamic__new_tool']);
+    });
+
     it('onToolsChanged unregisters tools even when toolRegistry.unregister throws', async () => {
       const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
       const slot = {

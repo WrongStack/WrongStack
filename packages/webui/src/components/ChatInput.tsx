@@ -30,7 +30,7 @@ import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { StopControls } from './ChatInput/stop-controls.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
-import { confirmModalChoice } from './ConfirmModal.js';
+import { confirmModalChoice, useConfirmModalStore } from './ConfirmModal.js';
 import { FileReferenceChip } from './FileReferenceChip.js';
 import { parseNextSteps } from './NextStepsBar.js';
 import { PromptLibraryModal } from './PromptLibraryModal.js';
@@ -133,6 +133,10 @@ export function ChatInput({
   const [refinePickOpen, setRefinePickOpen] = useState(false);
   const [topicCheckBusy, setTopicCheckBusy] = useState(false);
   const topicCheckBusyRef = useRef(false);
+  // AbortController for the in-flight topic-check (adviseTopic + modal).
+  // Aborted on session switch so a stale promise or modal from session A
+  // cannot block or bleed into session B.
+  const topicCheckAbortRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRefs = useFileReferenceStore((s) => s.refs);
   const { removeRef, clearRefs } = useFileReferenceStore.getState();
@@ -166,6 +170,44 @@ export function ChatInput({
   useEffect(() => {
     useUIStore.getState().setDraftInput(input);
   }, [input]);
+
+  // Reset the entire unsent composer when the active session changes (new
+  // session, resume, or session-end id→null). This prevents a previous
+  // session's unsent text, pending images, file references, and in-flight
+  // @-mention picker from bleeding into the next one. Fresh page loads are
+  // already clean because draftInput is no longer persisted to localStorage.
+  // Note: view navigation (Settings↔Chat) is unaffected — the draft lives
+  // in the in-memory ui-store, so ChatInput rehydrates from it on re-mount.
+  const sessionId = useSessionStore((s) => s.session?.id ?? null);
+  const prevSessionIdRef = useRef<string | null>(sessionId);
+  useEffect(() => {
+    if (prevSessionIdRef.current === sessionId) return;
+    prevSessionIdRef.current = sessionId;
+    setInput('');
+    setHistoryIdx(-1);
+    stickyDraftRef.current = null;
+    clearPendingImages();
+    clearRefs();
+    setAtMention(null);
+    // Clear the paste hint banner — its undoFence closure captures the
+    // previous session's text, so leaving it visible would let session A's
+    // pasted content leak into session B via the undo button.
+    setPasteHint(null);
+    // Abort any in-flight topic check (adviseTopic + confirmModalChoice)
+    // from the previous session. Without this, the promise resolves after
+    // the switch and pops a cross-session modal in session B, and the busy
+    // flag keeps session B's submit buttons disabled until it settles.
+    topicCheckAbortRef.current?.abort();
+    topicCheckAbortRef.current = null;
+    topicCheckBusyRef.current = false;
+    setTopicCheckBusy(false);
+    // Dismiss a stale confirm modal left open by the aborted topic check.
+    useConfirmModalStore.getState().settle(null);
+    // Reset textarea height directly (adjustTextareaHeight is a non-memoized
+    // const, so calling it here would add it to deps and fire every render).
+    const ta = textareaRef.current;
+    if (ta) ta.style.height = 'auto';
+  }, [sessionId]);
 
   useEffect(() => {
     if (promptInsertRequest == null) return;
@@ -455,8 +497,12 @@ export function ChatInput({
       ) {
         topicCheckBusyRef.current = true;
         setTopicCheckBusy(true);
+        const abort = new AbortController();
+        topicCheckAbortRef.current = abort;
         try {
           const advice = await adviseTopic(combined);
+          // Session switched while adviseTopic was in-flight — abort.
+          if (abort.signal.aborted) return;
           if (advice.suggestNewContext) {
             const decision = await confirmModalChoice({
               title: t('chat:input.topicShiftTitle'),
@@ -468,6 +514,8 @@ export function ChatInput({
               cancelLabel: t('chat:input.topicShiftSame'),
               defaultAction: 'cancel',
             });
+            // Session switched while the modal was open — discard decision.
+            if (abort.signal.aborted) return;
             if (decision === 'dismiss') return;
             freshContext = decision === 'confirm';
           }
@@ -476,6 +524,7 @@ export function ChatInput({
         } finally {
           topicCheckBusyRef.current = false;
           setTopicCheckBusy(false);
+          if (topicCheckAbortRef.current === abort) topicCheckAbortRef.current = null;
         }
       }
 

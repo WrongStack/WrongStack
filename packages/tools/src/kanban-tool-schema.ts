@@ -4,7 +4,7 @@ export const KANBAN_TOOL_DESCRIPTION =
   'Durable project task boards: create and move cards, record checks, notes, links and assignments. The board is a record of the work, not a permit for it — nothing here gates other tools. Managed boards additionally enforce ordered Backlog → Todo → Running → Review → Done transitions; release_managed_lifecycle turns that off.';
 
 export const KANBAN_TOOL_USAGE_HINT =
-  'Track substantial or multi-step work so it survives the session; a trivial edit or a question needs no card. Common flow: get_board or search_tasks to orient, add_task to record work, start_task when you begin, update_check with checkStatus "passed" to tick acceptance criteria (read their ids from get_task), then transition_task. On a managed board a refused transition names the field it wants — supply it and retry.';
+  'Track substantial or multi-step work so it survives the session; a trivial edit or a question needs no card. Work stays on ONE board: call list_boards first and add_task to the board this project already uses. create_board is for a genuinely separate line of work, not for each new piece of it — a second board splits the same effort in two, and a board holding a single card is the usual sign. Common flow: list_boards or search_tasks to orient, add_task to record work, start_task when you begin, update_check with checkStatus "passed" to tick acceptance criteria (read their ids from get_task), then transition_task. On a managed board a refused transition names the field it wants — supply it and retry.';
 
 export const KANBAN_INPUT_SCHEMA: JSONSchema = {
   type: 'object',

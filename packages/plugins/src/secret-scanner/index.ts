@@ -26,9 +26,9 @@
  * They share the same threat model but act at different points in the
  * pipeline.
  */
-import type { Plugin } from '@wrongstack/core/types';
-import { releaseHandle } from '../runtime/index.js';
+import type { Plugin, PluginAPI } from '@wrongstack/core/types';
 import { cloneCredentialPatterns } from '../runtime/credential-patterns.js';
+import { releaseHandle } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Pattern set
@@ -61,19 +61,11 @@ const BASE_PATTERNS: Pattern[] = cloneCredentialPatterns();
 /**
  * Active pattern set. Starts as a clone of BASE_PATTERNS; setup()
  * appends user-supplied custom patterns from config and rebuilds
- * COMBINED_REGEX. Teardown resets back to BASE_PATTERNS only.
+ * COMBINED_REGEX. Each live PluginAPI captures its own projection.
  *
  * @internal
  */
 let PATTERNS: Pattern[] = [...BASE_PATTERNS];
-
-/**
- * Cache key for the current pattern set. Used to detect when patterns
- * have changed and COMBINED_REGEX needs rebuilding.
- *
- * @internal
- */
-let patternCacheKey = '';
 
 /**
  * Which capture-group index belongs to which pattern.
@@ -91,14 +83,10 @@ let patternCacheKey = '';
  */
 let GROUP_INDEX_OF_PATTERN: number[] = [];
 
-
 /**
  * Combined single-pass regex. Each alternative is a capturing group so
  * the matcher callback can identify which pattern fired (only one group
  * is non-undefined at match time). Rebuilt whenever PATTERNS changes.
- *
- * Performance: cached at module scope so setup() doesn't rebuild it
- * on every reload when patterns haven't changed.
  *
  * @internal
  */
@@ -195,15 +183,6 @@ function patternTypeForGroups(groups: readonly unknown[]): string | undefined {
 }
 
 function buildCombinedRegex(patterns: Pattern[]): RegExp {
-  // Key on the actual regex sources, not just the type names. Keying on
-  // types alone meant editing a custom pattern's regex while keeping its
-  // `type` returned the STALE compiled regex — the edit silently had no
-  // effect.
-  const newCacheKey = JSON.stringify(patterns.map((p) => [p.type, p.regex.source]));
-  if (newCacheKey === patternCacheKey && COMBINED_REGEX) {
-    return COMBINED_REGEX;
-  }
-  patternCacheKey = newCacheKey;
   // Record each pattern's outer-group offset before its own inner groups.
   const offsets: number[] = [];
   let cursor = 0;
@@ -216,32 +195,62 @@ function buildCombinedRegex(patterns: Pattern[]): RegExp {
 }
 
 // ---------------------------------------------------------------------------
-// Module-scope state (H1 pattern: shared between setup, teardown, health)
+// Per-host lifecycle state
 // ---------------------------------------------------------------------------
 
-const state = {
-  blockCount: 0,
-  redactCount: 0,
-  allowCount: 0,
-  /** PostToolUse: secrets detected in tool output. */
-  leakCount: 0,
-  /** Most recent PreToolUse block — surfaced by `secret_scanner_status`. */
-  lastBlock: null as null | {
-    toolName: string;
-    matchedTypes: string[];
-    when: string;
-  },
-  /** Most recent PostToolUse leak — surfaced by `secret_scanner_status`. */
-  lastLeak: null as null | {
-    toolName: string;
-    matchedTypes: string[];
-    when: string;
-  },
-  /** PreToolUse hook handle so teardown can unregister. */
-  hookUnregister: null as null | (() => void),
-  /** PostToolUse hook handle so teardown can unregister. */
-  postHookUnregister: null as null | (() => void),
-};
+interface SecretScannerState {
+  blockCount: number;
+  redactCount: number;
+  allowCount: number;
+  leakCount: number;
+  lastBlock: null | { toolName: string; matchedTypes: string[]; when: string };
+  lastLeak: null | { toolName: string; matchedTypes: string[]; when: string };
+  hookUnregister: null | (() => void);
+  postHookUnregister: null | (() => void);
+}
+
+function createState(): SecretScannerState {
+  return {
+    blockCount: 0,
+    redactCount: 0,
+    allowCount: 0,
+    /** PostToolUse: secrets detected in tool output. */
+    leakCount: 0,
+    /** Most recent PreToolUse block — surfaced by `secret_scanner_status`. */
+    lastBlock: null as null | {
+      toolName: string;
+      matchedTypes: string[];
+      when: string;
+    },
+    /** Most recent PostToolUse leak — surfaced by `secret_scanner_status`. */
+    lastLeak: null as null | {
+      toolName: string;
+      matchedTypes: string[];
+      when: string;
+    },
+    /** PreToolUse hook handle so teardown can unregister. */
+    hookUnregister: null as null | (() => void),
+    /** PostToolUse hook handle so teardown can unregister. */
+    postHookUnregister: null as null | (() => void),
+  };
+}
+
+interface SecretScannerRuntime {
+  state: SecretScannerState;
+  patterns: Pattern[];
+  combinedRegex: RegExp;
+  groupIndexes: number[];
+}
+
+const runtimes = new WeakMap<PluginAPI, SecretScannerRuntime>();
+let latestRuntime: SecretScannerRuntime | undefined;
+
+/** Select the immutable pattern projection captured by one plugin host. */
+function activateRuntime(runtime: SecretScannerRuntime): void {
+  PATTERNS = runtime.patterns;
+  COMBINED_REGEX = runtime.combinedRegex;
+  GROUP_INDEX_OF_PATTERN = runtime.groupIndexes;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -502,6 +511,7 @@ function buildHook(
     warn: (msg: string, ...rest: unknown[]) => void;
     info: (msg: string, ...rest: unknown[]) => void;
   },
+  runtime: SecretScannerRuntime,
 ) {
   return (input: {
     toolName?: string | undefined;
@@ -512,6 +522,8 @@ function buildHook(
     modifiedInput?: Record<string, unknown>;
     additionalContext?: string | undefined;
   } | void => {
+    activateRuntime(runtime);
+    const { state } = runtime;
     if (!cfg.enabled) return;
     const toolName = input.toolName ?? 'unknown';
     const matched = scanInput(input.toolInput);
@@ -588,11 +600,14 @@ function buildHook(
 function buildPostHook(
   cfg: SecretScannerConfig,
   log: { warn: (msg: string, ...rest: unknown[]) => void },
+  runtime: SecretScannerRuntime,
 ) {
   return (input: {
     toolName?: string | undefined;
     toolResult?: { content: string; isError: boolean } | undefined;
   }): { additionalContext?: string | undefined } | void => {
+    activateRuntime(runtime);
+    const { state } = runtime;
     if (!cfg.enabled) return;
     const result = input.toolResult;
     if (!result || typeof result.content !== 'string') return;
@@ -697,15 +712,13 @@ const plugin: Plugin = {
   },
 
   setup(api) {
-    // Idempotent re-init: zero counters on reload (H1 pattern).
-    state.blockCount = 0;
-    state.redactCount = 0;
-    state.allowCount = 0;
-    state.leakCount = 0;
-    state.lastBlock = null;
-    state.lastLeak = null;
-    state.hookUnregister = releaseHandle(state.hookUnregister);
-    state.postHookUnregister = releaseHandle(state.postHookUnregister);
+    // Re-initializing one host replaces only that host's hooks. A second
+    // PluginAPI can run concurrently without tearing down the first host.
+    const previous = runtimes.get(api);
+    if (previous) {
+      previous.state.hookUnregister = releaseHandle(previous.state.hookUnregister);
+      previous.state.postHookUnregister = releaseHandle(previous.state.postHookUnregister);
+    }
 
     const cfg = readConfig(api.config.extensions?.['secret-scanner']);
 
@@ -722,6 +735,15 @@ const plugin: Plugin = {
       }
     }
     COMBINED_REGEX = buildCombinedRegex(PATTERNS);
+    const runtime: SecretScannerRuntime = {
+      state: createState(),
+      patterns: PATTERNS,
+      combinedRegex: COMBINED_REGEX,
+      groupIndexes: [...GROUP_INDEX_OF_PATTERN],
+    };
+    runtimes.set(api, runtime);
+    latestRuntime = runtime;
+    const { state } = runtime;
 
     const log = {
       warn: (msg: string, ...rest: unknown[]) => api.log.warn(msg, ...rest),
@@ -730,7 +752,7 @@ const plugin: Plugin = {
 
     // Register the PreToolUse hook. registerHook returns an unregister
     // function we keep for teardown.
-    const hook = buildHook(cfg, log);
+    const hook = buildHook(cfg, log, runtime);
     state.hookUnregister = api.registerHook('PreToolUse', cfg.matcher, hook, {
       name: 'secret-scanner',
       // Redaction rewrites arguments; block/allow modes must inspect the final
@@ -742,7 +764,7 @@ const plugin: Plugin = {
     });
 
     // Register the PostToolUse hook for output leak detection.
-    const postHook = buildPostHook(cfg, log);
+    const postHook = buildPostHook(cfg, log, runtime);
     state.postHookUnregister = api.registerHook('PostToolUse', cfg.postToolUseMatcher, postHook);
 
     // --- secret_scanner_status tool ---
@@ -754,6 +776,7 @@ const plugin: Plugin = {
       permission: 'auto',
       mutating: false,
       async execute() {
+        activateRuntime(runtime);
         return {
           ok: true,
           enabled: cfg.enabled,
@@ -789,6 +812,7 @@ const plugin: Plugin = {
       permission: 'auto',
       mutating: false,
       async execute(input: Record<string, unknown>) {
+        activateRuntime(runtime);
         const text = typeof input['text'] === 'string' ? (input['text'] as string) : '';
         const matched = findMatches(text);
         return {
@@ -808,7 +832,9 @@ const plugin: Plugin = {
   },
 
   teardown(api) {
-    // H1 pattern: unregister both hooks + zero counters on unload.
+    const runtime = runtimes.get(api);
+    if (!runtime) return;
+    const { state } = runtime;
     if (state.hookUnregister) {
       try {
         state.hookUnregister();
@@ -838,14 +864,12 @@ const plugin: Plugin = {
     state.leakCount = 0;
     state.lastBlock = null;
     state.lastLeak = null;
-    // Reset patterns to base-only (remove any custom patterns from
-    // the previous setup cycle).
-    PATTERNS = [...BASE_PATTERNS];
-    COMBINED_REGEX = buildCombinedRegex(PATTERNS);
+    runtimes.delete(api);
     api.log.info('secret-scanner: teardown complete', { counters: finalCounters });
   },
 
   async health() {
+    const state = latestRuntime?.state ?? createState();
     // /diag plugins wants a yes/no plus context. The hook is "ok" as
     // long as the plugin is loaded; surface counters + last block/leak
     // so an operator can confirm the scanner is live.

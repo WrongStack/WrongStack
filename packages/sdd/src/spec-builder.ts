@@ -257,6 +257,7 @@ export class AISpecBuilder {
   private readonly maxQuestions: number;
   private readonly sessionPath?: string | undefined;
   private readonly sessionPersistence?: AISpecSessionPersistence | undefined;
+  private pendingSessionWrite: Promise<void> = Promise.resolve();
 
   constructor(opts: AISpecBuilderOptions) {
     this.store = opts.store;
@@ -283,30 +284,34 @@ export class AISpecBuilder {
   /** Save session state to the configured durable owner. */
   async saveSession(): Promise<void> {
     if (!this.sessionPersistence && !this.sessionPath) return;
-    try {
-      if (this.sessionPersistence) {
-        await this.sessionPersistence.save(structuredClone(this.session));
-        return;
+    const snapshot = structuredClone(this.session);
+    this.pendingSessionWrite = this.pendingSessionWrite.then(async () => {
+      try {
+        if (this.sessionPersistence) {
+          await this.sessionPersistence.save(snapshot);
+          return;
+        }
+        const fsp = await import('node:fs/promises');
+        const path = await import('node:path');
+        const { atomicWrite } = await import('@wrongstack/core/utils');
+        const sessionPath = expectDefined(this.sessionPath);
+        await fsp.mkdir(path.dirname(sessionPath), { recursive: true });
+        // atomicWrite: torn save would corrupt the SDD session JSON and the
+        // next load would silently fall back to a fresh session.
+        await atomicWrite(sessionPath, JSON.stringify(snapshot, null, 2));
+      } catch (error) {
+        // Best-effort persistence — don't crash if save fails
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'sdd.persist.failed',
+            message: String(error),
+            timestamp: Date.now(),
+          }),
+        );
       }
-      const fsp = await import('node:fs/promises');
-      const path = await import('node:path');
-      const { atomicWrite } = await import('@wrongstack/core/utils');
-      const sessionPath = expectDefined(this.sessionPath);
-      await fsp.mkdir(path.dirname(sessionPath), { recursive: true });
-      // atomicWrite: torn save would corrupt the SDD session JSON and the
-      // next load would silently fall back to a fresh session.
-      await atomicWrite(sessionPath, JSON.stringify(this.session, null, 2));
-    } catch (error) {
-      // Best-effort persistence — don't crash if save fails
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'sdd.persist.failed',
-          message: String(error),
-          timestamp: Date.now(),
-        }),
-      );
-    }
+    });
+    await this.pendingSessionWrite;
   }
 
   /** Load session state from the configured durable owner. */
@@ -336,6 +341,10 @@ export class AISpecBuilder {
 
   /** Delete the saved session from the configured durable owner. */
   async deleteSession(): Promise<void> {
+    // Drain fire-and-forget auto-saves before deleting. Otherwise an older
+    // atomic write may rename its temp file after unlink and resurrect the
+    // session the caller just discarded.
+    await this.pendingSessionWrite;
     if (this.sessionPersistence) {
       await this.sessionPersistence.delete();
       return;

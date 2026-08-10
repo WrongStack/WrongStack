@@ -37,13 +37,13 @@ export interface SageToolCallMiddlewareOptions {
    *
    * Note: prior versions defaulted to a 30-minute time-boxed cooldown. The
    * default changed to once-per-session; operators upgrading without setting
-   * this option will see memories re-injected every turn instead of every
-   * 30 minutes. Set a positive millisecond value to restore the old behaviour.
+   * this option will see each memory stop repeating within that session.
+   * Set a positive millisecond value to restore time-based reinjection.
    *
-   * Sessionless payloads are keyed under the synthetic `<no-session>` token,
-   * so two distinct sessions sharing one process will collide on that ledger.
-   * Callers that route sessionless work through multiple logical sessions
-   * should pass a unique `ctx.session.id` per session.
+   * Production tool-call payloads always carry a Context whose SessionWriter
+   * has a required id. The `<no-session>` helper fallback exists only for
+   * malformed structural test doubles or unsupported callers that violate the
+   * Context contract.
    */
   repeatCooldownMs?: number | undefined;
   verifyOnMutation?: boolean | undefined;

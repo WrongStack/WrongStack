@@ -18,6 +18,7 @@ import {
   getKanbanOrchestrationSnapshot,
   getKanbanQueueHealth,
   getTaskChain,
+  hasKanbanQueueAnomalies,
   type KanbanBoard,
   type KanbanColumn,
   type KanbanLifecycleStage,
@@ -26,6 +27,7 @@ import {
   type KanbanTaskPriority,
   type KanbanTaskStatus,
   type KanbanTaskTransitionInput,
+  kanbanQueueAnomalyCount,
   listBoards,
   listReadyTasks,
   mergeTasks,
@@ -131,7 +133,18 @@ export async function handleKanbanRoute(
           fail(ws, type, 'boardId required');
           return true;
         }
-        ok(ws, type, await getKanbanQueueHealth(ctx.projectRoot, { boardId: hBoardId }));
+        // The browser renders counts only — no component reads
+        // `classifications`, and this route is polled every five seconds, so
+        // the per-task diagnostics would be pure wire weight. The tool path
+        // keeps them: that is where an agent asks why a card is unclaimable.
+        ok(
+          ws,
+          type,
+          await getKanbanQueueHealth(ctx.projectRoot, {
+            boardId: hBoardId,
+            includeClassifications: false,
+          }),
+        );
         return true;
       }
       case 'kanban.supervisor.status':
@@ -169,18 +182,13 @@ export async function handleKanbanRoute(
             })
           : null;
         if (recovered) health = await getKanbanQueueHealth(ctx.projectRoot, { boardId });
-        const anomalyCount =
-          health.staleAssignments.count +
-          health.dependencyBlocked.count +
-          health.failedRetryable.count +
-          health.counts.failed +
-          health.counts.blocked;
+        const anomalyCount = kanbanQueueAnomalyCount(health);
         ok(ws, type, {
           boardId,
           status:
             board.supervisor?.enabled === false
               ? 'disabled'
-              : anomalyCount
+              : hasKanbanQueueAnomalies(health)
                 ? 'attention'
                 : 'healthy',
           mode: board.supervisor?.mode ?? 'deterministic',
@@ -188,7 +196,7 @@ export async function handleKanbanRoute(
           reconciledTaskIds: reconciled?.tasks.map((task) => task.id) ?? [],
           staleRecoveredTaskIds: recovered?.tasks.map((task) => task.id) ?? [],
           anomalyCount,
-          summary: `${health.counts.running} running · ${health.counts.ready} ready · ${health.counts.review} review · ${health.counts.blocked} blocked · ${health.counts.failed} failed`,
+          summary: `${health.counts.running} running · ${health.counts.startable} ready · ${health.counts.review} review · ${health.counts.blocked} blocked · ${health.counts.failed} failed`,
         });
         return true;
       }

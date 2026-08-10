@@ -147,33 +147,26 @@ function unwrapDataKey(buf: Buffer, keyFile: string): { key: Buffer; version: nu
  * Check and warn if the key file has incorrect permissions on POSIX.
  * On Windows this is a no-op (mode bits don't apply).
  */
-function checkKeyFilePermissions(
+function keyFileNeedsHardening(
   keyFile: string,
   opts?: { warn?: (msg: string) => void } | undefined,
-): void {
-  if (process.platform === 'win32') return; // No mode bits on Windows
+): boolean {
+  if (process.platform === 'win32') return false; // No mode bits on Windows
   const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
   try {
     const stat = fs.statSync(keyFile);
     const actualMode = stat.mode & 0o777;
     if (actualMode !== KEY_FILE_MODE) {
-      // Self-heal: fire-and-forget restrictPermissions to fix the mode,
-      // not just warn about it. The existing load paths call
-      // restrictPermissions after write — but a key file created by an
-      // older build or an external tool (chmod, copy) may have loose
-      // perms that the warning alone won't fix. This closes the gap.
-      void restrictPermissions(keyFile, {
-        label: 'secret-vault',
-        warn,
-      }).catch(() => undefined);
       warn(
         `Key file ${keyFile} has mode ${actualMode.toString(8)} — expected ${KEY_FILE_MODE.toString(8)}. Hardening…`,
       );
+      return true;
     }
   } catch {
     // stat can fail for reasons other than the file not existing;
     // if it does, the ENOENT path handles it.
   }
+  return false;
 }
 
 /**
@@ -196,10 +189,7 @@ function checkKeyFilePermissions(
  * problem and the TOCTOU gap where the key file sits with inherited ACLs until
  * the event loop ticks.
  */
-function writeKeyFileAtomicSync(
-  keyFile: string,
-  content: Buffer,
-): void {
+function writeKeyFileAtomicSync(keyFile: string, content: Buffer): void {
   const tmp = `${keyFile}.${randomBytes(4).toString('hex')}.tmp`;
   const fd = fs.openSync(tmp, 'w', 0o600);
   try {
@@ -281,6 +271,17 @@ export class DefaultSecretVault implements RotatableSecretVault {
       warn: (msg) => this.logWarn(msg),
     }).catch(() => undefined);
     this.pendingHardening.push(p);
+  }
+
+  /** Detect and schedule repair of a pre-existing POSIX key with loose mode bits. */
+  private checkKeyFilePermissions(): void {
+    if (
+      keyFileNeedsHardening(this.keyFile, {
+        warn: (msg) => this.logWarn(msg),
+      })
+    ) {
+      this.scheduleKeyHardening();
+    }
   }
 
   /** Flush all pending key-file hardening promises. */
@@ -381,7 +382,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
       writeKeyFileAtomicSync(this.keyFile, keyFileBuf);
     }
     this.scheduleKeyHardening();
-    checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+    this.checkKeyFilePermissions();
 
     this.key = newKey;
     this._keyVersion = newVersion;
@@ -399,12 +400,9 @@ export class DefaultSecretVault implements RotatableSecretVault {
     const passphrase = getVaultPassphrase();
     if (!passphrase || !this.key) return;
     try {
-      writeKeyFileAtomicSync(
-        this.keyFile,
-        wrapDataKey(this.key, this._keyVersion, passphrase),
-      );
+      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(this.key, this._keyVersion, passphrase));
       this.scheduleKeyHardening();
-      checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+      this.checkKeyFilePermissions();
     } catch {
       // Non-fatal: the at-rest upgrade failed, but the loaded key is valid.
     }
@@ -428,7 +426,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
         const { key, version } = unwrapDataKey(buf, this.keyFile);
         this.key = key;
         this._keyVersion = version;
-        checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+        this.checkKeyFilePermissions();
         return this.key;
       }
 
@@ -437,7 +435,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
         // Legacy v1: raw 32-byte key
         this.key = buf;
         this._keyVersion = 1;
-        checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+        this.checkKeyFilePermissions();
         // Upgrade to passphrase-wrapped at rest if a passphrase is configured.
         this.migrateToWrappedIfPassphrase();
         return this.key;
@@ -464,7 +462,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
         }
         this.key = Buffer.from(key);
         this._keyVersion = version;
-        checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+        this.checkKeyFilePermissions();
         // Upgrade to passphrase-wrapped at rest if a passphrase is configured.
         this.migrateToWrappedIfPassphrase();
         return this.key;
@@ -511,14 +509,14 @@ export class DefaultSecretVault implements RotatableSecretVault {
         const { key: winnerKey, version } = unwrapDataKey(buf, this.keyFile);
         this.key = winnerKey;
         this._keyVersion = version;
-        checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+        this.checkKeyFilePermissions();
         return this.key;
       }
       if (buf.length === KEY_BYTES) {
         // Legacy v1 format
         this.key = buf;
         this._keyVersion = 1;
-        checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+        this.checkKeyFilePermissions();
         return this.key;
       }
       if (buf.length === VERSIONED_KEY_FILE_SIZE) {
@@ -535,7 +533,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
         const winnerKey = buf.subarray(KEY_FILE_MAGIC.length + 1);
         this.key = Buffer.from(winnerKey);
         this._keyVersion = version;
-        checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
+        this.checkKeyFilePermissions();
         return this.key;
       }
       throw new ConfigError({

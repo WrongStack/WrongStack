@@ -439,6 +439,19 @@ export interface KanbanBoardLifecyclePolicy {
   adoptionComment?: string | undefined;
   /** Review cards older than this are surfaced by Kanban Cleaner. */
   staleReviewAfterMs?: number | undefined;
+  /**
+   * Whether a passing verification accepts the card into Done on its own.
+   *
+   * `undefined` means enabled — the historical behavior, kept so adopting this
+   * field changes nothing for existing boards. Set `false` on a board that
+   * wants a human (or a reviewer agent) to make the final call: verification
+   * still runs and still persists its report, but the card waits in Review for
+   * an explicit `transitionTask`.
+   *
+   * This never loosens the gate. A failing or missing verdict cannot reach
+   * Done regardless of this setting — see `validateDefinitionOfDone`.
+   */
+  autoAccept?: boolean | undefined;
 }
 
 export interface KanbanLifecycleTransition {
@@ -729,12 +742,7 @@ export interface KanbanBoardPresence {
  * - `import`: board created from a task-graph import
  * - `archive`: board that has been archived and should be excluded from default queries
  */
-export type KanbanBoardKind =
-  | 'project'
-  | 'session_mirror'
-  | 'sdd_mirror'
-  | 'import'
-  | 'archive';
+export type KanbanBoardKind = 'project' | 'session_mirror' | 'sdd_mirror' | 'import' | 'archive';
 
 /**
  * Retention policy for automatic board cleanup.
@@ -817,7 +825,15 @@ export interface KanbanBoardMeta {
 
 export type KanbanBoardSummary = Pick<
   KanbanBoard,
-  'id' | 'title' | 'description' | 'tags' | 'kind' | 'retention' | 'createdAt' | 'updatedAt' | 'presence'
+  | 'id'
+  | 'title'
+  | 'description'
+  | 'tags'
+  | 'kind'
+  | 'retention'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'presence'
 > & {
   columnCount: number;
   taskCount: number;

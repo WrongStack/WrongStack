@@ -10,6 +10,7 @@ import {
   EVENT_LOG_TRIM_TO,
   getKanbanDir,
   isValidBoardId,
+  KANBAN_BOARD_SOFT_MAX_BYTES,
   normalizeBoard,
 } from '../storage.js';
 import type { KanbanStorageBackend } from '../storage-backend.js';
@@ -42,6 +43,8 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
   private readonly db: DatabaseSync;
   private queue: Promise<unknown> = Promise.resolve();
   private closed = false;
+  /** Boards already reported oversized, so the warning fires on transitions only. */
+  private readonly oversizedBoards = new Set<string>();
 
   private constructor(
     readonly projectRoot: string,
@@ -611,6 +614,8 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         } does not match read revision ${expectedRevision}. Rerun the operation.`,
       );
     }
+    const payload = JSON.stringify(normalized);
+    this.warnIfOversized(normalized.id, payload, normalized.tasks?.length ?? 0);
     this.db
       .prepare(
         `INSERT INTO kanban_boards(id, payload, revision, updated_at)
@@ -622,11 +627,35 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
       )
       .run(
         normalized.id,
-        JSON.stringify(normalized),
+        payload,
         normalized.revision ?? 0,
         normalized.updatedAt ?? new Date().toISOString(),
       );
     return current === undefined;
+  }
+
+  /**
+   * A board that outgrows the HQ wire codec disappears from HQ without a word.
+   * Warn on the way past the soft threshold, while archiving still helps.
+   *
+   * The payload is already serialized for the INSERT, so this costs one
+   * `Buffer.byteLength` — and only warns on the transition, so a board that
+   * stays oversized does not warn on every mutation of every card.
+   */
+  private warnIfOversized(boardId: string, payload: string, taskCount: number): void {
+    const bytes = Buffer.byteLength(payload, 'utf8');
+    if (bytes <= KANBAN_BOARD_SOFT_MAX_BYTES) {
+      this.oversizedBoards.delete(boardId);
+      return;
+    }
+    if (this.oversizedBoards.has(boardId)) return;
+    this.oversizedBoards.add(boardId);
+    process.emitWarning(
+      `Kanban board "${boardId}" is ${Math.round(bytes / 1024)} KB across ${taskCount} card(s), over the ${Math.round(
+        KANBAN_BOARD_SOFT_MAX_BYTES / 1024,
+      )} KB soft limit. Boards past ~750 KB stop appearing in HQ. Archive completed cards, or run the mirror compaction if this is a session board.`,
+      { code: 'WRONGSTACK_KANBAN_BOARD_OVERSIZED' },
+    );
   }
 
   private notify(mutation: SqliteKanbanMutation): void {

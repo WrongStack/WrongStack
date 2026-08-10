@@ -1,13 +1,9 @@
 import { watch as fsWatch } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type {
-  EventName,
-  Listener,
-} from '@wrongstack/core/kernel';
+import type { EventName, Listener } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
-import type { ConnectedClient, WSServerMessage } from './types.js';
 import {
   averageFileWatcherDebounceDelay,
   type FileWatcherMetrics,
@@ -16,6 +12,7 @@ import {
   shouldLogWatcherStats,
   statusProjectHashFromWatchFilename,
 } from './setup-events-watcher.js';
+import type { ConnectedClient, WSServerMessage } from './types.js';
 
 export interface SetupEventsStatusWatcherDeps {
   wpaths?: WstackPaths | undefined;
@@ -45,6 +42,7 @@ export function registerSetupEventsStatusWatcher(
   const metricsInterval = logWatcherMetricsEnabled
     ? setInterval(logWatcherMetrics, 60_000)
     : undefined;
+  metricsInterval?.unref?.();
 
   const broadcastStatus = (_projectHash: string, statusData: unknown, actualDelayMs: number) => {
     broadcast(clients, { type: 'client.status_update', payload: statusData });

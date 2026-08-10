@@ -499,6 +499,7 @@ export class WorktreeWebSocketHandler {
     this.broadcast(this.stateMessage());
     if (this.broadcastInterval) return;
     this.broadcastInterval = setInterval(() => this.broadcast(this.stateMessage()), 2000);
+    this.broadcastInterval.unref?.();
   }
 
   private stopBroadcast(): void {

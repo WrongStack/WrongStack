@@ -25,8 +25,14 @@ describe('wrapMCPTool', () => {
   it('sanitizes server/tool names to the provider wire pattern', async () => {
     const callTool = vi.fn(async () => ({ content: 'ok', isError: false }));
     const client = { callTool } as never as MCPClient;
-    const wrapped = wrapMCPTool('claude.ai Gmail', { name: 'search:messages', inputSchema: { type: 'object' } }, client);
-    expect(wrapped.name).toBe('mcp__claude_ai_Gmail__search_messages');
+    const wrapped = wrapMCPTool(
+      'claude.ai Gmail',
+      { name: 'search:messages', inputSchema: { type: 'object' } },
+      client,
+    );
+    expect(wrapped.name).toMatch(
+      /^mcp__claude_ai_Gmail_[a-f0-9]{10}__search_messages_[a-f0-9]{10}$/,
+    );
     expect(wrapped.name).toMatch(/^[a-zA-Z0-9_-]{1,128}$/);
 
     // The remote call must still use the ORIGINAL tool name.

@@ -20,16 +20,23 @@ import {
   type KanbanTaskPriority,
   type UpdateKanbanTaskInput,
 } from '../types.js';
-import { areDependenciesMet } from './task-readiness.js';
+// Leaf import: task-classifier.ts pulls only types and task-readiness, so this
+// direction cannot cycle back into _internal.
+import { missingManagedDispatchDetails } from './task-classifier.js';
 import { findTask } from './task-lookup.js';
+import { areDependenciesMet } from './task-readiness.js';
+
 export { findTask } from './task-lookup.js';
+
 import { hasDependencyPath } from './dependency-helpers.js';
+
 export {
   assertNoDependencyCycles,
   hasDependencyPath,
   remapIdList,
   remapTaskReferences,
 } from './dependency-helpers.js';
+
 import {
   nowIso,
   requireNonBlank,
@@ -41,11 +48,12 @@ import {
 import {
   applyCompletedAtForStatus,
   existingColumnId,
-  normalizeColumnTaskOrders,
   nextTaskOrder,
+  normalizeColumnTaskOrders,
   placeTaskInColumn,
   syncTaskColumnForStatus,
 } from './task-column-helpers.js';
+
 export {
   isoFromTimestamp,
   nowIso,
@@ -63,6 +71,16 @@ export {
   selectRecoveryMode,
 } from './recovery.js';
 export {
+  applyCompletedAtForStatus,
+  clampOrder,
+  columnIdForKanbanStatus,
+  existingColumnId,
+  nextTaskOrder,
+  normalizeColumnTaskOrders,
+  placeTaskInColumn,
+  syncTaskColumnForStatus,
+} from './task-column-helpers.js';
+export {
   applyGraphNodeToTask,
   applyTaskGraphRelationships,
   buildTaskGraphMetadata,
@@ -76,16 +94,6 @@ export {
   taskInputFromGraphNode,
   taskToTaskGraphNode,
 } from './task-graph-internal.js';
-export {
-  applyCompletedAtForStatus,
-  clampOrder,
-  columnIdForKanbanStatus,
-  existingColumnId,
-  nextTaskOrder,
-  normalizeColumnTaskOrders,
-  placeTaskInColumn,
-  syncTaskColumnForStatus,
-} from './task-column-helpers.js';
 
 export function normalizeColumns(columns: KanbanColumn[] | undefined): KanbanColumn[] {
   const source = columns?.length ? columns : DEFAULT_COLUMNS;
@@ -458,7 +466,8 @@ export async function claimReadyTaskOnBoard(
         ? [findTask(board, input.taskId)].filter((task): task is KanbanTask => Boolean(task))
         : board.tasks.filter((task) => isTaskReadyForWork(board, task)).sort(compareTasksForWork);
       const task = candidates.find(
-        (candidate) => isTaskReadyForWork(board, candidate) && candidate.lifecycle?.currentStage === 'todo',
+        (candidate) =>
+          isTaskReadyForWork(board, candidate) && candidate.lifecycle?.currentStage === 'todo',
       );
       if (!task) {
         // No task is in the 'todo' lifecycle stage. The board may have ready
@@ -469,7 +478,7 @@ export async function claimReadyTaskOnBoard(
         if (stageBlocked) {
           process.stderr.write(
             `[kanban] claimReadyTask: ${candidates.length} ready candidate(s) on "${boardId}" ` +
-            `but none in 'todo' lifecycle stage. Tasks may be stage-blocked in 'backlog'.\n`,
+              `but none in 'todo' lifecycle stage. Tasks may be stage-blocked in 'backlog'.\n`,
           );
         }
         return null;
@@ -485,7 +494,9 @@ export async function claimReadyTaskOnBoard(
         ...(current?.fallbackProfile !== undefined
           ? { fallbackProfile: current.fallbackProfile }
           : {}),
-        ...(current?.fallbackModels !== undefined ? { fallbackModels: current.fallbackModels } : {}),
+        ...(current?.fallbackModels !== undefined
+          ? { fallbackModels: current.fallbackModels }
+          : {}),
         ...(current?.skills !== undefined ? { skills: current.skills } : {}),
         ...(current?.tools !== undefined ? { tools: current.tools } : {}),
         ...(current?.allowedCapabilities !== undefined
@@ -494,10 +505,14 @@ export async function claimReadyTaskOnBoard(
         ...(current?.leaseId !== undefined ? { leaseId: current.leaseId } : {}),
         ...(current?.claimedAt !== undefined ? { claimedAt: current.claimedAt } : {}),
         ...(current?.heartbeatAt !== undefined ? { heartbeatAt: current.heartbeatAt } : {}),
-        ...(current?.leaseExpiresAt !== undefined ? { leaseExpiresAt: current.leaseExpiresAt } : {}),
+        ...(current?.leaseExpiresAt !== undefined
+          ? { leaseExpiresAt: current.leaseExpiresAt }
+          : {}),
         ...(current?.attempt !== undefined ? { attempt: current.attempt } : {}),
         ...(current?.maxAttempts !== undefined ? { maxAttempts: current.maxAttempts } : {}),
-        ...(current?.costCeilingUsd !== undefined ? { costCeilingUsd: current.costCeilingUsd } : {}),
+        ...(current?.costCeilingUsd !== undefined
+          ? { costCeilingUsd: current.costCeilingUsd }
+          : {}),
         ...(current?.retryPolicy !== undefined ? { retryPolicy: current.retryPolicy } : {}),
         ...(current?.lastFailureKind !== undefined
           ? { lastFailureKind: current.lastFailureKind }
@@ -873,6 +888,16 @@ export function isTaskReadyForWork(board: KanbanBoard, task: KanbanTask): boolea
   }
   if (task.mergedIntoTaskId) return false;
   if (!areDependenciesMet(board, task.id)) return false;
+  // A managed card that cannot pass its own board's detail gate is not
+  // claimable, whatever its status says. Without this, `counts.startable`,
+  // `listReadyTasks` and `claimReadyTask` all advertised a card that
+  // `start_task` then refused as "not implementation-ready" — the same
+  // two-answers-to-one-question split the classifier was aligned to close.
+  // Recovery makes it reachable: a released card returns to Todo, and before
+  // this check it came back nominally claimable and practically stuck.
+  if (board.lifecycle?.mode === 'managed' && missingManagedDispatchDetails(task).length > 0) {
+    return false;
+  }
   // Enforced atomicity: a childless leaf judged too large must be split
   // before it can be claimed or dispatched.
   if (
@@ -946,7 +971,7 @@ export async function emitKanbanEvent(projectRoot: string, event: KanbanEvent): 
     const msg = error instanceof Error ? error.message : String(error);
     process.stderr.write(
       `[kanban] emitKanbanEvent: failed to append event ${event.type} ` +
-      `for board ${event.boardId}: ${msg}\n`,
+        `for board ${event.boardId}: ${msg}\n`,
     );
   }
 }

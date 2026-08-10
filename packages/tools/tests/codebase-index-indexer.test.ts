@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { runIndexer } from '../src/codebase-index/indexer.js';
+import { runIndexer, shouldUseParserWorkerPool } from '../src/codebase-index/indexer.js';
 import { IndexStore } from '../src/codebase-index/writer.js';
 
 const ctx = {} as Context; // runIndexer ignores ctx (prefixed _ctx)
@@ -21,17 +21,32 @@ afterEach(async () => {
 });
 
 describe('runIndexer', () => {
+  it('gates parser workers by the complete run size rather than the capped batch size', () => {
+    const previous = process.env['WRONGSTACK_PERF_PROFILE'];
+    process.env['WRONGSTACK_PERF_PROFILE'] = 'balanced';
+    try {
+      expect(shouldUseParserWorkerPool(499, 40)).toBe(false);
+      expect(shouldUseParserWorkerPool(500, 2)).toBe(true);
+      expect(shouldUseParserWorkerPool(500, 1)).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env['WRONGSTACK_PERF_PROFILE'];
+      else process.env['WRONGSTACK_PERF_PROFILE'] = previous;
+    }
+  });
+
   it('indexes a project, supports force reindex, and skips unchanged files incrementally', async () => {
     await fs.writeFile(path.join(dir, 'a.ts'), 'export class Alpha {}');
     await fs.writeFile(path.join(dir, 'b.ts'), 'export function beta() {}');
 
     const first = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
     expect(first.filesIndexed).toBe(2);
+    expect(first.fileOutcomes).toEqual({ parsed: 2, skipped: 0, empty: 0, failed: 0 });
     expect(first.symbolsIndexed).toBeGreaterThan(0);
 
     // Second run: nothing changed → files counted from cached meta (incremental).
     const second = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
     expect(second.filesIndexed).toBe(2);
+    expect(second.fileOutcomes).toEqual({ parsed: 0, skipped: 2, empty: 0, failed: 0 });
 
     // Force: clears and rebuilds.
     const forced = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir(), force: true });
@@ -213,6 +228,7 @@ describe('runIndexer', () => {
     const res = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
     expect(res.filesIndexed).toBe(1);
     expect(res.symbolsIndexed).toBe(0);
+    expect(res.fileOutcomes).toEqual({ parsed: 0, skipped: 0, empty: 1, failed: 0 });
   });
 
   it('prunes files deleted since the previous run', async () => {

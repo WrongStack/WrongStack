@@ -16,27 +16,18 @@ import { render } from 'ink-testing-library';
 import React, { act } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { KanbanPanel } from '../src/components/kanban-panel.js';
+import { ALL_AUDIT_CODES } from '../src/kanban-audit.js';
 
 const FIXTURE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   'fixtures/kanban-audit-dirty.json',
 );
 
-// The 10 Kanban Cleaner codes the WebUI's `KanbanCleanerAlert` exposes.
-// Pinned here so the TUI cannot silently drift — if audit.ts ever
-// emits a code outside this set, the test fails loudly.
-const ALLOWED_AUDIT_CODES = new Set([
-  'missing-description',
-  'missing-assignee',
-  'missing-due-date',
-  'missing-labels',
-  'missing-subtasks',
-  'missing-success-criteria',
-  'skipped-lifecycle-state',
-  'abandoned-running-task',
-  'stale-running-task',
-  'stale-review',
-]);
+// The Kanban Cleaner vocabulary, read from the audit itself rather than
+// re-typed here — this list had already fallen a code behind. That the WebUI's
+// `KanbanCleanerAlert` recognizes the same set is enforced by
+// `packages/cli/tests/kanban-cleaner-parity.test.ts`.
+const ALLOWED_AUDIT_CODES = new Set<string>(ALL_AUDIT_CODES);
 
 const mockListBoards = vi.fn();
 const mockGetBoard = vi.fn();

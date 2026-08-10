@@ -10,7 +10,7 @@ interface MockDeps {
   };
   memoryStore: Record<string, unknown>;
   logger: { debug: ReturnType<typeof vi.fn> };
-  events: { emit: ReturnType<typeof vi.fn> };
+  events: { emit: ReturnType<typeof vi.fn>; on?: ReturnType<typeof vi.fn> };
   getSessionId?: () => string | undefined;
 }
 
@@ -99,5 +99,20 @@ describe('auto-hygiene throttle', () => {
 
     await teardown();
     expect(hygieneSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps the process-scoped commit extractor subscribed through surface teardown', async () => {
+    const hygieneSpy = vi.fn().mockResolvedValue(undefined);
+    const deps = makeMockDeps(hygieneSpy);
+    const dispose = vi.fn();
+    deps.events.on = vi.fn(() => dispose);
+    const teardown = setupSage({ ...deps, projectRoot: '/project' } as never);
+
+    expect(deps.events.on).toHaveBeenCalledWith('session.ended', expect.any(Function));
+    await teardown();
+
+    // Shared execution cleanup emits session.ended after a surface's
+    // onDestroy teardown, so this listener must remain live until then.
+    expect(dispose).not.toHaveBeenCalled();
   });
 });

@@ -50,8 +50,8 @@ import {
   updateTaskAssignment,
 } from '../src/manager.js';
 import { CURRENT_KANBAN_VERSION, type KanbanBoard } from '../src/types.js';
-import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
 import type { ClaimKanbanTaskInput } from '../src/types-operations.js';
+import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
 
 // hoisted: makes _internal.js exports mockable so vi.spyOn intercepts
 // imports from assignment.ts (named imports create separate live bindings
@@ -174,7 +174,10 @@ describe('managed Kanban Agent lifecycle', () => {
 
   it('rejects under-filled cards and skipped direct moves', async () => {
     const board = await managedBoard();
-    const created = await addTask(tmpDir, board.id, { title: 'Managed task', description: 'Test task for under-filled card validation.' });
+    const created = await addTask(tmpDir, board.id, {
+      title: 'Managed task',
+      description: 'Test task for under-filled card validation.',
+    });
     expect(created?.task.lifecycle?.currentStage).toBe('backlog');
     await expect(
       transitionTask(tmpDir, board.id, created!.task.id, {
@@ -933,6 +936,9 @@ describe('getKanbanQueueHealth', () => {
     expect(Array.isArray(health.boardIds)).toBe(true);
     expect(health.counts).toBeDefined();
     expect(typeof health.counts.ready).toBe('number');
+    // `startable` is what display surfaces are supposed to read; it went
+    // unasserted here while four of them rendered the always-zero `ready`.
+    expect(typeof health.counts.startable).toBe('number');
     expect(typeof health.counts.pending).toBe('number');
     expect(typeof health.dependencyBlocked.count).toBe('number');
     expect(typeof health.staleAssignments.count).toBe('number');
@@ -1497,13 +1503,15 @@ describe('claimReadyTask', () => {
     const originalFn = internalModule.claimReadyTaskOnBoard;
     const spy = vi.spyOn(internalModule, 'claimReadyTaskOnBoard');
     let callIndex = 0;
-    spy.mockImplementation(async (projectRoot: string, boardId: string, input: ClaimKanbanTaskInput) => {
-      callIndex++;
-      if (callIndex <= 1) {
-        throw new StaleWriteError('Stale write detected');
-      }
-      return originalFn(projectRoot, boardId, input);
-    });
+    spy.mockImplementation(
+      async (projectRoot: string, boardId: string, input: ClaimKanbanTaskInput) => {
+        callIndex++;
+        if (callIndex <= 1) {
+          throw new StaleWriteError('Stale write detected');
+        }
+        return originalFn(projectRoot, boardId, input);
+      },
+    );
 
     try {
       const result = await claimReadyTask(tmpDir, { agentId: 'worker' });

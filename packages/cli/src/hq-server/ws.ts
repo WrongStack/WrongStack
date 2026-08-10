@@ -886,6 +886,22 @@ export function handleClient(
         // A single malformed telemetry payload must not take down an otherwise
         // healthy publisher connection. Drop it before sequence advancement;
         // identity/auth violations above still close the socket.
+        //
+        // But say so. The sender gets no reply for a dropped frame, so without
+        // this line a rejected payload was invisible on both ends — the way a
+        // board that outgrew `MAX_HQ_KANBAN_BOARD_BYTES` quietly stopped
+        // appearing in HQ. The payload itself is never logged: it is exactly
+        // the untrusted, unredacted content that failed validation.
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'hq.event_payload_rejected',
+            eventType: incomingEvent.type,
+            clientId: client.clientId,
+            projectId: client.projectId,
+            timestamp: new Date().toISOString(),
+          }),
+        );
         return;
       }
       client.lastEventSeq = incomingEvent.seq;

@@ -33,6 +33,7 @@ import {
   tagBlock,
 } from './system-prompt-blocks.js';
 import { buildEnvironment } from './system-prompt-environment.js';
+import { renderDomainGlossary } from './system-prompt-glossary.js';
 import { buildMemoryAndSkills, renderOnlineAgents } from './system-prompt-memory-skills.js';
 import { type ActivePlanCache, readActivePlanBlock } from './system-prompt-plan.js';
 import { compactTrigger } from './system-prompt-skill-text.js';
@@ -170,6 +171,18 @@ export interface DefaultSystemPromptBuilderOptions {
    * tests, embedders, and plugin-provided prompt experiments.
    */
   instructionBundle?: InstructionBundle | undefined;
+  /**
+   * Project jargon dictionary source. When set, the builder appends a
+   * compact `[Project Jargon Dictionary]` block to the prompt, sourced
+   * from SAGE-tagged `domain-term` memories. The host CLI/TUI/WebUI is
+   * responsible for handing the *same* `ProjectSageMemoryPort` it uses
+   * for memory injection into this slot — see
+   * `packages/core/src/core/system-prompt-glossary.ts` for the wiring
+   * contract and the SAGE architectural-rule cross-reference.
+   *
+   * omit → no glossary block (default).
+   */
+  domainGlossary?: MemoryStore | undefined;
 }
 
 export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
@@ -389,6 +402,19 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
           // Contributor errors are swallowed — a bad plugin shouldn't
           // break the system prompt assembly.
         }
+      }
+    }
+
+    // Project jargon dictionary — SAGE-backed minimal glossary block.
+    // Lives in `volatile` so a glossary refresh between turns invalidates
+    // only the trailing prefix instead of the prompt-cache prefix; the
+    // block is rendered through the same MemoryStore the host uses for
+    // SAGE injection, so the rule "in-process consumers must use the
+    // direct IPC port" is honored by construction.
+    if (this.opts.domainGlossary) {
+      const glossary = await renderDomainGlossary(ctx, this.opts.domainGlossary);
+      if (glossary) {
+        volatile.push(tagBlock({ type: 'text', text: glossary }, 'glossary'));
       }
     }
 

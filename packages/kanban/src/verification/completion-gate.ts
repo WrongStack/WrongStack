@@ -73,6 +73,18 @@ export function resolveGateEnforcement(board: KanbanBoard): KanbanCompletionGate
 }
 
 /**
+ * Whether a passing verification may move a managed card into Done by itself.
+ *
+ * Defaults to true so boards written before the policy existed keep the
+ * behavior they already had. This is an ACCEPTANCE switch, not a gate switch:
+ * turning it off holds a verified card in Review, and turning it on never lets
+ * an unverified card through — `validateDefinitionOfDone` still runs either way.
+ */
+export function resolveAutoAccept(board: KanbanBoard): boolean {
+  return board.lifecycle?.autoAccept !== false;
+}
+
+/**
  * Run the verifier for a task and evaluate the Definition of Done, without
  * persisting anything. Callers that need persistence use
  * finalizeTaskCompletion(); this function exists for pre-checks (e.g. the

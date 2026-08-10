@@ -39,6 +39,7 @@ import {
 } from '@wrongstack/core/types';
 
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { makeProviderClassifier } from '../services/dispatch-classifier.js';
 import { HostAcpRunnerCache } from './host-acp-runner-cache.js';
 import { normalizeMaxConcurrent } from './host-concurrency.js';
 import { createHostFleetManager, prepareHostDirectorRuntime } from './host-director-builder.js';
@@ -57,6 +58,7 @@ import { makeFleetWorktreeConflictResolver, selectSubagentTools } from './host-h
 import { HostLearningRoleTracker } from './host-learning-tracker.js';
 import { emitHostLifecycleCompleted } from './host-lifecycle-events.js';
 import { applyFleetRootDefaults } from './host-paths.js';
+import { buildHostSubagentProvider } from './host-provider.js';
 import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
 import type { HostSpawnAndWaitOptions, HostSpawnOptions } from './host-spawn-types.js';
 import {
@@ -65,7 +67,6 @@ import {
   type FleetHostStatus,
   type FleetHostUsage,
 } from './host-status.js';
-import { buildHostSubagentProvider } from './host-provider.js';
 import { createHostSubagentFactory } from './host-subagent-factory.js';
 import { createHostFleetSupervisor } from './host-supervisor.js';
 import { reportTaskResultToLeader } from './host-task-result-report.js';
@@ -244,6 +245,12 @@ export class MultiAgentHost {
       fleetManager, // pass so director.fleetManager is never undefined
       brain: this.opts.brain,
       roster: this.roster,
+      // The dispatcher is two-stage by design — keyword heuristic, then a model
+      // to break the tie — but nothing ever supplied stage two here, so every
+      // description the keywords could not resolve fell through to the
+      // `executor` generalist. That is one half of why a 77-role roster was
+      // being served by a handful of agents.
+      dispatchClassifier: (task, candidates) => this.classifyDispatch(task, candidates),
       // Fire-and-forget report-back: when an assign_task completes with no
       // pending await, post the result to this session's leader via the
       // project mailbox (injected inline before the leader's next step).
@@ -856,6 +863,32 @@ export class MultiAgentHost {
       });
     }
     return this.learningOptimizer;
+  }
+
+  /**
+   * Break a dispatch tie with a model when the keyword heuristic is ambiguous.
+   *
+   * Routes through the `dispatcher` model-matrix slot when one is configured —
+   * picking a role is a short classification, so it belongs on a cheap fast
+   * model rather than the leader's — and the session default otherwise.
+   * Returning `null` on any failure leaves the dispatcher on its heuristic
+   * result, so routing degrades rather than breaking a spawn.
+   */
+  private async classifyDispatch(
+    task: string,
+    candidates: { role: string; name: string; summary: string }[],
+  ): Promise<{ role: string; reason?: string | undefined } | null> {
+    try {
+      const config = this.deps.configStore.get() as Config;
+      const target = resolveSubagentModelTarget(config, 'dispatcher');
+      const providerId = target?.provider ?? config.provider;
+      const model = target?.model ?? config.model;
+      if (!providerId || !model) return null;
+      const provider = await buildHostSubagentProvider(this.deps, config, providerId, model);
+      return await makeProviderClassifier(provider as never, model)(task, candidates);
+    } catch {
+      return null;
+    }
   }
 
   /**

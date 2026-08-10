@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import {
   addCheckToTask,
+  addDependency,
   addGoalMetricToTask,
   addTask,
   configureContractGraph,
@@ -220,9 +221,65 @@ describe('kanban tool — start_task governance binding', () => {
     expect(restarted.task?.assignment?.status).toBe('running');
   });
 
-  it('refuses to start a card whose required details and acceptance criteria are incomplete', async () => {
+  it('starts a sparse card on an ordinary board and says governance is not bound', async () => {
+    // The card contract (owner, acceptance criteria, contract graph) is a
+    // managed-board construct. On an ordinary board nothing enforces it, so
+    // refusing the card here withheld work for a demand no card could satisfy.
+    // Starting succeeds; the message reports that governance was not bound
+    // rather than pretending the card was governed.
     const board = await createBoard(dir, { title: 'Incomplete' });
     const added = await addTask(dir, board.id, { title: 'Unsafe change' });
+    const setCurrentKanbanTask = vi.fn();
+
+    const result = await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId: added!.task.id,
+        author: 'agent-1',
+        transitionComment: 'Start.',
+      },
+      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      { signal: newSignal() },
+    );
+
+    expect(result.ok, result.message).toBe(true);
+    expect(result.message).toContain('not in managed lifecycle mode');
+    expect(result.task?.status).toBe('in_progress');
+    expect(result.task?.assignment?.status).toBe('running');
+  });
+
+  it('still refuses an incomplete card on a managed board', async () => {
+    // The relaxation above is scoped to ordinary boards. Where the lifecycle
+    // is actually enforced, an unowned card with no acceptance criterion is
+    // still not implementation-ready.
+    const board = await createBoard(dir, {
+      title: 'Governed but incomplete',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'in-progress', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'in-progress',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    // A managed board validates the card at creation, so the card has to be
+    // well-formed enough to exist. What it still lacks is an owner and an
+    // acceptance criterion — the two things start_task is meant to insist on.
+    const added = await addTask(dir, board.id, {
+      title: 'Unsafe change',
+      description: 'Change the parser while preserving existing behavior.',
+    });
     const setCurrentKanbanTask = vi.fn();
 
     const result = await kanbanTool.execute(
@@ -240,6 +297,33 @@ describe('kanban tool — start_task governance binding', () => {
     expect(result.ok).toBe(false);
     expect(result.message).toContain('not implementation-ready');
     expect(setCurrentKanbanTask).not.toHaveBeenCalled();
+  });
+
+  it('names the blocking card in the refusal instead of a bare id', async () => {
+    // The refusal is read by an agent deciding what to do next. A UUID does
+    // not say what the work is waiting for, so it cannot act on the answer.
+    const board = await createBoard(dir, { title: 'Ordered work' });
+    const blocker = await addTask(dir, board.id, { title: 'Backfill rows' });
+    const dependent = await addTask(dir, board.id, { title: 'Ship release' });
+    await addDependency(dir, board.id, dependent!.task.id, blocker!.task.id);
+
+    const result = await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId: dependent!.task.id,
+        author: 'agent-1',
+        transitionComment: 'Start.',
+      },
+      { projectRoot: dir, setCurrentKanbanTask: vi.fn() } as unknown as Context,
+      { signal: newSignal() },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('Backfill rows');
+    expect(result.message).not.toContain(blocker!.task.id);
+    // The IPC envelope is a transport detail and must never reach the model.
+    expect(result.message).not.toContain('LIFECYCLE_ISSUES');
   });
 
   it('refuses a dependency-blocked card without leaving a running assignment behind', async () => {
@@ -268,5 +352,53 @@ describe('kanban tool — start_task governance binding', () => {
     expect(setCurrentKanbanTask).not.toHaveBeenCalled();
     const persisted = await getBoard(dir, boardId);
     expect(persisted!.tasks.find((task) => task.id === taskId)?.assignment).toBeUndefined();
+  });
+});
+
+describe('kanban tool — one board per line of work', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-boards-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  const ctx = () => ({ projectRoot: dir, setCurrentKanbanTask: vi.fn() }) as unknown as Context;
+
+  it('names the boards that already exist when a second one is created', async () => {
+    // Work fragmenting across boards is the reported symptom: the same card in
+    // two places, or a board holding a single task. The create still succeeds —
+    // the caller is told what exists so it can continue instead.
+    await kanbanTool.execute({ action: 'create_board', title: 'Project work' }, ctx(), {
+      signal: newSignal(),
+    });
+    await addTask(
+      dir,
+      (await kanbanTool.execute({ action: 'list_boards' }, ctx(), { signal: newSignal() }))
+        .boards![0]!.id,
+      { title: 'First card' },
+    );
+
+    const second = await kanbanTool.execute(
+      { action: 'create_board', title: 'Another board' },
+      ctx(),
+      { signal: newSignal() },
+    );
+
+    expect(second.ok).toBe(true);
+    expect(second.message).toContain('Project work');
+    expect(second.message).toContain('add_task there instead');
+  });
+
+  it('says nothing extra when this is the first board', async () => {
+    const first = await kanbanTool.execute({ action: 'create_board', title: 'Only board' }, ctx(), {
+      signal: newSignal(),
+    });
+
+    expect(first.ok).toBe(true);
+    expect(first.message).toBe('Board created: Only board.');
   });
 });

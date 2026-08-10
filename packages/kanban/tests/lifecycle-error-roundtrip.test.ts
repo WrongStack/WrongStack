@@ -9,7 +9,12 @@
  * survives.
  */
 import { describe, expect, it } from 'vitest';
-import { decodeLifecycleIssues, KanbanLifecycleError } from '../src/manager/lifecycle.js';
+import {
+  decodeLifecycleIssues,
+  KanbanLifecycleError,
+  LIFECYCLE_ISSUES_PREFIX,
+  stripLifecycleIssues,
+} from '../src/manager/lifecycle.js';
 
 describe('KanbanLifecycleError IPC round-trip', () => {
   const issues = [
@@ -67,6 +72,36 @@ describe('KanbanLifecycleError IPC round-trip', () => {
     // silently disappear. Lock the helper's contract: it must require an
     // Error-like input and return [] for plain strings.
     expect(decodeLifecycleIssues('foo' as unknown as Error)).toEqual([]);
+  });
+
+  it('does not stack a second envelope when the client rewraps an enveloped message', () => {
+    // client.ts reconstructs the typed error from a message that ALREADY
+    // carries an envelope. Appending unconditionally produced
+    // `... LIFECYCLE_ISSUES{...} LIFECYCLE_ISSUES{...}`, and that whole string
+    // reached the model as the explanation for why its card would not start.
+    const original = new KanbanLifecycleError('transition blocked', issues);
+    const rewrapped = new KanbanLifecycleError(
+      original.message,
+      decodeLifecycleIssues({ message: original.message } as Error),
+    );
+
+    const envelopeCount = rewrapped.message.split(LIFECYCLE_ISSUES_PREFIX).length - 1;
+    expect(envelopeCount).toBe(1);
+    expect(rewrapped.issues).toEqual(issues);
+    expect(stripLifecycleIssues(rewrapped.message)).toBe('transition blocked');
+  });
+
+  it('strips the envelope down to the human sentence', () => {
+    const err = new KanbanLifecycleError('Running requires every dependency.', issues);
+    const clean = stripLifecycleIssues(err.message);
+
+    expect(clean).toBe('Running requires every dependency.');
+    expect(clean).not.toContain('LIFECYCLE_ISSUES');
+    expect(clean).not.toContain('\u0001');
+    // A message with no envelope is returned unchanged apart from trimming.
+    expect(stripLifecycleIssues('plain message')).toBe('plain message');
+    // An unterminated envelope must not spin forever.
+    expect(stripLifecycleIssues(`tail ${LIFECYCLE_ISSUES_PREFIX}{"code":`)).toBe('tail');
   });
 
   it('returns an empty array for non-LIFECYCLE errors', () => {

@@ -2,11 +2,13 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import * as path from 'node:path';
 import { splitLearnedEntries } from './project-agent-learning-entries.js';
 import {
+  directiveTrials,
   parseStructuredLearnedEntriesFromContent,
   renderLearnedInstructions,
   type StructuredLearnedEntry,
 } from './project-agent-learning-structured.js';
 import { assertProjectAgentRole, roleDir, writeTextAtomically } from './project-agent-paths.js';
+import { retiredDirectivesToWarnAbout } from './project-agent-quarantine.js';
 
 export interface ConsolidationMetadata {
   /** ISO timestamp of the last consolidation. */
@@ -61,16 +63,20 @@ function consolidationPath(role: string, projectRoot?: string): string {
   return path.join(roleDir(role, projectRoot), 'consolidated.md');
 }
 
+/**
+ * The role document's path, for callers that need to rewrite it in place
+ * without going through the full save-and-record-metadata pass.
+ */
+export function consolidatedDocumentPath(role: string, projectRoot?: string): string {
+  return consolidationPath(assertProjectAgentRole(role), projectRoot);
+}
+
 function consolidationMetaPath(role: string, projectRoot?: string): string {
   return path.join(roleDir(role, projectRoot), 'consolidation.json');
 }
 
 function archivePath(role: string, at: string, projectRoot?: string): string {
-  return path.join(
-    roleDir(role, projectRoot),
-    'archive',
-    `learned-${at.replace(/[:.]/g, '-')}.md`,
-  );
+  return path.join(roleDir(role, projectRoot), 'archive', `learned-${at.replace(/[:.]/g, '-')}.md`);
 }
 
 export function loadProjectAgentConsolidated(role: string, projectRoot?: string): string {
@@ -197,9 +203,16 @@ export function buildConsolidationInstruction(
 } {
   const normalizedRole = assertProjectAgentRole(role);
   const entries = readRawLearnedEntries(normalizedRole, projectRoot);
-  const rawEntries = entries.map((entry) =>
-    entry.how ? `${entry.what}\n   Anchors: ${entry.how.split('\n').join(', ')}` : entry.what,
-  );
+  const rawEntries = entries.map((entry) => {
+    const lines = [entry.what];
+    if (entry.how) lines.push(`   Anchors: ${entry.how.split('\n').join(', ')}`);
+    const { applied, wins } = directiveTrials(entry);
+    // The track record is the only signal here that did not come from the same
+    // agent that wrote the directive. It is what lets the pass select rather
+    // than merely summarise.
+    if (applied > 0) lines.push(`   Track record: applied ${applied}×, ${wins} succeeded`);
+    return lines.join('\n');
+  });
   const existingConsolidation = loadProjectAgentConsolidated(normalizedRole, projectRoot);
   const rawBody = rawEntries.map((entry, i) => `### Entry ${i + 1}\n\n${entry}`).join('\n\n');
 
@@ -218,6 +231,7 @@ export function buildConsolidationInstruction(
     '6. **Structured format.** Organize the content under clear markdown headings (##) by topic. Use bullet points for individual facts. Group by category (Conventions, Patterns, Warnings, Project Facts) when it helps scannability.',
     '7. **Preserve actionable anchors.** Keep exact file paths, command names, package names, and configuration values that make a directive concrete and runnable.',
     '8. **No filler.** Do not include meta-commentary about the consolidation process. The document should read as if it were always a single authoritative reference.',
+    '9. **Trust the track record over your own judgement of plausibility.** An entry may carry `Track record: applied N×, M succeeded` — completed tasks that exercised it, and how many of those succeeded. Keep the ones that keep working, even when they read as obvious. An entry applied several times with few successes has been tested and has failed the test: drop it, or narrow it to the condition under which it actually holds. Entries with no track record are unproven rather than bad — judge them on merit, but do not let one displace a proven entry.',
     '',
     rawEntries.length > 0
       ? `## Raw learned entries (${rawEntries.length} total)\n\n${rawBody}`
@@ -228,6 +242,24 @@ export function buildConsolidationInstruction(
     sections.push(
       '',
       `## Existing consolidated document (for reference — improve upon it)\n\n${existingConsolidation}`,
+    );
+  }
+
+  // Only the ones the role has *not* since re-learned. Retirement archives
+  // rather than deletes precisely because a rule can be right about a project
+  // that has changed; a directive back in the buffer has earned its retrial and
+  // must not be pre-emptively vetoed here.
+  const retired = retiredDirectivesToWarnAbout(
+    normalizedRole,
+    entries.map((entry) => entry.what),
+    projectRoot,
+  );
+  if (retired.length > 0) {
+    sections.push(
+      '',
+      `## Retired — do not reinstate (${retired.length})\n\nThese were exercised repeatedly and kept correlating with failed tasks. If the existing document above still states any of them, drop it.\n\n${retired
+        .map((what) => `- ${what}`)
+        .join('\n')}`,
     );
   }
 

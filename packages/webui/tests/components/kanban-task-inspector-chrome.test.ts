@@ -67,7 +67,7 @@ describe('KanbanTaskInspector chrome', () => {
 
   it('badges only tabs that actually hold something', () => {
     const subject = task({
-      successCriteria: [{ id: 'c1', text: 'tests pass' }],
+      successCriteria: [{ id: 'c1', description: 'tests pass', type: 'test', status: 'pending' }],
       childTaskIds: ['child-1', 'child-2'],
     } as Partial<KanbanTask>);
 

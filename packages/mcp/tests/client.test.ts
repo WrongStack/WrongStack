@@ -243,7 +243,7 @@ describe('MCPClient', () => {
   });
 
   describe('close() — stdio lifecycle edge cases', () => {
-    it('close uses SIGTERM then escalates to SIGKILL on stuck process', async () => {
+    it('close requests graceful shutdown then escalates a stuck process', async () => {
       // The previous version of this test constructed a client with a
       // `while(true) {}` busy-loop command but never called connect() — no
       // child ever existed, so close() returned instantly and the
@@ -263,6 +263,16 @@ describe('MCPClient', () => {
       };
       fakeChild.exitCode = null;
       fakeChild.signalCode = null;
+      let stdinEnded = false;
+      Object.assign(fakeChild, {
+        stdin: {
+          destroyed: false,
+          writable: true,
+          end: () => {
+            stdinEnded = true;
+          },
+        },
+      });
       const signals: string[] = [];
       fakeChild.kill = (signal = 'SIGTERM') => {
         signals.push(signal);
@@ -279,7 +289,13 @@ describe('MCPClient', () => {
         configurable: true,
       });
       await c.close();
-      expect(signals).toEqual(['SIGTERM', 'SIGKILL']);
+      if (process.platform === 'win32') {
+        expect(stdinEnded).toBe(true);
+        expect(signals).toEqual(['SIGKILL']);
+      } else {
+        expect(stdinEnded).toBe(false);
+        expect(signals).toEqual(['SIGTERM', 'SIGKILL']);
+      }
       expect(c.getState()).toBe('disconnected');
     });
 

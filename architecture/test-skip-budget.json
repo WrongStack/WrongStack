@@ -102,6 +102,11 @@
       "fingerprint": "387f2407d416c0b9"
     },
     {
+      "file": "packages/mcp/tests/client-windows-lifecycle.test.ts",
+      "kind": "runIf",
+      "fingerprint": "5760e7fd5b745740"
+    },
+    {
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
       "kind": "skipIf",
       "fingerprint": "31cfbc566a723022"

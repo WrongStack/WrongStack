@@ -1,8 +1,7 @@
-
 import type { Tool } from '@wrongstack/core/types';
-import { codebaseIndexDirOverride } from './writer.js';
 import { isIndexing, runStartupIndex } from './background-indexer.js';
 import { indexCircuitBreaker } from './circuit-breaker.js';
+import { codebaseIndexDirOverride } from './writer.js';
 
 export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = {
   name: 'codebase-index',
@@ -95,6 +94,14 @@ interface CodebaseIndexInput {
 
 interface CodebaseIndexOutput {
   filesIndexed: number;
+  fileOutcomes?:
+    | {
+        parsed: number;
+        skipped: number;
+        empty: number;
+        failed: number;
+      }
+    | undefined;
   symbolsIndexed: number;
   langStats: Record<string, number>;
   durationMs: number;

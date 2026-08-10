@@ -1,6 +1,14 @@
 const HQ_KANBAN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const MAX_HQ_KANBAN_BOARDS = 250;
-const MAX_HQ_KANBAN_BOARD_BYTES = 750_000;
+/**
+ * Largest single board record HQ will accept, in bytes of serialized board JSON.
+ *
+ * Exported because the sender has to know it. `isHqKanbanSnapshotPayload`
+ * rejects the *whole* snapshot when one board is over the limit, and the
+ * rejection is silent from the sender's point of view — so a publisher that
+ * does not check this first can lose every board in the chunk, permanently.
+ */
+export const MAX_HQ_KANBAN_BOARD_BYTES = 750_000;
 
 export interface HqKanbanBoardRecord {
   boardId: string;
@@ -22,6 +30,18 @@ export interface HqKanbanSnapshotPayload {
   generatedAt: string;
   boards: HqKanbanBoardRecord[];
   tombstones: HqKanbanTombstone[];
+  /**
+   * Position of this payload within a multi-part publish, present only when the
+   * publish was split. It exists so the offline frame queue can tell chunks of
+   * one snapshot apart from successive versions of the same snapshot — coalesce
+   * on `chunkIndex`, not on the event type alone, or every chunk but the last
+   * is evicted before the socket reconnects.
+   *
+   * Receivers do not need it: chunks are independent record sets, and each
+   * record carries its own revision.
+   */
+  chunkIndex?: number | undefined;
+  chunkCount?: number | undefined;
 }
 
 /** Server-to-client snapshot after HQ has merged all known project writers. */
@@ -41,7 +61,9 @@ export function isHqKanbanSnapshotPayload(value: unknown): value is HqKanbanSnap
     !Array.isArray(payload.boards) ||
     !Array.isArray(payload.tombstones) ||
     payload.boards.length > MAX_HQ_KANBAN_BOARDS ||
-    payload.tombstones.length > MAX_HQ_KANBAN_BOARDS
+    payload.tombstones.length > MAX_HQ_KANBAN_BOARDS ||
+    !isOptionalChunkOrdinal(payload.chunkIndex) ||
+    !isOptionalChunkOrdinal(payload.chunkCount)
   ) {
     return false;
   }
@@ -56,6 +78,11 @@ export function isHqKanbanSnapshotPayload(value: unknown): value is HqKanbanSnap
     seen.add(item.boardId);
   }
   return true;
+}
+
+/** Chunk ordinals are optional; when present they must be sane non-negative ints. */
+function isOptionalChunkOrdinal(value: unknown): boolean {
+  return value === undefined || (Number.isSafeInteger(value) && (value as number) >= 0);
 }
 
 function isBoardRecord(value: unknown): value is HqKanbanBoardRecord {

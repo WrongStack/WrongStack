@@ -15,13 +15,14 @@ import type {
 } from '../types.js';
 import { applyTaskPatch, findTask, nowIso } from './_internal.js';
 import { KanbanLifecycleError } from './lifecycle-error.js';
-import { getDependencyReadinessIssues } from './task-readiness.js';
+import { formatDependencyReadinessIssues, getDependencyReadinessIssues } from './task-readiness.js';
 
 export {
   decodeLifecycleIssues,
   KanbanLifecycleError,
   LIFECYCLE_ISSUES_PREFIX,
   LIFECYCLE_ISSUES_SUFFIX,
+  stripLifecycleIssues,
 } from './lifecycle-error.js';
 
 export const KANBAN_AGENT_STAGES: readonly KanbanLifecycleStage[] = [
@@ -51,17 +52,11 @@ const STATUS_BY_STAGE: Readonly<Record<KanbanLifecycleStage, KanbanTaskStatus>> 
 export const STALE_WRITE_PREFIX = 'Stale write detected' as const;
 
 /**
- * Thrown when a concurrent modification is detected during board mutation.
- * Using a typed error (rather than `Error` with a message string) lets
- * callers reliably identify stale-write failures via `instanceof` instead
- * of fragile `error.message.includes(...)` checks.
+ * Re-export. `StaleWriteError` moved to `lifecycle-error.ts` so the IPC client
+ * can reconstruct it after deserialization — `instanceof StaleWriteError` now
+ * holds whether the mutation ran locally or through the daemon.
  */
-export class StaleWriteError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'StaleWriteError';
-  }
-}
+export { StaleWriteError } from './lifecycle-error.js';
 
 export function createManagedLifecyclePolicy(
   overrides: Partial<KanbanBoardLifecyclePolicy['columns']> = {},
@@ -122,7 +117,9 @@ export async function adoptManagedLifecycle(
     const mappedColumns = new Set(Object.values(lifecycle.columns));
     const unmappedColumns = board.columns.filter((column) => !mappedColumns.has(column.id));
     if (unmappedColumns.length > 0) {
-      const message = `Unmapped legacy columns: ${unmappedColumns.map((column) => column.id).join(', ')}.`;
+      const message = `Unmapped legacy columns: ${unmappedColumns
+        .map((column) => `${column.id} ("${column.title}")`)
+        .join(', ')}.`;
       throw new KanbanLifecycleError(message, [
         {
           code: 'managed-policy-invalid',
@@ -426,7 +423,7 @@ export function validateManagedTaskTransition(
 
   if (toIndex > fromIndex) {
     validateRequiredCardDetails(task, issues);
-    if (input.to === 'review') validateReviewEvidence(task, input, issues);
+    if (input.to === 'review') validateReviewEvidence(task, issues);
     if (input.to === 'done') {
       validateDoneEvidence(board, task, input, issues);
       validateParentChildGate(board, task, issues);
@@ -448,13 +445,7 @@ function validateRunningDependencies(
 ): void {
   const dependencyIssues = getDependencyReadinessIssues(board, task);
   if (!dependencyIssues.length) return;
-  const details = dependencyIssues
-    .map((issue) =>
-      issue.status === 'missing'
-        ? `${issue.dependencyId} (missing)`
-        : `${issue.dependencyId} (${issue.taskStatus ?? 'incomplete'})`,
-    )
-    .join(', ');
+  const details = formatDependencyReadinessIssues(dependencyIssues);
   issues.push({
     code: 'dependency-incomplete',
     field: 'dependsOn',
@@ -604,18 +595,10 @@ function validateRequiredCardDetails(
     ),
     'Assign an owner or agent.',
   );
-  requireDetail(
-    issues,
-    'dueDate',
-    hasText(task.dueDate) && Number.isFinite(Date.parse(task.dueDate)),
-    'Add a valid due date.',
-  );
-  requireDetail(
-    issues,
-    'labels',
-    Boolean(task.labels?.some(hasText)),
-    'Add at least one tag or label.',
-  );
+  // `dueDate` and `labels` are deliberately not required. They are meaningful
+  // for a human backlog and pure theatre for agent work: a thirty-line fix has
+  // no genuine deadline, so demanding one only teaches the caller to invent a
+  // date to get past the gate. Both remain available and are used when set.
   // Composite parents (truthy atomic) MUST have persisted children.
   // Atomic leaves (falsy/undefined atomic) are executable directly and
   // must not be forced into infinite recursive decomposition.
@@ -661,15 +644,18 @@ function validateRunningOwnership(
   );
 }
 
-function validateReviewEvidence(
-  task: KanbanTask,
-  input: KanbanTaskTransitionInput,
-  issues: KanbanLifecycleValidationIssue[],
-): void {
-  if (!hasText(task.assignment?.lastResult) || !hasAttachmentUrl(input.attachment)) {
+function validateReviewEvidence(task: KanbanTask, issues: KanbanLifecycleValidationIssue[]): void {
+  // An evidence URL is not always available for real work, and demanding one
+  // turned Review into a dead end: the only remedy is a field on this very
+  // call, while the old message pointed at the card, so callers burned whole
+  // sessions on add_link/add_note/mark_assignment. Keep the substantive
+  // requirement — say what was implemented — and let the URL be optional.
+  if (!hasText(task.assignment?.lastResult)) {
     issues.push({
       code: 'review-evidence-missing',
-      message: 'Review requires a persisted implementation result and evidence attachment.',
+      message:
+        'Review requires a recorded implementation result. Call kanban mark_assignment with ' +
+        '`lastResult` describing what was built before moving the card to Review.',
     });
   }
 }
@@ -697,7 +683,9 @@ export function validateDefinitionOfDone(
     issues.push({
       code: 'acceptance-criteria-incomplete',
       field: 'successCriteria',
-      message: 'Done requires every acceptance criterion to be explicitly passed.',
+      message:
+        'Done requires every acceptance criterion to be explicitly passed. Read the ids from ' +
+        'kanban get_task, then call kanban update_check with `checkStatus: "passed"` for each.',
     });
   }
   const effectiveReport = report ?? task.verificationReport;
@@ -727,10 +715,17 @@ function validateDoneEvidence(
   issues: KanbanLifecycleValidationIssue[],
 ): void {
   issues.push(...validateDefinitionOfDone(task, task.verificationReport, { board }));
-  if (!hasAttachmentUrl(input.attachment) || !hasText(input.action)) {
+  // The attachment URL is no longer required, and the message now names the
+  // parameter instead of describing an artifact. The old wording ("a persisted
+  // review attachment") read as something to store on the card, so callers
+  // tried add_link, add_note and mark_assignment in turn — none of which can
+  // satisfy a check on this call's own input.
+  if (!hasText(input.action)) {
     issues.push({
       code: 'review-evidence-missing',
-      message: 'Done requires reviewer action text and a persisted review attachment.',
+      message:
+        'Done requires reviewer action text. Pass `transitionAction` on this transition_task ' +
+        'call describing what was accepted (an evidence URL via `attachmentUrl` is optional).',
     });
   }
 }
@@ -740,10 +735,6 @@ function validateDoneEvidence(
  * guards. Rejects `undefined`, empty string, and whitespace-only URLs so a
  * merely present attachment object cannot satisfy the lifecycle guard.
  */
-function hasAttachmentUrl(attachment: KanbanTaskTransitionInput['attachment']): boolean {
-  return Boolean(attachment && hasText(attachment.url));
-}
-
 function requireDetail(
   issues: KanbanLifecycleValidationIssue[],
   field: string,

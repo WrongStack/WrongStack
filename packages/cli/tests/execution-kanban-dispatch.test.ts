@@ -86,17 +86,33 @@ describe('createKanbanDispatchHandler', () => {
     expect(events.emit).not.toHaveBeenCalled();
   });
 
-  it('reports missing skills and runtime failures through the error event', async () => {
+  // A skill is prompt seasoning, not a precondition: a missing one used to
+  // throw and take the whole dispatch with it, so a stale `assignment.skills`
+  // entry could stop the task from ever running. It is now skipped with a
+  // process warning and the worker still spawns.
+  it('skips a missing skill instead of failing the dispatch', async () => {
     const events = { emit: vi.fn() };
+    const dispatched = vi.fn();
     const missing = createKanbanDispatchHandler({
       config: {} as never,
       events: events as never,
-      skillLoader: { find: vi.fn().mockResolvedValue(undefined) } as never,
-      sddSubagentFactory: vi.fn() as never,
+      skillLoader: { find: vi.fn().mockResolvedValue(undefined), readBody: vi.fn() } as never,
+      sddSubagentFactory: vi.fn().mockResolvedValue({
+        agent: { run: dispatched.mockResolvedValue({ status: 'done', finalText: 'ok' }) },
+        dispose: vi.fn(),
+      }) as never,
     });
-    await expect(missing.onKanbanDispatch?.('task', { skills: ['missing'] })).rejects.toThrow(
-      'Kanban skill not found',
-    );
+
+    const message = await missing.onKanbanDispatch?.('task', { skills: ['missing'] });
+    await flush();
+
+    expect(message).toContain('kanban-12345678');
+    // The prompt keeps the task description and gains no skill section.
+    expect(dispatched).toHaveBeenCalledWith(expect.not.stringContaining('Required agentic skill'));
+  });
+
+  it('reports runtime failures through the error event', async () => {
+    const events = { emit: vi.fn() };
 
     const onDone = vi.fn();
     const dispose = vi.fn();

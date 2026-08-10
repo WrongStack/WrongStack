@@ -198,6 +198,9 @@ const profiles = {
     entries: {
       index: 'src/index.ts',
       'contract-graph': 'src/contract-graph.ts',
+      // Browser-safe leaf: the WebUI health bar imports it directly because the
+      // barrel reaches the IPC client and drags `node:net` into the bundle.
+      'queue-anomalies': 'src/queue-anomalies.ts',
       'project-server': 'src/server/project-server.ts',
       'test-support': 'src/test-support.ts',
     },

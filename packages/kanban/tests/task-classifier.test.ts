@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { KanbanBoard, KanbanTask } from '../src/types.js';
+import { validateManagedTaskTransition } from '../src/manager/lifecycle.js';
 import { classifyTaskForQueue } from '../src/manager/task-classifier.js';
+import type { KanbanBoard, KanbanTask } from '../src/types.js';
 
 const NOW = '2026-08-01T00:00:00.000Z';
 const FUTURE = '2026-08-01T00:10:00.000Z';
@@ -106,16 +107,20 @@ describe('classifyTaskForQueue', () => {
     expect(classification.reasons[0]).toContain('successCriteria');
   });
 
-  it('classifies fully specified managed todo tasks as claimable', () => {
+  // Regression guard for the classifier/lifecycle split: `validateRequiredCardDetails`
+  // (manager/lifecycle.ts) and `evaluateContractGraphReadiness` (contract-graph.ts)
+  // both dropped `dueDate`/`labels`, but the classifier kept demanding them — so
+  // `start_task` accepted a card that `queue_health` reported as unclaimable.
+  // The fixture deliberately omits both fields.
+  it('classifies a managed todo task without dueDate or labels as claimable', () => {
     const t = task({
       status: 'ready',
       columnId: 'todo',
       description: 'Detailed work scope.',
-      dueDate: '2026-08-02T00:00:00.000Z',
       assignee: 'agent',
-      labels: ['kanban'],
-      childTaskIds: ['child-1'],
-      successCriteria: [{ id: 'check-1', description: 'Acceptance criterion', type: 'manual', status: 'pending' }],
+      successCriteria: [
+        { id: 'check-1', description: 'Acceptance criterion', type: 'manual', status: 'pending' },
+      ],
       lifecycle: { currentStage: 'todo', stageEnteredAt: NOW, history: [] },
     });
     const b = managedBoard([t]);
@@ -124,7 +129,28 @@ describe('classifyTaskForQueue', () => {
       bucket: 'claimable',
       claimable: true,
       managedStage: 'todo',
+      reasons: [],
     });
+  });
+
+  it('still requires childTaskIds on an atomic managed parent', () => {
+    const t = task({
+      status: 'ready',
+      columnId: 'todo',
+      description: 'Composite scope.',
+      assignee: 'agent',
+      atomic: true,
+      successCriteria: [
+        { id: 'check-1', description: 'Acceptance criterion', type: 'manual', status: 'pending' },
+      ],
+      lifecycle: { currentStage: 'todo', stageEnteredAt: NOW, history: [] },
+    });
+    const b = managedBoard([t]);
+
+    const classification = classifyTaskForQueue(b, t, { now: NOW });
+
+    expect(classification.bucket).toBe('detail_incomplete');
+    expect(classification.reasons[0]).toContain('childTaskIds');
   });
 
   it('classifies running leases by health', () => {
@@ -137,7 +163,11 @@ describe('classifyTaskForQueue', () => {
       status: 'in_progress',
       assignment: { status: 'running', leaseId: 'lease', leaseExpiresAt: PAST },
     });
-    const noLease = task({ id: 'no-lease', status: 'in_progress', assignment: { status: 'running' } });
+    const noLease = task({
+      id: 'no-lease',
+      status: 'in_progress',
+      assignment: { status: 'running' },
+    });
     const b = board({ tasks: [live, expired, noLease] });
 
     expect(classifyTaskForQueue(b, live, { now: NOW }).bucket).toBe('running_live');
@@ -150,10 +180,152 @@ describe('classifyTaskForQueue', () => {
       status: 'failed',
       assignment: { status: 'failed', attempt: 1, maxAttempts: 2 },
     });
-    const terminal = task({ id: 'terminal', status: 'failed', assignment: { status: 'failed', attempt: 2, maxAttempts: 2 } });
+    const terminal = task({
+      id: 'terminal',
+      status: 'failed',
+      assignment: { status: 'failed', attempt: 2, maxAttempts: 2 },
+    });
     const b = board({ tasks: [retryable, terminal] });
 
     expect(classifyTaskForQueue(b, retryable, { now: NOW }).bucket).toBe('failed_retryable');
     expect(classifyTaskForQueue(b, terminal, { now: NOW }).bucket).toBe('failed_terminal');
+  });
+});
+
+/**
+ * The dispatch gate (`missingManagedDispatchDetails`, task-classifier.ts) and the
+ * lifecycle gate (`validateRequiredCardDetails`, manager/lifecycle.ts) are two
+ * hand-maintained copies of the same card-detail contract. They drifted once:
+ * the classifier kept demanding `dueDate`/`labels` after lifecycle dropped them,
+ * so `queue_health` called a card unclaimable while `start_task` accepted it.
+ *
+ * This asserts they AGREE across a corpus rather than pinning either one's
+ * verdict, so tightening or relaxing the shared contract only has to be done
+ * twice — never once.
+ */
+describe('managed card-detail contract — classifier vs lifecycle', () => {
+  /** Field names owned by the card-detail contract. */
+  const DETAIL_FIELDS = new Set(['description', 'assignee', 'childTaskIds', 'successCriteria']);
+
+  const criteria = [
+    {
+      id: 'check-1',
+      description: 'Acceptance criterion',
+      type: 'manual' as const,
+      status: 'pending' as const,
+    },
+  ];
+  const base = {
+    status: 'ready' as const,
+    columnId: 'todo',
+    lifecycle: { currentStage: 'todo' as const, stageEnteredAt: NOW, history: [] },
+  };
+
+  const CORPUS: Array<{ label: string; task: KanbanTask }> = [
+    {
+      label: 'complete card',
+      task: task({ ...base, description: 'Scope.', assignee: 'agent', successCriteria: criteria }),
+    },
+    {
+      label: 'no dueDate, no labels',
+      task: task({ ...base, description: 'Scope.', assignee: 'agent', successCriteria: criteria }),
+    },
+    {
+      label: 'dueDate and labels present',
+      task: task({
+        ...base,
+        description: 'Scope.',
+        assignee: 'agent',
+        dueDate: '2026-08-02T00:00:00.000Z',
+        labels: ['kanban'],
+        successCriteria: criteria,
+      }),
+    },
+    {
+      label: 'no description',
+      task: task({ ...base, assignee: 'agent', successCriteria: criteria }),
+    },
+    {
+      label: 'no assignee',
+      task: task({ ...base, description: 'Scope.', successCriteria: criteria }),
+    },
+    {
+      label: 'no successCriteria',
+      task: task({ ...base, description: 'Scope.', assignee: 'agent' }),
+    },
+    {
+      label: 'blank successCriteria description',
+      task: task({
+        ...base,
+        description: 'Scope.',
+        assignee: 'agent',
+        successCriteria: [{ id: 'c', description: '  ', type: 'manual', status: 'pending' }],
+      }),
+    },
+    {
+      label: 'atomic parent without children',
+      task: task({
+        ...base,
+        description: 'Scope.',
+        assignee: 'agent',
+        atomic: true,
+        successCriteria: criteria,
+      }),
+    },
+    {
+      label: 'atomic parent with children',
+      task: task({
+        ...base,
+        description: 'Scope.',
+        assignee: 'agent',
+        atomic: true,
+        childTaskIds: ['child-1'],
+        successCriteria: criteria,
+      }),
+    },
+  ];
+
+  for (const { label, task: card } of CORPUS) {
+    it(`agrees on: ${label}`, () => {
+      const b = managedBoard([card]);
+
+      const classifierComplete =
+        classifyTaskForQueue(b, card, { now: NOW }).bucket !== 'detail_incomplete';
+
+      // `to: 'running'` is the forward transition that runs the detail guard.
+      // It ALSO runs the ownership guard, which reports `task-detail-missing`
+      // for field `assignment` — that is execution state, not card detail, so
+      // it is filtered out here.
+      const lifecycleComplete = !validateManagedTaskTransition(b, card, {
+        to: 'running',
+        actor: 'tester',
+        comment: 'parity probe',
+      }).some(
+        (issue) => issue.code === 'task-detail-missing' && DETAIL_FIELDS.has(issue.field ?? ''),
+      );
+
+      expect(classifierComplete, `card-detail verdict diverged for "${label}"`).toBe(
+        lifecycleComplete,
+      );
+    });
+  }
+
+  it('neither gate asks for dueDate or labels', () => {
+    const card = task({
+      ...base,
+      description: 'Scope.',
+      assignee: 'agent',
+      successCriteria: criteria,
+    });
+    const b = managedBoard([card]);
+
+    expect(classifyTaskForQueue(b, card, { now: NOW }).bucket).toBe('claimable');
+    const fields = validateManagedTaskTransition(b, card, {
+      to: 'running',
+      actor: 'tester',
+      comment: 'parity probe',
+    }).map((issue) => issue.field);
+    expect(fields).not.toContain('dueDate');
+    expect(fields).not.toContain('labels');
   });
 });

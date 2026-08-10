@@ -381,7 +381,26 @@ export interface KanbanQueueHealth {
   generatedAt: string;
   boardIds: string[];
   counts: {
+    /**
+     * Cards whose stored `status` field is literally `'ready'`.
+     *
+     * This is a raw tally of the status column, not an answer to "what can I
+     * start?" — no production code path ever writes that status, so on real
+     * boards it is always 0. Use {@link KanbanQueueHealth.counts.startable}
+     * for the startable count; it agrees with `listReadyTasks`.
+     */
     ready: number;
+    /**
+     * Cards that can be started right now: not running, queued, completed,
+     * archived or failed, and with every dependency satisfied.
+     *
+     * This is the derived readiness that `listReadyTasks` reports. It exists
+     * because every surface that displayed `counts.ready` — the kanban tool's
+     * own result message, the WebUI health bar, the HQ view, the routes
+     * summary and the supervisor line — showed a permanent 0 while
+     * `ready_tasks` on the same board returned work.
+     */
+    startable: number;
     queued: number;
     running: number;
     review: number;

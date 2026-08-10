@@ -3,10 +3,12 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config, Logger, MemoryPort } from '@wrongstack/core/types';
 import {
   createSageContextMonitorMiddleware,
+  createSageDomainTermExtractorMiddleware,
   createSageToolCallMiddleware,
   createSageTurnMiddleware,
   getSageRetrieval,
   InjectionTracker,
+  subscribeSessionEndCommitExtractor,
 } from '@wrongstack/sage';
 
 export interface SageWiringDeps {
@@ -16,6 +18,13 @@ export interface SageWiringDeps {
   logger: Logger;
   events: EventBus;
   getSessionId?: (() => string | undefined) | undefined;
+  /**
+   * Absolute project root whose `.wrongstack/domain-terms.md` mirror
+   * should be kept fresh. When omitted the domain-term middleware
+   * still runs in conversation-extract mode (writes SAGE entries) but
+   * skips the on-disk mirror refresh.
+   */
+  projectRoot?: string | undefined;
 }
 
 /**
@@ -91,6 +100,17 @@ export function setupSage(deps: SageWiringDeps): () => Promise<void> {
       }),
     );
   }
+  // Domain-term auto-extract is always-on when a SAGE port is present.
+  // A missing project root only disables the derived file mirror; SAGE
+  // persistence remains active.
+  if (deps.memoryStore) {
+    deps.pipelines.request.use(
+      createSageDomainTermExtractorMiddleware({
+        memory: deps.memoryStore,
+        projectRoot: deps.projectRoot,
+      }),
+    );
+  }
   deps.pipelines.request.use(
     createSageContextMonitorMiddleware({
       tracker: injectionTracker,
@@ -98,6 +118,17 @@ export function setupSage(deps: SageWiringDeps): () => Promise<void> {
       getSessionId: deps.getSessionId,
     }),
   );
+  // Session-end commit extraction is process-scoped. The function returned
+  // by setupSage is invoked by a surface's onDestroy *before* the shared
+  // execution cleanup emits `session.ended`, so disposing this listener from
+  // that function would silently disable the final scan. execution-cleanup's
+  // waitUntil contract keeps the memory writer alive until this work settles.
+  if (deps.projectRoot) {
+    subscribeSessionEndCommitExtractor(deps.events, {
+      memory: memoryStore,
+      projectRoot: deps.projectRoot,
+    });
+  }
   return async () => {
     // `flushPendingCounters` is a documented no-op for both the in-memory
     // `SqliteMemoryPort` (counters write synchronously) and the IPC

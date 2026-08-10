@@ -34,6 +34,7 @@ import {
   takeSessionMirrorFailure,
   taskFileToSerializedGraph,
   todoListToSerializedGraph,
+  todosNeedingSessionMirror,
 } from '../src/session-kanban.js';
 
 describe('unified session kanban', () => {
@@ -653,5 +654,40 @@ describe('unified session kanban', () => {
       'Preview',
       'Done',
     ]);
+  });
+});
+
+describe('todosNeedingSessionMirror', () => {
+  const bound = (id: string, boardId: string): TodoItem =>
+    ({
+      id,
+      content: id,
+      status: 'pending',
+      kanbanBoardId: boardId,
+      kanbanTaskId: `card-${id}`,
+    }) as TodoItem;
+  const loose = (id: string): TodoItem => ({ id, content: id, status: 'pending' }) as TodoItem;
+
+  it('mirrors nothing when every row is already a card on the active board', () => {
+    const todos = [bound('a', 'board-1'), bound('b', 'board-1')];
+    expect(todosNeedingSessionMirror(todos, 'board-1')).toEqual([]);
+  });
+
+  it('mirrors only the unbound row, not the whole list', () => {
+    // The regression: one stray row used to send every row to a separate
+    // session board, duplicating work already tracked on the real board.
+    const todos = [bound('a', 'board-1'), loose('b'), bound('c', 'board-1')];
+    expect(todosNeedingSessionMirror(todos, 'board-1').map((t) => t.id)).toEqual(['b']);
+  });
+
+  it('treats a row bound to a different board as still needing the mirror', () => {
+    const todos = [bound('a', 'other-board')];
+    expect(todosNeedingSessionMirror(todos, 'board-1').map((t) => t.id)).toEqual(['a']);
+  });
+
+  it('mirrors everything when no board is active', () => {
+    const todos = [bound('a', 'board-1'), loose('b')];
+    expect(todosNeedingSessionMirror(todos, undefined)).toEqual(todos);
+    expect(todosNeedingSessionMirror(todos, '')).toEqual(todos);
   });
 });

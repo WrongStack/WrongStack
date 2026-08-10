@@ -203,7 +203,9 @@ interface UIState {
   settingsActiveTab: string;
   /** Generic per-view scroll positions — keyed by view name, restored on remount. */
   scrollPositions: Record<string, number>;
-  /** Persisted chat input draft — survives page navigation (e.g. Settings → Chat). */
+  /** In-memory chat input draft — survives view navigation (e.g. Settings → Chat) but
+   *  is intentionally NOT persisted to localStorage, so it does not reappear on a
+   *  fresh page load or when starting a new session. */
   draftInput: string;
   setDraftInput: (text: string) => void;
   setProcessMonitorOpen: (open: boolean) => void;
@@ -577,7 +579,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: 'wrongstack-ui',
-      version: 5,
+      version: 6,
       // v0 → v1: 'context'/'sessions' activities were removed and the
       // sidebar width bounds changed — coerce persisted values so a stale
       // localStorage entry can't select a panel that no longer exists.
@@ -590,6 +592,10 @@ export const useUIStore = create<UIState>()(
       // (F5-resilience). No shape change to existing fields — the coerce
       // for the new fields is defensive in case a user with a hand-
       // edited localStorage entry lands here first.
+      // v5 → v6: removed `draftInput` from partialize. The chat input draft
+      // is now in-memory only (survives Settings→Chat view navigation but
+      // NOT page reload or new sessions). Stale draftInput values from v5
+      // localStorage are dropped here so they don't bleed into a new session.
       migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Record<string, unknown>;
         p.activeActivity = coerceActivity(p.activeActivity);
@@ -609,6 +615,11 @@ export const useUIStore = create<UIState>()(
         }
         if ('settingsActiveTab' in p) {
           p.settingsActiveTab = coerceSettingsTab(p.settingsActiveTab);
+        }
+        if (version < 6) {
+          // v6: draftInput is no longer persisted — drop any stale value
+          // so it doesn't bleed into a new session on next load.
+          delete p.draftInput;
         }
         return p as never as UIState;
       },
@@ -664,7 +675,10 @@ export const useUIStore = create<UIState>()(
         dockSection: s.dockSection,
         settingsActiveTab: s.settingsActiveTab,
         scrollPositions: s.scrollPositions,
-        draftInput: s.draftInput,
+        // draftInput intentionally NOT persisted — it is in-memory only so
+        // a stale draft from a previous session does not reappear on a
+        // fresh WebUI load or after starting a new session. View navigation
+        // (Settings → Chat) reads it from the live store, not localStorage.
       }),
     },
   ),

@@ -24,6 +24,7 @@ import {
   clearProjectAgentConsolidated,
   clearProjectSkillAugmentation,
   createProjectAgent,
+  DEFAULT_EAGER_SKILL_LIMIT,
   detectLearnedConflicts,
   evaluateAutoOptimize,
   FLEET_ROSTER,
@@ -41,12 +42,15 @@ import {
   loadProjectSkillAugmentation,
   loadSkillAffinity,
   optimizeProjectAgentLearning,
+  rankRoleSkills,
+  readQuarantinedDirectives,
   readRawLearnedEntries,
   resetProjectAgentIdentity,
   resolveAutoOptimizePolicy,
   resolveRoleSkillCandidates,
   saveProjectAgentConsolidated,
   saveProjectSkillAugmentation,
+  scoreSkillAffinity,
   setSkillPinned,
   slugifyProjectAgentRole,
   updateProjectAgentConfig,
@@ -95,9 +99,7 @@ export class AgentRosterWSHandler {
   private readonly getProjectRoot: () => string;
   private readonly getLlm: () => AgentRosterLlm | undefined;
   private readonly broadcast: (msg: WSServerMessage) => void;
-  private readonly getAutoOptimizeSettings:
-    | (() => Record<string, unknown> | undefined)
-    | undefined;
+  private readonly getAutoOptimizeSettings: (() => Record<string, unknown> | undefined) | undefined;
 
   constructor(opts: AgentRosterHandlerOptions) {
     this.getProjectRoot =
@@ -446,9 +448,7 @@ export class AgentRosterWSHandler {
       // eligible right now, and why not when it does not. Surfacing the reason
       // is what keeps "nothing happened" from looking like a broken feature.
       case 'agent-roster.auto-optimize-status': {
-        const policy = resolveAutoOptimizePolicy(
-          this.getAutoOptimizeSettings?.() ?? undefined,
-        );
+        const policy = resolveAutoOptimizePolicy(this.getAutoOptimizeSettings?.() ?? undefined);
         const roles = role ? [role] : listProjectAgentRoles(projectRoot);
         return {
           type,
@@ -472,16 +472,32 @@ export class AgentRosterWSHandler {
         const candidates = resolveRoleSkillCandidates(role, projectRoot);
         const developed = listProjectSkillAugmentations(role, projectRoot);
         const affinity = loadSkillAffinity(role, projectRoot);
+        // Raw counters do not say which skills actually get loaded — that is the
+        // ranking, and it is the only part a user can act on (by pinning).
+        const eager = new Set(rankRoleSkills(role, candidates, projectRoot));
         return {
           type,
           payload: {
             role,
+            eagerLimit: DEFAULT_EAGER_SKILL_LIMIT,
             skills: candidates.map((skill) => ({
               skill,
               developed: developed.includes(skill),
               affinity: affinity.entries[skill] ?? null,
+              score:
+                scoreSkillAffinity(affinity.entries[skill]) + (developed.includes(skill) ? 1 : 0),
+              eager: eager.has(skill),
             })),
           },
+        };
+      }
+
+      // ── Directives the loop stopped believing ─────────────────────────────
+      case 'agent-roster.quarantine': {
+        if (!role) return { type, payload: { error: 'role required' } };
+        return {
+          type,
+          payload: { role, retired: readQuarantinedDirectives(role, projectRoot) },
         };
       }
 

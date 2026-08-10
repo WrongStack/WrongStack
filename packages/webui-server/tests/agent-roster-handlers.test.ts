@@ -268,7 +268,9 @@ describe('AgentRosterWSHandler', () => {
       role: 'executor',
       content: 'A durable rule worth keeping.',
     });
-    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
     const payload = res.payload as { consolidated: boolean; content?: string };
     expect(payload.consolidated).toBe(true);
     expect(payload.content?.startsWith('```')).toBe(false);
@@ -282,10 +284,20 @@ describe('AgentRosterWSHandler', () => {
       projectRoot: () => projectRoot,
       getLlm: () => {
         called = true;
-        return { provider: { capabilities: {}, async complete() { return { content: [] }; } } as never, model: 'm' };
+        return {
+          provider: {
+            capabilities: {},
+            async complete() {
+              return { content: [] };
+            },
+          } as never,
+          model: 'm',
+        };
       },
     });
-    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
     const payload = res.payload as { consolidated: boolean; rawEntryCount: number; error?: string };
     expect(payload.consolidated).toBe(false);
     expect(payload.rawEntryCount).toBe(0);
@@ -309,7 +321,9 @@ describe('AgentRosterWSHandler', () => {
       role: 'executor',
       content: 'A rule that will fail to consolidate.',
     });
-    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
     const payload = res.payload as {
       consolidated: boolean;
       rawEntryCount: number;
@@ -357,7 +371,9 @@ describe('AgentRosterWSHandler', () => {
       projectRoot: () => projectRoot,
       getLlm: () => ({ provider: stubProvider as never, model: 'm' }),
     });
-    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
     const payload = res.payload as { consolidated: boolean; rawEntryCount: number; error?: string };
     expect(payload.consolidated).toBe(false);
     expect(payload.rawEntryCount).toBe(0);
@@ -379,7 +395,9 @@ describe('AgentRosterWSHandler', () => {
       role: 'executor',
       content: 'A lesson that will fail to consolidate.',
     });
-    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
     const payload = res.payload as { consolidated: boolean; error?: string; instruction?: string };
     expect(payload.consolidated).toBe(false);
     expect(payload.error).toContain('provider exploded');
@@ -403,7 +421,9 @@ describe('AgentRosterWSHandler', () => {
       role: 'executor',
       content: 'A durable rule the model failed to synthesize.',
     });
-    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
     const payload = res.payload as {
       consolidated: boolean;
       emptySynthesis?: boolean;
@@ -442,7 +462,9 @@ describe('AgentRosterWSHandler', () => {
       role: 'executor',
       content: 'A rule worth consolidating even if the broadcast fails.',
     });
-    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
     const payload = res.payload as { consolidated: boolean; content?: string };
     // The document persisted, so the success response must still be returned
     // even though the post-persist broadcast threw.
@@ -451,5 +473,54 @@ describe('AgentRosterWSHandler', () => {
     expect(
       fs.existsSync(path.join(projectRoot, '.wrongstack', 'agents', 'executor', 'consolidated.md')),
     ).toBe(true);
+  });
+
+  it('reports which skills are actually loaded, not only their raw counters', async () => {
+    await handler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'reviewer',
+      content: 'Always re-resolve every cited call site against the live file before reporting it.',
+    });
+    const response = await handler.handleMessage(ws, 'agent-roster.skills', { role: 'reviewer' });
+    const payload = response.payload as {
+      eagerLimit: number;
+      skills: { skill: string; score: number; eager: boolean; developed: boolean }[];
+    };
+
+    expect(payload.skills.length).toBeGreaterThan(0);
+    // Counters alone never said which skills reach a spawn; the ranking does,
+    // and it is the only part a user can act on by pinning.
+    expect(payload.skills.every((entry) => typeof entry.score === 'number')).toBe(true);
+    expect(payload.skills.filter((entry) => entry.eager)).toHaveLength(
+      Math.min(payload.eagerLimit, payload.skills.length),
+    );
+  });
+
+  it('serves the retired-directive log, empty until something is retired', async () => {
+    const before = await handler.handleMessage(ws, 'agent-roster.quarantine', { role: 'executor' });
+    expect((before.payload as { retired: unknown[] }).retired).toEqual([]);
+
+    fs.mkdirSync(path.join(projectRoot, '.wrongstack', 'agents', 'executor'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, '.wrongstack', 'agents', 'executor', 'quarantine.md'),
+      [
+        '<!-- quarantined: at=2026-08-10T00:00:00.000Z; category=convention; skill=git-flow; applied=8; wins=0 -->',
+        '- **Always rebase onto the latest main before opening a pull request.**',
+        '  - *Record:* 0 succeeded / 8 failed of 8 applied',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    const after = await handler.handleMessage(ws, 'agent-roster.quarantine', { role: 'executor' });
+    expect((after.payload as { retired: { what: string; skill?: string }[] }).retired).toEqual([
+      {
+        what: 'Always rebase onto the latest main before opening a pull request.',
+        skill: 'git-flow',
+      },
+    ]);
+  });
+
+  it('requires a role for the retired-directive log', async () => {
+    const response = await handler.handleMessage(ws, 'agent-roster.quarantine', {});
+    expect((response.payload as { error?: string }).error).toBe('role required');
   });
 });

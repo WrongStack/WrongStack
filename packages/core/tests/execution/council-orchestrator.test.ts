@@ -122,6 +122,30 @@ describe('CouncilOrchestrator', () => {
     expect(log.judgeCalls).toEqual([]);
   });
 
+  it('re-resolves a reused ad-hoc profile after the caller mutates it', async () => {
+    const profile: CouncilProfileConfig = {
+      id: 'mutable-profile',
+      seats: [{ id: 'executor', persona: 'executor' }],
+      judge: false,
+    };
+    const { orchestrator } = makeOrchestrator({
+      voterResponses: new Map([
+        ['executor', '{"optionId":"merge"}'],
+        ['auditor', '{"optionId":"merge"}'],
+      ]),
+    });
+
+    const first = await orchestrator.ask({ ...QUESTION, profile });
+    expect(first.configuredSeatCount).toBe(1);
+
+    (profile.seats as Array<CouncilProfileConfig['seats'][number]>).push({
+      id: 'auditor',
+      persona: 'auditor',
+    });
+    const second = await orchestrator.ask({ ...QUESTION, profile });
+    expect(second.configuredSeatCount).toBe(2);
+  });
+
   it('rejects when a veto seat refuses', async () => {
     const { orchestrator } = makeOrchestrator({
       voterResponses: new Map([

@@ -59,8 +59,8 @@
 
 ### Pre-built fleet roster
 
-`FLEET_ROSTER` contains 51 unique role ids: the 50-role phase catalog plus the
-operational `shadow-agent` role. Representative roles include:
+`FLEET_ROSTER` contains 77 unique role ids: the 75-role phase catalog plus the
+operational `generic` and `shadow-agent` roles. Representative roles include:
 
 | Role | File | Purpose |
 |------|------|---------|
@@ -70,6 +70,71 @@ operational `shadow-agent` role. Representative roles include:
 | `security-scanner` | `fleet.ts` | Secret detection, injection vectors, CVE scanning |
 | `critic` | `fleet.ts` | Evaluate findings, plans, and architectural proposals |
 | `shadow-agent` | `fleet.ts` | One-shot fleet monitoring and intervention |
+
+### Making the roster reachable
+
+A deep roster is worth nothing if the leader cannot find the right role in it.
+Measured on this repository before the guards below existed: of the 77 roles
+offered, **10 had ever completed a task** and **2 accounted for 73% of all
+captured learning**, while `database`, `backend`, `frontend`, `devops` and
+`android` had never once been chosen. Three mechanisms were responsible, and
+each is now closed:
+
+1. **The menu described nothing.** `rosterSummaryFromConfigs` built each line
+   from the first 80 characters of the role prompt — and every role prompt opens
+   `You are the X agent. Your job is…`, so a third of each line was boilerplate
+   and the distinguishing half was truncated. The catalog already carried a
+   curated `capability.summary` per agent, used by the dispatcher and shown to
+   nobody. `FLEET_ROSTER` now copies it onto each config as `dispatch.summary`
+   and the menu renders that. Cost: 6.5 KB → 9.1 KB. Pinned by
+   `roster-discoverability.test.ts`.
+2. **Description-dispatch had no tie-breaker.** `dispatchAgent` is two-stage —
+   keyword heuristic, then a model — but nothing supplied stage two to the
+   `Director`, so anything the keywords could not resolve fell through to the
+   `executor` generalist. The host now passes a classifier that routes through
+   the `dispatcher` model-matrix slot (a short classification belongs on a cheap
+   fast model) and returns `null` on any failure, so routing degrades to the
+   heuristic rather than failing a spawn.
+3. **`role` skipped dispatch entirely, and the tool recommended it first.**
+   `spawn_subagent` only dispatches when `role` is absent. The schema and usage
+   hint now lead with `description` and say plainly that passing a
+   half-remembered id silently costs the specialist.
+
+The roster block in the leader prompt is introduced as a routing instruction
+rather than a bare list — a menu of 77 look-alike lines gets skimmed, and the
+leader falls back to the four ids it can recall.
+
+### Role toolsets
+
+Roles do not all receive every tool, and this is deliberate. `TOOLS` in
+`agents/types.ts` defines composable presets — `read` (6), `inspect` (10),
+`write` (10), `build` (16), `vcs` (6), `deps` (8), `docs` (9), `research` (6) —
+and a role spreads one plus any extras it needs (`[...TOOLS.build, 'fetch']`).
+Across the 77 roles that resolves to **49 distinct tools**; the widest role is
+`e2e` at 33, then `browser` at 23.
+
+The narrowing is behavioural, not only defensive: a reviewer that can write is
+not an independent reviewer — it will fix what it was asked to judge — and a
+research agent with `bash` stops researching. A narrow allowlist also means a
+shorter tool section in the prompt and a smaller action space to wander in.
+
+Three properties worth keeping:
+
+- **An unrestricted role is a role choice, not a missing feature.** `generic`
+  and `shadow-agent` declare no `tools` array, so `selectSubagentTools` gives
+  them every visible tool.
+- **The contract fails loud.** A role naming a tool the runtime has not
+  registered makes `selectSubagentTools` throw rather than silently spawning a
+  crippled agent. This is why the presets stay conservative.
+- **Narrow must never mean mute.** Every preset carries `mailbox` so a blocked
+  subagent can ask the leader instead of only failing. `vcs` was the one preset
+  without it, which silenced `git` and `release` — the two roles whose work
+  (force-push, tag collision, dirty tree) least often has a safe default.
+  Pinned by `roster-discoverability.test.ts`.
+
+Toolset narrowing does **not** cost a role its guidance: running all 75 curated
+skill sets against their own toolsets drops zero skills, so the tool presets and
+`ROLE_SKILL_SETS` are consistent by construction.
 
 ### CLI Integration
 

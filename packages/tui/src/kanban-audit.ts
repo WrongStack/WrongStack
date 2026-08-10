@@ -3,10 +3,17 @@
  *
  * Mirrors the WebUI's `packages/webui/src/lib/kanban-cleaner.ts` but
  * lives in the TUI package so we don't have to thread `@wrongstack/webui`
- * (which depends on React) into a server-side TUI pipeline. The two
- * implementations intentionally share the same audit-code vocabulary
- * (10 codes) and severity levels (`error`, `warning`) so a board audited
- * from either surface produces the same findings.
+ * (which depends on React) into a server-side TUI pipeline.
+ *
+ * The two implementations must produce the same verdicts for the same board.
+ * That claim used to be a comment; it is now enforced by
+ * `packages/cli/tests/kanban-cleaner-parity.test.ts`, which runs a shared
+ * corpus through both and compares the `taskId:code:severity` triples. Only
+ * three differences are deliberate, and all three are API shape rather than
+ * verdict: this file also accepts `liveAgentIdentities`, returns eight extra
+ * summary fields the WebUI's `KanbanCleanerAlert` fills from queue health, and
+ * exports `summarizeAuditHeadline` / `topAuditIssues` for the panel badge.
+ * Messages may differ; codes and severities may not.
  *
  * The output of `auditKanbanBoard()` feeds the TUI panel header badge so
  * users see Cleaner warnings inline — mirroring the WebUI's
@@ -21,17 +28,26 @@ import type {
 
 export type KanbanAuditSeverity = 'error' | 'warning';
 
-export type KanbanAuditIssueCode =
-  | 'missing-description'
-  | 'missing-assignee'
-  | 'missing-due-date'
-  | 'missing-labels'
-  | 'missing-subtasks'
-  | 'missing-success-criteria'
-  | 'skipped-lifecycle-state'
-  | 'abandoned-running-task'
-  | 'stale-running-task'
-  | 'stale-review';
+/**
+ * The audit vocabulary, as a runtime value so the parity test can compare the
+ * two implementations' code sets instead of trusting that both type unions
+ * were edited together.
+ */
+export const ALL_AUDIT_CODES = [
+  'abandoned-running-task',
+  'board-oversized',
+  'missing-assignee',
+  'missing-description',
+  'missing-due-date',
+  'missing-labels',
+  'missing-subtasks',
+  'missing-success-criteria',
+  'skipped-lifecycle-state',
+  'stale-review',
+  'stale-running-task',
+] as const;
+
+export type KanbanAuditIssueCode = (typeof ALL_AUDIT_CODES)[number];
 
 export interface KanbanAuditIssue {
   id: string;
@@ -91,6 +107,14 @@ export interface KanbanAuditOptions {
 const DEFAULT_REVIEW_STALE_AFTER_MS = 72 * 60 * 60 * 1000;
 const TERMINAL_STATUSES = new Set<KanbanTaskStatus>(['completed', 'archived']);
 
+/**
+ * Mirror of `KANBAN_BOARD_SOFT_MAX_BYTES` (`@wrongstack/kanban`, storage.ts).
+ * Inlined rather than imported because the WebUI half of this audit cannot
+ * pull a runtime value out of that package's barrel — it reaches `node:net`.
+ * `kanban-cleaner-parity.test.ts` pins both copies to the exported constant.
+ */
+const BOARD_SOFT_MAX_BYTES = 512 * 1024;
+
 /* ------------------------------------------------------------------ */
 /* Optional-field widening — keep this in lock-step with @wrongstack/kanban */
 /* ------------------------------------------------------------------ */
@@ -144,17 +168,25 @@ export function auditKanbanBoard(
   );
   const lifecycleOrder = resolveLifecycleOrder(auditableBoard);
   const managed = isManagedBoard(auditableBoard);
-  const requireDueDate = managed || options.requireDueDate === true;
+  // A managed board does NOT imply a required due date. The lifecycle gate
+  // (`validateRequiredCardDetails`) demands description, assignee, success
+  // criteria and — for atomic parents — child tasks; a date is never part of
+  // advancing a card. Auto-enabling it here made the Cleaner disagree with the
+  // gate on every managed board, and ignored a caller that passed `false`.
+  const requireDueDate = options.requireDueDate === true;
   const issues: KanbanAuditIssue[] = [];
 
   for (const task of board.tasks as AuditableTask[]) {
-    if (lifecycleOrder.length > 1) addLifecycleIssue(issues, task, lifecycleOrder);
+    // Completed and archived cards are done being audited. Reporting a skipped
+    // lifecycle transition on them was noise about work already delivered.
     if (TERMINAL_STATUSES.has(task.status)) continue;
 
     addRequiredDetailIssues(issues, task, requireDueDate, managed);
     addRunningIssue(issues, task, now, liveIdentities);
     addReviewIssue(issues, task, now, reviewStaleAfterMs);
+    if (lifecycleOrder.length > 1) addLifecycleIssue(issues, task, lifecycleOrder);
   }
+  addBoardSizeIssue(issues, board);
 
   issues.sort(compareIssues);
   return {
@@ -232,7 +264,9 @@ function addRequiredDetailIssues(
   if (!hasAssignee) {
     pushIssue(issues, task, 'missing-assignee', 'warning', 'Assign an owner');
   }
-  if (requireDueDate && (!hasText(task.dueDate) || !Number.isFinite(Date.parse(task.dueDate)))) {
+  // `toEpoch` also accepts a number or a `Date`. Boards written by older
+  // packages store epoch millis, and demanding a string flagged them all.
+  if (requireDueDate && toEpoch(task.dueDate) === null) {
     pushIssue(issues, task, 'missing-due-date', 'warning', 'Set a valid due date');
   }
   if (!hasTextItem(task.labels) && (managed || !hasTextItem(task.tags))) {
@@ -255,6 +289,39 @@ function addRequiredDetailIssues(
   }
   if (!hasValidSuccessCriteria(task.successCriteria, managed)) {
     pushIssue(issues, task, 'missing-success-criteria', 'warning', 'Add success criteria');
+  }
+}
+
+/**
+ * The one board-level finding. Every other code names a card; this one names
+ * the board, so it carries the board id in `taskId` and the board title in
+ * `taskTitle` — which also means an oversized board adds one to
+ * `affectedTaskCount`.
+ *
+ * Why it matters: nothing enforces a board size limit, but the HQ wire codec
+ * silently drops any single board record over ~750 KB. Before this code
+ * existed a board simply stopped appearing in HQ with no signal anywhere.
+ */
+function addBoardSizeIssue(issues: KanbanAuditIssue[], board: KanbanBoard): void {
+  const bytes = boardByteSize(board);
+  if (bytes <= BOARD_SOFT_MAX_BYTES) return;
+  issues.push({
+    id: `${board.id}:board-oversized`,
+    taskId: board.id,
+    taskTitle: board.title,
+    code: 'board-oversized',
+    severity: 'warning',
+    message: `Board is ~${Math.round(bytes / 1024)} KB across ${board.tasks.length} cards; archive completed cards before it stops syncing to HQ`,
+  });
+}
+
+function boardByteSize(board: KanbanBoard): number {
+  try {
+    return JSON.stringify(board)?.length ?? 0;
+  } catch {
+    // A board that cannot be serialized cannot be measured — and cannot reach
+    // HQ either, but that is a different problem than being too large.
+    return 0;
   }
 }
 
@@ -460,7 +527,9 @@ function normalizeIdentities(values: KanbanAuditOptions['liveAgentIdentities']):
 }
 
 function normalizeIdentity(value: string): string {
-  return value.trim().toLocaleLowerCase();
+  // Not `toLocaleLowerCase` — under a Turkish locale that maps "I" to "ı",
+  // so an agent named "IndexBot" would stop matching its own lease.
+  return value.trim().toLowerCase();
 }
 
 function firstText(...values: unknown[]): string | null {

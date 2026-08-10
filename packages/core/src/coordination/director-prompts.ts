@@ -61,7 +61,17 @@ export function composeDirectorPrompt(parts: DirectorPromptParts = {}): string {
   const preamble = parts.directorPreamble ?? DEFAULT_DIRECTOR_PREAMBLE;
   if (preamble && preamble.trim().length > 0) sections.push(preamble.trim());
   if (parts.rosterSummary && parts.rosterSummary.trim().length > 0) {
-    sections.push(`Available roles you can spawn:\n${parts.rosterSummary.trim()}`);
+    // Naming the shape of the list matters as much as the list. Presented as a
+    // bare menu, a leader reaches for the few ids it can recall and the deep
+    // specialists never get picked; saying out loud that a specialist probably
+    // exists, and that describing the work will find it, is what turns the
+    // roster from a reference into a routing instruction.
+    sections.push(
+      'Roles you can spawn. This roster is deep and specialised — before handing work to a ' +
+        'generalist, look for the agent built for exactly this job, and prefer describing the ' +
+        'work (`description`) over recalling an id (`role`) so the dispatcher can find it:\n' +
+        parts.rosterSummary.trim(),
+    );
   }
   if (parts.basePrompt && parts.basePrompt.trim().length > 0) {
     sections.push(parts.basePrompt.trim());
@@ -152,29 +162,66 @@ export function composeSubagentPrompt(parts: SubagentPromptParts = {}): string {
   return sections.join('\n\n');
 }
 
+/** Longest capability line rendered per role before it is cut. */
+const ROSTER_SUMMARY_MAX_CHARS = 150;
+
+/** A display name that only re-states the role id carries no information. */
+function nameAddsInformation(roleId: string, name: string): boolean {
+  const flatten = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return flatten(name) !== flatten(roleId);
+}
+
 /**
- * Render a short bullet list summarising a roster — useful for stuffing
- * into `composeDirectorPrompt({ rosterSummary })` so the director model
- * can see available roles without scanning tool descriptions.
+ * Render a bullet list summarising a roster — stuffed into
+ * `composeDirectorPrompt({ rosterSummary })` so the leader can see the roles it
+ * may spawn without scanning tool descriptions.
  *
- * Each entry: `- <role-id>: <name>[ (provider/model)] — <prompt-headline>`
- * The prompt headline is the first non-empty line of `config.prompt`,
- * truncated to 80 chars. Skipped entirely when the role has no prompt.
+ * Each entry: `- <role-id>[ (<name>)][ (provider/model)] — <capability>`
+ *
+ * The capability comes from `dispatch.summary`, the curated one-liner the
+ * catalog already writes for every agent and the dispatcher already routes on.
+ * It used to come from the first 80 characters of `config.prompt`, which is
+ * how a 77-role menu came to read as 77 variations of "You are the X agent.
+ * Your job is…" with the discriminating half cut off. A leader given that list
+ * can only reliably pick the roles whose id spells out the job — and the usage
+ * data matched exactly that: 57 of the 77 roles had never once been chosen.
+ *
+ * The prompt headline stays as the fallback for roles with no dispatch
+ * metadata, so a hand-written project role is still listed.
  */
 export function rosterSummaryFromConfigs(
   roster: Record<
     string,
-    { name: string; provider?: string | undefined; model?: string | undefined; prompt?: string | undefined; role?: string | undefined }
+    {
+      name: string;
+      provider?: string | undefined;
+      model?: string | undefined;
+      prompt?: string | undefined;
+      role?: string | undefined;
+      dispatch?: { summary: string; keywords: string[] } | undefined;
+    }
   >,
 ): string {
   const lines: string[] = [];
   for (const [roleId, cfg] of Object.entries(roster)) {
     const tag = cfg.provider && cfg.model ? ` (${cfg.provider}/${cfg.model})` : '';
-    const headline = cfg.prompt
-      ? (cfg.prompt.split('\n').find((l) => l.trim().length > 0) ?? '').trim().slice(0, 80)
-      : '';
+    const label = nameAddsInformation(roleId, cfg.name) ? ` (${cfg.name})` : '';
+    const capability =
+      cfg.dispatch?.summary?.trim() ||
+      // Fallback headline: a role prompt that opens with a markdown heading
+      // would otherwise render as "# Generic Project Agent", which reads as
+      // formatting rather than as a capability.
+      (cfg.prompt
+        ? (cfg.prompt.split('\n').find((l) => l.trim().length > 0) ?? '')
+            .replace(/^#+\s*/, '')
+            .trim()
+        : '');
+    const headline =
+      capability.length > ROSTER_SUMMARY_MAX_CHARS
+        ? `${capability.slice(0, ROSTER_SUMMARY_MAX_CHARS - 1).trimEnd()}…`
+        : capability;
     const tail = headline ? ` — ${headline}` : '';
-    lines.push(`- ${roleId}: ${cfg.name}${tag}${tail}`);
+    lines.push(`- ${roleId}${label}${tag}${tail}`);
   }
   return lines.join('\n');
 }

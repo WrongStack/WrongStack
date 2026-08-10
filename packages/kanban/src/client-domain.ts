@@ -2,6 +2,7 @@ import { KANBAN_DOMAIN_OPERATIONS, type KanbanDomainOperation } from './domain-o
 import type * as DomainApi from './manager.js';
 import { getKanbanServerConnection } from './server/client.js';
 import { decodeKanbanDomainValue, encodeKanbanDomainValue } from './server/protocol.js';
+import { isInProcessTestMode } from './test-mode.js';
 
 type DomainModule = typeof DomainApi;
 type DomainFunction<K extends KanbanDomainOperation> = DomainModule[K];
@@ -16,11 +17,7 @@ function bindDomainOperation<K extends KanbanDomainOperation>(operation: K): Dom
     // Existing unit tests exercise domain algorithms and the legacy migration
     // codec in-process. Production and IPC integration tests never enter this
     // branch.
-    if (
-      process.env['NODE_ENV'] === 'test' &&
-      process.env['VITEST'] === 'true' &&
-      process.env['WRONGSTACK_KANBAN_FORCE_IPC'] !== '1'
-    ) {
+    if (isInProcessTestMode()) {
       const local = (await import('./manager.js')) as unknown as Record<
         string,
         (...callArgs: unknown[]) => unknown

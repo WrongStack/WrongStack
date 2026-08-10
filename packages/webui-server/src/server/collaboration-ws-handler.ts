@@ -614,6 +614,7 @@ export class CollaborationWebSocketHandler {
         this.broadcast(sessionId, this.stateMessage(sessionId));
       }
     }, 2000);
+    this.broadcastInterval.unref?.();
   }
 
   private stopBroadcast(): void {

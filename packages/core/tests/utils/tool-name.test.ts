@@ -33,7 +33,7 @@ describe('sanitizeWireToolName', () => {
 describe('mcpQualifiedToolName / mcpServerToolPrefix', () => {
   it('builds a prefix-consistent qualified name', () => {
     const qualified = mcpQualifiedToolName('claude.ai Gmail', 'search:messages');
-    expect(qualified).toBe('mcp__claude_ai_Gmail__search_messages');
+    expect(qualified).toMatch(/^mcp__claude_ai_Gmail_[a-f0-9]{10}__search_messages_[a-f0-9]{10}$/);
     expect(qualified.startsWith(mcpServerToolPrefix('claude.ai Gmail'))).toBe(true);
     expect(qualified).toMatch(WIRE_TOOL_NAME_PATTERN);
   });
@@ -42,5 +42,25 @@ describe('mcpQualifiedToolName / mcpServerToolPrefix', () => {
     const qualified = mcpQualifiedToolName('srv', 'x'.repeat(300));
     expect(qualified).toHaveLength(WIRE_TOOL_NAME_MAX_LENGTH);
     expect(qualified.startsWith('mcp__srv__')).toBe(true);
+  });
+
+  it('keeps ordinary safe names stable', () => {
+    expect(mcpQualifiedToolName('github', 'search_issues')).toBe('mcp__github__search_issues');
+  });
+
+  it('disambiguates lossy and truncated server/tool identities', () => {
+    expect(mcpQualifiedToolName('srv', 'search:messages')).not.toBe(
+      mcpQualifiedToolName('srv', 'search.messages'),
+    );
+    expect(mcpQualifiedToolName('server:one', 'read')).not.toBe(
+      mcpQualifiedToolName('server.one', 'read'),
+    );
+    expect(mcpQualifiedToolName('s'.repeat(200), 'first')).not.toBe(
+      mcpQualifiedToolName(`${'s'.repeat(199)}x`, 'first'),
+    );
+    const longQualified = mcpQualifiedToolName('s'.repeat(200), 'first');
+    expect(longQualified.length).toBeLessThanOrEqual(WIRE_TOOL_NAME_MAX_LENGTH);
+    expect(longQualified.startsWith(mcpServerToolPrefix('s'.repeat(200)))).toBe(true);
+    expect(longQualified).toMatch(WIRE_TOOL_NAME_PATTERN);
   });
 });

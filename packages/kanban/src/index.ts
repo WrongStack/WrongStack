@@ -86,6 +86,12 @@ export {
 } from './contract-graph.js';
 export * from './manager.js';
 export {
+  hasKanbanQueueAnomalies,
+  type KanbanQueueAnomalySignal,
+  kanbanQueueAnomalyCount,
+  kanbanQueueAnomalySignals,
+} from './queue-anomalies.js';
+export {
   closeKanbanServerConnections,
   getKanbanServerConnection,
   isKanbanServerAvailable,
@@ -114,6 +120,9 @@ export type {
 export {
   appendKanbanEvent,
   deleteBoard,
+  // Exported so `packages/cli/tests/kanban-cleaner-parity.test.ts` can hold the
+  // two Cleaner implementations' inlined copies to this one number.
+  KANBAN_BOARD_SOFT_MAX_BYTES,
   listBoardIds,
   readBoard,
   readKanbanEvents,

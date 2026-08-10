@@ -15,7 +15,13 @@ import {
   readRawLearnedEntries,
   saveProjectAgentConsolidated,
 } from './project-agent-consolidation.js';
+import { recordProjectAgentOptimizePass } from './project-agent-learning-policy.js';
+import {
+  directiveTrials,
+  type StructuredLearnedEntry,
+} from './project-agent-learning-structured.js';
 import { assertProjectAgentRole } from './project-agent-paths.js';
+import { retiredDirectivesToWarnAbout } from './project-agent-quarantine.js';
 import {
   buildSkillDistillInstruction,
   loadProjectSkillAugmentation,
@@ -55,6 +61,23 @@ export interface OptimizeLearningResult {
 
 const DEFAULT_MAX_TOKENS = 8_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
+
+/**
+ * One directive as the distiller sees it: the rule, its runnable anchors, and
+ * its track record when it has one.
+ *
+ * The track record is what turns distillation from a summarisation pass into a
+ * selection pass. Without it the model is choosing between directives on
+ * plausibility alone, which is exactly the judgement the project already made
+ * when it captured them.
+ */
+function describeDirective(entry: StructuredLearnedEntry): string {
+  const parts = [entry.what];
+  if (entry.how) parts.push(`(anchors: ${entry.how.split('\n').join(', ')})`);
+  const { applied, wins } = directiveTrials(entry);
+  if (applied > 0) parts.push(`[applied ${applied}×, ${wins} ok]`);
+  return parts.join(' ');
+}
 
 /** Strip a whole-document code fence a model sometimes wraps output in. */
 export function unwrapWholeDocumentFence(text: string): string {
@@ -103,7 +126,7 @@ async function complete(
 }
 
 const CONSOLIDATION_SYSTEM =
-  'You are a precise technical editor. You consolidate an AI agent role\'s captured ' +
+  "You are a precise technical editor. You consolidate an AI agent role's captured " +
   'learning entries into a single, durable, role-scoped instruction document. Output ' +
   'ONLY the consolidated markdown document — no preamble, no code fences, no commentary ' +
   'about the consolidation process.';
@@ -135,7 +158,7 @@ export async function optimizeProjectAgentLearning(
   for (const entry of entries) {
     if (!entry.skill) continue;
     const bucket = bySkill.get(entry.skill) ?? [];
-    bucket.push(entry.how ? `${entry.what} (anchors: ${entry.how.split('\n').join(', ')})` : entry.what);
+    bucket.push(describeDirective(entry));
     bySkill.set(entry.skill, bucket);
   }
   const at = new Date().toISOString();
@@ -145,7 +168,11 @@ export async function optimizeProjectAgentLearning(
   // leaves the skill layer improved rather than leaving nothing behind.
   const refreshed: string[] = [];
   for (const [skill, directives] of bySkill) {
-    let body = renderSkillAugmentation(normalizedRole, skill, directives, at);
+    const existing = loadProjectSkillAugmentation(normalizedRole, skill, projectRoot);
+    // The fallback merges onto the existing addendum. Rendering from the
+    // buffer alone and writing it over the file deleted everything distilled
+    // by earlier passes, because the buffer is pruned after each one.
+    let body = renderSkillAugmentation(normalizedRole, skill, directives, at, existing);
     if (options.llm) {
       try {
         const synthesized = await complete(
@@ -155,14 +182,15 @@ export async function optimizeProjectAgentLearning(
             normalizedRole,
             skill,
             directives,
-            loadProjectSkillAugmentation(normalizedRole, skill, projectRoot),
+            existing,
+            retiredDirectivesToWarnAbout(normalizedRole, directives, projectRoot, skill),
           ),
           options,
         );
         if (synthesized) body = synthesized;
       } catch {
-        // Fall back to the deterministic rendering: an un-distilled addendum
-        // is still the project's practice for that skill.
+        // Fall back to the merged rendering: an un-distilled addendum is still
+        // the project's practice for that skill.
       }
     }
     saveProjectSkillAugmentation(normalizedRole, skill, body, projectRoot);
@@ -172,6 +200,11 @@ export async function optimizeProjectAgentLearning(
   // ── Role-level consolidation ────────────────────────────────────────────
   const { instruction } = buildConsolidationInstruction(normalizedRole, projectRoot);
   if (!options.llm) {
+    // A model-less pass still rewrote the skill layer, so it counts as a pass.
+    // Leaving it unstamped is what made `minIntervalMs` a no-op on a headless
+    // box: the cooldown only ever read consolidation metadata, which this path
+    // never writes.
+    recordProjectAgentOptimizePass(normalizedRole, projectRoot, at);
     return { ...base, status: 'no-llm', skills: refreshed, instruction };
   }
 
@@ -187,6 +220,7 @@ export async function optimizeProjectAgentLearning(
     };
   }
   if (!content) {
+    recordProjectAgentOptimizePass(normalizedRole, projectRoot);
     return { ...base, status: 'empty-synthesis', skills: refreshed, model: options.llm.model };
   }
 
@@ -207,6 +241,7 @@ export async function optimizeProjectAgentLearning(
     };
   }
 
+  recordProjectAgentOptimizePass(normalizedRole, projectRoot);
   return {
     ...base,
     status: 'optimized',

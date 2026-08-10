@@ -1,5 +1,5 @@
 import { homedir } from 'node:os';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 // Mock ws module
@@ -12,17 +12,21 @@ vi.mock('ws', () => {
 });
 
 import {
-  send,
   broadcast,
-  sendResult,
-  errMessage,
-  generateAuthToken,
-  resolveAuthToken,
-  hostForBrowserUrl,
   buildWebUIAccessUrl,
   envFlag,
+  errMessage,
+  generateAuthToken,
+  hostForBrowserUrl,
+  resolveAuthToken,
+  send,
+  sendResult,
   WEBUI_WS_MAX_BUFFERED_BYTES,
 } from '../src/server/ws-utils.js';
+
+function connectedClient(ws: WebSocket, sessionId: string, connId: string) {
+  return { ws, sessionId, connId, connectedAt: 0 };
+}
 
 describe('ws-utils', () => {
   describe('send', () => {
@@ -62,8 +66,8 @@ describe('ws-utils', () => {
       const ws1 = { readyState: WebSocket.OPEN, send: vi.fn() } as any;
       const ws2 = { readyState: WebSocket.OPEN, send: vi.fn() } as any;
       const clients = new Map([
-        [ws1, { sessionId: 's1', connId: 'c1' }],
-        [ws2, { sessionId: 's2', connId: 'c2' }],
+        [ws1, connectedClient(ws1, 's1', 'c1')],
+        [ws2, connectedClient(ws2, 's2', 'c2')],
       ]);
 
       broadcast(clients, { type: 'broadcast_test' });
@@ -72,12 +76,27 @@ describe('ws-utils', () => {
       expect(ws2.send).toHaveBeenCalledWith('{"type":"broadcast_test"}');
     });
 
+    it('computes a shared frame size only once for fan-out', () => {
+      const byteLength = vi.spyOn(Buffer, 'byteLength');
+      const clients = new Map(
+        Array.from({ length: 100 }, (_, index) => {
+          const ws = { readyState: WebSocket.OPEN, send: vi.fn() } as any;
+          return [ws, connectedClient(ws, `s${index}`, `c${index}`)];
+        }),
+      );
+
+      broadcast(clients, { type: 'large', payload: 'ü'.repeat(10_000) });
+
+      expect(byteLength).toHaveBeenCalledOnce();
+      byteLength.mockRestore();
+    });
+
     it('skips clients that are not OPEN', () => {
       const ws1 = { readyState: WebSocket.OPEN, send: vi.fn() } as any;
       const ws2 = { readyState: WebSocket.CLOSED, send: vi.fn() } as any;
       const clients = new Map([
-        [ws1, { sessionId: 's1', connId: 'c1' }],
-        [ws2, { sessionId: 's2', connId: 'c2' }],
+        [ws1, connectedClient(ws1, 's1', 'c1')],
+        [ws2, connectedClient(ws2, 's2', 'c2')],
       ]);
 
       broadcast(clients, { type: 'test' });
@@ -87,8 +106,13 @@ describe('ws-utils', () => {
     });
 
     it('swallows send errors gracefully', () => {
-      const ws1 = { readyState: WebSocket.OPEN, send: vi.fn(() => { throw new Error('Send failed'); }) } as any;
-      const clients = new Map([[ws1, { sessionId: 's1', connId: 'c1' }]]);
+      const ws1 = {
+        readyState: WebSocket.OPEN,
+        send: vi.fn(() => {
+          throw new Error('Send failed');
+        }),
+      } as any;
+      const clients = new Map([[ws1, connectedClient(ws1, 's1', 'c1')]]);
 
       // Should not throw
       expect(() => broadcast(clients, { type: 'test' })).not.toThrow();
@@ -106,7 +130,10 @@ describe('ws-utils', () => {
       sendResult(ws, true, 'Operation completed');
 
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'key.operation_result', payload: { success: true, message: 'Operation completed' } })
+        JSON.stringify({
+          type: 'key.operation_result',
+          payload: { success: true, message: 'Operation completed' },
+        }),
       );
     });
 
@@ -115,7 +142,10 @@ describe('ws-utils', () => {
       sendResult(ws, false, 'Something went wrong');
 
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'key.operation_result', payload: { success: false, message: 'Something went wrong' } })
+        JSON.stringify({
+          type: 'key.operation_result',
+          payload: { success: false, message: 'Something went wrong' },
+        }),
       );
     });
   });

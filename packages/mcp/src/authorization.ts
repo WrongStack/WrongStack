@@ -39,6 +39,7 @@ export interface MCPAuthorizationServerMetadata {
   authorizationEndpoint: string;
   tokenEndpoint: string;
   registrationEndpoint?: string | undefined;
+  authorizationResponseIssuerParameterSupported?: boolean | undefined;
   scopesSupported: string[];
 }
 
@@ -71,6 +72,8 @@ export interface MCPAuthorizationSession {
   redirectUri: string;
   clientId: string;
   resource: string;
+  issuer: string;
+  requireIssuerParameter: boolean;
 }
 
 export interface MCPTokenSet extends MCPAccessToken {
@@ -262,19 +265,35 @@ export function parseAuthorizationServerMetadata(
     throw new Error('MCP authorization server does not advertise required PKCE S256 support');
   }
   const registration = optionalString(metadata['registration_endpoint'], 'registration_endpoint');
+  const authorizationEndpoint = secureOAuthUrl(
+    requiredString(metadata['authorization_endpoint'], 'authorization_endpoint'),
+    'authorization endpoint',
+  ).toString();
+  const tokenEndpoint = secureOAuthUrl(
+    requiredString(metadata['token_endpoint'], 'token_endpoint'),
+    'token endpoint',
+  ).toString();
+  const issuerParameterSupported = optionalBoolean(
+    metadata['authorization_response_iss_parameter_supported'],
+    'authorization_response_iss_parameter_supported',
+  );
+  if (
+    issuerParameterSupported !== true &&
+    (new URL(authorizationEndpoint).origin !== new URL(issuer).origin ||
+      new URL(tokenEndpoint).origin !== new URL(issuer).origin)
+  ) {
+    throw new Error(
+      'MCP authorization server with cross-origin endpoints must support the authorization response issuer parameter',
+    );
+  }
   return {
     issuer,
-    authorizationEndpoint: secureOAuthUrl(
-      requiredString(metadata['authorization_endpoint'], 'authorization_endpoint'),
-      'authorization endpoint',
-    ).toString(),
-    tokenEndpoint: secureOAuthUrl(
-      requiredString(metadata['token_endpoint'], 'token_endpoint'),
-      'token endpoint',
-    ).toString(),
+    authorizationEndpoint,
+    tokenEndpoint,
     registrationEndpoint: registration
       ? secureOAuthUrl(registration, 'registration endpoint').toString()
       : undefined,
+    authorizationResponseIssuerParameterSupported: issuerParameterSupported,
     scopesSupported: optionalStringArray(metadata['scopes_supported'], 'scopes_supported', 128),
   };
 }
@@ -289,19 +308,36 @@ export function validateMcpAuthorizationServerMetadata(
 ): MCPAuthorizationServerMetadata {
   const metadata = record(value, 'stored authorization server metadata');
   const registration = optionalString(metadata['registrationEndpoint'], 'registrationEndpoint');
+  const issuer = secureOAuthUrl(requiredString(metadata['issuer'], 'issuer'), 'issuer').toString();
+  const authorizationEndpoint = secureOAuthUrl(
+    requiredString(metadata['authorizationEndpoint'], 'authorizationEndpoint'),
+    'authorization endpoint',
+  ).toString();
+  const tokenEndpoint = secureOAuthUrl(
+    requiredString(metadata['tokenEndpoint'], 'tokenEndpoint'),
+    'token endpoint',
+  ).toString();
+  const issuerParameterSupported = optionalBoolean(
+    metadata['authorizationResponseIssuerParameterSupported'],
+    'authorizationResponseIssuerParameterSupported',
+  );
+  if (
+    issuerParameterSupported !== true &&
+    (new URL(authorizationEndpoint).origin !== new URL(issuer).origin ||
+      new URL(tokenEndpoint).origin !== new URL(issuer).origin)
+  ) {
+    throw new Error(
+      'MCP authorization server with cross-origin endpoints must support the authorization response issuer parameter',
+    );
+  }
   return {
-    issuer: secureOAuthUrl(requiredString(metadata['issuer'], 'issuer'), 'issuer').toString(),
-    authorizationEndpoint: secureOAuthUrl(
-      requiredString(metadata['authorizationEndpoint'], 'authorizationEndpoint'),
-      'authorization endpoint',
-    ).toString(),
-    tokenEndpoint: secureOAuthUrl(
-      requiredString(metadata['tokenEndpoint'], 'tokenEndpoint'),
-      'token endpoint',
-    ).toString(),
+    issuer,
+    authorizationEndpoint,
+    tokenEndpoint,
     registrationEndpoint: registration
       ? secureOAuthUrl(registration, 'registration endpoint').toString()
       : undefined,
+    authorizationResponseIssuerParameterSupported: issuerParameterSupported,
     scopesSupported: optionalStringArray(metadata['scopesSupported'], 'scopesSupported', 128),
   };
 }
@@ -387,12 +423,18 @@ export function createMcpAuthorizationRequest(
     redirectUri,
     clientId,
     resource,
+    issuer: options.authorizationServer.issuer,
+    requireIssuerParameter:
+      options.authorizationServer.authorizationResponseIssuerParameterSupported === true,
   };
 }
 
 export function parseMcpAuthorizationCallback(
   callbackUrl: string,
-  session: Pick<MCPAuthorizationSession, 'redirectUri' | 'state'>,
+  session: Pick<
+    MCPAuthorizationSession,
+    'redirectUri' | 'state' | 'issuer' | 'requireIssuerParameter'
+  >,
 ): string {
   let callback: URL;
   try {
@@ -409,14 +451,37 @@ export function parseMcpAuthorizationCallback(
   ) {
     throw new Error('MCP OAuth callback redirect URI does not match the authorization session');
   }
-  const returnedState = callback.searchParams.get('state') ?? '';
+  const returnedStates = callback.searchParams.getAll('state');
+  if (returnedStates.length !== 1) {
+    throw new Error('MCP OAuth callback must contain exactly one state parameter');
+  }
+  const returnedState = returnedStates[0]!;
   if (!constantTimeEqual(returnedState, session.state)) {
     throw new Error('MCP OAuth callback state mismatch');
   }
-  const oauthError = callback.searchParams.get('error');
-  if (oauthError)
-    throw new Error(`MCP OAuth authorization failed: ${boundedErrorCode(oauthError)}`);
-  return boundedCredential(callback.searchParams.get('code') ?? '', 'authorization code');
+  const returnedIssuers = callback.searchParams.getAll('iss');
+  if (session.requireIssuerParameter && returnedIssuers.length !== 1) {
+    throw new Error('MCP OAuth callback must contain exactly one issuer parameter');
+  }
+  if (returnedIssuers.length > 0 && returnedIssuers.some((issuer) => issuer !== session.issuer)) {
+    throw new Error('MCP OAuth callback issuer mismatch');
+  }
+  const oauthErrors = callback.searchParams.getAll('error');
+  const codes = callback.searchParams.getAll('code');
+  if (
+    oauthErrors.length > 1 ||
+    codes.length > 1 ||
+    (oauthErrors.length === 1 && codes.length > 0)
+  ) {
+    throw new Error('MCP OAuth callback contains ambiguous response parameters');
+  }
+  if (oauthErrors.length === 1) {
+    throw new Error(`MCP OAuth authorization failed: ${boundedErrorCode(oauthErrors[0]!)}`);
+  }
+  if (codes.length !== 1) {
+    throw new Error('MCP OAuth callback must contain exactly one authorization code');
+  }
+  return boundedCredential(codes[0]!, 'authorization code');
 }
 
 export async function exchangeMcpAuthorizationCode(
@@ -506,6 +571,14 @@ function requiredString(value: unknown, field: string): string {
 
 function optionalString(value: unknown, field: string): string | undefined {
   return value === undefined ? undefined : requiredString(value, field);
+}
+
+function optionalBoolean(value: unknown, field: string): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'boolean') {
+    throw new Error(`MCP authorization field "${field}" must be a boolean`);
+  }
+  return value;
 }
 
 function boundedStringArray(value: unknown, field: string, maxItems: number): string[] {

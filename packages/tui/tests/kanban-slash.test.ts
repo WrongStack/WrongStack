@@ -584,6 +584,7 @@ function makeHealth(overrides: Partial<KanbanQueueHealth['counts']> = {}): Kanba
     boardIds: ['b-1'],
     counts: {
       ready: 0,
+      startable: 0,
       queued: 0,
       running: 0,
       review: 0,
@@ -648,8 +649,12 @@ function makeAudit(overrides: Partial<KanbanAuditSummary> = {}): KanbanAuditSumm
       message: 'Add a description',
     },
   ];
-  const errorCount = issues.filter((i: { severity: string; taskId?: string }) => i.severity === 'error').length;
-  const warningCount = issues.filter((i: { severity: string; taskId?: string }) => i.severity === 'warning').length;
+  const errorCount = issues.filter(
+    (i: { severity: string; taskId?: string }) => i.severity === 'error',
+  ).length;
+  const warningCount = issues.filter(
+    (i: { severity: string; taskId?: string }) => i.severity === 'warning',
+  ).length;
   return {
     generatedAt: '2026-07-18T12:00:00.000Z',
     boardIds: ['b-1'],
@@ -661,7 +666,8 @@ function makeAudit(overrides: Partial<KanbanAuditSummary> = {}): KanbanAuditSumm
     lastDispatchedAt: undefined,
     lastStaleRecoveredAt: undefined,
     issues,
-    affectedTaskCount: new Set(issues.map((i: { severity: string; taskId?: string }) => i.taskId)).size,
+    affectedTaskCount: new Set(issues.map((i: { severity: string; taskId?: string }) => i.taskId))
+      .size,
     ...overrides,
   };
 }
@@ -752,9 +758,7 @@ describe('/kanban audit — dispatch routing', () => {
         'b-1',
         'Demo',
         [column('todo', 'To Do', 0)],
-        [
-          task('t1', 'todo', 'Bare task', 'pending'),
-        ],
+        [task('t1', 'todo', 'Bare task', 'pending')],
       ),
     );
     const deps = makeDeps();
@@ -790,9 +794,7 @@ describe('/kanban audit — dispatch routing', () => {
         id,
         id === 'b-1' ? 'Alpha' : 'Beta',
         [column('todo', 'To Do', 0)],
-        [
-          task('t1', 'todo', `t-${id}`, 'pending'),
-        ],
+        [task('t1', 'todo', `t-${id}`, 'pending')],
       ),
     );
     const deps = makeDeps();

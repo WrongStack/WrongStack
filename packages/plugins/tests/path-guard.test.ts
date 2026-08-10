@@ -474,6 +474,28 @@ EOF`,
 });
 
 describe('path-guard plugin', () => {
+  it('keeps hook ownership isolated across concurrent plugin hosts', () => {
+    const first = makeApi();
+    const second = makeApi();
+    const unregisterFirst = vi.fn();
+    const unregisterSecond = vi.fn();
+    first.registerHook.mockReturnValue(unregisterFirst);
+    second.registerHook.mockReturnValue(unregisterSecond);
+
+    pathGuardPlugin.setup(first as never);
+    pathGuardPlugin.setup(second as never);
+
+    expect(unregisterFirst).not.toHaveBeenCalled();
+    expect(unregisterSecond).not.toHaveBeenCalled();
+
+    pathGuardPlugin.teardown?.(first as never);
+    expect(unregisterFirst).toHaveBeenCalledOnce();
+    expect(unregisterSecond).not.toHaveBeenCalled();
+
+    pathGuardPlugin.teardown?.(second as never);
+    expect(unregisterSecond).toHaveBeenCalledOnce();
+  });
+
   it('blocks an unknown fs.write tool through the real HookRunner and ToolExecutor path', {
     timeout: 5_000,
   }, async () => {

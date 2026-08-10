@@ -64,6 +64,52 @@ async function writeJsonl(relative: string, rows: Array<object | string>): Promi
 }
 
 describe('SQLite migration completion coverage', () => {
+  it('backfills FTS when an existing database gains FTS5 support', async () => {
+    const bootstrap = new SqliteSageStore({ projectRoot: directory });
+    await bootstrap.initialize();
+    bootstrap.close();
+
+    const dbPath = path.join(directory, '.wrongstack', 'memories', 'sage.db');
+    const db = new DatabaseSync(dbPath);
+    db.exec(`
+      DROP TRIGGER memories_ai;
+      DROP TRIGGER memories_ad;
+      DROP TRIGGER memories_au;
+      DROP TABLE memories_fts;
+      DELETE FROM schema_meta WHERE key = 'fts_index_initialized';
+    `);
+    const seeded = memory('fts-backfill', { text: 'Recovered searchable knowledge' });
+    db.prepare(
+      `INSERT INTO memories
+        (id, data, status, kind, scope, legacy_scope, importance, confidence, freshness,
+         updated_at, created_at, audience, tags, owner_session_id, canonical_text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      seeded.id,
+      JSON.stringify(seeded),
+      seeded.status,
+      seeded.kind,
+      seeded.scope,
+      'project-memory',
+      seeded.importance,
+      seeded.confidence,
+      seeded.freshness,
+      seeded.updatedAt,
+      seeded.createdAt,
+      null,
+      '[]',
+      null,
+      'recovered searchable knowledge',
+    );
+    db.close();
+
+    const value = store();
+    await value.initialize();
+    await expect(value.searchSage('searchable knowledge')).resolves.toMatchObject([
+      { id: 'fts-backfill' },
+    ]);
+  });
+
   it('upgrades a populated v1 database and backfills canonical memory text', async () => {
     const root = path.join(directory, '.wrongstack', 'memories');
     await fs.mkdir(root, { recursive: true });

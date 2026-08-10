@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **What a roster agent learned is now scored against what actually happened.** Every completed task is scanned for the directives it exercised — matched on the anchors capture already extracts (exact commands, paths, package names) — and each one takes that task's success or failure onto its own record (`applied=N; wins=M` on the entry). Attribution runs *before* capture, so a directive written by a task cannot open its record with a win it did nothing to earn, and a cancelled task is not scored at all. The record then decides what eviction drops first, whether a taught near-duplicate may replace an existing rule, and which directives the distillation pass is told to keep.
+- **A directive that keeps failing is retired.** After eight applications below a 0.3 success rate it stops being injected, is scrubbed out of the skill addendum and consolidated document it had been distilled into, and is logged to `.wrongstack/agents/<role>/quarantine.md` (local) rather than deleted — a rule can be right about a project that has since changed. If the agent writes it again it re-enters with a fresh record and gets a retrial.
+- **`/agent-improve <role> show` and the WebUI Self-Learning tab report learning quality, not just volume**: directive hit rate, how many directives have never been exercised, a hit-rate chip per role in the list, a Retired section, and a `loaded` badge plus affinity score per skill. New `agent-roster.quarantine` message; `agent-roster.skills` now carries `score`/`eager`/`eagerLimit`.
+
+### Changed
+
+- **The leader's roster menu describes what each agent does.** It was built from the first 80 characters of each role prompt — every one of which opens `You are the X agent. Your job is…`, so a third of each line was boilerplate and the distinguishing half was truncated. It now renders the curated `capability.summary` the catalog already writes for all 75 agents and the dispatcher already routes on. Measured before the change: of 77 roles offered, 10 had ever completed a task and 2 accounted for 73% of all captured learning, while `database`, `backend`, `frontend`, `devops` and `android` had never once been chosen.
+- **`spawn_subagent` leads with `description` instead of `role`.** Passing a role skips dispatch entirely, so a half-remembered id silently cost the specialist; the schema and usage hint now say so.
+- **Skill ranking no longer treats failure as evidence of relevance.** The success rate skipped Laplace smoothing when a skill had no outcomes, so ten straight failures scored above an untried skill, and a per-load bonus paid a skill for having been selected — a loop. Ranking is now centred on a neutral prior, decays outcome evidence with a 30-day half-life, and gives untried skills an exploration bonus that fades with use. With no history every candidate still scores identically and the curated order is preserved.
+
+### Fixed
+
+- **The distillation pass no longer deletes what earlier passes distilled.** The per-skill addendum was rendered from the capture buffer and written over the file, but the buffer is pruned after every pass — so a model-less run, or a single per-skill call timing out before the pruning consolidation, silently discarded every directive an earlier pass had produced. The pass now merges onto the existing addendum, and a pass with nothing new is a true no-op.
+- **The spawn skill budget no longer spends its last bytes on generic text.** An over-budget skill was dropped whole; the bundled body is now shortened so the project addendum survives. Measured on this repository, `reviewer`'s learned `testing` practice overflowed the 16 000-character budget by 381 characters and was cut on *every* spawn while 8 KB of generic body from two other skills stayed — its counters read `testing.loaded: 0` beside `chimera.loaded: 197`.
+- **The automatic-optimization cooldown applies without a model.** It was measured from the last consolidation, which a model-less pass never writes, so `minIntervalMs` never applied and a full pass re-ran after every capture. The stamp now lives in `learning.json` as `lastOptimizeAt`.
+- **The dispatcher's model tie-break was never wired.** `dispatchAgent` is two-stage by design, but nothing supplied stage two to the `Director`, so every description the keyword heuristic could not resolve fell through to the `executor` generalist. The host now provides a classifier (model-matrix slot `dispatcher`) that declines rather than throws, leaving routing on its heuristic result on any failure.
+- **`git` and `release` agents can now say they are stuck.** Every tool preset carries `mailbox` so a blocked subagent can escalate; `vcs` was the only one without it, silencing the two roles whose work (force-push, tag collision, dirty tree) least often has a safe default.
+- Capture no longer reverts the optimization pass's bookkeeping by writing `learning.json` from a value read earlier in the call.
+
 ## [0.303.0] — 2026-08-10
 
 ### Added

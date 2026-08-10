@@ -83,7 +83,9 @@ describe('kanban mark_assignment — managed lifecycle auto-transition', () => {
       assignee: 'test-agent',
       labels: ['testing'],
       childTaskIds: ['sub'],
-      successCriteria: [{ id: 'c1', description: 'Test passes', type: 'manual', status: 'pending' }],
+      successCriteria: [
+        { id: 'c1', description: 'Test passes', type: 'manual', status: 'pending' },
+      ],
     });
     const task = result!.task;
     const ALL_STAGES = ['backlog', 'todo', 'running', 'review'] as const;
@@ -230,5 +232,119 @@ describe('kanban mark_assignment — managed lifecycle auto-transition', () => {
     const reloaded = await getBoard(dir, board.id);
     const reloadedTask = reloaded?.tasks.find((t) => t.id === task.id);
     expect(reloadedTask?.description).toBe('A fully-described task with criteria and subtask.');
+  });
+
+  /**
+   * Auto-acceptance is a board policy, not a hard-wired behavior.
+   *
+   * The code accepted a verified card into Done on its own while the system
+   * prompt and the bundled skill both said a reviewer must accept it — three
+   * places, three contracts. `lifecycle.autoAccept` makes the board the single
+   * authority; `undefined` keeps the historical behavior so no existing board
+   * changes.
+   *
+   * These use a `file_exists` criterion because it is the cheapest check a
+   * deterministic verifier can actually PASS — the `manual` criterion the other
+   * fixtures use resolves to `skipped`, which never satisfies Definition of Done.
+   */
+  describe('lifecycle.autoAccept', () => {
+    async function verifiableCardInRunning(autoAccept?: boolean) {
+      const evidence = path.join(dir, 'evidence.txt');
+      await fs.writeFile(evidence, 'verified', 'utf8');
+
+      const board = await createBoard(dir, {
+        title: 'Managed board',
+        columns: managedBoardColumns(),
+        lifecycle: {
+          mode: 'managed' as const,
+          columns: {
+            backlog: 'backlog',
+            todo: 'todo',
+            running: 'running',
+            review: 'review',
+            done: 'done',
+          },
+          ...(autoAccept !== undefined ? { autoAccept } : {}),
+        },
+      });
+      const created = await addTask(dir, board.id, {
+        title: 'Verifiable task',
+        description: 'Produces a file the verifier can actually see.',
+        assignee: 'test-agent',
+        successCriteria: [
+          {
+            id: 'c1',
+            description: 'evidence.txt exists',
+            type: 'file_exists',
+            status: 'pending',
+            notes: 'evidence.txt',
+          },
+        ],
+      });
+      const task = created!.task;
+
+      await transitionTask(dir, board.id, task.id, {
+        to: 'todo',
+        actor: 'test-agent',
+        comment: 'Setup',
+      });
+      await updateTaskAssignment(dir, board.id, task.id, {
+        status: 'running',
+        agentId: 'test-worker',
+        leaseId: 'lease-auto',
+        claimedAt: new Date().toISOString(),
+        heartbeatAt: new Date().toISOString(),
+        leaseExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+      });
+      await transitionTask(dir, board.id, task.id, {
+        to: 'running',
+        actor: 'test-agent',
+        comment: 'Setup',
+      });
+      return { board, task };
+    }
+
+    async function complete(boardId: string, taskId: string) {
+      return kanbanTool.execute(
+        {
+          action: 'mark_assignment',
+          boardId,
+          taskId,
+          assignmentStatus: 'completed',
+          lastResult: 'Wrote the evidence file.',
+          agentId: 'test-worker',
+        },
+        ctx(),
+        { signal: newSignal() },
+      );
+    }
+
+    it('accepts a verified card into Done by default', async () => {
+      const { board, task } = await verifiableCardInRunning();
+
+      const result = await complete(board.id, task.id);
+
+      expect(result.ok).toBe(true);
+      const reloaded = await getBoard(dir, board.id);
+      const card = reloaded?.tasks.find((t) => t.id === task.id);
+      expect(card?.lifecycle?.currentStage).toBe('done');
+      expect(card?.verificationReport?.verdict).toBe('passed');
+    });
+
+    it('holds a verified card in Review when the board opts out', async () => {
+      const { board, task } = await verifiableCardInRunning(false);
+
+      const result = await complete(board.id, task.id);
+
+      expect(result.ok).toBe(true);
+      const reloaded = await getBoard(dir, board.id);
+      const card = reloaded?.tasks.find((t) => t.id === task.id);
+      expect(card?.lifecycle?.currentStage).toBe('review');
+      // Verification still ran and still persisted — opting out withholds
+      // acceptance, it does not skip the gate.
+      expect(card?.verificationReport?.verdict).toBe('passed');
+      // The message must not read as a verification failure.
+      expect(result.message).toContain('does not auto-accept');
+    });
   });
 });

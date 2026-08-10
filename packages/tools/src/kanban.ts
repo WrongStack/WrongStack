@@ -38,8 +38,10 @@ import {
   removeColumn,
   removeTask,
   repairManagedTaskProjection,
+  resolveAutoAccept,
   searchKanban,
   setTaskChain,
+  stripLifecycleIssues,
   syncBoardFromTaskGraph,
   transferTaskToBoard,
   transitionTask,
@@ -107,8 +109,24 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           }
           case 'create_board': {
             if (!input.title) return fail('create_board requires title.');
+            // Work fragments across boards when each new piece of work gets its
+            // own board: the same card ends up in two places, or a board holds
+            // a single task. Nothing here refuses the create — a genuinely
+            // separate line of work deserves its own board — but the caller is
+            // told what already exists so it can choose to continue instead.
+            const existing = (await listBoards(projectRoot)).filter(
+              (candidate) => (candidate.kind ?? 'project') === 'project',
+            );
             const board = await createBoard(projectRoot, boardCreateInput(input, input.title));
-            return { ok: true, message: `Board created: ${board.title}`, board };
+            const note = existing.length
+              ? ` ${existing.length} other project board(s) already exist: ${existing
+                  .slice(0, 3)
+                  .map((candidate) => `"${candidate.title}" (${candidate.taskCount} task(s))`)
+                  .join(
+                    ', ',
+                  )}${existing.length > 3 ? ', …' : ''}. If this work belongs to one of them, add_task there instead and delete this board.`
+              : '';
+            return { ok: true, message: `Board created: ${board.title}.${note}`, board };
           }
           case 'update_board': {
             if (!input.boardId) return fail('update_board requires boardId.');
@@ -481,6 +499,38 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
                 `Task is not implementation-ready: ${readiness.issues.map((issue) => issue.message).join(' | ')}`,
               );
             }
+            // A plain board has no lifecycle metadata, so every stage check
+            // below reads `unknown` and the call could never succeed — the
+            // action was written for managed boards only, which quietly made
+            // "start the work" one more reason to adopt the full ceremony.
+            // Claim it the way a plain board expresses the same thing.
+            if (board.lifecycle?.mode !== 'managed') {
+              const now = new Date();
+              const assigned = await updateTaskAssignment(projectRoot, board.id, task.id, {
+                status: 'running',
+                agentId: input.agentId ?? input.author,
+                leaseId: input.leaseId ?? randomUUID(),
+                claimedAt: input.claimedAt ?? now.toISOString(),
+                heartbeatAt: input.heartbeatAt ?? now.toISOString(),
+                leaseExpiresAt:
+                  input.leaseExpiresAt ?? new Date(now.getTime() + 15 * 60_000).toISOString(),
+                attempt: input.attempt ?? 1,
+                maxAttempts: input.maxAttempts ?? 3,
+              });
+              if (!assigned) return fail('Task assignment could not be started.');
+              const started = await updateTask(projectRoot, board.id, task.id, {
+                status: 'in_progress',
+              });
+              const current = started ?? assigned;
+              const claimed = task;
+              const currentTask =
+                current.tasks.find((candidate) => candidate.id === claimed.id) ?? claimed;
+              return okTask(
+                current,
+                currentTask,
+                'Task is active. This board is not in managed lifecycle mode, so runtime Kanban governance was not bound to it.',
+              );
+            }
             let stage = task.lifecycle?.currentStage;
             if (stage === 'backlog') {
               const moved = await transitionTask(projectRoot, board.id, task.id, {
@@ -830,7 +880,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
                   });
                 } catch (err: unknown) {
                   lifecycleWarnings.push(
-                    `Lifecycle transition to Running deferred: ${err instanceof Error ? err.message : String(err)}`,
+                    `Lifecycle transition to Running deferred: ${stripLifecycleIssues(err instanceof Error ? err.message : String(err))}`,
                   );
                 }
               }
@@ -858,7 +908,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
                   });
                 } catch (err: unknown) {
                   lifecycleWarnings.push(
-                    `Lifecycle transition to Review failed: ${err instanceof Error ? err.message : String(err)}`,
+                    `Lifecycle transition to Review failed: ${stripLifecycleIssues(err instanceof Error ? err.message : String(err))}`,
                   );
                 }
 
@@ -887,7 +937,15 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
                       });
 
                       const verdict = verResult.report.verdict;
-                      if (verdict === 'passed') {
+                      if (verdict === 'passed' && !resolveAutoAccept(board)) {
+                        // Verification succeeded; this board just reserves the
+                        // final call for a reviewer. Say that plainly — the
+                        // caller must not read it as a verification failure.
+                        lifecycleWarnings.push(
+                          'Verification passed, but this board does not auto-accept. ' +
+                            'The card is in Review awaiting an explicit transition_task to done.',
+                        );
+                      } else if (verdict === 'passed') {
                         try {
                           const doneResult = await transitionTask(
                             projectRoot,
@@ -1027,7 +1085,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
             });
             return {
               ok: true,
-              message: `Counts: ready=${health.counts.ready}, running=${health.counts.running}, stale=${health.staleAssignments.count}.`,
+              message: `Counts: startable=${health.counts.startable}, running=${health.counts.running}, stale=${health.staleAssignments.count}.`,
               queueHealth: health,
             };
           }
@@ -1053,7 +1111,9 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
       })();
       return withPresence(result);
     } catch (err) {
-      return fail(err instanceof Error ? err.message : String(err));
+      // Strip the lifecycle envelope: it is an IPC transport detail, and the
+      // model reads whatever is in `message` as the explanation.
+      return fail(stripLifecycleIssues(err instanceof Error ? err.message : String(err)));
     }
   },
 };

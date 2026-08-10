@@ -21,6 +21,7 @@ import {
   indexParallelBatchSize,
   isFrugalPerf,
 } from '@wrongstack/core/utils';
+import { xxhash64String as contentHashHex } from './content-hash.js';
 import { type IgnoreMatcher, loadGitignoreMatcher } from './gitignore.js';
 import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
 import { ModuleResolver } from './module-resolver.js';
@@ -28,7 +29,6 @@ import { assignPackageLabels, detectModuleRoots } from './module-roots.js';
 import { parseFileContent } from './parser-dispatch.js';
 import { getParserPool, WORKER_POOL_THRESHOLD } from './parser-worker-pool.js';
 import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
-import { xxhash64String as contentHashHex } from './content-hash.js';
 import { IndexStore } from './writer.js';
 
 // Phase 5 parser worker pool infrastructure lives in parser-worker-pool.ts and
@@ -45,6 +45,18 @@ const YIELD_EVERY_N = 50;
  */
 export function resolveParallelBatch(): number {
   return indexParallelBatchSize(availableParallelism());
+}
+
+/**
+ * Pool startup is amortized across the complete index run, not one outer
+ * batch. Balanced batches are capped at 40 files, so comparing the per-batch
+ * parse count with the 500-file threshold made the worker path unreachable.
+ */
+export function shouldUseParserWorkerPool(
+  candidateFileCount: number,
+  parseBatchCount: number,
+): boolean {
+  return !isFrugalPerf() && candidateFileCount >= WORKER_POOL_THRESHOLD && parseBatchCount > 1;
 }
 
 function yieldEventLoop(): Promise<void> {
@@ -341,11 +353,7 @@ async function resolveProjectRelations(
 
     store.setFilePackages(assignPackageLabels(structure, indexedFiles));
 
-    const resolver = new ModuleResolver(
-      structure,
-      indexedFiles,
-      store.getNamespaceDeclarations(),
-    );
+    const resolver = new ModuleResolver(structure, indexedFiles, store.getNamespaceDeclarations());
     const pending = store.getUnresolvedImports(opts.onlyFiles);
     const resolutions: Array<{
       fromFile: string;
@@ -401,6 +409,10 @@ export async function runIndexerWithStore(
   const errors: string[] = [];
   const langStats: Record<string, number> = {};
   let filesIndexed = 0;
+  let filesParsed = 0;
+  let filesSkipped = 0;
+  let filesEmpty = 0;
+  let filesFailed = 0;
   let symbolsIndexed = 0;
 
   // Honor the project-root .gitignore (skips node_modules, build output, and
@@ -466,6 +478,7 @@ export async function runIndexerWithStore(
       langStats[meta.lang] = (langStats[meta.lang] ?? 0) + meta.symbolCount;
       symbolsIndexed += meta.symbolCount;
       filesIndexed++;
+      filesSkipped++;
       filesPreSkipped++;
       return false;
     });
@@ -476,6 +489,7 @@ export async function runIndexerWithStore(
   // SQLite writes remain sequential (they're synchronous and CPU-bound).
   // Batch width follows WRONGSTACK_PERF_PROFILE (frugal ≤4, balanced cores×4).
   const parallelBatch = resolveParallelBatch();
+  const parserPoolCandidateCount = files.length;
   let filesSinceLastYield = 0;
   for (let batchStart = 0; batchStart < files.length; batchStart += parallelBatch) {
     const batchEnd = Math.min(batchStart + parallelBatch, files.length);
@@ -637,7 +651,9 @@ export async function runIndexerWithStore(
       // batch is too small to justify spawn overhead. Activation is based on
       // files-to-parse count, not total file count, so stat-skipped batches
       // don't waste pool overhead on a tiny workload.
-      let pool = toParse.length >= WORKER_POOL_THRESHOLD ? getParserPool() : null;
+      let pool = shouldUseParserWorkerPool(parserPoolCandidateCount, toParse.length)
+        ? getParserPool()
+        : null;
       if (pool) {
         try {
           await pool.ensureReady();
@@ -719,6 +735,7 @@ export async function runIndexerWithStore(
         const err = settled.reason;
         if (err instanceof Error && isAbortError(err)) throw err;
         errors.push(`batch error: ${file}: ${err instanceof Error ? err.message : String(err)}`);
+        filesFailed++;
         continue;
       }
 
@@ -730,6 +747,7 @@ export async function runIndexerWithStore(
         // snapshot instead of replacing it with an empty one.
         if (result.missing) store.deleteFile(file);
         errors.push(`${file}: ${result.error}`);
+        filesFailed++;
         continue;
       }
 
@@ -738,6 +756,7 @@ export async function runIndexerWithStore(
         langStats[lang] = (langStats[lang] ?? 0) + result.skippedMeta.symbolCount;
         symbolsIndexed += result.skippedMeta.symbolCount;
         filesIndexed++;
+        filesSkipped++;
         // Content-hash short-circuit (Phase 2): mtime changed but content
         // didn't. Persist the new mtime so the next run's fast path hits
         // without re-reading the file.
@@ -766,6 +785,7 @@ export async function runIndexerWithStore(
             contentHash: result.contentHash ?? '',
           });
           filesIndexed++;
+          filesEmpty++;
         }
         continue;
       }
@@ -782,6 +802,7 @@ export async function runIndexerWithStore(
           contentHash: result.contentHash ?? '',
         });
         filesIndexed++;
+        filesEmpty++;
         continue;
       }
 
@@ -805,6 +826,7 @@ export async function runIndexerWithStore(
           symbolsIndexed += count;
           langStats[entry.lang] = (langStats[entry.lang] ?? 0) + count;
           filesIndexed++;
+          filesParsed++;
         }
       } catch (err) {
         // If the batch commit fails, fall back to per-file writes so the
@@ -820,6 +842,7 @@ export async function runIndexerWithStore(
             symbolsIndexed += symbolsWithIds.length;
             langStats[entry.lang] = (langStats[entry.lang] ?? 0) + symbolsWithIds.length;
             filesIndexed++;
+            filesParsed++;
             if (entry.refs.length > 0 && symbolsWithIds.length > 0) {
               const fallbackBatch = assignRefsToSymbols(entry.refs, symbolsWithIds);
               if (fallbackBatch.length > 0) store.insertRefsBatch(fallbackBatch);
@@ -837,6 +860,7 @@ export async function runIndexerWithStore(
               contentHash: entry.contentHash,
             });
           } catch (innerErr) {
+            filesFailed++;
             errors.push(
               `fallback write failed: ${entry.file}: ${innerErr instanceof Error ? innerErr.message : String(innerErr)}`,
             );
@@ -882,6 +906,12 @@ export async function runIndexerWithStore(
 
   return {
     filesIndexed,
+    fileOutcomes: {
+      parsed: filesParsed,
+      skipped: filesSkipped,
+      empty: filesEmpty,
+      failed: filesFailed,
+    },
     symbolsIndexed,
     langStats,
     durationMs,

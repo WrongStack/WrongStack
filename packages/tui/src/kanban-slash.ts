@@ -21,10 +21,10 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import type {
   CreateKanbanTaskInput,
+  KanbanBoardSummary,
   KanbanBoundaryAccess,
   KanbanBoundaryPolicy,
   KanbanBoundarySelectorKind,
-  KanbanBoardSummary,
   KanbanColumn,
   KanbanQueueHealth,
 } from '@wrongstack/kanban';
@@ -293,11 +293,7 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
   }
   if (head === 'boundary' || head === 'scope' || head === 'bounds') {
     const boardQuery = tokens[1] ?? '';
-    const action = (tokens[2]?.toLowerCase() ?? 'show') as
-      | 'show'
-      | 'allow'
-      | 'deny'
-      | 'clear';
+    const action = (tokens[2]?.toLowerCase() ?? 'show') as 'show' | 'allow' | 'deny' | 'clear';
     if (!boardQuery || !['show', 'allow', 'deny', 'clear'].includes(action)) {
       return { kind: 'help' };
     }
@@ -342,12 +338,8 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
       access,
       path: selectorPath,
       ...(taskQuery ? { taskQuery } : {}),
-      ...(enforcement
-        ? { enforcement: enforcement as KanbanBoundaryPolicy['enforcement'] }
-        : {}),
-      ...(shellAccess
-        ? { shellAccess: shellAccess as KanbanBoundaryPolicy['shellAccess'] }
-        : {}),
+      ...(enforcement ? { enforcement: enforcement as KanbanBoundaryPolicy['enforcement'] } : {}),
+      ...(shellAccess ? { shellAccess: shellAccess as KanbanBoundaryPolicy['shellAccess'] } : {}),
     };
   }
   if (head === 'audit' || head === 'clean' || head === 'cleaner') {
@@ -416,9 +408,7 @@ async function applyBoundaryCommand(
     enforcement: command.enforcement ?? base.enforcement,
     shellAccess: command.shellAccess ?? base.shellAccess,
     allow:
-      command.action === 'allow'
-        ? uniqueBoundarySelectors([...base.allow, selector])
-        : base.allow,
+      command.action === 'allow' ? uniqueBoundarySelectors([...base.allow, selector]) : base.allow,
     ...(command.action === 'deny'
       ? { deny: uniqueBoundarySelectors([...(base.deny ?? []), selector]) }
       : base.deny
@@ -434,11 +424,9 @@ function renderBoundaryPolicy(policy: KanbanBoundaryPolicy | undefined): string 
   if (!policy?.enabled) return 'unrestricted';
   const lines = [
     `mode ${policy.enforcement} · shell ${policy.shellAccess}`,
-    ...policy.allow.map((selector) =>
-      `ALLOW ${selector.access} ${selector.kind}:${selector.path}`,
-    ),
-    ...(policy.deny ?? []).map((selector) =>
-      `DENY  ${selector.access} ${selector.kind}:${selector.path}`,
+    ...policy.allow.map((selector) => `ALLOW ${selector.access} ${selector.kind}:${selector.path}`),
+    ...(policy.deny ?? []).map(
+      (selector) => `DENY  ${selector.access} ${selector.kind}:${selector.path}`,
     ),
   ];
   return lines.join('\n');
@@ -643,7 +631,15 @@ export function renderHealthReport(health: KanbanQueueHealth): string {
     c.queued > 0 ? `  + ${c.queued} currently queued for assignment (subset)` : '',
     '',
     '  **Per-status counts**',
-    `    ready ${c.ready} · running ${c.running} · review ${c.review}` +
+    // `startable`, not `ready`. `counts.ready` tallies the stored status field,
+    // which no dispatcher writes, so it printed a permanent 0 while
+    // `ready_tasks` on the same board returned work. `counts.startable` is the
+    // derived answer and agrees with `listReadyTasks`.
+    //
+    // `lifecycleTotal` above still sums `c.ready` on purpose: that is the
+    // single-count partition, and `startable` overlaps `pending`/`ready`, so
+    // swapping it there would double-count. These two lines are meant to differ.
+    `    startable ${c.startable} · running ${c.running} · review ${c.review}` +
       ` · failed ${c.failed} · completed ${c.completed}`,
     `    pending ${c.pending} · archived ${c.archived} · blocked ${c.blocked}` +
       (c.queued > 0 ? ` · queued ${c.queued}` : ''),

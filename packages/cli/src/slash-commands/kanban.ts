@@ -1142,8 +1142,9 @@ function extractSpawnedSubagentId(summary: string): string | undefined {
  * Translate a managed-lifecycle guard failure into a user-readable diagnosis.
  *
  * Managed boards refuse lifecycle mutations that would skip a stage, skip
- * evidence, or leave required card details (description / assignee / dueDate
- * / labels / acceptance criteria) empty. Without translation, the raw
+ * evidence, or leave required card details (description / assignee /
+ * acceptance criteria, plus childTaskIds on an atomic parent) empty. Without
+ * translation, the raw
  * `KanbanLifecycleError.issues[0].message` is technically truthful but reads
  * like a stack trace to a `/kanban` operator.
  *
@@ -1175,18 +1176,10 @@ function formatLifecycleDiagnosis(err: unknown, action: string): string {
           `Run \`/kanban task assign <boardId> <taskId> <agent>\` first.`
         );
       }
-      if (field === 'dueDate') {
-        return (
-          `❌ /kanban task ${action} needs a valid due date. ` +
-          `Add one via the \`kanban.update_task\` tool action (patch.dueDate = "YYYY-MM-DD").`
-        );
-      }
-      if (field === 'labels') {
-        return (
-          `❌ /kanban task ${action} needs at least one label. ` +
-          `Add one via the \`kanban.update_task\` tool action (patch.labels = ["..."]).`
-        );
-      }
+      // `dueDate` and `labels` had branches here. Neither
+      // `validateRequiredCardDetails` nor the queue classifier emits those
+      // fields any more, so both were unreachable — and keeping them alive
+      // taught operators to satisfy a gate that no longer exists.
       if (field === 'childTaskIds') {
         return (
           `❌ /kanban task ${action} is an atomic parent with no persisted children. ` +

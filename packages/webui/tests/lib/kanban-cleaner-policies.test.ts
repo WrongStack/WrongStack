@@ -181,12 +181,17 @@ describe('lifecycle order resolution', () => {
     expect(codes(b)).toContain('skipped-lifecycle-state');
   });
 
-  it('ignores a managed policy missing a stage', () => {
+  it('uses the canonical order for a managed policy even when columns are incomplete', () => {
+    // The lifecycle resolver returns the fixed canonical order
+    // ['backlog','todo','running','review','done'] for any managed policy with
+    // a columns map, regardless of how many stages are listed — task history
+    // persists canonical stage names, not board column IDs. So a backlog→review
+    // skip is still detected even when the columns map is partial.
     const b = board({
       tasks: [skipper],
       lifecyclePolicy: { mode: 'managed', columns: { backlog: 'backlog', todo: 'todo' } },
     });
-    expect(codes(b)).not.toContain('skipped-lifecycle-state');
+    expect(codes(b)).toContain('skipped-lifecycle-state');
   });
 
   it.each(['states', 'statuses', 'order', 'managedStatuses'])(
@@ -219,29 +224,51 @@ describe('lifecycle skip detection', () => {
 
   it('flags a two-step jump', () => {
     expect(
-      codes(withHistory([{ status: 'backlog', at: 1 }, { status: 'running', at: 2 }])),
+      codes(
+        withHistory([
+          { status: 'backlog', at: 1 },
+          { status: 'running', at: 2 },
+        ]),
+      ),
     ).toContain('skipped-lifecycle-state');
   });
 
   it('allows an adjacent move', () => {
     expect(
-      codes(withHistory([{ status: 'backlog', at: 1 }, { status: 'todo', at: 2 }])),
+      codes(
+        withHistory([
+          { status: 'backlog', at: 1 },
+          { status: 'todo', at: 2 },
+        ]),
+      ),
     ).not.toContain('skipped-lifecycle-state');
   });
 
   it('allows a single-step move backwards', () => {
     expect(
-      codes(withHistory([{ status: 'review', at: 1 }, { status: 'running', at: 2 }])),
+      codes(
+        withHistory([
+          { status: 'review', at: 1 },
+          { status: 'running', at: 2 },
+        ]),
+      ),
     ).not.toContain('skipped-lifecycle-state');
   });
 
   it('needs at least two entries', () => {
-    expect(codes(withHistory([{ status: 'backlog', at: 1 }]))).not.toContain('skipped-lifecycle-state');
+    expect(codes(withHistory([{ status: 'backlog', at: 1 }]))).not.toContain(
+      'skipped-lifecycle-state',
+    );
   });
 
   it('ignores a state that is not in the declared order', () => {
     expect(
-      codes(withHistory([{ status: 'nowhere', at: 1 }, { status: 'done', at: 2 }])),
+      codes(
+        withHistory([
+          { status: 'nowhere', at: 1 },
+          { status: 'done', at: 2 },
+        ]),
+      ),
     ).not.toContain('skipped-lifecycle-state');
   });
 
@@ -261,7 +288,12 @@ describe('lifecycle skip detection', () => {
     'reads the entry state from %s',
     (key) => {
       expect(
-        codes(withHistory([{ [key]: 'backlog', at: 1 }, { [key]: 'running', at: 2 }])),
+        codes(
+          withHistory([
+            { [key]: 'backlog', at: 1 },
+            { [key]: 'running', at: 2 },
+          ]),
+        ),
       ).toContain('skipped-lifecycle-state');
     },
   );

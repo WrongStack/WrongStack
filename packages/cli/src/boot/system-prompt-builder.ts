@@ -81,6 +81,21 @@ interface PathJoiner {
   join(a: string, b: string): string;
 }
 
+/**
+ * Narrow adapter for the `[Project Jargon Dictionary]` block.
+ *
+ * Re-exported from `../wiring/domain-glossary.ts` so the helper keeps
+ * its zero-coupling contract (no direct import of core's
+ * `MemoryStore` / `MemoryEntry` types). The CLI provides a closure
+ * over the resolved SAGE `memoryStore` that calls
+ * `searchSage('domain-term', { limit })` and maps the result to the
+ * canonical `MemoryEntry` shape that `renderDomainGlossary` in core
+ * is typed against.
+ */
+import type { DomainGlossaryListProvider as DomainGlossaryAdapter } from '../wiring/domain-glossary.js';
+
+export type { DomainGlossaryListProvider } from '../wiring/domain-glossary.js';
+
 interface BindSystemPromptBuilderDeps {
   /**
    * The `container` from main(). The helper only calls
@@ -135,6 +150,17 @@ interface BindSystemPromptBuilderDeps {
   /** `config.systemPrompt.variant` — selects system.md, system-lite.md, or system-pro.md. */
   systemPromptVariant?: SystemInstructionVariant | undefined;
   paths: SystemPromptBuilderPaths;
+  /**
+   * Optional narrow `domain-term` adapter for the prompt glossary block.
+   * The CLI provides a closure over the resolved SAGE `memoryStore` that
+   * calls `search({ query: 'domain-term', scope: 'project-memory', limit })`
+   * and returns only the tagged subset, then forwards the result through the
+   * `DomainGlossary.list` shape consumed by
+   * `packages/core/src/core/system-prompt-glossary.ts`.
+   *
+   * Omit → no `[Project Jargon Dictionary]` block in the prompt.
+   */
+  domainGlossary?: DomainGlossaryAdapter | undefined;
   /** `path.join`-shaped helper from the runtime. */
   pathJoiner: PathJoiner;
   /** The `TOKENS.SystemPromptBuilder` token, opaque to the
@@ -165,6 +191,12 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
         // full-shape interfaces; the helper just needs the
         // passthrough.
         memoryStore: deps.memoryStore as never,
+        // Thread the narrow domain-term adapter so the builder emits a
+        // compact `[Project Jargon Dictionary]` block. `deps.domainGlossary`
+        // is an optional closure over the resolved SAGE `memoryStore`
+        // that returns only entries tagged `domain-term`; when omitted
+        // (e.g. in tests or subagent prompts) the builder emits no block.
+        domainGlossary: deps.domainGlossary as never,
         // SAGE's turn middleware is the single memory-injection channel.
         // Disable the builder's static "# Relevant Memory" section so memories
         // are injected once, per-turn, relevance-scored — not duplicated here.

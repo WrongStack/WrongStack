@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { Director } from '../../src/coordination/director.js';
 import {
-  DEFAULT_DIRECTOR_PREAMBLE,
-  DEFAULT_SUBAGENT_BASELINE,
   composeDirectorPrompt,
   composeSubagentPrompt,
+  DEFAULT_DIRECTOR_PREAMBLE,
+  DEFAULT_SUBAGENT_BASELINE,
   rosterSummaryFromConfigs,
 } from '../../src/coordination/director-prompts.js';
-import { Director } from '../../src/coordination/director.js';
 import type { MultiAgentConfig, SubagentConfig } from '../../src/types/multi-agent.js';
 
 const baseConfig: MultiAgentConfig = {
@@ -33,10 +33,14 @@ describe('composeDirectorPrompt', () => {
       rosterSummary: '- coder: Coder',
     });
     const preambleIdx = out.indexOf('You are the Director');
-    const rosterIdx = out.indexOf('Available roles you can spawn');
+    const rosterIdx = out.indexOf('Roles you can spawn');
     const baseIdx = out.indexOf('BASE');
     expect(preambleIdx).toBeLessThan(rosterIdx);
     expect(rosterIdx).toBeLessThan(baseIdx);
+    // The roster is introduced as a routing instruction, not a bare menu: a
+    // leader handed 77 look-alike lines falls back to the ids it can recall.
+    expect(out).toMatch(/deep and specialised/);
+    expect(out).toContain('`description`');
   });
 
   it('honors empty preamble override (suppresses fleet protocol block)', () => {
@@ -153,7 +157,7 @@ describe('composeSubagentPrompt', () => {
 });
 
 describe('rosterSummaryFromConfigs', () => {
-  it('renders one bullet per role with provider/model + headline', () => {
+  it('renders one bullet per role with provider/model + capability', () => {
     const out = rosterSummaryFromConfigs({
       researcher: {
         name: 'Researcher',
@@ -168,35 +172,70 @@ describe('rosterSummaryFromConfigs', () => {
         prompt: 'You write code.\nMore details.',
       },
     });
+    // The display name is dropped when it only re-states the role id: on a
+    // 77-line menu that repetition is the noise the leader has to read past.
     expect(out).toBe(
       [
-        '- researcher: Researcher (anthropic/claude-haiku-4-5-20251001) — You research things.',
-        '- coder: Coder (openai/gpt-5) — You write code.',
+        '- researcher (anthropic/claude-haiku-4-5-20251001) — You research things.',
+        '- coder (openai/gpt-5) — You write code.',
       ].join('\n'),
     );
+  });
+
+  it('prefers the curated capability summary over the prompt headline', () => {
+    const out = rosterSummaryFromConfigs({
+      database: {
+        name: 'Database',
+        prompt: 'You are the Database agent. Your job is schema design, query work, and more.',
+        dispatch: {
+          summary: 'Schema design, query optimization, and safe reversible migrations.',
+          keywords: ['schema', 'migration'],
+        },
+      },
+    });
+    // Every role prompt opens with the same "You are the X agent" boilerplate,
+    // so a headline built from it spends its budget before saying anything.
+    expect(out).toBe(
+      '- database — Schema design, query optimization, and safe reversible migrations.',
+    );
+    expect(out).not.toContain('You are the');
+  });
+
+  it('keeps a display name that carries information the id does not', () => {
+    const out = rosterSummaryFromConfigs({
+      'shadow-agent': { name: 'Shadow Monitor', prompt: 'Watches the fleet.' },
+    });
+    expect(out).toBe('- shadow-agent (Shadow Monitor) — Watches the fleet.');
+  });
+
+  it('falls back to the prompt headline, without its markdown heading marker', () => {
+    const out = rosterSummaryFromConfigs({
+      generic: { name: 'Generic Project Agent', prompt: '# Generic Project Agent\n\nBody.' },
+    });
+    expect(out).toBe('- generic (Generic Project Agent) — Generic Project Agent');
   });
 
   it('omits provider/model tag when not configured', () => {
     const out = rosterSummaryFromConfigs({
       thing: { name: 'Thing', prompt: 'Do thing.' },
     });
-    expect(out).toBe('- thing: Thing — Do thing.');
+    expect(out).toBe('- thing — Do thing.');
   });
 
-  it('omits the headline when role has no prompt', () => {
+  it('omits the capability when the role has neither summary nor prompt', () => {
     const out = rosterSummaryFromConfigs({
       bare: { name: 'Bare' },
     });
-    expect(out).toBe('- bare: Bare');
+    expect(out).toBe('- bare');
   });
 
-  it('truncates long headlines to 80 chars', () => {
-    const long = 'a'.repeat(120);
+  it('truncates a long capability rather than letting one role flood the menu', () => {
     const out = rosterSummaryFromConfigs({
-      r: { name: 'R', prompt: long },
+      r: { name: 'R', prompt: 'a'.repeat(400) },
     });
-    const headlinePart = out.split(' — ')[1]!;
-    expect(headlinePart.length).toBe(80);
+    const headlinePart = out.split(' — ')[1] as string;
+    expect(headlinePart).toHaveLength(150);
+    expect(headlinePart.endsWith('…')).toBe(true);
   });
 });
 
@@ -230,8 +269,8 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
       },
     });
     const out = director.leaderSystemPrompt();
-    expect(out).toContain('Available roles you can spawn');
-    expect(out).toContain('- coder: Coder (openai/gpt-5) — Codes things.');
+    expect(out).toContain('Roles you can spawn');
+    expect(out).toContain('- coder (openai/gpt-5) — Codes things.');
   });
 
   it('directorPreamble option overrides the built-in preamble', () => {

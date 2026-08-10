@@ -46,6 +46,16 @@ interface RoleSkill {
     learned: number;
     pinned?: boolean;
   } | null;
+  /** Project affinity score. Higher ranks earlier; ties keep the curated order. */
+  score?: number;
+  /** Whether this skill makes the eager cut and is actually loaded at spawn. */
+  eager?: boolean;
+}
+
+/** A directive the loop retired after it kept correlating with failed tasks. */
+interface RetiredDirective {
+  what: string;
+  skill?: string;
 }
 
 export function SelfLearningTab({
@@ -67,6 +77,8 @@ export function SelfLearningTab({
   const [optimizing, setOptimizing] = useState(false);
   const [bulkOptimizing, setBulkOptimizing] = useState(false);
   const [skills, setSkills] = useState<RoleSkill[] | null>(null);
+  const [retired, setRetired] = useState<RetiredDirective[] | null>(null);
+  const [showRetired, setShowRetired] = useState(false);
   const [autoStatus, setAutoStatus] = useState<AutoOptimizeStatus | null>(null);
   const [openSkill, setOpenSkill] = useState<{ skill: string; content: string } | null>(null);
 
@@ -130,7 +142,10 @@ export function SelfLearningTab({
         setTeachFeedback({ ok: false, msg: t('activity:agentRoster.saveFailed') });
       }
     } catch (err) {
-      setTeachFeedback({ ok: false, msg: err instanceof Error ? err.message : t('activity:agentRoster.failed') });
+      setTeachFeedback({
+        ok: false,
+        msg: err instanceof Error ? err.message : t('activity:agentRoster.failed'),
+      });
     }
     setSaving(false);
   }, [onRefresh, selectedRole, teachInput]);
@@ -155,7 +170,8 @@ export function SelfLearningTab({
       } catch (error) {
         setTeachFeedback({
           ok: false,
-          msg: error instanceof Error ? error.message : t('activity:agentRoster.policyUpdateFailed'),
+          msg:
+            error instanceof Error ? error.message : t('activity:agentRoster.policyUpdateFailed'),
         });
       } finally {
         setSaving(false);
@@ -194,6 +210,19 @@ export function SelfLearningTab({
       setSkills(data.skills ?? []);
     } catch {
       setSkills([]);
+    }
+  }, []);
+
+  // Directives this role was told to stop following. Loaded alongside the
+  // skills so the panel can show what the loop discarded, not only what it kept.
+  const loadRetired = useCallback(async (role: string) => {
+    try {
+      const data = (await sendRosterMessage('agent-roster.quarantine', { role })) as {
+        retired?: RetiredDirective[];
+      };
+      setRetired(data.retired ?? []);
+    } catch {
+      setRetired([]);
     }
   }, []);
 
@@ -276,6 +305,9 @@ export function SelfLearningTab({
           await loadConsolidated(role);
           await loadSkills(role);
           await loadAutoStatus(role);
+          // A pass can scrub a retired rule out of the distilled documents, so
+          // the retired list is part of what just changed.
+          await loadRetired(role);
           setTeachFeedback({ ok: true, msg: t('activity:agentRoster.optimizedOk') });
           toast.success(
             data.model
@@ -317,7 +349,9 @@ export function SelfLearningTab({
           ok: false,
           msg: err instanceof Error ? err.message : t('activity:agentRoster.optimizationFailed'),
         });
-        toast.error(err instanceof Error ? err.message : t('activity:agentRoster.optimizationFailed'));
+        toast.error(
+          err instanceof Error ? err.message : t('activity:agentRoster.optimizationFailed'),
+        );
       } finally {
         setOptimizing(false);
       }
@@ -442,9 +476,12 @@ export function SelfLearningTab({
       } catch (err) {
         setTeachFeedback({
           ok: false,
-          msg: err instanceof Error ? err.message : t('activity:agentRoster.bulkOptimizationFailed'),
+          msg:
+            err instanceof Error ? err.message : t('activity:agentRoster.bulkOptimizationFailed'),
         });
-        toast.error(err instanceof Error ? err.message : t('activity:agentRoster.bulkOptimizationFailed'));
+        toast.error(
+          err instanceof Error ? err.message : t('activity:agentRoster.bulkOptimizationFailed'),
+        );
       } finally {
         setBulkOptimizing(false);
       }
@@ -500,8 +537,11 @@ export function SelfLearningTab({
                         setReviewEntries(null);
                         setConsolidatedContent(null);
                         setOpenSkill(null);
+                        setRetired(null);
+                        setShowRetired(false);
                         void loadSkills(first.role);
                         void loadAutoStatus(first.role);
+                        void loadRetired(first.role);
                       }
                     }}
                     className="ml-auto text-[9px] text-warning underline hover:text-warning/80 shrink-0"
@@ -538,8 +578,11 @@ export function SelfLearningTab({
                 setReviewEntries(null);
                 setConsolidatedContent(null);
                 setOpenSkill(null);
+                setRetired(null);
+                setShowRetired(false);
                 void loadSkills(stat.role);
                 void loadAutoStatus(stat.role);
+                void loadRetired(stat.role);
               }}
               className={cn(
                 'w-full text-left rounded-lg border px-3 py-2 transition-colors',
@@ -568,6 +611,24 @@ export function SelfLearningTab({
                   <>
                     <span className="text-muted-foreground/50">·</span>
                     <span className="text-success tabular-nums">+{stat.sessionCaptureCount}</span>
+                  </>
+                )}
+                {/* Scanning the list for volume tells you nothing; a role whose
+                    directives keep failing is the one worth opening first. */}
+                {typeof stat.directiveHitRate === 'number' && (
+                  <>
+                    <span className="text-muted-foreground/50">·</span>
+                    <span
+                      className={cn(
+                        'tabular-nums',
+                        stat.directiveHitRate >= 0.7
+                          ? 'text-success'
+                          : stat.directiveHitRate < 0.4 && 'text-warning',
+                      )}
+                      title="Share of directive applications that ended in a successful task"
+                    >
+                      {Math.round(stat.directiveHitRate * 100)}%
+                    </span>
                   </>
                 )}
                 {stat.lastCapture && (
@@ -620,8 +681,13 @@ export function SelfLearningTab({
               </div>
             </div>
 
-            {/* Stats cards */}
-            <div className="grid grid-cols-4 gap-2">
+            {/* Stats cards.
+                The first row is volume — how much this agent has written down.
+                The second is whether any of it works, which is the only half a
+                reader can act on: a high never-used share means the agent is
+                writing directives nobody applies, and that is a problem with
+                the directives rather than with the loop. */}
+            <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg border bg-card p-2">
                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
                   {t('activity:agentRoster.entries')}
@@ -640,6 +706,14 @@ export function SelfLearningTab({
               </div>
               <div className="rounded-lg border bg-card p-2">
                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+                  {t('activity:agentRoster.lifetimeCaptures')}
+                </span>
+                <div className="text-lg font-mono font-semibold mt-0.5">
+                  {selectedStats.lifetimeCaptureCount}
+                </div>
+              </div>
+              <div className="rounded-lg border bg-card p-2">
+                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
                   {t('activity:agentRoster.lastCapture')}
                 </span>
                 <div className="text-lg font-mono font-semibold mt-0.5">
@@ -648,12 +722,50 @@ export function SelfLearningTab({
                     : '—'}
                 </div>
               </div>
-              <div className="rounded-lg border bg-card p-2">
+              <div
+                className="rounded-lg border bg-card p-2"
+                title="Share of directive applications that ended in a successful task. Blank until a directive has actually been exercised on one."
+              >
                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
-                  {t('activity:agentRoster.lifetimeCaptures')}
+                  {t('activity:agentRoster.hitRate')}
+                </span>
+                <div
+                  className={cn(
+                    'text-lg font-mono font-semibold mt-0.5',
+                    typeof selectedStats.directiveHitRate === 'number' &&
+                      (selectedStats.directiveHitRate >= 0.7
+                        ? 'text-success'
+                        : selectedStats.directiveHitRate < 0.4 && 'text-warning'),
+                  )}
+                >
+                  {typeof selectedStats.directiveHitRate === 'number'
+                    ? `${Math.round(selectedStats.directiveHitRate * 100)}%`
+                    : '—'}
+                  {typeof selectedStats.appliedEntryCount === 'number' &&
+                    selectedStats.appliedEntryCount > 0 && (
+                      <span className="text-[9px] text-muted-foreground font-sans ml-1">
+                        of {selectedStats.appliedEntryCount}
+                      </span>
+                    )}
+                </div>
+              </div>
+              <div
+                className="rounded-lg border bg-card p-2"
+                title="Directives that have never been exercised on a task. Anchors — exact commands, paths, package names — are what let the runtime tell that a directive was applied."
+              >
+                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+                  {t('activity:agentRoster.neverUsed')}
                 </span>
                 <div className="text-lg font-mono font-semibold mt-0.5">
-                  {selectedStats.lifetimeCaptureCount}
+                  {typeof selectedStats.deadEntryCount === 'number'
+                    ? selectedStats.deadEntryCount
+                    : '—'}
+                  {typeof selectedStats.deadEntryCount === 'number' &&
+                    selectedStats.entryCount > 0 && (
+                      <span className="text-[9px] text-muted-foreground font-sans ml-1">
+                        of {selectedStats.entryCount}
+                      </span>
+                    )}
                 </div>
               </div>
             </div>
@@ -663,7 +775,9 @@ export function SelfLearningTab({
               <div className="flex items-center gap-3 text-xs text-warning bg-warning/10 rounded-lg px-3 py-2.5">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span className="flex-1">
-                  {t('activity:agentRoster.learningsLimitExceeded', { bytes: selectedStats.totalBytes.toLocaleString() })}
+                  {t('activity:agentRoster.learningsLimitExceeded', {
+                    bytes: selectedStats.totalBytes.toLocaleString(),
+                  })}
                 </span>
                 <button
                   type="button"
@@ -686,7 +800,9 @@ export function SelfLearningTab({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-semibold">{t('activity:agentRoster.optimizeLearnings')}</span>
+                  <span className="text-xs font-semibold">
+                    {t('activity:agentRoster.optimizeLearnings')}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -790,8 +906,12 @@ export function SelfLearningTab({
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
                   A developed skill carries a project addendum injected right after the bundled
-                  skill body — the agent reads one skill, refined for this codebase. Pin a skill to
-                  keep it loaded regardless of ranking.
+                  skill body — the agent reads one skill, refined for this codebase. Only the
+                  highest-ranked few are loaded per spawn;{' '}
+                  <span className="text-primary">loaded</span> marks those. Ranking rewards skills
+                  this project developed and skills that correlate with successful tasks, discounts
+                  stale evidence, and gives untried skills a nudge so a skill cannot hold its slot
+                  just by having held it. Pin one to keep it loaded regardless.
                 </p>
                 <div className="space-y-1">
                   {skills.map((entry) => (
@@ -815,6 +935,14 @@ export function SelfLearningTab({
                         >
                           {entry.skill}
                         </button>
+                        {entry.eager && (
+                          <span
+                            className="text-[9px] rounded bg-primary/15 text-primary px-1.5 py-0.5"
+                            title="Ranked high enough to be loaded into a spawn of this role"
+                          >
+                            loaded
+                          </span>
+                        )}
                         {entry.developed && (
                           <span className="text-[9px] rounded bg-success/15 text-success px-1.5 py-0.5">
                             developed
@@ -824,6 +952,14 @@ export function SelfLearningTab({
                           <span className="text-[9px] text-muted-foreground tabular-nums">
                             {entry.affinity.learned > 0 && `${entry.affinity.learned} learned · `}
                             {entry.affinity.succeeded}✓/{entry.affinity.failed}✗
+                          </span>
+                        )}
+                        {typeof entry.score === 'number' && (
+                          <span
+                            className="text-[9px] text-muted-foreground tabular-nums"
+                            title="Project affinity score — higher is loaded first"
+                          >
+                            {entry.score.toFixed(2)}
                           </span>
                         )}
                         <button
@@ -851,6 +987,56 @@ export function SelfLearningTab({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Retired directives.
+                The counterpart to the entry browser: what this agent was told
+                to stop following. Without it, a directive that kept failing
+                simply vanished from the buffer with no way to see that it had
+                ever existed, or why it went. */}
+            {retired && retired.length > 0 && (
+              <div className="space-y-2 border border-border rounded-lg p-3 bg-card">
+                <button
+                  type="button"
+                  onClick={() => setShowRetired((open) => !open)}
+                  className="flex w-full items-center gap-1.5 text-left"
+                >
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <span className="text-xs font-semibold">Retired</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {retired.length} directive{retired.length === 1 ? '' : 's'} no longer injected
+                  </span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    {showRetired ? 'hide' : 'show'}
+                  </span>
+                </button>
+                {showRetired && (
+                  <>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Each of these was exercised repeatedly and kept correlating with failed tasks,
+                      so it was removed from the buffer and scrubbed out of the distilled documents.
+                      They are kept rather than deleted — a directive can be right about a project
+                      that has since changed. If the agent writes one again it re-enters with a
+                      fresh record and gets a retrial.
+                    </p>
+                    <ul className="space-y-1">
+                      {retired.map((entry) => (
+                        <li
+                          key={entry.what}
+                          className="rounded border border-border/60 px-2 py-1.5 text-[10px] leading-relaxed"
+                        >
+                          {entry.skill && (
+                            <span className="mr-1.5 rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+                              {entry.skill}
+                            </span>
+                          )}
+                          <span className="text-muted-foreground line-through">{entry.what}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
             )}
 
@@ -959,7 +1145,8 @@ export function SelfLearningTab({
             {/* Teach section */}
             <div className="space-y-2 pt-4 border-t border-border">
               <div className="flex items-center gap-1 text-sm font-medium">
-                <BookOpen className="h-4 w-4 text-brand-2" /> {t('activity:agentRoster.teachThisAgent')}
+                <BookOpen className="h-4 w-4 text-brand-2" />{' '}
+                {t('activity:agentRoster.teachThisAgent')}
               </div>
               <p className="text-[10px] text-muted-foreground">
                 {t('activity:agentRoster.describeACommandPatternOrBehavior')}

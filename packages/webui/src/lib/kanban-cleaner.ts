@@ -1,18 +1,40 @@
+/**
+ * `kanban-cleaner.ts` — the WebUI half of the Kanban Cleaner audit.
+ *
+ * Must produce the same verdicts as `packages/tui/src/kanban-audit.ts` for the
+ * same board. That is enforced by
+ * `packages/cli/tests/kanban-cleaner-parity.test.ts`, which runs a shared
+ * corpus through both and compares the `taskId:code:severity` triples. Only
+ * three differences are deliberate, all of them API shape rather than verdict:
+ * the TUI copy also accepts `liveAgentIdentities`, returns eight extra summary
+ * fields this side fills from live queue health instead, and exports
+ * `summarizeAuditHeadline` / `topAuditIssues`. Messages may differ; codes and
+ * severities may not.
+ */
 import type { KanbanBoard, KanbanTask, KanbanTaskStatus } from '@wrongstack/kanban';
 
 export type KanbanAuditSeverity = 'error' | 'warning';
 
-export type KanbanAuditIssueCode =
-  | 'missing-description'
-  | 'missing-assignee'
-  | 'missing-due-date'
-  | 'missing-labels'
-  | 'missing-subtasks'
-  | 'missing-success-criteria'
-  | 'skipped-lifecycle-state'
-  | 'abandoned-running-task'
-  | 'stale-running-task'
-  | 'stale-review';
+/**
+ * The audit vocabulary, as a runtime value so the parity test can compare the
+ * two implementations' code sets instead of trusting that both type unions
+ * were edited together.
+ */
+export const ALL_AUDIT_CODES = [
+  'abandoned-running-task',
+  'board-oversized',
+  'missing-assignee',
+  'missing-description',
+  'missing-due-date',
+  'missing-labels',
+  'missing-subtasks',
+  'missing-success-criteria',
+  'skipped-lifecycle-state',
+  'stale-review',
+  'stale-running-task',
+] as const;
+
+export type KanbanAuditIssueCode = (typeof ALL_AUDIT_CODES)[number];
 
 export interface KanbanAuditIssue {
   id: string;
@@ -48,6 +70,14 @@ export interface KanbanAuditOptions {
 
 const DEFAULT_REVIEW_STALE_AFTER_MS = 72 * 60 * 60 * 1000;
 const TERMINAL_STATUSES = new Set<KanbanTaskStatus>(['completed', 'archived']);
+
+/**
+ * Mirror of `KANBAN_BOARD_SOFT_MAX_BYTES` (`@wrongstack/kanban`, storage.ts).
+ * Inlined rather than imported because that package's barrel reaches `node:net`
+ * and must never enter the browser bundle.
+ * `kanban-cleaner-parity.test.ts` pins both copies to the exported constant.
+ */
+const BOARD_SOFT_MAX_BYTES = 512 * 1024;
 
 /**
  * Optional fields are read structurally so the WebUI can audit boards written by
@@ -92,16 +122,18 @@ export function auditKanbanBoard(
     options.defaultReviewStaleAfterMs ?? DEFAULT_REVIEW_STALE_AFTER_MS,
   );
   const lifecycleOrder = resolveLifecycleOrder(board as AuditableBoard);
+  const managed = isManagedBoard(board as AuditableBoard);
   const issues: KanbanAuditIssue[] = [];
 
   for (const task of board.tasks as AuditableTask[]) {
     if (TERMINAL_STATUSES.has(task.status)) continue;
 
-    addRequiredDetailIssues(issues, task, options.requireDueDate === true);
+    addRequiredDetailIssues(issues, task, options.requireDueDate === true, managed);
     addRunningIssue(issues, task, now);
     addReviewIssue(issues, task, now, reviewStaleAfterMs);
     if (lifecycleOrder.length > 1) addLifecycleIssue(issues, task, lifecycleOrder);
   }
+  addBoardSizeIssue(issues, board);
 
   issues.sort(compareIssues);
   return {
@@ -118,38 +150,99 @@ function addRequiredDetailIssues(
   issues: KanbanAuditIssue[],
   task: AuditableTask,
   requireDueDate: boolean,
+  managed: boolean,
 ): void {
   if (!hasText(task.description)) {
     pushIssue(issues, task, 'missing-description', 'warning', 'Add a description');
   }
-  if (assignmentIdentities(task).length === 0) {
+  // A managed card's owner is the lifecycle's `assignee`, which the gate reads
+  // directly; `subagentId` alone identifies a worker, not an owner, so it does
+  // not satisfy the managed rule.
+  const hasAssignee = managed
+    ? [task.assignee, task.assignedAgent, task.assignment?.agentId, task.assignment?.name].some(
+        hasText,
+      )
+    : assignmentIdentities(task).length > 0;
+  if (!hasAssignee) {
     pushIssue(issues, task, 'missing-assignee', 'warning', 'Assign an owner');
   }
   if (requireDueDate && toEpoch(task.dueDate) === null) {
-    pushIssue(issues, task, 'missing-due-date', 'warning', 'Set a due date');
+    pushIssue(issues, task, 'missing-due-date', 'warning', 'Set a valid due date');
   }
-  if (!hasItems(task.labels) && !hasItems(task.tags)) {
-    pushIssue(issues, task, 'missing-labels', 'warning', 'Add labels or tags');
+  // `hasTextItem`, not a length check: `['  ']` is an empty label list wearing
+  // a costume, and boards written by wizards are full of them.
+  if (!hasTextItem(task.labels) && (managed || !hasTextItem(task.tags))) {
+    pushIssue(
+      issues,
+      task,
+      'missing-labels',
+      'warning',
+      managed ? 'Add at least one label' : 'Add labels or tags',
+    );
   }
-  if (!hasItems(task.childTaskIds) && !hasItems(task.subtasks)) {
-    pushIssue(issues, task, 'missing-subtasks', 'warning', 'Define subtasks');
+  if (!hasTextItem(task.childTaskIds) && (managed || !hasMeaningfulSubtask(task.subtasks))) {
+    pushIssue(
+      issues,
+      task,
+      'missing-subtasks',
+      'warning',
+      managed ? 'Persist at least one child task' : 'Define subtasks',
+    );
   }
-  if (!hasItems(task.successCriteria)) {
+  if (!hasValidSuccessCriteria(task.successCriteria, managed)) {
     pushIssue(issues, task, 'missing-success-criteria', 'warning', 'Add success criteria');
   }
 }
 
-function addRunningIssue(
-  issues: KanbanAuditIssue[],
-  task: AuditableTask,
-  now: number,
-): void {
+/**
+ * The one board-level finding. Every other code names a card; this one names
+ * the board, so it carries the board id in `taskId` and the board title in
+ * `taskTitle` — which also means an oversized board adds one to
+ * `affectedTaskCount`.
+ *
+ * Why it matters: nothing enforces a board size limit, but the HQ wire codec
+ * silently drops any single board record over ~750 KB. Before this code
+ * existed a board simply stopped appearing in HQ with no signal anywhere.
+ */
+function addBoardSizeIssue(issues: KanbanAuditIssue[], board: KanbanBoard): void {
+  const bytes = boardByteSize(board);
+  if (bytes <= BOARD_SOFT_MAX_BYTES) return;
+  issues.push({
+    id: `${board.id}:board-oversized`,
+    taskId: board.id,
+    taskTitle: board.title,
+    code: 'board-oversized',
+    severity: 'warning',
+    message: `Board is ~${Math.round(bytes / 1024)} KB across ${board.tasks.length} cards; archive completed cards before it stops syncing to HQ`,
+  });
+}
+
+function boardByteSize(board: KanbanBoard): number {
+  try {
+    return JSON.stringify(board)?.length ?? 0;
+  } catch {
+    // A board that cannot be serialized cannot be measured — and cannot reach
+    // HQ either, but that is a different problem than being too large.
+    return 0;
+  }
+}
+
+function addRunningIssue(issues: KanbanAuditIssue[], task: AuditableTask, now: number): void {
   const assignment = task.assignment;
   const running = task.status === 'in_progress' || assignment?.status === 'running';
   if (!running) return;
 
   const identities = assignmentIdentities(task);
-  if (!assignment || identities.length === 0 || !hasText(assignment.leaseId) || !hasText(assignment.leaseExpiresAt)) {
+  // All four lease fields, not just id + expiry: a card missing `claimedAt` or
+  // `heartbeatAt` cannot be recovered by the supervisor either, so a partial
+  // lease is exactly the abandoned state this code names.
+  const leaseOk = [
+    assignment?.leaseId,
+    assignment?.claimedAt,
+    assignment?.heartbeatAt,
+    assignment?.leaseExpiresAt,
+  ].every((value) => hasText(value));
+  if (assignment?.status !== 'running' || identities.length === 0 || !leaseOk) {
     pushIssue(
       issues,
       task,
@@ -193,7 +286,9 @@ function addLifecycleIssue(
 ): void {
   const history = readLifecycleEntries(task);
   if (history.length < 2) return;
-  const orderIndex = new Map(lifecycleOrder.map((state, index) => [normalizeIdentity(state), index]));
+  const orderIndex = new Map(
+    lifecycleOrder.map((state, index) => [normalizeIdentity(state), index]),
+  );
 
   for (let index = 1; index < history.length; index += 1) {
     const previous = history[index - 1];
@@ -201,7 +296,8 @@ function addLifecycleIssue(
     if (!previous || !current) continue;
     const fromIndex = orderIndex.get(normalizeIdentity(previous.state));
     const toIndex = orderIndex.get(normalizeIdentity(current.state));
-    if (fromIndex === undefined || toIndex === undefined || Math.abs(toIndex - fromIndex) <= 1) continue;
+    if (fromIndex === undefined || toIndex === undefined || Math.abs(toIndex - fromIndex) <= 1)
+      continue;
 
     pushIssue(
       issues,
@@ -214,6 +310,16 @@ function addLifecycleIssue(
   }
 }
 
+function isManagedBoard(board: AuditableBoard): boolean {
+  return [board.lifecycle, board.lifecyclePolicy, board.managedLifecycle].some(
+    (candidate) =>
+      !!candidate &&
+      typeof candidate === 'object' &&
+      !Array.isArray(candidate) &&
+      (candidate as LifecyclePolicy).mode === 'managed',
+  );
+}
+
 function resolveLifecycleOrder(board: AuditableBoard): string[] {
   const candidates = [board.lifecycle, board.lifecyclePolicy, board.managedLifecycle];
   for (const candidate of candidates) {
@@ -222,10 +328,10 @@ function resolveLifecycleOrder(board: AuditableBoard): string[] {
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
     const policy = candidate as LifecyclePolicy;
     if (policy.mode === 'managed' && policy.columns) {
-      const order = ['backlog', 'todo', 'running', 'review', 'done']
-        .map((stage) => policy.columns?.[stage])
-        .filter((value): value is string => hasText(value));
-      if (order.length === 5) return order;
+      // Task lifecycle history persists canonical stages, not board column IDs.
+      // Mapping through `policy.columns` compared history entries against
+      // renamed column titles, so a renamed board reported no order at all.
+      return ['backlog', 'todo', 'running', 'review', 'done'];
     }
     for (const value of [policy.states, policy.statuses, policy.order, policy.managedStatuses]) {
       const order = readStringList(value);
@@ -248,7 +354,8 @@ function resolveReviewStaleAfterMs(board: AuditableBoard, fallback: number): num
 }
 
 function readLifecycleEntries(task: AuditableTask): Array<{ state: string; at: number | null }> {
-  const source = task.lifecycle?.history ?? task.lifecycleHistory ?? task.statusHistory ?? task.history;
+  const source =
+    task.lifecycle?.history ?? task.lifecycleHistory ?? task.statusHistory ?? task.history;
   if (!Array.isArray(source)) return [];
   const entries: Array<{ state: string; at: number | null }> = [];
   for (const raw of source) {
@@ -305,6 +412,8 @@ function readStringList(value: unknown): string[] {
 }
 
 function normalizeIdentity(identity: string): string {
+  // Not `toLocaleLowerCase` — under a Turkish locale that maps "I" to "ı",
+  // so an agent named "IndexBot" would stop matching its own lease.
   return identity.trim().toLowerCase();
 }
 
@@ -319,8 +428,33 @@ function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function hasItems(value: unknown): boolean {
-  return Array.isArray(value) && value.length > 0;
+function hasTextItem(value: unknown): boolean {
+  return Array.isArray(value) && value.some(hasText);
+}
+
+function hasMeaningfulSubtask(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+  return value.some((item) => {
+    if (hasText(item)) return true;
+    if (!item || typeof item !== 'object') return false;
+    const record = item as Record<string, unknown>;
+    return [record.id, record.taskId, record.title, record.description].some(hasText);
+  });
+}
+
+function hasValidSuccessCriteria(value: unknown, managed: boolean): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((criterion) => {
+      if (!managed && hasText(criterion)) return true;
+      return (
+        !!criterion &&
+        typeof criterion === 'object' &&
+        hasText((criterion as Record<string, unknown>).description)
+      );
+    })
+  );
 }
 
 function isPositiveFinite(value: unknown): value is number {

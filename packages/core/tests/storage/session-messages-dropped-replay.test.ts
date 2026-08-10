@@ -146,5 +146,6 @@ describe('messages_dropped replay', () => {
     // 2 KB ≈ 50 MB. The delta journal is bounded by the messages themselves.
     const bytes = (await fs.stat(sessionFile())).size;
     expect(bytes).toBeLessThan(12 * 1024 * 1024);
+    await session.close();
   });
 });

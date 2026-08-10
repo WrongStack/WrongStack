@@ -2,22 +2,21 @@
 
 ## Parallel Work and Chimera Reviews
 
-- After any parallel fix pass, re-read the current on-disk state of the assigned file before citing or reporting a finding. Concurrent Chimera workers frequently resolve the same findings mid-session; citing pre-fix content produces false positives.
+- After any parallel fix pass, re-read the current on-disk state of every file in the cascade before citing or reporting a finding. Concurrent Chimera workers (bug-hunter, security-scanner) frequently resolve the same findings mid-session; citing pre-fix content produces false positives.
+- If an existing on-disk diff already addresses a finding, preserve that work rather than applying a duplicate patch.
 - Treat the `Resolved by the parallel worker` block in a Chimera review as authoritative for which findings remain open versus already fixed.
 - Before classifying a finding as a false positive, confirm with `node node_modules/typescript/bin/tsc --noEmit --pretty false -p packages/<pkg>/tsconfig.json` (exit 0 = no error) and the targeted vitest file.
-- Preserve existing on-disk fixes rather than applying duplicate patches. If a diff already passes the live `sessions` map and separates `totpPendingSecret` from active `totpSecret`, keep that work.
 
 ## Verification and Testing Procedures
 
-- After any refactor that adds, removes, or renames a method, grep the session's test files for every affected method name (`grep "methodName" packages/<pkg>/src` vs `tests/`). Vitest transpiles with esbuild (no type-checking), so a test calling a deleted method fails at runtime with `TypeError: X is not a function` — a red suite is the only signal.
-- Before trusting a reviewer claim that a method is "absent" from a class, re-read the actual source file and confirm with `grep "methodName" packages/<pkg>/src/<file>`. Reviewers can misread a class body and produce ghost findings.
-- For Windows atomic-write tests, mock the `fs.rename` seam, select the Windows retry branch, and inject a transient error (e.g., `EBUSY`). Do not hold an open file handle as retry evidence — its behavior is platform-dependent.
-- For SQLite construction-time warning suppression, scope `process.emitWarning` in a `try/finally` that encloses both the lazy `node:sqlite` load and `DatabaseSync` construction. A permanent process-wide shim is unnecessary.
-- For Kanban verification, resolve locally installed Vitest or Jest package bin entries and invoke them through `process.execPath` with `shell: false`. Do not add package-manager fallbacks to the generic verifier command allowlist.
+- After any refactor that adds, removes, or renames a method, grep the session's test files for every affected method name. Vitest transpiles with esbuild (no type-checking), so a test calling a deleted method fails at runtime with `TypeError: X is not a function` — a red suite is the only signal.
+- Before trusting a reviewer claim that a method is "absent" from a class, re-read the actual source file and confirm with `grep`. Reviewers can misread a class body and produce ghost findings.
 - When the `edit` tool reports "no match" for an `old_string` that `read`/`grep` show verbatim, suspect invisible Unicode characters in the target file.
 - Since pnpm 10.x, `--publish-branch` defaults to both `master` and `main`, so publishing from `main` passes without explicit config. Verify against the installed pnpm version and official docs before concluding a local `pnpm publish` will fail. To isolate the branch check from a dirty working tree, use a throwaway git repo with `pnpm-workspace.yaml` containing `packages: []` and run `pnpm publish --dry-run`.
+- For Windows atomic-write tests, mock the `fs.rename` seam, select the Windows retry branch, and inject a transient error (e.g., `EBUSY`). Do not hold an open file handle as retry evidence — its behavior is platform-dependent.
+- For Kanban verification, resolve locally installed Vitest or Jest package bin entries and invoke them through `process.execPath` with `shell: false`. Do not add package-manager fallbacks to the generic verifier command allowlist.
 
-## Atomic State and Cleanup Invariants
+## Data Integrity Invariants
 
 - **Session-memory merge queries** (`packages/sage/src/sqlite-store-remember.ts`): always require strict `owner_session_id = ?` matching. Never let owned writes merge with `owner_session_id IS NULL` legacy rows — session-filtered retrieval deliberately hides those rows, and adoption silently changes their ownership semantics.
 - **Fingerprint-cache refactors:** update the cache value type, hit path, write path, comparison path, eviction accounting, observability counters, and setup/teardown resets as one atomic change.
@@ -43,7 +42,6 @@
 - Do not compact `replace`, `diff`, or `patch` entries into `ToolGroup` — the compact renderer preserves only one-line metadata and discards structured diff bodies and multi-file summaries.
 - Trigger a React revision whenever mutable height-cache measurements change cached totals; otherwise `totalHeight()` and `onMeasure` remain stuck on render-time estimates.
 - Recalculate the bottom region when picker or panel heights change, not only on terminal resize.
-- Treat conservative height estimates as insufficient for large indivisible entries (e.g., full diffs). Use analytic or actual measurements, or nested virtualization, to preserve memory bounds.
 - In `packages/tui/src/components/scrollable-history.tsx`, always clear `selectionRef` whenever `HistoryScrollController` moves the viewport — selection coordinates are viewport-relative and become unsafe against newly mounted card spans. When copying compact tool groups, pass every mounted span's `entryIds` through `toolGroupsByHeadId` to `assembleSelectionText`; using only the group head silently omits later members.
 
 ## Terminal and Effect Lifecycle

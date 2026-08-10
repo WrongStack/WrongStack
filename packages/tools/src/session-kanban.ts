@@ -702,6 +702,27 @@ function notifyTodoUpdate(context: Context, todos: readonly TodoItem[]): void {
   }
 }
 
+/**
+ * The todo rows that still need the session mirror: those not already cards on
+ * the board this session is working on.
+ *
+ * The rule used to be all-or-nothing — the mirror was skipped only when EVERY
+ * row was bound. A single unbound row (a todo the model added to the chat list
+ * without also filing a card) sent the whole list to a separate session board,
+ * so work already tracked on the real board showed up a second time there, and
+ * one stray row was enough to leave a session board holding a single card.
+ *
+ * With no active board every row still needs mirroring, since there is no other
+ * place the work is being recorded.
+ */
+export function todosNeedingSessionMirror(
+  todos: readonly TodoItem[],
+  activeBoardId: string | undefined,
+): readonly TodoItem[] {
+  if (!activeBoardId) return todos;
+  return todos.filter((todo) => todo.kanbanBoardId !== activeBoardId || !todo.kanbanTaskId);
+}
+
 export function mirrorSessionTodosToKanban(
   projectRoot: string | undefined,
   todos: readonly TodoItem[],
@@ -897,21 +918,21 @@ export function attachSessionKanbanMirror(context: Context): () => void {
   const unsubscribe = context.state.onChange((change) => {
     if (change.kind === 'todos_replaced' && !suppressedTodoMirrors.has(context)) {
       const snapshot = change.completedSnapshot ?? change.todos;
-      if (
-        snapshot.length > 0 &&
-        snapshot.every(
-          (todo) => todo.kanbanBoardId === activeManagedBoardId() && Boolean(todo.kanbanTaskId),
-        )
-      ) {
-        return;
-      }
+      // Mirror only the rows that are NOT already cards on the board this
+      // session is working on.
+      //
+      // This used to be all-or-nothing: the mirror was skipped only when EVERY
+      // row was already bound. One unbound row — a todo the model added to the
+      // chat list without also filing a card — sent the whole list to a
+      // separate session board, so work already tracked on the real board
+      // appeared a second time there. That is the "some of these tasks are
+      // also on another board" symptom, and a single stray row is likewise how
+      // a session board ends up holding exactly one card.
+      const unbound = todosNeedingSessionMirror(snapshot, activeManagedBoardId());
+      if (snapshot.length > 0 && unbound.length === 0) return;
       // ConversationState auto-clears an all-done tactical list. Project the
       // pre-clear completion snapshot so every card reaches Done atomically.
-      mirrorSessionTodosToKanban(
-        context.projectRoot,
-        change.completedSnapshot ?? change.todos,
-        sessionId(),
-      );
+      mirrorSessionTodosToKanban(context.projectRoot, unbound, sessionId());
       return;
     }
     if (

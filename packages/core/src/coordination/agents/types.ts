@@ -139,8 +139,16 @@ export const TOOLS = {
     'test',
     'mailbox',
   ],
-  /** Version control. */
-  vcs: ['read', 'grep', 'glob', 'git', 'diff'],
+  /**
+   * Version control.
+   *
+   * `mailbox` is in every preset on purpose: a subagent that hits a wall must
+   * be able to say so. This was the one preset without it, which left the `git`
+   * and `release` roles able to fail but not to ask — the two roles whose work
+   * most often needs a decision from the leader (force-push, tag collision,
+   * dirty tree) and least often has a safe default.
+   */
+  vcs: ['read', 'grep', 'glob', 'git', 'diff', 'mailbox'],
   /** Dependency management + CVE audit. */
   deps: ['read', 'grep', 'glob', 'install', 'outdated', 'audit', 'json', 'mailbox'],
   /** Documentation authoring. */

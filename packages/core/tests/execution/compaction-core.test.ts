@@ -747,6 +747,41 @@ describe('buildLosslessDigest', () => {
 });
 
 describe('findPreserveStart', () => {
+  it('keeps protocol-pair repair constant-bounded on a 5k-message tool history', () => {
+    const messages: Message[] = [];
+    for (let i = 0; i < 2_500; i++) {
+      messages.push({
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: `u${i}`, name: 'read', input: { path: `f${i}.ts` } }],
+      } as Message);
+      messages.push({
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: `u${i}`, content: 'ok' }],
+      } as Message);
+    }
+
+    const previousDebug = process.env['WRONGSTACK_DEBUG'];
+    process.env['WRONGSTACK_DEBUG'] = '1';
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      expect(findPreserveStart(messages, 1)).toBe(4_998);
+      const event = log.mock.calls
+        .map(([value]) =>
+          typeof value === 'string' ? (JSON.parse(value) as Record<string, unknown>) : undefined,
+        )
+        .find((value) => value?.['event'] === 'compaction.find_preserve_start.ended');
+      expect(event).toMatchObject({
+        messageCount: 5_000,
+        preserveStart: 4_998,
+        pairRepairIterations: 2,
+        pairRepairInnerIterations: 2,
+      });
+    } finally {
+      if (previousDebug === undefined) delete process.env['WRONGSTACK_DEBUG'];
+      else process.env['WRONGSTACK_DEBUG'] = previousDebug;
+    }
+  });
+
   it('demonstrates protocol messages consume only the raw-tool retention window', () => {
     const messages: Message[] = [
       { ...text('user', 'human task'), origin: 'user_input' },

@@ -1,10 +1,15 @@
-import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DefaultSecretVault, decryptConfigSecrets, encryptConfigSecrets, migratePlaintextSecrets } from '../../src/security/secret-vault.js';
 import * as filePermissions from '../../src/security/file-permissions.js';
+import {
+  DefaultSecretVault,
+  decryptConfigSecrets,
+  encryptConfigSecrets,
+  migratePlaintextSecrets,
+} from '../../src/security/secret-vault.js';
 
 // The EEXIST race test needs to control sync readFileSync/writeFileSync.
 // Default implementations are the real functions, so every other test in
@@ -118,7 +123,10 @@ describe('DefaultSecretVault key reuse', () => {
 describe('encryptConfigSecrets array handling', () => {
   it('walks arrays while encrypting secret fields', () => {
     const v = vault();
-    const out = encryptConfigSecrets({ apiKey: 'k', list: ['a', 'b'], nested: { tokens: ['x'] } }, v) as { apiKey: string; list: string[] };
+    const out = encryptConfigSecrets(
+      { apiKey: 'k', list: ['a', 'b'], nested: { tokens: ['x'] } },
+      v,
+    ) as { apiKey: string; list: string[] };
     expect(v.isEncrypted(out.apiKey)).toBe(true);
     expect(out.list).toEqual(['a', 'b']); // non-secret array values pass through
   });
@@ -133,7 +141,14 @@ describe('migratePlaintextSecrets edges', () => {
 
   it('migrates plaintext secrets, recursing arrays and nulls, with a logger', async () => {
     const cfgPath = path.join(tmp, 'cfg.json');
-    await fs.writeFile(cfgPath, JSON.stringify({ apiKey: 'plain-secret', servers: [{ token: 't1' }, null, 'plain-array-string'], note: null }));
+    await fs.writeFile(
+      cfgPath,
+      JSON.stringify({
+        apiKey: 'plain-secret',
+        servers: [{ token: 't1' }, null, 'plain-array-string'],
+        note: null,
+      }),
+    );
     const warn = vi.fn();
     const res = await migratePlaintextSecrets(cfgPath, vault(), { warn });
     expect(res.migrated).toBeGreaterThan(0);
@@ -174,8 +189,10 @@ describe('migratePlaintextSecrets edges', () => {
         // icacls will run with CORP\alice; we only assert it doesn't throw.
         await expect(migratePlaintextSecrets(cfgPath, vault())).resolves.toBeDefined();
       } finally {
-        if (saved.user !== undefined) process.env.USERNAME = saved.user; else delete process.env.USERNAME;
-        if (saved.domain !== undefined) process.env.USERDOMAIN = saved.domain; else delete process.env.USERDOMAIN;
+        if (saved.user !== undefined) process.env.USERNAME = saved.user;
+        else delete process.env.USERNAME;
+        if (saved.domain !== undefined) process.env.USERDOMAIN = saved.domain;
+        else delete process.env.USERDOMAIN;
       }
     });
   });
@@ -191,8 +208,10 @@ describe('migratePlaintextSecrets edges', () => {
         // icacls runs with the bare "solo" account name; assert it completes.
         await expect(migratePlaintextSecrets(cfgPath, vault())).resolves.toBeDefined();
       } finally {
-        if (saved.user !== undefined) process.env.USERNAME = saved.user; else delete process.env.USERNAME;
-        if (saved.domain !== undefined) process.env.USERDOMAIN = saved.domain; else delete process.env.USERDOMAIN;
+        if (saved.user !== undefined) process.env.USERNAME = saved.user;
+        else delete process.env.USERNAME;
+        if (saved.domain !== undefined) process.env.USERDOMAIN = saved.domain;
+        else delete process.env.USERDOMAIN;
       }
     });
   });
@@ -224,7 +243,10 @@ describe('decryptConfigSecrets', () => {
   it('decrypts a round-tripped value, leaving non-secret fields untouched', () => {
     const v = vault();
     const enc = v.encrypt('hello');
-    const out = decryptConfigSecrets({ apiKey: enc, plain: 'as-is' }, v) as { apiKey: string; plain: string };
+    const out = decryptConfigSecrets({ apiKey: enc, plain: 'as-is' }, v) as {
+      apiKey: string;
+      plain: string;
+    };
     expect(out.apiKey).toBe('hello');
     expect(out.plain).toBe('as-is');
   });
@@ -240,10 +262,24 @@ describe('POSIX-platform branches (mocked)', () => {
     await fs.chmod(keyFile, 0o644);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const restrictSpy = vi.spyOn(filePermissions, 'restrictFilePermissions');
+    let releaseRepair!: () => void;
+    const pendingRepair = new Promise<void>((resolve) => {
+      releaseRepair = resolve;
+    });
+    restrictSpy.mockImplementationOnce(() => pendingRepair);
     await withPlatform('linux', async () => {
       // loadOrCreateKey → checkKeyFilePermissions runs statSync and warns
       // because the key file's mode is not 0o600.
-      vault().encrypt('x');
+      const repairingVault = vault();
+      repairingVault.encrypt('x');
+      let flushed = false;
+      const flush = repairingVault.flushHardening!().then(() => {
+        flushed = true;
+      });
+      await Promise.resolve();
+      expect(flushed).toBe(false);
+      releaseRepair();
+      await flush;
       // migrate → restrictFilePermissions takes the POSIX chmod branch
       const cfgPath = path.join(tmp, 'posix.json');
       await fs.writeFile(cfgPath, JSON.stringify({ apiKey: 'plain' }));

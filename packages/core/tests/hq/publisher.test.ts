@@ -477,6 +477,68 @@ describe('HqPublisher', () => {
     vi.useRealTimers();
   });
 
+  it('keeps every chunk of one snapshot while HQ is offline', () => {
+    // Chunks of a split publish are different content, not successive versions
+    // of the same content. They used to share a coalesce key — so a three-chunk
+    // kanban snapshot queued during an outage arrived as its last chunk alone,
+    // and the boards in the first two chunks silently never reached HQ.
+    vi.useFakeTimers();
+    const publisher = new HqPublisher({
+      url: 'http://127.0.0.1:3499',
+      client,
+      project,
+      reconnectBaseMs: 1_000,
+      maxQueuedBytes: 1024 * 1024,
+      socketFactory: () => {
+        throw new Error('socket unavailable');
+      },
+    });
+
+    publisher.connect();
+    for (let chunkIndex = 0; chunkIndex < 3; chunkIndex += 1) {
+      publisher.publishEvent({
+        type: 'kanban.snapshot',
+        payload: {
+          projectId: 'project_1',
+          generatedAt: '2026-08-10T00:00:00.000Z',
+          boards: [],
+          tombstones: [],
+          chunkIndex,
+          chunkCount: 3,
+          body: 'x'.repeat(4096),
+        },
+      });
+    }
+
+    let stats = publisher.getQueueStats();
+    expect(stats.entries).toBe(3);
+    expect(stats.coalescedFrames).toBe(0);
+    expect(stats.droppedFrames).toBe(0);
+
+    // A newer publish still supersedes the older one chunk for chunk.
+    for (let chunkIndex = 0; chunkIndex < 3; chunkIndex += 1) {
+      publisher.publishEvent({
+        type: 'kanban.snapshot',
+        payload: {
+          projectId: 'project_1',
+          generatedAt: '2026-08-10T00:01:00.000Z',
+          boards: [],
+          tombstones: [],
+          chunkIndex,
+          chunkCount: 3,
+          body: 'y'.repeat(4096),
+        },
+      });
+    }
+
+    stats = publisher.getQueueStats();
+    expect(stats.entries).toBe(3);
+    expect(stats.coalescedFrames).toBe(3);
+
+    publisher.close();
+    vi.useRealTimers();
+  });
+
   it('drops a single telemetry frame larger than the byte cap', () => {
     vi.useFakeTimers();
     const publisher = new HqPublisher({

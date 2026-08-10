@@ -1,8 +1,10 @@
 {
-  "consolidatedAt": "2026-08-09T15:06:31.106Z",
-  "sourceEntryCount": 2,
-  "sourceBytes": 9255,
-  "consolidatedBytes": 10334,
+  "consolidatedAt": "2026-08-10T18:53:38.033Z",
+  "sourceEntryCount": 0,
+  "sourceBytes": 391,
+  "consolidatedBytes": 9771,
   "trigger": "manual",
-  "model": "glm-5.2"
+  "model": "glm-5.2",
+  "pruned": true,
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\bug-hunter\\archive\\learned-2026-08-10T18-53-38-033Z.md"
 }

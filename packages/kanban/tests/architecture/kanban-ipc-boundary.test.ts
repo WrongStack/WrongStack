@@ -30,8 +30,21 @@ describe('Kanban IPC ownership boundary', () => {
     const server = read('packages/kanban/src/server/project-server.ts');
 
     expect(storage).toContain('getProductionKanbanStorage(projectRoot)');
-    expect(storage).toContain("process.env['NODE_ENV'] === 'test'");
-    expect(storage).toContain("process.env['VITEST'] === 'true'");
+    // The in-process escape hatch has one definition now. It used to be spelled
+    // out here and again in `client-domain.ts`, where the two copies could
+    // drift and quietly change which code path the whole suite exercises.
+    const testMode = read('packages/kanban/src/test-mode.ts');
+    expect(testMode).toContain("process.env['NODE_ENV'] === 'test'");
+    expect(testMode).toContain("process.env['VITEST'] === 'true'");
+    expect(testMode).toContain("process.env['WRONGSTACK_KANBAN_FORCE_IPC'] !== '1'");
+    for (const consumer of [
+      'packages/kanban/src/storage.ts',
+      'packages/kanban/src/client-domain.ts',
+    ]) {
+      const source = read(consumer);
+      expect(source, consumer).toContain('isInProcessTestMode()');
+      expect(source, consumer).not.toContain("process.env['VITEST']");
+    }
     expect(facade).toContain('clients require the project IPC owner');
     expect(facade).not.toContain("from '../manager.js'");
     expect(facade).not.toContain("from '../storage.js'");

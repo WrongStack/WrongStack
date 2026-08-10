@@ -2,7 +2,6 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { KanbanBoard, } from '../src/types.js';
 import {
   addTask,
   assignTask,
@@ -13,6 +12,7 @@ import {
   transitionTask,
   updateTaskAssignment,
 } from '../src/manager.js';
+import type { KanbanBoard } from '../src/types.js';
 
 let tmpDir: string;
 
@@ -51,7 +51,12 @@ function fullDetails() {
     labels: ['release'],
     childTaskIds: ['child-1'],
     successCriteria: [
-      { id: 'c1', description: 'Acceptance criterion', type: 'manual' as const, status: 'pending' as const },
+      {
+        id: 'c1',
+        description: 'Acceptance criterion',
+        type: 'manual' as const,
+        status: 'pending' as const,
+      },
     ],
   };
 }
@@ -99,8 +104,20 @@ async function makeRunningManagedTask(): Promise<{
 
 // ── recoverStaleTaskAssignments: managed boards ──────────────────────
 
+/**
+ * Recovery never lets a raw status→column sync touch a managed card — the
+ * lifecycle stage is authoritative there. But leaving the stage untouched was
+ * not the same as leaving the card usable: an assignment-less card in Running
+ * classifies as `running_no_lease`, which is not claimable, so a recovered card
+ * needed a human to run repair_managed_projection before anything could pick it
+ * up again.
+ *
+ * Recovery now walks a retried/released card back one legal step to Todo under
+ * a `kanban-supervisor` actor. A `fail`ed card is deliberately left in Running:
+ * its retry budget is spent, and re-queueing it would loop.
+ */
 describe('recoverStaleTaskAssignments — managed boards', () => {
-  it('retry mode: clears assignment but preserves lifecycle stage and column', async () => {
+  it('retry mode: clears the assignment and returns the card to Todo', async () => {
     const { board, taskId } = await makeRunningManagedTask();
 
     const result = await recoverStaleTaskAssignments(tmpDir, board.id, {
@@ -112,17 +129,22 @@ describe('recoverStaleTaskAssignments — managed boards', () => {
     const updated = await getBoard(tmpDir, board.id);
     const task = updated!.tasks.find((t) => t.id === taskId)!;
 
-    // Lifecycle stage preserved — recovery does not move the card backward.
-    expect(task.lifecycle?.currentStage).toBe('running');
-    // Column preserved — no syncTaskColumnForStatus override.
-    expect(task.columnId).toBe('in-progress');
+    // Walked back one stage so the queue can serve it again.
+    expect(task.lifecycle?.currentStage).toBe('todo');
+    expect(task.columnId).toBe('todo');
+    // The walk-back is an audited transition, not a silent projection edit.
+    expect(task.lifecycle?.history.at(-1)).toMatchObject({
+      from: 'running',
+      to: 'todo',
+      actor: 'kanban-supervisor',
+    });
     // Assignment was retried (attempt incremented, lease cleared).
     expect(task.assignment?.status).toBe('assigned');
     expect(task.assignment?.leaseId).toBeUndefined();
     expect(task.assignment?.attempt).toBeGreaterThan(0);
   });
 
-  it('release mode: clears assignment but preserves lifecycle stage and column', async () => {
+  it('release mode: clears the assignment and returns the card to Todo', async () => {
     const { board, taskId } = await makeRunningManagedTask();
 
     const result = await recoverStaleTaskAssignments(tmpDir, board.id, {
@@ -134,11 +156,23 @@ describe('recoverStaleTaskAssignments — managed boards', () => {
     const updated = await getBoard(tmpDir, board.id);
     const task = updated!.tasks.find((t) => t.id === taskId)!;
 
-    // Lifecycle stage preserved.
-    expect(task.lifecycle?.currentStage).toBe('running');
-    expect(task.columnId).toBe('in-progress');
+    expect(task.lifecycle?.currentStage).toBe('todo');
+    expect(task.columnId).toBe('todo');
     // Assignment fully released.
     expect(task.assignment).toBeUndefined();
+  });
+
+  it('returns the recovered board with the walk-back already applied', async () => {
+    const { board, taskId } = await makeRunningManagedTask();
+
+    const result = await recoverStaleTaskAssignments(tmpDir, board.id, {
+      mode: 'release',
+      now: '2026-08-01T00:00:00.000Z',
+    });
+
+    // The caller must not have to re-read the board to see the final stage.
+    const returned = result!.board.tasks.find((t) => t.id === taskId)!;
+    expect(returned.lifecycle?.currentStage).toBe('todo');
   });
 
   it('fail mode: marks assignment failed but preserves lifecycle stage and column', async () => {

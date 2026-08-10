@@ -22,14 +22,13 @@
  *    reaches the skill layer on a headless box.
  */
 
-import { readRawLearnedEntries } from './project-agent-consolidation.js';
-import { loadConsolidationMetadata } from './project-agent-consolidation.js';
+import { loadConsolidationMetadata, readRawLearnedEntries } from './project-agent-consolidation.js';
 import { LEARNED_SOFT_LIMIT } from './project-agent-learning-normalize.js';
 import { loadProjectAgentLearningPolicy } from './project-agent-learning-policy.js';
 import {
   type LearningOptimizerLlm,
-  optimizeProjectAgentLearning,
   type OptimizeLearningResult,
+  optimizeProjectAgentLearning,
 } from './project-agent-optimizer.js';
 import { assertProjectAgentRole } from './project-agent-paths.js';
 import { listProjectSkillAugmentations } from './project-agent-skill-layer.js';
@@ -111,21 +110,26 @@ export function evaluateAutoOptimize(
 ): AutoOptimizeDecision {
   if (!policy.enabled) return { eligible: false, reason: 'disabled' };
   const normalizedRole = assertProjectAgentRole(role);
-  if (!loadProjectAgentLearningPolicy(normalizedRole, projectRoot).enabled) {
+  const learningPolicy = loadProjectAgentLearningPolicy(normalizedRole, projectRoot);
+  if (!learningPolicy.enabled) {
     return { eligible: false, reason: 'learning-paused' };
   }
 
   const entries = readRawLearnedEntries(normalizedRole, projectRoot);
   if (entries.length < policy.minEntries) return { eligible: false, reason: 'too-few-entries' };
 
+  // The cooldown is against the last *pass*, not the last consolidation. A pass
+  // that ran without a model rewrites every skill addendum and writes no
+  // consolidation metadata, so reading metadata alone let a model-less setup
+  // re-run a full pass after every single capture.
   const meta = loadConsolidationMetadata(normalizedRole, projectRoot);
-  if (meta) {
-    const since = now - Date.parse(meta.consolidatedAt);
+  const lastPassAt = [meta?.consolidatedAt, learningPolicy.lastOptimizeAt]
+    .map((stamp) => (stamp ? Date.parse(stamp) : Number.NaN))
     // A malformed timestamp parses to NaN; treat it as "no usable cooldown"
     // rather than blocking the role forever.
-    if (Number.isFinite(since) && since < policy.minIntervalMs) {
-      return { eligible: false, reason: 'cooling-down' };
-    }
+    .filter((value) => Number.isFinite(value));
+  if (lastPassAt.length > 0 && now - Math.max(...lastPassAt) < policy.minIntervalMs) {
+    return { eligible: false, reason: 'cooling-down' };
   }
 
   const bytes = entries.reduce(

@@ -105,16 +105,13 @@ describe('auditKanbanBoard — code coverage', () => {
     expect(withFlag.issues.some((i) => i.code === 'missing-due-date')).toBe(true);
   });
 
-  it('auto-enables requireDueDate on managed boards even when caller omits the flag', () => {
-    // Regression: managed lifecycle boards always require a due date —
-    // the WebUI Cleaner enables this by reading the lifecycle policy,
-    // and the TUI must do the same so the two surfaces agree. The
-    // caller must NOT have to set requireDueDate explicitly.
-    const t = task('t1'); // no dueDate, no labels
-    const legacy = board([t]);
-    expect(
-      auditKanbanBoard(legacy, { now: NOW }).issues.some((i) => i.code === 'missing-due-date'),
-    ).toBe(false);
+  it('does not demand a due date just because a board is managed', () => {
+    // This used to assert the opposite. The managed lifecycle gate
+    // (`validateRequiredCardDetails`) requires description, assignee, success
+    // criteria and — for atomic parents — child tasks. A date is never part of
+    // advancing a card, so auto-enabling it here made the Cleaner disagree with
+    // the gate that actually blocks work on every managed board.
+    const t = task('t1'); // no dueDate
     const managed: KanbanBoard = {
       ...board([t]),
       lifecycle: {
@@ -130,12 +127,12 @@ describe('auditKanbanBoard — code coverage', () => {
     };
     expect(
       auditKanbanBoard(managed, { now: NOW }).issues.some((i) => i.code === 'missing-due-date'),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('does not allow callers to disable required due dates on managed boards', () => {
-    // The managed lifecycle validator always requires a valid due date;
-    // audit options may opt legacy boards in, but cannot weaken that contract.
+  it('honors a caller that turns due dates off on a managed board', () => {
+    // The flag is the caller's, on every board kind. It used to be silently
+    // ignored on managed boards, which is how a `false` still produced findings.
     const t = task('t1');
     const managed: KanbanBoard = {
       ...board([t]),
@@ -152,6 +149,11 @@ describe('auditKanbanBoard — code coverage', () => {
     };
     expect(
       auditKanbanBoard(managed, { now: NOW, requireDueDate: false }).issues.some(
+        (i) => i.code === 'missing-due-date',
+      ),
+    ).toBe(false);
+    expect(
+      auditKanbanBoard(managed, { now: NOW, requireDueDate: true }).issues.some(
         (i) => i.code === 'missing-due-date',
       ),
     ).toBe(true);
@@ -237,7 +239,12 @@ describe('auditKanbanBoard — code coverage', () => {
         },
       },
     };
-    const codes = auditKanbanBoard(managed, { now: NOW }).issues.map((issue) => issue.code);
+    // `requireDueDate` is now the caller's call on every board kind, so ask
+    // for it explicitly — the point of this case is the blank-container
+    // strictness, not who turns the date rule on.
+    const codes = auditKanbanBoard(managed, { now: NOW, requireDueDate: true }).issues.map(
+      (issue) => issue.code,
+    );
     expect(codes).toEqual(
       expect.arrayContaining([
         'missing-due-date',
@@ -366,7 +373,7 @@ describe('auditKanbanBoard — code coverage', () => {
     expect(summary.issues.some((i) => i.code === 'skipped-lifecycle-state')).toBe(true);
   });
 
-  it('validates lifecycle history before suppressing completed task details', () => {
+  it('stops auditing a completed card, including its lifecycle history', () => {
     const t = task('done', {
       status: 'completed',
       columnId: 'c5',
@@ -386,20 +393,12 @@ describe('auditKanbanBoard — code coverage', () => {
         columns: { backlog: 'c1', todo: 'c2', running: 'c3', review: 'c4', done: 'c5' },
       },
     };
+    // The terminal-status check now runs before every collector, matching the
+    // WebUI half. Reporting a skipped transition on delivered work was noise
+    // nobody could act on, and it was the loudest source of Cleaner disagreement
+    // between the two surfaces.
     const summary = auditKanbanBoard(managed, { now: NOW });
-    expect(summary.issues.map((issue) => issue.code)).toEqual(['skipped-lifecycle-state']);
-  });
-
-  it('requires due dates by default on managed boards', () => {
-    const managed: KanbanBoard = {
-      ...board([task('t1')]),
-      lifecycle: {
-        mode: 'managed',
-        columns: { backlog: 'c1', todo: 'c2', running: 'c3', review: 'c4', done: 'c5' },
-      },
-    };
-    const summary = auditKanbanBoard(managed, { now: NOW });
-    expect(summary.issues.some((issue) => issue.code === 'missing-due-date')).toBe(true);
+    expect(summary.issues).toEqual([]);
   });
 
   it('does not infer an abandoned agent when no live roster was supplied', () => {

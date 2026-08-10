@@ -1,6 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { buildChildEnv, buildWin32CmdShimInvocation, toErrorMessage } from '@wrongstack/core/utils';
 import type { MCPAuthorizationProvider } from './authorization.js';
+import { forceKillTree } from './client-process.js';
+import { pageParams, parseEmptyResult, validateProtocolString } from './client-protocol-helpers.js';
 import { MCP_CONSTANTS } from './constants.js';
 import {
   type MCPGetPromptResult,
@@ -19,15 +21,9 @@ import {
 import { normalizeMCPTools } from './tool-schema.js';
 import { type HttpTransportOptions, SSETransport, StreamableHTTPTransport } from './transport.js';
 import { isJsonRpcResult } from './transport-jsonrpc.js';
-import {
-  pageParams,
-  parseEmptyResult,
-  validateProtocolString,
-} from './client-protocol-helpers.js';
-import { forceKillTree } from './client-process.js';
 
-export { quoteWindowsArg } from './client-protocol-helpers.js';
 export { forceKillTree } from './client-process.js';
+export { quoteWindowsArg } from './client-protocol-helpers.js';
 
 export type Transport = 'stdio' | 'sse' | 'streamable-http';
 
@@ -608,10 +604,24 @@ export class MCPClient {
         if (child.exitCode !== null || child.signalCode !== null) resolve();
       });
       try {
-        // Initial SIGTERM lets the server flush logs / clean up sockets.
-        child.kill();
+        if (
+          process.platform === 'win32' &&
+          child.stdin &&
+          !child.stdin.destroyed &&
+          child.stdin.writable
+        ) {
+          // Windows launches command shims through cmd.exe. Killing that
+          // wrapper does not signal the real MCP server and can orphan it
+          // before tree escalation still has a live root PID. EOF on the
+          // protocol stream reaches the real server and gives it the normal
+          // stdio shutdown contract instead.
+          child.stdin.end();
+        } else {
+          // POSIX children receive the conventional graceful signal directly.
+          child.kill();
+        }
       } catch {
-        // ignore
+        // ignore; the forced path below remains the final backstop
       }
       // Wait briefly for graceful exit, then escalate to SIGKILL. A stuck
       // server that ignores SIGTERM would otherwise stay alive after
@@ -623,10 +633,9 @@ export class MCPClient {
         new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), GRACEFUL_MS)),
       ]);
       if (gracefulRace === 'timeout') {
-        // On Windows the graceful child.kill() above only signals the cmd.exe
-        // wrapper, so this escalation is always reached — tree-kill the real
-        // server (taskkill /T /F) instead of just the wrapper. POSIX SIGKILLs
-        // the child directly.
+        // A Windows server that does not exit on stdin EOF is rooted at the
+        // still-live cmd.exe wrapper, so taskkill /T /F can reliably remove
+        // the complete tree. POSIX SIGKILLs the child directly.
         forceKillTree(child);
         await Promise.race([
           exitPromise,

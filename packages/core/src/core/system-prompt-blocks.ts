@@ -12,10 +12,7 @@ import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
 import type { TextBlock } from '../types/blocks.js';
 import type { Tool } from '../types/tool.js';
 import type { InstructionBundle } from './instruction-bundle.js';
-import {
-  type InstructionTemplateContext,
-  renderInstructionLayer,
-} from './instruction-template.js';
+import { type InstructionTemplateContext, renderInstructionLayer } from './instruction-template.js';
 
 /**
  * The section of the system prompt a given TextBlock originated from. Used by
@@ -32,6 +29,7 @@ export type SystemBlockSource =
   | 'leader-after-task' // leader-only after-task affordances
   | 'contributor' // plugin-contributed volatile blocks
   | 'ledger' // volatile completed-work ledger (request-time)
+  | 'glossary' // volatile `[Project Jargon Dictionary]` block (SAGE-backed, minimal)
   | 'nextsteps'; // volatile next-steps gate (request-time)
 
 /**

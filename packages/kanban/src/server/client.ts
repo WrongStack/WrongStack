@@ -12,7 +12,11 @@ import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeLifecycleIssues, KanbanLifecycleError } from '../manager/lifecycle-error.js';
+import {
+  decodeLifecycleIssues,
+  KanbanLifecycleError,
+  StaleWriteError,
+} from '../manager/lifecycle-error.js';
 import { kanbanProjectServerEndpoint } from './endpoint.js';
 import {
   KANBAN_PROJECT_SERVER_METADATA_FILE,
@@ -224,11 +228,15 @@ class KanbanServerConnection {
                       original,
                       decodeLifecycleIssues({ message: original } as Error),
                     )
-                  : (() => {
-                      const e = new Error(original);
-                      if (typeof code === 'string') (e as { code?: string }).code = code;
-                      return e;
-                    })();
+                  : // Optimistic-locking retries all read `instanceof
+                    // StaleWriteError`. Reconstructing it here means a caller
+                    // writes the same check whether the mutation was local or
+                    // went through the daemon; `error.code === 'STALE_WRITE'`
+                    // keeps working for anything already written that way.
+                    code === 'STALE_WRITE'
+                    ? new StaleWriteError(original)
+                    : new Error(original);
+              if (typeof code === 'string') (error as { code?: string }).code = code;
               pending.reject(error);
             }
           }

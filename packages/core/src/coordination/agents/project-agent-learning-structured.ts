@@ -1,7 +1,4 @@
-import {
-  splitLearnedEntries,
-  tokenOverlap,
-} from './project-agent-learning-entries.js';
+import { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
 import {
   classifyLearnedEntry,
   type LearnedEntryCategory,
@@ -37,6 +34,60 @@ export interface StructuredLearnedEntry {
    * the optimization pass; unrouted entries stay role-level.
    */
   skill?: string | undefined;
+  /**
+   * Completed tasks where this directive was injected **and** the agent's
+   * report showed it was actually exercised (its anchors or distinctive
+   * wording appeared in the output).
+   *
+   * Optional so an entry can be constructed without a track record; treat a
+   * missing value as 0 by reading it through {@link directiveTrials}.
+   */
+  applied?: number | undefined;
+  /** Of those, the ones that ended in a successful task. */
+  wins?: number | undefined;
+}
+
+/** Normalized track record. A missing counter reads as 0, never as NaN. */
+export function directiveTrials(entry: Pick<StructuredLearnedEntry, 'applied' | 'wins'>): {
+  applied: number;
+  wins: number;
+  losses: number;
+} {
+  const count = (n: unknown): number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  const applied = count(entry.applied);
+  const wins = Math.min(applied, count(entry.wins));
+  return { applied, wins, losses: applied - wins };
+}
+
+/**
+ * Laplace-smoothed success rate of a directive: the fraction of tasks that
+ * succeeded among those where the directive was actually exercised.
+ *
+ * An unproven directive scores exactly 0.5 — a neutral prior, not a penalty.
+ * That matters everywhere this is used as a ranking key: "no evidence" must
+ * never sort below "evidence of harm", which is the inversion the skill-level
+ * score used to have.
+ */
+export function directiveUtility(entry: Pick<StructuredLearnedEntry, 'applied' | 'wins'>): number {
+  const { applied, wins } = directiveTrials(entry);
+  return (wins + 1) / (applied + 2);
+}
+
+/** Trials before a directive's record is trusted enough to protect or retire it. */
+export const DIRECTIVE_PROVEN_MIN_APPLIED = 5;
+/** Utility at or above which a directive is treated as proven. */
+export const DIRECTIVE_PROVEN_MIN_UTILITY = 0.7;
+
+/**
+ * A directive that has earned the right not to be overwritten by a near
+ * duplicate: exercised enough times, and correlated with success when it was.
+ */
+export function isProvenDirective(entry: StructuredLearnedEntry): boolean {
+  return (
+    directiveTrials(entry).applied >= DIRECTIVE_PROVEN_MIN_APPLIED &&
+    directiveUtility(entry) >= DIRECTIVE_PROVEN_MIN_UTILITY
+  );
 }
 
 export function parseLearnedEntryStamp(entry: string): {
@@ -216,6 +267,10 @@ export function parseStructuredLearnedEntriesFromContent(
     const category = parseLearnedCategory(attributes['category']) ?? 'fact';
     const capturedAt = attributes['capturedAt'] ?? '';
     const skill = attributes['skill'];
+    const trials = directiveTrials({
+      applied: Number(attributes['applied']),
+      wins: Number(attributes['wins']),
+    });
     const start = (stamp.index ?? 0) + stamp[0].length;
     const end = stamps[index + 1]?.index ?? raw.length;
     const parsed = parseEntryBody(raw.slice(start, end));
@@ -228,6 +283,7 @@ export function parseStructuredLearnedEntriesFromContent(
       how: parsed.how,
       capturedAt,
       ...(skill ? { skill } : {}),
+      ...(trials.applied > 0 ? { applied: trials.applied, wins: trials.wins } : {}),
     });
   }
   if (structured.length === 0) {
@@ -260,17 +316,46 @@ export function mergeStructuredEntries(
   },
 ): StructuredLearnedEntry[] {
   const { what, why, how } = decomposeLearnedEntry(fresh.text, fresh.category);
+  const key = directiveKey(fresh.text);
+  const overlapping = existing.filter((entry) => tokenOverlap(entry.key, key) >= 0.55);
+
+  // A directive that has repeatedly been exercised and repeatedly worked is not
+  // replaced by a near-duplicate just because the near-duplicate is newer.
+  // "Last write wins" let one incidental rewording erase a rule that had proven
+  // itself across dozens of tasks.
+  const proven = overlapping.find(
+    (entry) => entry.category === fresh.category && isProvenDirective(entry),
+  );
+  if (proven) return sortStructuredEntries([...existing]);
+
+  // Reword of an existing directive: inherit its record so the counter does not
+  // restart from zero every time the wording drifts. Only within the same
+  // category — an inverted rule ("always X" → "never X") shares most of its
+  // tokens but is a different claim and must earn its own record.
+  const ancestor = overlapping
+    .filter((entry) => entry.category === fresh.category)
+    .sort((a, b) => directiveTrials(b).applied - directiveTrials(a).applied)[0];
+  const inherited = ancestor ? directiveTrials(ancestor) : { applied: 0, wins: 0 };
+
   const freshEntry: StructuredLearnedEntry = {
-    key: directiveKey(fresh.text),
+    key,
     category: fresh.category,
     what,
     why,
     how,
     capturedAt: fresh.capturedAt,
     ...(fresh.skill ? { skill: fresh.skill } : {}),
+    ...(inherited.applied > 0 ? { applied: inherited.applied, wins: inherited.wins } : {}),
   };
-  const merged = existing.filter((entry) => tokenOverlap(entry.key, freshEntry.key) < 0.55);
+  const merged = existing.filter(
+    (entry) => entry.category !== fresh.category || tokenOverlap(entry.key, key) < 0.55,
+  );
   merged.push(freshEntry);
+  return sortStructuredEntries(merged);
+}
+
+/** Warnings first, then alphabetical — the buffer's stable on-disk order. */
+function sortStructuredEntries(merged: StructuredLearnedEntry[]): StructuredLearnedEntry[] {
   const order: Record<LearnedEntryCategory, number> = {
     warning: 0,
     convention: 1,
@@ -334,10 +419,15 @@ export function renderLearnedInstructions(
     sections.push(SECTION_TITLE[category]);
     sections.push('');
     for (const entry of list) {
+      const trials = directiveTrials(entry);
       const attributes = [
         `category=${entry.category}`,
         `capturedAt=${entry.capturedAt}`,
         ...(entry.skill ? [`skill=${entry.skill}`] : []),
+        // Zero counters are omitted so an entry with no track record renders
+        // exactly as it did before this field existed — the parse→render
+        // fixed point holds for every pre-existing buffer on disk.
+        ...(trials.applied > 0 ? [`applied=${trials.applied}`, `wins=${trials.wins}`] : []),
       ].join('; ');
       sections.push(`<!-- learned-stamp: ${attributes} -->`);
       sections.push(`- **${entry.what}**`);
@@ -365,7 +455,16 @@ const DROP_PRIORITY: Record<LearnedEntryCategory, number> = {
 
 /**
  * Keep the rendered buffer within `maxBytes` by evicting the least valuable
- * entries — oldest first, plain facts before hard-won warnings.
+ * entries: plain facts before hard-won warnings, then the worst track record,
+ * then the oldest.
+ *
+ * Track record before age is the point of the ordering. Age says when a
+ * directive arrived; utility says whether it has ever helped. A directive that
+ * has been exercised eight times and correlated with failure every time is the
+ * cheapest thing in the buffer no matter how recently it was written, and a
+ * directive that keeps working should outlive newer arrivals. Entries with no
+ * record sit at the neutral 0.5 prior, so this reduces to the previous
+ * age-ordered behaviour for any buffer that predates outcome tracking.
  *
  * This replaces the old "block every automatic capture once the file passes
  * 8 KB" gate. That gate had no way to ever clear itself (consolidation wrote a
@@ -383,13 +482,25 @@ export function enforceLearnedBudget(
   const dropped: StructuredLearnedEntry[] = [];
   const size = (list: StructuredLearnedEntry[]): number =>
     Buffer.byteLength(renderLearnedInstructions(role, list, capturedAt), 'utf8');
+  // Utilities differing by less than this are treated as equal so the age
+  // tie-break still decides, keeping eviction deterministic.
+  const UTILITY_EPSILON = 1e-9;
   while (kept.length > 1 && size(kept) > maxBytes) {
     let victimIndex = 0;
     for (let i = 1; i < kept.length; i++) {
       const a = kept[i] as StructuredLearnedEntry;
       const b = kept[victimIndex] as StructuredLearnedEntry;
       const byPriority = DROP_PRIORITY[a.category] - DROP_PRIORITY[b.category];
-      if (byPriority < 0 || (byPriority === 0 && a.capturedAt < b.capturedAt)) victimIndex = i;
+      if (byPriority !== 0) {
+        if (byPriority < 0) victimIndex = i;
+        continue;
+      }
+      const byUtility = directiveUtility(a) - directiveUtility(b);
+      if (Math.abs(byUtility) > UTILITY_EPSILON) {
+        if (byUtility < 0) victimIndex = i;
+        continue;
+      }
+      if (a.capturedAt < b.capturedAt) victimIndex = i;
     }
     dropped.push(...kept.splice(victimIndex, 1));
   }

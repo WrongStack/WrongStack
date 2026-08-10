@@ -54,7 +54,7 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
     name: 'agent-improve',
     category: 'Config',
     description:
-      "Inspect and develop a roster agent for this project: learned directives, per-skill project addenda and the optimization pass.",
+      'Inspect and develop a roster agent for this project: learned directives, per-skill project addenda and the optimization pass.',
     help: [
       'Usage:',
       '  /agent-improve [role]                Show customization for a role (or all roles)',
@@ -125,9 +125,21 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
           const learned = loadProjectAgentLearned(role, projectRoot);
           const kn = loadRoleKnowledgeManifest(role, projectRoot);
           const developedSkills = listProjectSkillAugmentations(role, projectRoot);
+          const stats = getProjectAgentLearnStats(role, projectRoot);
           const lines: string[] = [`${color.bold(role)} project identity:`];
           if (developedSkills.length > 0) {
             lines.push(`  skills developed: ${developedSkills.join(', ')}`);
+          }
+          if (stats.entryCount > 0) {
+            // Capture volume says nothing about whether the role is learning
+            // useful things. The hit rate and the dead share do.
+            const hitRate =
+              stats.directiveHitRate === null
+                ? 'no directive exercised yet'
+                : `${Math.round(stats.directiveHitRate * 100)}% hit rate over ${stats.appliedEntryCount} exercised`;
+            lines.push(
+              `  directives: ${stats.entryCount} buffered · ${hitRate} · ${stats.deadEntryCount} never used`,
+            );
           }
           if (cfg) lines.push(`  config: ${JSON.stringify(cfg)}`);
           if (kn)

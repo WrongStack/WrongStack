@@ -4,6 +4,15 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/stores/local-prefs', () => ({
+  useLocalPrefs: {
+    getState: () => {
+      throw new Error('store not ready');
+    },
+    subscribe: () => () => {},
+  },
+}));
+
 describe('i18n/index — readInitialLocale catch (line 49)', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -14,14 +23,6 @@ describe('i18n/index — readInitialLocale catch (line 49)', () => {
   });
 
   it('falls back to FALLBACK_LNG when useLocalPrefs.getState throws', async () => {
-    // Mock the local-prefs store so that getState throws
-    vi.mock('@/stores/local-prefs', () => ({
-      useLocalPrefs: {
-        getState: () => { throw new Error('store not ready'); },
-        subscribe: () => () => {},
-      },
-    }));
-
     // Import should not throw — catch block returns FALLBACK_LNG
     const mod = await import('../../src/i18n/index');
     expect(mod).toBeDefined();

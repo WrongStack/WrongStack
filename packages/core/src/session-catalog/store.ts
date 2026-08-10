@@ -13,6 +13,7 @@ import type {
   MaintenanceLease,
   ResumeReservation,
   SessionCatalogHealth,
+  SessionCatalogListArgs,
   SessionLeaseCredential,
 } from './protocol.js';
 import {
@@ -691,19 +692,55 @@ export class SessionCatalogStore {
     };
   }
 
-  listCatalog(limit = 100, search?: string): CatalogSessionRecord[] {
-    const bounded = Math.min(MAX_PAGE, Math.max(1, Math.floor(limit)));
-    const rows = search?.trim()
-      ? this.db
-          .prepare(
-            "SELECT * FROM sessions WHERE session_id LIKE ? OR json_extract(summary_json,'$.title') LIKE ? OR json_extract(summary_json,'$.name') LIKE ? ORDER BY COALESCE(json_extract(summary_json,'$.lastActivityAt'),json_extract(summary_json,'$.startedAt')) DESC LIMIT ?",
-          )
-          .all(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, bounded)
-      : this.db
-          .prepare(
-            "SELECT * FROM sessions ORDER BY COALESCE(json_extract(summary_json,'$.lastActivityAt'),json_extract(summary_json,'$.startedAt')) DESC LIMIT ?",
-          )
-          .all(bounded);
+  listCatalog(criteria: SessionCatalogListArgs = {}): CatalogSessionRecord[] {
+    const requestedLimit = criteria.limit ?? 100;
+    if (!Number.isFinite(requestedLimit)) throw new TypeError('Invalid session catalog limit');
+    const bounded = Math.min(MAX_PAGE, Math.max(1, Math.floor(requestedLimit)));
+    const clauses: string[] = [];
+    const values: Array<string | number> = [];
+    const jsonText = (field: string): string =>
+      `CASE WHEN json_valid(summary_json) THEN json_extract(summary_json,'$.${field}') END`;
+    const literalLike = (value: string): string =>
+      `%${value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`;
+    const search = criteria.search?.trim();
+    if (search) {
+      const pattern = literalLike(search);
+      clauses.push(
+        `(session_id LIKE ? ESCAPE '\\' OR ${jsonText('title')} LIKE ? ESCAPE '\\' OR ${jsonText('name')} LIKE ? ESCAPE '\\')`,
+      );
+      values.push(pattern, pattern, pattern);
+    }
+    if (criteria.since) {
+      clauses.push(`${jsonText('startedAt')}>=?`);
+      values.push(criteria.since);
+    }
+    if (criteria.until) {
+      clauses.push(`${jsonText('startedAt')}<=?`);
+      values.push(criteria.until);
+    }
+    if (criteria.provider) {
+      clauses.push(`${jsonText('provider')}=?`);
+      values.push(criteria.provider);
+    }
+    if (criteria.model) {
+      clauses.push(`${jsonText('model')}=?`);
+      values.push(criteria.model);
+    }
+    if (criteria.minTokens !== undefined) {
+      if (!Number.isFinite(criteria.minTokens)) throw new TypeError('Invalid minimum token count');
+      clauses.push(`CAST(COALESCE(${jsonText('tokenTotal')},0) AS REAL)>=?`);
+      values.push(criteria.minTokens);
+    }
+    if (criteria.titleContains) {
+      clauses.push(`${jsonText('title')} LIKE ? ESCAPE '\\'`);
+      values.push(literalLike(criteria.titleContains.toLocaleLowerCase()));
+    }
+    const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '';
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM sessions${where} ORDER BY COALESCE(${jsonText('lastActivityAt')},${jsonText('endedAt')},${jsonText('startedAt')}) DESC,${jsonText('startedAt')} DESC,session_id ASC LIMIT ?`,
+      )
+      .all(...values, bounded);
     return (rows as unknown as CatalogRow[]).map((row) => this.catalogRecord(row));
   }
 

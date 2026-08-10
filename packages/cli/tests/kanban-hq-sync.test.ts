@@ -41,6 +41,35 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
+/**
+ * A board that is over HQ's per-board limit for a reason redaction cannot fix.
+ *
+ * Size has to come from MANY cards, not one long field: the publisher
+ * summarises any string over 100 KB before sending, so a single giant string
+ * shrinks on the wire and the board arrives fine. Only a board whose bulk is
+ * spread across ordinary-sized cards stays over the limit.
+ */
+function oversizedBoardObject(title: string) {
+  const board = createBoardObject({ title });
+  const filler = 'card body '.repeat(120);
+  let index = 0;
+  while (Buffer.byteLength(JSON.stringify(board), 'utf8') <= 750_000) {
+    board.tasks.push({
+      id: `bulk-${index}`,
+      title: `Bulk card ${index}`,
+      description: `${filler}#${index}`,
+      columnId: board.columns[0]?.id ?? 'todo',
+      order: index,
+      priority: 'medium',
+      status: 'pending',
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    } as (typeof board.tasks)[number]);
+    index += 1;
+  }
+  return board;
+}
+
 async function tempProject(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'kanban-hq-client-'));
   roots.push(root);
@@ -114,6 +143,108 @@ describe('CLI Kanban HQ synchronization', () => {
         | undefined;
       if (event === undefined) throw new Error('expected oversized snapshot publish');
       expect(Buffer.byteLength(JSON.stringify(event.payload), 'utf8')).toBeGreaterThan(512 * 1024);
+    } finally {
+      warning.mockRestore();
+      sync.stop();
+    }
+  });
+
+  it('skips a board HQ would reject, and still publishes the rest of the round', async () => {
+    // `isHqKanbanSnapshotPayload` rejects the WHOLE snapshot when one board
+    // record exceeds MAX_HQ_KANBAN_BOARD_BYTES, and HQ drops a rejected frame
+    // with no reply — so the board silently stopped appearing in HQ and the
+    // fingerprint said it had been sent.
+    const root = await tempProject();
+    const huge = oversizedBoardObject('Huge');
+    await writeBoard(root, huge);
+    const small = createBoardObject({ title: 'Small' });
+    await writeBoard(root, small);
+    const publishEvent = vi.fn();
+    const warning = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    const sync = createKanbanHqSync(root, 'dropped-project');
+
+    try {
+      await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining(huge.id), {
+        code: 'WRONGSTACK_HQ_KANBAN_BOARD_DROPPED',
+      });
+      const published = publishEvent.mock.calls
+        .map(([input]) => input as { payload: HqKanbanSnapshotPayload })
+        .flatMap(({ payload }) => payload.boards.map((board) => board.boardId));
+      expect(published).toContain(small.id);
+      expect(published).not.toContain(huge.id);
+    } finally {
+      warning.mockRestore();
+      sync.stop();
+    }
+  });
+
+  it('publishes a board that only redaction can shrink', async () => {
+    // The publisher summarises any string over 100 KB before sending, so a
+    // board that is large because of ONE long field fits on the wire and must
+    // not be skipped. Measuring the raw board dropped it — trading a truncated
+    // description for a board that never appears at all.
+    const root = await tempProject();
+    const board = createBoardObject({ title: 'One long field' });
+    board.description = 'x'.repeat(800_000);
+    await writeBoard(root, board);
+    const publishEvent = vi.fn();
+    const warning = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    const sync = createKanbanHqSync(root, 'long-field-project');
+
+    try {
+      await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+      const published = publishEvent.mock.calls
+        .map(([input]) => input as { payload: HqKanbanSnapshotPayload })
+        .flatMap(({ payload }) => payload.boards.map((record) => record.boardId));
+      expect(published).toContain(board.id);
+      expect(warning).not.toHaveBeenCalledWith(expect.anything(), {
+        code: 'WRONGSTACK_HQ_KANBAN_BOARD_DROPPED',
+      });
+    } finally {
+      warning.mockRestore();
+      sync.stop();
+    }
+  });
+
+  it('retries a skipped board on the next round instead of fingerprinting it as sent', async () => {
+    // The fingerprint is what makes a delta a no-op next time. Writing it for a
+    // board that never reached HQ turned a transient size problem into
+    // permanent absence: the board would be skipped again on every later
+    // publish, even after the operator archived cards and it shrank.
+    const root = await tempProject();
+    const board = oversizedBoardObject('Shrinking');
+    await writeBoard(root, board);
+    const publishEvent = vi.fn();
+    const warning = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    const sync = createKanbanHqSync(root, 'retry-project');
+
+    try {
+      await sync.attachPublisher({ publishEvent } as unknown as HqPublisher);
+      const state = JSON.parse(
+        (await readKanbanMetadata(root, 'hq-sync-state-v1')) ?? '{"boards":{}}',
+      ) as { boards: Record<string, unknown> };
+      expect(state.boards[board.id]).toBeUndefined();
+
+      // Same revision, now small enough. Nothing about the board's identity
+      // changed — only its size — so a written fingerprint would have hidden it.
+      const stored = await readBoard(root, board.id);
+      if (stored === null) throw new Error('expected the board to still exist');
+      stored.tasks = [];
+      await writeBoard(root, stored);
+      publishEvent.mockClear();
+      sync.refresh(board.id);
+
+      await waitForCondition(
+        () =>
+          publishEvent.mock.calls.some(([input]) =>
+            (input as { payload: HqKanbanSnapshotPayload }).payload.boards.some(
+              (record) => record.boardId === board.id,
+            ),
+          ),
+        'expected the shrunken board to publish on the next round',
+      );
     } finally {
       warning.mockRestore();
       sync.stop();

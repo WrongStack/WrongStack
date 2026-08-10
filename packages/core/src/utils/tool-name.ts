@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 /**
  * Provider-wire tool name constraints.
  *
@@ -16,6 +18,8 @@
 
 export const WIRE_TOOL_NAME_MAX_LENGTH = 128;
 export const WIRE_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
+const MCP_SERVER_SEGMENT_MAX_LENGTH = 48;
+const MCP_IDENTITY_HASH_LENGTH = 10;
 
 /**
  * Coerce an arbitrary string into a provider-safe tool name: every char
@@ -29,9 +33,16 @@ export function sanitizeWireToolName(name: string): string {
   return clamped.length > 0 ? clamped : 'tool';
 }
 
+function collisionSafeMcpSegment(value: string, maxLength: number): string {
+  const replaced = value.replace(/[^a-zA-Z0-9_-]/g, '_') || 'tool';
+  if (replaced === value && replaced.length <= maxLength) return replaced;
+  const suffix = `_${createHash('sha256').update(value, 'utf8').digest('hex').slice(0, MCP_IDENTITY_HASH_LENGTH)}`;
+  return `${replaced.slice(0, Math.max(1, maxLength - suffix.length))}${suffix}`;
+}
+
 /** Sanitized `mcp__<server>__` namespace prefix for a server's tools. */
 export function mcpServerToolPrefix(serverName: string): string {
-  return `mcp__${sanitizeWireToolName(serverName)}__`;
+  return `mcp__${collisionSafeMcpSegment(serverName, MCP_SERVER_SEGMENT_MAX_LENGTH)}__`;
 }
 
 /**
@@ -41,7 +52,7 @@ export function mcpServerToolPrefix(serverName: string): string {
  * clamped to the 128-char wire limit.
  */
 export function mcpQualifiedToolName(serverName: string, toolName: string): string {
-  return sanitizeWireToolName(
-    `${mcpServerToolPrefix(serverName)}${sanitizeWireToolName(toolName)}`,
-  );
+  const prefix = mcpServerToolPrefix(serverName);
+  const toolSegment = collisionSafeMcpSegment(toolName, WIRE_TOOL_NAME_MAX_LENGTH - prefix.length);
+  return `${prefix}${toolSegment}`;
 }

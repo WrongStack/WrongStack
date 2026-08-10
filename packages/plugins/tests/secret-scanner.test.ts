@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import secretScannerPlugin from '../src/secret-scanner/index.js';
 import { CREDENTIAL_PATTERNS } from '../src/runtime/credential-patterns.js';
+import secretScannerPlugin from '../src/secret-scanner/index.js';
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -114,6 +114,66 @@ function makePrivateKey(): string {
 // ── Plugin registration ───────────────────────────────────────────────
 
 describe('secret-scanner plugin', () => {
+  it('isolates hooks and custom patterns across concurrent plugin hosts', () => {
+    const first = makeApi({
+      extensions: {
+        'secret-scanner': {
+          customPatterns: [{ type: 'first_only', regex: 'FIRST_ONLY_[0-9]{4}' }],
+        },
+      },
+    });
+    const second = makeApi({
+      extensions: {
+        'secret-scanner': {
+          customPatterns: [{ type: 'second_only', regex: 'SECOND_ONLY_[0-9]{4}' }],
+        },
+      },
+    });
+    const firstPreUnregister = vi.fn();
+    const firstPostUnregister = vi.fn();
+    const secondPreUnregister = vi.fn();
+    const secondPostUnregister = vi.fn();
+    first.registerHook
+      .mockReturnValueOnce(firstPreUnregister)
+      .mockReturnValueOnce(firstPostUnregister);
+    second.registerHook
+      .mockReturnValueOnce(secondPreUnregister)
+      .mockReturnValueOnce(secondPostUnregister);
+
+    secretScannerPlugin.setup(first as any);
+    const firstHook = getRegisteredHook(first);
+    secretScannerPlugin.setup(second as any);
+    const secondHook = getRegisteredHook(second);
+
+    expect(firstPreUnregister).not.toHaveBeenCalled();
+    expect(
+      firstHook({
+        event: 'PreToolUse',
+        toolName: 'write',
+        toolInput: { content: 'FIRST_ONLY_1234' },
+        cwd: '/tmp',
+      })?.reason,
+    ).toContain('first_only');
+    expect(
+      secondHook({
+        event: 'PreToolUse',
+        toolName: 'write',
+        toolInput: { content: 'FIRST_ONLY_1234' },
+        cwd: '/tmp',
+      }),
+    ).toBeUndefined();
+
+    secretScannerPlugin.teardown?.(first as any);
+    expect(firstPreUnregister).toHaveBeenCalledOnce();
+    expect(firstPostUnregister).toHaveBeenCalledOnce();
+    expect(secondPreUnregister).not.toHaveBeenCalled();
+    expect(secondPostUnregister).not.toHaveBeenCalled();
+
+    secretScannerPlugin.teardown?.(second as any);
+    expect(secondPreUnregister).toHaveBeenCalledOnce();
+    expect(secondPostUnregister).toHaveBeenCalledOnce();
+  });
+
   it('registers secret_scanner_status and secret_scanner_test', () => {
     const api = makeApi();
     secretScannerPlugin.setup(api as any);
@@ -833,7 +893,7 @@ describe('ReDoS protection', () => {
       toolInput: {
         path: 'config.yml',
         content: 'a'.repeat(100_001), // long content — skipped
-        data: 'token: ' + token,      // short field — scanned
+        data: 'token: ' + token, // short field — scanned
       },
       cwd: '/tmp',
     });
