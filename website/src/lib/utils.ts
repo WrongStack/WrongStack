@@ -324,7 +324,8 @@ export const changelog: ChangelogEntry[] = [
     version: '0.303.0',
     date: '2026-08-10',
     latest: true,
-    tagline: 'Project-learning agents, deeper codebase intelligence, and dependable Windows updates',
+    tagline:
+      'Project-learning agents, deeper codebase intelligence, and dependable Windows updates',
     highlights: [
       'Agents now route learned directives into skill-specific project practice, inject that practice beneath the matching bundled skill on the next spawn, and rank their full curated skill pool by project affinity',
       'Automatic learning optimization is bounded by debounce, per-role cooldown, process-wide serialization, and exponential backoff; failed, cancelled, and ACP-delegated runs can still contribute useful learning',
