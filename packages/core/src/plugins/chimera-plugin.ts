@@ -63,6 +63,20 @@ interface ChimeraConfig {
    */
   maxCascadeDepth?: number | undefined;
   /**
+   * Chimera-specific fallback model chain (`provider/model` refs). When set,
+   * the reviewer subagent uses these models as its in-request fallback chain
+   * instead of inheriting the session-level fallback profile. Example:
+   * `["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"]`.
+   */
+  fallbackModels?: string[] | undefined;
+  /**
+   * Named fallback profile to use for Chimera reviews. When set, the reviewer
+   * spawn resolves this profile's chain from config and uses it as the
+   * fallback ladder. Takes precedence over the session-level fallback profile
+   * for Chimera spawns only.
+   */
+  fallbackProfile?: string | undefined;
+  /**
    * @deprecated Removed. The subagent's `Request.maxTokens` now defaults to
    * the provider's `capabilities.maxOutput`, so Chimera reports can run up
    * to the selected model's native ceiling. Kept on the config interface as an `unknown` sink
@@ -88,6 +102,8 @@ export function resolveChimeraConfig(
     autoFix: cfg.autoFix ?? 'off',
     cascadeOn: cfg.cascadeOn ?? DEFAULT_CASCADE_ON,
     maxCascadeDepth: cfg.maxCascadeDepth ?? DEFAULT_MAX_CASCADE_DEPTH,
+    fallbackModels: cfg.fallbackModels ? [...cfg.fallbackModels] : [],
+    fallbackProfile: cfg.fallbackProfile,
   };
 }
 

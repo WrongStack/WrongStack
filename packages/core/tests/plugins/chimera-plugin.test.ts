@@ -76,6 +76,7 @@ describe('resolveChimeraConfig', () => {
       enabled: true,
       provider: 'p',
       model: 'm',
+      fallbackModels: [],
       maxFiles: 15,
       autoFix: 'off',
       cascadeOn: 'off',
@@ -87,11 +88,41 @@ describe('resolveChimeraConfig', () => {
       enabled: false,
       provider: 'x',
       model: 'y',
+      fallbackModels: [],
       maxFiles: 3,
       autoFix: 'off',
       cascadeOn: 'off',
       maxCascadeDepth: 2,
     });
+  });
+
+  it('honors Chimera-specific fallbackModels from extensions config', () => {
+    expect(
+      resolveChimeraConfig(
+        {
+          fallbackModels: ['anthropic/claude-sonnet', 'openai/gpt-4o'],
+        },
+        'p',
+        'm',
+      ),
+    ).toEqual({
+      enabled: true,
+      provider: 'p',
+      model: 'm',
+      fallbackModels: ['anthropic/claude-sonnet', 'openai/gpt-4o'],
+      maxFiles: 15,
+      autoFix: 'off',
+      cascadeOn: 'off',
+      maxCascadeDepth: 2,
+    });
+  });
+
+  it('defaults fallbackModels to empty array when not configured', () => {
+    expect(resolveChimeraConfig({}, 'p', 'm').fallbackModels).toEqual([]);
+    expect(
+      resolveChimeraConfig({ fallbackModels: undefined }, 'p', 'm').fallbackModels,
+    ).toEqual([]);
+    expect(resolveChimeraConfig({ fallbackModels: [] }, 'p', 'm').fallbackModels).toEqual([]);
   });
 
   it('silently ignores the deprecated maxTokens override', () => {
@@ -103,6 +134,8 @@ describe('resolveChimeraConfig', () => {
       enabled: true,
       provider: 'p',
       model: 'm',
+      fallbackModels: [],
+      fallbackProfile: undefined,
       maxFiles: 15,
       autoFix: 'off',
       cascadeOn: 'off',
@@ -117,6 +150,8 @@ describe('resolveChimeraConfig', () => {
       enabled: true,
       provider: 'p',
       model: 'm',
+      fallbackModels: [],
+      fallbackProfile: undefined,
       maxFiles: 15,
       autoFix: 'auto',
       cascadeOn: 'high',

@@ -17,6 +17,19 @@ export interface ResolvedChimeraConfig {
   autoFix: 'off' | 'ask' | 'auto';
   cascadeOn: 'off' | 'critical' | 'high';
   maxCascadeDepth: number;
+  /**
+   * Chimera-specific fallback model chain (`provider/model` refs), resolved
+   * from `extensions["wstack-chimera"].fallbackModels`. Empty when unset —
+   * the reviewer then inherits the session-level fallback profile chain.
+   */
+  fallbackModels: string[];
+  /**
+   * Named fallback profile to use for Chimera reviews, resolved from
+   * `extensions["wstack-chimera"].fallbackProfile`. When set, the reviewer
+   * spawn resolves the profile chain from config and prepends it to
+   * `fallbackModels`.
+   */
+  fallbackProfile: string | undefined;
 }
 
 /**

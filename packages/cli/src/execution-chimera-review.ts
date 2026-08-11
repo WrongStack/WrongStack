@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { effectiveFallbackChain } from '@wrongstack/core/agent';
+import { effectiveFallbackChain, fallbackProfileChain } from '@wrongstack/core/agent';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import {
   CHIMERA_REVIEW_PROMPT,
@@ -182,9 +182,21 @@ export function installChimeraReviewHandler({
           const rawModel = p.reviewFallbackModels ? p.config.model?.trim() || undefined : tModel;
           const baseProvider = rawProvider || tProvider || config.provider;
           const baseModel = rawModel || tModel || config.model;
+          // Build the Chimera-specific fallback chain: explicit fallbackModels
+          // first, then the resolved fallbackProfile chain (if configured).
+          // This chain enters the ladder as assignedChain (rung 0's
+          // fallbackModels). The session-level chain enters separately via
+          // buildReviewerAttemptLadder's profileChain param below. The ladder
+          // dedupes rungs by provider/model, so overlap is harmless.
+          const configFallbacks = [...p.config.fallbackModels];
+          if (p.config.fallbackProfile) {
+            configFallbacks.push(...fallbackProfileChain(config, p.config.fallbackProfile));
+          }
           const baseFallbacks = p.reviewFallbackModels
             ? [...p.reviewFallbackModels]
-            : resolveReviewerFallbackModels(undefined);
+            : resolveReviewerFallbackModels(
+                configFallbacks.length > 0 ? configFallbacks : undefined,
+              );
           const assigned = assignReviewerModels(
             baseProvider,
             baseModel,
@@ -195,6 +207,10 @@ export function installChimeraReviewHandler({
           // A dead model must never cost us the review. The first rung is the
           // assignment we would have spawned anyway; the rest are only reached
           // when a rung fails, ending at the session model as the last resort.
+          // The Chimera-specific fallbackProfile chain (if configured) is
+          // already merged into assigned.fallbackModels above. The ladder's
+          // profileChain is the session-level fallback, giving the reviewer a
+          // broader pool as a last resort before the session model itself.
           const ladder = buildReviewerAttemptLadder({
             assigned,
             profileChain: effectiveFallbackChain(config),
