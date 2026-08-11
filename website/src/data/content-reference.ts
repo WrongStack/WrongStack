@@ -303,7 +303,7 @@ export const securityLayers = [
 export const installCommand = 'npm install -g wrongstack';
 export const repoUrl = 'https://github.com/WrongStack/WrongStack';
 export const docsUrl = `${repoUrl}/tree/main/docs`;
-export const version = '0.303.0';
+export const version = '0.304.0';
 
 export const nodeVersion = '22.19+';
 export const license = 'MIT';

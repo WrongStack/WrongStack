@@ -7,17 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.304.0] — 2026-08-11
+
 ### Added
 
 - **What a roster agent learned is now scored against what actually happened.** Every completed task is scanned for the directives it exercised — matched on the anchors capture already extracts (exact commands, paths, package names) — and each one takes that task's success or failure onto its own record (`applied=N; wins=M` on the entry). Attribution runs *before* capture, so a directive written by a task cannot open its record with a win it did nothing to earn, and a cancelled task is not scored at all. The record then decides what eviction drops first, whether a taught near-duplicate may replace an existing rule, and which directives the distillation pass is told to keep.
 - **A directive that keeps failing is retired.** After eight applications below a 0.3 success rate it stops being injected, is scrubbed out of the skill addendum and consolidated document it had been distilled into, and is logged to `.wrongstack/agents/<role>/quarantine.md` (local) rather than deleted — a rule can be right about a project that has since changed. If the agent writes it again it re-enters with a fresh record and gets a retrial.
 - **`/agent-improve <role> show` and the WebUI Self-Learning tab report learning quality, not just volume**: directive hit rate, how many directives have never been exercised, a hit-rate chip per role in the list, a Retired section, and a `loaded` badge plus affinity score per skill. New `agent-roster.quarantine` message; `agent-roster.skills` now carries `score`/`eager`/`eagerLimit`.
+- **Blocked work now explains itself on every surface.** SimpleUI, TUI, and WebUI todo rows carry the dependency that is holding them back instead of showing an unexplained blocked state.
+- **Last-resort fallback breadth is configurable.** `fallbackMaxLastResortCandidates` bounds how many emergency candidates may be appended, is visible in `/fallback`, and is validated by config doctor.
 
 ### Changed
 
 - **The leader's roster menu describes what each agent does.** It was built from the first 80 characters of each role prompt — every one of which opens `You are the X agent. Your job is…`, so a third of each line was boilerplate and the distinguishing half was truncated. It now renders the curated `capability.summary` the catalog already writes for all 75 agents and the dispatcher already routes on. Measured before the change: of 77 roles offered, 10 had ever completed a task and 2 accounted for 73% of all captured learning, while `database`, `backend`, `frontend`, `devops` and `android` had never once been chosen.
 - **`spawn_subagent` leads with `description` instead of `role`.** Passing a role skips dispatch entirely, so a half-remembered id silently cost the specialist; the schema and usage hint now say so.
 - **Skill ranking no longer treats failure as evidence of relevance.** The success rate skipped Laplace smoothing when a skill had no outcomes, so ten straight failures scored above an untried skill, and a per-load bonus paid a skill for having been selected — a loop. Ranking is now centred on a neutral prior, decays outcome evidence with a 30-day half-life, and gives untried skills an exploration bonus that fades with use. With no history every candidate still scores identically and the curated order is preserved.
+- **Kanban tracks work without becoming permission to perform it.** Prompt guidance, task dispatch, and managed lifecycle adoption now treat the board as an evidence and coordination surface; adoption can be explicitly reversed, and all start-readiness consumers share the same dependency and composite-parent predicates.
+- **Fallback construction has one authority.** Direct model fallback, One Shot, and profile-based callers now converge on `FallbackProfileManager.resolveCandidates`, preserving explicit-chain isolation while applying the last-resort cap after deduplication.
 
 ### Fixed
 
@@ -27,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The dispatcher's model tie-break was never wired.** `dispatchAgent` is two-stage by design, but nothing supplied stage two to the `Director`, so every description the keyword heuristic could not resolve fell through to the `executor` generalist. The host now provides a classifier (model-matrix slot `dispatcher`) that declines rather than throws, leaving routing on its heuristic result on any failure.
 - **`git` and `release` agents can now say they are stuck.** Every tool preset carries `mailbox` so a blocked subagent can escalate; `vcs` was the only one without it, silencing the two roles whose work (force-push, tag collision, dirty tree) least often has a safe default.
 - Capture no longer reverts the optimization pass's bookkeeping by writing `learning.json` from a value read earlier in the call.
+- **Todo and Kanban state no longer drift under pruning and repeated sync.** Ordering is stable, board growth is bounded, acceptance criteria survive the bridge, and the WebUI inspector keeps its task context as rows move.
+- **A prompt refresh or `beforeRun` failure cannot wedge the next agent run.** Both operations now execute inside the run's `try/finally` boundary, so lifecycle cleanup always releases the active-run state.
 
 ## [0.303.0] — 2026-08-10
 

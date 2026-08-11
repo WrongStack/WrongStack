@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.304.0',
+  version: '0.305.0',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -321,9 +321,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.304.0',
+    date: '2026-08-11',
+    latest: true,
+    tagline: 'Outcome-scored agent learning, coherent Kanban state, and bounded fallbacks',
+    highlights: [
+      'Roster-agent directives are scored against real task outcomes; persistently weak rules retire into a recoverable quarantine, and skill ranking uses decayed evidence with an exploration prior',
+      'Kanban remains an evidence and coordination surface rather than a permission gate, with reversible managed adoption and shared readiness predicates across dispatch, queue health, and composite parents',
+      'Todo and Kanban synchronization preserves ordering and acceptance criteria, bounds board growth, and exposes the blocking dependency in SimpleUI, TUI, and WebUI',
+      'Direct, One Shot, and profile fallback paths now share FallbackProfileManager.resolveCandidates; fallbackMaxLastResortCandidates caps the deduplicated emergency tail and config doctor validates it',
+      'Prompt refresh and beforeRun execute inside the agent lifecycle cleanup boundary so a setup failure cannot wedge the next run',
+    ],
+  },
+  {
     version: '0.303.0',
     date: '2026-08-10',
-    latest: true,
     tagline:
       'Project-learning agents, deeper codebase intelligence, and dependable Windows updates',
     highlights: [

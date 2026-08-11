@@ -52,25 +52,22 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.303.0
+### What's new in 0.304.0
 
-- **Turn completed work into project-specific skill.** Agents now route what
-  they learned to the relevant skill, retain it as a versioned project asset,
-  and load that practical addendum on the next matching assignment. Affinity
-  ranking promotes skills that have proven useful in this repository.
-- **Keep the learning loop healthy without babysitting it.** Automatic
-  optimization distils buffered directives on a bounded, backoff-aware schedule;
-  failures, cancellations, and ACP-delegated runs still contribute their useful
-  lessons. Inspect, pin, or optimize a role with `/agent-improve`.
-- **Search a large codebase with more signal.** The Codebase Index gained
-  tree-sitter extraction for ten more languages, content-hash invalidation,
-  hybrid substring/semantic search, recursive call graphs, and a bounded parser
-  worker pool for larger repositories.
-- **Update reliably on Windows.** `wstack update` now avoids project-local
-  package-manager shims and explains how to recover when a running native file
-  prevents an in-place update.
+- **Keep only learning that proves useful.** Roster-agent directives are scored
+  against task outcomes, weak rules retire into a recoverable quarantine, and
+  skill affinity uses decayed evidence instead of rewarding repeated failure.
+- **Use Kanban as shared truth, not a permission gate.** Todo and Kanban state
+  stay synchronized, managed adoption is reversible, every start path uses the
+  same readiness rules, and blocked rows explain the dependency on every UI.
+- **Bound emergency model routing.** Direct, One Shot, and profile fallbacks now
+  share one candidate resolver; `fallbackMaxLastResortCandidates` caps the
+  deduplicated last-resort tail and config doctor validates the setting.
+- **Recover cleanly from agent setup failures.** Prompt refresh and `beforeRun`
+  now sit inside the lifecycle cleanup boundary, so one failed setup cannot
+  leave the next run permanently wedged.
 
-See the complete [0.303.0 release notes](CHANGELOG.md).
+See the complete [0.304.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -79,7 +76,7 @@ See the complete [0.303.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.303.0](#whats-new-in-03030)
+- [What's new in 0.304.0](#whats-new-in-03040)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
