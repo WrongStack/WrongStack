@@ -81,6 +81,7 @@ How to add new things. Each guide is self-contained — read the one for the sur
 | Document | What it covers |
 |---|---|
 | [configuration.md](configuration.md) | Configuration model, secret vault, environment variables, config migration |
+| [project-daemons.md](project-daemons.md) | The per-project IPC daemons: ownership election, stale-endpoint self-healing, degradation rules, `wstack doctor --daemons` |
 | [troubleshooting.md](troubleshooting.md) | Common problems and their fixes: provider failures, model registry, session replay, MCP issues |
 | [SECURITY.md](../SECURITY.md) | Threat model, current controls, known limitations, HQ implementation status, vulnerability reporting |
 

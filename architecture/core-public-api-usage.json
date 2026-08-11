@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 260,
-      "typeOnly": 209,
+      "files": 261,
+      "typeOnly": 210,
       "runtimeOrMixed": 68
     },
     "@wrongstack/core/agent-catalog": {
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 484,
+      "files": 483,
       "typeOnly": 53,
-      "runtimeOrMixed": 456
+      "runtimeOrMixed": 455
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -1306,6 +1306,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/replace-rg.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/session-kanban-degradation.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15922,12 +15928,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/project-server-client.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/project-server-endpoint.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

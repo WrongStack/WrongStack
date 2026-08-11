@@ -103,8 +103,13 @@ async function reportDaemons(
 }
 
 export const doctorCmd: SubcommandHandler = async (args, deps) => {
-  if (args.includes('--daemons')) {
-    return reportDaemons(deps, { clear: args.includes('--clear-stale') });
+  // Flags arrive already-parsed in `deps.flags` — the top-level parser strips
+  // them from positionals. `args` is checked too so the handler stays callable
+  // directly (tests, and the `wstack diag` alias path).
+  const flagged = (name: string): boolean =>
+    deps.flags?.[name] === true || deps.flags?.[name] === 'true' || args.includes(`--${name}`);
+  if (flagged('daemons')) {
+    return reportDaemons(deps, { clear: flagged('clear-stale') });
   }
   type CheckResult = { name: string; status: 'ok' | 'warn' | 'fail'; detail: string };
   const checks: CheckResult[] = [];

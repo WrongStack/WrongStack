@@ -21,7 +21,10 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { chronicleProjectServerEndpoint } from '@wrongstack/core/chronicle';
+import {
+  chronicleProjectServerEndpoint,
+  chronicleProjectServerMetadataPath,
+} from '@wrongstack/core/chronicle';
 import {
   mailboxProjectServerEndpoint,
   mailboxProjectServerMetadataPath,
@@ -36,7 +39,10 @@ import {
 } from '@wrongstack/kanban';
 import { isProjectEndpointLive } from '@wrongstack/persistence';
 import { sageProjectServerEndpoint, sageProjectServerMetadataPath } from '@wrongstack/sage';
-import { projectIndexServerEndpoint } from '@wrongstack/tools/codebase-index';
+import {
+  projectIndexServerEndpoint,
+  projectIndexServerMetadataPath,
+} from '@wrongstack/tools/codebase-index';
 
 /** Where a daemon's derived endpoint and metadata live for this project. */
 interface DaemonDescriptor {
@@ -69,7 +75,11 @@ export interface DaemonReport {
 
 export interface DaemonInventoryOptions {
   readonly projectRoot: string;
-  /** `<projectRoot>/.wrongstack` — the per-project state directory. */
+  /**
+   * The project's slot under the global root — `~/.wrongstack/projects/<hash>`,
+   * NOT the in-repo `.wrongstack/`. Most daemons key their endpoint and
+   * metadata off this; kanban is the exception and uses the repo directory.
+   */
   readonly projectDir: string;
 }
 
@@ -78,15 +88,22 @@ function describeDaemons(options: DaemonInventoryOptions): readonly DaemonDescri
   return [
     {
       name: 'kanban',
+      // In-repo `<projectRoot>/.wrongstack/`, not the global per-project state
+      // directory the other daemons use. Kanban deliberately keeps its server
+      // file next to the boards it owns.
+      metadataPath: path.join(projectRoot, '.wrongstack', KANBAN_PROJECT_SERVER_METADATA_FILE),
       endpoint: kanbanProjectServerEndpoint(projectRoot),
-      metadataPath: path.join(projectDir, KANBAN_PROJECT_SERVER_METADATA_FILE),
     },
     {
       name: 'sage',
       endpoint: sageProjectServerEndpoint(projectRoot),
       metadataPath: sageProjectServerMetadataPath(projectRoot),
     },
-    { name: 'chronicle', endpoint: chronicleProjectServerEndpoint(projectDir) },
+    {
+      name: 'chronicle',
+      endpoint: chronicleProjectServerEndpoint(projectDir),
+      metadataPath: chronicleProjectServerMetadataPath(projectDir),
+    },
     {
       name: 'mailbox',
       endpoint: mailboxProjectServerEndpoint(projectDir),
@@ -97,7 +114,11 @@ function describeDaemons(options: DaemonInventoryOptions): readonly DaemonDescri
       endpoint: sessionCatalogProjectServerEndpoint(projectDir),
       metadataPath: sessionCatalogProjectServerMetadataPath(projectDir),
     },
-    { name: 'codebase-index', endpoint: projectIndexServerEndpoint(projectRoot) },
+    {
+      name: 'codebase-index',
+      endpoint: projectIndexServerEndpoint(projectRoot),
+      metadataPath: projectIndexServerMetadataPath(projectRoot),
+    },
   ];
 }
 

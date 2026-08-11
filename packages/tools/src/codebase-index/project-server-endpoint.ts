@@ -3,7 +3,6 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertUnixSocketPathWithinLimit } from '@wrongstack/core/utils';
 import { resolveIndexDir } from './writer.js';
 
 export const PROJECT_INDEX_SERVER_PROTOCOL_VERSION = 1;
@@ -11,7 +10,7 @@ export const PROJECT_INDEX_SERVER_METADATA_FILE = 'server.json';
 /**
  * Short directory name that owns the per-project Unix socket on Linux.
  *
- * The directory is created `0o700` by `ensureProjectIndexSocketDirectory`: on
+ * The directory is created `0o700` by `bindProjectEndpoint`: on
  * multi-user Linux `/tmp` the kernel's sticky bit otherwise lets a local
  * attacker pre-bind a predictable socket name (project paths are guessable
  * via the public `buildId` handshake), hijacking clients whose `bind()` hits
@@ -106,7 +105,8 @@ export function projectIndexServerEndpoint(projectRoot: string, indexDir?: strin
   // Derivation stays pure: clients need the endpoint VALUE to report or
   // degrade on an unbindable path (`resolveProjectIndexDaemonAvailability`,
   // connection-state probes). The hard length assert lives at bind time in
-  // `ensureProjectIndexSocketDirectory`, platform-aware via the shared helper.
+  // `bindProjectEndpoint` (@wrongstack/persistence), platform-aware via the
+  // shared helper.
   return path.join(os.tmpdir(), PROJECT_INDEX_SERVER_SOCKET_DIR, `${key}.sock`);
 }
 
@@ -115,14 +115,4 @@ export function projectIndexServerMetadataPath(projectRoot: string, indexDir?: s
     path.resolve(resolveIndexDir(projectRoot, indexDir)),
     PROJECT_INDEX_SERVER_METADATA_FILE,
   );
-}
-
-export function ensureProjectIndexSocketDirectory(endpoint: string): void {
-  if (process.platform !== 'win32') {
-    // Fail fast with an actionable message: an over-long sun_path would
-    // otherwise surface as ENAMETOOLONG/EINVAL inside a detached child whose
-    // stderr is discarded, leaving clients a bare 10s connect timeout.
-    assertUnixSocketPathWithinLimit(endpoint, 'codebase-index');
-    fs.mkdirSync(path.dirname(endpoint), { recursive: true, mode: 0o700 });
-  }
 }

@@ -164,8 +164,12 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'Run a series of health checks (provider + key + models cache ' +
       '+ secret vault + sessions dir + MCP server config) and exit ' +
       'non-zero if any check fails. Use as a CI gate or a post-install ' +
-      'smoke test.',
-    usage: 'wstack doctor',
+      'smoke test. With --daemons, inspect this project’s IPC daemons ' +
+      'instead: each is reported live, stale, or stopped. A stale endpoint ' +
+      'is one whose owner died without releasing it; daemons reclaim it on ' +
+      'their next start, or --clear-stale removes it now. Listing never ' +
+      'spawns a daemon.',
+    usage: 'wstack doctor [--daemons [--clear-stale]]',
     seeAlso: 'wstack diag (read-only environment dump for bug reports)',
   },
   diag: {

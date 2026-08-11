@@ -21,7 +21,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  ensureSageProjectServerSocketDirectory,
   sageProjectServerEndpoint,
   sageProjectServerMetadataPath,
 } from '../src/project-server-endpoint.js';
@@ -48,7 +47,7 @@ function resolveServerEntry(): { cmd: string; args: string[] } {
 
 const SERVER_LAUNCH = resolveServerEntry();
 
-// Tests 2 and 3 unconditionally `await import('../dist/index.js')` for the
+// Tests 2 and 3 unconditionally load the built `../dist/index.js` module for the
 // real client class — that file only exists after a build. CI runs from source
 // with no build step, so the whole suite skips unless dist/ is present. The
 // daemon also imports `@wrongstack/core/*` whose exports resolve to
@@ -128,7 +127,6 @@ function rawConnect(endpoint: string): Promise<{
 beforeEach(async () => {
   projectRoot = await mkdtemp(join(tmpdir(), 'sage-authgate-'));
   endpoint = sageProjectServerEndpoint(projectRoot);
-  ensureSageProjectServerSocketDirectory(endpoint);
 });
 
 afterEach(async () => {
@@ -206,88 +204,98 @@ describe('SAGE daemon auth gate', () => {
     }
   }, 40_000);
 
-  // Tests 2 and 3 `await import('../dist/index.js')` for the real client class,
+  // Tests 2 and 3 load the built `../dist/index.js` module for the real client class,
   // which only exists after a build. The daemon itself has a tsx fallback (test 1
   // runs from source), but the client class does not — so skip those two
   // individually rather than gating the whole suite.
-  it.skipIf(!distReady)('the real client authenticates by reading server.json, not the greeting', async () => {
-    // The dist build, because the client spawns `./project-server.js` relative
-    // to its own module URL — from TypeScript source that file does not exist
-    // and `isSageProjectServerAvailable()` is false.
-    // Resolved at runtime, matching the repo's mailbox-bridge tests: a static
-    // `../dist/...` specifier is a build artifact, so the import guard rejects
-    // it and CI cannot resolve it before a build.
-    const { SageProjectServerConnection } = (await import(
-      pathToFileURL(fileURLToPath(new URL('../dist/index.js', import.meta.url))).href
-    )) as typeof import('../src/index.js');
-    const connection = new SageProjectServerConnection(projectRoot);
-    try {
-      await connection.connect();
-      // A round-trip that goes through the auth gate. Before the fix this
-      // passed by replaying the token out of `hello`; it now passes only
-      // because the client read the owner-only metadata file.
-      const status = await connection.call('ping', {}, { meta: { clientId: 'roundtrip' } });
-      expect(status.pid).toBeGreaterThan(0);
-      expect(status.projectRoot).toBeTruthy();
+  it.skipIf(!distReady)(
+    'the real client authenticates by reading server.json, not the greeting',
+    async () => {
+      // The dist build, because the client spawns `./project-server.js` relative
+      // to its own module URL — from TypeScript source that file does not exist
+      // and `isSageProjectServerAvailable()` is false.
+      // Resolved at runtime, matching the repo's mailbox-bridge tests: a static
+      // `../dist/...` specifier is a build artifact, so the import guard rejects
+      // it and CI cannot resolve it before a build.
+      const { SageProjectServerConnection } = (await import(
+        pathToFileURL(fileURLToPath(new URL('../dist/index.js', import.meta.url))).href
+      )) as typeof import('../src/index.js');
+      const connection = new SageProjectServerConnection(projectRoot);
+      try {
+        await connection.connect();
+        // A round-trip that goes through the auth gate. Before the fix this
+        // passed by replaying the token out of `hello`; it now passes only
+        // because the client read the owner-only metadata file.
+        const status = await connection.call('ping', {}, { meta: { clientId: 'roundtrip' } });
+        expect(status.pid).toBeGreaterThan(0);
+        expect(status.projectRoot).toBeTruthy();
 
-      const metadata = JSON.parse(
-        await readFile(sageProjectServerMetadataPath(projectRoot), 'utf8'),
-      ) as SageProjectServerMetadata;
-      expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
-    } finally {
-      await connection.shutdown('test-teardown').catch(() => undefined);
-      connection.close();
-    }
-  }, 40_000);
+        const metadata = JSON.parse(
+          await readFile(sageProjectServerMetadataPath(projectRoot), 'utf8'),
+        ) as SageProjectServerMetadata;
+        expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
+      } finally {
+        await connection.shutdown('test-teardown').catch(() => undefined);
+        connection.close();
+      }
+    },
+    40_000,
+  );
 
-  it.skipIf(!distReady)('recovers when the first request lands before server.json exists (cold-spawn race)', async () => {
-    // Regression: the daemon accepts connections and sends `hello` the moment
-    // it wins the endpoint, but writes `server.json` only after the async
-    // `store.initialize()` resolves. A client whose first `request` arrives in
-    // that window has no token and is refused with `UnauthorizedSageRequest`.
-    // Before the bounded auth-retry in `SageProjectServerConnection.call()`,
-    // that refusal surfaced straight to the caller — so
-    // `RemoteSageMemoryPort.initialize()`'s first `ping` failed and never
-    // recovered. This drives a real daemon and asserts the client heals.
-    const { SageProjectServerConnection } = (await import(
-      pathToFileURL(fileURLToPath(new URL('../dist/index.js', import.meta.url))).href
-    )) as typeof import('../src/index.js');
+  it.skipIf(!distReady)(
+    'recovers when the first request lands before server.json exists (cold-spawn race)',
+    async () => {
+      // Regression: the daemon accepts connections and sends `hello` the moment
+      // it wins the endpoint, but writes `server.json` only after the async
+      // `store.initialize()` resolves. A client whose first `request` arrives in
+      // that window has no token and is refused with `UnauthorizedSageRequest`.
+      // Before the bounded auth-retry in `SageProjectServerConnection.call()`,
+      // that refusal surfaced straight to the caller — so
+      // `RemoteSageMemoryPort.initialize()`'s first `ping` failed and never
+      // recovered. This drives a real daemon and asserts the client heals.
+      const { SageProjectServerConnection } = (await import(
+        pathToFileURL(fileURLToPath(new URL('../dist/index.js', import.meta.url))).href
+      )) as typeof import('../src/index.js');
 
-    const metadataPath = sageProjectServerMetadataPath(projectRoot);
-    // A poisoned token stands in for a stale file left by a crashed daemon
-    // (`removeOwnedMetadata` runs only on a clean stop): even with a file
-    // present, the first request carries a WRONG token and must be refused
-    // before the client re-reads the daemon's real one. The daemon normally
-    // creates this directory inside `writeMetadata()`, so make it first.
-    await mkdir(dirname(metadataPath), { recursive: true });
-    await writeFile(
-      metadataPath,
-      `${JSON.stringify({ pid: 999999, authToken: 'd'.repeat(32) }, null, 2)}\n`,
-      'utf8',
-    );
+      const metadataPath = sageProjectServerMetadataPath(projectRoot);
+      // A poisoned token stands in for a stale file left by a crashed daemon
+      // (`removeOwnedMetadata` runs only on a clean stop): even with a file
+      // present, the first request carries a WRONG token and must be refused
+      // before the client re-reads the daemon's real one. The daemon normally
+      // creates this directory inside `writeMetadata()`, so make it first.
+      await mkdir(dirname(metadataPath), { recursive: true });
+      await writeFile(
+        metadataPath,
+        `${JSON.stringify({ pid: 999999, authToken: 'd'.repeat(32) }, null, 2)}\n`,
+        'utf8',
+      );
 
-    child = spawn(SERVER_LAUNCH.cmd, [...SERVER_LAUNCH.args, '--project-root', projectRoot], {
-      stdio: 'ignore',
-      windowsHide: true,
-    });
+      child = spawn(SERVER_LAUNCH.cmd, [...SERVER_LAUNCH.args, '--project-root', projectRoot], {
+        stdio: 'ignore',
+        windowsHide: true,
+      });
 
-    const connection = new SageProjectServerConnection(projectRoot);
-    try {
-      await connection.connect();
-      // First request goes out with the poisoned token → refused → the retry
-      // loop re-reads `server.json` (now the daemon's real metadata) → success.
-      // A daemon fast enough to overwrite the file before the first request
-      // simply succeeds directly; either way this must not wedge.
-      const status = await connection.call('ping', {}, { meta: { clientId: 'cold-spawn' } });
-      expect(status.pid).toBeGreaterThan(0);
+      const connection = new SageProjectServerConnection(projectRoot);
+      try {
+        await connection.connect();
+        // First request goes out with the poisoned token → refused → the retry
+        // loop re-reads `server.json` (now the daemon's real metadata) → success.
+        // A daemon fast enough to overwrite the file before the first request
+        // simply succeeds directly; either way this must not wedge.
+        const status = await connection.call('ping', {}, { meta: { clientId: 'cold-spawn' } });
+        expect(status.pid).toBeGreaterThan(0);
 
-      // The daemon's real token replaced the poison.
-      const metadata = JSON.parse(await readFile(metadataPath, 'utf8')) as SageProjectServerMetadata;
-      expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
-      expect(metadata.authToken).not.toBe('d'.repeat(32));
-    } finally {
-      await connection.shutdown('test-teardown').catch(() => undefined);
-      connection.close();
-    }
-  }, 40_000);
+        // The daemon's real token replaced the poison.
+        const metadata = JSON.parse(
+          await readFile(metadataPath, 'utf8'),
+        ) as SageProjectServerMetadata;
+        expect(metadata.authToken).toMatch(/^[0-9a-f]{32}$/);
+        expect(metadata.authToken).not.toBe('d'.repeat(32));
+      } finally {
+        await connection.shutdown('test-teardown').catch(() => undefined);
+        connection.close();
+      }
+    },
+    40_000,
+  );
 });

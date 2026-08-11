@@ -174,17 +174,24 @@ describe('mailbox IPC ownership boundary', () => {
 
   it('opens SQLite only after the IPC endpoint ownership election succeeds', async () => {
     const source = await fs.readFile(path.join(ROOT, SQLITE_OWNER), 'utf8');
-    const listening = source.indexOf("server.on('listening'");
+    // The election is `bindProjectEndpoint` (shared with every project daemon
+    // — see docs/project-daemons.md). A losing contender must exit before it
+    // can become a second writer over the same database, so the store may only
+    // be constructed downstream of the bind.
+    const elects = source.indexOf('bindProjectEndpoint(');
     const open = source.indexOf('new SqliteMailbox');
-    expect(listening).toBeGreaterThanOrEqual(0);
-    expect(open).toBeGreaterThan(listening);
-    expect(source.slice(0, listening)).not.toContain('new SqliteMailbox');
+    expect(elects).toBeGreaterThanOrEqual(0);
+    expect(open).toBeGreaterThan(elects);
+    expect(source.slice(0, elects)).not.toContain('new SqliteMailbox');
   });
 
   it('keeps the agent loop on the server-backed mailbox', async () => {
     // Regression pin for the original defect: the composition glue behind the
     // agent loop's registration, heartbeat, delivery and ack.
-    const source = await fs.readFile(path.join(ROOT, 'packages/core/src/mailbox-attach.ts'), 'utf8');
+    const source = await fs.readFile(
+      path.join(ROOT, 'packages/core/src/mailbox-attach.ts'),
+      'utf8',
+    );
     expect(source).toContain('getSharedProjectMailbox');
     expect(stripComments(source)).not.toMatch(LEGACY_SYMBOLS);
   });

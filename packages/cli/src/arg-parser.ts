@@ -57,6 +57,10 @@ export const BOOLEAN_FLAGS = new Set([
   'insecure-open',
   'strict-port',
   'client',
+  // `wstack doctor` booleans. Without these, `--daemons --clear-stale` parses
+  // as `daemons="--clear-stale"` and the second flag disappears.
+  'daemons',
+  'clear-stale',
   // `wstack update` booleans. Keeping these here prevents parseArgs from
   // consuming a following positional token as an accidental flag value.
   'check-only',

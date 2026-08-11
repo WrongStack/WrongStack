@@ -19,10 +19,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  ensureProjectIndexSocketDirectory,
-  projectIndexServerEndpoint,
-} from '../src/codebase-index/project-server-endpoint.js';
+import { projectIndexServerEndpoint } from '../src/codebase-index/project-server-endpoint.js';
 import type { ProjectIndexServerMetadata } from '../src/codebase-index/project-server-protocol.js';
 
 const distServer = fileURLToPath(
@@ -105,7 +102,6 @@ async function startDaemon(): Promise<{ endpoint: string; metadataPath: string }
   roots.push(projectRoot);
   const indexDir = path.join(projectRoot, '.index');
   const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
-  ensureProjectIndexSocketDirectory(endpoint);
   children.push(
     spawn(process.execPath, [distServer, '--project-root', projectRoot, '--index-dir', indexDir], {
       env: { ...process.env, WRONGSTACK_INDEX_SERVER_IDLE_MS: '30000' },

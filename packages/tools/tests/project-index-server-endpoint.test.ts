@@ -68,7 +68,7 @@ describe('project index server endpoint', () => {
       expect(endpoint.startsWith('\\\\.\\pipe\\')).toBe(true);
     } else {
       // The endpoint lives in a short `wsci-v<protocol>/` subdirectory that
-      // `ensureProjectIndexSocketDirectory` creates with mode 0o700. That
+      // `bindProjectEndpoint` creates with mode 0o700. That
       // subdirectory is the ownership boundary blocking pre-bind attacks on
       // shared Linux /tmp; the socket name itself is not predictable-private.
       expect(path.dirname(endpoint)).toBe(path.join(os.tmpdir(), 'wsci-v1'));

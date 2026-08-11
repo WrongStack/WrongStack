@@ -313,10 +313,11 @@ export async function setupSession(params: {
   // the board silently not sync, and name the command that explains why.
   const kanbanDown = sessionKanbanDegradation();
   if (kanbanDown) {
-    process.stderr.write(
-      `Kanban board sync unavailable — the session continues without it.\n` +
-        `  reason: ${kanbanDown}\n` +
-        `  detail: wstack doctor --daemons\n`,
+    // Through the renderer, not raw stderr: surfaces that capture CLI output
+    // (ACP, WebUI) must see this the way they see every other notice.
+    renderer.writeInfo(
+      `Kanban board sync unavailable — continuing without it (${kanbanDown}). ` +
+        'Run `wstack doctor --daemons` for detail.',
     );
   }
   const detachSessionKanbanMirror = attachSessionKanbanMirror(context);

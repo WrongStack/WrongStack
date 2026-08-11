@@ -151,6 +151,38 @@ wrongstack resume <id>            # replay with repair
 /context repair                   # manual repair in-session
 ```
 
+### "Failed to connect to project server"
+
+**Symptom**: a startup error naming a socket path, e.g.
+`Error: Failed to connect to kanban project server at /tmp/wskb-v6/<hash>.sock`
+
+A project daemon died without releasing its endpoint — `SIGKILL`, the OOM
+killer, or a container stop. On Unix the socket file survives with nothing
+listening behind it, which refuses clients *and* blocks replacements from
+binding. Current builds reclaim this automatically on the next daemon start;
+an older build stays wedged until the file is removed.
+
+**Diagnosis**:
+```bash
+wstack doctor --daemons           # per-daemon status: live / stale / stopped
+```
+
+**Fix**:
+```bash
+wstack doctor --daemons --clear-stale
+```
+
+To see why a daemon refuses to start at all, run it in the foreground —
+daemons are spawned with `stdio: 'ignore'`, so their startup errors are
+otherwise discarded:
+
+```bash
+node .../@wrongstack/<pkg>/dist/project-server.js --project-root /path/to/project
+```
+
+See [project-daemons.md](project-daemons.md) for the ownership election and the
+reclaim ladder.
+
 ### "Plugin failed to load"
 
 **Symptom**: `Plugin '@wrongstack/telegram' setup failed: ...`

@@ -39,6 +39,8 @@ interface DaemonSpec {
   readonly accessModule: string;
   /** Env var a user must set to deliberately leave the daemon path. */
   readonly inlineEnv: string;
+  /** The daemon entry that binds the endpoint. */
+  readonly serverModule: string;
 }
 
 const DAEMONS: readonly DaemonSpec[] = [
@@ -47,36 +49,42 @@ const DAEMONS: readonly DaemonSpec[] = [
     endpointModule: 'packages/core/src/coordination/mailbox-project-server-endpoint.ts',
     accessModule: 'packages/core/src/coordination/mailbox-project-server-client.ts',
     inlineEnv: 'WRONGSTACK_MAILBOX_INLINE',
+    serverModule: 'packages/core/src/coordination/mailbox-project-server.ts',
   },
   {
     name: 'sage',
     endpointModule: 'packages/sage/src/project-server-endpoint.ts',
     accessModule: 'packages/sage/src/project-server-client.ts',
     inlineEnv: 'WRONGSTACK_SAGE_INLINE',
+    serverModule: 'packages/sage/src/project-server.ts',
   },
   {
     name: 'chronicle',
     endpointModule: 'packages/core/src/chronicle/project-server-endpoint.ts',
     accessModule: 'packages/core/src/chronicle/project-access.ts',
     inlineEnv: 'WRONGSTACK_CHRONICLE_INLINE',
+    serverModule: 'packages/core/src/chronicle/project-server.ts',
   },
   {
     name: 'codebase-index',
     endpointModule: 'packages/tools/src/codebase-index/project-server-endpoint.ts',
     accessModule: 'packages/tools/src/codebase-index/background-indexer.ts',
     inlineEnv: 'WRONGSTACK_INDEX_INLINE',
+    serverModule: 'packages/tools/src/codebase-index/project-server.ts',
   },
   {
     name: 'kanban',
     endpointModule: 'packages/kanban/src/server/endpoint.ts',
     accessModule: 'packages/kanban/src/server/kanban-store.ts',
     inlineEnv: 'WRONGSTACK_KANBAN_SERVER',
+    serverModule: 'packages/kanban/src/server/project-server.ts',
   },
   {
     name: 'session-catalog',
     endpointModule: 'packages/core/src/session-catalog/endpoint.ts',
     accessModule: 'packages/core/src/session-catalog/client.ts',
     inlineEnv: 'WRONGSTACK_SESSION_CATALOG_INLINE',
+    serverModule: 'packages/core/src/session-catalog/project-server.ts',
   },
 ];
 
@@ -250,23 +258,55 @@ describe('project daemon boundary', () => {
     expect(stillWeak.sort()).toEqual([...WEAK_ENDPOINT_HASH].sort());
   });
 
+  it('binds through the shared endpoint election, never a hand-rolled listen', async () => {
+    // Why this is a gate and not a convention: the probe-then-reclaim ladder
+    // was previously copied by hand into five daemons at three levels of
+    // completeness, and the two that omitted the probe — kanban and
+    // codebase-index — were wedgeable by a single SIGKILL. A daemon that dies
+    // without releasing its Unix socket leaves a file that refuses clients AND
+    // blocks every replacement from binding, with nothing to break the loop.
+    //
+    // `bindProjectEndpoint` (@wrongstack/persistence) is that ladder, written
+    // once. A daemon that calls `server.listen()` directly has opted out of it,
+    // which is exactly how the defect shipped twice.
+    const offenders: string[] = [];
+    for (const daemon of DAEMONS) {
+      const source = await readSource(daemon.serverModule);
+      if (!source.includes('bindProjectEndpoint(')) {
+        offenders.push(`${daemon.name}: does not call bindProjectEndpoint`);
+        continue;
+      }
+      if (/\bserver\.listen\s*\(|\blistener\.listen\s*\(/u.test(source)) {
+        offenders.push(`${daemon.name}: still calls listen() directly`);
+      }
+      // The reclaim decision belongs to the primitive. A daemon that inspects
+      // EADDRINUSE itself is re-deriving the ladder and can get it wrong again.
+      if (source.includes('EADDRINUSE')) {
+        offenders.push(`${daemon.name}: handles EADDRINUSE outside the primitive`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it('opens the store only after winning the endpoint election', async () => {
-    // Only the mailbox owner constructs its store inside the `listening`
-    // handler today; the others open storage lazily elsewhere, so this is
-    // asserted where it is structurally checkable and extended per migration.
+    // The election is the shared `bindProjectEndpoint` primitive; a losing
+    // contender exits before it can open storage. Only the mailbox owner
+    // constructs its store directly on that path today — the others open
+    // storage lazily elsewhere — so this is asserted where it is structurally
+    // checkable and extended per migration.
     const owner = 'packages/core/src/coordination/mailbox-project-server.ts';
     const source = await fs.readFile(path.join(ROOT, owner), 'utf8');
-    const listening = source.indexOf("server.on('listening'");
+    const elects = source.indexOf('bindProjectEndpoint(');
     const opensStore = source.indexOf('new SqliteMailbox');
 
-    expect(listening).toBeGreaterThanOrEqual(0);
-    expect(opensStore).toBeGreaterThan(listening);
+    expect(elects).toBeGreaterThanOrEqual(0);
+    expect(opensStore).toBeGreaterThan(elects);
 
     const kanbanOwner = await fs.readFile(
       path.join(ROOT, 'packages/kanban/src/server/project-server.ts'),
       'utf8',
     );
-    const kanbanListen = kanbanOwner.indexOf('listener.listen(endpoint!');
+    const kanbanListen = kanbanOwner.indexOf('bindProjectEndpoint(');
     // Match the call, not one particular argument list — the owner passes a
     // mutation callback, and pinning the full signature makes this assert the
     // shape of an unrelated API instead of the ordering it cares about.

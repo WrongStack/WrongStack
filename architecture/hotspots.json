@@ -254,10 +254,6 @@
       "lines": 1049,
       "relativeImports": 16
     },
-    "packages/kanban/src/server/project-server.ts": {
-      "lines": 809,
-      "relativeImports": 10
-    },
     "packages/kanban/src/types.ts": {
       "lines": 907,
       "relativeImports": 2
@@ -347,7 +343,7 @@
       "relativeImports": 5
     },
     "packages/tools/src/codebase-index/project-server.ts": {
-      "lines": 813,
+      "lines": 820,
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/writer.ts": {
@@ -359,7 +355,7 @@
       "relativeImports": 12
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 1435,
+      "lines": 1480,
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {

@@ -9,7 +9,6 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  ensureSageProjectServerSocketDirectory,
   resolveProjectSageStorageRoot,
   SAGE_PROJECT_SERVER_METADATA_FILE,
   sageProjectServerEndpoint,
@@ -178,15 +177,6 @@ describe('sageProjectServerMetadataPath', () => {
   it('returns a path ending with server.json', () => {
     const mp = sageProjectServerMetadataPath(tempDir);
     expect(mp).toContain(SAGE_PROJECT_SERVER_METADATA_FILE);
-  });
-});
-
-describe('ensureSageProjectServerSocketDirectory', () => {
-  it('creates the parent directory of the endpoint', () => {
-    const endpoint = sageProjectServerEndpoint(tempDir);
-    ensureSageProjectServerSocketDirectory(endpoint);
-    // Just verify it doesn't throw — the actual directory may be in os.tmpdir()
-    expect(typeof endpoint).toBe('string');
   });
 });
 

@@ -6,10 +6,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import {
-  ensureProjectIndexSocketDirectory,
-  projectIndexServerEndpoint,
-} from '../src/codebase-index/project-server-endpoint.js';
+import { projectIndexServerEndpoint } from '../src/codebase-index/project-server-endpoint.js';
 import { encodeProjectServerMessage } from '../src/codebase-index/project-server-protocol.js';
 
 const distServer = fileURLToPath(
@@ -55,7 +52,6 @@ describe.skipIf(!distReady)('project index server idle lifecycle', () => {
     const indexDir = path.join(projectRoot, '.index');
     const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
     const metadataPath = path.join(indexDir, 'server.json');
-    ensureProjectIndexSocketDirectory(endpoint);
     const child = spawn(
       process.execPath,
       [distServer, '--project-root', projectRoot, '--index-dir', indexDir],
@@ -87,7 +83,6 @@ describe.skipIf(!distReady)('project index server idle lifecycle', () => {
     const indexDir = path.join(projectRoot, '.index');
     const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
     const metadataPath = path.join(indexDir, 'server.json');
-    ensureProjectIndexSocketDirectory(endpoint);
     const child = spawn(
       process.execPath,
       [distServer, '--project-root', projectRoot, '--index-dir', indexDir],

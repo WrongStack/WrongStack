@@ -130,11 +130,12 @@ export function isProjectEndpointLive(
  * path, so it is fully predictable, and a world-writable sticky-bit `/tmp`
  * would let another local user pre-bind it and receive this project's traffic.
  * The private directory is what makes the predictable name safe.
+ *
+ * Deliberately not exported: `bindProjectEndpoint` is the only supported way
+ * to take an endpoint, and a caller that creates the directory itself is one
+ * that skipped the liveness probe.
  */
-export async function ensureProjectEndpointDirectory(
-  endpoint: string,
-  service: string,
-): Promise<void> {
+async function ensureProjectEndpointDirectory(endpoint: string, service: string): Promise<void> {
   if (process.platform === 'win32') return;
   // Fail loudly and early on an over-long `sun_path`. Left to `bind()`, it
   // surfaces as EINVAL/ENAMETOOLONG inside a detached child whose stderr is
@@ -147,7 +148,10 @@ export async function ensureProjectEndpointDirectory(
 }
 
 /** One `listen()` attempt. Resolves with the error instead of throwing it. */
-function attemptListen(server: net.Server, endpoint: string): Promise<NodeJS.ErrnoException | null> {
+function attemptListen(
+  server: net.Server,
+  endpoint: string,
+): Promise<NodeJS.ErrnoException | null> {
   return new Promise<NodeJS.ErrnoException | null>((resolve) => {
     const onError = (error: NodeJS.ErrnoException): void => {
       server.removeListener('listening', onListening);
