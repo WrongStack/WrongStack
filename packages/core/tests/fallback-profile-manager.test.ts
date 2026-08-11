@@ -461,4 +461,38 @@ describe('FallbackProfileManager', () => {
       expect(chain).toHaveLength(0);
     });
   });
+
+  describe('resolveCandidates cap through full chain', () => {
+    it('cap=2 appends exactly 2 new entries past the smart default', () => {
+      // 9 providers, each with one model. Smart default picks 4 (p2-p5).
+      // resolveAllConfigured should append p6 and p7 (cap=2), skipping p8-p9.
+      const cfg = makeConfig({
+        provider: 'primary',
+        model: 'model-a',
+        providers: {
+          primary: { apiKey: 'k1', models: ['model-a'] },
+          p2: { apiKey: 'k2', models: ['model-b'] },
+          p3: { apiKey: 'k3', models: ['model-c'] },
+          p4: { apiKey: 'k4', models: ['model-d'] },
+          p5: { apiKey: 'k5', models: ['model-e'] },
+          p6: { apiKey: 'k6', models: ['model-f'] },
+          p7: { apiKey: 'k7', models: ['model-g'] },
+          p8: { apiKey: 'k8', models: ['model-h'] },
+          p9: { apiKey: 'k9', models: ['model-i'] },
+        },
+        fallbackMaxLastResortCandidates: 2,
+      });
+      const mgr = new FallbackProfileManager(cfg);
+      const chain = mgr.resolveCandidates(
+        { providerId: 'primary', model: 'model-a' },
+        { primary: { providerId: 'primary', model: 'model-a' } },
+      );
+      // Smart default prefix (4 cross-provider entries, alphabetically ordered)
+      expect(chain.slice(0, 4).map((e) => e.providerId)).toEqual(['p2', 'p3', 'p4', 'p5']);
+      // 4 smart default + 2 last-resort = 6
+      expect(chain).toHaveLength(6);
+      expect(chain[4]?.providerId).toBe('p6');
+      expect(chain[5]?.providerId).toBe('p7');
+    });
+  });
 });

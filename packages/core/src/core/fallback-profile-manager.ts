@@ -385,7 +385,20 @@ export class FallbackProfileManager {
       // when fallbackAuto is actually enabled, and only when the chain
       // was auto-derived (not explicitly chosen by the user).
       if (!fromExplicitSource && effectiveFallbackAuto) {
-        candidates.push(...this.resolveAllConfigured(current));
+        const cap = this.lastResortCap();
+        if (cap > 0) {
+          // Request the full inventory so the cap counts only entries NOT
+          // already in the chain (bridge, primary, smart default, default
+          // profile). Without this, the cap would silently consume slots
+          // on models already in the chain, producing zero new depth.
+          const usedKeys = new Set(
+            candidates.map((c) => `${c.providerId}/${c.model}`),
+          );
+          const lastResort = this.smartDefault(current, Number.POSITIVE_INFINITY)
+            .filter((c) => !usedKeys.has(`${c.providerId}/${c.model}`))
+            .slice(0, cap);
+          candidates.push(...lastResort);
+        }
       }
     }
 

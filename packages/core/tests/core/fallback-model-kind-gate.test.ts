@@ -749,3 +749,164 @@ describe('fallback-model kind gating', () => {
     expect(buildProvider).not.toHaveBeenCalledWith('flaky', 'model-x');
   });
 });
+
+// ── resolveAllConfigured through the runtime path ─────────────────────
+//
+// The smart default caps at 4 entries. When more providers are configured,
+// resolveAllConfigured appends the remaining models as a last-resort tail.
+// These tests prove that tail actually flows through wrapProviderRunner and
+// that fallbackMaxLastResortCandidates controls its size at runtime.
+
+describe('resolveAllConfigured through wrapProviderRunner', () => {
+  it('appends resolveAllConfigured models beyond the smart default and tries them', async () => {
+    // 6 providers (primary + 5 others), each with one model.
+    // Smart default picks 4 (p2–p5). resolveAllConfigured picks the 5th (p6).
+    // Make p2–p5 fail and p6 succeed — proves the last-resort append was used.
+    const config = {
+      provider: 'primary',
+      model: 'model-a',
+      fallbackModels: [],
+      fallbackAuto: true,
+      providers: {
+        primary: { type: 'openai', apiKey: 'k1', models: ['model-a'] },
+        p2: { type: 'openai', apiKey: 'k2', models: ['model-b'] },
+        p3: { type: 'openai', apiKey: 'k3', models: ['model-c'] },
+        p4: { type: 'openai', apiKey: 'k4', models: ['model-d'] },
+        p5: { type: 'openai', apiKey: 'k5', models: ['model-e'] },
+        p6: { type: 'openai', apiKey: 'k6', models: ['model-f'] },
+      },
+    } as never as Config;
+
+    const buildProvider = vi.fn(async (providerId: string) => makeProvider(providerId));
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider,
+      events: new EventBus(),
+      now: () => 1_000,
+    });
+    const ctx = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    const inner = vi
+      .fn()
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      .mockRejectedValueOnce(new ProviderError('overloaded', 503, true, 'p2'))
+      .mockRejectedValueOnce(new ProviderError('overloaded', 503, true, 'p3'))
+      .mockRejectedValueOnce(new ProviderError('overloaded', 503, true, 'p4'))
+      .mockRejectedValueOnce(new ProviderError('overloaded', 503, true, 'p5'))
+      .mockResolvedValueOnce(okResponse);
+
+    const res = await ext.wrapProviderRunner?.(ctx, request, inner);
+
+    expect(res).toBe(okResponse);
+    expect(ctx.model).toBe('model-f');
+    expect(buildProvider).toHaveBeenCalledWith('p6', 'model-f');
+  });
+
+  it('fallbackMaxLastResortCandidates: 0 suppresses the last-resort append at runtime', async () => {
+    // Same 6-provider config but cap=0. Smart default still picks 4 (p2–p5),
+    // but resolveAllConfigured is empty. p6/model-f must NOT be tried.
+    const config = {
+      provider: 'primary',
+      model: 'model-a',
+      fallbackModels: [],
+      fallbackAuto: true,
+      fallbackMaxLastResortCandidates: 0,
+      providers: {
+        primary: { type: 'openai', apiKey: 'k1', models: ['model-a'] },
+        p2: { type: 'openai', apiKey: 'k2', models: ['model-b'] },
+        p3: { type: 'openai', apiKey: 'k3', models: ['model-c'] },
+        p4: { type: 'openai', apiKey: 'k4', models: ['model-d'] },
+        p5: { type: 'openai', apiKey: 'k5', models: ['model-e'] },
+        p6: { type: 'openai', apiKey: 'k6', models: ['model-f'] },
+      },
+    } as never as Config;
+
+    const buildProvider = vi.fn(async (providerId: string) => makeProvider(providerId));
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider,
+      events: new EventBus(),
+      now: () => 1_000,
+    });
+    const ctx = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    // Every provider fails — chain should exhaust without ever reaching p6.
+    const inner = vi.fn().mockRejectedValue(
+      new ProviderError('rate limited', 429, true, 'primary'),
+    );
+
+    await expect(ext.wrapProviderRunner?.(ctx, request, inner)).rejects.toThrow();
+
+    // p6 is only reachable via resolveAllConfigured — cap=0 suppressed it.
+    expect(buildProvider).not.toHaveBeenCalledWith('p6', 'model-f');
+    // p2–p5 are in the smart default and must still be tried.
+    expect(buildProvider).toHaveBeenCalledWith('p2', 'model-b');
+    expect(buildProvider).toHaveBeenCalledWith('p5', 'model-e');
+  });
+
+  it('fallbackMaxLastResortCandidates: 2 truncates the last-resort tail at runtime', async () => {
+    // 9 providers (primary + 8 others), each with one model.
+    // Smart default picks 4 (p2–p5). resolveAllConfigured has 4 remaining
+    // (p6–p9), but cap=2 means only p6 and p7 are appended. p8 and p9
+    // must NOT be tried.
+    const config = {
+      provider: 'primary',
+      model: 'model-a',
+      fallbackModels: [],
+      fallbackAuto: true,
+      fallbackMaxLastResortCandidates: 2,
+      providers: {
+        primary: { type: 'openai', apiKey: 'k1', models: ['model-a'] },
+        p2: { type: 'openai', apiKey: 'k2', models: ['model-b'] },
+        p3: { type: 'openai', apiKey: 'k3', models: ['model-c'] },
+        p4: { type: 'openai', apiKey: 'k4', models: ['model-d'] },
+        p5: { type: 'openai', apiKey: 'k5', models: ['model-e'] },
+        p6: { type: 'openai', apiKey: 'k6', models: ['model-f'] },
+        p7: { type: 'openai', apiKey: 'k7', models: ['model-g'] },
+        p8: { type: 'openai', apiKey: 'k8', models: ['model-h'] },
+        p9: { type: 'openai', apiKey: 'k9', models: ['model-i'] },
+      },
+    } as never as Config;
+
+    const buildProvider = vi.fn(async (providerId: string) => makeProvider(providerId));
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider,
+      events: new EventBus(),
+      now: () => 1_000,
+    });
+    const ctx = {
+      provider: makeProvider('primary'),
+      model: 'model-a',
+      session: { id: 's1' },
+    } as never as Context;
+    const request = { model: 'model-a', messages: [], maxTokens: 100 } as never as Request;
+
+    // Every provider fails — chain exhausts.
+    const inner = vi.fn().mockRejectedValue(
+      new ProviderError('rate limited', 429, true, 'primary'),
+    );
+
+    await expect(ext.wrapProviderRunner?.(ctx, request, inner)).rejects.toThrow();
+
+    // Smart default picks p2–p5 (always tried).
+    expect(buildProvider).toHaveBeenCalledWith('p2', 'model-b');
+    expect(buildProvider).toHaveBeenCalledWith('p5', 'model-e');
+    // Cap=2 allows p6 and p7 into the last-resort tail.
+    expect(buildProvider).toHaveBeenCalledWith('p6', 'model-f');
+    expect(buildProvider).toHaveBeenCalledWith('p7', 'model-g');
+    // p8 and p9 are beyond the cap — must NOT be tried.
+    expect(buildProvider).not.toHaveBeenCalledWith('p8', 'model-h');
+    expect(buildProvider).not.toHaveBeenCalledWith('p9', 'model-i');
+  });
+});
