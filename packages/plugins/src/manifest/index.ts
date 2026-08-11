@@ -37,6 +37,7 @@ const OFFICIAL_PLUGIN_NAMES = [
   'session-recap',
   'spec-linker',
   'loop-breaker',
+  'gitignore-guard',
   'path-guard',
   'process-guard',
   'context-pins',

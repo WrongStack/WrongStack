@@ -26,6 +26,7 @@ export const OFFICIAL_PLUGIN_SPECIFIERS = [
   '@wrongstack/plugins/session-recap',
   '@wrongstack/plugins/spec-linker',
   '@wrongstack/plugins/loop-breaker',
+  '@wrongstack/plugins/gitignore-guard',
   '@wrongstack/plugins/path-guard',
   '@wrongstack/plugins/process-guard',
   '@wrongstack/plugins/context-pins',

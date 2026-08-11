@@ -25,6 +25,7 @@ export { default as featureFlagTrackerPlugin } from './feature-flag-tracker/inde
 export { default as fileWatcherPlugin } from './file-watcher/index.js';
 export { default as formatOnSavePlugin } from './format-on-save/index.js';
 export { default as gitAutocommitPlugin } from './git-autocommit/index.js';
+export { default as gitignoreGuardPlugin } from './gitignore-guard/index.js';
 export { default as importOrganizerPlugin } from './import-organizer/index.js';
 export { default as injectionShieldPlugin } from './injection-shield/index.js';
 export { default as interfaceContractGuardPlugin } from './interface-contract-guard/index.js';

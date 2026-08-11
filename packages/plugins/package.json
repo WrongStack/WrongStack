@@ -124,6 +124,10 @@
       "types": "./dist/loop-breaker.d.ts",
       "import": "./dist/loop-breaker.js"
     },
+    "./gitignore-guard": {
+      "types": "./dist/gitignore-guard.d.ts",
+      "import": "./dist/gitignore-guard.js"
+    },
     "./path-guard": {
       "types": "./dist/path-guard.d.ts",
       "import": "./dist/path-guard.js"

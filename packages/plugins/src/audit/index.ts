@@ -185,6 +185,14 @@ export const OFFICIAL_PLUGIN_AUDIT_ENTRIES = [
     canDisable: true,
   },
   {
+    name: 'gitignore-guard',
+    risk: 'low',
+    summary:
+      'PostToolUse hook that suggests or appends .gitignore entries for build-artifact-looking files after every write or edit',
+    defaultState: 'inactive',
+    canDisable: true,
+  },
+  {
     name: 'path-guard',
     risk: 'medium',
     summary:

@@ -28,6 +28,7 @@
 | session-recap | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/session-recap` | Stop hook that posts a one-page session summary (tokens, tools, commits, last activity) to the project mailbox |
 | spec-linker | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/spec-linker` | Markdown link auditor for plugin references. PostToolUse surfaces unlinked references; PreToolUse on `write` (autoFix) wraps them in markdown links via modifiedInput. |
 | loop-breaker | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/loop-breaker` | Detects runaway tool-call loops (identical repeats and A-B-A-B oscillation) — warns the model, then blocks |
+| gitignore-guard | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/gitignore-guard` | PostToolUse hook that suggests or appends .gitignore entries for build-artifact-looking files after every write or edit |
 | path-guard | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/path-guard` | Blocks or warns about writes, edits, and destructive shell commands touching protected paths (lockfiles, .env, .git, migrations) |
 | process-guard | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/process-guard` | Blocks kill commands (taskkill, Stop-Process, kill, pkill, wmic) that target active WrongStack processes or their host terminals. |
 | context-pins | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/context-pins` | Pin durable facts into the system prompt (pin_add/pin_remove/pin_list) — pins survive compaction and persist across sessions |
