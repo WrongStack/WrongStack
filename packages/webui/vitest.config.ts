@@ -1,8 +1,8 @@
-import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getVitestMaxWorkers } from '../../vitest.workers';
+import { defineConfig } from 'vitest/config';
 import { coreAliases } from '../../scripts/vitest-core-aliases.mjs';
+import { getVitestMaxWorkers } from '../../vitest.workers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -51,9 +51,9 @@ export default defineConfig({
       exclude: [
         '**/*.test.*',
         '**/dist/**',
-        'src/env.d.ts',        // ambient type declarations only
-        'src/vite-env.d.ts',   // ambient type declarations only
-        'src/main.tsx',        // ReactDOM bootstrap entry — exercised by E2E
+        'src/env.d.ts', // ambient type declarations only
+        'src/vite-env.d.ts', // ambient type declarations only
+        'src/main.tsx', // ReactDOM bootstrap entry — exercised by E2E
         'src/lib/core-browser-shim.ts', // side-effect polyfill shim
         'src/server/entry.ts', // process/bootstrap entry — exercised at runtime
         // Type-only modules: interfaces and unions with zero runtime code. v8
@@ -61,7 +61,7 @@ export default defineConfig({
         // gap. The root vitest.config.ts already excludes `**/types/**` for the
         // same reason — this mirrors it for the WebUI's own type surface.
         'src/types/**',
-        'src/types.ts',                 // barrel: `export * from './types/*'`
+        'src/types.ts', // barrel: `export * from './types/*'`
         'src/protocol-compatibility.ts', // compile-time AssertNever bridge only
         // Measured by packages/webui-server/tests under the root config —
         // see the include comment above.
@@ -140,8 +140,18 @@ export default defineConfig({
       // partial @wrongstack/core / node:fs mocks work exactly as they did when
       // these suites imported ../../src/server/* before the PR-018b extraction.
       '@wrongstack/webui-server': path.resolve(__dirname, '../../packages/webui-server/src'),
-      '@wrongstack/tools/tool-icons': path.resolve(__dirname, '../../packages/tools/src/tool-icons.ts'),
-      '@wrongstack/tools/next-steps': path.resolve(__dirname, '../../packages/tools/src/next-steps.ts'),
+      '@wrongstack/tools/tool-diff': path.resolve(
+        __dirname,
+        '../../packages/tools/src/tool-diff.ts',
+      ),
+      '@wrongstack/tools/tool-icons': path.resolve(
+        __dirname,
+        '../../packages/tools/src/tool-icons.ts',
+      ),
+      '@wrongstack/tools/next-steps': path.resolve(
+        __dirname,
+        '../../packages/tools/src/next-steps.ts',
+      ),
       '@wrongstack/tools/auto-proceed-loop-guard': path.resolve(
         __dirname,
         '../../packages/tools/src/auto-proceed-loop-guard.ts',
