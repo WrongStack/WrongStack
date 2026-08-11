@@ -39,7 +39,8 @@ When the explicit chain is **empty** and `auto` is **on** (the default), a chain
 is derived automatically from your configured providers and models: favorites
 first, then same-provider alternatives, then cross-provider targets. The normal
 preview is capped at four and reserves a cross-provider escape hatch. Runtime
-continuity appends an uncapped usable inventory only after the preferred chain
+continuity appends a bounded usable inventory (capped at
+`fallbackMaxLastResortCandidates`, default 12) only after the preferred chain
 is exhausted.
 
 Turn it off with `/fallback auto off` to disable auto derivation and the final

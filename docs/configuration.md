@@ -43,6 +43,7 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
   "fallbackBridge": "openai/gpt-5.4-mini",
   "fallbackProfiles": { /* ... */ },
   "fallbackAuto": true,
+  "fallbackMaxLastResortCandidates": 12,
   "fallbackStickiness": { "primaryProbeInterval": 60000, "stickyFallbackTurns": 0 },
   "cwd": ".",
   "extensions": { /* ... */ }
@@ -65,6 +66,7 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `fallbackBridge` | `string` | — | Optional fully-qualified `provider/model` emergency route tried before the ordinary chain. It remains active when `fallbackAuto` is off and shares health/calendar filtering with other fallbacks. Configure with `/fallback bridge set ...`. |
 | `fallbackProfiles` | `Record<string, string[]>` | — | Named fallback chains. `/setmodel` and WebUI Model Routing can point a role/phase/default entry at a profile. |
 | `fallbackAuto` | `boolean` | `true` | Auto-derive a fallback chain from other keyed providers when `fallbackModels` is empty. Toggle with `/fallback auto on\|off`. |
+| `fallbackMaxLastResortCandidates` | `number` | `12` | Maximum number of auto-discovered models appended as a last-resort tail after the bridge, explicit chain, named profile, and default profile are all exhausted. Set to `0` to disable the tail entirely. Fractional values are floored. Validated by `/config doctor`. |
 | `fallbackStickiness` | `object` | `{ primaryProbeInterval: 60000, stickyFallbackTurns: 0 }` | Controls how the fallback engine transitions between the primary and fallback models. See [Fallback stickiness](#fallback-stickiness) below. |
 | `favoriteModels` | `string[]` | `[]` | User-curated model refs prioritized by pickers and smart fallback derivation. |
 | `favoriteModelsOnly` | `boolean` | `false` | Restrict the **auto-derived** smart-default fallback chain to `favoriteModels`. **Explicit** settings are always honored as written — this includes `fallbackModels`, `fallbackProfiles`, and matrix model-only entries (`agent_model_assign` with `model=...`, no `profile=...`). The smart-default chain is at most as strict as the matrix model-only mode: the matrix already requires favorites whenever `favoriteModels` is non-empty (via `isFavoriteRef`), regardless of this toggle. The toggle only narrows the auto-derivation path, and only when `favoriteModels` is non-empty — an empty `favoriteModels` list means the smart default falls back to including every usable provider/model pair. Toggle with `/fallback fav only on\|off`. |
