@@ -107,6 +107,31 @@
       "fingerprint": "5760e7fd5b745740"
     },
     {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "131cca6e516ac699"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "293aa23ec06883de"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "b39f194e031a55f9"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "skip",
+      "fingerprint": "507c258855317cf8"
+    },
+    {
+      "file": "packages/persistence/tests/project-endpoint.test.ts",
+      "kind": "skip",
+      "fingerprint": "89c506dbd655693f"
+    },
+    {
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
       "kind": "skipIf",
       "fingerprint": "31cfbc566a723022"
@@ -144,12 +169,12 @@
     {
       "file": "packages/sage/tests/project-server-auth-gate.test.ts",
       "kind": "skipIf",
-      "fingerprint": "112de03e9a9f6ec5"
+      "fingerprint": "3a6ff4cff9bd0ee7"
     },
     {
       "file": "packages/sage/tests/project-server-auth-gate.test.ts",
       "kind": "skipIf",
-      "fingerprint": "155599ce2c8ad2df"
+      "fingerprint": "3c611f3df7189b61"
     },
     {
       "file": "packages/sdd/tests/sdd-interview-driver.test.ts",
