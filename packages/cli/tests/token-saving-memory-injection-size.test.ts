@@ -179,19 +179,18 @@ describe('memory injection size by tier', () => {
     const bySize = [...results].sort((a, b) => a.memory - b.memory);
     expect(bySize[0]?.tier).toBe('minimal');
 
-    // 'off' / 'medium' / 'aggressive' must all be roughly equal — they
-    // share the same 8-item full format. Allow 50% slack to absorb
-    // scoring-order variance and any future entry-length drift.
-    const full = ['off', 'medium', 'aggressive']
+    // 'off' / 'medium' use the full memory format and should remain roughly
+    // equal. Allow 50% slack for scoring-order and entry-length variance.
+    const full = ['off', 'medium']
       .map((t) => results.find((r) => r.tier === t)!)
       .map((r) => r.memory);
     const maxFull = Math.max(...full);
     const minFull = Math.min(...full);
     expect(minFull).toBeGreaterThan(maxFull * 0.5);
 
-    // Regression — `aggressive` must NOT compact memory. If a future
-    // change accidentally drops it to 3-item compact form, this catches it.
+    // Aggressive is the maximum-reduction tier: its compact three-item memory
+    // block must remain materially smaller than both full-format tiers.
     const aggressive = results.find((r) => r.tier === 'aggressive')!;
-    expect(aggressive.memory).toBeGreaterThan(bySize[0]!.memory * 2);
+    expect(aggressive.memory).toBeLessThan(Math.min(...full) * 0.75);
   });
 });

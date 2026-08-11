@@ -15,6 +15,9 @@ export const DEFAULT_TOOLS_CONFIG = Object.freeze({
   disabledTools: Object.freeze([]) as readonly string[],
   autoExtendLimit: true,
   restrictToProjectRoot: true,
+  // Off by default: the board is a record of the work, not a permit for it.
+  // See ToolsConfig.kanbanGovernance for what turning it on costs and gates.
+  kanbanGovernance: false,
   loopDetection: Object.freeze({
     mode: 'steer-then-cut',
     steerThreshold: 3,

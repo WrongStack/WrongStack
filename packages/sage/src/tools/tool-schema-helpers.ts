@@ -19,6 +19,14 @@ export const KIND_VALUES: SageKind[] = [
   'symbol_note',
   'command_note',
   'summary',
+  'memory_review',
+  'tool_outcome',
+  'error_pattern',
+  'session_digest',
+  'role_operational',
+  'task_outcome',
+  'security_signal',
+  'fleet_convention',
 ];
 export const SCOPE_VALUES: SageScope[] = ['project', 'user', 'session', 'file', 'symbol'];
 export const STATUS_VALUES: SageStatus[] = [

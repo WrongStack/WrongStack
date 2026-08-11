@@ -10,8 +10,8 @@
       "cwd": "/proj",
       "sessionId": "sess-1",
       "tools": {
-        "count": 2,
-        "names": ["read", "bash"]
+        "count": 1,
+        "names": ["read"]
       },
       "maxTools": 0,
       "droppedTools": 0,

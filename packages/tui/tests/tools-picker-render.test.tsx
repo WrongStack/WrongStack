@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import React from 'react';
 import { render } from 'ink-testing-library';
-import { ToolsPicker, type ToolPickerItem } from '../src/components/tools-picker.js';
+import React from 'react';
+import { describe, expect, it } from 'vitest';
+import { type ToolPickerItem, ToolsPicker } from '../src/components/tools-picker.js';
 
 function item(overrides: Partial<ToolPickerItem> = {}): ToolPickerItem {
   return {
@@ -9,6 +9,7 @@ function item(overrides: Partial<ToolPickerItem> = {}): ToolPickerItem {
     owner: 'core',
     category: 'filesystem',
     enabled: true,
+    exposure: 'direct',
     mutating: false,
     permission: 'auto',
     descMode: 'extend',
@@ -38,13 +39,21 @@ function visibleRowNames(frame: string, candidateNames: string[]): string[] {
 }
 
 describe('ToolsPicker rendering', () => {
-  it('keeps passive tools visible in-place and renders category as row metadata', () => {
+  it('keeps disabled tools visible in-place and renders provider exposure', () => {
     const { lastFrame, unmount } = render(
       React.createElement(ToolsPicker, {
         items: [
           item({ name: 'read', category: 'filesystem' }),
-          item({ name: 'write', category: 'filesystem', enabled: false, mutating: true, permission: 'confirm', description: 'Write file contents.' }),
-          item({ name: 'grep', category: 'search' }),
+          item({
+            name: 'write',
+            category: 'filesystem',
+            enabled: false,
+            exposure: 'disabled',
+            mutating: true,
+            permission: 'confirm',
+            description: 'Write file contents.',
+          }),
+          item({ name: 'grep', category: 'search', exposure: 'lazy' }),
         ],
         selected: 1,
       }),
@@ -57,9 +66,9 @@ describe('ToolsPicker rendering', () => {
     expect(readIndex).toBeGreaterThanOrEqual(0);
     expect(writeIndex).toBeGreaterThan(readIndex);
     expect(grepIndex).toBeGreaterThan(writeIndex);
-    expect(frame).toContain('○ passive');
-    expect(frame).toContain('2 active / 1 passive');
-    expect(frame).toContain('Passive tools stay listed for this session');
+    expect(frame).toContain('○ disabled');
+    expect(frame).toContain('1 direct / 1 lazy / 1 disabled');
+    expect(frame).toContain('Lazy tools stay executable through discovery gateways');
     expect(frame).toContain('Enter re-enables this tool');
     expect(frame).toContain('Write file contents.');
     expect(frame).toMatch(/write\s+Filesystem\s+\[core\]/);
@@ -89,7 +98,7 @@ describe('ToolsPicker rendering', () => {
     expect(frame).toContain('[dependency-vulnera…');
     expect(frame).toContain('confirm…');
     expect(frame).toContain('ro');
-    expect(frame).toContain('desc:e…');
+    expect(frame).toContain('desc:ex…');
     unmount();
   });
 

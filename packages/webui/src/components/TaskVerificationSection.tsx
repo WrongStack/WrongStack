@@ -71,7 +71,7 @@ export function TaskVerificationSection({
 
   return (
     <>
-      <KanbanContractGraphPanel board={board} task={task} />
+      <KanbanContractGraphPanel board={board} task={task} sendKanban={sendKanban} />
       {verification}
     </>
   );

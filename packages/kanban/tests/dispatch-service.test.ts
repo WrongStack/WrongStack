@@ -166,6 +166,45 @@ describe('startKanbanDispatch', () => {
     });
     expect(started).toBeNull();
   });
+
+  it('omits lifecycleTransitionError on a successful managed todo→running dispatch', async () => {
+    // The happy path must not populate lifecycleTransitionError: when the
+    // transition succeeds, the field stays absent so callers can distinguish
+    // "running cleanly" from "running but lifecycle diverged".
+    const b = await createBoard(tmpDir, {
+      title: 'Managed',
+      columns: COLS,
+      lifecycle: managedLifecycle(),
+    });
+    const added = await addTask(tmpDir, b.id, {
+      title: 'Managed Task',
+      description: 'Detailed scope.',
+    });
+    await updateTask(tmpDir, b.id, added!.task.id, {
+      assignee: 'agent-1',
+      dueDate: FUTURE,
+      labels: ['test'],
+      childTaskIds: ['child-1'],
+      successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'pending' }],
+    });
+    const { transitionTask } = await import('../src/manager.js');
+    await transitionTask(tmpDir, b.id, added!.task.id, { to: 'todo', actor: 'agent', comment: 'Ready.' });
+
+    const reserved = await reserveKanbanDispatch(tmpDir, { boardId: b.id });
+    expect(reserved).not.toBeNull();
+
+    const started = await startKanbanDispatch(tmpDir, {
+      boardId: reserved!.board.id,
+      taskId: reserved!.task.id,
+      leaseId: reserved!.lease.leaseId,
+      actor: 'test-agent',
+    });
+    expect(started).not.toBeNull();
+    expect(started!.task.lifecycle?.currentStage).toBe('running');
+    expect(started!.task.assignment?.status).toBe('running');
+    // No lifecycle divergence on the success path.
+    expect(started!.lifecycleTransitionError).toBeUndefined();
+  });
 });
 
 // ── Complete ─────────────────────────────────────────────────────────
@@ -382,5 +421,35 @@ describe('cancelKanbanDispatch', () => {
     });
     // updateTaskAssignment with wrong lease returns null, so cancelKanbanDispatch returns null
     expect(result).toBeNull();
+  });
+});
+
+// ── Concurrency ─────────────────────────────────────────────────────
+
+describe('reserveKanbanDispatch under concurrent reservation', () => {
+  it('awards the task to exactly one of two concurrent reservations', async () => {
+    // Two concurrent reservations racing for the same ready task must produce
+    // exactly one winner and one null (loser). The protection is the
+    // revision-based optimistic lock inside mutateBoard: the first commit
+    // bumps revision, the second's expected-revision check fails and the
+    // claim returns null. This was previously untested at the dispatch layer.
+    const b = await createBoard(tmpDir, { title: 'Legacy', columns: COLS });
+    await addTask(tmpDir, b.id, {
+      title: 'Contended Task',
+      description: 'Only one agent may claim this.',
+      status: 'ready',
+      columnId: 'todo',
+    });
+
+    const [a, c] = await Promise.all([
+      reserveKanbanDispatch(tmpDir, { boardId: b.id }),
+      reserveKanbanDispatch(tmpDir, { boardId: b.id }),
+    ]);
+
+    const results = [a, c];
+    const winners = results.filter((r) => r !== null);
+    const losers = results.filter((r) => r === null);
+    expect(winners).toHaveLength(1);
+    expect(losers).toHaveLength(1);
   });
 });

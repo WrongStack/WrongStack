@@ -63,18 +63,9 @@ export function validateConfigBehavior(cfg: PartialConfig, logWarn: LogWarn): vo
     c.mode = normalizeContextWindowModeId(c.mode) ?? DEFAULT_CONTEXT_WINDOW_MODE_ID;
   }
 
-  // Warn if Sage embeddings are enabled but not connected to the retrieval
-  // pipeline. The embedding provider interface and HashingEmbeddingProvider
-  // exist in packages/sage/src/embeddings/ but vectors are not persisted or
-  // consumed by the current store and retrieval pipeline. Enabling embeddings
-  // has no practical effect until semantic retrieval is wired (Phase 4).
-  const sage = (cfg as PartialConfig & { Sage?: { embeddings?: { enabled?: boolean } | undefined } }).Sage;
-  if (sage?.embeddings?.enabled === true) {
-    logWarn(
-      'Config: Sage.embeddings.enabled is true, but embeddings are not yet connected to the retrieval pipeline. Semantic retrieval will not activate until vector storage and fusion are implemented.',
-      { event: 'config.sage_embeddings_not_wired' },
-    );
-  }
+  // Sage.embeddings.enabled is reserved for a future durable vector index /
+  // external embed API. Soft hybrid re-rank (offline hashing) already runs on
+  // multi-token searches without this flag — no warning required.
 }
 
 export function validateConfigIdentity(cfg: PartialConfig): void {

@@ -35,6 +35,13 @@ export const VALID_KINDS = new Set<SageKind>([
   'command_note',
   'summary',
   'memory_review',
+  'tool_outcome',
+  'error_pattern',
+  'session_digest',
+  'role_operational',
+  'task_outcome',
+  'security_signal',
+  'fleet_convention',
 ]);
 const VALID_ANCHOR_TYPES = new Set<MemoryAnchor['type']>([
   'file',

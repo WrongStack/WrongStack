@@ -19,6 +19,7 @@ import {
   handleSageGet,
   handleSageGraph,
   handleSageList,
+  handleSageListCandidates,
   handleSageListPage,
   handleSageRecover,
   handleSageRemember,
@@ -115,6 +116,29 @@ describe('memory-handlers', () => {
       await handleMemoryList(ws, { readAll: vi.fn() } as any);
       const sent = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sent.payload.error).toBeTruthy();
+    });
+  });
+
+  describe('handleSageListCandidates', () => {
+    it('requires SAGE surface', async () => {
+      mockGetSageSurface.mockReturnValue(null);
+      const ws = mockWs();
+      await handleSageListCandidates(ws, msg(), {} as any);
+      const frame = JSON.parse(ws.send.mock.calls[0][0]);
+      expect(frame.type).toBe('memory.sage.listCandidates');
+      expect(frame.payload.error).toMatch(/requires the SAGE/);
+    });
+
+    it('lists candidates from the surface', async () => {
+      const candidates = [{ id: 'c1', status: 'pending', text: 'review me' }];
+      mockGetSageSurface.mockReturnValue({
+        listCandidates: vi.fn(async () => candidates),
+      });
+      const ws = mockWs();
+      await handleSageListCandidates(ws, msg({ includeResolved: false }), {} as any);
+      const frame = JSON.parse(ws.send.mock.calls[0][0]);
+      expect(frame.type).toBe('memory.sage.listCandidates');
+      expect(frame.payload.candidates).toEqual(candidates);
     });
   });
 

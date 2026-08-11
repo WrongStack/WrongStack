@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { Message } from '../types/messages.js';
 import type { Request } from '../types/provider.js';
 
 /**
@@ -19,6 +20,15 @@ import type { Request } from '../types/provider.js';
  *     sampling knobs (`temperature`, `topP`, `stopSequences`,
  *     `toolChoice`). Anything else on the `Request` (metadata,
  *     future extensions) is ignored so replay stays forward-compat.
+ *   - The same rule applies *inside* each message. `Request.messages`
+ *     is the live `ctx.messages` array, whose entries carry local
+ *     bookkeeping the provider adapters explicitly drop: `ts` (wall
+ *     clock at the moment the turn was created), `_estTokens` (a
+ *     mutation-time cache) and `origin`. Hashing those made every
+ *     hash a function of when the run happened, so a recorded
+ *     response could never be found again and `mode: 'replay'` threw
+ *     on the first call it was asked to serve. See
+ *     {@link semanticMessage}.
  *   - We serialize to JSON. The `ContentBlock` and `Message` shapes
  *     are pure data; this works as long as no `undefined` values
  *     sneak in (those get dropped by `JSON.stringify`, which is
@@ -45,12 +55,24 @@ function sortKeys(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Strip a message down to what the provider actually receives.
+ *
+ * `ts`, `_estTokens` and `origin` are documented on {@link Message} as local
+ * fields the adapters ignore. Two runs that produce the identical conversation
+ * differ in all three, so they must not reach the digest.
+ */
+function semanticMessage(message: Message): Omit<Message, 'ts' | '_estTokens' | 'origin'> {
+  const { ts: _ts, _estTokens: _estimate, origin: _origin, ...semantic } = message;
+  return semantic;
+}
+
 export function hashRequest(request: Request): string {
   // Pick only the fields that affect the response. See stability rules.
   const payload = {
     model: request.model,
     system: request.system,
-    messages: request.messages,
+    messages: request.messages.map(semanticMessage),
     tools: request.tools,
     maxTokens: request.maxTokens,
     temperature: request.temperature,

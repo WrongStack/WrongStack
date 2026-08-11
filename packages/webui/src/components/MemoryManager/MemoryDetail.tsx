@@ -40,7 +40,7 @@ export interface MemoryDetailProps {
   graphError: string | null;
   onClose: () => void;
   onOpenMemory: (id: string) => void;
-  onEdit: () => void;
+  onEdit: (id: string) => void;
   onDelete: () => void;
   onTagSelect: (tag: string) => void;
   onNotice: (message: string) => void;
@@ -110,7 +110,7 @@ export function MemoryDetail({
           <Button
             variant="outline"
             size="sm"
-            onClick={onEdit}
+            onClick={() => onEdit(memory.id)}
             disabled={memory.status === 'deleted'}
           >
             <Pencil className="size-3.5" /> {t('common:action.edit')}

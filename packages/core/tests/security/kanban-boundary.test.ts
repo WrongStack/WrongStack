@@ -111,19 +111,15 @@ describe('tool Kanban boundary integration', () => {
     roots.push(projectRoot);
     const board = await createBoard(projectRoot, {
       title: 'Lightweight governed work',
-      columns: [
-        { id: 'backlog', title: 'Backlog', order: 0 },
-        { id: 'todo', title: 'Todo', order: 1 },
-        { id: 'running', title: 'Running', order: 2 },
-        { id: 'review', title: 'Review', order: 3 },
-        { id: 'done', title: 'Done', order: 4 },
-      ],
+      // Columns are locked to DEFAULT_COLUMNS; the lifecycle mapping below
+      // references the standard column ids (backlog, todo, in-progress, review,
+      // done).
       lifecycle: {
         mode: 'managed',
         columns: {
           backlog: 'backlog',
           todo: 'todo',
-          running: 'running',
+          running: 'in-progress',
           review: 'review',
           done: 'done',
         },

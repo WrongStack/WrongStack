@@ -66,6 +66,7 @@ const CHAT_ECHO_RESPONSE_BY_REQUEST: Partial<
   'memory.sage.get': 'memory.sage.get',
   'memory.sage.graph': 'memory.sage.graph',
   'memory.sage.list': 'memory.sage.list',
+  'memory.sage.listCandidates': 'memory.sage.listCandidates',
   'memory.sage.listPage': 'memory.sage.listPage',
   'memory.sage.remember': 'memory.sage.remember',
   'memory.sage.update': 'memory.sage.update',

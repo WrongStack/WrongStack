@@ -32,8 +32,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DefaultSystemPromptBuilder } from '../../src/index.js';
 import type { Tool } from '../../src/index.js';
+import { DefaultSystemPromptBuilder } from '../../src/index.js';
 
 const mkTool = (name: string, description: string, usageHint?: string): Tool => ({
   name,
@@ -186,7 +186,6 @@ describe('DefaultSystemPromptBuilder — F-area tier semantics', () => {
       ['off', 'aggressive'],
       ['minimal', 'light'],
       ['minimal', 'medium'],
-      ['minimal', 'aggressive'],
       ['light', 'medium'],
       ['light', 'aggressive'],
       ['medium', 'aggressive'],
@@ -215,9 +214,16 @@ describe('DefaultSystemPromptBuilder — F-area tier semantics', () => {
     });
   });
 
+  describe('F-area — aggressive remains at least as compact as minimal', () => {
+    it('aggressive <= minimal in chars under the small fixture', async () => {
+      expect((await promptAt('aggressive')).length).toBeLessThanOrEqual(
+        (await promptAt('minimal')).length,
+      );
+    });
+  });
+
   describe('F-area — invariant: prompt length is monotonic in expected savings', () => {
-    // Documented expected ordering (off > aggressive > medium > light > minimal)
-    // per the empirical measurement test from sprint 2. We don't pin
+    // We don't pin
     // exact chars here (that would be brittle); we only assert the
     // ordering so a future regression like the sprint-2 `aggressive`
     // collapse is caught.
@@ -226,10 +232,12 @@ describe('DefaultSystemPromptBuilder — F-area tier semantics', () => {
       const medium = (await promptAt('medium')).length;
       const light = (await promptAt('light')).length;
       const minimal = (await promptAt('minimal')).length;
+      const aggressive = (await promptAt('aggressive')).length;
 
       expect(off).toBeGreaterThanOrEqual(medium);
       expect(medium).toBeGreaterThanOrEqual(light);
       expect(light).toBeGreaterThanOrEqual(minimal);
+      expect(minimal).toBeGreaterThanOrEqual(aggressive);
     });
   });
 

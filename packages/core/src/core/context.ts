@@ -441,6 +441,30 @@ export class Context implements RunEnv {
     }
   }
 
+  private _journalDropCount = 0;
+  private _journalDropWarnAt = 0;
+
+  /** Throttled notice that a conversation event never reached the journal. */
+  private warnConversationJournalDrop(eventType: SessionEvent['type']): void {
+    this._journalDropCount++;
+    const now = Date.now();
+    if (now - this._journalDropWarnAt < 5_000) return;
+    this._journalDropWarnAt = now;
+    const dropped = this._journalDropCount;
+    this._journalDropCount = 0;
+    console.warn(
+      JSON.stringify({
+        level: 'error',
+        event: 'session.conversation_journal_drop',
+        sessionId: this.session?.id,
+        eventType,
+        droppedEvents: dropped,
+        message: 'Session writer is not draining; replay of this session will be incomplete.',
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
+
   private enqueueConversationJournal(event: SessionEvent, writer: SessionWriter): void {
     const bytes = this.conversationJournalBytes(event);
     const shouldSnapshot =
@@ -465,21 +489,38 @@ export class Context implements RunEnv {
         this._conversationJournalBytes = Math.max(0, this._conversationJournalBytes - queued.bytes);
         this._conversationJournalQueue.splice(index, 1);
       }
-      if (snapshotBytes <= Context.CONVERSATION_JOURNAL_MAX_BYTES) {
-        this._conversationJournalQueue.push({ event: snapshot, bytes: snapshotBytes, writer });
-        this._conversationJournalBytes += snapshotBytes;
-      }
+      // The snapshot is enqueued whatever it weighs. Refusing an oversized one
+      // used to leave the queue holding nothing at all for this writer — the
+      // deltas were purged just above — so the journal silently stopped
+      // describing the conversation. That is worst exactly where it matters
+      // most: `applyRewindToConversation` truncates the JSONL and then relies
+      // on this snapshot to re-anchor it, and compaction relies on it to stop
+      // the journal replaying the pre-compaction history. The overshoot is
+      // also cheaper than the byte count suggests — `messages` is a shallow
+      // copy of message objects the Context already keeps alive — and the
+      // drain releases it on the next tick.
+      this._conversationJournalQueue.push({ event: snapshot, bytes: snapshotBytes, writer });
+      this._conversationJournalBytes += snapshotBytes;
     } else {
       this._conversationJournalQueue.push({ event, bytes, writer });
       this._conversationJournalBytes += bytes;
     }
+    // Backstop for a writer that stops draining entirely. Snapshots are never
+    // evicted: a dropped delta is one turn the next snapshot restores anyway,
+    // a dropped snapshot is state nothing can restore. Loud, because reaching
+    // here means the journal is about to be incomplete.
     while (
       this._conversationJournalQueue.length > Context.CONVERSATION_JOURNAL_MAX_EVENTS ||
       this._conversationJournalBytes > Context.CONVERSATION_JOURNAL_MAX_BYTES
     ) {
-      const dropped = this._conversationJournalQueue.shift();
+      const index = this._conversationJournalQueue.findIndex(
+        (queued) => queued.event.type !== 'messages_replaced',
+      );
+      if (index === -1) break;
+      const [dropped] = this._conversationJournalQueue.splice(index, 1);
       if (!dropped) break;
       this._conversationJournalBytes = Math.max(0, this._conversationJournalBytes - dropped.bytes);
+      this.warnConversationJournalDrop(dropped.event.type);
     }
     this.startConversationJournalDrain();
   }

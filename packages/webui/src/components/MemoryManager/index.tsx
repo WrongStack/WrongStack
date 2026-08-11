@@ -23,6 +23,7 @@ import { MemoryEditor } from './MemoryEditor';
 import { MemoryFilters } from './MemoryFilters';
 import { MemoryList } from './MemoryList';
 import { MemoryManagerEmpty } from './MemoryManagerEmpty';
+import { ReviewQueue } from './ReviewQueue';
 import { collectMemoryTags, filterMemories, selectRelatedMemories } from './selectors';
 import type { MemoryDraft } from './shared';
 import { draftFromMemory, emptyDraft, MetricCard, normalizeAnchors, splitList } from './shared';
@@ -32,6 +33,7 @@ export function MemoryManager() {
   const {
     client,
     listSageMemoriesPage,
+    listMemoryCandidates,
     rememberSage,
     updateSage,
     deleteSage,
@@ -66,10 +68,13 @@ export function MemoryManager() {
   const [kindFilter, setKindFilter] = useState('all');
   const [audienceOnly, setAudienceOnly] = useState(false);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
-  // Paginated "Active" vs "Deleted" views. The default view excludes deleted
-  // memories (which accumulate as a soft-delete audit trail and can number in
-  // the thousands); the Deleted tab requests them explicitly, one page at a time.
-  const [showDeleted, setShowDeleted] = useState(false);
+  // Paginated "Active" vs "Deleted" vs "Review" views. The default view excludes
+  // deleted memories (which accumulate as a soft-delete audit trail and can
+  // number in the thousands); the Deleted tab requests them explicitly; Review
+  // loads pending hygiene/triage candidates.
+  const [libraryView, setLibraryView] = useState<'active' | 'deleted' | 'review'>('active');
+  const showDeleted = libraryView === 'deleted';
+  const showReview = libraryView === 'review';
   const [pageCursor, setPageCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -202,11 +207,15 @@ export function MemoryManager() {
           limit: PAGE_SIZE,
           ...(showDeleted ? { statuses: ['deleted'] } : {}),
           ...(cursor ? { cursor } : {}),
+          // Server-side text search + kind filter so pagination covers the
+          // whole store instead of only the currently loaded page.
+          ...(searchQuery.trim() ? { query: searchQuery.trim() } : {}),
+          ...(kindFilter !== 'all' ? { kind: kindFilter } : {}),
         },
         { echoToChat: false },
       );
     },
-    [client, listSageMemoriesPage, showDeleted],
+    [client, kindFilter, listSageMemoriesPage, searchQuery, showDeleted],
   );
 
   const loadMemories = useCallback(() => {
@@ -811,14 +820,11 @@ export function MemoryManager() {
               variant="ghost"
               size="sm"
               role="tab"
-              aria-selected={!showDeleted}
-              onClick={() => {
-                if (!showDeleted) return;
-                setShowDeleted(false);
-              }}
+              aria-selected={libraryView === 'active'}
+              onClick={() => setLibraryView('active')}
               className={cn(
                 'h-7 rounded-b-none border-b-2 px-3 text-[11px]',
-                !showDeleted
+                libraryView === 'active'
                   ? 'border-primary text-foreground'
                   : 'border-transparent text-muted-foreground',
               )}
@@ -830,11 +836,24 @@ export function MemoryManager() {
               variant="ghost"
               size="sm"
               role="tab"
+              aria-selected={showReview}
+              onClick={() => setLibraryView('review')}
+              className={cn(
+                'h-7 rounded-b-none border-b-2 px-3 text-[11px]',
+                showReview
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground',
+              )}
+            >
+              {t('activity:memoryManager.tabReview')}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              role="tab"
               aria-selected={showDeleted}
-              onClick={() => {
-                if (showDeleted) return;
-                setShowDeleted(true);
-              }}
+              onClick={() => setLibraryView('deleted')}
               className={cn(
                 'h-7 rounded-b-none border-b-2 px-3 text-[11px]',
                 showDeleted
@@ -847,45 +866,59 @@ export function MemoryManager() {
             </Button>
           </div>
 
-          <MemoryFilters
-            searchQuery={searchQuery}
-            statusFilter={statusFilter}
-            kindFilter={kindFilter}
-            audienceOnly={audienceOnly}
-            tagFilter={tagFilter}
-            hasFilters={hasFilters}
-            allTags={allTags}
-            stats={stats}
-            onSearchChange={setSearchQuery}
-            onStatusFilterChange={setStatusFilter}
-            onKindFilterChange={setKindFilter}
-            onToggleAudienceOnly={() => setAudienceOnly((v) => !v)}
-            onTagFilterChange={setTagFilter}
-            onClearFilters={clearFilters}
-          />
-          <MemoryList
-            memoryListRef={memoryListRef}
-            memories={memories}
-            filteredMemories={filteredMemories}
-            selectedId={selectedId}
-            onSelectMemory={openMemory}
-            onOpenCreate={openCreate}
-            onClearFilters={clearFilters}
-          />
-          {hasMore ? (
-            <div className="shrink-0 border-t border-border/60 p-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="h-7 w-full text-[11px]"
-              >
-                {loadingMore ? t('common:action.loading') : `Load more (${memories.length} loaded)`}
-              </Button>
-            </div>
-          ) : null}
+          {showReview ? (
+            <ReviewQueue
+              active={showReview}
+              client={client}
+              listCandidates={listMemoryCandidates}
+              resolveCandidate={resolveMemoryCandidate}
+              onOpenMemory={openMemory}
+            />
+          ) : (
+            <>
+              <MemoryFilters
+                searchQuery={searchQuery}
+                statusFilter={statusFilter}
+                kindFilter={kindFilter}
+                audienceOnly={audienceOnly}
+                tagFilter={tagFilter}
+                hasFilters={hasFilters}
+                allTags={allTags}
+                stats={stats}
+                onSearchChange={setSearchQuery}
+                onStatusFilterChange={setStatusFilter}
+                onKindFilterChange={setKindFilter}
+                onToggleAudienceOnly={() => setAudienceOnly((v) => !v)}
+                onTagFilterChange={setTagFilter}
+                onClearFilters={clearFilters}
+              />
+              <MemoryList
+                memoryListRef={memoryListRef}
+                memories={memories}
+                filteredMemories={filteredMemories}
+                selectedId={selectedId}
+                onSelectMemory={openMemory}
+                onOpenCreate={openCreate}
+                onClearFilters={clearFilters}
+              />
+              {hasMore ? (
+                <div className="shrink-0 border-t border-border/60 p-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="h-7 w-full text-[11px]"
+                  >
+                    {loadingMore
+                      ? t('common:action.loading')
+                      : `Load more (${memories.length} loaded)`}
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          )}
         </section>
 
         <section

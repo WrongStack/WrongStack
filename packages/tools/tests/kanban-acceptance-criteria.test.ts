@@ -121,13 +121,8 @@ describe('kanban tool — managed lifecycle is reversible', () => {
   it('releases a board from the strict lifecycle without touching its cards', async () => {
     const board = await createBoard(dir, {
       title: 'Adopted board',
-      columns: [
-        { id: 'backlog', title: 'Backlog', order: 0 },
-        { id: 'todo', title: 'Todo', order: 1 },
-        { id: 'running', title: 'Running', order: 2 },
-        { id: 'review', title: 'Review', order: 3 },
-        { id: 'done', title: 'Done', order: 4 },
-      ],
+      // Columns are locked to DEFAULT_COLUMNS; the lifecycle mapping below
+      // references the standard column ids (in-progress, not running).
     });
     await addTask(dir, board.id, { title: 'Existing work', description: 'Has to survive' });
 
@@ -137,7 +132,7 @@ describe('kanban tool — managed lifecycle is reversible', () => {
         boardId: board.id,
         author: 'tester',
         transitionComment: 'adopting',
-        columns: ['backlog', 'todo', 'running', 'review', 'done'],
+        columns: ['backlog', 'todo', 'in-progress', 'review', 'done'],
       },
       ctx(),
       { signal: newSignal() },

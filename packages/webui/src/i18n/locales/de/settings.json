@@ -564,12 +564,13 @@
     "contextModeFrugal": "Sparsam — konservative Token-Nutzung",
     "contextModeDeep": "Tief — größerer Kontext für komplexe Aufgaben",
     "tokenSavingLabel": "Token-Sparmodus",
-    "tokenSavingHint": "Wie aggressiv die Token-Nutzung reduziert wird.",
+    "tokenSavingHint": "Steuert direkte Tool-Schemas und die System-Prompt-Größe der nächsten Sitzung.",
+    "tokenSavingAuto": "Auto — Prompt an das Modellfenster anpassen",
     "tokenSavingOff": "Aus — kein Token-Sparen",
     "tokenSavingMinimal": "Minimal — grundlegende Optimierung",
     "tokenSavingLight": "Leicht — moderate Reduktion",
     "tokenSavingMedium": "Mittel — erhebliche Einsparungen",
-    "tokenSavingAggressive": "Aggressiv — maximale Komprimierung"
+    "tokenSavingAggressive": "Aggressiv — kleinste direkte Oberfläche und Prompt"
   },
   "logs": {
     "logLevelLabel": "Log-Level",

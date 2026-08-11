@@ -9,7 +9,15 @@ export interface SessionMetadata {
   provider?: string | undefined;
   startedAt: string;
   endedAt?: string | undefined;
-  /** Set when a session is closed with open tool calls — used to restore pending state on resume. */
+  /**
+   * Tool calls the previous run had issued but not resolved when it closed,
+   * as recorded on `session_end`.
+   *
+   * Diagnostic only. Resume does NOT restore pending state from this: it
+   * derives the same fact from the replayed conversation
+   * ({@link SessionData.pendingToolUseCount}), which also covers the crash
+   * case where no `session_end` was ever written. Nothing re-executes these.
+   */
   pendingToolUses?: string[] | undefined;
   /** Parent journal metadata when this session was created by fork(). */
   forkedFrom?:

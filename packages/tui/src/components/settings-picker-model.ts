@@ -1,5 +1,5 @@
-import { MAX_TUI_THINKING_WORD_LENGTH } from '../thinking-word.js';
 import type { SettingsPickerPatch } from '../settings-contracts.js';
+import { MAX_TUI_THINKING_WORD_LENGTH } from '../thinking-word.js';
 import {
   DEFAULT_PANEL_POSITIONS,
   PANEL_IDS,
@@ -107,9 +107,8 @@ export const ENHANCE_LANGUAGES = ['original', 'english'] as const;
 export type EnhanceLanguage = (typeof ENHANCE_LANGUAGES)[number];
 
 /** Token-saving tier options — cyclable via ←/→ in the settings picker.
- *  `auto` is the default: it keeps all tools and picks a leaner PROMPT only on
- *  small context windows (cache-safe). The concrete tiers below force a fixed
- *  level regardless of window. */
+ *  `auto` is the default: it keeps the executable catalog, uses the medium
+ *  direct surface, and adapts prompt trimming to the model window. */
 export const TOKEN_SAVING_TIERS = [
   'auto',
   'off',
@@ -121,12 +120,12 @@ export const TOKEN_SAVING_TIERS = [
 export type TokenSavingTierTui = (typeof TOKEN_SAVING_TIERS)[number];
 
 export const TOKEN_SAVING_TIER_DESCS: Record<TokenSavingTierTui, string> = {
-  auto: 'By window — full tools, lean prompt on small models (cache-safe)',
-  off: 'All tools enabled (full prompt)',
-  minimal: '~2.5–2.7k tokens — core tools only',
-  light: '~2.3–2.4k tokens — core + patterns',
-  medium: '~1.4–1.5k tokens — most tools enabled',
-  aggressive: '~1k tokens — many tools, trimmed prompt',
+  auto: 'Medium direct surface; prompt adapts to the model window',
+  off: 'Every enabled catalog tool is sent directly; full prompt',
+  minimal: 'Essential direct tools; compact prompt and guidance',
+  light: 'Essential direct tools; retains common workflow guidance',
+  medium: 'Essential + regular development tools; moderate trimming',
+  aggressive: 'Smallest direct surface and most compact prompt',
 };
 
 /**
@@ -588,7 +587,10 @@ export function resolveSettingsFieldValue(
   // The bounds check above guarantees PANEL_IDS[field - 45] is defined;
   // using PANEL_IDS.length (not a hardcoded 57) keeps the range in sync
   // when a new panel is added to PANEL_IDS.
-  if (field >= PANEL_POSITION_FIELD_START && field - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
+  if (
+    field >= PANEL_POSITION_FIELD_START &&
+    field - PANEL_POSITION_FIELD_START < PANEL_IDS.length
+  ) {
     const panelId = PANEL_IDS[field - PANEL_POSITION_FIELD_START]!;
     if (raw === 'bottom' || raw === 'sidebar') {
       return {
@@ -715,7 +717,10 @@ export function getSettingsFieldValue(
   // check above guarantees PANEL_IDS[field - 45] is defined; using
   // PANEL_IDS.length (not a hardcoded 57) keeps the range in sync when a
   // new panel is added to PANEL_IDS.
-  if (field >= PANEL_POSITION_FIELD_START && field - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
+  if (
+    field >= PANEL_POSITION_FIELD_START &&
+    field - PANEL_POSITION_FIELD_START < PANEL_IDS.length
+  ) {
     const panelId = PANEL_IDS[field - PANEL_POSITION_FIELD_START]!;
     // The map is normalized to a full PanelPositionMap at boot (see
     // coercePanelPositionMap), so panelPositions[panelId] is always
@@ -879,7 +884,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   showAgentSwarmPanel: 'bottom',
   panelPositions: DEFAULT_PANEL_POSITIONS,
   readSymbols: false,
-  showSageMemoryInject: false,
+  showSageMemoryInject: true,
   sageMemoryInjectThreshold: 0.85,
   nextStepsTool: false,
 } as const);
@@ -981,7 +986,10 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
   // partial `panelPositions` patches (see settings-values.ts). Using
   // PANEL_IDS.length (not a hardcoded 57) keeps the range in sync when a
   // new panel is added to PANEL_IDS.
-  if (field >= PANEL_POSITION_FIELD_START && field - PANEL_POSITION_FIELD_START < PANEL_IDS.length) {
+  if (
+    field >= PANEL_POSITION_FIELD_START &&
+    field - PANEL_POSITION_FIELD_START < PANEL_IDS.length
+  ) {
     const panelId = PANEL_IDS[field - PANEL_POSITION_FIELD_START]!;
     return {
       panelPositions: { [panelId]: 'bottom' as const },

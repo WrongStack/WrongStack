@@ -1,11 +1,12 @@
-import { Box, Text, useStdout } from '../ink.js';
 import type React from 'react';
+import { Box, Text, useStdout } from '../ink.js';
 
 export interface ToolPickerItem {
   name: string;
   owner: string;
   category: string;
   enabled: boolean;
+  exposure: 'direct' | 'lazy' | 'disabled';
   mutating: boolean;
   permission: string;
   descMode: 'extend' | 'simple';
@@ -35,25 +36,19 @@ const CHROME_ROWS = 15;
 const MAX_PICKER_ITEMS = 15;
 
 function toolActionLabel(enabled: boolean): string {
-  return enabled ? 'Enter makes this tool passive' : 'Enter re-enables this tool';
+  return enabled ? 'Enter disables this tool' : 'Enter re-enables this tool';
 }
 
-/** Colourise the tool active/passive status badge. */
-function statusBadge(enabled: boolean): React.ReactElement {
-  return enabled ? (
-    <Text color="green">● active</Text>
-  ) : (
-    <Text color="red">○ passive</Text>
-  );
+/** Distinguish direct provider schemas from lazy catalog entries and disabled tools. */
+function statusBadge(exposure: ToolPickerItem['exposure']): React.ReactElement {
+  if (exposure === 'direct') return <Text color="green">● direct</Text>;
+  if (exposure === 'lazy') return <Text color="cyan">◇ lazy</Text>;
+  return <Text color="red">○ disabled</Text>;
 }
 
 /** Colourise the mutating/read-only badge. */
 function rwBadge(mutating: boolean): React.ReactElement {
-  return mutating ? (
-    <Text color="yellow">mut</Text>
-  ) : (
-    <Text color="cyan">ro</Text>
-  );
+  return mutating ? <Text color="yellow">mut</Text> : <Text color="cyan">ro</Text>;
 }
 
 /**
@@ -130,7 +125,11 @@ function buildRows(items: ToolPickerItem[]): Row[] {
 }
 
 /** Window rows around the selected item without inserting non-tool rows. */
-function windowRows(rows: Row[], focus: number, max: number): { rows: Row[]; start: number; end: number } {
+function windowRows(
+  rows: Row[],
+  focus: number,
+  max: number,
+): { rows: Row[]; start: number; end: number } {
   if (rows.length <= max) {
     return { rows, start: 0, end: rows.length };
   }
@@ -181,8 +180,9 @@ export function ToolsPicker({
   }
 
   const rows = buildRows(visibleItems);
-  const enabledCount = items.filter((item) => item.enabled).length;
-  const passiveCount = total - enabledCount;
+  const directCount = items.filter((item) => item.exposure === 'direct').length;
+  const lazyCount = items.filter((item) => item.exposure === 'lazy').length;
+  const disabledCount = items.filter((item) => item.exposure === 'disabled').length;
   const selectedItem = visibleItems[visibleSelected];
 
   // Apply the visible-window cap regardless of filter state. The original
@@ -205,10 +205,11 @@ export function ToolsPicker({
       <Text dimColor>
         {hasFilter
           ? `Filter: ${filter} (${visibleItems.length} match${visibleItems.length === 1 ? '' : 'es'}) · Backspace edit · Esc clear`
-          : `↑/↓ select · type to filter · Enter toggles · Esc close · ${enabledCount} active / ${passiveCount} passive`}
+          : `↑/↓ select · type to filter · Enter toggles · Esc close · ${directCount} direct / ${lazyCount} lazy / ${disabledCount} disabled`}
       </Text>
       <Text dimColor>
-        Passive tools stay listed for this session so you can select them and re-enable them later.
+        Lazy tools stay executable through discovery gateways without sending every schema to the
+        provider.
       </Text>
       <Box marginTop={1} flexDirection="column">
         {total === 0 ? (
@@ -217,9 +218,7 @@ export function ToolsPicker({
           <Text dimColor>No tools match "{filter}".</Text>
         ) : (
           <>
-            {hiddenAbove > 0 ? (
-              <Text dimColor>{`  ↑ ${hiddenAbove} more`}</Text>
-            ) : null}
+            {hiddenAbove > 0 ? <Text dimColor>{`  ↑ ${hiddenAbove} more`}</Text> : null}
             {displayRows.map(({ item, index }) => {
               const focused = index === visibleSelected;
               return (
@@ -230,12 +229,11 @@ export function ToolsPicker({
                   wrap="truncate-end"
                 >
                   {focused ? '› ' : '  '}
-                  {statusBadge(item.enabled)}{' '}
+                  {statusBadge(item.exposure)}{' '}
                   <Text bold>{fitCell(item.name, columnWidths.name)}</Text>{' '}
                   <Text dimColor>
                     {fitCell(displayCategory(item.category), columnWidths.category)}{' '}
-                    {fitCell(`[${item.owner}]`, columnWidths.owner)}{' '}
-                    {rwBadge(item.mutating)} {' '}
+                    {fitCell(`[${item.owner}]`, columnWidths.owner)} {rwBadge(item.mutating)}{' '}
                     {fitCell(item.permission, columnWidths.permission)}{' '}
                     <Text color={item.descMode === 'simple' ? 'yellow' : undefined}>
                       desc:{item.descMode}
@@ -244,9 +242,7 @@ export function ToolsPicker({
                 </Text>
               );
             })}
-            {hiddenBelow > 0 ? (
-              <Text dimColor>{`  ↓ ${hiddenBelow} more`}</Text>
-            ) : null}
+            {hiddenBelow > 0 ? <Text dimColor>{`  ↓ ${hiddenBelow} more`}</Text> : null}
           </>
         )}
       </Box>
@@ -256,7 +252,9 @@ export function ToolsPicker({
             <Text color={selectedItem.enabled ? 'green' : 'red'}>
               {toolActionLabel(selectedItem.enabled)}
             </Text>
-            <Text dimColor>{` · ${selectedItem.mutating ? 'Mutating' : 'Read-only'} · permission: ${selectedItem.permission} · descriptions: ${selectedItem.descMode}`}</Text>
+            <Text
+              dimColor
+            >{` · ${selectedItem.mutating ? 'Mutating' : 'Read-only'} · permission: ${selectedItem.permission} · descriptions: ${selectedItem.descMode}`}</Text>
           </Text>
           <Text dimColor wrap="truncate-end">
             {selectedItem.description || 'No description provided.'}

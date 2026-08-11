@@ -5,6 +5,7 @@ import {
   addLinkToTask,
   addNoteToTask,
   getKanbanWorkbench,
+  removeCheckFromTask,
   updateCheckOnTask,
   updateGoalMetricOnTask,
 } from '@wrongstack/kanban';
@@ -79,10 +80,14 @@ export async function handleKanbanDetailAction(
       if (!input.boardId || !input.taskId || !input.checkDescription) {
         return fail('add_check requires boardId, taskId, and checkDescription.');
       }
+      // `manual` is the fallback, not the only option — see the note in
+      // kanban-task-inputs.ts on why hard-coding it made every agent-authored
+      // criterion unverifiable.
       const board = await addCheckToTask(projectRoot, input.boardId, input.taskId, {
         description: input.checkDescription,
-        type: 'manual',
+        type: input.checkType ?? 'manual',
         status: input.checkStatus,
+        ...(input.checkNotes !== undefined ? { notes: input.checkNotes } : {}),
       });
       return board ? okBoard(board, 'Check added.') : fail('Task not found.');
     }
@@ -98,9 +103,31 @@ export async function handleKanbanDetailAction(
         {
           ...(input.checkDescription !== undefined ? { description: input.checkDescription } : {}),
           ...(input.checkStatus !== undefined ? { status: input.checkStatus } : {}),
+          // Promoting an existing manual criterion to an executable one is the
+          // common repair: the card was written before anyone knew the command.
+          ...(input.checkType !== undefined ? { type: input.checkType } : {}),
+          ...(input.checkNotes !== undefined ? { notes: input.checkNotes } : {}),
         },
       );
       return board ? okBoard(board, 'Check updated.') : fail('Check not found.');
+    }
+    case 'remove_check': {
+      if (!input.boardId || !input.taskId || !input.checkId) {
+        return fail('remove_check requires boardId, taskId, and checkId.');
+      }
+      // The truthful way out of a criterion that turned out not to apply.
+      // Done refuses to advance while any criterion is not `passed`, so
+      // without this the only alternatives were marking it passed — a lie —
+      // or leaving the card parked forever.
+      const board = await removeCheckFromTask(
+        projectRoot,
+        input.boardId,
+        input.taskId,
+        input.checkId,
+      );
+      return board
+        ? okBoard(board, 'Acceptance criterion removed.')
+        : fail('Check not found on this task.');
     }
     case 'add_note': {
       if (!input.boardId || !input.taskId || !input.note)

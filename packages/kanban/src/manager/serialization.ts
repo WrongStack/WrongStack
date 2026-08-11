@@ -2,14 +2,13 @@ import { readBoard, summarizeBoard } from '../storage.js';
 import {
   type CreateKanbanBoardInput,
   type CreateKanbanTaskInput,
-  DEFAULT_COLUMNS,
   type KanbanBoard,
   type KanbanGenerationInput,
   type KanbanSearchInput,
   type KanbanSearchResult,
   type KanbanTaskPriority,
 } from '../types.js';
-import { matchesKanbanSearch, slugify } from './_internal.js';
+import { matchesKanbanSearch } from './_internal.js';
 import { listBoards } from './boards.js';
 
 /**
@@ -22,20 +21,14 @@ export function createBoardFromText(input: KanbanGenerationInput): CreateKanbanB
   const title =
     input.title ??
     `Kanban: ${input.description.slice(0, 60)}${input.description.length > 60 ? '...' : ''}`;
-  const columnTitles = input.columns?.length
-    ? input.columns
-    : DEFAULT_COLUMNS.slice(0, input.columnCount ?? 4).map((column) => column.title);
+  // Columns are locked to the 5 standard columns. The former column-count /
+  // column-title derivation (which also had a bug: `columnCount ?? 4` dropped
+  // the "done" column) is gone — every generated board gets the full set.
   return {
     title,
     description: input.context
       ? `${input.description}\n\nContext: ${input.context}`
       : input.description,
-    columns: columnTitles.map((columnTitle, index) => ({
-      id: slugify(columnTitle) || `column-${index + 1}`,
-      title: columnTitle,
-      order: index,
-      wipLimit: 0,
-    })),
     tasks: [],
   };
 }

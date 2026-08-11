@@ -196,6 +196,12 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         // Aborting is best-effort; ownership/session finalization must still
         // advance so a faulty host callback cannot strand a claimed session.
       }
+      // Drain the exact-conversation journal into the OUTGOING writer before
+      // closing it. Those events were queued against `current`, and a closed
+      // FileSessionWriter drops appends silently — so closing first ends the
+      // session we are leaving with its last turns missing from the
+      // transcript. The TUI resume path already flushes in this order.
+      await ctx.context.flushConversationJournal?.().catch(() => undefined);
       await finalizeSession(current);
     }
     ctx.setSession(next);

@@ -16,10 +16,14 @@ import {
   DefaultSystemPromptBuilder,
   setQueuedMessagesSnapshot,
 } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
+import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type { Config, MemoryPort, ModeStore, SkillLoader } from '@wrongstack/core/types';
-import { resolveWstackPaths, sessionScopedPath } from '@wrongstack/core/utils';
+import {
+  activateProjectStateGuard,
+  resolveWstackPaths,
+  sessionScopedPath,
+} from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
 export interface ProjectSwitchContext {
@@ -133,6 +137,7 @@ export async function switchProjectInPlace(
     });
     targetActivated = true;
     await state.activateSessionIdentity(nextWriter.id, target);
+    await activateProjectStateGuard(resolved);
   } catch (err) {
     if (!targetActivated) await targetClaim?.cancel().catch(() => undefined);
     else if (oldWriter) {
@@ -199,6 +204,13 @@ export async function switchProjectInPlace(
       modeStore,
       modeId: modeId ?? 'default',
       modePrompt: switchMode?.prompt ?? '',
+      tokenSavingMode: config.features.tokenSavingMode,
+      modelCapabilities: {
+        maxContextTokens: context.provider.capabilities.maxContext,
+        supportsTools: !!context.provider.capabilities.tools,
+        supportsVision: !!context.provider.capabilities.vision,
+        supportsReasoning: !!context.provider.capabilities.reasoning,
+      },
       instructionPaths: {
         globalDir: nextWpaths.globalInstructions,
         projectDir: nextWpaths.inProjectInstructions,
@@ -213,6 +225,11 @@ export async function switchProjectInPlace(
       provider: (context.provider as { id?: string }).id,
       model: context.model,
     });
+    if (agent.container.has(TOKENS.SystemPromptBuilder)) {
+      agent.container.override(TOKENS.SystemPromptBuilder, () => switchBuilder, {
+        owner: 'tui-project-switch',
+      });
+    }
   } catch (err) {
     console.error(
       JSON.stringify({

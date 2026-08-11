@@ -23,6 +23,10 @@ export interface WsClientActionMethods {
     },
     options?: WSSendOptions,
   ): void;
+  listMemoryCandidates(
+    params?: { includeResolved?: boolean },
+    options?: WSSendOptions,
+  ): void;
   getSage(id: string, options?: WSSendOptions): void;
   getSageGraph(
     query: string,
@@ -158,6 +162,17 @@ const actionMethods = {
     options?: WSSendOptions,
   ) {
     this.send({ type: 'memory.sage.listPage', payload: { ...params } }, options);
+  },
+
+  listMemoryCandidates(
+    this: WsClientActionHost,
+    params?: { includeResolved?: boolean },
+    options?: WSSendOptions,
+  ) {
+    this.send(
+      { type: 'memory.sage.listCandidates', payload: { ...params } },
+      options,
+    );
   },
 
   getSage(this: WsClientActionHost, id: string, options?: WSSendOptions) {

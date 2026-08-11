@@ -9,6 +9,7 @@ import {
   handleSageGet,
   handleSageGraph,
   handleSageList,
+  handleSageListCandidates,
   handleSageListPage,
   handleSageRecover,
   handleSageRemember,
@@ -76,6 +77,9 @@ export async function handleMemoryRoute(
       return true;
     case 'memory.sage.recover':
       await handleSageRecover(ws, message, store);
+      return true;
+    case 'memory.sage.listCandidates':
+      await handleSageListCandidates(ws, message, store);
       return true;
     case 'memory.sage.candidateResolve':
       await handleSageCandidateResolve(ws, message, store);

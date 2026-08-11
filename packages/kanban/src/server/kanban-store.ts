@@ -53,19 +53,6 @@ export class ServerKanbanStore {
   removeBoard(boardId: string) {
     return this.callDomain('removeBoard', boardId);
   }
-  addColumn(boardId: string, input: DomainArgs<'addColumn'>[1]) {
-    return this.callDomain('addColumn', boardId, input);
-  }
-  updateColumn(boardId: string, columnId: string, patch: DomainArgs<'updateColumn'>[2]) {
-    return this.callDomain('updateColumn', boardId, columnId, patch);
-  }
-  removeColumn(
-    boardId: string,
-    columnId: string,
-    options: NonNullable<DomainArgs<'removeColumn'>[2]> = {},
-  ) {
-    return this.callDomain('removeColumn', boardId, columnId, options);
-  }
 
   // ─── Task operations ────────────────────────────────────────────────────
 

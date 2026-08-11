@@ -353,6 +353,41 @@ describe('kanban tool — start_task governance binding', () => {
     const persisted = await getBoard(dir, boardId);
     expect(persisted!.tasks.find((task) => task.id === taskId)?.assignment).toBeUndefined();
   });
+
+  it('binds a plain-board card for attribution, without claiming governance', async () => {
+    // Attribution and governance are two decisions, and one call used to make
+    // both: withholding the binding on a non-managed board (the default) left
+    // `currentKanbanTaskId` undefined for the whole session, so every
+    // `recordFileEvent()` wrote `scope: 'session'` and no edit was ever
+    // attributed to the card the board showed as `in_progress`.
+    //
+    // Binding is safe: the boundary reads governance from the BOARD's
+    // lifecycle mode, not from the presence of a binding.
+    const board = await createBoard(dir, {
+      title: 'Plain project board',
+      columns: [{ id: 'todo', title: 'Todo', order: 0 }],
+    });
+    const added = await addTask(dir, board.id, { title: 'Ordinary work' });
+    const setCurrentKanbanTask = vi.fn();
+
+    const result = await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId: added!.task.id,
+        author: 'agent-1',
+        transitionComment: 'Starting ordinary work on a plain board.',
+      },
+      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      { signal: newSignal() },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(setCurrentKanbanTask).toHaveBeenCalledWith(added!.task.id, board.id);
+    // The message must still be honest about which of the two happened.
+    expect(result.message).toContain('not in managed lifecycle mode');
+    expect(result.message).toContain('attribution');
+  });
 });
 
 describe('kanban tool — one board per line of work', () => {

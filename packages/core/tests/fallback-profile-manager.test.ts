@@ -340,7 +340,7 @@ describe('FallbackProfileManager', () => {
         });
         // Re-craft to avoid TS strictness
         cfg.providers = {
-          openai: { apiKey: 'sk-test', models: ['gpt-4o'] },
+          openai: { type: 'openai', apiKey: 'sk-test', models: ['gpt-4o'] },
           envProvider: { envVars: ['FALLBACK_TEST_KEY'], models: ['test-model'] } as any,
         };
         const mgr = new FallbackProfileManager(cfg);
@@ -394,7 +394,7 @@ describe('FallbackProfileManager', () => {
     it('excludes models not in provider allow-list', () => {
       const cfg = makeConfig({
         providers: {
-          limited: { apiKey: 'sk-test', models: ['allowed-model'] },
+          limited: { type: 'openai', apiKey: 'sk-test', models: ['allowed-model'] },
         },
         fallbackProfiles: {
           restricted: ['limited/allowed-model', 'limited/blocked-model'],
@@ -411,8 +411,8 @@ describe('FallbackProfileManager', () => {
     it('uses config.fallbackMaxLastResortCandidates when set', () => {
       const cfg = makeConfig({
         providers: {
-          p1: { apiKey: 'sk-1', models: ['m1', 'm2', 'm3'] },
-          p2: { apiKey: 'sk-2', models: ['m1', 'm2', 'm3'] },
+          p1: { type: 'openai', apiKey: 'sk-1', models: ['m1', 'm2', 'm3'] },
+          p2: { type: 'openai', apiKey: 'sk-2', models: ['m1', 'm2', 'm3'] },
         },
         fallbackMaxLastResortCandidates: 2,
       });
@@ -425,7 +425,7 @@ describe('FallbackProfileManager', () => {
     it('falls back to default constant when config value is unset', () => {
       const cfg = makeConfig({
         providers: {
-          p1: { apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
+          p1: { type: 'openai', apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
         },
         // fallbackMaxLastResortCandidates not set — should default to 12
       });
@@ -439,7 +439,7 @@ describe('FallbackProfileManager', () => {
     it('respects a large config cap', () => {
       const cfg = makeConfig({
         providers: {
-          p1: { apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
+          p1: { type: 'openai', apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
         },
         fallbackMaxLastResortCandidates: 50,
       });
@@ -452,7 +452,7 @@ describe('FallbackProfileManager', () => {
     it('disables the last-resort append when cap is 0', () => {
       const cfg = makeConfig({
         providers: {
-          p1: { apiKey: 'sk-1', models: ['m0', 'm1', 'm2'] },
+          p1: { type: 'openai', apiKey: 'sk-1', models: ['m0', 'm1', 'm2'] },
         },
         fallbackMaxLastResortCandidates: 0,
       });
@@ -470,15 +470,15 @@ describe('FallbackProfileManager', () => {
         provider: 'primary',
         model: 'model-a',
         providers: {
-          primary: { apiKey: 'k1', models: ['model-a'] },
-          p2: { apiKey: 'k2', models: ['model-b'] },
-          p3: { apiKey: 'k3', models: ['model-c'] },
-          p4: { apiKey: 'k4', models: ['model-d'] },
-          p5: { apiKey: 'k5', models: ['model-e'] },
-          p6: { apiKey: 'k6', models: ['model-f'] },
-          p7: { apiKey: 'k7', models: ['model-g'] },
-          p8: { apiKey: 'k8', models: ['model-h'] },
-          p9: { apiKey: 'k9', models: ['model-i'] },
+          primary: { type: 'openai', apiKey: 'k1', models: ['model-a'] },
+          p2: { type: 'openai', apiKey: 'k2', models: ['model-b'] },
+          p3: { type: 'openai', apiKey: 'k3', models: ['model-c'] },
+          p4: { type: 'openai', apiKey: 'k4', models: ['model-d'] },
+          p5: { type: 'openai', apiKey: 'k5', models: ['model-e'] },
+          p6: { type: 'openai', apiKey: 'k6', models: ['model-f'] },
+          p7: { type: 'openai', apiKey: 'k7', models: ['model-g'] },
+          p8: { type: 'openai', apiKey: 'k8', models: ['model-h'] },
+          p9: { type: 'openai', apiKey: 'k9', models: ['model-i'] },
         },
         fallbackMaxLastResortCandidates: 2,
       });

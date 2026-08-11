@@ -206,27 +206,6 @@ describe('kanban.task.remove', () => {
   });
 });
 
-describe('kanban.column.remove', () => {
-  it('replaces the active board when the reply carries one', () => {
-    useKanbanStore.setState({ activeBoardId: 'b1', activeBoard: board('b1') as never });
-    result('kanban.column.remove', { board: board('b1', { columns: [] }) });
-    expect(state().activeBoard?.columns).toEqual([]);
-  });
-
-  it('does not adopt a board for a different selection', () => {
-    useKanbanStore.setState({ activeBoardId: 'b1', activeBoard: board('b1') as never });
-    result('kanban.column.remove', { board: board('b9') });
-    expect(state().activeBoard?.id).toBe('b1');
-    // The summary list still learns about the other board.
-    expect(state().boards.map((b) => b.id)).toEqual(['b9']);
-  });
-
-  it('falls through to the generic path without a board envelope', () => {
-    result('kanban.column.remove', { nothing: true });
-    expect(state()).toMatchObject({ loading: false, error: null });
-  });
-});
-
 describe('verification activity', () => {
   it('records a spinner keyed by board and task', () => {
     result('kanban.task.verification_started', { boardId: 'b1', taskId: 't1' });

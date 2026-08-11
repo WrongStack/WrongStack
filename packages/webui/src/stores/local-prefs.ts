@@ -80,7 +80,7 @@ export interface LocalPrefs {
   /** Context window mode — matches core's config.context.mode. */
   contextMode: 'balanced' | 'frugal' | 'deep';
   /** Token-saving mode — matches core's config.features.tokenSavingMode. */
-  tokenSavingTier: 'off' | 'minimal' | 'light' | 'medium' | 'aggressive';
+  tokenSavingTier: 'auto' | 'off' | 'minimal' | 'light' | 'medium' | 'aggressive';
   /** Max concurrent subagents */
   maxConcurrent: number;
   /** Terminal title animation */
@@ -255,7 +255,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   contextAutoCompact: true,
   contextStrategy: 'hybrid',
   contextMode: 'balanced',
-  tokenSavingTier: 'off',
+  tokenSavingTier: 'auto',
   maxConcurrent: 10,
   titleAnimation: true,
   logLevel: 'info',
@@ -523,7 +523,10 @@ export const useLocalPrefs = create<LocalPrefs>()(
         // Invalid values (non-string, non-boolean) → 'bottom' (default).
         if (typeof p.showAgentSwarmPanel === 'boolean') {
           p.showAgentSwarmPanel = p.showAgentSwarmPanel ? 'bottom' : 'off';
-        } else if (typeof p.showAgentSwarmPanel !== 'string' || !['bottom', 'sidebar', 'off'].includes(p.showAgentSwarmPanel)) {
+        } else if (
+          typeof p.showAgentSwarmPanel !== 'string' ||
+          !['bottom', 'sidebar', 'off'].includes(p.showAgentSwarmPanel)
+        ) {
           p.showAgentSwarmPanel = 'bottom';
         }
         if (typeof p.allowOutsideProjectRoot !== 'boolean') p.allowOutsideProjectRoot = true;

@@ -15,7 +15,7 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1212,
+      "lines": 1213,
       "relativeImports": 44
     },
     "packages/cli/src/fleet/host.ts": {
@@ -77,6 +77,10 @@
     "packages/cli/src/webui-server.ts": {
       "lines": 1127,
       "relativeImports": 20
+    },
+    "packages/core/src/boot.ts": {
+      "lines": 804,
+      "relativeImports": 14
     },
     "packages/core/src/chronicle/metrics-store.ts": {
       "lines": 1133,
@@ -143,7 +147,7 @@
       "relativeImports": 13
     },
     "packages/core/src/core/system-prompt-builder.ts": {
-      "lines": 834,
+      "lines": 839,
       "relativeImports": 24
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
@@ -239,19 +243,19 @@
       "relativeImports": 6
     },
     "packages/kanban/src/manager/assignment.ts": {
-      "lines": 982,
+      "lines": 978,
       "relativeImports": 12
     },
     "packages/kanban/src/manager/_internal.ts": {
-      "lines": 990,
+      "lines": 1000,
       "relativeImports": 16
     },
     "packages/kanban/src/types.ts": {
-      "lines": 845,
+      "lines": 883,
       "relativeImports": 2
     },
     "packages/kanban/src/verification/verification-context.ts": {
-      "lines": 1022,
+      "lines": 1032,
       "relativeImports": 1
     },
     "packages/mcp/src/authorization.ts": {
@@ -299,7 +303,7 @@
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 902,
+      "lines": 921,
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
@@ -343,11 +347,11 @@
       "relativeImports": 17
     },
     "packages/tools/src/kanban.ts": {
-      "lines": 1120,
-      "relativeImports": 11
+      "lines": 1159,
+      "relativeImports": 12
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 1339,
+      "lines": 1428,
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
@@ -379,7 +383,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/entry.tsx": {
-      "lines": 1124,
+      "lines": 1150,
       "relativeImports": 12
     },
     "packages/tui/src/components/history/utils.tsx": {
@@ -387,7 +391,7 @@
       "relativeImports": 17
     },
     "packages/tui/src/components/kanban-panel.tsx": {
-      "lines": 892,
+      "lines": 1002,
       "relativeImports": 4
     },
     "packages/tui/src/components/scrollable-history.tsx": {
@@ -395,7 +399,7 @@
       "relativeImports": 22
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 992,
+      "lines": 1000,
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-content.tsx": {
@@ -419,7 +423,7 @@
       "relativeImports": 13
     },
     "packages/tui/src/kanban-slash.ts": {
-      "lines": 926,
+      "lines": 980,
       "relativeImports": 1
     },
     "packages/tui/src/memory-slash.ts": {
@@ -475,8 +479,8 @@
       "relativeImports": 16
     },
     "packages/webui/src/components/MemoryManager/index.tsx": {
-      "lines": 1115,
-      "relativeImports": 10
+      "lines": 1148,
+      "relativeImports": 11
     },
     "packages/webui/src/components/OfficeMapCanvas.tsx": {
       "lines": 998,
@@ -487,7 +491,7 @@
       "relativeImports": 6
     },
     "packages/webui/src/components/SettingsPanel/index.tsx": {
-      "lines": 1101,
+      "lines": 1104,
       "relativeImports": 19
     },
     "packages/webui/src/components/SettingsPanel/MCPSection.tsx": {
@@ -519,7 +523,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1202,
+      "lines": 1203,
       "relativeImports": 9
     },
     "packages/webui/src/stores/chat-store.ts": {
@@ -531,7 +535,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 868,
+      "lines": 870,
       "relativeImports": 10
     },
     "packages/webui-hq/src/views/settings.tsx": {
@@ -559,8 +563,8 @@
       "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
-      "lines": 998,
-      "relativeImports": 9
+      "lines": 1006,
+      "relativeImports": 10
     },
     "packages/webui-server/src/server/provider-handlers.ts": {
       "lines": 807,
@@ -571,7 +575,7 @@
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1121,
+      "lines": 1112,
       "relativeImports": 18
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

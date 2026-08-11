@@ -34,8 +34,8 @@ export interface OnlineAgentsCache {
  * a fresh object on every status check, so reference equality always misses.
  *
  * Tier behaviour:
- * - 'off' / 'medium' / 'aggressive' → full list with names, sessions, sources
- * - 'minimal' / 'light' → count only (no list)
+ * - 'off' / 'medium' → full list with names, sessions, sources
+ * - 'minimal' / 'light' / 'aggressive' → count only (no list)
  *
  * Returns the (possibly updated) cache alongside the text; the caller stores it.
  */
@@ -54,8 +54,8 @@ export function renderOnlineAgents(
   }
 
   const totalCount = agents.length;
-  // minimal / light tiers: count only, no list
-  if (tier === 'minimal' || tier === 'light') {
+  // Compact tiers: count only, no list
+  if (tier === 'minimal' || tier === 'light' || tier === 'aggressive') {
     const text = ` (${totalCount} agent${totalCount !== 1 ? 's' : ''} online)`;
     return { text, cache: { hash, text } };
   }
@@ -107,9 +107,10 @@ export async function buildMemoryAndSkills(
 ): Promise<{ text: string; skillBodyCache: string | undefined }> {
   const parts: string[] = [];
   let skillBodyCache = mem.skillBodyCache;
-  // Memory injection count per tier: off=5, minimal=3, light=5, medium=5, aggressive=5
-  const memoryCount = mem.tier === 'minimal' || mem.tier === 'light' ? 3 : 5;
-  const compactMemory = mem.tier === 'minimal'; // compact = text only, no badges/tags
+  // Memory injection count per tier: off=5, minimal=3, light=3, medium=5, aggressive=3
+  const memoryCount =
+    mem.tier === 'minimal' || mem.tier === 'light' || mem.tier === 'aggressive' ? 3 : 5;
+  const compactMemory = mem.tier === 'minimal' || mem.tier === 'aggressive';
   // When a per-turn memory retriever owns injection (SAGE turn
   // middleware), skip the static prompt section so memory flows through a
   // single channel — no double injection.

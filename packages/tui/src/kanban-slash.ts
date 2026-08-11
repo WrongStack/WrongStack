@@ -6,7 +6,7 @@
  *
  *   /kanban                          — open the project kanban panel
  *   /kanban create <title>               — create a new board, then open the panel
- *   /kanban add <title> [--column X]     — add a task to the active board
+ *   /kanban add <title> [--column X] [--desc <text>] — add a task to the active board (managed boards require --desc)
  *   /kanban use <boardId|title|tag>      — open the kanban panel on a specific board
  *   /kanban boards                       — list every board in the project
  *   /kanban health                       — show kanban queue health summary
@@ -54,6 +54,12 @@ export interface KanbanAddTarget {
   boardTitle: string;
   /** Column that the task will be placed in. Defaults to the first column. */
   columnId: string;
+  /**
+   * Whether the board enforces the managed Kanban Agent lifecycle. Managed
+   * boards require new cards to be created in the Backlog column and with a
+   * description, so callers route the user accordingly.
+   */
+  managed: boolean;
 }
 
 export interface KanbanSlashDeps {
@@ -88,7 +94,7 @@ const USAGE =
   'Usage:\n' +
   '  /kanban                              — open the project kanban panel\n' +
   '  /kanban create <title>               — create a board, then open the panel\n' +
-  '  /kanban add <title> [--column X]     — add a task to the active board\n' +
+  '  /kanban add <title> [--column X] [--desc <text>] — add a task to the active board (managed boards require --desc)\n' +
   '  /kanban use <boardId|title|tag>      — open the panel on a specific board\n' +
   '  /kanban boards                       — list every board in the project\n' +
   '  /kanban health                       — show kanban queue health summary\n' +
@@ -146,15 +152,32 @@ export function createKanbanSlashCommand(deps: KanbanSlashDeps): SlashCommand {
               message: 'No kanban board found. Use `/kanban create <title>` to make one first.',
             };
           }
-          const created = await addTaskToBoard(deps.projectRoot, target, parsed.title);
+          // Managed boards require a description on every card (see
+          // `initializeAndValidateManagedTask` in `@wrongstack/kanban`).
+          // Instead of letting the create call fail with a cryptic validation
+          // error, point the user at the `--desc` flag.
+          if (target.managed && !parsed.description) {
+            return {
+              message:
+                `"${target.boardTitle}" is a managed board — every card needs a description. ` +
+                `Try: /kanban add "${parsed.title}" --desc "<what the task is>"`,
+            };
+          }
+          const created = await addTaskToBoard(
+            deps.projectRoot,
+            target,
+            parsed.title,
+            parsed.description,
+          );
           if (!created) {
             return {
               message: `Failed to add task to "${target.boardTitle}" — no writable column found.`,
             };
           }
           deps.onPanelOpen?.current?.(KANBAN_PANEL_ACTION);
+          const columnHint = target.managed ? ' (backlog)' : '';
           return {
-            message: `Added task "${created.title}" to "${target.boardTitle}" → ${created.columnId}. Opening panel…`,
+            message: `Added task "${created.title}" to "${target.boardTitle}" → ${created.columnId}${columnHint}. Opening panel…`,
           };
         }
         if (parsed.kind === 'use') {
@@ -219,7 +242,7 @@ export type ParsedKanbanArgs =
   | { kind: 'help' }
   | { kind: 'boards' }
   | { kind: 'create'; title: string }
-  | { kind: 'add'; title: string; column: string | null }
+  | { kind: 'add'; title: string; column: string | null; description?: string | undefined }
   | { kind: 'use'; query: string }
   | { kind: 'health' }
   | { kind: 'audit'; boardQuery: string }
@@ -263,6 +286,7 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
   if (head === 'add' || head === 'add-task' || head === 'task') {
     let title = '';
     let column: string | null = null;
+    let description: string | null = null;
     for (let i = 1; i < tokens.length; i++) {
       const tok = tokens[i] ?? '';
       if (tok === '--column' || tok === '-c') {
@@ -277,11 +301,28 @@ export function parseKanbanArgs(raw: string): ParsedKanbanArgs {
         column = tok.slice('--column='.length);
         continue;
       }
+      if (tok === '--desc' || tok === '-d') {
+        const next = tokens[i + 1];
+        if (next) {
+          description = next;
+          i++;
+        }
+        continue;
+      }
+      if (tok.startsWith('--desc=')) {
+        description = tok.slice('--desc='.length);
+        continue;
+      }
       title = title ? `${title} ${tok}` : tok;
     }
     title = title.trim();
     if (!title) return { kind: 'help' };
-    return { kind: 'add', title, column };
+    return {
+      kind: 'add',
+      title,
+      column,
+      ...(description ? { description } : {}),
+    };
   }
   if (head === 'use' || head === 'open-board' || head === 'focus') {
     const query = tokens.slice(1).join(' ').trim();
@@ -539,14 +580,25 @@ export async function resolveAddTarget(
   const board = await getBoard(deps.projectRoot, preferred.id);
   if (!board) return null;
 
+  const managed = board.lifecycle?.mode === 'managed';
   const firstColumn = board.columns[0];
-  const targetColumn = resolveColumn(board.columns, column) ?? firstColumn;
+  // Managed boards must create cards in the Backlog column (see
+  // `initializeManagedTaskLifecycle` in `@wrongstack/kanban`); ignore any
+  // caller-supplied column hint so the task lands where the lifecycle allows.
+  const backlogColumnId = managed ? board.lifecycle?.columns?.backlog : undefined;
+  const backlogColumn = backlogColumnId
+    ? board.columns.find((c) => c.id === backlogColumnId)
+    : undefined;
+  const targetColumn = managed
+    ? (backlogColumn ?? firstColumn)
+    : (resolveColumn(board.columns, column) ?? firstColumn);
   if (!targetColumn) return null;
 
   return {
     boardId: board.id,
     boardTitle: board.title,
     columnId: targetColumn.id,
+    managed,
   };
 }
 
@@ -852,10 +904,12 @@ async function addTaskToBoard(
   cwd: string,
   target: KanbanAddTarget,
   title: string,
+  description?: string,
 ): Promise<{ title: string; columnId: string; id: string } | null> {
   const input: CreateKanbanTaskInput = {
     title,
     columnId: target.columnId,
+    ...(description ? { description } : {}),
   };
   const result = await addTask(cwd, target.boardId, input);
   if (!result) return null;

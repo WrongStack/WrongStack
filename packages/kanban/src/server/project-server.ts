@@ -21,7 +21,7 @@ import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import { StaleWriteError } from '../manager/lifecycle.js';
 import * as kanban from '../manager.js';
 import { installKanbanStorageBackend } from '../storage-backend.js';
-import type { KanbanBoard, KanbanEvent } from '../types.js';
+import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';
 import { kanbanProjectServerEndpoint } from './endpoint.js';
 import { emitBoardEvent, subscribeToBoardEvents } from './event-emitter.js';
 import {
@@ -412,6 +412,17 @@ defineMethod(
 defineMethod('storageReadEvents', async ({ boardRef }: { boardRef: string }) => {
   if (!boardRef) invalid('storageReadEvents requires boardRef');
   return ownerStorage().readEvents(boardRef);
+});
+defineMethod(
+  'storageAppendBoardHistory',
+  async ({ entry }: { entry: KanbanBoardHistoryEntry }) => {
+    if (!entry) invalid('storageAppendBoardHistory requires entry');
+    await ownerStorage().appendBoardHistory(entry);
+    return { appended: true };
+  },
+);
+defineMethod('storageReadBoardHistory', async ({ boardId }: { boardId?: string }) => {
+  return ownerStorage().readBoardHistory(boardId);
 });
 defineMethod('storageDeleteBoard', async ({ boardRef }: { boardRef: string }) => {
   if (!boardRef) invalid('storageDeleteBoard requires boardRef');

@@ -254,13 +254,18 @@ describe('todo tool', () => {
     );
 
     expect(board?.tags).toContain('session:sess');
+    // Session boards now use the 5 standard columns like every other board.
     expect(board?.columns.map((column) => column.title)).toEqual([
-      'Todo',
-      'Running',
-      'Preview',
+      'Backlog',
+      'To Do',
+      'In Progress',
+      'Review',
       'Done',
     ]);
-    expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-1')?.columnId).toBe('todo');
+    // Session boards now have 5 columns (with backlog). A pending task lands in
+    // backlog (formerly it landed in todo because the session layout had no
+    // backlog). An in_progress task lands in in-progress.
+    expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-1')?.columnId).toBe('backlog');
     expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-2')?.columnId).toBe(
       'in-progress',
     );
@@ -301,7 +306,7 @@ describe('todo tool', () => {
         columns: {
           backlog: 'backlog',
           todo: 'todo',
-          running: 'running',
+          running: 'in-progress',
           review: 'review',
           done: 'done',
         },
@@ -522,7 +527,7 @@ describe('todo tool', () => {
         columns: {
           backlog: 'backlog',
           todo: 'todo',
-          running: 'running',
+          running: 'in-progress',
           review: 'review',
           done: 'done',
         },
@@ -577,6 +582,198 @@ describe('todo tool', () => {
     );
   });
 
+  it('does not silently reactivate a managed card that is already in Review', async () => {
+    // Regression: synchroniseManagedKanban used to call start_task
+    // unconditionally for any in_progress todo row, which yanked a Review
+    // card back to Running without the reviewer's consent. The card must
+    // stay in Review and a warning must explain why.
+    sb.ctx.agentId = 'test-agent';
+    sb.ctx.setCurrentKanbanTask = (taskId, boardId) => {
+      sb.ctx.currentKanbanTaskId = taskId;
+      sb.ctx.currentKanbanBoardId = boardId;
+      sb.ctx.meta['kanban'] = { taskId, boardId };
+    };
+    const board = await createBoard(sb.dir, {
+      title: 'Review guard',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'in-progress',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const added = await addTask(sb.dir, board.id, {
+      title: 'Held for review',
+      description: 'Work that reached Review.',
+      assignedAgent: 'test-agent',
+      dueDate: '2026-08-10T00:00:00.000Z',
+      labels: ['todo-sync'],
+    });
+    const taskId = added!.task.id;
+    await addCheckToTask(sb.dir, board.id, taskId, {
+      description: 'evidence.txt',
+      type: 'file_exists',
+    });
+
+    // Walk the card into Review the same way the happy-path todo test does:
+    // start_task (Backlog→Todo→Running) then a todo `completed` row, which
+    // drives mark_assignment(completed) and the managed running→review
+    // auto-transition inside synchroniseManagedKanban.
+    await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId,
+        author: 'test-agent',
+        transitionComment: 'Starting card.',
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    await todoTool.execute(
+      {
+        todos: [{ id: 'ui-1', content: 'Held for review', status: 'completed' }],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    const beforeTodo = await getBoard(sb.dir, board.id);
+    expect(beforeTodo?.tasks.find((task) => task.id === taskId)?.lifecycle?.currentStage).toBe(
+      'review',
+    );
+
+    // Now the agent's todo list flips the same card back to in_progress
+    // (e.g. it thinks it should keep working on it). Before the fix this
+    // silently pulled the card back to Running; now it must stay in Review
+    // with a warning that tells the user to call start_task explicitly.
+    const result = await todoTool.execute(
+      {
+        todos: [{ id: 'ui-1', content: 'Held for review', status: 'in_progress' }],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const refreshed = await getBoard(sb.dir, board.id);
+    const heldTask = refreshed?.tasks.find((task) => task.id === taskId);
+    expect(heldTask?.lifecycle?.currentStage).toBe('review');
+    expect(heldTask?.status).toBe('review');
+    expect(result.kanban_warnings).toEqual(
+      expect.arrayContaining([expect.stringMatching(/Held for review.*Review.*not re-activating/i)]),
+    );
+  });
+
+  it('does not silently reactivate a managed card that has reached Done', async () => {
+    // Done is terminal. A todo in_progress row bound to a Done card must not
+    // pull it back; the user should be told to create a follow-up instead.
+    sb.ctx.agentId = 'test-agent';
+    sb.ctx.setCurrentKanbanTask = (taskId, boardId) => {
+      sb.ctx.currentKanbanTaskId = taskId;
+      sb.ctx.currentKanbanBoardId = boardId;
+      sb.ctx.meta['kanban'] = { taskId, boardId };
+    };
+    const board = await createBoard(sb.dir, {
+      title: 'Done guard',
+      columns: [
+        { id: 'backlog', title: 'Backlog', order: 0 },
+        { id: 'todo', title: 'Todo', order: 1 },
+        { id: 'running', title: 'Running', order: 2 },
+        { id: 'review', title: 'Review', order: 3 },
+        { id: 'done', title: 'Done', order: 4 },
+      ],
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'in-progress',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const added = await addTask(sb.dir, board.id, {
+      title: 'Already shipped',
+      description: 'Work that reached Done.',
+      assignedAgent: 'test-agent',
+      dueDate: '2026-08-10T00:00:00.000Z',
+      labels: ['todo-sync'],
+    });
+    const taskId = added!.task.id;
+    await addCheckToTask(sb.dir, board.id, taskId, {
+      description: 'evidence.txt',
+      type: 'file_exists',
+    });
+    await fs.writeFile(path.join(sb.dir, 'evidence.txt'), 'done', 'utf8');
+
+    // Walk the card to Review via the todo-completion path, then to Done via
+    // an explicit transition (acceptance).
+    await kanbanTool.execute(
+      {
+        action: 'start_task',
+        boardId: board.id,
+        taskId,
+        author: 'test-agent',
+        transitionComment: 'Starting card.',
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    await todoTool.execute(
+      {
+        todos: [{ id: 'ui-1', content: 'Already shipped', status: 'completed' }],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    await kanbanTool.execute(
+      {
+        action: 'transition_task',
+        boardId: board.id,
+        taskId,
+        lifecycleStage: 'done',
+        author: 'test-agent',
+        transitionComment: 'Accepted.',
+        transitionAction: 'verify',
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    const beforeTodo = await getBoard(sb.dir, board.id);
+    expect(beforeTodo?.tasks.find((task) => task.id === taskId)?.lifecycle?.currentStage).toBe(
+      'done',
+    );
+
+    const result = await todoTool.execute(
+      {
+        todos: [{ id: 'ui-1', content: 'Already shipped', status: 'in_progress' }],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const refreshed = await getBoard(sb.dir, board.id);
+    const doneTask = refreshed?.tasks.find((task) => task.id === taskId);
+    expect(doneTask?.lifecycle?.currentStage).toBe('done');
+    expect(doneTask?.status).toBe('completed');
+    expect(result.kanban_warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/Already shipped.*Done.*terminal.*follow-up/i),
+      ]),
+    );
+  });
+
   it('rolls up an invisible atomic parent after every visible child reaches Done', async () => {
     sb.ctx.agentId = 'test-agent';
     sb.ctx.setCurrentKanbanTask = (taskId, boardId) => {
@@ -603,7 +800,7 @@ describe('todo tool', () => {
         columns: {
           backlog: 'backlog',
           todo: 'todo',
-          running: 'running',
+          running: 'in-progress',
           review: 'review',
           done: 'done',
         },

@@ -300,17 +300,39 @@ async function synchronizeManagedKanban(
       item.kanbanBoardId === board.id &&
       Boolean(item.kanbanTaskId),
   );
+  // A card sitting in Review or Done must not be silently yanked back to
+  // Running by the todo projection. Review is awaiting acceptance (human or
+  // auto-accept gate), and Done is terminal; reactivating either from a todo
+  // `in_progress` row would discard the reviewer's pending decision. A
+  // conscious repair is still possible via a direct `start_task` call.
+  const activeStage = active?.kanbanTaskId
+    ? afterCompletions?.tasks.find((task) => task.id === active.kanbanTaskId)?.lifecycle
+        ?.currentStage
+    : undefined;
   if (active?.kanbanTaskId) {
-    await execute({
-      action: 'start_task',
-      boardId: board.id,
-      taskId: active.kanbanTaskId,
-      author: actor,
-      agentId: actor,
-      transitionComment: `Todo activated: ${active.content}`,
-    });
+    if (activeStage === 'review' || activeStage === 'done') {
+      warnings.push(
+        `"${active.content}" is in ${activeStage === 'review' ? 'Review' : 'Done'} ` +
+          `awaiting acceptance; not re-activating it from the todo list. ` +
+          (activeStage === 'review'
+            ? 'Call kanban start_task explicitly to reopen it as a repair.'
+            : 'Done is terminal; reopen only by creating a follow-up card.'),
+      );
+    } else {
+      await execute({
+        action: 'start_task',
+        boardId: board.id,
+        taskId: active.kanbanTaskId,
+        author: actor,
+        agentId: actor,
+        transitionComment: `Todo activated: ${active.content}`,
+      });
+    }
   }
-  if (active?.kanbanTaskId && completionPending) {
+  if (active?.kanbanTaskId && activeStage === 'review') {
+    // Warning already pushed above; skip the completionPending echo so the
+    // user gets one clear message about the held card.
+  } else if (active?.kanbanTaskId && completionPending) {
     warnings.push(
       'A completed todo is still awaiting acceptance; the next independent Kanban task was started.',
     );

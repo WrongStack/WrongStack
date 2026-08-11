@@ -131,6 +131,38 @@ export async function validateResumeFileObservations(
   };
 }
 
+/**
+ * Headers of the system messages `resume()` injects.
+ *
+ * They are described as ephemeral, but every consumer hands the resumed
+ * message list to `replaceMessages`, which journals it as a
+ * `messages_replaced` snapshot — so a notice written on one resume is replayed
+ * as ordinary conversation on the next one, and a fresh notice is added on top.
+ * Three resumes with the same modified file left three copies, all but the last
+ * describing a check that had already been superseded. `resume()` therefore
+ * strips previous notices from the replayed conversation before appending the
+ * current ones; these prefixes are how it recognizes them.
+ */
+export const RESUME_NOTICE_HEADERS = [
+  '[SESSION RESUME FILE VALIDATION]',
+  '[SESSION RESUME INTERRUPTED WORK]',
+] as const;
+
+/**
+ * True for a system message this module produced on an earlier resume.
+ *
+ * Deliberately narrow: only a `system` message whose text *starts* with one of
+ * the headers matches, so a user or model quoting a notice back is never
+ * mistaken for one.
+ */
+export function isResumeNoticeMessage(message: {
+  role: string;
+  content: unknown;
+}): boolean {
+  if (message.role !== 'system' || typeof message.content !== 'string') return false;
+  return RESUME_NOTICE_HEADERS.some((header) => message.content === header || (message.content as string).startsWith(`${header}\n`));
+}
+
 /** Build the ephemeral system message injected into the first resumed turn. */
 export function formatResumeValidationNotice(
   validation: ResumeValidation,

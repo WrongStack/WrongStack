@@ -222,7 +222,15 @@ export interface SageHygieneOptions {
   archiveUnusedAfterDays?: number | undefined;
   /** Minimum injection count before a never-used memory is archived. Default: 10. */
   unusedMinInjections?: number | undefined;
+  /** When false, skip anchor verification entirely. Default: true. */
   verify?: boolean | undefined;
+  /**
+   * Anchor verification depth for the hygiene sweep.
+   * - `existence` (default): path still present on disk.
+   * - `content` / `git`: deep verify via `verifyMemoryAnchors` (content hash,
+   *   symbol, command; git blob when depth is `git` or anchor carries a hash).
+   */
+  verifyDepth?: 'existence' | 'content' | 'git' | undefined;
   /**
    * Run a second dedup pass that catches near-duplicate texts (semantically
    * similar but not byte-identical after canonical normalization) via SimHash
@@ -610,6 +618,11 @@ export interface RememberSageInput {
    * for non-session scopes.
    */
   ownerSessionId?: string | undefined;
+  /**
+   * Optional hard TTL (ISO-8601). Used with `short_lived` / session digests;
+   * hygiene soft-deletes when past.
+   */
+  expiresAt?: string | undefined;
 }
 
 /**
@@ -708,6 +721,12 @@ export interface SageSearchOptions {
    * (memory manager UI, hygiene). Default false.
    */
   includeAllSessions?: boolean | undefined;
+  /**
+   * Soft hybrid re-rank of lexical/FTS hits with offline hashing embeddings.
+   * Default: true for multi-token queries (fail-open). Set false to keep pure
+   * SQL order. Stronger semantic indexing remains a future option.
+   */
+  semanticRerank?: boolean | undefined;
 }
 
 export interface SageForAudienceOptions extends MemoryAudienceContext {

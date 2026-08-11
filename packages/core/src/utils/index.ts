@@ -95,6 +95,12 @@ export {
 export { isPidAlive } from './pid.js';
 export * from './project-identity.js';
 export {
+  activateProjectStateGuard,
+  type ProjectStateGuard,
+  type ProjectStateGuardOptions,
+  startProjectStateGuard,
+} from './project-state-guard.js';
+export {
   type ProjectWatchEvent,
   type ProjectWatchSubscription,
   watchProjectTree,

@@ -303,12 +303,46 @@ export interface SageConfig {
          * many days. Undefined/0 disables purge (default).
          */
         purgeDeletedAfterDays?: number | undefined;
+        /**
+         * How deep periodic hygiene verifies anchors.
+         * - `existence` (default): file/path still exists (`fs.access` only).
+         * - `content`: also content-hash / symbol / command resolution.
+         * - `git`: content checks plus git blob hash comparison when available.
+         */
+        verifyDepth?: 'existence' | 'content' | 'git' | undefined;
       }
     | undefined;
   embeddings?:
     | {
-        /** Optional future semantic layer. Disabled by default and never required. */
+        /**
+         * When true, retrieval re-ranks lexical candidates with the offline
+         * hashing embedding provider (hybrid). Default: false. Fail-open:
+         * lexical results are always available if embeddings fail.
+         */
         enabled?: boolean | undefined;
+      }
+    | undefined;
+  /**
+   * Opt-in automatic capture of durable tool outcomes into SAGE.
+   * Off by default — operators enable per-project when they want
+   * command success notes recorded without an explicit `remember` call.
+   */
+  capture?:
+    | {
+        /** Persist successful command/tool outcomes as `tool_outcome` memories. Default: false. */
+        toolOutcomes?: boolean | undefined;
+        /** Persist recurring error signatures as `error_pattern` memories. Default: false. */
+        errorPatterns?: boolean | undefined;
+      }
+    | undefined;
+  /**
+   * Optional automated triage scheduling. When true, `setupSage` schedules a
+   * daily job (1h after boot, then every 24h): hygiene + bounded triage that
+   * files review proposals (never auto-deletes). Default: false.
+   */
+  triage?:
+    | {
+        dailyDryRun?: boolean | undefined;
       }
     | undefined;
 }

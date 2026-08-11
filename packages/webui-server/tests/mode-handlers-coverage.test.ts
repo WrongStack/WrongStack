@@ -23,6 +23,19 @@ vi.mock('../src/server/ws-utils.js', () => ({
 
 import { createModeHandlers } from '../src/server/mode-handlers.js';
 
+/**
+ * `Config['features']` is a required, non-optional key, so every config stub has
+ * to carry one. These tests only exercise `features.tokenSavingMode` being
+ * absent, so the flags stay off.
+ */
+const features = {
+  mcp: false,
+  plugins: false,
+  memory: false,
+  modelsRegistry: false,
+  skills: false,
+};
+
 describe('createModeHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -45,13 +58,17 @@ describe('createModeHandlers', () => {
       provider: 'openai',
       model: 'gpt-5.6',
       systemPrompt: { variant: 'pro' as const },
+      features,
     };
     const sessionStartPayload = vi.fn().mockResolvedValue({
       sessionId: 'session-1',
       mode: 'review',
     });
     const context = { session: { id: 'session-1' }, systemPrompt: 'old prompt' };
-    const toolRegistry = { list: vi.fn(() => [{ name: 'read_file' }]) };
+    const toolRegistry = {
+      list: vi.fn(() => [{ name: 'read_file' }]),
+      listForProvider: vi.fn(() => [{ name: 'read_file' }]),
+    };
 
     const handlers = createModeHandlers({
       modeStore: modeStore as never,
@@ -60,7 +77,7 @@ describe('createModeHandlers', () => {
       modelCapabilities: { vision: true } as never,
       context: context as never,
       toolRegistry: toolRegistry as never,
-      config: { provider: 'stale', model: 'stale' },
+      config: { provider: 'stale', model: 'stale', features },
       getConfig: () => liveConfig,
       projectRoot: 'D:\\repo',
       globalRoot: 'D:\\global',
@@ -90,6 +107,7 @@ describe('createModeHandlers', () => {
       cwd: 'D:\\repo',
       projectRoot: 'D:\\repo',
       tools: [{ name: 'read_file' }],
+      catalogTools: [{ name: 'read_file' }],
       provider: 'openai',
       model: 'gpt-5.6',
     });
@@ -108,8 +126,8 @@ describe('createModeHandlers', () => {
       skillLoader: undefined,
       modelCapabilities: {} as never,
       context: { session: {}, systemPrompt: '' } as never,
-      toolRegistry: { list: () => [] } as never,
-      config: { provider: 'openai', model: 'gpt-5.6' },
+      toolRegistry: { list: () => [], listForProvider: () => [] } as never,
+      config: { provider: 'openai', model: 'gpt-5.6', features },
       projectRoot: 'D:\\repo',
       globalRoot: 'D:\\global',
       clients: new Map(),

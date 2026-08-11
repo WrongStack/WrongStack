@@ -37,9 +37,15 @@ describe('ToolRegistry', () => {
     expect(r.list().map((tool) => tool.name)).toEqual(['read', 'rare-plugin-tool']);
     expect(r.get('rare-plugin-tool')?.name).toBe('rare-plugin-tool');
     expect(r.listForProvider().map((tool) => tool.name)).toEqual(['read']);
+    expect(r.isExposedToProvider('read')).toBe(true);
+    expect(r.isExposedToProvider('rare-plugin-tool')).toBe(false);
+    expect(r.isExposedToProvider('missing')).toBe(false);
 
     r.exposeToProvider('rare-plugin-tool');
     expect(r.listForProvider().map((tool) => tool.name)).toEqual(['read', 'rare-plugin-tool']);
+    expect(r.isExposedToProvider('rare-plugin-tool')).toBe(true);
+    r.disable('read');
+    expect(r.isExposedToProvider('read')).toBe(false);
   });
 
   it('preserves provider exposure when cloning', () => {

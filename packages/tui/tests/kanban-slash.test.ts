@@ -245,6 +245,40 @@ describe('parseKanbanArgs', () => {
     });
   });
 
+  it('parses add with --desc, -d shorthand and --desc=value form', () => {
+    expect(parseKanbanArgs('add "fix login" --desc "empty password edge case"')).toEqual({
+      kind: 'add',
+      title: 'fix login',
+      column: null,
+      description: 'empty password edge case',
+    });
+    expect(parseKanbanArgs('add seed db -d "idempotent fixtures"')).toEqual({
+      kind: 'add',
+      title: 'seed db',
+      column: null,
+      description: 'idempotent fixtures',
+    });
+    expect(parseKanbanArgs('add ship feature --desc=go-live')).toEqual({
+      kind: 'add',
+      title: 'ship feature',
+      column: null,
+      description: 'go-live',
+    });
+    // description is optional; without it the parsed result omits the field.
+    expect(parseKanbanArgs('add plain task')).toEqual({
+      kind: 'add',
+      title: 'plain task',
+      column: null,
+    });
+    // --column and --desc compose freely.
+    expect(parseKanbanArgs('add "x" -c review --desc "y"')).toEqual({
+      kind: 'add',
+      title: 'x',
+      column: 'review',
+      description: 'y',
+    });
+  });
+
   it('falls back to help when add/create are missing their argument', () => {
     expect(parseKanbanArgs('create')).toEqual({ kind: 'help' });
     expect(parseKanbanArgs('add')).toEqual({ kind: 'help' });
@@ -432,6 +466,113 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
     );
     expect(mockAddTask).not.toHaveBeenCalled();
     expect(deps.onPanelOpen.current).not.toHaveBeenCalled();
+  });
+
+  it('add subcommand on a managed board without --desc surfaces a helpful error', async () => {
+    // Managed boards require a description on every card (see
+    // `initializeAndValidateManagedTask`). Rather than letting the create
+    // call fail with a cryptic validation error, we intercept and point the
+    // user at the --desc flag.
+    mockListBoards.mockResolvedValue([summary('mb', 'Managed', { updatedAt: NOW })]);
+    mockGetBoard.mockResolvedValue(
+      board(
+        'mb',
+        'Managed',
+        [
+          column('backlog', 'Backlog', 0),
+          column('todo', 'To Do', 1),
+          column('in-progress', 'In Progress', 2),
+          column('review', 'Review', 3),
+          column('done', 'Done', 4),
+        ],
+        [],
+        {
+          lifecycle: {
+            mode: 'managed',
+            columns: {
+              backlog: 'backlog',
+              todo: 'todo',
+              running: 'in-progress',
+              review: 'review',
+              done: 'done',
+            },
+          },
+        },
+      ),
+    );
+
+    const deps = makeDeps();
+    const cmd = createKanbanSlashCommand(deps);
+    const result = await cmd.run('add "wire up CI"');
+    const message = (result as { message?: string }).message ?? '';
+    expect(message).toMatch(/managed board/i);
+    expect(message).toMatch(/--desc/);
+    // No task should have been created.
+    expect(mockAddTask).not.toHaveBeenCalled();
+    expect(deps.onPanelOpen.current).not.toHaveBeenCalled();
+  });
+
+  it('add subcommand on a managed board with --desc creates the task in Backlog', async () => {
+    // With a description supplied, the task should land in the Backlog
+    // column regardless of any caller-supplied --column hint (managed
+    // boards pin new cards to Backlog).
+    mockListBoards.mockResolvedValue([summary('mb', 'Managed', { updatedAt: NOW })]);
+    mockGetBoard.mockResolvedValue(
+      board(
+        'mb',
+        'Managed',
+        [
+          column('backlog', 'Backlog', 0),
+          column('todo', 'To Do', 1),
+          column('done', 'Done', 2),
+        ],
+        [],
+        {
+          lifecycle: {
+            mode: 'managed',
+            columns: { backlog: 'backlog', todo: 'todo', running: 'todo', review: 'todo', done: 'done' },
+          },
+        },
+      ),
+    );
+    mockAddTask.mockResolvedValue({
+      ...emptyResult(),
+      board: board('mb', 'Managed', [column('backlog', 'Backlog', 0)]),
+      task: task('t1', 'backlog', 'wire up CI'),
+    });
+
+    const deps = makeDeps();
+    const target = await resolveAddTarget(deps, 'done');
+    // --column done must be ignored: managed boards always target Backlog.
+    expect(target?.managed).toBe(true);
+    expect(target?.columnId).toBe('backlog');
+
+    const cmd = createKanbanSlashCommand(deps);
+    const result = await cmd.run('add "wire up CI" --desc "configure github actions"');
+    expect(mockAddTask).toHaveBeenCalledWith(
+      '/tmp/project',
+      'mb',
+      expect.objectContaining({
+        title: 'wire up CI',
+        columnId: 'backlog',
+        description: 'configure github actions',
+      }),
+    );
+    const message = (result as { message?: string }).message ?? '';
+    expect(message).toContain('Added task');
+    expect(message).toContain('backlog');
+    expect(deps.onPanelOpen.current).toHaveBeenCalledWith('toggleKanbanPanel');
+  });
+
+  it('resolveAddTarget flags a legacy board as managed:false and honours --column', async () => {
+    mockListBoards.mockResolvedValue([summary('legacy', 'Legacy', { updatedAt: NOW })]);
+    mockGetBoard.mockResolvedValue(
+      board('legacy', 'Legacy', [column('todo', 'To Do', 0), column('done', 'Done', 1)]),
+    );
+    const deps = makeDeps();
+    const target = await resolveAddTarget(deps, 'done');
+    expect(target?.managed).toBe(false);
+    expect(target?.columnId).toBe('done');
   });
 
   it('unknown subcommand returns the usage text without touching the panel', async () => {

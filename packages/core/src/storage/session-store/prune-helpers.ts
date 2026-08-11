@@ -1,14 +1,14 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
+import { isSessionTranscriptFileName } from '../../utils/session-scoped-path.js';
 
+/**
+ * Prunable === is a transcript. This module held the only complete sidecar
+ * list in the codebase while the listing scans held shorter ones; sharing the
+ * predicate is what stops them disagreeing again.
+ */
 export function isPrunableSessionJsonl(name: string): boolean {
-  return (
-    name.endsWith('.jsonl') &&
-    name !== '_index.jsonl' &&
-    name !== '_mailbox.jsonl' &&
-    !name.endsWith('.replay.jsonl') &&
-    !name.endsWith('.audit.jsonl')
-  );
+  return isSessionTranscriptFileName(name);
 }
 
 export async function pruneSessionFiles(

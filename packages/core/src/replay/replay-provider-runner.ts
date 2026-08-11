@@ -28,12 +28,40 @@ import type { Response } from '../types/provider.js';
  *     a particular request is seen, it's recorded; the next time
  *     the same request is made, the recorded response is served.
  *     This is the cheapest path to a deterministic test harness.
+ *
+ * ## What a hit requires
+ *
+ * The lookup key is `hashRequest`, which covers everything the provider is
+ * actually sent — including `system`. The agent loop appends volatile blocks
+ * to the system prompt on every request (the continuity ledger, the live
+ * next-steps gate, memory evidence; see `agent-response.ts`), and those blocks
+ * describe the state of *this* run. A re-run whose ledger or retrieved memory
+ * differs therefore produces a different request, and correctly misses: the
+ * recorded response answered a different prompt.
+ *
+ * So `mode: 'replay'` reproduces a run faithfully only when the loop is driven
+ * back through the same states — which is what a test harness does, and what a
+ * fresh interactive session does not. In an interactive session, prefer
+ * `'record'` (build the log) and use `'replay'` from a harness that pins the
+ * volatile inputs. `hashRequest` itself is stable across time: local message
+ * bookkeeping (`ts`, `_estTokens`, `origin`) is stripped before hashing.
  */
 export type ReplayMode = 'record' | 'replay' | 'auto';
 
 export interface ReplayProviderRunnerOptions {
   log: ReplayLogStore;
-  sessionId: string;
+  /**
+   * Which session's log to read and write.
+   *
+   * Accepts a resolver because recording is wired before the session exists:
+   * the boot path binds this runner while the session writer is still being
+   * created, and the user may then swap sessions (`/resume`, new session)
+   * without the runner being rebuilt. A frozen string there meant the log was
+   * filed under a synthetic id with no session behind it. A resolver keeps the
+   * log next to the transcript it belongs to, for the session that is actually
+   * live at the time of the call.
+   */
+  sessionId: string | (() => string);
   mode: ReplayMode;
   /**
    * Optional logger — receives a debug line on every replay hit
@@ -56,9 +84,18 @@ export class ReplayProviderRunner implements ProviderRunner {
     private readonly opts: ReplayProviderRunnerOptions,
   ) {}
 
+  /** Resolve the target session for this call. See {@link ReplayProviderRunnerOptions.sessionId}. */
+  private resolveSessionId(): string {
+    const { sessionId } = this.opts;
+    return typeof sessionId === 'function' ? sessionId() : sessionId;
+  }
+
   async run(runOpts: RunProviderOptions): Promise<Response> {
     const hash = hashRequest(runOpts.request);
-    const cached = await this.opts.log.lookup(this.opts.sessionId, hash);
+    // Resolved once per call so a session swap mid-run cannot split a lookup
+    // and its record across two logs.
+    const sessionId = this.resolveSessionId();
+    const cached = await this.opts.log.lookup(sessionId, hash);
 
     if (this.opts.mode === 'replay') {
       if (!cached) {
@@ -66,7 +103,7 @@ export class ReplayProviderRunner implements ProviderRunner {
           `replay: no recorded response for hash ${hash} (model ${runOpts.request.model})`,
         );
         throw new Error(
-          `ReplayProviderRunner: no recorded response for hash ${hash} in session ${this.opts.sessionId}. ` +
+          `ReplayProviderRunner: no recorded response for hash ${hash} in session ${sessionId}. ` +
             `Either the request changed since recording, or this session has no replay log.`,
         );
       }
@@ -86,7 +123,7 @@ export class ReplayProviderRunner implements ProviderRunner {
     // 'record' or 'auto' with no cache hit — delegate to the inner runner.
     const response = await this.inner.run(runOpts);
     await this.opts.log.record({
-      sessionId: this.opts.sessionId,
+      sessionId,
       request: runOpts.request,
       response,
     });

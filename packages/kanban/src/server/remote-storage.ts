@@ -3,7 +3,7 @@ import * as path from 'node:path';
 
 import { StaleWriteError } from '../manager/lifecycle.js';
 import { getInstalledKanbanStorageBackend, type KanbanStorageBackend } from '../storage-backend.js';
-import type { KanbanBoard, KanbanEvent } from '../types.js';
+import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';
 import { getKanbanServerConnection } from './client.js';
 import type { KanbanErrorCode, KanbanServerMethod, KanbanServerOperations } from './protocol.js';
 
@@ -50,6 +50,14 @@ class RemoteKanbanStorage implements KanbanStorageBackend {
 
   deleteBoard(boardRef: string): Promise<boolean> {
     return this.request('storageDeleteBoard', { boardRef });
+  }
+
+  async appendBoardHistory(entry: KanbanBoardHistoryEntry): Promise<void> {
+    await this.request('storageAppendBoardHistory', { entry });
+  }
+
+  readBoardHistory(boardId?: string): Promise<KanbanBoardHistoryEntry[]> {
+    return this.request('storageReadBoardHistory', { ...(boardId !== undefined ? { boardId } : {}) });
   }
 
   readMetadata(key: string): Promise<string | null> {

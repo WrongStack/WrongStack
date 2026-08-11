@@ -48,6 +48,11 @@ export interface CreateKanbanBoardInput {
   title: string;
   description?: string | undefined;
   tags?: string[] | undefined;
+  /**
+   * Ignored — columns are locked to the 5 standard columns (backlog, todo,
+   * in-progress, review, done). Kept on the type for source-compatibility so
+   * existing callers compile, but normalizeColumns always returns DEFAULT_COLUMNS.
+   */
   columns?: KanbanColumn[] | undefined;
   tasks?: Array<Partial<KanbanTask> & Pick<KanbanTask, 'title'>> | undefined;
   generatedBy?: string | undefined;
@@ -64,6 +69,10 @@ export interface UpdateKanbanBoardInput {
   title?: string | undefined;
   description?: string | undefined;
   tags?: string[] | undefined;
+  /**
+   * Ignored — columns are locked to the 5 standard columns. Kept on the type
+   * for source-compatibility; updateBoard no longer acts on it.
+   */
   columns?: KanbanColumn[] | undefined;
   completedAt?: string | null | undefined;
   supervisor?: KanbanSupervisorConfig | null | undefined;
@@ -213,7 +222,8 @@ export interface KanbanLifecycleValidationIssue {
     | 'contract-graph-incomplete'
     | 'parent-child-incomplete'
     | 'dependency-incomplete'
-    | 'requirement-coverage-incomplete';
+    | 'requirement-coverage-incomplete'
+    | 'wip-limit-exceeded';
   field?: string | undefined;
   message: string;
 }

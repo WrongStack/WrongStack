@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { activateProjectStateGuard, resolveWstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { resolveWorkingDirInsideProject } from './path-containment.js';
 import type { ProjectRouteHandlers } from './project-routes.js';
@@ -218,6 +218,7 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
         try {
           await ctx.onSessionSwapped?.(next.id, identityTarget);
           await ctx.onBeforeSessionTodosReplaced?.(next.id, paths.projectSessions);
+          await activateProjectStateGuard(resolved);
         } catch (err) {
           try {
             await ctx.onBeforeSessionTodosReplaced?.(previous.id, previousPaths.projectSessions);

@@ -7,6 +7,7 @@
  */
 import type {
   KanbanVerificationAttachment,
+  KanbanVerificationBaseline,
   KanbanVerificationCheckResult,
   KanbanVerificationFileScope,
   KanbanVerificationReport,
@@ -23,6 +24,14 @@ export interface VerificationReportBuilderInput {
   fileScope?: KanbanVerificationFileScope | undefined;
   subtasks?: KanbanVerificationSubtasks | undefined;
   attachments?: KanbanVerificationAttachment[] | undefined;
+  /** Attempt counter from the owning assignment, if available. */
+  attempt?: number | undefined;
+  /** Lease id from the owning assignment, if available. */
+  leaseId?: string | undefined;
+  /** Board revision at verification time, if available. */
+  taskRevision?: number | undefined;
+  /** Git baseline snapshot captured for the file-scope diff, if any. */
+  baseline?: KanbanVerificationBaseline | undefined;
 }
 
 /**
@@ -53,9 +62,17 @@ export function buildVerificationReport(
   const hasIncompleteSubtasks =
     input.subtasks &&
     (input.subtasks.completed + input.subtasks.failed < input.subtasks.total);
+  // A file-scope mismatch means the worker changed files outside its declared
+  // expectedFileChanges set, or failed to change an expected file. That is a
+  // real defect regardless of whether the acceptance criteria happened to pass:
+  // the card's stated contract was not honoured. Previously scopeMatches was
+  // computed and rendered in the Markdown report but never consulted by the
+  // verdict, so a task could score `passed` while touching unrelated files.
+  const hasFileScopeMismatch =
+    input.fileScope !== undefined && !input.fileScope.scopeMatches;
 
   let verdict: Verdict;
-  if (hasFailed || hasFailedSubtasks) verdict = 'failed';
+  if (hasFailed || hasFailedSubtasks || hasFileScopeMismatch) verdict = 'failed';
   else if (hasError) verdict = 'needs_human';
   else if (hasIncompleteSubtasks) verdict = 'incomplete';
   else verdict = 'passed';
@@ -81,6 +98,10 @@ export function buildVerificationReport(
     subtasks: input.subtasks,
     markdownSummary,
     attachments: input.attachments ?? [],
+    ...(input.attempt !== undefined ? { attempt: input.attempt } : {}),
+    ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
+    ...(input.taskRevision !== undefined ? { taskRevision: input.taskRevision } : {}),
+    ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
   };
 }
 

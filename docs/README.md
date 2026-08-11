@@ -37,7 +37,8 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 | [agent-monitoring.md](agent-monitoring.md) | Agent monitoring system: FleetBus → AgentMonitorService → HQ browser + TUI timeline | Read when working on subagent visibility or HQ integration |
 | [mcp-server.md](mcp-server.md) | MCP server architecture: stdio / SSE / streamable-HTTP transports | Read when working on `packages/mcp/` |
 | [director-architecture.md](director-architecture.md) | Multi-agent Director orchestration: phase-based pipeline, brain handoff, autonomy levels | Read when working on `packages/core/src/coordination/` |
-| [kanban-architecture.md](kanban-architecture.md) | Project-scoped multi-kanban architecture: storage, queue semantics, TaskGraph bridge, and Director/fleet dispatch | Read when working on `packages/kanban/`, the `kanban` tool, or Kanban WebUI routes |
+| [kanban-architecture.md](kanban-architecture.md) | Project-scoped multi-kanban architecture: storage, queue semantics, TaskGraph bridge, Director/fleet dispatch, managed lifecycle, completion verification, and the execution-time security boundary | Read when working on `packages/kanban/`, the `kanban` tool, Kanban CLI/TUI/WebUI surfaces, or `tools.kanbanGovernance` |
+| [kanban-database.md](kanban-database.md) | Kanban persistence layer end to end: `_kanban.sqlite` tables, why each column exists, document-internal relationships, cross-system links (SDD, HQ, governance, session mirror), and consistency invariants | Read before changing the Kanban schema, storage backend, IPC protocol, or any persisted Kanban type |
 | [kanban-contract-graph.md](kanban-contract-graph.md) | Goodhart-safe objective, impact, guardrail, risk, and verification graph for autonomous coding tasks | Read before changing contract-graph types, completion enforcement, or autonomous Kanban instructions |
 | [kanban-workbench.md](kanban-workbench.md) | Bounded cross-board Now, Next, Blocked, Review, alerts, and shared WebUI/TUI/SimpleUI visibility | Read before changing global Kanban navigation, work-surface projections, or task-flow presentation |
 | [kanban-orchestration-contract.md](kanban-orchestration-contract.md) | Canonical task/assignment lifecycle contract for Kanban-backed LLM, Director, subagent, review, and recovery work | Read before changing Kanban queue semantics, assignment lifecycle, stale recovery, or orchestration prompts |
@@ -49,6 +50,8 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 | [hooks.md](hooks.md) | Hooks runner: cross-cutting events, shell hooks, plugin integration | Read when adding a hook trigger or working on `/hooks` |
 | [skills.md](skills.md) | Skill system: SKILL.md format, skill loader, registry | Read when working on `packages/core/src/skills/` |
 | [codebase-index-calls.md](codebase-index-calls.md) | Incoming/outgoing calls tools: ref-graph caller/callee lookup, 7-layer dispatch, edit→index pipeline, impact analysis | Read when working on `codebase-incoming-calls`/`codebase-outgoing-calls` or the index dispatch stack |
+| [sage/SYSTEM-REPORT.md](sage/SYSTEM-REPORT.md) | SAGE long-term memory end to end: SQLite schema, IPC project server, injection middleware, tools, MCP, CLI/TUI/WebUI/SimpleUI surfaces | **Read first** before changing memory storage, inject policy, `/memory`, MemoryManager, or `sage-mcp` |
+| [sage/ARCHITECTURE.md](sage/ARCHITECTURE.md) | Older SAGE package write-up (partially superseded; JSONL-era sections are historical) | Background only — prefer `SYSTEM-REPORT.md` for runtime truth |
 
 ---
 

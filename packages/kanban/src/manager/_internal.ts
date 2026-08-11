@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { assessAtomicity, candidateFromKanbanTask } from '../atomicity/assess.js';
 import { normalizeKanbanBoundaryPolicy } from '../boundary.js';
-import { appendKanbanEvent, mutateBoard } from '../storage.js';
+import { appendBoardHistory, appendKanbanEvent, mutateBoard } from '../storage.js';
 import {
   type AssignKanbanTaskInput,
   type ClaimKanbanTaskInput,
@@ -11,6 +11,7 @@ import {
   type KanbanAgentAssignment,
   type KanbanAgentRunStatus,
   type KanbanBoard,
+  type KanbanBoardHistoryEntry,
   type KanbanCheck,
   type KanbanColumn,
   type KanbanEvent,
@@ -42,7 +43,6 @@ import {
   requireNonBlank,
   slugify,
   statusForColumn,
-  uniqueIdFromSet,
   uniqueStrings,
 } from './basic-helpers.js';
 import {
@@ -95,18 +95,15 @@ export {
   taskToTaskGraphNode,
 } from './task-graph-internal.js';
 
-export function normalizeColumns(columns: KanbanColumn[] | undefined): KanbanColumn[] {
-  const source = columns?.length ? columns : DEFAULT_COLUMNS;
-  const usedIds = new Set<string>();
-  return source
-    .map((column, index) => ({
-      ...column,
-      id: uniqueIdFromSet(usedIds, slugify(column.id || column.title) || `column-${index + 1}`),
-      title: requireNonBlank(column.title, 'Kanban column title'),
-      order: column.order ?? index,
-    }))
-    .sort((a, b) => a.order - b.order)
-    .map((column, index) => ({ ...column, order: index }));
+export function normalizeColumns(_columns: KanbanColumn[] | undefined): KanbanColumn[] {
+  // Columns are locked to the 5 standard columns (backlog, todo, in-progress,
+  // review, done). Any caller-supplied column array is ignored: the standard
+  // set is always returned, sorted by its canonical order. This is the single
+  // chokepoint every board creation/mutation goes through, so locking here
+  // locks the entire production path while leaving test fixtures (which build
+  // board objects directly, bypassing this function) free to use synthetic
+  // layouts for unit-testing non-column logic.
+  return DEFAULT_COLUMNS.map((column) => ({ ...column }));
 }
 
 export function createTaskObject(board: KanbanBoard, input: CreateKanbanTaskInput): KanbanTask {
@@ -403,8 +400,18 @@ export function applyTaskPatch(
     else task.expectedFileChanges = input.expectedFileChanges;
   }
   if (input.verificationReport !== undefined) {
-    if (input.verificationReport === null) delete task.verificationReport;
-    else task.verificationReport = { ...input.verificationReport };
+    if (input.verificationReport === null) {
+      // A verification report is an immutable snapshot of a completed
+      // verification run (see the KanbanVerificationReport contract). On a
+      // managed board, deleting that audit trail via a generic patch would
+      // erase the evidence a reviewer needs to trust the lifecycle — so the
+      // null/delete request is ignored on managed boards. Legacy boards keep
+      // the prior behaviour. A fresh report (re-verification) still overwrites
+      // via the non-null branch below; only explicit deletion is gated.
+      if (board.lifecycle?.mode !== 'managed') delete task.verificationReport;
+    } else {
+      task.verificationReport = { ...input.verificationReport };
+    }
   }
   if (input.atomicityAssessment !== undefined) {
     if (input.atomicityAssessment === null) delete task.atomicityAssessment;
@@ -972,6 +979,58 @@ export async function emitKanbanEvent(projectRoot: string, event: KanbanEvent): 
     process.stderr.write(
       `[kanban] emitKanbanEvent: failed to append event ${event.type} ` +
         `for board ${event.boardId}: ${msg}\n`,
+    );
+  }
+}
+
+// ── Board-level history (global log, survives board deletion) ─────────
+
+/**
+ * Create a board-level history entry — the board equivalent of `createKanbanEvent`.
+ *
+ * Unlike `createKanbanEvent` (which requires a `KanbanTask` and stamps
+ * `event.taskId`), this factory is task-free: board history records the
+ * lifecycle of the board itself (created, updated, deleted, duplicated,
+ * lifecycle adopted), not of any individual card. The `KanbanEvent.taskId`
+ * field is already optional, but a separate type (`KanbanBoardHistoryEntry`)
+ * and factory keep the two streams cleanly partitioned and let the board log
+ * survive board deletion (it writes to a global store, not the per-board
+ * event file that `deleteBoard` destroys).
+ */
+export function createBoardHistoryEntry(
+  boardId: string,
+  boardTitle: string,
+  type: string,
+  details: Partial<Omit<KanbanBoardHistoryEntry, 'id' | 'boardId' | 'boardTitle' | 'type' | 'ts'>> = {},
+): KanbanBoardHistoryEntry {
+  return {
+    id: randomUUID(),
+    boardId,
+    boardTitle,
+    type,
+    ts: nowIso(),
+    ...details,
+  };
+}
+
+/**
+ * Persist a board-level history entry to the global log.
+ *
+ * Mirrors `emitKanbanEvent`'s error policy: history is observability-only, so
+ * a failure to append must never break the board mutation that triggered it.
+ * The failure is logged to stderr so operators can detect audit gaps.
+ */
+export async function emitBoardHistoryEvent(
+  projectRoot: string,
+  entry: KanbanBoardHistoryEntry,
+): Promise<void> {
+  try {
+    await appendBoardHistory(projectRoot, entry);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `[kanban] emitBoardHistoryEvent: failed to append ${entry.type} ` +
+        `for board ${entry.boardId}: ${msg}\n`,
     );
   }
 }

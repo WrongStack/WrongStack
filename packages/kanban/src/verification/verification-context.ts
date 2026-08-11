@@ -382,6 +382,16 @@ export class VerificationContext {
     }
   }
 
+  /**
+   * Read-only view of the captured baseline snapshot, or null when no
+   * snapshot has been taken yet. Lets the completion protocol bind the
+   * verification report to the git baseline its file-scope diff was measured
+   * against, without exposing the mutable setter.
+   */
+  get capturedSnapshot(): TreeSnapshot | null {
+    return this.snapshot;
+  }
+
   /** Get a full diff (unified format) for a set of files. */
   async gitDiffForFiles(filePaths: string[]): Promise<string> {
     if (filePaths.length === 0) return '';

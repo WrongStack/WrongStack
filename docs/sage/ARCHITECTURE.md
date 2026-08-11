@@ -5,7 +5,10 @@
 > store (`SqliteSageStore` with FTS5 + WAL mode). JSONL is now only a one-shot
 > migration source (`sqlite-store-jsonl-migration.ts`). Sections describing
 > JSONL data flow, file-watching, and atomic-write semantics are historical.
-> Refer to `packages/sage/README.md` for the current architecture.
+>
+> **Prefer the current end-to-end reference:**
+> [`SYSTEM-REPORT.md`](./SYSTEM-REPORT.md) (database, IPC, tools, MCP, CLI/TUI/WebUI)
+> and [`packages/sage/README.md`](../../packages/sage/README.md) (ownership boundaries).
 
 > **Package:** `@wrongstack/sage`  
 > **Version:** `0.295.0`  

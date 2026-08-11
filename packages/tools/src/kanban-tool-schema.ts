@@ -4,7 +4,7 @@ export const KANBAN_TOOL_DESCRIPTION =
   'Durable project task boards: create and move cards, record checks, notes, links and assignments. The board is a record of the work, not a permit for it — nothing here gates other tools. Managed boards additionally enforce ordered Backlog → Todo → Running → Review → Done transitions; release_managed_lifecycle turns that off.';
 
 export const KANBAN_TOOL_USAGE_HINT =
-  'Track substantial or multi-step work so it survives the session; a trivial edit or a question needs no card. Work stays on ONE board: call list_boards first and add_task to the board this project already uses. create_board is for a genuinely separate line of work, not for each new piece of it — a second board splits the same effort in two, and a board holding a single card is the usual sign. Common flow: list_boards or search_tasks to orient, add_task to record work, start_task when you begin, update_check with checkStatus "passed" to tick acceptance criteria (read their ids from get_task), then transition_task. On a managed board a refused transition names the field it wants — supply it and retry.';
+  'Track substantial or multi-step work so it survives the session; a trivial edit or a question needs no card. Work stays on ONE board: call list_boards first and add_task to the board this project already uses. create_board is for a genuinely separate line of work, not for each new piece of it — a second board splits the same effort in two, and a board holding a single card is the usual sign. Common flow: list_boards or search_tasks to orient, add_task to record work, start_task when you begin, update_check with checkStatus "passed" to tick acceptance criteria (read their ids from get_task), then transition_task. On a managed board a refused transition names the field it wants — supply it and retry. When the acceptance criterion is something a machine can run, say so: set checkType ("command", "test", "file_exists", "file_matches", "git_diff", "metric") and put the command, pattern or path in checkNotes, then verify_completion executes it and the result is real evidence. Leave checkType off (or "manual") only for criteria that genuinely need a human eye — a manual check records your assertion, it does not test anything.';
 
 export const KANBAN_INPUT_SCHEMA: JSONSchema = {
   type: 'object',
@@ -30,9 +30,6 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
         'ready_tasks',
         'snapshot',
         'workbench',
-        'add_column',
-        'update_column',
-        'delete_column',
         'add_task',
         'split_task',
         'merge_tasks',
@@ -60,12 +57,19 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
         'update_goal_metric',
         'add_check',
         'update_check',
+        'remove_check',
         'add_note',
         'add_link',
         'verify_completion',
         'split_atomic',
         'assess_atomicity',
         'propose_decomposition',
+        'get_contract_graph',
+        'configure_contract_graph',
+        'upsert_contract_node',
+        'remove_contract_node',
+        'add_contract_edge',
+        'remove_contract_edge',
       ],
     },
     boardId: { type: 'string' },
@@ -157,7 +161,23 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
     costCeilingUsd: { type: 'number' },
     retryPolicy: { type: 'string', enum: ['off', 'incremental', 'exponential'] },
     lastFailureKind: { type: 'string' },
-    dependsOn: { type: 'array', items: { type: 'string' } },
+    dependsOn: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Task ids this card waits on. On update_task an explicit empty array clears them — use it when a dependency was recorded in error rather than completing work nobody wants.',
+    },
+    atomic: {
+      type: 'boolean',
+      description:
+        'Composite parent (true) or executable leaf (false). Set false to make a stranded parent a leaf again after its children were dropped.',
+    },
+    childTaskIds: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Children of a composite parent. On update_task an explicit empty array detaches them all.',
+    },
     estimatedHours: { type: 'number' },
     actualHours: { type: 'number' },
     taskGraph: { type: 'object' },
@@ -191,6 +211,77 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
     checkId: { type: 'string' },
     checkDescription: { type: 'string' },
     checkStatus: { type: 'string', enum: ['pending', 'passed', 'failed', 'skipped'] },
+    checkType: {
+      type: 'string',
+      // Only types a verifier can actually execute. `manual` is the default and
+      // means a human or agent asserts the status by hand. The rest are run by
+      // `verify_completion` against the default deterministic registry. Types
+      // with no plugin in that registry (`auto`, `review`, `agent`, `council`)
+      // are deliberately omitted: offering them would produce criteria that
+      // silently report `skipped — no verifier plugin registered`.
+      enum: ['manual', 'command', 'test', 'file_exists', 'file_matches', 'git_diff', 'metric'],
+      description:
+        'How this acceptance criterion is verified. Default "manual" (status set by hand). Any other value makes verify_completion execute it, so the criterion becomes real evidence rather than a self-assertion. Pair with checkNotes.',
+    },
+    checkNotes: {
+      type: 'string',
+      description:
+        'The executable body for a non-manual checkType, read in preference to checkDescription. command/test: the shell command or test pattern. file_exists: the path. file_matches: JSON {"file","pattern","flags"}. git_diff: JSON {"expectedFiles","minChanges","maxChanges"}.',
+    },
+    // ── Contract map ───────────────────────────────────────────────────
+    // The card contract: what this work targets, what it must not break, what
+    // it risks, and what verifies it. Advisory by default — the readiness gate
+    // deliberately does not require map structure, so a map is an operator
+    // review aid, not work the model must complete before implementing.
+    contractEnforcement: {
+      type: 'string',
+      enum: ['off', 'advisory', 'strict'],
+      description: 'Board-level contract map enforcement. Default when first configured: advisory.',
+    },
+    contractNodeId: { type: 'string' },
+    contractNodeKind: {
+      type: 'string',
+      enum: ['objective', 'guardrail', 'risk', 'component', 'artifact', 'verification'],
+      description:
+        'objective = what this card is for; guardrail = what must keep working; risk = what could go wrong; component/artifact = what it touches; verification = what settles it.',
+    },
+    contractNodeTitle: { type: 'string' },
+    contractNodeDescription: { type: 'string' },
+    contractNodeState: {
+      type: 'string',
+      enum: ['unknown', 'active', 'satisfied', 'violated', 'waived', 'resolved'],
+    },
+    contractNodeEnforcement: {
+      type: 'string',
+      enum: ['blocking', 'advisory', 'informational'],
+    },
+    /** Bind a node to an acceptance criterion or goal metric already on the task. */
+    contractCheckId: { type: 'string' },
+    contractMetricId: { type: 'string' },
+    contractWaiverReason: {
+      type: 'string',
+      description: 'Required, with an actor, when contractNodeState is "waived".',
+    },
+    contractEdgeId: { type: 'string' },
+    contractEdgeFrom: {
+      type: 'string',
+      description: 'A contract node id, or a task id (bare or "task:<id>") for the card endpoint.',
+    },
+    contractEdgeTo: { type: 'string' },
+    contractEdgeType: {
+      type: 'string',
+      enum: [
+        'targets',
+        'affects',
+        'must_preserve',
+        'exposes',
+        'verified_by',
+        'conflicts_with',
+        'derived_from',
+        'relates_to',
+      ],
+    },
+    contractEdgeRationale: { type: 'string' },
     note: { type: 'string' },
     author: { type: 'string' },
     url: { type: 'string' },

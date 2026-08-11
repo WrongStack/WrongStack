@@ -21,14 +21,13 @@
  */
 
 import { toErrorMessage } from '@wrongstack/core/utils';
-import type {
-  CreateCandidateInput,
-  LlmCallFn,
-  Sage,
-  SageSurface,
-  UpdateSageInput,
+import type { LlmCallFn, Sage, SageSurface, UpdateSageInput } from '@wrongstack/sage';
+import {
+  fileTriageProposals,
+  formatTriageReport,
+  runTriage,
+  type TriageReport,
 } from '@wrongstack/sage';
-import { formatTriageReport, runTriage, type TriageReport } from '@wrongstack/sage';
 import type { SlashCommandContext } from './command-context.js';
 
 const DEFAULT_MAX_PHASE3 = 1000;
@@ -268,61 +267,15 @@ async function applyDispatch(Sage: SageSurface, report: TriageReport): Promise<s
   return lines.join('\n');
 }
 
-export interface ProposalFileResult {
-  filed: number;
-  failed: number;
-  total: number;
-  failures: Array<{ memoryId: string; error: string }>;
-  /** All inputs that were submitted to Sage.createCandidate, for test verification. */
-  inputs: CreateCandidateInput[];
-}
+export type { ProposalFileResult } from '@wrongstack/sage';
 
 /**
  * File triage proposals as MemoryCandidates via the Sage surface.
- *
- * Exported for unit testing — the round-trip path through
- * Sage.createCandidate is the key contract: every proposal must
- * surface in `/memory candidates` for human review.
+ * Implementation lives in `@wrongstack/sage` (shared with daily dry-run).
  */
 export async function fileProposals(
   Sage: SageSurface,
   proposals: TriageReport['dispatch']['proposals'],
-): Promise<ProposalFileResult> {
-  const inputs: CreateCandidateInput[] = [];
-  const failures: Array<{ memoryId: string; error: string }> = [];
-  let filed = 0;
-
-  for (const proposal of proposals) {
-    const input: CreateCandidateInput = {
-      text: proposal.memoryText,
-      targetMemoryId: proposal.memoryId,
-      reviewReason: proposal.reason,
-      suggestedAction: proposal.suggestedAction,
-      kind: 'memory_review',
-      scope: 'project',
-      importance: 0.5,
-      confidence: 0.9,
-      tags: ['triage'],
-      anchors: [],
-      sources: [{ type: 'project_instruction' }],
-    };
-    inputs.push(input);
-    try {
-      await Sage.createCandidate(input);
-      filed++;
-    } catch (err) {
-      failures.push({
-        memoryId: proposal.memoryId,
-        error: toErrorMessage(err),
-      });
-    }
-  }
-
-  return {
-    filed,
-    failed: failures.length,
-    total: proposals.length,
-    failures,
-    inputs,
-  };
+): Promise<import('@wrongstack/sage').ProposalFileResult> {
+  return fileTriageProposals(Sage, proposals);
 }

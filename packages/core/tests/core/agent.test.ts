@@ -27,6 +27,7 @@ import type {
   StreamEvent,
 } from '../../src/types/provider.js';
 import { ProviderError } from '../../src/types/provider.js';
+import type { BuildContext } from '../../src/types/system-prompt.js';
 import type { Tool } from '../../src/types/tool.js';
 import { MockProvider, StreamingMockProvider } from '../helpers/mock-provider.js';
 
@@ -1460,8 +1461,8 @@ describe('Agent — additional coverage', () => {
     const provider = new MockProvider([
       { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },
     ]);
-    const receivedModels: string[] = [];
-    const build = vi.fn(async (ctx: { model: string }) => {
+    const receivedModels: (string | undefined)[] = [];
+    const build = vi.fn(async (ctx: BuildContext) => {
       receivedModels.push(ctx.model);
       return [{ type: 'text' as const, text: 'refreshed' }];
     });

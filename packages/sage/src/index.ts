@@ -71,6 +71,29 @@ export {
   type SageToolCallMiddlewareOptions,
 } from './middleware/tool-call-memory.js';
 export {
+  createSageOutcomeCaptureMiddleware,
+  type SageOutcomeCaptureOptions,
+} from './middleware/outcome-capture.js';
+export {
+  createSagePathRemapMiddleware,
+  type SagePathRemapOptions,
+} from './middleware/path-remap.js';
+export {
+  memoryNeedsPathRemap,
+  memoryNeedsSymbolRemap,
+  normalizeRelPath,
+  parseRenameCommand,
+  readIdentifierAt,
+  remapAnchors,
+  remapSymbolAnchors,
+  toProjectRelative,
+} from './shared/path-remap.js';
+export {
+  fileTriageProposals,
+  type ProposalFileResult,
+} from './shared/file-proposals.js';
+export { hybridRerankMemories } from './retrieval/hybrid-rerank.js';
+export {
   createSageTurnMiddleware,
   overlapCoefficient,
   type SageTurnMiddlewareOptions,
@@ -117,6 +140,17 @@ export type {
 export { isSageService } from './service-guard.js';
 export { isSqliteAvailable, SqliteSageStore } from './sqlite-store.js';
 export { normalizeTextKey, tokenize } from './store-helpers.js';
+export {
+  AUTO_HYGIENE_INTERVAL_MS,
+  _resetAutoHygieneThrottleForTesting,
+  sageHygieneOptionsFromConfig,
+  setupSage,
+  type SageHostWiringDeps,
+} from './host-wiring.js';
+export {
+  filterProposalsAgainstPendingTargets,
+  type PendingCandidateTarget,
+} from './shared/candidate-dedupe.js';
 export { createSageTools } from './tools/memory-tools.js';
 export {
   type AutoApplyAction,

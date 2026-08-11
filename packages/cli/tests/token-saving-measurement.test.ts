@@ -206,6 +206,9 @@ describe('token-saving measurement (empirical)', () => {
     // growth while still catching a full revert.
     const aggressiveDelta = results.find((r) => r.tier === 'aggressive')!.deltaTokens35VsOff;
     expect(aggressiveDelta).toBeLessThanOrEqual(-500);
+    expect(results.find((r) => r.tier === 'aggressive')!.promptChars).toBeLessThanOrEqual(
+      results.find((r) => r.tier === 'minimal')!.promptChars,
+    );
   });
 
   it('cross-checks canonical tier counts against the real builtinTools array', () => {

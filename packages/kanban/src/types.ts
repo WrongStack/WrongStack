@@ -348,6 +348,30 @@ export interface KanbanEvent {
   note?: string | undefined;
 }
 
+/**
+ * Board-level history entry — survives board deletion.
+ *
+ * Unlike per-board KanbanEvent rows (which live in `<boardId>.events.jsonl` /
+ * the `kanban_events` table and are destroyed when the board is deleted), the
+ * board history is a global, append-only log. It records the lifecycle of
+ * every board in the project: creation, updates, duplication, lifecycle
+ * adoption, and deletion. After a board is deleted, its history entries remain
+ * so an operator can still see "this board existed, was created on X, deleted
+ * on Y."
+ */
+export interface KanbanBoardHistoryEntry {
+  id: string;
+  boardId: string;
+  /** Snapshot of the board title at the time of the event (boards can be renamed). */
+  boardTitle: string;
+  type: string;
+  ts: string;
+  actor?: string | undefined;
+  note?: string | undefined;
+  /** Structured details about the change (which fields were updated, source/target ids, etc.). */
+  after?: unknown;
+}
+
 /** Request-scoped identity copied into durable Kanban activity events. */
 export interface KanbanEventContext {
   actor?: string | undefined;
@@ -574,6 +598,44 @@ export interface KanbanVerificationReport {
   markdownSummary: string;
   /** Raw evidence attachments. */
   attachments: KanbanVerificationAttachment[];
+  /**
+   * Attempt counter from the assignment that produced the verified work.
+   * Lets a reviewer tell apart "re-verified attempt 3" from "first attempt
+   * that was never run." Optional and backwards-compatible: older reports
+   * simply omit it.
+   */
+  attempt?: number | undefined;
+  /**
+   * Lease id of the assignment that owned the work. Ties the report to a
+   * specific claim so a stale owner's evidence cannot be confused with the
+   * current owner's.
+   */
+  leaseId?: string | undefined;
+  /**
+   * Board revision at the moment verification ran. Binds the report to a
+   * specific version of the task contract so a later edit cannot silently
+   * re-frame an old verdict.
+   */
+  taskRevision?: number | undefined;
+  /**
+   * Git baseline captured for the file-scope diff. The eventual goal is to
+   * capture this at dispatch/claim time (before the worker touches files)
+   * rather than at verification time; for now it records whichever snapshot
+   * the VerificationContext held when the report was built, preserving the
+   * prior behaviour while making the binding explicit and queryable.
+   */
+  baseline?: KanbanVerificationBaseline | undefined;
+}
+
+export interface KanbanVerificationBaseline {
+  /** Snapshot id (randomUUID assigned by VerificationContext.captureSnapshot). */
+  id: string;
+  /** `git rev-parse HEAD` at capture time (empty for an unborn repo). */
+  commitHash: string;
+  /** `git write-tree` of the full tracked+untracked worktree at capture time. */
+  treeHash: string;
+  /** ISO timestamp of the capture. */
+  capturedAt: string;
 }
 
 export interface KanbanBackingRef {

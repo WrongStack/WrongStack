@@ -23,6 +23,17 @@ export class SessionLoadCache {
     this.bytes = 0;
   }
 
+  /**
+   * A hit hands back fresh `messages` / `events` arrays over the cached
+   * contents.
+   *
+   * The entry outlives every caller, and callers treat what they get as their
+   * own: `resume()` passes `messages` straight into a live conversation, and
+   * anything walking `events` may splice it. Returning the cached arrays
+   * themselves let one caller's edit rewrite what the next one loads. The
+   * elements are still shared — copying them would defeat the cache — so
+   * entries remain read-only *contents* behind private containers.
+   */
   getFresh(id: string, stat: FileStatSnapshot, full: boolean): SessionData | null {
     const cached = this.entries.get(id);
     if (!cached || cached.mtimeMs !== stat.mtimeMs || cached.size !== stat.size) {
@@ -30,8 +41,11 @@ export class SessionLoadCache {
     }
     this.entries.delete(id);
     this.entries.set(id, cached);
-    if (full) return cached.data;
-    return { ...cached.data, messages: [] };
+    return {
+      ...cached.data,
+      messages: full ? [...cached.data.messages] : [],
+      events: [...cached.data.events],
+    };
   }
 
   set(id: string, stat: FileStatSnapshot, data: SessionData): void {

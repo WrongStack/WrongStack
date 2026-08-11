@@ -13,9 +13,15 @@ import type {
   KanbanVerificationReport,
   RepairManagedProjectionInput,
 } from '../types.js';
-import { applyTaskPatch, findTask, nowIso } from './_internal.js';
+import {
+  applyTaskPatch,
+  createBoardHistoryEntry,
+  emitBoardHistoryEvent,
+  findTask,
+  nowIso,
+} from './_internal.js';
 import { KanbanLifecycleError } from './lifecycle-error.js';
-import { formatDependencyReadinessIssues, getDependencyReadinessIssues } from './task-readiness.js';
+import { dependencyIncompleteMessage, getDependencyReadinessIssues } from './task-readiness.js';
 
 export {
   decodeLifecycleIssues,
@@ -192,6 +198,15 @@ export async function adoptManagedLifecycle(
     }
     return board;
   });
+  if (updated) {
+    await emitBoardHistoryEvent(
+      projectRoot,
+      createBoardHistoryEntry(updated.board.id, updated.board.title, 'board.lifecycle.adopted', {
+        actor: input.actor.trim(),
+        note: input.comment.trim(),
+      }),
+    );
+  }
   return updated?.board ?? null;
 }
 
@@ -428,6 +443,13 @@ export function validateManagedTaskTransition(
       validateDoneEvidence(board, task, input, issues);
       validateParentChildGate(board, task, issues);
     }
+    // A forward transition moves the card into the destination stage's column.
+    // Enforce the column's WIP limit so the counter the UI shows is honest.
+    // wipLimit <= 0 means unlimited (the default for Backlog/Todo/Review/Done).
+    // The card being transitioned is excluded from the count so moving it does
+    // not count against itself when it is already in the destination column
+    // (e.g. a re-transition after a no-op).
+    validateDestinationWipLimit(board, task, input.to, issues);
   }
   // Running is executable state regardless of direction. Review -> Running is
   // a repair loop, but it still must not bypass the dependency DAG.
@@ -438,6 +460,47 @@ export function validateManagedTaskTransition(
   return issues;
 }
 
+/**
+ * Enforce the destination column's WIP limit on forward managed transitions.
+ *
+ * `wipLimit` is defined on every column and the default "In Progress" column
+ * ships with `wipLimit: 5`, but until now nothing compared the column's task
+ * count against it — the UI rendered `[3/5]` while 7 cards could pile up. This
+ * makes the limit binding on managed transitions: moving a card into a column
+ * that is already at its limit is refused with a `wip-limit-exceeded` issue.
+ *
+ * `wipLimit <= 0` is treated as unlimited (matching the default Backlog/Todo/
+ * Review/Done columns, all of which are 0). The transitioning card itself is
+ * excluded from the count so a re-transition or a card already sitting in the
+ * destination column is not blocked by its own presence.
+ */
+function validateDestinationWipLimit(
+  board: KanbanBoard,
+  task: KanbanTask,
+  to: KanbanLifecycleStage,
+  issues: KanbanLifecycleValidationIssue[],
+): void {
+  if (!board.lifecycle?.mode || board.lifecycle.mode !== 'managed') return;
+  const columnId = board.lifecycle.columns[to];
+  if (!columnId) return;
+  const column = board.columns.find((c) => c.id === columnId);
+  if (!column) return;
+  const limit = column.wipLimit ?? 0;
+  if (limit <= 0) return; // unlimited
+  // Count cards currently in the destination column, excluding the card being
+  // moved (it is about to leave its current column and enter this one).
+  const occupants = board.tasks.filter(
+    (t) => t.columnId === columnId && t.id !== task.id,
+  ).length;
+  if (occupants >= limit) {
+    issues.push({
+      code: 'wip-limit-exceeded',
+      field: 'columnId',
+      message: `Column "${column.title}" is at its WIP limit (${occupants}/${limit}). Complete or move a card out before adding more.`,
+    });
+  }
+}
+
 function validateRunningDependencies(
   board: KanbanBoard,
   task: KanbanTask,
@@ -445,11 +508,10 @@ function validateRunningDependencies(
 ): void {
   const dependencyIssues = getDependencyReadinessIssues(board, task);
   if (!dependencyIssues.length) return;
-  const details = formatDependencyReadinessIssues(dependencyIssues);
   issues.push({
     code: 'dependency-incomplete',
     field: 'dependsOn',
-    message: `Running requires every dependency to exist and be completed: ${details}.`,
+    message: dependencyIncompleteMessage(dependencyIssues),
   });
 }
 
@@ -476,7 +538,12 @@ function validateParentChildGate(
     issues.push({
       code: 'parent-child-incomplete',
       field: 'childTaskIds',
-      message: `Parent task cannot reach Done: ${incompleteChildren.length} child task(s) are not completed (${incompleteChildren.map((c) => c.id.slice(0, 8)).join(', ')}).`,
+      message:
+        `Parent task cannot reach Done: ${incompleteChildren.length} child task(s) are not ` +
+        `completed (${incompleteChildren.map((c) => c.id.slice(0, 8)).join(', ')}). ` +
+        'Finish them, or — if a child is no longer part of this work — call kanban ' +
+        'update_task on the parent with the corrected `childTaskIds`; setting `atomic: false` ' +
+        'with an empty `childTaskIds` turns the parent back into an executable leaf.',
     });
   }
 }
@@ -609,7 +676,9 @@ function validateRequiredCardDetails(
       issues,
       'childTaskIds',
       Boolean(task.childTaskIds?.some(hasText)),
-      'Break the work into at least one persisted subtask.',
+      'This card is marked a composite parent but has no children. Either create them ' +
+        '(kanban split_atomic), or — if the work turned out to be a single unit — call ' +
+        'kanban update_task with `atomic: false` to make it an executable leaf again.',
     );
   }
   requireDetail(
@@ -679,13 +748,30 @@ export function validateDefinitionOfDone(
   const issues: KanbanLifecycleValidationIssue[] = [];
   const requireCriteria = options.requireCriteria !== false;
   const checks = task.successCriteria ?? [];
-  if ((requireCriteria && !checks.length) || checks.some((check) => check.status !== 'passed')) {
+  // Two different situations, and one shared message used to describe only the
+  // second: told to "read the ids and pass each one", a caller holding a card
+  // with NO criteria went round get_task → nothing to update → retry. Name the
+  // remedy that actually applies.
+  if (requireCriteria && !checks.length) {
     issues.push({
       code: 'acceptance-criteria-incomplete',
       field: 'successCriteria',
       message:
-        'Done requires every acceptance criterion to be explicitly passed. Read the ids from ' +
-        'kanban get_task, then call kanban update_check with `checkStatus: "passed"` for each.',
+        'Done requires at least one acceptance criterion, and this card has none. ' +
+        'Call kanban add_check with what would prove the work correct, then pass it.',
+    });
+  } else if (checks.some((check) => check.status !== 'passed')) {
+    const unmet = checks.filter((check) => check.status !== 'passed');
+    issues.push({
+      code: 'acceptance-criteria-incomplete',
+      field: 'successCriteria',
+      message:
+        `Done requires every acceptance criterion to be explicitly passed; ${unmet.length} of ` +
+        `${checks.length} still ${unmet.length === 1 ? 'is' : 'are'} not ` +
+        `(${unmet.map((check) => `"${check.description}" [${check.status}]`).join(', ')}). ` +
+        'Read the ids from kanban get_task, then call kanban update_check with ' +
+        '`checkStatus: "passed"` for each. If a criterion no longer applies, ' +
+        'kanban remove_check drops it — never pass one that did not actually hold.',
     });
   }
   const effectiveReport = report ?? task.verificationReport;

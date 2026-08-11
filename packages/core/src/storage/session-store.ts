@@ -35,6 +35,7 @@ import { scrubPersistedSessionSummary } from './session-read-scrubber.js';
 import {
   formatInterruptedToolNotice,
   formatResumeValidationNotice,
+  isResumeNoticeMessage,
   validateResumeFileObservations,
 } from './session-resume-validation.js';
 import { deleteSessionArtifacts } from './session-store/delete-session-artifacts.js';
@@ -280,6 +281,22 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   /**
+   * Implements {@link SessionForkHost.readRawEvents} — the parent stream a fork
+   * inherits, unmodified.
+   *
+   * Deliberately NOT `load()`: that loader empties superseded snapshot payloads
+   * in place and front-drops events past its retention budget, both of which
+   * are correct for reconstructing a conversation and wrong for copying a
+   * journal prefix into a child. Streaming with an accept-everything predicate
+   * keeps the scrubbing contract (`searchEvents` scrubs each line the same way
+   * `load()` does) without either transformation.
+   */
+  async readRawEvents(id: string): Promise<SessionEvent[]> {
+    const hits = await this.searchEvents(id, () => true);
+    return hits.map((hit) => hit.event);
+  }
+
+  /**
    * Capture the deterministic post-tool workspace identity through the store-owned CAS.
    */
   async captureWorkspaceCheckpoint(sessionId: string, promptIndex: number) {
@@ -389,10 +406,18 @@ export class DefaultSessionStore implements SessionStore {
         ts: new Date().toISOString(),
       });
     }
+    // Notices from earlier resumes were journaled by the caller's
+    // `replaceMessages` and replayed back into `data.messages`. They describe a
+    // validation run that this one has just superseded, so they are dropped
+    // before the current notices are appended — otherwise every resume of a
+    // session with a still-modified file adds another copy that never leaves.
+    // Building a fresh array here also stops `resume()` handing the caller the
+    // load cache's own message array to mutate.
+    const carriedMessages = data.messages.filter((message) => !isResumeNoticeMessage(message));
     const resumedData: SessionData = {
       ...data,
       ...(resumeValidation ? { resumeValidation } : {}),
-      ...(noticeMessages.length > 0 ? { messages: [...data.messages, ...noticeMessages] } : {}),
+      messages: [...carriedMessages, ...noticeMessages],
     };
     let handle: fsp.FileHandle;
     try {

@@ -564,12 +564,13 @@
     "contextModeFrugal": "Tasarruflu — muhafazakar token kullanımı",
     "contextModeDeep": "Derin — karmaşık görevler için daha büyük bağlam",
     "tokenSavingLabel": "Token tasarrufu modu",
-    "tokenSavingHint": "Token kullanımını ne kadar agresif azaltacağı.",
+    "tokenSavingHint": "Sonraki oturumun doğrudan tool şemalarını ve system prompt boyutunu kontrol eder.",
+    "tokenSavingAuto": "Otomatik — promptu model penceresine uyarla",
     "tokenSavingOff": "Kapalı — token tasarrufu yok",
     "tokenSavingMinimal": "Minimal — temel optimizasyon",
     "tokenSavingLight": "Hafif — orta derecede azaltma",
     "tokenSavingMedium": "Orta — önemli tasarruflar",
-    "tokenSavingAggressive": "Agresif — maksimum sıkıştırma"
+    "tokenSavingAggressive": "Agresif — en küçük doğrudan yüzey ve prompt"
   },
   "logs": {
     "logLevelLabel": "Günlük seviyesi",

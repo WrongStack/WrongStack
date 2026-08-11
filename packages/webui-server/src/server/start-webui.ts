@@ -1077,19 +1077,10 @@ export async function startWebUI(
         eternalSubscription = null;
       }
       codebaseIndexing.dispose();
-      if (config.Sage?.enabled !== false && config.Sage?.hygiene?.autoAfterSession !== false) {
-        const candidate = memoryStore as unknown as {
-          hygiene?: (options?: object) => Promise<unknown>;
-        };
-        await candidate
-          .hygiene?.({
-            retentionDays: config.Sage?.hygiene?.retentionDays,
-            archiveLowConfidenceAfterDays: config.Sage?.hygiene?.archiveLowConfidenceAfterDays,
-          })
-          .catch((err: unknown) =>
-            logger.warn(`sage session hygiene failed: ${toErrorMessage(err)}`),
-          );
-      }
+      // Full hygiene option surface + 1h throttle — shared with CLI via setupSage.
+      await agentServices
+        .runSageSessionHygiene()
+        .catch((err: unknown) => logger.warn(`sage session hygiene failed: ${toErrorMessage(err)}`));
       await memoryStore
         .dispose()
         .catch((err: unknown) =>

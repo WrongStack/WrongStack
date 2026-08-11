@@ -33,8 +33,8 @@ export interface ModeHandlersContext {
   modelCapabilities: ModelCapabilities;
   context: Context;
   toolRegistry: ToolRegistry;
-  config: Pick<Config, 'provider' | 'model' | 'systemPrompt'>;
-  getConfig?: () => Pick<Config, 'provider' | 'model' | 'systemPrompt'>;
+  config: Pick<Config, 'provider' | 'model' | 'systemPrompt' | 'features'>;
+  getConfig?: () => Pick<Config, 'provider' | 'model' | 'systemPrompt' | 'features'>;
   projectRoot: string;
   globalRoot: string;
   clients: Map<WebSocket, ConnectedClient>;
@@ -64,6 +64,7 @@ export function createModeHandlers(context: ModeHandlersContext) {
         modeId: id,
         modePrompt,
         modelCapabilities: context.modelCapabilities,
+        tokenSavingMode: config.features?.tokenSavingMode,
         instructionPaths: {
           globalDir: paths.globalInstructions,
           projectDir: paths.inProjectInstructions,
@@ -73,7 +74,8 @@ export function createModeHandlers(context: ModeHandlersContext) {
       context.context.systemPrompt = await builder.build({
         cwd: context.projectRoot,
         projectRoot: context.projectRoot,
-        tools: context.toolRegistry.list(),
+        tools: context.toolRegistry.listForProvider(),
+        catalogTools: context.toolRegistry.list(),
         provider: config.provider,
         model: config.model,
       });

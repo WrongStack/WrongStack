@@ -27,6 +27,8 @@ const { mockRefs, baseState } = vi.hoisted(() => {
     dispatchTask: vi.fn(),
     moveTask: vi.fn(),
     removeTask: vi.fn(),
+    boardHistory: [],
+    fetchBoardHistory: vi.fn(),
   });
   return { mockRefs, baseState };
 });

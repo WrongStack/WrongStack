@@ -11,10 +11,17 @@
 //   - The kanban panel advertises Ctrl+J in its footer hint so users can
 //     discover the chord (Sprint 2 introduced it)
 
-import type { KanbanCheck, KanbanGoalMetric, KanbanTask } from '@wrongstack/kanban';
+import type {
+  KanbanBoard,
+  KanbanCheck,
+  KanbanGoalMetric,
+  KanbanTask,
+} from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
 import {
   computeBoardColumnLayout,
+  nextManagedStage,
+  stageForColumn,
   summarizeGoalMetrics,
   summarizeSuccessCriteria,
 } from '../src/components/kanban-panel.js';
@@ -210,3 +217,83 @@ describe('KanbanPanel header hint advertises Ctrl+Y', () => {
     expect(source).toMatch(/key\.ctrl && input === 'y'[\s\S]{0,200}toggleKanbanPanel/);
   });
 });
+
+// ── Managed lifecycle helpers ───────────────────────────────────────────────
+
+// These tests pin the two helpers the TUI uses to route managed-board
+// progress through `transitionTask` instead of free-form `moveTask`. The
+// stage order MUST stay in lockstep with `KANBAN_AGENT_STAGES` in
+// `@wrongstack/kanban`; a drift here would send users to the wrong column
+// or report "already at done" one stage early.
+
+function managedBoard(columns?: Partial<Record<string, string>>): KanbanBoard {
+  const cols = columns ?? { backlog: 'backlog', todo: 'todo', running: 'in-progress', review: 'review', done: 'done' };
+  return {
+    id: 'mb',
+    title: 'Managed',
+    columns: [
+      { id: 'backlog', title: 'Backlog', order: 0 },
+      { id: 'todo', title: 'To Do', order: 1 },
+      { id: 'in-progress', title: 'In Progress', order: 2 },
+      { id: 'review', title: 'Review', order: 3 },
+      { id: 'done', title: 'Done', order: 4 },
+    ],
+    tasks: [],
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 1,
+    lifecycle: {
+      mode: 'managed',
+      columns: {
+        backlog: cols.backlog ?? 'backlog',
+        todo: cols.todo ?? 'todo',
+        running: cols.running ?? 'in-progress',
+        review: cols.review ?? 'review',
+        done: cols.done ?? 'done',
+      },
+    },
+  };
+}
+
+describe('stageForColumn — managed board column → stage lookup', () => {
+  it('returns the stage for each mapped column on a managed board', () => {
+    const b = managedBoard();
+    expect(stageForColumn(b, 'backlog')).toBe('backlog');
+    expect(stageForColumn(b, 'todo')).toBe('todo');
+    expect(stageForColumn(b, 'in-progress')).toBe('running');
+    expect(stageForColumn(b, 'review')).toBe('review');
+    expect(stageForColumn(b, 'done')).toBe('done');
+  });
+
+  it('returns null for a non-managed board', () => {
+    const legacy: KanbanBoard = {
+      id: 'legacy',
+      title: 'Legacy',
+      columns: [{ id: 'todo', title: 'To Do', order: 0 }],
+      tasks: [],
+      createdAt: NOW,
+      updatedAt: NOW,
+      version: 1,
+    };
+    expect(stageForColumn(legacy, 'todo')).toBeNull();
+  });
+
+  it('returns null when the column is not one of the five lifecycle columns', () => {
+    const b = managedBoard();
+    expect(stageForColumn(b, 'custom-column')).toBeNull();
+  });
+});
+
+describe('nextManagedStage — single-step forward advance', () => {
+  it('walks the canonical stage order one step at a time', () => {
+    expect(nextManagedStage('backlog')).toBe('todo');
+    expect(nextManagedStage('todo')).toBe('running');
+    expect(nextManagedStage('running')).toBe('review');
+    expect(nextManagedStage('review')).toBe('done');
+  });
+
+  it('returns null at the terminal `done` stage so callers can show a notice', () => {
+    expect(nextManagedStage('done')).toBeNull();
+  });
+});
+

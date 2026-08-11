@@ -34,7 +34,9 @@ import {
   releaseTaskClaim,
   updateTaskAssignment,
 } from './assignment.js';
+import { createKanbanEvent, emitKanbanEvent } from './_internal.js';
 import { transitionTask } from './lifecycle.js';
+import type { KanbanLifecycleValidationIssue } from '../types-operations.js';
 import { finalizeTaskCompletion } from '../verification/completion-gate.js';
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -93,9 +95,31 @@ export interface StartDispatchInput {
   runTaskId?: string | undefined;
 }
 
+/**
+ * Structured lifecycle-transition failure payload.
+ *
+ * `startKanbanDispatch`/`completeKanbanDispatch` advance the managed lifecycle
+ * as a best-effort step after the lease-fenced assignment mutation has already
+ * committed. When that step fails, the assignment is in the desired state but
+ * the lifecycle stage is not — a divergence the caller may want to retry or
+ * surface. The structured payload avoids forcing callers to parse error
+ * messages: `issues` carries the same `KanbanLifecycleValidationIssue[]` that
+ * `transitionTask` produced, so a UI can render the same remediation guidance.
+ */
+export interface DispatchLifecycleError {
+  message: string;
+  issues: readonly KanbanLifecycleValidationIssue[];
+}
+
 export interface StartDispatchResult {
   board: KanbanBoard;
   task: KanbanTask;
+  /**
+   * Set when the lease-fenced assignment mutation succeeded but the managed
+   * lifecycle transition (todo → running) failed. Absent on success. The task
+   * is still running with a valid lease; only the lifecycle projection lags.
+   */
+  lifecycleTransitionError?: DispatchLifecycleError | undefined;
 }
 
 export interface CompleteDispatchInput {
@@ -111,6 +135,12 @@ export interface CompleteDispatchResult {
   board: KanbanBoard;
   task: KanbanTask;
   gate?: CompletionGateResult | undefined;
+  /**
+   * Set when the lease-fenced completion mutation succeeded but the managed
+   * lifecycle transition (running → review) or the legacy completion gate
+   * failed. Absent on success.
+   */
+  lifecycleTransitionError?: DispatchLifecycleError | undefined;
 }
 
 export interface FailDispatchInput {
@@ -150,6 +180,65 @@ function buildLease(ttlMs: number): DispatchLease {
     heartbeatAt: now,
     leaseExpiresAt: new Date(Date.now() + ttlMs).toISOString(),
   };
+}
+
+/**
+ * Convert a thrown lifecycle/gate error into the structured dispatch payload
+ * and emit operator-visible diagnostics (stderr + a kanban audit event).
+ *
+ * `transitionTask` and `finalizeTaskCompletion` failures inside the dispatch
+ * flow used to be swallowed silently, leaving the assignment in `running` /
+ * `completed` while the lifecycle stage lagged behind — a divergence with no
+ * signal to the operator, the caller, or the event log. This helper mirrors
+ * the pattern already established by `recoverStaleTaskAssignments`
+ * (assignment.ts): best-effort transition inside try/catch, stderr line on
+ * failure, plus an audit event so the gap is observable.
+ *
+ * Always returns the structured payload. The prior behaviour (swallowing
+ * every error from the best-effort transition) is preserved at the call sites
+ * — the assignment mutation has already committed, so the dispatch must still
+ * report success at the lease level. The payload lets the caller surface the
+ * lifecycle divergence (and retry via `transition_task` / `repair_managed_`)
+ * rather than masking it. The `issues` array is populated whenever the error
+ * carries structured lifecycle validation details (a real `KanbanLifecycleError`
+ * or an IPC-reconstructed one); otherwise it is empty.
+ */
+async function recordLifecycleTransitionFailure(
+  projectRoot: string,
+  boardId: string,
+  task: KanbanTask,
+  operation: string,
+  error: unknown,
+): Promise<DispatchLifecycleError | undefined> {
+  const message = error instanceof Error ? error.message : String(error);
+  // Recover the structured issues when present. A real KanbanLifecycleError
+  // carries `issues` directly; an IPC-reconstructed error may carry them on a
+  // plain object. We read the field structurally rather than importing
+  // decodeLifecycleIssues to avoid pulling lifecycle-error.ts's envelope
+  // helpers into the dispatch path.
+  let issues: readonly KanbanLifecycleValidationIssue[] = [];
+  if (error !== null && typeof error === 'object' && 'issues' in error) {
+    const raw = (error as { issues: unknown }).issues;
+    if (Array.isArray(raw)) issues = raw as readonly KanbanLifecycleValidationIssue[];
+  }
+  const payload: DispatchLifecycleError = { message, issues };
+
+  process.stderr.write(
+    `[kanban] ${operation}: lifecycle transition failed: ${message}\n`,
+  );
+  try {
+    await emitKanbanEvent(
+      projectRoot,
+      createKanbanEvent(boardId, task, 'task.lifecycle_transition_failed', {
+        note: `${operation}: ${message}`,
+        ...(issues.length > 0 ? { after: { issues } } : {}),
+      }),
+    );
+  } catch {
+    // emitKanbanEvent already logs its own append failures; never let the
+    // observability path mask the payload we just built.
+  }
+  return payload;
 }
 
 // ── Operations ──────────────────────────────────────────────────────
@@ -259,9 +348,24 @@ export async function startKanbanDispatch(
             task: tr.task,
           };
         }
-      } catch {
-        // Best-effort: assignment is running with lease. Lifecycle can be
-        // corrected via transition_task or repair_managed_projection.
+      } catch (error) {
+        // Best-effort: the lease-fenced assignment mutation above already
+        // committed, so the task IS running with a valid lease. Only the
+        // lifecycle projection lags. Surface the divergence so the operator,
+        // the caller, and the event log can all see it — previously this was
+        // swallowed silently, leaving a "running assignment / todo stage"
+        // zombie state with zero signal.
+        const lifecycleTransitionError = await recordLifecycleTransitionFailure(
+          projectRoot,
+          input.boardId,
+          managedTask,
+          'startKanbanDispatch',
+          error,
+        );
+        const task = updated.tasks.find((t) => t.id === input.taskId);
+        return task
+          ? { board: updated, task, ...(lifecycleTransitionError ? { lifecycleTransitionError } : {}) }
+          : null;
       }
     }
   }
@@ -326,8 +430,23 @@ export async function completeKanbanDispatch(
         if (tr) {
           return { board: tr.board, task: tr.task };
         }
-      } catch {
-        // Best-effort: assignment is completed. Reviewer can transition manually.
+      } catch (error) {
+        // Best-effort: the assignment is completed and the lease is fenced.
+        // Only the running → review transition failed. Surface it so the
+        // reviewer queue (and the operator) sees the card is stuck in running
+        // rather than silently leaving it there.
+        const lifecycleTransitionError = await recordLifecycleTransitionFailure(
+          projectRoot,
+          input.boardId,
+          task,
+          'completeKanbanDispatch',
+          error,
+        );
+        return {
+          board: updated,
+          task,
+          ...(lifecycleTransitionError ? { lifecycleTransitionError } : {}),
+        };
       }
     }
     return { board: updated, task };
@@ -341,8 +460,23 @@ export async function completeKanbanDispatch(
     if (finalized) {
       return { board: finalized.board, task: finalized.task, gate: finalized.gate };
     }
-  } catch {
+  } catch (error) {
     // Gate failure leaves the task in review (strict) or completed (soft).
+    // Surface the failure rather than swallowing it: the caller asked for a
+    // completion and got something less, and the structured issues tell the
+    // operator exactly which criterion blocked Done.
+    const lifecycleTransitionError = await recordLifecycleTransitionFailure(
+      projectRoot,
+      input.boardId,
+      task,
+      'completeKanbanDispatch',
+      error,
+    );
+    return {
+      board: updated,
+      task,
+      ...(lifecycleTransitionError ? { lifecycleTransitionError } : {}),
+    };
   }
 
   return { board: updated, task };

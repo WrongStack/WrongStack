@@ -249,6 +249,24 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     expect(() => assertInProjectAllowListComplete()).not.toThrow();
   });
 
+  it('strips tools.kanbanGovernance from repo config so a repo cannot disable an enabled gate', () => {
+    // The flag defaults to false, so the only thing a repo-committed config
+    // can do with it is turn OFF a gate the operator switched on — the same
+    // one-directional risk as `tools.restrictToProjectRoot`. The sibling
+    // `tools.maxIterations` in the same object must survive, proving the
+    // strip is path-scoped and does not drop the allowed parent.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = stripUnsafeInProjectFields(
+      { tools: { kanbanGovernance: false, maxIterations: 7 } } as never,
+      '/tmp/.wrongstack/config.json',
+      warn,
+    );
+    expect(out).toEqual({ tools: { maxIterations: 7 } });
+    const warned = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(warned).toContain('tools.kanbanGovernance');
+    warn.mockRestore();
+  });
+
   it('stripping a payload of unknown keys runs the drift check (which passes) and warns per-key', () => {
     // Smoke test for the runtime check that lives inside
     // `stripUnsafeInProjectFields`: it calls `assertInProjectAllowListComplete()`

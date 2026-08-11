@@ -213,3 +213,5 @@ AGENTS.md
 .wrongstack/agents/**/archive/
 .wrongstack/agents/**/skills/affinity.json
 .wrongstack/agents/**/quarantine.md
+
+.zcode/

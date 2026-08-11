@@ -372,6 +372,18 @@ export class ToolRegistry {
   }
 
   /**
+   * Whether an enabled catalog tool is part of the direct provider surface.
+   *
+   * This is intentionally different from `get()`/`list()`: a tool can remain
+   * executable through a lazy gateway while its schema is omitted from the
+   * next provider request. Disabled and unknown tools always return false.
+   */
+  isExposedToProvider(name: string): boolean {
+    if (this._disabled.has(name) || !this.tools.has(name)) return false;
+    return this._providerToolNames?.has(name) ?? true;
+  }
+
+  /**
    * Group tools by their `category` field. Tools without a category
    * are placed under the key `""` (empty string). Returns a Map of
    * category → tools, sorted by registration order within each category.

@@ -26,11 +26,21 @@ import type { WstackPaths } from '@wrongstack/core/utils';
  * The log lives next to the session JSONL via
  * `sessionScopedPath(projectSessions, sessionId, '.replay.jsonl')`,
  * colocated with annotations and audit sidecars.
+ *
+ * Call this AFTER the session exists. `TOKENS.ProviderRunner` is resolved per
+ * request inside the agent loop, not at agent construction, so the binding only
+ * has to be in place before the first `run()` — which is what lets `--record`
+ * name the real session instead of inventing one.
  */
 export interface BindReplayOptions {
   container: Container;
   wpaths: WstackPaths;
-  sessionId: string;
+  /**
+   * Explicit id for `--replay <id>`, or a resolver for `--record` so the log
+   * lands beside the live session's transcript instead of under a synthetic
+   * name. See {@link ReplayProviderRunnerOptions.sessionId}.
+   */
+  sessionId: string | (() => string);
   mode: ReplayMode;
   logger?: Logger | undefined;
 }

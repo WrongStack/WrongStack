@@ -5,6 +5,13 @@ import type {
   KanbanBoard,
   KanbanBoardSummary,
   KanbanCompletionGateEnforcement,
+  KanbanContractEdgeType,
+  KanbanContractEnforcement,
+  KanbanContractGraph,
+  KanbanContractGraphEnforcement,
+  KanbanContractGraphEvaluation,
+  KanbanContractNodeKind,
+  KanbanContractNodeState,
   KanbanDecompositionSubtask,
   KanbanEvent,
   KanbanLifecycleStage,
@@ -68,12 +75,19 @@ export type KanbanAction =
   | 'update_goal_metric'
   | 'add_check'
   | 'update_check'
+  | 'remove_check'
   | 'add_note'
   | 'add_link'
   | 'verify_completion'
   | 'split_atomic'
   | 'assess_atomicity'
-  | 'propose_decomposition';
+  | 'propose_decomposition'
+  | 'get_contract_graph'
+  | 'configure_contract_graph'
+  | 'upsert_contract_node'
+  | 'remove_contract_node'
+  | 'add_contract_edge'
+  | 'remove_contract_edge';
 
 export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   action: KanbanAction;
@@ -121,6 +135,38 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   checkId?: string | undefined;
   checkDescription?: string | undefined;
   checkStatus?: 'pending' | 'passed' | 'failed' | 'skipped' | undefined;
+  /**
+   * Verifier type for an acceptance criterion. Narrower than `KanbanCheckType`
+   * on purpose: only the types the default deterministic registry can actually
+   * run are offered, so a criterion this tool creates never reports
+   * `skipped — no verifier plugin registered`.
+   */
+  checkType?:
+    | 'manual'
+    | 'command'
+    | 'test'
+    | 'file_exists'
+    | 'file_matches'
+    | 'git_diff'
+    | 'metric'
+    | undefined;
+  /** Executable body for a non-manual `checkType`; plugins read it before the description. */
+  checkNotes?: string | undefined;
+  contractEnforcement?: KanbanContractGraphEnforcement | undefined;
+  contractNodeId?: string | undefined;
+  contractNodeKind?: KanbanContractNodeKind | undefined;
+  contractNodeTitle?: string | undefined;
+  contractNodeDescription?: string | undefined;
+  contractNodeState?: KanbanContractNodeState | undefined;
+  contractNodeEnforcement?: KanbanContractEnforcement | undefined;
+  contractCheckId?: string | undefined;
+  contractMetricId?: string | undefined;
+  contractWaiverReason?: string | undefined;
+  contractEdgeId?: string | undefined;
+  contractEdgeFrom?: string | undefined;
+  contractEdgeTo?: string | undefined;
+  contractEdgeType?: KanbanContractEdgeType | undefined;
+  contractEdgeRationale?: string | undefined;
   note?: string | undefined;
   author?: string | undefined;
   url?: string | undefined;
@@ -183,7 +229,12 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   archiveMissingTasks?: boolean | undefined;
   preserveManualDependencies?: boolean | undefined;
   /** Full dependency id list for add_task/update_task (superset of dependencyTaskId). */
+  /** `update_task`: an explicit `[]` clears every dependency. */
   dependsOn?: string[] | undefined;
+  /** `update_task`: mark a card a composite parent, or `false` to make it a leaf again. */
+  atomic?: boolean | undefined;
+  /** `update_task`: an explicit `[]` detaches every child from a composite parent. */
+  childTaskIds?: string[] | undefined;
   /** Estimated effort in hours for add_task/update_task. */
   estimatedHours?: number | undefined;
   /** Actual effort in hours for add_task/update_task. */
@@ -223,4 +274,6 @@ export interface KanbanToolOutput {
   workbench?: KanbanWorkbenchSnapshot | undefined;
   taskGraph?: SerializedTaskGraph | undefined;
   markdown?: string | undefined;
+  contractGraph?: KanbanContractGraph | null | undefined;
+  contractEvaluation?: KanbanContractGraphEvaluation | undefined;
 }

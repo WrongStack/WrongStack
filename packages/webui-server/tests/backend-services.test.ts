@@ -47,6 +47,7 @@ vi.mock('@wrongstack/sage', () => ({
   createSageTurnMiddleware: vi.fn(() => ({ name: 'sage-turn', handler: vi.fn() })),
   getSageRetrieval: vi.fn(() => null),
   getSageService: vi.fn(() => null),
+  setupSage: vi.fn(() => vi.fn(async () => undefined)),
 }));
 
 vi.mock('@wrongstack/runtime', () => ({ makeLightSubagentFactory: vi.fn(() => vi.fn()) }));

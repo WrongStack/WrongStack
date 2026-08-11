@@ -1,5 +1,12 @@
 # Kanban Contract Graph
 
+> **How the map is written**: the node/edge API described below became
+> reachable in 0.304.0 — `kanban` tool actions (`configure_contract_graph`,
+> `upsert_contract_node`, `add_contract_edge`, …), `kanban.contract.*`
+> WebSocket routes, and the MCP `kanban_manage` tier. Until then it had no
+> caller on any surface. See
+> [kanban-architecture.md §18](kanban-architecture.md#18-card-contract-and-atomicity).
+
 The Kanban contract graph is an optional safety and visualization layer for
 autonomous coding work. The task description and executable acceptance
 criteria remain the normal execution contract. Agents must not spend their

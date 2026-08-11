@@ -4,6 +4,22 @@ import { computeMessageTokens } from '../utils/token-estimate.js';
 import type { TodoItem } from './context.js';
 import { Context } from './context.js';
 
+function hasToolResultBlock(message: Message | undefined): boolean {
+  return (
+    message !== undefined &&
+    Array.isArray(message.content) &&
+    message.content.some((block) => block.type === 'tool_result')
+  );
+}
+
+function hasToolUseBlock(message: Message | undefined): boolean {
+  return (
+    message?.role === 'assistant' &&
+    Array.isArray(message.content) &&
+    message.content.some((block) => block.type === 'tool_use')
+  );
+}
+
 /**
  * Observable wrapper for mutable conversation state. Production code should
  * mutate messages, todos, and meta through this API so subscribers see a
@@ -140,11 +156,11 @@ export class ConversationState {
    */
   private overflowCount(arr: readonly Message[]): number {
     let drop = Context.MAX_MESSAGES > 0 ? Math.max(0, arr.length - Context.MAX_MESSAGES) : 0;
-    if (Context.MAX_MESSAGE_TOKENS <= 0) return drop;
+    if (Context.MAX_MESSAGE_TOKENS <= 0) return this.protocolSafeDropCount(arr, drop);
 
     let total = 0;
     for (let i = drop; i < arr.length; i++) total += arr[i]?._estTokens ?? 0;
-    if (total <= Context.MAX_MESSAGE_TOKENS) return drop;
+    if (total <= Context.MAX_MESSAGE_TOKENS) return this.protocolSafeDropCount(arr, drop);
     // Walk forward dropping the oldest survivors until the remainder fits.
     // Always keep the newest message: dropping the one just appended would
     // silently discard the turn the caller is in the middle of.
@@ -152,7 +168,25 @@ export class ConversationState {
       total -= arr[drop]?._estTokens ?? 0;
       drop++;
     }
-    return drop;
+    return this.protocolSafeDropCount(arr, drop);
+  }
+
+  /**
+   * Front eviction must not retain a `tool_result` after evicting the
+   * immediately preceding assistant `tool_use`. Long tool-heavy sessions sit
+   * at the retention cap, so an unsafe boundary would create a fresh orphan on
+   * nearly every append and make the request-time repair discard protocol
+   * history continuously.
+   *
+   * Move the boundary backward to retain the complete exchange for one more
+   * eviction cycle. Moving it forward would also drop non-protocol text/images
+   * that may share either message. The temporary one-message cap overshoot is
+   * the minimum lossless representation; once enough newer messages exist, the
+   * next eviction boundary naturally moves past both halves together.
+   */
+  private protocolSafeDropCount(arr: readonly Message[], drop: number): number {
+    if (drop <= 0 || drop >= arr.length) return drop;
+    return hasToolResultBlock(arr[drop]) && hasToolUseBlock(arr[drop - 1]) ? drop - 1 : drop;
   }
 
   /**

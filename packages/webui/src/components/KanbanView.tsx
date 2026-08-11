@@ -1,5 +1,5 @@
 import type { KanbanBoardPresence, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
-import { Columns3, Copy, Plus, Trash2, X } from 'lucide-react';
+import { Copy, History, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
 import { useAppTranslation } from '@/i18n';
@@ -52,8 +52,10 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     queueHealth,
     supervisorSnapshot,
     workbench,
+    boardHistory,
     setActiveBoardId,
     setError,
+    fetchBoardHistory,
   } = useKanbanStore();
   const [newBoardTitle, setNewBoardTitle] = useState('');
   const [boardPage, setBoardPage] = useState(1);
@@ -61,8 +63,8 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const boardScrollRef = useRef<HTMLDivElement>(null);
   useHorizontalScroll(boardScrollRef);
-  const [newColumnTitle, setNewColumnTitle] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [taskActivity, setTaskActivity] = useState<KanbanEvent[]>([]);
   const [taskActivityPresence, setTaskActivityPresence] = useState<
     KanbanBoardPresence[] | undefined
@@ -208,8 +210,9 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     if (activeBoardId) {
       sendKanban('kanban.health', { boardId: activeBoardId });
       sendKanban('kanban.supervisor.status', { boardId: activeBoardId });
+      fetchBoardHistory(activeBoardId);
     }
-  }, [activeBoardId]);
+  }, [activeBoardId, fetchBoardHistory]);
 
   // ── Live polling — fallback refresh every 5s while active ──
   // The primary update path is now push-based: the server broadcasts kanban.get
@@ -340,14 +343,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     });
   };
 
-  const createColumn = () => {
-    if (!activeBoard) return;
-    const title = newColumnTitle.trim();
-    if (!title) return;
-    setNewColumnTitle('');
-    sendKanban('kanban.column.add', { boardId: activeBoard.id, title });
-  };
-
   const deleteBoard = () => {
     if (!activeBoard) return;
     sendKanban('kanban.delete', { boardId: activeBoard.id });
@@ -435,23 +430,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
               >
                 <Plus size={16} />
               </button>
-              <input
-                value={newColumnTitle}
-                onChange={(e) => setNewColumnTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') createColumn();
-                }}
-                placeholder={t('activity:kanban.newColumn')}
-                className="h-8 w-[calc(100%-2.5rem)] min-w-0 flex-none rounded-md border bg-background px-2 text-sm outline-none focus:border-primary sm:w-44"
-              />
-              <button
-                type="button"
-                title={t('activity:kanban.addColumn')}
-                onClick={createColumn}
-                className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <Columns3 size={16} />
-              </button>
               <button
                 type="button"
                 title={t('activity:kanban.duplicateBoard')}
@@ -459,6 +437,18 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                 className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <Copy size={16} />
+              </button>
+              <button
+                type="button"
+                aria-pressed={showHistory}
+                title={t('activity:kanban.boardHistory')}
+                onClick={() => {
+                  if (!showHistory && activeBoardId) fetchBoardHistory(activeBoardId);
+                  setShowHistory(!showHistory);
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+              >
+                <History size={16} />
               </button>
               <button
                 type="button"
@@ -551,7 +541,52 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
           ref={boardScrollRef}
           className="kanban-scroll-area min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain"
         >
-          {viewMode === 'focus' ? (
+          {showHistory ? (
+            <div className="h-full overflow-y-auto p-4">
+              <div className="mx-auto max-w-2xl">
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground">
+                  {t('activity:kanban.boardHistory')}
+                </h3>
+                {boardHistory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t('activity:kanban.noHistory')}
+                  </p>
+                ) : (
+                  <ol className="space-y-2">
+                    {[...boardHistory].reverse().map((entry) => (
+                      <li
+                        key={entry.id}
+                        className="rounded-md border bg-card p-3 text-sm"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">
+                            {entry.type === 'board.created' && '🎉 '}
+                            {entry.type === 'board.updated' && '✏️ '}
+                            {entry.type === 'board.deleted' && '🗑️ '}
+                            {entry.type === 'board.duplicated' && '📋 '}
+                            {entry.type === 'board.lifecycle.adopted' && '🔄 '}
+                            {entry.type.replace(/^board\./, '')}
+                          </span>
+                          <time className="text-xs text-muted-foreground">
+                            {new Date(entry.ts).toLocaleString()}
+                          </time>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {entry.boardTitle}
+                          {entry.actor ? ` · ${entry.actor}` : ''}
+                        </div>
+                        {entry.note ? (
+                          <div className="mt-1 text-xs italic text-muted-foreground">
+                            {entry.note}
+                          </div>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            </div>
+          ) : viewMode === 'focus' ? (
             <KanbanWorkbench
               snapshot={workbench}
               loading={loading}

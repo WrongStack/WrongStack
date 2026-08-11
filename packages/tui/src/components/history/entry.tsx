@@ -1039,6 +1039,7 @@ function SageMemoryBlock({
   sageLines,
   toolName,
   stats,
+  compact = false,
 }: {
   // `HistoryEntry.sageLines` is optional — replayed entries recover the block
   // inline from `output` via `extractSageBlock`, so the structured form may be
@@ -1047,10 +1048,36 @@ function SageMemoryBlock({
   sageLines?: string[] | undefined;
   toolName: string;
   stats?: string | undefined;
+  /**
+   * Compact (opt-in): one magenta chip with count + first preview.
+   * Full (default): bordered panel with every memory row. The bordered form
+   * is the canonical SAGE surface and is asserted by every render test in
+   * `tests/glob-sage-render.test.tsx` and `tests/sage-memory-block-render.test.tsx`.
+   */
+  compact?: boolean | undefined;
 }): React.ReactElement | null {
   if (!sageLines || sageLines.length < 2) return null;
   const memoryLines = sageLines.slice(1);
   if (memoryLines.length === 0) return null;
+
+  if (compact) {
+    const first = parseSageMemoryLine(memoryLines[0] ?? '');
+    const preview = first
+      ? sanitizeTerminalText(first.text).slice(0, 72)
+      : sanitizeTerminalText(memoryLines[0] ?? '').slice(0, 72);
+    const labels = first?.labels?.length ? first.labels.map((l) => `[${l}]`).join('') : '';
+    return (
+      <Box flexDirection="row" marginTop={0}>
+        <Text color={theme.accent}>
+          {`🧠 ${memoryLines.length} SAGE · ${toolName}`}
+          {stats ? ` · ${stats}` : ''}
+          {labels ? ` ${labels}` : ''}
+          {preview ? ` — ${preview}${preview.length >= 72 ? '…' : ''}` : ''}
+        </Text>
+      </Box>
+    );
+  }
+
   return (
     <Box
       flexDirection="column"

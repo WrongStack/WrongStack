@@ -90,6 +90,11 @@ export async function prepareRuntimeDispatch(input: RuntimeDispatchStateInput) {
         owner,
         category: tool.category ?? 'Other',
         enabled: !input.toolRegistry.isDisabled(tool.name),
+        exposure: input.toolRegistry.isDisabled(tool.name)
+          ? 'disabled'
+          : input.toolRegistry.isExposedToProvider(tool.name)
+            ? 'direct'
+            : 'lazy',
         mutating: tool.mutating,
         permission: tool.permission,
         descMode: getToolDescriptionMode(input.toolRegistry, tool.name),

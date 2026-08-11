@@ -2,18 +2,19 @@
  * Agent type definitions — extracted from agent.ts to break circular
  * dependencies and keep the Agent class focused on runtime logic.
  */
-import { Pipeline } from '../kernel/pipeline.js';
+
 import type { ExtensionRegistry } from '../extension/registry.js';
 import type { Container } from '../kernel/container.js';
 import type { EventBus } from '../kernel/events.js';
+import { Pipeline } from '../kernel/pipeline.js';
 import type { ProviderRegistry } from '../registry/provider-registry.js';
 import type { ToolRegistry } from '../registry/tool-registry.js';
 import type { ContentBlock, TextBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
 import { isTextBlock } from '../types/blocks.js';
+import type { LoopDetectionConfig } from '../types/config.js';
 import type { WrongStackError } from '../types/errors.js';
 import type { Tracer } from '../types/observability.js';
 import type { PermissionPolicy } from '../types/permission.js';
-import type { LoopDetectionConfig } from '../types/config.js';
 import type { Request, Response } from '../types/provider.js';
 import type { Tool } from '../types/tool.js';
 import type { ToolExecutorLike } from '../types/tool-executor.js';
@@ -45,6 +46,8 @@ export interface AgentInit {
   perIterationOutputCapBytes?: number | undefined;
   autoExtendLimit?: boolean | undefined;
   autonomousContinue?: boolean | undefined;
+  /** Rebuild the host system prompt from the live direct/catalog tool surfaces before each run. */
+  refreshSystemPrompt?: boolean | undefined;
   confirmAwaiter?: import('../types/tool-executor.js').ConfirmAwaiter | undefined;
   permissionPolicy?: PermissionPolicy | undefined;
   tracer?: Tracer | undefined;
@@ -101,7 +104,10 @@ export function normalizeInput(input: AgentInput): { blocks: ContentBlock[]; tex
   if (typeof input === 'string') {
     return { blocks: [{ type: 'text', text: input }], text: input };
   }
-  const text = input.filter(isTextBlock).map((b) => b.text).join('');
+  const text = input
+    .filter(isTextBlock)
+    .map((b) => b.text)
+    .join('');
   return { blocks: input, text };
 }
 

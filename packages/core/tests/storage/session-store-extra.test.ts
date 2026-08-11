@@ -324,6 +324,72 @@ describe('DefaultSessionStore — non-destructive journal fork', () => {
       'Checkpoint 99 not found',
     );
   });
+
+  it('inherits the turns before a superseded snapshot when forking a compacted session', async () => {
+    // The loader empties every snapshot but the newest to bound heap, in place,
+    // on the array it hands back. A fork that took its prefix from there wrote
+    // `messages_replaced {messages: []}` into the child, and replay read that
+    // as "the conversation is empty now" — so forking at any checkpoint that
+    // preceded the newest snapshot silently dropped the inherited history.
+    const parent = await store.create({ id: 'compacted', model: 'm', provider: 'p' });
+    const turn = (text: string) => ({ role: 'user' as const, content: text, ts: now() });
+    await parent.writeCheckpoint(0, 'first');
+    await parent.append({
+      type: 'messages_replaced',
+      ts: now(),
+      version: 1,
+      messages: [turn('a'), turn('b')],
+    });
+    await parent.append({
+      type: 'message_appended',
+      ts: now(),
+      version: 1,
+      message: turn('c'),
+    });
+    await parent.writeCheckpoint(1, 'second');
+    // A second compaction supersedes the first snapshot; only this one keeps
+    // its payload once the parent is loaded.
+    await parent.append({
+      type: 'messages_replaced',
+      ts: now(),
+      version: 1,
+      messages: [turn('a'), turn('b'), turn('c'), turn('d')],
+    });
+    await parent.writeCheckpoint(2, 'third');
+    await parent.close();
+
+    const texts = (data: { messages: readonly { content: unknown }[] }) =>
+      data.messages.map((m) => m.content);
+
+    // Forking at checkpoint 1 cuts before the surviving snapshot, so the only
+    // snapshot in the prefix is the stripped one.
+    const atFirstCompaction = await store.fork('compacted', { checkpointPromptIndex: 1 });
+    expect(texts(atFirstCompaction.data)).toEqual(['a', 'b', 'c']);
+
+    const atLatest = await store.fork('compacted');
+    expect(texts(atLatest.data)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('ignores a snapshot whose payload was stripped before it was persisted', async () => {
+    // Defense in depth for the fork bug above: journals written by an older
+    // build already carry emptied snapshots, and replaying one as an ordinary
+    // snapshot would wipe the history it was supposed to describe.
+    const file = path.join(tmp, 'pre-stripped.jsonl');
+    const lines: unknown[] = [
+      { type: 'session_start', ts: now(), id: 'pre-stripped', model: 'm', provider: 'p' },
+      {
+        type: 'message_appended',
+        ts: now(),
+        version: 1,
+        message: { role: 'user', content: 'kept', ts: now() },
+      },
+      { type: 'messages_replaced', ts: now(), version: 1, messages: [], messagesOmitted: 7 },
+    ];
+    await fs.writeFile(file, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+
+    const data = await store.load('pre-stripped');
+    expect(data.messages.map((m) => m.content)).toEqual(['kept']);
+  });
 });
 
 describe('FileSessionWriter — appendBatch', () => {

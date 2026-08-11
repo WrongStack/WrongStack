@@ -186,6 +186,7 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
       ...(scope === 'session' && input.ownerSessionId
         ? { ownerSessionId: input.ownerSessionId }
         : {}),
+      ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
     };
     ctx.upsertMemory(memory);
     ctx.syncAnchorEdges(memory);

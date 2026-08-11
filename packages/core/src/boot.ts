@@ -14,6 +14,7 @@ import {
   ensureProjectIdentity,
   readProjectIdentity,
 } from './utils/project-identity.js';
+import { activateProjectStateGuard } from './utils/project-state-guard.js';
 import { safeParse } from './utils/safe-json.js';
 import { writeErr } from './utils/term.js';
 import {
@@ -107,6 +108,11 @@ export async function bootConfig(options: BootConfigOptions = {}): Promise<BootC
   // BEFORE the mkdir/registerProjectInManifest block below, or the bogus
   // namespace gets materialized on disk before we can complain about it.
   assertProjectRootOutsideStateDir(projectRoot, wpaths.globalRoot);
+
+  // The project-local state surface is a runtime invariant. Users and cleanup
+  // tools can remove it while the app is open; keep it present so consumers
+  // never fail with ENOENT between turns.
+  await activateProjectStateGuard(projectRoot);
 
   // Ensure the directories every consumer relies on exist. This is the union
   // of what the cli and webui boot paths created independently — creating all

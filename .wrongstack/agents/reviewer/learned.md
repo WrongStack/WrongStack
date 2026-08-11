@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=9; wins=9 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=14; wins=14 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -14,7 +14,7 @@
   - *How:* `*.test.*`
   - *How:* `X.test.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=1; wins=1 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=2; wins=2 -->
 - **When a refactor extracts a SQL CTE body into a `(seedSource: string) => string` template builder and delegates execution to a named helper (e.g. `runCteWithSeeds`), grep for the helper's *definition* — not just its call sites — before accepting the change. A diff can introduce a call to a helper that was planned but never written (whole-tree definition count = 0), which typecheck catches as "Cannot find name" and runtime catches as `ReferenceError`.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `(seedSource: string) => string`
@@ -23,13 +23,25 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=3; wins=3 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=18; wins=16 -->
 - **Always verify a "default/fallback value" test is *discriminating*: when the system under test returns a bounded slice, supply more candidates than the default cap so the assertion count equals the cap (not the candidate count). A test whose expected length is smaller than the default cap cannot distinguish "the default was applied" from "no cap applied at all" — it passes even when the fallback-to-constant branch is broken (e.g. returns `undefined` → `Number.isFinite` false → no slicing).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `undefined`
   - *How:* `Number.isFinite`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=5; wins=5 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T06:14:46.313Z; applied=7; wins=6 -->
+- **Always verify that a refactor hoisting an inferred-type `const` (e.g., `const span = this.tracer?.startSpan(...)`) to a `let` with an explicit type annotation (e.g., `let span: Span | undefined`) imports every named type it now references — inference hid the dependency, but the explicit annotation exposes it. Grep the type name against the file's import block in the same pass; a TS2304 "Cannot find name" is the classic symptom in `packages/core/src/core/agent.ts` and similar files that import only a *sibling* type (e.g., `Tracer`) from `../types/observability.js` without pulling in `Span`.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `const`
+  - *How:* `const span = this.tracer?.startSpan(...)`
+  - *How:* `let`
+  - *How:* `let span: Span | undefined`
+  - *How:* `packages/core/src/core/agent.ts`
+  - *How:* `Tracer`
+  - *How:* `../types/observability.js`
+  - *How:* `Span`
+
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=11; wins=11 -->
 - **When a sender pre-validates a payload against a receiver's reject threshold, verify byte-measurement equivalence *and* boundary-direction consistency: confirm the sender measures the exact same sub-object the receiver's validator measures (e.g. `record.board` vs the whole `record`), and that the comparison operators align at the boundary (`>` skip on one side must pair with `<=` accept on the other) — a mismatch here is the classic "sender thinks it's under the limit, receiver drops it" silent-loss bug in `packages/core/src/hq/protocol/kanban.ts` and `packages/cli/src/kanban-hq-sync.ts`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `record.board`
@@ -59,7 +71,7 @@
   - *How:* `0`
   - *How:* `=== 0 ? disabled : ...`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T21:24:04.188Z; skill=testing; applied=2; wins=2 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T21:24:04.188Z; skill=testing; applied=14; wins=14 -->
 - **When validating a multi-predicate *parity* test (e.g. `classifyTaskForQueue` bucket vs `evaluateContractGraphReadiness` ready-vs `validateManagedTaskTransition` issues in `packages/kanban`), prove it is non-vacuous by tracing at least one corpus entry that resolves **ready=true** and one that resolves **ready=false** across *all* predicates — a corpus where every entry agrees on a single outcome cannot catch divergence.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `classifyTaskForQueue`
@@ -67,13 +79,5 @@
   - *How:* `validateManagedTaskTransition`
   - *How:* `packages/kanban`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:48:55.603Z; skill=testing -->
-- **When validating the configurable last-resort cap in `packages/core/src/core/fallback-profile-manager.ts`, a test is discriminating **only if** it supplies last-resort candidates that are both (1) **not already present** in the smart-default/primary/bridge prefix and (2) **more numerous than the cap**. `resolveCandidates` applies the cap at `:397-400` as `smartDefault(current, Infinity).filter(!usedKeys).slice(0, cap)` — filter-then-cap, not cap-then-filter.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `packages/core/src/core/fallback-profile-manager.ts`
-  - *How:* `resolveCandidates`
-  - *How:* `:397-400`
-  - *How:* `smartDefault(current, Infinity).filter(!usedKeys).slice(0, cap)`
-
 ---
-*Last capture: 2026-08-11T05:48:55.603Z · 8 entries*
+*Last capture: 2026-08-11T06:14:46.313Z · 8 entries*

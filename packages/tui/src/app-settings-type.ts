@@ -106,7 +106,7 @@ export type Settings = {
    * live-settings coercion always fills in a full map.
    */
   panelPositions?: Partial<PanelPositionMap>;
-  /** Show SAGE Memory Inject blocks in tool results. Default: false (hidden). */
+  /** Show SAGE Memory Inject chips in tool results. Default: true (compact). */
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
   sageMemoryInjectThreshold: number;

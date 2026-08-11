@@ -234,6 +234,26 @@ function stripSnapshotPayload(event: SnapshotEvent): void {
   event.messages = [];
 }
 
+/**
+ * A snapshot that reached disk with its payload already removed.
+ *
+ * `stripSnapshotPayload` empties superseded snapshots in place, and anything
+ * that copies `SessionData.events` onward — `fork()` is the one that does —
+ * can persist the emptied form into another journal. Replaying that as an
+ * ordinary snapshot would set the conversation to zero messages and silently
+ * discard everything before it, which is exactly the history the fork was
+ * supposed to inherit. `messagesOmitted` is the marker the stripper leaves
+ * behind, so the pair (empty payload, positive omitted count) is the one case
+ * where an empty snapshot means "payload lost", not "conversation was empty".
+ */
+function isStrippedSnapshot(event: SnapshotEvent): boolean {
+  return (
+    event.messages.length === 0 &&
+    typeof event.messagesOmitted === 'number' &&
+    event.messagesOmitted > 0
+  );
+}
+
 function isSessionEventLike(value: unknown): value is SessionEvent {
   return (
     value !== null &&
@@ -278,7 +298,12 @@ function replaySessionEvent(params: {
       emitDamaged(params, `Ignored malformed message_updated event at index ${ev.index}`);
     }
   } else if (ev.type === 'messages_replaced' && ev.version === 1) {
-    if (applyContextSnapshot(messages, openToolUses, ev.messages)) {
+    if (isStrippedSnapshot(ev)) {
+      emitDamaged(
+        params,
+        `Ignored messages_replaced event whose payload was stripped before persistence (${String(ev.messagesOmitted)} messages)`,
+      );
+    } else if (applyContextSnapshot(messages, openToolUses, ev.messages)) {
       exactJournalActive = true;
     } else {
       emitDamaged(params, 'Ignored malformed messages_replaced event');
@@ -299,9 +324,18 @@ function replaySessionEvent(params: {
       emitDamaged(params, `Ignored malformed messages_dropped event (count ${String(ev.count)})`);
     }
   } else if (ev.type === 'context_snapshot') {
-    if (!applyContextSnapshot(messages, openToolUses, ev.messages)) {
+    if (isStrippedSnapshot(ev)) {
+      emitDamaged(
+        params,
+        `Ignored context_snapshot event whose payload was stripped before persistence (${String(ev.messagesOmitted)} messages)`,
+      );
+    } else if (!applyContextSnapshot(messages, openToolUses, ev.messages)) {
       emitDamaged(params, 'Ignored malformed context_snapshot event');
     }
+  } else if (ev.type === 'messages_replaced' || ev.type === 'message_appended' || ev.type === 'message_updated' || ev.type === 'messages_dropped') {
+    // Reached only when `version` is not 1. Falling through silently made an
+    // unreadable journal look like an empty one; say so instead.
+    emitDamaged(params, `Ignored ${ev.type} event with unsupported version`);
   } else if (!exactJournalActive && ev.type === 'user_input') {
     openToolUses.clear();
     messages.push({ role: 'user', content: ev.content, ts: ev.ts });

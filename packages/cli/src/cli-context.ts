@@ -42,7 +42,6 @@ import { applyNodeEnvDefault, applySessionShellDefault, runPreflight } from './p
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { mutateConfigProviders, normalizeKeys, writeKeysBack } from './provider-config-utils.js';
 import { TerminalRenderer } from './renderer.js';
-import { bindReplayToContainer } from './wiring/replay.js';
 
 // ── Context type ──────────────────────────────────────────────────────────
 
@@ -290,21 +289,12 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
     modelsRegistry,
   });
 
-  // Replay / record mode.
-  const replayFlag = (ctx.flags as Record<string, boolean | string | undefined>)['replay'];
-  const recordFlag = (ctx.flags as Record<string, boolean | string | undefined>)['record'];
-  if (typeof replayFlag === 'string' || recordFlag === true) {
-    const sessionId = typeof replayFlag === 'string' ? replayFlag : `record-${Date.now()}`;
-    const mode = recordFlag === true ? 'record' : 'replay';
-    bindReplayToContainer({
-      container,
-      wpaths,
-      sessionId,
-      mode,
-      logger,
-    });
-    logger.info(`replay: ProviderRunner bound in '${mode}' mode for session ${sessionId}`);
-  }
+  // Replay / record wiring moved to `runInteractive` (cli-main.ts), which is
+  // the first point where the live session id exists. Binding here meant
+  // `--record` had to invent one (`record-<epoch>`), producing a `.replay.jsonl`
+  // sidecar with no transcript beside it. It also kept `@wrongstack/core/replay`
+  // in the always-loaded boot graph for every invocation, including
+  // subcommands that can never record.
 
   const configStore = container.resolve(TOKENS.ConfigStore);
 

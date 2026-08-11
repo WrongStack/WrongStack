@@ -67,9 +67,15 @@ function ContractTaskCanvas({
 export function KanbanContractGraphPanel({
   board,
   task,
+  sendKanban,
 }: {
   board: KanbanBoard;
   task: KanbanTask;
+  /**
+   * Optional so the panel still renders read-only where no sender is wired.
+   * Without it the empty state below is a statement; with it, it is an action.
+   */
+  sendKanban?: ((type: `kanban.${string}`, payload?: Record<string, unknown>) => void) | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
   const evaluation = useMemo(() => evaluateContractGraph(board, task.id), [board, task.id]);
@@ -89,6 +95,20 @@ export function KanbanContractGraphPanel({
           Objectives, affected components, guardrails, risks, and verification evidence are not yet
           mapped for this board.
         </p>
+        {sendKanban && (
+          <button
+            type="button"
+            onClick={() =>
+              sendKanban('kanban.contract.configure', {
+                boardId: board.id,
+                enforcement: 'advisory',
+              })
+            }
+            className="mt-2 rounded-md bg-primary/10 px-2.5 py-1.5 font-medium text-primary hover:bg-primary/20"
+          >
+            Start contract map
+          </button>
+        )}
       </section>
     );
   }

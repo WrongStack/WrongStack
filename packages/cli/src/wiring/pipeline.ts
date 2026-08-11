@@ -224,6 +224,8 @@ export function createAgent(params: {
       maxToolTimeoutMs?: number | undefined;
       defaultExecutionStrategy: 'parallel' | 'sequential' | 'smart';
       perIterationOutputCapBytes: number;
+      /** Opt-in Kanban governance gate; see ToolsConfig.kanbanGovernance. */
+      kanbanGovernance?: boolean | undefined;
       loopDetection?: import('@wrongstack/core/types').LoopDetectionConfig | undefined;
     };
   };
@@ -260,13 +262,20 @@ export function createAgent(params: {
     tracer: params.tracer,
     logger,
     hookRunner: params.hookRunner,
-    // Kanban tracks work; it does not gate it. When this was `true` a mutating
-    // tool was refused until a managed card existed, carried a description and
-    // acceptance criteria, and had been started — so the session spent its
-    // effort on card ceremony instead of the work the card describes. Cards
-    // still advance and boards still mirror; path-scoped `boundary` policies
-    // (the actual access control) are unaffected and still enforced.
-    requireKanbanGovernance: false,
+    // Kanban tracks work; it does not gate it. When this was hard-wired `true`
+    // a mutating tool was refused until a managed card existed, carried a
+    // description and acceptance criteria, and had been started — so the
+    // session spent its effort on card ceremony instead of the work the card
+    // describes. Cards still advance and boards still mirror; path-scoped
+    // `boundary` policies (the actual access control) are unaffected and still
+    // enforced.
+    //
+    // It stays OFF by default, but is now an operator switch rather than a
+    // literal: `tools.kanbanGovernance: true` opts an installation in. The
+    // four hosts (this pipeline, mcp-serve, acp-server-agent, and the fleet
+    // subagent factory) must resolve it identically, or a subagent would run
+    // under a different contract than the leader that dispatched it.
+    requireKanbanGovernance: params.config.tools.kanbanGovernance ?? false,
   };
   const toolExecutor = new ToolExecutor(params.tools, toolExecutorOptions);
 
@@ -300,6 +309,7 @@ export function createAgent(params: {
     events: params.events,
     pipelines: params.pipelines,
     context: params.context,
+    refreshSystemPrompt: true,
     maxIterations: params.config.tools.maxIterations,
     iterationTimeoutMs: params.config.tools.iterationTimeoutMs,
     executionStrategy: params.config.tools.defaultExecutionStrategy,

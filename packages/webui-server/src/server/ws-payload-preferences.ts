@@ -13,7 +13,14 @@ interface PrefsUpdatePayload {
 const AUTONOMY_VALUES = new Set(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel']);
 const CONTEXT_STRATEGY_VALUES = new Set(['hybrid', 'intelligent', 'selective']);
 const CONTEXT_MODE_VALUES = new Set(['balanced', 'frugal', 'deep']);
-const TOKEN_SAVING_TIER_VALUES = new Set(['off', 'minimal', 'light', 'medium', 'aggressive']);
+const TOKEN_SAVING_TIER_VALUES = new Set([
+  'auto',
+  'off',
+  'minimal',
+  'light',
+  'medium',
+  'aggressive',
+]);
 const ENHANCE_LANGUAGE_VALUES = new Set(['original', 'english']);
 const LOG_LEVEL_VALUES = new Set(['debug', 'info', 'warn', 'error']);
 const AUDIT_LEVEL_VALUES = new Set(['minimal', 'standard', 'full']);
@@ -233,10 +240,7 @@ function validateModelRuntimeValue(
 }
 
 /** Validate a single ModelBlackoutRule element. */
-function validateModelBlackoutRule(
-  rule: Record<string, unknown>,
-  path: string,
-): string | null {
+function validateModelBlackoutRule(rule: Record<string, unknown>, path: string): string | null {
   const id = rule['id'];
   if (typeof id !== 'string' || id.trim().length === 0) {
     return `${path}.id must be a non-empty string`;
@@ -285,11 +289,7 @@ function validateModelBlackoutRule(
   if (rule['label'] !== undefined && typeof rule['label'] !== 'string') {
     return `${path}.label must be a string when provided`;
   }
-  if (
-    rule['mode'] !== undefined &&
-    rule['mode'] !== 'blackout' &&
-    rule['mode'] !== 'allow_only'
-  ) {
+  if (rule['mode'] !== undefined && rule['mode'] !== 'blackout' && rule['mode'] !== 'allow_only') {
     return `${path}.mode must be 'blackout' or 'allow_only' when provided`;
   }
   return null;
@@ -305,8 +305,7 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
     }
     const bounds = NUMBER_PREF_BOUNDS[key];
     if (bounds && (value < bounds.min || value > bounds.max)) {
-      const maxStr =
-        bounds.max === Number.POSITIVE_INFINITY ? '∞' : String(bounds.max);
+      const maxStr = bounds.max === Number.POSITIVE_INFINITY ? '∞' : String(bounds.max);
       return `prefs.update payload.${key} must be in [${bounds.min}, ${maxStr}]`;
     }
     return null;
@@ -324,12 +323,8 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
     if (!Array.isArray(value)) return `prefs.update payload.${key} must be an array`;
     for (let i = 0; i < value.length; i++) {
       const item = value[i];
-      if (!isRecord(item))
-        return `prefs.update payload.${key}[${i}] must be an object`;
-      const error = arrayValidator(
-        item,
-        `prefs.update payload.${key}[${i}]`,
-      );
+      if (!isRecord(item)) return `prefs.update payload.${key}[${i}] must be an object`;
+      const error = arrayValidator(item, `prefs.update payload.${key}[${i}]`);
       if (error) return error;
     }
     return null;

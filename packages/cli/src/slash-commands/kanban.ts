@@ -2,7 +2,6 @@ import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import {
   addCheckToTask,
-  addColumn,
   addDependency,
   addGoalMetricToTask,
   addNoteToTask,
@@ -30,7 +29,6 @@ import {
   parseLinesIntoTasks,
   releaseTaskClaim,
   removeBoard,
-  removeColumn,
   removeTask,
   setTaskChain,
   splitTask,
@@ -268,10 +266,6 @@ export function buildKanbanCommand(opts: SlashCommandContext): SlashCommand {
       // ── Subcommands: task / column ─────────────────────────────────
       if (cmd === 'task' || cmd === 't') {
         return handleTaskSubcommand(opts, projectRoot, rest, showHelp);
-      }
-
-      if (cmd === 'column' || cmd === 'col' || cmd === 'c') {
-        return handleColumnSubcommand(projectRoot, rest, showHelp);
       }
 
       return {
@@ -1095,40 +1089,6 @@ async function handleTaskSubcommand(
       return { message: color.green(`✅ Check added to task: ${desc}`) };
     }
     return { message: color.red('Usage: /kanban task check add <boardId> <taskId> <description>') };
-  }
-
-  return showHelp();
-}
-
-// ── Column subcommand handler ───────────────────────────────────────────
-
-async function handleColumnSubcommand(
-  projectRoot: string,
-  args: string[],
-  showHelp: () => { message: string },
-) {
-  const [sub, boardId, ...rest] = args;
-
-  if (!sub || !boardId) return showHelp();
-
-  // ── Add column ──────────────────────────────────────────────────────
-  if (sub === 'add') {
-    const title = rest.join(' ');
-    if (!title) return { message: color.red('Usage: /kanban column add <boardId> <title>') };
-    const result = await addColumn(projectRoot, boardId, { title });
-    if (!result) return { message: color.red(`Board not found: ${boardId}`) };
-    return { message: color.green(`✅ Column added: ${result.column.title}`) };
-  }
-
-  // ── Remove column ───────────────────────────────────────────────────
-  if (sub === 'rm' || sub === 'remove' || sub === 'delete') {
-    const colId = rest[0];
-    if (!colId) return { message: color.red('Usage: /kanban column rm <boardId> <columnId>') };
-    const updated = await removeColumn(projectRoot, boardId, colId, {
-      moveTasksToColumnId: rest[1],
-    });
-    if (!updated) return { message: color.red(`Column not found: ${colId}`) };
-    return { message: color.green(`✅ Column removed: ${colId}`) };
   }
 
   return showHelp();

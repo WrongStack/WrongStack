@@ -18,8 +18,10 @@ import {
   bridgeKanbanSupervisor,
   compactSessionMirrorBoard,
   createBoard,
+  DEFAULT_COLUMNS,
   getBoard,
   getDependencyReadinessIssues,
+  getKanbanOrchestrationSnapshot,
   type KanbanBoard,
   type KanbanColumn,
   type KanbanTask,
@@ -34,13 +36,19 @@ import {
 const SESSION_BOARD_TAG = 'session-work';
 const MIRROR_DISABLED_ENV = 'WRONGSTACK_KANBAN_TASK_MIRROR';
 
-/** The canonical workflow shared by WebUI and TUI session boards. */
-export const SESSION_KANBAN_COLUMNS: KanbanColumn[] = [
-  { id: 'todo', title: 'Todo', order: 0, wipLimit: 0, color: '#2563eb' },
-  { id: 'in-progress', title: 'Running', order: 1, wipLimit: 1, color: '#d97706' },
-  { id: 'review', title: 'Preview', order: 2, wipLimit: 0, color: '#7c3aed' },
-  { id: 'done', title: 'Done', order: 3, wipLimit: 0, color: '#16a34a' },
-];
+/**
+ * The canonical workflow shared by WebUI and TUI session boards.
+ *
+ * Session boards now use the same 5 standard columns as every other board
+ * (backlog, todo, in-progress, review, done). Formerly this shipped a 4-column
+ * variant without a backlog; the column lock unified the layout. Existing
+ * 4-column session_mirror boards are migrated automatically on the next session
+ * touch: `ensureSessionKanbanBoard`'s `sameColumns` check detects the drift
+ * and `updateBoard` reconciles to DEFAULT_COLUMNS.
+ */
+export const SESSION_KANBAN_COLUMNS: KanbanColumn[] = DEFAULT_COLUMNS.map((column) => ({
+  ...column,
+}));
 
 const boardQueue = new Map<string, Promise<void>>();
 const boardEnsures = new Map<string, Promise<KanbanBoard>>();
@@ -975,9 +983,79 @@ export function attachSessionKanbanMirror(context: Context): () => void {
 }
 
 /** Fully hydrate a session board before a host announces the session as ready. */
+/**
+ * Re-bind the card this session was working, after a restart or `--resume`.
+ *
+ * The binding produced by `start_task` lives in `ctx.meta.kanban`, which is
+ * conversation state — nothing restores it. So a resumed session came back
+ * with `currentKanbanTaskId` undefined while its card still sat in Running on
+ * the board: file events lost their task attribution, and under
+ * `tools.kanbanGovernance` the run was un-bound until the model happened to
+ * call `start_task` again.
+ *
+ * Board presence is the durable anchor. It is keyed `<sessionId>:<agentId>`,
+ * carries the `taskId`, and is stored on the board record itself, so it
+ * survives the restart even though its derived `active` flag does not (the TTL
+ * is two minutes). Matching it against the cards that are actually still
+ * running gives an unambiguous answer without guessing from free-text agent
+ * ids.
+ *
+ * Deliberately conservative — it prefers to do nothing over binding the wrong
+ * card:
+ * - never overrides a binding this process already has;
+ * - only considers cards whose assignment is still `running`;
+ * - skips an expired lease, because `recover_stale` may have reassigned that
+ *   card to another worker;
+ * - picks the most recently seen entry when a session touched several.
+ *
+ * Session mirrors and archived boards are excluded by the snapshot's default
+ * board-kind filter, which is correct: `start_task` never targets them.
+ */
+export async function rebindSessionKanbanTask(
+  context: Context,
+): Promise<{ boardId: string; taskId: string } | null> {
+  const sessionId = context.session?.id;
+  if (!sessionId || !context.projectRoot) return null;
+  // A live binding always wins: this runs at session start, but `start_task`
+  // may already have bound a card in the same boot.
+  if (context.currentKanbanTaskId) return null;
+
+  let best: { boardId: string; taskId: string; lastSeenAt: string } | undefined;
+  try {
+    const snapshot = await getKanbanOrchestrationSnapshot(context.projectRoot);
+    const nowMs = Date.now();
+    for (const result of snapshot.running) {
+      const assignment = result.task.assignment;
+      if (assignment?.status !== 'running') continue;
+      const expiresAt = assignment.leaseExpiresAt
+        ? Date.parse(assignment.leaseExpiresAt)
+        : Number.NaN;
+      if (Number.isFinite(expiresAt) && expiresAt <= nowMs) continue;
+      const entry = result.board.presence?.find(
+        (candidate) => candidate.sessionId === sessionId && candidate.taskId === result.task.id,
+      );
+      if (!entry) continue;
+      if (!best || entry.lastSeenAt > best.lastSeenAt) {
+        best = { boardId: result.board.id, taskId: result.task.id, lastSeenAt: entry.lastSeenAt };
+      }
+    }
+  } catch {
+    // Best-effort: a Kanban daemon that is down must not stop a session from
+    // becoming ready. The model can still call start_task itself.
+    return null;
+  }
+  if (!best) return null;
+  context.setCurrentKanbanTask(best.taskId, best.boardId);
+  return { boardId: best.boardId, taskId: best.taskId };
+}
+
 export async function hydrateSessionKanban(context: Context): Promise<KanbanBoard | null> {
   const id = context.session?.id ?? '';
   if (!id) return null;
+  // Before anything else: a resumed session should know which card it is on.
+  // Independent of the session-mirror work below — the card is almost always
+  // on a project board, not on the mirror.
+  await rebindSessionKanbanTask(context);
   await cleanupEmptySessionKanbanBoards(context.projectRoot, id);
   // Board-level retention had no production caller at all: every session mirror
   // was created with a 7-day `archive_after_ttl` policy that nothing ever
@@ -1282,7 +1360,17 @@ export async function applySessionKanbanTaskToSource(
   const id = context.session?.id ?? '';
   if (task.origin?.system === 'session-plan' || graphId.startsWith('plan:')) {
     const planPath = context.meta['plan.path'];
-    if (typeof planPath !== 'string' || !planPath) return { source: 'plan' };
+    if (typeof planPath !== 'string' || !planPath) {
+      // A plan-origin card with no plan.path means the board and the plan
+      // file would silently diverge: the board mutation already succeeded
+      // above, but there is nowhere to write the reflection back to. Throw
+      // so callers (TUI syncSource, WebUI syncSessionSource) can surface the
+      // mismatch instead of reporting a silent success.
+      throw new Error(
+        'Cannot reflect this Kanban edit back to its plan source: the session has no plan.path configured. ' +
+          'The board mutation already succeeded; the plan file is now out of sync.',
+      );
+    }
     const plan = await mutatePlan(planPath, id, (file) => ({
       ...file,
       updatedAt: new Date().toISOString(),
@@ -1314,7 +1402,15 @@ export async function applySessionKanbanTaskToSource(
     graphId.startsWith('session:')
   ) {
     const taskPath = context.meta['task.path'];
-    if (typeof taskPath !== 'string' || !taskPath) return { source: 'task' };
+    if (typeof taskPath !== 'string' || !taskPath) {
+      // Same rationale as the plan branch: a task-origin card with no
+      // task.path would leave the board and the task file silently out of
+      // sync. Throw so the caller can tell the user.
+      throw new Error(
+        'Cannot reflect this Kanban edit back to its task source: the session has no task.path configured. ' +
+          'The board mutation already succeeded; the task file is now out of sync.',
+      );
+    }
     const tasks = await mutateTasks(taskPath, id, (file) => ({
       ...file,
       tasks: options.remove

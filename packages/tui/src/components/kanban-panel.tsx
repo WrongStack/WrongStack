@@ -15,6 +15,7 @@ import {
   moveTask,
   removeTask,
   transferTaskToBoard,
+  transitionTask,
   updateTask,
 } from '@wrongstack/kanban';
 import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
@@ -53,7 +54,8 @@ export interface KanbanPanelProps {
 type PromptMode =
   | { kind: 'createBoard'; buffer: string }
   | { kind: 'addTask'; buffer: string }
-  | { kind: 'confirmDeleteTask'; task: KanbanTask };
+  | { kind: 'confirmDeleteTask'; task: KanbanTask }
+  | { kind: 'transitionTask'; task: KanbanTask; to: KanbanLifecycleStage; buffer: string };
 
 export function KanbanPanel({
   projectRoot,
@@ -167,6 +169,27 @@ export function KanbanPanel({
         const nextBoard = await removeTask(projectRoot, board.id, prompt.task.id);
         await syncSource(nextBoard, prompt.task.id, true, prompt.task);
         return `Deleted task: ${prompt.task.title}`;
+      });
+      return;
+    }
+    if (prompt.kind === 'transitionTask') {
+      const comment = prompt.buffer.trim();
+      if (!comment) return; // empty comment keeps the prompt open
+      const target = prompt.to;
+      const task = prompt.task;
+      setPrompt(null);
+      await runMutation(async () => {
+        if (!board) return null;
+        const actor = sessionId ?? 'tui-operator';
+        const result = await transitionTask(projectRoot, board.id, task.id, {
+          to: target,
+          actor,
+          comment,
+        });
+        if (result) await syncSource(result.board, task.id, false, task);
+        return result
+          ? `Transitioned "${task.title}" → ${target}`
+          : 'Transition failed (task or board not found)';
       });
       return;
     }
@@ -287,28 +310,48 @@ export function KanbanPanel({
       return;
     }
     if (key.rightArrow && board && activeTask) {
-      const nextColumn = adjacentColumn(sortedColumns, activeTask.columnId, 1);
-      if (nextColumn) {
-        void runMutation(async () => {
-          const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, nextColumn.id);
-          await syncSource(nextBoard, activeTask.id);
-          return `Moved to ${nextColumn.title}`;
-        });
+      if (isManagedBoard(board)) {
+        // Managed cards advance one stage at a time via transitionTask; the
+        // comment prompt collects the required audit comment before we call.
+        const current = stageForColumn(board, activeTask.columnId);
+        const target = current ? nextManagedStage(current) : null;
+        if (target) {
+          setPrompt({ kind: 'transitionTask', task: activeTask, to: target, buffer: '' });
+        } else {
+          setNotice('Task is already at the final stage (done).');
+        }
+      } else {
+        const nextColumn = adjacentColumn(sortedColumns, activeTask.columnId, 1);
+        if (nextColumn) {
+          void runMutation(async () => {
+            const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, nextColumn.id);
+            await syncSource(nextBoard, activeTask.id);
+            return `Moved to ${nextColumn.title}`;
+          });
+        }
       }
       return;
     }
     if (key.leftArrow && board && activeTask) {
-      const prevColumn = adjacentColumn(sortedColumns, activeTask.columnId, -1);
-      if (prevColumn) {
-        void runMutation(async () => {
-          const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, prevColumn.id);
-          await syncSource(nextBoard, activeTask.id);
-          return `Moved to ${prevColumn.title}`;
-        });
+      if (isManagedBoard(board)) {
+        setNotice('Managed boards advance forward only; use the kanban tool to repair backward.');
+      } else {
+        const prevColumn = adjacentColumn(sortedColumns, activeTask.columnId, -1);
+        if (prevColumn) {
+          void runMutation(async () => {
+            const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, prevColumn.id);
+            await syncSource(nextBoard, activeTask.id);
+            return `Moved to ${prevColumn.title}`;
+          });
+        }
       }
       return;
     }
     if (shortcutsEnabled && (input === ' ' || input === 'D') && board && activeTask) {
+      if (isManagedBoard(board)) {
+        setNotice('Managed cards advance via → or t (transition). Use a non-managed board for direct status edits.');
+        return;
+      }
       void runMutation(async () => {
         const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
           status: 'completed',
@@ -320,6 +363,10 @@ export function KanbanPanel({
       return;
     }
     if (shortcutsEnabled && input === 'b' && board && activeTask) {
+      if (isManagedBoard(board)) {
+        setNotice('Managed cards advance via → or t (transition); "blocked" is a status, not a lifecycle stage.');
+        return;
+      }
       void runMutation(async () => {
         const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
           status: 'blocked',
@@ -327,6 +374,19 @@ export function KanbanPanel({
         await syncSource(nextBoard, activeTask.id);
         return `Blocked task: ${activeTask.title}`;
       });
+      return;
+    }
+    // `t` opens the transition prompt for the active managed card. It mirrors
+    // the right-arrow path so users have an explicit shortcut regardless of
+    // the column cursor position.
+    if (shortcutsEnabled && input === 't' && board && activeTask && isManagedBoard(board)) {
+      const current = stageForColumn(board, activeTask.columnId);
+      const target = current ? nextManagedStage(current) : null;
+      if (!target) {
+        setNotice('Task is already at the final stage (done).');
+      } else {
+        setPrompt({ kind: 'transitionTask', task: activeTask, to: target, buffer: '' });
+      }
       return;
     }
     if (shortcutsEnabled && input === 'x' && activeTask) {
@@ -425,6 +485,19 @@ export function KanbanPanel({
 function PromptLine({ prompt }: { prompt: PromptMode }): React.ReactElement {
   if (prompt.kind === 'confirmDeleteTask') {
     return <Text color="yellow">Delete "{prompt.task.title}"? y/n</Text>;
+  }
+  if (prompt.kind === 'transitionTask') {
+    return (
+      <Text>
+        <Text color="magenta">
+          {prompt.to.toUpperCase()} "{prompt.task.title}":{' '}
+        </Text>
+        {prompt.buffer}
+        <Text dimColor>
+          _ <Text dimColor>(Esc cancel · Enter confirm — comment required)</Text>
+        </Text>
+      </Text>
+    );
   }
   const label = prompt.kind === 'createBoard' ? 'New board title' : 'New task title';
   return (
@@ -562,6 +635,39 @@ function BoardColumns({
 }
 
 /**
+ * Whether a board enforces the managed Kanban Agent lifecycle. Managed boards
+ * reject free-form status/column writes (see `assertManagedTaskPatchAllowed`
+ * in `@wrongstack/kanban`), so the TUI must route progress through
+ * `transitionTask` rather than `moveTask`/`updateTask`.
+ */
+function isManagedBoard(board: KanbanBoard | null): boolean {
+  return board?.lifecycle?.mode === 'managed';
+}
+
+const MANAGED_STAGE_ORDER: readonly KanbanLifecycleStage[] = [
+  'backlog',
+  'todo',
+  'running',
+  'review',
+  'done',
+];
+
+/**
+ * The next stage a managed card may advance to, or null when the card is
+ * already at the terminal `done` stage (or the current stage is unknown).
+ * The domain only allows one-step forward transitions; callers must keep
+ * this in lockstep with `KANBAN_AGENT_STAGES` in `@wrongstack/kanban`.
+ *
+ * Exported so unit tests can pin the stage order without rendering the panel.
+ */
+export function nextManagedStage(current: KanbanLifecycleStage): KanbanLifecycleStage | null {
+  const idx = MANAGED_STAGE_ORDER.indexOf(current);
+  return idx >= 0 && idx < MANAGED_STAGE_ORDER.length - 1
+    ? MANAGED_STAGE_ORDER[idx + 1]!
+    : null;
+}
+
+/**
  * Look up the lifecycle stage that owns the given column under a managed
  * Kanban Agent board. Returns null when the board is not managed, or when
  * the column is not mapped to any of the five canonical stages (treated
@@ -657,7 +763,11 @@ function TaskDetail({
           {renderGoalMetrics(task)}
           {renderLinks(task)}
           {target ? <Text dimColor>C/T target: {target.title}</Text> : null}
-          <Text dimColor>space done | b block | x delete</Text>
+          <Text dimColor>
+            {board.lifecycle?.mode === 'managed'
+              ? '→/t transition | x delete'
+              : 'space done | b block | x delete'}
+          </Text>
         </>
       )}
     </Box>

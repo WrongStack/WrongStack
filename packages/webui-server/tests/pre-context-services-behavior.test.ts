@@ -176,7 +176,10 @@ describe('createPreContextServices', () => {
   it('composes injected services in discovery order and seeds the live context', async () => {
     const modelsRegistry = { refresh: vi.fn() };
     const events = { setLogger: vi.fn() };
-    const toolRegistry = { list: vi.fn(() => [{ name: 'read_file' }]) };
+    const toolRegistry = {
+      list: vi.fn(() => [{ name: 'read_file' }]),
+      listForProvider: vi.fn(() => [{ name: 'read_file' }]),
+    };
     const session = { id: 'session-1' };
     const sessionStore = {
       create: vi.fn().mockResolvedValue(session),
@@ -255,6 +258,7 @@ describe('createPreContextServices', () => {
       cwd: 'D:/repo',
       projectRoot: 'D:/repo',
       tools: [{ name: 'read_file' }],
+      catalogTools: [{ name: 'read_file' }],
       provider: 'openai',
       model: 'gpt-5.6',
       onlineAgents: [{ agentId: 'worker-1', status: 'online' }],

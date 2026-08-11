@@ -78,6 +78,8 @@ describe('Kanban IPC ownership boundary', () => {
       'storageWriteBoard',
       'storageAppendEvent',
       'storageReadEvents',
+      'storageAppendBoardHistory',
+      'storageReadBoardHistory',
       'storageDeleteBoard',
       'storageReadMetadata',
       'storageWriteMetadata',

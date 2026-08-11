@@ -633,6 +633,42 @@ describe('kanbanStatusToTaskGraphStatus', () => {
   });
 });
 
+// ── metadata.kanban.status preservation (A3) ─────────────────────────
+//
+// kanbanStatusToTaskGraphStatus collapses `ready` and `archived` to `pending`
+// (pinned above) because the core TaskGraph union has only 6 statuses. That
+// lossy mapping is intentional, but it means a Kanban `ready` task exported
+// to a TaskGraph and re-imported would silently demote to `pending`.
+//
+// The mitigation is the metadata channel: buildTaskGraphMetadata stashes the
+// original Kanban status verbatim under `metadata.kanban.status`, so the
+// information round-trips through the graph even though the node's `status`
+// field cannot represent it. These tests pin that preservation channel so a
+// future change to either mapper cannot silently widen the data loss.
+
+describe('buildTaskGraphMetadata preserves kanban status for all 8 statuses', () => {
+  const ALL_KANBAN_STATUSES = [
+    'pending',
+    'ready',
+    'in_progress',
+    'blocked',
+    'review',
+    'completed',
+    'failed',
+    'archived',
+  ] as const;
+
+  for (const status of ALL_KANBAN_STATUSES) {
+    it(`preserves metadata.kanban.status === '${status}' even though the graph node status may collapse`, () => {
+      const t = task({ id: `t-${status}`, status });
+      const b = board([t]);
+      const metadata = buildTaskGraphMetadata(b, t);
+      const kanbanMeta = metadata.kanban as { status: string };
+      expect(kanbanMeta.status).toBe(status);
+    });
+  }
+});
+
 // ── column mappers ───────────────────────────────────────────────────
 
 describe('statusForColumn', () => {

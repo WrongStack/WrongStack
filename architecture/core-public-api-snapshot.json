@@ -442,6 +442,7 @@
         "export type { HttpDispatcher, HttpsAgentAsDispatcher } from './dispatcher-types.js';",
         "export { ALLOWED_IMAGE_MEDIA_TYPES, base64DecodedBytes, buildUserContentBlocks, IncomingImageError, type IncomingImagePayload, isAllowedImageMediaType, isValidImageBase64, MAX_INCOMING_IMAGE_BYTES, MAX_INCOMING_IMAGES, parseIncomingImages, } from './incoming-images.js';",
         "export { DEFAULT_WALK_IGNORE_DIRS, DEFAULT_WALK_IGNORE_SET } from './walk-ignore.js';",
+        "export { activateProjectStateGuard, type ProjectStateGuard, type ProjectStateGuardOptions, startProjectStateGuard, } from './project-state-guard.js';",
         "export { applyToolDescriptionModes, applyToolDescriptionModeToTool, DEFAULT_TOOL_DESCRIPTION_MODE, getToolDescriptionMode, normalizeToolDescriptionMode, resolveToolDescriptionMode, setToolDescriptionMode, simplifyToolDescription, type ToolDescriptionRegistryLike, } from './tool-description-mode.js';",
         "export { applyToolResultRenderModes, DEFAULT_TOOL_RESULT_RENDER_MODE, getToolResultRenderMode, normalizeToolResultRenderMode, resolveToolResultRenderMode, setToolResultRenderMode, type ToolResultRenderModeRegistryLike, } from './tool-result-render-mode.js';",
         "export { assertNotPrivateHost, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';",
@@ -1140,7 +1141,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10350
+      "sourceLines": 10478
     },
     {
       "directory": "defaults",
@@ -1259,14 +1260,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime composition",
       "sourceFiles": 4,
-      "sourceLines": 692
+      "sourceLines": 704
     },
     {
       "directory": "replay",
       "classification": "storage/repository implementation",
       "intendedOwner": "repository/runtime implementation",
       "sourceFiles": 3,
-      "sourceLines": 168
+      "sourceLines": 227
     },
     {
       "directory": "security",
@@ -1280,7 +1281,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 7,
-      "sourceLines": 2802
+      "sourceLines": 2806
     },
     {
       "directory": "skills",
@@ -1294,7 +1295,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 77,
-      "sourceLines": 17661
+      "sourceLines": 17835
     },
     {
       "directory": "tasking",
@@ -1308,21 +1309,21 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 3209
+      "sourceLines": 3232
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10329
+      "sourceLines": 10396
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 64,
-      "sourceLines": 10195
+      "sourceFiles": 65,
+      "sourceLines": 10407
     },
     {
       "directory": "worktree",

@@ -84,14 +84,7 @@ import {
 } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
-import {
-  createSageContextMonitorMiddleware,
-  createSageToolCallMiddleware,
-  createSageTurnMiddleware,
-  getSageRetrieval,
-  getSageService,
-  InjectionTracker,
-} from '@wrongstack/sage';
+import { getSageService, setupSage } from '@wrongstack/sage';
 import { setupWebUICodebaseIndexing } from './codebase-indexing.js';
 import { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { discoverMailboxBridgeForWebui } from './discover-mailbox-bridge.js';
@@ -176,6 +169,11 @@ interface AgentServices {
    * owned by the per-feature handlers. Idempotent handler disposers make this
    * safe during both signal shutdown and programmatic server restarts. */
   disposeRealtimeHandlers(): void;
+  /**
+   * Shared SAGE teardown: flush counters + throttled session-end hygiene
+   * (full config surface). Same contract as CLI `setupSage` teardown.
+   */
+  runSageSessionHygiene(): Promise<void>;
   /** Refresh auto-compaction denominator on model switch. */
   updateAutoCompactionMaxContext: (
     newProvider: Provider,
@@ -227,77 +225,17 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   pipelines.toolCall.prepend(collabPause);
   // Design Studio — per-turn UI-intent detection + kit-menu injection.
   installDesignStudioMiddleware({ pipelines, ctx: context });
-  const memoryRetrieval = getSageRetrieval(memoryStore);
-  if (config.features.memory !== false && config.Sage?.enabled !== false && memoryRetrieval) {
-    // One tracker shared by both middlewares, mirroring cli/src/wiring/sage.ts:
-    // tool-result injections must be matchable when the turn middleware scans
-    // assistant messages for references (the usefulness signal behind
-    // recordUse), and the context monitor needs the same registry to emit
-    // provider-context presence snapshots. Without this shared instance,
-    // WebUI sessions get no cross-path use attribution and no injector or
-    // context telemetry.
-    const sageInjectionTracker = new InjectionTracker();
-    const getSageSessionId = (): string | undefined => input.sessionGetter().id;
-    if (config.Sage?.inject?.toolResults !== false) {
-      pipelines.toolCall.use(
-        createSageToolCallMiddleware({
-          memory: memoryRetrieval,
-          maxHintsPerTool: config.Sage?.inject?.maxHintsPerTool,
-          maxCharsPerTool: config.Sage?.inject?.maxCharsPerTool,
-          taskAware: config.Sage?.inject?.taskAware,
-          minScore: config.Sage?.inject?.minScore,
-          minImportance: config.Sage?.inject?.minImportance,
-          // Forward the explicit relation floor so an operator-configured
-          // `Sage.inject.relationFloor` is honored in WebUI sessions. Without
-          // this we silently fall back to MIN_RELATION_STRENGTH (0.85), which
-          // is the CLI default but masks operator overrides.
-          relationFloor: config.Sage?.inject?.relationFloor,
-          repeatCooldownMs: config.Sage?.inject?.repeatCooldownMs,
-          verifyOnMutation: config.Sage?.hygiene?.autoOnFileChange,
-          triggers: config.Sage?.inject?.triggers,
-          // Resolve the live session so retrieval and cooldown are session-scoped
-          // (matching the CLI wiring in wiring/sage.ts). Without this, the
-          // middleware falls back to ctx.session.id for cooldown but passes
-          // undefined to retrieval, causing owned session-scoped memories to be
-          // silently excluded from tool-call injection.
-          getSessionId: getSageSessionId,
-          tracker: sageInjectionTracker,
-          events,
-        }),
-      );
-    }
-    // Opt-in only (default OFF), matching the CLI wiring. Turn-context injection
-    // appends a query-dependent block to the system prompt every turn, which
-    // moves the provider cache breakpoint and defeats prefix caching. The
-    // default retrieval path is the contextual tool-result injection above plus
-    // the on-demand memory_* tools. See wiring/sage.ts.
-    if (config.Sage?.inject?.turnContext === true) {
-      pipelines.request.use(
-        createSageTurnMiddleware({
-          memory: memoryRetrieval,
-          maxMemories: config.Sage?.inject?.maxTurnMemories,
-          maxChars: config.Sage?.inject?.maxCharsPerTurn,
-          minScore: config.Sage?.inject?.minScore,
-          // CLI parity: honor `Sage.retrieval.metadataWeight` so the same config
-          // value drives both runtimes instead of silently falling back to the
-          // 0.3 default. The undefined case keeps the middleware's own default.
-          metadataWeight: config.Sage?.retrieval?.metadataWeight,
-          getSessionId: getSageSessionId,
-          tracker: sageInjectionTracker,
-        }),
-      );
-    }
-    // Emit an exact memory-presence snapshot for every provider-bound request,
-    // matching the CLI wiring so WebUI sessions get the same context-monitor
-    // telemetry.
-    pipelines.request.use(
-      createSageContextMonitorMiddleware({
-        tracker: sageInjectionTracker,
-        events,
-        getSessionId: getSageSessionId,
-      }),
-    );
-  }
+  // Shared CLI/WebUI wiring: tool-call inject, opt-in turn inject, domain terms,
+  // context monitor, session-end commit extractor, and throttled hygiene teardown.
+  const runSageSessionHygiene = setupSage({
+    config,
+    pipelines,
+    memoryStore,
+    logger,
+    events,
+    getSessionId: () => input.sessionGetter().id,
+    projectRoot,
+  });
   const codebaseIndexing = setupWebUICodebaseIndexing({
     config,
     context,
@@ -438,6 +376,12 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     perIterationOutputCapBytes:
       config.tools?.perIterationOutputCapBytes ?? DEFAULT_TOOLS_CONFIG.perIterationOutputCapBytes,
     tracer: undefined,
+    // Off unless the operator opts in. The WebUI drives the same agent as the
+    // CLI, so it must resolve this identically — a surface-dependent gate
+    // would mean the same repo governs under `wstack` and not in the browser.
+    // See packages/cli/src/wiring/pipeline.ts.
+    requireKanbanGovernance:
+      config.tools?.kanbanGovernance ?? DEFAULT_TOOLS_CONFIG.kanbanGovernance,
   });
   input.installToolBoundary?.(pipelines);
 
@@ -461,6 +405,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     providers: providerRegistry,
     events,
     pipelines,
+    refreshSystemPrompt: true,
     context,
     maxIterations: config.tools?.maxIterations ?? DEFAULT_TOOLS_CONFIG.maxIterations,
     iterationTimeoutMs: config.tools?.iterationTimeoutMs ?? DEFAULT_TOOLS_CONFIG.iterationTimeoutMs,
@@ -751,6 +696,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     terminalHandler,
     collabHandler,
     disposeRealtimeHandlers,
+    runSageSessionHygiene,
     updateAutoCompactionMaxContext,
   };
 }

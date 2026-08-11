@@ -8,6 +8,7 @@ import type { SessionRegistryEntry } from '../session-registry-types.js';
 import type { SessionEvent, SessionSummary } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { isPidAlive } from '../utils/pid.js';
+import { isSessionTranscriptFileName } from '../utils/session-scoped-path.js';
 import type {
   CatalogSessionRecord,
   MaintenanceLease,
@@ -935,8 +936,11 @@ export class SessionCatalogStore {
 
   rebuildCatalog(): { indexed: number; damaged: number } {
     const summaries = this.walkFiles(this.sessionsDir, '.summary.json');
-    const transcripts = this.walkFiles(this.sessionsDir, '.jsonl').filter(
-      (file) => !file.endsWith('_index.jsonl'),
+    // Excluding `_index.jsonl` alone let every per-session sidecar
+    // (`.replay.jsonl`, `.audit.jsonl`) and `_mailbox.jsonl` become a catalog
+    // row of its own — phantom sessions the picker then offered to resume.
+    const transcripts = this.walkFiles(this.sessionsDir, '.jsonl').filter((file) =>
+      isSessionTranscriptFileName(path.basename(file)),
     );
     const ids = new Set<string>();
     for (const file of [...summaries, ...transcripts]) {

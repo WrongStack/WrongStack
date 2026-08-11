@@ -3,11 +3,20 @@
 > Architecture and operating report for WrongStack's project-scoped multi-kanban
 > system.
 
-**Status as of 2026-07-29**: the Kanban system runs as one detached,
+**Status as of 2026-08-11**: the Kanban system runs as one detached,
 project-scoped IPC service with an authoritative SQLite database. It supports multiple boards per
 project, human CRUD, agent-visible queue operations, dependency-aware claiming,
 ordered chains, split/merge lineage, goal metrics, TaskGraph import/export/sync,
 and Director-backed multi-agent dispatch through `kanban_queue`.
+
+On top of that base, five subsystems govern what a card *means*: the managed
+lifecycle ([§17](#17-managed-lifecycle)), the card contract graph and atomicity
+scoring ([§18](#18-card-contract-and-atomicity)), executable completion
+verification ([§19](#19-completion-verification)), the Workbench projection and
+queue-anomaly vocabulary ([§20](#20-workbench-and-queue-health)), and the
+execution-time security boundary ([§21](#21-security-boundary)). Each is
+optional: a plain board behaves exactly as this document described before they
+existed.
 
 ---
 
@@ -29,6 +38,11 @@ and Director-backed multi-agent dispatch through `kanban_queue`.
 14. [Invariants and Failure Handling](#14-invariants-and-failure-handling)
 15. [Testing and Verification](#15-testing-and-verification)
 16. [Known Gaps and Next Work](#16-known-gaps-and-next-work)
+17. [Managed Lifecycle](#17-managed-lifecycle)
+18. [Card Contract and Atomicity](#18-card-contract-and-atomicity)
+19. [Completion Verification](#19-completion-verification)
+20. [Workbench and Queue Health](#20-workbench-and-queue-health)
+21. [Security Boundary](#21-security-boundary)
 
 ---
 
@@ -66,7 +80,7 @@ packages/kanban/src/server/project-server.ts
         | named pipe on Windows / Unix socket elsewhere
 packages/kanban/src/server/client.ts
         ^
-        | protocol v4: typed domain wire codec + storage/admin RPC
+        | protocol v6: typed domain wire codec + storage/admin RPC
 packages/kanban/
   types.ts          data model
   client-domain.ts  stateful public API -> IPC only
@@ -91,20 +105,34 @@ Primary implementation files:
 | Model | `packages/kanban/src/types.ts` | Board, column, task, assignment, chain, metric, graph-origin types |
 | IPC owner | `packages/kanban/src/server/project-server.ts` | Endpoint election, request serialization, events, lifecycle and health |
 | SQLite | `packages/kanban/src/server/sqlite-storage.ts` | Authoritative boards, events, metadata and one-time legacy import |
-| Stateful client API | `packages/kanban/src/client-domain.ts` | Whitelisted high-level operations routed through protocol v4 `domainCall` |
+| Stateful client API | `packages/kanban/src/client-domain.ts` | Whitelisted high-level operations routed through protocol v6 `domainCall` |
 | Remote storage | `packages/kanban/src/server/remote-storage.ts` | Fail-closed client access to the project owner |
 | Storage boundary | `packages/kanban/src/storage.ts` | Public persistence contract and test-only legacy JSON codec |
 | Manager | `packages/kanban/src/manager.ts` | Board/task CRUD, dependency checks, claim/release, split/merge, chain, TaskGraph bridge |
+| Wire allowlist | `packages/kanban/src/domain-operations.ts` | The explicit list of stateful operations the daemon will execute; also the public-client boundary |
+| Managed lifecycle | `packages/kanban/src/manager/lifecycle.ts` | Ordered stage transitions, definition-of-done validation, lifecycle issue codes ([§17](#17-managed-lifecycle)) |
+| Card contract | `packages/kanban/src/contract-graph.ts` | Implementation-readiness evaluation; published on its own browser-safe subpath ([§18](#18-card-contract-and-atomicity)) |
+| Atomicity | `packages/kanban/src/atomicity/` | Deterministic, LLM-free scoring of whether a card should be split ([§18](#18-card-contract-and-atomicity)) |
+| Completion gate | `packages/kanban/src/verification/` | Executable acceptance criteria and the single funnel every "done" passes through ([§19](#19-completion-verification)) |
+| Workbench | `packages/kanban/src/manager/workbench.ts` | Bounded Now/Next/Blocked/Review projection over all boards ([§20](#20-workbench-and-queue-health)) |
+| Queue anomalies | `packages/kanban/src/queue-anomalies.ts` | One attention vocabulary shared by every health surface; browser-safe subpath ([§20](#20-workbench-and-queue-health)) |
+| Board kinds | `packages/kanban/src/manager/board-kind-filter.ts` | `project` / `session_mirror` / `sdd_mirror` / `import` / `archive`, and what global queue operations exclude by default |
 | Presence | `packages/kanban/src/manager/presence.ts` | Per-session/agent heartbeat, TTL-based active/inactive derivation |
 | Session mirror | `packages/tools/src/session-kanban.ts` | Bidirectional projection between session todo list and session-owned board |
 | Agent tool | `packages/tools/src/kanban.ts` | LLM-callable `kanban` tool actions; records presence on every successful mutation |
 | External MCP | `packages/kanban-mcp` | Project-bound stdio/HTTP server with read, manage, destructive, and long-poll watch tiers |
 | External-agent skill | `packages/core/skills/wrongstack-kanban/SKILL.md` | Portable inspect/claim/heartbeat/verify/reconcile workflow for MCP-capable coding agents |
 | Director tool | `packages/core/src/coordination/director-tools.ts` | `kanban_queue` fleet dispatch bridge; subagent prompt includes reassessment contract |
-| CLI | `packages/cli/src/slash-commands/kanban.ts` | Human slash-command surface |
+| Security boundary | `packages/core/src/security/kanban-boundary.ts` | Execution-time governance, lease and filesystem checks, called from `tool-executor.ts` ([§21](#21-security-boundary)) |
+| System prompt | `packages/core/instructions/system{,-pro,-lite}.md` | `<!--ws:if tool=kanban-->` blocks: card prerequisites, hard conditions, lifecycle, evidence and hand-off rules |
+| CLI | `packages/cli/src/slash-commands/kanban.ts` | Human slash-command surface (`/kanban`, `/kb`, `/board`) |
+| TUI panel | `packages/tui/src/components/kanban-panel.tsx` | In-terminal board panel, opened with F12 / Ctrl+Y or `/kanban open` |
+| TUI board audit | `packages/tui/src/kanban-audit.ts` | Board hygiene verdicts; parity-locked with the WebUI copy (see [§15](#15-testing-and-verification)) |
 | Embedded WebUI WS | `packages/cli/src/webui-server/kanban-host-adapter.ts` | CLI-hosted WebUI messages |
 | Standalone WebUI WS | `packages/webui-server/src/server/kanban-routes.ts` | Standalone WebUI messages |
 | Frontend store | `packages/webui/src/stores/kanban-store.ts` | Client state/actions for boards and tasks |
+| Frontend board audit | `packages/webui/src/lib/kanban-cleaner.ts` | The WebUI half of the board audit; must produce the same codes as the TUI copy |
+| HQ store | `packages/core/src/hq/kanban-store.ts` | Cross-project snapshot merge by revision then timestamp; a stale writer never wins |
 
 ---
 
@@ -219,7 +247,7 @@ Storage guarantees:
 
 - Only the endpoint-election winner opens SQLite.
 - Stateful package APIs execute their manager logic inside the elected daemon
-  through the protocol v4 `domainCall` allowlist.
+  through the protocol v6 `domainCall` allowlist.
 - Production is fail-closed; disabling or losing the daemon does not enable a
   direct-file fallback.
 - `ServerKanbanStore` uses the same typed `domainCall` codec; it has no second
@@ -567,6 +595,13 @@ actions to agents. Important actions:
 | `merge_tasks` | Merge overlapping scope |
 | `set_chain`, `get_chain` | Manage ordered task chains |
 | `add_goal_metric`, `update_goal_metric` | Track measurable outcomes |
+| `add_check`, `update_check`, `remove_check` | Write acceptance criteria; `checkType` + `checkNotes` make one executable ([§19](#19-completion-verification)) |
+| `verify_completion` | Run the criteria and persist the report |
+| `workbench` | Bounded Now/Next/Blocked/Review view across boards |
+| `start_task` | Claim a card and bind it to this run |
+| `transition_task` | Move a managed card one lifecycle stage |
+| `assess_atomicity`, `propose_decomposition`, `split_atomic` | Size and split scope |
+| `upsert_contract_node`, `add_contract_edge`, … | Author the card contract map ([§18](#18-card-contract-and-atomicity)) |
 | `export_task_graph`, `sync_task_graph` | Exchange TaskGraph data |
 
 ### Human slash command: `/kanban`
@@ -579,6 +614,32 @@ Main CLI capabilities:
 - graph operations: split, merge, chain, depend
 - metadata: assign, dispatch, metric, note, check
 - TaskGraph bridge: `graph export`, `graph import`, `graph sync`
+- retention: `prune [days] [--all] [--yes]`, dry-run until `--yes`
+
+Aliases are `/kb` and `/board`; `queue` is an alias for `snapshot`. Board and
+task ids may be abbreviated wherever the prefix resolves unambiguously.
+
+Adopting or releasing the managed lifecycle has **no slash subcommand** — it is
+only reachable through the `kanban` tool's `adopt_managed_lifecycle` /
+`release_managed_lifecycle` actions (and their MCP `kanban_manage` equivalents).
+Once a board is managed, `/kanban task move` and `task done` route through the
+lifecycle guard, and `task block` is refused outright because `blocked` is a
+card status rather than a lifecycle stage.
+
+### TUI
+
+`/kanban open` (also `panel` or `tui`), **F12**, or **Ctrl+Y** opens the board
+panel in the terminal; `packages/tui/src/components/goal-kanban-panel.tsx` is
+the Goal-phase equivalent. Slash parsing lives in
+`packages/tui/src/kanban-slash.ts`, and the Workbench has its own entry point in
+`packages/tui/src/workbench-slash.ts`.
+
+`packages/tui/src/kanban-audit.ts` runs a board hygiene audit with eleven
+verdict codes — `abandoned-running-task`, `stale-running-task`, `stale-review`,
+`skipped-lifecycle-state`, `board-oversized`, and the `missing-*` family
+(`assignee`, `description`, `due-date`, `labels`, `subtasks`,
+`success-criteria`). The audit is pure: it takes an explicit `now` so the same
+board always produces the same verdicts.
 
 ### WebUI
 
@@ -589,7 +650,18 @@ client:
 - standalone WebUI: `packages/webui-server/src/server/kanban-routes.ts`
 
 The frontend store (`packages/webui/src/stores/kanban-store.ts`) mirrors the
-same operations for UI usage.
+same operations for UI usage. The board view has five modes — `focus`, `board`,
+`tree`, `contracts`, `dashboard` — backed by dedicated panels for the task
+inspector, contract graph, verification report, decomposition proposals, the
+boundary editor and the queue health bar.
+
+`packages/webui/src/lib/kanban-cleaner.ts` is the WebUI half of the TUI board
+audit and must produce identical verdicts; see [§15](#15-testing-and-verification).
+
+Contract-map routes live in
+`packages/webui-server/src/server/kanban-contract-routes.ts` and broadcast the
+updated board after every mutation, so the three contract panels repaint
+without a refetch.
 
 ### Director tool: `kanban_queue`
 
@@ -651,6 +723,25 @@ event subscription in `attachSessionKanbanMirror()` triggers
 `sameTodos()` structural comparison. A board-created card with no `origin` is
 matched by its kanban `id` in `findTaskByOrigin()`, so the next todo mirror
 adopts it instead of creating a duplicate card.
+
+**The todo tool warns; it does not fail.** `todo` returns successfully for every
+input it can parse, and reports disagreements with the board in
+`kanban_warnings` rather than rejecting the turn:
+
+- A row the board will not start (unmet dependencies, missing criteria) is
+  **demoted to pending** with the board's own reason attached — rather than
+  left claiming `in_progress` while the card never moved.
+- A row that would reopen a Done card is reported and left completed, because
+  Done is terminal on a managed board.
+- An unfinished row omitted from a shorter list is **retained**: omission is
+  not a cancellation mechanism. Cancel work by deleting its card.
+- A row that matches no card becomes one, so work discovered mid-run reaches
+  the board instead of living only in the list.
+
+`packages/tools/tests/kanban-todo-flow-e2e.test.ts` walks the whole loop —
+three cards to completion, a card added mid-run, a split, a merge, a deletion
+of the active card, and a contradictory row — asserting the run is never left
+without a next move.
 
 ---
 
@@ -755,6 +846,28 @@ The Kanban system should preserve these invariants:
    optional `origin.phaseId` to update imported tasks.
 12. **Runtime failures are visible**: failed dispatch/await results write
     `assignment.error` and set task status to `failed`.
+13. **The board records work, it does not permit it**: no Kanban state gates
+    another tool unless an operator sets `tools.kanbanGovernance`, and the
+    `kanban` tool itself is never gated ([§21](#21-security-boundary)).
+14. **Every executor host agrees**: all six `ToolExecutor` construction sites
+    resolve the governance flag from the same config key.
+15. **A stale worker cannot write**: a `leaseId` that no longer matches the
+    card's assignment blocks filesystem and shell tools for that worker.
+16. **"Done" has one definition**: every completion path runs through
+    `completion-gate.ts` ([§19](#19-completion-verification)).
+17. **An acceptance criterion is re-runnable**: verification updates its status
+    and audit fields and never overwrites `check.notes`, which is the input a
+    plugin executes. Both write-back sites (`completion-protocol.ts` and
+    `completion-gate.ts`) follow this.
+18. **No gate is a dead end**: every state a refusal demands can also be left
+    — dependencies cleared, `atomic` unset, criteria removed
+    ([§17](#17-managed-lifecycle)).
+19. **The active card is recoverable**: a resumed session rebinds from board
+    presence rather than starting un-bound
+    ([§21](#21-security-boundary)).
+20. **One attention vocabulary**: health surfaces branch on
+    `hasKanbanQueueAnomalies()`, never on a locally computed sum
+    ([§20](#20-workbench-and-queue-health)).
 
 Known failure behaviors:
 
@@ -778,6 +891,24 @@ Current focused coverage lives primarily in:
 - `packages/cli/tests/kanban-slash-coverage.test.ts`
 - `packages/webui-server/tests/kanban-host-routes.test.ts`
 - `packages/webui/tests/stores/kanban-store.test.ts`
+- `packages/core/tests/security/kanban-boundary.test.ts`
+- `packages/core/tests/security/kanban-does-not-gate-work.test.ts`
+
+Two of these are **parity locks** rather than ordinary coverage — they exist
+because the same rule is implemented twice and the copies drifted before:
+
+- `packages/cli/tests/kanban-cleaner-parity.test.ts` runs a shared board corpus
+  through the TUI audit and the WebUI cleaner and compares the
+  `taskId:code:severity` triples. Messages may differ; codes and severities may
+  not. Three API-shape differences are deliberate and documented in the source.
+- `packages/cli/tests/architecture/kanban-governance-hosts.test.ts` walks
+  `packages/*/src` for `new ToolExecutor(` sites, asserts the set matches the
+  six known hosts, and requires each to resolve `requireKanbanGovernance` from
+  `tools.kanbanGovernance` rather than a literal ([§21](#21-security-boundary)).
+- `packages/tools/tests/kanban-executable-criteria.test.ts` asserts the tool's
+  `checkType` enum equals the default verifier registry's plugin ids, so the
+  tool can never offer a criterion type nothing can run
+  ([§19](#19-completion-verification)).
 
 Important covered behaviors:
 
@@ -795,6 +926,9 @@ Important covered behaviors:
 - TaskGraph import/sync/export
 - WebSocket route parity
 - WebUI store state transitions
+- managed lifecycle adoption, ordered transitions, and each refusal code
+- completion-gate enforcement per board kind
+- governance/lease/filesystem boundary decisions at the tool executor
 
 Recommended local verification for Kanban changes:
 
@@ -837,3 +971,384 @@ first-class fleet dispatch. The next useful work is deeper orchestration:
    Current tests use fake Directors for queue dispatch. A full test with a
    coordinator, fake subagent runner, and Kanban board would raise confidence in
    real fleet behavior.
+
+5. **No UI surface for `tools.kanbanGovernance`**
+   The gate ([§21](#21-security-boundary)) is a config-file key only. That
+   matches its siblings (`tools.exec`, `tools.council`, `tools.nextsteps`), but
+   an installation-wide switch with real behavioural weight would be easier to
+   reason about with a `/settings` entry that shows whether it is on.
+
+6. **No contract-map editor in the WebUI**
+   The map is now writable from the agent tool, the WebSocket routes, and MCP
+   ([§18](#18-card-contract-and-atomicity)), and the panels repaint on every
+   mutation. What the browser still lacks is authoring: the empty state offers
+   "Start contract map", but adding and connecting nodes by hand needs a graph
+   editor that does not exist yet. A human-only workflow can configure
+   enforcement and read the map; populating it currently goes through an agent.
+
+7. **No CLI surface for the contract map**
+   `/kanban` has no `contract` subcommand, so the map is agent-, MCP- and
+   browser-writable but not scriptable from the terminal.
+
+---
+
+## 17. Managed Lifecycle
+
+`packages/kanban/src/manager/lifecycle.ts` is optional and per-board. A board
+adopts it with the `kanban` action `adopt_managed_lifecycle` (which requires an
+`actor` and an audit `comment`) and leaves it with `release_managed_lifecycle`,
+keeping every card and its history. A board that never adopts it behaves
+exactly as [§6](#6-task-readiness-and-queue-semantics) describes.
+
+Adoption maps five stages onto the board's real column ids and pins each stage
+to a task status:
+
+| Stage | Default column | Task status |
+|---|---|---|
+| `backlog` | `backlog` | `pending` |
+| `todo` | `todo` | `ready` |
+| `running` | `in-progress` | `in_progress` |
+| `review` | `review` | `review` |
+| `done` | `done` | `completed` |
+
+Cards then move **one step at a time** via `transition_task`. A refused
+transition is not a bare failure: `KanbanLifecycleError` carries structured
+issues, and the message names the field or action that would unblock it.
+
+| Issue code | Raised when |
+|---|---|
+| `task-detail-missing` | A required card field (`assignee`, `successCriteria`, an audit `comment`, …) is absent |
+| `managed-policy-invalid` | The board's stage→column policy does not match its actual columns |
+| `stage-mismatch` | The card's recorded stage disagrees with the column it sits in |
+| `transition-skipped` | The requested move jumps a stage, or patches a field the current stage does not allow |
+| `dependency-incomplete` | A `dependsOn` task has not reached Done |
+| `parent-child-incomplete` | An `atomic: true` parent tried to leave Review before its children finished |
+| `acceptance-criteria-incomplete` | Definition-of-done ran and a criterion has not passed |
+| `review-evidence-missing` | Review → Done was attempted without a persisted verification report |
+
+`repair_managed_projection` re-derives stage metadata for cards that drifted
+(for example, cards created before adoption). `stripLifecycleIssues` removes the
+machine-readable issue block from a message before it is shown to a human.
+
+### No gate may be a dead end
+
+A refusal is legitimate; a refusal with no reachable remedy is not. Every state
+these gates demand must be **leavable**, or the gate stops being a check and
+becomes a trap — and the only escape left is `release_managed_lifecycle`,
+dropping the ceremony for a whole board because of one card.
+
+Three of them were traps, because the state could be entered but not left:
+
+| Gate | The trap | The way out |
+|---|---|---|
+| `dependency-incomplete` | `add_dependency` had no inverse; `update_task` collapsed an empty `dependsOn` to "not supplied", so a dependency recorded by mistake could only be escaped by completing work nobody wanted, or deleting the blocking card | `update_task` with an explicit `dependsOn: []` clears it |
+| `task-detail-missing` on `childTaskIds` | `split_atomic` set `atomic` and nothing could unset it. Delete the children and the parent was stranded: it demanded children forever | `update_task` with `atomic: false` makes it an executable leaf again |
+| `acceptance-criteria-incomplete` | Done refuses while any criterion is not `passed`, and criteria could be added but not removed — so a criterion that turned out not to apply left only two options, both bad: park the card, or mark it `passed`, which is a lie | `remove_check` drops it |
+
+Two related corrections came with them. The dependency refusal was written
+three times — the lifecycle gate and two branches of the assignment gate — so
+which wording a caller saw depended on whether it arrived via `transition_task`
+or `mark_assignment`, and only one copy named the escape;
+`dependencyIncompleteMessage()` is now the single definition. And the
+unmet-criteria message told every caller to "read the ids and pass each one",
+which sent a caller holding a card with *no* criteria round get_task → nothing
+to update → retry; the empty case now says to add one.
+
+`packages/tools/tests/kanban-no-dead-ends.test.ts` pins each escape and asserts
+the refusal message names it.
+
+---
+
+## 18. Card Contract and Atomicity
+
+### Implementation readiness
+
+`evaluateContractGraphReadiness(board, taskId)` answers one question: *is this
+card safe to start implementing?* It requires card details and executable
+acceptance criteria. It deliberately does **not** require contract-map
+structure — even a strict map is an operator review signal, never work the model
+must perform before implementing.
+
+Two behaviours were corrected here and are worth stating so they are not
+reintroduced:
+
+- The rules belong to **managed boards only**. Applied to a plain board,
+  `start_task` refused every card — its first stated reason being that the board
+  was not managed, a demand no card can satisfy.
+- The Workbench used the same evaluation and reported healthy cards as carrying
+  "readiness gaps", so the surface that answers *what should I do next?*
+  contradicted `ready_tasks` on the same board.
+
+`contract-graph` is published on its own package subpath because the WebUI
+renders it in the browser; importing it from the barrel would drag the IPC
+client (`node:net`, `node:child_process`) into the browser bundle.
+
+The graph's own node/edge model — objectives, impacts, guardrails, risks and
+verification — is specified in
+[kanban-contract-graph.md](kanban-contract-graph.md). This section covers only
+how readiness gates a card, and how the map is written.
+
+### Writing the map
+
+Six node kinds hang off a task — `objective` (what the card is for),
+`guardrail` (what must keep working), `risk` (what could go wrong),
+`component` / `artifact` (what it touches), `verification` (what settles it) —
+connected by typed edges to each other and to the card endpoint `task:<id>`.
+Adding a non-verification node auto-creates its relation edge to the card, so
+the map stays connected without the caller wiring the obvious edge by hand.
+A `verification` node can bind to a real `successCriteria` id or `goalMetrics`
+id on the same task; an unknown id is rejected rather than stored.
+
+| Surface | How |
+|---|---|
+| Agent tool | `kanban` actions `get_contract_graph`, `configure_contract_graph`, `upsert_contract_node`, `remove_contract_node`, `add_contract_edge`, `remove_contract_edge` |
+| WebUI | `kanban.contract.get` / `.configure` / `.node.upsert` / `.node.remove` / `.edge.add` / `.edge.remove`; every mutation broadcasts the board so open panels repaint |
+| External MCP | the same actions, in the `kanban_manage` tier |
+
+Node and edge removal sit in `kanban_manage`, not `kanban_destructive`: the map
+is advisory metadata about a card rather than the card itself, and the tier that
+can add an annotation should be able to take it back.
+
+> These seven domain operations were on the IPC wire allowlist from the start
+> with **no caller anywhere** — no tool action, no WebSocket route, no CLI
+> subcommand. The three WebUI panels that render `board.contractGraph`
+> therefore always showed the empty state, and no surface could populate one.
+> The map is still advisory: `evaluateContractGraphReadiness` deliberately
+> excludes map structure, so a strict-but-empty map never blocks `start_task`.
+
+### Atomicity scoring
+
+`packages/kanban/src/atomicity/` scores a card on six weighted criteria. The
+engine is pure — no LLM, no I/O, no core dependency — and takes a neutral
+candidate shape so both a `KanbanTask` and a mapped task-graph node can be
+scored by the same rules.
+
+| Criterion | What it measures |
+|---|---|
+| `effort` | `estimatedHours` against the ruleset's single-sitting bound |
+| `file-scope` | `expectedFileChangeCount` |
+| `dependency-fan-in` | `dependsOn.length` |
+| `single-verifiable-output` | Whether at least one criterion is of a deterministic type |
+| `description-scope` | Whether the description reads as one unit of work |
+| `already-decomposed` | `childTaskIds.length` |
+
+A verdict of `needs_decomposition` does not block anything. It appends a
+one-line nudge to the tool result naming the failing criteria and suggesting
+`propose_decomposition`. `split_atomic` then creates children with `atomic`
+pre-set on the parent; children inherit `priority` and `boundary`
+unconditionally, `labels` and `dependsOn` by default, and `assignee`,
+`assignment`, `successCriteria` and `goalMetrics` only behind an explicit
+`inherit*` flag.
+
+---
+
+## 19. Completion Verification
+
+Acceptance criteria can be executable, and the `kanban` tool can author them:
+`add_task`, `add_check` and `update_check` all take `checkType` plus
+`checkNotes` (the command, test pattern, path, or JSON config the plugin runs).
+`checkType` defaults to `manual`, which records an assertion and tests nothing.
+
+The tool offers only the six types the default registry can actually run —
+`command`, `test`, `file_exists`, `file_matches`, `git_diff`, `metric` — because
+a type with no plugin produces a criterion that silently reports
+`skipped — no verifier plugin registered`. That two-place agreement is pinned by
+`packages/tools/tests/kanban-executable-criteria.test.ts`.
+
+> This mattered more than it looks. Every write path used to hard-code
+> `type: 'manual'`, so no agent-authored criterion could ever reach a verifier:
+> the registry passed the hand-set status through, `validateDefinitionOfDone`
+> accepted it, and "verified" meant "the author ticked its own box". The same
+> hard-coding also kept the atomicity criterion `single-verifiable-output`
+> ([§18](#18-card-contract-and-atomicity)) from ever scoring.
+
+`packages/kanban/src/verification/` ships eight verifier plugins:
+
+| Plugin | Verifies by |
+|---|---|
+| `test` | Running a test command and reading its result |
+| `command` | Running an arbitrary command and checking its exit status |
+| `git-diff` | Inspecting the working-tree diff |
+| `file-exists` | Presence of a path |
+| `file-matches` | A regex over file contents (guarded by `safe-regex.ts`) |
+| `metric` | A goal metric reaching its target |
+| `agent` | Delegating the judgement to an agent |
+| `council` | Delegating the judgement to a Council panel |
+
+`completion-gate.ts` is the single funnel every "done" passes through, so the
+word means the same thing on every path: managed boards gate inside
+`transitionTask`; plain boards park a completed assignment in `review` and let
+the async callers (`mark_assignment`, the WebUI dispatch `onDone` handler, the
+supervisor sweep) call `finalizeTaskCompletion()`; SDD runs are verified by
+their own engine, and their mirror boards are created with enforcement `off`.
+
+Enforcement resolves per board:
+
+| Board | Effective enforcement |
+|---|---|
+| Managed | `strict` — `off` is not honored; `soft` is |
+| Plain | `soft` by default — verification runs and reports persist, nothing blocks |
+| SDD mirror | `off` |
+
+A host may override when the board carries no explicit `completionGate` policy.
+The Kanban package itself stays env-free: only hosting surfaces
+(`packages/tools/src/kanban-tool-results.ts`, `webui-server`) read
+`WRONGSTACK_KANBAN_GATE`, which accepts `strict`, `soft`, or `off`.
+
+Separately, `lifecycle.autoAccept` (default `true`) decides whether a *passing*
+verification may move a managed card into Done on its own. It is an acceptance
+switch, not a gate switch: setting it to `false` holds a verified card in Review
+for a human, and setting it to `true` never lets an unverified card through —
+`validateDefinitionOfDone` runs either way.
+
+`verifyTaskCompletion()` is async and runs commands, so it must never be called
+inside a `mutateBoard` closure — the gate verifies first, then persists report,
+criteria and final status in a single board mutation.
+
+**`check.notes` is input, never output.** The write-back updates `status`,
+`checkedBy` and `checkedAt` and leaves `notes` alone, because every plugin reads
+it as the thing to execute. Writing a result narrative there made an executable
+criterion single-use: the re-run read `[failed] File not found: evidence.txt`
+as its path and could never pass, so a defect that had since been fixed could
+not be re-verified. The outcome already lives in `verificationReport.checks[]`
+(status, evidence, error), and nothing renders `notes`.
+
+---
+
+## 20. Workbench and Queue Health
+
+### Workbench
+
+`getKanbanWorkbench()` is a bounded projection across every non-archived board,
+for the case where an agent does not know which board or card it should be on.
+Results are folded into four lanes — `now` (running), `next` (queued + ready),
+`blocked` (blocked + failed), `review` — each capped (default 8 per lane) with
+an explicit `omitted` count, plus alerts such as heartbeats coming due.
+
+`buildKanbanWorkbench()` is exported as a pure function of a snapshot so every
+UI can test the exact same semantics. It is **navigation, not a task store**:
+follow a selected card back to its own board before mutating it. The surface
+contract across WebUI, TUI and SimpleUI is specified in
+[kanban-workbench.md](kanban-workbench.md).
+
+### Queue anomalies
+
+Three surfaces each grew their own arithmetic for "is this board worth looking
+at" — the WebUI route, the background supervisor, and the WebUI health bar —
+and a board with failed cards could show a green *healthy* badge directly beside
+its own red failure pill. `queue-anomalies.ts` is now the single definition:
+
+| Signal | Source |
+|---|---|
+| `stale_assignments` | Leases past their TTL |
+| `failed` | Cards in `failed` |
+| `blocked` | Cards in `blocked` |
+| `failed_retryable` | Failed cards still within retry policy |
+| `dependency_blocked` | Ready-but-for-dependencies |
+| `heartbeat_due` | Running cards whose heartbeat window is closing |
+
+`kanbanQueueAnomalySignals()` returns only non-zero signals, so an empty array
+means healthy. The counts **deliberately overlap** (a `failed_retryable` card is
+also counted in `failed`) because the total ranks attention rather than
+partitioning tasks — never present it as a task count. Branch on
+`hasKanbanQueueAnomalies()` instead of comparing the magnitude.
+
+Like `contract-graph`, this ships on its own subpath so the browser bundle does
+not pull in the IPC client.
+
+---
+
+## 21. Security Boundary
+
+`packages/core/src/security/kanban-boundary.ts` runs before every tool call,
+from a single call site in `packages/core/src/execution/tool-executor.ts`. It is
+an execution-time ceiling, not prompt advice: an explicit YOLO or trust rule
+never waives it. The `kanban` tool itself always returns `allow` so an agent can
+always record evidence or start the next card.
+
+It performs three independent checks.
+
+### The run's active card
+
+`ctx.currentKanbanTaskId` / `currentKanbanBoardId` answer *which card is this
+run working*. `start_task` sets them on **any** board — attribution and
+governance are two different decisions, and withholding the binding on a plain
+board (the default) also withheld the attribution, so `recordFileEvent()` wrote
+`scope: 'session'` for every edit and no file activity was ever tied to the card
+the board showed as `in_progress`. Binding is safe because the gate below reads
+governance from the board's lifecycle mode, not from the presence of a binding.
+
+The binding lives in conversation state, which no resume restores. So
+`hydrateSessionKanban()` — the one hook every surface passes through at session
+start — calls `rebindSessionKanbanTask()` first. It matches board **presence**
+(keyed `<sessionId>:<agentId>`, stored on the board record, so it outlives the
+process) against the cards still running, and rebinds the most recently seen
+one. It refuses to guess: it never overrides a live binding, ignores a card
+whose lease has expired (`recover_stale` may have reassigned it), and returns
+null rather than binding on a Kanban daemon that is down.
+
+### A. Governance gate — opt-in, off by default
+
+Requires the run to be bound to a card that is on a **managed** board, passes
+`evaluateContractGraphReadiness`, and sits in Running with a live assignment.
+Control tools (`kanban`, `plan`, `task`, `todo`) are exempt.
+
+Non-managed boards are **skipped, not blocked**. An observational board — a
+session mirror, an SDD mirror, a plain import — structurally cannot carry a
+lifecycle, and task-graph sync explicitly refuses to make one managed, so
+demanding governance from such a board produced an inescapable deadlock: every
+mutating tool blocked, with the only stated remedy unreachable by construction.
+Those boards still fall through to check C, which is where their real policy
+lives.
+
+The gate is controlled by **`tools.kanbanGovernance`**, default `false` —
+because the board is a record of the work, not a permit for it, which is what
+both the system prompt and the `kanban` tool description tell the model. When it
+was hard-wired `true`, sessions spent their effort on card ceremony instead of
+the work the card describes.
+
+```jsonc
+// active profile config.json — opt an installation in
+{ "tools": { "kanbanGovernance": true } }
+```
+
+Six hosts construct a `ToolExecutor` and every one of them must resolve this key
+identically, or the contract would change with the door the work came through:
+
+| Host | File |
+|---|---|
+| CLI / TUI pipeline | `packages/cli/src/wiring/pipeline.ts` |
+| `wstack mcp serve` | `packages/cli/src/mcp-serve.ts` |
+| ACP agent | `packages/cli/src/acp-server-agent.ts` |
+| Fleet subagent factory | `packages/cli/src/fleet/host-subagent-factory.ts` |
+| Light subagent factory | `packages/runtime/src/fleet/light-subagent-factory.ts` |
+| WebUI backend | `packages/webui-server/src/server/backend-services.ts` |
+
+`packages/cli/tests/architecture/kanban-governance-hosts.test.ts` walks the
+workspace, asserts that set is exactly the list of `new ToolExecutor(` sites,
+and fails if any of them hard-codes the decision instead of reading the key.
+
+The key is stripped from repo-committed `<project>/.wrongstack/config.json`.
+It defaults to `false`, so the only thing an untrusted config could do with it is
+turn **off** a gate the operator switched on — the same one-directional risk as
+`tools.restrictToProjectRoot`.
+
+### B. Lease fence — always on
+
+When a subagent was dispatched with a frozen `leaseId`, the boundary verifies
+the card's current assignment still carries it. A mismatch means
+`recover_stale` reclaimed and reassigned the task, so the worker is stale:
+tools with `fs.write`, `fs.write.outside-project`, or any `shell.*` capability
+are blocked. The `kanban` tool is exempt because it has its own
+`expectedLeaseId` fence in the assignment handlers, which is how a stale worker
+resolves the situation.
+
+### C. Filesystem boundary — always on
+
+`resolveKanbanBoundaryLayers(board, task)` evaluates the board policy and the
+task policy together. Candidate paths are extracted from the tool input by a
+fixed key set (`path`, `paths`, `file`, `files`, `cwd`, `worktreePath`, …), with
+per-tool overrides where a name is ambiguous — `target` is an identifier for
+`plan`/`task`/`document` but a filesystem path for `language_info`. Read, write
+and shell-like access are decided separately from the tool's declared
+capabilities. Boards with no boundary layers return `allow`.

@@ -130,6 +130,8 @@ export function SimpleUiSession() {
     settingsOpenRef,
     updatePrefs,
     switchAutonomy,
+    resetPrefs,
+    isAtDefaults,
   } = useSettings({ socketRef });
   const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
   /** Provider ids already asked for their model list — catalog + saved overlap. */
@@ -1008,6 +1010,8 @@ export function SimpleUiSession() {
           onModeChange={switchMode}
           onPaletteChange={setPalette}
           onPrefChange={updatePrefs}
+          onReset={resetPrefs}
+          isAtDefaults={isAtDefaults}
         />
       </ErrorBoundary>
 

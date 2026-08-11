@@ -2267,6 +2267,121 @@ a:focus-visible {
   color: var(--text);
 }
 
+/* ── Search box (filter input) ─────────────────────────────────────────
+   Lives at the top of the body, separated from the rows below by a thin
+   divider so the filter reads as a distinct section. Hit target ≥44px so
+   the input is keyboard-friendly; the clear button reuses the same border
+   treatment as the head button so the chrome feels consistent. */
+.settings-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  min-height: 44px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.settings-search:focus-within {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+}
+
+.settings-search .search-icon,
+.settings-search-icon {
+  flex: 0 0 auto;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+
+.settings-search input,
+.settings-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 0;
+}
+
+.settings-search input::placeholder,
+.settings-search-input::placeholder {
+  color: var(--subtle);
+  font-style: italic;
+}
+
+.settings-search input:focus-visible,
+.settings-search-input:focus-visible {
+  outline: none;
+}
+
+.settings-search .clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 0;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.settings-search .clear:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.settings-search .clear:focus-visible {
+  outline: 1px solid var(--line-strong);
+  outline-offset: 1px;
+}
+
+.settings-search .clear[hidden] {
+  display: none;
+}
+
+/* ── Empty result state ───────────────────────────────────────────────
+   Rendered when the user filters down to nothing. Uses the muted palette
+   and a left border so it reads as a quiet "no items" message rather than
+   a styled error. */
+.settings-empty {
+  margin: 24px 4px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+}
+
+.settings-empty strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-search,
+  .settings-search .clear {
+    transition: none;
+  }
+}
+
 .settings-body {
   flex: 1;
   min-height: 0;
@@ -2305,6 +2420,26 @@ a:focus-visible {
   font-size: 8px;
   font-weight: 500;
   letter-spacing: 0.16em;
+}
+
+/* "X of Y" count badge shown inside a group heading while the filter is
+   active. Visually muted, lowercase, small caps-friendly chip. Kept on the
+   same flex line as the heading so the layout does not shift when the
+   badge appears or disappears. */
+.settings-group-count {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .settings-segmented {
@@ -3752,6 +3887,18 @@ a:focus-visible {
 
 .timeline-tool-detail section + section {
   border-top: 1px solid var(--line);
+}
+
+.timeline-tool-sage-chip {
+  margin: 0.25rem 0 0 1.25rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: hsl(var(--primary));
+  opacity: 0.92;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .timeline-tool-memory {

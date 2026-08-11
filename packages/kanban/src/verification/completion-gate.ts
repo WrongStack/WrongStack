@@ -212,9 +212,12 @@ export async function finalizeTaskCompletion(
             status: result.status === 'passed' ? ('passed' as const) : ('failed' as const),
             checkedBy: result.type === 'agent' ? 'agent' : 'system',
             checkedAt: gate.report!.completedAt,
-            notes: result.error
-              ? `[${result.status}] ${result.error}`
-              : `[${result.status}] verified by ${result.type}`,
+            // `notes` stays untouched — it is the criterion's INPUT (the
+            // command, pattern, path or JSON config the plugin executes), not
+            // a place for the outcome. Overwriting it made a failed criterion
+            // unrepeatable: the re-run read the narrative as its input. Same
+            // rule as completion-protocol.ts; the outcome lives in
+            // `verificationReport.checks[]`, which was just persisted above.
           };
         });
       }

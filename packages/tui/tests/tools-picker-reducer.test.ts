@@ -24,6 +24,7 @@ function item(name: string, enabled = true, category = 'Core'): ToolPickerItem {
     owner: 'core',
     category,
     enabled,
+    exposure: enabled ? 'direct' : 'disabled',
     mutating: false,
     permission: 'allow',
     descMode: 'extend',
@@ -88,8 +89,28 @@ function initial(over: Partial<State> = {}): State {
     sessionsPanel: { sessions: [], busy: false, selected: -1 },
     pluginPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     mcpPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
-    toolsPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined, filter: undefined },
-    authPanel: { open: false, view: 'list', providers: [], presets: [], busy: false, selected: 0, filter: '', catalog: [], catalogFilter: '', input: null, confirm: null, flowLog: [] },
+    toolsPicker: {
+      open: false,
+      items: [],
+      selected: 0,
+      busy: false,
+      hint: undefined,
+      filter: undefined,
+    },
+    authPanel: {
+      open: false,
+      view: 'list',
+      providers: [],
+      presets: [],
+      busy: false,
+      selected: 0,
+      filter: '',
+      catalog: [],
+      catalogFilter: '',
+      input: null,
+      confirm: null,
+      flowLog: [],
+    },
     projectPicker: {
       open: false,
       allItems: [],
@@ -116,21 +137,48 @@ function initial(over: Partial<State> = {}): State {
       healthy: false,
     },
     settingsPicker: {
-      open: false, field: 0, lastSettingsField: 0,
-      mode: 'off', delayMs: 0, titleAnimation: true, yolo: false,
-      fleetChat: 'off', chime: false, confirmExit: true,
-      nextPrediction: false, featureMcp: true, featurePlugins: true,
-      featureMemory: true, featureSkills: true, featureModelsRegistry: true,
-      tokenSavingTier: 'off', allowOutsideProjectRoot: true,
-      contextAutoCompact: true, contextStrategy: 'hybrid', contextMode: 'balanced',
-      maxConcurrent: 4, logLevel: 'info', auditLevel: 'standard',
-      indexOnStart: true, multiDiffSummaryThreshold: 5,
-      maxIterations: 500, autoProceedMaxIterations: 50,
-      enhanceDelayMs: 60000, enhanceEnabled: true, enhanceLanguage: 'original',
-      debugStream: false, statuslineMode: 'detailed',
-      reasoningMode: 'auto', reasoningEffort: 'high', reasoningPreserve: false,
-      thinkingWord: 'thinking', cacheTtl: 'default', configScope: 'global',
-      animationStyle: 'rainbow', filter: undefined, hint: undefined,
+      open: false,
+      field: 0,
+      lastSettingsField: 0,
+      mode: 'off',
+      delayMs: 0,
+      titleAnimation: true,
+      yolo: false,
+      fleetChat: 'off',
+      chime: false,
+      confirmExit: true,
+      nextPrediction: false,
+      featureMcp: true,
+      featurePlugins: true,
+      featureMemory: true,
+      featureSkills: true,
+      featureModelsRegistry: true,
+      tokenSavingTier: 'off',
+      allowOutsideProjectRoot: true,
+      contextAutoCompact: true,
+      contextStrategy: 'hybrid',
+      contextMode: 'balanced',
+      maxConcurrent: 4,
+      logLevel: 'info',
+      auditLevel: 'standard',
+      indexOnStart: true,
+      multiDiffSummaryThreshold: 5,
+      maxIterations: 500,
+      autoProceedMaxIterations: 50,
+      enhanceDelayMs: 60000,
+      enhanceEnabled: true,
+      enhanceLanguage: 'original',
+      debugStream: false,
+      statuslineMode: 'detailed',
+      reasoningMode: 'auto',
+      reasoningEffort: 'high',
+      reasoningPreserve: false,
+      thinkingWord: 'thinking',
+      cacheTtl: 'default',
+      configScope: 'global',
+      animationStyle: 'rainbow',
+      filter: undefined,
+      hint: undefined,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },
     viewportRows: 0,
@@ -194,10 +242,9 @@ describe('toolsPicker reducer — open/close', () => {
     ) as unknown as { toolsPicker: { open: boolean; busy: boolean; filter?: string } };
     expect(opened.toolsPicker.open).toBe(true);
 
-    const closed = reducer(
-      opened as never,
-      { type: 'toolsPickerClose' } as never,
-    ) as unknown as { toolsPicker: { open: boolean; busy: boolean; filter?: string } };
+    const closed = reducer(opened as never, { type: 'toolsPickerClose' } as never) as unknown as {
+      toolsPicker: { open: boolean; busy: boolean; filter?: string };
+    };
     expect(closed.toolsPicker.open).toBe(false);
     expect(closed.toolsPicker.busy).toBe(false);
     expect(closed.toolsPicker.filter).toBeUndefined();
@@ -223,8 +270,7 @@ describe('toolsPicker reducer — navigation', () => {
 
   it('move wraps forward across the items list', () => {
     let s = openWith([item('a'), item('b'), item('c')]);
-    const sel = () =>
-      (s as unknown as { toolsPicker: { selected: number } }).toolsPicker.selected;
+    const sel = () => (s as unknown as { toolsPicker: { selected: number } }).toolsPicker.selected;
     s = reducer(s as never, { type: 'toolsPickerMove', delta: 1 } as never) as unknown as State;
     expect(sel()).toBe(1);
     s = reducer(s as never, { type: 'toolsPickerMove', delta: 1 } as never) as unknown as State;
@@ -235,17 +281,18 @@ describe('toolsPicker reducer — navigation', () => {
 
   it('move wraps backward past the first item', () => {
     let s = openWith([item('a'), item('b')]);
-    const sel = () =>
-      (s as unknown as { toolsPicker: { selected: number } }).toolsPicker.selected;
+    const sel = () => (s as unknown as { toolsPicker: { selected: number } }).toolsPicker.selected;
     s = reducer(s as never, { type: 'toolsPickerMove', delta: -1 } as never) as unknown as State;
     expect(sel()).toBe(1);
   });
 
   it('move clears hint on every navigation', () => {
     let s = openWith([item('a'), item('b')]);
-    s = reducer(s as never, { type: 'toolsPickerHint', text: 'some hint' } as never) as unknown as State;
-    const withHint = () =>
-      (s as unknown as { toolsPicker: { hint?: string } }).toolsPicker.hint;
+    s = reducer(
+      s as never,
+      { type: 'toolsPickerHint', text: 'some hint' } as never,
+    ) as unknown as State;
+    const withHint = () => (s as unknown as { toolsPicker: { hint?: string } }).toolsPicker.hint;
     expect(withHint()).toBe('some hint');
     s = reducer(s as never, { type: 'toolsPickerMove', delta: 1 } as never) as unknown as State;
     expect(withHint()).toBeUndefined();
@@ -274,8 +321,7 @@ describe('toolsPicker reducer — items / busy / hint / filter', () => {
   it('setItems clamps selected when item count shrinks', () => {
     let s = openWith([item('a'), item('b'), item('c')]);
     s = reducer(s as never, { type: 'toolsPickerMove', delta: 2 } as never) as unknown as State;
-    const sel = () =>
-      (s as unknown as { toolsPicker: { selected: number } }).toolsPicker.selected;
+    const sel = () => (s as unknown as { toolsPicker: { selected: number } }).toolsPicker.selected;
     expect(sel()).toBe(2); // moved to third item
     s = reducer(
       s as never,
@@ -320,10 +366,9 @@ describe('toolsPicker reducer — items / busy / hint / filter', () => {
     ) as unknown as { toolsPicker: { hint?: string } };
     expect(withHint.toolsPicker.hint).toBe('Now disabled');
 
-    const cleared = reducer(
-      withHint as never,
-      { type: 'toolsPickerHint' } as never,
-    ) as unknown as { toolsPicker: { hint?: string } };
+    const cleared = reducer(withHint as never, { type: 'toolsPickerHint' } as never) as unknown as {
+      toolsPicker: { hint?: string };
+    };
     expect(cleared.toolsPicker.hint).toBeUndefined();
   });
 
@@ -345,7 +390,10 @@ describe('toolsPicker reducer — items / busy / hint / filter', () => {
       initial() as never,
       { type: 'toolsPickerOpen', items: [item('a')] } as never,
     ) as unknown as State;
-    s = reducer(s as never, { type: 'toolsPickerFilter', filter: 'hello' } as never) as unknown as State;
+    s = reducer(
+      s as never,
+      { type: 'toolsPickerFilter', filter: 'hello' } as never,
+    ) as unknown as State;
     s = reducer(s as never, { type: 'toolsPickerFilter', filter: '' } as never) as unknown as State;
     expect(s.toolsPicker.filter).toBe('');
   });

@@ -34,8 +34,10 @@ interface ToolEntryLike {
 function toolEntries(ctx: IntrospectionRouteContext): ToolEntryLike[] {
   const registry = ctx.agent.tools as unknown as {
     list?: () => ToolLike[];
+    listForProvider?: () => ToolLike[];
     listWithOwner?: () => ToolEntryLike[];
     listDisabled?: () => ToolEntryLike[];
+    isExposedToProvider?: (name: string) => boolean;
   };
   if (typeof registry.listWithOwner === 'function') {
     return [
@@ -83,7 +85,11 @@ export async function handleIntrospectionRoute(
   switch (message.type) {
     case 'diag.get': {
       if (!sessionAllowed(ctx, ws, message)) return true;
-      const tools = ctx.agent.tools.list();
+      const registry = ctx.agent.tools as unknown as {
+        list: () => ToolLike[];
+        listForProvider?: () => ToolLike[];
+      };
+      const tools = registry.listForProvider?.() ?? registry.list();
       ctx.send(ws, {
         type: 'diag.get',
         payload: {
@@ -159,7 +165,10 @@ export async function handleIntrospectionRoute(
       return true;
     }
     case 'tools.list': {
-      const registry = ctx.agent.tools as unknown as { isDisabled?: (name: string) => boolean };
+      const registry = ctx.agent.tools as unknown as {
+        isDisabled?: (name: string) => boolean;
+        isExposedToProvider?: (name: string) => boolean;
+      };
       const tools = toolEntries(ctx).map(({ tool, owner }) => {
         const schema = tool.inputSchema ?? {};
         return {
@@ -168,6 +177,7 @@ export async function handleIntrospectionRoute(
           description: tool.description ?? '',
           params: schema.properties ? Object.keys(schema.properties) : [],
           disabled: registry.isDisabled?.(tool.name) ?? false,
+          direct: registry.isExposedToProvider?.(tool.name) ?? true,
           mutating: !!tool.mutating,
           permission: tool.permission ?? 'auto',
         };

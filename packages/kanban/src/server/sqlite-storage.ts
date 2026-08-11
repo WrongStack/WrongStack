@@ -14,7 +14,7 @@ import {
   normalizeBoard,
 } from '../storage.js';
 import type { KanbanStorageBackend } from '../storage-backend.js';
-import type { KanbanBoard, KanbanEvent } from '../types.js';
+import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';
 import type { KanbanWorkflowCommand, KanbanWorkflowState } from './protocol.js';
 
 export const KANBAN_SQLITE_FILE = '_kanban.sqlite';
@@ -172,6 +172,45 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
       this.notify({ type: 'deleted', boardId: outcome.boardId });
     }
     return outcome.deleted;
+  }
+
+  async appendBoardHistory(entry: KanbanBoardHistoryEntry): Promise<void> {
+    await this.exclusive(() => {
+      this.db
+        .prepare('INSERT INTO kanban_board_history(board_id, payload) VALUES (?, ?)')
+        .run(entry.boardId, JSON.stringify(entry));
+      // Board history grows much slower than per-board events (board-level
+      // mutations are rare), but cap it with the same trim thresholds so a
+      // long-lived project does not accumulate an unbounded global log.
+      const row = this.db
+        .prepare('SELECT COUNT(*) AS count FROM kanban_board_history')
+        .get() as unknown as CountRow;
+      if (row.count > EVENT_LOG_MAX_ENTRIES) {
+        this.db
+          .prepare(
+            `DELETE FROM kanban_board_history
+             WHERE seq NOT IN (
+               SELECT seq FROM kanban_board_history
+               ORDER BY seq DESC
+               LIMIT ?
+             )`,
+          )
+          .run(EVENT_LOG_TRIM_TO);
+      }
+    });
+  }
+
+  async readBoardHistory(boardId?: string): Promise<KanbanBoardHistoryEntry[]> {
+    return this.exclusive(() => {
+      const rows = boardId
+        ? (this.db
+            .prepare('SELECT payload FROM kanban_board_history WHERE board_id = ? ORDER BY seq')
+            .all(boardId) as Array<{ payload: string }>)
+        : (this.db
+            .prepare('SELECT payload FROM kanban_board_history ORDER BY seq')
+            .all() as Array<{ payload: string }>);
+      return rows.map((row) => JSON.parse(row.payload) as KanbanBoardHistoryEntry);
+    });
   }
 
   async readMetadata(key: string): Promise<string | null> {
@@ -418,6 +457,15 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
 
       CREATE INDEX IF NOT EXISTS idx_kanban_workflow_state_updated
         ON kanban_workflow_state(updated_at DESC);
+
+      CREATE TABLE IF NOT EXISTS kanban_board_history (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        board_id TEXT NOT NULL,
+        payload TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_kanban_board_history_board_seq
+        ON kanban_board_history(board_id, seq);
     `);
   }
 

@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { ulid } from '@wrongstack/core/utils';
+import { verifyMemoryAnchors } from './anchors/verify.js';
 import { applySemanticChange } from './shared/semantic-rewrite.js';
 import { readSqliteSageRow } from './sqlite-store-codec.js';
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
@@ -92,65 +93,98 @@ export async function runSqliteSageHygiene(
   const stale: string[] = [];
   const verified: string[] = [];
 
-  // Anchor verification is deliberately EXISTENCE-ONLY here (report finding
-  // D2): hygiene is an O(N) periodic sweep that must stay cheap, and it only
-  // needs stale-vs-active for retention purposes. The expensive, content-aware
-  // checks (content hash, symbol presence, git blob) live in
-  // `verifySqliteSage` -> `verifyMemoryAnchors` (anchors/verify.ts +
-  // sqlite-store-verify.ts), which callers invoke on demand via `/memory
-  // verify` / the store `verify` op. Consequence by design: a memory whose
-  // anchored file CHANGED (not vanished) stays active here until an explicit
-  // deep verify runs; hygiene only stales anchors that are gone.
+  // Anchor verification depth is configurable:
+  // - existence (default): cheap O(N) path presence only.
+  // - content / git: deep verify via verifyMemoryAnchors (content hash,
+  //   symbol, command; git blob when depth is git or the anchor carries one).
   if (opts?.verify !== false) {
-    const anchorPaths = new Set<string>();
-    for (const m of active) {
-      for (const anchor of m.anchors) {
-        if (
-          anchor.path &&
-          (anchor.type === 'file' ||
-            anchor.type === 'symbol' ||
-            anchor.type === 'test' ||
-            anchor.type === 'git')
-        ) {
-          anchorPaths.add(path.resolve(ctx.projectRoot, anchor.path));
-        }
-      }
-    }
-    const pathsToVerify = [...anchorPaths];
-    const existingPaths = new Set<string>();
-    let nextPath = 0;
-    const verifyWorker = async (): Promise<void> => {
-      while (nextPath < pathsToVerify.length) {
-        const anchorPath = pathsToVerify[nextPath++]!;
-        try {
-          await fs.promises.access(anchorPath);
-          existingPaths.add(anchorPath);
-        } catch {
-          // Missing or inaccessible anchors are stale.
-        }
-      }
-    };
-    await Promise.all(
-      Array.from({ length: Math.min(32, pathsToVerify.length) }, () => verifyWorker()),
-    );
-
+    const depth = opts?.verifyDepth ?? 'existence';
     const verificationRunAt = ctx.nowIso();
     const verificationOutcomes = new Map<string, boolean>();
-    for (const m of active) {
-      const allValid = m.anchors.every(
-        (anchor) =>
-          !anchor.path ||
-          !(
-            anchor.type === 'file' ||
-            anchor.type === 'symbol' ||
-            anchor.type === 'test' ||
-            anchor.type === 'git'
-          ) ||
-          existingPaths.has(path.resolve(ctx.projectRoot, anchor.path)),
+
+    if (depth === 'existence') {
+      const anchorPaths = new Set<string>();
+      for (const m of active) {
+        for (const anchor of m.anchors) {
+          if (
+            anchor.path &&
+            (anchor.type === 'file' ||
+              anchor.type === 'symbol' ||
+              anchor.type === 'test' ||
+              anchor.type === 'git')
+          ) {
+            anchorPaths.add(path.resolve(ctx.projectRoot, anchor.path));
+          }
+        }
+      }
+      const pathsToVerify = [...anchorPaths];
+      const existingPaths = new Set<string>();
+      let nextPath = 0;
+      const verifyWorker = async (): Promise<void> => {
+        while (nextPath < pathsToVerify.length) {
+          const anchorPath = pathsToVerify[nextPath++]!;
+          try {
+            await fs.promises.access(anchorPath);
+            existingPaths.add(anchorPath);
+          } catch {
+            // Missing or inaccessible anchors are stale.
+          }
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(32, pathsToVerify.length) }, () => verifyWorker()),
       );
-      verificationOutcomes.set(m.id, allValid);
-      if (allValid) verified.push(m.id);
-      else stale.push(m.id);
+
+      for (const m of active) {
+        const allValid = m.anchors.every(
+          (anchor) =>
+            !anchor.path ||
+            !(
+              anchor.type === 'file' ||
+              anchor.type === 'symbol' ||
+              anchor.type === 'test' ||
+              anchor.type === 'git'
+            ) ||
+            existingPaths.has(path.resolve(ctx.projectRoot, anchor.path)),
+        );
+        verificationOutcomes.set(m.id, allValid);
+        if (allValid) verified.push(m.id);
+        else stale.push(m.id);
+      }
+    } else {
+      // Deep pass: bound concurrency so hygiene stays usable on large corpora.
+      const DEEP_CONCURRENCY = 8;
+      let nextMem = 0;
+      const deepWorker = async (): Promise<void> => {
+        while (nextMem < active.length) {
+          const memory = active[nextMem++]!;
+          if (memory.anchors.length === 0) {
+            verificationOutcomes.set(memory.id, true);
+            verified.push(memory.id);
+            continue;
+          }
+          try {
+            const result = await verifyMemoryAnchors(ctx.projectRoot, memory, verificationRunAt);
+            const ok = result.status === 'verified' || result.status === 'unknown';
+            // `unknown` (e.g. git unavailable) does not force stale; only explicit
+            // stale/contradicted outcomes demote the memory.
+            const demote = result.status === 'stale' || result.status === 'contradicted';
+            verificationOutcomes.set(memory.id, !demote);
+            if (demote) stale.push(memory.id);
+            else verified.push(memory.id);
+            void ok;
+          } catch {
+            // Fail-open: leave active if deep verify itself errors.
+            verificationOutcomes.set(memory.id, true);
+            verified.push(memory.id);
+          }
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(DEEP_CONCURRENCY, Math.max(1, active.length)) }, () =>
+          deepWorker(),
+        ),
+      );
     }
 
     await ctx.runMutation(() => {

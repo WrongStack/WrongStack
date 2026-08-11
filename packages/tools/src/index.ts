@@ -13,7 +13,14 @@ export { batchToolUseTool } from './batch-tool-use.js';
 export * from './browser/index.js';
 // builtinTools moved to './builtin.ts' so consumers that only need a subset of
 // tools don't transitively import all 30. Use `@wrongstack/tools/builtin`.
-export { builtinTools, OPTIONAL_TOOLS, TIER1_TOOLS, TIER2_TOOLS, TIER3_TOOLS } from './builtin.js';
+export {
+  builtinTools,
+  OFF_ONLY_TOOLS,
+  OPTIONAL_TOOLS,
+  TIER1_TOOLS,
+  TIER2_TOOLS,
+  TIER3_TOOLS,
+} from './builtin.js';
 export {
   CircuitBreaker,
   type CircuitBreakerConfig,
@@ -41,7 +48,6 @@ export {
   CircuitOpenError,
   cancelPendingReindexes,
   checkCodebaseIndexServerHealth,
-  resolveProjectIndexDaemonAvailability,
   codebaseIndexStats,
   codebaseIndexTool,
   codebaseSearchTool,
@@ -60,6 +66,7 @@ export {
   onIndexStateChange,
   packageGraphService,
   resetIndexCircuitBreaker,
+  resolveProjectIndexDaemonAvailability,
   runDeadCodeScan,
   runStartupIndex,
   searchCodebaseIndex,
@@ -166,6 +173,7 @@ export {
   projectSessionPlanToKanban,
   projectSessionTasksToKanban,
   projectSessionTodosToKanban,
+  rebindSessionKanbanTask,
   SESSION_KANBAN_COLUMNS,
 } from './session-kanban.js';
 export { makeSkillTool } from './skill.js';

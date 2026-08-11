@@ -28,6 +28,10 @@ concrete store.
 - `sqlite-store.ts`: persistence and migration implementation
 - `store-helpers.ts`: canonical validation, normalization, and index helpers
 - `retrieval/`: ranking and rendering helpers
+- `host-wiring.ts`: shared `setupSage()` for CLI and WebUI — tool/turn inject,
+  domain-term extract, context monitor, opt-in outcome capture, path-remap on
+  rename commands, session-end commit extract, optional daily dry-run, and
+  throttled full-option hygiene teardown
 - `middleware/`: injection, turn, and tool-call policies; the injector emits
   per-memory rejection evidence (`rejectedDetail`) and a rolling-window
   `injector_rejection_burst` event when a memory is repeatedly rejected by

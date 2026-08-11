@@ -558,6 +558,49 @@ export async function updateCheckOnTask(
   return updated?.result ? updated.board : null;
 }
 
+/**
+ * Drop an acceptance criterion.
+ *
+ * The counterpart to `addCheckToTask` was missing, and its absence was a dead
+ * end rather than an inconvenience: `validateDefinitionOfDone` refuses Done
+ * while ANY criterion is not `passed`, so a criterion that turned out to be
+ * irrelevant — or one recorded as `skipped` — held its card out of Done
+ * permanently, and the only way past was to mark it `passed`, which is a lie.
+ * Removing the criterion is the truthful escape.
+ *
+ * The contract map may bind a verification node to a criterion, so clear that
+ * binding too rather than leaving a node pointing at an id that no longer
+ * exists.
+ */
+export async function removeCheckFromTask(
+  projectRoot: string,
+  boardId: string,
+  taskId: string,
+  checkId: string,
+  eventContext: KanbanEventContext = {},
+): Promise<KanbanBoard | null> {
+  let event: KanbanEvent | undefined;
+  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+    const task = findTask(board, taskId);
+    const index = task?.successCriteria?.findIndex((candidate) => candidate.id === checkId) ?? -1;
+    if (!task || index === -1) return null;
+    const [removed] = task.successCriteria!.splice(index, 1);
+    if (task.successCriteria!.length === 0) delete task.successCriteria;
+    for (const node of board.contractGraph?.nodes ?? []) {
+      if (node.checkId === checkId) delete node.checkId;
+    }
+    task.updatedAt = nowIso();
+    board.updatedAt = task.updatedAt;
+    event = createKanbanEvent(board.id, task, 'task.check.removed', {
+      ...eventContext,
+      before: removed,
+    });
+    return removed;
+  });
+  if (updated?.result && event) await emitKanbanEvent(projectRoot, event);
+  return updated?.result ? updated.board : null;
+}
+
 export async function addNoteToTask(
   projectRoot: string,
   boardId: string,

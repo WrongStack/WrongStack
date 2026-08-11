@@ -1782,6 +1782,10 @@ SQLite is the only runtime backend and needs no engine configuration. On first o
 |---|---|---|---|
 | `Sage.storage.directory` | `string` | `.wrongstack/memories` | Project-relative directory for memory files. |
 | `Sage.storage.projectLocal` | `boolean` | `true` | Store memory inside the project (gitignored). |
+| `Sage.hygiene.verifyDepth` | `'existence' \| 'content' \| 'git'` | `existence` | How deep session-end hygiene verifies anchors. `content`/`git` run deep checks (slower). |
+| `Sage.capture.toolOutcomes` | `boolean` | `false` | Opt-in: auto-remember successful command tool outcomes. |
+| `Sage.capture.errorPatterns` | `boolean` | `false` | Opt-in: auto-remember error signatures from failed tools. |
+| `Sage.triage.dailyDryRun` | `boolean` | `false` | Hint for hosts to schedule a daily triage dry-run via cron when available. |
 
 > **Migration is automatic.** Existing JSONL records migrate to SQLite on first launch. The original JSONL files remain unchanged as a recovery backup. Configs written before the SAGE rename keep working too: a legacy top-level `superMemory` key is migrated into `Sage` on load (explicit `Sage` values win on conflict).
 

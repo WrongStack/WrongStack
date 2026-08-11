@@ -198,6 +198,15 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     path: 'tools.restrictToProjectRoot',
     reason: 'The other half of the filesystem confinement switch.',
   },
+  {
+    // Denied for the direction that loosens: the flag defaults to false, so a
+    // repo can only ever use it to turn OFF a gate the user deliberately
+    // enabled. Same class as `tools.restrictToProjectRoot` — a control the
+    // operator owns, not the checked-out repository.
+    path: 'tools.kanbanGovernance',
+    reason:
+      'Repo-committed config could disable a Kanban governance gate the operator switched on, letting product mutations run outside any managed card.',
+  },
 ];
 
 /**

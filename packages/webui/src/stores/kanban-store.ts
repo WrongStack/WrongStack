@@ -1,5 +1,6 @@
 import type {
   KanbanBoard,
+  KanbanBoardHistoryEntry,
   KanbanBoardSummary,
   KanbanColumn,
   KanbanQueueHealth,
@@ -38,6 +39,9 @@ interface KanbanState {
   workbench: KanbanWorkbenchSnapshot | null;
   /** Live verification runs keyed by `${boardId}:${taskId}` (spinner state). */
   verificationActivity: Record<string, { startedAt: number }>;
+  /** Board-level history for the active board (created/updated/deleted/…). */
+  boardHistory: KanbanBoardHistoryEntry[];
+  fetchBoardHistory: (boardId: string) => void;
   setLoading: (loading: boolean) => void;
   setActiveBoardId: (id: string | null) => void;
   setError: (error: string | null) => void;
@@ -75,6 +79,10 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   supervisorSnapshot: null,
   workbench: null,
   verificationActivity: {},
+  boardHistory: [],
+  fetchBoardHistory: (boardId) => {
+    get().sendKanban('kanban.board.history', { boardId });
+  },
   setLoading: (loading) => set({ loading }),
   sendKanban: (type, _payload) => {
     set({ loading: true, lastOutboundAction: type });
@@ -230,18 +238,13 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
       });
       return;
     }
-    if (type === 'kanban.column.remove') {
-      const result = data as { board?: unknown } | null;
-      if (isBoard(result?.board)) {
-        const board = result.board;
-        set((state) => ({
-          boards: upsertSummary(state.boards, summarize(board)),
-          activeBoard: state.activeBoardId === board.id ? board : state.activeBoard,
-          loading: false,
-          error: null,
-        }));
-        return;
+    if (type === 'kanban.board.history') {
+      // Board history is an array of KanbanBoardHistoryEntry; store it so the
+      // history panel can render the board's lifecycle.
+      if (Array.isArray(data)) {
+        set({ boardHistory: data as KanbanBoardHistoryEntry[] });
       }
+      return;
     }
     if (type === 'kanban.task.verification_started') {
       // Ephemeral spinner state; the payload has no task envelope (and no

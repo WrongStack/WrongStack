@@ -287,7 +287,9 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       showModelReasoning: true,
       showAgentSwarmPanel: 'bottom',
       panelPositions: DEFAULT_PANEL_POSITIONS,
-      showSageMemoryInject: false,
+      // Default on: compact one-line chip (see SageMemoryBlock). Full bordered
+      // panel remains available when operators expand inject visibility later.
+      showSageMemoryInject: true,
       sageMemoryInjectThreshold: 0.85,
       nextStepsTool: false,
       readSymbols: false,

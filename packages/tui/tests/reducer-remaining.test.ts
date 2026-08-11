@@ -19,7 +19,9 @@ describe('reducer — remaining branches', () => {
     expect(s.pluginPicker.open).toBe(false);
   });
   it('pluginPickerMove no-op on empty', () => {
-    expect(reducer(initial(), { type: 'pluginPickerMove', delta: 1 }).pluginPicker.selected).toBe(0);
+    expect(reducer(initial(), { type: 'pluginPickerMove', delta: 1 }).pluginPicker.selected).toBe(
+      0,
+    );
   });
 
   // ── MCP picker ──────────────────────────────────────────────────────
@@ -43,11 +45,41 @@ describe('reducer — remaining branches', () => {
 
   // ── Tools picker ────────────────────────────────────────────────────
   it('toolsPicker open/close/move/setItems/busy/hint/filter', () => {
-    let s = reducer(initial(), { type: 'toolsPickerOpen', items: [{ name: 'read', owner: 'core', category: 'fs', enabled: true, mutating: false, permission: 'auto', descMode: 'simple', description: 'Read a file' }] });
+    let s = reducer(initial(), {
+      type: 'toolsPickerOpen',
+      items: [
+        {
+          name: 'read',
+          owner: 'core',
+          category: 'fs',
+          enabled: true,
+          exposure: 'direct',
+          mutating: false,
+          permission: 'auto',
+          descMode: 'simple',
+          description: 'Read a file',
+        },
+      ],
+    });
     expect(s.toolsPicker.open).toBe(true);
     s = reducer(s, { type: 'toolsPickerMove', delta: 1 });
     expect(s.toolsPicker.selected).toBe(0);
-    s = reducer(s, { type: 'toolsPickerSetItems', items: [{ name: 'write', owner: 'core', category: 'fs', enabled: true, mutating: true, permission: 'confirm', descMode: 'simple', description: 'Write a file' }] });
+    s = reducer(s, {
+      type: 'toolsPickerSetItems',
+      items: [
+        {
+          name: 'write',
+          owner: 'core',
+          category: 'fs',
+          enabled: true,
+          exposure: 'direct',
+          mutating: true,
+          permission: 'confirm',
+          descMode: 'simple',
+          description: 'Write a file',
+        },
+      ],
+    });
     expect(s.toolsPicker.items).toHaveLength(1);
     s = reducer(s, { type: 'toolsPickerFilter', filter: 'write' });
     expect(s.toolsPicker.filter).toBe('write');
@@ -69,16 +101,48 @@ describe('reducer — remaining branches', () => {
     expect(reducer(s, { type: 'authClose' }).authPanel.open).toBe(false);
   });
   it('authCatalog sets catalog', () => {
-    expect(reducer(initial(), { type: 'authCatalog', catalog: [{ id: 'openai', name: 'OpenAI', family: 'openai', envVars: ['OPENAI_API_KEY'], saved: false }] }).authPanel.catalog).toHaveLength(1);
+    expect(
+      reducer(initial(), {
+        type: 'authCatalog',
+        catalog: [
+          {
+            id: 'openai',
+            name: 'OpenAI',
+            family: 'openai',
+            envVars: ['OPENAI_API_KEY'],
+            saved: false,
+          },
+        ],
+      }).authPanel.catalog,
+    ).toHaveLength(1);
   });
   it('authProviders sets providers', () => {
-    expect(reducer(initial(), { type: 'authProviders', providers: [{ id: 'openai', models: [], envVars: [], keys: [] }] }).authPanel.providers).toHaveLength(1);
+    expect(
+      reducer(initial(), {
+        type: 'authProviders',
+        providers: [{ id: 'openai', models: [], envVars: [], keys: [] }],
+      }).authPanel.providers,
+    ).toHaveLength(1);
   });
   it('authFilter sets filter', () => {
-    expect(reducer(initial(), { type: 'authFilter', filter: 'openai' }).authPanel.filter).toBe('openai');
+    expect(reducer(initial(), { type: 'authFilter', filter: 'openai' }).authPanel.filter).toBe(
+      'openai',
+    );
   });
   it('authMove moves selection', () => {
-    const s = initial({ authPanel: { open: true, view: 'list' as const, providers: [{ id: 'a' }, { id: 'b' }], presets: [], catalog: [], selected: 0, filter: '', busy: false, hint: '' } } as never);
+    const s = initial({
+      authPanel: {
+        open: true,
+        view: 'list' as const,
+        providers: [{ id: 'a' }, { id: 'b' }],
+        presets: [],
+        catalog: [],
+        selected: 0,
+        filter: '',
+        busy: false,
+        hint: '',
+      },
+    } as never);
     expect(reducer(s, { type: 'authMove', delta: 1 }).authPanel.selected).toBe(1);
   });
 
@@ -91,17 +155,40 @@ describe('reducer — remaining branches', () => {
 
   // ── Brain panel ─────────────────────────────────────────────────────
   it('brainView changes view', () => {
-    const s = initial({ brainPanel: { open: true, log: [], settings: null, selected: 0, view: undefined, busy: false, hint: undefined } } as never);
+    const s = initial({
+      brainPanel: {
+        open: true,
+        log: [],
+        settings: null,
+        selected: 0,
+        view: undefined,
+        busy: false,
+        hint: undefined,
+      },
+    } as never);
     expect(reducer(s, { type: 'brainView', view: 'log' }).brainPanel.view).toBe('log');
   });
   it('brainMove works when open', () => {
-    const s = initial({ brainPanel: { open: true, log: [], settings: null, selected: 0, view: undefined, busy: false, hint: undefined } } as never);
+    const s = initial({
+      brainPanel: {
+        open: true,
+        log: [],
+        settings: null,
+        selected: 0,
+        view: undefined,
+        busy: false,
+        hint: undefined,
+      },
+    } as never);
     expect(reducer(s, { type: 'brainMove', delta: 1 }).brainPanel.selected).toBe(0);
   });
 
   // ── Help panel ──────────────────────────────────────────────────────
   it('helpFilter/Close/Move/Hint', () => {
-    const s = reducer(initial(), { type: 'helpOpen', entries: [{ name: 'Help', description: 'desc', category: 'general' }] });
+    const s = reducer(initial(), {
+      type: 'helpOpen',
+      entries: [{ name: 'Help', description: 'desc', category: 'general' }],
+    });
     expect(s.helpPanel.open).toBe(true);
     expect(reducer(s, { type: 'helpFilter', filter: 'help' }).helpPanel.filter).toBe('help');
     expect(reducer(s, { type: 'helpMove', delta: 1 }).helpPanel.selected).toBe(0);

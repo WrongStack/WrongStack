@@ -215,6 +215,11 @@ export function useWebSocket() {
     ) => client.listSageMemoriesPage(params, options),
     [client],
   );
+  const listMemoryCandidates = useCallback(
+    (params?: { includeResolved?: boolean }, options?: WSSendOptions) =>
+      client.listMemoryCandidates(params, options),
+    [client],
+  );
   const getSage = useCallback(
     (id: string, options?: WSSendOptions) => client.getSage(id, options),
     [client],
@@ -371,6 +376,7 @@ export function useWebSocket() {
     listMemory,
     listSageMemories,
     listSageMemoriesPage,
+    listMemoryCandidates,
     getSage,
     getSageGraph,
     updateSage,

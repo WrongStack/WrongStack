@@ -13,6 +13,7 @@ import {
   type KanbanBoardKind,
   type KanbanBoardMeta,
   type KanbanBoardSummary,
+  type KanbanBoardHistoryEntry,
   type KanbanEvent,
 } from './types.js';
 import { atomicWrite, withFileLock } from './utils/atomic-write.js';
@@ -315,9 +316,20 @@ async function trimKanbanEventLog(filePath: string, appendedBytes: number): Prom
       size: Buffer.byteLength(body),
       lineCount: trimmed.length,
     });
-  } catch {
+  } catch (error) {
     eventLogState.delete(filePath);
-    // Best-effort only: log-space management must never interrupt event recording.
+    // Best-effort only: log-space management must never interrupt event
+    // recording. But a persistent failure here (disk full, permissions) means
+    // the event log grows without bound and the operator gets zero signal —
+    // so emit a namespaced warning (mirroring the WRONGSTACK_KANBAN_* code
+    // convention from sqlite-storage.ts) rather than swallowing it silently.
+    // The cache-entry delete above means the next append retries trimming from
+    // scratch, so this fires once per failed trim, not once per append.
+    const msg = error instanceof Error ? error.message : String(error);
+    process.emitWarning(
+      `Kanban event log trim failed for ${filePath}: ${msg}`,
+      { code: 'WRONGSTACK_KANBAN_EVENT_LOG_TRIM_FAILED' },
+    );
   }
 }
 
@@ -335,6 +347,52 @@ export async function readKanbanEvents(
       .split(/\r?\n/)
       .filter(Boolean)
       .map((line) => JSON.parse(line) as KanbanEvent);
+  } catch (err) {
+    if (isEnoent(err)) return [];
+    throw err;
+  }
+}
+
+// ── Board history (global, survives board deletion) ───────────────────
+
+/**
+ * Path to the global board-history log. The leading `_` makes it an invalid
+ * board id (BOARD_ID_RE requires an alphanumeric first char), so it never
+ * collides with per-board files and is never picked up by `listBoardIds` or
+ * the legacy migration pass.
+ */
+function getBoardHistoryPath(projectRoot: string): string {
+  return path.join(getKanbanDir(projectRoot), '_board_history.jsonl');
+}
+
+export async function appendBoardHistory(
+  projectRoot: string,
+  entry: KanbanBoardHistoryEntry,
+): Promise<void> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.appendBoardHistory(entry);
+  const filePath = getBoardHistoryPath(projectRoot);
+  await withFileLock(filePath, async () => {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    const line = `${JSON.stringify(entry)}\n`;
+    await fs.appendFile(filePath, line, { encoding: 'utf8', mode: 0o600 });
+    await trimKanbanEventLog(filePath, Buffer.byteLength(line));
+  });
+}
+
+export async function readBoardHistory(
+  projectRoot: string,
+  boardId?: string,
+): Promise<KanbanBoardHistoryEntry[]> {
+  const backend = runtimeStorage(projectRoot);
+  if (backend) return backend.readBoardHistory(boardId);
+  try {
+    const raw = await readFileWithRetry(getBoardHistoryPath(projectRoot));
+    const entries = raw
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as KanbanBoardHistoryEntry);
+    return boardId ? entries.filter((e) => e.boardId === boardId) : entries;
   } catch (err) {
     if (isEnoent(err)) return [];
     throw err;

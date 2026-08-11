@@ -631,7 +631,9 @@ export function SettingsPanel() {
                         ) : localPrefs.refinerProvider ? (
                           <span className="text-xs font-mono">
                             {localPrefs.refinerProvider} /{' '}
-                            <span className="text-muted-foreground">{t('activity:index.sessionModel')}</span>
+                            <span className="text-muted-foreground">
+                              {t('activity:index.sessionModel')}
+                            </span>
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">
@@ -988,6 +990,7 @@ export function SettingsPanel() {
                     hint={t('settings:context.tokenSavingHint')}
                     value={localPrefs.tokenSavingTier}
                     options={[
+                      { value: 'auto' as const, label: t('settings:context.tokenSavingAuto') },
                       { value: 'off' as const, label: t('settings:context.tokenSavingOff') },
                       {
                         value: 'minimal' as const,

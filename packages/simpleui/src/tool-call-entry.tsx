@@ -146,6 +146,19 @@ export const ToolCallEntry = memo(function ToolCallEntry({
           </span>
         </button>
 
+        {/* Compact SAGE chip always visible when inject happened (TUI parity). */}
+        {!expanded && memoryLines.length > 0 && (
+          <div className="timeline-tool-sage-chip" title={memoryLines.join('\n')}>
+            🧠 {memoryLines.length} SAGE
+            {(() => {
+              const first = memoryLines[0] ?? '';
+              const m = /<memory id="[^"]+">([^<]*)<\/memory>/.exec(first);
+              const preview = (m?.[1] ?? first).replace(/\s+/g, ' ').trim().slice(0, 64);
+              return preview ? ` — ${preview}${preview.length >= 64 ? '…' : ''}` : '';
+            })()}
+          </div>
+        )}
+
         {expanded && (
           <div className="timeline-tool-detail">
             {toolCall.input !== undefined && (

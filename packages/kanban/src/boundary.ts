@@ -140,6 +140,12 @@ export function normalizeKanbanBoundaryPolicy(policy: KanbanBoundaryPolicy): Kan
   if (!Array.isArray(policy.allow) || (policy.deny !== undefined && !Array.isArray(policy.deny))) {
     throw new Error('Kanban boundary allow/deny selectors must be arrays.');
   }
+  // If the operator configured boundary selectors but left enabled === false,
+  // those rules are inert: resolveKanbanBoundaryLayers skips disabled layers,
+  // so writes are never scoped. Surface this once per normalization (which
+  // happens at board create/update, not on every tool call) so a board edited
+  // through the boundary UI does not silently configure dead rules.
+  warnIfBoundaryRulesInactive(policy);
   return {
     enabled: policy.enabled,
     enforcement: policy.enforcement,
@@ -147,6 +153,24 @@ export function normalizeKanbanBoundaryPolicy(policy: KanbanBoundaryPolicy): Kan
     allow: policy.allow.map(normalizeSelector),
     ...(policy.deny ? { deny: policy.deny.map(normalizeSelector) } : {}),
   };
+}
+
+/**
+ * Emit a namespaced warning when a boundary policy carries selectors but is
+ * disabled. The boundary editor (WebUI/TUI) lets operators add allow/deny
+ * rules; without `enabled: true` those rules are never consulted by
+ * `resolveKanbanBoundaryLayers`, so the editor would otherwise configure a
+ * silent no-op. This mirrors the WRONGSTACK_KANBAN_* warning convention.
+ */
+function warnIfBoundaryRulesInactive(policy: KanbanBoundaryPolicy): void {
+  if (policy.enabled) return;
+  const hasSelectors = policy.allow.length > 0 || (policy.deny?.length ?? 0) > 0;
+  if (!hasSelectors) return;
+  const count = policy.allow.length + (policy.deny?.length ?? 0);
+  process.emitWarning(
+    `Kanban boundary has ${count} rule(s) configured but enabled=false — the rules are inert until the boundary is enabled.`,
+    { code: 'WRONGSTACK_KANBAN_BOUNDARY_RULES_INACTIVE' },
+  );
 }
 
 export function normalizeBoundaryPath(value: string): string | null {

@@ -2,9 +2,9 @@
 
 > This inventory was generated from the source on 2026-07-28. The source of every fact is the originating `Tool<I,O>` factory in `packages/sage/src/tools/`. Re-derive before trusting.
 
-## 1. The 13-tool surface
+## 1. The tool surface
 
-`createSageTools(port)` (`packages/sage/src/tools/memory-tools.ts:34-50`, also `packages/sage/src/tools/memory-candidates-tool.ts`) produces exactly 13 `Tool` objects. Each row below cites the original factory file and line range.
+`createSageTools(port)` (`packages/sage/src/tools/memory-tools.ts`) produces the full agent memory tool list, including `memory_gather_batch`. Re-derive counts from source after changes — smoke scripts pin the live set.
 
 ### 1.1 Read-only tools (`permission:'auto'`, default-exposed)
 

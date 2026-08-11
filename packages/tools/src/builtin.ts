@@ -75,6 +75,13 @@ export const OPTIONAL_TOOLS: Tool[] = [
 ];
 
 /**
+ * Specialized built-ins intentionally exposed directly only when token saving
+ * is off. Keeping this set explicit prevents newly registered built-ins from
+ * becoming off-only merely because somebody forgot to classify them.
+ */
+export const OFF_ONLY_TOOLS: Tool[] = [...browserTools, e2ePlanTool];
+
+/**
  * Tier 1 (Token Saving) tool set — the absolute minimum for useful work.
  * 15 tools covering core file ops, indexed project discovery, shell, search,
  * and utilities. Codebase index lifecycle tools stay available at every tier

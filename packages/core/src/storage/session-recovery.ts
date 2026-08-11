@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import type { SessionEvent } from '../types/session.js';
-import { sessionScopedPath } from '../utils/session-scoped-path.js';
+import { isSessionTranscriptFileName, sessionScopedPath } from '../utils/session-scoped-path.js';
 import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
 import { collectSessionIds } from './session-store/directory-session-files.js';
 /**
@@ -227,11 +227,8 @@ export class SessionRecovery {
           }
           continue;
         }
-        if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue;
-        if (entry.name === '_index.jsonl' || entry.name === '_mailbox.jsonl') continue;
+        if (!entry.isFile() || !isSessionTranscriptFileName(entry.name)) continue;
         const base = entry.name.slice(0, -'.jsonl'.length);
-        if (base.includes('.replay') || base.includes('.annotations') || base.includes('.audit'))
-          continue;
         const sessionId = prefix ? `${prefix}/${base}` : base;
         const stale = await this.detectStaleExact(sessionId);
         if (stale) out.push(stale);

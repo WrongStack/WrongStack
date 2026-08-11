@@ -7,6 +7,8 @@ export function shouldSkipSessionDirectoryEntry(name: string): boolean {
   );
 }
 
-export function isSessionJsonlFileName(name: string): boolean {
-  return name.endsWith('.jsonl') && name !== '_index.jsonl';
-}
+/**
+ * Re-exported under the store's own name; the rule itself lives with
+ * `sessionScopedPath`, which is what writes the sidecars this excludes.
+ */
+export { isSessionTranscriptFileName as isSessionJsonlFileName } from '../../utils/session-scoped-path.js';

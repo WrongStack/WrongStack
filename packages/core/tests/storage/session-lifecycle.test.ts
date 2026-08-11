@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -257,6 +258,61 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     );
     expect(hasNotice).toBe(false);
     await resumed.writer.close();
+  });
+
+  it('does not stack file-validation notices across repeated resumes', async () => {
+    // Callers hand the resumed messages to `replaceMessages`, which journals
+    // them as a snapshot — so a notice written on one resume comes back as
+    // ordinary conversation on the next, while the still-stale file produces a
+    // fresh one on top. Each resume used to leave another copy, all but the
+    // last describing a check that had already been superseded.
+    const projectRoot = path.join(tmp, 'project');
+    const sessionsDir = path.join(tmp, 'sessions');
+    await fs.mkdir(projectRoot, { recursive: true });
+    await fs.mkdir(sessionsDir, { recursive: true });
+    const tracked = path.join(projectRoot, 'a.ts');
+    await fs.writeFile(tracked, 'v1', 'utf8');
+    const staleHash = createHash('sha256').update('v1', 'utf8').digest('hex');
+
+    const validating = new DefaultSessionStore({ dir: sessionsDir, projectRoot });
+    const writer = await validating.create({ id: '', model: 'm', provider: 'p' });
+    const id = writer.id;
+    await writer.append({ type: 'user_input', ts: ts(1), content: 'read the file' });
+    await writer.append({
+      type: 'file_observation',
+      ts: ts(2),
+      path: tracked,
+      hash: staleHash,
+      mtimeMs: 1,
+      source: 'user',
+    });
+    await writer.close();
+    // The file moved on underneath the recorded observation.
+    await fs.writeFile(tracked, 'v2', 'utf8');
+
+    const noticeCount = (messages: readonly { role: string; content: unknown }[]): number =>
+      messages.filter(
+        (m) =>
+          m.role === 'system' &&
+          typeof m.content === 'string' &&
+          m.content.startsWith('[SESSION RESUME FILE VALIDATION]'),
+      ).length;
+
+    const first = await validating.resume(id);
+    expect(noticeCount(first.data.messages)).toBe(1);
+    // What the caller's `replaceMessages` does: re-anchor the journal with the
+    // notice included, which is how it survives into the next load.
+    await first.writer.append({
+      type: 'messages_replaced',
+      ts: ts(3),
+      version: 1,
+      messages: [...first.data.messages],
+    });
+    await first.writer.close();
+
+    const second = await validating.resume(id);
+    expect(noticeCount(second.data.messages)).toBe(1);
+    await second.writer.close();
   });
 });
 

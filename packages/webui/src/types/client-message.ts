@@ -330,6 +330,10 @@ export type WSClientMessageCore =
         cursor?: string | undefined;
       };
     }
+  | {
+      type: 'memory.sage.listCandidates';
+      payload?: { includeResolved?: boolean | undefined } | undefined;
+    }
   | { type: 'memory.sage.get'; payload: { id: string } }
   | { type: 'memory.sage.graph'; payload: { query: string; maxDepth?: number; limit?: number } }
   | {

@@ -30,16 +30,9 @@ import {
   makeMailInboxTool,
   makeMailSendTool,
 } from '@wrongstack/core/coordination';
-import {
-  DefaultPromptLoader,
-  DefaultSkillLoader,
-} from '@wrongstack/core/execution';
-import {
-  type Container,
-  EventBus,
-  TOKENS,
-} from '@wrongstack/core/kernel';
+import { DefaultPromptLoader, DefaultSkillLoader } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import { type Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultModelsRegistry, DefaultModeStore } from '@wrongstack/core/models';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { SkillInstaller } from '@wrongstack/core/skills';
@@ -52,15 +45,15 @@ import {
   PromptUsageStore,
 } from '@wrongstack/core/storage';
 import {
-  DEFAULT_SESSION_PRUNE_DAYS,
-  normalizeTokenSavingTier,
-  resolveContextWindowPolicy,
   type Config,
   type ConfigStore,
+  DEFAULT_SESSION_PRUNE_DAYS,
   type Logger,
   type MemoryPort,
   type ModelsRegistry,
+  normalizeTokenSavingTier,
   type Provider,
+  resolveContextWindowPolicy,
   type SecretVault,
   type SessionStore,
 } from '@wrongstack/core/types';
@@ -429,6 +422,7 @@ export async function createPreContextServices(
     modeId,
     modePrompt,
     modelCapabilities: () => modelCapabilitiesRef.current,
+    tokenSavingMode: config.features.tokenSavingMode,
     instructionPaths: {
       globalDir: wpaths.globalInstructions,
       projectDir: wpaths.inProjectInstructions,
@@ -452,7 +446,8 @@ export async function createPreContextServices(
   const systemPrompt = await systemPromptBuilder.build({
     cwd: projectRoot,
     projectRoot,
-    tools: toolRegistry.list(),
+    tools: toolRegistry.listForProvider(),
+    catalogTools: toolRegistry.list(),
     provider: config.provider,
     model: config.model,
     onlineAgents,
@@ -474,6 +469,7 @@ export async function createPreContextServices(
     projectRoot,
     model: config.model,
   });
+  context.meta['promptOnlineAgents'] = onlineAgents;
   const initialContextPolicy = resolveContextWindowPolicy(config.context);
   context.meta['contextWindowMode'] = initialContextPolicy.id;
   context.meta['contextWindowPolicy'] = initialContextPolicy;

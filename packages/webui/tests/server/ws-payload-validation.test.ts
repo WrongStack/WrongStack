@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import {
   validateAutonomySwitchPayload,
   validateBrainAskPayload,
@@ -11,8 +10,8 @@ import {
   validateMailboxAgentsPayload,
   validateMailboxMessagesPayload,
   validateMailboxPurgePayload,
-  validateModeSwitchPayload,
   validateModelSwitchPayload,
+  validateModeSwitchPayload,
   validatePlanTemplateUsePayload,
   validatePrefsUpdatePayload,
   validateProcessKillPayload,
@@ -23,6 +22,7 @@ import {
   validateSkillsEditPayload,
   validateWorkingDirSetPayload,
 } from '@wrongstack/webui-server';
+import { describe, expect, it } from 'vitest';
 
 describe('WebUI WebSocket payload validation', () => {
   describe('validateModelSwitchPayload', () => {
@@ -246,7 +246,7 @@ describe('WebUI WebSocket payload validation', () => {
         contextAutoCompact: true,
         contextStrategy: 'hybrid',
         contextMode: 'balanced',
-        tokenSavingTier: 'medium',
+        tokenSavingTier: 'auto',
         logLevel: 'debug',
         auditLevel: 'standard',
         tgSessionEnd: true,

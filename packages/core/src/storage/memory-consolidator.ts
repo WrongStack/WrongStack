@@ -30,7 +30,8 @@ type ConsolidatorSageKind =
   | 'bug_root_cause'
   | 'file_note'
   | 'symbol_note'
-  | 'command_note';
+  | 'command_note'
+  | 'session_digest';
 
 interface ConsolidatorMemoryAnchor {
   type: 'file' | 'directory' | 'symbol' | 'package' | 'command' | 'test' | 'git';
@@ -55,9 +56,11 @@ export interface ConsolidatorSage {
     priority?: string | undefined;
     importance?: number | undefined;
     confidence?: number | undefined;
-    persistence?: 'long_lived' | undefined;
+    persistence?: 'long_lived' | 'short_lived' | undefined;
     anchors?: ConsolidatorMemoryAnchor[] | undefined;
     sources?: Array<{ type: string; sessionId?: string | undefined }> | undefined;
+    ownerSessionId?: string | undefined;
+    expiresAt?: string | undefined;
   }): Promise<unknown>;
   listSage?(statuses?: Array<'active'>): Promise<unknown[]>;
   searchSage?(
@@ -447,8 +450,49 @@ export class SessionMemoryConsolidator implements AgentExtension {
         // Log to stderr so it surfaces in the terminal
         process.stderr.write(`[memory] Session consolidation: ${added} added\n`);
       }
+
+      // Session digest: short-lived outcome summary for resume / continuity.
+      // Separate from project facts so digests expire without polluting long_lived corpus.
+      if (this.Sage?.rememberSage) {
+        try {
+          const digestBody = buildSessionDigestText(_finalText, _iterations, added);
+          if (digestBody) {
+            const expires = new Date(Date.now() + 14 * 24 * 60 * 60_000).toISOString();
+            await this.Sage.rememberSage({
+              text: digestBody,
+              scope: 'session',
+              kind: 'session_digest',
+              importance: 0.4,
+              confidence: 0.65,
+              persistence: 'short_lived',
+              tags: ['session_digest', 'auto'],
+              anchors: [],
+              sources: [{ type: 'session', sessionId: _sessionId }],
+              ownerSessionId: _sessionId,
+              expiresAt: expires,
+            });
+          }
+        } catch {
+          // Digest is best-effort; never fail the consolidator.
+        }
+      }
     } catch {
       // Best-effort: extension failures never fail an otherwise successful run.
     }
   };
+}
+
+function buildSessionDigestText(
+  finalText: string,
+  iterations: number,
+  factsAdded: number,
+): string | undefined {
+  const cleaned = finalText.replace(/\s+/g, ' ').trim();
+  if (cleaned.length < 40) return undefined;
+  const summary = cleaned.slice(0, 400);
+  return (
+    `Session digest (${iterations} iter${factsAdded > 0 ? `, ${factsAdded} facts added` : ''}): ` +
+    summary +
+    (cleaned.length > 400 ? '…' : '')
+  );
 }

@@ -325,6 +325,73 @@ describe('ConversationState — write API and onChange', () => {
       ]);
     });
 
+    it('keeps a boundary tool exchange intact, then evicts it as a pair', () => {
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+      const toolUseMessage: Message = {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'assistant evidence' },
+          { type: 'tool_use', id: 'call-1', name: 'read', input: { path: 'a.ts' } },
+          { type: 'tool_use', id: 'call-2', name: 'read', input: { path: 'b.ts' } },
+        ],
+      };
+      const toolResultMessage: Message = {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'hook context' },
+          { type: 'tool_result', tool_use_id: 'call-1', content: 'a' },
+          { type: 'tool_result', tool_use_id: 'call-2', content: 'b' },
+        ],
+      };
+
+      state.appendMessage(toolUseMessage);
+      state.appendMessage(toolResultMessage);
+      state.appendMessage(userMessage('newer-1'));
+      state.appendMessage(userMessage('newer-2'));
+
+      // A raw count cap would drop only the assistant message and leave both
+      // tool_results orphaned at index 0. Keep the complete exchange for one
+      // more cycle, including useful non-protocol content in both messages.
+      expect(ctx.messages).toHaveLength(4);
+      expect(JSON.stringify(ctx.messages)).toContain('assistant evidence');
+      expect(JSON.stringify(ctx.messages)).toContain('hook context');
+
+      state.appendMessage(userMessage('newer-3'));
+
+      // Once the pair is wholly before the normal boundary, both halves leave
+      // together and the cap is satisfied without request-time repair.
+      expect(ctx.messages.map((message) => JSON.stringify(message.content))).toEqual([
+        JSON.stringify(userMessage('newer-1').content),
+        JSON.stringify(userMessage('newer-2').content),
+        JSON.stringify(userMessage('newer-3').content),
+      ]);
+      expect(ctx.messages.some((message) => JSON.stringify(message).includes('tool_result'))).toBe(
+        false,
+      );
+    });
+
+    it('keeps the newest tool exchange intact when the result itself triggers eviction', () => {
+      (Context as { MAX_MESSAGES: number }).MAX_MESSAGES = 1;
+      const ctx = mkContext();
+      const state = new ConversationState(ctx);
+
+      state.appendMessage({
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'call-live', name: 'read', input: { path: 'live.ts' } }],
+      });
+      state.appendMessage({
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'call-live', content: 'live' }],
+      });
+
+      // The newest result cannot be dropped, and retaining it without its
+      // assistant half is invalid. A live pair may therefore exceed the cap by
+      // one message until the next append/compaction boundary.
+      expect(ctx.messages).toHaveLength(2);
+      expect(JSON.stringify(ctx.messages)).toContain('call-live');
+    });
+
     it('sets toolAdjacencyDirty on truncation', () => {
       const ctx = mkContext();
       expect(ctx.toolAdjacencyDirty).toBe(false);

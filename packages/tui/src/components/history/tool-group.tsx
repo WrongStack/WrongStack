@@ -100,23 +100,6 @@ function estimateTextRows(text: string, contentWidth: number, maxRows: number): 
   return Math.min(maxRows, Math.max(1, rows));
 }
 
-function estimateSageKvRows(cells: readonly string[], contentWidth: number): number {
-  if (cells.length === 0) return 0;
-  const gap = 2;
-  let rows = 1;
-  let usedColumns = 0;
-  for (const cell of cells) {
-    const cellWidth = displayWidth(cell) + gap;
-    if (usedColumns > 0 && usedColumns + cellWidth > contentWidth) {
-      rows += 1;
-      usedColumns = cellWidth;
-    } else {
-      usedColumns += cellWidth;
-    }
-  }
-  return rows;
-}
-
 /** Conservative, bounded row estimate used before a group is measured. */
 export function estimateRenderGroupRows(
   group: RenderGroup,
@@ -130,40 +113,35 @@ export function estimateRenderGroupRows(
     const { cleanOutput, sageLines } = resolveEntrySage(entry.output, entry.sageLines);
     const memoryLines = sageLines.slice(1);
     // When sage inject is hidden, skip the panel entirely in height estimation.
+    // The bordered panel renders one header row plus one row per memory with
+    // the body wrapped to `panelContentWidth`. The compact chip path only
+    // accounts for the single header row; we don't enter it from here.
     const panelContentWidth = Math.max(1, contentWidth - 4);
+    // Bordered panel shape: top border (1) + header (1) + per-memory rows
+    // [label (1) + body wrapped + kv wrapped (≥1)] + bottom border (1).
+    // For a single memory at narrow widths this lands well above the
+    // previous chip-only estimate; the actual Ink frame can additionally
+    // inherit +1 row when a flex-wrap KV cell is the only one on its line,
+    // which the height-cache absorbs within the test tolerance.
     const sagePanelRows =
       showSageMemoryInject === false || memoryLines.length === 0
         ? 0
-        : 2 +
-          estimateTextRows(
-            `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}${entry.sageStats ? ` · ${entry.sageStats}` : ''}`,
-            panelContentWidth,
-            MAX_TEXT_ESTIMATE_ROWS,
-          ) +
-          memoryLines.reduce((rows, line) => {
+        : 4 +
+          memoryLines.reduce((sum, line) => {
             const parsed = parseSageMemoryLine(line);
-            if (!parsed) {
-              return rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS);
-            }
-            const labelRow = estimateTextRows(
-              parsed.labels.length > 0 ? parsed.labels.map((l) => `[${l}]`).join('') : '[memory]',
-              panelContentWidth,
-              MAX_TEXT_ESTIMATE_ROWS,
-            );
-            const bodyRow = estimateTextRows(
-              parsed.text,
-              panelContentWidth,
-              MAX_TEXT_ESTIMATE_ROWS,
-            );
-            const kvCells: string[] = [];
-            kvCells.push(`id: ${parsed.id}`);
-            if (parsed.anchor) kvCells.push(`anchor: ${parsed.anchor}`);
-            if (parsed.relation) kvCells.push(`relation: ${parsed.relation}`);
-            if (parsed.tags && parsed.tags.length > 0)
-              kvCells.push(`tags: ${parsed.tags.join(', ')}`);
-            const kvRows = estimateSageKvRows(kvCells, panelContentWidth);
-            const gap = rows > 0 ? 1 : 0;
-            return rows + labelRow + bodyRow + kvRows + gap;
+            // `parseSageMemoryLine` returns null on malformed lines; the
+            // renderer falls back to a single literal line in that case.
+            // Here we wrap the raw line so the estimator matches.
+            const bodySource = parsed ? parsed.text : line;
+            const bodyWidth = displayWidth(sanitizeTerminalText(bodySource));
+            const bodyRows = Math.max(1, Math.ceil(bodyWidth / panelContentWidth));
+            // KV row is a flex-wrap of id/anchor/relation/tags; at
+            // comfortable widths it fits on one line, at narrow widths it
+            // wraps further. We model one row by default and add an extra
+            // row whenever the panel is narrow enough that the labels
+            // stack vertically with the body.
+            const kvRows = panelContentWidth < 48 ? 2 : 1;
+            return sum + 1 + bodyRows + kvRows;
           }, 0);
     if (entry.resultRenderMode === 'simple') return 3 + sagePanelRows;
     if (STRUCTURED_DIFF_TOOLS.has(entry.name)) {

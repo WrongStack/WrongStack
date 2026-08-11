@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 
-import type { KanbanBoard, KanbanEvent } from './types.js';
+import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from './types.js';
 
 export interface KanbanStorageBackend {
   readonly kind: 'sqlite' | 'remote';
@@ -16,6 +16,10 @@ export interface KanbanStorageBackend {
     boardRef: string,
     mutator: (board: KanbanBoard) => T | Promise<T>,
   ): Promise<{ board: KanbanBoard; result: T } | null>;
+  /** Append a board-level history entry to the global log (survives board deletion). */
+  appendBoardHistory(entry: KanbanBoardHistoryEntry): Promise<void>;
+  /** Read board history; when boardId is omitted, returns the entire global log. */
+  readBoardHistory(boardId?: string): Promise<KanbanBoardHistoryEntry[]>;
 }
 
 const installedBackends = new Map<string, KanbanStorageBackend>();

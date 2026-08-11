@@ -16,7 +16,7 @@
  */
 
 import type { KanbanDomainOperation } from '../domain-operations.js';
-import type { KanbanBoard, KanbanEvent } from '../types.js';
+import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';
 
 export const KANBAN_PROJECT_SERVER_PROTOCOL_VERSION = 6;
 
@@ -221,6 +221,14 @@ export interface KanbanServerOperations {
     result: { appended: boolean };
   };
   storageReadEvents: { args: { boardRef: string }; result: KanbanEvent[] };
+  storageAppendBoardHistory: {
+    args: { entry: KanbanBoardHistoryEntry };
+    result: { appended: boolean };
+  };
+  storageReadBoardHistory: {
+    args: { boardId?: string };
+    result: KanbanBoardHistoryEntry[];
+  };
   storageDeleteBoard: { args: { boardRef: string }; result: boolean };
   storageReadMetadata: { args: { key: string }; result: string | null };
   storageWriteMetadata: {
@@ -267,6 +275,8 @@ export const KANBAN_SERVER_METHODS = [
   'storageWriteBoard',
   'storageAppendEvent',
   'storageReadEvents',
+  'storageAppendBoardHistory',
+  'storageReadBoardHistory',
   'storageDeleteBoard',
   'storageReadMetadata',
   'storageWriteMetadata',

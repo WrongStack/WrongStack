@@ -27,6 +27,11 @@ export function taskInput(input: KanbanToolInput) {
     ...(input.order !== undefined ? { order: input.order } : {}),
     ...(input.retryPolicy !== undefined ? { retryPolicy: input.retryPolicy } : {}),
     ...(input.costCeilingUsd !== undefined ? { costCeilingUsd: input.costCeilingUsd } : {}),
+    // The system prompt has always told the model it may "set atomic: true"
+    // when creating a composite parent. It could not: the field reached
+    // neither the create input nor the patch, so the instruction described a
+    // capability that did not exist and the attempt was silently dropped.
+    ...(input.atomic !== undefined ? { atomic: input.atomic } : {}),
     ...(input.childTitles !== undefined ? { childTaskIds: input.childTitles } : {}),
     ...(input.checkDescription !== undefined
       ? {
@@ -34,8 +39,14 @@ export function taskInput(input: KanbanToolInput) {
             {
               id: randomUUID(),
               description: input.checkDescription,
-              type: 'manual' as const,
+              // `manual` only as the fallback. Hard-coding it here meant every
+              // agent-authored criterion was unverifiable by construction: the
+              // deterministic plugins never matched, the registry passed the
+              // hand-set status straight through, and "verified" collapsed into
+              // "the author ticked its own box".
+              type: input.checkType ?? ('manual' as const),
               status: input.checkStatus ?? ('pending' as const),
+              ...(input.checkNotes !== undefined ? { notes: input.checkNotes } : {}),
             },
           ],
         }
@@ -94,13 +105,22 @@ export function taskInput(input: KanbanToolInput) {
   };
 }
 
-/** Union of the single `dependencyTaskId` and the multi `dependsOn[]` inputs. */
+/**
+ * Union of the single `dependencyTaskId` and the multi `dependsOn[]` inputs.
+ *
+ * Returns `undefined` only when neither was supplied, so an explicit
+ * `dependsOn: []` CLEARS the list instead of being silently ignored. It used to
+ * collapse empty to `undefined`, which meant a dependency added by mistake
+ * could never be taken back from the tool surface: `dependency-incomplete`
+ * then held the card out of Running for good, and the only escapes were
+ * finishing work nobody wanted or deleting the blocking card outright.
+ */
 export function mergedDependsOn(input: KanbanToolInput): string[] | undefined {
-  const ids = [
+  if (input.dependsOn === undefined && input.dependencyTaskId === undefined) return undefined;
+  return [
     ...(input.dependsOn ?? []),
     ...(input.dependencyTaskId !== undefined ? [input.dependencyTaskId] : []),
   ].filter((id, i, arr) => id && arr.indexOf(id) === i);
-  return ids.length > 0 ? ids : undefined;
 }
 
 export function taskPatch(input: KanbanToolInput) {
@@ -115,7 +135,15 @@ export function taskPatch(input: KanbanToolInput) {
     status: input.status,
     labels: input.labels,
     assignedAgent: input.agentId,
-    ...(mergedDependsOn(input) ? { dependsOn: mergedDependsOn(input) } : {}),
+    ...(mergedDependsOn(input) !== undefined ? { dependsOn: mergedDependsOn(input) } : {}),
+    // `atomic` and `childTaskIds` are the composite-parent contract, and the
+    // managed gate reads both: an `atomic` parent may not move forward without
+    // children, and may not reach Done until every child is completed. The
+    // manager has always accepted both on a patch; only this surface withheld
+    // them, so `split_atomic` was a one-way door — delete the children and the
+    // parent was stranded with no way to declare itself a leaf again.
+    ...(input.atomic !== undefined ? { atomic: input.atomic } : {}),
+    ...(input.childTaskIds !== undefined ? { childTaskIds: input.childTaskIds } : {}),
     ...(input.estimatedHours !== undefined ? { estimatedHours: input.estimatedHours } : {}),
     ...(input.actualHours !== undefined ? { actualHours: input.actualHours } : {}),
   };

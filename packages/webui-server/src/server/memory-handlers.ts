@@ -498,6 +498,44 @@ export async function handleSageRecover(
 }
 
 /**
+ * List review-queue candidates (hygiene / triage proposals).
+ * Request:  { type: 'memory.sage.listCandidates', payload?: { includeResolved?: boolean } }
+ * Response: { type: 'memory.sage.listCandidates', payload: { candidates } }
+ */
+export async function handleSageListCandidates(
+  ws: WebSocket,
+  msg: unknown,
+  memoryStore: MemoryPort,
+): Promise<void> {
+  const Sage = getSageSurface(memoryStore);
+  if (!Sage) {
+    send(ws, {
+      type: 'memory.sage.listCandidates',
+      payload: { error: requiresSage('memory.sage.listCandidates') },
+    });
+    return;
+  }
+  try {
+    const payload = (msg as { payload?: Record<string, unknown> }).payload ?? {};
+    const includeResolved = payload['includeResolved'] === true;
+    if (typeof Sage.listCandidates !== 'function') {
+      send(ws, {
+        type: 'memory.sage.listCandidates',
+        payload: { error: 'listCandidates is not available on this SAGE surface' },
+      });
+      return;
+    }
+    const candidates = await Sage.listCandidates(includeResolved);
+    send(ws, { type: 'memory.sage.listCandidates', payload: { candidates } });
+  } catch (err) {
+    send(ws, {
+      type: 'memory.sage.listCandidates',
+      payload: { error: errMessage(err) },
+    });
+  }
+}
+
+/**
  * Resolve a pending hygiene review candidate (PR #1).
  * Request:  { type: 'memory.sage.candidateResolve', payload: { candidateId, action: 'accept'|'reject', reason? } }
  * Response: { type: 'memory.sage.candidateResolve', payload: { candidate, resolvedAction } }

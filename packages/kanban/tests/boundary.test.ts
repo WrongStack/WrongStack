@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createBoard,
   evaluateKanbanBoundaryOpaque,
@@ -209,5 +209,56 @@ describe('Kanban boundaries', () => {
       shellAccess: 'block',
       allow: [{ path: '.wrongstack/boundary-review-required' }],
     });
+  });
+});
+
+describe('normalizeKanbanBoundaryPolicy inactive-rules warning', () => {
+  const baseActive: KanbanBoundaryPolicy = {
+    enabled: true,
+    enforcement: 'block',
+    shellAccess: 'block',
+    allow: [{ kind: 'directory', path: 'src', access: 'write' }],
+  };
+
+  it('warns when selectors exist but enabled is false', () => {
+    // The boundary editor lets operators configure allow/deny rules, but
+    // resolveKanbanBoundaryLayers skips disabled layers — so without this
+    // warning the editor would silently configure dead rules.
+    const spy = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    normalizeKanbanBoundaryPolicy({ ...baseActive, enabled: false });
+    const calls = spy.mock.calls;
+    spy.mockRestore();
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    const [msg, opts] = calls[0]!;
+    expect(String(msg)).toContain('inert');
+    expect((opts as { code?: string }).code).toBe(
+      'WRONGSTACK_KANBAN_BOUNDARY_RULES_INACTIVE',
+    );
+  });
+
+  it('does not warn when enabled is true', () => {
+    const spy = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    normalizeKanbanBoundaryPolicy(baseActive);
+    const inactiveCalls = spy.mock.calls.filter(
+      (c) => (c[1] as { code?: string })?.code === 'WRONGSTACK_KANBAN_BOUNDARY_RULES_INACTIVE',
+    );
+    spy.mockRestore();
+    expect(inactiveCalls).toHaveLength(0);
+  });
+
+  it('does not warn when disabled but no selectors configured', () => {
+    // An empty disabled boundary is the default state — no rules to be inert.
+    const spy = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
+    normalizeKanbanBoundaryPolicy({
+      enabled: false,
+      enforcement: 'block',
+      shellAccess: 'block',
+      allow: [],
+    });
+    const inactiveCalls = spy.mock.calls.filter(
+      (c) => (c[1] as { code?: string })?.code === 'WRONGSTACK_KANBAN_BOUNDARY_RULES_INACTIVE',
+    );
+    spy.mockRestore();
+    expect(inactiveCalls).toHaveLength(0);
   });
 });

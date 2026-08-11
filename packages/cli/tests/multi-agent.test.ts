@@ -1269,7 +1269,7 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
         columns: {
           backlog: 'backlog',
           todo: 'todo',
-          running: 'running',
+          running: 'in-progress',
           review: 'review',
           done: 'done',
         },

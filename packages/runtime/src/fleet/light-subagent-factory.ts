@@ -234,6 +234,12 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
       iterationTimeoutMs: config.tools?.iterationTimeoutMs ?? 120_000,
       perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
       tracer: undefined,
+      // Off unless the operator opts in, and then subagents inherit it: a
+      // worker dispatched by `kanban_queue` carries board/task/lease identity
+      // in ctx.meta and can satisfy the same gate its leader was held to.
+      // Every ToolExecutor host must resolve this identically — see
+      // packages/cli/src/wiring/pipeline.ts.
+      requireKanbanGovernance: config.tools?.kanbanGovernance ?? false,
     });
 
     const agent = new Agent({
@@ -356,6 +362,11 @@ async function resolveReasoningConfig(
  * JSONL while NEVER touching checkpoint / in-flight / lifecycle state — those
  * belong to the parent and a subagent writing them would corrupt the parent's
  * rewind + crash-recovery markers. Mirrors the CLI host's fallback shim.
+ *
+ * File mutations are the exception and ARE forwarded: they are real edits to
+ * the user's tree and the parent's `file_snapshot` chain is the only thing
+ * `/rewind` can undo them from. Recording them is evidence, not control — the
+ * parent still decides which prompt index they belong to.
  */
 function makeSubagentSessionShim(parent: SessionWriter): SessionWriter {
   return {
@@ -374,8 +385,8 @@ function makeSubagentSessionShim(parent: SessionWriter): SessionWriter {
     appendBatch: (evs) => parent.appendBatch(evs.map((e) => ({ ...e }))),
     flush: () => parent.flush(),
     close: async () => {},
-    recordFileChange: () => {},
-    recordSideEffect: () => {},
+    recordFileChange: (input) => parent.recordFileChange(input),
+    recordSideEffect: (input) => parent.recordSideEffect(input),
     writeCheckpoint: async () => {},
     writeFileSnapshot: async () => {},
     truncateToCheckpoint: async () => 0,

@@ -23,21 +23,16 @@ describe('kanban tool — managed lifecycle adoption', () => {
   it('adopts five existing columns without moving cards', async () => {
     const board = await createBoard(dir, {
       title: 'Legacy board',
-      columns: [
-        { id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 },
-        { id: 'todo', title: 'Todo', order: 1, wipLimit: 0 },
-        { id: 'running', title: 'Running', order: 2, wipLimit: 0 },
-        { id: 'review', title: 'Review', order: 3, wipLimit: 0 },
-        { id: 'done', title: 'Done', order: 4, wipLimit: 0 },
-      ],
-      tasks: [{ title: 'Active', columnId: 'running', status: 'in_progress' }],
+      // Columns are locked to DEFAULT_COLUMNS (backlog, todo, in-progress,
+      // review, done). The lifecycle mapping below uses 'in-progress'.
+      tasks: [{ title: 'Active', columnId: 'in-progress', status: 'in_progress' }],
     });
 
     const result = await kanbanTool.execute(
       {
         action: 'adopt_managed_lifecycle',
         boardId: board.id,
-        columns: ['backlog', 'todo', 'running', 'review', 'done'],
+        columns: ['backlog', 'todo', 'in-progress', 'review', 'done'],
         author: 'migration-agent',
         transitionComment: 'Adopt legacy stages without moving cards.',
       },
@@ -48,7 +43,7 @@ describe('kanban tool — managed lifecycle adoption', () => {
     expect(result.ok).toBe(true);
     expect(result.board?.lifecycle?.mode).toBe('managed');
     expect(result.board?.tasks[0]).toMatchObject({
-      columnId: 'running',
+      columnId: 'in-progress',
       status: 'in_progress',
       lifecycle: { currentStage: 'running' },
     });

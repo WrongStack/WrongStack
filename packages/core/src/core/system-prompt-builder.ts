@@ -247,7 +247,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
 
   /**
    * Returns the max tool description length for the current tier.
-   * Per the design doc: off=80, minimal=40, light=50, medium=60, aggressive=70.
+   * The aggressive tier has the shortest descriptions; off keeps the most detail.
    */
   private toolDescLimit(): number {
     switch (this.tier) {
@@ -258,7 +258,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       case 'medium':
         return 50;
       case 'aggressive':
-        return 60;
+        return 20;
       default:
         return 70;
     }
@@ -632,9 +632,9 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     // even an option, and `delegate` sits unused while the host agent
     // tries to do everything in one expensive context.
     // Tier behaviour:
-    // - 'off' / 'medium' / 'aggressive' → full block
-    // - 'light' → minimal one-liner
-    // - 'minimal' → skipped
+    // - 'off' → full block
+    // - 'light' / 'medium' → minimal one-liner
+    // - 'minimal' / 'aggressive' → skipped
     const hasDelegate = tools.some((t) => t.name === 'delegate');
     if (hasDelegate) {
       const delegateTool = tools.find((t) => t.name === 'delegate');
@@ -647,13 +647,11 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         return Array.isArray(role) ? (role.filter((r) => typeof r === 'string') as string[]) : [];
       })();
       const roleList = enumValues.length > 0 ? enumValues.join(', ') : '(no roster configured)';
-      if (this.tier === 'minimal') {
+      if (this.tier === 'minimal' || this.tier === 'aggressive') {
         // Skip — don't emit any delegation guidance
-      } else if (this.tier === 'light' || this.tier === 'medium' || this.tier === 'aggressive') {
-        // Token-saving tiers get the compact one-liner instead of the full
-        // multi-paragraph guidance. `aggressive` joins the compact group —
-        // a user under context pressure doesn't need a 600-token essay on
-        // subagent scoping.
+      } else if (this.tier === 'light' || this.tier === 'medium') {
+        // Balanced token-saving tiers get the compact one-liner instead of
+        // the full multi-paragraph guidance.
         const delegation = section('tool.delegation.compact', {
           roleList,
         });
@@ -719,7 +717,12 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     // editing the SAME working tree at the same time; a blanket commit captures
     // their half-done work and there is no clean way to undo a shared commit.
     const hasGitTool = tools.some((t) => t.name === 'git');
-    if (hasGitTool && this.tier !== 'minimal' && this.tier !== 'light') {
+    if (
+      hasGitTool &&
+      this.tier !== 'minimal' &&
+      this.tier !== 'light' &&
+      this.tier !== 'aggressive'
+    ) {
       const commitHygiene = section('tool.commit.hygiene');
       if (commitHygiene) lines.push(commitHygiene);
     }
@@ -752,12 +755,12 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
 
     // Context management guidance — shown when context_manager is registered.
     // Tier behaviour:
-    // - 'off' / 'aggressive' → full block
+    // - 'off' → full block
     // - 'medium' → minimal one-liner
     // - 'minimal' / 'light' → skipped
     const hasContextManager = tools.some((t) => t.name === 'context_manager');
     if (hasContextManager) {
-      if (this.tier === 'minimal' || this.tier === 'light') {
+      if (this.tier === 'minimal' || this.tier === 'light' || this.tier === 'aggressive') {
         // Skip
       } else if (this.tier === 'medium') {
         const contextManagement = section('tool.context.management.compact');
@@ -823,11 +826,13 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   }
 
   private async buildMode(): Promise<string> {
-    // Use pre-resolved modePrompt if available (avoids redundant async call).
-    if (this.opts.modePrompt) return this.opts.modePrompt;
-    if (!this.opts.modeStore) return '';
-    const mode = await this.opts.modeStore.getActiveMode();
-    if (!mode?.prompt) return '';
-    return mode.prompt;
+    // The active mode is mutable in TUI/WebUI, so prefer the live store on
+    // every build. The pre-resolved prompt remains the fallback for hosts that
+    // do not expose a ModeStore.
+    if (this.opts.modeStore) {
+      const mode = await this.opts.modeStore.getActiveMode();
+      if (mode?.prompt) return mode.prompt;
+    }
+    return this.opts.modePrompt ?? '';
   }
 }

@@ -308,6 +308,99 @@ describe('buildVerificationReport', () => {
     expect(report.fileScope).toEqual(fileScope);
   });
 
+  it('fails the verdict when file-scope does not match', () => {
+    // scopeMatches === false means the worker changed files outside its
+    // declared expectedFileChanges set, or failed to change an expected file.
+    // That is a real defect regardless of whether the acceptance criteria
+    // happened to pass: the card's stated file contract was not honoured.
+    // Previously scopeMatches was rendered in the Markdown report but never
+    // consulted by the verdict, so a task could score `passed` while touching
+    // unrelated files.
+    const fileScope = {
+      expectedChanges: 1,
+      actualChanges: 2,
+      scopeMatches: false,
+      files: [
+        { path: 'src/foo.ts', operation: 'modify' as const, expected: true, linesChanged: 47 },
+        { path: 'src/unexpected.ts', operation: 'create' as const, expected: false, linesChanged: 12 },
+      ],
+    };
+    const report = buildVerificationReport({
+      taskId: 't1',
+      taskTitle: 'Test task',
+      boardId: 'b1',
+      checks: [passedCheck('c1')],
+      fileScope,
+    });
+
+    expect(report.verdict).toBe('failed');
+    expect(report.fileScope).toEqual(fileScope);
+  });
+
+  it('keeps the verdict passed when file-scope matches and checks pass', () => {
+    const fileScope = {
+      expectedChanges: 1,
+      actualChanges: 1,
+      scopeMatches: true,
+      files: [
+        { path: 'src/foo.ts', operation: 'modify' as const, expected: true, linesChanged: 47 },
+      ],
+    };
+    const report = buildVerificationReport({
+      taskId: 't1',
+      taskTitle: 'Test task',
+      boardId: 'b1',
+      checks: [passedCheck('c1')],
+      fileScope,
+    });
+
+    expect(report.verdict).toBe('passed');
+  });
+
+  it('binds attempt/leaseId/taskRevision/baseline when provided', () => {
+    // These optional fields tie a verification report to the specific attempt,
+    // lease, board revision, and git baseline it was produced against — so a
+    // reviewer can tell apart "re-verified attempt 3" from a first attempt,
+    // and so a later task edit cannot silently re-frame an old verdict.
+    const baseline = {
+      id: 'snap-1',
+      commitHash: 'abc123',
+      treeHash: 'def456',
+      capturedAt: '2026-01-01T00:00:00Z',
+    };
+    const report = buildVerificationReport({
+      taskId: 't1',
+      taskTitle: 'Test task',
+      boardId: 'b1',
+      checks: [passedCheck('c1')],
+      attempt: 3,
+      leaseId: 'lease-9',
+      taskRevision: 7,
+      baseline,
+    });
+
+    expect(report.attempt).toBe(3);
+    expect(report.leaseId).toBe('lease-9');
+    expect(report.taskRevision).toBe(7);
+    expect(report.baseline).toEqual(baseline);
+  });
+
+  it('omits attempt/leaseId/taskRevision/baseline when not provided', () => {
+    // Backwards-compatibility: older callers that don't supply these fields
+    // get a report that looks exactly like before.
+    const report = buildVerificationReport({
+      taskId: 't1',
+      taskTitle: 'Test task',
+      boardId: 'b1',
+      checks: [passedCheck('c1')],
+    });
+
+    expect(report.attempt).toBeUndefined();
+    expect(report.leaseId).toBeUndefined();
+    expect(report.taskRevision).toBeUndefined();
+    expect(report.baseline).toBeUndefined();
+  });
+
   it('passes through subtasks', () => {
     const subtasks = {
       total: 1,

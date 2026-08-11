@@ -61,6 +61,29 @@ export function formatDependencyReadinessIssues(
 }
 
 /**
+ * The one sentence every "this card cannot start yet" refusal uses.
+ *
+ * Three call sites each carried their own copy — the lifecycle transition
+ * gate and two branches of the assignment gate — so an escape hint added to
+ * one was invisible from the others, and which wording a caller saw depended
+ * on whether it went through `transition_task` or `mark_assignment`.
+ *
+ * The escape clause is the point: a dependency added by mistake is not a
+ * reason to complete work nobody wants, and the caller cannot be expected to
+ * guess that `update_task` accepts a corrected `dependsOn`.
+ */
+export function dependencyIncompleteMessage(
+  issues: readonly KanbanDependencyReadinessIssue[],
+): string {
+  return (
+    `Running requires every dependency to exist and be completed: ` +
+    `${formatDependencyReadinessIssues(issues)}. ` +
+    'Finish the blocking card, or — if the dependency was recorded in error — ' +
+    'call kanban update_task with the corrected `dependsOn` (an empty array clears it).'
+  );
+}
+
+/**
  * Dependency readiness is a leaf-domain rule shared by mutations and queries.
  * Accepts either a full task id or a unique prefix (delegated to `findTask`).
  */

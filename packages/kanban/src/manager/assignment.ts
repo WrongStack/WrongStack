@@ -40,7 +40,7 @@ import {
   syncTaskColumnForStatus,
 } from './_internal.js';
 import { collectBoardsForHealth } from './board-health.js';
-import { formatDependencyReadinessIssues, getDependencyReadinessIssues } from './task-readiness.js';
+import { dependencyIncompleteMessage, getDependencyReadinessIssues } from './task-readiness.js';
 
 /**
  * Staleness window for queued/running assignments that carry NO lease stamp
@@ -203,17 +203,13 @@ export async function updateTaskAssignment(
     if (nextStatus === 'running') {
       const dependencyIssues = getDependencyReadinessIssues(board, task);
       if (dependencyIssues.length > 0) {
-        const details = formatDependencyReadinessIssues(dependencyIssues);
-        throw new KanbanLifecycleError(
-          `Running requires every dependency to exist and be completed: ${details}.`,
-          [
-            {
-              code: 'dependency-incomplete',
-              field: 'dependsOn',
-              message: `Running requires every dependency to exist and be completed: ${details}.`,
-            },
-          ],
-        );
+        // One definition, shared with the lifecycle gate: which wording a
+        // caller saw used to depend on whether it arrived via transition_task
+        // or mark_assignment, and only one of the copies named the escape.
+        const message = dependencyIncompleteMessage(dependencyIssues);
+        throw new KanbanLifecycleError(message, [
+          { code: 'dependency-incomplete', field: 'dependsOn', message },
+        ]);
       }
     }
     const previousColumnId = task.columnId;

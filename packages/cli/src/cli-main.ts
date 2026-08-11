@@ -313,7 +313,36 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     },
   });
   const { context, planPath, session } = sessResult;
+  context.meta['promptOnlineAgents'] = onlineAgents;
   sessionRef.current = session;
+
+  // Replay / record mode. Bound here rather than at boot because this is the
+  // first point where a real session id exists: `--record` can now file its
+  // log as `<session>.replay.jsonl`, beside the transcript it describes,
+  // instead of under an invented `record-<epoch>` name with no session behind
+  // it. `--replay <id>` names its source session explicitly. The agent loop
+  // resolves TOKENS.ProviderRunner per request, so binding after construction
+  // is in time for the first run.
+  const replayFlag = (flags as Record<string, boolean | string | undefined>)['replay'];
+  const recordFlag = (flags as Record<string, boolean | string | undefined>)['record'];
+  if (typeof replayFlag === 'string' || recordFlag === true) {
+    const { bindReplayToContainer } = await import('./wiring/replay.js');
+    const mode = recordFlag === true ? 'record' : 'replay';
+    bindReplayToContainer({
+      container,
+      wpaths,
+      // Recording follows the live session across `/resume` and new-session
+      // swaps; replaying is pinned to the id the user named.
+      sessionId: typeof replayFlag === 'string' ? replayFlag : () => sessionRef.current?.id ?? '',
+      mode,
+      logger,
+    });
+    logger.info(
+      `replay: ProviderRunner bound in '${mode}' mode for session ${
+        typeof replayFlag === 'string' ? replayFlag : session.id
+      }`,
+    );
+  }
   const governanceHandle = await setupCliGovernance({
     projectRoot,
     projectId: wpaths.projectSlug,

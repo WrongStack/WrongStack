@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
+import { hybridRerankMemories } from './retrieval/hybrid-rerank.js';
 import { escapeLikePattern } from './sqlite-store-pagination.js';
 import {
   buildSessionClause as buildSharedSessionClause,
@@ -42,6 +43,13 @@ function buildSessionClause(
     { sessionId: opts?.sessionId, includeAllSessions: opts?.includeAllSessions },
     prefix,
   );
+}
+
+function maybeRerank(query: string, memories: Sage[], opts?: SageSearchOptions): Sage[] {
+  if (opts?.semanticRerank === false) return memories;
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length < 2 || memories.length <= 1) return memories;
+  return hybridRerankMemories(query, memories, 0.25);
 }
 
 export function searchSqliteSage(
@@ -112,7 +120,7 @@ export function searchSqliteSage(
     if (rows.length === 0 && terms.length > 1 && !opts?.requireAllTerms) {
       rows = runFts(terms.join(' OR '));
     }
-    return sqliteRowsToMemories(rows).filter(audienceFilter);
+    return maybeRerank(query, sqliteRowsToMemories(rows).filter(audienceFilter), opts);
   } catch (err) {
     // Fall back to LIKE only for FTS-unavailable errors, not for
     // corruption or SQL defects. The known FTS-unavailable patterns are:
@@ -147,5 +155,5 @@ export function searchSqliteSage(
     .all(...statusFilter, ...scopeParams, ...session.params, likePattern, limit) as Array<{
     data: string;
   }>;
-  return sqliteRowsToMemories(rows).filter(audienceFilter);
+  return maybeRerank(query, sqliteRowsToMemories(rows).filter(audienceFilter), opts);
 }

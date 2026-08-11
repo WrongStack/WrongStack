@@ -80,6 +80,14 @@ export interface WSMemorySageListPage {
   };
 }
 
+export interface WSMemorySageListCandidates {
+  type: 'memory.sage.listCandidates';
+  payload: {
+    candidates?: MemoryCandidateEntry[] | undefined;
+    error?: string | undefined;
+  };
+}
+
 export interface WSMemorySageGet {
   type: 'memory.sage.get';
   payload: {
@@ -249,6 +257,12 @@ export interface MemoryCandidateEntry {
   }>;
   createdAt: string;
   updatedAt: string;
+  /** Memory this proposal targets (hygiene / triage). */
+  targetMemoryId?: string | undefined;
+  reviewReason?: string | undefined;
+  suggestedAction?: 'delete' | 'archive' | 'update' | 'investigate' | undefined;
+  memoryId?: string | undefined;
+  reason?: string | undefined;
 }
 
 // ── Memory backfill recoverable (PR #3) ───────────────────────────────

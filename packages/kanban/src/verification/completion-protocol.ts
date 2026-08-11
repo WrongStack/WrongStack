@@ -172,6 +172,23 @@ async function runVerifyTaskCompletion(
     fileScope,
     subtasks: subtaskReport,
     attachments: collectAttachments(checkResults),
+    // Bind the report to the assignment/attempt/revision that produced the
+    // verified work, and to the git baseline the file-scope diff was measured
+    // against. All optional: older callers and tests that omit them keep
+    // working; the fields simply stay absent on those reports.
+    ...(task.assignment?.attempt !== undefined ? { attempt: task.assignment.attempt } : {}),
+    ...(task.assignment?.leaseId !== undefined ? { leaseId: task.assignment.leaseId } : {}),
+    ...(board.revision !== undefined ? { taskRevision: board.revision } : {}),
+    ...(context.capturedSnapshot
+      ? {
+          baseline: {
+            id: context.capturedSnapshot.id,
+            commitHash: context.capturedSnapshot.commitHash,
+            treeHash: context.capturedSnapshot.treeHash,
+            capturedAt: context.capturedSnapshot.capturedAt,
+          },
+        }
+      : {}),
   });
 
   // Phase 5: Update in-memory task state (persist via board mutation)
@@ -196,9 +213,18 @@ async function runVerifyTaskCompletion(
                 : ('failed' as const),
         checkedBy: result.type === 'agent' ? 'agent' : 'system',
         checkedAt: report.completedAt,
-        notes: result.error
-          ? `[${result.status}] ${result.error}`
-          : `[${result.status}] verified by ${result.type}`,
+        // `notes` is the criterion's INPUT, not a place to record the outcome:
+        // every deterministic plugin reads it as the command, test pattern,
+        // path, or JSON config to run (falling back to `description`).
+        // Overwriting it with a result narrative destroyed that input, so a
+        // re-run read "[failed] File not found: evidence.txt" as the path and
+        // could never recover — an executable criterion was single-use, and a
+        // fixed defect could not be re-verified.
+        //
+        // Nothing displays `notes`; the outcome already lives in
+        // `verificationReport.checks[]` (status, evidence, error), which is
+        // persisted alongside this task. So the narrative had no reader and
+        // the input had one.
       };
     });
   }

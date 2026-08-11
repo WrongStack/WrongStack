@@ -405,94 +405,40 @@ describe('updateBoard edges', () => {
 });
 
 describe('addColumn edges', () => {
-  it('adds a column with description, color, wipLimit, and a generated id', async () => {
+  // Columns are locked to the 5 standard columns. addColumn always throws.
+  it('throws — columns are locked', async () => {
     const b = await makeBoard();
-    const result = await addColumn(tmpDir, b.id, {
-      title: 'Custom Col',
-      description: 'd',
-      color: '#fff',
-      wipLimit: 3,
-    });
-    expect(result?.column.id).toBe('custom-col');
-    expect(result?.column.color).toBe('#fff');
-    expect(result?.column.wipLimit).toBe(3);
-  });
-  it('returns null for an unknown board', async () => {
-    expect(await addColumn(tmpDir, 'nope', { title: 'X' })).toBeNull();
+    await expect(
+      addColumn(tmpDir, b.id, { title: 'Custom Col', description: 'd', color: '#fff', wipLimit: 3 }),
+    ).rejects.toThrow(/Columns are locked/);
   });
 });
 
 describe('updateColumn edges', () => {
-  it('updates order, wipLimit, and description', async () => {
+  // Columns are locked. updateColumn always throws.
+  it('throws — columns are locked', async () => {
     const b = await makeBoard();
     const colId = b.columns[0]!.id;
-    const updated = await updateColumn(tmpDir, b.id, colId, {
-      order: 5,
-      wipLimit: 2,
-      description: 'new',
-    });
-    expect(updated).not.toBeNull();
-    const col = updated!.columns.find((c) => c.id === colId);
-    expect(col?.wipLimit).toBe(2);
-    expect(col?.description).toBe('new');
-  });
-  it('returns null for unknown board or column', async () => {
-    const b = await makeBoard();
-    expect(await updateColumn(tmpDir, b.id, 'no-such-col', { title: 'X' })).toBeNull();
-    expect(await updateColumn(tmpDir, 'no-board', 'backlog', { title: 'X' })).toBeNull();
+    await expect(
+      updateColumn(tmpDir, b.id, colId, { order: 5, wipLimit: 2, description: 'new' }),
+    ).rejects.toThrow(/Columns are locked/);
   });
 });
 
 describe('removeColumn edges', () => {
-  it('throws when removing a non-empty column without a move target', async () => {
-    const b = await createBoard(tmpDir, {
-      title: 'X',
-      columns: [
-        { id: 'a', title: 'A', order: 0, wipLimit: 0 },
-        { id: 'b', title: 'B', order: 1, wipLimit: 0 },
-      ],
-    });
-    await addTask(tmpDir, b.id, { title: 'task', columnId: 'a' });
-    await expect(removeColumn(tmpDir, b.id, 'a')).rejects.toThrow('has tasks');
-  });
-  it('throws when moving to the same column being removed', async () => {
-    const b = await createBoard(tmpDir, {
-      title: 'X',
-      columns: [
-        { id: 'a', title: 'A', order: 0, wipLimit: 0 },
-        { id: 'b', title: 'B', order: 1, wipLimit: 0 },
-      ],
-    });
-    await addTask(tmpDir, b.id, { title: 'task', columnId: 'a' });
-    await expect(removeColumn(tmpDir, b.id, 'a', { moveTasksToColumnId: 'a' })).rejects.toThrow(
-      'Cannot move',
-    );
-  });
-  it('throws when move target column does not exist', async () => {
-    const b = await createBoard(tmpDir, {
-      title: 'X',
-      columns: [{ id: 'a', title: 'A', order: 0, wipLimit: 0 }],
-    });
-    await addTask(tmpDir, b.id, { title: 'task', columnId: 'a' });
-    await expect(removeColumn(tmpDir, b.id, 'a', { moveTasksToColumnId: 'nope' })).rejects.toThrow(
-      'Target column not found',
-    );
-  });
-  it('removes an empty column without tasks', async () => {
-    const b = await createBoard(tmpDir, {
-      title: 'X',
-      columns: [
-        { id: 'a', title: 'A', order: 0, wipLimit: 0 },
-        { id: 'b', title: 'B', order: 1, wipLimit: 0 },
-      ],
-    });
-    const result = await removeColumn(tmpDir, b.id, 'b');
-    expect(result?.columns.find((c) => c.id === 'b')).toBeUndefined();
-  });
-  it('returns null for unknown board or column', async () => {
+  // Columns are locked. removeColumn always throws regardless of arguments.
+  it('throws — columns are locked (non-empty column, no move target)', async () => {
     const b = await makeBoard();
-    expect(await removeColumn(tmpDir, b.id, 'no-such-col')).toBeNull();
-    expect(await removeColumn(tmpDir, 'no-board', 'backlog')).toBeNull();
+    await expect(removeColumn(tmpDir, b.id, 'todo')).rejects.toThrow(/Columns are locked/);
+  });
+  it('throws — columns are locked (with move target)', async () => {
+    const b = await makeBoard();
+    await expect(
+      removeColumn(tmpDir, b.id, 'todo', { moveTasksToColumnId: 'done' }),
+    ).rejects.toThrow(/Columns are locked/);
+  });
+  it('throws — columns are locked (unknown board)', async () => {
+    await expect(removeColumn(tmpDir, 'no-board', 'backlog')).rejects.toThrow(/Columns are locked/);
   });
 });
 

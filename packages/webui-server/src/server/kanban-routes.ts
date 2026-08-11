@@ -3,7 +3,6 @@ import { deserializeTaskGraph, serializeTaskGraph } from '@wrongstack/core/taski
 import type { SerializableTaskGraph } from '@wrongstack/core/types';
 import {
   addCheckToTask,
-  addColumn,
   addGoalMetricToTask,
   addNoteToTask,
   addTask,
@@ -20,7 +19,7 @@ import {
   getTaskChain,
   hasKanbanQueueAnomalies,
   type KanbanBoard,
-  type KanbanColumn,
+  type KanbanCheckType,
   type KanbanLifecycleStage,
   type KanbanLink,
   type KanbanTask,
@@ -29,6 +28,7 @@ import {
   type KanbanTaskTransitionInput,
   kanbanQueueAnomalyCount,
   listBoards,
+  listBoardHistory,
   listReadyTasks,
   mergeTasks,
   moveTask,
@@ -37,7 +37,6 @@ import {
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   removeBoard,
-  removeColumn,
   setTaskChain,
   splitTask,
   syncBoardFromTaskGraph,
@@ -49,6 +48,7 @@ import {
   updateTask,
 } from '@wrongstack/kanban';
 import type { WebSocket } from 'ws';
+import { handleKanbanContractRoute } from './kanban-contract-routes.js';
 import { handleKanbanDecompositionRoute } from './kanban-decomposition-routes.js';
 import { handleKanbanTaskDispatch, type KanbanTaskDispatcher } from './kanban-dispatch.js';
 import {
@@ -92,6 +92,7 @@ export async function handleKanbanRoute(
 
   try {
     if (await handleKanbanDecompositionRoute(ws, type, payload, ctx)) return true;
+    if (await handleKanbanContractRoute(ws, type, payload, ctx)) return true;
     if (await handleKanbanTaskRoute(ws, type, payload, ctx)) return true;
     switch (type) {
       case 'kanban.list': {
@@ -213,7 +214,6 @@ export async function handleKanbanRoute(
             title,
             ...(payload?.description ? { description: payload.description as string } : {}),
             ...(payload?.tags ? { tags: payload.tags as string[] } : {}),
-            ...(payload?.columns ? { columns: payload.columns as KanbanColumn[] } : {}),
             ...(has(payload, 'lifecycle')
               ? { lifecycle: payload?.lifecycle as NonNullable<KanbanBoard['lifecycle']> }
               : {}),
@@ -234,7 +234,6 @@ export async function handleKanbanRoute(
           ...(payload?.title ? { title: payload.title as string } : {}),
           ...(payload?.description ? { description: payload.description as string } : {}),
           ...(payload?.tags ? { tags: payload.tags as string[] } : {}),
-          ...(payload?.columns ? { columns: payload.columns as KanbanColumn[] } : {}),
           ...(has(payload, 'lifecycle')
             ? {
                 lifecycle:
@@ -293,6 +292,12 @@ export async function handleKanbanRoute(
           removed: board ? await removeBoard(ctx.projectRoot, board.id) : false,
           boardId: board?.id ?? boardId,
         });
+        return true;
+      }
+      case 'kanban.board.history': {
+        const boardId = payload?.boardId as string | undefined;
+        const history = await listBoardHistory(ctx.projectRoot, boardId);
+        ok(ws, type, history);
         return true;
       }
       case 'kanban.generate': {
@@ -889,9 +894,14 @@ export async function handleKanbanRoute(
           taskId,
           {
             description,
-            type:
-              (payload?.checkType as 'manual' | 'auto' | 'agent' | 'test' | 'review') ?? 'manual',
+            // The old cast listed `manual | auto | agent | test | review` —
+            // three of which have no verifier plugin, while the six that do
+            // (command, file_exists, file_matches, git_diff, metric, test)
+            // were unreachable. `notes` carries the executable body every
+            // deterministic plugin reads.
+            type: (payload?.checkType as KanbanCheckType) ?? 'manual',
             status: (payload?.status as 'pending' | 'passed' | 'failed' | 'skipped') ?? 'pending',
+            ...(typeof payload?.notes === 'string' ? { notes: payload.notes } : {}),
           },
           activityContext(
             ctx,
@@ -960,32 +970,6 @@ export async function handleKanbanRoute(
       case 'kanban.capabilities':
         ok(ws, type, { dispatchSupported: Boolean(ctx.dispatchTask) });
         return true;
-      case 'kanban.column.add': {
-        const boardId = payload?.boardId as string | undefined;
-        const title = payload?.title as string | undefined;
-        if (!boardId || !title) {
-          fail(ws, type, 'boardId and title required');
-          return true;
-        }
-        const result = await addColumn(ctx.projectRoot, boardId, { title });
-        result ? ok(ws, type, result.board.columns) : fail(ws, type, `Board not found: ${boardId}`);
-        return true;
-      }
-      case 'kanban.column.remove': {
-        const boardId = payload?.boardId as string | undefined;
-        const columnId = payload?.columnId as string | undefined;
-        if (!boardId || !columnId) {
-          fail(ws, type, 'boardId and columnId required');
-          return true;
-        }
-        const board = await removeColumn(ctx.projectRoot, boardId, columnId, {
-          moveTasksToColumnId: payload?.moveTasksToColumnId as string | undefined,
-        });
-        board
-          ? ok(ws, type, { removed: true, boardId: board.id, columnId, board })
-          : fail(ws, type, `Column not found: ${columnId}`);
-        return true;
-      }
       default:
         fail(ws, type, `Unknown kanban message type: ${type}`);
         return true;

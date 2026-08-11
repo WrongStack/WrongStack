@@ -96,6 +96,7 @@ import type {
   WSMemorySageGet,
   WSMemorySageGraph,
   WSMemorySageList,
+  WSMemorySageListCandidates,
   WSMemorySageListPage,
   WSMemorySageRecover,
   WSMemorySageRemember,
@@ -187,6 +188,7 @@ export type WSServerMessage =
   | WSMemoryList
   | WSMemorySageList
   | WSMemorySageListPage
+  | WSMemorySageListCandidates
   | WSMemorySageGet
   | WSMemorySageGraph
   | WSMemorySageUpdate

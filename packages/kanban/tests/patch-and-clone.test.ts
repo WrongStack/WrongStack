@@ -217,6 +217,63 @@ describe('applyTaskPatch field handlers', () => {
     expect(task.expectedFileChanges).toBeUndefined();
     expect(task.verificationReport).toBeUndefined();
   });
+
+  it('ignores verificationReport:null on managed boards (immutable audit trail)', () => {
+    // A verification report is an immutable snapshot of a completed run. On a
+    // managed board, deleting it via a generic patch would erase the evidence
+    // a reviewer needs. The null/delete request is ignored on managed boards;
+    // legacy boards (the test above) still clear it.
+    const board = emptyBoard();
+    board.lifecycle = {
+      mode: 'managed',
+      columns: {
+        backlog: 'backlog',
+        todo: 'todo',
+        running: 'in-progress',
+        review: 'review',
+        done: 'done',
+      },
+    };
+    const task = createTaskObject(board, { title: 'Managed', columnId: 'backlog' });
+    board.tasks.push(task);
+
+    // Seed a report.
+    applyTaskPatch(board, task, {
+      verificationReport: {
+        taskId: task.id,
+        taskTitle: task.title,
+        boardId: board.id,
+        startedAt: '2026-01-01T00:00:00Z',
+        completedAt: '2026-01-01T00:01:00Z',
+        verdict: 'passed',
+        checks: [],
+        markdownSummary: 'All checks passed.',
+        attachments: [],
+      },
+    });
+    expect(task.verificationReport).toBeDefined();
+
+    // Attempt to delete via null — ignored on managed board.
+    applyTaskPatch(board, task, { verificationReport: null });
+    expect(task.verificationReport).toBeDefined();
+    expect(task.verificationReport!.verdict).toBe('passed');
+
+    // A fresh re-verification still overwrites (not a deletion).
+    applyTaskPatch(board, task, {
+      verificationReport: {
+        taskId: task.id,
+        taskTitle: task.title,
+        boardId: board.id,
+        startedAt: '2026-01-02T00:00:00Z',
+        completedAt: '2026-01-02T00:01:00Z',
+        verdict: 'failed',
+        checks: [],
+        markdownSummary: 'Re-run failed.',
+        attachments: [],
+      },
+    });
+    expect(task.verificationReport!.verdict).toBe('failed');
+  });
 });
 
 // ── buildAssignment ──────────────────────────────────────────────────

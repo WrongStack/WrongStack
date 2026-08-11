@@ -74,58 +74,35 @@ function board(tasks: KanbanTask[], columns?: KanbanBoard['columns']): KanbanBoa
 // ── normalizeColumns ─────────────────────────────────────────────────────
 
 describe('normalizeColumns', () => {
-  it('returns default columns when input is empty', () => {
+  // Columns are locked to the 5 standard columns. normalizeColumns always
+  // returns DEFAULT_COLUMNS regardless of input — the former dedup/slug/sort
+  // behaviour no longer applies because callers can no longer supply custom
+  // column arrays in production.
+  it('always returns the 5 standard DEFAULT_COLUMNS', () => {
     const result = normalizeColumns([]);
-    expect(result.length).toBeGreaterThanOrEqual(4); // DEFAULT_COLUMNS
-    expect(result[0]!.order).toBe(0);
+    expect(result).toHaveLength(5);
+    expect(result.map((c) => c.id)).toEqual([
+      'backlog',
+      'todo',
+      'in-progress',
+      'review',
+      'done',
+    ]);
+    expect(result.map((c) => c.order)).toEqual([0, 1, 2, 3, 4]);
   });
 
-  it('returns default columns when input is undefined', () => {
-    const result = normalizeColumns(undefined);
-    expect(result.length).toBeGreaterThanOrEqual(4);
-  });
-
-  it('deduplicates column ids with suffixes', () => {
+  it('ignores caller-supplied columns', () => {
     const result = normalizeColumns([
       { id: 'col', title: 'First', order: 0 },
       { id: 'col', title: 'Second', order: 1 },
     ]);
-    expect(result[0]!.id).toBe('col');
-    expect(result[1]!.id).toBe('col-2');
+    expect(result).toHaveLength(5);
+    expect(result[0]!.id).toBe('backlog');
   });
 
-  it('generates id from title when id is empty', () => {
-    const result = normalizeColumns([
-      { id: '', title: 'My Column', order: 0 },
-    ]);
-    expect(result[0]!.id).toBe('my-column');
-  });
-
-  it('uses fallback ID when slug is empty', () => {
-    const result = normalizeColumns([
-      { id: '', title: '!!!', order: 0 },
-    ]);
-    expect(result[0]!.id).toContain('column');
-  });
-
-  it('sorts by order and reassigns sequential order', () => {
-    const result = normalizeColumns([
-      { id: 'z', title: 'Z', order: 5 },
-      { id: 'a', title: 'A', order: 1 },
-      { id: 'b', title: 'B', order: 3 },
-    ]);
-    expect(result[0]!.title).toBe('A');
-    expect(result[0]!.order).toBe(0);
-    expect(result[1]!.title).toBe('B');
-    expect(result[1]!.order).toBe(1);
-    expect(result[2]!.title).toBe('Z');
-    expect(result[2]!.order).toBe(2);
-  });
-
-  it('throws error when column title is blank', () => {
-    expect(() => normalizeColumns([
-      { id: '', title: '   ', order: 0 },
-    ])).toThrow('cannot be empty');
+  it('returns DEFAULT_COLUMNS for undefined input', () => {
+    const result = normalizeColumns(undefined);
+    expect(result).toHaveLength(5);
   });
 });
 

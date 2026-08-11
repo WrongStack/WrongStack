@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 253,
-      "typeOnly": 202,
+      "files": 260,
+      "typeOnly": 209,
       "runtimeOrMixed": 68
     },
     "@wrongstack/core/agent-catalog": {
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 35
     },
     "@wrongstack/core/kernel": {
-      "files": 208,
-      "typeOnly": 111,
-      "runtimeOrMixed": 108
+      "files": 210,
+      "typeOnly": 112,
+      "runtimeOrMixed": 109
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -134,9 +134,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/storage": {
-      "files": 92,
+      "files": 93,
       "typeOnly": 28,
-      "runtimeOrMixed": 97
+      "runtimeOrMixed": 98
     },
     "@wrongstack/core/tasking": {
       "files": 31,
@@ -149,8 +149,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/types": {
-      "files": 880,
-      "typeOnly": 815,
+      "files": 883,
+      "typeOnly": 818,
       "runtimeOrMixed": 217
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -609,12 +609,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/wiring/sage.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/sdd-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -969,7 +963,25 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/src/host-wiring.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/sage/src/middleware/memory-injector-agent.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/src/middleware/outcome-capture.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/src/middleware/path-remap.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1215,7 +1227,19 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-contract-actions.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/kanban-evidence-bridge.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-executable-criteria.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1233,7 +1257,25 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-no-dead-ends.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-session-rebind.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/kanban-start-task.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-todo-flow-e2e.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4426,8 +4468,8 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/boot/tui-project-switch.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/kernel",
@@ -4720,12 +4762,6 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/runtime-lifecycle-deps.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/kernel",
-      "file": "packages/cli/src/wiring/sage.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5169,6 +5205,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sage/src/host-wiring.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/sage/src/middleware/context-monitor.ts",
       "typeOnly": 2,
       "runtimeOrMixed": 0
@@ -5176,6 +5218,18 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/sage/src/middleware/domain-term-extractor-middleware.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sage/src/middleware/outcome-capture.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sage/src/middleware/path-remap.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -7635,6 +7689,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/fleet/subagent-file-snapshots.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/hq-mailbox-actions.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9579,12 +9639,6 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/cli/src/wiring/sage.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/security-command.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9796,6 +9850,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/fleet/host-learning.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/fleet/subagent-file-snapshots.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11451,6 +11511,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sage/src/host-wiring.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sage/src/memory-port.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11464,6 +11530,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sage/src/middleware/domain-term-extractor-middleware.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sage/src/middleware/outcome-capture.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sage/src/middleware/path-remap.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

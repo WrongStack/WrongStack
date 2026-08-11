@@ -152,19 +152,26 @@ export class DefaultSessionRewinder implements SessionRewinder {
 
     const snapshotsToRevert: Array<{ promptIndex: number; files: FileSnapshot[] }> = [];
     let shouldRevert = false;
+    // Counted the same way `rewindToCheckpoint` counts it — every event past
+    // the target checkpoint. Reporting the file-snapshot count here instead
+    // made the same rewind report two different numbers depending on which
+    // entry point the caller used.
+    let removedEvents = 0;
 
     for await (const event of this.readEvents(file)) {
       if (event.type === 'checkpoint' && event.promptIndex === targetIndex) {
         shouldRevert = true;
         continue;
       }
-      if (shouldRevert && event.type === 'file_snapshot') {
+      if (!shouldRevert) continue;
+      removedEvents++;
+      if (event.type === 'file_snapshot') {
         snapshotsToRevert.push({ promptIndex: event.promptIndex, files: event.files });
       }
     }
 
     const result = await revertSnapshots(snapshotsToRevert, this.projectRoot);
-    return { ...result, toPromptIndex: targetIndex, removedEvents: snapshotsToRevert.length };
+    return { ...result, toPromptIndex: targetIndex, removedEvents };
   }
 
   async rewindToStart(sessionId: string): Promise<RewindResultExtended> {

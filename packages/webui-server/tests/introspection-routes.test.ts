@@ -20,9 +20,11 @@ function harness(maxToolsCount?: number) {
   ];
   const tools = {
     list: () => entries.map(({ tool }) => tool),
+    listForProvider: () => entries.slice(0, 1).map(({ tool }) => tool),
     listWithOwner: () => entries,
     listDisabled: () => [],
     isDisabled: () => false,
+    isExposedToProvider: (name: string) => name === 'read',
     disable: vi.fn(() => true),
     enable: vi.fn(() => true),
   };
@@ -69,14 +71,24 @@ describe('canonical introspection handler family', () => {
     expect((message.payload as { droppedTools: number }).droppedTools).toBe(0);
   });
 
-  it('reports droppedTools as the surplus when maxToolsCount is set below tool count', async () => {
+  it('computes droppedTools from the direct surface instead of the lazy catalog', async () => {
     const { context, sent } = harness(1);
     await handleIntrospectionRoute(context, {} as WebSocket, { type: 'diag.get' });
     const message = sent[0];
     expect(message).toBeDefined();
     if (!message) throw new Error('Expected diag.get response');
     expect((message.payload as { maxTools: number }).maxTools).toBe(1);
-    expect((message.payload as { droppedTools: number }).droppedTools).toBe(1);
+    expect((message.payload as { droppedTools: number }).droppedTools).toBe(0);
+  });
+
+  it('reports direct versus lazy exposure in the tool catalog', async () => {
+    const { context, sent } = harness();
+    await handleIntrospectionRoute(context, {} as WebSocket, { type: 'tools.list' });
+    const payload = sent[0]?.payload as { tools: Array<{ name: string; direct: boolean }> };
+    expect(payload.tools.map(({ name, direct }) => ({ name, direct }))).toEqual([
+      { name: 'read', direct: true },
+      { name: 'bash', direct: false },
+    ]);
   });
 
   it('claims every family member and rejects foreign messages', async () => {

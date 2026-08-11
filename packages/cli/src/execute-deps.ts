@@ -76,6 +76,7 @@ export interface ToolPickerItem {
   owner: string;
   category: string;
   enabled: boolean;
+  exposure: 'direct' | 'lazy' | 'disabled';
   mutating: boolean;
   permission: string;
   descMode: 'extend' | 'simple';

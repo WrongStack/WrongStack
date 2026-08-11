@@ -27,6 +27,7 @@ export const CLIENT_KNOWLEDGE_MESSAGE_TYPES = [
   'memory.sage.get',
   'memory.sage.graph',
   'memory.sage.list',
+  'memory.sage.listCandidates',
   'memory.sage.listPage',
   'memory.sage.recover',
   'memory.sage.remember',

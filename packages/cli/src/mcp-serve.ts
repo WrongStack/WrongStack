@@ -279,8 +279,9 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
     secretScrubber: new DefaultSecretScrubber(),
     maxToolTimeoutMs: deps.config.tools?.maxToolTimeoutMs ?? 300_000,
     perIterationOutputCapBytes: 1_000_000,
-    // Kanban tracks work; it does not gate it. See wiring/pipeline.ts.
-    requireKanbanGovernance: false,
+    // Kanban tracks work; it does not gate it. Off unless the operator opts in.
+    // See wiring/pipeline.ts for why all four hosts must agree.
+    requireKanbanGovernance: deps.config.tools?.kanbanGovernance ?? false,
   });
 
   // Pre-compute the exposed set so tools/list and tools/call agree, and so a

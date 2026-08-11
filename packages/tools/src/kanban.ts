@@ -6,7 +6,6 @@ import { loadTasks } from '@wrongstack/core/storage';
 import { deserializeTaskGraph, serializeTaskGraph } from '@wrongstack/core/tasking';
 import type { SerializableTaskGraph, Tool } from '@wrongstack/core/types';
 import {
-  addColumn,
   addTask,
   adoptManagedLifecycle,
   assignTask,
@@ -35,7 +34,6 @@ import {
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   removeBoard,
-  removeColumn,
   removeTask,
   repairManagedTaskProjection,
   resolveAutoAccept,
@@ -46,7 +44,6 @@ import {
   transferTaskToBoard,
   transitionTask,
   updateBoard,
-  updateColumn,
   updateTask,
   updateTaskAssignment,
   verifyTaskCompletion,
@@ -56,6 +53,7 @@ import {
   boardUpdatePatch,
   duplicateBoardOptions,
 } from './kanban-board-inputs.js';
+import { handleKanbanContractAction } from './kanban-contract-actions.js';
 import { handleKanbanDecompositionAction } from './kanban-decomposition-actions.js';
 import { handleKanbanDetailAction } from './kanban-detail-actions.js';
 import { recordKanbanVerificationEvidence } from './kanban-evidence-bridge.js';
@@ -193,7 +191,6 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               description: input.description,
               ...(input.title !== undefined ? { title: input.title } : {}),
               ...(input.context !== undefined ? { context: input.context } : {}),
-              ...(input.columns !== undefined ? { columns: input.columns } : {}),
             });
             const board = await createBoard(projectRoot, boardInput);
             for (const taskInput of parseLinesIntoTasks(
@@ -367,33 +364,6 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               snapshot,
             };
           }
-          case 'add_column': {
-            if (!input.boardId || !input.title)
-              return fail('add_column requires boardId and title.');
-            const result = await addColumn(projectRoot, input.boardId, {
-              title: input.title,
-              ...(input.description !== undefined ? { description: input.description } : {}),
-            });
-            return result ? okBoard(result.board, 'Column added.') : fail('Board not found.');
-          }
-          case 'update_column': {
-            if (!input.boardId || !input.columnId)
-              return fail('update_column requires boardId and columnId.');
-            const board = await updateColumn(projectRoot, input.boardId, input.columnId, {
-              ...(input.title !== undefined ? { title: input.title } : {}),
-              ...(input.description !== undefined ? { description: input.description } : {}),
-              ...(input.order !== undefined ? { order: input.order } : {}),
-            });
-            return board ? okBoard(board, 'Column updated.') : fail('Column not found.');
-          }
-          case 'delete_column': {
-            if (!input.boardId || !input.columnId)
-              return fail('delete_column requires boardId and columnId.');
-            const board = await removeColumn(projectRoot, input.boardId, input.columnId, {
-              moveTasksToColumnId: input.moveTasksToColumnId,
-            });
-            return board ? okBoard(board, 'Column deleted.') : fail('Column not found.');
-          }
           case 'add_task': {
             if (!input.boardId || !input.title) return fail('add_task requires boardId and title.');
             const result = await addTask(projectRoot, input.boardId, taskInput(input));
@@ -525,10 +495,36 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               const claimed = task;
               const currentTask =
                 current.tasks.find((candidate) => candidate.id === claimed.id) ?? claimed;
+              // Bind the card even though this board carries no governance
+              // authority. Two different things were being decided by one
+              // call: WHICH CARD IS THIS RUN WORKING (attribution) and WHICH
+              // CARD MAY GATE MUTATIONS (governance). Withholding the binding
+              // to withhold the second also withheld the first, so on a plain
+              // board — the default — `currentKanbanTaskId` stayed undefined
+              // forever: `recordFileEvent()` wrote `scope: 'session'` for every
+              // edit and no file activity was ever attributed to a card. The
+              // board said `in_progress` and the runtime could not say which
+              // card that was.
+              //
+              // Binding is safe because the boundary decides governance from
+              // the BOARD, not from the mere presence of a binding: it skips a
+              // non-managed board (see evaluateToolKanbanBoundary). The one
+              // behavioural gain is that a task-level `boundary` policy now
+              // applies while its task is active — previously only the
+              // board-level policy did, because the todo mirror bound the
+              // board with an undefined task.
+              // Optional-chained, unlike the managed branch below: attribution
+              // is best-effort and must not turn "start the work" into a hard
+              // failure on a host whose context does not implement it (the
+              // subagent runner already guards this call the same way). The
+              // managed branch keeps its unconditional call — there the
+              // binding IS the governance identity, so silently skipping it
+              // would be worse than failing.
+              ctx.setCurrentKanbanTask?.(currentTask.id, current.id);
               return okTask(
                 current,
                 currentTask,
-                'Task is active. This board is not in managed lifecycle mode, so runtime Kanban governance was not bound to it.',
+                'Task is active and bound to this run for attribution. This board is not in managed lifecycle mode, so runtime Kanban governance was not bound to it.',
               );
             }
             let stage = task.lifecycle?.currentStage;
@@ -573,19 +569,11 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
                 `start_task only accepts Backlog, Todo, Review repair, or live Running cards (current: ${stage ?? 'unknown'}).`,
               );
             }
-            // Only a managed board carries governance authority. Binding an
-            // observational board (session mirror, SDD mirror, plain import)
-            // as the run's Kanban identity used to be accepted, and every
-            // later mutation was then judged against a board that can never
-            // satisfy the managed contract — an unrecoverable block. Advance
-            // the card, but leave the governed identity untouched.
-            if (board.lifecycle?.mode !== 'managed') {
-              return okTask(
-                board,
-                task,
-                'Task is active. This board is not in managed lifecycle mode, so runtime Kanban governance was not bound to it.',
-              );
-            }
+            // Every non-managed board already returned from the plain-board
+            // branch above, so this point is reached only in managed mode.
+            // A second `mode !== 'managed'` guard used to sit here; it was
+            // unreachable, and its message contradicted the one the reachable
+            // branch returns.
             ctx.setCurrentKanbanTask(task.id, board.id);
             return okTask(
               board,
@@ -711,6 +699,15 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
             if (!input.boardId || !input.taskId)
               return fail('delete_task requires boardId and taskId.');
             const board = await removeTask(projectRoot, input.boardId, input.taskId);
+            // Deleting the card this run is bound to must not leave a dangling
+            // identity behind. Under `tools.kanbanGovernance` a binding that
+            // points at a card that no longer exists blocks every mutating
+            // tool with "Active Kanban task not found" — the run would be held
+            // hostage by its own cleanup. Clearing the task while keeping the
+            // board keeps the session on the same board with no active card.
+            if (board && ctx.currentKanbanTaskId === input.taskId) {
+              ctx.setCurrentKanbanTask?.(undefined, ctx.currentKanbanBoardId);
+            }
             return board ? okBoard(board, 'Task deleted.') : fail('Task not found.');
           }
           case 'set_chain': {
@@ -1101,7 +1098,18 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           //     update_check · add_note · add_link · split_atomic
           //   kanban-decomposition-actions.ts  verify_completion ·
           //     assess_atomicity · propose_decomposition
+          //   kanban-contract-actions.ts  get_contract_graph ·
+          //     configure_contract_graph · upsert_contract_node ·
+          //     remove_contract_node · add_contract_edge · remove_contract_edge
           default:
+            {
+              const contractResult = await handleKanbanContractAction(
+                projectRoot,
+                input,
+                input.author ?? input.agentId,
+              );
+              if (contractResult !== undefined) return contractResult;
+            }
             {
               const detailResult = await handleKanbanDetailAction(projectRoot, input);
               if (detailResult !== undefined) return detailResult;

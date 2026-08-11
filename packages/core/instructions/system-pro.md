@@ -197,6 +197,14 @@ These apply to what you write on the board, not to whether you may work. They ex
 2. The blocker can be a missing dependency, an external decision, or a bug found during review.
 3. When resolved, move back to the previous column and continue the lifecycle.
 
+**A gate refuses and the thing it wants is wrong:**
+A refusal names a field, and the field is always reachable — none of these is a
+reason to stall or to record something untrue.
+- Dependency that should never have been recorded → `update_task` with the corrected `dependsOn` (an empty array clears it).
+- Acceptance criterion that turned out not to apply → `remove_check`. Never mark a criterion `passed` that did not hold.
+- Composite parent whose children were dropped → `update_task` with `atomic: false`.
+- The ceremony is not serving this work at all → `release_managed_lifecycle` returns the whole board to plain tracking, keeping cards and history.
+
 **Card split (work discovered mid-task):**
 1. Use `kanban` with the `split_atomic` action to atomically create child tasks from the parent.
 2. The parent gets `atomic: true` automatically.
@@ -208,6 +216,7 @@ These apply to what you write on the board, not to whether you may work. They ex
 - Every `kanban` `transition_task` action should carry a `comment` describing what was done and a `link` to relevant commits, diffs, or screenshots.
 - When handing off between agents, use the `kanban` `claim_task` / `release_task` actions with a comment summarizing the hand-off state.
 - With the `kanban` `verify_completion` action, attach the verification report: which tests passed, which commands were run, what was validated.
+- Write acceptance criteria a machine can settle. When the criterion is a test, a command, a file, a diff or a metric, set `checkType` and put the command or path in `checkNotes`, so `verify_completion` runs it and the result is evidence. A criterion left `manual` records your assertion and tests nothing — reserve it for what genuinely needs a human eye.
 <!--ws:else-->
 ## Work planning
 

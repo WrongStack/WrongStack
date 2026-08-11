@@ -40,6 +40,28 @@ export interface ToolsConfig {
    */
   restrictToProjectRoot?: boolean | undefined;
   /**
+   * Require a ready, running **managed** Kanban card before any product
+   * mutation. Default: **false** — Kanban records work, it does not permit it,
+   * and that is the shipped contract the system prompt and the `kanban` tool
+   * description both state.
+   *
+   * Turning this on inverts that for this installation: a mutating tool
+   * (`write`, `edit`, `exec`, …) is refused until the run is bound to a card
+   * that is on a managed board, passes `evaluateContractGraphReadiness`, and
+   * sits in Running with a live assignment. Control tools (`kanban`, `todo`,
+   * `plan`, `task`) are always exempt so the agent can always record evidence
+   * or start the next card.
+   *
+   * Non-managed boards — session mirrors, SDD mirrors, plain imports — are
+   * skipped rather than blocked: they structurally cannot carry a lifecycle,
+   * so demanding one would deadlock every mutation with no reachable remedy.
+   * They still fall through to their path-scoped `boundary` policy.
+   *
+   * Independent of the two checks that are ALWAYS on regardless of this flag:
+   * the dispatch lease fence and the board/task filesystem `boundary`.
+   */
+  kanbanGovernance?: boolean | undefined;
+  /**
    * Per-command policy for the `exec` tool's allowlist. The tool ships a
    * curated default allowlist of dev/build commands; this extends or trims it.
    *

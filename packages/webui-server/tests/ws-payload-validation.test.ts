@@ -281,7 +281,7 @@ describe('WebUI payload validation', () => {
         autonomy: 'auto',
         contextStrategy: 'hybrid',
         contextMode: 'deep',
-        tokenSavingTier: 'light',
+        tokenSavingTier: 'auto',
         enhanceLanguage: 'english',
         logLevel: 'debug',
         auditLevel: 'full',
@@ -333,9 +333,11 @@ describe('WebUI payload validation', () => {
     });
 
     it('accepts Chimera round-robin/random selection and rejects invalid modes', () => {
-      expect(validatePrefsUpdatePayload({ autoReviewModelSelection: 'round-robin' })).toMatchObject({
-        ok: true,
-      });
+      expect(validatePrefsUpdatePayload({ autoReviewModelSelection: 'round-robin' })).toMatchObject(
+        {
+          ok: true,
+        },
+      );
       expect(validatePrefsUpdatePayload({ autoReviewModelSelection: 'random' })).toMatchObject({
         ok: true,
       });

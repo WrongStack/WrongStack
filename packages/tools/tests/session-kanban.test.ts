@@ -12,6 +12,7 @@ import {
   listBoards,
   moveTask,
   updateTask,
+  type KanbanTask,
 } from '@wrongstack/kanban';
 import { getKanbanPath } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -648,12 +649,68 @@ describe('unified session kanban', () => {
     if (movedPlan) await applySessionKanbanTaskToSource(context, movedPlan);
     expect((await loadPlan(planPath))?.items[0]?.status).toBe('in_progress');
 
+    // Session boards now use the 5 standard columns (backlog, todo, in-progress,
+    // review, done) like every other board — formerly they used a 4-column
+    // variant (Todo/Running/Preview/Done) without a backlog.
     expect((await getBoard(dir, board!.id))?.columns.map((column) => column.title)).toEqual([
-      'Todo',
-      'Running',
-      'Preview',
+      'Backlog',
+      'To Do',
+      'In Progress',
+      'Review',
       'Done',
     ]);
+  });
+});
+
+describe('applySessionKanbanTaskToSource — missing source path', () => {
+  // A card whose origin is session-task/session-plan but whose session has
+  // no task.path/plan.path configured used to silently return a sourceless
+  // `{ source: 'task'/'plan' }`, hiding that the board mutation had no place
+  // to write back to. These tests pin the new throw so callers surface the
+  // divergence instead of reporting silent success.
+  function makeCard(
+    originSystem: 'session-task' | 'session-plan',
+    originTaskId: string,
+  ): KanbanTask {
+    return {
+      id: 'card-1',
+      title: 'Reflected card',
+      columnId: 'done',
+      order: 0,
+      priority: 'medium',
+      status: 'completed',
+      createdAt: '2026-08-11T00:00:00.000Z',
+      updatedAt: '2026-08-11T00:00:00.000Z',
+      origin: { system: originSystem, taskId: originTaskId, graphId: `session:${originTaskId}` },
+    } as KanbanTask;
+  }
+
+  it('throws when a session-task card is reflected with no task.path configured', async () => {
+    const context = {
+      projectRoot: '/tmp/project',
+      todos: [],
+      meta: {},
+      session: { id: 'sess' },
+      state: { replaceTodos() {} },
+    } as never as Context;
+    const card = makeCard('session-task', 'task-1');
+    await expect(applySessionKanbanTaskToSource(context, card)).rejects.toThrow(
+      /task\.path.*out of sync/i,
+    );
+  });
+
+  it('throws when a session-plan card is reflected with no plan.path configured', async () => {
+    const context = {
+      projectRoot: '/tmp/project',
+      todos: [],
+      meta: {},
+      session: { id: 'sess' },
+      state: { replaceTodos() {} },
+    } as never as Context;
+    const card = makeCard('session-plan', 'plan-1');
+    await expect(applySessionKanbanTaskToSource(context, card)).rejects.toThrow(
+      /plan\.path.*out of sync/i,
+    );
   });
 });
 

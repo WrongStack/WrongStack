@@ -80,6 +80,7 @@ function harness(flag: string | boolean = 'AUTO') {
       },
     ]),
     isDisabled: vi.fn((name: string) => name === 'custom'),
+    isExposedToProvider: vi.fn((name: string) => name === 'read'),
   };
   const agent = { ctx: { session: { id: 'session-1' }, meta: {} as Record<string, unknown> } };
   const input = {
@@ -146,6 +147,7 @@ describe('prepareRuntimeDispatch', () => {
         owner: 'core',
         category: 'Files',
         enabled: true,
+        exposure: 'direct',
         mutating: false,
         permission: 'read',
         descMode: 'full',
@@ -156,6 +158,7 @@ describe('prepareRuntimeDispatch', () => {
         owner: 'plugin',
         category: 'Other',
         enabled: false,
+        exposure: 'disabled',
         mutating: true,
         permission: 'write',
         descMode: 'full',

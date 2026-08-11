@@ -27,10 +27,14 @@ import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
 
 function managedBoardColumns() {
+  // Columns are locked to DEFAULT_COLUMNS; this helper is kept for the lifecycle
+  // mapping below but the `columns` field is now ignored by createBoard. The
+  // lifecycle mapping references the standard column ids (in-progress, not
+  // running).
   return [
     { id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 },
-    { id: 'todo', title: 'Todo', order: 1, wipLimit: 0 },
-    { id: 'running', title: 'Running', order: 2, wipLimit: 0 },
+    { id: 'todo', title: 'To Do', order: 1, wipLimit: 0 },
+    { id: 'in-progress', title: 'In Progress', order: 2, wipLimit: 0 },
     { id: 'review', title: 'Review', order: 3, wipLimit: 0 },
     { id: 'done', title: 'Done', order: 4, wipLimit: 0 },
   ];
@@ -62,7 +66,7 @@ describe('kanban mark_assignment — managed lifecycle auto-transition', () => {
         columns: {
           backlog: 'backlog',
           todo: 'todo',
-          running: 'running',
+          running: 'in-progress',
           review: 'review',
           done: 'done',
         },
@@ -260,7 +264,7 @@ describe('kanban mark_assignment — managed lifecycle auto-transition', () => {
           columns: {
             backlog: 'backlog',
             todo: 'todo',
-            running: 'running',
+            running: 'in-progress',
             review: 'review',
             done: 'done',
           },

@@ -11,6 +11,7 @@ export const KANBAN_READ_ACTIONS = [
   'get_chain',
   'events',
   'queue_health',
+  'get_contract_graph',
 ] as const;
 
 export const KANBAN_MANAGE_ACTIONS = [
@@ -45,12 +46,23 @@ export const KANBAN_MANAGE_ACTIONS = [
   'update_goal_metric',
   'add_check',
   'update_check',
+  'remove_check',
   'add_note',
   'add_link',
   'verify_completion',
   'split_atomic',
   'assess_atomicity',
   'propose_decomposition',
+  // Contract-map editing, removals included. The map is advisory metadata
+  // about a card rather than the card itself, and the same tier that can add
+  // a node should be able to take it back — requiring `--destructive` to undo
+  // an annotation you just made would be the wrong shape. Task and board
+  // deletion stay destructive.
+  'configure_contract_graph',
+  'upsert_contract_node',
+  'remove_contract_node',
+  'add_contract_edge',
+  'remove_contract_edge',
 ] as const;
 
 /** Operations that remove or absorb durable task/board state. */

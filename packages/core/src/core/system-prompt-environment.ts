@@ -77,11 +77,11 @@ export async function buildEnvironment(
   // - 'minimal':    Compact single line — git + date only
   // - 'light':      +platform
   // - 'medium':     +languages
-  // - 'aggressive': +capabilities (context window, provider/model)
+  // - 'aggressive': Smallest single-line environment block
   const tier = env.tier;
   const lines: string[] = ['## Environment'];
 
-  if (tier === 'minimal') {
+  if (tier === 'minimal' || tier === 'aggressive') {
     // Single compact line
     lines.push(`- Git: ${git} | Date: ${today}`);
   } else {
@@ -90,49 +90,35 @@ export async function buildEnvironment(
       lines.push(`- Shell: ${shell}`);
       lines.push(`- Node.js: ${node}`);
     }
-    // Languages appear in the full ('off') block and the richer trimming
-    // tiers; only 'minimal' (single line) and 'light' (platform only) omit
-    // them. 'off' is the most complete tier (no token saving), per the
-    // toolDescLimit ordering off=80 > aggressive=70 > … > minimal=40.
-    if (tier === 'off' || tier === 'medium' || tier === 'aggressive') {
+    // Languages appear in the full ('off') and balanced ('medium') blocks.
+    if (tier === 'off' || tier === 'medium') {
       lines.push(`- Detected languages: ${langs}`);
     }
     lines.push(`- Git status: ${git}`);
     lines.push(`- Today's date: ${today}`);
-    if (tier === 'aggressive') {
-      if (ctx.provider || ctx.model) {
-        lines.push(
-          `- Running on: ${ctx.provider ?? '<unknown provider>'}/${ctx.model ?? '<unknown model>'}`,
-        );
-      }
-      if (modelCapabilities) {
-        lines.push(
-          `- Context window: ${modelCapabilities.maxContextTokens.toLocaleString()} tokens max`,
-        );
-      }
-    }
-    if (tier !== 'aggressive' && modelCapabilities) {
+    if (modelCapabilities) {
       lines.push(
         `- Context window: ${modelCapabilities.maxContextTokens.toLocaleString()} tokens max`,
       );
     }
-    if (tier !== 'aggressive' && (ctx.provider || ctx.model)) {
+    if (ctx.provider || ctx.model) {
       lines.push(
         `- Running on: ${ctx.provider ?? '<unknown provider>'}/${ctx.model ?? '<unknown model>'}`,
       );
     }
-    if (tier !== 'aggressive' && env.modeId && env.modeId !== 'default') {
+    if (env.modeId && env.modeId !== 'default') {
       lines.push(`- Mode: ${env.modeId}`);
     }
   }
 
   // Shell syntax guidance — only meaningful on Windows, where the model must
-  // not fall back to bash/POSIX idioms. Tier-gated: full for off/medium/
-  // aggressive, a one-liner for light, omitted for minimal. POSIX returns ''.
+  // not fall back to bash/POSIX idioms. Tier-gated: full for off/medium,
+  // a one-liner for light, omitted for minimal/aggressive. POSIX returns ''.
   if (
     ctx.tools.some((tool) => tool.name === 'bash') &&
     effShell !== 'posix' &&
-    tier !== 'minimal'
+    tier !== 'minimal' &&
+    tier !== 'aggressive'
   ) {
     const guide = shellGuidanceBlock(effShell, tier === 'light' ? 'short' : 'full');
     if (guide) lines.push('', guide);

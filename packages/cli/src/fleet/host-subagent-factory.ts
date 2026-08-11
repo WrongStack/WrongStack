@@ -55,7 +55,10 @@ import {
   resolveHostSubagentModelSelection,
   resolveHostSubagentReasoningConfig,
 } from './host-provider.js';
-import { createParentSubagentSessionWriter } from './host-session-writer.js';
+import {
+  createParentSubagentSessionWriter,
+  withParentFileSnapshots,
+} from './host-session-writer.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 
 export interface HostSubagentFactoryContext {
@@ -252,12 +255,18 @@ export function createHostSubagentFactory(
     }
     let subSession: SessionWriter;
     if (host.sessionFactory) {
-      subSession = await host.sessionFactory.createSubagentSession({
-        subagentId: subagentName,
-        provider: effProvider,
-        model: effModel,
-        title: `subagent: ${subagentName}`,
-      });
+      // File mutations are mirrored onto the parent because the rewinder only
+      // ever reads the session being rewound — a subagent's own JSONL is not
+      // in that path, so without this its edits survive a `/rewind` silently.
+      subSession = withParentFileSnapshots(
+        await host.sessionFactory.createSubagentSession({
+          subagentId: subagentName,
+          provider: effProvider,
+          model: effModel,
+          title: `subagent: ${subagentName}`,
+        }),
+        host.deps.session,
+      );
     } else {
       subSession = createParentSubagentSessionWriter(host.deps.session);
     }
@@ -309,8 +318,11 @@ export function createHostSubagentFactory(
       maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
       perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
       tracer: undefined,
-      // Kanban tracks work; it does not gate it. See wiring/pipeline.ts.
-      requireKanbanGovernance: false,
+      // Kanban tracks work; it does not gate it. Off unless the operator opts
+      // in — and then subagents inherit it, because a worker dispatched by
+      // `kanban_queue` already carries board/task/lease identity in ctx.meta
+      // and can satisfy the same gate its leader was held to.
+      requireKanbanGovernance: config.tools?.kanbanGovernance ?? false,
     });
 
     const subagentConfigStore = host.deps.configStore;

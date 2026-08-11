@@ -103,6 +103,41 @@ describe('hashRequest', () => {
     expect(hashRequest(a)).not.toBe(hashRequest(b));
   });
 
+  it('ignores the local message fields the provider never sees', () => {
+    // `Request.messages` is the live `ctx.messages` array. Its entries carry
+    // `ts` (wall clock), `_estTokens` (a mutation-time cache) and `origin`,
+    // none of which reach the provider. Hashing them made the digest a
+    // function of *when* the run happened, so a recorded response could never
+    // be looked up again and `mode: 'replay'` threw on its first call.
+    const bare = makeRequest({
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
+    });
+    const decorated = makeRequest({
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'hello' }],
+          ts: '2026-08-11T10:00:00.000Z',
+          _estTokens: 7,
+          origin: 'user_input',
+        },
+      ],
+    });
+    const decoratedLater = makeRequest({
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'hello' }],
+          ts: '2026-08-12T22:31:04.000Z',
+          _estTokens: 9,
+          origin: 'runtime',
+        },
+      ],
+    });
+    expect(hashRequest(decorated)).toBe(hashRequest(bare));
+    expect(hashRequest(decoratedLater)).toBe(hashRequest(bare));
+  });
+
   it('hash is stable across key insertion order (deep sort)', () => {
     const a = {
       model: 'm',

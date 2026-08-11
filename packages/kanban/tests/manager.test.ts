@@ -276,8 +276,10 @@ describe('managed Kanban Agent lifecycle', () => {
     expect(copied?.task.columnId).toBe('backlog');
     expect(copied?.task.status).toBe('pending');
     expect(copied?.task.lifecycle?.history.map((entry) => entry.to)).toEqual(['backlog']);
+    // Columns are locked — removeColumn always throws (formerly it threw only
+    // for managed lifecycle columns; now it throws for all columns).
     await expect(removeColumn(tmpDir, target.id, 'backlog')).rejects.toThrow(
-      'Cannot remove managed lifecycle column',
+      /Columns are locked/,
     );
   });
 
@@ -295,8 +297,10 @@ describe('createBoardFromText', () => {
       description: 'My board description',
     });
     expect(result.title).toBe('Kanban: My board description');
-    expect(result.columns).toHaveLength(4);
-    expect(result.columns?.at(0)?.id).toBe('backlog');
+    // Columns are no longer on the result — createBoard supplies them via
+    // normalizeColumns (always DEFAULT_COLUMNS). The former 4-column default
+    // (which dropped "done") is gone.
+    expect(result.columns).toBeUndefined();
     expect(result.tasks).toEqual([]);
   });
 
@@ -322,22 +326,22 @@ describe('createBoardFromText', () => {
     expect(result.description).toContain('Context: Because reasons');
   });
 
-  it('uses custom column count', () => {
+  it('ignores custom column count — columns are locked', () => {
     const result = createBoardFromText({
       description: 'desc',
       columnCount: 3,
     });
-    expect(result.columns).toHaveLength(3);
+    // columnCount is ignored; createBoard will apply the 5 standard columns.
+    expect(result.columns).toBeUndefined();
   });
 
-  it('uses custom column titles', () => {
+  it('ignores custom column titles — columns are locked', () => {
     const result = createBoardFromText({
       description: 'desc',
       columns: ['Alpha', 'Beta'],
     });
-    expect(result.columns).toHaveLength(2);
-    expect(result.columns?.at(0)?.title).toBe('Alpha');
-    expect(result.columns?.at(1)?.title).toBe('Beta');
+    // Custom titles are ignored; createBoard will apply the 5 standard columns.
+    expect(result.columns).toBeUndefined();
   });
 });
 
@@ -702,48 +706,28 @@ describe('removeBoard', () => {
 });
 
 describe('addColumn', () => {
-  it('adds a new column to a board', async () => {
+  it('throws — columns are locked to the 5 standard columns', async () => {
     const created = await makeBoard();
-    const result = await addColumn(tmpDir, created.id, { title: 'New Column' });
-    expect(result).not.toBeNull();
-    expect(result!.column.title).toBe('New Column');
+    await expect(addColumn(tmpDir, created.id, { title: 'New Column' })).rejects.toThrow(
+      /Columns are locked/,
+    );
   });
 });
 
 describe('updateColumn', () => {
-  it('updates an existing column', async () => {
+  it('throws — column updates are not supported', async () => {
     const created = await makeBoard();
     const colId = created.columns[0]!.id;
-    const updatedBoard = await updateColumn(tmpDir, created.id, colId, {
-      title: 'Renamed Column',
-      description: 'A better name',
-      color: '#ff0000',
-    });
-    expect(updatedBoard).not.toBeNull();
-    const col = updatedBoard!.columns.find((c) => c.id === colId);
-    expect(col?.title).toBe('Renamed Column');
-    expect(col?.color).toBe('#ff0000');
+    await expect(
+      updateColumn(tmpDir, created.id, colId, { title: 'Renamed Column' }),
+    ).rejects.toThrow(/Columns are locked/);
   });
 });
 
 describe('removeColumn', () => {
-  it('removes a column with tasks moved to another', async () => {
-    const board = await createBoard(tmpDir, {
-      title: 'Col test',
-      columns: [
-        { id: 'col-a', title: 'A', order: 0, wipLimit: 0 },
-        { id: 'col-b', title: 'B', order: 1, wipLimit: 0 },
-      ],
-    });
-    await addTask(tmpDir, board.id, { title: 'Move me', columnId: 'col-a' });
-    const result = await removeColumn(tmpDir, board.id, 'col-a', {
-      moveTasksToColumnId: 'col-b',
-    });
-    expect(result).not.toBeNull();
-    const updatedBoard = await getBoard(tmpDir, board.id);
-    expect(updatedBoard!.columns.find((c) => c.id === 'col-a')).toBeUndefined();
-    const movedTask = updatedBoard!.tasks.find((t) => t.title === 'Move me');
-    expect(movedTask?.columnId).toBe('col-b');
+  it('throws — column removal is not supported', async () => {
+    const board = await makeBoard();
+    await expect(removeColumn(tmpDir, board.id, 'todo')).rejects.toThrow(/Columns are locked/);
   });
 });
 

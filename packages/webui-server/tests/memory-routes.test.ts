@@ -22,6 +22,7 @@ describe('canonical memory handler family', () => {
       'memory.sage.delete',
       'memory.sage.remember',
       'memory.sage.recover',
+      'memory.sage.listCandidates',
       'memory.sage.candidateResolve',
       'memory.sage.backfillRecoverable',
       'memory.sage.forFile',
