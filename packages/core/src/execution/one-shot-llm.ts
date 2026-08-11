@@ -330,6 +330,11 @@ export class OneShotOrchestrator {
 
   /**
    * Build the fallback model chain from input + config + current target.
+   * Delegates to {@link FallbackProfileManager.resolveCandidates} — the
+   * shared constructor used by both the agent loop and the one-shot path,
+   * so both produce identical ordering, depth, and fromExplicitSource
+   * semantics.
+   *
    * The injected {@link OneShotOrchestratorOptions.fallbackProfileManager}
    * is the only allowed manager — OneShot never owns a private snapshot
    * so a live `ConfigStore` change reaches every call without rebuilding
@@ -340,63 +345,16 @@ export class OneShotOrchestrator {
     config: Config,
     target: { providerId: string; model: string },
   ): FallbackChain {
-    const mgr = this.opts.fallbackProfileManager;
-    // Track whether the chain comes from an explicit source the user configured.
-    // When true, the chain is authoritative — we must NOT pollute it with
-    // auto-discovered models or every configured provider.
-    let fromExplicitSource = false;
-    // An explicit bridge is independent of auto derivation, so seed the chain
-    // with it even when fallbackAuto is disabled and no ordinary list exists.
-    let selected: FallbackChain = mgr.resolveEffective({
-      fallbackAuto: false,
-      exclude: target,
+    return this.opts.fallbackProfileManager.resolveCandidates(target, {
+      fallbackModels:
+        input.fallbackModels && input.fallbackModels.length > 0
+          ? input.fallbackModels
+          : config.fallbackModels,
+      // The one-shot already tried `target` as the primary before entering
+      // the chain. Passing it as `primary` suppresses the primary-insertion
+      // step in resolveCandidates (primary === current → not pushed).
+      primary: target,
     });
-
-    // Explicit chain wins. The flag is set only when the explicit inputs
-    // actually RESOLVED to usable models — a dead explicit chain (every
-    // entry blocked by missing key, calendar, or status tracker) must
-    // fall through to auto-derivation and keep its last-resort depth.
-    if (input.fallbackModels && input.fallbackModels.length > 0) {
-      const resolved = mgr.resolveEffective({
-        fallbackModels: input.fallbackModels,
-        fallbackAuto: false,
-        exclude: target,
-      });
-      selected = resolved;
-      fromExplicitSource = resolved.length > 0;
-    } else if (config.fallbackModels && config.fallbackModels.length > 0) {
-      // Config-level fallbackModels — independent of fallbackAuto
-      const resolved = mgr.resolveEffective({
-        fallbackModels: config.fallbackModels,
-        fallbackAuto: false,
-        exclude: target,
-      });
-      selected = resolved;
-      fromExplicitSource = resolved.length > 0;
-    } else if (config.fallbackAuto !== false) {
-      // Smart default from config (only when auto-derivation is enabled)
-      selected = mgr.resolveEffective({
-        fallbackAuto: true,
-        exclude: target,
-      });
-    }
-
-    if (config.fallbackAuto === false) return selected;
-
-    // Only append every configured provider as last-resort depth when the
-    // chain was auto-derived — an explicit user-chosen chain is authoritative.
-    if (fromExplicitSource) return selected;
-
-    const combined = [...selected, ...mgr.resolveAllConfigured(target)];
-    const seen = new Set<string>();
-    return Object.freeze(
-      combined.filter((entry) => {
-        const key = `${entry.providerId}/${entry.model}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }),
-    );
   }
 
   /** Attempt a provider call while preserving the actual failure for callers. */

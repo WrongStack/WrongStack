@@ -242,12 +242,140 @@ export class FallbackProfileManager {
   }
 
   /**
-   * Resolve every usable configured target as an uncapped last-resort chain.
+   * Resolve every usable configured target as a bounded last-resort chain.
    * Normal smart defaults stay bounded; callers append this only after the
-   * preferred chain and only when automatic fallback is enabled.
+   * preferred chain and only when automatic fallback is enabled. The cap
+   * ({@link MAX_LAST_RESORT_CANDIDATES}) prevents a config with many providers
+   * from producing a degenerate chain of doomed requests during a systemic
+   * outage — by this point the smart default, bridge, and default profile
+   * have already failed.
    */
   resolveAllConfigured(exclude?: { providerId: string; model: string }): FallbackChain {
-    return this.smartDefault(exclude, Number.POSITIVE_INFINITY);
+    return this.smartDefault(exclude, MAX_LAST_RESORT_CANDIDATES);
+  }
+
+  /**
+   * Build the complete fallback candidate chain shared by the agent-loop
+   * extension and the one-shot orchestrator. Centralizes the bridge → primary →
+   * selected → default-profile → all-configured ladder and the fromExplicitSource
+   * gate so both consumers produce identical ordering and depth semantics.
+   *
+   * Layering (each step deduped against all prior):
+   *  1. Bridge (emergency continuity route).
+   *  2. Configured primary, when the live context drifted from it.
+   *  3. The selected chain (explicit refs → named profile → smart default),
+   *     via {@link resolveEffective}.
+   *  4. The "default" profile — extra depth, ONLY when the chain was auto-derived.
+   *  5. Every other configured provider — last resort, ONLY when the chain was
+   *     auto-derived AND `effectiveFallbackAuto` is true.
+   *
+   * Returns the empty chain when `closedWorld` is true and no explicit
+   * refs/profile resolved — a model allowlist never leaks to unlisted models.
+   *
+   * @internal caller-aware options (primary, closedWorld) are accepted because
+   *   the agent loop has context the manager does not own; the resolution
+   *   pipeline itself is identical for both callers.
+   */
+  resolveCandidates(
+    current: { providerId: string; model: string },
+    opts: {
+      fallbackModels?: readonly string[] | undefined;
+      fallbackProfile?: string | undefined;
+      fallbackAuto?: boolean | undefined;
+      primary?: { providerId: string; model: string } | undefined;
+      closedWorld?: boolean | undefined;
+    } = {},
+  ): FallbackChain {
+    const configuredPrimary = opts.primary ?? {
+      providerId: this.config.provider,
+      model: this.config.model,
+    };
+
+    // Outside a closed-world allowlist, honour fallbackAuto explicitly and use
+    // auto discovery by default when the setting is absent.
+    const configFallbackAuto = this.config.fallbackAuto;
+    const effectiveFallbackAuto =
+      configFallbackAuto !== undefined && configFallbackAuto !== null
+        ? configFallbackAuto
+        : !opts.closedWorld;
+
+    const explicitRefs = opts.fallbackModels ?? this.config.fallbackModels;
+
+    // Whether the selected chain comes from an explicit source the user
+    // configured themselves. When true, the chain is authoritative — we must
+    // NOT pollute it with auto-discovered models, favorites, the "default"
+    // profile, or every configured provider. The flag is set only when the
+    // explicit inputs actually RESOLVED to usable models — not merely when
+    // the inputs exist. A dead explicit chain falls through to auto-derivation.
+    const explicitUsable =
+      explicitRefs !== undefined &&
+      explicitRefs.length > 0 &&
+      this.resolveRefs(explicitRefs, current).length > 0;
+    const profileUsable =
+      opts.fallbackProfile !== undefined &&
+      this.hasProfile(opts.fallbackProfile) &&
+      this.resolve(opts.fallbackProfile, { exclude: current }).length > 0;
+    const fromExplicitSource = explicitUsable || profileUsable;
+
+    const selectedChain: FallbackChain = opts.closedWorld
+      ? explicitRefs && explicitRefs.length > 0
+        ? this.resolveRefs(explicitRefs, current)
+        : opts.fallbackProfile
+          ? this.resolve(opts.fallbackProfile, { exclude: current })
+          : FREEZER_EMPTY
+      : this.resolveEffective({
+          fallbackModels: explicitRefs,
+          fallbackProfile: opts.fallbackProfile,
+          fallbackAuto: effectiveFallbackAuto,
+          exclude: current,
+        });
+
+    const candidates: FallbackChainEntry[] = [];
+
+    // A model allowlist is a permission boundary. Never append the session
+    // model, bridge, default profile, or auto-discovered providers outside it.
+    if (opts.closedWorld) {
+      candidates.push(...selectedChain);
+    } else {
+      // Bridge (provider-independent escape hatch). resolveEffective() already
+      // carries it for one-shot/profile consumers; the dedup filter keeps one.
+      candidates.push(...this.resolveBridge(current));
+
+      // Configured primary — try it before any fallback entries when the
+      // active context is still on an older model.
+      if (
+        !(
+          configuredPrimary.providerId === current.providerId &&
+          configuredPrimary.model === current.model
+        )
+      ) {
+        candidates.push({
+          providerId: configuredPrimary.providerId,
+          model: configuredPrimary.model,
+          providerSwitched: configuredPrimary.providerId !== current.providerId,
+        });
+      }
+
+      // Preserve the exact order of the user's explicit / role-selected chain.
+      candidates.push(...selectedChain);
+
+      // The default profile is additional fallback depth (unless we already
+      // resolved it as the selected chain above). Only for the auto-derivation
+      // path — an explicit user-chosen chain is authoritative, and the user
+      // turning off fallbackAuto means "no auto-appended depth at all".
+      if (!fromExplicitSource && effectiveFallbackAuto && opts.fallbackProfile !== 'default') {
+        candidates.push(...this.resolve('default', { exclude: current }));
+      }
+
+      // Every other configured provider as a last resort — but only
+      // when fallbackAuto is actually enabled, and only when the chain
+      // was auto-derived (not explicitly chosen by the user).
+      if (!fromExplicitSource && effectiveFallbackAuto) {
+        candidates.push(...this.resolveAllConfigured(current));
+      }
+    }
+
+    return dedupeChain(candidates, current);
   }
 
   // ── Provider availability (read-only) ──────────────────────────────────
@@ -412,4 +540,39 @@ export class FallbackProfileManager {
   }
 }
 
+/**
+ * Maximum number of candidates the last-resort append ({@link FallbackProfileManager.resolveAllConfigured})
+ * may produce. By the time this append fires, the smart default, the bridge, and the
+ * default profile have all failed — in a systemic outage every additional entry is a
+ * doomed request. The cap bounds the blast radius without starving legitimate diversity
+ * (3× the smart-default depth of 4). Exposed for tests and for callers that want to
+ * surface it in config tooling.
+ */
+export const MAX_LAST_RESORT_CANDIDATES = 12;
+
 const FREEZER_EMPTY: FallbackChain = Object.freeze([]);
+
+/**
+ * Deduplicate fallback chain entries by `providerId/model`, dropping the
+ * current (already-active) model and any repeat. Preserves first-occurrence
+ * order so the layering produced by {@link FallbackProfileManager.resolveCandidates}
+ * determines which entry wins when the same model appears at multiple depths.
+ *
+ * Shared by both the agent-loop and one-shot paths so dedup semantics can never
+ * drift between them.
+ */
+export function dedupeChain(
+  entries: readonly FallbackChainEntry[],
+  current: { providerId: string; model: string },
+): FallbackChain {
+  const seen = new Set<string>();
+  const currentKey = `${current.providerId}/${current.model}`;
+  return Object.freeze(
+    entries.filter((entry) => {
+      const key = `${entry.providerId}/${entry.model}`;
+      if (key === currentKey || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  );
+}

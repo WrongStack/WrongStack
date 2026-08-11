@@ -1140,7 +1140,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10269
+      "sourceLines": 10336
     },
     {
       "directory": "defaults",
@@ -1161,7 +1161,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 52,
-      "sourceLines": 18364
+      "sourceLines": 18322
     },
     {
       "directory": "extension",

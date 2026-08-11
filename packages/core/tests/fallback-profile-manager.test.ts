@@ -214,7 +214,7 @@ describe('FallbackProfileManager', () => {
       expect(refs).toContain('anthropic/cross-1');
     });
 
-    it('exposes an uncapped last-resort inventory separately from the smart chain', () => {
+    it('exposes a bounded last-resort inventory separately from the smart chain', () => {
       const mgr = new FallbackProfileManager(
         makeConfig({
           providers: {
@@ -233,6 +233,28 @@ describe('FallbackProfileManager', () => {
       );
       expect(mgr.resolveEffective({ fallbackAuto: true })).toHaveLength(4);
       expect(mgr.resolveAllConfigured()).toHaveLength(7);
+    });
+
+    it('caps resolveAllConfigured at MAX_LAST_RESORT_CANDIDATES', () => {
+      const manyProviders: Record<string, { type: string; apiKey: string; models: string[] }> =
+        {};
+      for (let i = 0; i < 8; i++) {
+        manyProviders[`prov${i}`] = {
+          type: 'openai',
+          apiKey: `sk-${i}`,
+          models: [`m${i}-a`, `m${i}-b`, `m${i}-c`],
+        };
+      }
+      const mgr = new FallbackProfileManager(
+        makeConfig({
+          provider: 'prov0',
+          model: 'm0-a',
+          providers: manyProviders,
+        }),
+      );
+      const chain = mgr.resolveAllConfigured();
+      // 8 providers × 3 models = 24 candidates, but the chain is capped.
+      expect(chain.length).toBeLessThanOrEqual(12);
     });
 
     describe('favoriteModelsOnly contract on smart default', () => {

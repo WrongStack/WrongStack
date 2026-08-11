@@ -26,7 +26,7 @@ import {
   type Response,
 } from '../types/provider.js';
 import { resolveEventSessionId } from './context.js';
-import type { FallbackChain, FallbackChainEntry } from './fallback-profile-manager.js';
+import type { FallbackChain } from './fallback-profile-manager.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 import { evaluateModelCalendar, logicalCalendarTarget } from './model-availability-calendar.js';
 import { bindRequestProvider } from './request-provider-binding.js';
@@ -233,108 +233,12 @@ function fallbackCandidates(
   } = {},
 ): FallbackChain {
   const mgr = opts.sharedManager ?? new FallbackProfileManager(config);
-  const configuredPrimary = opts.primary ?? primaryTarget(config);
-  // Outside a closed-world allowlist, honour fallbackAuto explicitly and use
-  // auto discovery by default when the setting is absent.
-  const configFallbackAuto = config.fallbackAuto;
-  const effectiveFallbackAuto =
-    configFallbackAuto !== undefined && configFallbackAuto !== null
-      ? configFallbackAuto
-      : !opts.closedWorld;
-  const explicitRefs = opts.fallbackModels ?? config.fallbackModels;
-  // Whether the selected chain comes from an explicit source the user
-  // configured themselves. When true, the chain is authoritative — we must
-  // NOT pollute it with auto-discovered models, favorites, the "default"
-  // profile, or every configured provider. Those are only last-resort depth
-  // when no explicit chain was provided.
-  //
-  // The flag is set only when the explicit inputs actually RESOLVED to
-  // usable models — not merely when the inputs exist. A dead explicit
-  // chain (every entry blocked by missing key, calendar, or status tracker)
-  // must fall through to auto-derivation and keep its last-resort depth.
-  const explicitUsable =
-    explicitRefs !== undefined &&
-    explicitRefs.length > 0 &&
-    mgr.resolveRefs(explicitRefs, current).length > 0;
-  const profileUsable =
-    opts.fallbackProfile !== undefined &&
-    mgr.hasProfile(opts.fallbackProfile) &&
-    mgr.resolve(opts.fallbackProfile, { exclude: current }).length > 0;
-  const fromExplicitSource = explicitUsable || profileUsable;
-  const selectedChain = opts.closedWorld
-    ? explicitRefs && explicitRefs.length > 0
-      ? mgr.resolveRefs(explicitRefs, current)
-      : opts.fallbackProfile
-        ? mgr.resolve(opts.fallbackProfile, { exclude: current })
-        : Object.freeze([])
-    : mgr.resolveEffective({
-        fallbackModels: explicitRefs,
-        fallbackProfile: opts.fallbackProfile,
-        fallbackAuto: effectiveFallbackAuto,
-        exclude: current,
-      });
-  const candidates: FallbackChainEntry[] = [];
-
-  // A model allowlist is a permission boundary. Never append the session
-  // model, bridge, default profile, or auto-discovered providers outside it.
-  if (opts.closedWorld) {
-    candidates.push(...selectedChain);
-    const seen = new Set<string>();
-    return Object.freeze(
-      candidates.filter((entry) => {
-        const key = `${entry.providerId}/${entry.model}`;
-        if (key === `${current.providerId}/${current.model}` || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }),
-    );
-  }
-
-  // Immediate provider-independent escape hatch. resolveEffective() also
-  // carries it for one-shot/profile consumers; final dedupe keeps one copy.
-  candidates.push(...mgr.resolveBridge(current));
-
-  // 1. A live config or role-selected primary is the user's current model
-  //    choice, so try it before any fallback entries when the active context
-  //    is still on an older model.
-  if (!sameTarget(configuredPrimary, current)) {
-    candidates.push({
-      providerId: configuredPrimary.providerId,
-      model: configuredPrimary.model,
-      providerSwitched: configuredPrimary.providerId !== current.providerId,
-    });
-  }
-
-  // 2. Preserve the exact order of the user's explicit / role-selected chain.
-  candidates.push(...selectedChain);
-
-  // 3. The default profile is additional fallback depth (unless we already
-  //    resolved it as the selected chain above).
-  //
-  //    When the user explicitly chose `fallbackModels` or a named
-  //    `fallbackProfile`, that selection is authoritative — we do NOT
-  //    pollute it with the "default" profile or auto-discovered models.
-  //    The unconditional appends only fire for the auto-derivation path.
-  if (!fromExplicitSource && opts.fallbackProfile !== 'default') {
-    candidates.push(...mgr.resolve('default', { exclude: current }));
-  }
-
-  // 4. Every other configured provider as a last resort — but only
-  //    when fallbackAuto is actually enabled, and only when the chain
-  //    was auto-derived (not explicitly chosen by the user).
-  if (!fromExplicitSource && effectiveFallbackAuto) {
-    candidates.push(...mgr.resolveAllConfigured(current));
-  }
-
-  const seen = new Set<string>();
-  return Object.freeze(
-    candidates.filter((entry) => {
-      const key = `${entry.providerId}/${entry.model}`;
-      if (key === `${current.providerId}/${current.model}` || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }),
-  );
+  return mgr.resolveCandidates(current, {
+    fallbackModels: opts.fallbackModels,
+    fallbackProfile: opts.fallbackProfile,
+    primary: opts.primary ?? primaryTarget(config),
+    closedWorld: opts.closedWorld,
+  });
 }
 
 const primaryTarget = (cfg: Config) => ({ providerId: cfg.provider, model: cfg.model });
