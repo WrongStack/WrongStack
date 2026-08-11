@@ -427,6 +427,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   nextStepsTool={state.settingsPicker.nextStepsTool}
                   readSymbols={state.settingsPicker.readSymbols}
                   panelPositions={state.settingsPicker.panelPositions}
+                  inputHeight={inputHeight}
                   filter={state.settingsPicker.filter}
                   hint={state.settingsPicker.hint}
                 />

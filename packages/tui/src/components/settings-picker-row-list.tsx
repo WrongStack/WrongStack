@@ -18,6 +18,8 @@ interface SettingsPickerRowListProps {
   highlightSegments: (label: string) => readonly SettingsHighlightSegment[];
   windowStart: number;
   windowEnd: number;
+  filterWindowStart: number;
+  filterWindowEnd: number;
 }
 
 function renderPickerRow(
@@ -88,11 +90,13 @@ export function SettingsPickerRowList({
   highlightSegments,
   windowStart,
   windowEnd,
+  filterWindowStart,
+  filterWindowEnd,
 }: SettingsPickerRowListProps): React.ReactElement {
   if (filterActive) {
     return (
       <>
-        {rankedResults.map((result) => {
+        {rankedResults.slice(filterWindowStart, filterWindowEnd).map((result) => {
           const fieldIdx = result.chord.field;
           const rowIdx = fieldRowIndex[fieldIdx] ?? -1;
           const row = rows[rowIdx];

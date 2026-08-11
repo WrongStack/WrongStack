@@ -401,8 +401,11 @@ describe('SettingsPicker filter mode', () => {
       // "Config scope"     → c@0, e@11 (at end of "scope"), gap=10, len=12
       // "Confirm before exit" → c@0, e@9 (in "before"), gap=8, len=19
       // Tighter gap ranks higher even if the label is longer.
+      // Focus "Config scope" (field 35) so the filter window centers on
+      // all three targets — with a 5-row window at 80 cols, focusing rank 1
+      // keeps ranks 0-2 all visible.
       const { lastFrame } = render(
-        React.createElement(SettingsPicker, baseProps({ filter: '/ce' })),
+        React.createElement(SettingsPicker, baseProps({ filter: '/ce', field: 35 })),
       );
       const frame = lastFrame() ?? '';
       const lines = frame.split('\n');

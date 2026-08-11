@@ -159,6 +159,13 @@ export interface SettingsPickerProps {
    * matching against row labels.
    */
   filter?: string | undefined;
+  /**
+   * Real rendered height of the Input box below the picker (rows).
+   * When omitted, defaults to 3 (single-line prompt + 2 border/padding
+   * rows). Passed from AppView so the picker's height budget accounts
+   * for multi-line input buffers instead of assuming a constant.
+   */
+  inputHeight?: number | undefined;
   hint?: string | undefined;
 }
 
@@ -215,6 +222,7 @@ export function SettingsPicker({
   nextStepsTool,
   readSymbols,
   panelPositions,
+  inputHeight,
   hint,
 }: SettingsPickerProps): React.ReactElement {
   const boolVal = (v: boolean) => (v ? 'on' : 'off');
@@ -502,16 +510,78 @@ export function SettingsPicker({
   const { filterActive, rankedResults, filteredFieldIndices, highlightSegments } =
     buildSettingsFilterState(filter, SETTINGS_PICKER_JUMP_CHORDS);
 
-  // Compute visible window. On small terminals, the picker can overflow;
-  // we show at most VISIBLE_FIELDS around the current selection so every
-  // field stays reachable. The window grows with the terminal: 8 fields is
-  // the floor (the historical fixed size), taller terminals show more.
-  // Reserved rows: picker chrome (border/title/legend/scroll indicators/
-  // footer, ~9) + the input box, statusline and key-hint bar below (~8)
-  // + up to 9 section-header lines that render inside the window.
+  // ── Terminal geometry & row budget ──────────────────────────────────
+  //
+  // The picker must NEVER emit more terminal rows than are available.
+  // An overflowing frame desyncs Ink's erase math: previously-written
+  // rows survive into the next frame, duplicate/stale content stacks
+  // up, and the top of the screen turns into a garbled block — the bug
+  // seen when scrolling fields on short terminals like Ubuntu's default
+  // 24-row GNOME Terminal.
+  //
+  // Two safety layers work together:
+  //   1. VISIBLE_FIELDS  — limits how many field rows are rendered so
+  //                        the content normally fits without clipping.
+  //   2. height + overflowY — a hard cap on the picker Box that clips
+  //                        any residual overflow (estimation error,
+  //                        unexpected section headers, etc.) instead of
+  //                        scrolling the terminal.
+  //
+  // Both numbers derive from the same chain so they cannot disagree:
+  //
+  //   pickerHeight     = max(8, termRows − inputHeight − BOTTOM_CHROME_ROWS)
+  //   innerHeight      = pickerHeight − BORDER_ROWS
+  //   VISIBLE_FIELDS   = max(3, floor((innerHeight − CHROME_ROWS)
+  //                                    / (linesPerField + 1)))
+  //
+  // Field rows render a 40-char prefix ("  " + label.padEnd(26) +
+  // value.padEnd(12)) then detail text. At contentWidth < 96 cols the
+  // detail wraps onto a second line for most rows, so we budget 2 lines
+  // per field; wide terminals (≥ 100 cols) keep each field on one line.
   const { stdout } = useStdout();
   const termRows = stdout?.rows ?? 24;
-  const VISIBLE_FIELDS = Math.max(8, termRows - 26);
+  const termCols = stdout?.columns ?? 80;
+
+  // Content width inside the bordered, padded picker Box.
+  // borderStyle="round" consumes 2 cols (left + right borders);
+  // paddingX={1} consumes 2 more (1 col each side).
+  const contentWidth = Math.max(10, termCols - 4);
+  // Detail text follows the 40-char label+value prefix and wraps.
+  // At narrow widths the available detail space shrinks and each field
+  // consumes more lines. Budget conservatively to avoid overflow:
+  //   ≥ 96 cols content (≥100-col terminal): detail fits on one line
+  //   ≥ 60 cols content (≥64-col terminal): detail wraps to ~2 lines
+  //   < 60 cols content (< 64-col terminal): detail wraps to ~4 lines
+  const linesPerField = contentWidth >= 96 ? 1 : contentWidth >= 60 ? 2 : 4;
+
+  // Fixed rows consumed regardless of field count.
+  // Real input height (passed from AppView) accounts for multi-line
+  // buffers; default to 3 (single-line prompt + 2 chrome rows) when not
+  // supplied (tests, standalone rendering).
+  const INPUT_ROWS = inputHeight ?? 3;
+  // StatusBar (1–4 rows in detailed mode: base rails + optional work and
+  // memory/index rails) + KeyHintBar (1 row) render below the picker inside
+  // the bottom region. Reserve the worst case so the picker title stays
+  // visible even with all optional detailed-status rails active. Without
+  // this deduction the picker overshoots and the root cap clips the title.
+  const BOTTOM_CHROME_ROWS = 5;
+  const BORDER_ROWS = 2; // picker top + bottom borders
+  const CHROME_ROWS = 5; // title + legend + scroll-above/below + footer
+
+  // Picker Box height (borders included). Leaves INPUT_ROWS for the
+  // Input box and BOTTOM_CHROME_ROWS for StatusBar + KeyHintBar below.
+  // The min 8 guarantees a usable picker even on very short terminals
+  // (the hard cap clips excess, never scrolls).
+  const pickerHeight = Math.max(8, termRows - INPUT_ROWS - BOTTOM_CHROME_ROWS);
+  const innerHeight = pickerHeight - BORDER_ROWS;
+
+  // VISIBLE_FIELDS — non-filter mode. Each field row can be preceded by
+  // a section header (── Section ──), so worst-case cost per visible
+  // field is linesPerField + 1 (field row + header row). This formula
+  // avoids a separate maxHeaders estimate and its risk of over/under-
+  // reserving: it's exact in the worst case and generous when fields
+  // cluster within sections (the common case).
+  const VISIBLE_FIELDS = Math.max(3, Math.floor((innerHeight - CHROME_ROWS) / (linesPerField + 1)));
   const totalFields = fieldRowIndex.length; // = SETTINGS_FIELD_COUNT
   const windowStart =
     totalFields <= VISIBLE_FIELDS
@@ -521,8 +591,37 @@ export function SettingsPicker({
   const hasAbove = windowStart > 0;
   const hasBelow = windowEnd < totalFields;
 
+  // Filter-mode window: no section headers, so each row costs linesPerField.
+  // Without windowing, a broad query (/m, /ce) matches 15+ fields and the
+  // hard height cap clips the filter header — making it look inactive.
+  const FILTER_VISIBLE_FIELDS = Math.max(3, Math.floor((innerHeight - CHROME_ROWS) / linesPerField));
+  const filterMatchCount = rankedResults.length;
+  const filterSelectedIdx = filterActive
+    ? rankedResults.findIndex((r) => r.chord.field === field)
+    : -1;
+  const filterWindowStart =
+    !filterActive || filterMatchCount <= FILTER_VISIBLE_FIELDS || filterSelectedIdx < 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            filterSelectedIdx - Math.floor(FILTER_VISIBLE_FIELDS / 2),
+            filterMatchCount - FILTER_VISIBLE_FIELDS,
+          ),
+        );
+  const filterWindowEnd = Math.min(filterWindowStart + FILTER_VISIBLE_FIELDS, filterMatchCount);
+  const filterHasAbove = filterActive && filterWindowStart > 0;
+  const filterHasBelow = filterActive && filterWindowEnd < filterMatchCount;
+
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor="yellow"
+      paddingX={1}
+      height={pickerHeight}
+      overflowY="hidden"
+    >
       <Text color="cyan" bold>
         ━━ Settings ━━
       </Text>
@@ -534,7 +633,10 @@ export function SettingsPicker({
       ) : (
         <Text dimColor>↑/↓ field · ←/→ change + autosave · `/` to search · F5 to close</Text>
       )}
-      {hasAbove && !filterActive ? (
+      {filterActive && filterHasAbove ? (
+        <Text dimColor>{`  ↑ ${filterWindowStart} match${filterWindowStart === 1 ? '' : 'es'} above`}</Text>
+      ) : null}
+      {!filterActive && hasAbove ? (
         <Text dimColor>{`  ↑ ${windowStart} field${windowStart === 1 ? '' : 's'} above`}</Text>
       ) : null}
       {filterActive && filteredFieldIndices.length === 0 ? (
@@ -551,8 +653,13 @@ export function SettingsPicker({
         highlightSegments={highlightSegments}
         windowStart={windowStart}
         windowEnd={windowEnd}
+        filterWindowStart={filterWindowStart}
+        filterWindowEnd={filterWindowEnd}
       />
-      {hasBelow && !filterActive ? (
+      {filterActive && filterHasBelow ? (
+        <Text dimColor>{`  ↓ ${filterMatchCount - filterWindowEnd} match${filterMatchCount - filterWindowEnd === 1 ? '' : 'es'} below`}</Text>
+      ) : null}
+      {!filterActive && hasBelow ? (
         <Text
           dimColor
         >{`  ↓ ${totalFields - windowEnd} field${totalFields - windowEnd === 1 ? '' : 's'} below`}</Text>
