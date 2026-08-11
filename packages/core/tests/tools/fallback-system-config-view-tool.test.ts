@@ -379,6 +379,51 @@ describe('system_config_view — doctor section', () => {
       expect(result.message).toContain('has no model');
     });
   });
+
+  it('warns when fallbackMaxLastResortCandidates is negative', async () => {
+    const tool = createSystemConfigViewTool(
+      makeOpts({ fallbackMaxLastResortCandidates: -5 } as never),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
+    expect(result.message).toContain('fallbackMaxLastResortCandidates');
+    expect(result.message).toContain('negative');
+  });
+
+  it('warns when fallbackMaxLastResortCandidates is non-finite', async () => {
+    const tool = createSystemConfigViewTool(
+      makeOpts({ fallbackMaxLastResortCandidates: Number.NaN } as never),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
+    expect(result.message).toContain('fallbackMaxLastResortCandidates');
+    expect(result.message).toContain('non-negative');
+    expect(result.message).toContain('NaN');
+  });
+
+  it('passes silently when fallbackMaxLastResortCandidates is a valid number', async () => {
+    const tool = createSystemConfigViewTool(
+      makeOpts({ fallbackMaxLastResortCandidates: 20 } as never),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
+    expect(result.message).toContain('0 issues');
+  });
+
+  it('warns when fallbackMaxLastResortCandidates is a fraction that floors to 0', async () => {
+    const tool = createSystemConfigViewTool(
+      makeOpts({ fallbackMaxLastResortCandidates: 0.5 } as never),
+    );
+    const result = await tool.execute({ section: 'doctor' }, {} as never, {
+      signal: new AbortController().signal,
+    });
+    // 0.5 floors to 0 at runtime — the doctor must surface this so the user
+    // is not surprised by a silently disabled last-resort append.
+    expect(result.message).toContain('disabled');
+  });
 });
 
 describe('system_config_view — all section', () => {

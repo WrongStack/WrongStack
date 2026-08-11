@@ -201,9 +201,8 @@ export function createSystemConfigViewTool(
         const profiles = (config.fallbackProfiles ?? {}) as Record<string, string[]>;
         const chain = config.fallbackModels ?? [];
         const matrix = (config.modelMatrix ?? {}) as Record<string, Record<string, unknown>>;
-        const fleetBudget = (
-          config.fleet as { budget?: Record<string, unknown> } | undefined
-        )?.budget;
+        const fleetBudget = (config.fleet as { budget?: Record<string, unknown> } | undefined)
+          ?.budget;
 
         const bridge = config.fallbackBridge?.trim();
         if (bridge) {
@@ -284,7 +283,9 @@ export function createSystemConfigViewTool(
         // 4. Fleet budget numeric ceilings
         if (typeof config.maxConcurrent === 'number') {
           if (!Number.isFinite(config.maxConcurrent) || config.maxConcurrent < 0) {
-            issues.push(`maxConcurrent must be a non-negative number (got ${config.maxConcurrent})`);
+            issues.push(
+              `maxConcurrent must be a non-negative number (got ${config.maxConcurrent})`,
+            );
           } else if (config.maxConcurrent === 0) {
             warnings.push('maxConcurrent is 0 — subagent concurrency effectively disabled');
           } else {
@@ -296,10 +297,32 @@ export function createSystemConfigViewTool(
             const v = fleetBudget[key];
             if (v === undefined) continue;
             if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
-              issues.push(`fleet.budget.${key} must be a non-negative number (got ${JSON.stringify(v)})`);
+              issues.push(
+                `fleet.budget.${key} must be a non-negative number (got ${JSON.stringify(v)})`,
+              );
             } else {
               ok.push(`fleet.budget.${key} ${v}`);
             }
+          }
+        }
+
+        // 4b. Check fallbackMaxLastResortCandidates
+        const lastResortCap = config.fallbackMaxLastResortCandidates;
+        if (lastResortCap !== undefined) {
+          if (
+            typeof lastResortCap !== 'number' ||
+            !Number.isFinite(lastResortCap) ||
+            lastResortCap < 0
+          ) {
+            issues.push(
+              `fallbackMaxLastResortCandidates must be a non-negative number (got ${String(lastResortCap)})`,
+            );
+          } else if (Math.floor(lastResortCap) === 0) {
+            warnings.push(
+              `fallbackMaxLastResortCandidates is ${lastResortCap} — floors to 0, last-resort auto-discovery append is disabled`,
+            );
+          } else {
+            ok.push(`fallbackMaxLastResortCandidates ${Math.floor(lastResortCap)}`);
           }
         }
 
