@@ -146,7 +146,7 @@ function TokenForm({
       <p className="hq-token-text">
         {hadToken
           ? 'The saved token was rejected — it may have been revoked or the server was reset. Paste a current browser token.'
-          : 'This HQ server runs in token mode. Paste the browser token from wstack hq token create. A complete legacy ?token= URL also works.'}
+          : 'This HQ server runs in token mode. Open a terminal and run wstack hq token create to mint a browser token, then paste the token value here. A complete legacy ?token= URL also works.'}
       </p>
       {error ? <p className="hq-token-error">{error}</p> : null}
       <PasswordInput
@@ -168,8 +168,10 @@ function TokenForm({
         {busy ? 'Connecting…' : 'Connect'}
       </button>
       <p className="hq-token-hint">
-        Manage tokens with <code>wstack hq token list</code> / <code>wstack hq token create</code> —
-        they live in <code>~/.wrongstack/hq/auth.json</code>.
+        Open a terminal and run <code>wstack hq token create</code>, then paste the{' '}
+        <code>token:</code> value here. The secret is shown only once — it cannot be recovered
+        from <code>~/.wrongstack/hq/auth.json</code> (only its hash is stored). Run{' '}
+        <code>wstack hq help</code> for all token commands.
       </p>
     </>
   );

@@ -60,6 +60,16 @@ function resolveDataDir(deps: SubcommandDeps): string {
 export const hqCmd: SubcommandHandler = async (args, deps) => {
   const sub = args[0];
 
+  // `wstack hq --help` / `wstack hq serve --help` → top-level HQ help.
+  // For deep subcommands (`token`, `audit`), fall through to their handlers
+  // so each level can print its own focused help. The help short-circuit in
+  // short-circuit-flags.ts defers here when a known subcommand positional
+  // accompanies --help.
+  if (deps.flags?.['help'] === true && (!sub || sub === 'serve')) {
+    printHelp(deps);
+    return 0;
+  }
+
   // `wstack hq` and `wstack hq serve` start the server.
   if (!sub || sub === 'serve') {
     return startServer(deps);
@@ -203,6 +213,12 @@ function writeStartupInfo(deps: SubcommandDeps, handle: HqServerHandle): void {
 async function hqTokenCmd(args: string[], deps: SubcommandDeps): Promise<number> {
   const action = args[0];
 
+  // `wstack hq token --help` / `wstack hq token help` → focused token help.
+  if (deps.flags?.['help'] === true || action === 'help' || action === '--help') {
+    printTokenHelp(deps);
+    return 0;
+  }
+
   if (action === 'create') {
     return tokenCreate(args.slice(1), deps);
   }
@@ -214,7 +230,7 @@ async function hqTokenCmd(args: string[], deps: SubcommandDeps): Promise<number>
   }
 
   deps.renderer.writeError(`Unknown hq token subcommand: ${action ?? '(none)'}\n`);
-  deps.renderer.write('Usage: wstack hq token <create|list|revoke>\n');
+  printTokenHelp(deps);
   return 1;
 }
 
@@ -243,12 +259,18 @@ async function hqTokenCmd(args: string[], deps: SubcommandDeps): Promise<number>
 async function hqAuditCmd(args: string[], deps: SubcommandDeps): Promise<number> {
   const action = args[0];
 
+  // `wstack hq audit --help` / `wstack hq audit help` → focused audit help.
+  if (deps.flags?.['help'] === true || action === 'help' || action === '--help') {
+    printAuditHelp(deps);
+    return 0;
+  }
+
   if (action === 'verify' || action === undefined) {
     return hqAuditVerify(deps);
   }
 
   deps.renderer.writeError(`Unknown hq audit subcommand: ${action ?? '(none)'}\n`);
-  deps.renderer.write('Usage: wstack hq audit <verify>\n');
+  printAuditHelp(deps);
   return 1;
 }
 
@@ -699,4 +721,62 @@ function printHelp(deps: SubcommandDeps): void {
   );
   deps.renderer.write('\n');
   deps.renderer.write(`auth.json schema version: ${HQ_AUTH_FILE_VERSION}.\n`);
+}
+
+/** Focused help for `wstack hq token --help`. */
+function printTokenHelp(deps: SubcommandDeps): void {
+  deps.renderer.write(`Usage: wstack hq token <create | list | revoke>\n`);
+  deps.renderer.write('\n');
+  deps.renderer.write(
+    `  wstack hq token create [label] [--ttl <dur>]          Mint a browser token (enters token mode).\n`,
+  );
+  deps.renderer.write(
+    `  wstack hq token create --client [label] [--ttl <dur>] Mint a client token (/ws/client).\n`,
+  );
+  deps.renderer.write(`  wstack hq token list                                 List issued browser tokens (alias: ls).\n`);
+  deps.renderer.write(`  wstack hq token list --client                         List issued client tokens.\n`);
+  deps.renderer.write(
+    `  wstack hq token revoke <id>                           Revoke a browser token (id prefix match).\n`,
+  );
+  deps.renderer.write(`  wstack hq token revoke --client <id>                  Revoke a client token.\n`);
+  deps.renderer.write('\n');
+  deps.renderer.write(`The token secret is printed once at create time and cannot be recovered\n`);
+  deps.renderer.write(`from auth.json (only its SHA-256 verifier is persisted). Tokens live in\n`);
+  deps.renderer.write(`<dataDir>/auth.json (default ~/.wrongstack/hq/auth.json).\n`);
+  deps.renderer.write('\n');
+  deps.renderer.write(`Flags:\n`);
+  deps.renderer.write(
+    `  --data-dir <path>   Override HQ data directory (default ~/.wrongstack/hq).\n`,
+  );
+  deps.renderer.write(`  --client, -c        Operate on client tokens instead of browser tokens.\n`);
+  deps.renderer.write(
+    `  --capabilities <csv>  Comma-separated capability grants (browser: control.enqueue; client: telemetry.publish,control.execute).\n`,
+  );
+  deps.renderer.write(
+    `  --ttl <duration>    Stamp an expiresAt on the token (e.g. --ttl 1h, --ttl 7d, --ttl 3600s).\n`,
+  );
+  deps.renderer.write('\n');
+  deps.renderer.write(`Run \`wstack hq --help\` for the full HQ command list.\n`);
+}
+
+/** Focused help for `wstack hq audit --help`. */
+function printAuditHelp(deps: SubcommandDeps): void {
+  deps.renderer.write(`Usage: wstack hq audit <verify>\n`);
+  deps.renderer.write('\n');
+  deps.renderer.write(
+    `  wstack hq audit verify   Re-derive the SHA-256 contentHash from the current\n`,
+  );
+  deps.renderer.write(
+    `                           auth.json and print it so an operator can compare\n`,
+  );
+  deps.renderer.write(
+    `                           it against a contentHash field in an audit-log entry.\n`,
+  );
+  deps.renderer.write('\n');
+  deps.renderer.write(`Flags:\n`);
+  deps.renderer.write(
+    `  --data-dir <path>   Override HQ data directory (default ~/.wrongstack/hq).\n`,
+  );
+  deps.renderer.write('\n');
+  deps.renderer.write(`Run \`wstack hq --help\` for the full HQ command list.\n`);
 }

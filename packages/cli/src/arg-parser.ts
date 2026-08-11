@@ -135,7 +135,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       }
     } else if (a.startsWith('-') && a.length === 2) {
       const short = a.slice(1);
-      const expand: Record<string, string> = { v: 'verbose', y: 'yes' };
+      const expand: Record<string, string> = { v: 'verbose', y: 'yes', h: 'help' };
       flags[expand[short] ?? short] = true;
     } else {
       positional.push(a);
@@ -177,7 +177,17 @@ function normalizeSurfaceAliases(
     positional.splice(0, 1);
     return;
   }
-  if (first === 'hq' && (positional.length === 1 || positional[1] === 'serve')) {
+  // Only normalize the bare/serve forms. `wstack hq token …` stays a real
+  // subcommand dispatch so the HQ handler sees its own args. And when
+  // `--help`/`--version` is present, keep `hq` as a positional so the
+  // help short-circuit can defer to the subcommand's focused help instead
+  // of printing global help.
+  if (
+    first === 'hq' &&
+    (positional.length === 1 || positional[1] === 'serve') &&
+    flags['help'] !== true &&
+    flags['version'] !== true
+  ) {
     flags['hq'] = true;
     positional.splice(0, positional[1] === 'serve' ? 2 : 1);
   }
