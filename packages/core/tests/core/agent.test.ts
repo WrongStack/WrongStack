@@ -4,10 +4,10 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { Context } from '../../src/core/context.js';
-import { ExtensionRegistry } from '../../src/extension/registry.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
+import { ExtensionRegistry } from '../../src/extension/registry.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import { Container } from '../../src/kernel/container.js';
@@ -18,7 +18,6 @@ import { ToolRegistry } from '../../src/registry/tool-registry.js';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
-import { ProviderError } from '../../src/types/provider.js';
 import { type AgentError, isAgentError } from '../../src/types/errors.js';
 import type {
   Capabilities,
@@ -27,6 +26,7 @@ import type {
   Response,
   StreamEvent,
 } from '../../src/types/provider.js';
+import { ProviderError } from '../../src/types/provider.js';
 import type { Tool } from '../../src/types/tool.js';
 import { MockProvider, StreamingMockProvider } from '../helpers/mock-provider.js';
 
@@ -34,6 +34,12 @@ async function buildAgent(
   provider: MockProvider,
   extraTools: Tool[] = [],
   extensions?: ExtensionRegistry,
+  options?: {
+    refreshSystemPrompt?: boolean;
+    systemPromptBuild?: (
+      ctx: import('../../src/types/system-prompt.js').BuildContext,
+    ) => Promise<import('../../src/types/blocks.js').TextBlock[]>;
+  },
 ) {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-ag-'));
   const trustFile = path.join(tmp, 'trust.json');
@@ -49,6 +55,9 @@ async function buildAgent(
     TOKENS.PermissionPolicy,
     () => new DefaultPermissionPolicy({ trustFile, yolo: true }),
   );
+  if (options?.systemPromptBuild) {
+    container.bind(TOKENS.SystemPromptBuilder, () => ({ build: options.systemPromptBuild! }));
+  }
 
   const tools = new ToolRegistry();
   for (const t of extraTools) tools.register(t);
@@ -91,6 +100,7 @@ async function buildAgent(
     maxIterations: 10,
     toolExecutor,
     extensions,
+    refreshSystemPrompt: options?.refreshSystemPrompt,
   });
   return { agent, ctx, tools, tmp, sessionStore };
 }
@@ -114,6 +124,55 @@ describe('Agent', () => {
     expect(result.status).toBe('done');
     expect(result.finalText).toBe('hi');
     expect(provider.calls).toBe(1);
+  });
+
+  it('refreshes the host prompt from direct and catalog tool surfaces before a run', async () => {
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },
+    ]);
+    const build = vi.fn(async () => [{ type: 'text' as const, text: 'refreshed' }]);
+    const { agent, tools, ctx, tmp } = await buildAgent(
+      provider,
+      [
+        {
+          name: 'read',
+          description: 'read',
+          inputSchema: { type: 'object', properties: {} },
+          permission: 'auto',
+          mutating: false,
+          async execute() {
+            return 'ok';
+          },
+        },
+        {
+          name: 'rare',
+          description: 'rare',
+          inputSchema: { type: 'object', properties: {} },
+          permission: 'auto',
+          mutating: false,
+          async execute() {
+            return 'ok';
+          },
+        },
+      ],
+      undefined,
+      { refreshSystemPrompt: true, systemPromptBuild: build },
+    );
+    cleanupDirs.push(tmp);
+    tools.setProviderToolNames(['read']);
+
+    await agent.run('hello');
+
+    expect(build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: [expect.objectContaining({ name: 'read' })],
+        catalogTools: [
+          expect.objectContaining({ name: 'read' }),
+          expect.objectContaining({ name: 'rare' }),
+        ],
+      }),
+    );
+    expect(ctx.systemPrompt).toEqual([{ type: 'text', text: 'refreshed' }]);
   });
 
   it('pins the starting session before asynchronous beforeRun hooks', async () => {
@@ -539,7 +598,10 @@ describe('Agent', () => {
     cleanupDirs.push(tmp);
     const executed: Array<{ name: string; outputLines?: number }> = [];
     (agent as never as { events: EventBus }).events.on('tool.executed', (e) => {
-      executed.push({ name: e.name, outputLines: (e as never as { outputLines?: number }).outputLines });
+      executed.push({
+        name: e.name,
+        outputLines: (e as never as { outputLines?: number }).outputLines,
+      });
     });
     await agent.run('go');
     expect(executed).toHaveLength(1);
@@ -569,7 +631,10 @@ describe('Agent', () => {
     cleanupDirs.push(tmp);
     const executed: Array<{ name: string; outputLines?: number }> = [];
     (agent as never as { events: EventBus }).events.on('tool.executed', (e) => {
-      executed.push({ name: e.name, outputLines: (e as never as { outputLines?: number }).outputLines });
+      executed.push({
+        name: e.name,
+        outputLines: (e as never as { outputLines?: number }).outputLines,
+      });
     });
     await agent.run('go');
     expect(executed).toHaveLength(1);
@@ -600,7 +665,10 @@ describe('Agent', () => {
     cleanupDirs.push(tmp);
     const executed: Array<{ name: string; outputLines?: number }> = [];
     (agent as never as { events: EventBus }).events.on('tool.executed', (e) => {
-      executed.push({ name: e.name, outputLines: (e as never as { outputLines?: number }).outputLines });
+      executed.push({
+        name: e.name,
+        outputLines: (e as never as { outputLines?: number }).outputLines,
+      });
     });
     await agent.run('go');
     expect(executed).toHaveLength(1);
@@ -642,7 +710,10 @@ describe('Agent — sizeSignals coverage', () => {
     cleanupDirs.push(tmp);
     const executed: Array<{ name: string; outputLines?: number }> = [];
     (agent as never as { events: EventBus }).events.on('tool.executed', (e) => {
-      executed.push({ name: e.name, outputLines: (e as never as { outputLines?: number }).outputLines });
+      executed.push({
+        name: e.name,
+        outputLines: (e as never as { outputLines?: number }).outputLines,
+      });
     });
     await agent.run('go');
     expect(executed).toHaveLength(1);
@@ -672,7 +743,10 @@ describe('Agent — sizeSignals coverage', () => {
     cleanupDirs.push(tmp);
     const executed: Array<{ name: string; outputLines?: number }> = [];
     (agent as never as { events: EventBus }).events.on('tool.executed', (e) => {
-      executed.push({ name: e.name, outputLines: (e as never as { outputLines?: number }).outputLines });
+      executed.push({
+        name: e.name,
+        outputLines: (e as never as { outputLines?: number }).outputLines,
+      });
     });
     await agent.run('go');
     expect(executed).toHaveLength(1);
@@ -701,7 +775,10 @@ describe('Agent — sizeSignals coverage', () => {
     cleanupDirs.push(tmp);
     const executed: Array<{ name: string; outputLines?: number }> = [];
     (agent as never as { events: EventBus }).events.on('tool.executed', (e) => {
-      executed.push({ name: e.name, outputLines: (e as never as { outputLines?: number }).outputLines });
+      executed.push({
+        name: e.name,
+        outputLines: (e as never as { outputLines?: number }).outputLines,
+      });
     });
     await agent.run('go');
     expect(executed).toHaveLength(1);
@@ -1090,7 +1167,7 @@ describe('Agent — additional coverage', () => {
     expect(result.status).toBe('done');
     expect(executed).toHaveLength(1);
     // Well beyond the 400-char default — the diff body is preserved.
-    expect((executed[0]?.output?.length ?? 0)).toBeGreaterThan(1000);
+    expect(executed[0]?.output?.length ?? 0).toBeGreaterThan(1000);
     expect(executed[0]?.output).toContain('line 0 ');
   });
 
@@ -1319,8 +1396,14 @@ describe('Agent — additional coverage', () => {
     // first underlying error preserved as `cause`, not as a bare Error.
     const goodTeardown = vi.fn().mockResolvedValue(undefined);
     const badTeardown = vi.fn().mockRejectedValue(new Error('plugin cleanup blew up'));
-    await agent.use({ name: 'good', apiVersion: '^0.1', setup: () => undefined, teardown: goodTeardown } as never, {} as never);
-    await agent.use({ name: 'bad', apiVersion: '^0.1', setup: () => undefined, teardown: badTeardown } as never, {} as never);
+    await agent.use(
+      { name: 'good', apiVersion: '^0.1', setup: () => undefined, teardown: goodTeardown } as never,
+      {} as never,
+    );
+    await agent.use(
+      { name: 'bad', apiVersion: '^0.1', setup: () => undefined, teardown: badTeardown } as never,
+      {} as never,
+    );
 
     let caught: unknown;
     try {
@@ -1339,5 +1422,33 @@ describe('Agent — additional coverage', () => {
     expect(ae.context?.phase).toBe('plugin-teardown');
     expect(ae.context?.failures).toBe(1);
     expect((ae.cause as Error)?.message).toBe('plugin cleanup blew up');
+  });
+
+  it('does not permanently wedge on the next run() when prompt refresh throws', async () => {
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'recovered' }], stopReason: 'end_turn' },
+    ]);
+    let calls = 0;
+    const build = vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new Error('prompt builder exploded');
+      return [{ type: 'text' as const, text: 'refreshed' }];
+    });
+    const { agent, tmp } = await buildAgent(provider, [], undefined, {
+      refreshSystemPrompt: true,
+      systemPromptBuild: build,
+    });
+    cleanupDirs.push(tmp);
+
+    // First run() fails during prompt refresh — the agent's catch block
+    // wraps the error in an AgentError and returns { status: 'failed' }.
+    const first = await agent.run('hello');
+    expect(first.status).toBe('failed');
+
+    // Second run() must NOT be wedged by _runInProgress still being true.
+    const result = await agent.run('hello again');
+    expect(result.status).toBe('done');
+    expect(result.finalText).toBe('recovered');
+    expect(build).toHaveBeenCalledTimes(2);
   });
 });
