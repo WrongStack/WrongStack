@@ -78,6 +78,20 @@ export interface TuiRuntimeState {
     | undefined;
   /** Todos checkpoint detach function. Mutated by switchProjectInPlace. */
   detachActiveTodosCheckpoint: (() => void | Promise<void>) | undefined;
+  /**
+   * Forward-declared session ref that lives on the cli-main scope. Mutated by
+   * `resumeSession()` when an in-process `/resume` swaps the active writer so
+   * provider-side `getSessionId: () => sessionRef.current?.id` callbacks and
+   * record-mode bindings follow the resumed session instead of staying pinned
+   * to the boot session.
+   *
+   * Optional: tests/hosts that predate the resume refactor can omit it. The
+   * resume handler is then a no-op for the ref, leaving provider calls pinned
+   * to the boot session — same behavior as before this field existed.
+   */
+  sessionRef?:
+    | { current: import('@wrongstack/core/types').SessionWriter | undefined }
+    | undefined;
 
   // ── TUI-branch-scope mutables (declared inside the TUI branch) ────────
 

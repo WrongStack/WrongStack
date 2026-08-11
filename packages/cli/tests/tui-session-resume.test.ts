@@ -144,6 +144,57 @@ describe('TUI session resume ownership', () => {
     expect(h.context.session).toBe(h.oldWriter);
   });
 
+  it('repoints the host sessionRef to the resumed writer on success', async () => {
+    // Regression for the CLI chimera HIGH finding: before the fix, the
+    // forward-declared `sessionRef.current` was only assigned once at
+    // boot (cli-main.ts:317). An in-process `/resume` swapped the
+    // agent's active writer, but provider-side
+    // `getSessionId: () => sessionRef.current?.id` callbacks and the
+    // record-mode `bindReplayToContainer` binding kept referring to the
+    // boot session — so every prompt after `/resume` wrote to the
+    // wrong JSONL. The fix repoints `state.sessionRef.current` after
+    // the writer swap commits.
+    const h = harness();
+    h.state.sessionRef = { current: h.oldWriter };
+
+    const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
+
+    expect(result).not.toBeNull();
+    expect(h.state.sessionRef.current).toBe(h.resumedWriter);
+  });
+
+  it('skips sessionRef repointing when the host did not provide one', async () => {
+    // Hosts/older tests that predate the resume-refactor can omit
+    // `state.sessionRef`; the resume handler must then silently skip
+    // the repoint instead of crashing. Pre-fix behavior (provider
+    // calls stay pinned to the boot session) is preserved.
+    const h = harness();
+    delete h.state.sessionRef;
+
+    await expect(resumeSession(h.ctx as never, h.resumedWriter.id)).resolves.not.toBeNull();
+  });
+
+  it('restores the old sessionRef when hydration fails after the writer swap', async () => {
+    // The repoint must happen only after the writer swap is durable
+    // (i.e. after replaceMessages succeeds). If hydration throws and
+    // the old writer is rolled back, the sessionRef must point back
+    // at the old writer so the next provider call doesn't transiently
+    // append to a writer we just rolled away from.
+    const h = harness();
+    h.state.sessionRef = { current: h.oldWriter };
+    h.context.state.replaceMessages
+      .mockImplementationOnce(() => {
+        throw new Error('invalid recovered messages');
+      })
+      .mockImplementationOnce((messages: typeof h.oldMessages) => {
+        h.context.messages = messages;
+      });
+
+    await expect(resumeSession(h.ctx as never, h.resumedWriter.id)).resolves.toBeNull();
+
+    expect(h.state.sessionRef.current).toBe(h.oldWriter);
+  });
+
   it('rolls ownership back when opening the selected writer fails', async () => {
     const h = harness();
     h.resumeStore.mockRejectedValue(new Error('invalid session journal'));

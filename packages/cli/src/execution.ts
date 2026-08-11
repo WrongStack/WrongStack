@@ -88,6 +88,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       positional,
       slashRegistry,
       tokenCounter,
+      sessionRef,
       activateSessionIdentity,
       updateInfo: initialUpdateInfo,
       webuiSessionChild,
@@ -294,6 +295,12 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         activeSessionStore,
         activateSessionIdentity,
         detachActiveTodosCheckpoint,
+        // Plumbed from cli-main.ts so `resumeSession` can repoint the ref
+        // when an in-process `/resume` swaps the active writer. Optional
+        // on TuiRuntimeState; tests/hosts that omit it revert to the
+        // pre-refactor behavior where provider calls stay pinned to the
+        // boot session.
+        sessionRef,
         pendingProjectSwitch: null,
         autonomousCoordinator: null,
         coordinatorRun: null,

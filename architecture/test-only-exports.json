@@ -599,7 +599,14 @@
     ],
     "packages/kanban/src/manager/_internal.ts": [
       "compareTasksForWork",
-      "normalizeDependencyIds"
+      "normalizeDependencyIds",
+      "reconcileTaskColumns",
+      "uniqueColumnId"
+    ],
+    "packages/kanban/src/manager/boards.ts": [
+      "addColumn",
+      "removeColumn",
+      "updateColumn"
     ],
     "packages/kanban/src/manager/lifecycle.ts": [
       "createManagedLifecyclePolicy",
@@ -839,6 +846,10 @@
     ],
     "packages/simpleui/src/lib/model-switch.ts": [
       "findModelContextWindow"
+    ],
+    "packages/simpleui/src/lib/settings-catalog.ts": [
+      "SETTINGS_CATALOG",
+      "SETTINGS_GROUPS"
     ],
     "packages/simpleui/src/lib/worklist-store.ts": [
       "parseSimplePlan",

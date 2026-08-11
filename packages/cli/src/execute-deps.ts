@@ -119,6 +119,21 @@ export interface CoreDeps {
   positional: string[];
   slashRegistry: SlashCommandRegistry;
   tokenCounter: TokenCounter;
+  /**
+   * Forward-declared session ref owned by the host (cli-main). When an
+   * in-process `/resume` swaps the agent's active writer, the resume
+   * handler repoints `sessionRef.current` so provider-side
+   * `getSessionId: () => sessionRef.current?.id` callbacks and the
+   * record-mode `bindReplayToContainer` binding follow the resumed
+   * session instead of staying pinned to the boot session.
+   *
+   * Optional: hosts that don't need post-resume propagation (or tests
+   * that predate the refactor) can omit it; provider calls then stay
+   * pinned to the boot session — same behavior as before this existed.
+   */
+  sessionRef?:
+    | { current: import('@wrongstack/core/types').SessionWriter | undefined }
+    | undefined;
   /** Atomically move this process's SessionRegistry ownership after explicit resume. */
   activateSessionIdentity?:
     | ((

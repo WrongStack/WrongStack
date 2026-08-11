@@ -15,8 +15,8 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1213,
-      "relativeImports": 44
+      "lines": 1246,
+      "relativeImports": 45
     },
     "packages/cli/src/fleet/host.ts": {
       "lines": 1107,
@@ -55,7 +55,7 @@
       "relativeImports": 1
     },
     "packages/cli/src/slash-commands/kanban.ts": {
-      "lines": 1389,
+      "lines": 1349,
       "relativeImports": 5
     },
     "packages/cli/src/slash-commands/memory.ts": {
@@ -143,7 +143,7 @@
       "relativeImports": 27
     },
     "packages/core/src/core/context.ts": {
-      "lines": 944,
+      "lines": 985,
       "relativeImports": 13
     },
     "packages/core/src/core/system-prompt-builder.ts": {
@@ -211,15 +211,15 @@
       "relativeImports": 9
     },
     "packages/core/src/session-catalog/store.ts": {
-      "lines": 1108,
-      "relativeImports": 8
+      "lines": 1112,
+      "relativeImports": 9
     },
     "packages/core/src/storage/file-session-writer.ts": {
       "lines": 1150,
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1305,
+      "lines": 1330,
       "relativeImports": 38
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
@@ -246,12 +246,20 @@
       "lines": 978,
       "relativeImports": 12
     },
+    "packages/kanban/src/manager/lifecycle.ts": {
+      "lines": 836,
+      "relativeImports": 7
+    },
     "packages/kanban/src/manager/_internal.ts": {
-      "lines": 1000,
+      "lines": 1049,
       "relativeImports": 16
     },
+    "packages/kanban/src/server/project-server.ts": {
+      "lines": 809,
+      "relativeImports": 10
+    },
     "packages/kanban/src/types.ts": {
-      "lines": 883,
+      "lines": 907,
       "relativeImports": 2
     },
     "packages/kanban/src/verification/verification-context.ts": {
@@ -319,7 +327,7 @@
       "relativeImports": 16
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1022,
+      "lines": 1026,
       "relativeImports": 55
     },
     "packages/telegram/src/bot.ts": {
@@ -347,11 +355,11 @@
       "relativeImports": 17
     },
     "packages/tools/src/kanban.ts": {
-      "lines": 1159,
+      "lines": 1128,
       "relativeImports": 12
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 1428,
+      "lines": 1435,
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
@@ -383,7 +391,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/entry.tsx": {
-      "lines": 1150,
+      "lines": 1151,
       "relativeImports": 12
     },
     "packages/tui/src/components/history/utils.tsx": {
@@ -519,7 +527,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
-      "lines": 848,
+      "lines": 847,
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
@@ -563,7 +571,7 @@
       "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
-      "lines": 1006,
+      "lines": 982,
       "relativeImports": 10
     },
     "packages/webui-server/src/server/provider-handlers.ts": {

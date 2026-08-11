@@ -23,7 +23,7 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=18; wins=16 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=19; wins=17 -->
 - **Always verify a "default/fallback value" test is *discriminating*: when the system under test returns a bounded slice, supply more candidates than the default cap so the assertion count equals the cap (not the candidate count). A test whose expected length is smaller than the default cap cannot distinguish "the default was applied" from "no cap applied at all" — it passes even when the fallback-to-constant branch is broken (e.g. returns `undefined` → `Number.isFinite` false → no slicing).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `undefined`
@@ -41,7 +41,7 @@
   - *How:* `../types/observability.js`
   - *How:* `Span`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=11; wins=11 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=12; wins=12 -->
 - **When a sender pre-validates a payload against a receiver's reject threshold, verify byte-measurement equivalence *and* boundary-direction consistency: confirm the sender measures the exact same sub-object the receiver's validator measures (e.g. `record.board` vs the whole `record`), and that the comparison operators align at the boundary (`>` skip on one side must pair with `<=` accept on the other) — a mismatch here is the classic "sender thinks it's under the limit, receiver drops it" silent-loss bug in `packages/core/src/hq/protocol/kanban.ts` and `packages/cli/src/kanban-hq-sync.ts`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `record.board`

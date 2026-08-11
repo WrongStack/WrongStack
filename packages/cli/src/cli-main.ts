@@ -1054,6 +1054,11 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
         events,
         slashRegistry,
         tokenCounter,
+        // Forward the boot sessionRef so `resumeSession` can repoint
+        // it when an in-process `/resume` swaps the active writer.
+        // Without this, provider-side `getSessionId` callbacks and the
+        // record-mode binding keep referring to the boot session.
+        sessionRef,
         activateSessionIdentity: activateSession,
         config,
         configStore,

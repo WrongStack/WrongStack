@@ -171,6 +171,15 @@ export async function resumeSession(
       throw err;
     }
     writerSwapped = true;
+    // Repoint the cli-main `sessionRef` so provider-side
+    // `getSessionId: () => sessionRef.current?.id` callbacks and the
+    // record-mode `bindReplayToContainer` binding (both set up before the
+    // resume) follow the resumed session. Without this, every prompt
+    // after `/resume` would write to the boot session's JSONL because
+    // the ref was only set once at boot (cli-main.ts:317). The ref is
+    // optional on TuiRuntimeState, so older hosts that predate the fix
+    // simply skip the repoint — same behavior as before.
+    state.sessionRef && (state.sessionRef.current = resumed.writer);
     await agent.ctx.flushConversationJournal().catch((err) => {
       console.error(
         JSON.stringify({
