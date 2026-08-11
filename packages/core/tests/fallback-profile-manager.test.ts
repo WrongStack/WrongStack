@@ -406,4 +406,59 @@ describe('FallbackProfileManager', () => {
       expect(chain[0]?.model).toBe('allowed-model');
     });
   });
+
+  describe('resolveAllConfigured cap', () => {
+    it('uses config.fallbackMaxLastResortCandidates when set', () => {
+      const cfg = makeConfig({
+        providers: {
+          p1: { apiKey: 'sk-1', models: ['m1', 'm2', 'm3'] },
+          p2: { apiKey: 'sk-2', models: ['m1', 'm2', 'm3'] },
+        },
+        fallbackMaxLastResortCandidates: 2,
+      });
+      const mgr = new FallbackProfileManager(cfg);
+      // 6 models total, cap at 2 → exactly 2 after slicing
+      const chain = mgr.resolveAllConfigured({ providerId: 'p1', model: 'm1' });
+      expect(chain).toHaveLength(2);
+    });
+
+    it('falls back to default constant when config value is unset', () => {
+      const cfg = makeConfig({
+        providers: {
+          p1: { apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
+        },
+        // fallbackMaxLastResortCandidates not set — should default to 12
+      });
+      const mgr = new FallbackProfileManager(cfg);
+      const chain = mgr.resolveAllConfigured({ providerId: 'p1', model: 'm0' });
+      // 20 models minus the excluded primary = 19 candidates, but the default
+      // cap of 12 slices to exactly 12 — a sub-12 count couldn't discriminate.
+      expect(chain).toHaveLength(12);
+    });
+
+    it('respects a large config cap', () => {
+      const cfg = makeConfig({
+        providers: {
+          p1: { apiKey: 'sk-1', models: Array.from({ length: 20 }, (_, i) => `m${i}`) },
+        },
+        fallbackMaxLastResortCandidates: 50,
+      });
+      const mgr = new FallbackProfileManager(cfg);
+      const chain = mgr.resolveAllConfigured({ providerId: 'p1', model: 'm0' });
+      // 20 models minus excluded primary = 19, cap at 50 → all 19 included
+      expect(chain).toHaveLength(19);
+    });
+
+    it('disables the last-resort append when cap is 0', () => {
+      const cfg = makeConfig({
+        providers: {
+          p1: { apiKey: 'sk-1', models: ['m0', 'm1', 'm2'] },
+        },
+        fallbackMaxLastResortCandidates: 0,
+      });
+      const mgr = new FallbackProfileManager(cfg);
+      const chain = mgr.resolveAllConfigured({ providerId: 'p1', model: 'm0' });
+      expect(chain).toHaveLength(0);
+    });
+  });
 });

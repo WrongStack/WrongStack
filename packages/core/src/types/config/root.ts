@@ -172,6 +172,18 @@ export interface Config {
       }
     | undefined;
   /**
+   * Maximum number of candidates appended by the last-resort fallback sweep
+   * (`resolveAllConfigured`). When the smart default, bridge, and named/default
+   * profiles have all failed, every other configured provider is appended —
+   * this cap bounds the chain so a config with many providers does not produce
+   * a degenerate sequence of doomed requests during a systemic outage.
+   *
+   * Set to a higher value for rich multi-provider configs that want maximum
+   * diversity; set to 0 to disable the last-resort append entirely. The
+   * compiled-in default is exposed as `MAX_LAST_RESORT_CANDIDATES` (12).
+   */
+  fallbackMaxLastResortCandidates?: number | undefined;
+  /**
    * Lifecycle command/HTTP hooks, keyed by event. Commands receive HookInput
    * JSON on stdin; HTTP hooks receive the same object as a POST body. A typed
    * outcome can allow, deny, or mutate. `policy: true` enforcement hooks remain

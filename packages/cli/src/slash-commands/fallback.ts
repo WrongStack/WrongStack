@@ -173,6 +173,14 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
     const favorites = config.favoriteModels ?? [];
     const bridge = config.fallbackBridge?.trim();
     const auto = config.fallbackAuto !== false;
+    // Mirror lastResortCap() normalization so the display never diverges
+    // from the runtime: finite non-negative → floored; anything else → 12.
+    const rawCap = config.fallbackMaxLastResortCandidates;
+    const capValue =
+      typeof rawCap === 'number' && Number.isFinite(rawCap) && rawCap >= 0
+        ? Math.floor(rawCap)
+        : 12;
+    const capLabel = capValue === 0 ? color.dim('disabled') : color.green(String(capValue));
 
     // Mirror effectiveFallbackChain()'s runtime filter so the displayed chain
     // never silently diverges from the one the agent actually rotates through:
@@ -218,6 +226,7 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
       '',
       `  ${color.bold('auto')}  ${auto ? color.green('on') : color.dim('off')}  ${color.dim('/fallback auto on|off')}`,
       `  ${color.bold('favorites only')}  ${config.favoriteModelsOnly ? color.green('on') : color.dim('off')}  ${color.dim('/fallback fav only on|off')}`,
+      `  ${color.bold('last-resort cap')}  ${capLabel}  ${color.dim('(max auto-discovered models appended, 0=disabled)')}`,
       '',
       `  ${color.bold('profiles')} ${Object.keys(profiles).length ? '' : color.dim('(none)')}`,
       ...Object.entries(profiles)

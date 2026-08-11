@@ -251,7 +251,21 @@ export class FallbackProfileManager {
    * have already failed.
    */
   resolveAllConfigured(exclude?: { providerId: string; model: string }): FallbackChain {
-    return this.smartDefault(exclude, MAX_LAST_RESORT_CANDIDATES);
+    return this.smartDefault(exclude, this.lastResortCap());
+  }
+
+  /**
+   * Effective cap for the last-resort append. Reads the user-configurable
+   * {@link Config.fallbackMaxLastResortCandidates} when set and valid;
+   * otherwise falls back to the compiled-in default
+   * {@link MAX_LAST_RESORT_CANDIDATES}.
+   */
+  private lastResortCap(): number {
+    const configured = this.config.fallbackMaxLastResortCandidates;
+    if (typeof configured === 'number' && Number.isFinite(configured) && configured >= 0) {
+      return Math.floor(configured);
+    }
+    return MAX_LAST_RESORT_CANDIDATES;
   }
 
   /**
