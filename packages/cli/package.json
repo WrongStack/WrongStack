@@ -69,13 +69,13 @@
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-hq": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
-    "ws": "^8.21.1"
+    "ws": "^8.21.3"
   },
   "optionalDependencies": {
     "@wrongstack/desktop": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/ws": "^8.18.1",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2"

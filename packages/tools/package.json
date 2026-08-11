@@ -259,11 +259,11 @@
     "@wrongstack/persistence": "workspace:*",
     "tree-sitter-wasm": "1.1.3",
     "turndown": "^7.2.4",
-    "undici": "^8.9.0",
+    "undici": "^8.10.0",
     "web-tree-sitter": "0.26.12"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "typescript": "^7.0.2",
     "xxhash-wasm": "^1.1.0"
   },

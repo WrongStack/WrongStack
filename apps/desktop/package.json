@@ -41,15 +41,15 @@
     "@wrongstack/core": "workspace:*",
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
-    "electron": "^43.2.0",
-    "ws": "^8.21.1",
+    "electron": "^43.3.0",
+    "ws": "^8.21.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/ws": "^8.18.1",
     "typescript": "^7.0.2",
-    "vite": "^8.1.5"
+    "vite": "^8.2.1"
   },
   "publishConfig": {
     "access": "public"
