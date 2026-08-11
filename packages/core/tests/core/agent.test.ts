@@ -1451,4 +1451,31 @@ describe('Agent — additional coverage', () => {
     expect(result.finalText).toBe('recovered');
     expect(build).toHaveBeenCalledTimes(2);
   });
+
+  it('passes opts.model to the prompt builder instead of ctx.model', async () => {
+    // The prompt builder must receive the per-run model override, not the
+    // stale ctx.model.  Before the fix, builder.build() was hardcoded to
+    // this.ctx.model, so a `/model <x>` override would still build the
+    // prompt for the old model.
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },
+    ]);
+    const receivedModels: string[] = [];
+    const build = vi.fn(async (ctx: { model: string }) => {
+      receivedModels.push(ctx.model);
+      return [{ type: 'text' as const, text: 'refreshed' }];
+    });
+    const { agent, tmp } = await buildAgent(provider, [], undefined, {
+      refreshSystemPrompt: true,
+      systemPromptBuild: build,
+    });
+    cleanupDirs.push(tmp);
+
+    // Run with an explicit model override. ctx.model is 'test-model'.
+    const result = await agent.run('hello', { model: 'override-model' });
+    expect(result.status).toBe('done');
+    // The prompt builder must have received 'override-model', not 'test-model'.
+    expect(receivedModels).toContain('override-model');
+    expect(receivedModels).not.toContain('test-model');
+  });
 });
