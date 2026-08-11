@@ -34,6 +34,49 @@ Use the core [`/review`](review.md) command to request a manual changed-file rev
 
 Configuration is read from `extensions["wstack-chimera"]`.
 
+### Configuration keys
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | boolean | `false` | Master switch. The plugin registers `/chimera` only when `true`. |
+| `provider` | string | session provider | LLM provider for the review subagent. |
+| `model` | string | session model | LLM model for the review subagent. |
+| `maxFiles` | number | `15` | Maximum changed files considered per review. |
+| `autoFix` | `off` \| `ask` \| `auto` | `off` | Manual follow-up policy (all modes are passive — reports are advisory). |
+| `cascadeOn` | `off` \| `critical` \| `high` | `high` | Severity threshold for triggering cascade follow-up reviews. |
+| `maxCascadeDepth` | number | `2` | Maximum cascade re-check depth. |
+| `fallbackModels` | string[] | `[]` | Chimera-specific fallback model chain (`provider/model` refs). When non-empty, the reviewer subagent uses these models as its in-request fallback chain before falling back to the session-level chain. Example: `["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"]`. |
+| `fallbackProfile` | string | — | Named profile from `config.fallbackProfiles`. When set, the reviewer spawn resolves this profile's chain and merges it into the fallback ladder ahead of the session-level profile. Takes precedence over the session-level fallback for Chimera spawns only. |
+
+Example config:
+
+```json
+{
+  "extensions": {
+    "wstack-chimera": {
+      "enabled": true,
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "fallbackModels": ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"],
+      "fallbackProfile": "reliable",
+      "maxFiles": 20,
+      "autoFix": "off",
+      "cascadeOn": "high",
+      "maxCascadeDepth": 2
+    }
+  }
+}
+```
+
+The fallback ladder for a Chimera reviewer spawn is built in this order:
+
+1. **Primary** — the configured `provider`/`model` (or the session model if unset).
+2. **Chimera fallback chain** — `fallbackModels` entries, then the resolved `fallbackProfile` chain.
+3. **Session fallback chain** — the active session-level `effectiveFallbackChain`.
+4. **Session model** — guaranteed last resort.
+
+The ladder deduplicates by `provider/model`, so overlap between the Chimera chain and the session chain is harmless. Each rung costs a full subagent spawn; the ladder is capped at 4 attempts, with the session model always retained as the final entry.
+
 ## Code reference
 
 - `packages/core/src/plugins/chimera-plugin.ts`

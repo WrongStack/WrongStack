@@ -1080,6 +1080,22 @@ project config. Store it in the active profile or private `config.local.json`.
 
 Each key is a plugin name. The value is a free-form object validated by the plugin's `configSchema`. Plugins read their namespace via `configStore.getExtension(pluginName)`.
 
+### `wstack-chimera` — post-session code review
+
+See [`/chimera`](slash/chimera.md) for full usage. The Chimera plugin runs a read-only review subagent at session end over all changed files.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | boolean | `false` | Master switch. |
+| `provider` | string | session provider | LLM provider for the review subagent. |
+| `model` | string | session model | LLM model for the review subagent. |
+| `maxFiles` | number | `15` | Max changed files per review. |
+| `autoFix` | `off` \| `ask` \| `auto` | `off` | Follow-up policy (reports are always advisory). |
+| `cascadeOn` | `off` \| `critical` \| `high` | `high` | Severity threshold for cascade re-checks. |
+| `maxCascadeDepth` | number | `2` | Max cascade depth. |
+| `fallbackModels` | string[] | `[]` | Chimera-specific fallback chain (`provider/model` refs), tried before the session-level chain. |
+| `fallbackProfile` | string | — | Named profile from `fallbackProfiles`; its chain is merged into the reviewer ladder ahead of the session-level profile. |
+
 ---
 
 ## `brain` — Decision layer (autonomy, rules, council, trace)
