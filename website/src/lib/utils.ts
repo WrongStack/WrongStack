@@ -321,9 +321,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.304.0',
+    version: '0.305.1',
     date: '2026-08-11',
     latest: true,
+    tagline: 'Self-healing project daemons, leak-free transports, and 35 TUI themes',
+    highlights: [
+      'The TUI ships 35 persistent presets through an interactive /theme picker, with complete palette tokens for panels, transcript roles, syntax highlighting, monitors, and diff washes',
+      'Kanban, SAGE, Chronicle, Mailbox, Session Catalog, and Codebase Index share a bind-as-election primitive that protects the single-writer boundary and safely reclaims stale Unix sockets',
+      'wstack doctor --daemons reports project services as live, stale, or stopped without spawning them, while --clear-stale removes only freshly probed abandoned endpoints',
+      'An unreachable Kanban projection now degrades board synchronization instead of aborting session startup, and surfaces one actionable diagnostic notice',
+      'ACP TerminalServer disposal plus Desktop and WebUI reconnect cleanup release child processes, abort listeners, message handlers, timers, and superseded sockets deterministically',
+      'HQ Cockpit, Control, Fleet Map, Live Console, Mailbox, and Alerts share a refreshed responsive operational console backed by focused view tests',
+    ],
+  },
+  {
+    version: '0.304.0',
+    date: '2026-08-11',
     tagline: 'Outcome-scored agent learning, coherent Kanban state, and bounded fallbacks',
     highlights: [
       'Roster-agent directives are scored against real task outcomes; persistently weak rules retire into a recoverable quarantine, and skill ranking uses decayed evidence with an exploration prior',

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.305.1] — 2026-08-11
+
+### Added
+
+- **The TUI now ships with 35 persistent theme presets.** `/theme` opens an interactive picker or accepts a preset id directly, and the selected palette is saved to the active profile. The expanded token system covers panels, borders, transcript roles, monitor overlays, syntax highlighting, and diff washes instead of recoloring only a handful of accents.
+- **`wstack doctor --daemons` makes project services observable without waking them.** It reports Kanban, SAGE, Chronicle, Mailbox, Session Catalog, and Codebase Index endpoints as `live`, `stale`, or `stopped`, includes the owner PID when metadata is available, and `--clear-stale` removes only endpoints that a fresh probe still proves dead.
+- **Project-daemon ownership and recovery now have one documented contract.** `docs/project-daemons.md` records bind-before-store election, private endpoint permissions, stale-socket reclamation, graceful feature degradation, diagnostics, and manual recovery.
+
+### Changed
+
+- **Per-project daemons now share one endpoint election primitive.** Kanban, SAGE, Chronicle, Mailbox, Session Catalog, and Codebase Index bind through `bindProjectEndpoint`: the bind elects the sole owner, Unix endpoint directories are private (`0700`), sockets are owner-only (`0600`), and a losing contender exits without opening a second writer.
+- **HQ's operational surfaces received a broad visual and interaction pass.** Cockpit, Control, Fleet Map, Live Console, Mailbox, and Alerts now share the refreshed console shell and responsive styling, with focused view coverage for alert badges, control state, fleet/Kanban/mailbox panels, and the application shell.
+
+### Fixed
+
+- **A dead Unix daemon no longer leaves the project permanently wedged.** On `EADDRINUSE`, the shared binder probes the endpoint, preserves a live owner, and reclaims only an unresponsive stale socket before retrying with a bounded race-safe loop. Windows named pipes keep their platform-specific no-stale-file behavior.
+- **An optional Kanban projection can no longer abort CLI startup.** Session hydration records the degradation, returns `null`, and emits one renderer-visible notice with the daemon diagnostic command; todos, plans, and tasks remain available even when board synchronization is down.
+- **ACP terminal teardown is explicit and idempotent.** `TerminalServer.dispose()` releases child processes, detaches the host abort listener, supports `Symbol.dispose`, and rejects post-disposal terminal creation so stale references cannot spawn orphan processes.
+- **Reconnects stop retaining dead sockets and session state.** Desktop agent-bridge and WebUI connection paths detach message handlers, clear reconnect timers, and fence late events by socket generation; ACP session shutdown now disposes its terminal server on every close path.
+
 ## [0.304.0] — 2026-08-11
 
 ### Added
