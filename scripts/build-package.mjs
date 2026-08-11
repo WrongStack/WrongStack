@@ -254,7 +254,7 @@ const profiles = {
       'project-server': 'src/project-server.ts',
       'middleware/tool-call-memory': 'src/middleware/tool-call-memory.ts',
     },
-    external: ['@wrongstack/core', '@wrongstack/core/utils'],
+    external: ['@wrongstack/core', '@wrongstack/core/utils', '@wrongstack/persistence'],
   },
   '@wrongstack/sage-mcp': {
     entries: {
@@ -309,7 +309,13 @@ const profiles = {
   '@wrongstack/telegram': standard(['@wrongstack/core']),
   '@wrongstack/tools': {
     entries: toolEntries,
-    external: ['@typescript/typescript6', '@wrongstack/core', '@wrongstack/kanban', 'node:sqlite'],
+    external: [
+      '@typescript/typescript6',
+      '@wrongstack/core',
+      '@wrongstack/kanban',
+      '@wrongstack/persistence',
+      'node:sqlite',
+    ],
   },
   '@wrongstack/tui': {
     ...standard(['ink', 'react']),

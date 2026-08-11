@@ -1049,9 +1049,54 @@ export async function rebindSessionKanbanTask(
   return { boardId: best.boardId, taskId: best.taskId };
 }
 
+let degradationReason: string | undefined;
+
+/**
+ * Why session Kanban is unavailable, or undefined while it is healthy.
+ *
+ * Surfaces exist so a startup path can tell the user their board will not sync
+ * without having to catch and classify the failure itself. Cleared on the
+ * first hydrate that succeeds, so a daemon that comes back stops being
+ * reported as down.
+ */
+export function sessionKanbanDegradation(): string | undefined {
+  return degradationReason;
+}
+
+/**
+ * Project the session's todos, plan, and tasks onto its Kanban board.
+ *
+ * Kanban is a projection: every card here is derived from state that lives
+ * somewhere else and is authoritative there. Losing the board costs the user a
+ * view, not any work — so an unreachable Kanban daemon degrades this to `null`
+ * rather than propagating.
+ *
+ * That distinction used to be missing, and it cost an entire session. When a
+ * killed daemon left a stale IPC endpoint behind, the connect error thrown
+ * here unwound through `setupSession` and killed `wstack` at startup: no
+ * prompt, no session, just a socket path in a stack trace — for a board the
+ * user had not asked to see. `bindProjectEndpoint` now stops the daemon from
+ * wedging in the first place, but the call site must still hold: an optional
+ * view may never take down the session it decorates.
+ */
 export async function hydrateSessionKanban(context: Context): Promise<KanbanBoard | null> {
   const id = context.session?.id ?? '';
   if (!id) return null;
+  try {
+    const board = await hydrateSessionKanbanBoard(context, id);
+    degradationReason = undefined;
+    return board;
+  } catch (error) {
+    degradationReason = error instanceof Error ? error.message : String(error);
+    fireAndForget('hydrate', Promise.reject(error));
+    return null;
+  }
+}
+
+async function hydrateSessionKanbanBoard(
+  context: Context,
+  id: string,
+): Promise<KanbanBoard | null> {
   // Before anything else: a resumed session should know which card it is on.
   // Independent of the session-mirror work below — the card is almost always
   // on a project board, not on the mirror.

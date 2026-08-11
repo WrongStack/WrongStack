@@ -50,7 +50,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "node ../../scripts/run-vitest-coverage.mjs run --coverage"
+    "test:coverage": "node ../../scripts/coverage-lock.mjs node ../../scripts/run-vitest-coverage.mjs run --coverage"
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",

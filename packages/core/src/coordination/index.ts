@@ -329,6 +329,13 @@ export {
   credentialVerifyThrottle,
 } from './mailbox-credential-throttle.js';
 export { MailboxEventEmitter } from './mailbox-events.js';
+// Endpoint derivation is pure and side-effect free. Exported so daemon
+// inventory surfaces (`wstack doctor --daemons`) can locate this daemon
+// without importing the daemon entry itself, which would start one.
+export {
+  mailboxProjectServerEndpoint,
+  mailboxProjectServerMetadataPath,
+} from './mailbox-project-server-endpoint.js';
 export {
   buildDownAlert,
   buildRecoveryAlert,

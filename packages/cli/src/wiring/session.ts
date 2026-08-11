@@ -21,7 +21,11 @@ import {
   toErrorMessage,
   type WstackPaths,
 } from '@wrongstack/core/utils';
-import { attachSessionKanbanMirror, hydrateSessionKanban } from '@wrongstack/tools/session-kanban';
+import {
+  attachSessionKanbanMirror,
+  hydrateSessionKanban,
+  sessionKanbanDegradation,
+} from '@wrongstack/tools/session-kanban';
 export interface SessionResult {
   session: SessionWriter;
   sessionRef: { current?: SessionWriter | undefined };
@@ -305,6 +309,16 @@ export async function setupSession(params: {
   // replacement and both plan/task sidecars, including mutations made from
   // slash commands, WebUI, TUI, plugins, and tools.
   await hydrateSessionKanban(context);
+  // Never fatal — see `hydrateSessionKanban`. Say so once instead of letting
+  // the board silently not sync, and name the command that explains why.
+  const kanbanDown = sessionKanbanDegradation();
+  if (kanbanDown) {
+    process.stderr.write(
+      `Kanban board sync unavailable — the session continues without it.\n` +
+        `  reason: ${kanbanDown}\n` +
+        `  detail: wstack doctor --daemons\n`,
+    );
+  }
   const detachSessionKanbanMirror = attachSessionKanbanMirror(context);
   const detachTodosCheckpoint = async () => {
     detachSessionKanbanMirror();

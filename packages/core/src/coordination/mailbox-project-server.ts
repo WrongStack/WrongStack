@@ -7,10 +7,10 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { bindProjectEndpoint } from '@wrongstack/persistence';
 import { EventBus } from '../kernel/events.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
@@ -21,7 +21,6 @@ import {
 } from './mailbox-credential-store.js';
 import { MailboxEventEmitter } from './mailbox-events.js';
 import {
-  ensureMailboxProjectServerSocketDirectory,
   mailboxProjectServerEndpoint,
   mailboxProjectServerMetadataPath,
 } from './mailbox-project-server-endpoint.js';
@@ -539,7 +538,6 @@ async function stop(_reason: string): Promise<void> {
   await stopMemoryWatchdog();
 }
 
-ensureMailboxProjectServerSocketDirectory(endpoint);
 const server = net.createServer((socket) => {
   if (stopping) {
     socket.destroy();
@@ -573,49 +571,31 @@ const leaseSweep = setInterval(() => {
 }, leaseSweepMs);
 leaseSweep.unref?.();
 
-let probingExistingEndpoint = false;
-function listenForOwnership(): void {
-  server.listen(endpoint);
-}
-
-server.on('error', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE' && process.platform === 'win32') {
+// The bind is the ownership election, including the probe-then-reclaim ladder
+// for an endpoint whose owner died without cleanup. Shared with every other
+// project daemon via `bindProjectEndpoint`.
+void (async () => {
+  const bind = await bindProjectEndpoint({ server, endpoint, service: 'mailbox' });
+  if (bind.outcome === 'already-owned') {
     process.exitCode = 0;
     return;
   }
-  if (error.code === 'EADDRINUSE' && !probingExistingEndpoint) {
-    probingExistingEndpoint = true;
-    const probe = net.createConnection(endpoint);
-    probe.once('connect', () => {
-      probe.destroy();
-      process.exitCode = 0;
-    });
-    probe.once('error', () => {
-      probe.destroy();
-      try {
-        fs.rmSync(endpoint, { force: true });
-      } catch {
-        // Another contender may already have removed the stale socket.
-      }
-      probingExistingEndpoint = false;
-      listenForOwnership();
-    });
+  if (bind.outcome === 'failed') {
+    process.stderr.write(`mailbox project server failed: ${bind.error.message}\n`);
+    process.exitCode = 1;
     return;
   }
-  process.exitCode = 1;
-});
-
-server.on('listening', () => {
-  if (process.platform !== 'win32') {
-    try {
-      fs.chmodSync(endpoint, 0o600);
-    } catch {
-      // The containing 0700 directory still restricts access.
-    }
+  if (bind.reclaimedStaleEndpoint) {
+    process.stderr.write(`mailbox project server reclaimed stale endpoint ${endpoint}\n`);
   }
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (stopping) return;
+    process.stderr.write(`mailbox project server error: ${error.message}\n`);
+    process.exitCode = 1;
+  });
   try {
-    // The IPC bind is the ownership election. Open SQLite only after winning
-    // that election so losing detached contenders never become DB owners.
+    // Open SQLite only after winning the election so losing detached
+    // contenders never become DB owners.
     mailbox = new SqliteMailbox(projectDir, events, eventEmitter);
   } catch {
     void stop('sqlite-initialization-failed').finally(() => {
@@ -624,19 +604,16 @@ server.on('listening', () => {
     return;
   }
   stopAutoCompact = mailbox.startAutoCompactTimer();
-  void writeMetadata()
-    .then(() => {
-      markMetadataWritten?.();
-      scheduleIdleStop();
-    })
-    .catch(() => {
-      void stop('metadata-write-failed').finally(() => {
-        process.exitCode = 1;
-      });
+  try {
+    await writeMetadata();
+    markMetadataWritten?.();
+    scheduleIdleStop();
+  } catch {
+    void stop('metadata-write-failed').finally(() => {
+      process.exitCode = 1;
     });
-});
-
-listenForOwnership();
+  }
+})();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

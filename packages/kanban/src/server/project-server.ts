@@ -16,7 +16,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { assertUnixSocketPathWithinLimit } from '@wrongstack/persistence';
+import { bindProjectEndpoint } from '@wrongstack/persistence';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import { StaleWriteError } from '../manager/lifecycle.js';
 import * as kanban from '../manager.js';
@@ -270,20 +270,6 @@ async function stop(_reason: string, gracefulSocket?: net.Socket): Promise<void>
   uninstallStorageBackend = null;
   sqliteStorage?.close();
   sqliteStorage = null;
-}
-
-async function ensureParentDir(): Promise<void> {
-  if (process.platform === 'win32') return;
-  // Fail fast with an actionable message: an over-long sun_path would
-  // otherwise surface as ENAMETOOLONG/EINVAL inside a detached child whose
-  // stderr is discarded, leaving clients a bare connect timeout. Mirrors
-  // `ensureProjectIndexSocketDirectory` in packages/tools.
-  assertUnixSocketPathWithinLimit(endpoint, 'kanban');
-  const dir = path.dirname(endpoint);
-  // 0o700: the wskb-v<V>/ subdirectory is the ownership boundary that keeps
-  // other local users from pre-binding the predictable socket name in a
-  // world-writable sticky-bit /tmp.
-  await fsPromises.mkdir(dir, { recursive: true, mode: 0o700 });
 }
 
 // ─── Method registrations ────────────────────────────────────────────────────
@@ -653,8 +639,6 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   projectRoot = args.projectRoot;
   endpoint = kanbanProjectServerEndpoint(projectRoot);
 
-  await ensureParentDir();
-
   subscribeToBoardEvents((ev) => {
     broadcastEvent({ type: 'event', event: ev.event, data: ev.data });
   });
@@ -675,23 +659,24 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
   const listener = server;
 
-  await new Promise<void>((resolve, reject) => {
-    const onListenError = (error: Error): void => reject(error);
-    listener.once('error', onListenError);
-    listener.listen(endpoint!, () => {
-      // Attach the permanent handler BEFORE removing the temporary one,
-      // so no error can fall through the gap between .off() and .on().
-      listener.on('error', (err: NodeJS.ErrnoException) => {
-        if (stopping) return;
-        if (err.code === 'EADDRINUSE') {
-          process.exit(0);
-        }
-        process.stderr.write(`kanban project server error: ${err.message}\n`);
-        process.exit(1);
-      });
-      listener.off('error', onListenError);
-      resolve();
-    });
+  // The bind is the ownership election. `bindProjectEndpoint` also reclaims an
+  // endpoint left behind by a daemon that died without cleanup — kanban used
+  // to treat that case as a plain EADDRINUSE and exit, which made a single
+  // SIGKILL wedge the project's kanban permanently.
+  const bind = await bindProjectEndpoint({ server: listener, endpoint, service: 'kanban' });
+  if (bind.outcome === 'already-owned') {
+    // Lost the race to a live daemon. Clients reach the winner; exit clean and
+    // never open a second writer over the same database.
+    process.exit(0);
+  }
+  if (bind.outcome === 'failed') throw bind.error;
+  if (bind.reclaimedStaleEndpoint) {
+    process.stderr.write(`kanban project server reclaimed stale endpoint ${endpoint}\n`);
+  }
+  listener.on('error', (err: NodeJS.ErrnoException) => {
+    if (stopping) return;
+    process.stderr.write(`kanban project server error: ${err.message}\n`);
+    process.exit(1);
   });
 
   try {

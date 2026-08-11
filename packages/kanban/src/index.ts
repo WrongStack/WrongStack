@@ -97,6 +97,9 @@ export {
   KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
 } from './server/client.js';
 export { kanbanProjectServerEndpoint } from './server/endpoint.js';
+// Daemon inventory surfaces need the metadata filename to read the owner's
+// pid without importing the daemon entry, which would start one.
+export { KANBAN_PROJECT_SERVER_METADATA_FILE } from './server/protocol.js';
 export * from './server/kanban-store.js';
 export {
   type BridgeOptions,

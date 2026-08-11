@@ -114,6 +114,7 @@ export {
   resolveProjectSageStorageRoot,
   sageProjectServerEndpoint,
   sageProjectServerKey,
+  sageProjectServerMetadataPath,
 } from './project-server-endpoint.js';
 export {
   type FormatMemoryHintsOptions,

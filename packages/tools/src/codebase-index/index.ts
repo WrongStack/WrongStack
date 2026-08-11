@@ -100,6 +100,13 @@ export type {
   SymbolKind,
   SymbolLang,
 } from './schema.js';
+// Endpoint derivation is pure and side-effect free. Exported so daemon
+// inventory surfaces (`wstack doctor --daemons`) can locate this daemon
+// without importing the daemon entry itself, which would start one.
+export {
+  projectIndexServerEndpoint,
+  projectIndexServerMetadataPath,
+} from './project-server-endpoint.js';
 export { SCHEMA_VERSION } from './schema.js';
 // Re-export shared internal helpers so external consumers (e.g. plug-lsp)
 // can use them without importing from implementation detail files.

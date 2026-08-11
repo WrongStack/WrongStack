@@ -14,14 +14,14 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/chronicle": {
-      "files": 6,
+      "files": 7,
       "typeOnly": 2,
-      "runtimeOrMixed": 5
+      "runtimeOrMixed": 6
     },
     "@wrongstack/core/coordination": {
-      "files": 168,
+      "files": 169,
       "typeOnly": 71,
-      "runtimeOrMixed": 146
+      "runtimeOrMixed": 147
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 103
     },
     "@wrongstack/core/session-catalog": {
-      "files": 9,
+      "files": 10,
       "typeOnly": 0,
-      "runtimeOrMixed": 9
+      "runtimeOrMixed": 10
     },
     "@wrongstack/core/skills": {
       "files": 7,
@@ -1875,6 +1875,12 @@
     },
     {
       "specifier": "@wrongstack/core/chronicle",
+      "file": "packages/cli/src/subcommands/handlers/daemon-inventory.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/chronicle",
       "file": "packages/tui/src/connections-health.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2188,6 +2194,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/slash-commands/setmodel.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/subcommands/handlers/daemon-inventory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7438,6 +7450,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui/tests/server/terminal-ws-handler.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/cli/src/subcommands/handlers/daemon-inventory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

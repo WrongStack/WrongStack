@@ -2,7 +2,6 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
-import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
@@ -14,9 +13,9 @@ import {
   startSharedHeapWatchdog,
   useDaemonPerfDefaults,
 } from '@wrongstack/core/utils';
+import { bindProjectEndpoint } from '@wrongstack/persistence';
 import { SqliteMemoryPort } from './memory-port.js';
 import {
-  ensureSageProjectServerSocketDirectory,
   resolveProjectSageStorageRoot,
   sageProjectServerEndpoint,
   sageProjectServerMetadataPath,
@@ -670,7 +669,6 @@ async function stop(_reason: string): Promise<void> {
   await stopMemoryWatchdog();
 }
 
-ensureSageProjectServerSocketDirectory(endpoint);
 const server = net.createServer((socket) => {
   if (stopping) {
     socket.destroy();
@@ -701,63 +699,46 @@ const server = net.createServer((socket) => {
   });
 });
 
-let probingExistingEndpoint = false;
-
-function listenForOwnership(): void {
-  server.listen(endpoint);
-}
-
-server.on('error', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE' && process.platform === 'win32') {
+// The bind is the ownership election, including the probe-then-reclaim ladder
+// for an endpoint left behind by a daemon that died without cleanup. That
+// ladder used to live here as a hand-rolled copy; it is now the shared
+// `bindProjectEndpoint` primitive so every project daemon recovers the same
+// way and none can be shipped without it.
+void (async () => {
+  const bind = await bindProjectEndpoint({ server, endpoint, service: 'sage' });
+  if (bind.outcome === 'already-owned') {
+    // A live daemon owns the project. Exit clean without touching the store —
+    // a second writer over the same SAGE database is the failure this election
+    // exists to prevent.
     process.exitCode = 0;
     return;
   }
-  if (error.code === 'EADDRINUSE' && !probingExistingEndpoint) {
-    probingExistingEndpoint = true;
-    const probe = net.createConnection(endpoint);
-    probe.once('connect', () => {
-      probe.destroy();
-      process.exitCode = 0;
-    });
-    probe.once('error', () => {
-      probe.destroy();
-      try {
-        fs.rmSync(endpoint, { force: true });
-      } catch {
-        // A competing candidate may have already removed the stale endpoint.
-      }
-      probingExistingEndpoint = false;
-      listenForOwnership();
-    });
+  if (bind.outcome === 'failed') {
+    rejectReady?.(bind.error);
+    process.stderr.write(`sage project server failed: ${bind.error.message}\n`);
+    process.exitCode = 1;
     return;
   }
-  rejectReady?.(error);
-  process.exitCode = 1;
-});
-
-server.on('listening', () => {
-  if (process.platform !== 'win32') {
-    try {
-      fs.chmodSync(endpoint, 0o600);
-    } catch {
-      // Socket-directory mode still restricts access to the current user.
-    }
+  if (bind.reclaimedStaleEndpoint) {
+    process.stderr.write(`sage project server reclaimed stale endpoint ${endpoint}\n`);
   }
-  void store
-    .initialize()
-    .then(() => writeMetadata())
-    .then(() => {
-      resolveReady?.();
-      scheduleIdleStop();
-    })
-    .catch((error) => {
-      rejectReady?.(error);
-      void stop('initialization-failed').finally(() => {
-        process.exitCode = 1;
-      });
-    });
-});
-listenForOwnership();
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (stopping) return;
+    rejectReady?.(error);
+    process.stderr.write(`sage project server error: ${error.message}\n`);
+    process.exitCode = 1;
+  });
+  try {
+    await store.initialize();
+    await writeMetadata();
+    resolveReady?.();
+    scheduleIdleStop();
+  } catch (error) {
+    rejectReady?.(error);
+    await stop('initialization-failed').catch(() => {});
+    process.exitCode = 1;
+  }
+})();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

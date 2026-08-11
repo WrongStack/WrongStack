@@ -19,6 +19,7 @@ import {
   useDaemonPerfDefaults,
   watchProjectTree,
 } from '@wrongstack/core/utils';
+import { bindProjectEndpoint } from '@wrongstack/persistence';
 import {
   fileGraphService,
   indexService,
@@ -32,7 +33,6 @@ import {
 import { isIndexablePath } from './languages.js';
 import { GenerationLruCache } from './project-server-cache.js';
 import {
-  ensureProjectIndexSocketDirectory,
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
   projectIndexServerBuildId,
   projectIndexServerEndpoint,
@@ -786,27 +786,34 @@ async function stop(_reason: string): Promise<void> {
   await stopMemoryWatchdog();
 }
 
-ensureProjectIndexSocketDirectory(endpoint);
-server.once('error', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE') {
+// The bind is the ownership election, and `bindProjectEndpoint` reclaims an
+// endpoint whose owner died without cleanup. Treating that case as a plain
+// EADDRINUSE — as this daemon did — makes one SIGKILL wedge the project's
+// index permanently: the stale socket refuses clients, and every replacement
+// daemon exits on the file it could safely have removed.
+void (async () => {
+  const bind = await bindProjectEndpoint({ server, endpoint, service: 'codebase-index' });
+  if (bind.outcome === 'already-owned') {
     process.exitCode = 0;
     return;
   }
-  process.stderr.write(`codebase-index server failed: ${error.message}\n`);
-  process.exitCode = 1;
-});
-server.listen(endpoint, () => {
-  if (process.platform !== 'win32') {
-    try {
-      fs.chmodSync(endpoint, 0o600);
-    } catch {
-      /* best effort */
-    }
+  if (bind.outcome === 'failed') {
+    process.stderr.write(`codebase-index server failed: ${bind.error.message}\n`);
+    process.exitCode = 1;
+    return;
   }
+  if (bind.reclaimedStaleEndpoint) {
+    process.stderr.write(`codebase-index server reclaimed stale endpoint ${endpoint}\n`);
+  }
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (stopping) return;
+    process.stderr.write(`codebase-index server error: ${error.message}\n`);
+    process.exitCode = 1;
+  });
   writeMetadata();
   markMetadataWritten?.();
   scheduleIdleStop();
-});
+})();
 
 process.once('SIGINT', () => void stop('SIGINT'));
 process.once('SIGTERM', () => void stop('SIGTERM'));

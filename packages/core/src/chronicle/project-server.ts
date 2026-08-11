@@ -8,10 +8,10 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { bindProjectEndpoint } from '@wrongstack/persistence';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
@@ -25,7 +25,6 @@ import { ChroniclePartitionRangeCache } from './partition-range-cache.js';
 import {
   chronicleProjectServerEndpoint,
   chronicleProjectServerMetadataPath,
-  ensureChronicleProjectServerSocketDirectory,
 } from './project-server-endpoint.js';
 import {
   CHRONICLE_MAX_APPEND_BATCH,
@@ -691,7 +690,6 @@ async function stop(_reason: string): Promise<void> {
   await stopMemoryWatchdog();
 }
 
-ensureChronicleProjectServerSocketDirectory(endpoint);
 const server = net.createServer((socket) => {
   if (stopping) {
     socket.destroy();
@@ -713,47 +711,28 @@ const server = net.createServer((socket) => {
   });
 });
 
-let probingExistingEndpoint = false;
-
-function listenForOwnership(): void {
-  server.listen(endpoint);
-}
-
-server.on('error', (error: NodeJS.ErrnoException) => {
-  if (error.code === 'EADDRINUSE' && process.platform === 'win32') {
+// The bind is the ownership election, including the probe-then-reclaim ladder
+// for an endpoint whose owner died without cleanup. Shared with every other
+// project daemon via `bindProjectEndpoint`.
+void (async () => {
+  const bind = await bindProjectEndpoint({ server, endpoint, service: 'chronicle' });
+  if (bind.outcome === 'already-owned') {
     process.exitCode = 0;
     return;
   }
-  if (error.code === 'EADDRINUSE' && !probingExistingEndpoint) {
-    probingExistingEndpoint = true;
-    const probe = net.createConnection(endpoint);
-    probe.once('connect', () => {
-      probe.destroy();
-      process.exitCode = 0;
-    });
-    probe.once('error', () => {
-      probe.destroy();
-      try {
-        fs.rmSync(endpoint, { force: true });
-      } catch {
-        // A competing candidate may already have repaired the endpoint.
-      }
-      probingExistingEndpoint = false;
-      listenForOwnership();
-    });
+  if (bind.outcome === 'failed') {
+    process.stderr.write(`chronicle project server failed: ${bind.error.message}\n`);
+    process.exitCode = 1;
     return;
   }
-  process.exitCode = 1;
-});
-
-server.on('listening', () => {
-  if (process.platform !== 'win32') {
-    try {
-      fs.chmodSync(endpoint, 0o600);
-    } catch {
-      // The containing 0700 directory still limits access to this user.
-    }
+  if (bind.reclaimedStaleEndpoint) {
+    process.stderr.write(`chronicle project server reclaimed stale endpoint ${endpoint}\n`);
   }
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (stopping) return;
+    process.stderr.write(`chronicle project server error: ${error.message}\n`);
+    process.exitCode = 1;
+  });
   void writeMetadata().then(() => markMetadataWritten?.());
   void startChronicleFileObserver({
     projectRoot: parsed.projectRoot,
@@ -773,8 +752,7 @@ server.on('listening', () => {
       watcherLastError = error instanceof Error ? error.message : String(error);
     });
   scheduleIdleStop();
-});
+})();
 
 process.once('SIGINT', () => void stop('SIGINT'));
 process.once('SIGTERM', () => void stop('SIGTERM'));
-listenForOwnership();

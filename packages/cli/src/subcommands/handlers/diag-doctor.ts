@@ -4,6 +4,11 @@ import * as path from 'node:path';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { API_VERSION } from '../../version.js';
 import type { SubcommandHandler } from '../index.js';
+import {
+  clearStaleDaemonEndpoints,
+  collectDaemonReports,
+  type DaemonReport,
+} from './daemon-inventory.js';
 
 export const diagCmd: SubcommandHandler = async (_args, deps) => {
   const cfg = deps.config;
@@ -30,7 +35,77 @@ export const diagCmd: SubcommandHandler = async (_args, deps) => {
   return 0;
 };
 
-export const doctorCmd: SubcommandHandler = async (_args, deps) => {
+/**
+ * `wstack doctor --daemons` — the operator's window into project IPC.
+ *
+ * Deliberately a command rather than anything shown at startup. Daemons are
+ * shared by every surface for the project, so "is one running?" has a correct
+ * answer that never needs a human (reuse it) and "should I kill these?" is a
+ * question the launcher cannot answer safely — another live session, a WebUI,
+ * or a fleet agent may be connected to exactly the daemon being offered up for
+ * a restart. Asking at startup would put that decision in front of a user who
+ * has no way to make it and no reason to care while things work.
+ *
+ * So the split is: self-healing by default, one warning line when self-healing
+ * fails, and this command when someone actually wants to look.
+ */
+async function reportDaemons(
+  deps: Parameters<SubcommandHandler>[1],
+  opts: { readonly clear: boolean },
+): Promise<number> {
+  const inventory = { projectRoot: deps.projectRoot, projectDir: deps.paths.projectDir };
+  let reports: readonly DaemonReport[] = await collectDaemonReports(inventory);
+  deps.renderer.write(color.bold('WrongStack project daemons\n\n'));
+  const icon = (status: DaemonReport['status']): string =>
+    status === 'live' ? color.green('✓') : status === 'stale' ? color.red('✗') : color.dim('·');
+  for (const report of reports) {
+    const suffix = report.pid === undefined ? '' : ` pid ${report.pid}`;
+    deps.renderer.write(
+      `  ${icon(report.status)} ${report.name.padEnd(16)} ${report.status.padEnd(8)}` +
+        `${color.dim(report.endpoint + suffix)}\n`,
+    );
+  }
+  const stale = reports.filter((report) => report.status === 'stale');
+  if (stale.length === 0) {
+    deps.renderer.write(color.green('\nNo wedged endpoints.\n'));
+    return 0;
+  }
+  if (!opts.clear) {
+    deps.renderer.write(
+      color.amber(
+        `\n${stale.length} stale endpoint${stale.length === 1 ? '' : 's'}: ` +
+          `${stale.map((report) => report.name).join(', ')}\n`,
+      ),
+    );
+    deps.renderer.write(
+      color.dim(
+        '  A daemon died without releasing its endpoint. Current daemons reclaim\n' +
+          '  this automatically on next start; clear it now with:\n' +
+          '    wstack doctor --daemons --clear-stale\n',
+      ),
+    );
+    return 1;
+  }
+  const cleared = await clearStaleDaemonEndpoints(inventory);
+  reports = await collectDaemonReports(inventory);
+  const remaining = reports.filter((report) => report.status === 'stale');
+  if (cleared.length > 0) {
+    deps.renderer.write(color.green(`\nCleared: ${cleared.join(', ')}\n`));
+  }
+  if (remaining.length > 0) {
+    deps.renderer.write(
+      color.red(`Still wedged: ${remaining.map((report) => report.name).join(', ')}\n`),
+    );
+    return 1;
+  }
+  deps.renderer.write(color.dim('Daemons restart on demand — no further action needed.\n'));
+  return 0;
+}
+
+export const doctorCmd: SubcommandHandler = async (args, deps) => {
+  if (args.includes('--daemons')) {
+    return reportDaemons(deps, { clear: args.includes('--clear-stale') });
+  }
   type CheckResult = { name: string; status: 'ok' | 'warn' | 'fail'; detail: string };
   const checks: CheckResult[] = [];
   const cfg = deps.config;

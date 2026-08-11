@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -365,6 +365,18 @@ describe('defaultCheckProcessAlive', () => {
 });
 
 describe('coverage runner script', () => {
+  it('serializes package-local coverage entrypoints', () => {
+    for (const packageName of ['plug-lsp', 'webui']) {
+      const packageJson = JSON.parse(
+        readFileSync(path.join(repoRoot, 'packages', packageName, 'package.json'), 'utf8'),
+      ) as { scripts?: { 'test:coverage'?: string } };
+
+      expect(packageJson.scripts?.['test:coverage']).toMatch(
+        /^node \.\.\/\.\.\/scripts\/coverage-lock\.mjs node \.\.\/\.\.\/scripts\/run-vitest-coverage\.mjs /u,
+      );
+    }
+  });
+
   it('recognizes direct and imported execution', () => {
     const scriptPath = path.join(repoRoot, 'scripts', 'test-coverage.mjs');
     const scriptUrl = pathToFileURL(scriptPath).href;
