@@ -1,4 +1,3 @@
-
 /* ── Main scroll area ──────────────────────────────────────────────────── */
 .hq-main {
   flex: 1;
@@ -7,6 +6,21 @@
   padding: 16px;
   scrollbar-width: thin;
   scrollbar-color: var(--border2) transparent;
+  background:
+    linear-gradient(color-mix(in srgb, var(--text) 2.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--text) 2.5%, transparent) 1px, transparent 1px),
+    radial-gradient(
+      circle at 76% 2%,
+      color-mix(in srgb, var(--primary) 6%, transparent),
+      transparent 30%
+    ),
+    var(--bg);
+  background-size:
+    32px 32px,
+    32px 32px,
+    auto,
+    auto;
+  background-attachment: local;
 }
 .hq-main > div {
   max-width: 1480px;
@@ -67,6 +81,9 @@
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 .hq-card-title {
   margin: 14px 0 8px;
@@ -249,4 +266,3 @@
   border-color: var(--primary);
   color: var(--primary);
 }
-

@@ -802,7 +802,12 @@ export class ACPSession {
     this.callbackAbort.abort();
     this.promptCallbackAbort?.abort();
     this.promptCallbackAbort = null;
-    this.terminalServer.releaseAll();
+    // `dispose()` (not `releaseAll()`) so the host AbortSignal listener is
+    // detached unconditionally — releaseAll is now a delegated wrapper and
+    // would work, but `dispose()` is the canonical teardown entry point and
+    // makes the intent explicit. Both paths are idempotent. RAM-leak
+    // audit 2026-08-11, MEDIUM (Finding 2) remediation.
+    this.terminalServer.dispose();
 
     // Graceful session close (if session is active and agent supports it)
     if (this.sessionId && this.agentCapabilities.sessionCapabilities?.close) {

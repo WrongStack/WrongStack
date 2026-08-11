@@ -24,6 +24,7 @@ import {
   PanelLeftOpen,
   RadioTower,
   RotateCcw,
+  Search,
   Server,
   Settings2,
   ShieldCheck,
@@ -41,6 +42,7 @@ import {
   type ReactNode,
   Suspense,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -48,7 +50,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { authorizedFetch, clearHqToken, resolveHqToken } from './lib/auth.js';
 import { ToastOverlay } from './lib/toast-notification.js';
 import { useToastStore } from './lib/toast-store.js';
-import { fetchJson, useHqStore, type PeerEnvelope, type ViewId } from './store.js';
+import { fetchJson, type PeerEnvelope, useHqStore, type ViewId } from './store.js';
 import { setHqAppearancePrefs, useHqLocalPrefs } from './stores/hq-local-prefs.js';
 import { TokenGate } from './views/token-gate.js';
 import './app.css';
@@ -130,9 +132,9 @@ export const HQ_VIEW_DEFINITIONS: readonly HqViewDefinition[] = [
   },
   {
     id: 'alerts',
-    label: 'Alerts',
-    eyebrow: 'Attention',
-    description: 'Active fleet warnings and alert transition history.',
+    label: 'Attention',
+    eyebrow: 'Operator inbox',
+    description: 'Alerts, waiting agents, governance warnings and failed commands.',
     group: 'Intelligence',
     icon: BellRing,
     shortcut: 5,
@@ -280,22 +282,28 @@ class HqViewBoundary extends Component<ViewBoundaryProps, ViewBoundaryState> {
 }
 
 export function HqApp(): React.ReactElement {
-  const { snapshot, alerts, activeView, authRequired, connected, peerRehydrate } = useHqStore(
-    useShallow((state) => ({
-      snapshot: state.snapshot,
-      alerts: state.alerts,
-      activeView: state.activeView,
-      authRequired: state.authRequired,
-      connected: state.connected,
-      peerRehydrate: state.peerRehydrate,
-    })),
-  );
+  const { snapshot, alerts, commandStatuses, activeView, authRequired, connected, peerRehydrate } =
+    useHqStore(
+      useShallow((state) => ({
+        snapshot: state.snapshot,
+        alerts: state.alerts,
+        commandStatuses: state.commandStatuses,
+        activeView: state.activeView,
+        authRequired: state.authRequired,
+        connected: state.connected,
+        peerRehydrate: state.peerRehydrate,
+      })),
+    );
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window === 'undefined' || window.innerWidth >= 1180,
   );
   const [updateStatus, setUpdateStatus] = useState<HqUpdateStatus | null>(null);
   const [authStatus, setAuthStatus] = useState<HqAuthStatus | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
+  const [commandSelection, setCommandSelection] = useState(0);
+  const commandInputRef = useRef<HTMLInputElement>(null);
   const { theme } = useHqLocalPrefs().appearance;
   const wasConnectedRef = useRef(false);
   const hasConnectedOnceRef = useRef(false);
@@ -303,8 +311,14 @@ export function HqApp(): React.ReactElement {
   // Toast on connection state transitions
   useEffect(() => {
     if (hasConnectedOnceRef.current && connected === false) {
-      useToastStore.getState().addToast('Connection lost — reconnecting with backoff…', 'warning', 4_000);
-    } else if (hasConnectedOnceRef.current && wasConnectedRef.current === false && connected === true) {
+      useToastStore
+        .getState()
+        .addToast('Connection lost — reconnecting with backoff…', 'warning', 4_000);
+    } else if (
+      hasConnectedOnceRef.current &&
+      wasConnectedRef.current === false &&
+      connected === true
+    ) {
       useToastStore.getState().addToast('Reconnected to HQ server', 'success', 3_000);
     }
     if (connected) hasConnectedOnceRef.current = true;
@@ -366,7 +380,19 @@ export function HqApp(): React.ReactElement {
   }, []);
 
   useEffect(() => {
+    if (!commandPaletteOpen) return;
+    commandInputRef.current?.focus();
+  }, [commandPaletteOpen]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandPaletteOpen((open) => !open);
+        setCommandQuery('');
+        setCommandSelection(0);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
         event.preventDefault();
         setSidebarOpen((open) => !open);
@@ -381,13 +407,29 @@ export function HqApp(): React.ReactElement {
         }
         return;
       }
+      if (event.key === 'Escape' && commandPaletteOpen) {
+        event.preventDefault();
+        setCommandPaletteOpen(false);
+        return;
+      }
       if (event.key === 'Escape' && sidebarOpen && window.innerWidth < 900) {
         setSidebarOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [sidebarOpen]);
+  }, [commandPaletteOpen, sidebarOpen]);
+
+  const commandResults = useMemo(() => {
+    const query = commandQuery.trim().toLowerCase();
+    if (query.length === 0) return HQ_VIEW_DEFINITIONS;
+    return HQ_VIEW_DEFINITIONS.filter((definition) =>
+      [definition.label, definition.eyebrow, definition.description, definition.group]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [commandQuery]);
 
   if (authRequired) {
     return <TokenGate hadToken={resolveHqToken() !== null} />;
@@ -396,12 +438,29 @@ export function HqApp(): React.ReactElement {
   const totals = snapshot?.totals;
   const unread = totals?.unreadMailboxMessages ?? 0;
   const activeAlerts = alerts.filter((alert) => alert.severity !== 'info').length;
+  const attentionSignals =
+    activeAlerts +
+    (snapshot?.projects ?? []).filter(
+      (project) =>
+        project.governance?.signal.level === 'warning' ||
+        project.governance?.signal.level === 'unavailable',
+    ).length +
+    (snapshot?.liveSessions ?? [])
+      .flatMap((session) => session.agents ?? [])
+      .filter((agent) => agent.status === 'waiting_user' || agent.status === 'error').length +
+    (snapshot?.clients ?? []).filter((client) => !client.connected).length +
+    commandStatuses.filter(
+      (command) => command.ackStatus === 'failed' || command.ackStatus === 'rejected',
+    ).length;
   const current = getHqViewDefinition(activeView);
   const CurrentIcon = current.icon;
   const ActiveView = VIEW_COMPONENTS[activeView];
 
   const activateView = (view: ViewId): void => {
     useHqStore.getState().setActiveView(view);
+    setCommandPaletteOpen(false);
+    setCommandQuery('');
+    setCommandSelection(0);
     if (window.innerWidth < 900) setSidebarOpen(false);
   };
 
@@ -456,7 +515,7 @@ export function HqApp(): React.ReactElement {
                     definition.id === 'mailbox'
                       ? unread
                       : definition.id === 'alerts'
-                        ? activeAlerts
+                        ? attentionSignals
                         : 0;
                   return (
                     <button
@@ -527,6 +586,21 @@ export function HqApp(): React.ReactElement {
               accent
             />
           </div>
+          <button
+            type="button"
+            className="hq-command-trigger"
+            aria-label="Open HQ command palette"
+            aria-expanded={commandPaletteOpen}
+            onClick={() => {
+              setCommandPaletteOpen(true);
+              setCommandQuery('');
+              setCommandSelection(0);
+            }}
+          >
+            <Search size={14} />
+            <span>Jump to</span>
+            <kbd>Ctrl K</kbd>
+          </button>
           <div className="hq-connection-pill" data-live={connected}>
             {connected ? <Wifi size={13} /> : <WifiOff size={13} />}
             {connected ? 'Live' : 'Reconnecting'}
@@ -565,6 +639,96 @@ export function HqApp(): React.ReactElement {
           </HqViewBoundary>
         </main>
       </section>
+      {commandPaletteOpen ? (
+        <div className="hq-command-layer" role="presentation">
+          <button
+            type="button"
+            className="hq-command-scrim"
+            aria-label="Close HQ command palette"
+            onClick={() => setCommandPaletteOpen(false)}
+          />
+          <dialog open className="hq-command-palette" aria-label="HQ command palette">
+            <div className="hq-command-search">
+              <Search size={17} aria-hidden="true" />
+              <input
+                ref={commandInputRef}
+                type="search"
+                value={commandQuery}
+                aria-label="Search HQ views"
+                placeholder="Search views, telemetry and controls…"
+                onChange={(event) => {
+                  setCommandQuery(event.target.value);
+                  setCommandSelection(0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    setCommandSelection((selection) =>
+                      commandResults.length === 0 ? 0 : (selection + 1) % commandResults.length,
+                    );
+                  } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    setCommandSelection((selection) =>
+                      commandResults.length === 0
+                        ? 0
+                        : (selection - 1 + commandResults.length) % commandResults.length,
+                    );
+                  } else if (event.key === 'Enter' && commandResults[commandSelection]) {
+                    event.preventDefault();
+                    activateView(commandResults[commandSelection].id);
+                  }
+                }}
+              />
+              <kbd>Esc</kbd>
+            </div>
+            <div className="hq-command-results" role="listbox" aria-label="HQ destinations">
+              {commandResults.length === 0 ? (
+                <div className="hq-command-empty">No HQ surface matches “{commandQuery}”.</div>
+              ) : (
+                commandResults.map((definition, index) => {
+                  const Icon = definition.icon;
+                  return (
+                    <button
+                      key={definition.id}
+                      type="button"
+                      className="hq-command-result"
+                      role="option"
+                      aria-selected={commandSelection === index}
+                      data-current={activeView === definition.id}
+                      onMouseEnter={() => setCommandSelection(index)}
+                      onClick={() => activateView(definition.id)}
+                    >
+                      <span className="hq-command-result-icon">
+                        <Icon size={16} />
+                      </span>
+                      <span className="hq-command-result-copy">
+                        <strong>{definition.label}</strong>
+                        <small>{definition.description}</small>
+                      </span>
+                      <span className="hq-command-result-group">{definition.group}</span>
+                      {definition.shortcut !== undefined ? (
+                        <kbd>Alt {definition.shortcut}</kbd>
+                      ) : null}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            <footer className="hq-command-footer">
+              <span>
+                <kbd>↑↓</kbd> select
+              </span>
+              <span>
+                <kbd>Enter</kbd> open
+              </span>
+              <span>
+                <kbd>Esc</kbd> close
+              </span>
+              <span>{commandResults.length} destinations</span>
+            </footer>
+          </dialog>
+        </div>
+      ) : null}
       <ToastOverlay />
     </div>
   );

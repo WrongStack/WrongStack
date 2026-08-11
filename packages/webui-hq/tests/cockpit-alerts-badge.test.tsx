@@ -14,9 +14,9 @@ vi.mock('../src/store.js', async (importOriginal) => {
   return { ...actual, fetchJson: fetchJsonMock };
 });
 
-import { CockpitView } from '../src/views/cockpit.js';
-import { useHqStore } from '../src/store.js';
 import type { HqAlert } from '@wrongstack/core/hq';
+import { useHqStore } from '../src/store.js';
+import { CockpitView } from '../src/views/cockpit.js';
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -130,6 +130,19 @@ describe('Cockpit — apiActive alerts badge', () => {
     const badge = findActiveAlertsBadge();
     expect(badge).not.toBeNull();
     expect(badge?.textContent).toBe('2 active alerts');
+    expect(container?.querySelector('.hq-cockpit-hero')?.getAttribute('data-tone')).toBe(
+      'attention',
+    );
+    expect(container?.textContent).toContain('Attention needed');
+  });
+
+  it('renders a nominal operational picture when no attention signals exist', async () => {
+    respondToAlerts({ active: [], history: [] });
+    await mountCockpit();
+
+    expect(container?.querySelector('.hq-cockpit-hero')?.getAttribute('data-tone')).toBe('nominal');
+    expect(container?.textContent).toContain('Systems nominal');
+    expect(container?.textContent).toContain('Operational picture');
   });
 
   it('renders the error pill when /api/alerts rejects (network failure path)', async () => {

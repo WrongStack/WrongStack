@@ -24,6 +24,7 @@ import {
   Network,
   Search,
   SquareTerminal,
+  X,
 } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -324,20 +325,17 @@ export function FleetMapView(): React.ReactElement {
         .map((node) => ({ id: node.machineId!, label: node.label })),
     [fullTopology],
   );
-  const projectOptions = useMemo(
-    () => {
-      const unique = new Map<string, string>();
-      for (const node of fullTopology.nodes) {
-        if (node.kind === 'project' && node.projectId !== undefined) {
-          unique.set(node.projectId, node.label);
-        }
+  const projectOptions = useMemo(() => {
+    const unique = new Map<string, string>();
+    for (const node of fullTopology.nodes) {
+      if (node.kind === 'project' && node.projectId !== undefined) {
+        unique.set(node.projectId, node.label);
       }
-      return [...unique].map(([id, label]) => ({ id, label })).sort((left, right) =>
-        left.label.localeCompare(right.label),
-      );
-    },
-    [fullTopology],
-  );
+    }
+    return [...unique]
+      .map(([id, label]) => ({ id, label }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [fullTopology]);
   const options = scope === 'machine' ? machineOptions : projectOptions;
   const effectiveScopeId =
     scope === 'all'
@@ -384,47 +382,53 @@ export function FleetMapView(): React.ReactElement {
   return (
     <div className="hq-flow-shell">
       <div className="hq-flow-toolbar">
-        <div>
-          <div className="hq-card-title hq-title-inline">
-            Fleet Topology
+        <div className="hq-flow-toolbar-head">
+          <div className="hq-flow-title-block">
+            <div className="hq-flow-kicker">
+              <span aria-hidden="true" /> Live operating graph
+            </div>
+            <div className="hq-card-title hq-title-inline">Fleet Topology</div>
+            <div className="hq-row-subtle">
+              machine → project → terminal → agent · select a live endpoint to inspect its
+              transcript
+            </div>
           </div>
-          <div className="hq-row-subtle">
-            machine → project → terminal/TUI/CLI/WebUI → agent; click a terminal or agent for chat
-            history
-          </div>
-        </div>
-        <div className="hq-flow-stats">
-          <span className="hq-pill info">{machines} machines</span>
-          <span className="hq-pill info">{terminals} terminals</span>
-          <span className={`hq-pill ${liveAgents > 0 ? 'active' : 'info'}`}>
-            {liveAgents > 0 ? `${liveAgents}/${agents} agents live` : `${agents} agents`}
-          </span>
-          <span className={`hq-pill ${mailboxServeCount > 0 ? 'active' : 'idle'}`}>
-            {mailboxServeCount} mailbox serve
-          </span>
+          <fieldset className="hq-flow-stats" aria-label="Visible fleet totals">
+            <FlowStat label="machines" value={machines} />
+            <FlowStat label="terminals" value={terminals} />
+            <FlowStat
+              label="agents live"
+              value={liveAgents > 0 ? `${liveAgents}/${agents}` : agents}
+              tone={liveAgents > 0 ? 'active' : undefined}
+            />
+            <FlowStat
+              label="mailbox serve"
+              value={mailboxServeCount}
+              tone={mailboxServeCount > 0 ? 'active' : undefined}
+            />
+          </fieldset>
         </div>
         <div className="hq-flow-scope">
-          <fieldset
-            className="hq-flow-scope-buttons"
-            aria-label="Fleet view scope"
-            style={{ border: 0, margin: 0, padding: 0 }}
-          >
-            {(['all', 'machine', 'project'] as const).map((candidate) => (
-              <button
-                key={candidate}
-                type="button"
-                className={'hq-btn secondary' + (scope === candidate ? ' active' : '')}
-                aria-pressed={scope === candidate}
-                onClick={() => chooseScope(candidate)}
-              >
-                {candidate === 'all'
-                  ? 'Full fleet'
-                  : candidate === 'machine'
-                    ? 'By machine'
-                    : 'By project'}
-              </button>
-            ))}
-          </fieldset>
+          <div className="hq-flow-control-group">
+            <span className="hq-flow-control-label">Scope</span>
+            <fieldset className="hq-flow-scope-buttons" aria-label="Fleet view scope">
+              {(['all', 'machine', 'project'] as const).map((candidate) => (
+                <button
+                  key={candidate}
+                  type="button"
+                  className={'hq-btn secondary' + (scope === candidate ? ' active' : '')}
+                  aria-pressed={scope === candidate}
+                  onClick={() => chooseScope(candidate)}
+                >
+                  {candidate === 'all'
+                    ? 'Full fleet'
+                    : candidate === 'machine'
+                      ? 'By machine'
+                      : 'By project'}
+                </button>
+              ))}
+            </fieldset>
+          </div>
           {scope !== 'all' && (
             <select
               className="hq-select hq-flow-scope-select"
@@ -446,28 +450,27 @@ export function FleetMapView(): React.ReactElement {
             </select>
           )}
           <span className="hq-flow-toolbar-spacer" />
-          <fieldset
-            className="hq-flow-layout"
-            aria-label="Fleet layout"
-            style={{ border: 0, margin: 0, padding: 0 }}
-          >
-            <button
-              type="button"
-              className={'hq-btn secondary' + (layout === 'map' ? ' active' : '')}
-              aria-pressed={layout === 'map'}
-              onClick={() => setHqFleetPrefs({ layout: 'map' })}
-            >
-              <Network size={13} /> Map
-            </button>
-            <button
-              type="button"
-              className={'hq-btn secondary' + (layout === 'compact' ? ' active' : '')}
-              aria-pressed={layout === 'compact'}
-              onClick={() => setHqFleetPrefs({ layout: 'compact' })}
-            >
-              <ListTree size={13} /> Compact list
-            </button>
-          </fieldset>
+          <div className="hq-flow-control-group">
+            <span className="hq-flow-control-label">View</span>
+            <fieldset className="hq-flow-layout" aria-label="Fleet layout">
+              <button
+                type="button"
+                className={'hq-btn secondary' + (layout === 'map' ? ' active' : '')}
+                aria-pressed={layout === 'map'}
+                onClick={() => setHqFleetPrefs({ layout: 'map' })}
+              >
+                <Network size={13} /> Map
+              </button>
+              <button
+                type="button"
+                className={'hq-btn secondary' + (layout === 'compact' ? ' active' : '')}
+                aria-pressed={layout === 'compact'}
+                onClick={() => setHqFleetPrefs({ layout: 'compact' })}
+              >
+                <ListTree size={13} /> Compact
+              </button>
+            </fieldset>
+          </div>
           <label className="hq-flow-search">
             <Search size={13} />
             <input
@@ -478,6 +481,11 @@ export function FleetMapView(): React.ReactElement {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
+            {query.length > 0 ? (
+              <button type="button" aria-label="Clear fleet search" onClick={() => setQuery('')}>
+                <X size={12} />
+              </button>
+            ) : null}
           </label>
         </div>
       </div>
@@ -507,6 +515,23 @@ export function FleetMapView(): React.ReactElement {
           <Bot size={12} /> agent
         </span>
       </div>
+    </div>
+  );
+}
+
+function FlowStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'active';
+}): React.ReactElement {
+  return (
+    <div className="hq-flow-stat" data-tone={tone}>
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }

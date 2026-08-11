@@ -20,8 +20,8 @@ import type {
   HqMailboxEventPayload,
   HqMailboxMessageSummary,
 } from '@wrongstack/core/hq';
+import { Inbox, Layers3, ListFilter, Radio, TriangleAlert, UsersRound } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { useBackfilledEvents } from '../lib/use-backfilled-events.js';
 import { useHqStore } from '../store.js';
 import { MailboxComposer } from './mailbox-composer.js';
@@ -41,19 +41,14 @@ const ACTION_LABEL: Record<HqMailboxEventPayload['action'], string> = {
 };
 
 export function MailboxView(): React.ReactElement {
-  const { snapshot, events: storeEvents } = useHqStore(
-    useShallow((s) => ({ snapshot: s.snapshot, events: s.events })),
-  );
+  const snapshot = useHqStore((s) => s.snapshot);
   const [mode, setMode] = useState<'grouped' | 'live'>('live');
 
   // Seed mailbox activity from the persisted event log so a freshly-connected
   // browser sees message content immediately (the in-memory ring only carries
   // envelopes received AFTER this browser connected), then fold in live ones.
   const { events: mailboxEvents } = useBackfilledEvents('mailbox.event', 300);
-  const events = useMemo(
-    () => [...mailboxEvents, ...storeEvents.filter((e) => e.type !== 'mailbox.event')],
-    [mailboxEvents, storeEvents],
-  );
+  const events = mailboxEvents;
 
   const { projects, hasAnyActivity } = useMemo(
     () => groupMailboxEvents(snapshot, events),
@@ -62,6 +57,18 @@ export function MailboxView(): React.ReactElement {
 
   const totalUnread = snapshot?.totals.unreadMailboxMessages ?? 0;
   const totalIncomplete = snapshot?.totals.incompleteMailboxMessages ?? 0;
+  const totalMessages = (snapshot?.mailboxes ?? []).reduce(
+    (sum, mailbox) => sum + mailbox.messageCount,
+    0,
+  );
+  const highPriority = (snapshot?.mailboxes ?? []).reduce(
+    (sum, mailbox) => sum + mailbox.highPriorityCount,
+    0,
+  );
+  const onlineAgents = (snapshot?.mailboxes ?? []).reduce(
+    (sum, mailbox) => sum + mailbox.onlineAgentCount,
+    0,
+  );
 
   // Compose targets: every project HQ knows about — mailbox groups plus the
   // snapshot's project records (a project can be a valid target before any
@@ -78,42 +85,129 @@ export function MailboxView(): React.ReactElement {
   }, [snapshot, projects]);
 
   if (projects.length === 0 && composerProjects.length === 0) {
-    return <div className="hq-empty">No mailbox activity reported by connected clients.</div>;
+    return (
+      <div className="hq-mailbox-zero">
+        <span className="hq-mailbox-zero-icon" aria-hidden="true">
+          <Inbox size={26} />
+        </span>
+        <span className="hq-section-kicker">Coordination inbox</span>
+        <h2>Waiting for mailbox traffic</h2>
+        <p>
+          Connected projects, inter-agent messages and durable prompts will appear here as soon as a
+          client reports mailbox activity.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="hq-card-title">
-        Mailbox Activity — {projects.length} project{projects.length === 1 ? '' : 's'} ·{' '}
-        {totalUnread} unread · {totalIncomplete} incomplete
-        {hasAnyActivity ? ' · showing detailed messages' : ''}
+    <div className="hq-screen hq-mailbox-screen">
+      <section className="hq-screen-hero hq-mailbox-hero" aria-label="Mailbox command summary">
+        <div>
+          <span className="hq-section-kicker">Coordination inbox</span>
+          <h2>
+            {totalUnread > 0
+              ? `${totalUnread} message${totalUnread === 1 ? '' : 's'} ${totalUnread === 1 ? 'needs' : 'need'} review`
+              : 'Coordination is clear'}
+          </h2>
+          <p>
+            Live cross-project traffic, durable prompts and unresolved coordination work share one
+            operator inbox.
+          </p>
+          <div className="hq-mailbox-hero-state">
+            <span className="hq-pill active">
+              <Radio size={11} /> live sync
+            </span>
+            <span className="hq-mono hq-text-dim">
+              Mailbox Activity — {projects.length} project{projects.length === 1 ? '' : 's'} ·{' '}
+              {totalUnread} unread · {totalIncomplete} incomplete
+              {hasAnyActivity ? ' · detailed messages available' : ''}
+            </span>
+          </div>
+        </div>
+        <div className="hq-hero-metrics">
+          <MailboxMetric label="messages" value={totalMessages} />
+          <MailboxMetric
+            label="unread"
+            value={totalUnread}
+            tone={totalUnread > 0 ? 'warn' : 'ok'}
+          />
+          <MailboxMetric
+            label="high priority"
+            value={highPriority}
+            tone={highPriority > 0 ? 'error' : 'ok'}
+          />
+          <MailboxMetric
+            label="online agents"
+            value={onlineAgents}
+            tone={onlineAgents > 0 ? 'ok' : undefined}
+          />
+        </div>
+      </section>
+
+      <div className="hq-mailbox-command-strip">
+        <div>
+          <strong>Durable delivery</strong>
+          <span>
+            Write directly to a project mailbox, even when no agent is currently connected.
+          </span>
+        </div>
+        <MailboxComposer projects={composerProjects} />
       </div>
-      <MailboxComposer projects={composerProjects} />
-      <div className="hq-mailbox-modebar" role="tablist" aria-label="Mailbox view mode">
-        <button
-          type="button"
-          role="tab"
-          className={'hq-btn secondary' + (mode === 'live' ? ' hq-btn-selected' : '')}
-          aria-selected={mode === 'live'}
-          onClick={() => setMode('live')}
-        >
-          Live feed
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={'hq-btn secondary' + (mode === 'grouped' ? ' hq-btn-selected' : '')}
-          aria-selected={mode === 'grouped'}
-          onClick={() => setMode('grouped')}
-        >
-          Grouped by project
-        </button>
+
+      <div className="hq-mailbox-workspace-head">
+        <div>
+          <span className="hq-section-kicker">Message workspace</span>
+          <strong>{mode === 'live' ? 'Unified timeline' : 'Project channels'}</strong>
+        </div>
+        <div className="hq-mailbox-modebar" role="tablist" aria-label="Mailbox view mode">
+          <button
+            type="button"
+            role="tab"
+            className={'hq-btn secondary' + (mode === 'live' ? ' hq-btn-selected' : '')}
+            aria-selected={mode === 'live'}
+            onClick={() => setMode('live')}
+          >
+            <ListFilter size={13} /> Live feed
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={'hq-btn secondary' + (mode === 'grouped' ? ' hq-btn-selected' : '')}
+            aria-selected={mode === 'grouped'}
+            onClick={() => setMode('grouped')}
+          >
+            <Layers3 size={13} /> Grouped by project
+          </button>
+        </div>
       </div>
-      {mode === 'live' ? (
-        <LiveMailboxView snapshot={snapshot} events={events} />
-      ) : (
-        projects.map((g) => <ProjectSection key={g.projectId} group={g} />)
-      )}
+
+      <div className="hq-mailbox-workspace">
+        {mode === 'live' ? (
+          <LiveMailboxView snapshot={snapshot} events={events} />
+        ) : (
+          projects.map((g) => <ProjectSection key={g.projectId} group={g} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MailboxMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: 'ok' | 'warn' | 'error';
+}): React.ReactElement {
+  const Icon = tone === 'error' ? TriangleAlert : label === 'online agents' ? UsersRound : Inbox;
+  return (
+    <div className="hq-hero-metric hq-mailbox-metric" data-tone={tone}>
+      <Icon size={13} />
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }
@@ -126,7 +220,7 @@ function ProjectSection({ group }: ProjectSectionProps): React.ReactElement {
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="hq-card">
+    <div className="hq-card hq-mailbox-project-card">
       <div className="hq-row hq-row-baseline">
         <button
           type="button"
@@ -139,9 +233,7 @@ function ProjectSection({ group }: ProjectSectionProps): React.ReactElement {
         <span className="hq-text-bright">{group.projectId}</span>
         {group.scope !== undefined && <span className="hq-pill info">{group.scope}</span>}
         {group.mailboxId !== undefined && (
-          <span className="hq-mono hq-text-dim">
-            {group.mailboxId}
-          </span>
+          <span className="hq-mono hq-text-dim">{group.mailboxId}</span>
         )}
         <span className="hq-mono hq-text-dim hq-ml-auto">
           {group.messages.length} message{group.messages.length === 1 ? '' : 's'}

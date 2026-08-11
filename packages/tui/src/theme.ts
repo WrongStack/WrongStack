@@ -37,6 +37,12 @@ export const pastel = Object.freeze({
   // Greys
   gray: '#7f849c',
   grey: '#7f849c',
+  // Lifted grey used for comment tokens sitting on a diff wash. `gray` falls
+  // below WCAG AA on `diffAddBg`/`diffDelBg`; this clears both. MUST exist in
+  // this map — `softColor` passes unknown names through untouched and Ink /
+  // chalk then silently drop them, rendering the token with no color at all.
+  grayBright: '#a6adc8',
+  greyBright: '#a6adc8',
   // Bright variants — a touch lighter / shifted within the same family
   blackBright: '#585b70',
   redBright: '#eba0ac',
@@ -62,14 +68,109 @@ export const pastel = Object.freeze({
  */
 export const catppuccin = pastel;
 
+// ─── Syntax roles ───────────────────────────────────────────────────────────
+// `highlight.ts` emits SEMANTIC role names (`'syntax.keyword'`), never literal
+// colors, and stays a pure theme-free tokenizer. The names are resolved here,
+// against the LIVE palette, by `softColor` — which every component already
+// funnels through via the Ink shim. That is what makes syntax highlighting
+// follow `/theme`: the frozen `pastel` map below is theme-independent, so a
+// tokenizer emitting `'magenta'` would render Catppuccin purple in Gruvbox.
+
+/** The distinct things `highlightLine` can color. */
+export type SyntaxRole =
+  | 'keyword'
+  | 'string'
+  | 'comment'
+  | 'commentOnWash'
+  | 'number'
+  | 'literal'
+  | 'property'
+  | 'variable'
+  | 'command'
+  | 'flag'
+  | 'decorator'
+  | 'diffAdd'
+  | 'diffDel'
+  | 'diffMeta';
+
+export type SyntaxPalette = Record<SyntaxRole, string>;
+
 /**
- * Resolve a color value to its pastel equivalent. Known ANSI names map to the
- * {@link pastel} hex; hex/rgb strings and unknown values (e.g. Ink's `'dim'`)
- * pass through unchanged. `undefined` stays `undefined` so callers can spread
- * it without forcing a color.
+ * Which existing theme token each syntax role borrows by default.
+ *
+ * Deriving instead of hand-authoring means all 35 presets get a coherent
+ * syntax palette for free, and a new preset needs zero extra colors. The
+ * mapping is chosen so the conventional terminal look survives: keywords take
+ * the brand (purple/magenta in nearly every scheme), strings take success
+ * (green), numbers take warn (yellow), identifiers take the accent (cyan/blue).
+ *
+ * `commentOnWash` is the lifted variant used when a comment sits on a diff
+ * wash — `textMuted` is chosen to recede against `surface` and falls below
+ * WCAG AA on `diffAddBg`/`diffDelBg`, so the wash path swaps in the brighter
+ * `textSecondary`. See `applyWashTokens` in `history/code-block.tsx`.
+ */
+const SYNTAX_TOKEN: Readonly<Record<SyntaxRole, keyof Theme>> = Object.freeze({
+  keyword: 'brand',
+  string: 'success',
+  comment: 'textMuted',
+  commentOnWash: 'textSecondary',
+  number: 'warn',
+  literal: 'warn',
+  property: 'accent',
+  variable: 'accent',
+  command: 'accent',
+  flag: 'warn',
+  decorator: 'brand',
+  diffAdd: 'success',
+  diffDel: 'error',
+  diffMeta: 'accent',
+});
+
+/** Prefix that marks a color string as a syntax role rather than a literal. */
+const SYNTAX_PREFIX = 'syntax.';
+
+/**
+ * Resolve one syntax role against a palette. A preset may pin any role
+ * explicitly via its optional `syntax` field (e.g. a scheme whose strings are
+ * orange rather than green); otherwise the role borrows the token named in
+ * {@link SYNTAX_TOKEN}. O(1) and allocation-free — this runs once per token
+ * per rendered line.
+ */
+export function resolveSyntaxColor(role: SyntaxRole, palette: Theme = theme): string {
+  return palette.syntax?.[role] ?? (palette[SYNTAX_TOKEN[role]] as string);
+}
+
+/** Materialize the full syntax palette for a theme. Used by tests and tooling. */
+export function resolveSyntaxPalette(palette: Theme = theme): SyntaxPalette {
+  const out = {} as SyntaxPalette;
+  for (const role of Object.keys(SYNTAX_TOKEN) as SyntaxRole[]) {
+    out[role] = resolveSyntaxColor(role, palette);
+  }
+  return out;
+}
+
+/**
+ * Resolve a color value to a concrete color.
+ *
+ * Three cases, in order:
+ *  - `syntax.<role>` resolves against the ACTIVE theme, so highlighting
+ *    follows `/theme` (see {@link resolveSyntaxColor}).
+ *  - A known ANSI name maps to its {@link pastel} hex. This map is frozen and
+ *    theme-independent by design — it is the floor for the ~177 call sites
+ *    that still pass bare names like `color="red"`.
+ *  - Anything else (hex, rgb, Ink's `'dim'`, an unknown name) passes through.
+ *
+ * `undefined` stays `undefined` so callers can spread it without forcing a
+ * color. NOTE: an unknown name that reaches Ink is silently DROPPED by chalk —
+ * the token renders with no color at all. Never emit a name that isn't
+ * resolvable here.
  */
 export function softColor(color?: string): string | undefined {
   if (!color) return color;
+  if (color.startsWith(SYNTAX_PREFIX)) {
+    const role = color.slice(SYNTAX_PREFIX.length) as SyntaxRole;
+    return role in SYNTAX_TOKEN ? resolveSyntaxColor(role) : color;
+  }
   return (pastel as Record<string, string>)[color] ?? color;
 }
 
@@ -181,6 +282,14 @@ export interface Theme {
    */
   diffAddBg: string;
   diffDelBg: string;
+  /**
+   * Per-preset syntax-highlight overrides. OPTIONAL and normally omitted —
+   * every role has a sensible default derived from the tokens above (see
+   * `SYNTAX_TOKEN`), so a preset only pins a role when its scheme genuinely
+   * disagrees. Example: VS Code Dark+ colors strings orange, not green, so
+   * `dark-plus` pins `string`.
+   */
+  syntax?: Partial<SyntaxPalette> | undefined;
 }
 
 // Active palette — mutable, swapped at runtime by `setActiveTheme()`. Each
@@ -275,10 +384,19 @@ export function setActiveTheme(name: string | undefined): ThemeName {
     return applied;
   }
   // In-place mutation so existing imports of `theme` see the new values
-  // without invalidating React references held by 50+ components. Keys mirror
-  // the `Theme` interface exactly — TS would catch any drift at compile time.
+  // without invalidating React references held by 50+ components.
+  //
+  // Keys the OUTGOING preset had and the incoming one does not must be
+  // DELETED, not just left alone. `Theme` has optional fields (`syntax`), so
+  // a copy-only swap is not a full replacement: selecting `dark-plus` and then
+  // any other preset used to leave VS Code's orange-string override behind,
+  // silently re-coloring every theme chosen afterwards. Deleting first makes
+  // the swap a true assignment regardless of which fields are optional today.
   const t = theme as unknown as Record<string, unknown>;
   const p = preset as unknown as Record<string, unknown>;
+  for (const k of Object.keys(t)) {
+    if (!(k in p)) delete t[k];
+  }
   for (const k of Object.keys(p)) {
     t[k] = p[k];
   }
@@ -347,7 +465,9 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     brand: '#bb9af7',
     surface: '#16161e',
     surfaceRaised: '#1a1b26',
-    monitor: { ...baseTheme.monitor, fleet: '#7dcfff', agents: '#bb9af7', goal: '#9ece6a' },
+    diffAddBg: '#1c3326',
+    diffDelBg: '#37202b',
+    monitor: { fleet: '#7dcfff', agents: '#bb9af7', worktree: '#9ece6a', phase: '#7dcfff' },
   }),
   nord: Object.freeze({
     ...baseTheme,
@@ -366,7 +486,9 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     brand: '#b48ead',
     surface: '#2e3440',
     surfaceRaised: '#3b4252',
-    monitor: { ...baseTheme.monitor, fleet: '#88c0d0', agents: '#b48ead', goal: '#a3be8c' },
+    diffAddBg: '#2f4034',
+    diffDelBg: '#442f35',
+    monitor: { fleet: '#88c0d0', agents: '#b48ead', worktree: '#a3be8c', phase: '#88c0d0' },
   }),
   cyberpunk: Object.freeze({
     ...baseTheme,
@@ -385,7 +507,9 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     brand: '#ff00aa',
     surface: '#0d0d1a',
     surfaceRaised: '#16162a',
-    monitor: { ...baseTheme.monitor, fleet: '#00f0ff', agents: '#ff00aa', goal: '#00ff66' },
+    diffAddBg: '#0d2e1f',
+    diffDelBg: '#2e0d1c',
+    monitor: { fleet: '#00f0ff', agents: '#ff00aa', worktree: '#00ff66', phase: '#00f0ff' },
   }),
   dracula: Object.freeze({
     ...baseTheme,
@@ -404,7 +528,9 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     brand: '#ff79c6',
     surface: '#282a36',
     surfaceRaised: '#44475a',
-    monitor: { ...baseTheme.monitor, fleet: '#8be9fd', agents: '#ff79c6', goal: '#50fa7b' },
+    diffAddBg: '#26402e',
+    diffDelBg: '#43262e',
+    monitor: { fleet: '#8be9fd', agents: '#ff79c6', worktree: '#50fa7b', phase: '#8be9fd' },
   }),
   'gruvbox-dark': Object.freeze({
     ...baseTheme,
@@ -425,7 +551,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#3c3836',
     diffAddBg: '#1f3a1f',
     diffDelBg: '#3a1f1f',
-    monitor: { ...baseTheme.monitor, fleet: '#83a598', agents: '#d3869b', goal: '#b8bb26' },
+    monitor: { fleet: '#83a598', agents: '#d3869b', worktree: '#b8bb26', phase: '#83a598' },
   }),
   'solarized-dark': Object.freeze({
     ...baseTheme,
@@ -446,7 +572,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#073642',
     diffAddBg: '#0e3a30',
     diffDelBg: '#3a1a1a',
-    monitor: { ...baseTheme.monitor, fleet: '#268bd2', agents: '#d33682', goal: '#859900' },
+    monitor: { fleet: '#268bd2', agents: '#d33682', worktree: '#859900', phase: '#268bd2' },
   }),
   'one-dark': Object.freeze({
     ...baseTheme,
@@ -467,7 +593,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#282c34',
     diffAddBg: '#1f3a26',
     diffDelBg: '#3a2226',
-    monitor: { ...baseTheme.monitor, fleet: '#61afef', agents: '#c678dd', goal: '#98c379' },
+    monitor: { fleet: '#61afef', agents: '#c678dd', worktree: '#98c379', phase: '#61afef' },
   }),
   monokai: Object.freeze({
     ...baseTheme,
@@ -488,7 +614,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#272822',
     diffAddBg: '#1f3318',
     diffDelBg: '#3a1f25',
-    monitor: { ...baseTheme.monitor, fleet: '#66d9ef', agents: '#ae81ff', goal: '#a6e22e' },
+    monitor: { fleet: '#66d9ef', agents: '#ae81ff', worktree: '#a6e22e', phase: '#66d9ef' },
   }),
   'rose-pine': Object.freeze({
     ...baseTheme,
@@ -509,7 +635,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#1f1d2e',
     diffAddBg: '#1f3538',
     diffDelBg: '#3a2530',
-    monitor: { ...baseTheme.monitor, fleet: '#9ccfd8', agents: '#c4a7e7', goal: '#31748f' },
+    monitor: { fleet: '#9ccfd8', agents: '#c4a7e7', worktree: '#31748f', phase: '#9ccfd8' },
   }),
   kanagawa: Object.freeze({
     ...baseTheme,
@@ -530,7 +656,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#1f1f28',
     diffAddBg: '#1f2d1f',
     diffDelBg: '#321e22',
-    monitor: { ...baseTheme.monitor, fleet: '#7fb4ca', agents: '#957fb8', goal: '#98bb6e' },
+    monitor: { fleet: '#7fb4ca', agents: '#957fb8', worktree: '#98bb6e', phase: '#7fb4ca' },
   }),
   'ayu-dark': Object.freeze({
     ...baseTheme,
@@ -551,7 +677,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#14181f',
     diffAddBg: '#1c2a1f',
     diffDelBg: '#2e1c20',
-    monitor: { ...baseTheme.monitor, fleet: '#59c2ff', agents: '#d4b5ff', goal: '#aad94c' },
+    monitor: { fleet: '#59c2ff', agents: '#d4b5ff', worktree: '#aad94c', phase: '#59c2ff' },
   }),
   everforest: Object.freeze({
     ...baseTheme,
@@ -572,7 +698,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#343f44',
     diffAddBg: '#1f3326',
     diffDelBg: '#331f25',
-    monitor: { ...baseTheme.monitor, fleet: '#7fbbb3', agents: '#d699b6', goal: '#a7c080' },
+    monitor: { fleet: '#7fbbb3', agents: '#d699b6', worktree: '#a7c080', phase: '#7fbbb3' },
   }),
   'night-owl': Object.freeze({
     ...baseTheme,
@@ -593,7 +719,7 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#0b253a',
     diffAddBg: '#0e2e26',
     diffDelBg: '#2e1722',
-    monitor: { ...baseTheme.monitor, fleet: '#82aaff', agents: '#c792ea', goal: '#c3e88d' },
+    monitor: { fleet: '#82aaff', agents: '#c792ea', worktree: '#c3e88d', phase: '#82aaff' },
   }),
   synthwave: Object.freeze({
     ...baseTheme,
@@ -614,9 +740,510 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
     surfaceRaised: '#241b46',
     diffAddBg: '#1f3530',
     diffDelBg: '#3a1f30',
-    monitor: { ...baseTheme.monitor, fleet: '#36f9f6', agents: '#b56cff', goal: '#72f1b8' },
+    monitor: { fleet: '#36f9f6', agents: '#b56cff', worktree: '#72f1b8', phase: '#36f9f6' },
   }),
-} as Record<ThemeName, Theme>);
+  'github-dark': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#c9d1d9',
+    textSecondary: '#b1bac4',
+    textMuted: '#8b949e',
+    brandPrimary: '#d29922',
+    brandAccent: '#bc8cff',
+    accent: '#58a6ff',
+    user: '#d29922',
+    assistant: '#58a6ff',
+    tool: '#39c5cf',
+    success: '#3fb950',
+    warn: '#d29922',
+    error: '#f85149',
+    borderDefault: '#30363d',
+    borderSubtle: '#21262d',
+    borderActive: '#58a6ff',
+    brand: '#bc8cff',
+    surface: '#0d1117',
+    surfaceRaised: '#161b22',
+    diffAddBg: '#0d2f18',
+    diffDelBg: '#3d1418',
+    monitor: { fleet: '#58a6ff', agents: '#bc8cff', worktree: '#3fb950', phase: '#39c5cf' },
+  }),
+  'material-ocean': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#a6accd',
+    textSecondary: '#8f93a2',
+    textMuted: '#4b526d',
+    brandPrimary: '#f78c6c',
+    brandAccent: '#c792ea',
+    accent: '#89ddff',
+    user: '#ffcb6b',
+    assistant: '#89ddff',
+    tool: '#82aaff',
+    success: '#c3e88d',
+    warn: '#ffcb6b',
+    error: '#f07178',
+    borderDefault: '#3b3f51',
+    borderSubtle: '#1f2233',
+    borderActive: '#89ddff',
+    brand: '#c792ea',
+    surface: '#0f111a',
+    surfaceRaised: '#1a1c25',
+    diffAddBg: '#17301f',
+    diffDelBg: '#331b21',
+    monitor: { fleet: '#89ddff', agents: '#c792ea', worktree: '#c3e88d', phase: '#82aaff' },
+  }),
+  nightfox: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#cdcecf',
+    textSecondary: '#aeafb0',
+    textMuted: '#71839b',
+    brandPrimary: '#f4a261',
+    brandAccent: '#9d79d6',
+    accent: '#719cd6',
+    user: '#dbc074',
+    assistant: '#63cdcf',
+    tool: '#719cd6',
+    success: '#81b29a',
+    warn: '#dbc074',
+    error: '#c94f6d',
+    borderDefault: '#39506d',
+    borderSubtle: '#29394f',
+    borderActive: '#719cd6',
+    brand: '#9d79d6',
+    surface: '#192330',
+    surfaceRaised: '#212e3f',
+    diffAddBg: '#1d3025',
+    diffDelBg: '#33202a',
+    monitor: { fleet: '#719cd6', agents: '#9d79d6', worktree: '#81b29a', phase: '#63cdcf' },
+  }),
+  oxocarbon: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#f2f4f8',
+    textSecondary: '#dde1e6',
+    textMuted: '#82868b',
+    brandPrimary: '#ff7eb6',
+    brandAccent: '#be95ff',
+    accent: '#78a9ff',
+    user: '#3ddbd9',
+    assistant: '#78a9ff',
+    tool: '#3ddbd9',
+    success: '#42be65',
+    warn: '#ff7eb6',
+    error: '#ee5396',
+    borderDefault: '#393939',
+    borderSubtle: '#262626',
+    borderActive: '#be95ff',
+    brand: '#be95ff',
+    surface: '#161616',
+    surfaceRaised: '#262626',
+    diffAddBg: '#17301f',
+    diffDelBg: '#33182a',
+    monitor: { fleet: '#78a9ff', agents: '#be95ff', worktree: '#42be65', phase: '#3ddbd9' },
+  }),
+  'catppuccin-macchiato': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#cad3f5',
+    textSecondary: '#b8c0e0',
+    textMuted: '#6e738d',
+    brandPrimary: '#f5a97f',
+    brandAccent: '#f5bde6',
+    accent: '#8bd5ca',
+    user: '#eed49f',
+    assistant: '#8aadf4',
+    tool: '#8bd5ca',
+    success: '#a6da95',
+    warn: '#eed49f',
+    error: '#ed8796',
+    borderDefault: '#5b6078',
+    borderSubtle: '#363a4f',
+    borderActive: '#eed49f',
+    brand: '#c6a0f6',
+    surface: '#1e2030',
+    surfaceRaised: '#24273a',
+    diffAddBg: '#26402f',
+    diffDelBg: '#3f242c',
+    monitor: { fleet: '#8bd5ca', agents: '#c6a0f6', worktree: '#a6da95', phase: '#8aadf4' },
+  }),
+  'catppuccin-frappe': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#c6d0f5',
+    textSecondary: '#b5bfe2',
+    textMuted: '#737994',
+    brandPrimary: '#ef9f76',
+    brandAccent: '#f4b8e4',
+    accent: '#81c8be',
+    user: '#e5c890',
+    assistant: '#8caaee',
+    tool: '#81c8be',
+    success: '#a6d189',
+    warn: '#e5c890',
+    error: '#e78284',
+    borderDefault: '#626880',
+    borderSubtle: '#414559',
+    borderActive: '#e5c890',
+    brand: '#ca9ee6',
+    surface: '#292c3c',
+    surfaceRaised: '#303446',
+    diffAddBg: '#2c4034',
+    diffDelBg: '#422a32',
+    monitor: { fleet: '#81c8be', agents: '#ca9ee6', worktree: '#a6d189', phase: '#8caaee' },
+  }),
+  'gruvbox-material': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#d4be98',
+    textSecondary: '#c5b18d',
+    textMuted: '#928374',
+    brandPrimary: '#e78a4e',
+    brandAccent: '#d3869b',
+    accent: '#7daea3',
+    user: '#d8a657',
+    assistant: '#89b482',
+    tool: '#7daea3',
+    success: '#a9b665',
+    warn: '#d8a657',
+    error: '#ea6962',
+    borderDefault: '#45403d',
+    borderSubtle: '#3c3836',
+    borderActive: '#e78a4e',
+    brand: '#d3869b',
+    surface: '#282828',
+    surfaceRaised: '#32302f',
+    diffAddBg: '#26332a',
+    diffDelBg: '#3a2426',
+    monitor: { fleet: '#7daea3', agents: '#d3869b', worktree: '#a9b665', phase: '#89b482' },
+  }),
+  'tokyo-night-storm': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#c0caf5',
+    textSecondary: '#a9b1d6',
+    textMuted: '#565f89',
+    brandPrimary: '#ff9e64',
+    brandAccent: '#bb9af7',
+    accent: '#7aa2f7',
+    user: '#e0af68',
+    assistant: '#7dcfff',
+    tool: '#73daca',
+    success: '#9ece6a',
+    warn: '#e0af68',
+    error: '#f7768e',
+    borderDefault: '#3b4261',
+    borderSubtle: '#292e42',
+    borderActive: '#7aa2f7',
+    brand: '#bb9af7',
+    surface: '#1f2335',
+    surfaceRaised: '#24283b',
+    diffAddBg: '#20372c',
+    diffDelBg: '#3b2331',
+    monitor: { fleet: '#7aa2f7', agents: '#bb9af7', worktree: '#9ece6a', phase: '#7dcfff' },
+  }),
+  'rose-pine-moon': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#e0def4',
+    // Between Rosé Pine's `text` and `subtle` — `subtle` (#908caa) alone falls
+    // under WCAG AA once a comment is lifted onto a diff wash.
+    textSecondary: '#c4c1d8',
+    textMuted: '#6e6a86',
+    brandPrimary: '#f6c177',
+    brandAccent: '#ea9a97',
+    accent: '#9ccfd8',
+    user: '#f6c177',
+    assistant: '#c4a7e7',
+    tool: '#3e8fb0',
+    success: '#3e8fb0',
+    warn: '#f6c177',
+    error: '#eb6f92',
+    borderDefault: '#44415a',
+    borderSubtle: '#393552',
+    borderActive: '#ea9a97',
+    brand: '#c4a7e7',
+    surface: '#232136',
+    surfaceRaised: '#2a273f',
+    diffAddBg: '#22403e',
+    diffDelBg: '#3a2836',
+    monitor: { fleet: '#9ccfd8', agents: '#c4a7e7', worktree: '#3e8fb0', phase: '#9ccfd8' },
+  }),
+  zenburn: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#dcdccc',
+    textSecondary: '#c0c0a8',
+    textMuted: '#8f8f7f',
+    brandPrimary: '#dfaf8f',
+    brandAccent: '#dc8cc3',
+    accent: '#8cd0d3',
+    user: '#f0dfaf',
+    assistant: '#93e0e3',
+    tool: '#8cd0d3',
+    success: '#7f9f7f',
+    warn: '#f0dfaf',
+    error: '#cc9393',
+    borderDefault: '#5f5f5f',
+    borderSubtle: '#4a4a4a',
+    borderActive: '#f0dfaf',
+    brand: '#dc8cc3',
+    surface: '#3f3f3f',
+    surfaceRaised: '#4f4f4f',
+    // Zenburn's base (#3f3f3f) is the lightest of any preset here, so a wash
+    // blended toward it leaves the muted green/red markers under 3:1. These
+    // sit well below the base on purpose.
+    diffAddBg: '#2b3a2a',
+    diffDelBg: '#42292a',
+    monitor: { fleet: '#8cd0d3', agents: '#dc8cc3', worktree: '#7f9f7f', phase: '#93e0e3' },
+  }),
+  palenight: Object.freeze({
+    ...baseTheme,
+    // Palenight's canonical fg (#a6accd) is dim enough that using it as the
+    // PRIMARY leaves no headroom for a readable secondary; shift both up one
+    // step and keep #a6accd as the secondary.
+    textPrimary: '#babed8',
+    textSecondary: '#a6accd',
+    textMuted: '#676e95',
+    brandPrimary: '#f78c6c',
+    brandAccent: '#c792ea',
+    accent: '#82aaff',
+    user: '#ffcb6b',
+    assistant: '#89ddff',
+    tool: '#82aaff',
+    success: '#c3e88d',
+    warn: '#ffcb6b',
+    error: '#f07178',
+    borderDefault: '#4a4f6a',
+    borderSubtle: '#3a3f58',
+    borderActive: '#82aaff',
+    brand: '#c792ea',
+    surface: '#292d3e',
+    surfaceRaised: '#34324a',
+    diffAddBg: '#2b4033',
+    diffDelBg: '#43293a',
+    monitor: { fleet: '#82aaff', agents: '#c792ea', worktree: '#c3e88d', phase: '#89ddff' },
+  }),
+  horizon: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#d5d8da',
+    textSecondary: '#bbbdbf',
+    textMuted: '#6c6f93',
+    brandPrimary: '#f09383',
+    brandAccent: '#ee64ac',
+    accent: '#26bbd9',
+    user: '#fab795',
+    assistant: '#59e1e3',
+    tool: '#26bbd9',
+    success: '#29d398',
+    warn: '#fab795',
+    error: '#e95678',
+    borderDefault: '#3d3f4c',
+    borderSubtle: '#2e303e',
+    borderActive: '#e95678',
+    brand: '#ee64ac',
+    surface: '#1c1e26',
+    surfaceRaised: '#232530',
+    diffAddBg: '#16362e',
+    diffDelBg: '#3a1f2a',
+    monitor: { fleet: '#26bbd9', agents: '#ee64ac', worktree: '#29d398', phase: '#59e1e3' },
+  }),
+  sonokai: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#e3e1e4',
+    textSecondary: '#c9c6cb',
+    textMuted: '#848089',
+    brandPrimary: '#ef9062',
+    brandAccent: '#ab9df2',
+    accent: '#7accd7',
+    user: '#e5c463',
+    assistant: '#7accd7',
+    tool: '#9ecd6f',
+    success: '#9ecd6f',
+    warn: '#e5c463',
+    error: '#f85e84',
+    borderDefault: '#4b484d',
+    borderSubtle: '#3b383e',
+    borderActive: '#ef9062',
+    brand: '#ab9df2',
+    surface: '#2d2a2e',
+    surfaceRaised: '#37343a',
+    diffAddBg: '#2c3a2b',
+    diffDelBg: '#43262f',
+    monitor: { fleet: '#7accd7', agents: '#ab9df2', worktree: '#9ecd6f', phase: '#7accd7' },
+  }),
+  'edge-dark': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#c5cdd9',
+    textSecondary: '#adb6c2',
+    textMuted: '#7f8490',
+    brandPrimary: '#deb974',
+    brandAccent: '#d38aea',
+    accent: '#6cb6eb',
+    user: '#deb974',
+    assistant: '#5dbbc1',
+    tool: '#6cb6eb',
+    success: '#a0c980',
+    warn: '#deb974',
+    error: '#ec7279',
+    borderDefault: '#464957',
+    borderSubtle: '#363a4d',
+    borderActive: '#6cb6eb',
+    brand: '#d38aea',
+    surface: '#2b2d3a',
+    surfaceRaised: '#333648',
+    diffAddBg: '#29392c',
+    diffDelBg: '#3d2830',
+    monitor: { fleet: '#6cb6eb', agents: '#d38aea', worktree: '#a0c980', phase: '#5dbbc1' },
+  }),
+  moonfly: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#bdbdbd',
+    textSecondary: '#a8a8a8',
+    textMuted: '#767676',
+    brandPrimary: '#de935f',
+    brandAccent: '#cf87e8',
+    accent: '#80a0ff',
+    user: '#e3c78a',
+    assistant: '#79dac8',
+    tool: '#80a0ff',
+    success: '#8cc85f',
+    warn: '#e3c78a',
+    error: '#ff5454',
+    borderDefault: '#3a3a3a',
+    borderSubtle: '#262626',
+    borderActive: '#80a0ff',
+    brand: '#cf87e8',
+    surface: '#080808',
+    surfaceRaised: '#1c1c1c',
+    diffAddBg: '#10301d',
+    diffDelBg: '#331414',
+    monitor: { fleet: '#80a0ff', agents: '#cf87e8', worktree: '#8cc85f', phase: '#79dac8' },
+  }),
+  melange: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#ece1d7',
+    textSecondary: '#c1a78e',
+    textMuted: '#867462',
+    brandPrimary: '#e49b5d',
+    brandAccent: '#cf9bc2',
+    accent: '#a3a9ce',
+    user: '#ebc06d',
+    assistant: '#89b3b6',
+    tool: '#a3a9ce',
+    success: '#85b695',
+    warn: '#ebc06d',
+    error: '#d47766',
+    borderDefault: '#4d4640',
+    borderSubtle: '#3a352f',
+    borderActive: '#e49b5d',
+    brand: '#cf9bc2',
+    surface: '#292522',
+    surfaceRaised: '#34302c',
+    diffAddBg: '#2f3a30',
+    diffDelBg: '#3f2b28',
+    monitor: { fleet: '#a3a9ce', agents: '#cf9bc2', worktree: '#85b695', phase: '#89b3b6' },
+  }),
+  poimandres: Object.freeze({
+    ...baseTheme,
+    // Same shift as palenight — #a6accd becomes the secondary so the lifted
+    // on-wash comment clears AA.
+    textPrimary: '#c4cbe0',
+    textSecondary: '#a6accd',
+    textMuted: '#506477',
+    brandPrimary: '#f087bd',
+    brandAccent: '#a684ff',
+    accent: '#5de4c7',
+    user: '#fffac2',
+    assistant: '#89ddff',
+    tool: '#5de4c7',
+    success: '#5fb3a1',
+    warn: '#fffac2',
+    error: '#d0679d',
+    borderDefault: '#3b4056',
+    borderSubtle: '#252b37',
+    borderActive: '#5de4c7',
+    brand: '#a684ff',
+    surface: '#1b1e28',
+    surfaceRaised: '#252b37',
+    diffAddBg: '#14352f',
+    diffDelBg: '#35202c',
+    monitor: { fleet: '#5de4c7', agents: '#a684ff', worktree: '#5fb3a1', phase: '#89ddff' },
+  }),
+  'vitesse-dark': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#dbd7ca',
+    textSecondary: '#bfbaaa',
+    textMuted: '#758575',
+    brandPrimary: '#dfab5c',
+    brandAccent: '#d3869b',
+    accent: '#6394bf',
+    user: '#e6cc77',
+    assistant: '#5eaab5',
+    tool: '#6394bf',
+    success: '#4d9375',
+    warn: '#e6cc77',
+    error: '#cb7676',
+    borderDefault: '#333333',
+    borderSubtle: '#222222',
+    borderActive: '#dfab5c',
+    brand: '#d3869b',
+    surface: '#121212',
+    surfaceRaised: '#1c1c1c',
+    diffAddBg: '#16301f',
+    diffDelBg: '#331d1d',
+    monitor: { fleet: '#6394bf', agents: '#d3869b', worktree: '#4d9375', phase: '#5eaab5' },
+  }),
+  aura: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#edecee',
+    textSecondary: '#cdccce',
+    textMuted: '#6d6d6d',
+    brandPrimary: '#ffca85',
+    brandAccent: '#f694ff',
+    accent: '#82e2ff',
+    user: '#ffca85',
+    assistant: '#82e2ff',
+    tool: '#a277ff',
+    success: '#61ffca',
+    warn: '#ffca85',
+    error: '#ff6767',
+    borderDefault: '#3b334b',
+    borderSubtle: '#262433',
+    borderActive: '#a277ff',
+    brand: '#f694ff',
+    surface: '#15141b',
+    surfaceRaised: '#1c1b22',
+    diffAddBg: '#14382c',
+    diffDelBg: '#351d23',
+    monitor: { fleet: '#82e2ff', agents: '#a277ff', worktree: '#61ffca', phase: '#f694ff' },
+  }),
+  'dark-plus': Object.freeze({
+    ...baseTheme,
+    textPrimary: '#d4d4d4',
+    textSecondary: '#cccccc',
+    textMuted: '#858585',
+    brandPrimary: '#ce9178',
+    brandAccent: '#c586c0',
+    accent: '#569cd6',
+    user: '#dcdcaa',
+    assistant: '#9cdcfe',
+    tool: '#4ec9b0',
+    success: '#89d185',
+    warn: '#cca700',
+    error: '#f44747',
+    borderDefault: '#3c3c3c',
+    borderSubtle: '#2d2d30',
+    borderActive: '#569cd6',
+    brand: '#c586c0',
+    surface: '#1e1e1e',
+    surfaceRaised: '#252526',
+    diffAddBg: '#16351f',
+    diffDelBg: '#3a1d20',
+    monitor: { fleet: '#569cd6', agents: '#c586c0', worktree: '#89d185', phase: '#4ec9b0' },
+    // The one preset that genuinely disagrees with the derived defaults:
+    // VS Code colors strings orange and comments green, the inverse of the
+    // usual green-string / grey-comment convention the defaults assume.
+    // `commentOnWash` is a lifted green rather than the default
+    // `textSecondary`, so the comment stays green on a diff wash instead of
+    // switching to grey mid-file.
+    syntax: {
+      string: '#ce9178',
+      comment: '#6a9955',
+      commentOnWash: '#9fc98b',
+    },
+  }),
+});
 
 export const THEME_OPTIONS: readonly ThemePickerOption[] = [
   {
@@ -685,5 +1312,105 @@ export const THEME_OPTIONS: readonly ThemePickerOption[] = [
     id: 'synthwave',
     name: "Synthwave '84",
     description: 'Hot pink + neon cyan on deep purple — 80s retro glow',
+  },
+  {
+    id: 'github-dark',
+    name: 'GitHub Dark',
+    description: "GitHub's default dark — crisp blue on near-black",
+  },
+  {
+    id: 'material-ocean',
+    name: 'Material Ocean',
+    description: 'Deepest Material variant — ink blue with pastel accents',
+  },
+  {
+    id: 'nightfox',
+    name: 'Nightfox',
+    description: 'Balanced slate blue with muted sage and rose',
+  },
+  {
+    id: 'oxocarbon',
+    name: 'Oxocarbon',
+    description: 'IBM Carbon-derived — neutral greys, electric blue & pink',
+  },
+  {
+    id: 'catppuccin-macchiato',
+    name: 'Catppuccin Macchiato',
+    description: 'Warmer, one shade lighter than Mocha',
+  },
+  {
+    id: 'catppuccin-frappe',
+    name: 'Catppuccin Frappé',
+    description: 'The lightest Catppuccin dark — gentle midday contrast',
+  },
+  {
+    id: 'gruvbox-material',
+    name: 'Gruvbox Material',
+    description: 'Softened Gruvbox — same warmth, lower eye strain',
+  },
+  {
+    id: 'tokyo-night-storm',
+    name: 'Tokyo Night Storm',
+    description: 'Tokyo Night on a lifted blue-grey base',
+  },
+  {
+    id: 'rose-pine-moon',
+    name: 'Rosé Pine Moon',
+    description: 'Rosé Pine at dusk — deeper base, same soft accents',
+  },
+  {
+    id: 'zenburn',
+    name: 'Zenburn',
+    description: 'The classic low-contrast grey — desaturated and calm',
+  },
+  {
+    id: 'palenight',
+    name: 'Palenight',
+    description: 'Material Palenight — indigo base, candy accents',
+  },
+  {
+    id: 'horizon',
+    name: 'Horizon',
+    description: 'Warm coral and mint on charcoal — sunset gradient',
+  },
+  {
+    id: 'sonokai',
+    name: 'Sonokai',
+    description: 'Monokai Pro descendant — punchy on warm graphite',
+  },
+  {
+    id: 'edge-dark',
+    name: 'Edge Dark',
+    description: 'Clean, evenly-weighted palette on desaturated navy',
+  },
+  {
+    id: 'moonfly',
+    name: 'Moonfly',
+    description: 'Near-black base with high-chroma accents — maximum contrast',
+  },
+  {
+    id: 'melange',
+    name: 'Melange',
+    description: 'Warm sepia and clay — the least blue dark theme here',
+  },
+  {
+    id: 'poimandres',
+    name: 'Poimandres',
+    description: 'Teal-forward, low-saturation — mint on deep indigo',
+  },
+  {
+    id: 'vitesse-dark',
+    name: 'Vitesse Dark',
+    description: "Anthony Fu's minimal palette — muted, print-like",
+  },
+  {
+    id: 'aura',
+    name: 'Aura Dark',
+    description: 'Vivid purple and spring green on near-black violet',
+  },
+  {
+    id: 'dark-plus',
+    name: 'VS Code Dark+',
+    description: "Visual Studio Code's default — familiar blue/orange/teal",
   },
 ];

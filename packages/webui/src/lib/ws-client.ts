@@ -131,6 +131,19 @@ class WrongStackWebSocketClientBase {
   /** Count-only limits are ineffective for image/base64 payloads. */
   private static readonly MAX_QUEUED_CHARS = 16 * 1024 * 1024;
   private pendingConfirms: Map<string, PendingConfirm> = new Map();
+  /**
+   * Wall-clock TTL for a `pendingConfirms` entry. The map is keyed by a
+   * server-issued id and is only deleted by `sendConfirm`; a permission
+   * prompt that the user dismisses without sending a decision (panel
+   * unmounted, view switched, tab backgrounded) would otherwise leak the
+   * key for the lifetime of the WebUI tab. The entry's stored value is
+   * an empty object, so the leak is symbolic — but the unbounded key
+   * space is the actual risk, swept here on every insert + on disconnect.
+   * 60s is generous for a human-perceived permission prompt and matches
+   * the typical reconnect window.
+   * RAM-leak audit 2026-08-11, MEDIUM.
+   */
+  private static readonly PENDING_CONFIRM_TTL_MS = 60_000;
   private sessionId: string | null = null;
   private sessionSwapPending = false;
   /** Stored last close reason / error message so the UI can show "what
@@ -508,7 +521,15 @@ class WrongStackWebSocketClientBase {
         suggestedPattern: string;
       };
 
-      this.pendingConfirms.set(payload.id, {});
+      // Sweep expired entries before adding the new one so the map never
+      // grows past the active-prompt surface. Done inline (rather than on
+      // a timer) because the per-insert cost is bounded by the number of
+      // prompts the user could plausibly have open at once, and that's
+      // also the natural upper bound for the map itself.
+      this.sweepExpiredPendingConfirms(Date.now());
+      this.pendingConfirms.set(payload.id, {
+        expiresAtMs: Date.now() + WrongStackWebSocketClientBase.PENDING_CONFIRM_TTL_MS,
+      });
       this.emit(msg);
       return;
     }
@@ -539,6 +560,25 @@ class WrongStackWebSocketClientBase {
     }
 
     this.emit(msg);
+  }
+
+  /**
+   * Drop `pendingConfirms` entries whose TTL has passed. Entries are
+   * created when a `tool.confirm_needed` message arrives and only
+   * removed when the user calls `sendConfirm`; if the user dismisses the
+   * prompt UI without responding, the entry would otherwise sit until
+   * the WebUI page is closed. A 60s TTL is generous for a permission
+   * prompt — anything unresolved by then is treated as abandoned.
+   *
+   * Runs inline on each new `tool.confirm_needed` insert (cheap: the
+   * map is bounded by the number of prompts the user can have open
+   * concurrently) and is also called from `disconnect()` during
+   * teardown.
+   */
+  private sweepExpiredPendingConfirms(now: number): void {
+    for (const [id, entry] of this.pendingConfirms) {
+      if (entry.expiresAtMs <= now) this.pendingConfirms.delete(id);
+    }
   }
 
   private emit(msg: WSServerMessage) {
@@ -1146,6 +1186,11 @@ class WrongStackWebSocketClientBase {
     this.messageQueue.length = 0;
     this.messageQueueChars = 0;
     this.sessionSwapPending = false;
+    // Drop any unresolved permission prompts. Even expired entries can linger
+    // if a `tool.confirm_needed` doesn't recur to sweep them; on explicit
+    // teardown release everything unconditionally so a long-lived tab that
+    // reconnects many times doesn't drag prompts from earlier sessions.
+    this.pendingConfirms.clear();
     this.ws?.close();
     this.ws = null;
     // C-2 fix: no client-side token storage to clear — the token lives

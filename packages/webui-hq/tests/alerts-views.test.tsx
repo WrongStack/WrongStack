@@ -103,4 +103,51 @@ describe('AlertsView', () => {
     expect(container?.textContent).toContain('Live fleet failure');
     expect(container?.textContent).toContain('Session went stale');
   });
+
+  it('combines waiting agents, governance and failed commands into one attention queue', async () => {
+    useHqStore.setState({
+      activeView: 'alerts',
+      snapshot: {
+        projects: [
+          {
+            projectId: 'project-1',
+            projectName: 'WrongStack',
+            governance: {
+              signal: {
+                level: 'warning',
+                code: 'attachment_broker_degraded',
+                executionDisposition: 'continue',
+              },
+            },
+          },
+        ],
+        clients: [],
+        liveSessions: [
+          {
+            sessionId: 'session-1',
+            agents: [{ id: 'agent-1', name: 'Builder', status: 'waiting_user' }],
+          },
+        ],
+      } as never,
+      commandStatuses: [
+        { commandId: 'command-1', type: 'steer', ackStatus: 'failed', status: 'acked' },
+      ] as never,
+    });
+
+    mount();
+    await flushPromises();
+
+    expect(container?.textContent).toContain('Operator attention center');
+    expect(container?.querySelectorAll('.hq-attention-card')).toHaveLength(3);
+    expect(container?.textContent).toContain('Agent attention');
+    expect(container?.textContent).toContain('Governance advisory');
+    expect(container?.textContent).toContain('Command failures');
+
+    const openConsole = Array.from(
+      container?.querySelectorAll<HTMLButtonElement>('.hq-attention-card button') ?? [],
+    ).find((button) => button.textContent?.trim() === 'Open console');
+    expect(openConsole).toBeDefined();
+    act(() => openConsole?.click());
+    expect(useHqStore.getState().activeView).toBe('console');
+  });
 });

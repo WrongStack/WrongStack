@@ -70,6 +70,7 @@ describe('HQ operator shell', () => {
       expect.arrayContaining(['Operations', 'Intelligence', 'System']),
     );
     expect(getHqViewDefinition('fleet').label).toBe('Fleet Map');
+    expect(getHqViewDefinition('alerts').label).toBe('Attention');
   });
 
   it('mounts the real shell with one square navigation surface', async () => {
@@ -140,5 +141,99 @@ describe('HQ operator shell', () => {
     expect(container.textContent).toContain('v1.2.3 → v1.3.0');
     expect(container.textContent).toContain('wstack update');
     expect(container.querySelector('[aria-label="Log out of HQ"]')).not.toBeNull();
+  });
+
+  it('opens the command palette from the keyboard and navigates to a destination', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(emptySnapshot()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(HqApp));
+      await Promise.resolve();
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+
+    expect(container.querySelector('[aria-label="HQ command palette"]')).not.toBeNull();
+    expect(container.querySelectorAll('.hq-command-result')).toHaveLength(12);
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Search HQ views');
+
+    const search = container.querySelector<HTMLInputElement>('[aria-label="Search HQ views"]');
+    expect(search).not.toBeNull();
+    act(() => {
+      search?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain('Fleet Map');
+    act(() => {
+      search?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+
+    expect(useHqStore.getState().activeView).toBe('fleet');
+    expect(container.querySelector('[aria-label="HQ command palette"]')).toBeNull();
+  });
+
+  it('surfaces cross-system attention signals in the navigation badge', async () => {
+    const signalSnapshot = emptySnapshot();
+    signalSnapshot.projects = [
+      {
+        projectId: 'project-1',
+        projectName: 'WrongStack',
+        projectRootDisplay: 'D:/repo',
+        machineIds: ['machine-1'],
+        activeClients: 1,
+        activeSessions: 0,
+        activeSubagents: 0,
+        totalCostUsd: 0,
+        lastActivityAt: '2026-08-11T12:00:00.000Z',
+        status: 'active',
+        governance: {
+          schemaVersion: 1,
+          projectId: 'project-1',
+          observedAt: '2026-08-11T12:00:00.000Z',
+          available: true,
+          signal: {
+            level: 'warning',
+            code: 'attachment_broker_degraded',
+            operatorAction: 'investigate',
+            executionDisposition: 'continue',
+          },
+        },
+      },
+    ];
+    useHqStore.setState({ snapshot: signalSnapshot });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(signalSnapshot), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(HqApp));
+      await Promise.resolve();
+    });
+
+    const attentionNav = Array.from(container.querySelectorAll('.hq-nav-item')).find((item) =>
+      item.textContent?.includes('Attention'),
+    );
+    expect(attentionNav?.querySelector('.hq-nav-badge')?.textContent).toBe('1');
   });
 });

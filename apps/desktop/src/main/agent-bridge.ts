@@ -41,6 +41,14 @@ interface ConversationInternal {
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   reconnectUrl: string | null;
   connectionState: SurfaceConnectionState;
+  // Per-reconnect message-handler bookkeeping. The anonymous
+  // `ws.on('message', …)` pattern pins the socket + its closure (which
+  // captures `conversation`) for the socket's full lifetime — fine for
+  // open sockets, fatal across reconnects, where each new connect() leaks
+  // a stale message listener + closure onto the previous (now-orphaned)
+  // WebSocket. RAM-leak audit 2026-08-11, HIGH.
+  onMessage: ((data: WebSocket.RawData) => void) | null;
+  socketGeneration: number;
 }
 
 interface ServerMessage {
@@ -155,6 +163,26 @@ export class DesktopAgentBridge extends EventEmitter {
       const ws = new WebSocket(wsUrl);
       conversation.ws = ws;
 
+      // Bump the generation so a message handler from this socket knows it
+      // is the current one. Each connect() call gets a unique generation,
+      // so a stale socket that fires a late 'message' after its successor
+      // has taken over sees a mismatch and bails before touching state.
+      // RAM-leak audit 2026-08-11, HIGH.
+      const myGeneration = ++conversation.socketGeneration;
+
+      // Named (not anonymous) so we can detach it in close() and in the
+      // 'close' handler. An anonymous ws.on('message', …) was never removed,
+      // so the closure pinned ConversationInternal (and its messages[],
+      // ws, sessionId, …) until the WebSocket was GC'd — across a reconnect
+      // storm this leaked every ConversationInternal that ever connected.
+      // RAM-leak audit 2026-08-11, HIGH.
+      const onMessage = (data: unknown): void => {
+        if (conversation.socketGeneration !== myGeneration) return;
+        this.handleServerMessage(conversation, String(data));
+      };
+      conversation.onMessage = onMessage;
+      ws.on('message', onMessage);
+
       // Set connection timeout
       const timeout = setTimeout(() => {
         if (conversation.ws === ws) {
@@ -175,10 +203,6 @@ export class DesktopAgentBridge extends EventEmitter {
         resolve();
       });
 
-      ws.on('message', (data) => {
-        this.handleServerMessage(conversation, data.toString());
-      });
-
       ws.once('error', (err) => {
         clearTimeout(timeout);
         conversation.status = 'error';
@@ -195,7 +219,26 @@ export class DesktopAgentBridge extends EventEmitter {
 
       ws.once('close', () => {
         clearTimeout(timeout);
-        if (conversation.ws === ws) conversation.ws = null;
+        // Only the socket that currently owns the conversation invalidates
+        // the generation — a superseded socket closing must not clobber its
+        // successor's generation, or late messages from the successor would
+        // be wrongly dropped. RAM-leak audit 2026-08-11, HIGH (chimera review).
+        if (conversation.ws === ws) {
+          conversation.socketGeneration++;
+          conversation.ws = null;
+        }
+        // Detach our named message handler so the closure (which retains
+        // conversation) is releasable even if the ws is kept alive by the
+        // runtime or pending GC. RAM-leak audit 2026-08-11, HIGH.
+        ws.off('message', onMessage);
+        // Only clear the tracked handler if it's still ours — a newer
+        // connect() may have already installed its own. Clearing
+        // unconditionally would orphan the new handler's reference,
+        // making it impossible for close(runtimeId) to detach it later.
+        // RAM-leak audit 2026-08-11, HIGH (chimera review Medium #1).
+        if (conversation.onMessage === onMessage) {
+          conversation.onMessage = null;
+        }
         conversation.connectPromise = null;
 
         if (conversation.status !== 'error') {
@@ -333,6 +376,16 @@ export class DesktopAgentBridge extends EventEmitter {
     conversation.reconnectUrl = null;
     conversation.connectionState = stopConnection(conversation.connectionState);
 
+    // Detach the per-reconnect message listener BEFORE nulling the ws ref.
+    // Without this, the ws.on('message', …) closure pins ConversationInternal
+    // (and its messages[]) until the socket is GC'd. RAM-leak audit 2026-08-11, HIGH.
+    if (conversation.onMessage) {
+      conversation.ws?.off('message', conversation.onMessage);
+      conversation.onMessage = null;
+    }
+    // Invalidate this conversation's generation so any in-flight socket whose
+    // 'close' event fires after deletion cannot resurrect the conversation ref.
+    conversation.socketGeneration++;
     conversation.ws?.close();
     conversation.ws = null;
     conversation.connectPromise = null;
@@ -473,6 +526,8 @@ export class DesktopAgentBridge extends EventEmitter {
       reconnectTimer: null,
       reconnectUrl: null,
       connectionState: createSurfaceConnectionState(),
+      onMessage: null,
+      socketGeneration: 0,
     };
     this.conversations.set(runtimeId, conversation);
     return conversation;

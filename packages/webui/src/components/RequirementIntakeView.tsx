@@ -10,8 +10,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
 
 interface IntakeRecord {
   id: string;
@@ -126,6 +126,13 @@ export function RequirementIntakeView(): React.ReactElement {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            // The schema (createIntakeSchema) requires projectId + requestedBy.
+            // projectId is the panel-resolved one returned by the list endpoint;
+            // requestedBy uses the same 'webui' sentinel the server applies for
+            // its own actor (matches the techstack-create precedent). When a
+            // user-identity surface exists, this becomes ctx.userId.
+            projectId,
+            requestedBy: 'webui',
             originalRequest: text,
             ...(title.trim() ? { title: title.trim() } : {}),
             ...(requestType !== 'unspecified' ? { requestType } : {}),
@@ -167,7 +174,9 @@ export function RequirementIntakeView(): React.ReactElement {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="border-b border-border/70 px-5 py-3">
-        <div className="text-sm font-semibold text-foreground">{t('activity:reqIntake.requirementsIntake')}</div>
+        <div className="text-sm font-semibold text-foreground">
+          {t('activity:reqIntake.requirementsIntake')}
+        </div>
         <div className="mt-0.5 text-[11px] text-muted-foreground">
           {t('activity:reqIntake.collectAndPreserveSoftwareDevelopmentRequests')}
         </div>
@@ -321,7 +330,9 @@ export function RequirementIntakeView(): React.ReactElement {
             <div className="text-[11px] text-muted-foreground">{intakes.length} total</div>
           </div>
           {loading ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">{t('activity:reqIntake.loading')}</div>
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              {t('activity:reqIntake.loading')}
+            </div>
           ) : intakes.length === 0 ? (
             <div className="rounded-md border border-dashed border-border/70 py-10 text-center text-xs text-muted-foreground">
               {t('activity:reqIntake.noIntakeRecordsYetFileThe')}

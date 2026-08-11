@@ -4,6 +4,7 @@
  */
 
 import type { HqAlert } from '@wrongstack/core/hq';
+import { Bot, CircleAlert, Gauge, RadioTower, ServerOff } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -15,7 +16,13 @@ interface AlertsApiResponse {
 }
 
 export function AlertsView(): React.ReactElement {
-  const alerts = useHqStore(useShallow((s) => s.alerts));
+  const { alerts, snapshot, commandStatuses } = useHqStore(
+    useShallow((s) => ({
+      alerts: s.alerts,
+      snapshot: s.snapshot,
+      commandStatuses: s.commandStatuses,
+    })),
+  );
   const [apiActive, setApiActive] = useState<HqAlert[]>([]);
   const [apiHistory, setApiHistory] = useState<HqAlert[]>([]);
 
@@ -44,25 +51,135 @@ export function AlertsView(): React.ReactElement {
   const liveAlerts = alerts.slice(-50).reverse();
   const errorCount = apiActive.filter((alert) => alert.severity === 'error').length;
   const warningCount = apiActive.filter((alert) => alert.severity === 'warn').length;
-  const quiet = apiActive.length === 0 && liveAlerts.length === 0;
+  const governanceWarnings = (snapshot?.projects ?? []).filter(
+    (project) =>
+      project.governance?.signal.level === 'warning' ||
+      project.governance?.signal.level === 'unavailable',
+  );
+  const waitingAgents = (snapshot?.liveSessions ?? []).flatMap((session) =>
+    (session.agents ?? [])
+      .filter((agent) => agent.status === 'waiting_user' || agent.status === 'error')
+      .map((agent) => ({ agent, session })),
+  );
+  const failedCommands = commandStatuses.filter(
+    (command) => command.ackStatus === 'failed' || command.ackStatus === 'rejected',
+  );
+  const disconnectedClients = (snapshot?.clients ?? []).filter((client) => !client.connected);
+  const attentionCount =
+    apiActive.length +
+    governanceWarnings.length +
+    waitingAgents.length +
+    failedCommands.length +
+    disconnectedClients.length;
+  const quiet = attentionCount === 0 && liveAlerts.length === 0;
 
   return (
     <div className="hq-screen hq-alerts-screen">
       <section className="hq-screen-hero hq-alerts-hero" aria-label="Alert command summary">
         <div>
-          <span className="hq-section-kicker">Attention rail</span>
+          <span className="hq-section-kicker">Operator attention center</span>
           <h2>{quiet ? 'Fleet quiet' : 'Fleet requires review'}</h2>
           <p>
-            Active rules, live envelopes and historical transitions are separated so urgent alerts
-            stay above routine telemetry.
+            Alerts, waiting agents, governance warnings and failed commands are resolved into one
+            prioritized operator queue.
           </p>
         </div>
         <div className="hq-hero-metrics">
-          <Metric label="active" value={apiActive.length} tone={apiActive.length > 0 ? 'warn' : 'ok'} />
-          <Metric label="errors" value={errorCount} tone={errorCount > 0 ? 'error' : 'ok'} />
-          <Metric label="warnings" value={warningCount} tone={warningCount > 0 ? 'warn' : 'ok'} />
-          <Metric label="live feed" value={liveAlerts.length} />
+          <Metric
+            label="needs action"
+            value={attentionCount}
+            tone={attentionCount > 0 ? 'warn' : 'ok'}
+          />
+          <Metric
+            label="waiting agents"
+            value={waitingAgents.length}
+            tone={waitingAgents.length > 0 ? 'warn' : 'ok'}
+          />
+          <Metric
+            label="governance"
+            value={governanceWarnings.length}
+            tone={governanceWarnings.length > 0 ? 'error' : 'ok'}
+          />
+          <Metric
+            label="failed commands"
+            value={failedCommands.length}
+            tone={failedCommands.length > 0 ? 'error' : 'ok'}
+          />
         </div>
+      </section>
+
+      <section className="hq-attention-section" aria-label="Cross-system attention signals">
+        <div className="hq-section-head">
+          <div>
+            <span className="hq-section-kicker">Priority queue</span>
+            <h3>Cross-system signals</h3>
+          </div>
+          <span className={'hq-pill ' + (attentionCount > 0 ? 'warn' : 'active')}>
+            {attentionCount > 0 ? `${attentionCount} need review` : 'all clear'}
+          </span>
+        </div>
+        {attentionCount === 0 ? (
+          <div className="hq-empty hq-pad-md">No cross-system signals need operator action.</div>
+        ) : (
+          <div className="hq-attention-grid">
+            {waitingAgents.length > 0 ? (
+              <AttentionCard
+                icon={Bot}
+                tone="warn"
+                label="Agent attention"
+                value={waitingAgents.length}
+                detail={`${waitingAgents[0]?.agent.name ?? waitingAgents[0]?.agent.id ?? 'Agent'} · ${waitingAgents[0]?.agent.status}`}
+                action="Open console"
+                view="console"
+              />
+            ) : null}
+            {governanceWarnings.length > 0 ? (
+              <AttentionCard
+                icon={Gauge}
+                tone="error"
+                label="Governance advisory"
+                value={governanceWarnings.length}
+                detail={`${governanceWarnings[0]?.projectName ?? 'Project'} · ${governanceWarnings[0]?.governance?.signal.code ?? 'warning'}`}
+                action="Open fleet"
+                view="fleet"
+              />
+            ) : null}
+            {failedCommands.length > 0 ? (
+              <AttentionCard
+                icon={RadioTower}
+                tone="error"
+                label="Command failures"
+                value={failedCommands.length}
+                detail={`${failedCommands[0]?.type ?? 'command'} · ${failedCommands[0]?.ackStatus ?? 'failed'}`}
+                action="Open audit"
+                view="control"
+              />
+            ) : null}
+            {disconnectedClients.length > 0 ? (
+              <AttentionCard
+                icon={ServerOff}
+                tone="warn"
+                label="Disconnected clients"
+                value={disconnectedClients.length}
+                detail={
+                  disconnectedClients[0]?.hostname ?? disconnectedClients[0]?.clientId ?? 'Client'
+                }
+                action="Open fleet"
+                view="fleet"
+              />
+            ) : null}
+            {apiActive.length > 0 ? (
+              <AttentionCard
+                icon={CircleAlert}
+                tone={errorCount > 0 ? 'error' : 'warn'}
+                label="Active alert rules"
+                value={apiActive.length}
+                detail={`${errorCount} errors · ${warningCount} warnings`}
+                action="Review below"
+              />
+            ) : null}
+          </div>
+        )}
       </section>
 
       <section className="hq-priority-section" aria-label="Active alerts">
@@ -154,6 +271,44 @@ export function AlertsView(): React.ReactElement {
         </section>
       </div>
     </div>
+  );
+}
+
+function AttentionCard({
+  icon: Icon,
+  tone,
+  label,
+  value,
+  detail,
+  action,
+  view,
+}: {
+  icon: typeof Bot;
+  tone: 'warn' | 'error';
+  label: string;
+  value: number;
+  detail: string;
+  action: string;
+  view?: 'console' | 'fleet' | 'control';
+}): React.ReactElement {
+  return (
+    <article className="hq-attention-card" data-tone={tone}>
+      <span className="hq-attention-icon">
+        <Icon size={17} />
+      </span>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{detail}</small>
+      </div>
+      {view !== undefined ? (
+        <button type="button" onClick={() => useHqStore.getState().setActiveView(view)}>
+          {action}
+        </button>
+      ) : (
+        <span className="hq-attention-action-label">{action}</span>
+      )}
+    </article>
   );
 }
 

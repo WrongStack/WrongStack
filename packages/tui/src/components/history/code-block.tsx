@@ -365,18 +365,20 @@ export function formatDiffStats(added: number, removed: number): string | null {
 /**
  * Return the token list to render on a diff wash (`diffAddBg` /
  * `diffDelBg`). When `onWash` is false the input is returned unchanged —
- * plain-background rendering keeps the conventional dim/gray comment
- * look and there is no contrast reason to intervene.
+ * plain-background rendering keeps the conventional dim comment look and
+ * there is no contrast reason to intervene.
  *
- * When `onWash` is true, comment tokens (color `gray`, conventionally
- * `dim: true`) are promoted to a brighter foreground (`grayBright`) and
- * lose their dim flag. The diff wash is dark enough that `dim gray`
- * (`pastel.gray`) falls below WCAG AA contrast on either `theme.diffAddBg`
- * (ratio ≈ 2.91) or `theme.diffDelBg` (ratio ≈ 3.47) and reads as near-
- * invisible noise; `grayBright` clears both wash backgrounds (≥ 4.5) and
- * keeps the comment visually secondary without becoming unreadable.
- * Non-comment tokens pass through unchanged so the rest of the line keeps
- * its existing syntax palette on the wash.
+ * When `onWash` is true, comment tokens are re-pointed from the
+ * `syntax.comment` role to `syntax.commentOnWash` and lose their dim flag.
+ * `syntax.comment` resolves to `theme.textMuted`, which is chosen to recede
+ * against `theme.surface` and therefore falls below WCAG AA on either wash;
+ * `syntax.commentOnWash` resolves to `theme.textSecondary`, which clears both
+ * (≥ 4.5) while keeping the comment visually secondary. Because both sides
+ * are ROLES, the promotion follows `/theme` automatically instead of pinning
+ * one hardcoded grey for all 35 presets.
+ *
+ * Non-comment tokens pass through unchanged so the rest of the line keeps its
+ * syntax palette on the wash.
  *
  * Exported for unit testing — `renderTokens` calls it before mapping to
  * `<Text>` elements so the override logic itself stays a pure function.
@@ -384,8 +386,8 @@ export function formatDiffStats(added: number, removed: number): string | null {
 export function applyWashTokens(tokens: Token[], onWash: boolean): Token[] {
   if (!onWash) return tokens;
   return tokens.map((t) => {
-    if (t.color !== 'gray') return t;
-    return { ...t, color: 'grayBright', dim: false };
+    if (t.color !== 'syntax.comment') return t;
+    return { ...t, color: 'syntax.commentOnWash', dim: false };
   });
 }
 

@@ -7,7 +7,20 @@
  */
 
 import type { HqAlert, HqSnapshot } from '@wrongstack/core/hq';
-import { Server } from 'lucide-react';
+import {
+  Activity,
+  ArrowUpRight,
+  BellRing,
+  Bot,
+  CircleDollarSign,
+  Command,
+  Gauge,
+  type LucideIcon,
+  Network,
+  RadioTower,
+  Server,
+  ShieldCheck,
+} from 'lucide-react';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -37,12 +50,20 @@ interface CockpitSection {
   view: ViewId;
   cta: string;
   body: React.ReactNode;
+  icon: LucideIcon;
+  tone?: 'attention' | 'positive' | undefined;
+  wide?: boolean | undefined;
 }
 
 type CockpitQuickAction = 'pause-noisy' | 'status-request';
 
 export function CockpitView(): React.ReactElement {
-  const { snapshot: snap, alerts, selectedClientId, connected } = useHqStore(
+  const {
+    snapshot: snap,
+    alerts,
+    selectedClientId,
+    connected,
+  } = useHqStore(
     useShallow((s) => ({
       snapshot: s.snapshot,
       alerts: s.alerts,
@@ -86,7 +107,10 @@ export function CockpitView(): React.ReactElement {
     const loadHealth = (): void => {
       fetchJson<SystemHealth>('/api/system/health')
         .then((data) => {
-          if (!cancelled) { setSystemHealth(data); setSystemHealthError(null); }
+          if (!cancelled) {
+            setSystemHealth(data);
+            setSystemHealthError(null);
+          }
         })
         .catch((err: unknown) => {
           if (!cancelled) setSystemHealthError(err instanceof Error ? err.message : String(err));
@@ -94,7 +118,10 @@ export function CockpitView(): React.ReactElement {
     };
     loadHealth();
     const healthTimer = setInterval(loadHealth, 30_000);
-    return () => { cancelled = true; clearInterval(healthTimer); };
+    return () => {
+      cancelled = true;
+      clearInterval(healthTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -235,6 +262,8 @@ export function CockpitView(): React.ReactElement {
       title: 'Fleet',
       view: 'fleet',
       cta: 'open fleet',
+      icon: Network,
+      wide: true,
       body: (
         <div className="hq-cockpit-grid">
           <Stat label="machines" value={machines.length} />
@@ -284,6 +313,7 @@ export function CockpitView(): React.ReactElement {
     title: 'Auth Tokens',
     view: 'settings',
     cta: 'open settings',
+    icon: ShieldCheck,
     body: <TokenStatsCard tokenStats={totals?.tokenStats} />,
   };
 
@@ -291,6 +321,8 @@ export function CockpitView(): React.ReactElement {
     title: 'Governance Advisory',
     view: 'fleet',
     cta: 'open fleet',
+    icon: Gauge,
+    tone: governanceWarnings.length > 0 ? 'attention' : 'positive',
     body:
       governanceProjects.length === 0 ? (
         <div className="hq-empty hq-cockpit-empty">No project governance snapshots yet.</div>
@@ -324,11 +356,12 @@ export function CockpitView(): React.ReactElement {
     title: 'Alerts',
     view: 'alerts',
     cta: 'open alerts',
+    icon: BellRing,
+    tone: liveAlerts.length > 0 ? 'attention' : 'positive',
+    wide: true,
     body:
       liveAlerts.length === 0 ? (
-        <div className="hq-empty hq-cockpit-empty">
-          No alerts in the last few minutes.
-        </div>
+        <div className="hq-empty hq-cockpit-empty">No alerts in the last few minutes.</div>
       ) : (
         <div className="hq-cockpit-alert-list">
           {liveAlerts.map((alert, index) => (
@@ -339,9 +372,7 @@ export function CockpitView(): React.ReactElement {
               <span className={'hq-pill ' + alertTone(alert.severity)}>{alert.severity}</span>
               <span className="hq-mono">{alert.ruleId}</span>
               <span className="hq-cockpit-alert-msg">{alert.message}</span>
-              <span className="hq-mono hq-text-dim hq-ml-auto">
-                {formatTime(alert.timestamp)}
-              </span>
+              <span className="hq-mono hq-text-dim hq-ml-auto">{formatTime(alert.timestamp)}</span>
             </div>
           ))}
         </div>
@@ -352,11 +383,11 @@ export function CockpitView(): React.ReactElement {
     title: 'Cost',
     view: 'cost',
     cta: 'open cost',
+    icon: CircleDollarSign,
+    wide: true,
     body:
       topProjects.length === 0 ? (
-        <div className="hq-empty hq-cockpit-empty">
-          No cost data yet — connect some clients.
-        </div>
+        <div className="hq-empty hq-cockpit-empty">No cost data yet — connect some clients.</div>
       ) : (
         <div className="hq-cockpit-cost-list">
           {topProjects.map((project) => {
@@ -368,15 +399,11 @@ export function CockpitView(): React.ReactElement {
               <div key={project.projectId} className="hq-cockpit-cost-row">
                 <div className="hq-cockpit-cost-line">
                   <span className="hq-cockpit-cost-name">{project.projectName}</span>
-                  <span className="hq-mono hq-text-dim">
-                    {project.projectId}
-                  </span>
+                  <span className="hq-mono hq-text-dim">{project.projectId}</span>
                   <span className="hq-mono hq-cockpit-cost-amount hq-ml-auto">
                     ${project.totalCostUsd.toFixed(4)}
                   </span>
-                  <span className="hq-mono hq-text-dim">
-                    {pct.toFixed(1)}%
-                  </span>
+                  <span className="hq-mono hq-text-dim">{pct.toFixed(1)}%</span>
                 </div>
                 <div
                   className="hq-cockpit-cost-bar"
@@ -400,130 +427,236 @@ export function CockpitView(): React.ReactElement {
       ),
   };
 
+  const attentionCount = (apiActive?.length ?? 0) + governanceWarnings.length;
+  const operationalTone =
+    !connected || systemHealth?.status === 'degraded'
+      ? 'degraded'
+      : attentionCount > 0
+        ? 'attention'
+        : 'nominal';
+  const operationalLabel =
+    operationalTone === 'degraded'
+      ? 'Link degraded'
+      : operationalTone === 'attention'
+        ? 'Attention needed'
+        : 'Systems nominal';
+
   return (
-    <div>
-      <div className="hq-card-title">Cockpit</div>
-      <div className="hq-card hq-cockpit-summary">
-        <div className="hq-row">
-          <span className="hq-pill info">{connected ? 'connected' : 'reconnecting'}</span>
-          <span className="hq-pill">{totals?.activeMachines ?? 0} machines</span>
-          <span className="hq-pill">{totals?.activeSessions ?? 0} sessions</span>
-          <span className="hq-pill">{totals?.activeAgents ?? 0} agents</span>
-          <span className="hq-pill green">${(totals?.totalCostUsd ?? 0).toFixed(2)}</span>
-          {(apiActive?.length ?? 0) > 0 && (
-            <span className="hq-pill error">{apiActive?.length ?? 0} active alerts</span>
-          )}
-          {governanceWarnings.length > 0 && (
-            <span className="hq-pill error">{governanceWarnings.length} governance advisories</span>
-          )}
-          {alertsError !== null && <span className="hq-pill error">{alertsError}</span>}
-          <button
-            type="button"
-            className="hq-btn secondary hq-ml-auto"
-            onClick={() => useHqStore.getState().setActiveView('fleet')}
-          >
-            Open Fleet
-          </button>
-        </div>
-        <section className="hq-cockpit-actions" aria-label="Cockpit quick actions">
-          <div className="hq-cockpit-actions-copy">
-            <span className="hq-cockpit-section-title">
-              Quick Actions
+    <div className="hq-cockpit-screen">
+      <section className="hq-cockpit-hero" data-tone={operationalTone}>
+        <div className="hq-cockpit-hero-copy">
+          <div className="hq-cockpit-kicker">
+            <span className="hq-cockpit-pulse" aria-hidden="true" />
+            {operationalLabel}
+          </div>
+          <h2>Operational picture</h2>
+          <p>
+            Live fleet health, agent activity, governance and spend — resolved into one command
+            surface.
+          </p>
+          <div className="hq-cockpit-hero-meta">
+            <span>
+              {snapshot?.generatedAt
+                ? `Snapshot ${formatTime(snapshot.generatedAt)}`
+                : 'Awaiting first snapshot'}
             </span>
+            <span>{controllableClients.length} command-ready clients</span>
+          </div>
+          <div className="hq-cockpit-signals" role="status" aria-label="Operational signals">
+            {(apiActive?.length ?? 0) > 0 && (
+              <span className="hq-pill error">{apiActive?.length ?? 0} active alerts</span>
+            )}
+            {governanceWarnings.length > 0 && (
+              <span className="hq-pill error">
+                {governanceWarnings.length} governance advisories
+              </span>
+            )}
+            {alertsError !== null && <span className="hq-pill error">{alertsError}</span>}
+          </div>
+        </div>
+        <fieldset className="hq-cockpit-hero-metrics" aria-label="Fleet headline metrics">
+          <HeroMetric
+            icon={Bot}
+            label="Active agents"
+            value={totals?.activeAgents ?? 0}
+            detail={`${agentRollup.busy} working`}
+          />
+          <HeroMetric
+            icon={Activity}
+            label="Live sessions"
+            value={totals?.activeSessions ?? 0}
+            detail={`${machines.length} machines`}
+          />
+          <HeroMetric
+            icon={BellRing}
+            label="Attention"
+            value={attentionCount}
+            detail={attentionCount > 0 ? 'review signals' : 'all clear'}
+            tone={attentionCount > 0 ? 'attention' : 'positive'}
+          />
+          <HeroMetric
+            icon={CircleDollarSign}
+            label="Total cost"
+            value={`$${(totals?.totalCostUsd ?? 0).toFixed(2)}`}
+            detail={`${projects.length} projects`}
+            tone="positive"
+          />
+        </fieldset>
+      </section>
+
+      <section className="hq-cockpit-command-bar" aria-label="Cockpit quick actions">
+        <div className="hq-cockpit-command-copy">
+          <span className="hq-cockpit-command-icon">
+            <Command size={17} />
+          </span>
+          <div>
+            <strong>Command strip</strong>
             <span className="hq-mono">
               {quickActionClient === null
-                ? 'no controllable client connected'
-                : `target ${shortId(quickActionClient.clientId)}`}
+                ? 'No controllable client connected'
+                : `Target ${shortId(quickActionClient.clientId)}`}
             </span>
           </div>
-          <div className="hq-cockpit-actions-buttons">
-            <button
-              type="button"
-              className="hq-btn secondary"
-              disabled={quickActionClient === null || quickActionBusy !== null}
-              onClick={() => void dispatchQuickAction('pause-noisy')}
-            >
-              {quickActionBusy === 'pause-noisy' ? 'Queuing…' : 'Pause noisy agents'}
-            </button>
-            <button
-              type="button"
-              className="hq-btn secondary"
-              disabled={quickActionClient === null || quickActionBusy !== null}
-              onClick={() => void dispatchQuickAction('status-request')}
-            >
-              {quickActionBusy === 'status-request' ? 'Queuing…' : 'Broadcast status request'}
-            </button>
-            <button
-              type="button"
-              className="hq-btn secondary"
-              onClick={() => useHqStore.getState().setActiveView('control')}
-            >
-              Open Control
-            </button>
-          </div>
-          {quickActionStatus !== null && <span className="hq-pill info">{quickActionStatus}</span>}
-          {quickActionError !== null && <span className="hq-pill error">{quickActionError}</span>}
-        </section>
+        </div>
+        <div className="hq-cockpit-actions-buttons">
+          <button
+            type="button"
+            className="hq-btn secondary"
+            disabled={quickActionClient === null || quickActionBusy !== null}
+            onClick={() => void dispatchQuickAction('pause-noisy')}
+          >
+            {quickActionBusy === 'pause-noisy' ? 'Queuing…' : 'Pause noisy agents'}
+          </button>
+          <button
+            type="button"
+            className="hq-btn secondary"
+            disabled={quickActionClient === null || quickActionBusy !== null}
+            onClick={() => void dispatchQuickAction('status-request')}
+          >
+            {quickActionBusy === 'status-request' ? 'Queuing…' : 'Request fleet status'}
+          </button>
+          <button
+            type="button"
+            className="hq-btn hq-cockpit-primary-action"
+            onClick={() => useHqStore.getState().setActiveView('control')}
+          >
+            <RadioTower size={13} /> Open control
+          </button>
+        </div>
+        {quickActionStatus !== null && <span className="hq-pill info">{quickActionStatus}</span>}
+        {quickActionError !== null && <span className="hq-pill error">{quickActionError}</span>}
+      </section>
+
+      <div className="hq-cockpit-section-label">
+        <span>Live intelligence</span>
+        <span>{alertsError !== null ? alertsError : `${projects.length} projects in scope`}</span>
       </div>
 
-      {systemHealth !== null || systemHealthError !== null ? (
-        <div className="hq-card hq-cockpit-section">
-          <div className="hq-row">
-            <span className="hq-cockpit-section-title">
-              <Server size={14} style={{ marginRight: '0.375rem' }} />
-              System Health
-            </span>
-            <button
-              type="button"
-              className="hq-btn secondary hq-ml-auto"
+      <div className="hq-cockpit-bento">
+        {(systemHealth !== null || systemHealthError !== null) && (
+          <div
+            className="hq-card hq-cockpit-section"
+            data-tone={systemHealth?.status === 'degraded' ? 'attention' : 'positive'}
+          >
+            <CockpitCardHeader
+              icon={Server}
+              title="System Health"
+              cta="open settings"
               onClick={() => useHqStore.getState().setActiveView('settings')}
-            >
-              open settings
-            </button>
+            />
+            {systemHealthError !== null ? (
+              <div className="hq-empty hq-cockpit-empty">{systemHealthError}</div>
+            ) : systemHealth !== null ? (
+              <div className="hq-cockpit-grid">
+                <Stat
+                  label="status"
+                  value={systemHealth.status}
+                  accent={systemHealth.status === 'healthy' ? 'green' : 'error'}
+                />
+                <Stat label="event log" value={systemHealth.uptime.eventLogSize} />
+                <Stat label="connections" value={systemHealth.connections.total} />
+                <Stat
+                  label="active"
+                  value={systemHealth.connections.active}
+                  accent={systemHealth.connections.active > 0 ? 'green' : undefined}
+                />
+                <Stat
+                  label="stale"
+                  value={systemHealth.connections.stale}
+                  accent={systemHealth.connections.stale > 3 ? 'warn' : undefined}
+                />
+              </div>
+            ) : null}
           </div>
-          {systemHealthError !== null ? (
-            <div className="hq-empty hq-cockpit-empty">{systemHealthError}</div>
-          ) : systemHealth !== null ? (
-            <div className="hq-cockpit-grid">
-              <Stat
-                label="status"
-                value={systemHealth.status}
-                accent={systemHealth.status === 'healthy' ? 'green' : 'error'}
-              />
-              <Stat label="event log" value={systemHealth.uptime.eventLogSize} />
-              <Stat label="connections" value={systemHealth.connections.total} />
-              <Stat
-                label="active"
-                value={systemHealth.connections.active}
-                accent={systemHealth.connections.active > 0 ? 'green' : undefined}
-              />
-              <Stat
-                label="stale"
-                value={systemHealth.connections.stale}
-                accent={systemHealth.connections.stale > 3 ? 'warn' : undefined}
-              />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+        )}
 
-      {[...fleetSections, governanceSection, tokenStatsSection, alertSection, costSection].map(
-        (section) => (
-          <div key={section.title} className="hq-card hq-cockpit-section">
-            <div className="hq-row">
-              <span className="hq-cockpit-section-title">{section.title}</span>
-              <button
-                type="button"
-                className="hq-btn secondary hq-ml-auto"
+        {[...fleetSections, governanceSection, tokenStatsSection, alertSection, costSection].map(
+          (section) => (
+            <div
+              key={section.title}
+              className="hq-card hq-cockpit-section"
+              data-tone={section.tone}
+              data-wide={section.wide}
+            >
+              <CockpitCardHeader
+                icon={section.icon}
+                title={section.title}
+                cta={section.cta}
                 onClick={() => useHqStore.getState().setActiveView(section.view)}
-              >
-                {section.cta}
-              </button>
+              />
+              {section.body}
             </div>
-            {section.body}
-          </div>
-        ),
-      )}
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CockpitCardHeader({
+  icon: Icon,
+  title,
+  cta,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  cta: string;
+  onClick: () => void;
+}): React.ReactElement {
+  return (
+    <div className="hq-cockpit-card-head">
+      <span className="hq-cockpit-card-icon">
+        <Icon size={15} />
+      </span>
+      <span className="hq-cockpit-section-title">{title}</span>
+      <button type="button" className="hq-cockpit-card-link" onClick={onClick}>
+        {cta}
+        <ArrowUpRight size={13} />
+      </button>
+    </div>
+  );
+}
+
+function HeroMetric({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  detail: string;
+  tone?: 'attention' | 'positive';
+}): React.ReactElement {
+  return (
+    <div className="hq-cockpit-hero-metric" data-tone={tone}>
+      <Icon size={15} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
     </div>
   );
 }
@@ -547,7 +680,11 @@ function Stat({
 
 type TokenStats = NonNullable<HqSnapshot['totals']['tokenStats']>;
 
-function TokenStatsCard({ tokenStats }: { tokenStats: TokenStats | undefined }): React.ReactElement {
+function TokenStatsCard({
+  tokenStats,
+}: {
+  tokenStats: TokenStats | undefined;
+}): React.ReactElement {
   // Absent on older snapshots — additive field, default undefined. Show a
   // neutral placeholder instead of zeros so the operator can tell "no data
   // yet" apart from "zero tokens issued".
@@ -569,11 +706,7 @@ function TokenStatsCard({ tokenStats }: { tokenStats: TokenStats | undefined }):
       <Stat label="browser" value={browserTotal} />
       <Stat label="client" value={clientTotal} />
       <Stat label="total" value={total} />
-      <Stat
-        label="expired"
-        value={expired}
-        accent={expired > 0 ? 'error' : undefined}
-      />
+      <Stat label="expired" value={expired} accent={expired > 0 ? 'error' : undefined} />
       <Stat
         label="expiring soon"
         value={expiringSoon}

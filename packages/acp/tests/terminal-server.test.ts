@@ -14,7 +14,7 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TerminalServer } from '../src/client/terminal-server.js';
 
@@ -367,5 +367,188 @@ describe('TerminalServer', () => {
 
   it('waitForExit() throws for unknown terminal', async () => {
     await expect(server.waitForExit('term_fake')).rejects.toThrow(/unknown terminal/);
+  });
+});
+
+/**
+ * Regression tests for the RAM-leak audit 2026-08-11 MEDIUM finding 2.
+ *
+ * The previous `releaseAll()` was the only path that removed the host
+ * `AbortSignal` listener. If a host never called `releaseAll()` (crash,
+ * unhandled error, GC of the session), the listener pinned `this`
+ * (terminals Map + output buffers) for the signal's lifetime.
+ *
+ * The fix is to add `dispose()` (canonical) + `[Symbol.dispose]` (for
+ * `using` blocks) with idempotency, and to make sure calling them
+ * unconditionally removes the abort listener.
+ */
+describe('TerminalServer.dispose()', () => {
+  // Helper: spy on add/remove so we can assert the symmetric contract
+  // without ever reading back TerminalServer's internal fields.
+  function spyOnAbortListeners(ac: AbortController): {
+    addSpy: ReturnType<typeof vi.fn>;
+    removeSpy: ReturnType<typeof vi.fn>;
+  } {
+    // `EventListenerOrEventListenerObject` is a DOM-lib global; the ACP test
+    // tsconfig targets Node-only types. Derive the listener shape from
+    // AbortSignal itself so the spy wrapper matches whatever EventTarget
+    // implementation the host types resolve to.
+    type AbortListener = NonNullable<Parameters<AbortSignal['addEventListener']>[1]>;
+    const addSpy = vi.fn();
+    const removeSpy = vi.fn();
+    const origAdd = ac.signal.addEventListener.bind(ac.signal);
+    const origRemove = ac.signal.removeEventListener.bind(ac.signal);
+    ac.signal.addEventListener = ((
+      type: string,
+      listener: AbortListener,
+      opts?: AddEventListenerOptions,
+    ) => {
+      addSpy(type, listener);
+      return origAdd(type, listener, opts);
+    }) as typeof ac.signal.addEventListener;
+    ac.signal.removeEventListener = ((type: string, listener: AbortListener) => {
+      removeSpy(type, listener);
+      return origRemove(type, listener);
+    }) as typeof ac.signal.removeEventListener;
+    return { addSpy, removeSpy };
+  }
+
+  it('adds exactly one abort listener and removes it on dispose()', () => {
+    const ac = new AbortController();
+    const { addSpy, removeSpy } = spyOnAbortListeners(ac);
+    const s = new TerminalServer({
+      projectRoot,
+      commandTimeoutMs: 5_000,
+      signal: ac.signal,
+    });
+
+    // TerminalServer must register EXACTLY ONE 'abort' listener, and
+    // before dispose() must have removed zero.
+    const abortAdds = addSpy.mock.calls.filter(([t]) => t === 'abort');
+    expect(abortAdds.length).toBe(1);
+    const addedListener = abortAdds[0]?.[1];
+    expect(removeSpy.mock.calls.filter(([t]) => t === 'abort').length).toBe(0);
+
+    s.dispose();
+
+    // After dispose(): exactly one 'abort' remove, and it must remove
+    // the SAME listener reference that was added. A mismatched reference
+    // would leave the real listener pinned on the host signal — the
+    // exact leak Finding 2 was about.
+    const abortRemoves = removeSpy.mock.calls.filter(([t]) => t === 'abort');
+    expect(abortRemoves.length).toBe(1);
+    expect(abortRemoves[0]?.[1]).toBe(addedListener);
+  });
+
+  it('is idempotent — repeated calls are no-ops', () => {
+    const ac = new AbortController();
+    const { removeSpy } = spyOnAbortListeners(ac);
+    const s = new TerminalServer({
+      projectRoot,
+      commandTimeoutMs: 5_000,
+      signal: ac.signal,
+    });
+
+    s.dispose();
+    s.dispose();
+    s.dispose();
+
+    // Only the FIRST call must remove the listener. Subsequent calls
+    // early-return via the `disposed` flag.
+    const abortRemovals = removeSpy.mock.calls.filter(([t]) => t === 'abort');
+    expect(abortRemovals.length).toBe(1);
+  });
+
+  it('works when constructed without an AbortSignal', () => {
+    // Covers the `this.abortSignal?.` branch in dispose(): an instance
+    // with no host signal must still allow dispose() (no throw) and
+    // must NOT register any abort listener in the first place.
+    const s = new TerminalServer({
+      projectRoot,
+      commandTimeoutMs: 5_000,
+    });
+    expect(() => s.dispose()).not.toThrow();
+    expect(() => s.dispose()).not.toThrow(); // idempotent on no-signal path too
+  });
+
+  it('throws if create() is called after dispose()', () => {
+    // Without this guard, a caller that ignores dispose() and keeps a
+    // stale TerminalServer ref would silently spawn an orphan child
+    // process whose output we would never deliver. Throw loudly so the
+    // bug surfaces at the call site, not as a process leak.
+    const s = new TerminalServer({
+      projectRoot,
+      commandTimeoutMs: 5_000,
+    });
+    s.dispose();
+    expect(() =>
+      s.create({
+        sessionId: 's1',
+        command: 'echo',
+        args: ['hello'],
+      }),
+    ).toThrow(/disposed/);
+  });
+
+  it('works under a `using` block via Symbol.dispose', () => {
+    const ac = new AbortController();
+    const { removeSpy } = spyOnAbortListeners(ac);
+    {
+      // `using` requires Node ≥ 22 + TS lib ES2023+ for Symbol.dispose.
+      // The project targets ES2024, so this compiles and runs. The
+      // leading `_` is the standard "intentionally unused" marker; biome
+      // respects it without a directive.
+      using _s = new TerminalServer({
+        projectRoot,
+        commandTimeoutMs: 5_000,
+        signal: ac.signal,
+      });
+      // _s goes out of scope at the closing brace → Symbol.dispose fires.
+    }
+    expect(removeSpy.mock.calls.some(([t]) => t === 'abort')).toBe(true);
+  });
+
+  it('releaseAll() remains a working alias for backward compatibility', () => {
+    const ac = new AbortController();
+    const { removeSpy } = spyOnAbortListeners(ac);
+    const s = new TerminalServer({
+      projectRoot,
+      commandTimeoutMs: 5_000,
+      signal: ac.signal,
+    });
+    s.releaseAll();
+    expect(removeSpy.mock.calls.some(([t]) => t === 'abort')).toBe(true);
+  });
+});
+
+// Gate the debug-log assertion behind a separately-imported module so the
+// existing tests above aren't re-evaluated with `WRONGSTACK_DEBUG=1` leaking
+// into their console output. `vi.resetModules` + dynamic import forces a
+// fresh module load that re-evaluates `DEBUG_DISPOSE` at module top.
+describe('TerminalServer dispose() debug log', () => {
+  it('emits a JSON debug line when WRONGSTACK_DEBUG=1', async () => {
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    try {
+      vi.stubEnv('WRONGSTACK_DEBUG', '1');
+      vi.resetModules();
+      const mod = await import('../src/client/terminal-server.js');
+      const TS = mod.TerminalServer;
+      const s = new TS({ projectRoot, commandTimeoutMs: 5_000 });
+      s.dispose();
+      const disposeLogs = debugSpy.mock.calls.filter(
+        (call) => typeof call[0] === 'string' && call[0].includes('terminal_server.disposed'),
+      );
+      expect(disposeLogs.length).toBe(1);
+      const payload = JSON.parse(disposeLogs[0]![0] as string) as Record<string, unknown>;
+      expect(payload.event).toBe('terminal_server.disposed');
+      expect(typeof payload.instanceId).toBe('string');
+      expect(payload.activeChildren).toBe(0);
+      expect(payload.hadSignal).toBe(false);
+      expect(typeof payload.timestamp).toBe('string');
+    } finally {
+      debugSpy.mockRestore();
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
   });
 });

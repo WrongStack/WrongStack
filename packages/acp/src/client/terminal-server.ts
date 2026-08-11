@@ -13,12 +13,22 @@
  * for variables that enable preload injection or path hijacking.
  */
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { treeKill } from '@wrongstack/core/utils/tree-kill';
 
 const EMPTY_BUFFER = Buffer.alloc(0);
+
+// Read once at module load — captures `WRONGSTACK_DEBUG=1` style env toggles.
+// Debug-only logging in dispose() is gated on this so production is silent.
+// Matches the convention used elsewhere in the repo (CLI --debug / docs).
+const DEBUG_DISPOSE =
+  typeof process !== 'undefined' &&
+  !!process.env?.WRONGSTACK_DEBUG &&
+  process.env.WRONGSTACK_DEBUG !== '0' &&
+  process.env.WRONGSTACK_DEBUG !== 'false';
 
 export interface TerminalServerOptions {
   projectRoot: string;
@@ -63,13 +73,20 @@ interface TerminalState {
 
 export class TerminalServer {
   private readonly terminals = new Map<string, TerminalState>();
+  /**
+   * Stable per-instance identifier for debug logs. 8 hex chars is enough
+   * to disambiguate concurrent TerminalServers in a trace; not meant to
+   * be cryptographically unique.
+   */
+  private readonly instanceId: string;
   private readonly projectRoot: string;
   private readonly commandTimeoutMs: number;
   private readonly outputByteLimit: number;
   private readonly maxOutputByteLimit: number;
   private readonly maxTerminals: number;
   private readonly abortSignal: AbortSignal | undefined;
-  private readonly abortHandler = (): void => this.releaseAll();
+  private readonly abortHandler = (): void => this.dispose();
+  private disposed = false;
   private nextId = 1;
 
   constructor(opts: TerminalServerOptions) {
@@ -77,6 +94,9 @@ export class TerminalServer {
     this.commandTimeoutMs = opts.commandTimeoutMs ?? 5 * 60_000;
     this.outputByteLimit = opts.outputByteLimit ?? 1024 * 1024;
     this.maxOutputByteLimit = opts.maxOutputByteLimit ?? 16 * 1024 * 1024;
+    // Short, grep-friendly, no PII. 8 hex chars ≈ 4B values — plenty to
+    // disambiguate concurrent TerminalServers within a single process.
+    this.instanceId = `term_srv_${randomBytes(4).toString('hex')}`;
     this.maxTerminals = this.clampFiniteInt(opts.maxTerminals, 32);
     this.abortSignal = opts.signal;
     if (opts.signal) {
@@ -93,6 +113,17 @@ export class TerminalServer {
     cwd?: string;
     outputByteLimit?: number;
   }): { terminalId: string } {
+    // Guard against post-dispose reuse. Otherwise a caller that ignores
+    // the dispose() signal (or holds a stale ref across an async boundary)
+    // would silently spawn an orphan child process whose output we would
+    // never deliver to anywhere — exactly the leak mode dispose() exists
+    // to prevent. Throw loudly so the bug surfaces at the call site.
+    if (this.disposed) {
+      throw new Error(
+        'TerminalServer is disposed — create a new TerminalServer instead of reusing this one',
+      );
+    }
+
     if (this.terminals.size >= this.maxTerminals) {
       throw new Error(
         `terminal limit reached (${this.maxTerminals}); release an existing terminal before creating another`,
@@ -276,12 +307,60 @@ export class TerminalServer {
     this.terminals.delete(terminalId);
   }
 
-  /** Kill all active terminals. Used on session close. */
-  releaseAll(): void {
+  /**
+   * Release all resources held by this server: kill every active terminal
+   * and detach the host `AbortSignal` listener.
+   *
+   * Idempotent — calling it multiple times is safe. Required because the
+   * previously-coded `releaseAll()` was the only path that removed the
+   * abort listener: if the host never called it (unhandled error path,
+   * host crash, GC of the session without explicit close), the listener
+   * pinned `this` (terminals Map, output buffers) for the lifetime of the
+   * signal. With `dispose()` this is no longer leak-prone.
+   *
+   * Also exposed as `[Symbol.dispose]` for `using` blocks in Node ≥ 22.
+   *
+   * RAM-leak audit 2026-08-11, MEDIUM (Finding 2).
+   */
+  dispose(): void {
+    if (this.disposed) return;
+    // Capture pre-teardown child count so the log shows the snapshot at
+    // the moment we entered dispose(), not after the release() loop has
+    // emptied the map. Gate on `WRONGSTACK_DEBUG` so production is silent.
+    if (DEBUG_DISPOSE) {
+      const activeChildren = this.terminals.size;
+      console.debug(
+        JSON.stringify({
+          event: 'terminal_server.disposed',
+          instanceId: this.instanceId,
+          activeChildren,
+          hadSignal: this.abortSignal !== undefined,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+    this.disposed = true;
     this.abortSignal?.removeEventListener('abort', this.abortHandler);
     for (const id of [...this.terminals.keys()]) {
       this.release(id);
     }
+  }
+
+  /** Alias for `dispose()` — enables `using new TerminalServer(...)`. */
+  [Symbol.dispose](): void {
+    this.dispose();
+  }
+
+  /**
+   * Kill all active terminals. Used on session close.
+   *
+   * @deprecated Prefer `dispose()` (or `using { … }` via `Symbol.dispose`).
+   * `releaseAll` is retained as a delegated wrapper for callers that still
+   * reference it; new code should call `dispose()` directly so the
+   * host-signal listener is removed unconditionally.
+   */
+  releaseAll(): void {
+    this.dispose();
   }
 
   private resolveCwd(cwd: string | undefined): string {

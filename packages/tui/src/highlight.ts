@@ -26,21 +26,33 @@ export interface HLState {
   triple?: string | null; // inside a python triple-quoted string ("""/''')
 }
 
-// Conventional terminal syntax colors (Ink color names).
+// Syntax colors are emitted as SEMANTIC ROLE NAMES, not literal Ink colors.
+//
+// This module stays a pure, theme-free tokenizer: it never imports `theme`
+// and never decides a hex. The `syntax.*` names are resolved at render time
+// by `softColor` (theme.ts) against the ACTIVE palette, via the Ink shim that
+// every component already funnels its color props through.
+//
+// Emitting bare names here (`'magenta'`, `'green'`) was the reason syntax
+// highlighting ignored `/theme`: those resolve against the FROZEN `pastel`
+// map, so a Gruvbox diff rendered Catppuccin-purple keywords.
+//
+// Every name below MUST exist in `SYNTAX_TOKEN`. An unresolvable name reaches
+// chalk, which drops it silently — the token renders with no color at all.
 const C = {
-  keyword: 'magenta',
-  string: 'green',
-  comment: 'gray',
-  number: 'yellow',
-  literal: 'yellow', // true/false/null
-  property: 'cyan',
-  variable: 'cyan',
-  command: 'cyan',
-  flag: 'yellow',
-  decorator: 'magenta',
-  diffAdd: 'green',
-  diffDel: 'red',
-  diffMeta: 'cyan',
+  keyword: 'syntax.keyword',
+  string: 'syntax.string',
+  comment: 'syntax.comment',
+  number: 'syntax.number',
+  literal: 'syntax.literal', // true/false/null
+  property: 'syntax.property',
+  variable: 'syntax.variable',
+  command: 'syntax.command',
+  flag: 'syntax.flag',
+  decorator: 'syntax.decorator',
+  diffAdd: 'syntax.diffAdd',
+  diffDel: 'syntax.diffDel',
+  diffMeta: 'syntax.diffMeta',
 } as const;
 
 const TS_KEYWORDS = new Set([

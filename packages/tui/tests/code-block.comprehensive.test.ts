@@ -16,20 +16,20 @@ import {
 
 describe('applyWashTokens', () => {
   it('returns tokens unchanged when not on wash', () => {
-    const tokens = [{ text: 'hello', color: 'gray', dim: true }];
+    const tokens = [{ text: 'hello', color: 'syntax.comment', dim: true }];
     expect(applyWashTokens(tokens, false)).toBe(tokens);
   });
 
-  it('promotes gray tokens to grayBright on wash', () => {
+  it('re-points comment tokens to the on-wash role', () => {
     const tokens = [
-      { text: 'const', color: 'keyword' as const },
+      { text: 'const', color: 'syntax.keyword' as const },
       { text: ' ', color: undefined },
-      { text: 'x', color: 'gray' as const, dim: true },
+      { text: 'x', color: 'syntax.comment' as const, dim: true },
     ];
     const result = applyWashTokens(tokens, true);
     expect(result[0]).toBe(tokens[0]);
     expect(result[2]).not.toBe(tokens[2]);
-    expect(result[2]).toMatchObject({ text: 'x', color: 'grayBright', dim: false });
+    expect(result[2]).toMatchObject({ text: 'x', color: 'syntax.commentOnWash', dim: false });
   });
 });
 

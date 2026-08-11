@@ -50,7 +50,7 @@ export function ThemePicker({
         return (
           <Text key={opt.id} inverse={isSelected} {...(isSelected ? { color: 'cyan' } : {})}>
             {isSelected ? '› ' : '  '}
-            <Text bold>{opt.name.padEnd(18)}</Text>
+            <Text bold>{opt.name.padEnd(21)}</Text>
             <Text dimColor>{opt.description}</Text>
             {isActive ? <Text color="green"> [active]</Text> : null}
           </Text>

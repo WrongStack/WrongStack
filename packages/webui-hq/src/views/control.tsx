@@ -15,8 +15,8 @@ import {
   AlertTriangle,
   Bot,
   ListPlus,
-  MessageSquareText,
   Megaphone,
+  MessageSquareText,
   OctagonX,
   SquareTerminal,
   Zap,
@@ -110,10 +110,9 @@ export function ControlView(): React.ReactElement {
   const clients = (snapshot?.clients ?? []).filter((c) =>
     c.capabilities.includes('control.receive'),
   );
-  const selected =
-    clients.some((client) => client.clientId === selectedClientId)
-      ? selectedClientId
-      : (clients[0]?.clientId ?? null);
+  const selected = clients.some((client) => client.clientId === selectedClientId)
+    ? selectedClientId
+    : (clients[0]?.clientId ?? null);
   const selectedClient = clients.find((c) => c.clientId === selected) ?? null;
   const selectedSession =
     selectedClient === null
@@ -332,415 +331,460 @@ export function ControlView(): React.ReactElement {
 
   if (clients.length === 0) {
     return (
-      <div className="hq-empty">
-        No controllable clients connected. Clients must advertise the <code>control.receive</code>{' '}
-        capability (CLI/TUI/WebUI surfaces do this automatically when connected to HQ).
+      <div className="hq-control-zero">
+        <span className="hq-control-zero-icon" aria-hidden="true">
+          <SquareTerminal size={26} />
+        </span>
+        <span className="hq-section-kicker">Command plane offline</span>
+        <h2>No command-ready clients</h2>
+        <p>
+          Connect a CLI, TUI or WebUI client advertising <code>control.receive</code> to unlock
+          staged remote commands and their audit trail.
+        </p>
+        <button
+          type="button"
+          className="hq-btn secondary"
+          onClick={() => useHqStore.getState().setActiveView('fleet')}
+        >
+          Inspect Fleet Map
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="hq-control-grid">
-      <div className="hq-control-composer">
-        <div className="hq-card-title">Command Target</div>
-        <div className="hq-card hq-control-target">
-          <label className="hq-label" htmlFor="hq-control-client">
-            Client
-          </label>
-          <select
-            id="hq-control-client"
-            className="hq-select"
-            value={selected ?? ''}
-            onChange={(e) => {
-              useHqStore.getState().selectClient(e.target.value);
-              resetPreview();
-            }}
-          >
-            {clients.map((c) => (
-              <option key={c.clientId} value={c.clientId}>
-                {controlClientLabel(c, snapshot)}
-              </option>
-            ))}
-          </select>
-          {selectedClient !== null && (
-            <div className="hq-control-meta">
-              <span>
-                <strong>kind</strong> {selectedClient.kind}
-              </span>
-              <span>
-                <strong>host</strong> {selectedClient.hostname ?? 'unknown'}
-              </span>
-              <span>
-                <strong>project</strong> {selectedClient.projectId}
-              </span>
-              <span>
-                <strong>client</strong> {shortId(selectedClient.clientId)}
-              </span>
-              {selectedSession !== undefined && (
-                <span>
-                  <strong>session</strong> {shortId(selectedSession.sessionId)} ·{' '}
-                  {selectedSession.agentCount} agents
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="hq-card-title">Command Type</div>
-        <fieldset className="hq-control-steps" aria-label="Control command stages">
-          <span className="hq-step active">1 compose</span>
-          <span className={'hq-step' + (stage === 'preview' ? ' active' : '')}>2 preview</span>
-          <span className={'hq-step' + (status !== null ? ' active' : '')}>3 queued</span>
-        </fieldset>
-        <div className="hq-control-types">
-          {(Object.keys(CMD_META) as CmdType[]).map((t) => {
-            const meta = CMD_META[t];
-            return (
-              <button
-                key={t}
-                type="button"
-                title={meta.desc}
-                className={
-                  'hq-control-type' +
-                  (cmdType === t ? ' selected' : '') +
-                  (meta.danger === true ? ' danger' : '')
-                }
-                onClick={() => chooseType(t)}
-              >
-                {meta.icon}
-                {meta.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="hq-control-typedesc">
-          {CMD_META[cmdType].danger === true && <AlertTriangle size={12} />}
-          {CMD_META[cmdType].desc}
-        </div>
-
-        <div className="hq-mt-12">
-          {(cmdType === 'steer' || cmdType === 'btw' || cmdType === 'queue') && (
-            <div className="hq-card">
-              <label className="hq-label" htmlFor="hq-control-recipient">
-                To (agent address — e.g. <code>leader</code>, <code>leader@sessionTag</code>, or a
-                subagent id)
-              </label>
-              <input
-                id="hq-control-recipient"
-                className="hq-input"
-                value={steerTo}
-                onChange={(e) => {
-                  setSteerTo(e.target.value);
-                  setHqControlPrefs({ steerTo: e.target.value });
-                }}
-                placeholder="leader"
-              />
-              <label className="hq-label hq-mt-8" htmlFor="hq-control-subject">
-                Subject
-              </label>
-              <input
-                id="hq-control-subject"
-                className="hq-input"
-                value={steerSubject}
-                onChange={(e) => {
-                  setSteerSubject(e.target.value);
-                  setHqControlPrefs({ steerSubject: e.target.value });
-                }}
-              />
-              <label className="hq-label hq-mt-8" htmlFor="hq-control-body">
-                Body
-              </label>
-              <textarea
-                id="hq-control-body"
-                className="hq-textarea"
-                value={steerBody}
-                onChange={(e) => {
-                  setSteerBody(e.target.value);
-                  setHqControlPrefs({ steerBody: e.target.value });
-                }}
-              />
-            </div>
-          )}
-
-          {cmdType === 'abort' && (
-            <div className="hq-card hq-card-danger">
-              <label className="hq-label" htmlFor="hq-control-abort-target">
-                Target
-              </label>
-              <select
-                id="hq-control-abort-target"
-                className="hq-select"
-                value={abortTarget}
-                onChange={(e) => {
-                  setAbortTarget(e.target.value as 'leader' | 'fleet');
-                  setHqControlPrefs({ abortTarget: e.target.value as 'leader' | 'fleet' });
-                }}
-              >
-                <option value="leader">leader (session leader)</option>
-                <option value="fleet">fleet (all subagents)</option>
-              </select>
-              <div className="hq-control-warning">
-                Abort is destructive. Preview requires typing <strong>ABORT</strong> before
-                dispatch.
-              </div>
-            </div>
-          )}
-
-          {cmdType === 'spawn' && (
-            <div className="hq-card">
-              <label className="hq-label" htmlFor="hq-control-spawn-role">
-                Role
-              </label>
-              <select
-                id="hq-control-spawn-role"
-                className="hq-select"
-                value={spawnRole}
-                onChange={(e) => {
-                  setSpawnRole(e.target.value);
-                  setHqControlPrefs({ spawnRole: e.target.value });
-                }}
-              >
-                <option value="bug-hunter">bug-hunter</option>
-                <option value="refactor-planner">refactor-planner</option>
-                <option value="critic">critic</option>
-                <option value="security-scanner">security-scanner</option>
-                <option value="code-reviewer">code-reviewer</option>
-              </select>
-              <label className="hq-label hq-mt-8" htmlFor="hq-control-spawn-task">
-                Task (optional)
-              </label>
-              <textarea
-                id="hq-control-spawn-task"
-                className="hq-textarea"
-                value={spawnTask}
-                onChange={(e) => {
-                  setSpawnTask(e.target.value);
-                  setHqControlPrefs({ spawnTask: e.target.value });
-                }}
-                placeholder="Describe the task…"
-              />
-            </div>
-          )}
-
-          {cmdType === 'run-command' && (
-            <div className="hq-card hq-card-danger">
-              <label className="hq-label" htmlFor="hq-control-run-command">
-                Shell command
-              </label>
-              <textarea
-                id="hq-control-run-command"
-                className="hq-textarea"
-                value={runCommand}
-                onChange={(e) => setRunCommand(e.target.value)}
-                placeholder="pnpm test"
-              />
-              <label className="hq-label hq-mt-8" htmlFor="hq-control-run-cwd">
-                Working directory (optional — defaults to the agent's project root)
-              </label>
-              <input
-                id="hq-control-run-cwd"
-                className="hq-input"
-                value={runCwd}
-                onChange={(e) => setRunCwd(e.target.value)}
-                placeholder=""
-              />
-              <div className="hq-control-warning">
-                RCE-gated: the client must run with <code>--hq-allow-exec</code> and your token
-                needs the <code>control.execute</code> capability — otherwise the server rejects
-                this. Preview requires typing <strong>RUN</strong> before dispatch.
-              </div>
-            </div>
-          )}
-
-          {cmdType === 'broadcast' && (
-            <div className="hq-card">
-              <label className="hq-label" htmlFor="hq-control-broadcast-subject">
-                Subject
-              </label>
-              <input
-                id="hq-control-broadcast-subject"
-                className="hq-input"
-                value={broadcastSubject}
-                onChange={(e) => {
-                  setBroadcastSubject(e.target.value);
-                  setHqControlPrefs({ broadcastSubject: e.target.value });
-                }}
-              />
-              <label
-                className="hq-label hq-mt-8"
-                htmlFor="hq-control-broadcast-body"
-              >
-                Body
-              </label>
-              <textarea
-                id="hq-control-broadcast-body"
-                className="hq-textarea"
-                value={broadcastBody}
-                onChange={(e) => {
-                  setBroadcastBody(e.target.value);
-                  setHqControlPrefs({ broadcastBody: e.target.value });
-                }}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="hq-card-title">Dispatch Gate</div>
-        <div
-          className={
-            'hq-card hq-command-preview' + (draft.risk === 'danger' ? ' hq-card-danger' : '')
-          }
-        >
-          <div className="hq-row">
+    <div className="hq-screen hq-control-screen" data-stage={stage} data-risk={draft.risk}>
+      <section className="hq-screen-hero hq-control-hero" aria-label="Command plane summary">
+        <div>
+          <span className="hq-section-kicker">Command plane</span>
+          <h2>Remote execution, with guardrails</h2>
+          <p>
+            Select a live client, compose the exact intent, inspect its payload and dispatch only
+            after the risk gate is satisfied.
+          </p>
+          <div className="hq-control-hero-state">
+            <span className="hq-pill active">control channel ready</span>
             <span className={'hq-pill ' + (draft.risk === 'danger' ? 'error' : 'info')}>
-              {draft.risk}
+              {draft.risk} risk
             </span>
-            <span>{draft.summary}</span>
-            {draft.disabledReason !== null && (
-              <span className="hq-pill warn">{draft.disabledReason}</span>
+            {status !== null ? <span className="hq-pill active">{status}</span> : null}
+          </div>
+        </div>
+        <div className="hq-hero-metrics">
+          <ControlMetric label="targets" value={clients.length} />
+          <ControlMetric label="live sessions" value={snapshot?.liveSessions?.length ?? 0} />
+          <ControlMetric
+            label="stage"
+            value={stage}
+            tone={stage === 'preview' ? 'warn' : undefined}
+          />
+          <ControlMetric label="recent audit" value={auditEntries.length} />
+        </div>
+      </section>
+
+      <div className="hq-control-grid">
+        <div className="hq-control-composer">
+          <div className="hq-card-title">Command Target</div>
+          <div className="hq-card hq-control-target">
+            <label className="hq-label" htmlFor="hq-control-client">
+              Client
+            </label>
+            <select
+              id="hq-control-client"
+              className="hq-select"
+              value={selected ?? ''}
+              onChange={(e) => {
+                useHqStore.getState().selectClient(e.target.value);
+                resetPreview();
+              }}
+            >
+              {clients.map((c) => (
+                <option key={c.clientId} value={c.clientId}>
+                  {controlClientLabel(c, snapshot)}
+                </option>
+              ))}
+            </select>
+            {selectedClient !== null && (
+              <div className="hq-control-meta">
+                <span>
+                  <strong>kind</strong> {selectedClient.kind}
+                </span>
+                <span>
+                  <strong>host</strong> {selectedClient.hostname ?? 'unknown'}
+                </span>
+                <span>
+                  <strong>project</strong> {selectedClient.projectId}
+                </span>
+                <span>
+                  <strong>client</strong> {shortId(selectedClient.clientId)}
+                </span>
+                {selectedSession !== undefined && (
+                  <span>
+                    <strong>session</strong> {shortId(selectedSession.sessionId)} ·{' '}
+                    {selectedSession.agentCount} agents
+                  </span>
+                )}
+              </div>
             )}
           </div>
-          {stage === 'preview' ? (
-            <>
-              <div className="hq-msg-sublabel">payload preview</div>
-              <pre className="hq-msg-pre">
-                {JSON.stringify(
-                  { clientId: selected, type: draft.type, payload: draft.payload },
-                  null,
-                  2,
-                )}
-              </pre>
-              {confirmRequired && (
-                <>
-                  <label
-                    className="hq-label hq-mt-12"
-                    htmlFor="hq-control-confirm"
-                  >
-                    Confirm destructive dispatch
-                  </label>
-                  <input
-                    id="hq-control-confirm"
-                    className="hq-input"
-                    value={confirmText}
-                    onChange={(e) => setConfirmText(e.target.value)}
-                    placeholder={`Type ${confirmWord}`}
-                  />
-                </>
-              )}
-              <div className="hq-row hq-mt-12">
-                <button
-                  type="button"
-                  className="hq-btn"
-                  disabled={busy || !canDispatch}
-                  onClick={() => void dispatch()}
-                  title="Ctrl+Enter"
-                >
-                  {busy ? 'Dispatching…' : 'Dispatch Command'}
-                </button>
-                <button
-                  type="button"
-                  className="hq-btn secondary"
-                  disabled={busy}
-                  onClick={resetPreview}
-                >
-                  Back to Compose
-                </button>
-              </div>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="hq-btn"
-              disabled={!canPreview}
-              onClick={() => {
-                setStage('preview');
-                setStatus(null);
-                setError(null);
-              }}
-              title="Ctrl+Enter"
-            >
-              Preview Command
-            </button>
-          )}
-        </div>
 
-        {status && (
-          <div className="hq-pill active hq-mt-12">
-            {status}
-          </div>
-        )}
-        {error && (
-          <div className="hq-pill error hq-mt-12">
-            {error}
-          </div>
-        )}
-      </div>
-
-      <div className="hq-control-audit">
-        <div className="hq-card-title">Command Audit</div>
-        <div className="hq-card hq-command-audit">
-          <div className="hq-row">
-            <span className="hq-pill info">recent {auditEntries.length}</span>
-            {auditLoading && <span className="hq-pill idle">refreshing</span>}
-            {auditError !== null && <span className="hq-pill error">{auditError}</span>}
-            <button
-              type="button"
-              className="hq-btn secondary hq-ml-auto"
-              onClick={() => void loadAudit()}
-            >
-              Refresh
-            </button>
-          </div>
-          {auditEntries.length === 0 ? (
-            <div className="hq-empty hq-cockpit-empty">
-              No command audit entries yet.
-            </div>
-          ) : (
-            <div className="hq-audit-list">
-              {auditEntries.map((entry) => (
-                <div
-                  key={entry.commandId}
+          <div className="hq-card-title">Command Type</div>
+          <fieldset className="hq-control-steps" aria-label="Control command stages">
+            <span className="hq-step active">1 compose</span>
+            <span className={'hq-step' + (stage === 'preview' ? ' active' : '')}>2 preview</span>
+            <span className={'hq-step' + (status !== null ? ' active' : '')}>3 queued</span>
+          </fieldset>
+          <div className="hq-control-types">
+            {(Object.keys(CMD_META) as CmdType[]).map((t) => {
+              const meta = CMD_META[t];
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  title={meta.desc}
                   className={
-                    'hq-audit-row' +
-                    (entry.commandId === lastDispatchedId ? ' just-dispatched' : '') +
-                    (selected !== null && entry.clientId === selected ? '' : ' other-client')
+                    'hq-control-type' +
+                    (cmdType === t ? ' selected' : '') +
+                    (meta.danger === true ? ' danger' : '')
                   }
+                  onClick={() => chooseType(t)}
                 >
-                  <div className="hq-audit-main">
-                    <span className={'hq-pill ' + auditTone(entry)}>{entry.status}</span>
-                    <span className="hq-pill info">{entry.type}</span>
-                    <span className="hq-mono">{shortId(entry.commandId)}</span>
-                    {entry.ackStatus !== undefined && (
-                      <span className={'hq-pill ' + ackTone(entry.ackStatus)}>
-                        ack {entry.ackStatus}
-                      </span>
-                    )}
-                  </div>
-                  <div className="hq-audit-meta">
-                    <span>
-                      <strong>client</strong> {shortId(entry.clientId)}
-                    </span>
-                    <span>
-                      <strong>by</strong> {entry.enqueuedBy}
-                    </span>
-                    <span>
-                      <strong>queued</strong> {relativeTime(entry.enqueuedAt)}
-                    </span>
-                    {entry.ackedAt !== undefined && (
-                      <span>
-                        <strong>acked</strong> {relativeTime(entry.ackedAt)}
-                      </span>
-                    )}
-                  </div>
-                  {entry.ackMessage !== undefined && entry.ackMessage.length > 0 && (
-                    <div className="hq-audit-message">{entry.ackMessage}</div>
-                  )}
+                  {meta.icon}
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="hq-control-typedesc">
+            {CMD_META[cmdType].danger === true && <AlertTriangle size={12} />}
+            {CMD_META[cmdType].desc}
+          </div>
+
+          <div className="hq-mt-12">
+            {(cmdType === 'steer' || cmdType === 'btw' || cmdType === 'queue') && (
+              <div className="hq-card">
+                <label className="hq-label" htmlFor="hq-control-recipient">
+                  To (agent address — e.g. <code>leader</code>, <code>leader@sessionTag</code>, or a
+                  subagent id)
+                </label>
+                <input
+                  id="hq-control-recipient"
+                  className="hq-input"
+                  value={steerTo}
+                  onChange={(e) => {
+                    setSteerTo(e.target.value);
+                    setHqControlPrefs({ steerTo: e.target.value });
+                  }}
+                  placeholder="leader"
+                />
+                <label className="hq-label hq-mt-8" htmlFor="hq-control-subject">
+                  Subject
+                </label>
+                <input
+                  id="hq-control-subject"
+                  className="hq-input"
+                  value={steerSubject}
+                  onChange={(e) => {
+                    setSteerSubject(e.target.value);
+                    setHqControlPrefs({ steerSubject: e.target.value });
+                  }}
+                />
+                <label className="hq-label hq-mt-8" htmlFor="hq-control-body">
+                  Body
+                </label>
+                <textarea
+                  id="hq-control-body"
+                  className="hq-textarea"
+                  value={steerBody}
+                  onChange={(e) => {
+                    setSteerBody(e.target.value);
+                    setHqControlPrefs({ steerBody: e.target.value });
+                  }}
+                />
+              </div>
+            )}
+
+            {cmdType === 'abort' && (
+              <div className="hq-card hq-card-danger">
+                <label className="hq-label" htmlFor="hq-control-abort-target">
+                  Target
+                </label>
+                <select
+                  id="hq-control-abort-target"
+                  className="hq-select"
+                  value={abortTarget}
+                  onChange={(e) => {
+                    setAbortTarget(e.target.value as 'leader' | 'fleet');
+                    setHqControlPrefs({ abortTarget: e.target.value as 'leader' | 'fleet' });
+                  }}
+                >
+                  <option value="leader">leader (session leader)</option>
+                  <option value="fleet">fleet (all subagents)</option>
+                </select>
+                <div className="hq-control-warning">
+                  Abort is destructive. Preview requires typing <strong>ABORT</strong> before
+                  dispatch.
                 </div>
-              ))}
+              </div>
+            )}
+
+            {cmdType === 'spawn' && (
+              <div className="hq-card">
+                <label className="hq-label" htmlFor="hq-control-spawn-role">
+                  Role
+                </label>
+                <select
+                  id="hq-control-spawn-role"
+                  className="hq-select"
+                  value={spawnRole}
+                  onChange={(e) => {
+                    setSpawnRole(e.target.value);
+                    setHqControlPrefs({ spawnRole: e.target.value });
+                  }}
+                >
+                  <option value="bug-hunter">bug-hunter</option>
+                  <option value="refactor-planner">refactor-planner</option>
+                  <option value="critic">critic</option>
+                  <option value="security-scanner">security-scanner</option>
+                  <option value="code-reviewer">code-reviewer</option>
+                </select>
+                <label className="hq-label hq-mt-8" htmlFor="hq-control-spawn-task">
+                  Task (optional)
+                </label>
+                <textarea
+                  id="hq-control-spawn-task"
+                  className="hq-textarea"
+                  value={spawnTask}
+                  onChange={(e) => {
+                    setSpawnTask(e.target.value);
+                    setHqControlPrefs({ spawnTask: e.target.value });
+                  }}
+                  placeholder="Describe the task…"
+                />
+              </div>
+            )}
+
+            {cmdType === 'run-command' && (
+              <div className="hq-card hq-card-danger">
+                <label className="hq-label" htmlFor="hq-control-run-command">
+                  Shell command
+                </label>
+                <textarea
+                  id="hq-control-run-command"
+                  className="hq-textarea"
+                  value={runCommand}
+                  onChange={(e) => setRunCommand(e.target.value)}
+                  placeholder="pnpm test"
+                />
+                <label className="hq-label hq-mt-8" htmlFor="hq-control-run-cwd">
+                  Working directory (optional — defaults to the agent's project root)
+                </label>
+                <input
+                  id="hq-control-run-cwd"
+                  className="hq-input"
+                  value={runCwd}
+                  onChange={(e) => setRunCwd(e.target.value)}
+                  placeholder=""
+                />
+                <div className="hq-control-warning">
+                  RCE-gated: the client must run with <code>--hq-allow-exec</code> and your token
+                  needs the <code>control.execute</code> capability — otherwise the server rejects
+                  this. Preview requires typing <strong>RUN</strong> before dispatch.
+                </div>
+              </div>
+            )}
+
+            {cmdType === 'broadcast' && (
+              <div className="hq-card">
+                <label className="hq-label" htmlFor="hq-control-broadcast-subject">
+                  Subject
+                </label>
+                <input
+                  id="hq-control-broadcast-subject"
+                  className="hq-input"
+                  value={broadcastSubject}
+                  onChange={(e) => {
+                    setBroadcastSubject(e.target.value);
+                    setHqControlPrefs({ broadcastSubject: e.target.value });
+                  }}
+                />
+                <label className="hq-label hq-mt-8" htmlFor="hq-control-broadcast-body">
+                  Body
+                </label>
+                <textarea
+                  id="hq-control-broadcast-body"
+                  className="hq-textarea"
+                  value={broadcastBody}
+                  onChange={(e) => {
+                    setBroadcastBody(e.target.value);
+                    setHqControlPrefs({ broadcastBody: e.target.value });
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="hq-card-title">Dispatch Gate</div>
+          <div
+            className={
+              'hq-card hq-command-preview' + (draft.risk === 'danger' ? ' hq-card-danger' : '')
+            }
+          >
+            <div className="hq-row">
+              <span className={'hq-pill ' + (draft.risk === 'danger' ? 'error' : 'info')}>
+                {draft.risk}
+              </span>
+              <span>{draft.summary}</span>
+              {draft.disabledReason !== null && (
+                <span className="hq-pill warn">{draft.disabledReason}</span>
+              )}
             </div>
-          )}
+            {stage === 'preview' ? (
+              <>
+                <div className="hq-msg-sublabel">payload preview</div>
+                <pre className="hq-msg-pre">
+                  {JSON.stringify(
+                    { clientId: selected, type: draft.type, payload: draft.payload },
+                    null,
+                    2,
+                  )}
+                </pre>
+                {confirmRequired && (
+                  <>
+                    <label className="hq-label hq-mt-12" htmlFor="hq-control-confirm">
+                      Confirm destructive dispatch
+                    </label>
+                    <input
+                      id="hq-control-confirm"
+                      className="hq-input"
+                      value={confirmText}
+                      onChange={(e) => setConfirmText(e.target.value)}
+                      placeholder={`Type ${confirmWord}`}
+                    />
+                  </>
+                )}
+                <div className="hq-row hq-mt-12">
+                  <button
+                    type="button"
+                    className="hq-btn"
+                    disabled={busy || !canDispatch}
+                    onClick={() => void dispatch()}
+                    title="Ctrl+Enter"
+                  >
+                    {busy ? 'Dispatching…' : 'Dispatch Command'}
+                  </button>
+                  <button
+                    type="button"
+                    className="hq-btn secondary"
+                    disabled={busy}
+                    onClick={resetPreview}
+                  >
+                    Back to Compose
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="hq-btn"
+                disabled={!canPreview}
+                onClick={() => {
+                  setStage('preview');
+                  setStatus(null);
+                  setError(null);
+                }}
+                title="Ctrl+Enter"
+              >
+                Preview Command
+              </button>
+            )}
+          </div>
+
+          {status && <div className="hq-pill active hq-mt-12">{status}</div>}
+          {error && <div className="hq-pill error hq-mt-12">{error}</div>}
+        </div>
+
+        <div className="hq-control-audit">
+          <div className="hq-card-title">Command Audit</div>
+          <div className="hq-card hq-command-audit">
+            <div className="hq-row">
+              <span className="hq-pill info">recent {auditEntries.length}</span>
+              {auditLoading && <span className="hq-pill idle">refreshing</span>}
+              {auditError !== null && <span className="hq-pill error">{auditError}</span>}
+              <button
+                type="button"
+                className="hq-btn secondary hq-ml-auto"
+                onClick={() => void loadAudit()}
+              >
+                Refresh
+              </button>
+            </div>
+            {auditEntries.length === 0 ? (
+              <div className="hq-empty hq-cockpit-empty">No command audit entries yet.</div>
+            ) : (
+              <div className="hq-audit-list">
+                {auditEntries.map((entry) => (
+                  <div
+                    key={entry.commandId}
+                    className={
+                      'hq-audit-row' +
+                      (entry.commandId === lastDispatchedId ? ' just-dispatched' : '') +
+                      (selected !== null && entry.clientId === selected ? '' : ' other-client')
+                    }
+                  >
+                    <div className="hq-audit-main">
+                      <span className={'hq-pill ' + auditTone(entry)}>{entry.status}</span>
+                      <span className="hq-pill info">{entry.type}</span>
+                      <span className="hq-mono">{shortId(entry.commandId)}</span>
+                      {entry.ackStatus !== undefined && (
+                        <span className={'hq-pill ' + ackTone(entry.ackStatus)}>
+                          ack {entry.ackStatus}
+                        </span>
+                      )}
+                    </div>
+                    <div className="hq-audit-meta">
+                      <span>
+                        <strong>client</strong> {shortId(entry.clientId)}
+                      </span>
+                      <span>
+                        <strong>by</strong> {entry.enqueuedBy}
+                      </span>
+                      <span>
+                        <strong>queued</strong> {relativeTime(entry.enqueuedAt)}
+                      </span>
+                      {entry.ackedAt !== undefined && (
+                        <span>
+                          <strong>acked</strong> {relativeTime(entry.ackedAt)}
+                        </span>
+                      )}
+                    </div>
+                    {entry.ackMessage !== undefined && entry.ackMessage.length > 0 && (
+                      <div className="hq-audit-message">{entry.ackMessage}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ControlMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'warn' | 'error';
+}): React.ReactElement {
+  return (
+    <div className="hq-hero-metric" data-tone={tone}>
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }
@@ -749,10 +793,7 @@ function shortId(id: string): string {
   return id.length > 18 ? `${id.slice(0, 10)}…${id.slice(-6)}` : id;
 }
 
-export function controlClientLabel(
-  client: HqClientRecord,
-  snapshot: HqSnapshot | null,
-): string {
+export function controlClientLabel(client: HqClientRecord, snapshot: HqSnapshot | null): string {
   const project = snapshot?.projects.find((candidate) => candidate.projectId === client.projectId);
   const session = (snapshot?.liveSessions ?? []).find(
     (candidate) =>

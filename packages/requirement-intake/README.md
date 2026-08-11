@@ -201,6 +201,116 @@ optional and falls back to this when omitted).
   interview from a submitted intake record, using the original request as the
   interview intent and the collected facts as project context.
 
+## WebUI scope: minimal-by-design
+
+The WebUI activity-bar panel (`packages/webui/src/components/RequirementIntakeView.tsx`,
+icon: `ClipboardList`, label: "Requirements") is intentionally **minimal**:
+list project intake records + file a new one. Its i18n keys
+(`activity.reqIntake.*`) cover only the create form and the list — there are
+no keys for answers, attachments, suggestions, accept/reject, or cancel.
+This is the deliberate boundary.
+
+**What the panel does today**
+
+- Lists records for the resolved project via `GET /api/requirement-intakes`
+  (server returns `{ projectId, intakes }`).
+- Files a new record with `POST /api/projects/:projectId/requirement-intakes`
+  then submits it with `POST /api/requirement-intakes/:id/submit`. The body
+  carries `projectId` (server-resolved) and `requestedBy: 'webui'` (matching
+  the `techstack-handlers` sentinel; swap to a real user id when WebUI
+  exposes one).
+- Surfaces success (`Intake recorded and submitted (<id>).`) and server
+  errors (HTTP status + parsed `error.message`).
+- Refreshes the list after a successful submit.
+
+**What the panel does not do (by design)**
+
+- **Inline answer / question editor.** Adding a `DEFAULT_INTAKE_QUESTIONS`
+  flow with `addAnswer` / `updateAnswer` / `pendingQuestions` is a full
+  questionnaire UI — comparable to `SddInterviewView`. Belongs in a
+  dedicated intake-detail view or in SDD itself, not in the activity-bar
+  panel.
+- **LLM suggestion UI.** `generateSuggestions` requires a real
+  `LlmSuggestionGenerator` adapter to be wired into the webui-server; the
+  server runs without one. Adding UI for a non-existent path is misleading,
+  and exposing `acceptSuggestion` / `rejectSuggestion` would commit the view
+  to a generator contract that is currently pluggable.
+- **Attachment upload.** The `attachResource` schema requires exactly one of
+  `path` or `url` plus a `kind` enum and a non-blank name. File-picker,
+  size limits, MIME detection, and storage strategy are out of scope for a
+  single-purpose panel.
+- **Field editing after draft.** `PATCH /api/requirement-intakes/:id` exists
+  and is used by programmatic callers; the panel's job is filing, not
+  editing.
+
+**Three small exceptions the panel will add next**
+
+Even while staying minimal, three additions pay for themselves quickly.
+All three are gated on lifecycle (`MUTABLE_STATUSES = ['draft',
+'collecting_information']`) so the panel never mutates a submitted,
+cancelled, or archived record.
+
+1. **Read-only detail panel.** Clicking a record opens a side panel showing
+   the full record body: `originalRequest` (verbatim, monospace),
+   `normalizedSummary`, `businessGoal`, `expectedOutcome`, `scopeNotes`,
+   `targetUsers`, `constraints`, `providedContext`, `attachments`,
+   `relatedResources`, `answers`, `questions`, and `llmSuggestions`
+   (read-only, source-tagged). Makes the list clickable without adding any
+   mutation surface. One new component, no service changes.
+2. **Cancel button on draft records.** Single button, single endpoint
+   (`POST /api/requirement-intakes/:id/cancel`). Visible only when the
+   record's `status` is in `MUTABLE_STATUSES`; cancel transitions
+   `draft → cancelled` or `collecting_information → cancelled`
+   (`lifecycle.ALLOWED_TRANSITIONS`). Submitted/cancelled/archived records
+   surface an **Archive** action instead, gated behind a confirm dialog
+   because archive is irreversible.
+3. **Status-locked error surfacing.** When the panel POSTs an action
+   against a record that is no longer mutable (e.g. another tab
+   `submitIntake`ed a draft the moment the user clicked Cancel), the
+   server returns 409 with `INTAKE_STATUS_LOCKED`. The view should detect
+   that code, refresh the list, and surface a non-alarming "this record
+   was finalized elsewhere — reloaded" notice rather than a generic error.
+
+**Power-user path:** Everything the panel omits is reachable via the
+REST API, the `/intake` slash command, the `@wrongstack/requirement-intake-mcp`
+server, and the `@wrongstack/sdd` interview bridge. The panel exposes the
+`id` and status so a user can copy the id and run CLI/REST against it.
+
+**Rationale.** The activity bar's panels are *varied* in surface area —
+each is sized to its domain's natural complexity, not to a single shared
+shape. Concretely (line counts from `packages/webui/src/components`):
+
+| Activity-bar panel | Backing component(s) | Surface |
+|---|---|---|
+| `intake` (Requirements) | `RequirementIntakeView.tsx` | 366 lines — single form + list |
+| `sddhub` (SDD) | `SddHub.tsx` | 117 lines — thin entry, defers to other views |
+| `goal` (Goal) | `GoalView.tsx` | 526 lines — focused |
+| `roster` (Agent Roster) | `AgentRosterView.tsx` | 569 lines — focused |
+| `kanban` (Kanban) | `KanbanView.tsx` | 646 lines — focused |
+| `techstack` (TechStack) | `TechStackView/index.tsx` + 5 sub-components | 757 lines + 1,034 lines of sub-panels (1,791 total) |
+| `codemap` (CodeMap) | `CodeMap.tsx` | 889 lines — full explorer |
+| `memory` (Memory) | `MemoryManager/index.tsx` + 14 sub-components | 1,096 lines + 3,508 lines of sub-components (4,604 total) |
+
+(Line counts measured with `(Get-Content -Path | Measure-Object -Line).Lines` on `*.tsx`/`*.ts` files under `packages/webui/src/components/`, excluding `node_modules` and `dist`. Re-measure any time; the source files keep moving.)
+
+The right question for the Requirements panel is not "match the smallest
+panel" — it's *does the panel reflect the domain's natural surface, without
+bloat?* The intake domain has a wide surface (answers, attachments,
+suggestions, lifecycle transitions) but a narrow *entry point*: the
+verbatim original request. The minimal panel correctly captures that entry
+point; the full surface is reachable via REST/CLI/MCP/SDD.
+
+A full feature-CRUD view would (a) obscure the module's core invariants —
+original request sacred, source-tagging, LLM output is proposal,
+deterministic validation, fail-closed auth — by spreading them across
+mutation paths; (b) couple WebUI to the LLM-suggestion generator contract
+before a real adapter exists; (c) force a multi-pane questionnaire layout
+that breaks on mobile; and (d) leave the LLM-suggestion path shipped-but-
+broken at the UI level. The minimal surface keeps the entry point obvious,
+leaves the LLM path unimplemented at the UI level until a real generator
+is wired in, and pushes the structured-questioning UX to `SddInterviewView`
+where it already lives.
+
 ## Observability
 
 - **Events** — `RequirementIntakeCreated`, `RequirementIntakeUpdated`,

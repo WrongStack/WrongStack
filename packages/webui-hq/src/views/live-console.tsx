@@ -25,10 +25,7 @@ import { VList } from 'virtua';
 import { useShallow } from 'zustand/react/shallow';
 import { turnKey, useSessionTranscript } from '../lib/use-session-transcript.js';
 import { postCommand, useHqStore } from '../store.js';
-import {
-  setHqConsolePrefs,
-  useHqLocalPrefs,
-} from '../stores/hq-local-prefs.js';
+import { setHqConsolePrefs, useHqLocalPrefs } from '../stores/hq-local-prefs.js';
 import { resolveConsoleControlTarget } from './console-target.js';
 import { FleetNav } from './fleet-nav.js';
 import { TranscriptTurn } from './transcript-turn.js';
@@ -41,9 +38,7 @@ interface ConsoleCommandReceipt {
   createdAt: string;
 }
 
-export function commandLifecycleTone(
-  lifecycle: string,
-): 'active' | 'error' | 'info' | 'warn' {
+export function commandLifecycleTone(lifecycle: string): 'active' | 'error' | 'info' | 'warn' {
   if (lifecycle === 'completed') return 'active';
   if (lifecycle === 'failed' || lifecycle === 'rejected') return 'error';
   if (lifecycle === 'delivered' || lifecycle === 'accepted') return 'info';
@@ -63,9 +58,7 @@ function ConsoleCommandTurn({
     second: '2-digit',
   });
   const lifecyclePill = (
-    <span className={`hq-pill ${commandLifecycleTone(lifecycle)}`}>
-      {lifecycle}
-    </span>
+    <span className={`hq-pill ${commandLifecycleTone(lifecycle)}`}>{lifecycle}</span>
   );
 
   if (receipt.type === 'abort') {
@@ -105,9 +98,7 @@ export function LiveConsoleView(): React.ReactElement {
   const agentId = selectedAgentId;
   const viewingAgent = agentId !== null;
   const consolePrefs = useHqLocalPrefs().console;
-  const [delivery, setDelivery] = useState<'steer' | 'btw' | 'queue'>(
-    consolePrefs.delivery,
-  );
+  const [delivery, setDelivery] = useState<'steer' | 'btw' | 'queue'>(consolePrefs.delivery);
   const [subject, setSubject] = useState(consolePrefs.subject);
   const [body, setBody] = useState(consolePrefs.body);
   const [busy, setBusy] = useState(false);
@@ -227,11 +218,11 @@ export function LiveConsoleView(): React.ReactElement {
         [
           ...current,
           {
-          commandId: primary.commandId,
-          type: 'abort' as const,
-          target: targetLabel,
-          preview: `Interrupt ${targetLabel}`,
-          createdAt: new Date().toISOString(),
+            commandId: primary.commandId,
+            type: 'abort' as const,
+            target: targetLabel,
+            preview: `Interrupt ${targetLabel}`,
+            createdAt: new Date().toISOString(),
           },
         ].slice(-8),
       );
@@ -269,6 +260,46 @@ export function LiveConsoleView(): React.ReactElement {
 
   return (
     <div className="hq-console-shell">
+      <header className="hq-console-overview">
+        <div className="hq-console-overview-copy">
+          <span
+            className="hq-console-live-dot"
+            data-live={controlTarget !== null}
+            aria-hidden="true"
+          />
+          <div>
+            <span>Live transcript</span>
+            <strong>
+              {sessionId === null
+                ? 'Select an endpoint'
+                : viewingAgent
+                  ? (selectedAgent?.name ?? agentId)
+                  : (meta.projectName ?? targetLabel)}
+            </strong>
+            <small>
+              {sessionId === null
+                ? 'Choose a client or agent from the fleet navigator'
+                : controlTarget?.controllable === true
+                  ? `${targetLabel} · control channel ready`
+                  : `${targetLabel} · transcript is read-only`}
+            </small>
+          </div>
+        </div>
+        <fieldset className="hq-console-overview-metrics" aria-label="Transcript totals">
+          <ConsoleMetric label="turns" value={stats.turns + visibleReceipts.length} />
+          <ConsoleMetric label="tools" value={stats.tools} />
+          <ConsoleMetric
+            label="running"
+            value={stats.running}
+            tone={stats.running > 0 ? 'active' : undefined}
+          />
+          <ConsoleMetric
+            label="errors"
+            value={stats.errors}
+            tone={stats.errors > 0 ? 'error' : undefined}
+          />
+        </fieldset>
+      </header>
       <FleetNav
         snapshot={snapshot ?? null}
         selectedSessionId={sessionId}
@@ -326,7 +357,15 @@ export function LiveConsoleView(): React.ReactElement {
         </div>
 
         {sessionId === null ? (
-          <div className="hq-empty">Pick a client or agent from the tree on the left.</div>
+          <div className="hq-console-empty">
+            <span aria-hidden="true">
+              <MessageSquareText size={24} />
+            </span>
+            <strong>Choose a conversation</strong>
+            <small>
+              Pick a live client or agent from the fleet navigator to inspect its transcript.
+            </small>
+          </div>
         ) : chat.loading && entries.length === 0 && visibleReceipts.length === 0 ? (
           <div className="hq-empty">
             {viewingAgent ? 'Loading agent history…' : 'Loading transcript…'}
@@ -513,6 +552,23 @@ export function LiveConsoleView(): React.ReactElement {
           </section>
         </div>
       )}
+    </div>
+  );
+}
+
+function ConsoleMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: 'active' | 'error';
+}): React.ReactElement {
+  return (
+    <div className="hq-console-overview-metric" data-tone={tone}>
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }

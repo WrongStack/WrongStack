@@ -97,7 +97,16 @@ function matchesKind(value: unknown, kind: string): boolean {
   }
 }
 
-export type PendingConfirm = Record<string, never>;
+/**
+ * Per-prompt bookkeeping record. The `expiresAtMs` field lets `ws-client`
+ * sweep stale entries from `pendingConfirms` on every insert and on
+ * disconnect — a closed-and-unresolved prompt (panel unmounted, view
+ * switched, tab backgrounded) would otherwise leak the entry for the
+ * lifetime of the WebUI tab. The map is keyed by a server-issued id; the
+ * stored value exists only to carry the TTL.
+ * RAM-leak audit 2026-08-11, MEDIUM.
+ */
+export type PendingConfirm = { expiresAtMs: number };
 
 export type WsStatus =
   | { state: 'connecting' }

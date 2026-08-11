@@ -16,27 +16,18 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Config, ConfigStore, ThemePresetId } from '@wrongstack/core/types';
+import { THEME_PRESET_IDS } from '@wrongstack/core/types';
 import { atomicWrite, type WstackPaths } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 
-/** Set of valid preset ids. Kept in lockstep with `packages/tui/src/theme.ts`. */
-const VALID_PRESETS: ReadonlySet<ThemePresetId> = new Set<ThemePresetId>([
-  'catppuccin',
-  'tokyo-night',
-  'nord',
-  'cyberpunk',
-  'dracula',
-  'gruvbox-dark',
-  'solarized-dark',
-  'one-dark',
-  'monokai',
-  'rose-pine',
-  'kanagawa',
-  'ayu-dark',
-  'everforest',
-  'night-owl',
-  'synthwave',
-]);
+/**
+ * Set of valid preset ids, derived from the canonical `THEME_PRESET_IDS` in
+ * core. This used to be a hand-maintained copy, which silently drifted out of
+ * lockstep with `packages/tui/src/theme.ts` — a preset added there but missed
+ * here was rejected at save time with "Unknown theme preset". Deriving it
+ * makes that class of drift impossible.
+ */
+const VALID_PRESETS: ReadonlySet<ThemePresetId> = new Set<ThemePresetId>(THEME_PRESET_IDS);
 
 export interface ThemeAdapterDeps {
   configStore: ConfigStore;

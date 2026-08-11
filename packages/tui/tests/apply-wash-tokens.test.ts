@@ -7,7 +7,7 @@ import type { Token } from '../src/highlight.js';
  * `useColor=true` path calls `renderTokens(seg, true)`, which delegates
  * to `applyWashTokens`. The override matters because `theme.diffAddBg` /
  * `theme.diffDelBg` are dark enough that the conventional comment
- * rendering (`color: 'gray'` + `dim: true`) falls below WCAG AA contrast
+ * rendering (`syntax.comment` + `dim: true`) falls below WCAG AA contrast
  * on either wash — see `applyWashTokens` for the full rationale.
  *
  * These tests pin the override at the token layer because ink-testing-
@@ -17,8 +17,8 @@ import type { Token } from '../src/highlight.js';
  * behavior stays correct.
  */
 describe('applyWashTokens', () => {
-  const comment = (text: string): Token => ({ text, color: 'gray', dim: true });
-  const keyword = (text: string): Token => ({ text, color: 'magenta' });
+  const comment = (text: string): Token => ({ text, color: 'syntax.comment', dim: true });
+  const keyword = (text: string): Token => ({ text, color: 'syntax.keyword' });
   const plain = (text: string): Token => ({ text });
 
   it('returns the input unchanged when onWash is false', () => {
@@ -28,16 +28,16 @@ describe('applyWashTokens', () => {
     const out = applyWashTokens(tokens, false);
     // Same reference, no copy.
     expect(out).toBe(tokens);
-    expect(out[2]).toEqual({ text: '// hello', color: 'gray', dim: true });
+    expect(out[2]).toEqual({ text: '// hello', color: 'syntax.comment', dim: true });
   });
 
-  it('promotes a dim/gray comment token to grayBright + dim=false on wash', () => {
+  it('re-points a dim comment token to syntax.commentOnWash + dim=false on wash', () => {
     // The whole point: on the wash the comment must read as a brighter
     // foreground without the dim modifier, otherwise it disappears into
     // the dark green/maroon background.
     const tokens: Token[] = [comment('// hello comment')];
     const out = applyWashTokens(tokens, true);
-    expect(out).toEqual([{ text: '// hello comment', color: 'grayBright', dim: false }]);
+    expect(out).toEqual([{ text: '// hello comment', color: 'syntax.commentOnWash', dim: false }]);
     // Length-preserving invariant from the highlighter must still hold
     // after the override — the line width never drifts.
     expect(out.map((t) => t.text).join('')).toBe('// hello comment');
@@ -50,7 +50,7 @@ describe('applyWashTokens', () => {
     const tokens: Token[] = [
       keyword('const'),
       plain(' '),
-      { text: "'x'", color: 'green' },
+      { text: "'x'", color: 'syntax.string' },
       plain('; '),
       comment('// hi'),
     ];
@@ -59,28 +59,26 @@ describe('applyWashTokens', () => {
     expect(out[1]).toBe(tokens[1]);
     expect(out[2]).toBe(tokens[2]);
     expect(out[3]).toBe(tokens[3]);
-    expect(out[4]).toEqual({ text: '// hi', color: 'grayBright', dim: false });
+    expect(out[4]).toEqual({ text: '// hi', color: 'syntax.commentOnWash', dim: false });
   });
 
-  it('does not override a gray token that is not a comment', () => {
-    // Defensive: only `color === 'gray'` is treated as a comment signal.
-    // A token that happens to carry color 'gray' with `dim: undefined`
-    // and no comment-like context should still flip, because the
-    // highlighter's only use of `gray` is for comments. This test pins
-    // the simple rule so a future second use of color 'gray' won't be
-    // silently swept up if it changes `dim`.
-    const tokens: Token[] = [{ text: 'x', color: 'gray', dim: undefined }];
+  it('re-points any syntax.comment token regardless of its dim flag', () => {
+    // Defensive: the role name alone is the comment signal — `dim` is not
+    // consulted. A `syntax.comment` token with `dim: undefined` still flips,
+    // because the role is by definition only emitted for comments. Pinning
+    // the simple rule keeps a future caller from depending on `dim`.
+    const tokens: Token[] = [{ text: 'x', color: 'syntax.comment', dim: undefined }];
     const out = applyWashTokens(tokens, true);
-    expect(out[0]).toEqual({ text: 'x', color: 'grayBright', dim: false });
+    expect(out[0]).toEqual({ text: 'x', color: 'syntax.commentOnWash', dim: false });
   });
 
   it('preserves the bold flag on a comment token when overriding', () => {
     // Highlighter doesn't bold comments today, but the override is a
     // pure property-rewrite (`...t`) — it must not silently drop future
     // flags the upstream token might carry.
-    const tokens: Token[] = [{ text: '!', color: 'gray', dim: true, bold: true }];
+    const tokens: Token[] = [{ text: '!', color: 'syntax.comment', dim: true, bold: true }];
     const out = applyWashTokens(tokens, true);
-    expect(out[0]).toEqual({ text: '!', color: 'grayBright', dim: false, bold: true });
+    expect(out[0]).toEqual({ text: '!', color: 'syntax.commentOnWash', dim: false, bold: true });
   });
 
   it('returns an empty list unchanged on wash', () => {
@@ -92,16 +90,16 @@ describe('applyWashTokens', () => {
     const tokens: Token[] = [
       keyword('const'),
       plain(' x '),
-      { text: '= "hi"', color: 'green' },
+      { text: '= "hi"', color: 'syntax.string' },
       plain('; '),
       comment('// note'),
     ];
     const out = applyWashTokens(tokens, true);
-    expect(out[0]).toEqual({ text: 'const', color: 'magenta' });
+    expect(out[0]).toEqual({ text: 'const', color: 'syntax.keyword' });
     expect(out[1]).toBe(tokens[1]);
     expect(out[2]).toBe(tokens[2]);
     expect(out[3]).toBe(tokens[3]);
-    expect(out[4]).toEqual({ text: '// note', color: 'grayBright', dim: false });
+    expect(out[4]).toEqual({ text: '// note', color: 'syntax.commentOnWash', dim: false });
     // The whole-line text is still the concatenation of token texts, so
     // downstream rendering width stays unchanged.
     expect(out.map((t) => t.text).join('')).toBe('const x = "hi"; // note');

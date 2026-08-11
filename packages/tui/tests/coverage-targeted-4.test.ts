@@ -265,10 +265,10 @@ describe('highlight.ts — remaining branch gaps', () => {
     // BASH_VAR matches $VAR and ${VAR}
     const r1 = highlightLine('echo $HOME $USER', 'bash');
     expect(r1.tokens.map(t => t.text).join('')).toBe('echo $HOME $USER');
-    // At least one of the $ vars should be colored cyan
+    // At least one of the $ vars should carry the variable syntax role
     const varTokens = r1.tokens.filter(t => t.text.startsWith('$'));
     expect(varTokens.length).toBeGreaterThan(0);
-    expect(varTokens[0]!.color).toBe('cyan');
+    expect(varTokens[0]!.color).toBe('syntax.variable');
   });
 
   it('tokenizeBash handles flag after first word', async () => {
@@ -277,17 +277,17 @@ describe('highlight.ts — remaining branch gaps', () => {
     const r1 = highlightLine('ls -la --color', 'bash');
     expect(r1.tokens.map(t => t.text).join('')).toBe('ls -la --color');
     const flagTokens = r1.tokens.filter(t => t.text === '-la' || t.text === '--color');
-    // At least one should be colored yellow (flag)
-    const yellowFlags = flagTokens.filter(t => t.color === 'yellow');
-    expect(yellowFlags.length).toBeGreaterThan(0);
+    // At least one should carry the flag syntax role
+    const roleFlags = flagTokens.filter(t => t.color === 'syntax.flag');
+    expect(roleFlags.length).toBeGreaterThan(0);
   });
 
   it('tokenizeJson handles number and boolean literal tokens', async () => {
     const { highlightLine } = await import('../src/highlight.js');
     const r1 = highlightLine('{ "key": 42, "ok": true, "no": null }', 'json');
-    const numberTokens = r1.tokens.filter(t => t.text === '42' && t.color === 'yellow');
+    const numberTokens = r1.tokens.filter(t => t.text === '42' && t.color === 'syntax.number');
     expect(numberTokens.length).toBeGreaterThan(0);
-    const litTokens = r1.tokens.filter(t => (t.text === 'true' || t.text === 'null') && t.color === 'yellow');
+    const litTokens = r1.tokens.filter(t => (t.text === 'true' || t.text === 'null') && t.color === 'syntax.literal');
     expect(litTokens.length).toBeGreaterThan(0);
   });
 
@@ -299,16 +299,16 @@ describe('highlight.ts — remaining branch gaps', () => {
     expect(r2.tokens[0]?.dim).toBe(true);
   });
 
-  it('diff line starting with + is green', async () => {
+  it('diff line starting with + carries the diffAdd role', async () => {
     const { highlightLine } = await import('../src/highlight.js');
     const r = highlightLine('+new line', 'diff');
-    expect(r.tokens[0]?.color).toBe('green');
+    expect(r.tokens[0]?.color).toBe('syntax.diffAdd');
   });
 
-  it('diff line starting with - is red', async () => {
+  it('diff line starting with - carries the diffDel role', async () => {
     const { highlightLine } = await import('../src/highlight.js');
     const r = highlightLine('-old line', 'diff');
-    expect(r.tokens[0]?.color).toBe('red');
+    expect(r.tokens[0]?.color).toBe('syntax.diffDel');
   });
 
   it('unrecognised lang returns plain text tokens', async () => {
