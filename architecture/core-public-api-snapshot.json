@@ -150,7 +150,7 @@
         "export { type CreateOneShotLLMToolOptions, createOneShotLLMTool, ONE_SHOT_LLM_TOOL_NAME, } from './tools/one-shot-llm-tool.js';",
         "export { type CreatePluginManagerToolOptions, createPluginManagerTool, PLUGIN_MANAGER_TOOL_NAME, type PluginManagerCatalogEntry, type PluginManagerMutationResult, } from './tools/plugin-manager.js';",
         "export { type DirectorSessionFactory, type DirectorSessionFactoryOptions, makeDirectorSessionFactory, } from './coordination/director-session.js';",
-        "export { type DomainGlossary, type DomainGlossaryOptions, makeDomainGlossaryContributor, renderDomainGlossary, } from './core/system-prompt-glossary.js';",
+        "export { type DomainGlossaryOptions, renderDomainGlossary, } from './core/system-prompt-glossary.js';",
         "export { type ErrorHistoryEntry, type ProviderModelState, type ProviderModelStatus, ProviderModelStatusTracker, type ProviderStatusSnapshot, type ProviderStatusTrackerConfig, } from './coordination/provider-status-tracker.js';",
         "export { type FindingsIntegrationResult, integrateFindings, } from './plugins/review-finding-integration.js';",
         "export { type FleetStatusToolOptions, makeFleetStatusTool, } from './coordination/fleet-status-tool.js';",
@@ -1142,7 +1142,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10478
+      "sourceLines": 10455
     },
     {
       "directory": "defaults",

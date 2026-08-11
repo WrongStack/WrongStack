@@ -149,8 +149,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/types": {
-      "files": 885,
-      "typeOnly": 818,
+      "files": 886,
+      "typeOnly": 819,
       "runtimeOrMixed": 223
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -10732,6 +10732,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/plugins/src/git-autocommit/index.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/plugins/src/gitignore-guard/index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
