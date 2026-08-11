@@ -9,11 +9,12 @@ import type { ToolRegistry } from '../registry/tool-registry.js';
 import type { ErrorHandler } from '../types/error-handler.js';
 import { AgentError, toWrongStackError } from '../types/errors.js';
 import type { Logger } from '../types/logger.js';
-import type { Tracer } from '../types/observability.js';
+import type { Span, Tracer } from '../types/observability.js';
 import type { PermissionPolicy } from '../types/permission.js';
 import type { Plugin, PluginAPI } from '../types/plugin.js';
 import type { Renderer } from '../types/renderer.js';
 import type { RetryPolicy } from '../types/retry-policy.js';
+import type { BuildContext, SystemPromptBuilder } from '../types/system-prompt.js';
 import type { Tool } from '../types/tool.js';
 import type { ToolExecutorLike } from '../types/tool-executor.js';
 import { type AgentLoopHandler, createAgentLoopHandler, signalAbortReason } from './agent-loop.js';
@@ -64,6 +65,7 @@ export class Agent {
   /** Resolved loop-detector settings (see `tools.loopDetection`). */
   readonly loopDetection: ResolvedLoopDetectionConfig;
   private readonly autonomousContinue: boolean;
+  private readonly refreshSystemPrompt: boolean;
   readonly tracer: Tracer | undefined;
   readonly extensions: ExtensionRegistry;
   private readonly _toolHandler: AgentToolHandler;
@@ -95,6 +97,7 @@ export class Agent {
     this.autoExtendLimit = init.autoExtendLimit ?? true;
     this.loopDetection = resolveLoopDetection(init.loopDetection);
     this.autonomousContinue = init.autonomousContinue ?? false;
+    this.refreshSystemPrompt = init.refreshSystemPrompt ?? false;
     this.tracer = init.tracer;
     this.extensions = init.extensions ?? new ExtensionRegistry();
     // Create a child logger that auto-carries the session ID so every
@@ -189,6 +192,10 @@ export class Agent {
         context: { phase: 'concurrency-guard' },
       });
     }
+    // Deferred hash commit: assigned during dedup below, committed to
+    // this._lastInputHash only after setup succeeds inside the try.
+    let newInputHash: string | undefined;
+
     // Dedup: silently skip a run when the input text is byte-identical to
     // the immediately preceding submission.  Prevents terminal \r\n
     // re-entrancy, stuck-key bursts, and client-side resubmission loops
@@ -205,7 +212,10 @@ export class Agent {
           iterations: 0,
         };
       }
-      this._lastInputHash = hash;
+      // Defer committing the hash until setup (prompt refresh + beforeRun)
+      // succeeds. If it throws, the finally must not leave a stale hash that
+      // would silently skip every future retry of the same input.
+      newInputHash = hash;
     }
 
     this._runInProgress = true;
@@ -238,19 +248,51 @@ export class Agent {
     this.ctx.tools = this.tools.listForProvider();
     this.ctx.catalogTools = this.tools.list();
 
-    const span = this.tracer?.startSpan('agent.run', {
-      'agent.model': opts.model ?? this.ctx.model,
-      'agent.executionStrategy': opts.executionStrategy ?? this.executionStrategy,
-    });
-
-    const { blocks, text } = normalizeInput(userInput);
-    const inputPayload = { content: blocks, text, ctx: this.ctx };
-
-    await this.extensions.runBeforeRun(this.ctx, inputPayload);
+    // Initialize timing and span BEFORE the try so the catch and finally
+    // blocks can reference them even when the throw happens during prompt
+    // refresh or beforeRun — both of which run inside the try below.
     const runStartedAt = Date.now();
     const runStartedIso = new Date(runStartedAt).toISOString();
+    let span: Span | undefined;
 
     try {
+      // Prompt refresh and beforeRun extensions can throw. They MUST be
+      // inside the try/finally so that _runInProgress, session pins, and
+      // the controller are cleaned up on failure — otherwise the agent is
+      // permanently wedged ("already in progress") on the next run().
+      if (this.refreshSystemPrompt) {
+        const builder = this.container.safeResolve<SystemPromptBuilder>(TOKENS.SystemPromptBuilder);
+        if (builder) {
+          const onlineAgents = Array.isArray(this.ctx.meta['promptOnlineAgents'])
+            ? (this.ctx.meta['promptOnlineAgents'] as NonNullable<BuildContext['onlineAgents']>)
+            : undefined;
+          this.ctx.systemPrompt = await builder.build({
+            cwd: this.ctx.cwd,
+            projectRoot: this.ctx.projectRoot,
+            tools: this.ctx.tools,
+            catalogTools: this.ctx.catalogTools,
+            provider: this.ctx.provider.id,
+            model: opts.model ?? this.ctx.model,
+            onlineAgents,
+          });
+        }
+      }
+
+      span = this.tracer?.startSpan('agent.run', {
+        'agent.model': opts.model ?? this.ctx.model,
+        'agent.executionStrategy': opts.executionStrategy ?? this.executionStrategy,
+      });
+
+      const { blocks, text } = normalizeInput(userInput);
+      const inputPayload = { content: blocks, text, ctx: this.ctx };
+
+      await this.extensions.runBeforeRun(this.ctx, inputPayload);
+
+      // Setup succeeded — now it's safe to commit the hash so the next run
+      // can detect a changed input. If anything above threw, the hash stays
+      // unchanged so the next run retries the refresh instead of skipping it.
+      this._lastInputHash = newInputHash;
+
       this.events.emit('agent.run.started', {
         sessionId,
         ctx: this.ctx,
