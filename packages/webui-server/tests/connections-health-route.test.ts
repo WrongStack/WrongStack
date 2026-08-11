@@ -115,7 +115,8 @@ describe('connections health kanban service', () => {
       request: (_method: string, _params: unknown, _opts?: unknown) => ping(),
     }));
     const getKanbanDir = vi.fn((root: string) => `${root}/.wrongstack/kanbans`);
-    vi.doMock('@wrongstack/kanban', () => ({
+    vi.doMock('@wrongstack/kanban', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('@wrongstack/kanban')>()),
       getKanbanServerConnection,
       getKanbanDir,
     }));
@@ -151,7 +152,8 @@ describe('connections health kanban service', () => {
       request: () => Promise.reject(new Error('boom')),
     }));
     const getKanbanDir = vi.fn((root: string) => `${root}/.wrongstack/kanbans`);
-    vi.doMock('@wrongstack/kanban', () => ({
+    vi.doMock('@wrongstack/kanban', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('@wrongstack/kanban')>()),
       getKanbanServerConnection,
       getKanbanDir,
     }));

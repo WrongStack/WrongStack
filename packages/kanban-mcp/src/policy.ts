@@ -24,8 +24,6 @@ export const KANBAN_MANAGE_ACTIONS = [
   'sync_task_graph',
   'create_from_graph',
   'import_session_tasks',
-  'add_column',
-  'update_column',
   'add_task',
   'split_task',
   'copy_task',
@@ -68,7 +66,6 @@ export const KANBAN_MANAGE_ACTIONS = [
 /** Operations that remove or absorb durable task/board state. */
 export const KANBAN_DESTRUCTIVE_ACTIONS = [
   'delete_board',
-  'delete_column',
   'delete_task',
   'merge_tasks',
   'transfer_task',

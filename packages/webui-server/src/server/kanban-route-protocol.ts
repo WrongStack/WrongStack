@@ -1,7 +1,5 @@
 export const KANBAN_CLIENT_MESSAGE_TYPES = [
   'kanban.capabilities',
-  'kanban.column.add',
-  'kanban.column.remove',
   'kanban.contract.configure',
   'kanban.contract.edge.add',
   'kanban.contract.edge.remove',

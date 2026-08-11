@@ -97,6 +97,7 @@ function harness() {
       resolveId: vi.fn(async (id: string) => id),
       resume: resumeStore,
     },
+    sessionRef: undefined as { current: ReturnType<typeof writer> | undefined } | undefined,
     activateSessionIdentity,
     detachActiveTodosCheckpoint: priorDetachFn,
     pendingProjectSwitch: null,
@@ -169,7 +170,7 @@ describe('TUI session resume ownership', () => {
     // the repoint instead of crashing. Pre-fix behavior (provider
     // calls stay pinned to the boot session) is preserved.
     const h = harness();
-    delete h.state.sessionRef;
+    h.state.sessionRef = undefined;
 
     await expect(resumeSession(h.ctx as never, h.resumedWriter.id)).resolves.not.toBeNull();
   });

@@ -249,9 +249,10 @@ describe('planTool', () => {
     expect(board).not.toBeNull();
     expect(board?.tags).toContain('session:sess');
     expect(board?.columns.map((column) => column.title)).toEqual([
-      'Todo',
-      'Running',
-      'Preview',
+      'Backlog',
+      'To Do',
+      'In Progress',
+      'Review',
       'Done',
     ]);
     expect(board?.tasks.length).toBe(2);
