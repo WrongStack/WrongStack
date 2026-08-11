@@ -142,10 +142,6 @@
       "lines": 944,
       "relativeImports": 13
     },
-    "packages/core/src/core/fallback-model.ts": {
-      "lines": 878,
-      "relativeImports": 14
-    },
     "packages/core/src/core/system-prompt-builder.ts": {
       "lines": 834,
       "relativeImports": 24
@@ -243,7 +239,7 @@
       "relativeImports": 6
     },
     "packages/kanban/src/manager/assignment.ts": {
-      "lines": 974,
+      "lines": 982,
       "relativeImports": 12
     },
     "packages/kanban/src/manager/_internal.ts": {

@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=5; wins=5 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=9; wins=9 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -23,29 +23,13 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T15:08:45.843Z; skill=chimera -->
-- **Always distinguish a type re-export from a local type import in TypeScript modules such as `packages/cli/src/boot/system-prompt-builder.ts`; `export type { X } from './module.js'` does not make `X` available for declarations in the re-exporting module. Key takeaway: both changes break direct contracts—the CLI change fails type resolution, while the TUI change risks duplicate native-scrollback output through deferred commit bookkeeping.**
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=3; wins=3 -->
+- **Always verify a "default/fallback value" test is *discriminating*: when the system under test returns a bounded slice, supply more candidates than the default cap so the assertion count equals the cap (not the candidate count). A test whose expected length is smaller than the default cap cannot distinguish "the default was applied" from "no cap applied at all" — it passes even when the fallback-to-constant branch is broken (e.g. returns `undefined` → `Number.isFinite` false → no slicing).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `packages/cli/src/boot/system-prompt-builder.ts`
-  - *How:* `export type { X } from './module.js'`
-  - *How:* `X`
-  - *How:* `./module.js`
+  - *How:* `undefined`
+  - *How:* `Number.isFinite`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:15:26.058Z; skill=chimera -->
-- **Always verify dead-code removal of a discriminator-field branch by grepping for all emitters of that field with the matching issue code across the whole package, not just the emitter named in the diff comment. A branch can look unreachable after one named source is updated, yet still be reachable from a second emitter (e.g. a sibling validation file or the queue classifier) that the comment did not mention.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-09T22:04:35.121Z; skill=chimera -->
-- **When a diff adds a query-discriminating parameter (e.g. `transitive`, `depth`, `mode`) to an op-args interface in `packages/tools/src/codebase-index/worker-protocol.ts`, always grep `packages/tools/src/codebase-index/project-server.ts` for the matching `cacheKey = JSON.stringify([...])` construction and verify the new field is part of the key. Cached read handlers key on a hand-listed subset of args, so a new discriminator that is not added silently serves one mode's results for the other mode's request.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `transitive`
-  - *How:* `depth`
-  - *How:* `mode`
-  - *How:* `packages/tools/src/codebase-index/worker-protocol.ts`
-  - *How:* `packages/tools/src/codebase-index/project-server.ts`
-  - *How:* `cacheKey = JSON.stringify([...])`
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=4; wins=4 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=5; wins=5 -->
 - **When a sender pre-validates a payload against a receiver's reject threshold, verify byte-measurement equivalence *and* boundary-direction consistency: confirm the sender measures the exact same sub-object the receiver's validator measures (e.g. `record.board` vs the whole `record`), and that the comparison operators align at the boundary (`>` skip on one side must pair with `<=` accept on the other) — a mismatch here is the classic "sender thinks it's under the limit, receiver drops it" silent-loss bug in `packages/core/src/hq/protocol/kanban.ts` and `packages/cli/src/kanban-hq-sync.ts`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `record.board`
@@ -66,7 +50,16 @@
   - *How:* `connectOnce`
   - *How:* `useBinary`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T21:24:04.188Z; skill=testing -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:02:35.150Z; skill=chimera; applied=3; wins=3 -->
+- **When reviewing a configuration-cap feature added with `?? default` display fallback + numeric-guard accessor, verify three contract points in one pass and report any divergence: (1) the accessor's null/NaN/negative guard, (2) the consumer's `?? default` — confirm `??` (not `||`) so a user-set `0` survives display, and (3) the renderer — confirm the numeric guard agrees with the renderer's `=== 0 ? disabled : ...` branches so a `0` value is rendered disabled, not as the default or as empty.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `?? default`
+  - *How:* `??`
+  - *How:* `||`
+  - *How:* `0`
+  - *How:* `=== 0 ? disabled : ...`
+
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T21:24:04.188Z; skill=testing; applied=2; wins=2 -->
 - **When validating a multi-predicate *parity* test (e.g. `classifyTaskForQueue` bucket vs `evaluateContractGraphReadiness` ready-vs `validateManagedTaskTransition` issues in `packages/kanban`), prove it is non-vacuous by tracing at least one corpus entry that resolves **ready=true** and one that resolves **ready=false** across *all* predicates — a corpus where every entry agrees on a single outcome cannot catch divergence.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `classifyTaskForQueue`
@@ -74,5 +67,13 @@
   - *How:* `validateManagedTaskTransition`
   - *How:* `packages/kanban`
 
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:48:55.603Z; skill=testing -->
+- **When validating the configurable last-resort cap in `packages/core/src/core/fallback-profile-manager.ts`, a test is discriminating **only if** it supplies last-resort candidates that are both (1) **not already present** in the smart-default/primary/bridge prefix and (2) **more numerous than the cap**. `resolveCandidates` applies the cap at `:397-400` as `smartDefault(current, Infinity).filter(!usedKeys).slice(0, cap)` — filter-then-cap, not cap-then-filter.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `packages/core/src/core/fallback-profile-manager.ts`
+  - *How:* `resolveCandidates`
+  - *How:* `:397-400`
+  - *How:* `smartDefault(current, Infinity).filter(!usedKeys).slice(0, cap)`
+
 ---
-*Last capture: 2026-08-10T21:24:04.188Z · 8 entries*
+*Last capture: 2026-08-11T05:48:55.603Z · 8 entries*
