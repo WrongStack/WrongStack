@@ -129,6 +129,8 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
           autoFix: 'off',
           cascadeOn: 'off',
           maxCascadeDepth: 0,
+          fallbackModels: [],
+          fallbackProfile: undefined,
         },
         cwd,
         files: filesWithContent,
