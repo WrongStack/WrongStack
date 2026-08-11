@@ -43,6 +43,7 @@ describe('diagnoseConfig', () => {
       skills: ['git-flow'],
       brain: { defaultMode: 'off' },
       fallbackProfiles: { coding: ['gpt-4o'] },
+      fallbackMaxLastResortCandidates: 20,
       acp: { enabled: true },
       agents: {},
       fleet: { enabled: false },
@@ -92,6 +93,35 @@ describe('diagnoseConfig', () => {
     const fleet = report.fixed['fleet'] as Record<string, unknown>;
     expect(fleet['budget']).toBeUndefined();
     expect(report.findings.some((f) => f.path === 'fleet.budget')).toBe(true);
+  });
+
+  it('repairs fallbackMaxLastResortCandidates: strips non-numbers, floors fractions, keeps valid values', () => {
+    // Valid positive number — kept as-is.
+    expect(diagnoseConfig({ fallbackMaxLastResortCandidates: 20 }).fixed).toMatchObject({
+      fallbackMaxLastResortCandidates: 20,
+    });
+    // String number — coerced to number.
+    expect(diagnoseConfig({ fallbackMaxLastResortCandidates: '8' }).fixed).toMatchObject({
+      fallbackMaxLastResortCandidates: 8,
+    });
+    // Zero — kept (means "disabled").
+    expect(diagnoseConfig({ fallbackMaxLastResortCandidates: 0 }).fixed).toMatchObject({
+      fallbackMaxLastResortCandidates: 0,
+    });
+    // Fraction — floored to integer.
+    expect(diagnoseConfig({ fallbackMaxLastResortCandidates: 3.7 }).fixed).toMatchObject({
+      fallbackMaxLastResortCandidates: 3,
+    });
+    // Negative — clamped to 0 (disabled). Consistent with maxConcurrent
+    // clamping: fix to a valid value rather than silently removing the
+    // user's explicit field and reverting to the built-in default.
+    const neg = diagnoseConfig({ fallbackMaxLastResortCandidates: -1 });
+    expect(neg.fixed).toMatchObject({ fallbackMaxLastResortCandidates: 0 });
+    expect(neg.findings.some((f) => f.path === 'fallbackMaxLastResortCandidates')).toBe(true);
+    // NaN — removed.
+    const nan = diagnoseConfig({ fallbackMaxLastResortCandidates: NaN });
+    expect('fallbackMaxLastResortCandidates' in nan.fixed).toBe(false);
+    expect(nan.findings.some((f) => f.path === 'fallbackMaxLastResortCandidates')).toBe(true);
   });
 
   it('drops invalid autonomy enums and negative delays', () => {

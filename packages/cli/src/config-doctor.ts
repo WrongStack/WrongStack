@@ -70,6 +70,8 @@ const KNOWN_TOP_LEVEL_KEYS = [
   'fallbackBridge',
   'fallbackProfiles',
   'fallbackAuto',
+  'fallbackMaxLastResortCandidates',
+  'fallbackStickiness',
   'hooks',
   'plugins',
   'pluginManager',
@@ -238,6 +240,39 @@ export function diagnoseConfig(
           problem: `expected a non-negative integer, got ${JSON.stringify(v)}`,
           severity: 'error',
           fix: `set to ${clamped}`,
+        });
+      }
+    }
+  }
+
+  // ── 5b. fallbackMaxLastResortCandidates ──────────────────────────────
+  if ('fallbackMaxLastResortCandidates' in fixed) {
+    const v = fixed['fallbackMaxLastResortCandidates'];
+    const n = coerceNumber(v);
+    if (n === undefined) {
+      delete fixed['fallbackMaxLastResortCandidates'];
+      findings.push({
+        path: 'fallbackMaxLastResortCandidates',
+        problem: `expected a non-negative number, got ${JSON.stringify(v)}`,
+        severity: 'error',
+        fix: 'removed (built-in default of 12 applies)',
+      });
+    } else {
+      const clamped = Math.max(0, Math.floor(n));
+      if (clamped !== v) {
+        fixed['fallbackMaxLastResortCandidates'] = clamped;
+        findings.push({
+          path: 'fallbackMaxLastResortCandidates',
+          problem: `expected a non-negative integer, got ${JSON.stringify(v)}`,
+          severity: 'error',
+          fix: `set to ${clamped}`,
+        });
+      } else if (clamped === 0) {
+        findings.push({
+          path: 'fallbackMaxLastResortCandidates',
+          problem: 'is 0 — last-resort auto-discovery append is disabled',
+          severity: 'warning',
+          fix: 'no change (explicit user choice)',
         });
       }
     }
