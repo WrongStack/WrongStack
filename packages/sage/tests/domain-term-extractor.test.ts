@@ -28,7 +28,6 @@ import * as path from 'node:path';
 import type { MemoryPort } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_MAX_GLOSSARY_ENTRIES,
   DOMAIN_TERM_LOOKUP_TAG,
   DOMAIN_TERMS_FILENAME,
   normalizeTerm,
@@ -157,6 +156,79 @@ describe('SageDomainTermExtractor — detection', () => {
     const found = result.find((r) => r.term === 'SddBoardProjector');
     expect(found).toBeDefined();
     expect(found?.definition).toContain('runtime projection');
+  });
+
+  it('captures definitions after question-mark sentence boundaries', () => {
+    const result = ex.extractFromConversation({
+      messages: [
+        {
+          role: 'user',
+          text: 'What is TaskGraph? TaskGraph is the dependency graph that orders tool calls.',
+        },
+      ],
+    });
+    const found = result.find((r) => r.term === 'TaskGraph');
+    expect(found).toBeDefined();
+    expect(found?.definition).toContain('dependency graph');
+  });
+
+  it('captures definitions after exclamation-mark sentence boundaries', () => {
+    const result = ex.extractFromConversation({
+      messages: [
+        {
+          role: 'user',
+          text: 'Be careful with that! SddBoardProjector is the runtime projection of the kanban board.',
+        },
+      ],
+    });
+    const found = result.find((r) => r.term === 'SddBoardProjector');
+    expect(found).toBeDefined();
+    expect(found?.definition).toContain('runtime projection');
+  });
+
+  it('does not attach definitions from YAML/config colon keys', () => {
+    const result = ex.extractFromConversation({
+      messages: [
+        {
+          role: 'user',
+          text: '`fallbackModels` is configured in the profile.\nfallbackModels: empty\n',
+        },
+      ],
+      minConfidence: 0.3,
+    });
+    const term = result.find((r) => r.term === 'fallbackModels');
+    if (term) {
+      expect(term.definition).not.toContain('empty');
+    }
+  });
+
+  it('does not attach definitions from TypeScript annotation colons', () => {
+    const result = ex.extractFromConversation({
+      messages: [
+        { role: 'user', text: 'const span: Span | undefined) imports every named type.\n' },
+      ],
+      minConfidence: 0.3,
+    });
+    const term = result.find((r) => r.term === 'Span');
+    if (term) {
+      expect(term.definition).not.toContain('undefined)');
+    }
+  });
+
+  it('does not attach definitions from code-comment colons', () => {
+    const result = ex.extractFromConversation({
+      messages: [
+        {
+          role: 'user',
+          text: '`requireKanbanGovernance`: true, // Kanban tracks work; it does not gate it\n',
+        },
+      ],
+      minConfidence: 0.3,
+    });
+    const term = result.find((r) => r.term === 'requireKanbanGovernance');
+    if (term) {
+      expect(term.definition).not.toContain('true,');
+    }
   });
 
   it('rejects common English stop-list words and pure acronyms', () => {
@@ -424,55 +496,6 @@ describe('SageDomainTermExtractor — markdown file mirror', () => {
     expect(result.report.added).toBe(1);
     expect(result.mirrorPath).toBeNull();
     expect(store()).toHaveLength(1);
-  });
-});
-
-describe('SageDomainTermExtractor — prompt block', () => {
-  it('emits a compact dictionary with the canonical heading', async () => {
-    const { surface } = makeFakeSurface([
-      makeFakeSage('mem_1', 'SddBoardProjector — runtime projection of the kanban board', 0.85),
-      makeFakeSage('mem_2', 'MailboxBridge — IPC bridge between agents', 0.7),
-    ]);
-    const ex = new SageDomainTermExtractor();
-    const block = await ex.formatGlossaryBlock(makeFakePort(surface));
-    expect(block).toContain('# Project Jargon Dictionary');
-    expect(block).toContain('SddBoardProjector');
-    expect(block).toContain('MailboxBridge');
-  });
-
-  it('returns empty string when no glossary memories are present', async () => {
-    const { surface } = makeFakeSurface([]);
-    const ex = new SageDomainTermExtractor();
-    const block = await ex.formatGlossaryBlock(makeFakePort(surface));
-    expect(block).toBe('');
-  });
-
-  it('clamps to maxEntries and maxEntryChars', async () => {
-    const rows: Sage[] = [];
-    for (let i = 0; i < DEFAULT_MAX_GLOSSARY_ENTRIES + 5; i++) {
-      rows.push(
-        makeFakeSage(
-          `mem_${i}`,
-          `Term${i} — ${'x'.repeat(400)}`,
-          // Older terms get lower importance so newer (lower-i) win;
-          // we still expect the cap to bite at DEFAULT_MAX_GLOSSARY_ENTRIES.
-          1 - i * 0.01,
-        ),
-      );
-    }
-    const { surface } = makeFakeSurface(rows);
-    const ex = new SageDomainTermExtractor();
-    const block = await ex.formatGlossaryBlock(makeFakePort(surface), {
-      maxEntries: 4,
-      maxEntryChars: 32,
-    });
-    // 4 bullets + heading + 3 commentary lines + blank line = ≤ 9 lines.
-    const bullets = block.split('\n').filter((l) => l.startsWith('- **'));
-    expect(bullets).toHaveLength(4);
-    // Every bullet respects the per-entry char cap on the *definition*.
-    for (const line of bullets) {
-      expect(line.length).toBeLessThan(120);
-    }
   });
 });
 

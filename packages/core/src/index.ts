@@ -450,9 +450,7 @@ export {
   type SystemBlockSource,
 } from './core/system-prompt-builder.js';
 export {
-  type DomainGlossary,
   type DomainGlossaryOptions,
-  makeDomainGlossaryContributor,
   renderDomainGlossary,
 } from './core/system-prompt-glossary.js';
 export * from './defaults/index.js';

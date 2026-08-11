@@ -34,13 +34,6 @@ export interface DomainGlossaryOptions {
   maxEntryChars?: number | undefined;
 }
 
-export interface DomainGlossary {
-  /** The extractor port shape we depend on. */
-  readonly memory: MemoryStore;
-  /** Render the block, or `null` when no glossary entries exist. */
-  readonly formatGlossaryBlock: () => Promise<string | null>;
-}
-
 /**
  * Probe whether a `MemoryStore` exposes the SAGE glossary shape.
  *
@@ -155,16 +148,6 @@ export async function renderDomainGlossary(
  *
  * The contributor returns `[]` for non-SAGE stores so the prompt stays clean.
  */
-export function makeDomainGlossaryContributor(
-  glossary: DomainGlossary,
-): (ctx: BuildContext) => Promise<import('../types/blocks.js').TextBlock[]> {
-  return async (ctx) => {
-    const text = await renderDomainGlossary(ctx, glossary.memory);
-    if (!text) return [];
-    return [{ type: 'text', text }];
-  };
-}
-
 /**
  * Parse a stored glossary text back into (term, definition).
  *
@@ -174,18 +157,12 @@ export function makeDomainGlossaryContributor(
  */
 function parseTermEntry(text: string): { term: string; definition: string } {
   const trimmed = text.trim();
-  // Prefer em-dash (U+2014), en-dash (U+2013), then ascii hyphen. The
-  // order matters: em-dash carries the convention, the others exist
-  // because past imports may have produced different splits.
-  const separators = [' \u2014 ', ' \u2013 ', ' - ', ' -- '];
-  for (const sep of separators) {
-    const idx = trimmed.indexOf(sep);
-    if (idx > 0) {
-      return {
-        term: trimmed.slice(0, idx).trim(),
-        definition: trimmed.slice(idx + sep.length).trim(),
-      };
-    }
+  const idx = trimmed.indexOf(' \u2014 ');
+  if (idx > 0) {
+    return {
+      term: trimmed.slice(0, idx).trim(),
+      definition: trimmed.slice(idx + 3).trim(),
+    };
   }
   // No separator — treat the whole text as the term, empty definition.
   return { term: trimmed, definition: '' };

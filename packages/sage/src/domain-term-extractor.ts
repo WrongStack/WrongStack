@@ -167,6 +167,15 @@ export interface ExtractedTerm {
   /** 0..1 — higher is more likely to be genuine project jargon. */
   confidence: number;
   /**
+   * How many times the term was observed across all messages / commits
+   * in this extraction pass. Starts at 1 for the first sighting and is
+   * accumulated by `mergeTerm`. A post-merge pass folds this into
+   * `confidence` via a diminishing-returns bonus so one-off backticked
+   * identifiers no longer rank the same as repeatedly-used project
+   * terms. See {@link applyFrequencyBonus}.
+   */
+  mentionCount: number;
+  /**
    * Backing evidence: a short excerpt of the source text. The first
    * observation in the array is treated as the canonical excerpt when
    * persisting.
@@ -335,7 +344,9 @@ export class SageDomainTermExtractor {
       }
     }
 
-    return [...byKey.values()].sort((a, b) => b.confidence - a.confidence).slice(0, limit);
+    const merged = [...byKey.values()];
+    applyFrequencyBonus(merged);
+    return merged.sort((a, b) => b.confidence - a.confidence).slice(0, limit);
   }
 
   /**
@@ -394,7 +405,9 @@ export class SageDomainTermExtractor {
       }
     }
 
-    return [...byKey.values()].sort((a, b) => b.confidence - a.confidence).slice(0, limit);
+    const merged = [...byKey.values()];
+    applyFrequencyBonus(merged);
+    return merged.sort((a, b) => b.confidence - a.confidence).slice(0, limit);
   }
 
   /**
@@ -547,42 +560,6 @@ export class SageDomainTermExtractor {
     }
   }
 
-  /**
-   * Build the compact `[Project Jargon Dictionary]` block. Returns
-   * `''` when no glossary memories are present so callers can
-   * unconditionally append.
-   */
-  async formatGlossaryBlock(
-    port: MemoryPort,
-    options: {
-      /** Maximum entries. Default {@link DEFAULT_MAX_GLOSSARY_ENTRIES}. */
-      maxEntries?: number | undefined;
-      /** Max characters per entry. Default {@link DEFAULT_GLOSSARY_ENTRY_CHARS}. */
-      maxEntryChars?: number | undefined;
-    } = {},
-  ): Promise<string> {
-    const maxEntries = options.maxEntries ?? DEFAULT_MAX_GLOSSARY_ENTRIES;
-    const maxEntryChars = options.maxEntryChars ?? DEFAULT_GLOSSARY_ENTRY_CHARS;
-    const terms = await fetchActiveTermsForGlossary(port, maxEntries * 2);
-    if (terms.length === 0) return '';
-
-    const lines: string[] = ['# Project Jargon Dictionary', ''];
-    lines.push('Compact definitions maintained from conversation history and commits.');
-    lines.push('Each entry is a SAGE fact (tags: domain-term, glossary). Stay terse;');
-    lines.push('use the terms verbatim when the user does.');
-    lines.push('');
-
-    const rendered: { term: string; entry: string }[] = [];
-    for (const term of terms.slice(0, maxEntries)) {
-      const safeTerm = term.term.replace(/[`*_]/g, (c) => `\\${c}`);
-      const safeDef = (term.definition || '(no definition yet)').slice(0, maxEntryChars);
-      const safeDefEsc = safeDef.replace(/[`*_]/g, (c) => `\\${c}`);
-      rendered.push({ term: term.term, entry: `- **${safeTerm}** — ${safeDefEsc}` });
-    }
-
-    lines.push(...rendered.map((r) => r.entry));
-    return lines.join('\n');
-  }
 }
 
 // ── helpers ─────────────────────────────────────────────────────────
@@ -617,6 +594,7 @@ function extractCandidatesFromMessage(text: string, role: 'user' | 'agent'): Ext
       term,
       definition: '',
       confidence: 0.7,
+      mentionCount: 1,
       evidence: [match[0]],
       sources: [source],
     });
@@ -631,6 +609,7 @@ function extractCandidatesFromMessage(text: string, role: 'user' | 'agent'): Ext
       term,
       definition: '',
       confidence: 0.65,
+      mentionCount: 1,
       evidence: [match[0]],
       sources: [source],
     });
@@ -649,6 +628,7 @@ function extractCandidatesFromMessage(text: string, role: 'user' | 'agent'): Ext
       term,
       definition: '',
       confidence: 0.55,
+      mentionCount: 1,
       evidence: [match[0]],
       sources: [source],
     });
@@ -669,23 +649,38 @@ function extractCandidatesFromMessage(text: string, role: 'user' | 'agent'): Ext
         term,
         definition: '',
         confidence: 0.5,
+        mentionCount: 1,
         evidence: [raw],
         sources: [source],
       });
     }
   }
 
-  // Attach rough definition hints: when the term sits inside a
-  // "TERM is/means/refers to DEFINITION" sentence, capture the
-  // definition. We strip surrounding backticks / asterisks from the
-  // sentence stream first because the term's source text often sits
-  // inside backticks (`SddBoardProjector is ...`), and `\\b` does
-  // not match across the punctuation.
+  // Attach definition hints ONLY when the term appears at the start of
+  // a genuine prose sentence followed by a definitional verb (is / are /
+  // means / refers to). Two defects in the previous regex produced the
+  // garbage definitions visible in the live domain-terms.md:
+  //
+  //   - `[^.]*` reached backward across collapsed newlines. Because
+  //     `cleaned` flattens all whitespace to single spaces, a diff or
+  //     config block without periods let the match span the entire
+  //     block, latching onto any later occurrence of the term.
+  //   - `\s*:` matched every TypeScript annotation (`span: Span`),
+  //     YAML key (`fallbackModels: empty`), and code comment colon —
+  //     the primary source of nonsensical definitions like
+  //     "fallbackModels — empty" and "requireKanbanGovernance — true".
+  //
+  // The anchored form requires `(?:^|[.!?]\s+)` before the term (optionally
+  // preceded by an article), so only a real sentence start — the message
+  // head, or after a period / question mark / exclamation — qualifies.
+  // The bare-colon alternative is removed entirely; colons in prose
+  // definitions ("Term: a thing") are vanishingly rare in this
+  // codebase's conversation/diff text compared to code colons.
   const stream = cleaned.replace(/[`*]/g, '');
   for (const cand of out) {
     if (cand.definition) continue;
     const sentenceRegex = new RegExp(
-      `[^.]*\\b${escapeRegex(cand.term)}\\b(?:\\s+is|\\s+means|\\s+refers to|\\s*:)\\s+([^.]+)`,
+      `(?:^|[.!?]\\s+)(?:the\\s+|a\\s+|an\\s+)?${escapeRegex(cand.term)}\\b\\s+(?:is|are|means|refers to)\\s+([^.]+)`,
       'i',
     );
     const m = stream.match(sentenceRegex);
@@ -803,7 +798,33 @@ function mergeTerm(byKey: Map<string, ExtractedTerm>, cand: ExtractedTerm): void
   const confidence = Math.max(existing.confidence, cand.confidence);
   const evidence = [...new Set([...existing.evidence, ...cand.evidence])].slice(0, 6);
   const sources = [...new Set([...existing.sources, ...cand.sources])];
-  byKey.set(key, { term: existing.term, definition, confidence, evidence, sources });
+  const mentionCount = existing.mentionCount + cand.mentionCount;
+  byKey.set(key, { term: existing.term, definition, confidence, mentionCount, evidence, sources });
+}
+
+/**
+ * Fold `mentionCount` into `confidence` with a diminishing-returns curve.
+ *
+ * Repeated mentions strengthen the signal that a term is genuine project
+ * jargon, but the effect saturates: the 10th sighting adds less than the
+ * 2nd. Uses `log2(count) * 0.05` capped at +0.15 so the bonus is:
+ *   1 mention  → +0.00 (baseline — no boost for single sightings)
+ *   2 mentions → +0.05
+ *   3 mentions → +0.08
+ *   5 mentions → +0.12
+ *   8+         → +0.15 (capped)
+ *
+ * Applied AFTER the merge loop so it is order-independent. Channel-based
+ * confidence (backtick 0.70, bold 0.65, etc.) remains the primary signal;
+ * the frequency bonus only separates one-off noise from repeated usage
+ * within the same confidence band.
+ */
+function applyFrequencyBonus(terms: ExtractedTerm[]): void {
+  for (const t of terms) {
+    if (t.mentionCount <= 1) continue;
+    const bonus = Math.min(0.15, Math.log2(t.mentionCount) * 0.05);
+    t.confidence = Math.min(0.99, t.confidence + bonus);
+  }
 }
 
 function pickBetter(a: string, b: string): string {
@@ -847,8 +868,13 @@ async function fetchActiveTermsForGlossary(port: MemoryPort, limit = 64): Promis
   return hits
     .filter((m) => m.tags.includes(DOMAIN_TERM_LOOKUP_TAG))
     .filter((m) => m.status === 'active' || m.status === 'stale')
+    // Sort by confidence desc, then most recent first — MUST match the
+    // sort in renderDomainGlossary (packages/core/src/core/system-prompt-glossary.ts)
+    // so the mirror file and the prompt block present terms in the same order.
+    // Use confidence (not importance): importance is a LWW high-water mark
+    // that only goes up, so it would make the ranking stale across sessions.
     .sort((a, b) => {
-      if (b.importance !== a.importance) return b.importance - a.importance;
+      if (b.confidence !== a.confidence) return b.confidence - a.confidence;
       return b.updatedAt.localeCompare(a.updatedAt);
     })
     .slice(0, limit)
@@ -898,6 +924,7 @@ function parsePersistedTerm(memory: Sage): ExtractedTerm {
     term: (termPart ?? memory.text).trim(),
     definition,
     confidence: memory.confidence,
+    mentionCount: 1,
     evidence: [],
     sources: ['file'],
   };
