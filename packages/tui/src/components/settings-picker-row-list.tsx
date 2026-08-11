@@ -33,7 +33,7 @@ function renderPickerRow(
   const segments = highlightSegments(labelStr);
   const padNeeded = Math.max(0, 26 - labelStr.length);
   return (
-    <Text key={`row-${row.label ?? fieldIdx}`} inverse={selected} {...(selected ? { color: 'yellow' } : {})}>
+    <Text key={`row-${fieldIdx}`} inverse={selected} {...(selected ? { color: 'yellow' } : {})}>
       {selected ? '› ' : '  '}
       {filterActive ? (
         <>
