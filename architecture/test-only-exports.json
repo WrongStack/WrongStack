@@ -1232,7 +1232,9 @@
       "padDisplayEnd"
     ],
     "packages/tui/src/theme.ts": [
-      "detectSupportsBackground"
+      "detectSupportsBackground",
+      "resolveSyntaxPalette",
+      "themePresets"
     ],
     "packages/tui/src/thinking-word.ts": [
       "TUI_THINKING_WORD_POOL"

@@ -64,8 +64,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/hq": {
-      "files": 112,
-      "typeOnly": 72,
+      "files": 113,
+      "typeOnly": 73,
       "runtimeOrMixed": 63
     },
     "@wrongstack/core/hq/protocol": {
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 19
     },
     "@wrongstack/core/registry": {
-      "files": 98,
+      "files": 99,
       "typeOnly": 50,
-      "runtimeOrMixed": 49
+      "runtimeOrMixed": 50
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/types": {
-      "files": 883,
+      "files": 885,
       "typeOnly": 818,
-      "runtimeOrMixed": 219
+      "runtimeOrMixed": 223
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -4089,6 +4089,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/tests/control-view.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/tests/fleet-nav.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6411,6 +6417,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/theme-preset-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/token-saving-measurement.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8531,7 +8543,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/boot/tui-theme-adapter.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -9341,7 +9353,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/theme.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10176,6 +10188,12 @@
       "file": "packages/cli/tests/system-prompt-phantom-tools.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/theme-preset-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12954,6 +12972,12 @@
       "file": "packages/tui/tests/submit-prompt-refinement.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/theme-presets.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

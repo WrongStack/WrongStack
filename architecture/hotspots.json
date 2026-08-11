@@ -7,7 +7,7 @@
       "relativeImports": 2
     },
     "packages/acp/src/client/acp-session.ts": {
-      "lines": 1046,
+      "lines": 1051,
       "relativeImports": 17
     },
     "packages/cli/src/boot.ts": {
@@ -387,7 +387,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/code-block.tsx": {
-      "lines": 835,
+      "lines": 837,
       "relativeImports": 6
     },
     "packages/tui/src/components/history/entry.tsx": {
@@ -441,6 +441,10 @@
     "packages/tui/src/submit-controller.ts": {
       "lines": 820,
       "relativeImports": 13
+    },
+    "packages/tui/src/theme.ts": {
+      "lines": 1417,
+      "relativeImports": 0
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
       "lines": 965,
@@ -531,7 +535,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1203,
+      "lines": 1248,
       "relativeImports": 9
     },
     "packages/webui/src/stores/chat-store.ts": {
@@ -545,6 +549,14 @@
     "packages/webui/src/types/server-message.ts": {
       "lines": 870,
       "relativeImports": 10
+    },
+    "packages/webui-hq/src/app.tsx": {
+      "lines": 823,
+      "relativeImports": 20
+    },
+    "packages/webui-hq/src/views/control.tsx": {
+      "lines": 837,
+      "relativeImports": 2
     },
     "packages/webui-hq/src/views/settings.tsx": {
       "lines": 895,
