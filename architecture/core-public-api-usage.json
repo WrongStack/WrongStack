@@ -14,9 +14,9 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/chronicle": {
-      "files": 7,
+      "files": 8,
       "typeOnly": 2,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 7
     },
     "@wrongstack/core/coordination": {
       "files": 169,
@@ -1882,6 +1882,12 @@
     {
       "specifier": "@wrongstack/core/chronicle",
       "file": "packages/cli/src/subcommands/handlers/daemon-inventory.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/chronicle",
+      "file": "packages/cli/tests/daemon-inventory.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
