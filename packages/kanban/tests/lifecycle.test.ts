@@ -172,14 +172,6 @@ describe('adoptManagedLifecycle', () => {
     expect(adopted?.lifecycle?.adoptedAt).toBe(adopted?.updatedAt);
   });
 
-  it.skip('rejects an unmapped legacy column without mutating the board', async () => {
-    // Columns are now locked to the 5 standard columns, so an "unmapped legacy
-    // column" cannot be created via createBoard. This test previously built a
-    // 6-column board to exercise the adoption guard; with the column lock that
-    // scenario is structurally impossible. Kept as a skip to document the
-    // former behaviour and the reason it no longer applies.
-  });
-
   it('skips tasks that already have lifecycle metadata during first adoption — same mapping', async () => {
     const at = nowIso();
     const board = await createBoard(tmpDir, {
