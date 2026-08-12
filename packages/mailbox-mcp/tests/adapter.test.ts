@@ -34,6 +34,51 @@ function backend(overrides: Record<string, unknown> = {}): RemoteMailbox {
   } as unknown as RemoteMailbox;
 }
 
+describe('request bounds', () => {
+  // `inputSchema` is a description handed to the model, not a gate —
+  // MCPServer does not validate it. Both bounds below therefore have to be
+  // enforced in adapter code, and both were not.
+
+  it('clamps an out-of-range read limit instead of passing it to the store', async () => {
+    const query = vi.fn().mockResolvedValue([]);
+    const host = createMailboxMcpToolHost(backend({ query }), new MailboxEventEmitter(), {
+      actor: 'external-agent',
+    });
+
+    await host.callTool('mailbox_read', { action: 'query', limit: 1_000_000_000 });
+    expect(query).toHaveBeenCalledWith(expect.objectContaining({ limit: 500 }));
+
+    query.mockClear();
+    await host.callTool('mailbox_read', { action: 'query', limit: 25 });
+    expect(query).toHaveBeenCalledWith(expect.objectContaining({ limit: 25 }));
+  });
+
+  it('refuses an ack batch over the ceiling before touching the store', async () => {
+    const ackMany = vi.fn().mockResolvedValue([]);
+    const host = createMailboxMcpToolHost(backend({ ackMany }), new MailboxEventEmitter(), {
+      actor: 'external-agent',
+      writable: true,
+    });
+
+    // `ackMany` runs the whole batch in one `BEGIN IMMEDIATE`; unbounded, a
+    // single call holds the project's only write lock past every other
+    // surface's busy_timeout.
+    await expect(
+      host.callTool('mailbox_manage', {
+        action: 'ack_many',
+        messageIds: Array.from({ length: 501 }, (_, index) => `msg-${index}`),
+      }),
+    ).resolves.toMatchObject({ isError: true });
+    expect(ackMany).not.toHaveBeenCalled();
+
+    await host.callTool('mailbox_manage', {
+      action: 'ack_many',
+      messageIds: Array.from({ length: 500 }, (_, index) => `msg-${index}`),
+    });
+    expect(ackMany).toHaveBeenCalled();
+  });
+});
+
 describe('createMailboxMcpToolHost', () => {
   it('advertises full tiered tools in admin mode', async () => {
     const host = createMailboxMcpToolHost(backend(), new MailboxEventEmitter(), {

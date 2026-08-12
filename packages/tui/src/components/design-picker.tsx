@@ -22,6 +22,10 @@ export function DesignPicker({ kits, selected, stack }: DesignPickerProps): Reac
     total: kits.length,
     selected,
     chromeRows: 4,
+    // 2 marker slots — the `… more above/below` rows render below the header
+    // and hint but were never counted in the chrome, so a windowed list
+    // overflowed its own budget by 2 rows on short terminals.
+    markerRows: 2,
   });
   const visibleKits = kits.slice(start, end);
   return (

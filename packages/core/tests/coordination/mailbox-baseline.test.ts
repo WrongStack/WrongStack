@@ -251,6 +251,52 @@ describe('GM-P0.0 baseline: SqliteMailbox send/query/ack', () => {
     expect(session).toBe(3); // direct + broadcast + session
   });
 
+  // `unreadCount` is served by a COUNT(*) predicate rather than by filtering
+  // every materialized message (the pre-tool hook asks for it once a second).
+  // These pin the four exclusions that predicate has to reproduce, because a
+  // drift between it and `isMessageCompletedForActor` /
+  // `isMailboxMessageVisibleTo` is silent — the caller only sees a number.
+  it('excludes read, per-actor-completed, soft-deleted and leaders-only mail', async () => {
+    const read = await mb.send({ from: 'a', to: 'agent-a', type: 'note', subject: 'read', body: 'b' });
+    const done = await mb.send({ from: 'a', to: 'agent-a', type: 'ask', subject: 'done', body: 'b' });
+    const trashed = await mb.send({ from: 'a', to: 'agent-a', type: 'note', subject: 'trash', body: 'b' });
+    await mb.send({
+      from: 'a', to: 'agent-a', type: 'note', subject: 'leaders', body: 'b', audience: 'leaders',
+    });
+    await mb.send({ from: 'a', to: 'agent-a', type: 'note', subject: 'fresh', body: 'b' });
+
+    await mb.ack({ messageId: read.id, readerId: 'agent-a', read: true });
+    await mb.ack({ messageId: done.id, readerId: 'agent-a', completed: true });
+    await mb.softDelete(trashed.id, 'agent-a');
+
+    // Only "fresh" survives: read/completed/deleted are excluded, and
+    // `agent-a` is not a leader identity so leaders-only mail is invisible.
+    expect(await mb.unreadCount('agent-a')).toBe(1);
+    // The recipient filter still applies to a leader: none of the five are
+    // addressed to it or broadcast, so being a leader buys it nothing here.
+    expect(await mb.unreadCount('leader@abc')).toBe(0);
+  });
+
+  it('counts a fan-out message another actor completed as still unread', async () => {
+    const msg = await mb.send({ from: 'a', to: '*', type: 'broadcast', subject: 's', body: 'b' });
+    await mb.ack({ messageId: msg.id, readerId: 'agent-b', read: true, completed: true });
+
+    // Per-actor receipts: agent-b finishing a broadcast must not finish it for
+    // agent-a. The aggregate `completed` column is not authoritative once any
+    // receipt exists, which is the subtlest clause of the count predicate.
+    expect(await mb.unreadCount('agent-a')).toBe(1);
+    expect(await mb.unreadCount('agent-b')).toBe(0);
+  });
+
+  it('shows leaders-only mail to a leader identity', async () => {
+    await mb.send({
+      from: 'a', to: 'leader', type: 'note', subject: 'leaders', body: 'b', audience: 'leaders',
+    });
+    expect(await mb.unreadCount('leader@abc')).toBe(0); // addressed to the bare alias
+    expect(await mb.unreadCount('leader')).toBe(1);
+    expect(await mb.unreadCount('worker')).toBe(0);
+  });
+
   it('query results are defensive copies (mutating does not affect cache)', async () => {
     await mb.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'b' });
     const first = await mb.query({ to: 'b' });

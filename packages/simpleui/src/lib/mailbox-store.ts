@@ -113,18 +113,41 @@ function parseAgents(value: unknown): SimpleMailboxAgent[] {
 }
 
 /**
- * Cap on retained mailbox messages (oldest dropped when over). Mirrors the
- * TUI `use-mailbox-view-model.ts:115` cap and the WebUI `mailbox-store.ts`
+ * Cap on retained mailbox messages. Mirrors the TUI
+ * `use-mailbox-view-model.ts:115` cap and the WebUI `mailbox-store.ts`
  * `MAX_MAILBOX_MESSAGES`. Without this, every distinct message id ever
  * received accumulates forever in long SimpleUI sessions.
+ *
+ * Applied with {@link keepNewest}, NOT `slice(-MAX)`. The server hands us
+ * `mb.query()` output, which is sorted NEWEST-FIRST (SQLite `ORDER BY
+ * timestamp DESC`), so a trailing slice keeps the OLDEST entries and drops
+ * exactly the new mail the panel exists to show. The payload really can
+ * exceed the cap: the `unreadOnly` path without an agent id asks the server
+ * for `max(limit * 5, 100)`. The WebUI store hit this and fixed it; this one
+ * carried the unfixed copy.
  */
 const MAX_MAILBOX_MESSAGES = 100;
 
 /**
- * Cap on retained mailbox agents (oldest dropped when over). Mirrors the
- * WebUI `MAX_MAILBOX_AGENTS` cap.
+ * Cap on retained mailbox agents. Mirrors the WebUI `MAX_MAILBOX_AGENTS` cap.
+ *
+ * The WebUI store drops the least-recently-seen agents, which needs
+ * `lastSeenAt`; the SimpleUI agent projection does not carry it (see
+ * `parseAgents`). Online agents are preferred instead — they are the ones the
+ * sidebar is for — and the rest keep server order.
  */
 const MAX_MAILBOX_AGENTS = 50;
+
+/** Newest-first cap: sort by timestamp descending, then keep the head. */
+function keepNewest<T extends { timestamp?: string | undefined }>(
+  items: readonly T[],
+  max: number,
+): T[] {
+  if (items.length <= max) return [...items];
+  return [...items]
+    .sort((left, right) => (Date.parse(right.timestamp ?? '') || 0) - (Date.parse(left.timestamp ?? '') || 0))
+    .slice(0, max);
+}
 
 export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
   let snapshot: MailboxSnapshot = {
@@ -156,7 +179,7 @@ export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
           ...snapshot,
           ...(isUnreadCountResponse
             ? { unreadCount: parsed.filter(isUnreadIncomingMailboxMessage).length }
-            : { messages: parsed.slice(-MAX_MAILBOX_MESSAGES) }),
+            : { messages: keepNewest(parsed, MAX_MAILBOX_MESSAGES) }),
           lastEventAt: observedAt,
           error: text(payload['error']) || null,
         });
@@ -166,7 +189,13 @@ export function createMailboxStore(onRefreshNeeded?: () => void): MailboxStore {
         const parsed = parseAgents(payload['agents']);
         publish({
           ...snapshot,
-          agents: parsed.slice(-MAX_MAILBOX_AGENTS),
+          agents:
+            parsed.length <= MAX_MAILBOX_AGENTS
+              ? parsed
+              : [...parsed.filter((a) => a.online), ...parsed.filter((a) => !a.online)].slice(
+                  0,
+                  MAX_MAILBOX_AGENTS,
+                ),
           lastEventAt: observedAt,
           error: text(payload['error']) || null,
         });

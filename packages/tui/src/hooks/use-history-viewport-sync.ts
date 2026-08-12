@@ -12,12 +12,23 @@ export function useHistoryViewportSync(input: {
   statusBarWrapRef: RefObject<DOMElement | null>;
   belowStatusBarRef: RefObject<DOMElement | null>;
   termRows: number;
+  /**
+   * Measured height (rows) of the status chrome below the pickers: the
+   * status bar itself plus everything beneath it (mailbox panel, monitors,
+   * key-hint bar). Pickers use it to size their window against the REAL
+   * space left after input + status chrome instead of the hardcoded
+   * 6-row `shellReservedRows` guess in use-windowed-picker.ts — the guess
+   * under-reserves whenever the input wraps or the status bar grows, which
+   * is exactly the "theme menu doesn't fit" overflow.
+   */
+  statusBarRows: number;
 } {
   const { stdoutRows, viewportRows, setViewportRows } = input;
   const bottomRegionRef = useRef<DOMElement | null>(null);
   const statusBarWrapRef = useRef<DOMElement | null>(null);
   const belowStatusBarRef = useRef<DOMElement | null>(null);
   const [termRows, setTermRows] = useState(stdoutRows ?? 24);
+  const [statusBarRows, setStatusBarRows] = useState(2);
 
   useEffect(() => {
     // Deliberately NOT `useTerminalSize`. This one uses `prependListener`: the
@@ -40,5 +51,18 @@ export function useHistoryViewportSync(input: {
     }
   });
 
-  return { bottomRegionRef, statusBarWrapRef, belowStatusBarRef, termRows };
+  // Measure the status chrome the pickers sit above. The status bar box and
+  // everything below it (mailbox panel, monitors, key-hint bar) are separate
+  // siblings, so both refs must be measured and summed.
+  useLayoutEffect(() => {
+    const bar = statusBarWrapRef.current;
+    const below = belowStatusBarRef.current;
+    if (!bar && !below) return;
+    const height =
+      (bar ? measureElement(bar).height : 0) + (below ? measureElement(below).height : 0);
+    const rows = Math.max(1, Math.ceil(height));
+    setStatusBarRows((prev) => (prev === rows ? prev : rows));
+  });
+
+  return { bottomRegionRef, statusBarWrapRef, belowStatusBarRef, termRows, statusBarRows };
 }

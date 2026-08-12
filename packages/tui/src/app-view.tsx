@@ -153,6 +153,17 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     resolveAppSidebarLayout(state, termCols, liveSettings, mailbox.mailboxPanelOpen);
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
 
+  // Vertical budget for picker overlays (theme, design, …): the full terminal
+  // minus the input bar, the measured status chrome below the pickers, and a
+  // 1-row margin. Passed as `maxRows` so the picker windows against the REAL
+  // remaining space instead of the hook's hardcoded 6-row guess — the guess
+  // under-reserves whenever the input wraps or the status bar grows, which is
+  // the "theme menu doesn't fit" overflow.
+  const pickerMaxRows = Math.max(
+    8,
+    runtime.termRows - runtime.statusBarRows - inputHeight - 1,
+  );
+
   // Sidebar slot allocation (SIDEBAR_PANEL_LIMIT, ui-contracts.ts): when
   // more panels than the limit are open AND routed to 'sidebar', render the
   // first N in PANEL_IDS order and surface a "+N more" hint rather than
@@ -343,6 +354,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   selected={state.themePicker.selected}
                   activeId={getActiveThemeName()}
                   hint={state.themePicker.hint}
+                  columns={mainColumnWidth}
+                  maxRows={pickerMaxRows}
                 />
               ) : null}
               {state.designPicker.open ? (

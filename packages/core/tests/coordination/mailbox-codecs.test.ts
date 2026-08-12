@@ -310,6 +310,49 @@ describe('parseMailboxQueryInput', () => {
     ).not.toThrow();
   });
 
+  // The store's leaders-only audience gate keys off `unreadBy`, not
+  // `readerRole`, and `isMailboxLeader` accepts any identity whose base
+  // segment is `leader`. A body-supplied `unreadBy` therefore let a
+  // non-leader credential ask the store to answer as a leader — and be
+  // handed `audience: 'leaders'` mail, which exists to be invisible to it.
+  it('refuses a body-supplied unreadBy naming another actor', () => {
+    expect(() =>
+      parseMailboxQueryInput({ unreadBy: 'leader@zzzz' }, actor({ actorId: 'worker@aaaa', role: 'worker' })),
+    ).toThrow(MailboxValidationError);
+  });
+
+  it('accepts unreadBy when it names the actor itself, and pins it to the actor id', () => {
+    const result = parseMailboxQueryInput(
+      { unreadBy: 'worker@aaaa' },
+      actor({ actorId: 'worker@aaaa', role: 'worker' }),
+    );
+    expect(result.unreadBy).toBe('worker@aaaa');
+    expect(result.readerRole).toBe('worker');
+  });
+
+  it('lets a legacy operator read on behalf of another actor', () => {
+    const result = parseMailboxQueryInput(
+      { unreadBy: 'worker@aaaa' },
+      actor({ authMode: 'legacy-operator' }),
+    );
+    expect(result.unreadBy).toBe('worker@aaaa');
+  });
+
+  it('leaves unreadBy unset when the body omits it', () => {
+    expect(parseMailboxQueryInput({}, actor()).unreadBy).toBeUndefined();
+  });
+
+  it.each([501, 1_000_000_000, Number.MAX_SAFE_INTEGER])(
+    'rejects an out-of-range limit (%s)',
+    (limit) => {
+      expect(() => parseMailboxQueryInput({ limit }, actor())).toThrow(MailboxValidationError);
+    },
+  );
+
+  it('accepts a limit at the ceiling', () => {
+    expect(parseMailboxQueryInput({ limit: 500 }, actor()).limit).toBe(500);
+  });
+
   it('rejects invalid type', () => {
     expect(() =>
       parseMailboxQueryInput({ type: 'mystery' }, actor()),
@@ -336,6 +379,22 @@ describe('parseMailboxQueryInput', () => {
 });
 
 // ── Ack codec ────────────────────────────────────────────────────────
+
+describe('parseMailboxAckInput read default', () => {
+  // `MailboxAckInput.read` is documented as "defaults to true if not
+  // specified", and the store implements that as `ack.read !== false`.
+  // Emitting an explicit `read: false` here inverted it, so the same ack
+  // marked a message read through one boundary codec and left it unread
+  // through the other.
+  it('omits read when the body does not state it', () => {
+    const result = parseMailboxAckInput({ messageId: 'msg-1' }, actor());
+    expect('read' in result).toBe(false);
+  });
+
+  it('preserves an explicit read: false', () => {
+    expect(parseMailboxAckInput({ messageId: 'msg-1', read: false }, actor()).read).toBe(false);
+  });
+});
 
 describe('parseMailboxAckInput', () => {
   it('parses a valid mark-read', () => {

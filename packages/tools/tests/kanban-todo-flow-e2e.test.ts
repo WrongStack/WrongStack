@@ -311,6 +311,71 @@ describe('todo ↔ kanban flow never strands the run', () => {
     expect(result).toBeDefined();
   });
 
+  it('a completed todo whose card was never started is walked forward, not stranded', async () => {
+    // The bug: a todo arrives already `completed` but its card was never
+    // dispatched (still in Backlog or Todo). Without a pre-step the card sits
+    // in its original stage with a 'completed' assignment that the lifecycle
+    // gate never picks up — the todo surface shows completed while the board
+    // card is stuck, and the next board projection reverts the todo.
+    const ctx = makeCtx();
+    const boardId = await managedBoard();
+    ctx.currentKanbanBoardId = boardId;
+    const a = (await seedCard(boardId, 'Never started'))!.task.id;
+    await kanban(ctx, {
+      action: 'add_check',
+      boardId,
+      taskId: a,
+      checkDescription: 'Behaviour verified',
+      checkStatus: 'passed',
+    });
+
+    // Mark it completed without ever starting it.
+    const result = await todo(ctx, [row('1', 'Never started', 'completed', boardId, a)]);
+    expect(result.count).toBeGreaterThanOrEqual(1);
+
+    // The card must have advanced past its original stage — either to Review
+    // or Completed, not still sitting in Backlog/Todo.
+    const board = await getBoard(dir, boardId);
+    const task = board!.tasks.find((t) => t.id === a);
+    expect(['review', 'completed']).toContain(task?.status);
+  });
+
+  it('a review card with completed assignment does not revert the todo to in_progress', async () => {
+    // The rewind loop: todo marks row completed → card reaches Review →
+    // board projection reverts row to in_progress → model re-completes it.
+    // A Review card whose assignment is 'completed' must project as completed.
+    const ctx = makeCtx();
+    const boardId = await managedBoard();
+    ctx.currentKanbanBoardId = boardId;
+    const a = (await seedCard(boardId, 'Loop-prone'))!.task.id;
+    await kanban(ctx, {
+      action: 'add_check',
+      boardId,
+      taskId: a,
+      checkDescription: 'Behaviour verified',
+      checkStatus: 'passed',
+    });
+
+    // Start and complete it through the normal flow.
+    await todo(ctx, [row('1', 'Loop-prone', 'in_progress', boardId, a)]);
+    await todo(ctx, [row('1', 'Loop-prone', 'completed', boardId, a)]);
+
+    // The card should be in Review or Completed with a completed assignment.
+    let board = await getBoard(dir, boardId);
+    let task = board!.tasks.find((t) => t.id === a);
+    expect(['review', 'completed']).toContain(task?.status);
+
+    // Now re-apply the same completed list — the todo surface must not revert
+    // the row to in_progress. If the projection is broken, the todo tool
+    // would see the card in review and map it back to in_progress.
+    const result = await todo(ctx, [row('1', 'Loop-prone', 'completed', boardId, a)]);
+    expect(result.count).toBeGreaterThanOrEqual(1);
+
+    // Verify the todo list itself reflects completed, not in_progress.
+    const completedRow = ctx.todos.find((t) => t.kanbanTaskId === a);
+    expect(completedRow?.status).toBe('completed');
+  });
+
   it('a contradictory row is reported, never thrown', async () => {
     // Asking to reopen a Done card cannot be honoured — Done is terminal on a
     // managed board. The tool must say so and carry on, not fail the turn.

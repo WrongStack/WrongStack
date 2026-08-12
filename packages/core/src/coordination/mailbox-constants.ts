@@ -23,22 +23,21 @@ export const CLIENT_STALE_MS = 60_000;
 export const HEARTBEAT_THROTTLE_MS = 5_000;
 
 /**
- * How long a read may be served from the in-process registry cache before
- * re-reading the shared file. Kept well below HEARTBEAT_THROTTLE_MS so
- * cross-process registrations become visible promptly.
+ * JSONL line separator. Still live: the one-shot legacy import
+ * (`SqliteMailbox.migrateLegacyFiles`) reads `_mailbox.jsonl` through
+ * `mailbox-message-codec.ts` / `mailbox-parse-state.ts`.
  */
-export const REGISTRY_CACHE_TTL_MS = 2_000;
-
-/** JSONL line separator. */
 export const LINE_SEPARATOR = '\n';
 
-/**
- * Soft cap on the in-memory message cache. The cache mirrors the JSONL
- * message file; under normal load it stays well under this. If a pathological
- * mailbox exceeds the cap we fall back to reading from disk rather than
- * holding an unbounded buffer in memory.
- */
-export const MESSAGE_CACHE_MAX_ENTRIES = 10_000;
+// `REGISTRY_CACHE_TTL_MS` and `MESSAGE_CACHE_MAX_ENTRIES` lived here for the
+// direct-filesystem mailbox's in-process caches. Those caches went out with
+// the JSONL store (see tests/architecture/mailbox-ipc-boundary.test.ts, which
+// pins `mailbox-message-cache.ts` and friends as deleted): the detached owner
+// holds the only handle, so there is nothing for a client to cache and no
+// shared file for a TTL to bound. Both constants had no production reader —
+// only an assertion that they still equalled their old values. Do not
+// reintroduce them; a client-side registry cache is exactly the split-brain
+// the IPC boundary exists to prevent.
 
 // ── Polling / heartbeat intervals (used by mailbox-attach.ts) ──────────────
 
@@ -120,10 +119,42 @@ export const AUTO_COMPACT_TYPE_TTL_MS: Readonly<Record<string, number>> = {
   status: 1_800_000, // 30 min
 };
 
+// ── Request bounds (every untrusted boundary) ──────────────────────────────
+
+/**
+ * Ceiling on `limit` for any query arriving from an untrusted boundary.
+ *
+ * `limit` used to be validated as "a positive integer" and nothing else, so a
+ * caller could ask for `1e9`. Read paths fan a query out across every
+ * recipient address the caller answers to and pass the limit straight through,
+ * and the store pre-limits in SQL — so an absurd limit is not clamped
+ * anywhere: it materializes every matching row (a `JSON.parse` plus a receipt
+ * fold each) once per address.
+ *
+ * 500 is far above what any real reader asks for — the agent loop uses 10,
+ * `mail_inbox` defaults to 20, the HQ snapshot to 50.
+ */
+export const MAILBOX_MAX_QUERY_LIMIT = 500;
+
+/**
+ * Ceiling on batch acknowledgement size from an untrusted boundary.
+ *
+ * `Mailbox.ackMany` applies the whole batch inside ONE `BEGIN IMMEDIATE` and
+ * does a message lookup per entry. Unbounded (except by a 256 KB body cap that
+ * still fits roughly 4,700 acks), a single request meant ~9,400 statements
+ * holding the project's only write lock while every other surface — agent
+ * loop, TUI, WebUI — waited out `busy_timeout` and then failed.
+ *
+ * The same ceiling applies to read limits because a `check` acks what it
+ * returns: an uncapped limit there is an uncapped ack batch.
+ */
+export const MAILBOX_MAX_ACK_BATCH = 500;
+
 // ── HTTP bridge rate limiting ──────────────────────────────────────────────
-
-/** Maximum requests per minute from a single external agent (bearer token). */
-export const HTTP_RATE_LIMIT_PER_MINUTE = 120;
-
-/** Window size for the sliding-window rate limiter. */
-export const HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
+//
+// Lives in `mailbox-http-rate-limit.ts` as `MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE`
+// / `_WINDOW_MS` — that pair is what the limiter defaults to and what
+// `mailbox-http-router.ts` imports, and it is the pair re-exported from
+// `coordination/index.ts`. A second copy here was never read by anything but a
+// test asserting its value, which is the worst shape for a limit: two numbers
+// that must agree, with only one of them enforced. Change the limit there.

@@ -1,3 +1,4 @@
+import { MAILBOX_MAX_ACK_BATCH, MAILBOX_MAX_QUERY_LIMIT } from './mailbox-constants.js';
 import { resolveSendType } from './mailbox-message-codec.js';
 import type {
   AgentHeartbeatInput,
@@ -16,6 +17,16 @@ import type {
 import { MAILBOX_TYPE_PROPERTIES, normalizeRecipient } from './mailbox-types.js';
 
 export const MAILBOX_HTTP_MAX_AGE_CEILING_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// The request bounds live in `mailbox-constants.ts` because they are not an
+// HTTP concern — they bound work in the store, and every untrusted boundary
+// (this router, the boundary codecs in `mailbox-codecs.ts`) has to apply the
+// same ceiling. A second copy here is how the two validation modules drifted
+// apart in the first place.
+export {
+  MAILBOX_MAX_ACK_BATCH,
+  MAILBOX_MAX_QUERY_LIMIT,
+} from './mailbox-constants.js';
 
 export class MailboxHttpValidationError extends Error {}
 
@@ -249,7 +260,11 @@ function rejectUnexpectedIdentity(object: Record<string, unknown>, key: string):
   }
 }
 
-export function validateSend(body: unknown, actorId?: string): MailboxSendInput {
+export function validateSend(
+  body: unknown,
+  actorId?: string,
+  actorSessionId?: string,
+): MailboxSendInput {
   if (typeof body !== 'object' || body === null) {
     throw validationError('expected JSON object body');
   }
@@ -276,7 +291,24 @@ export function validateSend(body: unknown, actorId?: string): MailboxSendInput 
       );
     }
   }
-  const to = normalizeRecipient(requireString(object, 'to'));
+  // `@session` is a documented alias, but it can only be expanded against a
+  // session id. A credential-authenticated actor has one; a bearer-token
+  // operator does not. Without one, `normalizeRecipient` throws a bare
+  // `TypeError` from `sessionRecipient('')` — which is NOT a
+  // `MailboxHttpValidationError`, so the router's catch classified it as
+  // INTERNAL_ERROR and answered a documented recipient alias with a 500.
+  // Expand it when we can, and refuse it as a 400 with a usable message when
+  // we cannot.
+  const rawTo = requireString(object, 'to');
+  let to: string;
+  try {
+    to = normalizeRecipient(rawTo, actorSessionId);
+  } catch {
+    throw validationError(
+      'field "to" cannot use the "@session" alias on this connection: no session is bound to the ' +
+        'caller. Address a specific agent id, a base alias, "*", or an explicit "@session:<id>".',
+    );
+  }
 
   // Cross-field (type, to) validation must use the same canonical recipient
   // that is forwarded to and persisted by the mailbox.
@@ -321,8 +353,10 @@ export function validateQuery(body: unknown): MailboxQuery {
   const since = optionalString(object, 'since');
   const limit = optionalNumber(object, 'limit');
   if (limit !== undefined) {
-    if (!Number.isInteger(limit) || limit < 1) {
-      throw validationError('field "limit" must be a positive integer when present');
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAILBOX_MAX_QUERY_LIMIT) {
+      throw validationError(
+        `field "limit" must be an integer between 1 and ${MAILBOX_MAX_QUERY_LIMIT} when present`,
+      );
     }
   }
   const incompleteOnly = optionalBoolean(object, 'incompleteOnly');
@@ -366,8 +400,10 @@ export function validateCheck(body: unknown, actorId?: string): MailboxCheckInpu
   const outcome = optionalString(object, 'outcome');
   if (baseId !== undefined) result.baseId = baseId;
   if (limit !== undefined) {
-    if (!Number.isInteger(limit) || limit < 1) {
-      throw validationError('field "limit" must be a positive integer when present');
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAILBOX_MAX_QUERY_LIMIT) {
+      throw validationError(
+        `field "limit" must be an integer between 1 and ${MAILBOX_MAX_QUERY_LIMIT} when present`,
+      );
     }
     result.limit = limit;
   }
@@ -404,6 +440,11 @@ export function validateAckMany(body: unknown, actorId?: string): MailboxAckBatc
   }
   const raw = (body as Record<string, unknown>)['acks'];
   if (!Array.isArray(raw)) throw validationError('field "acks" is required (array)');
+  if (raw.length > MAILBOX_MAX_ACK_BATCH) {
+    throw validationError(
+      `field "acks" must contain at most ${MAILBOX_MAX_ACK_BATCH} entries (got ${raw.length})`,
+    );
+  }
   return { acks: raw.map((entry) => validateAck(entry, actorId)) };
 }
 

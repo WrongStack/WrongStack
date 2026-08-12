@@ -468,6 +468,7 @@ export class RemoteMailbox implements Mailbox {
     const publisher = this.hqPublisher;
     if (
       !publisher ||
+      this.closed ||
       (!event.startsWith('mailbox.agent_') && !event.startsWith('mailbox.client_'))
     ) {
       return;
@@ -484,26 +485,52 @@ export class RemoteMailbox implements Mailbox {
           : event === 'mailbox.agent_deregistered'
             ? 'agent.deregistered'
             : undefined;
+
+    // Only a fresh registration introduces a roster row worth fetching, so it
+    // is the only transition that pays for a `getAgentStatuses()` round-trip.
+    // Every registry event used to pay for one, which meant:
+    //   - `agent.heartbeat`: one IPC call per agent per 30s per attached
+    //     wrapper, to attach a roster entry whose only consumer reads
+    //     `agent.online`. The coalesced snapshot is the authoritative roster,
+    //     and heartbeats deliberately do not schedule one (below) precisely
+    //     because they move no roster membership — fetching it here
+    //     contradicted that.
+    //   - `agent.deregistered`: the row is already deleted from the registry
+    //     by the time the event fires, so the lookup could never match. The
+    //     published payload was identical to the one built here.
+    //   - `mailbox.client_*`: carries no `agentId` and maps to no action, so
+    //     the fetched roster was discarded untouched.
+    if (action !== 'agent.registered') {
+      if (action) {
+        publisher.publishMailboxEvent({
+          mailboxId,
+          action,
+          ...(agentId ? { summary: agentId } : {}),
+        });
+      }
+      // A heartbeat only refreshes one agent's `lastSeen` — it changes no
+      // roster membership and no message state, so the snapshot rollup it
+      // used to trigger was pure duplication of the delta just published.
+      // With one heartbeat per agent per 30s, that path alone accounted for
+      // most of the snapshot volume. Deregistration and client registry
+      // changes do move state, so those still schedule a (coalesced) snapshot.
+      if (action !== 'agent.heartbeat') this.scheduleHqSnapshot(mailboxId);
+      return;
+    }
+
     void this.getAgentStatuses()
       .then((statuses) => {
+        if (this.closed) return;
         const agent = agentId
           ? statuses.find((candidate) => candidate.agentId === agentId)
           : undefined;
-        if (action) {
-          publisher.publishMailboxEvent({
-            mailboxId,
-            action,
-            ...(agent ? { agent } : {}),
-            ...(agentId ? { summary: agentId } : {}),
-          });
-        }
-        // A heartbeat only refreshes one agent's `lastSeen` — it changes no
-        // roster membership and no message state, so the snapshot rollup it
-        // used to trigger was pure duplication of the delta just published.
-        // With one heartbeat per agent per 30s, that path alone accounted for
-        // most of the snapshot volume. Registration and deregistration do
-        // move the roster, so those still schedule a (coalesced) snapshot.
-        if (action !== 'agent.heartbeat') this.scheduleHqSnapshot(mailboxId);
+        publisher.publishMailboxEvent({
+          mailboxId,
+          action,
+          ...(agent ? { agent } : {}),
+          ...(agentId ? { summary: agentId } : {}),
+        });
+        this.scheduleHqSnapshot(mailboxId);
       })
       .catch(() => {
         // HQ telemetry remains best-effort.

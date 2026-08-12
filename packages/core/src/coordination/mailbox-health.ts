@@ -24,6 +24,22 @@
  * The watchdog is a passive observer: it does NOT start the bridge.
  * Starting the bridge is the user's job (`wstack mailbox serve` or
  * `/mailbox-serve`). The watchdog then reports on what the user did.
+ *
+ * ## Scope: the HTTP bridge, NOT the project mailbox owner
+ *
+ * Do not reach for this to check whether the mailbox is up. The two processes
+ * are unrelated:
+ *
+ * - The **project mailbox owner** (`mailbox-project-server.ts`) is required
+ *   and self-healing — clients spawn it on demand and it idles out after five
+ *   minutes. Its liveness is `MailboxProjectServerConnection.probeStatus()`,
+ *   which is what the TUI/WebUI connections-health surfaces call.
+ * - The **HTTP bridge** this watchdog probes is an optional façade that exists
+ *   so EXTERNAL agents can reach the mailbox over HTTP. Since 2026-08-07 its
+ *   feature gate (`features.mailboxBridge`) defaults to `'off'`, so on a
+ *   default install there is nothing here to watch — which is why this class
+ *   has no production caller. It stays exported for operators who turn the
+ *   bridge on; construct it only alongside a bridge you actually started.
  */
 
 import type { Mailbox, MailboxSendInput } from './mailbox-types.js';

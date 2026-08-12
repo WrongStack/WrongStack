@@ -338,10 +338,12 @@ describe('mailbox-bridge — staleness filter on query responses', () => {
     // before the assertions depend on it. /mailbox/check requires
     // `agentId`; `markRead: false` keeps the probe from mutating read state,
     // so the /mailbox/query?sinceMs=0 assertion below is unaffected.
+    // `limit` is capped at MAILBOX_HTTP_MAX_QUERY_LIMIT (500) — /check acks
+    // what it returns, so an uncapped limit is also an uncapped ack batch.
     const probe = await http(
       'POST',
       '/mailbox/check',
-      { agentId: 'probe-agent', markRead: false, limit: 1_000 },
+      { agentId: 'probe-agent', markRead: false, limit: 500 },
       auth(),
     );
     expect(probe.status).toBe(200);

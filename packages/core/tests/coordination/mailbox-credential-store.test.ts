@@ -267,6 +267,47 @@ describe('rotate', () => {
     const result = await store.rotate(old.credentialId);
     expect(result!.credential.capabilities).toEqual(['mail.send.actionable', 'mail.read.all']);
   });
+
+  it('carries the predecessor lifetime forward instead of resetting to the maximum', async () => {
+    // Rotation defaulted to MAX_CREDENTIAL_TTL for the kind, so a deliberately
+    // short-lived token silently became a 7-day one on its first rotation.
+    await store.load();
+    const shortTtlMs = 5 * 60_000;
+    const { credential: old } = await store.issue({
+      principalId: 'agent-rot-ttl',
+      kind: 'agent',
+      capabilities: ['mail.read.self'],
+      ttlMs: shortTtlMs,
+    });
+
+    const result = await store.rotate(old.credentialId);
+    const rotated = result!.credential;
+    const lifetimeMs =
+      new Date(rotated.expiresAt).getTime() - new Date(rotated.issuedAt).getTime();
+    expect(lifetimeMs).toBe(shortTtlMs);
+    // And an explicit ttl still wins.
+    const explicit = await store.rotate(rotated.credentialId, { ttlMs: 60_000 });
+    const explicitLifetimeMs =
+      new Date(explicit!.credential.expiresAt).getTime() -
+      new Date(explicit!.credential.issuedAt).getTime();
+    expect(explicitLifetimeMs).toBe(60_000);
+  });
+
+  it('refuses to rotate a revoked credential', async () => {
+    // Rotation minted a fresh ACTIVE credential with the revoked one's
+    // principal and capabilities, logged as an ordinary rotation. Undoing a
+    // revocation has to be an explicit re-issue.
+    await store.load();
+    const { credential: old } = await store.issue({
+      principalId: 'agent-rot-revoked',
+      kind: 'agent',
+      capabilities: ['mail.read.self'],
+      ttlMs: 60_000,
+    });
+    await store.revoke(old.credentialId, 'compromised');
+
+    expect(await store.rotate(old.credentialId)).toBeNull();
+  });
 });
 
 // ── List / StatusCounts ───────────────────────────────────────

@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.306.0',
+  version: '0.306.1',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -321,9 +321,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.306.0',
+    date: '2026-08-12',
+    latest: true,
+    tagline: 'Evidence-bearing reviews, trustworthy Kanban completion, and prompt choice',
+    highlights: [
+      'Interactive launches offer Lite, Standard, and Pro system prompts with estimates computed from the same resolved instruction layers used at runtime, then persist the selection',
+      'Chimera accepts a dedicated fallback ladder, emits structured findings, verifies cited files and code anchors against disk, and records observed cascade evidence in an auditable report lifecycle',
+      'Kanban verification reports bind passed criteria to current ids and description/type fingerprints; focused tickChecks can settle manual criteria through the same preflight and mutation contract',
+      'The new gitignore-guard plugin suggests missing artifact ignore rules after writes and can append them when configured, bringing the managed inventory to 73 plugins',
+      'The TUI settings picker budgets rows from the real viewport and wrapping width so short terminals and filtered lists no longer overflow into garbled native scrollback',
+      'SAGE domain-term extraction uses sentence-bounded definitions, mention-frequency confidence, and identical ordering in the on-disk and model-facing glossaries',
+    ],
+  },
+  {
     version: '0.305.1',
     date: '2026-08-11',
-    latest: true,
     tagline: 'Self-healing project daemons, leak-free transports, and 35 TUI themes',
     highlights: [
       'The TUI ships 35 persistent presets through an interactive /theme picker, with complete palette tokens for panels, transcript roles, syntax highlighting, monitors, and diff washes',

@@ -366,7 +366,11 @@ async function dispatchMailboxRoute(
   }
 
   if (method === 'POST' && path === '/mailbox/send') {
-    const input = validateSend(await readJsonBody(request, maxBodyBytes), actor?.actorId);
+    const input = validateSend(
+      await readJsonBody(request, maxBodyBytes),
+      actor?.actorId,
+      actor?.sessionId,
+    );
     if (actor !== undefined) {
       const requiredCapability = requiredSendCapability(input.type);
       if (requiredCapability === undefined || !hasMailboxCapability(actor, requiredCapability)) {
@@ -474,11 +478,7 @@ async function dispatchMailboxRoute(
     const input = validateAckMany(await readJsonBody(request, maxBodyBytes), actor?.actorId);
     if (actor !== undefined) {
       const requestedIds = new Set(input.acks.map((ack) => ack.messageId));
-      const visibleIds = new Set(
-        (await queryVisibleMessagesForActor(mailbox, actor))
-          .filter((message) => requestedIds.has(message.id))
-          .map((message) => message.id),
-      );
+      const visibleIds = await visibleMessageIdsForActor(mailbox, actor, [...requestedIds]);
       if (visibleIds.size !== requestedIds.size) {
         writeJson(response, 404, { error: { code: 'NOT_FOUND', message: 'message not found' } });
         return;
@@ -631,17 +631,54 @@ async function queryMessagesForActor(
   return visible.slice(0, query.limit ?? 50);
 }
 
-async function queryVisibleMessagesForActor(
+/**
+ * Which of `messageIds` this actor is allowed to see.
+ *
+ * Answers the question with an id-scoped query rather than by listing the
+ * actor's whole mailbox and scanning it. The listing form asked the store for
+ * an unbounded result (`limit: Number.MAX_SAFE_INTEGER`) once per eligible
+ * recipient address, and each of those calls materialized every matching row,
+ * joined the entire receipt table (`materializeMessageRows` stops using
+ * targeted receipt lookups past 500 rows), and — because the query carried no
+ * `unreadBy` — re-read and pruned the agent registry as well. That ran on
+ * every single `/mailbox/ack`, to decide one boolean.
+ *
+ * The id filter keeps the exact same visibility semantics: the query still
+ * fans out over the actor's eligible recipient addresses and still applies
+ * `isMailboxMessageVisibleTo`, so an id the actor may not see is simply
+ * absent from the result.
+ */
+async function visibleMessageIdsForActor(
   mailbox: Mailbox,
   actor: MailboxActorContext,
-): Promise<MailboxMessage[]> {
-  return queryMessagesForActor(mailbox, actor, {
+  messageIds: readonly string[],
+): Promise<Set<string>> {
+  if (messageIds.length === 0) return new Set();
+  const requested = new Set(messageIds);
+  const ids = [...requested];
+  const messages = await queryMessagesForActor(mailbox, actor, {
+    ids,
     readerRole: actor.role,
-    limit: Number.MAX_SAFE_INTEGER,
     includeReceiptState: true,
+    // Bounded by the request: at most one row can come back per requested id.
+    limit: ids.length,
   });
+  // Intersect rather than trust the store to have honored `ids`. This result
+  // is an authorization decision — the caller compares set sizes to decide
+  // whether every requested message is the actor's — so a store that ignores
+  // the filter (a stub, an older daemon, a future implementation) must not be
+  // able to widen it. The filter is an optimization; this is the boundary.
+  return new Set(messages.filter((message) => requested.has(message.id)).map((m) => m.id));
 }
 
+/**
+ * An exact count cannot be bounded by a `limit` the way a visibility check
+ * can — truncating the set would report the wrong number — so this one still
+ * asks for everything unread. It stays affordable because `unreadBy` is set:
+ * the store's unread predicate runs in SQL, the per-subquery agent-registry
+ * read is skipped, and the unread set is bounded by retention (24h default,
+ * 30 minutes for `status`) rather than by total mailbox size.
+ */
 async function unreadCountForActor(
   mailbox: Mailbox,
   actor: MailboxActorContext,
@@ -670,8 +707,7 @@ async function isMessageVisibleToActor(
   messageId: string,
   actor: MailboxActorContext,
 ): Promise<boolean> {
-  const messages = await queryVisibleMessagesForActor(mailbox, actor);
-  return messages.some((message) => message.id === messageId);
+  return (await visibleMessageIdsForActor(mailbox, actor, [messageId])).has(messageId);
 }
 
 function requiredSendCapability(type: MailboxMessageType): MailboxCapability | undefined {

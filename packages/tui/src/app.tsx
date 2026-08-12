@@ -500,13 +500,17 @@ export function App(props: AppProps): React.ReactElement {
     stdout,
   });
 
-  const { bottomRegionRef, statusBarWrapRef, belowStatusBarRef, termRows } = useHistoryViewportSync(
-    {
-      stdoutRows: stdout?.rows,
-      viewportRows: state.viewportRows,
-      setViewportRows: (rows) => dispatch({ type: 'setViewportRows', rows }),
-    },
-  );
+  const {
+    bottomRegionRef,
+    statusBarWrapRef,
+    belowStatusBarRef,
+    termRows,
+    statusBarRows,
+  } = useHistoryViewportSync({
+    stdoutRows: stdout?.rows,
+    viewportRows: state.viewportRows,
+    setViewportRows: (rows) => dispatch({ type: 'setViewportRows', rows }),
+  });
   // Chip click map: written by StatusBar on every render, read by the mouse
   // hit-test in app-key-handler. See StatusBarClickMap.
   const statusBarClickMapRef = React.useRef<StatusBarClickMap | null>(null);
@@ -1241,6 +1245,7 @@ export function App(props: AppProps): React.ReactElement {
         viewState,
         mouseMode,
         termRows,
+        statusBarRows,
         bottomRegionRef,
         statusBarWrapRef,
         belowStatusBarRef,

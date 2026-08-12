@@ -55,6 +55,12 @@ export interface AppViewRuntime {
   bottomRegionRef: MutableRefObject<DOMElement | null>;
   statusBarWrapRef: MutableRefObject<DOMElement | null>;
   belowStatusBarRef: MutableRefObject<DOMElement | null>;
+  /**
+   * Measured rows consumed by the status chrome below the pickers (status
+   * bar + mailbox/monitors/key-hint). Picker overlays use it to size their
+   * window against the real remaining space instead of a hardcoded guess.
+   */
+  statusBarRows: number;
   /** Chip click map published by StatusBar; consumed by the mouse hit-test. */
   statusBarClickMapRef: MutableRefObject<
     import('./components/status-bar-types.js').StatusBarClickMap | null

@@ -356,6 +356,13 @@ export {
   createMailboxHooks,
   type MailboxHooksOptions,
 } from './mailbox-hooks.js';
+// Request bounds every untrusted boundary must apply. Exported so the
+// out-of-package surfaces (mailbox-mcp) enforce the same ceiling as the
+// in-package ones rather than inventing their own.
+export {
+  MAILBOX_MAX_ACK_BATCH,
+  MAILBOX_MAX_QUERY_LIMIT,
+} from './mailbox-constants.js';
 export {
   authorizeMailboxBearerToken,
   authorizePersistedMailboxCredential,

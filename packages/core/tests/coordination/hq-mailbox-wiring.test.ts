@@ -148,6 +148,45 @@ describe('project mailbox HQ publisher wiring', () => {
     expect(publishSnapshot).not.toHaveBeenCalled();
   });
 
+  it('does not fetch the roster for a heartbeat or a deregistration', async () => {
+    const mailbox = open(makePublisher());
+    await mailbox.registerAgent({
+      agentId: 'leader@1',
+      sessionId: 'session_1',
+      name: 'Leader',
+      role: 'leader',
+      pid: 1,
+      source: 'cli',
+    });
+    // Registration is the one transition that legitimately fetches: it is the
+    // only event that introduces a roster row, so its delta carries `agent`.
+    await expect
+      .poll(
+        () => publishEvent.mock.calls.find((c) => (c[0] as { action: string }).action === 'agent.registered')?.[0],
+        { timeout: 5000 },
+      )
+      .toMatchObject({ agent: { agentId: 'leader@1' } });
+
+    // `getAgentStatuses` is an IPC round-trip. Spying on it is the direct
+    // assertion; the absence of `agent` on the deltas below is its observable
+    // consequence, and is what actually regresses if the fetch comes back.
+    const fetchSpy = vi.spyOn(mailbox, 'getAgentStatuses');
+    publishEvent.mockClear();
+
+    await mailbox.heartbeat({ agentId: 'leader@1', status: 'running' });
+    await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('agent.heartbeat');
+    await mailbox.deregisterAgent('leader@1');
+    await expect.poll(() => publishedActions(), { timeout: 5000 }).toContain('agent.deregistered');
+
+    for (const action of ['agent.heartbeat', 'agent.deregistered']) {
+      const call = publishEvent.mock.calls.find((c) => (c[0] as { action: string }).action === action);
+      // `summary` still identifies the agent; the full roster entry does not.
+      expect(call?.[0]).toMatchObject({ summary: 'leader@1' });
+      expect(call?.[0]).not.toHaveProperty('agent');
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('coalesces snapshots across a burst of message activity', async () => {
     const mailbox = open(makePublisher());
     for (let index = 0; index < 8; index++) {

@@ -90,22 +90,96 @@ function presetHelpLines(perLine = 4): string[] {
   return lines;
 }
 
+/**
+ * Windowed slice of the theme list for the raw-terminal picker — mirrors the
+ * math in the TUI's `useWindowedPicker` (same centering + marker rules) so
+ * both pickers agree on how many presets fit and which rows are visible.
+ * `rows` is the raw terminal height; the picker reserves its chrome (header,
+ * hint, blanks) plus worst-case marker rows up front, so a 24-row terminal
+ * never renders all 40 presets.
+ *
+ * Exported for direct unit testing (packages/cli/tests/slash-theme.test.ts);
+ * the picker itself treats it as private.
+ */
+export function computeWindow(total: number, selected: number, rows: number): {
+  start: number;
+  end: number;
+  hasAbove: boolean;
+  hasBelow: boolean;
+} {
+  const chromeRows = 5; // blank, title, hint, blank, trailing blank
+  const markerRows = 2; // worst case: one `… more above` + one `… more below`
+  const minVisible = 3;
+  if (total <= 0) return { start: 0, end: 0, hasAbove: false, hasBelow: false };
+  const available = Math.max(1, rows - chromeRows - markerRows);
+  const visible = Math.max(minVisible, Math.min(total, Math.floor(available)));
+  const safeSelected = selected >= 0 && selected < total ? selected : 0;
+
+  let start: number;
+  if (safeSelected < visible) {
+    // Top-aligned on the first page so the user sees the list start.
+    start = 0;
+  } else {
+    // Center the focused row, then clamp so the window never bleeds past
+    // the end. Mirrors useWindowedPicker.
+    const halfWindow = Math.floor(visible / 2);
+    start = safeSelected - halfWindow;
+    start = Math.max(0, Math.min(total - visible, start));
+  }
+  const end = Math.min(total, start + visible);
+  return { start, end, hasAbove: start > 0, hasBelow: end < total };
+}
+
+/**
+ * Truncate an option's description so the rendered row never wraps on a
+ * narrow terminal. `computeWindow` budgets ONE terminal row per option; a
+ * description that wrapped onto a second physical line would silently break
+ * that budget and re-introduce the vertical overflow this picker was fixed
+ * to avoid. The description is plain text here (color-wrapped by the caller
+ * AFTER truncation), so measuring its length is ANSI-safe.
+ *
+ * Fixed chrome per row: 2 indent + 2 cursor + 21 name + 1 gap = 26 columns,
+ * plus the ` [active]` mark (9 columns) when the option is the active preset.
+ *
+ * Exported for direct unit testing (packages/cli/tests/slash-theme.test.ts);
+ * the picker itself treats it as private.
+ */
+export function truncateDesc(desc: string, columns: number, active: boolean): string {
+  const markWidth = active ? 9 : 0;
+  const budget = Math.max(0, columns - 26 - markWidth);
+  if (desc.length <= budget) return desc;
+  if (budget <= 1) return '…';
+  return `${desc.slice(0, budget - 1)}…`;
+}
+
 /** Interactive terminal picker using arrow keys (↑↓) and Enter to select a theme. */
 async function runThemePicker(reader: InputReader, activeId?: string): Promise<string | undefined> {
   let cursor = THEME_OPTIONS.findIndex((p) => p.id === activeId);
   if (cursor < 0) cursor = 0;
 
   const render = (currentCursor: number) => {
+    const rows = process.stdout.rows ?? 24;
+    const columns = process.stdout.columns ?? 80;
+    const { start, end, hasAbove, hasBelow } = computeWindow(
+      THEME_OPTIONS.length,
+      currentCursor,
+      rows,
+    );
     const lines: string[] = [];
-    lines.push(`\n${color.bold(color.amber('WrongStack') + color.dim(' — TUI Theme Selection'))}\n`);
-    lines.push(color.dim('  ↑↓ navigate   Enter select   q quit\n'));
     lines.push('');
-    for (const [i, p] of THEME_OPTIONS.entries()) {
+    lines.push(`${color.bold(color.amber('WrongStack') + color.dim(' — TUI Theme Selection'))}`);
+    lines.push(color.dim('  ↑↓ navigate   Enter select   q quit'));
+    lines.push('');
+    if (hasAbove) lines.push(color.dim(`  … ${start} more above`));
+    for (let i = start; i < end; i++) {
+      const p = THEME_OPTIONS[i]!;
       const mark = p.id === activeId ? color.green(' [active]') : '';
       const prefix = i === currentCursor ? color.bold('❯ ') : '  ';
       const name = i === currentCursor ? color.bold(p.name) : p.name;
-      lines.push(`  ${prefix}${name.padEnd(21)} ${color.dim(p.desc)}${mark}`);
+      const desc = truncateDesc(p.desc, columns, p.id === activeId);
+      lines.push(`  ${prefix}${name.padEnd(21)} ${color.dim(desc)}${mark}`);
     }
+    if (hasBelow) lines.push(color.dim(`  … ${THEME_OPTIONS.length - end} more below`));
     lines.push('');
     return lines.join('\n');
   };

@@ -1,4 +1,6 @@
 import {
+  MAILBOX_MAX_ACK_BATCH,
+  MAILBOX_MAX_QUERY_LIMIT,
   type MailboxAckInput,
   type MailboxEventEmitter,
   type MailboxMessageType,
@@ -78,7 +80,11 @@ const BASE_SCHEMA: Record<string, unknown> = {
     audience: { type: 'string', enum: ['all', 'leaders'] },
     replyTo: { type: 'string' },
     messageId: { type: 'string' },
-    messageIds: { type: 'array', items: { type: 'string' } },
+    messageIds: {
+      type: 'array',
+      items: { type: 'string' },
+      maxItems: MAILBOX_MAX_ACK_BATCH,
+    },
     read: { type: 'boolean' },
     completed: { type: 'boolean' },
     outcome: { type: 'string' },
@@ -87,7 +93,10 @@ const BASE_SCHEMA: Record<string, unknown> = {
     minPriority: { type: 'string', enum: ['low', 'normal', 'high'] },
     since: { type: 'string' },
     senderSessionId: { type: 'string' },
-    limit: { type: 'number', minimum: 1, maximum: 1_000 },
+    // Advisory only — MCPServer does not validate inputSchema, it is a hint to
+    // the model. The ceiling is ENFORCED in `boundedLimit()` below; keep the
+    // two in agreement so the hint does not describe a request that is refused.
+    limit: { type: 'number', minimum: 1, maximum: MAILBOX_MAX_QUERY_LIMIT },
     includeDeleted: { type: 'boolean' },
     ttlMs: { type: 'number', minimum: 1 },
     name: { type: 'string' },
@@ -192,6 +201,26 @@ function optionalNumber(args: Record<string, unknown>, key: string): number | un
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+/**
+ * Enforce the shared read ceiling.
+ *
+ * `inputSchema` is NOT validated by MCPServer — it is a description handed to
+ * the model, not a gate — so the `maximum` on `limit` bounded nothing at
+ * runtime. A caller (or a model that ignores the hint) could ask for `1e9`,
+ * and the store pre-limits in SQL: it would materialize every matching row,
+ * each a `JSON.parse` plus a receipt fold. This is the surface built for
+ * external agents, so it must bound its own inputs.
+ *
+ * Clamps rather than throws: a too-large `limit` is a request for "everything",
+ * and answering with the maximum the system will serve is more useful to an
+ * external agent than an error it has to learn to retry.
+ */
+function boundedLimit(args: Record<string, unknown>, key: string): number | undefined {
+  const value = optionalNumber(args, key);
+  if (value === undefined) return undefined;
+  return Math.min(Math.max(1, Math.floor(value)), MAILBOX_MAX_QUERY_LIMIT);
+}
+
 function optionalBoolean(args: Record<string, unknown>, key: string): boolean | undefined {
   const value = args[key];
   return typeof value === 'boolean' ? value : undefined;
@@ -290,9 +319,7 @@ function queryFromArgs(args: Record<string, unknown>): MailboxQuery {
     ...(optionalString(args, 'minPriority') !== undefined
       ? { minPriority: optionalString(args, 'minPriority') as 'low' | 'normal' | 'high' }
       : {}),
-    ...(optionalNumber(args, 'limit') !== undefined
-      ? { limit: optionalNumber(args, 'limit') }
-      : {}),
+    ...(boundedLimit(args, 'limit') !== undefined ? { limit: boundedLimit(args, 'limit') } : {}),
     ...(optionalString(args, 'since') !== undefined
       ? { since: optionalString(args, 'since') }
       : {}),
@@ -416,6 +443,18 @@ async function executeManage(
       const messageIds = args['messageIds'];
       if (!Array.isArray(messageIds) || messageIds.some((id) => typeof id !== 'string')) {
         throw new Error('messageIds must be an array of message ids');
+      }
+      // `ackMany` applies the whole batch inside one `BEGIN IMMEDIATE` with a
+      // lookup per entry, so an unbounded array here holds the project's only
+      // write lock long enough to fail every other surface on `busy_timeout`.
+      // `maxItems` in the schema does not bound it — MCPServer does not
+      // validate inputSchema — so the check has to live here. Reject rather
+      // than truncate: silently acking a prefix of what was asked for would
+      // leave the caller believing the rest was acknowledged.
+      if (messageIds.length > MAILBOX_MAX_ACK_BATCH) {
+        throw new Error(
+          `messageIds must contain at most ${MAILBOX_MAX_ACK_BATCH} ids (got ${messageIds.length})`,
+        );
       }
       const acks: MailboxAckInput[] = messageIds.map((messageId) => ({
         messageId,

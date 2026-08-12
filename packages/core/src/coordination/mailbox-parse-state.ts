@@ -1,16 +1,34 @@
 /**
- * Incremental parse state for the mailbox JSONL file.
+ * Parse state for the legacy mailbox JSONL file.
  *
- * `parseMailboxFile()` is a whole-file operation: it JSON-parses every line and
- * re-projects every message. That is the correct shape for a one-shot read, but
- * the read path is anything but one-shot — `unreadCount()`/`query()` consult the
- * cache on every tool call, and any append by another session invalidates it.
- * On a mailbox holding a day of fleet traffic (~3 MB / ~2.8k lines) that turned
- * into the single largest allocation source in the whole TUI process: ~78% of
- * all bytes allocated while idle, which V8 then let pile up as garbage until a
- * major GC — read as "RAM keeps growing and /clear doesn't help".
+ * ## Where this runs today
  *
- * This module keeps enough state alongside the projections that an APPEND can
+ * ONE caller: `SqliteMailbox.migrateLegacyFiles()` via `parseMailboxFile()`,
+ * i.e. the one-shot import of a pre-SQLite `_mailbox.jsonl` that runs at most
+ * once per project and is then fenced off by the `legacy_files_imported`
+ * marker. Nothing reads JSONL on the live path any more: the detached owner
+ * holds the only handle and every query is SQL.
+ *
+ * The incremental half of this module — `createMailboxParseState` +
+ * `ingestMailboxChunk` called with an appended chunk — has NO production
+ * caller. `parseMailboxFile()` is implemented on top of it (one fold, not
+ * two), so the code runs, but the append path and its invariants (stale-index
+ * tracking, `firstNewIndex`, duplicate-id fan-out) are exercised only by
+ * tests. Treat a change there as unvalidated by production traffic.
+ *
+ * ## Why it was built this way
+ *
+ * Historical, and worth keeping because the fold logic is still the thing
+ * that has to be exact: when the mailbox WAS a JSONL file, the read path was
+ * anything but one-shot — `unreadCount()`/`query()` consulted a cache on every
+ * tool call and any append by another session invalidated it. On a mailbox
+ * holding a day of fleet traffic (~3 MB / ~2.8k lines) a full re-parse per
+ * read became the single largest allocation source in the TUI process: ~78% of
+ * all bytes allocated while idle, piling up as garbage until a major GC — read
+ * as "RAM keeps growing and /clear doesn't help". That pressure is gone with
+ * the store; the exactness requirement is not.
+ *
+ * The module keeps enough state alongside the projections that an APPEND can
  * be folded in without touching the bytes that were already parsed:
  *
  *   - `messages`          — base messages in file order, v1 acks already folded

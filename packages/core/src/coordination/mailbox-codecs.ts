@@ -1,22 +1,43 @@
 /**
- * Shared mailbox boundary codecs.
+ * Actor-aware mailbox boundary codecs.
  *
- * GM-P0.2: These are the single canonical validators that every untrusted
- * boundary (tools, HTTP bridge, WebSocket server, HQ gateway, slash commands)
- * MUST use to parse and validate mailbox inputs. They enforce:
- *
+ * They enforce:
  *   - Type + recipient normalization and semantic validation
  *   - Known-field rejection for mutations; forward-compatible tolerance for queries
- *   - Actor-override rejection (body-supplied `from`, `readerId`, etc.)
- *   - Capability checks for directive sends
+ *   - Actor-override rejection (body-supplied `from`, `readerId`, `unreadBy`, …)
+ *   - Capability checks, via the canonical implication graph
+ *   - The shared request bounds from `mailbox-constants.ts`
  *
- * Downstream tasks (GM-P0.5A) will make the store itself call
- * `validateSendType()` internally so direct typed calls are also gated.
+ * ## What actually uses these
+ *
+ * GM-P0.2 introduced this module as "the single canonical validator every
+ * untrusted boundary MUST use". That is not what happened, and the docstring
+ * claiming otherwise was actively dangerous — it invited new surfaces to wire
+ * themselves here on the assumption that the path was battle-tested by the
+ * HTTP bridge. Reality:
+ *
+ *   - `parseMailboxSendInput` — used by the `mail_send` tool
+ *     (`mail-tools.ts`). This is the only codec here with a production caller.
+ *   - `parseMailboxQueryInput` / `parseMailboxAckInput` — exported, no
+ *     production caller.
+ *   - `parseMailboxRegistrationInput` / `parseMailboxHeartbeatInput` — not
+ *     exported from `coordination/index.ts`, no caller anywhere.
+ *   - The HTTP bridge validates through `mailbox-http-validation.ts`; the
+ *     WebUI WebSocket server through `ws-payload-validation.ts`.
+ *
+ * Unused validators rot in a way unused helpers do not: nothing exercises the
+ * rule, so a gap survives review. Two were found here — a body-supplied
+ * `unreadBy` that drove the store's leaders-only audience gate, and an
+ * unbounded `limit` — both fixed below and both pinned by tests. Keep it that
+ * way, or delete the codec: an unenforced boundary is worse than no boundary,
+ * because it reads like one.
  *
  * @module mailbox-codecs
  */
 
+import { MAILBOX_MAX_QUERY_LIMIT } from './mailbox-constants.js';
 import {
+  hasMailboxCapability,
   MAILBOX_TYPE_PROPERTIES,
   mailboxIdentityBase,
   normalizeRecipient,
@@ -92,13 +113,8 @@ export interface ParsedSendInput {
   priority: 'low' | 'normal' | 'high';
   audience: MailboxAudience;
   replyTo: string | undefined;
-  /**
-   * Session-affinity token. When set, the recipient's leader filter
-   * (`acceptMailboxMessageForSession` in `mailbox-types.ts`) uses it to
-   * drop the message if the recipient's current session id does not match
-   * the originating session. A sender-asserted mismatch is rejected; a
-   * missing or malformed token is treated as no token.
-   */
+  // No `sessionAffinity`: see SEND_ALLOWED_FIELDS. The token is stamped only
+  // by trusted internal callers, never carried across this boundary.
 }
 
 /**
@@ -181,7 +197,7 @@ export function parseMailboxSendInput(
  * Parse and validate a query payload from an untrusted boundary.
  *
  * Queries tolerate unknown fields (forward compatibility for read-only clients).
- * Actor-derived recipient forms are NOT overridden by body-supplied `readerRole`.
+ * Identity fields (`unreadBy`, `readerRole`) come from the actor, never the body.
  *
  * @throws {MailboxValidationError} on any validation failure.
  */
@@ -196,7 +212,40 @@ export function parseMailboxQueryInput(
   // All fields are optional; validate types when present.
   query.to = optionalString(payload, 'to', 'query');
   query.from = optionalString(payload, 'from', 'query');
-  query.unreadBy = optionalString(payload, 'unreadBy', 'query');
+
+  // `unreadBy` is an IDENTITY, not a filter, and it must come from the actor.
+  //
+  // The store's audience gate keys off `unreadBy`, not off `readerRole`:
+  //
+  //     if (!isMailboxLeader(query.unreadBy, query.readerRole)) {
+  //       where.push("… audience <> 'leaders'");
+  //     }
+  //
+  // and `isMailboxLeader` accepts any identity whose base segment is
+  // `leader`. So a body-supplied `unreadBy: "leader@zzzz"` from a worker
+  // credential holding nothing but `mail.read.self` made the store answer as
+  // though a leader had asked — returning `audience: 'leaders'` mail, which
+  // exists precisely to be invisible to that caller. Verified against the
+  // store before the fix: the same actor saw one message with its own id and
+  // two (including the leaders-only one) with a forged leader id.
+  //
+  // Passing another actor's id was also an enumeration primitive in its own
+  // right — "what has agent X not read yet" is not the caller's business.
+  //
+  // Legacy operators keep the override: that principal is the bearer-token
+  // admin path, which is already trusted to read on behalf of anyone.
+  const bodyUnreadBy = optionalString(payload, 'unreadBy', 'query');
+  if (actor.authMode === 'legacy-operator' && bodyUnreadBy) {
+    query.unreadBy = bodyUnreadBy;
+  } else if (bodyUnreadBy !== undefined && bodyUnreadBy !== actor.actorId) {
+    throw new MailboxValidationError(
+      'FORBIDDEN',
+      'unreadBy',
+      'field "unreadBy" may not name another actor',
+    );
+  } else if (bodyUnreadBy !== undefined) {
+    query.unreadBy = actor.actorId;
+  }
 
   // readerRole is NEVER trusted from the body — derive from actor.
   query.readerRole = actor.role ?? mailboxIdentityBase(actor.actorId);
@@ -218,8 +267,17 @@ export function parseMailboxQueryInput(
 
   const rawLimit = payload['limit'];
   if (rawLimit !== undefined) {
-    if (typeof rawLimit !== 'number' || !Number.isFinite(rawLimit) || rawLimit < 0) {
-      throw new MailboxValidationError('VALIDATION_ERROR', 'limit', 'field "limit" must be a non-negative number');
+    if (
+      typeof rawLimit !== 'number' ||
+      !Number.isFinite(rawLimit) ||
+      rawLimit < 0 ||
+      rawLimit > MAILBOX_MAX_QUERY_LIMIT
+    ) {
+      throw new MailboxValidationError(
+        'VALIDATION_ERROR',
+        'limit',
+        `field "limit" must be a number between 0 and ${MAILBOX_MAX_QUERY_LIMIT}`,
+      );
     }
     query.limit = Math.floor(rawLimit);
   }
@@ -264,7 +322,15 @@ export function parseMailboxAckInput(
 
   return {
     messageId,
-    read: read ?? false,
+    // Omit `read` when the caller did not state it, rather than defaulting it
+    // to `false`. `MailboxAckInput.read` is documented as "defaults to true if
+    // not specified", and the store implements exactly that (`ack.read !==
+    // false`). Materializing `false` here inverted the contract: an ack sent
+    // through this codec without an explicit `read` left the message unread,
+    // while the same ack through `mailbox-http-validation.validateAck` — which
+    // omits the field — marked it read. Two boundary codecs, one store, two
+    // answers.
+    ...(read !== undefined ? { read } : {}),
     ...(completed !== undefined ? { completed } : {}),
     readerId,
     outcome,
@@ -492,24 +558,14 @@ function assertCapability(
   cap: MailboxCapability,
   op: string,
 ): void {
-  const caps = actor.capabilities;
-  if (caps.has(cap)) return;
-
-  // Check if any held capability implies the required one.
-  // Implication: mail.read.all => mail.read.self, etc.
-  const implications: Record<string, readonly string[]> = {
-    'mail.read.self': ['mail.read.all'],
-    'mail.events.self': ['mail.events.all'],
-    'mail.send.informational': ['mail.send.actionable', 'mail.send.directive'],
-    'mail.send.actionable': ['mail.send.directive'],
-  };
-  const implies = implications[cap];
-  if (implies) {
-    for (const held of implies) {
-      if (caps.has(held as MailboxCapability)) return;
-    }
-  }
-
+  // Delegates to the canonical graph in `mailbox-auth-types.ts`. This used to
+  // carry a hand-maintained INVERSE of that table (required capability → the
+  // capabilities that imply it). It happened to agree, but an inverse index of
+  // a table that already exists is a drift waiting to happen: adding one edge
+  // to `MAILBOX_CAPABILITY_IMPLICATIONS` and forgetting to invert it here
+  // fails open on one surface and closed on the other, with nothing to catch
+  // it. `hasMailboxCapability` computes the closure from the single table.
+  if (hasMailboxCapability(actor, cap)) return;
   throw new MailboxValidationError(
     'FORBIDDEN',
     'capabilities',

@@ -114,12 +114,14 @@ export {
  * 6. **Awareness polling**: `btw` messages intercepted by background
  *    polling are queued via `setBtwNote()` for injection at a safe loop
  *    boundary, not folded inline.
- * 7. **Agent registry**: `getAgentStatuses()` reads the dedicated agent
- *    registry (`_mailbox.registry.json`), not mailbox message content. The
- *    registry is populated by agent heartbeat calls (not by `status`-type
- *    messages). `Mailbox.getAgentStatuses()` derives
- *    a registry snapshot from `status`-type messages as a fallback when no
- *    shared registry file exists.
+ * 7. **Agent registry**: `getAgentStatuses()` reads the dedicated `agents`
+ *    table, not mailbox message content. That table is populated by
+ *    `registerAgent` / `heartbeat` — never by `status`-type messages, which
+ *    are ordinary mail and carry no presence meaning. There is no fallback
+ *    that derives presence from message content: the registry is either the
+ *    owner's table or nothing. (It was `_mailbox.registry.json` before the
+ *    SQLite cutover; both that file and the derive-from-messages fallback are
+ *    gone.)
  * 8. **Request-scoped context**: delivered raw mailbox blocks are removed
  *    after one successful provider evaluation. Durable assistant/tool/task
  *    consequences remain; routine mail does not occupy later requests.
@@ -147,6 +149,32 @@ export function mailboxIdentityBase(agentId: string): string {
 /** Whether a mailbox identity belongs to the session's main/leader agent. */
 export function isMailboxLeader(agentId: string, role?: string): boolean {
   return mailboxIdentityBase(agentId) === 'leader' || role?.trim().toLowerCase() === 'leader';
+}
+
+/**
+ * Whether a sender identity belongs to a named agent family.
+ *
+ * Matches the family id exactly, or as the `<family>-<suffix>` prefix that a
+ * spawned worker carries. Both forms occur in practice for the same logical
+ * sender: a pipeline agent may post under its plain id (`dep-watcher`, which
+ * `makeDependencyWatcherConfig` sends as), or a subagent may post under the
+ * name it was spawned with — `host-subagent-factory` sets `ctx.agentId` from
+ * the spawn name, so the tech-stack worker spawned as
+ * `tech-stack-package.json` writes mail from `tech-stack-package.json@<tag>`.
+ * A consumer gating on the plain family id with `===` would silently reject
+ * its own pipeline.
+ *
+ * Same shape as the existing `chimera` / `chimera-*` check in
+ * `applyMailboxSendPolicy` and `host-subagent-factory`.
+ *
+ * Session/process qualifiers are stripped first, so `<family>@<tag>` and
+ * `<family>#<pid>` match too.
+ */
+export function isMailboxSenderInFamily(senderId: string, family: string): boolean {
+  const base = mailboxIdentityBase(senderId);
+  const normalizedFamily = family.trim().toLowerCase();
+  if (normalizedFamily.length === 0) return false;
+  return base === normalizedFamily || base.startsWith(`${normalizedFamily}-`);
 }
 
 /** Whether a message may be consumed by the supplied agent identity. */
@@ -595,6 +623,22 @@ export interface MailboxAgentStatus {
 // ── Mailbox query ────────────────────────────────────────────────────────
 
 export interface MailboxQuery {
+  /**
+   * Restrict the result to these message ids.
+   *
+   * Exists so a caller that already knows which messages it cares about can
+   * ask about exactly those instead of pulling a set and scanning it. The
+   * HTTP bridge's per-actor visibility checks did the latter — answering
+   * "is this one message mine?" by materializing every message addressed to
+   * the actor, which on a busy project meant a full table read (plus the
+   * whole receipt table, plus a retention projection per row) for every
+   * single `ack`.
+   *
+   * An empty array matches nothing. Untrusted request codecs deliberately do
+   * NOT accept this field — `validateQuery` whitelists, so it stays a
+   * server-side narrowing rather than something a caller can widen.
+   */
+  ids?: readonly string[] | undefined;
   /** Filter by recipient agent id. */
   to?: string | undefined;
   /** Filter by sender agent id. */

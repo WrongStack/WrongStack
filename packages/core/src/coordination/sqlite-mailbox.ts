@@ -245,9 +245,16 @@ export class SqliteMailbox implements Mailbox {
     const type = query.type === undefined ? undefined : normalizeMailboxMessageType(query.type);
     const priorityRank = { low: 0, normal: 1, high: 2 } as const;
     const minimumRank = query.minPriority === undefined ? 0 : priorityRank[query.minPriority];
+    // An explicit empty id set matches nothing — and `IN ()` is not valid
+    // SQL, so this has to short-circuit before the statement is built.
+    if (query.ids !== undefined && query.ids.length === 0) return [];
     const statuses = query.unreadBy === undefined ? await this.getAgentStatuses() : undefined;
     const where: string[] = [];
     const params: Array<string | number> = [];
+    if (query.ids !== undefined) {
+      where.push(`id IN (${query.ids.map(() => '?').join(', ')})`);
+      params.push(...query.ids);
+    }
     if (query.to !== undefined) {
       where.push('(to_id = ? OR to_id = ?)');
       params.push(query.to, '*');
@@ -329,7 +336,9 @@ export class SqliteMailbox implements Mailbox {
       params.push(query.limit ?? 50);
     }
     const rows = this.stmt(sql).all(...params) as unknown as MessageRow[];
+    const idFilter = query.ids === undefined ? undefined : new Set(query.ids);
     const messages = this.materializeMessageRows(rows).filter((message) => {
+      if (idFilter !== undefined && !idFilter.has(message.id)) return false;
       if (query.to !== undefined && message.to !== query.to && message.to !== '*') return false;
       if (query.from !== undefined && message.from !== query.from) return false;
       if (query.sessionId !== undefined && message.senderSessionId !== query.sessionId)
@@ -460,16 +469,81 @@ export class SqliteMailbox implements Mailbox {
     return updated;
   }
 
+  /**
+   * Count the messages this actor has neither read nor completed.
+   *
+   * Pushed into SQL rather than filtering `readMessages()`. The pre-tool hook
+   * asks for this repeatedly — `mailbox-hooks.ts` throttles it to once a
+   * second, which bounds the frequency but not the cost — and the JS form
+   * materialized EVERY row in `messages`, joined the whole `message_receipts`
+   * table, and folded per-actor receipt state across all of them just to
+   * return an integer.
+   *
+   * The predicate is deliberately the same one {@link query} builds for
+   * `{ unreadBy, incompleteOnly }`, because it has to agree exactly with
+   * `isMessageCompletedForActor` and `isMailboxMessageVisibleTo`:
+   *
+   * - **unread** — no per-actor receipt carrying `read_at`, and no legacy
+   *   `readBy` key. Both are checked: `ackMany` writes the receipt row AND
+   *   mirrors the timestamp into the message's `readBy` JSON.
+   * - **incomplete** — not `legacy_global_completion`, no per-actor receipt
+   *   carrying `completed_at`, and the aggregate `completed` flag counts only
+   *   when the message has no receipts at all (once any actor has a receipt,
+   *   completion is per-actor and the aggregate flag is not authoritative).
+   * - **audience** — `leaders` mail is invisible unless the actor's base
+   *   identity is `leader`. This call path carries no role, matching the
+   *   `isMailboxMessageVisibleTo(message, forAgentId)` it replaces.
+   */
   async unreadCount(forAgentId: string, sessionId?: string): Promise<number> {
     const sessionAddress = sessionId === undefined ? undefined : sessionRecipient(sessionId);
-    return this.readMessages().filter(
-      (message) =>
-        (message.to === forAgentId || message.to === '*' || message.to === sessionAddress) &&
-        isMailboxMessageVisibleTo(message, forAgentId) &&
-        !(forAgentId in message.readBy) &&
-        !isMessageCompletedForActor(message, forAgentId) &&
-        message.deletedAt === undefined,
-    ).length;
+    const where: string[] = [];
+    const params: string[] = [];
+
+    const recipients = ["to_id = ?", "to_id = '*'"];
+    params.push(forAgentId);
+    if (sessionAddress !== undefined) {
+      recipients.push('to_id = ?');
+      params.push(sessionAddress);
+    }
+    where.push(`(${recipients.join(' OR ')})`);
+    where.push('deleted_at IS NULL');
+
+    if (!isMailboxLeader(forAgentId)) {
+      where.push("COALESCE(json_extract(data, '$.audience'), 'all') <> 'leaders'");
+    }
+
+    where.push(`NOT EXISTS (
+      SELECT 1 FROM message_receipts AS read_receipt
+      WHERE read_receipt.message_id = messages.id
+        AND read_receipt.actor_id = ?
+        AND read_receipt.read_at IS NOT NULL
+    )`);
+    params.push(forAgentId);
+    where.push(`NOT EXISTS (
+      SELECT 1 FROM json_each(json_extract(data, '$.readBy')) AS legacy_read
+      WHERE legacy_read.key = ?
+    )`);
+    params.push(forAgentId);
+
+    where.push('legacy_global_completion = 0');
+    where.push(`NOT EXISTS (
+      SELECT 1 FROM message_receipts AS completed_receipt
+      WHERE completed_receipt.message_id = messages.id
+        AND completed_receipt.actor_id = ?
+        AND completed_receipt.completed_at IS NOT NULL
+    )`);
+    params.push(forAgentId);
+    where.push(`(
+      completed = 0 OR EXISTS (
+        SELECT 1 FROM message_receipts AS any_receipt
+        WHERE any_receipt.message_id = messages.id
+      )
+    )`);
+
+    const row = this.stmt(
+      `SELECT COUNT(*) AS total FROM messages WHERE ${where.join(' AND ')}`,
+    ).get(...params) as { total?: number } | undefined;
+    return Number(row?.total ?? 0);
   }
 
   async softDelete(mailId: string, by: string): Promise<MailboxMessage | null> {

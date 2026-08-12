@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.306.0",
+  "packageVersion": "0.306.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -631,6 +631,7 @@
         "export { FleetSupervisor, type FleetSupervisorActions, type FleetSupervisorConfig, type FleetSupervisorOptions, type FleetSupervisorSource, type SupervisedSubagent, type SupervisorLogEntry, } from './fleet-supervisor.js';",
         "export { KnowledgeGraph } from './knowledge-graph.js';",
         "export { LargeAnswerStore } from './large-answer-store.js';",
+        "export { MAILBOX_MAX_ACK_BATCH, MAILBOX_MAX_QUERY_LIMIT, } from './mailbox-constants.js';",
         "export { MailboxEventEmitter } from './mailbox-events.js';",
         "export { NULL_FLEET_BUS } from './null-fleet-bus.js';",
         "export { RemoteMailboxCredentialStore } from './remote-mailbox-credential-store.js';",
@@ -1137,7 +1138,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 152,
-      "sourceLines": 45244
+      "sourceLines": 45783
     },
     {
       "directory": "core",

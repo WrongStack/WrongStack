@@ -204,14 +204,17 @@ function attachMailboxCheckerInner(
   ): (() => Promise<MailboxMessage[]>) => {
     return async (): Promise<MailboxMessage[]> => {
       const currentSessionId = a.ctx.session.id;
-      // Capture `agentId` BEFORE the filter loop so the ack call uses the
-      // same identity that read the messages. Under an in-process session
-      // swap, `ensureRegistered()` can return `null` (the swap left the
-      // mailbox identity in an unregistered intermediate state); a null
-      // `agentId` would crash the downstream `ackMany` call and abort the
-      // entire inbox poll. Guard with a null check — if registration
-      // failed, skip the ack and leave the messages unread so the next
-      // poll (after registration recovers) can surface them.
+      // Capture the identity BEFORE awaiting the checker, so the ack is
+      // stamped by the same identity that read the messages. `ensureRegistered`
+      // re-derives from `ctx.session.id` on every call, so an in-process
+      // session swap that lands mid-check would otherwise ack under the NEW
+      // identity messages the OLD one read — leaving them unread for the new
+      // session and marked read for a session that never saw them.
+      //
+      // `null` here means "awareness pass, do not ack" — it is the ternary,
+      // not a failure mode of `ensureRegistered` (which always returns a
+      // string). The `&& agentId` in the ack guard below is the narrowing
+      // that lets TypeScript see that.
       const agentId = ack ? ensureRegistered() : null;
       const messages = await checker();
       const filtered: MailboxMessage[] = [];

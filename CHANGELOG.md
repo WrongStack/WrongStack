@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.306.0] — 2026-08-12
+
+### Added
+
+- **Interactive launches now make the system-prompt trade-off visible.** The startup flow offers Lite, Standard, and Pro variants with estimates derived from the same resolved instruction layers used at runtime, persists the choice, and keeps non-interactive and explicitly pinned launches prompt-free. (`d6e6401f0`)
+- **Chimera findings now carry machine-checkable evidence.** Reviews can emit structured findings, cited paths and code anchors are checked against the live working tree before they can drive a cascade, and reports retain lifecycle and per-check evidence records for later audit. (`d6e6401f0`, `e7ebcc45e`)
+- **`gitignore-guard` keeps generated artifacts out of commits.** The new first-party plugin watches writes and edits, suggests a matching ignore rule by default, can append it when configured, respects nested `.gitignore` files, and never writes outside the project root. (`bca834e37`)
+
+### Changed
+
+- **Kanban completion now trusts fresh verifier coverage without trusting stale evidence.** Verification reports record the criteria they actually passed; the Done gate requires complete id and description/type fingerprint parity with the current card, while `tickChecks` can settle manual criteria in the same transition through one shared preflight and mutation contract. (`a3d95e3d4`, `8f6ba1b31`)
+- **Chimera reviews can use their own fallback ladder.** `extensions["wstack-chimera"].fallbackModels` and `fallbackProfile` are resolved ahead of the session chain, deduplicated by provider/model, and applied consistently to review and cascade execution. (`3b59b531b`, `e7ebcc45e`)
+- **Project jargon ranks real concepts ahead of incidental identifiers.** Definition extraction is sentence-bounded, repeated mentions add a capped confidence bonus, and the SAGE mirror and model-facing glossary now share the same confidence/freshness ordering. (`7e2a8f92b`, `2ca29a484`)
+- **The public plugin inventory is now 73 managed plugins:** 6 core plugins, 65 suite plugins, and 2 bridges.
+
+### Fixed
+
+- **`/settings` no longer overflows or leaves garbled rows on short terminals.** The TUI derives its visible window from the real viewport, input height, wrapping width, headers, and bottom chrome, caps the picker, and keeps filtered results centered while scrolling. (`eedabdc70`, `7ca824cf4`)
+- **HQ help reaches the HQ dispatcher.** `wstack hq --help`, token help, and audit help are no longer intercepted by the global alias/short-circuit path, and the browser token gate points to the correct one-time-secret command. (`f05d63d3f`)
+- **Review cascades no longer advance on phantom or mismatched proof.** Claimed command exits are compared with orchestrator-observed results, evidence status is persisted, and failed or missing proof stops the re-review ladder instead of being treated as a verified fix. (`d6e6401f0`, `e7ebcc45e`)
+
 ## [0.305.1] — 2026-08-11
 
 ### Added

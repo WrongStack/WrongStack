@@ -10,6 +10,59 @@ describe('SimpleUI mailbox store', () => {
     vi.useRealTimers();
   });
 
+  it('keeps the NEWEST messages when a payload exceeds the cap', () => {
+    // The server sends `mb.query()` output, sorted newest-first (SQLite
+    // `ORDER BY timestamp DESC`). The cap used to be `slice(-100)` — written
+    // as "keep the most recent", but on a newest-first list that keeps the
+    // OLDEST 100 and throws away exactly the new mail the panel is for. The
+    // WebUI store hit this and fixed it; this store carried the unfixed copy.
+    // The payload can exceed the cap: the `unreadOnly` path without an agent
+    // id asks the server for `max(limit * 5, 100)`.
+    const store = createMailboxStore();
+    const total = 130;
+    const messages = Array.from({ length: total }, (_, index) => ({
+      id: `mail-${index}`,
+      from: 'worker@one',
+      to: 'leader',
+      type: 'note',
+      subject: `s${index}`,
+      body: 'b',
+      priority: 'normal',
+      // Newest first, as the server sends them.
+      timestamp: new Date(Date.UTC(2026, 6, 28, 12, 0, total - index)).toISOString(),
+      completed: false,
+      readByCount: 0,
+    }));
+
+    store.applyMessage({ type: 'mailbox.messages', payload: { messages } });
+
+    const kept = store.getSnapshot().messages;
+    expect(kept).toHaveLength(100);
+    // mail-0 is the newest; mail-129 the oldest. The newest must survive.
+    expect(kept[0]?.id).toBe('mail-0');
+    expect(kept.map((m) => m.id)).toContain('mail-99');
+    expect(kept.map((m) => m.id)).not.toContain('mail-129');
+  });
+
+  it('prefers online agents when the agent payload exceeds the cap', () => {
+    const store = createMailboxStore();
+    const agents = [
+      ...Array.from({ length: 60 }, (_, index) => ({
+        agentId: `offline-${index}`,
+        name: `offline-${index}`,
+        status: 'idle',
+        online: false,
+      })),
+      { agentId: 'live-1', name: 'live-1', status: 'running', online: true },
+    ];
+
+    store.applyMessage({ type: 'mailbox.agents', payload: { agents } });
+
+    const kept = store.getSnapshot().agents;
+    expect(kept).toHaveLength(50);
+    expect(kept.map((a) => a.agentId)).toContain('live-1');
+  });
+
   it('projects mailbox messages, agents, and stamps lastEventAt on real traffic', () => {
     const store = createMailboxStore();
     store.applyMessage({

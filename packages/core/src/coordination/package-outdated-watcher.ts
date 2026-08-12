@@ -27,6 +27,7 @@
  */
 
 import type { Mailbox, MailboxMessage } from './mailbox-types.js';
+import { isMailboxSenderInFamily } from './mailbox-types.js';
 import { toErrorMessage } from '../utils/error.js';
 import {
   detectEcosystem,
@@ -67,7 +68,21 @@ export interface PackageOutdatedWatcherOptions {
   pollIntervalMs?: number | undefined;
   /** Agent id that runs this watcher. Default: 'pkg-outdated-watcher'. */
   watcherAgentId?: string | undefined;
-  /** Agent id of the tech-stack agent to watch for results. Default: 'tech-stack'. */
+  /**
+   * The only sender whose `result` messages this watcher acts on. Default:
+   * `'tech-stack'`. Matched as an agent family, so the worker the tech-stack
+   * consumer spawns as `tech-stack-<manifest>` also passes — `ctx.agentId`
+   * comes from the spawn name, so its mail arrives from
+   * `tech-stack-package.json@<tag>`, not from a bare `tech-stack`.
+   *
+   * This option was declared and documented from the start but never read:
+   * it appeared exactly once in the codebase, in this interface. The watcher
+   * therefore acted on a `result` addressed to it from ANY sender, and the
+   * body chose both the package names and — through `getPackageAuthor` —
+   * whether the resulting HIGH-priority notification went to one agent or was
+   * broadcast to `*`. Any agent on the project could use it to push
+   * attacker-chosen text to everyone, under a watcher's identity.
+   */
   techStackAgentId?: string | undefined;
   /** Called to send a notification to an agent. */
   onNotify: (msg: OutdatedNotifyMessage) => Promise<void>;
@@ -157,6 +172,7 @@ export function startPackageOutdatedWatcher(opts: PackageOutdatedWatcherOptions)
     packageTrackerOpts,
     pollIntervalMs = 60 * 60 * 1000,
     watcherAgentId = 'pkg-outdated-watcher',
+    techStackAgentId = 'tech-stack',
     onNotify,
     onLog,
     onError,
@@ -201,6 +217,16 @@ export function startPackageOutdatedWatcher(opts: PackageOutdatedWatcherOptions)
           readerId: watcherAgentId,
           read: true,
         });
+
+        // Sender gate — see `techStackAgentId`. Acked above so an unexpected
+        // sender is consumed rather than re-polled, but it never reaches the
+        // notify path.
+        if (!isMailboxSenderInFamily(msg.from, techStackAgentId)) {
+          log(
+            `[pkg-outdated-watcher] Ignoring result from "${msg.from}" (only "${techStackAgentId}" may drive notifications)`,
+          );
+          continue;
+        }
 
         await processResultMessage(msg);
       }

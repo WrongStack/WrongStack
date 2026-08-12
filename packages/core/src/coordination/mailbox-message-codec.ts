@@ -97,10 +97,19 @@ export function resolveSendType(
   type: MailboxMessageType | undefined,
   to: string,
 ): MailboxMessageType {
-  // Normalize recipient aliases ("all" → "*", "@session" → "@session:<id>")
-  // BEFORE default-type selection and cross-field validation, so every
-  // caller (mail_send, mailbox tool, HTTP bridge) gets consistent behavior
-  // even when they forget to normalize beforehand.
+  // Normalize the recipient BEFORE default-type selection and cross-field
+  // validation, so "all" with type "assign" is rejected as the multi-recipient
+  // target it is, whichever caller (mail_send, mailbox tool, HTTP bridge) got
+  // here.
+  //
+  // This normalization is deliberately session-LESS, which means it cannot
+  // expand the bare `"@session"` alias — that needs the sender's session id,
+  // which this function has no way to know. `normalizeRecipient` throws on it
+  // rather than guessing. Callers must therefore normalize with their own
+  // session id first and pass the canonical `"@session:<id>"` form; every
+  // production caller does. Do not "fix" this by widening the alias here:
+  // resolving a session-scoped recipient without knowing the session is how a
+  // message ends up addressed to the wrong session.
   const normalizedTo = normalizeRecipient(to);
   const resolved: MailboxMessageType =
     type ?? (normalizedTo === '*' || normalizedTo.startsWith('@session:') ? 'broadcast' : 'note');

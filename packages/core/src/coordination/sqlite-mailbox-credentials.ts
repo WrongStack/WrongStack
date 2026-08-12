@@ -115,6 +115,32 @@ export function credentialRevoke(
   return true;
 }
 
+/**
+ * Rotate a credential: mint a successor for the same principal and mark the
+ * predecessor `rotated_out` with an overlap window.
+ *
+ * Two rules that are easy to get wrong, and were:
+ *
+ * 1. **A revoked credential is not rotatable.** Rotation has the same
+ *    capability requirement as issuance, so this is not a privilege boundary —
+ *    but it IS an audit and intent boundary. Rotating a revoked credential
+ *    minted a fresh ACTIVE credential carrying the revoked one's principal and
+ *    capabilities, and recorded it as an ordinary rotation
+ *    (`supersedes: <revoked-id>`). Revocation is the emergency lever; undoing
+ *    it must be an explicit re-issue that reads like one in the log, not a
+ *    rotate that reads like routine hygiene. `rotated_out` and expired-but-
+ *    active credentials stay rotatable: "my credential lapsed, roll it" is a
+ *    legitimate flow, and neither state asserts that the holder was distrusted.
+ *
+ * 2. **Rotation preserves the credential's lifetime**, it does not reset it to
+ *    the maximum for the kind. Defaulting to `MAX_CREDENTIAL_TTL` meant a
+ *    deliberately short-lived credential — a 5-minute agent token minted for
+ *    one task — silently became a 7-day one the first time it was rotated,
+ *    with nothing in the call expressing that intent. The original duration is
+ *    recoverable from the record (`expiresAt - issuedAt`), and
+ *    `createMailboxCredential` still clamps it to the per-kind maximum, so
+ *    preserving it can only ever narrow the grant.
+ */
 export function credentialRotate(
   db: DatabaseSync,
   transaction: <T>(run: () => T) => T,
@@ -123,14 +149,30 @@ export function credentialRotate(
 ): { credential: MailboxCredential; secret: string } | null {
   const old = credentialGet(db, credentialId);
   if (old === null) return null;
+  if (old.status === 'revoked') return null;
   return credentialIssue(db, transaction, {
     principalId: old.principalId,
     projectId: old.projectId ?? options?.projectId,
     kind: old.kind,
     capabilities: options?.capabilities ?? old.capabilities,
-    ttlMs: options?.ttlMs ?? MAX_CREDENTIAL_TTL[old.kind],
+    ttlMs: options?.ttlMs ?? previousCredentialTtlMs(old),
     notBefore: options?.notBefore,
     supersedes: credentialId,
     issuedBy: options?.issuedBy,
   });
+}
+
+/**
+ * The lifetime the predecessor was issued with, for rotation to carry forward.
+ *
+ * Falls back to the per-kind maximum only when the stored timestamps cannot
+ * produce a positive duration — a legacy or hand-edited row. That fallback is
+ * the old unconditional behavior, kept for exactly the case where there is
+ * nothing better to infer.
+ */
+function previousCredentialTtlMs(credential: MailboxCredential): number {
+  const issuedAt = new Date(credential.issuedAt).getTime();
+  const expiresAt = new Date(credential.expiresAt).getTime();
+  const ttlMs = expiresAt - issuedAt;
+  return Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : MAX_CREDENTIAL_TTL[credential.kind];
 }

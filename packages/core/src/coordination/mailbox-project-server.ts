@@ -12,6 +12,7 @@ import * as net from 'node:net';
 import * as path from 'node:path';
 import { bindProjectEndpoint } from '@wrongstack/persistence';
 import { EventBus } from '../kernel/events.js';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
@@ -446,13 +447,19 @@ async function writeMetadata(): Promise<void> {
   await fsPromises.mkdir(projectDir, { recursive: true });
   // The token lives ONLY in this owner-only file, never on the wire (WS-027).
   //
-  // RESIDUAL RISK (Windows): `mode: 0o600` is honored on POSIX but Node ignores
-  // it on Windows, where this file instead inherits the `projectDir` ACLs. The
-  // IPC endpoint offers no exclusion on Windows either (see WS-027 above), so if
-  // `projectDir` is world-readable another local user can read this file, lift
-  // the token, and bypass WS-027 entirely. Hardening needs an explicit
-  // restrictive ACL (e.g. `icacls` granting only the owner) on the project state
-  // directory or this file; until then the owner-only guarantee is POSIX-only.
+  // `mode: 0o600` is honored on POSIX but Node ignores it on Windows, where the
+  // file would instead inherit the `projectDir` ACLs. The IPC endpoint offers
+  // no exclusion on Windows either (see WS-027 above), so a world-readable
+  // `projectDir` used to mean any local user could read this file, lift the
+  // token, and bypass WS-027 entirely. `restrictFilePermissions` closes that:
+  // on Windows it strips inherited ACEs and grants full control to the owner
+  // alone (`icacls /inheritance:r /grant:r <user>:(F)`), on POSIX it re-applies
+  // the same 0600 the write already requested.
+  //
+  // It runs BEFORE `markMetadataWritten()` so no client is greeted — and
+  // therefore no client can read the token — until the ACL is in place. That
+  // costs one `icacls` spawn per daemon start on Windows, paid once: this
+  // function is called exactly once, right after the ownership election.
   const metadata: MailboxProjectServerMetadata = { ...serverStatus(), authToken };
   // WS-059: this used to be a hand-rolled write + rename with an
   // `rm(metadataPath)` fallback. On Windows the rename fails whenever a reader
@@ -466,6 +473,12 @@ async function writeMetadata(): Promise<void> {
   // backoff over the transient Windows codes) and never unlinks the
   // destination first, so the file is present at every instant.
   await atomicWrite(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+  await restrictFilePermissions(metadataPath, {
+    label: 'mailbox-server-metadata',
+    // stdio is 'ignore' for this detached process; stderr is where its other
+    // diagnostics go, so a failed hardening is at least consistent with them.
+    warn: (message) => process.stderr.write(`${message}\n`),
+  });
 }
 
 /**

@@ -716,7 +716,9 @@ describe('HQ mailbox — staleness filter on gateway query responses', () => {
       // `markRead: false` keeps the probe side-effect free for other tests.
       const probeRes = await post(
         gatewayUrl(handle!, 'mut-staleness', '/check'),
-        { agentId: 'probe-agent', markRead: false, limit: 1_000 },
+        // Capped at MAILBOX_HTTP_MAX_QUERY_LIMIT (500): /check acks what it
+        // returns, so an uncapped limit is also an uncapped ack batch.
+        { agentId: 'probe-agent', markRead: false, limit: 500 },
         auth(),
       );
       expect(probeRes.status).toBe(200);

@@ -51,6 +51,61 @@ describe('package-outdated-watcher', () => {
       dispose();
     });
 
+    // `techStackAgentId` was declared and documented on the options interface
+    // from the start, but never destructured — it appeared exactly once in the
+    // whole codebase, in its own type. The watcher therefore acted on a
+    // `result` from ANY sender, and the body chose both the package names and,
+    // via `getPackageAuthor` returning nothing, whether the resulting
+    // HIGH-priority notification went to one agent or was broadcast to `*`.
+    it.each([
+      // The legitimate sender is the worker the tech-stack consumer spawns as
+      // `tech-stack-<manifest>`; `host-subagent-factory` sets `ctx.agentId`
+      // from the spawn name, so its mail arrives from
+      // `tech-stack-package.json@<tag>` — never a bare `tech-stack`. A strict
+      // equality gate would have silently disabled the whole pipeline, which
+      // is why the family form is asserted alongside the rejection.
+      ['tech-stack', 1],
+      ['tech-stack-package.json@a1b2c3d4', 1],
+      ['some-other-agent@abcd1234', 0],
+      ['tech-stackish@abcd1234', 0],
+    ] as const)('gates results by sender: %s notifies %i time(s)', async (from, expected) => {
+      const notifications: Array<{ to: string }> = [];
+      const fakeMsg = {
+        id: `msg-${from}`,
+        from,
+        body:
+          '| Package | Current | Latest | Wanted | Manifest |\n' +
+          '|---------|---------|--------|--------|----------|\n' +
+          '| vitest | 0.9.0 | 1.2.3 | ^1.0.0 | package.json |\n',
+        timestamp: new Date().toISOString(),
+        type: 'result' as const,
+      };
+
+      const dispose = startPackageOutdatedWatcher({
+        mailbox: {
+          query: async () => [fakeMsg as any],
+          ack: async () => {},
+          send: async () => {},
+        } as any,
+        packageTrackerOpts: { storageDir: '/tmp', projectRoot: '/tmp' },
+        // Same cadence as the sibling tests: the notify path does file I/O for
+        // the author lookup, so a zero-tick advance would let a rejection pass
+        // vacuously. The accepted rows above prove this window is enough.
+        pollIntervalMs: 1,
+        onNotify: async (msg) => {
+          notifications.push({ to: msg.to });
+        },
+        onLog: () => {},
+      });
+
+      await vi.advanceTimersByTimeAsync(100);
+      if (expected > 0) {
+        await vi.waitFor(() => expect(notifications.length).toBeGreaterThan(0));
+      }
+      expect(notifications.length > 0 ? 1 : 0).toBe(expected);
+      dispose();
+    });
+
     it('processes outdated packages and notifies authors', async () => {
       const notifications: Array<{ to: string; subject: string }> = [];
 

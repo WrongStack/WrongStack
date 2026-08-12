@@ -236,6 +236,28 @@ async function synchronizeManagedKanban(
     }
     const task = board.tasks.find((candidate) => candidate.id === item.kanbanTaskId);
     if (!task || task.status === 'completed') continue;
+    // A completed todo whose card was never started (still in backlog/todo)
+    // must be walked to Running first. The managed auto-transition inside
+    // mark_assignment(completed) only fires when stage === 'running'; without
+    // this pre-step the card sits in its original stage with a 'completed'
+    // assignment status that the lifecycle gate never picks up — so the todo
+    // surface shows completed while the board card is stuck, and the next
+    // board projection reverts the todo because the card never reached
+    // completed/review. start_task handles backlog→todo→running atomically.
+    const stage = task.lifecycle?.currentStage;
+    if (stage === 'backlog' || stage === 'todo') {
+      const started = await execute({
+        action: 'start_task',
+        boardId: board.id,
+        taskId: task.id,
+        author: actor,
+        agentId: actor,
+        transitionComment: `Auto-started for completion: ${item.content}`,
+      });
+      if (!started.ok) {
+        continue;
+      }
+    }
     await execute({
       action: 'mark_assignment',
       boardId: board.id,

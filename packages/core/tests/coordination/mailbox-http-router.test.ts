@@ -1191,28 +1191,141 @@ describe('mailbox HTTP router — validator mutation matrix', () => {
     });
   });
 
-  it.each([0, -1, 1.5, '20'])('rejects invalid query limit (sent as %s)', async (value) => {
-    await expectMutationRejected({
-      route: '/mailbox/query',
-      validBody: {},
-      mutate: (body) => {
-        body.limit = value;
-      },
-      rejectContains: 'field "limit"',
-      assertNoCall: 'query',
+  // 501 / 1e9 are the ceiling cases: `limit` used to be validated only as "a
+  // positive integer", and the router passes it through to a query that is
+  // fanned out across every recipient address the actor answers to, with the
+  // store pre-limiting in SQL. Nothing downstream clamped it, so one request
+  // could ask for the whole table once per address.
+  it.each([0, -1, 1.5, '20', 501, 1_000_000_000, Number.MAX_SAFE_INTEGER])(
+    'rejects invalid query limit (sent as %s)',
+    async (value) => {
+      await expectMutationRejected({
+        route: '/mailbox/query',
+        validBody: {},
+        mutate: (body) => {
+          body.limit = value;
+        },
+        rejectContains: 'field "limit"',
+        assertNoCall: 'query',
+      });
+    },
+  );
+
+  it.each([0, -1, 1.5, '10', 501, 1_000_000_000])(
+    'rejects invalid check limit (sent as %s)',
+    async (value) => {
+      await expectMutationRejected({
+        route: '/mailbox/check',
+        validBody: { agentId: 'agent-b' },
+        mutate: (body) => {
+          body.limit = value;
+        },
+        rejectContains: 'field "limit"',
+        assertNoCall: 'query',
+      });
+    },
+  );
+
+  it('refuses the bare "@session" alias with a 400, not a 500', async () => {
+    // `@session` is documented and reaches `normalizeRecipient`, which needs a
+    // session id to expand it and throws a bare TypeError without one. That is
+    // not a MailboxHttpValidationError, so the router classified it as
+    // INTERNAL_ERROR: a documented recipient alias answered with a 500 and a
+    // leaked internal message.
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/send',
+        body: {
+          from: 'external-a',
+          to: '@session',
+          type: 'note',
+          subject: 'subject',
+          body: 'body',
+        },
+      }),
     });
+    expect(response.status).toBe(400);
+    const envelope = errorEnvelope(response.json());
+    expect(envelope?.code).toBe('VALIDATION_ERROR');
+    expect(envelope?.message).toContain('"@session"');
+    expect(stub.send).not.toHaveBeenCalled();
   });
 
-  it.each([0, -1, 1.5, '10'])('rejects invalid check limit (sent as %s)', async (value) => {
-    await expectMutationRejected({
-      route: '/mailbox/check',
-      validBody: { agentId: 'agent-b' },
-      mutate: (body) => {
-        body.limit = value;
-      },
-      rejectContains: 'field "limit"',
-      assertNoCall: 'query',
+  it('accepts an explicit "@session:<id>" recipient', async () => {
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/send',
+        body: {
+          from: 'external-a',
+          to: '@session:sess-1',
+          type: 'broadcast',
+          subject: 'subject',
+          body: 'body',
+        },
+      }),
     });
+    expect(response.status).toBe(201);
+    expect(stub.send).toHaveBeenCalledWith(expect.objectContaining({ to: '@session:sess-1' }));
+  });
+
+  it('accepts a query limit at the ceiling', async () => {
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({ method: 'POST', url: '/mailbox/query', body: { limit: 500 } }),
+    });
+    expect(response.status).toBe(200);
+    expect(stub.query).toHaveBeenCalledWith(expect.objectContaining({ limit: 500 }));
+  });
+
+  it('rejects an ack-many batch over the ceiling before touching the store', async () => {
+    // `ackMany` applies the whole batch inside one `BEGIN IMMEDIATE` with a
+    // lookup per entry. Unbounded, a single request could hold the project's
+    // only write lock long enough to fail every other surface on busy_timeout.
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/ack-many',
+        body: {
+          acks: Array.from({ length: 501 }, (_, index) => ({
+            messageId: `msg-${index}`,
+            readerId: 'agent-b',
+          })),
+        },
+      }),
+    });
+    expect(response.status).toBe(400);
+    const envelope = errorEnvelope(response.json());
+    expect(envelope?.code).toBe('VALIDATION_ERROR');
+    expect(envelope?.message).toContain('at most 500');
+    expect(stub.ackMany).not.toHaveBeenCalled();
+  });
+
+  it('accepts an ack-many batch at the ceiling', async () => {
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/ack-many',
+        body: {
+          acks: Array.from({ length: 500 }, (_, index) => ({
+            messageId: `msg-${index}`,
+            readerId: 'agent-b',
+          })),
+        },
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(stub.ackMany).toHaveBeenCalled();
   });
 
   it.each(['urgent', true, 1])('rejects invalid priority (sent as %s)', async (value) => {
@@ -2038,13 +2151,32 @@ describe('mailbox HTTP authorization helpers', () => {
           includeReceiptState: true,
         }),
       );
+      // The per-actor visibility check behind ack / ack-many is id-scoped: it
+      // asks about exactly the messages being acked. It used to answer the
+      // same question by listing the actor's entire mailbox
+      // (`limit: Number.MAX_SAFE_INTEGER`, no `unreadBy`, so the store also
+      // re-read the agent registry) once per eligible recipient address, on
+      // every single ack.
       expect(stub.query).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'credential-agent',
-          limit: Number.MAX_SAFE_INTEGER,
+          ids: ['msg-1'],
+          limit: 1,
         }),
       );
+      expect(stub.query).toHaveBeenCalledWith(
+        expect.objectContaining({ ids: ['not-visible'], limit: 1 }),
+      );
+      // Still a non-`unreadBy` read (visibility is not an unread question) —
+      // but now a bounded one. No read this route issues may be unbounded:
+      // either it omits `limit` (the store's own default of 50 applies) or it
+      // states one within the request ceiling.
       expect(stub.query.mock.calls.some(([query]) => query.unreadBy === undefined)).toBe(true);
+      expect(
+        stub.query.mock.calls.every(
+          ([query]) => query.limit === undefined || query.limit <= 500,
+        ),
+      ).toBe(true);
       const projected = (queried.json() as { data: Array<Record<string, unknown>> }).data[0];
       expect(projected).toMatchObject({
         readByMe: true,

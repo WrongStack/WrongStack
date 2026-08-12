@@ -1155,6 +1155,15 @@ function sourceStatus(task: KanbanTask): TaskStatus {
 function todoStatus(task: KanbanTask): TodoItem['status'] {
   const status = sourceStatus(task);
   if (status === 'completed') return 'completed';
+  // A card in Review whose worker reported completion is functionally done
+  // from the compact todo surface's perspective — Review is an acceptance
+  // gate, not active work. Mapping it to in_progress created a rewind loop:
+  // the todo marked the row completed → the card reached Review → the board
+  // projection reverted the row to in_progress → the model re-completed it.
+  // Treating a completed-assignment Review card as completed breaks that
+  // cycle while preserving the in_progress mapping for cards that entered
+  // Review without a completion (e.g. a manual transition).
+  if (status === 'review' && task.assignment?.status === 'completed') return 'completed';
   if (status === 'in_progress' || status === 'review') return 'in_progress';
   return 'pending';
 }
@@ -1377,6 +1386,13 @@ export async function applySessionKanbanTaskToSource(
   if (!originId) return { source: null };
 
   if (task.origin?.system === 'session-todo' || graphId.startsWith('todo:')) {
+    // Use the shared `todoStatus` helper so the reverse-mapping (board→todo)
+    // agrees with the forward-mapping (todo→board projection). A separate
+    // inline mapping here used to classify `review` as `in_progress`
+    // unconditionally, which contradicted the projection and produced the
+    // rewind loop: a card marked completed → advanced to Review → was
+    // reflected back as in_progress → was re-completed on the next turn.
+    const mappedStatus = todoStatus(task);
     const next = options.remove
       ? context.todos.filter((todo) => todo.id !== originId)
       : context.todos.map((todo) =>
@@ -1384,12 +1400,7 @@ export async function applySessionKanbanTaskToSource(
             ? {
                 ...todo,
                 content: task.title,
-                status:
-                  sourceStatus(task) === 'completed'
-                    ? ('completed' as const)
-                    : sourceStatus(task) === 'in_progress' || sourceStatus(task) === 'review'
-                      ? ('in_progress' as const)
-                      : ('pending' as const),
+                status: mappedStatus,
               }
             : todo,
         );

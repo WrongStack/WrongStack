@@ -420,8 +420,7 @@ export const toolCatalog = [
   },
   {
     name: 'codebase-incoming-calls',
-    summary:
-      'Find all callers of a function, method, or symbol — who invokes or references it.',
+    summary: 'Find all callers of a function, method, or symbol — who invokes or references it.',
     permission: 'auto',
     mutating: false,
     category: 'Discovery & index',
@@ -692,6 +691,13 @@ export const pluginCatalog = [
     name: 'loop-breaker',
     risk: 'low',
     summary: 'Detects runaway tool-call loops; warns, then blocks repeats.',
+    defaultState: 'active',
+    source: 'Suite',
+  },
+  {
+    name: 'gitignore-guard',
+    risk: 'medium',
+    summary: 'Suggests or appends ignore rules for generated artifacts after writes and edits.',
     defaultState: 'active',
     source: 'Suite',
   },

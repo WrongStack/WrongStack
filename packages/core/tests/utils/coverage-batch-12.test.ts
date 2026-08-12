@@ -9,12 +9,14 @@ import {
   AUTO_COMPACT_READ_MAX_AGE_MS,
   CLIENT_STALE_MS,
   HEARTBEAT_THROTTLE_MS,
-  HTTP_RATE_LIMIT_PER_MINUTE,
-  HTTP_RATE_LIMIT_WINDOW_MS,
   MAILBOX_AWARENESS_INTERVAL_MS,
-  MESSAGE_CACHE_MAX_ENTRIES,
-  REGISTRY_CACHE_TTL_MS,
 } from '../../src/coordination/mailbox-constants.js';
+// The rate limit is asserted against the module that enforces it, not against
+// a second copy in mailbox-constants — that copy existed only for this test.
+import {
+  MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
+  MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
+} from '../../src/coordination/mailbox-http-rate-limit.js';
 
 // ── mailbox-constants ────────────────────────────────────────────────────
 
@@ -23,18 +25,12 @@ describe('mailbox-constants', () => {
     expect(AGENT_STALE_MS).toBe(60_000);
     expect(CLIENT_STALE_MS).toBe(60_000);
     expect(HEARTBEAT_THROTTLE_MS).toBe(5_000);
-    expect(REGISTRY_CACHE_TTL_MS).toBe(2_000);
-    expect(MESSAGE_CACHE_MAX_ENTRIES).toBe(10_000);
     expect(MAILBOX_AWARENESS_INTERVAL_MS).toBe(30_000);
     expect(AUTO_COMPACT_INTERVAL_MS).toBe(300_000);
     expect(AUTO_COMPACT_READ_MAX_AGE_MS).toBe(600_000);
     expect(AUTO_COMPACT_DEFAULT_TTL_MS).toBe(86_400_000);
-    expect(HTTP_RATE_LIMIT_PER_MINUTE).toBe(120);
-    expect(HTTP_RATE_LIMIT_WINDOW_MS).toBe(60_000);
-  });
-
-  it('registry cache TTL is shorter than heartbeat throttle', () => {
-    expect(REGISTRY_CACHE_TTL_MS).toBeLessThan(HEARTBEAT_THROTTLE_MS);
+    expect(MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE).toBe(120);
+    expect(MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS).toBe(60_000);
   });
 
   it('agent stale is longer than heartbeat interval', () => {
