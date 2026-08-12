@@ -1,103 +1,24 @@
 /**
- * Owner-only file hardening, on both POSIX and Windows.
+ * Owner-only file hardening — re-exported from `@wrongstack/persistence`.
  *
- * WS-045: this lived as a private function inside `secret-vault.ts` and was
- * therefore reachable only by the config file. Every other secret WrongStack
- * writes — the HQ `auth.json` (bearer tokens), `runtime.json` (local client
- * token), the vault `.key` — got `chmod(0o600)` at best, which on Windows is
- * a no-op for everything except the read-only bit: the file stayed readable by
- * every other account on the machine. One exported module so a new secret file
- * has an obvious thing to call.
+ * The implementation moved there so the project daemons that cannot depend on
+ * core can still call it: `@wrongstack/kanban` depends only on persistence, and
+ * the reverse edge is impossible because core already depends on kanban. Every
+ * daemon writes a metadata file carrying its per-process IPC auth token, so
+ * they all need the same guarantee.
+ *
+ * This module stays as the re-export because `@wrongstack/core/security` is a
+ * published subpath with existing consumers (the SAGE and codebase-index
+ * daemons, the HQ login-attempt store, the secret vault). Import from either;
+ * they are the same functions.
  *
  * @module security/file-permissions
  */
 
-import { chmod } from 'node:fs/promises';
-
-/** Owner read/write, nothing for group or other. */
-export const SECRET_FILE_MODE = 0o600;
-
-/** Owner-only directory: enter + list + write. */
-export const SECRET_DIR_MODE = 0o700;
-
-export interface RestrictPermissionsOptions {
-  warn?: ((msg: string) => void) | undefined;
-  /** Label used in warnings, e.g. `secret-vault` or `hq-auth`. */
-  label?: string | undefined;
-}
-
-/**
- * Restrict a file to owner-only access.
- *
- * POSIX: `chmod 0600`. Windows: `chmod` cannot express this, so we use
- * `icacls` to drop inherited ACEs and grant the current user alone.
- *
- * Failures are warned, never thrown — a hardening step must not be able to
- * block the write it protects, and `icacls` is absent in some minimal
- * environments (containers, WINE, restricted CI images).
- */
-export async function restrictFilePermissions(
-  filePath: string,
-  opts?: RestrictPermissionsOptions,
-): Promise<void> {
-  const label = opts?.label ?? 'file-permissions';
-  const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
-  if (process.platform === 'win32') {
-    try {
-      const { execFile } = await import('node:child_process');
-      const { promisify } = await import('node:util');
-      const execFileAsync = promisify(execFile);
-      const user = windowsAccountName();
-      if (!user) {
-        warn(
-          `[${label}] Could not determine the current Windows user for ${filePath}; skipping icacls hardening.`,
-        );
-        return;
-      }
-      // Remove inherited ACEs, grant full control only to current user.
-      await execFileAsync('icacls', [filePath, '/inheritance:r', '/grant:r', `${user}:(F)`], {
-        windowsHide: true,
-      });
-    } catch {
-      // Best-effort: icacls may not be available in all environments.
-      warn(
-        `[${label}] Could not restrict permissions on ${filePath} — it may be readable by other users on this system.`,
-      );
-    }
-  } else {
-    try {
-      await chmod(filePath, SECRET_FILE_MODE);
-    } catch {
-      // Best-effort
-    }
-  }
-}
-
-/**
- * `restrictFilePermissions` for a directory: `chmod 0700` on POSIX, the same
- * icacls treatment (applied recursively to new children via inheritance) on
- * Windows. Use on the directory that holds secret files so a file created
- * there by a path we do not control still lands owner-only.
- */
-export async function restrictDirPermissions(
-  dirPath: string,
-  opts?: RestrictPermissionsOptions,
-): Promise<void> {
-  if (process.platform === 'win32') {
-    await restrictFilePermissions(dirPath, opts);
-    return;
-  }
-  try {
-    await chmod(dirPath, SECRET_DIR_MODE);
-  } catch {
-    // Best-effort
-  }
-}
-
-function windowsAccountName(): string | undefined {
-  const username = process.env.USERNAME || process.env.USER;
-  if (!username || username.includes('\0')) return undefined;
-  const domain = process.env.USERDOMAIN;
-  if (domain && !domain.includes('\0')) return `${domain}\\${username}`;
-  return username;
-}
+export {
+  restrictDirPermissions,
+  restrictFilePermissions,
+  SECRET_DIR_MODE,
+  SECRET_FILE_MODE,
+  type RestrictPermissionsOptions,
+} from '@wrongstack/persistence';

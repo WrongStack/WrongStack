@@ -12,6 +12,7 @@ import * as fsp from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { bindProjectEndpoint } from '@wrongstack/persistence';
+import { restrictFilePermissions } from '../security/file-permissions.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { startSharedHeapWatchdog } from '../utils/heap-watchdog.js';
 import { useDaemonPerfDefaults } from '../utils/perf-profile.js';
@@ -649,6 +650,15 @@ async function writeMetadata(): Promise<void> {
   // one-daemon-per-project invariant. `atomicWrite` replaces in place with a
   // bounded rename retry and never unlinks the destination first.
   await atomicWrite(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+  // `mode: 0o600` is honored on POSIX but ignored by Node on Windows, where
+  // the file inherits the parent directory's ACLs instead — and the IPC
+  // endpoint excludes nobody on Windows either, so a readable metadata file
+  // hands this daemon's per-process token to any local account. Strips
+  // inherited ACEs and grants the owner alone.
+  await restrictFilePermissions(metadataPath, {
+    label: 'chronicle-server-metadata',
+    warn: (message) => process.stderr.write(`${message}\n`),
+  });
 }
 
 async function removeOwnedMetadata(): Promise<void> {

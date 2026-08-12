@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 122,
+      "files": 124,
       "typeOnly": 22,
-      "runtimeOrMixed": 103
+      "runtimeOrMixed": 105
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -7269,6 +7269,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/sage/src/project-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/sdd/src/sdd-board-projector.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7294,6 +7300,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/tools/src/browser/tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/tools/src/codebase-index/project-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

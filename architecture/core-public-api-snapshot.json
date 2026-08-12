@@ -1131,7 +1131,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 31,
-      "sourceLines": 9304
+      "sourceLines": 9314
     },
     {
       "directory": "coordination",
@@ -1278,7 +1278,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 6110
+      "sourceLines": 6031
     },
     {
       "directory": "session-catalog",

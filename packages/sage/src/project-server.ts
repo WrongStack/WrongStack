@@ -6,6 +6,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import type { ScoredEntry } from '@wrongstack/core/types';
 import {
   atomicWrite,
@@ -613,6 +614,17 @@ async function writeMetadata(): Promise<void> {
   // bounded rename retry and never unlinks the destination first.
   await atomicWrite(metadataPath, `${JSON.stringify(serverMetadata, null, 2)}\n`, {
     mode: 0o600,
+  });
+  // `mode: 0o600` is honored on POSIX but ignored by Node on Windows, where
+  // the file inherits the parent directory's ACLs instead — and the IPC
+  // endpoint excludes nobody on Windows either, so a readable metadata file
+  // hands this daemon's per-process token to any local account. That matters
+  // more here than anywhere: WS-028 was this daemon handing its credential to
+  // the caller it meant to refuse. Strips inherited ACEs, grants the owner
+  // alone.
+  await restrictFilePermissions(metadataPath, {
+    label: 'sage-server-metadata',
+    warn: (message) => process.stderr.write(`${message}\n`),
   });
 }
 

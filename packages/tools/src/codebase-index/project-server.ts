@@ -19,7 +19,8 @@ import {
   useDaemonPerfDefaults,
   watchProjectTree,
 } from '@wrongstack/core/utils';
-import { bindProjectEndpoint } from '@wrongstack/persistence';
+import { restrictFilePermissions } from '@wrongstack/core/security';
+import { atomicWrite, bindProjectEndpoint } from '@wrongstack/persistence';
 import {
   fileGraphService,
   indexService,
@@ -689,21 +690,32 @@ function removeMetadataIfOwned(): void {
   }
 }
 
-function writeMetadata(): void {
+async function writeMetadata(): Promise<void> {
   fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
-  const temporary = `${metadataPath}.${process.pid}.tmp`;
   // The token lives ONLY in this owner-only file, never on the wire (WS-027).
   const metadata: ProjectIndexServerMetadata = { ...serverInfo, authToken };
-  fs.writeFileSync(temporary, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
-  try {
-    fs.renameSync(temporary, metadataPath);
-  } catch {
-    // Windows cannot atomically replace an existing file with renameSync.
-    // The listening socket has already elected this process as the sole
-    // owner, so replacing stale discovery metadata is safe here.
-    fs.rmSync(metadataPath, { force: true });
-    fs.renameSync(temporary, metadataPath);
-  }
+  // WS-059: this was a hand-rolled write + rename whose catch did
+  // `rmSync(metadataPath)` then retried. The old comment justified that as
+  // safe because the socket already elected this process the sole owner —
+  // but ownership was never the risk. The risk is the window: between the
+  // `rm` and the retry `rename` the metadata file does not exist, and a
+  // client that reads it right then concludes there is no daemon and spawns
+  // a second one. On Windows the rename fails whenever a reader holds the
+  // destination, so that branch was the common path, not the edge case.
+  //
+  // `atomicWrite` replaces in place with a bounded rename retry and never
+  // unlinks the destination, so the file is present at every instant. The
+  // mailbox, chronicle and SAGE daemons already moved onto it.
+  await atomicWrite(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+  // `mode: 0o600` is honored on POSIX but ignored by Node on Windows, where
+  // the file inherits the parent directory's ACLs instead — and the IPC
+  // endpoint excludes nobody on Windows either, so a readable metadata file
+  // hands the per-process token to any local account. Strips inherited ACEs
+  // and grants the owner alone.
+  await restrictFilePermissions(metadataPath, {
+    label: 'codebase-index-metadata',
+    warn: (message) => process.stderr.write(`${message}\n`),
+  });
 }
 
 const server = net.createServer((socket) => {
@@ -810,7 +822,7 @@ void (async () => {
     process.stderr.write(`codebase-index server error: ${error.message}\n`);
     process.exitCode = 1;
   });
-  writeMetadata();
+  await writeMetadata();
   markMetadataWritten?.();
   scheduleIdleStop();
 })();

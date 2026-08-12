@@ -16,7 +16,11 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { bindProjectEndpoint } from '@wrongstack/persistence';
+import {
+  atomicWrite,
+  bindProjectEndpoint,
+  restrictFilePermissions,
+} from '@wrongstack/persistence';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import { StaleWriteError } from '../manager/lifecycle.js';
 import * as kanban from '../manager.js';
@@ -111,22 +115,28 @@ async function writeServerMetadata(): Promise<void> {
   const target = serverMetadataPath(projectRoot);
   const metadata: KanbanProjectServerMetadata = { ...serverInfo, authToken };
   await fsPromises.mkdir(path.dirname(target), { recursive: true });
-  const temporary = `${target}.${process.pid}.tmp`;
-  await fsPromises.writeFile(
-    temporary,
-    `${JSON.stringify(metadata, null, 2)}
-`,
-    {
-      encoding: 'utf8',
-      mode: 0o600,
-    },
-  );
-  try {
-    await fsPromises.rename(temporary, target);
-  } catch {
-    await fsPromises.rm(target, { force: true });
-    await fsPromises.rename(temporary, target);
-  }
+  // WS-059: this was a hand-rolled write + rename with an `rm(target)`
+  // fallback. On Windows the rename fails whenever a reader holds the
+  // destination, so the rm branch was not an edge case — it was the common
+  // path. Between the `rm` and the retry `rename` the metadata file does not
+  // exist, and a client that reads it in that window concludes there is no
+  // daemon and spawns a second one, breaking the one-daemon-per-project
+  // invariant this file exists to hold.
+  //
+  // `atomicWrite` replaces in place with a bounded rename retry over the
+  // transient Windows codes and never unlinks the destination first, so the
+  // file is present at every instant. The mailbox, chronicle and SAGE daemons
+  // were all moved onto it for exactly this reason; this one was missed.
+  await atomicWrite(target, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+  // `mode: 0o600` is honored on POSIX but ignored by Node on Windows, where
+  // the file inherits the parent directory's ACLs instead — and the IPC
+  // endpoint excludes nobody on Windows either, so a readable metadata file
+  // hands this daemon's per-process token to any local account. Strips
+  // inherited ACEs and grants the owner alone.
+  await restrictFilePermissions(target, {
+    label: 'kanban-server-metadata',
+    warn: (message) => process.stderr.write(`${message}\n`),
+  });
 }
 let stopping = false;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
