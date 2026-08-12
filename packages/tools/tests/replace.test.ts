@@ -15,6 +15,7 @@ afterEach(async () => {
 });
 
 const makeCtx = () => ({ cwd: tmpDir, tools: [], projectRoot: tmpDir }) as any;
+const makeOpts = () => ({ signal: new AbortController().signal });
 
 describe('replaceTool', () => {
   it('has correct metadata', () => {
@@ -26,21 +27,29 @@ describe('replaceTool', () => {
   it('throws when pattern is missing', async () => {
     const ctx = makeCtx();
     await expect(
-      replaceTool.execute({ files: 'a.txt', pattern: '', replacement: 'x' } as any, ctx),
+      replaceTool.execute(
+        { files: 'a.txt', pattern: '', replacement: 'x' } as any,
+        ctx,
+        makeOpts(),
+      ),
     ).rejects.toThrow('pattern is required');
   });
 
   it('throws when replacement is missing', async () => {
     const ctx = makeCtx();
     await expect(
-      replaceTool.execute({ files: 'a.txt', pattern: 'foo', replacement: undefined } as any, ctx),
+      replaceTool.execute(
+        { files: 'a.txt', pattern: 'foo', replacement: undefined } as any,
+        ctx,
+        makeOpts(),
+      ),
     ).rejects.toThrow('replacement is required');
   });
 
   it('throws when files is missing', async () => {
     const ctx = makeCtx();
     await expect(
-      replaceTool.execute({ pattern: 'foo', replacement: 'x' } as any, ctx),
+      replaceTool.execute({ pattern: 'foo', replacement: 'x' } as any, ctx, makeOpts()),
     ).rejects.toThrow('files is required');
   });
 
@@ -51,6 +60,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'world', replacement: 'wstack', files: filePath, dry_run: true },
       ctx,
+      makeOpts(),
     );
     expect(result.files_modified).toBe(1);
     expect(result.dry_run).toBe(true);
@@ -64,6 +74,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: '(\\w+)-(\\w+)', replacement: '$2-$1', files: filePath, dry_run: false },
       makeCtx(),
+      makeOpts(),
     );
     expect(result.total_replacements).toBe(2);
     expect(await fs.readFile(filePath, 'utf8')).toBe('bar-foo qux-baz');
@@ -75,6 +86,7 @@ describe('replaceTool', () => {
     await replaceTool.execute(
       { pattern: 'b', replacement: '[$&]$$', files: filePath, dry_run: false },
       makeCtx(),
+      makeOpts(),
     );
     expect(await fs.readFile(filePath, 'utf8')).toBe('a[b]$c');
   });
@@ -85,6 +97,7 @@ describe('replaceTool', () => {
     await replaceTool.execute(
       { pattern: 'x', replacement: '$5y', files: filePath, dry_run: false },
       makeCtx(),
+      makeOpts(),
     );
     expect(await fs.readFile(filePath, 'utf8')).toBe('$5y');
   });
@@ -95,6 +108,7 @@ describe('replaceTool', () => {
     await replaceTool.execute(
       { pattern: 'a(x)?(b)', replacement: '<$1|$2>', files: filePath, dry_run: false },
       makeCtx(),
+      makeOpts(),
     );
     expect(await fs.readFile(filePath, 'utf8')).toBe('<|b>');
   });
@@ -113,6 +127,7 @@ describe('replaceTool', () => {
         dry_run: false,
       },
       makeCtx(),
+      makeOpts(),
     );
     expect(result.files_modified).toBe(1);
     expect(await fs.readFile(keep, 'utf8')).toBe('DONE');
@@ -126,6 +141,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'world', replacement: 'wstack', files: filePath, dry_run: false },
       ctx,
+      makeOpts(),
     );
     expect(result.files_modified).toBe(1);
     expect(result.total_replacements).toBe(1);
@@ -152,6 +168,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'world', replacement: 'wstack', files: filePath, dry_run: false },
       ctx,
+      makeOpts(),
     );
     expect(result.files_modified).toBe(1);
     expect(await fs.readFile(filePath, 'utf8')).toBe('hello wstack');
@@ -164,6 +181,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'world', replacement: 'wstack', files: filePath },
       ctx,
+      makeOpts(),
     );
     expect(result.dry_run).toBe(true);
     expect(result.files_modified).toBe(1);
@@ -180,6 +198,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'nonexistent', replacement: 'x', files: filePath },
       ctx,
+      makeOpts(),
     );
     expect(result.files_modified).toBe(0);
     expect(result.total_replacements).toBe(0);
@@ -192,6 +211,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'foo', replacement: 'baz', files: '*.txt', dry_run: false },
       ctx,
+      makeOpts(),
     );
     expect(result).toHaveProperty('files_modified');
   });
@@ -203,6 +223,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'world', replacement: 'wstack', files: filePath, dry_run: true },
       ctx,
+      makeOpts(),
     );
     expect(result.results[0].diff).toBeDefined();
   });
@@ -215,6 +236,7 @@ describe('replaceTool', () => {
     const result = await replaceTool.execute(
       { pattern: 'foo', replacement: 'bar', files: filePath },
       ctx,
+      makeOpts(),
     );
     expect(result.files_modified).toBe(0);
   });
@@ -232,6 +254,7 @@ describe('globNative walk exception paths', () => {
     const result = await replaceTool.execute(
       { pattern: 'hello', replacement: 'hi', files: linkPath },
       ctx,
+      makeOpts(),
     );
     // Should not crash; the broken link is filtered by realpath check
     expect(result.files_modified).toBe(0);
@@ -251,6 +274,7 @@ describe('globNative walk exception paths', () => {
     const result = await replaceTool.execute(
       { pattern: 'banana', replacement: 'BERRIES', files: '**/*.txt', dry_run: false },
       ctx,
+      makeOpts(),
     );
     expect(result.files_modified).toBe(2);
     expect(result.total_replacements).toBe(2);
@@ -281,6 +305,7 @@ describe('replace change tracking', () => {
     const result = await replaceTool.execute(
       { pattern: 'hello', replacement: 'goodbye', files: filePath, dry_run: false },
       ctx,
+      makeOpts(),
     );
     expect(result.files_modified).toBe(1);
 
@@ -307,7 +332,11 @@ describe('replace change tracking', () => {
       },
       session: { recordFileChange: (c: unknown) => recorded.push(c) },
     } as any;
-    await replaceTool.execute({ pattern: 'hello', replacement: 'goodbye', files: filePath }, ctx);
+    await replaceTool.execute(
+      { pattern: 'hello', replacement: 'goodbye', files: filePath },
+      ctx,
+      makeOpts(),
+    );
     expect(recorded).toHaveLength(0);
   });
 });

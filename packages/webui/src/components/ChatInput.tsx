@@ -763,6 +763,19 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // The @-mention file picker installs a window-level capture listener
+      // that calls preventDefault() on the keys it owns (Enter/Tab to pick,
+      // Esc to dismiss, ↑/↓ to navigate). When atMention is active AND the
+      // picker has consumed this key (i.e. defaultPrevented is already
+      // true), we yield so the picker acts alone — without this guard, the
+      // textarea's Enter-to-submit handler previously ran in the same tick
+      // and double-submitted alongside the picker's onPick.
+      //
+      // We do NOT yield unconditionally: when atMention is active but the
+      // picker has no results (so its listener bails without preventing
+      // default), Enter/Tab etc. must fall through to their normal behavior
+      // rather than be silently swallowed.
+      if (atMention && e.defaultPrevented) return;
       if (slashSuggestions.length === 0 && !atMention && promptHistory.length > 0) {
         if (e.key === 'ArrowUp') {
           const ta = e.currentTarget;

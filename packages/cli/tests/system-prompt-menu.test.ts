@@ -171,7 +171,10 @@ describe('runSystemPromptMenu', () => {
 
     expect(variant).toBe('pro');
     // Menu header + one row per option, each with its token count.
-    const written = renderer.write.mock.calls.map((c) => String(c[0])).join('\n');
+    const written = vi
+      .mocked(renderer.write)
+      .mock.calls.map((c) => String(c[0]))
+      .join('\n');
     expect(written).toContain('System prompt:');
     expect(written).toContain('1.');
     expect(written).toContain('Lite');
@@ -232,7 +235,7 @@ describe('runSystemPromptMenu', () => {
     });
     expect(variant).toBe('pro');
     // The gate is the prompt itself (readLine), not a renderer.write line.
-    const prompt = String(reader.readLine.mock.calls[0]?.[0] ?? '');
+    const prompt = String(vi.mocked(reader.readLine).mock.calls[0]?.[0] ?? '');
     expect(prompt).toContain('Continue with Pro system prompt');
     expect(reader.readLine).toHaveBeenCalledTimes(1);
   });

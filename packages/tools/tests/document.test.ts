@@ -15,6 +15,7 @@ afterEach(async () => {
 });
 
 const makeCtx = () => ({ cwd: tmpDir, tools: [], projectRoot: tmpDir }) as any;
+const makeOpts = () => ({ signal: new AbortController().signal });
 
 describe('documentTool', () => {
   it('has correct metadata', () => {
@@ -30,7 +31,7 @@ describe('documentTool', () => {
 
   it('returns empty results when no files specified', async () => {
     const ctx = makeCtx();
-    const result = await documentTool.execute({ target: 'function' }, ctx);
+    const result = await documentTool.execute({ target: 'function' }, ctx, makeOpts());
     expect(result.files_processed).toBe(0);
     expect(result.items_documented).toBe(0);
     expect(result.results).toEqual([]);
@@ -41,6 +42,7 @@ describe('documentTool', () => {
     const result = await documentTool.execute(
       { target: 'all', path: path.join(tmpDir, 'nonexistent.ts') },
       ctx,
+      makeOpts(),
     );
     expect(result.results[0].status).toBe('error');
     expect(result.results[0].error).toBeDefined();
@@ -51,6 +53,7 @@ describe('documentTool', () => {
     const result = await documentTool.execute(
       { target: 'all', path: path.join(tmpDir, 'test.ts') },
       ctx,
+      makeOpts(),
     );
     expect(result.style).toBe('jsdoc');
   });
@@ -60,6 +63,7 @@ describe('documentTool', () => {
     const result = await documentTool.execute(
       { target: 'all', path: path.join(tmpDir, 'test.ts'), style: 'tsdoc' },
       ctx,
+      makeOpts(),
     );
     expect(result.style).toBe('tsdoc');
   });
@@ -69,6 +73,7 @@ describe('documentTool', () => {
     const result = await documentTool.execute(
       { target: 'all', path: path.join(tmpDir, 'test.ts'), style: 'block' },
       ctx,
+      makeOpts(),
     );
     expect(result.style).toBe('block');
   });
@@ -78,6 +83,7 @@ describe('documentTool', () => {
     const result = await documentTool.execute(
       { target: 'all', path: path.join(tmpDir, 'test.ts'), overwrite: true },
       ctx,
+      makeOpts(),
     );
     expect(result).toHaveProperty('style');
   });
@@ -90,7 +96,11 @@ describe('documentTool', () => {
       'utf8',
     );
     const ctx = makeCtx();
-    const result = await documentTool.execute({ target: 'function', files: 'funcs.ts' }, ctx);
+    const result = await documentTool.execute(
+      { target: 'function', files: 'funcs.ts' },
+      ctx,
+      makeOpts(),
+    );
     expect(result.files_processed).toBe(1);
     expect(result.items_documented).toBe(0); // still skipped, just detected
     expect(result.results.length).toBeGreaterThan(0);
@@ -104,7 +114,11 @@ describe('documentTool', () => {
       'utf8',
     );
     const ctx = makeCtx();
-    const result = await documentTool.execute({ target: 'function', files: 'fns.ts' }, ctx);
+    const result = await documentTool.execute(
+      { target: 'function', files: 'fns.ts' },
+      ctx,
+      makeOpts(),
+    );
     const names = result.results.map((r) => r.name);
     expect(names).toEqual(expect.arrayContaining(['plain', 'arrow']));
     expect(names).not.toContain('NotIncluded'); // class excluded under target=function
@@ -116,7 +130,11 @@ describe('documentTool', () => {
     const filePath = path.join(tmpDir, 'cls.ts');
     await fs.writeFile(filePath, 'class Alpha {}\nclass Beta {}', 'utf8');
     const ctx = makeCtx();
-    const result = await documentTool.execute({ target: 'class', files: 'cls.ts' }, ctx);
+    const result = await documentTool.execute(
+      { target: 'class', files: 'cls.ts' },
+      ctx,
+      makeOpts(),
+    );
     expect(result.results.map((r) => r.name)).toEqual(expect.arrayContaining(['Alpha', 'Beta']));
   });
 
@@ -125,7 +143,11 @@ describe('documentTool', () => {
     // The detector requires `=` or `<` after the name, so the interface is generic.
     await fs.writeFile(filePath, 'type Foo = number;\ninterface Bar<T> {}', 'utf8');
     const ctx = makeCtx();
-    const result = await documentTool.execute({ target: 'type', files: 'types.ts' }, ctx);
+    const result = await documentTool.execute(
+      { target: 'type', files: 'types.ts' },
+      ctx,
+      makeOpts(),
+    );
     expect(result.results.map((r) => r.name)).toEqual(expect.arrayContaining(['Foo', 'Bar']));
   });
 
@@ -133,7 +155,11 @@ describe('documentTool', () => {
     const filePath = path.join(tmpDir, 'mixed.ts');
     await fs.writeFile(filePath, 'function f() {}\nclass C {}\ntype T = string;', 'utf8');
     const ctx = makeCtx();
-    const result = await documentTool.execute({ target: 'all', files: 'mixed.ts' }, ctx);
+    const result = await documentTool.execute(
+      { target: 'all', files: 'mixed.ts' },
+      ctx,
+      makeOpts(),
+    );
     const names = result.results.map((r) => r.name);
     expect(names).toEqual(expect.arrayContaining(['f', 'C', 'T']));
   });
@@ -146,6 +172,7 @@ describe('documentTool', () => {
     const result = await documentTool.execute(
       { target: 'function', files: 'a.ts, b.ts, adir, missing.ts' },
       ctx,
+      makeOpts(),
     );
     // a.ts + b.ts processed; the directory and the missing file are skipped.
     expect(result.files_processed).toBe(2);
@@ -164,6 +191,7 @@ describe('documentTool', () => {
       const result = await documentTool.execute(
         { target: 'function', files: `${rel},${secret}` },
         ctx,
+        makeOpts(),
       );
       expect(result.files_processed).toBe(0);
       expect(result.results).toEqual([]);
@@ -175,7 +203,11 @@ describe('documentTool', () => {
   it('accepts files passed as an array', async () => {
     await fs.writeFile(path.join(tmpDir, 'arr.ts'), 'function z() {}', 'utf8');
     const ctx = makeCtx();
-    const result = await documentTool.execute({ target: 'function', files: ['arr.ts'] }, ctx);
+    const result = await documentTool.execute(
+      { target: 'function', files: ['arr.ts'] },
+      ctx,
+      makeOpts(),
+    );
     expect(result.files_processed).toBe(1);
     expect(result.results.map((r) => r.name)).toContain('z');
   });

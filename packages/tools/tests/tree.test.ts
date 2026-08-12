@@ -15,6 +15,7 @@ afterEach(async () => {
 });
 
 const makeCtx = () => ({ cwd: tmpDir, tools: [], projectRoot: tmpDir }) as any;
+const makeOpts = () => ({ signal: new AbortController().signal });
 
 describe('treeTool', () => {
   it('has correct metadata', () => {
@@ -25,7 +26,7 @@ describe('treeTool', () => {
 
   it('returns tree for valid path', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({ path: tmpDir }, ctx);
+    const result = await treeTool.execute({ path: tmpDir }, ctx, makeOpts());
     expect(result).toHaveProperty('tree');
     expect(result).toHaveProperty('total_files');
     expect(result).toHaveProperty('total_dirs');
@@ -33,25 +34,25 @@ describe('treeTool', () => {
 
   it('defaults to cwd', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({}, ctx);
+    const result = await treeTool.execute({}, ctx, makeOpts());
     expect(result.path).toBe(tmpDir);
   });
 
   it('respects depth option', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({ depth: 1 }, ctx);
+    const result = await treeTool.execute({ depth: 1 }, ctx, makeOpts());
     expect(result).toHaveProperty('tree');
   });
 
   it('respects show_files=false', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({ show_files: false }, ctx);
+    const result = await treeTool.execute({ show_files: false }, ctx, makeOpts());
     expect(result).toHaveProperty('tree');
   });
 
   it('respects show_dirs=false', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({ show_dirs: false }, ctx);
+    const result = await treeTool.execute({ show_dirs: false }, ctx, makeOpts());
     expect(result).toHaveProperty('tree');
   });
 
@@ -59,7 +60,7 @@ describe('treeTool', () => {
     await fs.mkdir(path.join(tmpDir, 'adir'));
     await fs.writeFile(path.join(tmpDir, 'keep.txt'), '');
     const ctx = makeCtx();
-    const result = await treeTool.execute({ show_dirs: false }, ctx);
+    const result = await treeTool.execute({ show_dirs: false }, ctx, makeOpts());
     expect(result.tree).not.toContain('adir/');
     expect(result.tree).toContain('keep.txt');
   });
@@ -72,7 +73,7 @@ describe('treeTool', () => {
     await fs.writeFile(path.join(tmpDir, 'b.txt'), '');
     await fs.writeFile(path.join(tmpDir, 'sub', 'c.txt'), '');
     const ctx = makeCtx();
-    const result = await treeTool.execute({ path: tmpDir }, ctx);
+    const result = await treeTool.execute({ path: tmpDir }, ctx, makeOpts());
     expect(result.total_files).toBe(3);
     expect(result.total_dirs).toBe(1);
   });
@@ -85,25 +86,25 @@ describe('treeTool', () => {
       await fs.writeFile(path.join(dir, `f${i}.txt`), '');
     }
     const ctx = makeCtx();
-    const result = await treeTool.execute({ path: tmpDir, depth: 20 }, ctx);
+    const result = await treeTool.execute({ path: tmpDir, depth: 20 }, ctx, makeOpts());
     expect(result.total_dirs).toBeGreaterThanOrEqual(6);
   });
 
   it('respects show_hidden=true', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({ show_hidden: true }, ctx);
+    const result = await treeTool.execute({ show_hidden: true }, ctx, makeOpts());
     expect(result).toHaveProperty('tree');
   });
 
   it('respects exclude option', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({ exclude: ['node_modules'] }, ctx);
+    const result = await treeTool.execute({ exclude: ['node_modules'] }, ctx, makeOpts());
     expect(result).toHaveProperty('tree');
   });
 
   it('respects glob filter', async () => {
     const ctx = makeCtx();
-    const result = await treeTool.execute({ glob: '*.ts' }, ctx);
+    const result = await treeTool.execute({ glob: '*.ts' }, ctx, makeOpts());
     expect(result).toHaveProperty('tree');
   });
 
@@ -153,7 +154,9 @@ describe('treeTool', () => {
     const original = treeTool.executeStream;
     treeTool.executeStream = undefined;
     try {
-      await expect(treeTool.execute({}, makeCtx())).rejects.toThrow(/stream execution unavailable/);
+      await expect(treeTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
+        /stream execution unavailable/,
+      );
     } finally {
       treeTool.executeStream = original;
     }
@@ -165,7 +168,9 @@ describe('treeTool', () => {
       yield { type: 'log', text: 'no final' } as never;
     };
     try {
-      await expect(treeTool.execute({}, makeCtx())).rejects.toThrow(/without final event/);
+      await expect(treeTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
+        /without final event/,
+      );
     } finally {
       treeTool.executeStream = original;
     }
@@ -175,7 +180,7 @@ describe('treeTool', () => {
     const file = path.join(tmpDir, 'afile.txt');
     await fs.writeFile(file, 'hi');
     const ctx = makeCtx();
-    const result = await treeTool.execute({ path: 'afile.txt' }, ctx);
+    const result = await treeTool.execute({ path: 'afile.txt' }, ctx, makeOpts());
     expect(result.total_files).toBe(0);
     expect(result.total_dirs).toBe(0);
   });

@@ -56,7 +56,7 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
       // No bash process for this session should remain active in the registry.
       const lingering = registry
         .bySession(sb.ctx.session.id)
-        .filter((p) => p.name === 'bash' && p.child.exitCode === null);
+        .filter((p) => p.name === 'bash' && p.child?.exitCode === null);
       expect(lingering).toHaveLength(0);
     } finally {
       await sb.cleanup();

@@ -33,13 +33,13 @@ vi.mock('node:fs/promises', () => ({
 // ---------------------------------------------------------------------------
 // Plugin under test (imported after mocks are installed).
 // ---------------------------------------------------------------------------
-const plugin = (await import('../src/gitignore-guard')).default;
+const plugin = (await import('../src/gitignore-guard/index.js')).default;
 const {
   DEFAULT_ARTIFACT_PATTERNS,
   classifyArtifact,
   matchGitignorePattern,
   readConfig,
-} = await import('../src/gitignore-guard');
+} = await import('../src/gitignore-guard/index.js');
 
 const ROOT = process.cwd();
 const rootGitignore = join(ROOT, '.gitignore');
@@ -216,7 +216,7 @@ describe('readConfig', () => {
 describe('gitignore-guard PostToolUse hook', () => {
   it('suggests an entry in suggest mode without touching .gitignore', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     const out = await hook(writeInput('dist/bundle.js'));
@@ -230,7 +230,7 @@ describe('gitignore-guard PostToolUse hook', () => {
 
   it('does nothing for non-artifact writes', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     expect(await hook(writeInput('src/index.ts'))).toBeUndefined();
@@ -239,7 +239,7 @@ describe('gitignore-guard PostToolUse hook', () => {
 
   it('skips errored tool results, missing paths, and .gitignore writes', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     expect(
@@ -258,7 +258,7 @@ describe('gitignore-guard PostToolUse hook', () => {
 
   it('skips paths outside the project root', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     const outside = join(ROOT, '..', 'elsewhere', 'dist', 'x.js');
@@ -269,7 +269,7 @@ describe('gitignore-guard PostToolUse hook', () => {
   it('skips when an existing .gitignore line already covers the path', async () => {
     seedGitignore(rootGitignore, 'node_modules/\ndist/\n');
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     expect(await hook(writeInput('dist/bundle.js'))).toBeUndefined();
@@ -282,7 +282,7 @@ describe('gitignore-guard PostToolUse hook', () => {
         'gitignore-guard': { mode: 'suggest', ignorePatterns: ['dist/'] },
       },
     });
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     expect(await hook(writeInput('dist/bundle.js'))).toBeUndefined();
@@ -292,7 +292,7 @@ describe('gitignore-guard PostToolUse hook', () => {
     const api = makeApi({
       extensions: { 'gitignore-guard': { mode: 'append' } },
     });
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     const first = await hook(writeInput('dist/bundle.js'));
@@ -311,7 +311,7 @@ describe('gitignore-guard PostToolUse hook', () => {
     const nested = join(ROOT, 'apps', 'web', '.gitignore');
     seedGitignore(nested, '# app ignores\n');
     const api = makeApi({ extensions: { 'gitignore-guard': { mode: 'append' } } });
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     const out = await hook(writeInput('apps/web/dist/x.js'));
@@ -324,7 +324,7 @@ describe('gitignore-guard PostToolUse hook', () => {
 
   it('re-reads config hot — mode switch applies without re-setup', async () => {
     const api = makeApi({ extensions: { 'gitignore-guard': { mode: 'suggest' } } });
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
 
     await hook(writeInput('coverage/lcov.info'));
@@ -343,7 +343,7 @@ describe('gitignore-guard PostToolUse hook', () => {
 describe('gitignore_guard_append tool', () => {
   it('appends an explicit pattern and reports alreadyCovered on repeat', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const tool = getTool(api, 'gitignore_guard_append');
 
     const first = await tool.execute({ path: 'dist/bundle.js', pattern: 'dist/' });
@@ -361,7 +361,7 @@ describe('gitignore_guard_append tool', () => {
 
   it('derives the pattern from the path when none is given', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const tool = getTool(api, 'gitignore_guard_append');
 
     const out = await tool.execute({ path: 'node_modules/pkg/index.js' });
@@ -371,7 +371,7 @@ describe('gitignore_guard_append tool', () => {
 
   it('rejects paths outside the project root', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const tool = getTool(api, 'gitignore_guard_append');
 
     const out = await tool.execute({ path: join(ROOT, '..', 'secret.txt') });
@@ -382,7 +382,7 @@ describe('gitignore_guard_append tool', () => {
 
   it('rejects paths that match no pattern when no explicit pattern is given', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const tool = getTool(api, 'gitignore_guard_append');
 
     const out = await tool.execute({ path: 'src/index.ts' });
@@ -394,7 +394,7 @@ describe('gitignore_guard_append tool', () => {
 describe('gitignore_guard_status tool', () => {
   it('reports config and per-session counters', async () => {
     const api = makeApi({ extensions: { 'gitignore-guard': { mode: 'append' } } });
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const hook = getHook(api);
     await hook(writeInput('dist/bundle.js'));
 
@@ -402,8 +402,8 @@ describe('gitignore_guard_status tool', () => {
     const out = await status.execute({});
     expect(out.ok).toBe(true);
     expect(out.mode).toBe('append');
-    expect(out.counters.appends).toBe(1);
-    expect(out.lastResult.path).toBe('dist/bundle.js');
+    expect((out.counters as { appends: number }).appends).toBe(1);
+    expect((out.lastResult as { path: string }).path).toBe('dist/bundle.js');
   });
 });
 
@@ -414,28 +414,28 @@ describe('gitignore_guard_status tool', () => {
 describe('lifecycle', () => {
   it('does not stack hooks on re-setup (unregisters the previous hook)', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const firstUnregister = api.registerHook.mock.results[0]?.value as ReturnType<typeof vi.fn>;
     expect(firstUnregister).toBeDefined();
 
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     expect(api.registerHook).toHaveBeenCalledTimes(2);
     expect(firstUnregister).toHaveBeenCalledTimes(1);
   });
 
   it('health() reports counters', async () => {
     const api = makeApi();
-    await plugin.setup(api);
-    const health = await plugin.health();
+    await plugin.setup(api as never);
+    const health = await plugin.health!();
     expect(health.ok).toBe(true);
     expect(typeof health.message).toBe('string');
   });
 
   it('teardown unregisters the hook', async () => {
     const api = makeApi();
-    await plugin.setup(api);
+    await plugin.setup(api as never);
     const unregister = api.registerHook.mock.results[0]?.value as ReturnType<typeof vi.fn>;
-    await plugin.teardown(api);
+    await plugin.teardown!(api as never);
     expect(unregister).toHaveBeenCalledTimes(1);
   });
 });
