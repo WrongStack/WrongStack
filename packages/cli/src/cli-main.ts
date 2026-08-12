@@ -206,12 +206,20 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const hookRunnerRef: {
     current: import('@wrongstack/core/tools').PluginManagerHookRunner | null;
   } = { current: null };
+  // Same late-binding pattern for leader_model_set's live switch: the real
+  // switchProviderAndModel is created by setupProviderRuntime further down,
+  // and this ref is filled right after it exists. Until then the tool reports
+  // that the live switch is not ready instead of silently diverging.
+  const switchProviderAndModelRef: {
+    current: ((providerId: string, modelId: string) => Promise<string | null>) | null;
+  } = { current: null };
   registerCliManagementTools({
     toolRegistry,
     configStore,
     profileConfigPath,
     stdinInteractive,
     getHookRunner: () => hookRunnerRef.current,
+    getSwitchProviderAndModel: () => switchProviderAndModelRef.current,
   });
 
   // Metrics wiring — extracted to wiring/metrics.ts
@@ -535,6 +543,8 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       buildProviderForIdRuntime,
       statusTracker,
     });
+  // Fill the late-bound ref so leader_model_set switches the live session too.
+  switchProviderAndModelRef.current = switchProviderAndModel;
 
   // ── Boot resume: adopt the resumed session's own model/provider ──────────
   // Parity with the in-session resume picker (tui-session-resume.ts): a fresh

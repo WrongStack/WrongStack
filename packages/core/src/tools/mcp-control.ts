@@ -236,23 +236,29 @@ async function runEnable(
     return `Unknown server "${name}". Available presets: ${known}`;
   }
 
-  // Write to config (add or update) using the shared JSON path helper.
-  await updateJsonObjectFile(deps.configPath, (full) => {
-    const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
-    setJsonPath(full, ['mcpServers', name], { ...current[name], ...cfg, enabled: true });
-  });
+  // Persist enabled:true using the shared JSON path helper. Called only
+  // AFTER the server is confirmed running — persisting before start left
+  // the config flipped to enabled when the start failed, so every later
+  // boot retried a server the user never saw come up.
+  const persistEnabled = () =>
+    updateJsonObjectFile(deps.configPath, (full) => {
+      const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
+      setJsonPath(full, ['mcpServers', name], { ...current[name], ...cfg, enabled: true });
+    });
 
-  // Start the server in the registry
+  // Start the server in the registry, then persist on success.
   try {
     const live = deps.registry.describe().find((s) => s.name === name);
     if (live && live.state === 'connected') {
-      return `${green('●')} Server "${name}" is already running (${live.toolCount} tools registered).`;
+      await persistEnabled();
+      return `Server "${name}" is already running (${live.toolCount} tools registered).`;
     }
     await deps.registry.start({ ...cfg, enabled: true });
+    await persistEnabled();
     const updated = deps.registry.describe().find((s) => s.name === name);
-    return `${green('✓ Enabled and started')} "${name}"${updated ? ` (${updated.toolCount} tools registered).` : '.'}`;
+    return `Enabled and started "${name}"${updated ? ` (${updated.toolCount} tools registered).` : '.'}`;
   } catch (err) {
-    return `${red('✗ Failed to start')} "${name}": ${toErrorMessage(err)}`;
+    return `Failed to start "${name}": ${toErrorMessage(err)}. Config was left unchanged (server stays disabled).`;
   }
 }
 
@@ -363,21 +369,25 @@ function isMcpServerRecord(value: unknown): value is Record<string, MCPServerCon
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-// ── Colour helpers (no dep on core color — inline) ───────────────────────────
+// ── Text helpers ─────────────────────────────────────────────────────────────
+// Tool output is model-facing text rendered verbatim in transcripts, logs and
+// non-TTY surfaces — hardcoded ANSI escapes turned into garbage there, so the
+// former colour helpers are now plain pass-throughs kept only to preserve the
+// call-site structure. The unicode glyphs (● ○ ✓ ✗ ◐ ◑) carry the state.
 
-function bold(s: string)  { return `\x1b[1m${s}\x1b[0m`; }
-function dim(s: string)  { return `\x1b[2m${s}\x1b[0m`; }
-function green(s: string) { return `\x1b[32m${s}\x1b[0m`; }
-function yellow(s: string){ return `\x1b[33m${s}\x1b[0m`; }
-function red(s: string)   { return `\x1b[31m${s}\x1b[0m`; }
+function bold(s: string)  { return s; }
+function dim(s: string)  { return s; }
+function green(s: string) { return s; }
+function yellow(s: string){ return s; }
+function red(s: string)   { return s; }
 
 function badge(state: string): string {
   switch (state) {
-    case 'connected':    return green('● connected');
-    case 'connecting':   return `\x1b[36m◐ connecting\x1b[0m`;
-    case 'reconnecting': return `\x1b[36m◑ reconnecting\x1b[0m`;
-    case 'disconnected': return dim('○ disconnected');
-    case 'failed':       return red('✗ failed');
-    default:            return dim(state);
+    case 'connected':    return '● connected';
+    case 'connecting':   return '◐ connecting';
+    case 'reconnecting': return '◑ reconnecting';
+    case 'disconnected': return '○ disconnected';
+    case 'failed':       return '✗ failed';
+    default:            return state;
   }
 }

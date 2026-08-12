@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const spawnMock = vi.hoisted(() => ({ fn: vi.fn() }));
 vi.mock('node:child_process', async (importOriginal) => {
@@ -7,7 +7,13 @@ vi.mock('node:child_process', async (importOriginal) => {
   return { ...actual, spawn: (...args: unknown[]) => spawnMock.fn(...args) };
 });
 
-import { grepTool } from '../src/grep.js';
+import { __resetRgDetectionForTests, grepTool } from '../src/grep.js';
+
+// rg availability is memoized per process; each test expects its own
+// `rg --version` probe spawn, so forget the cache between tests.
+beforeEach(() => {
+  __resetRgDetectionForTests();
+});
 
 class FakeReadable extends EventEmitter {
   pause = vi.fn();

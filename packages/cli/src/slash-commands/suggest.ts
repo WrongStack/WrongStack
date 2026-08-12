@@ -188,7 +188,7 @@ function parseSuggestions(raw: string): string[] {
     return [];
   }
 
-  const { texts } = parseNextSteps(raw, false, false); // permissive, no heading required
+  const { texts } = parseNextSteps(raw, false); // permissive, no heading required
   if (texts.length > 0) return texts;
 
   // Fallback: take the first 5 non-empty lines that look like suggestions

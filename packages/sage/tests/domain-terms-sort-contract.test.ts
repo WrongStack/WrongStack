@@ -18,7 +18,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { MemoryEntry, MemoryPort, MemoryStore } from '@wrongstack/core/types';
-import { renderDomainGlossary } from '@wrongstack/core';
+import { renderDomainGlossary } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DOMAIN_TERM_LOOKUP_TAG, SageDomainTermExtractor } from '../src/domain-term-extractor.js';
 import type { Sage } from '../src/types.js';

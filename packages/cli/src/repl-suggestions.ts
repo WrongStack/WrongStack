@@ -26,7 +26,7 @@ export function parseSuggestionsFromOutput(
     setAutoSuggestions([]);
     return null;
   }
-  const { texts, autoTexts } = parseNextSteps(finalText, false);
+  const { texts, autoTexts } = parseNextSteps(finalText);
   if (autoTexts.length > 0) {
     setAutoSuggestions(autoTexts);
   }
@@ -38,6 +38,6 @@ export function parseSuggestionsFromOutput(
  * Used by YOLO+auto autonomy mode.
  */
 export function parseAutoSuggestionsFromOutput(finalText: string): string[] | null {
-  const { autoTexts } = parseNextSteps(finalText, false);
+  const { autoTexts } = parseNextSteps(finalText);
   return autoTexts.length > 0 ? autoTexts : null;
 }

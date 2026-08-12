@@ -1,11 +1,18 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type {
+  CascadeAgentKind,
   ChimeraCascadeNeededPayload,
   ChimeraReviewNeededPayload,
 } from '@wrongstack/core/plugin';
 import { emitReviewIfChanged } from '@wrongstack/core/plugin';
 import type { StopReason } from '@wrongstack/core/types';
+import {
+  CASCADE_EVIDENCE_COMMAND_TIMEOUT_MS,
+  extractCascadeEvidence,
+  type CascadeEvidence,
+  verifyCascadeEvidence,
+} from './chimera-cascade-evidence.js';
 import { buildChimeraCascadeTaskDescription } from './chimera-review-task.js';
 import type { ReviewerAttempt } from './chimera-reviewer-policy.js';
 import {
@@ -69,6 +76,14 @@ export function installChimeraCascadeHandler({
         // is carried in the payload, independent of subagent success.
       }
 
+      // P0-3: collect each successful agent's claimed verification evidence
+      // so the re-review step can re-run the real commands before accepting
+      // the fixes as verified.
+      const agentEvidence: Array<{
+        agentKind: CascadeAgentKind;
+        evidence: CascadeEvidence;
+      }> = [];
+
       for (const agentKind of p.agents) {
         try {
           const taskDesc = buildChimeraCascadeTaskDescription(agentKind, p);
@@ -116,6 +131,13 @@ export function installChimeraCascadeHandler({
           if (result?.status === 'success') {
             const resultText =
               typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
+            // P0-3: collect the agent's claimed verification evidence so the
+            // re-review step can re-run the real commands before accepting
+            // the fixes as verified.
+            const claimed = extractCascadeEvidence(resultText);
+            if (claimed) {
+              agentEvidence.push({ agentKind, evidence: claimed });
+            }
             await session.append({
               type: 'llm_response',
               ts: new Date().toISOString(),
@@ -151,7 +173,12 @@ export function installChimeraCascadeHandler({
         }
       }
 
-      await maybeReReviewCascade({ events, session, bundle: p.bundle });
+      await maybeReReviewCascade({
+        events,
+        session,
+        bundle: p.bundle,
+        claimedEvidence: accumulatedEvidence,
+      });
     })();
 
     trackWork(pendingWork);
@@ -162,16 +189,68 @@ async function maybeReReviewCascade({
   events,
   session,
   bundle,
+  claimedEvidence,
 }: {
   events: Events;
   session: Session;
   bundle: ChimeraCascadeNeededPayload['bundle'];
+  /**
+   * P0-3: evidence claimed by the cascade fix agents before re-review. The
+   * orchestrator re-runs the claimed commands against the working tree and
+   * only proceeds to re-review when the verification passes — otherwise the
+   * findings stay open and the report is marked unverified.
+   */
+  claimedEvidence: CascadeEvidence;
 }): Promise<void> {
   // After the cascade fix agents finish, re-read the (now possibly modified)
   // files and re-emit chimera.review_needed to trigger a fresh review. The
   // loop is bounded by maxCascadeDepth.
   const maxDepth = bundle.maxCascadeDepth ?? 0;
   const currentDepth = bundle.cascadeDepth ?? 0;
+
+  // P0-3: verify the cascade agents' claimed machine evidence BEFORE we
+  // trust their fixes. Verification runs the same commands (typecheck/lint/
+  // tests) the agent supposedly ran and compares exit codes. The verdict
+  // rides on the re-review bundle so the persisted report records exactly
+  // which checks the orchestrator confirmed.
+  let evidenceBundle: ChimeraCascadeNeededPayload['bundle'] = bundle;
+  if (claimedEvidence) {
+    const cwd = bundle.cwd;
+    const verification = await verifyCascadeEvidence(claimedEvidence, cwd);
+    evidenceBundle = {
+      ...bundle,
+      evidenceStatus: verification.status,
+      evidenceChecks: verification.checks,
+    };
+    await session.append({
+      type: 'llm_response',
+      ts: new Date().toISOString(),
+      content: [
+        {
+          type: 'text',
+          text: renderEvidenceSummary(verification.status, verification.checks),
+        },
+      ],
+      stopReason: 'end_turn' as StopReason,
+      usage: { input: 0, output: 0 },
+    });
+    if (verification.status !== 'verified') {
+      await session.append({
+        type: 'llm_response',
+        ts: new Date().toISOString(),
+        content: [
+          {
+            type: 'text',
+            text: `🦂 Chimera cascade evidence ${verification.status} — fix not confirmed, skipping re-review. Findings remain open.`,
+          },
+        ],
+        stopReason: 'end_turn' as StopReason,
+        usage: { input: 0, output: 0 },
+      });
+      return;
+    }
+  }
+
   if (maxDepth > 0 && currentDepth < maxDepth) {
     try {
       const reReadFiles: ChimeraReviewNeededPayload['files'] = [];

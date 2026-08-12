@@ -55,10 +55,10 @@ describe('logsTool', () => {
     expect(result).toHaveProperty('total');
   });
 
-  it('handles stream param for service', async () => {
+  it('always reports stream_mode false (streaming is not supported)', async () => {
     const ctx = makeCtx();
-    const result = await logsTool.execute({ service: 'myapp', stream: true }, ctx, makeOpts());
-    expect(result).toHaveProperty('stream_mode');
+    const result = await logsTool.execute({ service: 'myapp' }, ctx, makeOpts());
+    expect(result.stream_mode).toBe(false);
   });
 
   it('handles filter for service', async () => {
@@ -73,12 +73,12 @@ describe('logsTool', () => {
     expect(result).toHaveProperty('total');
   });
 
-  it('handles stream param for file path', async () => {
+  it('reports stream_mode false for file paths too', async () => {
     const filePath = path.join(tmpDir, 'app.log');
     await fs.writeFile(filePath, '2024-01-01 INFO hello\n2024-01-02 ERROR world', 'utf8');
     const ctx = makeCtx();
-    const result = await logsTool.execute({ path: 'app.log', stream: true }, ctx, makeOpts());
-    expect(result.stream_mode).toBe(true);
+    const result = await logsTool.execute({ path: 'app.log' }, ctx, makeOpts());
+    expect(result.stream_mode).toBe(false);
   });
 
   it('handles filter for file path', async () => {

@@ -21,6 +21,16 @@
   - *How:* `runCteWithSeeds`
   - *How:* `ReferenceError`
 
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T05:28:46.207Z; skill=chimera; applied=12; wins=12 -->
+- **When extracting a shared classification helper (e.g. `classifyChimeraReviewSource` in `packages/core/src/plugins/review-finding-integration.ts`) to guarantee two stores agree on a label, the function's parameter shape (`ReviewContextBundle` vs the full `ChimeraReviewCompletePayload`) is a wiring hazard. Grep every call site and confirm each passes the matching shape: finding/report integrations pass `payload.bundle`, while sibling consumers that already hold the bare bundle (e.g. `packages/cli/src/execution-chimera-review.ts`) pass it directly.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `classifyChimeraReviewSource`
+  - *How:* `packages/core/src/plugins/review-finding-integration.ts`
+  - *How:* `ReviewContextBundle`
+  - *How:* `ChimeraReviewCompletePayload`
+  - *How:* `payload.bundle`
+  - *How:* `packages/cli/src/execution-chimera-review.ts`
+
 <!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera -->
 - **When reviewing a generated ratchet baseline such as `architecture/hotspots.json`, do not judge a metric field by a naive grep — read the generator first (`collectModuleSpecifiers` in `scripts/lib/architecture-health.mjs`) to learn every form it counts. `relativeImports` includes static `from './x'`, bare side-effect `import './x.css'`, dynamic `import('./x')`, `require()`, and `import x = require()`, so a file whose static imports number 6 can legitimately record 20.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
@@ -36,13 +46,13 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=29; wins=27 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=45; wins=43 -->
 - **Always verify a "default/fallback value" test is *discriminating*: when the system under test returns a bounded slice, supply more candidates than the default cap so the assertion count equals the cap (not the candidate count). A test whose expected length is smaller than the default cap cannot distinguish "the default was applied" from "no cap applied at all" — it passes even when the fallback-to-constant branch is broken (e.g. returns `undefined` → `Number.isFinite` false → no slicing).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `undefined`
   - *How:* `Number.isFinite`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=21; wins=21 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=22; wins=22 -->
 - **When a sender pre-validates a payload against a receiver's reject threshold, verify byte-measurement equivalence *and* boundary-direction consistency: confirm the sender measures the exact same sub-object the receiver's validator measures (e.g. `record.board` vs the whole `record`), and that the comparison operators align at the boundary (`>` skip on one side must pair with `<=` accept on the other) — a mismatch here is the classic "sender thinks it's under the limit, receiver drops it" silent-loss bug in `packages/core/src/hq/protocol/kanban.ts` and `packages/cli/src/kanban-hq-sync.ts`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `record.board`
@@ -52,7 +62,7 @@
   - *How:* `packages/core/src/hq/protocol/kanban.ts`
   - *How:* `packages/cli/src/kanban-hq-sync.ts`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-09T21:26:29.204Z; applied=8; wins=8 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-09T21:26:29.204Z; applied=10; wins=10 -->
 - **When adding binary/protocol-mode state fields to a socket connection class in `packages/tools/src/codebase-index/project-server-client.ts`, reset them in **both** `connectOnce()` and `close()`. The connection object is reused across reconnects (`ensureConnected` early-returns on a live socket, `connectWithElection` loops `connectOnce` on stale servers), so any unreset mode flag like `useBinary` leaks into the next handshake and routes JSON frames through the binary parser. Grep for every new mutable field against both lifecycle paths before reporting the change complete.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `packages/tools/src/codebase-index/project-server-client.ts`
@@ -63,15 +73,6 @@
   - *How:* `connectOnce`
   - *How:* `useBinary`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:02:35.150Z; skill=chimera; applied=3; wins=3 -->
-- **When reviewing a configuration-cap feature added with `?? default` display fallback + numeric-guard accessor, verify three contract points in one pass and report any divergence: (1) the accessor's null/NaN/negative guard, (2) the consumer's `?? default` — confirm `??` (not `||`) so a user-set `0` survives display, and (3) the renderer — confirm the numeric guard agrees with the renderer's `=== 0 ? disabled : ...` branches so a `0` value is rendered disabled, not as the default or as empty.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `?? default`
-  - *How:* `??`
-  - *How:* `||`
-  - *How:* `0`
-  - *How:* `=== 0 ? disabled : ...`
-
 <!-- learned-stamp: category=convention; capturedAt=2026-08-10T21:24:04.188Z; skill=testing; applied=15; wins=15 -->
 - **When validating a multi-predicate *parity* test (e.g. `classifyTaskForQueue` bucket vs `evaluateContractGraphReadiness` ready-vs `validateManagedTaskTransition` issues in `packages/kanban`), prove it is non-vacuous by tracing at least one corpus entry that resolves **ready=true** and one that resolves **ready=false** across *all* predicates — a corpus where every entry agrees on a single outcome cannot catch divergence.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
@@ -81,4 +82,4 @@
   - *How:* `packages/kanban`
 
 ---
-*Last capture: 2026-08-11T15:48:37.933Z · 8 entries*
+*Last capture: 2026-08-12T05:28:46.207Z · 8 entries*

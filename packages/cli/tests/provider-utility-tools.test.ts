@@ -147,6 +147,10 @@ describe('registerProviderUtilityTools', () => {
       expect.objectContaining({
         defaultProvider: 'provider',
         defaultModel: 'model',
+        // Without a router the `role` input is inert, and without the tracker
+        // the llm tool's calls never record provider health.
+        modelRouter: expect.objectContaining({ pickForTask: expect.any(Function) }),
+        statusTracker: deps.statusTracker,
       }),
     );
     expect(registry.register).toHaveBeenNthCalledWith(1, { name: 'llm' });
@@ -168,6 +172,27 @@ describe('registerProviderUtilityTools', () => {
       maxTokens: 1024,
       timeoutMs: 30_000,
     });
+  });
+
+  it('gives the llm tool a live role router that reads the matrix at pick time', () => {
+    // Mirror of the council router: the llm tool's `role` input routes through
+    // the same live matrix, and `/setmodel` edits must be visible mid-session.
+    const registry = { register: vi.fn(), override: vi.fn() };
+    const deps = input(registry);
+    let matrix: Record<string, { provider: string; model: string }> = {};
+    deps.getConfig = () =>
+      ({ provider: 'session-provider', model: 'session-model', modelMatrix: matrix }) as never;
+
+    registerProviderUtilityTools(deps as never);
+
+    const llmOptions = mocks.createOneShotLLMTool.mock.calls[0]?.[0] as {
+      modelRouter: { pickForTask(role: string, description: string): { model: string } };
+      statusTracker: unknown;
+    };
+    expect(llmOptions.statusTracker).toBe(deps.statusTracker);
+    expect(llmOptions.modelRouter.pickForTask('critic', '').model).toBe('session-model');
+    matrix = { critic: { provider: 'anthropic', model: 'late-critic' } };
+    expect(llmOptions.modelRouter.pickForTask('critic', '').model).toBe('late-critic');
   });
 
   it('gives the council orchestrator a live role router', () => {

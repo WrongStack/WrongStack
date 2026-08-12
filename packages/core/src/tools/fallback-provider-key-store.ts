@@ -41,7 +41,11 @@ export async function storeProviderKey(
   });
 
   entry.apiKeys = existingKeys;
-  entry.apiKey = undefined;
+  // `delete`, not `= undefined` — the same `entry` object is mirrored into the
+  // in-memory configStore by updateConfig, and an `apiKey: undefined` property
+  // survives there (`'apiKey' in entry` stays true) even though JSON
+  // serialization drops it on disk. Deleting keeps both views identical.
+  delete entry.apiKey;
 
   if (input.setActive !== false) {
     entry.activeKey = label;

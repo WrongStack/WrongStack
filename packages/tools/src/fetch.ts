@@ -25,6 +25,16 @@ TD.addRule('stripDangerousElements', {
   replacement: () => '',
 });
 
+// Prune boilerplate chrome before conversion: navigation menus, page
+// headers/footers, sidebars, inline SVG markup, and iframes carry almost no
+// information for the agent but routinely dominate the converted markdown of
+// real-world pages. Removing the elements (not just their tags) is the single
+// biggest token win for the fetch tool. A filter function (rather than a tag
+// list) keeps the match case-insensitive — SVG elements keep lowercase
+// nodeNames while HTML elements report uppercase.
+const PRUNED_BOILERPLATE_TAGS = new Set(['nav', 'header', 'footer', 'aside', 'svg', 'iframe']);
+TD.remove((node) => PRUNED_BOILERPLATE_TAGS.has(node.nodeName.toLowerCase()));
+
 interface FetchInput {
   url: string;
   format?: 'markdown' | 'text' | 'raw' | undefined;
@@ -84,7 +94,8 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
       format: {
         type: 'string',
         enum: ['markdown', 'text', 'raw'],
-        description: 'Output format. "markdown" is recommended for HTML pages.',
+        description:
+          'Output format. "markdown" is recommended for HTML pages; for non-HTML content types it falls back to plain text (JSON is pretty-printed).',
       },
     },
     required: ['url'],
@@ -119,6 +130,14 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
       });
     }
     const u = new URL(input.url);
+    if (u.username || u.password) {
+      // Credentials embedded in URLs leak into logs, session transcripts, and
+      // redirect targets; reject them outright instead of forwarding secrets.
+      throw new ToolValidationError({
+        message: 'fetch: URLs with embedded credentials (user:pass@host) are not allowed',
+        field: 'url',
+      });
+    }
     if (u.protocol !== 'https:' && u.protocol !== 'http:') {
       throw new ToolValidationError({
         message: `fetch: unsupported protocol "${u.protocol}"`,

@@ -189,7 +189,7 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
 });
 
 describe('parseNextSteps (REPL store path)', () => {
-  it('requires the canonical XML block even when strict is false', () => {
+  it('requires the canonical XML block in the default heading mode', () => {
     const looseCases = [
       '💡 Next steps\n1. First\n2. Second',
       '## Next steps\n1. First\n2. Second',
@@ -197,12 +197,12 @@ describe('parseNextSteps (REPL store path)', () => {
       'Next suggests\n1. First\n2. Second',
     ];
     for (const text of looseCases) {
-      const { texts, stripped } = parseNextSteps(text, false);
+      const { texts, stripped } = parseNextSteps(text);
       expect(texts).toEqual([]);
       expect(stripped).toBe(text);
     }
 
-    const { texts } = parseNextSteps('<nextsteps>\n1. First\n2. Second\n</nextsteps>', false);
+    const { texts } = parseNextSteps('<nextsteps>\n1. First\n2. Second\n</nextsteps>');
     expect(texts).toEqual(['First', 'Second']);
   });
 });
@@ -219,19 +219,19 @@ describe('parseNextSteps (raw mode — /suggest subagent output)', () => {
       '2. Add a test',
       '3. Commit',
     ].join('\n');
-    const { texts } = parseNextSteps(text, false, false);
+    const { texts } = parseNextSteps(text, false);
     expect(texts).toEqual(['Run the typecheck', 'Add a test', 'Commit']);
   });
 
   it('parses bullet items in raw mode', () => {
     const text = '- First bullet\n- Second bullet';
-    const { texts } = parseNextSteps(text, false, false);
+    const { texts } = parseNextSteps(text, false);
     expect(texts).toEqual(['First bullet', 'Second bullet']);
   });
 
   it('accepts auto="true" only on the first item in raw mode', () => {
     const text = '1. Auto item auto="true"\n2. Later marker auto="true"\n3. Also plain';
-    const { steps, autoTexts } = parseNextSteps(text, false, false);
+    const { steps, autoTexts } = parseNextSteps(text, false);
     expect(steps).toEqual([
       { index: 1, text: 'Auto item', auto: true },
       { index: 2, text: 'Later marker' },
@@ -242,14 +242,14 @@ describe('parseNextSteps (raw mode — /suggest subagent output)', () => {
 
   it('skips duplicate numbers in raw mode', () => {
     const text = '1. First\n1. Duplicate\n2. Second';
-    const { texts } = parseNextSteps(text, false, false);
+    const { texts } = parseNextSteps(text, false);
     expect(texts).toEqual(['First', 'Second']);
   });
 
   it('caps at MAX_STEPS in raw mode', () => {
     const lines: string[] = [];
     for (let i = 1; i <= 10; i++) lines.push(`${i}. Step ${i}`);
-    const { steps } = parseNextSteps(lines.join('\n'), false, false);
+    const { steps } = parseNextSteps(lines.join('\n'), false);
     expect(steps).toHaveLength(6);
   });
 });

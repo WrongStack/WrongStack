@@ -67,7 +67,8 @@ export const browserOpenTool: Tool<{
 }> = {
   name: 'browser_open',
   description:
-    'Open an isolated first-party Playwright browser session, optionally navigating to a URL.',
+    'Open an isolated first-party Playwright browser session, optionally navigating to a URL. ' +
+    'Private/localhost origins are blocked by default; enable specific origins via the WRONGSTACK_BROWSER_PRIVATE_ORIGINS env allowlist.',
   usageHint: 'browser_open({ url?, width?, height?, trace? })',
   permission: 'confirm',
   mutating: true,
@@ -127,7 +128,9 @@ export const browserStatusTool: Tool<Record<string, never>> = {
 
 export const browserNavigateTool: Tool<{ sessionId: string; url: string }> = {
   name: 'browser_navigate',
-  description: 'Navigate an owned browser session to an approved http(s) URL.',
+  description:
+    'Navigate an owned browser session to an approved http(s) URL. ' +
+    'Private/localhost origins are blocked by default; enable specific origins via the WRONGSTACK_BROWSER_PRIVATE_ORIGINS env allowlist.',
   usageHint: 'browser_navigate({ sessionId, url })',
   permission: 'confirm',
   mutating: true,

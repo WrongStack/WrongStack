@@ -1,4 +1,3 @@
-import * as fs from 'node:fs/promises';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import {
   createFallbackManageTools,
@@ -6,6 +5,7 @@ import {
   type PluginManagerHookRunner,
 } from '@wrongstack/core/tools';
 import type { Config } from '@wrongstack/core/types';
+import { updateJsonObjectFile } from '@wrongstack/core/utils';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from '../plugin-management.js';
 
 type ConfigStoreLike = {
@@ -25,6 +25,15 @@ export interface RegisterCliManagementToolsDeps {
    * starts null and is filled once wiring completes.
    */
   getHookRunner?: (() => PluginManagerHookRunner | null) | undefined;
+  /**
+   * Late-bound live provider/model switch for leader_model_set. Like the hook
+   * runner, cli-main creates switchProviderAndModel AFTER the management tools
+   * register (it needs the provider runtime), so it passes a ref-backed getter
+   * that starts null and is filled once provider wiring completes.
+   */
+  getSwitchProviderAndModel?:
+    | (() => ((providerId: string, modelId: string) => Promise<string | null>) | null)
+    | undefined;
 }
 
 export function registerCliManagementTools({
@@ -33,16 +42,34 @@ export function registerCliManagementTools({
   profileConfigPath,
   stdinInteractive,
   getHookRunner,
+  getSwitchProviderAndModel,
 }: RegisterCliManagementToolsDeps): void {
   const fallbackManageTools = createFallbackManageTools({
     getConfig: () => configStore.get(),
+    // updateJsonObjectFile is the same atomic read-mutate-write helper
+    // mcp_control uses on this very file — the previous bare
+    // readFile→JSON.parse→writeFile raced it and could drop concurrent
+    // updates (and tore the file on a crash mid-write).
     updateConfig: async (mutate: (cfg: Record<string, unknown>) => void) => {
-      const raw = await fs.readFile(profileConfigPath, 'utf8').catch(() => '{}');
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      mutate(parsed);
-      await fs.writeFile(profileConfigPath, JSON.stringify(parsed, null, 2), { mode: 0o600 });
-      configStore.update(parsed as Partial<Config>);
+      const next = await updateJsonObjectFile(profileConfigPath, (cfg) => {
+        mutate(cfg);
+      });
+      configStore.update(next as Partial<Config>);
     },
+    ...(getSwitchProviderAndModel
+      ? {
+          switchProviderAndModel: async (
+            providerId: string,
+            modelId: string,
+          ): Promise<string | null> => {
+            const switchFn = getSwitchProviderAndModel();
+            if (!switchFn) {
+              return 'the live model switch is not ready yet (still booting) — try again shortly';
+            }
+            return switchFn(providerId, modelId);
+          },
+        }
+      : {}),
     // Interactive key entry for REPL mode reads a line from stdin without echo.
     ...(stdinInteractive
       ? {

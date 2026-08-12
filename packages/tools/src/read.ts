@@ -69,7 +69,8 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
   category: 'Filesystem',
   description:
     'Read the contents of a file with line numbers. This is the primary way to inspect source code, configuration, or any text file before making changes. ' +
-    'Lines are returned 1-indexed with a `   N| ` prefix for easy reference in edits. ' +
+    'Lines are returned 1-indexed in the form `N→content` (line number, then a `→` separator, then the raw line). ' +
+    'The `N→` prefix is display-only — always strip it before reusing the text, e.g. never include it in `edit.old_string`. ' +
     'When advanced mode is on or `includeSymbols` is set, the result also includes a `symbols` field ' +
     'listing codebase-index symbol names, kinds, and line numbers for the file (not file content).',
   usageHint:
@@ -100,11 +101,14 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       },
       offset: {
         type: 'integer',
+        minimum: 1,
         description: '1-based starting line number. Use together with `limit` for large files.',
       },
       limit: {
         type: 'integer',
-        description: 'Maximum number of lines to return (default is 2000).',
+        minimum: 0,
+        description:
+          'Maximum number of lines to return (default 2000). Values above 5000 are clamped to 5000 — page with `offset` for more.',
       },
       mode: {
         type: 'string',
@@ -204,7 +208,12 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
 
     const buf = await fs.readFile(absPath);
     if (isBinaryBuffer(buf)) {
-      throw new Error(`read: "${input.path}" appears to be binary`);
+      throw new FsError({
+        message: `read: "${input.path}" appears to be binary`,
+        code: 'FS_READ_FAILED',
+        path: absPath,
+        context: { reason: 'binary' },
+      });
     }
 
     const text = buf.toString('utf8');

@@ -36,6 +36,37 @@ describe('write tool', () => {
     expect(await fs.readFile(path.join(sb.dir, 'new.txt'), 'utf8')).toBe('hello');
   });
 
+  it('preserves the dominant CRLF style when overwriting an existing file', async () => {
+    const file = path.join(sb.dir, 'crlf.txt');
+    await fs.writeFile(file, 'one\r\ntwo\r\nthree\r\n');
+    const out = await writeTool.execute(
+      { path: 'crlf.txt', content: 'one\nTWO\nthree\n' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    expect(out.created).toBe(false);
+    expect(await fs.readFile(file, 'utf8')).toBe('one\r\nTWO\r\nthree\r\n');
+  });
+
+  it('preserves LF style when overwriting an LF file with CRLF content', async () => {
+    const file = path.join(sb.dir, 'lf.txt');
+    await fs.writeFile(file, 'one\ntwo\n');
+    await writeTool.execute({ path: 'lf.txt', content: 'one\r\nTWO\r\n' }, sb.ctx, {
+      signal: newSignal(),
+    });
+    expect(await fs.readFile(file, 'utf8')).toBe('one\nTWO\n');
+  });
+
+  it('writes new files verbatim — no EOL normalization', async () => {
+    const out = await writeTool.execute(
+      { path: 'fresh.txt', content: 'a\r\nb\nc\r\n' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    expect(out.created).toBe(true);
+    expect(await fs.readFile(path.join(sb.dir, 'fresh.txt'), 'utf8')).toBe('a\r\nb\nc\r\n');
+  });
+
   it('reports syntax errors in written TS content (file stays on disk)', async () => {
     const out = await writeTool.execute({ path: 'broken.ts', content: 'const x = ;\n' }, sb.ctx, {
       signal: newSignal(),

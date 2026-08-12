@@ -45,6 +45,7 @@ import { parseArgs } from './arg-parser.js';
 import { discoverAndMergeProviders } from './boot/auto-discover-providers.js';
 import { maybeRestoreDefaultProfileFromBackup } from './boot/config-backup-recovery.js';
 import { applySimpleUiFullAutoProfile, isSimpleUiFullAuto } from './boot/simpleui-full-auto.js';
+import { maybeRunSystemPromptMenu } from './boot/system-prompt-menu.js';
 import { bootConfig } from './boot-config.js';
 import { ReadlineInputReader } from './input-reader.js';
 import { printLaunchHints } from './launch-hints.js';
@@ -588,6 +589,33 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
 
   // Mode + YOLO + Director + Autonomy prompts
   if (isInteractiveTTY) {
+    // System prompt (Lite / Standard / Pro). The gate itself lives in
+    // `maybeRunSystemPromptMenu` so the non-TTY skip is unit-testable —
+    // as a bare `if` here it was unreachable from any test.
+    const promptMenu = await maybeRunSystemPromptMenu({
+      isInteractiveTTY,
+      flags,
+      renderer,
+      reader,
+      profileConfigPath,
+      paths: {
+        globalDir: wpaths.globalInstructions,
+        projectDir: wpaths.inProjectInstructions,
+      },
+    });
+    if (promptMenu.aborted) {
+      await reader.close();
+      return 0;
+    }
+    if (promptMenu.changed && promptMenu.variant) {
+      config = patchConfig(config, { systemPrompt: { variant: promptMenu.variant } });
+    }
+    if (promptMenu.persistError) {
+      renderer.writeWarning(
+        `Could not save system prompt variant to config: ${toErrorMessage(promptMenu.persistError)}\n`,
+      );
+    }
+
     let modePinned: 'tui' | 'repl' | undefined;
     if (flags['no-tui']) modePinned = 'repl';
     else if (flags['tui']) modePinned = 'tui';

@@ -63,7 +63,7 @@ export function createFallbackChainManageTool(
       '"list" to see the current chain. "add" with a favorite model to append. ' +
       '"insert" with an index (1-based) to place before that position. ' +
       '"remove" with index or model ref. "clear" to empty the chain (auto fallback takes over).',
-    category: 'Config',
+    category: 'config',
     inputSchema: FALLBACK_CHAIN_SCHEMA,
     permission: 'auto',
     mutating: true,

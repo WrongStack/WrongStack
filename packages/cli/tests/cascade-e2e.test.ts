@@ -115,6 +115,8 @@ function makeBundle(
       model: 'test-model',
       maxFiles: 15,
       autoFix: 'off',
+      fallbackModels: [],
+      fallbackProfile: undefined,
       cascadeOn: cascadeOn,
       maxCascadeDepth: 3,
     },

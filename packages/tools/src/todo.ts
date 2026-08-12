@@ -525,10 +525,14 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
       }
     }
 
-    // Mark fully-completed plan items as done
+    // Mark fully-completed plan items as done. Prefer the RESOLVED path the
+    // plan tool actually wrote ('plan.path.resolved' — set for both session
+    // and project scope) over the seeded session path, so project-scoped plan
+    // items promoted to todos roll up against the real backlog file.
     for (const planId of completedPlanIds) {
       if (pendingPlanIds.has(planId)) continue; // not all done yet
-      const planPath = (ctx.meta as Record<string, unknown>)['plan.path'];
+      const meta = ctx.meta as Record<string, unknown>;
+      const planPath = meta['plan.path.resolved'] ?? meta['plan.path'];
       if (typeof planPath !== 'string' || !planPath) continue;
       try {
         const plan = await loadPlan(planPath);
@@ -541,10 +545,12 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
       }
     }
 
-    // Mark fully-completed tasks as completed
+    // Mark fully-completed tasks as completed — same resolved-path preference
+    // as the plan rollup above.
     for (const taskId of completedTaskIds) {
       if (pendingTaskIds.has(taskId)) continue; // not all done yet
-      const taskPath = (ctx.meta as Record<string, unknown>)['task.path'];
+      const meta = ctx.meta as Record<string, unknown>;
+      const taskPath = meta['task.path.resolved'] ?? meta['task.path'];
       if (typeof taskPath !== 'string' || !taskPath) continue;
       try {
         const file = await loadTasks(taskPath);

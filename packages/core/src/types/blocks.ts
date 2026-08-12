@@ -37,6 +37,14 @@ export interface ToolResultBlock {
   content: string;
   is_error?: boolean | undefined;
   /**
+   * Provider cache boundary. Set at request-composition time on a CLONE of the
+   * trailing durable block (never on the stored message) so the conversation
+   * prefix becomes an incrementally extendable cache entry. Wires that use
+   * explicit markers (Anthropic) emit it; every other wire rebuilds
+   * tool_result content explicitly and drops it.
+   */
+  cache_control?: { type: 'ephemeral' | undefined };
+  /**
    * Structured tool error information. Present on error results produced
    * by the unified tool error taxonomy (tool-error-taxonomy.ts). Consumed
    * by retry logic, audit log, and observability. Stripped before sending

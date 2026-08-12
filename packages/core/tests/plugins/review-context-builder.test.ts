@@ -16,6 +16,10 @@ const MOCK_CONFIG: ResolvedChimeraConfig = {
   model: 'test-model',
   maxFiles: 15,
   autoFix: 'off',
+  cascadeOn: 'off',
+  maxCascadeDepth: 0,
+  fallbackModels: [],
+  fallbackProfile: undefined,
 };
 
 let tmpDir: string;

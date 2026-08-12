@@ -13,8 +13,11 @@ const SENSITIVE_FLAG_PATTERNS: RegExp[] = [
   /--(?:token|password|passwd|pwd|secret|api[-_]?key|api[-_]?secret|auth|credential|private[-_]?key|access[-_]?key|github[-_]?token|gh[-_]?token|bearer|jwt|oauth|pin|pincode|passphrase|access[-_]?token)(?:[=\s,][^\s]*)?/gi,
   // -t short flag (token): attached (-tVALUE), separated (-t VALUE), or -t=VALUE.
   // (?<![-\w]) anchors to a token start so we don't match the `-t` inside `--token`.
+  // The value must be token-like (>= 8 chars) so ordinary combined flags such
+  // as `tar -tf` / `ssh -tt` are not eaten. Global flag: EVERY occurrence is
+  // redacted, not just the first.
   // NOTE: synced with @wrongstack/core observability/redact-command.ts.
-  /(?<![-\w])-t(?:[=\s]+)?[^\s,-]+/,
+  /(?<![-\w])-t(?:[=\s]+)?[^\s,-]{8,}/g,
   // -p|-password|-a (redis auth) short flags: attached + separated + =value.
   // Same token-start anchor; over-redaction is an accepted tradeoff for a
   // redaction function. Synced with core copy.
@@ -22,8 +25,9 @@ const SENSITIVE_FLAG_PATTERNS: RegExp[] = [
   // env var–style secrets: TOKEN=x, API_KEY=y, etc.
   /(?:TOKEN|API_KEY|API_SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|PRIVATE_KEY|PASSWORD|PASSWD)\s*[=:]\s*[^\s,]+/gi,
   // Generic high-entropy look: base64 strings >32 chars or hex strings >32 digits — but only
-  // when preceded by a flag name (e.g. --github-token=EyJ...).
-  /--\w*(?:token|key|secret|password|passwd|auth|credential)\w*[=\s,][A-Za-z0-9+/=]{32,}/,
+  // when preceded by a flag name (e.g. --github-token=EyJ...). Global flag so
+  // every such flag in the command line is redacted, not just the first.
+  /--\w*(?:token|key|secret|password|passwd|auth|credential)\w*[=\s,][A-Za-z0-9+/=]{32,}/g,
 ];
 
 /**

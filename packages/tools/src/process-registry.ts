@@ -26,8 +26,14 @@ export interface TrackedProcess {
   sessionId?: string | undefined;
   /** The raw ChildProcess handle. Never call .kill() directly on this —
    *  use `kill()` below which handles process groups correctly on POSIX
-   *  and degrades gracefully on Windows. */
-  child: ChildProcess;
+   *  and degrades gracefully on Windows.
+   *
+   *  `null` for entries mirrored from the persistent registry
+   *  (process-registry-persistent.ts): those track processes owned by OTHER
+   *  host instances, so there is no live handle in this process. All
+   *  registry paths must tolerate a null child (kill by PID, liveness by
+   *  `process.kill(pid, 0)` probe). */
+  child: ChildProcess | null;
   /** True only when this child was spawned as a POSIX process-group/session
    *  leader (for example `spawn(..., { detached: true })`) and `pid` is the
    *  actual `child.pid`. Negative-PID signaling is host-wide dangerous for
@@ -201,6 +207,7 @@ export class ProcessRegistryImpl {
       os.platform() !== 'win32' &&
       p.processGroupLeader === true &&
       this._isSafeSignalPid(p.pid) &&
+      p.child !== null &&
       typeof p.child.pid === 'number' &&
       p.child.pid === p.pid
     );
@@ -208,10 +215,15 @@ export class ProcessRegistryImpl {
 
   private _killChildDirect(p: TrackedProcess, signal: NodeJS.Signals): void {
     try {
-      p.child.kill(signal);
+      if (p.child) {
+        p.child.kill(signal);
+        return;
+      }
+      // Persistent-registry mirror entry: no live handle — signal by PID
+      // (guarded so a bogus persisted PID can never target pid 0/1/self).
+      if (this._isSafeSignalPid(p.pid)) process.kill(p.pid, signal);
     } catch {
-      // Process may have already exited, or this may be a persistent entry
-      // without a live ChildProcess handle in the current process.
+      // Process may have already exited.
     }
   }
 
@@ -438,7 +450,12 @@ export class ProcessRegistryImpl {
     this._pruneStale(pid);
     const p = this.processes.get(pid);
     if (!p) return false;
-    if (p.killed) return true; // already kill()ed, don't double-send
+    // Already kill()ed: a plain repeat is a no-op (don't re-send SIGTERM and
+    // re-arm grace timers), but a `force: true` repeat is allowed through so
+    // a process that ignored/survived the first kill can be ESCALATED to
+    // SIGKILL. The old unconditional latch made `kill(pid, {force: true})`
+    // after a timed-out soft kill silently do nothing.
+    if (p.killed && opts.force !== true) return true;
     // Protected processes refuse kill unless the caller opts in (host shutdown).
     if (p.protected && opts.includeProtected !== true) return false;
     if (opts.preserveBackground && p.background) return false;
@@ -457,9 +474,12 @@ export class ProcessRegistryImpl {
       // immediately alongside taskkill: killing the root first would break
       // taskkill's parent-pid tree enumeration and orphan the grandchildren
       // again — it runs as a delayed fallback instead.
-      const liveRealChild = p.child.exitCode === null && typeof p.child.pid === 'number';
+      // Persistent-registry mirror entries have no live handle — tree-kill by
+      // PID is the only option (and also the correct one).
+      const liveRealChild =
+        p.child === null || (p.child.exitCode === null && typeof p.child.pid === 'number');
       const directFallback = () => {
-        if (p.child.exitCode === null) {
+        if (p.child && p.child.exitCode === null) {
           try {
             p.child.kill('SIGKILL');
           } catch {
@@ -478,11 +498,7 @@ export class ProcessRegistryImpl {
         // completion. Killing cmd.exe before taskkill has walked the tree can
         // orphan the real command and leave stdio pipes open forever.
       } else {
-        try {
-          p.child.kill(force ? 'SIGKILL' : 'SIGTERM');
-        } catch {
-          // Process may have already exited.
-        }
+        this._killChildDirect(p, force ? 'SIGKILL' : 'SIGTERM');
       }
       p.killed = true;
       return true;
@@ -498,8 +514,9 @@ export class ProcessRegistryImpl {
         this._killPosix(p, 'SIGTERM');
         // Schedule SIGKILL as backup.
         const timer = setTimeout(() => {
-          // Re-check: process may have exited on its own.
-          if (this.processes.has(pid) && !p.child.killed) {
+          // Re-check: process may have exited on its own. Null-child
+          // (persistent mirror) entries have no `.killed` latch — escalate.
+          if (this.processes.has(pid) && !p.child?.killed) {
             this._killPosix(p, 'SIGKILL');
           }
         }, graceMs);
@@ -558,6 +575,24 @@ export class ProcessRegistryImpl {
    * before reusing a PID, but we want to clean up before that becomes a risk.
    */
   private _isStaleEntry(entry: TrackedProcess): boolean {
+    if (entry.child === null) {
+      // Persistent-registry mirror entry — no live handle to consult.
+      // (The old code dereferenced `entry.child.exitCode` here and threw a
+      // TypeError from get()/list()/stats()/kill() for every such entry.)
+      if (Date.now() - entry.startedAt <= 60_000) return false;
+      // win32: signal-0 probes are unreliable (no ESRCH semantics worth
+      // trusting through Node) — keep the entry; the persistent registry's
+      // own heartbeat/reaper owns cross-instance cleanup there.
+      if (os.platform() === 'win32') return false;
+      // POSIX: PID liveness probe. Signal 0 performs no kill; ESRCH means the
+      // process is gone (stale), EPERM means it exists but isn't ours (live).
+      try {
+        process.kill(entry.pid, 0);
+        return false;
+      } catch (err) {
+        return (err as NodeJS.ErrnoException).code !== 'EPERM';
+      }
+    }
     return entry.child.exitCode !== null && Date.now() - entry.startedAt > 60_000;
   }
 

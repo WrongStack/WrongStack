@@ -76,6 +76,55 @@ describe('memory tools', () => {
     }
   });
 
+  it('forget carries a permission subject and the family icon', () => {
+    const { store } = fakeStore();
+    const tool = forgetTool(store);
+    expect(tool.subjectKey).toBe('query');
+    expect(tool.icon).toBe('settings');
+  });
+
+  it('forget dry_run previews matches without deleting', async () => {
+    const { store } = fakeStore();
+    (store.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      sampleEntry,
+      { ...sampleEntry, text: 'unrelated fact' },
+      { ...sampleEntry, text: 'PNPM workspaces everywhere' },
+    ]);
+    const tool = forgetTool(store);
+    const sb = await mkSandbox();
+    try {
+      const out = await tool.execute({ query: 'pnpm', dry_run: true }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(store.forget).not.toHaveBeenCalled();
+      expect(out.removed).toBe(0);
+      expect(out.dryRun).toBe(true);
+      expect(out.matched).toBe(2); // case-insensitive substring, like forget itself
+      expect(out.matches).toEqual(['use pnpm', 'PNPM workspaces everywhere']);
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it('forget dry_run caps the preview at 20 entries', async () => {
+    const { store } = fakeStore();
+    (store.list as ReturnType<typeof vi.fn>).mockResolvedValue(
+      Array.from({ length: 25 }, (_, i) => ({ ...sampleEntry, text: `pnpm note ${i}` })),
+    );
+    const tool = forgetTool(store);
+    const sb = await mkSandbox();
+    try {
+      const out = await tool.execute({ query: 'pnpm', dry_run: true }, sb.ctx, {
+        signal: newSignal(),
+      });
+      expect(out.matched).toBe(25);
+      expect(out.matches).toHaveLength(20);
+      expect(store.forget).not.toHaveBeenCalled();
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
   it('forget reports number removed', async () => {
     const { store } = fakeStore();
     const tool = forgetTool(store);

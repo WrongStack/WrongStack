@@ -12,8 +12,10 @@ interface FormatInput {
 
 interface FormatOutput {
   fixer: string;
-  files_checked: number;
-  files_changed: number;
+  /** Parsed from formatter output when confidently available; undefined otherwise. */
+  files_checked: number | undefined;
+  /** Parsed from formatter output when confidently available; undefined otherwise. */
+  files_changed: number | undefined;
   output: string;
   truncated: boolean;
 }
@@ -83,8 +85,9 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
           type: 'final',
           output: {
             fixer: bridge.language,
-            files_checked: 0,
-            files_changed: run.summary.errors > 0 ? 0 : 1,
+            // Language-bridge runs don't report per-file counts.
+            files_checked: undefined,
+            files_changed: undefined,
             output: normalizeCommandOutput(run.output || run.error || ''),
             truncated: run.truncated,
           },
@@ -116,11 +119,19 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
       data: { fixer: detected, check: !!input.check },
     };
 
-    const args: string[] = ['format', '--write'];
-    if (input.check) args[args.length - 1] = '--check';
-    if (input.files) {
-      const files = Array.isArray(input.files) ? input.files : input.files.split(',');
-      args.push('--', ...files.map((f) => f.trim()));
+    const fileList = input.files
+      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) => f.trim())
+      : [];
+
+    let args: string[];
+    if (detected === 'prettier') {
+      // Prettier's CLI is `prettier --write <files|.>` / `prettier --check <files|.>`
+      // — it has no `format` subcommand.
+      args = [input.check ? '--check' : '--write'];
+      args.push(...(fileList.length > 0 ? fileList : ['.']));
+    } else {
+      args = ['format', input.check ? '--check' : '--write'];
+      if (fileList.length > 0) args.push('--', ...fileList);
     }
 
     const result = yield* spawnStream({
@@ -131,13 +142,14 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
       maxBytes: 100_000,
     });
 
-    const changed = [...result.stdout.matchAll(/\bchanged\b/gi)].length;
+    const combinedOut = `${result.stdout}\n${result.stderr}`;
+    const counts = parseFormatterCounts(detected, combinedOut);
     yield {
       type: 'final',
       output: {
         fixer: detected,
-        files_checked: 0,
-        files_changed: changed,
+        files_checked: counts.checked,
+        files_changed: counts.changed,
         output: normalizeCommandOutput(result.stdout || result.stderr || result.error || ''),
         truncated: result.truncated,
       },
@@ -145,17 +157,60 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
   },
 };
 
+/**
+ * Extract file counts from real formatter output. Biome prints stable summary
+ * lines ("Checked 12 files in 30ms. Fixed 3 files."); anything else (including
+ * prettier's per-file listing, whose shape varies by version and flags) yields
+ * `undefined` rather than a guessed number.
+ */
+function parseFormatterCounts(
+  fixer: string,
+  output: string,
+): { checked: number | undefined; changed: number | undefined } {
+  if (fixer !== 'biome') return { checked: undefined, changed: undefined };
+  const checkedMatch = /\b(?:Checked|Formatted)\s+(\d+)\s+files?\b/i.exec(output);
+  const changedMatch = /\bFixed\s+(\d+)\s+files?\b/i.exec(output);
+  return {
+    checked: checkedMatch?.[1] !== undefined ? Number(checkedMatch[1]) : undefined,
+    changed: changedMatch?.[1] !== undefined ? Number(changedMatch[1]) : undefined,
+  };
+}
+
 async function detectFixer(cwd: string): Promise<string | null> {
-  const { stat } = await import('node:fs/promises');
-  try {
-    await stat(`${cwd}/biome.json`);
-    return 'biome';
-  } catch {
+  const fs = await import('node:fs/promises');
+  const exists = async (file: string): Promise<boolean> => {
     try {
-      await stat(`${cwd}/.prettierrc`);
-      return 'prettier';
+      await fs.stat(`${cwd}/${file}`);
+      return true;
     } catch {
-      return 'biome';
+      return false;
     }
+  };
+
+  if ((await exists('biome.json')) || (await exists('biome.jsonc'))) return 'biome';
+
+  const PRETTIER_CONFIGS = [
+    '.prettierrc',
+    '.prettierrc.json',
+    '.prettierrc.yml',
+    '.prettierrc.yaml',
+    '.prettierrc.js',
+    '.prettierrc.cjs',
+    '.prettierrc.mjs',
+    'prettier.config.js',
+    'prettier.config.cjs',
+    'prettier.config.mjs',
+  ];
+  for (const cfg of PRETTIER_CONFIGS) {
+    if (await exists(cfg)) return 'prettier';
   }
+  // package.json#prettier counts as a prettier config too.
+  try {
+    const raw = await fs.readFile(`${cwd}/package.json`, 'utf8');
+    const pkg = JSON.parse(raw) as Record<string, unknown>;
+    if (pkg['prettier'] !== undefined) return 'prettier';
+  } catch {
+    /* no readable package.json — fall through */
+  }
+  return 'biome';
 }

@@ -68,7 +68,7 @@ export interface ContextBreakdown {
   warnings: string[];
 }
 
-const SYSTEM_BLOCK_SOURCES: readonly (SystemBlockSource | 'other')[] = [
+const SYSTEM_BLOCK_SOURCES = [
   'identity',
   'tool-usage',
   'environment',
@@ -78,9 +78,26 @@ const SYSTEM_BLOCK_SOURCES: readonly (SystemBlockSource | 'other')[] = [
   'leader-after-task',
   'contributor',
   'ledger',
+  'glossary',
+  'peers',
   'nextsteps',
   'other',
-];
+] as const satisfies readonly (SystemBlockSource | 'other')[];
+
+/**
+ * Compile-time guard: every `SystemBlockSource` must appear above, or blocks
+ * tagged with the missing source accumulate onto an uninitialised key and turn
+ * the whole category into `NaN`. Widening the union without touching the list
+ * fails here rather than silently at runtime.
+ */
+type _EverySourceListed = Exclude<
+  SystemBlockSource | 'other',
+  (typeof SYSTEM_BLOCK_SOURCES)[number]
+> extends never
+  ? true
+  : ['missing from SYSTEM_BLOCK_SOURCES', Exclude<SystemBlockSource | 'other', (typeof SYSTEM_BLOCK_SOURCES)[number]>];
+const _everySourceListed: _EverySourceListed = true;
+void _everySourceListed;
 
 function emptyBySource(): Record<SystemBlockSource | 'other', number> {
   const out = {} as Record<SystemBlockSource | 'other', number>;

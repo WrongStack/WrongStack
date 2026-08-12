@@ -67,16 +67,21 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
       // Always emit fresh, field-allowlisted objects (never the shared
       // ctx.systemPrompt block references): the breakpoint cap below mutates
       // cache_control in place, and any builder-side metadata must not leak.
-      const lastIndex = req.system.length - 1;
-      body['system'] = req.system.map((b, index) => {
+      body['system'] = req.system.map((b) => {
         const out: Record<string, unknown> = { type: 'text', text: b.text };
-        const cc =
-          req.cache?.ttl && index === lastIndex
-            ? { type: 'ephemeral', ttl: req.cache.ttl }
-            : b.cache_control;
-        if (cc) out['cache_control'] = cc;
+        if (b.cache_control) out['cache_control'] = b.cache_control;
         return out;
       });
+    }
+    // Honor the configured cache `ttl` on the DEEPEST marker of the request —
+    // the conversation boundary inside `messages` when one exists (that prefix
+    // is the bulk of the request and the one worth keeping across turn gaps),
+    // else the last marked system block. The old placement — forced onto the
+    // last system block unconditionally — predates the message-tail boundary
+    // and would pin a 1h cache write to a shallower prefix than we cache.
+    if (req.cache?.ttl) {
+      const target = findDeepestMarkedBlock(body);
+      if (target) target['cache_control'] = { type: 'ephemeral', ttl: req.cache.ttl };
     }
     if (req.tools && req.tools.length > 0) body['tools'] = toolsToAnthropic(req.tools);
     if (req.temperature !== undefined) body['temperature'] = req.temperature;
@@ -276,6 +281,36 @@ function normalizeMessageContent(m: Message): unknown {
 }
 
 /**
+ * Locate the wire block whose `cache_control` marks the request's deepest
+ * cached prefix: the last marked block inside `messages` (the conversation
+ * boundary), else the last marked `system` block, else — preserving the old
+ * "ttl always applies" contract for marker-less embedder prompts — the last
+ * system block outright. Returns the mutable wire object or undefined.
+ */
+function findDeepestMarkedBlock(body: Record<string, unknown>): Record<string, unknown> | undefined {
+  const messages = body['messages'];
+  if (Array.isArray(messages)) {
+    for (let m = messages.length - 1; m >= 0; m--) {
+      const content = (messages[m] as Record<string, unknown> | null)?.['content'];
+      if (!Array.isArray(content)) continue;
+      for (let i = content.length - 1; i >= 0; i--) {
+        const block = content[i] as Record<string, unknown> | null;
+        if (block?.['cache_control']) return block;
+      }
+    }
+  }
+  const system = body['system'];
+  if (Array.isArray(system) && system.length > 0) {
+    for (let i = system.length - 1; i >= 0; i--) {
+      const block = system[i] as Record<string, unknown> | null;
+      if (block?.['cache_control']) return block;
+    }
+    return system[system.length - 1] as Record<string, unknown>;
+  }
+  return undefined;
+}
+
+/**
  * Reduce a canonical ContentBlock to exactly the fields the Anthropic Messages
  * API accepts. Strips extra fields that other wires inject:
  *   - `tool_result.name`        — set by ToolExecutor for Google's functionResponse
@@ -297,6 +332,11 @@ function sanitizeAnthropicBlock(b: ContentBlock): Record<string, unknown> {
         content: b.content,
       };
       if (b.is_error) out['is_error'] = true;
+      // The request composer pins the conversation cache boundary on the
+      // trailing durable block, which is usually a tool_result. Anthropic
+      // accepts cache_control on tool_result blocks; other wires rebuild
+      // their tool messages explicitly and never see this field.
+      if (b.cache_control) out['cache_control'] = b.cache_control;
       return out;
     }
     case 'thinking':

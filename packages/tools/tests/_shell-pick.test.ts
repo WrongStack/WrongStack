@@ -96,12 +96,23 @@ describe('pickShell — auto-detect (Codex-style commands)', () => {
     expect(pickShell(win, cmd, envFrom({}))).toBe('pwsh');
   });
 
-  it('detects PowerShell aliases (cat/rm/cp/mv/gci/gps/etc.)', () => {
-    expect(pickShell(win, 'cat file.txt', envFrom({}))).toBe('pwsh');
-    expect(pickShell(win, 'rm -rf build', envFrom({}))).toBe('pwsh');
-    expect(pickShell(win, 'cp -r src dst', envFrom({}))).toBe('pwsh');
+  it('detects PowerShell-only aliases (gci/gi/gp/gcm/gps)', () => {
     expect(pickShell(win, 'gci -Recurse', envFrom({}))).toBe('pwsh');
+    expect(pickShell(win, 'gi file.txt', envFrom({}))).toBe('pwsh');
+    expect(pickShell(win, 'gcm node', envFrom({}))).toBe('pwsh');
     expect(pickShell(win, 'gps', envFrom({}))).toBe('pwsh');
+  });
+
+  it('does NOT route Git-Bash-normal unix commands (cat/rm/cp/mv/sl) to PowerShell', () => {
+    // These resolve to real binaries (Git Bash / MSYS / GnuWin) on Windows
+    // dev machines, and their PowerShell alias semantics differ — PS `rm`
+    // is Remove-Item, which rejects `-rf`. Routing them to PowerShell broke
+    // everyday commands like `rm -rf node_modules`.
+    expect(pickShell(win, 'cat file.txt', envFrom({}))).toBe('cmd');
+    expect(pickShell(win, 'rm -rf node_modules', envFrom({}))).toBe('cmd');
+    expect(pickShell(win, 'cp -r src dst', envFrom({}))).toBe('cmd');
+    expect(pickShell(win, 'mv a.txt b.txt', envFrom({}))).toBe('cmd');
+    expect(pickShell(win, 'sl', envFrom({}))).toBe('cmd');
   });
 
   it('detects PowerShell variable / subexpression syntax', () => {

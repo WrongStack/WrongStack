@@ -1,13 +1,17 @@
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
-import { detectPackageManager, safeResolve } from './_util.js';
+import {
+  COMMAND_OUTPUT_MAX_BYTES,
+  detectPackageManager,
+  normalizeCommandOutput,
+  safeResolve,
+} from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
 
 interface AuditInput {
   cwd?: string | undefined;
   level?: 'low' | 'moderate' | 'high' | 'critical' | undefined;
   fix?: boolean | undefined;
-  packages?: string | string[] | undefined;
 }
 
 interface AuditVulnerability {
@@ -26,6 +30,14 @@ interface AuditOutput {
   truncated: boolean;
 }
 
+const SEVERITY_RANK: Record<string, number> = {
+  info: 0,
+  low: 1,
+  moderate: 2,
+  high: 3,
+  critical: 4,
+};
+
 export const auditTool: Tool<AuditInput, AuditOutput> = {
   name: 'audit',
   category: 'Package Management',
@@ -35,7 +47,7 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
     'CRITICAL SECURITY TOOL:\n\n' +
     '- Run regularly and especially before any release.\n' +
     '- Use `level` to focus on high/critical issues.\n' +
-    '- `fix` can attempt automatic remediation for some vulnerabilities.\n' +
+    '- This tool is read-only: to remediate, use `install` (or `language_package`) to upgrade the affected packages.\n' +
     'This is one of the most important tools for supply chain security.',
   permission: 'confirm',
   mutating: false,
@@ -51,8 +63,11 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
         enum: ['low', 'moderate', 'high', 'critical'],
         description: 'Minimum severity level to report',
       },
-      fix: { type: 'boolean', description: 'Attempt to fix vulnerabilities (default: false)' },
-      packages: { type: 'string', description: 'Specific package(s) to audit (comma-separated)' },
+      fix: {
+        type: 'boolean',
+        description:
+          'Deprecated and rejected — this tool is read-only and never modifies dependencies. Use `install` (or `language_package`) to remediate vulnerabilities.',
+      },
     },
   },
   async execute(input, ctx, opts) {
@@ -66,6 +81,16 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<AuditOutput>> {
+    // `audit` is declared `mutating: false` — silently forwarding `--fix`
+    // would rewrite package.json/lockfile behind the permission gate.
+    if (input.fix === true) {
+      throw new Error(
+        'audit: `fix: true` is not supported — this tool is read-only (mutating: false). ' +
+          'To remediate vulnerabilities, upgrade the affected packages with the `install` tool ' +
+          '(or `language_package` for non-JS ecosystems).',
+      );
+    }
+
     const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -101,14 +126,15 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
       return;
     }
 
-    const manager = await detectPackageManager(cwd);
+    const manager = await detectPackageManager(cwd, ctx.projectRoot);
     yield { type: 'log', text: `Auditing with ${manager}…`, data: { manager } };
 
     const args = ['audit', '--json'];
-    if (input.fix) args.push('--fix');
-    if (input.packages) {
-      const pkgs = Array.isArray(input.packages) ? input.packages : input.packages.split(',');
-      args.push(...pkgs.map((p: string) => p.trim()));
+    // npm and pnpm both accept --audit-level; yarn classic does not, so for
+    // yarn the parsed results are filtered by severity instead (parseAuditOutput
+    // applies the filter for every manager as a belt-and-braces guarantee).
+    if (input.level && (manager === 'npm' || manager === 'pnpm')) {
+      args.push(`--audit-level=${input.level}`);
     }
 
     const result = yield* spawnStream({
@@ -119,11 +145,21 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
       maxBytes: 100_000,
     });
 
-    yield { type: 'final', output: parseAuditOutput(result.stdout, result.exitCode) };
+    yield {
+      type: 'final',
+      output: parseAuditOutput(result.stdout, result.exitCode, {
+        level: input.level,
+        spawnTruncated: result.truncated,
+      }),
+    };
   },
 };
 
-function parseAuditOutput(json: string, exitCode: number): AuditOutput {
+function parseAuditOutput(
+  json: string,
+  exitCode: number,
+  opts: { level?: AuditInput['level']; spawnTruncated?: boolean } = {},
+): AuditOutput {
   if (!json) {
     return {
       exit_code: exitCode,
@@ -135,18 +171,20 @@ function parseAuditOutput(json: string, exitCode: number): AuditOutput {
     };
   }
 
+  const cappedOutput = normalizeCommandOutput(json);
+  const truncated =
+    opts.spawnTruncated === true || Buffer.byteLength(json, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
+
   try {
-    const data = JSON.parse(json);
-    const advisories: AuditVulnerability[] = [];
-    const ads = data.advisories ?? {};
-    for (const id of Object.keys(ads)) {
-      const adv = ads[id];
-      advisories.push({
-        severity: adv.severity ?? 'unknown',
-        package: adv.module_name ?? id,
-        title: adv.title ?? 'Unknown vulnerability',
-        url: adv.url ?? '',
-      });
+    const data = JSON.parse(json) as Record<string, unknown>;
+    let advisories = extractAdvisories(data);
+
+    // Minimum-severity filter. npm/pnpm already honor --audit-level on the
+    // process side, but the JSON they emit can still include lower-severity
+    // entries (npm's --audit-level only gates the exit code), so filter here.
+    const minRank = opts.level ? (SEVERITY_RANK[opts.level] ?? 0) : 0;
+    if (minRank > 0) {
+      advisories = advisories.filter((a) => (SEVERITY_RANK[a.severity] ?? 0) >= minRank);
     }
 
     const total = advisories.length;
@@ -160,8 +198,8 @@ function parseAuditOutput(json: string, exitCode: number): AuditOutput {
       vulnerabilities: advisories,
       total,
       summary,
-      output: json,
-      truncated: json.length > 100_000,
+      output: cappedOutput,
+      truncated,
     };
   } catch {
     return {
@@ -169,8 +207,55 @@ function parseAuditOutput(json: string, exitCode: number): AuditOutput {
       vulnerabilities: [],
       total: 0,
       summary: 'Could not parse audit output',
-      output: json,
-      truncated: false,
+      output: cappedOutput,
+      truncated,
     };
   }
+}
+
+/**
+ * Normalize the three audit JSON shapes into one advisory list:
+ * - npm ≤6 and pnpm: `{ advisories: { <id>: { severity, module_name, title, url } } }`
+ * - npm ≥7: `{ vulnerabilities: { <pkg>: { severity, via: [...] } }, metadata: {...} }`
+ */
+function extractAdvisories(data: Record<string, unknown>): AuditVulnerability[] {
+  const advisories: AuditVulnerability[] = [];
+
+  // npm v6 / pnpm shape.
+  const ads = data['advisories'];
+  if (ads && typeof ads === 'object') {
+    for (const [id, value] of Object.entries(ads as Record<string, unknown>)) {
+      const adv = (value ?? {}) as Record<string, unknown>;
+      advisories.push({
+        severity: typeof adv['severity'] === 'string' ? (adv['severity'] as string) : 'unknown',
+        package: typeof adv['module_name'] === 'string' ? (adv['module_name'] as string) : id,
+        title: typeof adv['title'] === 'string' ? (adv['title'] as string) : 'Unknown vulnerability',
+        url: typeof adv['url'] === 'string' ? (adv['url'] as string) : '',
+      });
+    }
+    return advisories;
+  }
+
+  // npm v7+ shape: `vulnerabilities` keyed by package name. Advisory details
+  // (title/url) live in the `via` array's object entries; string entries are
+  // just transitive package-name references.
+  const vulns = data['vulnerabilities'];
+  if (vulns && typeof vulns === 'object') {
+    for (const [pkg, value] of Object.entries(vulns as Record<string, unknown>)) {
+      const vuln = (value ?? {}) as Record<string, unknown>;
+      const via = Array.isArray(vuln['via']) ? (vuln['via'] as unknown[]) : [];
+      const detail = via.find((v): v is Record<string, unknown> => !!v && typeof v === 'object');
+      advisories.push({
+        severity: typeof vuln['severity'] === 'string' ? (vuln['severity'] as string) : 'unknown',
+        package: pkg,
+        title:
+          detail && typeof detail['title'] === 'string'
+            ? (detail['title'] as string)
+            : 'Unknown vulnerability',
+        url: detail && typeof detail['url'] === 'string' ? (detail['url'] as string) : '',
+      });
+    }
+  }
+
+  return advisories;
 }

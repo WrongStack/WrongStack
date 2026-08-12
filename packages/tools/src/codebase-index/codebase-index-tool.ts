@@ -1,7 +1,12 @@
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { isIndexing, runStartupIndex } from './background-indexer.js';
 import { indexCircuitBreaker } from './circuit-breaker.js';
+import { INDEXABLE_LANG_IDS } from './codebase-search-tool.js';
 import { codebaseIndexDirOverride } from './writer.js';
+
+/** Cap the surfaced per-file error list so a broken tree can't flood output. */
+const MAX_REPORTED_ERRORS = 20;
 
 export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = {
   name: 'codebase-index',
@@ -36,12 +41,29 @@ export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = 
       },
       langs: {
         type: 'array',
-        items: { type: 'string' },
-        description: 'Limit reindex to specific languages: ts, tsx, js, jsx, go, py, rs',
+        items: { type: 'string', enum: [...INDEXABLE_LANG_IDS] },
+        description: `Limit reindex to specific languages: ${INDEXABLE_LANG_IDS.join(', ')}`,
       },
     },
   },
   async execute(input, ctx, execOpts) {
+    // Validate `langs` against the same enum codebase-search exposes — an
+    // unknown id used to be silently ignored by the indexer, which looked
+    // like a successful-but-empty run.
+    if (input.langs) {
+      const unknown = input.langs.filter(
+        (lang) => !(INDEXABLE_LANG_IDS as readonly string[]).includes(lang),
+      );
+      if (unknown.length > 0) {
+        throw new ToolValidationError({
+          message:
+            `codebase-index: unknown lang(s) ${unknown.map((l) => `"${l}"`).join(', ')}. ` +
+            `Valid ids: ${INDEXABLE_LANG_IDS.join(', ')}.`,
+          field: 'langs',
+        });
+      }
+    }
+
     // If the startup index is still running, tell the agent to wait instead of
     // firing a second reindex that would just queue behind the mutex.
     if (isIndexing()) {
@@ -75,13 +97,21 @@ export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = 
     // process-wide mutex, the watchdog timeout, and breaker accounting with
     // the startup scan and live reindexes (a direct runIndexer call here used
     // to race them on the same SQLite file).
-    return await runStartupIndex({
+    const result = await runStartupIndex({
       projectRoot: ctx.projectRoot,
       force: input.force ?? false,
       langs: input.langs,
       indexDir: codebaseIndexDirOverride(ctx),
       signal: execOpts?.signal,
     });
+    if (result.errors.length > MAX_REPORTED_ERRORS) {
+      const hidden = result.errors.length - MAX_REPORTED_ERRORS;
+      return {
+        ...result,
+        errors: [...result.errors.slice(0, MAX_REPORTED_ERRORS), `+${hidden} more`],
+      };
+    }
+    return result;
   },
 };
 

@@ -20,6 +20,12 @@ export interface CreateOneShotLLMToolOptions {
   /** Shared live FallbackProfileManager — required. */
   fallbackProfileManager: OneShotOrchestratorOptions['fallbackProfileManager'];
   modelRouter?: OneShotOrchestratorOptions['modelRouter'];
+  /**
+   * Shared provider/model status tracker. Without it the orchestrator never
+   * records failures/successes for `llm` calls, so provider health stays
+   * blind to this tool's traffic and blocked entries are not skipped.
+   */
+  statusTracker?: OneShotOrchestratorOptions['statusTracker'];
   logger?: OneShotOrchestratorOptions['logger'];
   wrapProviderCall?: OneShotOrchestratorOptions['wrapProviderCall'];
   /**
@@ -33,6 +39,14 @@ export interface CreateOneShotLLMToolOptions {
    */
   defaultModel?: string | undefined;
 }
+
+/**
+ * Upper bound for a caller-supplied `timeoutMs`. A one-shot call is a
+ * single-turn utility invocation — anything past two minutes indicates a
+ * misconfigured caller, not a legitimately slow request, and would pin the
+ * tool slot for that long. Values above the cap are clamped, not rejected.
+ */
+const MAX_TIMEOUT_MS = 120_000;
 
 /**
  * JSON Schema for the llm tool input.
@@ -113,9 +127,10 @@ const INPUT_SCHEMA: JSONSchema = {
     },
     timeoutMs: {
       type: 'number',
-      description: 'Hard timeout in ms (default 30s).',
+      description: `Hard timeout in ms (default 30s, clamped to a maximum of ${MAX_TIMEOUT_MS}).`,
     },
   },
+  additionalProperties: false,
 };
 
 /**
@@ -144,6 +159,7 @@ export function createOneShotLLMTool(opts: CreateOneShotLLMToolOptions): Tool<On
     getConfig: opts.getConfig,
     fallbackProfileManager: opts.fallbackProfileManager,
     modelRouter: opts.modelRouter,
+    statusTracker: opts.statusTracker,
     logger: opts.logger,
     wrapProviderCall: opts.wrapProviderCall,
   });
@@ -161,8 +177,25 @@ export function createOneShotLLMTool(opts: CreateOneShotLLMToolOptions): Tool<On
       'Set `fallbackModels` for resilience. ' +
       'Check `error` on the result for failure details.',
     inputSchema: INPUT_SCHEMA,
+    // Metadata mirrors council-tool.ts — both are read-only meta tools that
+    // spend tokens but never touch the workspace.
+    category: 'meta',
     permission: 'auto',
     mutating: false,
+    riskTier: 'safe',
+    maxOutputBytes: 262_144,
+
+    validate(input: OneShotLLMInput): string[] {
+      const hasPrompt = typeof input.userPrompt === 'string' && input.userPrompt.trim().length > 0;
+      const hasMessages = Array.isArray(input.messages) && input.messages.length > 0;
+      if (!hasPrompt && !hasMessages) {
+        return [
+          'Provide `userPrompt` (a single user turn) or `messages` (a conversation array) — ' +
+            'without either the llm tool has nothing to send to the model.',
+        ];
+      }
+      return [];
+    },
 
     async execute(
       input: OneShotLLMInput,
@@ -192,6 +225,12 @@ export function createOneShotLLMTool(opts: CreateOneShotLLMToolOptions): Tool<On
         signal: input.signal ? AbortSignal.any([input.signal, signal]) : signal,
         model: input.model ?? opts.defaultModel,
         providerId: input.providerId ?? opts.defaultProvider,
+        // Clamp runaway timeouts (documented on the schema). Non-positive
+        // values fall back to the orchestrator default rather than making the
+        // call instantly un-completable.
+        ...(typeof input.timeoutMs === 'number' && input.timeoutMs > 0
+          ? { timeoutMs: Math.min(input.timeoutMs, MAX_TIMEOUT_MS) }
+          : { timeoutMs: undefined }),
       };
 
       return orchestrator.call(effectiveInput);

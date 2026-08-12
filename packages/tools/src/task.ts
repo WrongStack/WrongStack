@@ -596,6 +596,11 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
       };
     }
 
+    // Record the path this call ACTUALLY wrote (session or derived project
+    // backlog) so todo's promotedFromTask rollup follows the real file. The
+    // seeded 'task.path' stays untouched — it anchors scope derivation above.
+    (ctx.meta as Record<string, unknown>)['task.path.resolved'] = taskPath;
+
     // Apply todo replacements after the task file mutation succeeds so that
     // on error the state is rolled back cleanly.
     if (todosToReplace) {
@@ -637,6 +642,9 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
             formatted = formatPlan(updated);
             return updated;
           });
+          // Same contract as 'task.path.resolved': the plan rollup follows the
+          // file this call actually wrote.
+          (ctx.meta as Record<string, unknown>)['plan.path.resolved'] = planPath;
         } catch (err) {
           return {
             ok: false,

@@ -14,12 +14,14 @@ const cfg: {
   emit: 'close',
 };
 let lastKill: string | undefined;
+let lastSpawnArgs: string[] = [];
 
 vi.mock('node:child_process', async (orig) => {
   const actual = await orig<typeof import('node:child_process')>();
   return {
     ...actual,
-    spawn: () => {
+    spawn: (_cmd: string, args: string[]) => {
+      lastSpawnArgs = args;
       const child = new EventEmitter() as EventEmitter & {
         stdout: EventEmitter;
         stderr: EventEmitter;
@@ -57,6 +59,7 @@ beforeEach(() => {
   cfg.emit = 'close';
   cfg.pipeError = false;
   lastKill = undefined;
+  lastSpawnArgs = [];
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -96,4 +99,22 @@ describe('logsTool docker path (faked docker process)', () => {
     expect(result.entries).toEqual([]);
     expect(lastKill).toBe('SIGTERM');
   }, 10_000);
+
+  it('passes since through to docker logs --since', async () => {
+    cfg.stdout = '2024-01-01T10:00:00Z INFO ok\n';
+    await logsTool.execute({ service: 'myapp', since: '6h' }, ctx(), opts());
+    const idx = lastSpawnArgs.indexOf('--since');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(lastSpawnArgs[idx + 1]).toBe('6h');
+  });
+
+  it('omits --since for since: "all"', async () => {
+    cfg.stdout = '2024-01-01T10:00:00Z INFO ok\n';
+    await logsTool.execute({ service: 'myapp', since: 'all' }, ctx(), opts());
+    expect(lastSpawnArgs).not.toContain('--since');
+  });
+
+  it('declares a maxOutputBytes cap', () => {
+    expect(logsTool.maxOutputBytes).toBe(262_144);
+  });
 });

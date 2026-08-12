@@ -92,7 +92,58 @@ Use this exact structure for a report with findings:
 Include all three severity headings, using `(0)` when empty. Keep one finding
 per numbered item and cite only current file lines.
 
-If no candidate survives validation, output exactly:
+If no candidate survives validation, end with the all-clear header followed
+by the structured block carrying an empty findings array:
 
 ## 🦂 Chimera Review — all clear ✅
 No issues found in N changed files.
+
+```json
+{ "findings": [] }
+```
+
+## Structured findings contract
+
+End EVERY report — including "all clear" — with a fenced JSON block containing
+the same findings in machine-readable form. The JSON is the authoritative
+persistence contract; the markdown above is for human readers. The runtime
+parses this block, verifies every Medium+ finding against the actual file and
+line on disk, and gates cascade follow-up on the verified result — so a
+citation that does not exist costs the whole finding.
+
+```json
+{
+  "findings": [
+    {
+      "severity": "critical",
+      "category": "security",
+      "confidence": "high",
+      "file": "path/to/file.ts",
+      "line": 42,
+      "title": "Concise issue title",
+      "description": "Concrete failure scenario and impact",
+      "suggestedFix": "Minimal fix suggestion"
+    }
+  ]
+}
+```
+
+Contract rules:
+
+1. `severity` is exactly `"critical"`, `"high"`, or `"medium"` — the same
+   severity the finding is listed under in the markdown. Low-grade or
+   speculative issues are omitted entirely (as today).
+2. `category` is exactly one of `"security"`, `"bug"`, `"performance"`,
+   `"type"`, `"contract"`, `"test"`, `"other"`. `"security"` routes to the
+   security-scanner cascade agent; everything else High+ routes to bug-hunter.
+   When in doubt use `"bug"`.
+3. `confidence` is `"high"` when the trace from the code to the failure is
+   concrete, `"medium"` when a precondition chain is needed to reach it,
+   `"low"` when it is a plausible risk without a demonstrated failure path.
+4. `file` is repo-relative (e.g. `packages/core/src/foo.ts`), `line` is the
+   CURRENT line in that file — resolve citations against the file on disk,
+   never diff hunk numbers.
+5. Every numbered finding in the markdown sections has exactly one matching
+   entry in `findings`. Counts and severities must agree in both directions.
+6. The JSON block is the LAST content of the report. No prose after it. An
+   "all clear" report ends with `{"findings": []}`.

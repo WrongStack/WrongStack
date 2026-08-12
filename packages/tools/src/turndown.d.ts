@@ -38,6 +38,12 @@ declare module 'turndown' {
       },
     ): this;
     /**
+     * Remove elements matching the filter entirely — their content is
+     * discarded rather than converted.
+     * @param filter - Tag name(s) or a predicate over DOM nodes
+     */
+    remove(filter: string | string[] | ((node: { nodeName: string }) => boolean)): this;
+    /**
      * Use another TurndownService's rules.
      */
     use(service: TurndownService): this;

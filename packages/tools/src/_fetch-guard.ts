@@ -183,6 +183,15 @@ export async function guardedFetch(
     if (res.status < 300 || res.status > 399) {
       return res;
     }
+    // Drain the redirect hop's body before following the next hop. An unread
+    // body pins its pooled connection (and buffers the payload) for as long as
+    // the response object lives — across a multi-hop chain that leaks one
+    // socket per hop.
+    try {
+      await res.body?.cancel();
+    } catch {
+      // Body already consumed/closed — nothing to release.
+    }
     redirectCount++;
     if (redirectCount > maxRedirects) {
       throw new FetchError({

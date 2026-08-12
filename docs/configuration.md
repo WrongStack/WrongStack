@@ -1647,7 +1647,7 @@ Each entry is a stable rule id from the table above. A matched rule whose id is 
 - **Splatting / call operator** — `@( ... )`, `& $script`
 - **Comparison operators** — `-eq`, `-ne`, `-match`, `-like`, `-contains`, `-and`, `-replace`, `-split`
 - **`.ps1` extension** — `.\build.ps1`
-- **PS-only aliases** — `gci`, `gi`, `gp`, `gcm`, `gps`, `sl`, `rm`, `cat`, `cp`, `mv`
+- **PS-only aliases** — `gci`, `gi`, `gp`, `gcm`, `gps`
 - **Cmdlet flags** — `-WhatIf`, `-Confirm`, `-ErrorAction`
 - **Pipeline cmdlets** — `Where-Object`, `ForEach-Object`, `Select-Object`, `Sort-Object`, `Group-Object`
 - **Write-* output cmdlets** — `Write-Host`, `Write-Output`, `Write-Error`, `Write-Warning`
@@ -1656,7 +1656,7 @@ Each entry is a stable rule id from the table above. A matched rule whose id is 
 - **PS comment blocks** — `<# ... #>`
 - **PS-only parameters** — `-AsPlainText`, `-PipelineVariable`, `-FilterHashtable`, `-OutVariable`
 
-Deliberately **not** treated as PowerShell tells (both shells accept them): `C:\`-style paths, `cd`/`echo` (exist in cmd.exe too), and lone `ls`/`where`/`select` (ambiguous with cmd.exe builtins and unix tools on `PATH`).
+Deliberately **not** treated as PowerShell tells (both shells accept them): `C:\`-style paths, `cd`/`echo` (exist in cmd.exe too), lone `ls`/`where`/`select` (ambiguous with cmd.exe builtins and unix tools on `PATH`), and the unix-style names `rm`/`cat`/`cp`/`mv`/`sl` — these are Git-Bash/MSYS-normal on Windows dev machines, and their PowerShell alias semantics differ (PS `rm` is `Remove-Item`, which rejects `-rf`).
 
 **Execution model.** PowerShell commands are piped to the shell's stdin rather than interpolated into a `-Command "..."` argument:
 

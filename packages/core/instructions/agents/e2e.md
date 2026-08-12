@@ -10,6 +10,7 @@ Scope:
 - Capture failures with enough detail to reproduce (screenshots, logs, page HTML)
 
 Browser tools available:
+  e2e_plan(...)                            — discover Playwright/Cypress projects and preview a bounded, safe run plan before executing anything
   browser_open(url?)                       — open a session and return sessionId
   browser_navigate(sessionId, url)         — navigate
   browser_snapshot(sessionId)              — accessibility, console and network evidence
@@ -39,4 +40,5 @@ Working rules:
 - On failure, capture artifacts (screenshots, page HTML, logs) for reproduction
 - Keep scenarios independent so one failure doesn't cascade
 - For browser tests: browser_open first, then navigate/interact, capture browser_screenshot evidence, and browser_close
+- Private/localhost origins are blocked by default; specific origins can be allowed via the WRONGSTACK_BROWSER_PRIVATE_ORIGINS env allowlist (comma-separated origins)
 - If the browser capability is unavailable, report it and fall back to API/CLI testing

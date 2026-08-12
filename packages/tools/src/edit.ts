@@ -18,7 +18,10 @@ import {
   TIER_LABEL,
 } from './_edit-match.js';
 import { checkSyntax } from './_syntax-check.js';
-import { safeResolveReal, sha256hex } from './_util.js';
+import { safeResolveReal, sha256hex, truncateDiffPayload } from './_util.js';
+
+/** Byte budget for the returned unified diff — matches `maxOutputBytes`. */
+const MAX_DIFF_BYTES = 262_144;
 
 interface EditInput {
   path: string;
@@ -73,17 +76,36 @@ export const editTool: Tool<EditInput, EditOutput> = {
     useInstead: ['write', 'patch'],
   },
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on — the file being
+  // edited, so trust rules can scope by path.
+  subjectKey: 'path',
   mutating: true,
   capabilities: ['fs.write'],
   icon: 'edit',
   timeoutMs: 5_000,
+  maxOutputBytes: 262_144,
   inputSchema: {
     type: 'object',
     properties: {
-      path: { type: 'string' },
-      old_string: { type: 'string' },
-      new_string: { type: 'string' },
-      replace_all: { type: 'boolean' },
+      path: {
+        type: 'string',
+        description:
+          'Path to the file to edit — relative to the project root, or absolute inside it.',
+      },
+      old_string: {
+        type: 'string',
+        description:
+          'The exact text to replace, including whitespace and indentation. Must be unique in the file unless `replace_all` is set — add surrounding lines to disambiguate.',
+      },
+      new_string: {
+        type: 'string',
+        description: 'The exact replacement text (may be empty to delete `old_string`).',
+      },
+      replace_all: {
+        type: 'boolean',
+        description:
+          'Replace every occurrence instead of requiring a unique match. Only allowed when `old_string` matches exactly (or up to trailing whitespace) — fuzzy matches stay single-target.',
+      },
     },
     required: ['path', 'old_string', 'new_string'],
   },
@@ -178,6 +200,13 @@ export const editTool: Tool<EditInput, EditOutput> = {
     const newLf = normalizeToLf(input.new_string);
 
     if (oldLf === newLf) {
+      // Only report a benign no-op when the text actually occurs in the file.
+      // Otherwise this is a wrong-target call (the model thinks the text is
+      // there but it is not) — surface the normal no-match error so the model
+      // can tell "already applied" apart from "wrong file/wrong text".
+      if (!fileLf.includes(oldLf)) {
+        throw noMatchError(input.path, fileLf, oldLf);
+      }
       if (autoRead) ctx.recordRead(absPath, updated.mtimeMs, 'user', originalHash);
       return {
         path: absPath,
@@ -194,16 +223,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
 
     if (!ladder) {
       opts?.signal?.throwIfAborted();
-      const hint = nearestMatchHint(fileLf, oldLf);
-      throw new ToolValidationError({
-        message: `edit: no match for old_string in "${input.path}".${
-          hint
-            ? ` Nearest match near line ${hint.line}:\n${hint.snippet}\n` +
-              `Compare this against your old_string and retry with the file's actual text.`
-            : ''
-        }`,
-        field: 'old_string',
-      });
+      throw noMatchError(input.path, fileLf, oldLf);
     }
 
     const { tier, matches } = ladder;
@@ -304,10 +324,16 @@ export const editTool: Tool<EditInput, EditOutput> = {
 
     // Check abort before diff generation (can be slow on large files)
     opts?.signal?.throwIfAborted();
-    const diff = unifiedDiff(original, newFile, {
-      fromFile: input.path,
-      toFile: input.path,
-    });
+    const { text: diff, truncated: diffTruncated } = truncateDiffPayload(
+      unifiedDiff(original, newFile, {
+        fromFile: input.path,
+        toFile: input.path,
+      }),
+      MAX_DIFF_BYTES,
+    );
+    const diffNote = diffTruncated
+      ? 'Diff truncated to the 256 KiB output budget — the full edit is on disk.'
+      : undefined;
 
     // Post-edit syntax validation (TS/JS/JSON). The edit stays on disk —
     // errors come back in the same turn so the model fixes them immediately.
@@ -319,7 +345,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
         : `Syntax check: this edit introduced ${syntax.errors.length} parse error(s) — fix them now, see syntax_errors.`;
     }
 
-    const notes = [autoReadNote, tierNote, syntaxNote].filter(Boolean);
+    const notes = [autoReadNote, tierNote, diffNote, syntaxNote].filter(Boolean);
 
     return {
       path: absPath,
@@ -331,3 +357,21 @@ export const editTool: Tool<EditInput, EditOutput> = {
     };
   },
 };
+
+/**
+ * The canonical "old_string not found" error, shared by the ladder-miss path
+ * and the old===new short-circuit (which must not report a benign no-op when
+ * the text is simply absent).
+ */
+function noMatchError(inputPath: string, fileLf: string, oldLf: string): ToolValidationError {
+  const hint = nearestMatchHint(fileLf, oldLf);
+  return new ToolValidationError({
+    message: `edit: no match for old_string in "${inputPath}".${
+      hint
+        ? ` Nearest match near line ${hint.line}:\n${hint.snippet}\n` +
+          `Compare this against your old_string and retry with the file's actual text.`
+        : ''
+    }`,
+    field: 'old_string',
+  });
+}

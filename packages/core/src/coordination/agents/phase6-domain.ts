@@ -171,7 +171,7 @@ export const DOMAIN_AGENTS: AgentDefinition[] = [
       id: 'designer',
       name: 'Designer',
       role: 'designer',
-      tools: [...TOOLS.docs],
+      tools: [...TOOLS.docs, 'design'],
       prompt: agentPrompt('designer'),
     },
     budget: MEDIUM_BUDGET,

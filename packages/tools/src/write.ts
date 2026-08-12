@@ -1,10 +1,19 @@
 import * as fs from 'node:fs/promises';
 import { ToolValidationError } from '@wrongstack/core/types';
-import { atomicWrite, unifiedDiff } from '@wrongstack/core/utils';
+import {
+  atomicWrite,
+  detectNewlineStyle,
+  normalizeToLf,
+  toStyle,
+  unifiedDiff,
+} from '@wrongstack/core/utils';
 import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { checkSyntax } from './_syntax-check.js';
-import { safeResolveReal, sha256hex } from './_util.js';
+import { safeResolveReal, sha256hex, truncateDiffPayload } from './_util.js';
+
+/** Byte budget for the returned unified diff — matches `maxOutputBytes`. */
+const MAX_DIFF_BYTES = 262_144;
 
 interface WriteInput {
   path: string;
@@ -35,15 +44,20 @@ export const writeTool: Tool<WriteInput, WriteOutput> = {
     'RULES FOR CORRECT USAGE:\n' +
     '- Use `write` primarily for **new files** or when you want to replace the entire content.\n' +
     '- For any existing file, strongly prefer `edit` (it requires a prior `read` in the same session and is more precise).\n' +
-    '- You MUST have called `read` on the file earlier in the conversation before using `write` on an existing path (the system enforces this for safety).\n' +
+    '- When overwriting an existing file, the tool reads the current content itself to compute the diff — but still `read` the file first before large rewrites so you know what you are replacing.\n' +
+    '- When overwriting an existing file, the content is normalized to the dominant line-ending style (CRLF/LF) of the existing file; new files are written verbatim.\n' +
     '- The path is resolved relative to the project root and protected against escaping the workspace.',
   selection: {
     doNotUseWhen: 'making a precise change to part of an existing file.',
     useInstead: ['edit'],
   },
   permission: 'confirm',
+  // WS-046: gives permission decisions something to key on — the file being
+  // written, so trust rules can scope by path.
+  subjectKey: 'path',
   mutating: true,
   timeoutMs: 5_000,
+  maxOutputBytes: 262_144,
   capabilities: ['fs.write'],
   icon: 'file',
   inputSchema: {
@@ -137,29 +151,38 @@ async function finishWrite(
   prepared: PreparedWrite,
   signal?: AbortSignal | undefined,
 ): Promise<WriteOutput> {
+  // EOL preservation (mirrors edit.ts): when overwriting an existing file,
+  // normalize the incoming content to the file's dominant newline style so a
+  // model that always emits LF does not silently flip a CRLF file (or vice
+  // versa). New files are written verbatim.
+  const content = prepared.existed
+    ? toStyle(normalizeToLf(input.content), detectNewlineStyle(prepared.prev))
+    : input.content;
+
   // Last exit before mutating the filesystem: a run aborted during
   // prepare/diff must not leave a fresh write behind. (atomicWrite itself
   // is all-or-nothing, so past this point the file is old or new — never
   // partial.)
   signal?.throwIfAborted();
-  await atomicWrite(prepared.absPath, input.content);
+  await atomicWrite(prepared.absPath, content);
 
-  const diff = prepared.existed
-    ? unifiedDiff(prepared.prev, input.content, { fromFile: input.path, toFile: input.path })
-    : `+++ ${input.path}\n+ (new file, ${input.content.split('\n').length} lines)`;
+  const rawDiff = prepared.existed
+    ? unifiedDiff(prepared.prev, content, { fromFile: input.path, toFile: input.path })
+    : `+++ ${input.path}\n+ (new file, ${content.split('\n').length} lines)`;
+  const { text: diff, truncated: diffTruncated } = truncateDiffPayload(rawDiff, MAX_DIFF_BYTES);
 
   const stat = await fs.stat(prepared.absPath);
   // Tag as 'write' so the permission bypass does not auto-approve a later
   // write to this path — the user approved THIS write, not future ones
   // (P1 #1).
-  ctx.recordRead(prepared.absPath, stat.mtimeMs, 'write', sha256hex(input.content));
+  ctx.recordRead(prepared.absPath, stat.mtimeMs, 'write', sha256hex(content));
 
   // Record for session rewind
   ctx.session.recordFileChange({
     path: prepared.absPath,
     action: prepared.existed ? 'modified' : 'created',
     before: prepared.existed ? prepared.prev : null,
-    after: input.content,
+    after: content,
   });
 
   // Post-write syntax validation (TS/JS/JSON). The file stays on disk as
@@ -167,21 +190,29 @@ async function finishWrite(
   // before the user ever opens a broken file.
   const syntax = await checkSyntax(
     prepared.absPath,
-    input.content,
+    content,
     prepared.existed ? prepared.prev : undefined,
   ).catch(() => undefined);
   const hasSyntaxErrors = syntax !== undefined && syntax.errors.length > 0;
 
+  const notes: string[] = [];
+  if (diffTruncated) {
+    notes.push('Diff truncated to the 256 KiB output budget — the full write is on disk.');
+  }
+  if (hasSyntaxErrors) {
+    notes.push(
+      syntax.preExisting
+        ? 'Syntax check: the file still has parse errors (they pre-date this write) — see syntax_errors.'
+        : `Syntax check: the written content has ${syntax.errors.length} parse error(s) — fix them now, see syntax_errors.`,
+    );
+  }
+
   return {
     path: prepared.absPath,
-    bytes_written: Buffer.byteLength(input.content, 'utf8'),
+    bytes_written: Buffer.byteLength(content, 'utf8'),
     created: !prepared.existed,
     diff,
     syntax_errors: hasSyntaxErrors ? syntax.errors : undefined,
-    note: hasSyntaxErrors
-      ? syntax.preExisting
-        ? 'Syntax check: the file still has parse errors (they pre-date this write) — see syntax_errors.'
-        : `Syntax check: the written content has ${syntax.errors.length} parse error(s) — fix them now, see syntax_errors.`
-      : undefined,
+    note: notes.length > 0 ? notes.join('\n') : undefined,
   };
 }

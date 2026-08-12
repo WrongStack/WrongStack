@@ -253,22 +253,24 @@ describe('search engine parsers (realistic fixtures)', () => {
     expect(result.results[0]?.snippet).toContain('WrongStack/WrongStack development');
   });
 
-  it('falls back to DuckDuckGo unavailable sentinel when Google and fallback fetch both fail', async () => {
+  it('reports an explicit error with empty results when Google and fallback fetch both fail', async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new Error('net down');
     }) as never as typeof globalThis.fetch;
     const result = await searchTool.execute({ query: 'q', source: 'google' }, {} as any, makeOpts());
     expect(result.source).toBe('duckduckgo');
-    expect(result.results[0]?.title).toBe('Search unavailable');
+    expect(result.results).toHaveLength(0);
+    expect(result.error).toMatch(/duckduckgo unreachable/);
   });
 
-  it('falls back to DuckDuckGo unavailable sentinel when Bing and fallback fetch both fail', async () => {
+  it('reports an explicit error with empty results when Bing and fallback fetch both fail', async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new Error('net down');
     }) as never as typeof globalThis.fetch;
     const result = await searchTool.execute({ query: 'q', source: 'bing' }, {} as any, makeOpts());
     expect(result.source).toBe('duckduckgo');
-    expect(result.results[0]?.title).toBe('Search unavailable');
+    expect(result.results).toHaveLength(0);
+    expect(result.error).toMatch(/duckduckgo unreachable/);
   });
 });
 
@@ -293,9 +295,9 @@ describe('fetchWithTimeout error path', () => {
 
     const ctx = {} as any;
     const result = await searchTool.execute({ query: 'test', source: 'duckduckgo' }, ctx, makeOpts());
-    // Should return fallback result from the catch block, not throw
-    expect(result.results).toHaveLength(1);
-    expect(result.results[0].title).toBe('Search unavailable');
+    // Should degrade to empty results + error from the catch block, not throw
+    expect(result.results).toHaveLength(0);
+    expect(result.error).toMatch(/duckduckgo unreachable/);
   });
 });
 
@@ -319,9 +321,9 @@ describe('anySignal already-aborted', () => {
       ctx,
       { signal: ac.signal },
     );
-    // Should get fallback result, not throw, because anySignal immediately aborted
-    expect(result.results).toHaveLength(1);
-    expect(result.results[0].title).toBe('Search unavailable');
+    // Should degrade to empty results + error, not throw, because anySignal immediately aborted
+    expect(result.results).toHaveLength(0);
+    expect(result.error).toMatch(/duckduckgo unreachable/);
   });
 });
 

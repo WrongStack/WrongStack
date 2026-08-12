@@ -78,6 +78,44 @@ describe('formatTool', () => {
     expect(result.fixer).toBe('prettier');
   });
 
+  it.each([
+    '.prettierrc.json',
+    '.prettierrc.js',
+    '.prettierrc.cjs',
+    'prettier.config.js',
+    'prettier.config.cjs',
+    'prettier.config.mjs',
+  ])('detects prettier from %s', async (cfg) => {
+    await fs.writeFile(path.join(tmp, cfg), '');
+    const result = await formatTool.execute(
+      { fixer: 'auto' },
+      { cwd: tmp, tools: [], projectRoot: tmp } as any,
+      makeOpts(),
+    );
+    expect(result.fixer).toBe('prettier');
+  });
+
+  it('detects prettier from a package.json#prettier field', async () => {
+    await fs.writeFile(path.join(tmp, 'package.json'), JSON.stringify({ prettier: {} }));
+    const result = await formatTool.execute(
+      { fixer: 'auto' },
+      { cwd: tmp, tools: [], projectRoot: tmp } as any,
+      makeOpts(),
+    );
+    expect(result.fixer).toBe('prettier');
+  });
+
+  it('prefers biome when both biome.json and prettier configs exist', async () => {
+    await fs.writeFile(path.join(tmp, 'biome.json'), '{}');
+    await fs.writeFile(path.join(tmp, '.prettierrc'), '{}');
+    const result = await formatTool.execute(
+      { fixer: 'auto' },
+      { cwd: tmp, tools: [], projectRoot: tmp } as any,
+      makeOpts(),
+    );
+    expect(result.fixer).toBe('biome');
+  });
+
   it('uses the explicit fixer when provided (overrides auto-detection)', async () => {
     await fs.writeFile(path.join(tmp, 'biome.json'), '{}');
     const result = await formatTool.execute(
@@ -100,16 +138,51 @@ describe('formatTool', () => {
     expect(receivedArgs).not.toContain('--write');
   });
 
-  it('counts files_changed from "changed" occurrences in stdout', async () => {
+  it('parses files_checked/files_changed from biome summary lines', async () => {
     spawnStreamMocks.spawnStream.mockImplementation(
-      fakeSpawn('file1 changed\nfile2 changed\nfile3 changed\n'),
+      fakeSpawn('Checked 12 files in 30ms. Fixed 3 files.\n'),
     );
     const result = await formatTool.execute(
       { fixer: 'biome' },
       makeCtx(),
       makeOpts(),
     );
+    expect(result.files_checked).toBe(12);
     expect(result.files_changed).toBe(3);
+  });
+
+  it('returns undefined counts when biome output has no summary line', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawn('some unrelated noise\n'));
+    const result = await formatTool.execute({ fixer: 'biome' }, makeCtx(), makeOpts());
+    expect(result.files_checked).toBeUndefined();
+    expect(result.files_changed).toBeUndefined();
+  });
+
+  it('returns undefined counts for prettier (per-file listing is not parsed)', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawn('a.ts 20ms\nb.ts 5ms\n'));
+    const result = await formatTool.execute({ fixer: 'prettier' }, makeCtx(), makeOpts());
+    expect(result.files_checked).toBeUndefined();
+    expect(result.files_changed).toBeUndefined();
+  });
+
+  it('builds a valid prettier command (--write, no "format" subcommand)', async () => {
+    let receivedArgs: string[] = [];
+    spawnStreamMocks.spawnStream.mockImplementation((opts: { args: string[] }) => {
+      receivedArgs = opts.args;
+      return fakeSpawn('')();
+    });
+    await formatTool.execute({ fixer: 'prettier', files: 'a.ts, b.ts' }, makeCtx(), makeOpts());
+    expect(receivedArgs).toEqual(['--write', 'a.ts', 'b.ts']);
+  });
+
+  it('prettier check mode targets "." when no files given', async () => {
+    let receivedArgs: string[] = [];
+    spawnStreamMocks.spawnStream.mockImplementation((opts: { args: string[] }) => {
+      receivedArgs = opts.args;
+      return fakeSpawn('')();
+    });
+    await formatTool.execute({ fixer: 'prettier', check: true }, makeCtx(), makeOpts());
+    expect(receivedArgs).toEqual(['--check', '.']);
   });
 
   it('passes files list to formatter via "--" separator', async () => {

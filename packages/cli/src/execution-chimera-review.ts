@@ -6,11 +6,14 @@ import {
   CHIMERA_REVIEW_PROMPT,
   type ChimeraReviewCompletePayload,
   type ChimeraReviewNeededPayload,
+  classifyChimeraReviewSource,
   integrateFindings,
   maybeCompactReviewStores,
+  type ParsedReviewReport,
   parseChimeraReviewReport,
   persistReviewReport,
   recordCompletedReview,
+  verifyFindingsAgainstDisk,
 } from '@wrongstack/core/plugin';
 import {
   buildChimeraReviewTaskDescription,
@@ -188,7 +191,7 @@ export function installChimeraReviewHandler({
           // fallbackModels). The session-level chain enters separately via
           // buildReviewerAttemptLadder's profileChain param below. The ladder
           // dedupes rungs by provider/model, so overlap is harmless.
-          const configFallbacks = [...p.config.fallbackModels];
+          const configFallbacks = [...(p.config.fallbackModels ?? [])];
           if (p.config.fallbackProfile) {
             configFallbacks.push(...fallbackProfileChain(config, p.config.fallbackProfile));
           }
@@ -317,6 +320,32 @@ export function installChimeraReviewHandler({
               : JSON.stringify(result.result);
 
           const reportId = randomUUID();
+
+          // P0-1/P0-2: parse the report ONCE with full provenance context,
+          // then verify every finding against the working tree before
+          // anything is persisted. The verified report rides the completion
+          // payload so the store integrations and the cascade gate never
+          // re-parse with a divergent context and never act on unverified
+          // claims.
+          const reviewSource = classifyChimeraReviewSource(p);
+          const winningAttempt = outcome.wonAt ? ladder[outcome.wonAt - 1] : undefined;
+          const parsedReport: ParsedReviewReport = parseChimeraReviewReport(reviewText, {
+            sessionId: reviewSessionId,
+            agentId:
+              p.fileProvenance?.find((entry) => entry.agentId)?.agentId ?? 'chimera-review',
+            reviewerModel: winningAttempt ? attemptLabel(winningAttempt) : undefined,
+            reviewType: reviewSource,
+            reportId,
+          });
+
+          const verifiedFindings = await verifyFindingsAgainstDisk(parsedReport.findings, {
+            cwd: p.cwd,
+          });
+          const verifiedParsedReport: ParsedReviewReport = {
+            ...parsedReport,
+            findings: verifiedFindings,
+          };
+
           await persistAndEmitCompletion({
             bundle: p,
             reviewText,
@@ -324,12 +353,12 @@ export function installChimeraReviewHandler({
             cwd: p.cwd,
             sessionId: reviewSessionId,
             reportId,
+            parsedReport: verifiedParsedReport,
           } satisfies ChimeraReviewCompletePayload);
 
           if (reviewText) {
             const reviewHasFindings = !isChimeraAllClearReview(reviewText);
-            const parsedReview = parseChimeraReviewReport(reviewText);
-            const citedFindings = parsedReview.findings.filter((finding) => finding.location);
+            const citedFindings = verifiedFindings.filter((finding) => finding.location);
             // Normalize the changed-file set so reviewer citations can match
             // against absolute paths and case-variant spellings. The reviewer
             // may cite absolute Windows paths or mix casing; without this,
@@ -358,17 +387,34 @@ export function installChimeraReviewHandler({
               if (bucket) bucket.push(normalized);
               else changedBasenameIndex.set(basename, [normalized]);
             }
-            const droppedCitations = citedFindings.filter((finding) => {
+            const inScopeCited = citedFindings.filter((finding) => {
               const citedKey = normalizeFileKeyForCitation(finding.location!.file, p.cwd);
-              if (citedPaths.has(citedKey)) return false;
+              if (citedPaths.has(citedKey)) return true;
               const basename = path.basename(finding.location!.file).toLowerCase();
               const bucket = changedBasenameIndex.get(basename);
-              return !(bucket && bucket.length === 1);
+              return !!(bucket && bucket.length === 1);
             });
-            const effectiveHasFindings =
-              reviewHasFindings &&
-              (parsedReview.findings.length === 0 ||
-                parsedReview.findings.length > droppedCitations.length);
+            const droppedCitations = citedFindings.filter(
+              (finding) => !inScopeCited.includes(finding),
+            );
+            // P0-2: only disk-VERIFIED findings in the changed-file set are
+            // actionable. An in-scope finding that failed verification
+            // (missing file / line out of range) or stays unverified (anchor
+            // not found) must not be advertised as a potential issue — the
+            // whole point of the verification pass is that phantom citations
+            // do not drive follow-up.
+            const actionableFindings = inScopeCited.filter(
+              (finding) => finding.verification?.status === 'verified',
+            );
+            const unverifiedInScope = inScopeCited.filter(
+              (finding) => finding.verification?.status === 'unverified',
+            );
+            const failedVerificationCount = inScopeCited.filter(
+              (finding) => finding.verification?.status === 'failed',
+            ).length;
+            const effectiveHasFindings = reviewHasFindings && actionableFindings.length > 0;
+            const verifiedCount = actionableFindings.length;
+            const unverifiedCount = unverifiedInScope.length;
             const hallucinationNote =
               droppedCitations.length > 0
                 ? `\n\n⚠️ Citation validation: ${droppedCitations.length} finding(s) cite files outside the changed-file set and should be verified before acting.`
@@ -422,7 +468,11 @@ export function installChimeraReviewHandler({
                 messageId: reviewMailMessageId,
               });
 
-              if (!effectiveHasFindings) {
+              // Only a genuinely all-clear review completes the mailbox message.
+              // A report with findings that failed disk verification is NOT
+              // all-clear: the message stays open so the user can inspect why
+              // (file missing, anchor moved, hallucination) before deciding.
+              if (!reviewHasFindings) {
                 try {
                   await mailbox.ack({
                     messageId: reviewMailMessageId,
@@ -467,12 +517,9 @@ export function installChimeraReviewHandler({
               });
             }
 
-            const findingCount = Math.max(
-              0,
-              parsedReview.findings.length - droppedCitations.length,
-            );
+            const findingCount = actionableFindings.length;
             const message = effectiveHasFindings
-              ? `🦂 Chimera report ready — ${findingCount || 'unparsed'} potential finding(s) across ${p.files.length} file(s). No follow-up started; open the mailbox and explicitly ask the leader to act if wanted.`
+              ? `🦂 Chimera report ready — ${findingCount || 'unparsed'} potential finding(s) (${verifiedCount} verified against disk, ${unverifiedCount} unverified, ${failedVerificationCount} failed) across ${p.files.length} file(s). No follow-up started; open the mailbox and explicitly ask the leader to act if wanted.`
               : `🦂 Chimera report ready — ${p.files.length} file(s) checked, no actionable findings. No follow-up started.`;
             events.emitCustom('chimera.report_available', {
               reportId,

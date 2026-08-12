@@ -35,6 +35,9 @@ describe('tool-icon-map', () => {
       expect(getToolIcon('task')).toBe('task');
       expect(getToolIcon('kanban')).toBe('task');
       expect(getToolIcon('codebase-index')).toBe('index');
+      expect(getToolIcon('codebase-incoming-calls')).toBe('index');
+      expect(getToolIcon('codebase-outgoing-calls')).toBe('index');
+      expect(getToolIcon('dead-code-scan')).toBe('index');
       expect(getToolIcon('json')).toBe('json');
       expect(getToolIcon('diff')).toBe('diff');
       expect(getToolIcon('logs')).toBe('logs');

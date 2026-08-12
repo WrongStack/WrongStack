@@ -183,10 +183,20 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
           sessionPlanPath.lastIndexOf('/'),
           sessionPlanPath.lastIndexOf('\\'),
         );
-        planPath =
-          lastSep >= 0
-            ? sessionPlanPath.slice(0, lastSep + 1) + 'backlog.plan.json'
-            : 'backlog.plan.json';
+        if (lastSep < 0) {
+          // A separator-less session path has no directory to anchor the shared
+          // file to; silently deriving a CWD-relative 'backlog.plan.json' would
+          // scatter project plans across whatever directory the process happens
+          // to run in. Refuse explicitly instead.
+          return {
+            ok: false,
+            message: `Cannot derive the project-scoped plan path: session plan path "${sessionPlanPath}" has no directory component.`,
+            plan: '',
+            count: 0,
+            open: 0,
+          };
+        }
+        planPath = sessionPlanPath.slice(0, lastSep + 1) + 'backlog.plan.json';
       }
     } else {
       planPath = sessionPlanPath;
@@ -397,6 +407,11 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
       };
     }
 
+    // Record the path this call ACTUALLY wrote (session or derived project
+    // backlog) so todo's promotedFromPlan rollup follows the real file. The
+    // seeded 'plan.path' stays untouched — it anchors scope derivation above.
+    (ctx.meta as Record<string, unknown>)['plan.path.resolved'] = planPath;
+
     // A successful plan mutation includes its projection onto the unified
     // session board; callers never observe plan state ahead of Kanban state.
     await projectSessionPlanToKanban(ctx.projectRoot, plan.items, sessionId);
@@ -445,6 +460,9 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
           });
           return f;
         });
+        // Same contract as 'plan.path.resolved': the task rollup follows the
+        // file this call actually wrote.
+        (ctx.meta as Record<string, unknown>)['task.path.resolved'] = taskPath;
         return mkResult(
           plan,
           true,

@@ -15,12 +15,16 @@
 // Cases that earn a custom branch:
 //   - TodoWrite          -> "8 todos · 3 done · 2 in-progress"
 //   - batch/parallel     -> "N sub-tools · read, grep +2"
+//   - patch (unified diff) -> "patch · 3 files"
 //   - edit / str_replace -> "edit foo.ts (3 → 5 lines)"
 //   - write / create     -> "write foo.ts · 12 lines"
 //   - bash / shell / exec -> "$ <command snippet>"
 //   - fetch / http / web -> "GET https://…"
 //   - grep / search      -> "grep <pattern> in <scope>"
 //   - glob / find        -> "glob <pattern>"
+//   - tree               -> "tree path (depth N)"
+//   - diff               -> "diff a..b" / "diff N files"
+//   - replace            -> "replace <pattern> in <scope>"
 //   - read               -> "read path (N…M)"
 //   - fallback           -> first non-empty head field, else compact JSON.
 
@@ -29,6 +33,7 @@ export const FALLBACK_HEAD_FIELDS = [
   'path',
   'file_path',
   'pattern',
+  'symbol',
   'command',
   'cmd',
   'url',
@@ -120,6 +125,16 @@ export function summarizeToolInput(toolName: string | undefined, input: unknown)
     }
   }
 
+  // ---- patch (unified diff body) ------------------------------------
+  // The real patch tool takes a `patch` string that can touch many files —
+  // it must not render as a single-file edit. A patch-named call WITHOUT a
+  // `patch` body (old/new-shaped alias input) still falls to the edit branch.
+  if (name === 'patch' && typeof obj.patch === 'string' && obj.patch) {
+    const fileCount = (obj.patch.match(/^\+\+\+ /gm) ?? []).length;
+    if (fileCount > 0) return `patch · ${fileCount} file${fileCount === 1 ? '' : 's'}`;
+    return `patch · ${obj.patch.split('\n').length} lines`;
+  }
+
   // ---- edit / str_replace / patch -----------------------------------
   if (/^(edit|str_replace|edit_file|patch)$/.test(name)) {
     const fp = pickPath(obj);
@@ -166,6 +181,49 @@ export function summarizeToolInput(toolName: string | undefined, input: unknown)
   if (/^(glob|find)$/.test(name)) {
     const p = (obj.pattern ?? obj.glob) as string | undefined;
     if (typeof p === 'string') return `glob ${clip(p, 80)}`;
+  }
+
+  // ---- tree ---------------------------------------------------------
+  if (/^tree$/.test(name)) {
+    const p = typeof obj.path === 'string' ? obj.path : '';
+    const d = typeof obj.depth === 'number' ? obj.depth : null;
+    return `tree ${p || '.'}${d !== null ? ` (depth ${d})` : ''}`;
+  }
+
+  // ---- diff ---------------------------------------------------------
+  if (/^diff$/.test(name)) {
+    const a = typeof obj.a === 'string' ? obj.a : '';
+    const b = typeof obj.b === 'string' ? obj.b : '';
+    if (a || b) return `diff ${a && b ? `${a}..${b}` : a || b}`;
+    const fl: string[] = [];
+    if (Array.isArray(obj.files)) {
+      for (const f of obj.files) if (typeof f === 'string') fl.push(f);
+    } else if (typeof obj.files === 'string') {
+      for (const part of obj.files.split(',')) {
+        const t = part.trim();
+        if (t) fl.push(t);
+      }
+    }
+    if (fl.length === 1) return `diff ${clip(String(fl[0]), 80)}`;
+    if (fl.length > 1) return `diff ${fl.length} files`;
+  }
+
+  // ---- replace (bulk regex replace) ---------------------------------
+  if (/^replace$/.test(name)) {
+    const pattern = typeof obj.pattern === 'string' ? obj.pattern : '';
+    if (pattern) {
+      let scope = '';
+      if (typeof obj.files === 'string') {
+        const parts = obj.files
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        scope = parts.length > 1 ? `${parts.length} files` : (parts[0] ?? '');
+      } else if (Array.isArray(obj.files) && obj.files.length > 0) {
+        scope = obj.files.length === 1 ? String(obj.files[0]) : `${obj.files.length} files`;
+      }
+      return `replace ${clip(pattern, 60)}${scope ? ` in ${clip(scope, 50)}` : ''}`;
+    }
   }
 
   // ---- read with offset/limit --------------------------------------
@@ -236,6 +294,12 @@ export const SUMMARIZE_TOOL_INPUT_BROWSER_SRC: string = [
   '    }',
   '  }',
   '  var fp;',
+  '  if(n==="patch" && typeof obj.patch==="string" && obj.patch){',
+  '    var pfm=obj.patch.match(/^\\+\\+\\+ /gm);',
+  '    var pfc=pfm?pfm.length:0;',
+  '    if(pfc>0) return "patch \\u00b7 "+pfc+" file"+(pfc===1?"":"s");',
+  '    return "patch \\u00b7 "+obj.patch.split("\\n").length+" lines";',
+  '  }',
   '  if(/^(edit|str_replace|edit_file|patch)$/.test(n)){',
   '    fp=(obj.file_path!=null?obj.file_path:(obj.path!=null?obj.path:obj.filepath));',
   '    var oldS=typeof obj.old_string==="string"?obj.old_string:"";',
@@ -266,6 +330,35 @@ export const SUMMARIZE_TOOL_INPUT_BROWSER_SRC: string = [
   '    var gp=(obj.pattern!=null?obj.pattern:obj.glob);',
   '    if(typeof gp==="string") return "glob "+__clip(gp,80);',
   '  }',
+  '  if(/^tree$/.test(n)){',
+  '    var trp=typeof obj.path==="string"?obj.path:"";',
+  '    var trd=typeof obj.depth==="number"?obj.depth:null;',
+  '    return "tree "+(trp||".")+(trd!==null?(" (depth "+trd+")"):"");',
+  '  }',
+  '  if(/^diff$/.test(n)){',
+  '    var da=typeof obj.a==="string"?obj.a:"", db=typeof obj.b==="string"?obj.b:"";',
+  '    if(da||db) return "diff "+((da&&db)?(da+".."+db):(da||db));',
+  '    var dfl=[], dfi, dpi;',
+  '    if(Array.isArray(obj.files)){ for(dfi=0; dfi<obj.files.length; dfi++){ if(typeof obj.files[dfi]==="string") dfl.push(obj.files[dfi]); } }',
+  '    else if(typeof obj.files==="string"){ var dparts=obj.files.split(","); for(dpi=0; dpi<dparts.length; dpi++){ var dt=dparts[dpi].trim(); if(dt) dfl.push(dt); } }',
+  '    if(dfl.length===1) return "diff "+__clip(String(dfl[0]),80);',
+  '    if(dfl.length>1) return "diff "+dfl.length+" files";',
+  '  }',
+  '  if(/^replace$/.test(n)){',
+  '    var rpat=typeof obj.pattern==="string"?obj.pattern:"";',
+  '    if(rpat){',
+  '      var rscope="";',
+  '      if(typeof obj.files==="string"){',
+  '        var rparts=[], rsi;',
+  '        var rraw=obj.files.split(",");',
+  '        for(rsi=0; rsi<rraw.length; rsi++){ var rt=rraw[rsi].trim(); if(rt) rparts.push(rt); }',
+  '        rscope=rparts.length>1?(rparts.length+" files"):(rparts.length===1?rparts[0]:"");',
+  '      } else if(Array.isArray(obj.files) && obj.files.length>0){',
+  '        rscope=obj.files.length===1?String(obj.files[0]):(obj.files.length+" files");',
+  '      }',
+  '      return "replace "+__clip(rpat,60)+(rscope?(" in "+__clip(rscope,50)):"");',
+  '    }',
+  '  }',
   '  if(/^(read|read_file|cat|view)$/.test(n)){',
   '    fp=(obj.file_path!=null?obj.file_path:(obj.path!=null?obj.path:obj.filepath));',
   '    if(typeof fp==="string" && fp){',
@@ -274,7 +367,7 @@ export const SUMMARIZE_TOOL_INPUT_BROWSER_SRC: string = [
   '      return "read "+fp;',
   '    }',
   '  }',
-  '  var HEAD=["path","file_path","pattern","command","cmd","url","query","description","content"], hi;',
+  '  var HEAD=["path","file_path","pattern","symbol","command","cmd","url","query","description","content"], hi;',
   '  for(hi=0; hi<HEAD.length; hi++){ var hv=obj[HEAD[hi]]; if(typeof hv==="string" && hv.length>0){ return HEAD[hi]+": "+__clip(hv,100); } }',
   '  var jsonStr; try{ jsonStr=JSON.stringify(raw); }catch(_e2){ jsonStr=String(raw); }',
   '  return __clip(jsonStr,120);',

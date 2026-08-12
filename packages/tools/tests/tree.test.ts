@@ -64,6 +64,19 @@ describe('treeTool', () => {
     expect(result.tree).toContain('keep.txt');
   });
 
+  it('counts direct children of the root in total_files/total_dirs', async () => {
+    // Regression: a `depth > 0` guard in walkDir excluded the root's own
+    // entries from the totals — a flat directory always reported 0/0.
+    await fs.mkdir(path.join(tmpDir, 'sub'));
+    await fs.writeFile(path.join(tmpDir, 'a.txt'), '');
+    await fs.writeFile(path.join(tmpDir, 'b.txt'), '');
+    await fs.writeFile(path.join(tmpDir, 'sub', 'c.txt'), '');
+    const ctx = makeCtx();
+    const result = await treeTool.execute({ path: tmpDir }, ctx);
+    expect(result.total_files).toBe(3);
+    expect(result.total_dirs).toBe(1);
+  });
+
   it('walks a deep nested tree (drives the queue-drain poll loop)', async () => {
     let dir = tmpDir;
     for (let i = 0; i < 8; i++) {

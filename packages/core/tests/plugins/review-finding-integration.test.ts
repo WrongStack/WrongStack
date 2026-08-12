@@ -42,7 +42,7 @@ const EMPTY_REPORT = '## 🦂 Chimera Review — all clear ✅\nNo issues found.
 function makePayload(reviewText: string, overrides: Partial<ChimeraReviewCompletePayload> = {}): ChimeraReviewCompletePayload {
   return {
     bundle: {
-      config: { enabled: true, provider: 'test-provider', model: 'test-model', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2 },
+      config: { enabled: true, provider: 'test-provider', model: 'test-model', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2, fallbackModels: [], fallbackProfile: undefined },
       cwd: process.cwd(),
       files: [{ path: 'src/auth.ts', status: 'modified' as const, content: 'export function login(user: any) { return user.name; }' }],
     },
@@ -197,7 +197,7 @@ describe('Chimera finding integration — FS-P0.6', () => {
     // cascadeOn: 'high' but depth=0 → 'auto'
     const autoPayload = makePayload(CANONICAL_REPORT, {
       bundle: {
-        config: { enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2 },
+        config: { enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2, fallbackModels: [], fallbackProfile: undefined },
         cwd: process.cwd(),
         files: [],
         cascadeOn: 'high' as const,
@@ -210,7 +210,7 @@ describe('Chimera finding integration — FS-P0.6', () => {
     // cascadeDepth=1 → 'cascade'
     const cascadePayload = makePayload(CANONICAL_REPORT, {
       bundle: {
-        config: { enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2 },
+        config: { enabled: true, provider: 'p', model: 'm', maxFiles: 15, autoFix: 'off', cascadeOn: 'off' as const, maxCascadeDepth: 2, fallbackModels: [], fallbackProfile: undefined },
         cwd: process.cwd(),
         files: [],
         cascadeDepth: 1,
@@ -219,6 +219,62 @@ describe('Chimera finding integration — FS-P0.6', () => {
     await integrateFindings(cascadePayload, dir, 'cascade-src');
     const cascadeFindings = (await findingStore.list({ limit: 100 })).filter(f => f.originReport.reportId === 'cascade-src');
     expect(cascadeFindings.every(f => f.source === 'cascade')).toBe(true);
+  });
+
+  it('prefers the execution-owner parsedReport over re-parsing reviewText (P0-1/P0-2)', async () => {
+    const reviewText = '### Critical (1)\n1. [SECURITY] src/auth.ts:99 — phantom finding\n';
+    // The disk-verified report carries a finding that differs from what
+    // parsing reviewText would produce: different severity, plus category,
+    // confidence, and a verification stamp.
+    const payload = makePayload(reviewText, {
+      parsedReport: {
+        findings: [
+          {
+            id: 'structured-1',
+            fingerprint: 'structured-fp-1',
+            severity: 'high',
+            source: 'auto',
+            category: 'security',
+            confidence: 'high',
+            location: { file: 'src/auth.ts', line: 42 },
+            title: 'Structured finding',
+            description: 'The execution owner verified this against disk.',
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            verification: {
+              status: 'verified',
+              reason: 'anchor_found',
+              evidence: 'export async function login(user: any) {',
+            },
+            originReport: { reportId: 'pre-parsed-001', sessionId: 's1', agentId: 'a1', reviewerModel: 'm1' },
+          },
+        ],
+        unparseableCount: 0,
+        structured: true,
+      },
+    });
+
+    const reportId = 'pre-parsed-001';
+    await persistReviewReport(payload, reportId, dir);
+    const findingResult = await integrateFindings(payload, dir, reportId);
+    expect(findingResult.created).toBe(1);
+
+    const store = new JsonlFindingStore(dir);
+    const all = await store.list({ limit: 10, reportId });
+    expect(all).toHaveLength(1);
+    const finding = all[0]!;
+    // The structured item wins over the markdown text (severity, category,
+    // confidence, verification all carried through untouched).
+    expect(finding.severity).toBe('high');
+    expect(finding.category).toBe('security');
+    expect(finding.confidence).toBe('high');
+    expect(finding.verification?.status).toBe('verified');
+    expect(finding.verification?.reason).toBe('anchor_found');
+    expect(finding.title).toBe('Structured finding');
+    expect(finding.location?.line).toBe(42);
+    // The execution-owner stamped source wins over the bundle-derived
+    // classification (bundle has no cascadeOn/cascadeDepth → 'chimera').
+    expect(finding.source).toBe('auto');
   });
 
   it('auto-completes report when all findings are resolved', async () => {

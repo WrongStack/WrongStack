@@ -11,6 +11,8 @@ function harness(
     projectDir?: string;
     realPersistence?: boolean;
     persistReview?: (payload: unknown, projectDir: string) => Promise<void>;
+    cwd?: string;
+    reviewFiles?: Array<{ path: string; status: string; content: string }>;
   } = {},
 ) {
   let reviewHandler: ((event: unknown, payload: unknown) => void) | undefined;
@@ -87,9 +89,11 @@ function harness(
       reviewHandler?.(
         {},
         {
-          cwd: 'D:/repo',
+          cwd: options.cwd ?? 'D:/repo',
           config: { provider: 'test', model: 'reviewer', autoFix },
-          files: [{ path: 'src/a.ts', status: 'modified', content: 'export const a = 1;' }],
+          files: options.reviewFiles ?? [
+            { path: 'src/a.ts', status: 'modified', content: 'export const a = 1;' },
+          ],
         },
       );
     },
@@ -98,39 +102,63 @@ function harness(
 }
 
 describe('Chimera passive report integration', () => {
+  // Create a real working tree so P0-2 disk verification passes for findings
+  // that cite src/a.ts:1. The anchor is the longest meaningful token of the
+  // finding's title+description (case-sensitive match), so `line1` must
+  // contain that exact token.
+  async function verifiableCwd(line1: string): Promise<string> {
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'chimera-verify-'));
+    await fs.mkdir(path.join(cwd, 'src'), { recursive: true });
+    await fs.writeFile(path.join(cwd, 'src', 'a.ts'), `${line1}\n`);
+    return cwd;
+  }
+
+  const REVIEW_FILES = (content: string) => [
+    { path: 'src/a.ts', status: 'modified', content },
+  ];
+
   it('publishes an actionable report without waking the session leader', async () => {
-    const h = harness(
-      [
-        '### High (1)',
-        '1. [BUG] src/a.ts:1 — Broken guard',
-        '   The guard accepts invalid state.',
-        '   → Validate before returning.',
-      ].join('\n'),
-    );
+    // Longest token of 'Broken guard → Validate before returning.' is
+    // 'returning' (9 chars) — line 1 must contain it.
+    const cwd = await verifiableCwd('export function returning() { return accepts(); }');
+    try {
+      const h = harness(
+        [
+          '### High (1)',
+          '1. [BUG] src/a.ts:1 — Broken guard',
+          '   The guard accepts invalid state.',
+          '   → Validate before returning.',
+        ].join('\n'),
+        'auto',
+        { cwd, reviewFiles: REVIEW_FILES('export function returning() { return accepts(); }') },
+      );
 
-    h.emitReview();
-    await h.wait();
+      h.emitReview();
+      await h.wait();
 
-    expect(h.director.spawn).toHaveBeenCalledTimes(1);
-    expect(h.agentRun).not.toHaveBeenCalled();
-    expect(h.events.emitCustom).toHaveBeenCalledWith(
-      'chimera.report_available',
-      expect.objectContaining({
-        sessionId: 'session-1',
-        hasActionableFindings: true,
-        message: expect.stringContaining('No follow-up started'),
-      }),
-    );
-    expect(h.mailbox.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'result',
-        body: expect.stringContaining('no leader turn, fix agent, or cascade was started'),
-      }),
-    );
-    expect(h.mailbox.ack).not.toHaveBeenCalled();
-    expect(h.session.append).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'llm_response' }),
-    );
+      expect(h.director.spawn).toHaveBeenCalledTimes(1);
+      expect(h.agentRun).not.toHaveBeenCalled();
+      expect(h.events.emitCustom).toHaveBeenCalledWith(
+        'chimera.report_available',
+        expect.objectContaining({
+          sessionId: 'session-1',
+          hasActionableFindings: true,
+          message: expect.stringContaining('No follow-up started'),
+        }),
+      );
+      expect(h.mailbox.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'result',
+          body: expect.stringContaining('no leader turn, fix agent, or cascade was started'),
+        }),
+      );
+      expect(h.mailbox.ack).not.toHaveBeenCalled();
+      expect(h.session.append).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'llm_response' }),
+      );
+    } finally {
+      await fs.rm(cwd, { recursive: true, force: true });
+    }
   });
 
   it('does not wake the leader for an all-clear or review-only mode', async () => {
@@ -155,15 +183,25 @@ describe('Chimera passive report integration', () => {
   it.each(['ask', 'auto'] as const)(
     'treats legacy %s mode as passive and never starts a leader turn',
     async (mode) => {
-      const h = harness('### High (1)\n1. src/a.ts:1 — Broken guard', mode);
-      h.emitReview();
-      await h.wait();
-      expect(h.agentRun).not.toHaveBeenCalled();
-      expect(h.mailbox.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'result' }));
-      expect(h.events.emitCustom).toHaveBeenCalledWith(
-        'chimera.report_available',
-        expect.objectContaining({ hasActionableFindings: true }),
-      );
+      // Longest token of 'Broken guard' is 'Broken' (6 chars) — line 1 must
+      // contain it (case-sensitive).
+      const cwd = await verifiableCwd('export function Broken() { return true; }');
+      try {
+        const h = harness('### High (1)\n1. src/a.ts:1 — Broken guard', mode, {
+          cwd,
+          reviewFiles: REVIEW_FILES('export function Broken() { return true; }'),
+        });
+        h.emitReview();
+        await h.wait();
+        expect(h.agentRun).not.toHaveBeenCalled();
+        expect(h.mailbox.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'result' }));
+        expect(h.events.emitCustom).toHaveBeenCalledWith(
+          'chimera.report_available',
+          expect.objectContaining({ hasActionableFindings: true }),
+        );
+      } finally {
+        await fs.rm(cwd, { recursive: true, force: true });
+      }
     },
   );
 

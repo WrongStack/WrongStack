@@ -219,6 +219,115 @@ describe('installTool', () => {
     expect(result.output).toContain('Invalid package name');
   });
 
+  it.each([
+    'react@18',
+    'react@18.2.0',
+    'vitest@latest',
+    '@types/node@^20.1.0',
+    'typescript@~5.4',
+    'esbuild@0.21.x',
+  ])('accepts versioned spec %s', async (spec) => {
+    spawnStreamMock.mockClear();
+    const result = await installTool.execute({ packages: spec }, makeCtx(), makeOpts());
+    expect(result.exit_code).toBe(0);
+    const call = spawnStreamMock.mock.calls[0]?.[0] as { args: string[] };
+    expect(call.args).toContain(spec);
+  });
+
+  it.each([
+    'file:../../etc/passwd',
+    'pkg@1.0.0; rm -rf /',
+    'pkg@1.0.0 --flag',
+    'pkg@ver$(whoami)',
+  ])('still rejects malicious spec %s', async (spec) => {
+    const result = await installTool.execute({ packages: spec }, makeCtx(), makeOpts());
+    expect(result.exit_code).toBe(1);
+    expect(result.output).toContain('Invalid package name');
+  });
+
+  it('emits `pnpm install` (not bare `pnpm add`) when packages is empty', async () => {
+    spawnStreamMock.mockClear();
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inst-pnpm-empty-'));
+    try {
+      await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), '');
+      await installTool.execute({}, makeCtx({ cwd: dir, projectRoot: dir }), makeOpts());
+      const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
+      expect(call.cmd).toBe('pnpm');
+      expect(call.args).toContain('install');
+      expect(call.args).not.toContain('add');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('emits `yarn install` (not bare `yarn add`) when packages is empty', async () => {
+    spawnStreamMock.mockClear();
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inst-yarn-empty-'));
+    try {
+      await fs.writeFile(path.join(dir, 'yarn.lock'), '');
+      await installTool.execute({}, makeCtx({ cwd: dir, projectRoot: dir }), makeOpts());
+      const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
+      expect(call.cmd).toBe('yarn');
+      expect(call.args).toContain('install');
+      expect(call.args).not.toContain('add');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('honors save=dev for npm via --save-dev', async () => {
+    spawnStreamMock.mockClear();
+    await installTool.execute({ packages: 'foo', save: 'dev' }, makeCtx(), makeOpts());
+    const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
+    expect(call.cmd).toBe('npm');
+    expect(call.args).toContain('--save-dev');
+  });
+
+  it('honors save=optional for npm via --save-optional', async () => {
+    spawnStreamMock.mockClear();
+    await installTool.execute({ packages: 'foo', save: 'optional' }, makeCtx(), makeOpts());
+    const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
+    expect(call.args).toContain('--save-optional');
+  });
+
+  it('honors save=dev for yarn via --dev on add', async () => {
+    spawnStreamMock.mockClear();
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inst-yarn-dev-'));
+    try {
+      await fs.writeFile(path.join(dir, 'yarn.lock'), '');
+      await installTool.execute(
+        { packages: 'foo', save: 'dev' },
+        makeCtx({ cwd: dir, projectRoot: dir }),
+        makeOpts(),
+      );
+      const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
+      expect(call.cmd).toBe('yarn');
+      expect(call.args).toContain('add');
+      expect(call.args).toContain('--dev');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('honors save=dev for pnpm via -D on add', async () => {
+    spawnStreamMock.mockClear();
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inst-pnpm-dev-'));
+    try {
+      await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), '');
+      await installTool.execute(
+        { packages: 'foo', save: 'dev' },
+        makeCtx({ cwd: dir, projectRoot: dir }),
+        makeOpts(),
+      );
+      const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
+      expect(call.cmd).toBe('pnpm');
+      expect(call.args).toContain('-D');
+      expect(call.args).toContain('add');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('builds pnpm add args with a save flag', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inst-pnpm-'));
     try {

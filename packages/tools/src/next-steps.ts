@@ -101,18 +101,13 @@ const MAX_STEPS = 6;
  * Parse canonical "<nextsteps>" blocks from assistant output (or raw numbered lines).
  *
  * @param content        — raw assistant message text or subagent output
- * @param strict         — retained for compatibility; assistant-output paths always require the canonical XML tag.
- * @param requireHeading — when true, a canonical XML tag must precede the item list.
+ * @param requireHeading — when true (default), a canonical XML tag must precede the item list.
  *                        when false, numbered/bullet items are parsed from anywhere in text
  *                        (used by /suggest subagent output which has no heading).
  */
-export function parseNextSteps(
-  content: string,
-  strict = false,
-  requireHeading = true,
-): ParseNextStepsResult {
+export function parseNextSteps(content: string, requireHeading = true): ParseNextStepsResult {
   if (requireHeading) {
-    return parseWithHeading(content, strict);
+    return parseWithHeading(content);
   }
   return parseRawNumbered(content);
 }
@@ -169,7 +164,7 @@ function parseRawNumbered(content: string): ParseNextStepsResult {
 }
 
 /** Parse a heading + item block (the main assistant-message path). */
-function parseWithHeading(content: string, _strict: boolean): ParseNextStepsResult {
+function parseWithHeading(content: string): ParseNextStepsResult {
   const headingMatch = NEXT_STEPS_TAG_RE.exec(content);
 
   if (!headingMatch) {

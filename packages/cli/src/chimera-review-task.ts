@@ -120,6 +120,41 @@ export function buildChimeraReviewTaskDescription(p: ChimeraReviewNeededPayload)
   return lines.join('\n');
 }
 
+/**
+ * The machine-evidence contract every cascade fix agent must satisfy before
+ * its work counts as verified. The agent runs the real verification commands
+ * and returns a JSON block with the exact commands and their exit codes; the
+ * re-review step re-runs those commands and compares.
+ */
+export const CASCADE_EVIDENCE_INSTRUCTIONS = [
+  `After fixing, run the project's REAL verification commands on the code you changed`,
+  `(typecheck, lint, and the tests covering the fixed code) and return a machine-evidence`,
+  `block as the LAST section of your response. The block MUST be a fenced JSON block`,
+  `(exactly \`\`\`json ... \`\`\`) with this shape:`,
+  ``,
+  '```json',
+  '{',
+  '  "verification_evidence": {',
+  '    "typecheck": { "command": "pnpm typecheck", "exitCode": 0 },',
+  '    "lint":      { "command": "pnpm lint", "exitCode": 0 },',
+  '    "tests":     { "command": "pnpm test --filter affected", "exitCode": 0 }',
+  '  }',
+  '}',
+  '```',
+  ``,
+  `Rules:`,
+  `- \`command\` must be the EXACT command you ran (plain executable + args, no shell`,
+  `  chaining like \`&&\`/\`;\`/\`|\`, no redirection, no shell expansion). These commands are`,
+  `  re-run verbatim by the orchestrator to verify your work.`,
+  `- \`exitCode\` is the real process exit code you observed: 0 = passed, non-zero = failed.`,
+  `  Never invent or omit an exit code. If a command cannot be run, omit that key entirely`,
+  `  and explain why in your report text — an omitted key is honest, a fabricated 0 is not.`,
+  `- If your fix does not pass a command, report the true non-zero exit code; the`,
+  `  orchestrator will treat the fix as unverified and keep the finding open.`,
+  `- At least \`typecheck\` must be present; include \`lint\` and \`tests\` when the project`,
+  `  has them.`,
+].join('\n');
+
 export function buildChimeraCascadeTaskDescription(
   agentKind: CascadeAgentKind,
   p: ChimeraCascadeNeededPayload,
@@ -144,8 +179,9 @@ export function buildChimeraCascadeTaskDescription(
       `Investigate the security findings above. Read the flagged files, confirm or refute`,
       `each finding, and **apply fixes** for confirmed vulnerabilities using the edit tool.`,
       `Use severity (Critical/High/Medium), file:line citations, and remediation steps.`,
-      `After fixing, run the project's typecheck and linter to verify. If a finding is a`,
-      `false positive, say so and do not modify the file.`,
+      `If a finding is a false positive, say so and do not modify the file.`,
+      ``,
+      CASCADE_EVIDENCE_INSTRUCTIONS,
     ].join('\n');
   }
   return [
@@ -162,8 +198,9 @@ export function buildChimeraCascadeTaskDescription(
     ``,
     `Hunt for the bugs flagged above. Read the affected files, trace each finding to its`,
     `root cause, and **apply minimal fixes** for confirmed bugs using the edit tool.`,
-    `Use severity (Critical/High/Medium), file:line citations. After fixing, run the`,
-    `project's typecheck and linter to verify. If a finding is a false positive, say so`,
-    `and do not modify the file.`,
+    `Use severity (Critical/High/Medium), file:line citations. If a finding is a false`,
+    `positive, say so and do not modify the file.`,
+    ``,
+    CASCADE_EVIDENCE_INSTRUCTIONS,
   ].join('\n');
 }

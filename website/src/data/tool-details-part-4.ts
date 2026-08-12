@@ -14,21 +14,6 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
         type: 'string',
         description: 'Working directory (default: cwd)',
       },
-      {
-        name: 'format',
-        type: '\'list\' | \'table\'',
-        description: 'Output format (default: list)',
-      },
-      {
-        name: 'include_deprecated',
-        type: 'boolean',
-        description: 'Include deprecated packages (default: false)',
-      },
-      {
-        name: 'check',
-        type: 'string',
-        description: 'Specific package(s) to check (comma-separated)',
-      },
     ],
     notes: [
       'Run periodically or before dependency-related work.',
@@ -38,12 +23,12 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
   },
   'logs': {
     longDescription:
-      'Read or stream logs from files, Docker containers, or systemd services. Useful for debugging running applications.',
+      'Read logs from files or Docker containers. Useful for debugging running applications.',
     params: [
       {
         name: 'service',
         type: 'string',
-        description: 'Service name for Docker or systemd journal',
+        description: 'Docker container name (passed to `docker logs`)',
       },
       {
         name: 'path',
@@ -56,11 +41,6 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
         description: 'Number of log lines to fetch (default: 100, 0 for all)',
       },
       {
-        name: 'stream',
-        type: 'boolean',
-        description: 'Stream logs continuously (like tail -f) (default: false)',
-      },
-      {
         name: 'filter',
         type: 'string',
         description: 'Regex pattern to filter log lines',
@@ -68,7 +48,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       {
         name: 'since',
         type: '\'1h\' | \'6h\' | \'24h\' | \'all\'',
-        description: 'Only show logs since duration',
+        description: 'Only show Docker logs since duration (ignored for files; "all" = no limit)',
       },
       {
         name: 'cwd',
@@ -77,14 +57,13 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       },
     ],
     notes: [
-      'Prefer `path` for local files or `service` for containers/systemd.',
-      '`stream: true` = live tail (can be expensive).',
+      'Prefer `path` for local files or `service` for Docker containers.',
       'Always use `filter` (regex) when possible to reduce noise and token usage.',
     ],
   },
   'document': {
     longDescription:
-      'DEPRECATED — use the `auto_doc` tool with `dryRun: true` instead. This tool is a read-only preview stub that returns `skipped` candidates without generating real docstrings.',
+      'DEPRECATED — read-only preview stub that lists undocumented symbols as `skipped` candidates. It never writes files and does not generate real docstrings. If the auto-doc plugin is enabled, use its `auto_doc` tool (with `dry_run: true` to preview) instead.',
     params: [
       {
         name: 'target',
@@ -113,7 +92,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       },
     ],
     notes: [
-      'Deprecated: prefer `auto_doc` with `dryRun: true` for previewing, or `auto_doc` without dryRun for writing. This tool only lists undocumented symbols with placeholder comments — it does not generate real JSDoc/TSDoc.',
+      'Deprecated: this tool only lists undocumented symbols with placeholder comments — it does not generate real JSDoc/TSDoc and writes nothing. When the auto-doc plugin is enabled, prefer its `auto_doc` tool (`dry_run: true` for previewing, without it for writing).',
     ],
   },
   'scaffold': {

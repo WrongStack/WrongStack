@@ -17,6 +17,7 @@
  */
 
 import type { Tool } from '@wrongstack/core/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   codebaseIndexStats,
   getIndexState,
@@ -24,6 +25,14 @@ import {
 } from './background-indexer.js';
 import type { SearchResult } from './schema.js';
 import { codebaseIndexDirOverride } from './writer.js';
+
+/**
+ * Language ids the index understands. Single source for the `lang` enum here
+ * and the `langs` validation in codebase-index-tool.ts.
+ */
+export const INDEXABLE_LANG_IDS = [
+  'ts', 'tsx', 'js', 'jsx', 'go', 'py', 'rs', 'json', 'yaml',
+] as const;
 export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput> = {
   name: 'codebase-search',
   category: 'Project',
@@ -31,14 +40,14 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
   description:
     'Search code symbols using a fast SQLite+BM25 index, with optional LSP fallback. ' +
     'Prefer this before broad `tree`, `glob`, or `grep` exploration when finding code by name or concept. ' +
+    'Use `grep` instead for exact text, regexes, unsupported content, or concrete usage sites. ' +
     'Set `preferLsp: true` for live precision when the LSP plugin is active (supersedes codebase-lsp-search).',
   usageHint:
     'FIRST CHOICE FOR INDEXABLE CODE UNDERSTANDING:\n\n' +
     '- Call before broad `tree`, `glob`, or `grep` exploration when locating symbols, concepts, definitions, or candidate modules.\n' +
     '- `kind` filter is very useful (e.g. only functions or only interfaces).\n' +
     '- Combine with `file` filter to scope to a specific directory or module.\n' +
-    '- If `indexStatus` reports no persisted data, run `codebase-index` and retry.\n' +
-    'Use `grep` afterwards for exact text, regexes, unsupported content, or concrete usage sites.',
+    '- If `indexStatus` reports no persisted data, run `codebase-index` and retry.',
   permission: 'auto',
   mutating: false,
   capabilities: ['fs.read'],
@@ -63,7 +72,7 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
       },
       lang: {
         type: 'string',
-        enum: ['ts', 'tsx', 'js', 'jsx', 'go', 'py', 'rs', 'json', 'yaml'],
+        enum: [...INDEXABLE_LANG_IDS],
         description: 'Filter by indexed language',
       },
       lspKind: {
@@ -84,8 +93,8 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
       preferLsp: {
         type: 'boolean',
         description:
-          'Prefer live LSP results over the index. Index-only when the LSP plugin is not active. ' +
-          'When the LSP plugin is active and this is true, results come from live workspaceSymbol queries.',
+          'Prefer live LSP results over the index. Ignored unless the LSP plugin is active; ' +
+          'when it is active and this is true, results come from live workspaceSymbol queries.',
       },
     },
     required: ['query'],
@@ -117,19 +126,35 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
     }
 
     const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 20), 100));
-    const { results, total } = await searchCodebaseIndex(
-      {
-        projectRoot: ctx.projectRoot,
-        indexDir: codebaseIndexDirOverride(ctx),
+    // Degrade infrastructure failures (daemon down, invalid endpoint, index
+    // read timeout) to the tool's empty-results + indexStatus contract instead
+    // of a raw throw — mirrors codebase-stats-tool.ts. A user cancel still
+    // propagates unchanged.
+    let searched: Awaited<ReturnType<typeof searchCodebaseIndex>>;
+    try {
+      searched = await searchCodebaseIndex(
+        {
+          projectRoot: ctx.projectRoot,
+          indexDir: codebaseIndexDirOverride(ctx),
+          query: input.query,
+          kind: input.kind?.toLowerCase(),
+          lang: input.lang?.toLowerCase(),
+          file: input.file,
+          lspKind: input.lspKind,
+          limit,
+        },
+        { signal: execOpts?.signal },
+      );
+    } catch (err) {
+      if (execOpts?.signal?.aborted) throw err;
+      return {
+        results: [],
+        total: 0,
         query: input.query,
-        kind: input.kind?.toLowerCase(),
-        lang: input.lang?.toLowerCase(),
-        file: input.file,
-        lspKind: input.lspKind,
-        limit,
-      },
-      { signal: execOpts?.signal },
-    );
+        indexStatus: `Index query failed: ${toErrorMessage(err)}. Fall back to grep/glob for this lookup.`,
+      };
+    }
+    const { results, total } = searched;
     // Process-local readiness resets on launch while the SQLite index persists.
     // A zero-hit query on a cold process therefore cannot by itself prove the
     // index is missing; consult persisted metadata before emitting that hint.

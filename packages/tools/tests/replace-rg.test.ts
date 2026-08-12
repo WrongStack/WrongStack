@@ -45,7 +45,7 @@ vi.mock('node:child_process', async (orig) => {
   };
 });
 
-import { replaceTool } from '../src/replace.js';
+import { __resetRgDetectionForTests, replaceTool } from '../src/replace.js';
 
 let dir: string;
 beforeEach(async () => {
@@ -54,6 +54,8 @@ beforeEach(async () => {
   cfg.versionCode = 0;
   cfg.files = [];
   cfg.findErrors = false;
+  // rg availability is memoized per process; each test varies it via cfg.
+  __resetRgDetectionForTests();
 });
 afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
@@ -106,6 +108,23 @@ describe('replaceTool ripgrep glob path (faked rg)', () => {
     await expect(
       replaceTool.execute({ pattern: '(a+)+', replacement: 'x', files: 'a.ts' }, ctx(), opts()),
     ).rejects.toThrow(/replace:/);
+  });
+
+  it('applies the extra glob filter on the rg path (previously dropped)', async () => {
+    const keep = path.join(dir, 'keep.ts');
+    const skip = path.join(dir, 'skip.md');
+    await fs.writeFile(keep, 'TARGET');
+    await fs.writeFile(skip, 'TARGET');
+    cfg.versionCode = 0; // rg available
+    cfg.files = [keep, skip]; // rg enumerates both; glob must narrow to .ts
+    const result = await replaceTool.execute(
+      { pattern: 'TARGET', replacement: 'DONE', files: '**/*', glob: '*.ts', dry_run: false },
+      ctx(),
+      opts(),
+    );
+    expect(result.files_modified).toBe(1);
+    expect(await fs.readFile(keep, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(skip, 'utf8')).toBe('TARGET');
   });
 
   it('skips paths that rg returns but no longer exist (lstat ENOENT)', async () => {

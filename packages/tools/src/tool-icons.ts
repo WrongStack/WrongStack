@@ -81,13 +81,15 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   replace: 'edit',
   str_replace: 'edit',
   multi_edit: 'edit',
-  patch: 'diff',
+  // Matches patchTool's own `icon: 'edit'` (tool-icon-map.ts agrees).
+  patch: 'edit',
   // ── search ──
   grep: 'search',
   search: 'search',
   rg: 'search',
   ripgrep: 'search',
-  glob: 'search',
+  // Matches globTool's own `icon: 'folder'` (tool-icon-map.ts agrees).
+  glob: 'folder',
   find: 'search',
   // ── navigation ──
   folder: 'folder',

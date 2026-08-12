@@ -136,10 +136,9 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
       }
     }
 
-    const pkgManager = await detectPackageManager(cwd);
+    const pkgManager = await detectPackageManager(cwd, ctx.projectRoot);
     yield { type: 'log', text: `Resolving with ${pkgManager}…`, data: { phase: 'resolve' } };
 
-    const save = input.save === 'dev' ? '-D' : input.save === 'optional' ? '-O' : '';
     const globalFlag = input.global ? ['-g'] : [];
     // Default to ignoring lifecycle scripts. A package's `postinstall`
     // runs with full shell access inside the project; without this gate a
@@ -147,29 +146,19 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
     // the moment it lands in `node_modules`. Opt-in only.
     const ignoreScripts = input.lifecycleScripts !== true;
 
-    const args: string[] = [];
-    if (input.dry_run) args.push('--dry-run');
-    if (ignoreScripts) args.push('--ignore-scripts');
-    if (pkgManager === 'pnpm') {
-      if (save) args.push(save);
-      args.push('add', ...globalFlag);
-    } else if (pkgManager === 'yarn') {
-      args.push('add', ...globalFlag);
-    } else {
-      args.push('install', ...globalFlag);
-    }
-
     const pkgList = input.packages
       ? (Array.isArray(input.packages) ? input.packages : input.packages.split(',')).map((p) =>
           p.trim(),
         )
       : [];
 
-    // Validate package names to prevent flag injection and path traversal.
+    // Validate package specs to prevent flag injection and path traversal.
     // A name like "--ignore-scripts=false" would be interpreted as a flag;
-    // "file:../../etc/passwd" as a local path specifier.
+    // "file:../../etc/passwd" as a local path specifier. An optional trailing
+    // `@<version-ish>` suffix (e.g. `react@18`, `@scope/pkg@^1.2.3`,
+    // `vitest@latest`) is allowed; whitespace and shell metacharacters are not.
     // Cap at 200 chars to prevent ReDoS on the regex engine (npm's max is 214).
-    const PKG_NAME_RE = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i;
+    const PKG_NAME_RE = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:@[a-z0-9^~><=*.+-]+)?$/i;
     for (const pkg of pkgList) {
       if (!PKG_NAME_RE.test(pkg) || pkg.startsWith('-') || pkg.length > 200) {
         yield {
@@ -186,7 +175,38 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
       }
     }
 
-    if (pkgList.length > 0) args.push(...pkgList);
+    const hasPkgs = pkgList.length > 0;
+    const args: string[] = [];
+    if (input.dry_run) args.push('--dry-run');
+    if (ignoreScripts) args.push('--ignore-scripts');
+    if (pkgManager === 'pnpm') {
+      if (hasPkgs) {
+        if (input.save === 'dev') args.push('-D');
+        else if (input.save === 'optional') args.push('-O');
+        args.push('add', ...globalFlag);
+      } else {
+        // Bare `pnpm add` with no packages errors; an empty list means
+        // "install everything from the lockfile".
+        args.push('install', ...globalFlag);
+      }
+    } else if (pkgManager === 'yarn') {
+      if (hasPkgs) {
+        args.push('add', ...globalFlag);
+        if (input.save === 'dev') args.push('--dev');
+        else if (input.save === 'optional') args.push('--optional');
+      } else {
+        // Bare `yarn add` with no packages errors; use `yarn install`.
+        args.push('install', ...globalFlag);
+      }
+    } else {
+      args.push('install', ...globalFlag);
+      if (hasPkgs) {
+        if (input.save === 'dev') args.push('--save-dev');
+        else if (input.save === 'optional') args.push('--save-optional');
+      }
+    }
+
+    if (hasPkgs) args.push(...pkgList);
 
     yield {
       type: 'log',

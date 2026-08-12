@@ -18,6 +18,7 @@ import type {
 } from './chimera-plugin.js';
 import { emitReviewIfChanged } from './review-claim-registry.js';
 import { buildReviewContext } from './review-context-builder.js';
+import type { ChimeraFinding } from './review-finding-types.js';
 
 // ---------------------------------------------------------------------------
 // Auto-review configuration — read from config.extensions['wstack-auto-review']
@@ -264,6 +265,23 @@ export interface ParsedSeverities {
   medium: number;
 }
 
+/**
+ * Count verified findings into the severity shape `shouldCascade` expects.
+ * Used by the P0-2 cascade gate: only disk-verified findings count toward
+ * the cascade threshold when a parsed report is available.
+ */
+export function severitiesFromFindings(
+  findings: readonly ChimeraFinding[],
+): ParsedSeverities {
+  const severities: ParsedSeverities = { critical: 0, high: 0, medium: 0 };
+  for (const finding of findings) {
+    if (finding.severity === 'critical') severities.critical++;
+    else if (finding.severity === 'high') severities.high++;
+    else if (finding.severity === 'medium') severities.medium++;
+  }
+  return severities;
+}
+
 /** Parse report counts for clean-vs-actionable classification. */
 export function parseReviewSeverity(text: string): ParsedSeverities {
   const result: ParsedSeverities = { critical: 0, high: 0, medium: 0 };
@@ -283,22 +301,44 @@ export function parseReviewSeverity(text: string): ParsedSeverities {
 }
 
 /**
- * Decide which follow-up cascade agents to spawn based on the review text.
+ * Decide which follow-up cascade agents to spawn based on the review.
  *
- * - `security-scanner` is selected when any Critical/High finding mentions
- *   a security keyword (injection, secret, XSS, etc.).
- * - `bug-hunter` is selected whenever the threshold is crossed at all —
- *   any High+ finding warrants a focused bug hunt.
+ * When structured, disk-verified findings are supplied (P0-1/P0-2), routing
+ * uses the finding's `category` tag: `security` selects security-scanner,
+ * and any High+ finding selects bug-hunter. The legacy keyword scan on the
+ * report text remains the fallback for reports without structured findings.
  *
- * Both may be returned in parallel when a finding is both severe and
+ * Both agents may be returned in parallel when a finding is both severe and
  * security-related.
  */
 export function decideCascadeAgents(
   text: string,
   severities: ParsedSeverities,
+  findings?: readonly ChimeraFinding[] | undefined,
 ): CascadeAgentKind[] {
   const agents = new Set<CascadeAgentKind>();
   if (severities.critical > 0 || severities.high > 0) agents.add('bug-hunter');
+
+  // P0-1: category-based routing when the reviewer supplied structured
+  // findings (verified against disk by the execution owner). The category
+  // tag is authoritative; the keyword scan below is only the legacy fallback.
+  if (findings && findings.length > 0) {
+    const highPlus = findings.filter(
+      (finding) => finding.severity === 'critical' || finding.severity === 'high',
+    );
+    if (highPlus.some((finding) => finding.category === 'security')) {
+      agents.add('security-scanner');
+    }
+    // Category routing is authoritative only when the reviewer supplied a
+    // category for EVERY High+ finding (the structured JSON path). If any
+    // High+ finding lacks a category — markdown fallback, or the reviewer
+    // omitted one — fall through to the keyword scan so security detection
+    // does not regress for the uncategorized findings.
+    if (highPlus.every((finding) => finding.category !== undefined)) {
+      return [...agents];
+    }
+  }
+
   const securityKeywords = [
     'injection',
     'xss',
@@ -1023,11 +1063,26 @@ export function createAutoReviewPlugin(): Plugin {
           const cascadeOn = p.bundle.cascadeOn ?? 'off';
           if (cascadeOn === 'off') return;
 
-          const severities = parseReviewSeverity(p.reviewText);
+          // P0-1/P0-2: when the execution owner threaded a pre-parsed,
+          // disk-verified report, cascade gating uses ONLY the findings that
+          // passed verification (file exists, line in range, anchor present).
+          // Unverified/phantom findings never trigger a fix agent. Legacy
+          // emitters without parsedReport fall back to text-based severity
+          // parsing so pre-contract reports keep working.
+          const parsed = p.parsedReport;
+          const verifiedFindings =
+            parsed?.findings.filter((f) => f.verification?.status === 'verified') ?? [];
+          const severities = parsed
+            ? severitiesFromFindings(verifiedFindings)
+            : parseReviewSeverity(p.reviewText);
           const threshold = shouldCascade(cascadeOn, severities);
           if (!threshold) return;
 
-          const agents = decideCascadeAgents(p.reviewText, severities);
+          const agents = decideCascadeAgents(
+            p.reviewText,
+            severities,
+            parsed ? verifiedFindings : undefined,
+          );
           if (agents.length === 0) {
             // Threshold crossed but no agent selected — shouldn't happen
             // (High+ always selects bug-hunter), but guard defensively.
@@ -1040,11 +1095,12 @@ export function createAutoReviewPlugin(): Plugin {
             severities,
             threshold,
             agents,
+            ...(parsed ? { verifiedFindings } : {}),
           };
 
           api.emitCustom('chimera.cascade_needed', cascadePayload);
           api.log.info(
-            `[auto-review] cascade_needed emitted — ${severities.critical} critical, ${severities.high} high, ${severities.medium} medium; agents: ${agents.join(', ')}`,
+            `[auto-review] cascade_needed emitted — ${severities.critical} critical, ${severities.high} high, ${severities.medium} medium; agents: ${agents.join(', ')}${parsed ? ` (gated on ${verifiedFindings.length} verified finding(s))` : ''}`,
           );
         } catch (err) {
           api.log.warn(

@@ -15,6 +15,7 @@
  */
 
 import type { Tool } from '@wrongstack/core/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   codebaseIndexStats,
   getIndexState,
@@ -33,6 +34,7 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
     'Use this to understand a function\'s dependencies before modifying it.',
   usageHint:
     'USE THIS TO UNDERSTAND A FUNCTION\'S DEPENDENCIES:\n\n' +
+    '- Prefer this over grep when the index is available; fall back to grep when the index is cold/unavailable or for dynamic dispatch the ref graph cannot see.\n' +
     '- Call codebase-outgoing-calls({ symbol: "funcName" }) to see everything it calls.\n' +
     '- Returns exact files, line numbers, callee signatures, and call types in milliseconds.\n' +
     '- Use `file` to disambiguate when multiple symbols share a name.\n' +
@@ -95,16 +97,30 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
 
     const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 50), 200));
     const transitive = input.transitive === true;
-    const { calls, symbolFound, unresolvedCount, totalMatches } = await outgoingCallsService(
-      {
-        projectRoot: ctx.projectRoot,
-        indexDir: codebaseIndexDirOverride(ctx),
+    // Degrade infrastructure failures (daemon down, invalid endpoint, index
+    // read timeout) to the empty-results + indexStatus contract instead of a
+    // raw throw — mirrors codebase-search-tool.ts / codebase-stats-tool.ts.
+    let serviced: Awaited<ReturnType<typeof outgoingCallsService>>;
+    try {
+      serviced = await outgoingCallsService(
+        {
+          projectRoot: ctx.projectRoot,
+          indexDir: codebaseIndexDirOverride(ctx),
+          symbol: input.symbol,
+          file: input.file,
+          limit,
+          transitive,
+        },
+      );
+    } catch (err) {
+      return {
         symbol: input.symbol,
-        file: input.file,
-        limit,
-        transitive,
-      },
-    );
+        calls: [],
+        total: 0,
+        indexStatus: `Index query failed: ${toErrorMessage(err)}. Fall back to grep for this lookup.`,
+      };
+    }
+    const { calls, symbolFound, unresolvedCount, totalMatches } = serviced;
 
     if (!symbolFound) {
       // Process-local readiness resets on launch while the SQLite index may

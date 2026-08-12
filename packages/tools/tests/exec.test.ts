@@ -83,9 +83,20 @@ describe('execTool', () => {
     expect(result).toHaveProperty('args');
   });
 
-  it('respects timeout cap', async () => {
+  it('caps per-call timeout at MAX_TIMEOUT_MS (600s), not the 30s default', async () => {
+    // Regression: the old clamp used DEFAULT_TIMEOUT_MS as the ceiling too,
+    // silently capping EVERY call at 30s regardless of input.timeout. The
+    // ceiling is now 600_000, and the declared executor-facing timeoutMs must
+    // sit above it so the executor abort can't fire before the tool's own
+    // timer (which returns a structured exit-124 result).
+    expect(execTool.timeoutMs).toBeGreaterThanOrEqual(600_000);
+    const schema = execTool.inputSchema as {
+      properties: { timeout: { description: string } };
+    };
+    expect(schema.properties.timeout.description).toContain('max 600000');
+    expect(schema.properties.timeout.description).toContain('default 30000');
     const ctx = makeCtx();
-    // timeout > TIMEOUT_MS should be capped
+    // A huge requested timeout is clamped (to 600s) but the call still runs.
     const result = await execTool.execute(
       { command: 'echo', timeout: 999_999_999 } as any,
       ctx,
@@ -111,6 +122,24 @@ describe('execTool', () => {
       await fs.mkdir(path.join(sb.ctx.projectRoot, 'sub'));
       const result = await execTool.execute({ command: 'echo', cwd: 'sub' }, sb.ctx, makeOpts());
       expect(result.stderr).not.toMatch(/outside project root/);
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it('defaults cwd to ctx.workingDir when set (set_working_dir integration)', async () => {
+    const sb = await mkRealSandbox();
+    try {
+      const sub = path.join(sb.ctx.projectRoot, 'wd-sub');
+      await fs.mkdir(sub);
+      (sb.ctx as { workingDir?: string }).workingDir = sub;
+      const result = await execTool.execute(
+        { command: 'node', args: ['-e', 'console.log(process.cwd())'] },
+        sb.ctx,
+        makeOpts(),
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('wd-sub');
     } finally {
       await sb.cleanup();
     }

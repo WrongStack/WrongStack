@@ -109,7 +109,7 @@ function createFallbackProfileManageTool(opts: FallbackManageToolOptions): Tool<
       '"list" to see all profiles. ' +
       '"set" with name and chain (array of model refs) to create or replace a profile. ' +
       '"delete" with name to remove a profile.',
-    category: 'Config',
+    category: 'config',
     inputSchema: FALLBACK_PROFILE_SCHEMA,
     permission: 'auto',
     mutating: true,
@@ -261,7 +261,7 @@ function createAgentModelAssignTool(opts: FallbackManageToolOptions): Tool<Agent
       'Set with role + model, or role + provider + model, or role + profile. ' +
       'Set role + clear=true to remove a matrix entry. ' +
       'The provider/model must be a favorite.',
-    category: 'Config',
+    category: 'config',
     inputSchema: AGENT_MODEL_ASSIGN_SCHEMA,
     permission: 'auto',
     mutating: true,
@@ -473,7 +473,7 @@ function createProviderManageTool(opts: FallbackManageToolOptions): Tool<Provide
       '"list" to see all providers. "add" with provider id and type to create. ' +
       '"configure" to update models, baseUrl, family, or envVars. ' +
       '"remove" to delete a provider. Use provider_key_set for API key management.',
-    category: 'Config',
+    category: 'config',
     inputSchema: PROVIDER_MANAGE_SCHEMA,
     permission: 'auto',
     mutating: true,
@@ -671,9 +671,11 @@ function createProviderKeySetTool(opts: FallbackManageToolOptions): Tool<Provide
       'Preferred: provider_key_set({ provider: "openai", envVar: "OPENAI_API_KEY" }). ' +
       'For interactive input: provider_key_set({ provider: "openai" }) — the UI will prompt. ' +
       'Direct key: provider_key_set({ provider: "openai", key: "sk-..." }) — visible to LLM.',
-    category: 'Config',
+    category: 'config',
     inputSchema: PROVIDER_KEY_SET_SCHEMA,
-    permission: 'auto',
+    // 'confirm', not 'auto' — this tool writes credentials to disk (and can
+    // read arbitrary env vars into the config file), so the user must see it.
+    permission: 'confirm',
     mutating: true,
     riskTier: 'standard',
     icon: 'settings',
@@ -813,7 +815,7 @@ function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<LeaderM
       '"show" to see current state. "set" with provider+model to change. ' +
       '"profile" with name to derive from a profile. ' +
       '"toggle" with toggle name and value to change a boolean setting.',
-    category: 'Config',
+    category: 'config',
     inputSchema: LEADER_MODEL_SET_SCHEMA,
     permission: 'auto',
     mutating: true,
@@ -839,11 +841,28 @@ function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<LeaderM
         if (!input.provider || !input.model) {
           return { status: 'error', message: 'Provide "provider" and "model" for the leader.' };
         }
+        // Route through the host's live switch FIRST when wired — it swaps the
+        // agent's provider instance/model and refreshes context caps, and it
+        // validates the target, so a bad provider/model never gets persisted.
+        // Mutating cfg.provider/model directly here left the live session on
+        // the old model while config claimed the new one.
+        if (opts.switchProviderAndModel) {
+          const switchError = await opts.switchProviderAndModel(input.provider, input.model);
+          if (switchError) {
+            return {
+              status: 'error',
+              message: `Could not switch to ${input.provider}/${input.model}: ${switchError}. Config was not changed.`,
+            };
+          }
+        }
         await opts.updateConfig((cfg) => {
           cfg.provider = input.provider;
           cfg.model = input.model;
         });
-        return { status: 'ok', message: `✓ Leader → ${input.provider}/${input.model}` };
+        const liveNote = opts.switchProviderAndModel
+          ? ''
+          : ' (config updated — the live session keeps its current model until restart or /setmodel)';
+        return { status: 'ok', message: `✓ Leader → ${input.provider}/${input.model}${liveNote}` };
       }
 
       if (input.action === 'profile') {
@@ -864,15 +883,29 @@ function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<LeaderM
           return { status: 'error', message: `Cannot parse "${first}" as a valid model reference.` };
         }
         const rest = chain.slice(1);
+        // Same live-switch-first ordering as the "set" action (see above).
+        if (opts.switchProviderAndModel) {
+          const switchError = await opts.switchProviderAndModel(provider, model);
+          if (switchError) {
+            return {
+              status: 'error',
+              message: `Could not switch to ${provider}/${model}: ${switchError}. Config was not changed.`,
+            };
+          }
+        }
         await opts.updateConfig((cfg) => {
           cfg.provider = provider;
           cfg.model = model;
           cfg.fallbackModels = rest;
         });
+        const profileLiveNote = opts.switchProviderAndModel
+          ? ''
+          : '\n  (config updated — the live session keeps its current model until restart or /setmodel)';
         return {
           status: 'ok',
           message: `✓ Leader → ${provider}/${model} (profile: ${input.profile})` +
-            (rest.length > 0 ? `\n  Fallback chain: ${rest.join(' → ')}` : ''),
+            (rest.length > 0 ? `\n  Fallback chain: ${rest.join(' → ')}` : '') +
+            profileLiveNote,
         };
       }
 

@@ -81,7 +81,9 @@ describe('createMcpUseTool', () => {
     expect(tool.inputSchema.required).toEqual(['server', 'tool', 'input']);
   });
 
-  it('reports an unknown server with the available list', async () => {
+  // Lookup failures THROW so the executor records the call as failed — a
+  // plain string return was recorded as a successful tool call.
+  it('throws on an unknown server with the available list', async () => {
     const tool = createMcpUseTool({
       registry: fakeRegistry({
         describe: vi
@@ -90,20 +92,20 @@ describe('createMcpUseTool', () => {
       }),
       toolRegistry: fakeToolRegistry(),
     });
-    const out = await run(tool, { server: 'ghost', tool: 't', input: {} });
-    expect(out).toContain('not found');
-    expect(out).toContain('Available: a');
+    await expect(run(tool, { server: 'ghost', tool: 't', input: {} })).rejects.toThrow(
+      /not found.*Available: a/,
+    );
   });
 
-  it('reports "none" when there are no servers at all', async () => {
+  it('throws with "none" when there are no servers at all', async () => {
     const tool = createMcpUseTool({
       registry: fakeRegistry({ describe: vi.fn().mockReturnValue([]) }),
       toolRegistry: fakeToolRegistry(),
     });
-    expect(await run(tool, { server: 'ghost', tool: 't', input: {} })).toContain('none');
+    await expect(run(tool, { server: 'ghost', tool: 't', input: {} })).rejects.toThrow('none');
   });
 
-  it('refuses a server that is not connected', async () => {
+  it('throws for a server that is not connected', async () => {
     const tool = createMcpUseTool({
       registry: fakeRegistry({
         describe: vi
@@ -112,9 +114,9 @@ describe('createMcpUseTool', () => {
       }),
       toolRegistry: fakeToolRegistry(),
     });
-    const out = await run(tool, { server: 'github', tool: 't', input: {} });
-    expect(out).toContain('not connected');
-    expect(out).toContain('connecting');
+    await expect(run(tool, { server: 'github', tool: 't', input: {} })).rejects.toThrow(
+      /not connected.*connecting/,
+    );
   });
 
   it('activates, calls the resolved tool, returns its result, and deactivates', async () => {
@@ -166,24 +168,46 @@ describe('createMcpUseTool', () => {
     expect(deactivateServer).toHaveBeenCalledWith('github');
   });
 
-  it('lists available tools when the requested tool is missing', async () => {
+  it('throws listing available tools when the requested tool is missing', async () => {
+    const deactivateServer = vi.fn();
     const tool = createMcpUseTool({
-      registry: fakeRegistry(),
+      registry: fakeRegistry({ deactivateServer }),
       toolRegistry: fakeToolRegistry([
         mcpTool('mcp__github__create_issue', vi.fn()),
         mcpTool('mcp__github__list_repos', vi.fn()),
       ]),
     });
-    const out = await run(tool, { server: 'github', tool: 'nope', input: {} });
-    expect(out).toContain('not found on server "github"');
-    expect(out).toContain('create_issue');
-    expect(out).toContain('list_repos');
+    await expect(run(tool, { server: 'github', tool: 'nope', input: {} })).rejects.toThrow(
+      /not found on server "github".*create_issue.*list_repos/,
+    );
+    // The error path still cleans up the activation this call performed.
+    expect(deactivateServer).toHaveBeenCalledWith('github');
   });
 
-  it('explains when the server published no tools', async () => {
+  it('throws explaining when the server published no tools', async () => {
     const tool = createMcpUseTool({ registry: fakeRegistry(), toolRegistry: fakeToolRegistry([]) });
-    const out = await run(tool, { server: 'github', tool: 'nope', input: {} });
-    expect(out).toContain('may not have published any tools');
+    await expect(run(tool, { server: 'github', tool: 'nope', input: {} })).rejects.toThrow(
+      'may not have published any tools',
+    );
+  });
+
+  it('does not deactivate a server the operator had already activated', async () => {
+    // An mcp_control activate must survive an ephemeral mcp_use call — only
+    // activations performed by THIS call are torn down in the finally.
+    const activateServer = vi.fn();
+    const deactivateServer = vi.fn();
+    const inner = mcpTool('mcp__github__ping', vi.fn(async () => 'pong'));
+    const tool = createMcpUseTool({
+      registry: fakeRegistry({
+        activateServer,
+        deactivateServer,
+        isActivated: vi.fn().mockReturnValue(true),
+      }),
+      toolRegistry: fakeToolRegistry([inner]),
+    });
+    expect(await run(tool, { server: 'github', tool: 'ping', input: {} }, [inner])).toBe('pong');
+    expect(activateServer).not.toHaveBeenCalled();
+    expect(deactivateServer).not.toHaveBeenCalled();
   });
 
   it('still deactivates when the tool call throws', async () => {

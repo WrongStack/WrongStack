@@ -299,22 +299,75 @@ describe('TerminalRenderer.setResultRenderMode', () => {
     expect(out).not.toContain('more line');
   });
 
-  it('simple: bash hides stdout/stderr, shows only exit + size', () => {
+  it('simple: bash hides output, shows only exit + size (real result shape)', () => {
     const r = mkRenderer();
+    // bash emits {output, exit_code, timed_out} — NOT stdout/stderr/exitCode.
     const payload = JSON.stringify({
-      exitCode: 0,
-      stdout: 'a\nb\nc\nd\ne',
-      stderr: '',
+      output: 'alpha\nbravo\ncharlie\ndelta\necho-x',
+      exit_code: 0,
+      timed_out: false,
     });
     r.renderer.setResultRenderMode('bash', 'simple');
     r.renderer.writeToolResult('bash', payload, false);
     const out = r.out();
     expect(out).toContain('exit=0');
-    expect(out).toContain('5 stdout lines');
-    // Raw stdout lines never rendered.
-    expect(out).not.toContain('a');
-    expect(out).not.toContain('b');
-    expect(out).not.toContain('c');
+    expect(out).toContain('5 output lines');
+    // Raw output lines never rendered.
+    expect(out).not.toContain('alpha');
+    expect(out).not.toContain('bravo');
+    expect(out).not.toContain('charlie');
+  });
+
+  it('extend: bash previews body lines from `output`', () => {
+    const r = mkRenderer();
+    const payload = JSON.stringify({
+      output: 'first-line\nsecond-line',
+      exit_code: 0,
+      timed_out: false,
+    });
+    r.renderer.writeToolResult('bash', payload, false);
+    const out = r.out();
+    expect(out).toContain('exit=0');
+    expect(out).toContain('first-line');
+    expect(out).toContain('second-line');
+  });
+
+  it('exec: summary renders `$ command args` + exit; simple hides stdout', () => {
+    const r = mkRenderer();
+    const payload = JSON.stringify({
+      command: 'git',
+      args: ['status', '--short'],
+      exitCode: 0,
+      stdout: 'M file-one.ts\nM file-two.ts',
+      stderr: '',
+      truncated: false,
+      allowed: true,
+    });
+    r.renderer.setResultRenderMode('exec', 'simple');
+    r.renderer.writeToolResult('exec', payload, false);
+    const out = r.out();
+    expect(out).toContain('$ git status --short');
+    expect(out).toContain('exit=0');
+    expect(out).toContain('2 stdout lines');
+    expect(out).not.toContain('file-one.ts');
+  });
+
+  it('exec: extend previews stdout/stderr body', () => {
+    const r = mkRenderer();
+    const payload = JSON.stringify({
+      command: 'node',
+      args: ['--version'],
+      exitCode: 0,
+      stdout: 'v22.1.0',
+      stderr: 'some-warning',
+      truncated: false,
+      allowed: true,
+    });
+    r.renderer.writeToolResult('exec', payload, false);
+    const out = r.out();
+    expect(out).toContain('$ node --version');
+    expect(out).toContain('v22.1.0');
+    expect(out).toContain('some-warning');
   });
 
   it('simple: one-shot — mode is consumed after one write', () => {

@@ -70,7 +70,7 @@ export const VERIFY_AGENTS: AgentDefinition[] = [
       id: 'e2e',
       name: 'E2E',
       role: 'e2e',
-      tools: [...TOOLS.build, 'fetch', ...SPECIALIST_TOOLS.browser],
+      tools: [...TOOLS.build, 'fetch', 'e2e_plan', ...SPECIALIST_TOOLS.browser],
       prompt: agentPrompt('e2e'),
     },
     budget: HEAVY_BUDGET,

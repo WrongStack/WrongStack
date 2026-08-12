@@ -16,26 +16,71 @@ export function sha256hex(content: string): string {
 export type PackageManager = 'pnpm' | 'yarn' | 'npm';
 
 /**
- * Detect the project's package manager by inspecting lockfiles in `cwd`.
- * Order: pnpm → yarn → npm (default). Missing or unreadable directories fall
- * back to `npm` rather than throwing, so a `safeResolve`-checked cwd that
- * happens to be empty never aborts the tool.
+ * Detect the project's package manager.
+ *
+ * Per directory, precedence is: `package.json#packageManager` (authoritative
+ * when declared) → `pnpm-lock.yaml` → `yarn.lock` → `bun.lockb`/`bun.lock`
+ * (bun is treated as npm-compatible and reported as `npm`) →
+ * `package-lock.json`/`npm-shrinkwrap.json`. When `stopAt` (usually the
+ * project root) is provided and `cwd` is nested inside it, parent directories
+ * are walked up to and including `stopAt` — monorepo packages rarely carry
+ * their own lockfile. Missing or unreadable directories fall back to `npm`
+ * rather than throwing, so a `safeResolve`-checked cwd that happens to be
+ * empty never aborts the tool.
  */
-export async function detectPackageManager(cwd: string): Promise<PackageManager> {
-  const { stat } = await import('node:fs/promises');
-  try {
-    await stat(`${cwd}/pnpm-lock.yaml`);
-    return 'pnpm';
-  } catch {
-    /* not pnpm */
-  }
-  try {
-    await stat(`${cwd}/yarn.lock`);
-    return 'yarn';
-  } catch {
-    /* not yarn */
+export async function detectPackageManager(
+  cwd: string,
+  stopAt?: string,
+): Promise<PackageManager> {
+  let dir = path.resolve(cwd);
+  const stop = stopAt ? path.resolve(stopAt) : dir;
+  for (;;) {
+    const found = await detectPackageManagerInDir(dir);
+    if (found) return found;
+    if (dir === stop) break;
+    const parent = path.dirname(dir);
+    const relParent = path.relative(stop, parent);
+    // Stop when the parent would step outside `stopAt` (or the fs root).
+    if (parent === dir || relParent.startsWith('..') || path.isAbsolute(relParent)) break;
+    dir = parent;
   }
   return 'npm';
+}
+
+/** One-directory probe for {@link detectPackageManager}; null = keep walking. */
+async function detectPackageManagerInDir(dir: string): Promise<PackageManager | null> {
+  const fs = await import('node:fs/promises');
+  // 1. Honor an explicit `package.json#packageManager` declaration.
+  try {
+    const raw = await fs.readFile(path.join(dir, 'package.json'), 'utf8');
+    const declared = (JSON.parse(raw) as { packageManager?: unknown }).packageManager;
+    if (typeof declared === 'string') {
+      const name = declared.split('@')[0] ?? '';
+      if (name === 'pnpm' || name === 'yarn') return name;
+      // bun has no first-class branch in the callers; treat as npm-compatible.
+      if (name === 'npm' || name === 'bun') return 'npm';
+    }
+  } catch {
+    /* missing / unparseable package.json — fall through to lockfiles */
+  }
+  // 2. Lockfiles.
+  const lockfiles: Array<[string, PackageManager]> = [
+    ['pnpm-lock.yaml', 'pnpm'],
+    ['yarn.lock', 'yarn'],
+    ['bun.lockb', 'npm'],
+    ['bun.lock', 'npm'],
+    ['package-lock.json', 'npm'],
+    ['npm-shrinkwrap.json', 'npm'],
+  ];
+  for (const [file, manager] of lockfiles) {
+    try {
+      await fs.stat(`${dir}/${file}`);
+      return manager;
+    } catch {
+      /* not this one */
+    }
+  }
+  return null;
 }
 
 export function resolvePath(input: string, ctx: Context): string {
@@ -157,6 +202,30 @@ export async function resolveRealInsideRoot(absPath: string, ctx: Context): Prom
 export async function safeResolveReal(input: string, ctx: Context): Promise<string> {
   const abs = safeResolve(input, ctx);
   return await resolveRealInsideRoot(abs, ctx);
+}
+
+/**
+ * Truncate a diff (or similar text payload) to `maxBytes`, cutting at a line
+ * boundary and appending an explicit marker. Used by the mutating file tools
+ * (`write`, `edit`, `replace`) so their returned diffs stay inside the tool's
+ * declared `maxOutputBytes` budget instead of relying on downstream clipping.
+ */
+export function truncateDiffPayload(
+  diff: string,
+  maxBytes: number,
+): { text: string; truncated: boolean } {
+  const total = Buffer.byteLength(diff, 'utf8');
+  if (total <= maxBytes) return { text: diff, truncated: false };
+  // Reserve room for the marker so the final string never exceeds the cap.
+  const MARKER_RESERVE = 96;
+  let head = takeHeadBytes(diff, Math.max(0, maxBytes - MARKER_RESERVE));
+  const nl = head.lastIndexOf('\n');
+  if (nl > 0) head = head.slice(0, nl);
+  const kept = Buffer.byteLength(head, 'utf8');
+  return {
+    text: `${head}\n…[diff truncated: ${total - kept} of ${total} bytes omitted]`,
+    truncated: true,
+  };
 }
 
 export function truncateMiddle(s: string, max: number): string {

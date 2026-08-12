@@ -27,7 +27,6 @@ import {
 import { type InstructionTemplateContext, renderInstructionLayer } from './instruction-template.js';
 import { PROMPT as DEFAULT_PROMPT, LEADER_AFTER_TASK_PROMPT } from './modes/default.js';
 import {
-  agentsFingerprint,
   instructionSection,
   renderToolSelectionBoundary,
   tagBlock,
@@ -203,10 +202,14 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   private _lastCatalogTools?: Tool[] | undefined;
   /** Cached rendered online agents string, keyed by content fingerprint. */
   private _lastOnlineAgents?: { hash: string; text: string } | undefined;
-  /** Cached full buildToolUsage output — keyed by tools array ref + agents fingerprint + tier. */
-  private _toolsUsageCache?:
-    | { toolsRef: readonly Tool[]; agentsHash: string; tier: string; text: string }
-    | undefined;
+  /**
+   * Cached full buildToolUsage output — keyed by tools array ref + tier.
+   * Deliberately NOT keyed by the online-agents fingerprint: the live peer
+   * snapshot moved out of this layer into the `peers` volatile block, so
+   * layer2 stays byte-stable (and provider-cache-friendly) while agents
+   * join, leave, or change status.
+   */
+  private _toolsUsageCache?: { toolsRef: readonly Tool[]; tier: string; text: string } | undefined;
   private _instructionBundle?: Promise<InstructionBundle> | undefined;
   /**
    * Cached rendered identity layer. Keyed the same way as `_toolsUsageCache`:
@@ -418,6 +421,30 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       }
     }
 
+    // Live online-agents snapshot — fleet peer awareness. Lives in `volatile`
+    // (tagged `peers`) rather than inside the layer-2 mailbox section: agent
+    // status/task/tool churns on every fleet status change, and rendering it
+    // into the core layer invalidated the provider-cache prefix each turn.
+    // Gated on the same mailbox tools that gate the mailbox guidance, so a
+    // capability-gated subagent without mailbox access never sees peers.
+    const hasMailboxTools = ctx.tools.some(
+      (t) => t.name === 'mailbox' || t.name === 'mail_send' || t.name === 'mail_inbox',
+    );
+    if (hasMailboxTools) {
+      const peers = this.renderOnlineAgents(ctx.onlineAgents).trim();
+      if (peers) {
+        volatile.push(
+          tagBlock(
+            {
+              type: 'text',
+              text: `[online_agents]\nLive fleet peer snapshot for this request (see the Inter-agent mailbox guidance for how to coordinate):\n${peers}\n[/online_agents]`,
+            },
+            'peers',
+          ),
+        );
+      }
+    }
+
     // Leader-only after-task affordances (the `<nextsteps>` block + post-task
     // mailbox update). Host-only and appended last: subagents are headless
     // workers whose output is parsed (SDD spec/plan/task JSON) or rolled up by
@@ -546,21 +573,16 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       instructionSection(instructions, key, vars, tpl);
 
     // Cache: tools array is stable (same reference) until a registry mutation
-    // thanks to B2 (ToolRegistry snapshot). Online agents are keyed by content
-    // fingerprint — the mailbox rebuilds the array on every status check, so
-    // reference equality would always miss. When all three keys match the
-    // previous build, the full output is identical — return the cached
-    // string. Including `tier` in the key ensures that mutating
+    // thanks to B2 (ToolRegistry snapshot). When both keys match the previous
+    // build, the full output is identical — return the cached string.
+    // Including `tier` in the key ensures that mutating
     // `opts.tokenSavingMode` between builds (rare but supported via the
     // `private readonly opts` design) recomputes the prompt with the
-    // new tier's truncation limits and tier-gated content.
-    const agentsHash = agentsFingerprint(ctx.onlineAgents);
+    // new tier's truncation limits and tier-gated content. The live
+    // online-agents snapshot is deliberately NOT an input here — it lives in
+    // the `peers` volatile block so this layer stays provider-cache-stable.
     const tier = this.tier;
-    if (
-      this._toolsUsageCache?.toolsRef === tools &&
-      this._toolsUsageCache?.agentsHash === agentsHash &&
-      this._toolsUsageCache?.tier === tier
-    ) {
+    if (this._toolsUsageCache?.toolsRef === tools && this._toolsUsageCache?.tier === tier) {
       return this._toolsUsageCache.text;
     }
 
@@ -678,9 +700,12 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       (t) => t.name === 'mailbox' || t.name === 'mail_send' || t.name === 'mail_inbox',
     );
     if (hasMailbox) {
-      // Build online-agent info — cached by a rendered-field fingerprint so
-      // joins/leaves and live status/task/tool changes invalidate it.
-      const onlineAgentsInfo = this.renderOnlineAgents(ctx.onlineAgents);
+      // The live online-agents snapshot intentionally does NOT render here
+      // anymore: status/task/tool churn in this layer invalidated the core
+      // provider-cache prefix on every fleet status change. The snapshot now
+      // lives in the `peers` volatile block (see buildRegions), which the
+      // request composer re-homes after the deep cache boundary.
+      const onlineAgentsInfo = '';
       const hasMailboxPowerTool = tools.some((t) => t.name === 'mailbox');
       const mailStatusCommand = tools.some((t) => t.name === 'fleet_status')
         ? '`fleet_status`'
@@ -776,11 +801,10 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       }
     }
 
-    // Store cache — keyed by tools reference (B2 snapshot) + agents content
-    // fingerprint + tier, so it auto-invalidates when tools change, agents
-    // join/leave, or the token-saving tier changes.
+    // Store cache — keyed by tools reference (B2 snapshot) + tier, so it
+    // auto-invalidates when tools change or the token-saving tier changes.
     const text = lines.join('\n');
-    this._toolsUsageCache = { toolsRef: tools, agentsHash, tier, text };
+    this._toolsUsageCache = { toolsRef: tools, tier, text };
     return text;
   }
 

@@ -70,15 +70,15 @@ describe('diffTool', () => {
     await expect(fs.access(sentinel)).rejects.toThrow();
   });
 
-  it('handles context option', async () => {
+  it('handles context option (dump path reports mode "dump")', async () => {
     const filePath = path.join(tmpDir, 'file.txt');
     await fs.writeFile(filePath, 'hello\nworld', 'utf8');
     const ctx = makeCtx();
     const result = await diffTool.execute({ files: 'file.txt', context: 5 }, ctx, makeOpts());
-    expect(result.mode).toBe('unified');
+    expect(result.mode).toBe('dump');
   });
 
-  it('handles side-by-side mode', async () => {
+  it('side-by-side request on the dump path reports the real mode with a note', async () => {
     const filePath = path.join(tmpDir, 'file.txt');
     await fs.writeFile(filePath, 'hello\nworld', 'utf8');
     const ctx = makeCtx();
@@ -87,15 +87,45 @@ describe('diffTool', () => {
       ctx,
       makeOpts(),
     );
-    expect(result.mode).toBe('side-by-side');
+    // Honest mode: the files-only path never honors `mode` — it produces a
+    // line-numbered dump, and says so instead of echoing the request back.
+    expect(result.mode).toBe('dump');
+    expect(result.note).toMatch(/line-numbered dump/);
   });
 
-  it('handles stat mode', async () => {
+  it('stat request on the dump path reports the real mode with a note', async () => {
     const filePath = path.join(tmpDir, 'file.txt');
     await fs.writeFile(filePath, 'hello\nworld', 'utf8');
     const ctx = makeCtx();
     const result = await diffTool.execute({ files: 'file.txt', mode: 'stat' }, ctx, makeOpts());
+    expect(result.mode).toBe('dump');
+    expect(result.note).toMatch(/line-numbered dump/);
+  });
+
+  it('git path honors mode "stat" (runs git diff --stat)', async () => {
+    const gitCtx = { cwd: process.cwd(), tools: [], projectRoot: process.cwd() } as any;
+    const result = await diffTool.execute({ a: 'HEAD', mode: 'stat' }, gitCtx, makeOpts());
     expect(result.mode).toBe('stat');
+    // --stat output never contains unified hunk headers.
+    expect(result.diff).not.toMatch(/^@@ /m);
+  });
+
+  it('git path maps side-by-side to unified and reports what it produced', async () => {
+    const gitCtx = { cwd: process.cwd(), tools: [], projectRoot: process.cwd() } as any;
+    const result = await diffTool.execute(
+      { a: 'HEAD', mode: 'side-by-side' },
+      gitCtx,
+      makeOpts(),
+    );
+    expect(result.mode).toBe('unified');
+    expect(result.note).toMatch(/side-by-side/);
+  });
+
+  it('git path passes context as -U<n> without failing', async () => {
+    const gitCtx = { cwd: process.cwd(), tools: [], projectRoot: process.cwd() } as any;
+    const result = await diffTool.execute({ a: 'HEAD', context: 0 }, gitCtx, makeOpts());
+    expect(result).toHaveProperty('diff');
+    expect(result.mode).toBe('unified');
   });
 
   // ─── new coverage tests ─────────────────────────────────────────────────────
@@ -243,12 +273,12 @@ describe('diffTool', () => {
     expect(result.diff).not.toMatch(/^ [^\d|]/m); // no space-prefixed bare context lines
   });
 
-  it('fileDiff uses mode from input', async () => {
+  it('fileDiff always reports mode "dump" regardless of the requested mode', async () => {
     const filePath = path.join(tmpDir, 'mode.txt');
     await fs.writeFile(filePath, 'test');
     const ctx = makeCtx();
     const result = await diffTool.execute({ files: 'mode.txt', mode: 'unified' }, ctx, makeOpts());
-    expect(result.mode).toBe('unified');
+    expect(result.mode).toBe('dump');
   });
 
   // ─── RAM guard: oversized files are skipped, not read whole ──────────────

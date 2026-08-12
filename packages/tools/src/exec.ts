@@ -112,6 +112,11 @@ const MAX_ARGS = 20;
 // still preventing a rogue build from filling the context.
 const MAX_OUTPUT = 200_000;
 const DEFAULT_TIMEOUT_MS = 30_000;
+// Hard ceiling for the per-call `timeout` parameter. The old clamp used
+// DEFAULT_TIMEOUT_MS as the ceiling too, which silently capped EVERY call at
+// 30s no matter what the model asked for — long builds/test runs then died
+// at 30s with exit 124 and no explanation. 10 minutes matches bash's ceiling.
+const MAX_TIMEOUT_MS = 600_000;
 
 // Per-command hard-blocks. Keep this list narrow: `exec` is already a
 // confirm-gated tool with argv passed as an array and cwd confined to the
@@ -310,9 +315,9 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
   name: 'exec',
   category: 'Shell',
   description:
-    'Execute a **whitelisted, restricted set of commands** with strict argument validation. ' +
-    'This is the **preferred and safer** alternative to the `bash` tool for running development tools (node, npm, pnpm, tsc, git, tests, linters, etc.). ' +
-    'It prevents arbitrary command injection and limits what the model can do.',
+    'Execute a command from a **curated command roster** with argument validation and confirm gating. ' +
+    'This is the **preferred** alternative to the `bash` tool for running development tools (node, npm, pnpm, tsc, git, tests, linters, etc.). ' +
+    'It is NOT a sandbox — several rostered commands (node, python, powershell, …) can run arbitrary code — so prefer least-privilege commands.',
   usageHint:
     'PREFERRED SHELL TOOL for most cases.\n\n' +
     'Use this instead of `bash` whenever possible.\n' +
@@ -320,7 +325,8 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
     '- Arguments are passed as a clean array (no shell interpretation).\n' +
     '- `cwd` is validated to stay inside the project.\n' +
     '- If a command is not allowlisted, the error explains how to add it; for one-off arbitrary commands, fall back to `bash` (with strong justification).\n' +
-    'This tool significantly reduces the risk compared to full shell access.',
+    'The curated roster + confirm gating narrows the surface compared to full shell access, ' +
+    'but this is not a sandbox — prefer least-privilege commands.',
   selection: {
     doNotUseWhen:
       'the operation requires pipes, redirection, shell expansion, or a non-allowlisted command.',
@@ -337,7 +343,13 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
   subjectKey: 'command',
   mutating: true,
   riskTier: 'standard',
-  timeoutMs: DEFAULT_TIMEOUT_MS,
+  // Executor-level abort ceiling. Must sit ABOVE the per-call timeout ceiling
+  // (MAX_TIMEOUT_MS): the tool's own timer resolves with exit 124 + registry
+  // tree-kill; the executor's AbortSignal.timeout is a blunt abort that would
+  // otherwise fire first and discard the structured timeout result. The 10s
+  // margin covers the kill/teardown window. (The executor additionally clamps
+  // to config `tools.maxToolTimeoutMs`.)
+  timeoutMs: MAX_TIMEOUT_MS + 10_000,
   capabilities: ['shell.restricted'],
   icon: 'terminal',
   inputSchema: {
@@ -359,7 +371,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
       },
       timeout: {
         type: 'integer',
-        description: 'Per-command timeout in milliseconds.',
+        description: 'Per-command timeout in milliseconds (default 30000, max 600000).',
       },
     },
     required: ['command'],
@@ -411,7 +423,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
     }
 
     const args = (input.args ?? []).slice(0, MAX_ARGS);
-    const timeout = Math.max(1, Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, DEFAULT_TIMEOUT_MS));
+    const timeout = Math.max(1, Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS));
 
     // Heuristic danger assessment. Computed once here, attached to every
     // return from this point on (including error returns) so the UI can
@@ -451,17 +463,23 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
       };
     }
 
+    // Default cwd is the SESSION working dir (set via `set_working_dir`),
+    // falling back to the launch cwd. Historically this ignored `workingDir`,
+    // so `set_working_dir` silently had no effect on exec.
+    const defaultCwd = ctx.workingDir ?? ctx.cwd;
     let cwd: string;
     try {
       // Resolve cwd inside the project root and verify realpath containment so
       // an in-project symlink cannot redirect allowlisted commands outside.
-      cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : await safeResolveReal(ctx.cwd, ctx);
+      cwd = input.cwd
+        ? await safeResolveReal(input.cwd, ctx)
+        : await safeResolveReal(defaultCwd, ctx);
     } catch {
       return {
         command: cmd,
         args,
         stdout: '',
-        stderr: `cwd "${input.cwd ?? ctx.cwd}" resolves outside project root`,
+        stderr: `cwd "${input.cwd ?? defaultCwd}" resolves outside project root`,
         exitCode: 1,
         truncated: false,
         allowed: false,

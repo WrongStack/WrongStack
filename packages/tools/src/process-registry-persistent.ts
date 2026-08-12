@@ -17,7 +17,6 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import * as path from 'node:path';
-import type { ChildProcess } from 'node:child_process';
 import { getProcessRegistry, type ProcessRegistryImpl } from './process-registry.js';
 
 const REGISTRY_FILE = 'process-registry.json';
@@ -392,8 +391,9 @@ export class PersistentProcessRegistry {
       // Update or insert
       data.instances.set(String(entry.pid), entry);
 
-      // Also update the in-memory registry
-      const child: ChildProcess = null as unknown as ChildProcess;
+      // Also update the in-memory registry. `child: null` is the documented
+      // shape for cross-instance mirror entries (no live handle here) — the
+      // base registry's lookup/kill/staleness paths all tolerate it.
       this.baseRegistry.register({
         pid: entry.pid,
         name: entry.name,
@@ -401,7 +401,7 @@ export class PersistentProcessRegistry {
         startedAt: entry.startedAt,
         sessionId: entry.sessionId,
         protected: entry.protected,
-        child,
+        child: null,
       });
 
       await writeRegistryFile(this.registryPath, data);

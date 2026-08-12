@@ -70,7 +70,7 @@ export function createSystemConfigViewTool(
       '"section: fallbacks" for chains, profiles, and toggles. ' +
       '"section: matrix" for per-role assignments. ' +
       '"section: refiner" for goal refinement config.',
-    category: 'Config',
+    category: 'config',
     inputSchema: SYSTEM_CONFIG_VIEW_SCHEMA,
     permission: 'auto',
     mutating: false,

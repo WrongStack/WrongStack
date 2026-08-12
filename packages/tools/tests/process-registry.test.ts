@@ -171,14 +171,27 @@ describe('ProcessRegistry', () => {
     expect(r.list()).toHaveLength(1);
   });
 
-  it('kill twice does not double-send the signal', () => {
+  it('repeat kill without force is a latched no-op', () => {
     const r = getProcessRegistry();
     const child = fakeChild();
     r.register(makeProc({ pid: 7, child }));
-    r.kill(7, { force: true });
-    r.kill(7, { force: true });
-    // The fake child's .kill should be called at most once (force path).
+    expect(r.kill(7)).toBe(true);
+    expect(r.kill(7)).toBe(true); // latched — no second SIGTERM
     expect((child.kill as ReturnType<typeof vi.fn>).mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it('repeat kill with force escalates to SIGKILL even when already killed', () => {
+    const r = getProcessRegistry();
+    const child = fakeChild();
+    r.register(makeProc({ pid: 8, child }));
+    r.kill(8); // SIGTERM (soft)
+    // Regression: the unconditional `if (p.killed) return true` latch made
+    // this second call a silent no-op, so a process that ignored SIGTERM
+    // could never be escalated to SIGKILL via kill(pid, {force: true}).
+    expect(r.kill(8, { force: true })).toBe(true);
+    const signals = (child.kill as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+    expect(signals).toContain('SIGTERM');
+    expect(signals).toContain('SIGKILL');
   });
 
   it('killAll skips protected processes unless includeProtected is set', () => {
@@ -243,6 +256,42 @@ describe('ProcessRegistry', () => {
     expect(r.kill(1, { force: true })).toBe(true);
     expect(killSpy).not.toHaveBeenCalled();
     expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+  });
+
+  it('tolerates persistent-registry entries with child: null (no TypeError)', () => {
+    // process-registry-persistent.ts mirrors cross-instance entries into the
+    // in-memory registry with `child: null` (no live handle exists in this
+    // process). _isStaleEntry used to dereference `entry.child.exitCode` and
+    // every get()/list()/stats()/kill() touching such an entry threw.
+    const r = getProcessRegistry();
+    r.register({
+      pid: 42421,
+      name: 'wrongstack-main',
+      command: 'node wstack',
+      // Old enough that the stale-check actually runs its logic (not the
+      // 60s fast-path). process.kill is mocked → POSIX liveness probe says
+      // "alive"; win32 keeps null-child entries unconditionally.
+      startedAt: Date.now() - 120_000,
+      child: null,
+      protected: true,
+    });
+    expect(() => r.list()).not.toThrow();
+    expect(() => r.stats()).not.toThrow();
+    expect(r.get(42421)?.pid).toBe(42421);
+    // Protected entries still refuse kill — without throwing.
+    expect(r.kill(42421)).toBe(false);
+
+    // Kill path on a null-child entry must not throw either. PID 1 is used
+    // so no real process can be targeted: _isSafeSignalPid rejects it on
+    // POSIX and no Windows user process has PID 1 (taskkill fails cleanly).
+    r.register({
+      pid: 1,
+      name: 'wrongstack-main',
+      command: 'node wstack',
+      startedAt: Date.now(),
+      child: null,
+    });
+    expect(() => r.kill(1, { force: true })).not.toThrow();
   });
 });
 

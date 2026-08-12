@@ -201,7 +201,10 @@ describe('makeSkillTool', () => {
     );
   });
 
-  it('refuses undeclared tool-shaped calls found in a skill body', async () => {
+  it('loads a skill whose body mentions an unregistered tool, with a warning', async () => {
+    // Body-text tool references are advisory: a token-saving tier can hide
+    // tools the prose mentions, and the skill must still load. Only
+    // manifest.requiredTools hard-fails (covered above).
     const dir = path.join(tmp, 'body-tool-skill');
     await fs.mkdir(dir, { recursive: true });
     const manifest: SkillManifest = {
@@ -214,8 +217,12 @@ describe('makeSkillTool', () => {
       loader([manifest], { 'body-tool-skill': 'Call `ghost_tool` before continuing.' }),
     );
 
-    await expect(tool.execute({ name: 'body-tool-skill' }, NO_CTX, RUN_OPTS)).rejects.toThrow(
-      /references unregistered tools: ghost_tool/,
+    const out = await tool.execute({ name: 'body-tool-skill' }, NO_CTX, RUN_OPTS);
+    expect(out.body).toContain('ghost_tool');
+    expect(out.warning).toMatch(/references tools not registered in this runtime: ghost_tool/);
+    // The warning reaches the transcript, not just the typed output.
+    expect(tool.serialize!(out, { name: 'body-tool-skill' })).toMatch(
+      /references tools not registered/,
     );
   });
 

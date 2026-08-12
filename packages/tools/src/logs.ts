@@ -2,13 +2,12 @@ import { spawn } from 'node:child_process';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
 import { compileUserRegex } from './_regex.js';
-import { safeResolve } from './_util.js';
+import { safeResolve, safeResolveReal } from './_util.js';
 
 interface LogsInput {
   service?: string | undefined;
   path?: string | undefined;
   lines?: number | undefined;
-  stream?: boolean | undefined;
   filter?: string | undefined;
   since?: '1h' | '6h' | '24h' | 'all' | undefined;
   cwd?: string | undefined;
@@ -33,16 +32,16 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
   name: 'logs',
   category: 'Logs',
   description:
-    'Read or stream logs from files, Docker containers, or systemd services. Useful for debugging running applications.',
+    'Read logs from files or Docker containers. Useful for debugging running applications.',
   usageHint:
     'DEBUGGING TOOL — USE CAREFULLY IN AUTONOMOUS MODE:\n\n' +
-    '- Prefer `path` for local files or `service` for containers/systemd.\n' +
-    '- `stream: true` = live tail (can be expensive).\n' +
+    '- Prefer `path` for local files or `service` for Docker containers.\n' +
     '- Always use `filter` (regex) when possible to reduce noise and token usage.\n' +
-    '- Long-running streams should be avoided unless the user explicitly wants live logs.',
+    '- `since` narrows Docker logs to a recent window.',
   permission: 'confirm',
   mutating: false,
   timeoutMs: 30_000,
+  maxOutputBytes: 262_144,
   capabilities: ['shell.restricted'],
   icon: 'logs',
   inputSchema: {
@@ -50,7 +49,7 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
     properties: {
       service: {
         type: 'string',
-        description: 'Service name for Docker or systemd journal',
+        description: 'Docker container name (passed to `docker logs`)',
       },
       path: {
         type: 'string',
@@ -62,10 +61,6 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
         minimum: 0,
         maximum: 10000,
       },
-      stream: {
-        type: 'boolean',
-        description: 'Stream logs continuously (like tail -f) (default: false)',
-      },
       filter: {
         type: 'string',
         description: 'Regex pattern to filter log lines',
@@ -73,7 +68,7 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
       since: {
         type: 'string',
         enum: ['1h', '6h', '24h', 'all'],
-        description: 'Only show logs since duration',
+        description: 'Only show Docker logs since duration (ignored for files; "all" = no limit)',
       },
       cwd: { type: 'string', description: 'Working directory (default: cwd)' },
     },
@@ -91,11 +86,13 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
     }
 
     if (input.service) {
-      return await dockerLogs(input.service, lines, filterRe, cwd, opts.signal);
+      return await dockerLogs(input.service, lines, filterRe, cwd, opts.signal, input.since);
     }
 
     if (input.path) {
-      return await fileLogs(safeResolve(input.path, ctx), lines, filterRe, input.stream ?? false);
+      // Realpath containment (not just the syntactic check): a symlink inside
+      // the project pointing at /var/log/… must not be readable through here.
+      return await fileLogs(await safeResolveReal(input.path, ctx), lines, filterRe);
     }
 
     return {
@@ -118,12 +115,12 @@ async function dockerLogs(
 ): Promise<LogsOutput> {
   const args = ['logs'];
   if (lines > 0) args.push('--tail', String(lines));
-  /* v8 ignore start -- execute() does not forward `since` to dockerLogs yet; this block is currently unreachable. */
-  if (since) {
+  // `since: 'all'` (and absent) = no --since flag; the durations pass through
+  // to `docker logs --since <duration>` verbatim.
+  if (since && since !== 'all') {
     const sinceMap: Record<string, string> = { '1h': '1h', '6h': '6h', '24h': '24h' };
     args.push('--since', sinceMap[since] ?? '1h');
   }
-  /* v8 ignore stop */
   // Validate service name to prevent container name injection.
   // Docker container names are limited to [a-zA-Z0-9][a-zA-Z0-9._-]+.
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]+$/.test(service)) {
@@ -215,7 +212,6 @@ async function fileLogs(
   path: string,
   lines: number,
   filterRe: RegExp | null,
-  stream: boolean,
 ): Promise<LogsOutput> {
   const { createInterface } = await import('node:readline');
   const { createReadStream } = await import('node:fs');
@@ -262,7 +258,7 @@ async function fileLogs(
     entries,
     total: entries.length,
     truncated: totalLines > effLines,
-    stream_mode: stream,
+    stream_mode: false,
   };
 }
 

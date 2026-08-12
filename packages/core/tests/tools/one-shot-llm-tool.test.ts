@@ -119,6 +119,101 @@ describe('createOneShotLLMTool', () => {
     expect(observedSignal?.aborted).toBe(true);
   });
 
+  it('declares safe meta-tool metadata and a locked-down schema', () => {
+    const tool = createOneShotLLMTool({
+      buildProvider: async () => fakeProvider('test'),
+      getConfig: () => makeFakeConfig(),
+      fallbackProfileManager: new FallbackProfileManager(makeFakeConfig()),
+    });
+    // Consistent with council-tool.ts: read-only meta tool.
+    expect(tool.category).toBe('meta');
+    expect(tool.riskTier).toBe('safe');
+    expect(tool.maxOutputBytes).toBe(262_144);
+    // Unknown input keys must be rejected at schema level.
+    expect(tool.inputSchema.additionalProperties).toBe(false);
+  });
+
+  it('validate() rejects calls with neither userPrompt nor messages', () => {
+    const tool = createOneShotLLMTool({
+      buildProvider: async () => fakeProvider('test'),
+      getConfig: () => makeFakeConfig(),
+      fallbackProfileManager: new FallbackProfileManager(makeFakeConfig()),
+      defaultProvider: 'p',
+      defaultModel: 'm',
+    });
+    expect(tool.validate?.({ system: 'only a system prompt' })).toEqual([
+      expect.stringContaining('userPrompt'),
+    ]);
+    expect(tool.validate?.({ userPrompt: '   ' })).toHaveLength(1);
+    expect(tool.validate?.({ messages: [] })).toHaveLength(1);
+    expect(tool.validate?.({ userPrompt: 'hi' })).toEqual([]);
+    expect(tool.validate?.({ messages: [{ role: 'user', content: 'hi' }] })).toEqual([]);
+  });
+
+  it('forwards the modelRouter so matrix picks override the defaults by role', async () => {
+    const tool = createOneShotLLMTool({
+      buildProvider: async (pid) => fakeProvider(pid),
+      getConfig: () => makeFakeConfig(),
+      fallbackProfileManager: new FallbackProfileManager(makeFakeConfig()),
+      defaultProvider: 'default-prov',
+      defaultModel: 'default-model',
+      modelRouter: {
+        pickForTask: () => ({ provider: 'routed-prov', model: 'routed-model', fromMatrix: true }),
+      } as never,
+    });
+
+    const result = await tool.execute(
+      { userPrompt: 'hello', role: 'critic' },
+      {} as never,
+      { signal: new AbortController().signal },
+    );
+
+    expect(result.provider).toBe('routed-prov');
+  });
+
+  it('forwards the statusTracker so llm calls record provider health', async () => {
+    const statusTracker = {
+      isAvailable: vi.fn(() => true),
+      recordSuccess: vi.fn(),
+      recordFailure: vi.fn(),
+    };
+    const tool = createOneShotLLMTool({
+      buildProvider: async (pid) => fakeProvider(pid),
+      getConfig: () => makeFakeConfig(),
+      fallbackProfileManager: new FallbackProfileManager(makeFakeConfig()),
+      defaultProvider: 'default-prov',
+      defaultModel: 'default-model',
+      statusTracker: statusTracker as never,
+    });
+
+    await tool.execute(
+      { userPrompt: 'hello' },
+      {} as never,
+      { signal: new AbortController().signal },
+    );
+
+    expect(statusTracker.recordSuccess).toHaveBeenCalledWith('default-prov', 'default-model');
+  });
+
+  it('clamps an absurd timeoutMs without failing the call', async () => {
+    const tool = createOneShotLLMTool({
+      buildProvider: async (pid) => fakeProvider(pid),
+      getConfig: () => makeFakeConfig(),
+      fallbackProfileManager: new FallbackProfileManager(makeFakeConfig()),
+      defaultProvider: 'default-prov',
+      defaultModel: 'default-model',
+    });
+
+    const result = await tool.execute(
+      { userPrompt: 'hello', timeoutMs: 10_000_000 },
+      {} as never,
+      { signal: new AbortController().signal },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.text).toContain('response from default-prov');
+  });
+
   it('composes an explicit input signal with the tool executor signal', async () => {
     let observedSignal: AbortSignal | undefined;
     const provider = fakeProvider('default-prov');

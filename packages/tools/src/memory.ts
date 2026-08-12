@@ -20,11 +20,19 @@ interface RememberOutput {
 interface ForgetInput {
   query: string;
   scope?: MemoryScope | undefined;
+  /** Preview: list what WOULD be deleted without deleting anything. */
+  dry_run?: boolean | undefined;
 }
 
 interface ForgetOutput {
   removed: number;
   scope: MemoryScope;
+  /** True when this was a preview run — nothing was deleted. */
+  dryRun?: boolean | undefined;
+  /** dry_run only: texts of the entries the query matches (capped at 20). */
+  matches?: string[] | undefined;
+  /** dry_run only: total number of matching entries (may exceed matches.length). */
+  matched?: number | undefined;
 }
 
 export function rememberTool(memory: MemoryStore): Tool<RememberInput, RememberOutput> {
@@ -104,21 +112,32 @@ export function forgetTool(memory: MemoryStore): Tool<ForgetInput, ForgetOutput>
   return {
     name: 'forget',
     category: 'Session',
-    description: 'Remove memory entries that contain the given substring (case-insensitive). Use with caution.',
+    description:
+      'Remove memory entries that contain the given substring (case-insensitive). Use with caution. ' +
+      'Pass `dry_run: true` to preview the matching entries (capped at 20) without deleting anything.',
     usageHint:
       'This permanently deletes matching memories in the chosen scope.\n' +
       '- Provide a reasonably specific `query` to avoid deleting unrelated memories.\n' +
-      '- Always double-check before calling with broad queries.\n' +
+      '- Always double-check before calling with broad queries — `dry_run: true` previews the matches without deleting.\n' +
       '- Use `remember` + `forget` together to maintain clean long-term memory.',
     permission: 'confirm',
+    // WS-046: gives permission decisions something to key on — the substring
+    // being forgotten.
+    subjectKey: 'query',
     mutating: true,
     timeoutMs: 2_000,
     capabilities: ['memory.delete'],
+    icon: 'settings',
     inputSchema: {
       type: 'object',
       properties: {
         query: { type: 'string' },
         scope: { type: 'string', enum: ['project-agents', 'project-memory', 'user-memory'] },
+        dry_run: {
+          type: 'boolean',
+          description:
+            'When true, return the matched entries (capped at 20) WITHOUT deleting them. Default false.',
+        },
       },
       required: ['query'],
     },
@@ -130,6 +149,21 @@ export function forgetTool(memory: MemoryStore): Tool<ForgetInput, ForgetOutput>
         });
       }
       const scope = input.scope ?? 'project-memory';
+      if (input.dry_run) {
+        // Mirror forget's matching (case-insensitive substring) over the full
+        // entry list rather than delegating to search(), whose backend may be
+        // semantic and match a different set than deletion would.
+        const entries = await memory.list(scope);
+        const needle = input.query.toLowerCase();
+        const matching = entries.filter((entry) => entry.text.toLowerCase().includes(needle));
+        return {
+          removed: 0,
+          scope,
+          dryRun: true,
+          matched: matching.length,
+          matches: matching.slice(0, 20).map((entry) => entry.text),
+        };
+      }
       const removed = await memory.forget(input.query, scope);
       return { removed, scope };
     },

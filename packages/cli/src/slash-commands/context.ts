@@ -350,6 +350,7 @@ const SOURCE_LABELS: Record<SystemBlockSource | 'other', string> = {
   contributor: 'contributor',
   ledger: 'completed-work ledger',
   glossary: 'project jargon dictionary',
+  peers: 'fleet peer awareness',
   nextsteps: 'next-steps gate',
   other: 'other (untagged)',
 };

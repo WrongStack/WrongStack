@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
+  updateJsonObjectFile: vi.fn(),
+  diskConfig: {} as Record<string, unknown>,
   createFallbackManageTools: vi.fn(),
   createPluginManagerTool: vi.fn(),
   runPluginManagementCommand: vi.fn(),
@@ -34,13 +34,14 @@ const mocks = vi.hoisted(() => ({
   ],
 }));
 
-vi.mock('node:fs/promises', () => ({
-  readFile: mocks.readFile,
-  writeFile: mocks.writeFile,
-}));
-
 vi.mock('node:readline', () => ({
   createInterface: mocks.createInterface,
+}));
+
+// management-tools now persists through the same atomic JSON helper that
+// mcp_control uses on the profile config, instead of a bare read/write pair.
+vi.mock('@wrongstack/core/utils', () => ({
+  updateJsonObjectFile: mocks.updateJsonObjectFile,
 }));
 
 vi.mock('@wrongstack/core/tools', () => ({
@@ -75,6 +76,19 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.fallbackOptions = undefined;
   mocks.pluginOptions = undefined;
+  mocks.diskConfig = {};
+  // Faithful stand-in for the real helper: read (from the fake disk state),
+  // mutate in place, return the resulting object.
+  mocks.updateJsonObjectFile.mockImplementation(
+    async (_path: string, mutator: (cfg: Record<string, unknown>) => unknown) => {
+      const cfg = { ...mocks.diskConfig };
+      const maybeNext = await mutator(cfg);
+      const next =
+        maybeNext && typeof maybeNext === 'object' ? (maybeNext as Record<string, unknown>) : cfg;
+      mocks.diskConfig = next;
+      return next;
+    },
+  );
   mocks.createFallbackManageTools.mockImplementation((options) => {
     mocks.fallbackOptions = options;
     return [{ name: 'manage-provider' }, { name: 'manage-model' }];
@@ -145,9 +159,8 @@ describe('registerCliManagementTools', () => {
     expect(cliMain).toContain('hookRunnerRef.current = hookRunner;');
   });
 
-  it('mutates persisted profile config and recovers a missing file', async () => {
+  it('persists profile config through the shared atomic JSON helper', async () => {
     const state = harness(false);
-    mocks.readFile.mockRejectedValueOnce(new Error('missing'));
     const options = mocks.fallbackOptions as {
       updateConfig(mutate: (config: Record<string, unknown>) => void): Promise<void>;
     };
@@ -156,17 +169,17 @@ describe('registerCliManagementTools', () => {
       config['provider'] = 'updated';
     });
 
-    expect(mocks.writeFile).toHaveBeenCalledWith(
+    expect(mocks.updateJsonObjectFile).toHaveBeenCalledWith(
       'C:/profile/config.json',
-      JSON.stringify({ provider: 'updated' }, null, 2),
-      { mode: 0o600 },
+      expect.any(Function),
     );
+    expect(mocks.diskConfig).toEqual({ provider: 'updated' });
     expect(state.configStore.update).toHaveBeenCalledWith({ provider: 'updated' });
   });
 
   it('mutates existing persisted profile config', async () => {
     const state = harness(false);
-    mocks.readFile.mockResolvedValueOnce('{"provider":"old","keep":true}');
+    mocks.diskConfig = { provider: 'old', keep: true };
     const options = mocks.fallbackOptions as {
       getConfig(): unknown;
       updateConfig(mutate: (config: Record<string, unknown>) => void): Promise<void>;
@@ -180,6 +193,43 @@ describe('registerCliManagementTools', () => {
       provider: 'new',
       keep: true,
     });
+  });
+
+  it('forwards the late-bound switchProviderAndModel getter to leader_model_set', async () => {
+    // The switch is created by setupProviderRuntime AFTER the management tools
+    // register, so it arrives as a ref-backed getter like getHookRunner.
+    const switchFn = vi.fn(async () => null);
+    let current: typeof switchFn | null = null;
+    registerCliManagementTools({
+      toolRegistry: { register: vi.fn() } as never,
+      configStore: { get: vi.fn(() => ({})), update: vi.fn() } as never,
+      profileConfigPath: 'C:/profile/config.json',
+      stdinInteractive: false,
+      getSwitchProviderAndModel: () => current,
+    });
+    const options = mocks.fallbackOptions as {
+      switchProviderAndModel(providerId: string, modelId: string): Promise<string | null>;
+    };
+    expect(options.switchProviderAndModel).toBeInstanceOf(Function);
+
+    // Before the ref is filled, the wrapper reports not-ready instead of diverging.
+    await expect(options.switchProviderAndModel('p', 'm')).resolves.toContain('not ready');
+
+    current = switchFn;
+    await expect(options.switchProviderAndModel('p', 'm')).resolves.toBeNull();
+    expect(switchFn).toHaveBeenCalledWith('p', 'm');
+  });
+
+  it('cli-main wires the switch ref into the management tools', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const cliMain = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli-main.ts'),
+      'utf8',
+    );
+    expect(cliMain).toContain('getSwitchProviderAndModel: () => switchProviderAndModelRef.current');
+    expect(cliMain).toContain('switchProviderAndModelRef.current = switchProviderAndModel;');
   });
 
   it('provides interactive input and closes readline after answering', async () => {

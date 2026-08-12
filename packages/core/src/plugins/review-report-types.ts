@@ -14,6 +14,10 @@
  * @module review-report-types
  */
 
+import type {
+  CascadeEvidenceCheckResult,
+  CascadeEvidenceStatus,
+} from './review-types.js';
 import type { FindingSource } from './review-finding-types.js';
 
 // ── Lifecycle ──────────────────────────────────────────────────────
@@ -89,6 +93,19 @@ export interface ReviewReport {
   rawText: string;
   /** Cascade iteration depth (0 for initial review). */
   cascadeDepth?: number | undefined;
+  /**
+   * P0-3: machine-evidence verification status of the cascade fix step that
+   * preceded this report's review. `verified` / `failed` / `missing` mirror
+   * the bundle's evidenceStatus; absent when no cascade step ran.
+   */
+  evidenceStatus?: CascadeEvidenceStatus | undefined;
+  /**
+   * Per-check comparison results (claimed vs. observed exit codes) from the
+   * cascade evidence verification. Recorded so a report is auditable: exactly
+   * which commands the fix agent claimed, what the orchestrator observed, and
+   * which checks matched.
+   */
+  evidenceChecks?: CascadeEvidenceCheckResult[] | undefined;
 }
 
 // ── Lifecycle event ────────────────────────────────────────────────

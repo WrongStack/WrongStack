@@ -4,7 +4,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
-import { safeResolve } from './_util.js';
+import { ToolValidationError } from '@wrongstack/core/types';
+import { safeResolveReal } from './_util.js';
 
 /**
  * Per-file cap for the line-numbered dump path. The dump reads the whole file
@@ -25,11 +26,19 @@ interface DiffInput {
   context?: number | undefined;
 }
 
+/** Character cap for the git-diff stdout returned to the model. */
+const MAX_GIT_DIFF_CHARS = 100_000;
+
 interface DiffOutput {
   diff: string;
   files: string[];
   truncated: boolean;
+  /**
+   * The format actually produced: 'unified' or 'stat' on the git path,
+   * 'dump' on the files-only line-numbered dump path.
+   */
   mode: string;
+  note?: string | undefined;
 }
 
 export const diffTool: Tool<DiffInput, DiffOutput> = {
@@ -39,10 +48,11 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
     'Show file content with line numbers, staged/working-tree diffs via git, or commit/branch diffs. A safer and more structured alternative to raw `git diff` via shell.',
   usageHint:
     'USE FOR CODE REVIEW AND CHANGE INSPECTION:\n\n' +
-    '- `files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes).\n' +
+    '- `files` + no `a`/`b` → show file content with line numbers (NOT a unified diff; no +/- prefixes). Result `mode` is "dump".\n' +
     '- `a` and/or `b` → git-style commit/branch diff (unified format, real +/- prefixes).\n' +
     '- `staged: true` → only show staged changes.\n' +
-    '- `mode` can be "unified", "stat", or "side-by-side" (only affects the git-diff path).\n' +
+    '- `mode` only affects the git-diff path: "stat" runs `git diff --stat`; "side-by-side" is not supported and falls back to unified (result `mode` reports what was produced).\n' +
+    '- `context` sets the unified-diff context line count on the git path (`-U<n>`); the dump path has no context notion.\n' +
     '\n' +
     'NOTE: For a true file-vs-file unified diff, supply `a` and `b` so the tool ' +
     'delegates to `git diff`. The `files`-only path is a line-numbered dump, not a diff.\n' +
@@ -80,11 +90,15 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
       mode: {
         type: 'string',
         enum: ['unified', 'side-by-side', 'stat'],
-        description: 'Output format. "unified" is default, "stat" shows summary only.',
+        description:
+          'Output format for the git-diff path. "unified" is default; "stat" shows a summary only; ' +
+          '"side-by-side" is not supported and falls back to unified. The `files`-only dump path ignores this.',
       },
       context: {
         type: 'integer',
-        description: 'Number of context lines for unified diffs (default: 3).',
+        minimum: 0,
+        description:
+          'Number of context lines for git unified diffs (default: 3, passed as -U<n>). Ignored by the `files`-only dump path.',
       },
     },
   },
@@ -109,18 +123,40 @@ async function gitDiff(
   // tool is permission:'auto'). Reject leading-dash refs unconditionally —
   // mirrors the guard in git.ts (validateWorktreeInput) and install.ts.
   if (input.a?.startsWith('-')) {
-    throw new Error(`diff: unsafe ref "${input.a}" — refs may not begin with '-' (flag injection)`);
+    throw new ToolValidationError({
+      message: `diff: unsafe ref "${input.a}" — refs may not begin with '-' (flag injection)`,
+      field: 'a',
+    });
   }
   if (input.b?.startsWith('-')) {
-    throw new Error(`diff: unsafe ref "${input.b}" — refs may not begin with '-' (flag injection)`);
+    throw new ToolValidationError({
+      message: `diff: unsafe ref "${input.b}" — refs may not begin with '-' (flag injection)`,
+      field: 'b',
+    });
   }
+
+  // 'side-by-side' has no git equivalent we can safely render; fall back to
+  // unified and say so — result.mode must reflect what was actually produced.
+  const requestedMode = input.mode ?? 'unified';
+  const statMode = requestedMode === 'stat';
+  const effectiveMode = statMode ? 'stat' : 'unified';
+  const sideBySideNote =
+    requestedMode === 'side-by-side'
+      ? 'side-by-side output is not supported; a unified diff was produced instead.'
+      : undefined;
 
   const gitDir = findGitDir(ctx.cwd);
   if (!gitDir) {
-    return { diff: '', files: [], truncated: false, mode: 'unified' };
+    return { diff: '', files: [], truncated: false, mode: effectiveMode };
   }
 
   const args: string[] = ['diff', '--no-color'];
+  if (statMode) args.push('--stat');
+  if (!statMode && input.context !== undefined) {
+    // Sanitized to a non-negative integer: `context` reaches the git argv.
+    const contextLines = Math.max(0, Math.floor(input.context));
+    if (Number.isFinite(contextLines)) args.push(`-U${contextLines}`);
+  }
   if (input.staged) args.push('--staged');
   if (input.a) args.push(input.a);
   if (input.b) args.push(input.b);
@@ -130,11 +166,23 @@ async function gitDiff(
   }
 
   const result = await runGit(args, gitDir, signal);
+  // Honest truncation: actually clip the payload (at a line boundary) when it
+  // exceeds the cap, and only then report truncated=true.
+  let diff = result.stdout;
+  let truncated = false;
+  if (diff.length > MAX_GIT_DIFF_CHARS) {
+    let clipped = diff.slice(0, MAX_GIT_DIFF_CHARS);
+    const nl = clipped.lastIndexOf('\n');
+    if (nl > 0) clipped = clipped.slice(0, nl);
+    diff = `${clipped}\n…[git diff truncated: ${result.stdout.length - clipped.length} of ${result.stdout.length} characters omitted]`;
+    truncated = true;
+  }
   return {
-    diff: result.stdout,
+    diff,
     files: [],
-    truncated: result.stdout.length > 100_000,
-    mode: 'unified',
+    truncated,
+    mode: effectiveMode,
+    note: sideBySideNote,
   };
 }
 
@@ -187,9 +235,9 @@ async function fileDiff(
   ctx: import('@wrongstack/core/agent').Context,
   _signal: AbortSignal,
 ): Promise<DiffOutput> {
-  // `context` is accepted on the input schema for API stability but is
-  // unused in the line-dump path — there is no notion of "context lines"
-  // when there is no real diff. The git-diff path (`a`/`b`) ignores it too.
+  // `context` is accepted on the input schema but only affects the git-diff
+  // path (`a`/`b`), where it becomes `-U<n>`. This line-dump path has no
+  // notion of "context lines" because there is no real diff.
   void input.context;
 
   const files = input.files
@@ -203,7 +251,7 @@ async function fileDiff(
       diff: 'No files specified',
       files: [],
       truncated: false,
-      mode: input.mode ?? 'unified',
+      mode: 'dump',
     };
   }
 
@@ -211,7 +259,9 @@ async function fileDiff(
   let truncated = false;
 
   for (const file of files) {
-    const absPath = safeResolve(file, ctx);
+    // Realpath containment (WS-048): the dump path OPENS the resolved file, so
+    // the syntactic check alone would follow an in-root symlink out of root.
+    const absPath = await safeResolveReal(file, ctx);
     const stat = await fs.stat(absPath).catch(() => null);
     if (!stat?.isFile()) continue;
 
@@ -232,7 +282,13 @@ async function fileDiff(
     diff: results.join('\n\n'),
     files,
     truncated,
-    mode: input.mode ?? 'unified',
+    // Honest mode: this path always produces a line-numbered dump — it never
+    // honors `mode`, so it must not echo the requested value back.
+    mode: 'dump',
+    note:
+      input.mode !== undefined
+        ? 'The `files`-only path is a line-numbered dump; `mode` only affects the git-diff path (`a`/`b`).'
+        : undefined,
   };
 }
 

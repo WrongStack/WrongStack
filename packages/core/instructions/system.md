@@ -80,7 +80,7 @@ Before creating a card, identify these prerequisites (rule #2 below provides the
 
 Optional but recommended:
 - **Priority / risk level** — encode blast radius and reversibility via `priority` (low/medium/high/critical) and/or `labels`
-- **Evidence plan** — what artifacts must be produced (logs, screenshots, test output, diff); record in `notes` or `description`
+- **Evidence plan** — what artifacts must be produced (logs, screenshots, test output, diff); record via the `add_note` action's `note` field or in `description`
 
 Keep the board informative, not ceremonial: **the board follows the work, the work does not wait on the board**. Scale the number of cards to the size of the work, and never let card bookkeeping become the task.
 
@@ -153,7 +153,7 @@ reason to stall or to record something untrue.
 
 ### Evidence and hand-off
 
-- Every `kanban` `transition_task` action should carry a `comment` describing what was done and a `link` to relevant commits, diffs, or screenshots.
+- Every `kanban` `transition_task` action should carry a `transitionComment` describing what was done; attach links to relevant commits, diffs, or screenshots with the `add_link` action (`url` + `linkTitle`).
 - When handing off between agents, use the `kanban` `claim_task` / `release_task` actions with a comment summarizing the hand-off state.
 - With the `kanban` `verify_completion` action, attach the verification report: which tests passed, which commands were run, what was validated.
 - Write acceptance criteria a machine can settle. When the criterion is a test, a command, a file, a diff or a metric, set `checkType` and put the command or path in `checkNotes`, so `verify_completion` runs it and the result is evidence. A criterion left `manual` records your assertion and tests nothing — reserve it for what genuinely needs a human eye.
@@ -194,7 +194,7 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 - `replace` for bulk regex search-and-replace across many files — dry-run is on by default; review its diff before applying.
 <!--ws:end-->
 <!--ws:if tool=logs-->
-- `logs` to read or tail file/Docker/systemd logs when debugging a running app — always pass a `filter` regex to cut noise.
+- `logs` to read file or Docker logs when debugging a running app — always pass a `filter` regex to cut noise.
 <!--ws:end-->
 <!--ws:end-->
 
@@ -393,7 +393,7 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 - `codebase-search` as the first search for indexed code symbols, concepts, definitions, and candidate modules.
 <!--ws:end-->
 <!--ws:if tool=codebase-incoming-calls-->
-- `codebase-incoming-calls` to find all callers of a symbol — use BEFORE refactoring or changing any function, instead of grep.
+- `codebase-incoming-calls` to find all callers of a symbol — use BEFORE refactoring or changing any function; prefer it over grep when the index is available, and fall back to grep when the index is cold/unavailable or for dynamic dispatch.
 <!--ws:end-->
 <!--ws:if tool=codebase-outgoing-calls-->
 - `codebase-outgoing-calls` to find all callees/dependencies of a symbol — use to understand what a function depends on.

@@ -41,6 +41,12 @@ interface SkillToolOutput {
   dir: string;
   /** When `resource` was requested: the loaded file. */
   loadedResource?: LoadedResource | undefined;
+  /**
+   * Soft advisory: prose in the skill body mentions tools not registered in
+   * this runtime (e.g. hidden by a token-saving tier). The skill still loads —
+   * only `manifest.requiredTools` hard-fails.
+   */
+  warning?: string | undefined;
 }
 
 const MAX_BODY_CHARS = SKILL_LIMITS.MAX_SKILL_BODY_CHARS;
@@ -138,16 +144,18 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
       }
 
       const raw = await skillLoader.readBody(name);
+      // Body-text tool references are advisory only: prose may mention tools
+      // hidden by a token-saving tier or optional integrations, and hard-failing
+      // here made such skills unloadable. Only manifest.requiredTools (checked
+      // above) blocks the load; body mentions produce a warning in the output.
       const missingBodyTools = missingRequiredRuntimeTools(
         runtimeToolReferencesFromText(raw),
         availableToolNames,
       );
-      if (missingBodyTools.length > 0) {
-        throw new ToolValidationError({
-          message: `skill "${name}" references unregistered tools: ${missingBodyTools.join(', ')}`,
-          field: 'name',
-        });
-      }
+      const warning =
+        missingBodyTools.length > 0
+          ? `Warning: skill "${name}" references tools not registered in this runtime: ${missingBodyTools.join(', ')}. Steps that call them may be unavailable.`
+          : undefined;
       const body = stripFrontmatter(raw).trim().slice(0, MAX_BODY_CHARS);
       const resources = loadedResource ? [] : await listResources(dir);
 
@@ -168,23 +176,25 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
         resources,
         dir,
         loadedResource,
+        warning,
       };
     },
     serialize(output) {
+      const warningLine = output.warning ? `\n\n${output.warning}` : '';
       if (output.loadedResource) {
         const lr = output.loadedResource;
         const note = lr.truncated
           ? ` (truncated to ${lr.content.length} chars of ${lr.bytes} B)`
           : '';
-        return `# Resource: ${output.name}/${lr.rel}\n(abs path: ${lr.absPath})${note}\n\n${lr.content}`;
+        return `# Resource: ${output.name}/${lr.rel}\n(abs path: ${lr.absPath})${note}\n\n${lr.content}${warningLine}`;
       }
       const head = `# Skill: ${output.name}\n${output.description}\n\n${output.body}`;
-      if (output.resources.length === 0) return head;
+      if (output.resources.length === 0) return `${head}${warningLine}`;
       const listing = output.resources.map((r) => `- ${r.path} (${r.bytes} B)`).join('\n');
       return (
         `${head}\n\n## Bundled resources (load on demand)\n` +
         `Load any with: \`skill({ name: "${output.name}", resource: "<path>" })\`. ` +
-        `Run scripts via bash using their abs path under ${output.dir}.\n${listing}`
+        `Run scripts via bash using their abs path under ${output.dir}.\n${listing}${warningLine}`
       );
     },
   };

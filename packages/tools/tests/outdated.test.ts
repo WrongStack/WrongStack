@@ -78,32 +78,14 @@ describe('outdatedTool', () => {
     expect(result).toHaveProperty('packages');
   });
 
-  it('respects format=table', async () => {
-    const ctx = makeCtx();
-    const result = await outdatedTool.execute({ format: 'table' }, ctx, makeOpts());
-    expect(result).toHaveProperty('exit_code');
-  });
-
-  it('respects include_deprecated', async () => {
-    const ctx = makeCtx();
-    const result = await outdatedTool.execute({ include_deprecated: true }, ctx, makeOpts());
-    expect(result).toHaveProperty('exit_code');
-  });
-
-  it('handles check param', async () => {
-    const ctx = makeCtx();
-    const result = await outdatedTool.execute({ check: 'vitest' }, ctx, makeOpts());
-    expect(result).toHaveProperty('exit_code');
-  });
-
-  it('handles check as array', async () => {
-    const ctx = makeCtx();
-    const result = await outdatedTool.execute(
-      { check: ['vitest', 'prettier'] } as any,
-      ctx,
-      makeOpts(),
-    );
-    expect(result).toHaveProperty('exit_code');
+  it('passes only real flags to the package manager (no --table / --include)', async () => {
+    let capturedArgs: string[] = [];
+    spawnMocks.spawn.mockImplementation((_cmd: string, args: string[]) => {
+      capturedArgs = args;
+      return childWithStdout('', 0);
+    });
+    await outdatedTool.execute({}, makeCtx(), makeOpts());
+    expect(capturedArgs).toEqual(['outdated', '--json']);
   });
 
   it('parses JSON output from npm outdated into structured packages', async () => {
@@ -129,6 +111,31 @@ describe('outdatedTool', () => {
     expect(result.packages.find((p) => p.name === 'vitest')?.latest).toBe('2.0.0');
     // Missing `location` falls back to the package name
     expect(result.packages.find((p) => p.name === 'prettier')?.location).toBe('prettier');
+    // Exit code 1 with valid JSON = "outdated packages found", not a failure.
+    expect(result.exit_code).toBe(0);
+    expect(result.output).toContain('treated as success');
+  });
+
+  it('parses the pnpm outdated JSON shape (dependencyType, no location)', async () => {
+    const payload = JSON.stringify({
+      'vitest': {
+        current: '1.0.0',
+        latest: '2.0.0',
+        wanted: '1.5.0',
+        isDeprecated: false,
+        dependencyType: 'devDependencies',
+      },
+    });
+    spawnMocks.spawn.mockImplementation(() => childWithStdout(payload, 1));
+    const result = await outdatedTool.execute({}, makeCtx(), makeOpts());
+    expect(result.total).toBe(1);
+    const pkg = result.packages[0];
+    expect(pkg?.current).toBe('1.0.0');
+    expect(pkg?.latest).toBe('2.0.0');
+    expect(pkg?.wanted).toBe('1.5.0');
+    expect(pkg?.type).toBe('devDependencies');
+    expect(pkg?.location).toBe('vitest');
+    expect(result.exit_code).toBe(0);
   });
 
   it('returns "All packages up to date" when stdout is empty and exit code is 0', async () => {

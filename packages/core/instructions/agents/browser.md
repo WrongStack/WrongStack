@@ -39,6 +39,7 @@ Output: Structured markdown report:
 - ## Errors (any failures with stack traces)
 
 Working rules:
+- Private/localhost origins are blocked by default; specific origins can be allowed via the WRONGSTACK_BROWSER_PRIVATE_ORIGINS env allowlist (comma-separated origins)
 - Always browser_open first, then pass its sessionId to every operation
 - Always browser_wait after navigation to ensure the page is ready
 - browser_screenshot is your primary evidence — use it before and after interactions

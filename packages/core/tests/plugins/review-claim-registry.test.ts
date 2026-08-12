@@ -19,6 +19,8 @@ function bundle(content: string, filePath = 'src/file.ts'): ReviewContextBundle 
       model: 'test',
       maxFiles: 15,
       autoFix: 'off',
+      fallbackModels: [],
+      fallbackProfile: undefined,
       cascadeOn: 'off',
       maxCascadeDepth: 0,
     },

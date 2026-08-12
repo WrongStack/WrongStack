@@ -51,6 +51,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
   mutating: false,
   capabilities: ['fs.read'],
   icon: 'tree',
+  maxOutputBytes: 262_144,
   timeoutMs: 15_000,
   inputSchema: {
     type: 'object',
@@ -240,19 +241,21 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
     return true;
   });
 
-  if (depth > 0) {
-    // Single pass: count dirs and files simultaneously instead of two
-    // separate .filter() scans over the same array.
-    let dirCount = 0;
-    let fileCount = 0;
-    for (const e of filtered) {
-      if (e.isDirectory()) dirCount++;
-      else if (e.isFile()) fileCount++;
-    }
-    opts.totalDirs.value += dirCount;
-    opts.totalFiles.value += fileCount;
-    opts.onProgress?.();
+  // Count this directory's entries — every walkDir invocation owns exactly the
+  // direct children of `dir`, so counting unconditionally counts each entry
+  // once. (A previous `depth > 0` guard silently excluded the root's direct
+  // children from total_files/total_dirs: the root call passes depth 0.)
+  // Single pass: count dirs and files simultaneously instead of two
+  // separate .filter() scans over the same array.
+  let dirCount = 0;
+  let fileCount = 0;
+  for (const e of filtered) {
+    if (e.isDirectory()) dirCount++;
+    else if (e.isFile()) fileCount++;
   }
+  opts.totalDirs.value += dirCount;
+  opts.totalFiles.value += fileCount;
+  opts.onProgress?.();
 
   const items = filtered.sort((a, b) => {
     if (a.isDirectory() && !b.isDirectory()) return -1;

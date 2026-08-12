@@ -30,6 +30,7 @@ export type SystemBlockSource =
   | 'contributor' // plugin-contributed volatile blocks
   | 'ledger' // volatile completed-work ledger (request-time)
   | 'glossary' // volatile `[Project Jargon Dictionary]` block (SAGE-backed, minimal)
+  | 'peers' // volatile live online-agents snapshot (fleet peer awareness)
   | 'nextsteps'; // volatile next-steps gate (request-time)
 
 /**

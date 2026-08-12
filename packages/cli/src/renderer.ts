@@ -192,7 +192,8 @@ export class TerminalRenderer implements Renderer {
     }
 
     const summary = summarize(content, name);
-    const isReadLike = name === 'read' || name === 'grep' || name === 'glob' || name === 'bash';
+    const isReadLike =
+      name === 'read' || name === 'grep' || name === 'glob' || name === 'bash' || name === 'exec';
 
     // SIMPLE mode: meta only — no content lines. For tools whose result
     // already carries structured metadata (read/grep/glob/bash), the
@@ -395,7 +396,9 @@ function safeStringify(value: unknown): string {
  * extend-mode preview slices real lines, not serialised JSON.
  *
  * - `read` returns `{text, total_lines, ...}` — the body is `text`.
- * - Bash/text-output tools that serialise `{stdout, stderr, ...}` get a
+ * - `bash` returns `{output, exit_code, ...}` (stdout+stderr merged) — the
+ *   body is `output` (plus `error` when present).
+ * - `exec` returns `{stdout, stderr, exitCode, ...}` — the body is the
  *   joined stdout/stderr string so multi-line output is previewable.
  * - Plain strings and structured payloads without a body field fall back
  *   to the serialised form (existing behaviour).
@@ -420,6 +423,14 @@ function extractBodyText(value: unknown, name: string): string {
   const o = v as Record<string, unknown>;
   if (name === 'read' && typeof o['text'] === 'string') return o['text'] as string;
   if (name === 'bash') {
+    // bash merges stdout+stderr into a single `output` string (there are no
+    // stdout/stderr fields on its result — reading those rendered nothing).
+    const output = typeof o['output'] === 'string' ? (o['output'] as string) : '';
+    const error = typeof o['error'] === 'string' ? (o['error'] as string) : '';
+    if (output && error) return `${output}\n${error}`;
+    return output || error || '';
+  }
+  if (name === 'exec') {
     const stdout = typeof o['stdout'] === 'string' ? (o['stdout'] as string) : '';
     const stderr = typeof o['stderr'] === 'string' ? (o['stderr'] as string) : '';
     if (stdout && stderr) return `${stdout}\n${stderr}`;
@@ -502,6 +513,9 @@ function summarize(value: unknown, name: string): string {
     if (name === 'bash') {
       return summarizeBash(o);
     }
+    if (name === 'exec') {
+      return summarizeExec(o);
+    }
     if (typeof o['count'] === 'number') {
       return `${o['count']} match${o['count'] === 1 ? '' : 'es'}`;
     }
@@ -528,18 +542,35 @@ function summarizeRead(o: Record<string, unknown>): string {
 }
 
 function summarizeBash(o: Record<string, unknown>): string {
-  const exit =
-    typeof o['exitCode'] === 'number'
-      ? (o['exitCode'] as number)
-      : typeof o['exit_code'] === 'number'
-        ? (o['exit_code'] as number)
-        : undefined;
+  // bash results carry `output` (stdout+stderr merged) and `exit_code` —
+  // NOT stdout/stderr/exitCode. The old field names silently produced an
+  // empty summary for every bash result.
+  const exit = typeof o['exit_code'] === 'number' ? (o['exit_code'] as number) : undefined;
+  const output = typeof o['output'] === 'string' ? (o['output'] as string) : '';
+  const lines = output ? output.split('\n').length : 0;
+  const parts: string[] = [];
+  if (exit !== undefined) parts.push(`exit=${exit}`);
+  else if (o['exit_code'] === null) parts.push('backgrounded');
+  if (o['timed_out'] === true) parts.push('timed out');
+  if (lines > 0) parts.push(`${lines} output line${lines === 1 ? '' : 's'}`);
+  if (output.length > 0) parts.push(`${output.length}B`);
+  return parts.join('  ');
+}
+
+function summarizeExec(o: Record<string, unknown>): string {
+  const command = typeof o['command'] === 'string' ? (o['command'] as string) : '';
+  const args = Array.isArray(o['args'])
+    ? (o['args'] as unknown[]).filter((a): a is string => typeof a === 'string')
+    : [];
+  const exit = typeof o['exitCode'] === 'number' ? (o['exitCode'] as number) : undefined;
   const stdout = typeof o['stdout'] === 'string' ? (o['stdout'] as string) : '';
   const stderr = typeof o['stderr'] === 'string' ? (o['stderr'] as string) : '';
   const outLines = stdout ? stdout.split('\n').length : 0;
   const errLines = stderr ? stderr.split('\n').length : 0;
   const totalBytes = stdout.length + stderr.length;
   const parts: string[] = [];
+  const invocation = [command, ...args].filter(Boolean).join(' ');
+  if (invocation) parts.push(`$ ${invocation}`);
   if (exit !== undefined) parts.push(`exit=${exit}`);
   if (outLines > 0) parts.push(`${outLines} stdout line${outLines === 1 ? '' : 's'}`);
   if (errLines > 0) parts.push(`${errLines} stderr line${errLines === 1 ? '' : 's'}`);

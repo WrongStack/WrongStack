@@ -52,8 +52,10 @@ describe('redactCommand — secret redaction (P2 #13)', () => {
 
   describe('short flags (-t value, -p value)', () => {
     it.each([
-      ['curl -t abc123 https://example.com', /-t\s+\[REDACTED\]/],
-      ['curl -t=abc123 https://example.com', /-t=\[REDACTED\]/],
+      // -t values must be token-like (>= 8 chars) so `tar -tf` style
+      // combined flags are not eaten — see the false-positive guard below.
+      ['curl -t abc12345 https://example.com', /-t\s+\[REDACTED\]/],
+      ['curl -t=abc12345 https://example.com', /-t=\[REDACTED\]/],
       // Note: `-password hunter2` is partially redacted — the regex matches
       // `-p` + optional `ssword` + whitespace + value, so it consumes the
       // value but the `ssword` tail survives as `-p[REDACTED]ssword`-style
@@ -91,6 +93,11 @@ describe('redactCommand — secret redaction (P2 #13)', () => {
       ['git status', 'git status'],
       ['cat /home/user/token.txt', 'cat /home/user/token.txt'],
       // token.txt is a filename, not a --token=value flag — must NOT redact.
+      // Combined short flags where `t` is a mode letter, not a token flag:
+      // the -t pattern requires a token-like value (>= 8 chars), so these
+      // everyday invocations survive intact.
+      ['tar -tf archive.tar', 'tar -tf archive.tar'],
+      ['ssh -tt host uptime', 'ssh -tt host uptime'],
     ])('leaves %j unchanged', (cmd, expected) => {
       expect(redactCommand(cmd)).toBe(expected);
     });
@@ -120,6 +127,24 @@ describe('redactCommand — secret redaction (P2 #13)', () => {
       expect(redacted).not.toMatch(/sk-abc/);
       expect(redacted).not.toMatch(/ghp_xyz/);
       expect(redacted).not.toMatch(/hunter2/);
+    });
+
+    it('redacts EVERY -t occurrence, not just the first (g flag)', () => {
+      const out = redactCommand('tool -t firsttoken123 && tool2 -t secondtoken456');
+      expect(out).not.toContain('firsttoken123');
+      expect(out).not.toContain('secondtoken456');
+    });
+
+    it('redacts EVERY high-entropy secret flag, not just the first (g flag)', () => {
+      // Flags that hit ONLY the generic high-entropy pattern (not the named
+      // long-flag pattern): bare "key" is not in the named list.
+      const a = 'A1b2C3d4'.repeat(5); // 40 chars, base64-ish
+      const b = 'Z9y8X7w6'.repeat(5);
+      const out = redactCommand(`deploy --sshkey=${a} --deploykey=${b}`);
+      expect(out).not.toContain(a);
+      expect(out).not.toContain(b);
+      expect(out).toMatch(/--sshkey=\[REDACTED\]/);
+      expect(out).toMatch(/--deploykey=\[REDACTED\]/);
     });
   });
 });

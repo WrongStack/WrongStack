@@ -16,7 +16,7 @@
 
 import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
-import type { FindingSource } from './review-finding-types.js';
+import { classifyChimeraReviewSource } from './review-finding-integration.js';
 import { JsonlReportStore, type PersistReportInput } from './review-report-store.js';
 import type { ReviewReportCounts, ReviewReportFile } from './review-report-types.js';
 import type { ChimeraReviewCompletePayload } from './review-types.js';
@@ -53,7 +53,7 @@ export async function persistReviewReport(
   const store = new JsonlReportStore(projectDir);
   const existed = await store.get(reportId);
 
-  const source = classifySource(payload);
+  const source = classifyChimeraReviewSource(payload.bundle);
   const agentId =
     payload.bundle.fileProvenance?.find((entry) => entry.agentId)?.agentId ?? 'chimera-review';
   const sessionId = payload.sessionId ?? payload.cwd;
@@ -67,12 +67,21 @@ export async function persistReviewReport(
 
   const reviewStatus: 'success' | 'failed' = payload.status === 'success' ? 'success' : 'failed';
 
-  // Parse the report for counts + duration. For failed reviews, rawText may
-  // be empty — we still persist the record so there's an audit trail of the
-  // attempt.
+  // P0-1: the execution owner parses + verifies once and threads the result;
+  // use it so report counts and finding counts can never diverge. Legacy
+  // emitters without parsedReport fall back to parsing here. For failed
+  // reviews, rawText may be empty — we still persist the record so there's
+  // an audit trail of the attempt.
   const parsed =
     reviewStatus === 'success'
-      ? parseChimeraReviewReport(payload.reviewText, { reportId })
+      ? (payload.parsedReport ??
+        parseChimeraReviewReport(payload.reviewText, {
+          sessionId,
+          agentId,
+          reviewerModel: model,
+          reviewType: source,
+          reportId,
+        }))
       : { findings: [], unparseableCount: 0, durationSeconds: undefined };
 
   const counts: ReviewReportCounts = { critical: 0, high: 0, medium: 0, low: 0 };
@@ -94,6 +103,15 @@ export async function persistReviewReport(
     durationSeconds: parsed.durationSeconds,
     rawText: payload.reviewText,
     ...(cascadeDepth !== undefined ? { cascadeDepth } : {}),
+    // P0-3: carry the cascade evidence verification (status + per-check
+    // comparisons) so the persisted report is auditable. Absent on initial
+    // reviews — no cascade step produced evidence yet.
+    ...(payload.bundle.evidenceStatus !== undefined
+      ? { evidenceStatus: payload.bundle.evidenceStatus }
+      : {}),
+    ...(payload.bundle.evidenceChecks !== undefined
+      ? { evidenceChecks: payload.bundle.evidenceChecks }
+      : {}),
   };
 
   await store.persist(input);
@@ -259,18 +277,4 @@ export async function syncReportReopen(
   });
 
   return { reportId, reopened: true, previousLifecycle: report.lifecycle };
-}
-
-/**
- * Classify the review source from the payload bundle.
- *
- * Mirrors the logic in review-finding-integration.ts so reports and findings
- * agree on source classification.
- */
-function classifySource(payload: ChimeraReviewCompletePayload): FindingSource {
-  const cascadeDepth = payload.bundle.cascadeDepth ?? 0;
-  if (cascadeDepth > 0) return 'cascade';
-  const cascadeOn = payload.bundle.cascadeOn;
-  if (cascadeOn !== undefined && cascadeOn !== 'off') return 'auto';
-  return 'chimera';
 }

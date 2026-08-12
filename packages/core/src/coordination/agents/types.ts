@@ -127,6 +127,7 @@ export const TOOLS = {
     'glob',
     'search',
     'tree',
+    'diff',
     'write',
     'edit',
     'replace',

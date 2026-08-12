@@ -89,14 +89,14 @@ describe('parseNextSteps', () => {
       expect(stripped).toBe(content);
     });
 
-    it('rejects markdown headings even when strict is false', () => {
+    it('rejects markdown headings in the default heading mode', () => {
       const content = `Some prose.
 
 ## Next steps
 1. Fix the bug
 2. Run tests`;
 
-      const { steps, stripped } = parseNextSteps(content, false);
+      const { steps, stripped } = parseNextSteps(content);
       expect(steps).toEqual([]);
       expect(stripped).toBe(content);
     });

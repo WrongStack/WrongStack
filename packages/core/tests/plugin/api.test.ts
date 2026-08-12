@@ -128,6 +128,36 @@ describe('DefaultPluginAPI', () => {
     expect(toolRegistry.get('alpha')?.name).toBe('alpha');
   });
 
+  it('plugin-registered tools are exposed to the provider under a restricted surface (token-saving)', () => {
+    const { api, toolRegistry } = mkApi();
+    // Simulate `features.tokenSavingMode !== 'off'`: the host registers the
+    // built-in catalog, then restricts the direct provider surface to a small
+    // set (tier-selected builtins + lazy gateways) via setProviderToolNames.
+    // Plugin tools are NOT in that set.
+    toolRegistry.register(tool('read'));
+    toolRegistry.register(tool('tool_search'));
+    toolRegistry.setProviderToolNames(['read', 'tool_search']);
+    expect(toolRegistry.listForProvider().map((t) => t.name)).toEqual(['read', 'tool_search']);
+
+    api.tools.register(tool('alpha'));
+
+    // The plugin tool must reach the LLM even though it is not in the host's
+    // restricted name set — otherwise plugins load and hooks fire, but the
+    // model can never invoke their tools.
+    expect(toolRegistry.listForProvider().map((t) => t.name)).toEqual(['read', 'tool_search', 'alpha']);
+    // And it must remain in the executable catalog as before.
+    expect(toolRegistry.list().map((t) => t.name)).toContain('alpha');
+  });
+
+  it('provider exposure is a no-op when the surface is unrestricted (tier off)', () => {
+    const { api, toolRegistry } = mkApi();
+    // Default host state: `_providerToolNames` is undefined, so
+    // listForProvider() == list() and exposeToProvider is a no-op.
+    api.tools.register(tool('alpha'));
+    expect(toolRegistry.listForProvider().map((t) => t.name)).toContain('alpha');
+    expect(toolRegistry.listForProvider().length).toBe(toolRegistry.list().length);
+  });
+
   it('tools.unregister removes the tool', () => {
     const { api } = mkApi();
     api.tools.register(tool('alpha'));

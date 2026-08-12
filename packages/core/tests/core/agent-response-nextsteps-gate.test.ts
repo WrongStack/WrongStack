@@ -5,6 +5,7 @@ import {
 } from '../../src/core/agent-response.js';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
 import type { TodoItem } from '../../src/core/context.js';
+import { tagBlock } from '../../src/core/system-prompt-blocks.js';
 import type { Request } from '../../src/types/provider.js';
 import { createContextEvidenceState, recordUserIntentEvidence } from '../../src/utils/context-evidence.js';
 
@@ -21,7 +22,9 @@ describe('buildLiveNextStepsGateBlock', () => {
       todos: [todo('done', 'completed')],
     });
 
-    expect(block?.cache_control).toEqual({ type: 'ephemeral' });
+    // Marker-free by design: rides the live-context tail after the deep cache
+    // boundary, so a cache_control marker would re-create per-request churn.
+    expect(block?.cache_control).toBeUndefined();
     expect(block?.text).toContain('open todos = 0');
     expect(block?.text).toContain('MUST take exactly one branch');
     expect(block?.text).toContain('include a balanced <nextsteps> block');
@@ -81,25 +84,24 @@ describe('buildLiveNextStepsGateBlock', () => {
   });
 });
 
-describe('provider request continuity evidence', () => {
-  it('injects the bounded human-turn tail into every request system suffix', async () => {
+describe('provider request live-context tail', () => {
+  const makeInternals = (
+    overrides: Partial<Record<'messages' | 'systemPrompt' | 'todos', unknown>> = {},
+  ) => {
     const contextEvidence = createContextEvidenceState();
     const ctx = {
       agentId: 'leader',
-      todos: [],
+      todos: overrides.todos ?? [],
       tools: [],
-      systemPrompt: [],
+      systemPrompt: overrides.systemPrompt ?? [],
       memoryEvidence: [],
-      messages: [],
+      messages: overrides.messages ?? [],
       contextEvidence,
       toolAdjacencyDirty: false,
       provider: { id: 'test', capabilities: {} },
       model: 'test-model',
       waitForModelTransition: vi.fn(async () => {}),
     } as never as AgentInternals['ctx'];
-    recordUserIntentEvidence(ctx, 'Fix the context-loss bug');
-    recordUserIntentEvidence(ctx, 'Continue without spending excessive tokens');
-
     const a = {
       ctx,
       tools: { listForProvider: () => [] },
@@ -107,11 +109,175 @@ describe('provider request continuity evidence', () => {
       events: { emit: vi.fn() },
       logger: { warn: vi.fn() },
     } as never as AgentInternals;
+    return { ctx, a };
+  };
+
+  it('falls back to a system suffix only when there is no history to attach to', async () => {
+    const { ctx, a } = makeInternals();
+    recordUserIntentEvidence(ctx, 'Fix the context-loss bug');
+    recordUserIntentEvidence(ctx, 'Continue without spending excessive tokens');
 
     const request = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
     const systemText = request.request.system?.map((block) => block.text).join('\n') ?? '';
     expect(systemText).toContain('[conversation_continuity]');
     expect(systemText).toContain('Fix the context-loss bug');
     expect(systemText).toContain('Continue without spending excessive tokens');
+  });
+
+  it('rides the trailing user message and never the system prompt when history exists', async () => {
+    const history = [
+      { role: 'user', content: 'do the work' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 't1', content: 'file body' }],
+      },
+    ];
+    const { ctx, a } = makeInternals({ messages: history });
+    recordUserIntentEvidence(ctx, 'Fix the context-loss bug');
+
+    const request = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
+    const req = request.request;
+    const systemText = req.system?.map((block) => block.text).join('\n') ?? '';
+    expect(systemText).not.toContain('[conversation_continuity]');
+
+    const last = req.messages.at(-1) as { role: string; content: unknown[] };
+    expect(last.role).toBe('user');
+    const texts = (last.content as { type: string; text?: string }[])
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text ?? '');
+    expect(texts.join('\n')).toContain('[live_context]');
+    expect(texts.join('\n')).toContain('[conversation_continuity]');
+    expect(texts.join('\n')).toContain('[nextsteps_gate]');
+  });
+
+  it('pins the cache boundary on the last durable block, before the tail', async () => {
+    const history = [
+      { role: 'user', content: 'do the work' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 't1', content: 'file body' }],
+      },
+    ];
+    const { a } = makeInternals({ messages: history });
+
+    const request = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
+    const last = request.request.messages.at(-1) as {
+      content: { type: string; cache_control?: unknown; text?: string }[];
+    };
+    const marked = last.content.filter((b) => b.cache_control);
+    expect(marked).toHaveLength(1);
+    expect(marked[0]?.type).toBe('tool_result');
+    // Every tail block sits AFTER the boundary and is marker-free.
+    const boundaryIdx = last.content.findIndex((b) => b.cache_control);
+    for (const block of last.content.slice(boundaryIdx + 1)) {
+      expect(block.cache_control).toBeUndefined();
+    }
+  });
+
+  it('re-homes epoch-volatile prompt blocks (plan/contributor/glossary) to the tail', async () => {
+    const systemPrompt = [
+      tagBlock(
+        { type: 'text', text: 'identity text', cache_control: { type: 'ephemeral' } },
+        'identity',
+      ),
+      tagBlock({ type: 'text', text: 'active plan text', cache_control: { type: 'ephemeral' } }, 'plan'),
+      tagBlock({ type: 'text', text: 'glossary text' }, 'glossary'),
+    ];
+    const history = [{ role: 'user', content: 'do the work' }];
+    const { a } = makeInternals({ messages: history, systemPrompt });
+
+    const request = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
+    const req = request.request;
+    const systemText = req.system?.map((block) => block.text).join('\n') ?? '';
+    expect(systemText).toContain('identity text');
+    expect(systemText).not.toContain('active plan text');
+    expect(systemText).not.toContain('glossary text');
+
+    const last = req.messages.at(-1) as {
+      content: { type: string; text?: string; cache_control?: unknown }[];
+    };
+    const tailBlocks = last.content.filter((b) => b.type === 'text');
+    const tailText = tailBlocks.map((b) => b.text ?? '').join('\n');
+    expect(tailText).toContain('active plan text');
+    expect(tailText).toContain('glossary text');
+    // Re-homed copies are marker-free — the plan's epoch marker must not travel.
+    const planCopy = tailBlocks.find((b) => b.text === 'active plan text');
+    expect(planCopy?.cache_control).toBeUndefined();
+  });
+
+  it('derives the cache-partition key from the stable prompt part only', async () => {
+    const stable = tagBlock({ type: 'text', text: 'identity text' }, 'identity');
+    const epochA = [stable, tagBlock({ type: 'text', text: 'glossary v1' }, 'glossary')];
+    const epochB = [stable, tagBlock({ type: 'text', text: 'glossary v2' }, 'glossary')];
+    const history = [{ role: 'user', content: 'do the work' }];
+
+    const first = makeInternals({ messages: history, systemPrompt: epochA });
+    const second = makeInternals({ messages: history, systemPrompt: epochB });
+    const reqA = await createAgentResponseHandler(first.a).buildAndRunRequestPipeline({});
+    const reqB = await createAgentResponseHandler(second.a).buildAndRunRequestPipeline({});
+    expect(reqA.request.cache?.key).toBeDefined();
+    // A glossary-only refresh must not re-route the provider cache partition.
+    expect(reqA.request.cache?.key).toBe(reqB.request.cache?.key);
+  });
+
+  it('strips delivered <nextsteps> blocks from past assistant turns in the request copy', async () => {
+    const assistant = {
+      role: 'assistant',
+      content: [{ type: 'text', text: 'All done.\n<nextsteps>\n- run the follow-up\n</nextsteps>' }],
+    };
+    const history = [
+      { role: 'user', content: 'first task' },
+      assistant,
+      { role: 'user', content: 'second task' },
+    ];
+    const { a } = makeInternals({ messages: history });
+
+    const request = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
+    const sentAssistant = request.request.messages[1] as {
+      content: { type: string; text?: string }[];
+    };
+    expect(JSON.stringify(sentAssistant.content)).not.toContain('<nextsteps');
+    expect(sentAssistant.content[0]?.text).toContain('All done.');
+    // The durable history keeps the block for resume/rendering.
+    expect((assistant.content[0] as { text: string }).text).toContain('<nextsteps>');
+  });
+
+  it('replaces a nextsteps-only assistant turn with a stable placeholder', async () => {
+    const history = [
+      { role: 'user', content: 'first task' },
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: '<nextsteps>\n- only suggestions\n</nextsteps>' }],
+      },
+      { role: 'user', content: 'second task' },
+    ];
+    const { a } = makeInternals({ messages: history });
+
+    const request = await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
+    const sentAssistant = request.request.messages[1] as {
+      content: { type: string; text?: string }[];
+    };
+    // Empty text blocks are invalid on the wire — a placeholder keeps the turn.
+    expect(sentAssistant.content).toHaveLength(1);
+    expect(sentAssistant.content[0]?.text).toContain('delivered to the user');
+  });
+
+  it('never mutates the durable history or the frozen prompt epoch', async () => {
+    const toolResult = { type: 'tool_result', tool_use_id: 't1', content: 'file body' };
+    const lastMessage = { role: 'user', content: [toolResult] };
+    const history = [
+      { role: 'user', content: 'do the work' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] },
+      lastMessage,
+    ];
+    const { ctx, a } = makeInternals({ messages: history });
+    recordUserIntentEvidence(ctx, 'Fix the context-loss bug');
+
+    await createAgentResponseHandler(a).buildAndRunRequestPipeline({});
+    expect(ctx.messages).toHaveLength(3);
+    expect(lastMessage.content).toHaveLength(1);
+    expect(toolResult).not.toHaveProperty('cache_control');
   });
 });

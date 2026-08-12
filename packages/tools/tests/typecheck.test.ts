@@ -23,10 +23,12 @@ function fakeSpawn(stdout: string, exitCode = 0) {
 }
 
 let capturedArgs: string[] = [];
+let capturedCmd = '';
 
 beforeEach(() => {
   spawnStreamMocks.spawnStream.mockReset();
-  spawnStreamMocks.spawnStream.mockImplementation((opts: { args: string[] }) => {
+  spawnStreamMocks.spawnStream.mockImplementation((opts: { cmd: string; args: string[] }) => {
+    capturedCmd = opts.cmd;
     capturedArgs = opts.args;
     return fakeSpawn('')();
   });
@@ -45,6 +47,23 @@ describe('typecheckTool', () => {
     const result = await typecheckTool.execute({ all: true }, makeCtx(), makeOpts());
     expect(result.project).toBe('workspace');
     expect(result).toHaveProperty('exit_code');
+    // No pnpm lockfile at /fake → falls back to a single root-level tsc run.
+    expect(capturedCmd).toBe('npx');
+    expect(capturedArgs).toEqual(['tsc', '--noEmit']);
+  });
+
+  it('runs pnpm -r --no-bail exec tsc when all=true in a pnpm workspace', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tc-pnpm-'));
+    try {
+      await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), '');
+      const ctx = { cwd: dir, tools: [], projectRoot: dir } as any;
+      const result = await typecheckTool.execute({ all: true }, ctx, makeOpts());
+      expect(result.project).toBe('workspace');
+      expect(capturedCmd).toBe('pnpm');
+      expect(capturedArgs).toEqual(['-r', '--no-bail', 'exec', 'tsc', '--noEmit']);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('respects strict flag', async () => {
@@ -87,13 +106,25 @@ describe('typecheckTool', () => {
       fakeSpawn('a.ts(1,1): error TS1: bad\nb.ts(2,2): warning TS2: meh\n', 1),
     );
     const result = await typecheckTool.execute({ all: true }, makeCtx(), makeOpts());
-    expect(result.errors).toBeGreaterThanOrEqual(1);
-    expect(result.warnings).toBeGreaterThanOrEqual(1);
+    expect(result.errors).toBe(1);
+    expect(result.warnings).toBe(1);
   });
 
-  it('appends --json when json=true', async () => {
+  it('does not count prose mentions of "error" as diagnostics', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(
+      fakeSpawn(
+        "a.ts(1,1): error TS2322: Type 'error' is not assignable to type 'never'.\n" +
+          'Found 1 error in a.ts:1\n', // summary line — no TS code, must not count
+        1,
+      ),
+    );
+    const result = await typecheckTool.execute({ all: true }, makeCtx(), makeOpts());
+    expect(result.errors).toBe(1);
+  });
+
+  it('never passes the non-existent --json flag to tsc', async () => {
     await typecheckTool.execute({ all: true, json: true } as any, makeCtx(), makeOpts());
-    expect(capturedArgs).toContain('--json');
+    expect(capturedArgs).not.toContain('--json');
   });
 
   it('resolves an explicit cwd', async () => {

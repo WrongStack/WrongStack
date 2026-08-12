@@ -26,6 +26,8 @@ import type {
 // in the leaf './review-types.js' module to keep the helper imports one-way.
 export type {
   CascadeAgentKind,
+  CascadeEvidenceCheckResult,
+  CascadeEvidenceStatus,
   ChimeraCascadeNeededPayload,
   ChimeraReviewCompletePayload,
   ChimeraReviewNeededPayload,

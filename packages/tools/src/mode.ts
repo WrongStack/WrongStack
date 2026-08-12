@@ -11,7 +11,7 @@ interface ModeOutput {
   action: string;
   currentMode?: string | undefined;
   modes?: {
-    id: string | undefined;
+    id: string;
     name: string;
     description: string;
     family: ModeFamily;
@@ -42,6 +42,9 @@ export function createModeTool(modeStore: ModeStore): Tool<ModeInput, ModeOutput
       '- Use `clear` to return to default behavior.\n' +
       'Switching modes is very effective for specialized tasks. The mode change affects how the agent reasons and which guidelines it follows.',
     permission: 'confirm',
+    // WS-046: gives permission decisions something to key on — the mode being
+    // activated. Permission semantics are unchanged.
+    subjectKey: 'mode',
     mutating: true,
     timeoutMs: 5_000,
     capabilities: ['session.mode'],

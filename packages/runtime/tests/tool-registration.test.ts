@@ -1,4 +1,7 @@
-import { ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultLogger } from '@wrongstack/core/infrastructure';
+import { Container, EventBus } from '@wrongstack/core/kernel';
+import { DefaultPluginAPI } from '@wrongstack/core/plugin';
+import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type { MemoryStore, Tool } from '@wrongstack/core/types';
 import { LegacyMemoryPortAdapter } from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
@@ -68,6 +71,38 @@ describe('canonical host tool registration', () => {
     expect(registry.list()).toHaveLength(74);
     expect(registry.listForProvider()).toHaveLength(48);
     expect(registry.get('browser_open')).toBeDefined();
+    expect(registry.listForProvider().map((tool) => tool.name)).not.toContain('browser_open');
+  });
+
+  it('exposes plugin-registered tools to the provider under a token-saving tier', () => {
+    // Integration regression for the plugin provider-surface gap: when the
+    // host restricts the direct provider surface (tier !== 'off'), tools
+    // registered through DefaultPluginAPI must still reach the LLM. The
+    // plugin API calls ToolRegistry.exposeToProvider on every register.
+    const registry = new ToolRegistry();
+    registerCanonicalHostTools({
+      registry,
+      tier: 'medium',
+      memory: { enabled: false, store: null },
+    });
+    const directCount = registry.listForProvider().length;
+    const pluginTool = { ...coordinationTool, name: 'gitignore_guard_test' };
+    const api = new DefaultPluginAPI({
+      ownerName: 'gitignore-guard',
+      container: new Container(),
+      events: new EventBus(),
+      pipelines: {} as never,
+      toolRegistry: registry,
+      providerRegistry: new ProviderRegistry(),
+      config: {} as never,
+      log: new DefaultLogger({ level: 'error' }),
+    });
+
+    api.tools.register(pluginTool);
+
+    expect(registry.listForProvider().map((tool) => tool.name)).toContain('gitignore_guard_test');
+    expect(registry.listForProvider()).toHaveLength(directCount + 1);
+    // The restricted built-in surface is otherwise unchanged.
     expect(registry.listForProvider().map((tool) => tool.name)).not.toContain('browser_open');
   });
 

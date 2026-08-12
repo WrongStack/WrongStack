@@ -17,7 +17,13 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { ChimeraFinding, FindingSeverity, FindingSource } from './review-finding-types.js';
+import type {
+  ChimeraFinding,
+  FindingCategory,
+  FindingConfidence,
+  FindingSeverity,
+  FindingSource,
+} from './review-finding-types.js';
 import { computeFindingFingerprint } from './review-finding-types.js';
 
 /**
@@ -30,6 +36,133 @@ export interface ParsedReviewReport {
   unparseableCount: number;
   /** Total time for the review, extracted from "Duration: Xs" line. */
   durationSeconds?: number | undefined;
+  /**
+   * True when the findings came from the structured JSON contract (P0-1)
+   * rather than the legacy markdown heuristics. When false, findings are
+   * recovered from `### Severity (N)` headings + numbered list items and
+   * carry no `category`/`confidence`.
+   */
+  structured?: boolean | undefined;
+}
+
+/**
+ * One finding item from the structured JSON contract appended by the
+ * reviewer to the end of the markdown report (P0-1).
+ */
+export interface StructuredFindingItem {
+  severity: string;
+  file?: string | undefined;
+  line?: number | undefined;
+  category?: string | undefined;
+  confidence?: string | undefined;
+  title: string;
+  description?: string | undefined;
+  suggestedFix?: string | undefined;
+}
+
+/**
+ * The parsed fenced JSON block: a `findings` array plus optional metadata.
+ */
+export interface StructuredFindingsBlock {
+  findings: StructuredFindingItem[];
+  durationSeconds?: number | undefined;
+}
+
+const SEVERITIES = new Set<FindingSeverity>(['critical', 'high', 'medium', 'low']);
+const CATEGORIES = new Set<FindingCategory>([
+  'bug',
+  'security',
+  'performance',
+  'type',
+  'contract',
+  'test',
+  'other',
+]);
+const CONFIDENCES = new Set<FindingConfidence>(['high', 'medium', 'low']);
+
+/**
+ * Match a fenced code block tagged `json` (the P0-1 structured-findings
+ * contract). Untagged fences are never treated as the findings block so an
+ * example JSON snippet in report prose cannot hijack the parse.
+ */
+const FENCED_BLOCK = /```json[ \t]*\r?\n([\s\S]*?)\r?\n```/gi;
+
+/**
+ * Extract the structured findings JSON block from a report. Returns the
+ * LAST fenced block that parses as JSON and carries a `findings` array —
+ * the reviewer is instructed to append exactly one such block, so the last
+ * one wins when earlier blocks are examples or stray prose. Returns `null`
+ * when no parseable block exists (legacy markdown-only reports).
+ */
+export function extractStructuredFindingsBlock(reportText: string): StructuredFindingsBlock | null {
+  if (!reportText) return null;
+  let best: StructuredFindingsBlock | null = null;
+  for (const match of reportText.matchAll(FENCED_BLOCK)) {
+    const body = match[1];
+    if (!body?.trim()) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      continue; // not JSON — not our block
+    }
+    if (typeof parsed !== 'object' || parsed === null) continue;
+    const findings = (parsed as { findings?: unknown }).findings;
+    if (!Array.isArray(findings)) continue;
+    const items: StructuredFindingItem[] = [];
+    for (const raw of findings) {
+      const item = normalizeStructuredItem(raw);
+      if (item) items.push(item);
+    }
+    // A block that declares findings but yields zero valid items is garbage,
+    // NOT an all-clear: skipping it lets the markdown fallback survive so the
+    // report's real findings are not silently lost. An empty `findings` array
+    // (a true all-clear) still counts as a structured block.
+    if (findings.length > 0 && items.length === 0) continue;
+    const durationRaw = (parsed as { durationSeconds?: unknown }).durationSeconds;
+    const durationSeconds =
+      typeof durationRaw === 'number' && Number.isFinite(durationRaw) && durationRaw > 0
+        ? Math.floor(durationRaw)
+        : undefined;
+    best = { findings: items, ...(durationSeconds !== undefined ? { durationSeconds } : {}) };
+  }
+  return best;
+}
+
+/** Validate and normalize a single JSON findings item, or null when invalid. */
+function normalizeStructuredItem(raw: unknown): StructuredFindingItem | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const item = raw as Record<string, unknown>;
+  const severity = typeof item.severity === 'string' ? item.severity.toLowerCase() : '';
+  if (!SEVERITIES.has(severity as FindingSeverity)) return null;
+  const title = typeof item.title === 'string' ? item.title.trim() : '';
+  if (title.length === 0) return null;
+  const file = typeof item.file === 'string' && item.file.trim().length > 0 ? item.file.trim() : undefined;
+  const line = typeof item.line === 'number' && Number.isInteger(item.line) && item.line >= 1
+    ? item.line
+    : undefined;
+  const categoryRaw = typeof item.category === 'string' ? item.category.toLowerCase() : '';
+  const category = CATEGORIES.has(categoryRaw as FindingCategory)
+    ? (categoryRaw as FindingCategory)
+    : undefined;
+  const confidenceRaw = typeof item.confidence === 'string' ? item.confidence.toLowerCase() : '';
+  const confidence = CONFIDENCES.has(confidenceRaw as FindingConfidence)
+    ? (confidenceRaw as FindingConfidence)
+    : undefined;
+  return {
+    severity: severity as FindingSeverity,
+    ...(file ? { file } : {}),
+    ...(line !== undefined ? { line } : {}),
+    ...(category ? { category } : {}),
+    ...(confidence ? { confidence } : {}),
+    title,
+    ...(typeof item.description === 'string' && item.description.trim().length > 0
+      ? { description: item.description.trim() }
+      : {}),
+    ...(typeof item.suggestedFix === 'string' && item.suggestedFix.trim().length > 0
+      ? { suggestedFix: item.suggestedFix.trim() }
+      : {}),
+  };
 }
 
 /** Match a `→` or `->` suggestion line. */
@@ -57,6 +190,30 @@ export function parseChimeraReviewReport(
 ): ParsedReviewReport {
   if (!reportText || reportText.trim().length === 0) {
     return { findings: [], unparseableCount: 0 };
+  }
+
+  // ── P0-1: structured JSON contract takes precedence when present ──
+  // The reviewer appends one fenced JSON block; when it parses, its
+  // findings are authoritative and the markdown is display-only. The
+  // legacy markdown heuristics below remain the fallback for reports
+  // that predate the contract.
+  const structured = extractStructuredFindingsBlock(reportText);
+  if (structured) {
+    // Hoist the report id ONCE so every structured finding stamps the same
+    // originReport.reportId — mirrors the markdown path below, which allocates
+    // a single id for the whole parse rather than one per finding.
+    const reportId = context.reportId ?? randomUUID();
+    const findings = structured.findings.map(
+      (item): ChimeraFinding => buildFindingFromStructuredItem(item, { ...context, reportId }),
+    );
+    return {
+      findings,
+      unparseableCount: 0,
+      ...(structured.durationSeconds !== undefined
+        ? { durationSeconds: structured.durationSeconds }
+        : {}),
+      structured: true,
+    };
   }
 
   const findings: ChimeraFinding[] = [];
@@ -255,4 +412,46 @@ function normalizeFindingSource(reviewType: string | undefined): FindingSource {
     default:
       return 'chimera';
   }
+}
+
+/**
+ * Build a ChimeraFinding from a structured JSON contract item (P0-1).
+ * Uses the same fingerprint/context stamping as the markdown path so a
+ * finding that later appears in a markdown-only report dedupes to the
+ * same logical record.
+ */
+function buildFindingFromStructuredItem(
+  item: StructuredFindingItem,
+  context: {
+    sessionId?: string | undefined;
+    agentId?: string | undefined;
+    reviewType?: string | undefined;
+    reviewerModel?: string | undefined;
+    reportId?: string | undefined;
+  },
+): ChimeraFinding {
+  const file = item.file;
+  const line = item.line;
+  const title = item.title;
+  const description = item.description ?? title;
+  return {
+    id: randomUUID(),
+    fingerprint: computeFindingFingerprint(file ?? '', line ?? null, title),
+    severity: item.severity as FindingSeverity,
+    source: normalizeFindingSource(context.reviewType),
+    ...(file ? { location: { file, ...(line !== undefined ? { line } : {}) } } : {}),
+    ...(item.category ? { category: item.category as FindingCategory } : {}),
+    ...(item.confidence ? { confidence: item.confidence as FindingConfidence } : {}),
+    title,
+    description,
+    ...(item.suggestedFix ? { suggestedFix: item.suggestedFix } : {}),
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    originReport: {
+      reportId: context.reportId ?? randomUUID(),
+      sessionId: context.sessionId ?? '',
+      agentId: context.agentId ?? '',
+      reviewerModel: context.reviewerModel ?? '',
+    },
+  };
 }

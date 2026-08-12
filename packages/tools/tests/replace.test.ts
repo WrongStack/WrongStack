@@ -58,6 +58,67 @@ describe('replaceTool', () => {
     expect(content).toBe('hello world'); // unchanged
   });
 
+  it('expands $1..$9 capture groups in the replacement (String.replace semantics)', async () => {
+    const filePath = path.join(tmpDir, 'swap.txt');
+    await fs.writeFile(filePath, 'foo-bar baz-qux', 'utf8');
+    const result = await replaceTool.execute(
+      { pattern: '(\\w+)-(\\w+)', replacement: '$2-$1', files: filePath, dry_run: false },
+      makeCtx(),
+    );
+    expect(result.total_replacements).toBe(2);
+    expect(await fs.readFile(filePath, 'utf8')).toBe('bar-foo qux-baz');
+  });
+
+  it('expands $& (whole match) and $$ (literal dollar)', async () => {
+    const filePath = path.join(tmpDir, 'amp.txt');
+    await fs.writeFile(filePath, 'abc', 'utf8');
+    await replaceTool.execute(
+      { pattern: 'b', replacement: '[$&]$$', files: filePath, dry_run: false },
+      makeCtx(),
+    );
+    expect(await fs.readFile(filePath, 'utf8')).toBe('a[b]$c');
+  });
+
+  it('keeps $N literal when the pattern has no such group', async () => {
+    const filePath = path.join(tmpDir, 'lit.txt');
+    await fs.writeFile(filePath, 'x', 'utf8');
+    await replaceTool.execute(
+      { pattern: 'x', replacement: '$5y', files: filePath, dry_run: false },
+      makeCtx(),
+    );
+    expect(await fs.readFile(filePath, 'utf8')).toBe('$5y');
+  });
+
+  it('unmatched optional groups expand to the empty string', async () => {
+    const filePath = path.join(tmpDir, 'opt.txt');
+    await fs.writeFile(filePath, 'ab', 'utf8');
+    await replaceTool.execute(
+      { pattern: 'a(x)?(b)', replacement: '<$1|$2>', files: filePath, dry_run: false },
+      makeCtx(),
+    );
+    expect(await fs.readFile(filePath, 'utf8')).toBe('<|b>');
+  });
+
+  it('honors the extra glob filter on a comma-separated files list', async () => {
+    const keep = path.join(tmpDir, 'keep.ts');
+    const skip = path.join(tmpDir, 'skip.md');
+    await fs.writeFile(keep, 'TARGET', 'utf8');
+    await fs.writeFile(skip, 'TARGET', 'utf8');
+    const result = await replaceTool.execute(
+      {
+        pattern: 'TARGET',
+        replacement: 'DONE',
+        files: `${keep},${skip}`,
+        glob: '*.ts',
+        dry_run: false,
+      },
+      makeCtx(),
+    );
+    expect(result.files_modified).toBe(1);
+    expect(await fs.readFile(keep, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(skip, 'utf8')).toBe('TARGET');
+  });
+
   it('actually replaces when not dry_run', async () => {
     const filePath = path.join(tmpDir, 'test.txt');
     await fs.writeFile(filePath, 'hello world', 'utf8');

@@ -148,6 +148,20 @@ describe('edit tool', () => {
     expect(out.replacements).toBe(0);
   });
 
+  it('old===new with text ABSENT from the file throws no-match, not a benign no-op', async () => {
+    // Wrong-target guard: a redundant edit (text already present) and a
+    // mistargeted edit (text nowhere in the file) must be distinguishable.
+    await fs.writeFile(path.join(sb.dir, 'a.txt'), 'actual content');
+    await readTool.execute({ path: 'a.txt' }, sb.ctx, { signal: newSignal() });
+    await expect(
+      editTool.execute(
+        { path: 'a.txt', old_string: 'phantom text', new_string: 'phantom text' },
+        sb.ctx,
+        { signal: newSignal() },
+      ),
+    ).rejects.toThrow(/no match/);
+  });
+
   it('empty old_string is rejected', async () => {
     await fs.writeFile(path.join(sb.dir, 'a.txt'), 'x');
     await readTool.execute({ path: 'a.txt' }, sb.ctx, { signal: newSignal() });

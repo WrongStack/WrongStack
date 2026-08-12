@@ -48,7 +48,7 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
   },
   'read': {
     longDescription:
-      'Read the contents of a file with line numbers. This is the primary way to inspect source code, configuration, or any text file before making changes. Lines are returned 1-indexed with a ` N| ` prefix for easy reference in edits.',
+      'Read the contents of a file with line numbers. This is the primary way to inspect source code, configuration, or any text file before making changes. Lines are returned 1-indexed in the form `N→content` (line number, then a `→` separator, then the raw line); the prefix is display-only and must be stripped before reusing the text in edits.',
     params: [
       {
         name: 'path',
@@ -64,7 +64,7 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
       {
         name: 'limit',
         type: 'integer',
-        description: 'Maximum number of lines to return (default is 2000).',
+        description: 'Maximum number of lines to return (default 2000, clamped to 5000 max).',
       },
       {
         name: 'mode',
@@ -103,7 +103,8 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
     notes: [
       'Use `write` primarily for new files or when you want to replace the entire content.',
       'For any existing file, strongly prefer `edit` (it requires a prior `read` in the same session and is more precise).',
-      'You MUST have called `read` on the file earlier in the conversation before using `write` on an existing path (the system enforces this for safety).',
+      'When overwriting an existing file, the tool reads the current content itself to compute the diff — but still `read` the file first before large rewrites so you know what you are replacing.',
+      'When overwriting an existing file, the content is normalized to the dominant line-ending style (CRLF/LF) of the existing file; new files are written verbatim.',
     ],
   },
   'edit': {
@@ -447,11 +448,11 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
   },
   'kanban': {
     longDescription:
-      'Manage project-scoped multi-kanban boards stored under .wrongstack/kanbans. Supports board/task/column CRUD, ready-task queues, dependency chains, split/merge, assignment metadata, provider/model/fallback routing hints, goal metrics, success checks, notes, links, and run status updates.',
+      'Manage project-scoped multi-kanban boards stored under .wrongstack/kanbans. Supports board/task CRUD, ready-task queues, dependency chains, split/merge, assignment metadata, provider/model/fallback routing hints, goal metrics, success checks, notes, links, and run status updates.',
     params: [
       {
         name: 'action',
-        type: '\'list_boards\' | \'get_board\' | \'create_board\' | \'duplicate_board\' | \'update_board\' | \'delete_board\' | \'generate_board\' | \'export_markdown\' | \'export_task_graph\' | \'sync_task_graph\' | \'search_tasks\' | \'ready_tasks\' | \'snapshot\' | \'add_column\' | \'update_column\' | \'delete_column\' | \'add_task\' | \'split_task\' | \'merge_tasks\' | \'copy_task\' | \'transfer_task\' | \'get_task\' | \'update_task\' | \'move_task\' | \'delete_task\' | \'set_chain\' | \'get_chain\' | \'claim_task\' | \'release_task\' | \'assign_task\' | \'mark_assignment\' | \'heartbeat_assignment\' | \'recover_stale\' | \'events\' | \'queue_health\' | \'add_dependency\' | \'add_goal_metric\' | \'update_goal_metric\' | \'add_check\' | \'update_check\' | \'add_note\' | \'add_link\'',
+        type: '\'list_boards\' | \'get_board\' | \'create_board\' | \'duplicate_board\' | \'update_board\' | \'delete_board\' | \'generate_board\' | \'export_markdown\' | \'export_task_graph\' | \'sync_task_graph\' | \'search_tasks\' | \'ready_tasks\' | \'snapshot\' | \'add_task\' | \'split_task\' | \'merge_tasks\' | \'copy_task\' | \'transfer_task\' | \'get_task\' | \'update_task\' | \'move_task\' | \'delete_task\' | \'set_chain\' | \'get_chain\' | \'claim_task\' | \'release_task\' | \'assign_task\' | \'mark_assignment\' | \'heartbeat_assignment\' | \'recover_stale\' | \'events\' | \'queue_health\' | \'add_dependency\' | \'add_goal_metric\' | \'update_goal_metric\' | \'add_check\' | \'update_check\' | \'add_note\' | \'add_link\'',
         required: true,
       },
       {

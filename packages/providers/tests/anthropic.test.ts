@@ -135,6 +135,86 @@ describe('AnthropicProvider', () => {
     expect(system.every((b) => b.cache_control?.type === 'ephemeral')).toBe(true);
   });
 
+  it('applies the cache ttl to the deepest message marker, not the system tail', async () => {
+    let body: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      body = JSON.parse(init.body ?? '{}');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+    await p.complete(
+      {
+        model: 'm',
+        maxTokens: 1,
+        system: [
+          { type: 'text', text: 'identity', cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: 'environment' },
+        ],
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: 't1',
+                content: 'result body',
+                cache_control: { type: 'ephemeral' },
+              },
+            ],
+          },
+        ],
+        cache: { ttl: '1h' },
+      },
+      { signal: new AbortController().signal },
+    );
+    // The conversation boundary (tool_result marker) carries the ttl…
+    const messages = body?.['messages'] as Array<{ content: Array<Record<string, unknown>> }>;
+    expect(messages[0]?.content[0]?.['cache_control']).toEqual({ type: 'ephemeral', ttl: '1h' });
+    // …and the system blocks keep their own markers untouched (no forced tail marker).
+    const wireSystem = body?.['system'] as Array<Record<string, unknown>>;
+    expect(wireSystem[0]?.['cache_control']).toEqual({ type: 'ephemeral' });
+    expect(wireSystem[1]?.['cache_control']).toBeUndefined();
+  });
+
+  it('falls back to the last system block for ttl when no message marker exists', async () => {
+    let body: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      body = JSON.parse(init.body ?? '{}');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+    await p.complete(
+      {
+        model: 'm',
+        maxTokens: 1,
+        system: [{ type: 'text', text: 'marker-less embedder prompt' }],
+        messages: [{ role: 'user', content: 'hi' }],
+        cache: { ttl: '5m' },
+      },
+      { signal: new AbortController().signal },
+    );
+    const wireSystem = body?.['system'] as Array<Record<string, unknown>>;
+    expect(wireSystem[0]?.['cache_control']).toEqual({ type: 'ephemeral', ttl: '5m' });
+  });
+
   it('uses Bearer auth for non-Anthropic baseUrls (kimi-for-coding etc.)', async () => {
     const spy = vi.fn(async (_url: unknown, init?: { headers?: Record<string, string> }) => ({
       ok: true,

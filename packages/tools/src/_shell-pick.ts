@@ -102,11 +102,10 @@ export function pickShell(
  *     `-replace`, `-split`, `-join`, `-is`, `-as`, `-f`).
  *   - `.ps1` extension mentioned in the command.
  *   - `&` call operator followed by a `$`-variable (`& $cmd ...`).
- *   - Common PowerShell aliases that don't exist in cmd.exe: `gci`, `gi`,
- *     `gp`, `sl`, `cd` is ambiguous (cmd.exe has `cd` too — skip), `ls`
- *     ambiguous (cmd.exe does NOT have `ls`), `cat`, `cp`, `mv`, `rm`,
- *     `echo` (echo is in cmd too), `gcm`, `gci`, `gps`, `ps`, `select`,
- *     `where`, `?`, `%`.
+ *   - PowerShell-only aliases: `gci`, `gi`, `gp`, `gcm`, `gps`. Unix-style
+ *     names (`ls`, `cat`, `cp`, `mv`, `rm`, `sl`) are deliberately NOT
+ *     treated as PowerShell tells — they are Git-Bash/MSYS-normal on
+ *     Windows and their PS alias semantics differ (`rm -rf` fails in PS).
  *   - `#requires` directive at start of script.
  *   - `param()` block at start of script.
  *
@@ -166,7 +165,13 @@ export function looksLikePowerShell(command: string): boolean {
   //      something else).
   //   - `ps` (single-letter collision with too many tokens; gcm/gps cover
   //      the common Get-Process / Get-Command cases more precisely).
-  if (/(?:^|[\s;&|])(gci|gi|gp|gcm|gps|sl|rm|cat|cp|mv)\b/i.test(trimmed)) {
+  //   - `rm`/`cat`/`cp`/`mv`/`sl` (formerly matched): these are everyday
+  //      Git-Bash/MSYS/GnuWin commands on Windows dev machines. Routing
+  //      `rm -rf node_modules` into PowerShell breaks it (PS `rm` is
+  //      Remove-Item, which rejects `-rf`), so they are NOT PowerShell
+  //      tells. Only aliases that exist nowhere else (gci, gi, gp, gcm,
+  //      gps) remain.
+  if (/(?:^|[\s;&|])(gci|gi|gp|gcm|gps)\b/i.test(trimmed)) {
     return true;
   }
 

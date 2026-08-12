@@ -253,7 +253,17 @@ export class DefaultPluginAPI implements PluginAPI {
       }
     };
     this.tools = {
-      register: (t: Tool) => tr.register(t, owner),
+      register: (t: Tool) => {
+        tr.register(t, owner);
+        // When a host restricts the direct provider surface (token-saving
+        // tiers, `features.tokenSavingMode !== 'off'`), plugin-registered
+        // tools must still reach the LLM — otherwise plugins load and their
+        // hooks fire, but the model can never invoke their tools because
+        // `listForProvider()` only returns the restricted name set.
+        // `exposeToProvider` is a no-op when the surface is unrestricted
+        // (tier "off"), so this line costs nothing on full-surface hosts.
+        tr.exposeToProvider(t.name);
+      },
       unregister: (name: string) => {
         assertCanMutateTool(name, 'unregister');
         return tr.unregister(name);

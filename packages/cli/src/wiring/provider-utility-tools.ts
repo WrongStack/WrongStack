@@ -124,6 +124,12 @@ export function registerProviderUtilityTools(input: ProviderUtilityToolsInput): 
     fallbackProfileManager: input.fallbackProfileManager,
     defaultProvider: config.provider,
     defaultModel: config.model,
+    // Same live router the council gets below. Without it the `role` input
+    // was inert (the orchestrator's pickForTask path no-ops), and without the
+    // tracker no llm-tool call ever recorded provider health, so blocked
+    // entries were neither skipped nor reported for this tool's traffic.
+    modelRouter: createLiveModelRouter(input.getConfig),
+    statusTracker: input.statusTracker,
     wrapProviderCall: input.wrapProviderCall,
   });
   registerOrOverride(input.toolRegistry, 'llm', llmTool);

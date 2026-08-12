@@ -107,6 +107,49 @@ describe('mcp_control restart + enable failures', () => {
     const reg3 = fakeRegistry({ start: vi.fn().mockRejectedValue(new Error('spawn fail')), describe: vi.fn().mockReturnValue([]) });
     expect(await run(make(reg3), { action: 'enable', server: 'github' })).toContain('Failed to start');
   });
+
+  it('enable persists enabled:true only after the server actually started', async () => {
+    // Success path writes the config…
+    const okReg = fakeRegistry({ describe: vi.fn().mockReturnValue([]) });
+    await run(make(okReg), { action: 'enable', server: 'github' });
+    const written = JSON.parse(await fs.readFile(configPath, 'utf8')) as {
+      mcpServers?: Record<string, { enabled?: boolean }>;
+    };
+    expect(written.mcpServers?.['github']?.enabled).toBe(true);
+
+    // …while a failed start leaves the config untouched. Persist-before-start
+    // flipped enabled:true for a server that never came up, so every later
+    // boot retried it.
+    await fs.rm(configPath, { force: true });
+    const failReg = fakeRegistry({
+      start: vi.fn().mockRejectedValue(new Error('spawn fail')),
+      describe: vi.fn().mockReturnValue([]),
+    });
+    const out = await run(make(failReg), { action: 'enable', server: 'github' });
+    expect(out).toContain('Config was left unchanged');
+    await expect(fs.readFile(configPath, 'utf8')).rejects.toThrow();
+  });
+});
+
+describe('mcp_control plain-text output', () => {
+  it('emits no ANSI escape sequences in any rendered output', async () => {
+    // Tool output is model-facing text rendered verbatim in transcripts and
+    // non-TTY surfaces — hardcoded escapes turned into garbage there.
+    const reg = fakeRegistry({ describe: vi.fn().mockReturnValue([
+      { name: 'github', state: 'connected', toolCount: 2, enabled: true },
+      { name: 'other', state: 'failed', toolCount: 0, enabled: true },
+    ]) });
+    const tool = make(reg, { github: { transport: 'stdio', description: 'GitHub API' } as never, other: { transport: 'stdio', enabled: false } as never });
+    for (const input of [
+      { action: 'list' },
+      { action: 'search', query: 'git' },
+      { action: 'enable', server: 'github' },
+      { action: 'restart', server: 'github' },
+    ]) {
+      const raw = (await tool.execute(input as never, undefined as never, sig)) as string;
+      expect(raw).not.toMatch(/\x1b\[/);
+    }
+  });
 });
 
 describe('mcp_control list/search/unknown rendering', () => {

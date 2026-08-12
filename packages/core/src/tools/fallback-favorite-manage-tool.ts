@@ -50,7 +50,7 @@ export function createFavoriteManageTool(
       'that can be added to fallback chains and profiles. The LLM uses this tool ' +
       'to curate which models are available for fallback and role assignment.',
     usageHint: 'Start with "list" to see current favorites. Use "add <provider/model>" to add. Use "remove <index|ref>" to remove.',
-    category: 'Config',
+    category: 'config',
     inputSchema: FAVORITE_MANAGE_SCHEMA,
     permission: 'auto',
     mutating: true,

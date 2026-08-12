@@ -32,10 +32,11 @@ import type { Response } from '../types/provider.js';
  * ## What a hit requires
  *
  * The lookup key is `hashRequest`, which covers everything the provider is
- * actually sent — including `system`. The agent loop appends volatile blocks
- * to the system prompt on every request (the continuity ledger, the live
- * next-steps gate, memory evidence; see `agent-response.ts`), and those blocks
- * describe the state of *this* run. A re-run whose ledger or retrieved memory
+ * actually sent — including `system`. The agent loop carries a live-context
+ * tail on every request (the continuity ledger, the live next-steps gate,
+ * memory evidence, epoch-volatile prompt blocks — appended after the last
+ * message; see `agent-response.ts`), and those blocks describe the state of
+ * *this* run. A re-run whose ledger or retrieved memory
  * differs therefore produces a different request, and correctly misses: the
  * recorded response answered a different prompt.
  *

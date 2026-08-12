@@ -1,14 +1,16 @@
 import { spawn } from 'node:child_process';
 import type { Tool } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
-import { detectPackageManager, safeResolve } from './_util.js';
+import {
+  COMMAND_OUTPUT_MAX_BYTES,
+  detectPackageManager,
+  normalizeCommandOutput,
+  safeResolve,
+} from './_util.js';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
 
 interface OutdatedInput {
   cwd?: string | undefined;
-  format?: 'list' | 'table' | undefined;
-  include_deprecated?: boolean | undefined;
-  check?: string | string[] | undefined;
 }
 
 interface OutdatedPackage {
@@ -67,24 +69,11 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
     type: 'object',
     properties: {
       cwd: { type: 'string', description: 'Working directory (default: cwd)' },
-      format: {
-        type: 'string',
-        enum: ['list', 'table'],
-        description: 'Output format (default: list)',
-      },
-      include_deprecated: {
-        type: 'boolean',
-        description: 'Include deprecated packages (default: false)',
-      },
-      check: {
-        type: 'string',
-        description: 'Specific package(s) to check (comma-separated)',
-      },
     },
   },
   async execute(input, ctx, opts) {
     const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
-    const manager = await detectPackageManager(cwd);
+    const manager = await detectPackageManager(cwd, ctx.projectRoot);
 
     // When no JS package manager was detected (npm is the fallback), try the
     // language bridge for non-JS ecosystems. The bridge is checked AFTER
@@ -145,9 +134,9 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
       }
     }
 
+    // JSON is the only parse path; npm/pnpm have no `--table` or
+    // `--include deprecated` flags, so no formatting options are forwarded.
     const args: string[] = ['outdated', '--json'];
-    if (input.format === 'table') args.push('--table');
-    if (input.include_deprecated) args.push('--include', 'deprecated');
 
     return runOutdated(manager, args, cwd, opts.signal);
   },
@@ -213,28 +202,43 @@ function parseOutdatedOutput(json: string, exitCode: number): OutdatedOutput {
     };
   }
 
+  const truncated = json.length >= 100_000 || Buffer.byteLength(json, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
+  let parsedOk = false;
+
   try {
-    const data = JSON.parse(json);
+    const data = JSON.parse(json) as Record<string, unknown>;
+    parsedOk = true;
     for (const name of Object.keys(data)) {
-      const info = data[name];
+      const info = (data[name] ?? {}) as Record<string, unknown>;
+      const str = (v: unknown): string | undefined => (typeof v === 'string' ? v : undefined);
       packages.push({
         name,
-        current: info.current ?? 'unknown',
-        latest: info.latest ?? 'unknown',
-        wanted: info.wanted ?? 'unknown',
-        type: info.type ?? 'unknown',
-        location: info.location ?? name,
+        current: str(info['current']) ?? 'unknown',
+        latest: str(info['latest']) ?? 'unknown',
+        wanted: str(info['wanted']) ?? 'unknown',
+        // npm calls it `type`; pnpm calls it `dependencyType`.
+        type: str(info['type']) ?? str(info['dependencyType']) ?? 'unknown',
+        location: str(info['location']) ?? name,
       });
     }
   } catch {
     // JSON parse failed, return raw output
   }
 
+  // Both npm and pnpm exit 1 when outdated packages exist — that is the
+  // expected "found something" signal, not a failure. Normalize to 0 so the
+  // caller doesn't treat a successful check as an error.
+  const outdatedFound = parsedOk && exitCode === 1;
+  let output = normalizeCommandOutput(json);
+  if (outdatedFound) {
+    output = `${output}\n\nNote: exit code 1 from \`outdated\` means outdated packages were found (expected); treated as success.`;
+  }
+
   return {
-    exit_code: exitCode,
+    exit_code: outdatedFound ? 0 : exitCode,
     packages,
     total: packages.length,
-    output: json,
-    truncated: json.length >= 100_000,
+    output,
+    truncated,
   };
 }

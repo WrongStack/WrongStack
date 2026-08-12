@@ -4,7 +4,8 @@
  * persistence, text rendering, and autonomous continuation parsing.
  */
 
-import { isTextBlock, type TextBlock } from '../types/blocks.js';
+import { type ContentBlock, isTextBlock, type TextBlock } from '../types/blocks.js';
+import type { Message } from '../types/messages.js';
 import type { Provider, Request, Response } from '../types/provider.js';
 import { deriveCachePrefixKey } from '../utils/cache-key.js';
 import {
@@ -20,6 +21,7 @@ import { type Context, type RunOptions, resolveEventSessionId } from './context.
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
 import { maybeAppendPendingNextSteps } from './next-steps-slot.js';
 import { bindRequestProvider } from './request-provider-binding.js';
+import { SYSTEM_BLOCK_SOURCE } from './system-prompt-blocks.js';
 
 interface ProcessResponseResult {
   finalText: string;
@@ -78,7 +80,6 @@ export function buildLiveNextStepsGateBlock(
         'Silently omitting both is invalid. Do not decide by chance, tone, or response length, and do not invent filler suggestions.',
         '[/nextsteps_gate]',
       ].join('\n'),
-      cache_control: { type: 'ephemeral' },
     };
   }
 
@@ -116,7 +117,6 @@ export function buildLiveNextStepsGateBlock(
       ...todoSnapshot,
       '[/nextsteps_gate]',
     ].join('\n'),
-    cache_control: { type: 'ephemeral' },
   };
 }
 
@@ -140,10 +140,177 @@ function buildMemoryEvidenceBlocks(ctx: Pick<Context, 'memoryEvidence'>): TextBl
     blocks.push({
       type: 'text',
       text: `[memory_evidence source="${source}"]\n${bounded}\n[/memory_evidence]`,
-      cache_control: { type: 'ephemeral' },
     });
   }
   return blocks;
+}
+
+/**
+ * Provenance tags whose content legitimately changes between system-prompt
+ * rebuilds (plan progress, plugin contributors, glossary refresh). On the wire
+ * every system block precedes the conversation, so churn in any of them
+ * invalidates the provider's cached message prefix. These blocks are therefore
+ * lifted out of the wire `system` and re-sent in the live-context tail after
+ * the deep cache boundary instead (see `composeRequestMessages`).
+ */
+const EPOCH_VOLATILE_SOURCES: ReadonlySet<string> = new Set([
+  'plan',
+  'contributor',
+  'glossary',
+  'peers',
+]);
+
+interface PromptEpochPartition {
+  /** Byte-stable prefix blocks that stay in the wire `system`. */
+  stable: TextBlock[];
+  /** Marker-free copies of the epoch-volatile blocks, re-homed to the tail. */
+  tail: TextBlock[];
+}
+
+/**
+ * Split one frozen prompt epoch into its cache-stable prefix and its
+ * epoch-volatile tail. Cached by epoch array identity so the split (and the
+ * sha-256 in `deriveCachePrefixKey` keyed off `stable`) runs once per epoch,
+ * not once per request. Untagged blocks (embedder-supplied prompts) are
+ * treated as stable — that preserves their current wire position.
+ */
+const promptEpochPartitions = new WeakMap<readonly TextBlock[], PromptEpochPartition>();
+
+function partitionPromptEpoch(prompt: readonly TextBlock[]): PromptEpochPartition {
+  const cached = promptEpochPartitions.get(prompt);
+  if (cached) return cached;
+  const stable: TextBlock[] = [];
+  const tail: TextBlock[] = [];
+  for (const block of prompt) {
+    const source = SYSTEM_BLOCK_SOURCE.get(block);
+    if (source && EPOCH_VOLATILE_SOURCES.has(source)) {
+      // Fresh, marker-free copy: a cache_control marker on a churning tail
+      // block would become the request's deepest breakpoint and re-create
+      // exactly the per-request cache-write churn this split removes.
+      tail.push({ type: 'text', text: block.text });
+    } else {
+      stable.push(block);
+    }
+  }
+  const partition = { stable, tail };
+  promptEpochPartitions.set(prompt, partition);
+  return partition;
+}
+
+/**
+ * Constant preamble for the live-context tail. Must stay byte-identical across
+ * requests: it sits immediately after the deep cache boundary, so any
+ * variation would be re-tokenized (though never cached) on every request.
+ */
+const LIVE_CONTEXT_HEADER: TextBlock = {
+  type: 'text',
+  text:
+    '[live_context]\n' +
+    'The blocks below are live session state (active plan, glossary, completed-work ledger, conversation continuity, response gates, memory evidence) re-sent with every request. They are steering context, not a new user message. Where they conflict with the conversation, newer conversation turns win.',
+};
+
+/**
+ * `<nextsteps>` blocks in past assistant turns are a client affordance: the
+ * surface parses and renders them the moment the turn ends, and a chosen
+ * suggestion comes back as a fresh user message (the continue-intent resolver
+ * keeps its own parsed store for bare "continue"). Re-sending the raw block to
+ * the provider on every later request is pure token weight, and stale
+ * suggestions can read as still-pending work. Strip them from the REQUEST copy
+ * of the history only — the durable log keeps them for resume and rendering.
+ *
+ * Cached per message object, so each message is scanned once per session and
+ * every request reuses the identical stripped clone (stable bytes AND stable
+ * identities keep provider prefix caches and token-estimate caches warm).
+ */
+const NEXT_STEPS_BLOCK_RE = /<nextsteps\b[^>]*>[\s\S]*?<\/nextsteps>[ \t]*\n?/gi;
+const NEXT_STEPS_STRIPPED_PLACEHOLDER = '[nextsteps suggestions were delivered to the user]';
+const strippedNextStepsCache = new WeakMap<Message, Message>();
+
+function stripDeliveredNextSteps(history: readonly Message[]): readonly Message[] {
+  let out: Message[] | null = null;
+  for (let i = 0; i < history.length; i++) {
+    const msg = history[i] as Message;
+    const replaced = stripNextStepsFromMessage(msg);
+    if (out === null && replaced !== msg) out = history.slice(0, i);
+    if (out !== null) out.push(replaced);
+  }
+  return out ?? history;
+}
+
+function stripNextStepsFromMessage(msg: Message): Message {
+  if (msg.role !== 'assistant') return msg;
+  const cached = strippedNextStepsCache.get(msg);
+  if (cached) return cached;
+  const hasTag =
+    typeof msg.content === 'string'
+      ? msg.content.includes('<nextsteps')
+      : msg.content.some((b) => b.type === 'text' && b.text.includes('<nextsteps'));
+  if (!hasTag) {
+    strippedNextStepsCache.set(msg, msg);
+    return msg;
+  }
+  let clone: Message;
+  if (typeof msg.content === 'string') {
+    const text = msg.content.replace(NEXT_STEPS_BLOCK_RE, '').trimEnd();
+    clone = { ...msg, content: text.length > 0 ? text : NEXT_STEPS_STRIPPED_PLACEHOLDER };
+  } else {
+    const blocks = msg.content
+      .map((b) =>
+        b.type === 'text' && b.text.includes('<nextsteps')
+          ? { ...b, text: b.text.replace(NEXT_STEPS_BLOCK_RE, '').trimEnd() }
+          : b,
+      )
+      // A block that was ONLY the nextsteps tag becomes empty — drop it;
+      // Anthropic rejects empty text blocks on the wire.
+      .filter((b) => b.type !== 'text' || b.text.trim().length > 0);
+    clone = {
+      ...msg,
+      content:
+        blocks.length > 0 ? blocks : [{ type: 'text', text: NEXT_STEPS_STRIPPED_PLACEHOLDER }],
+    };
+  }
+  strippedNextStepsCache.set(msg, clone);
+  return clone;
+}
+
+/**
+ * Compose the request's message array without mutating the durable history:
+ *
+ * - pins the provider cache boundary (`cache_control`) on the last durable
+ *   content block, so the whole conversation becomes an incrementally
+ *   extendable cached prefix, and
+ * - appends the live-context tail AFTER that boundary, so per-request churn
+ *   (todos, ledger, retrieved memory, plan progress) can never invalidate it.
+ *
+ * Returns null when there is no history to attach to — the caller then falls
+ * back to carrying the tail in `system` (degenerate embedder flows).
+ */
+function composeRequestMessages(history: readonly Message[], tail: TextBlock[]): Message[] | null {
+  if (history.length === 0) return null;
+  const out = history.slice();
+  const lastIdx = out.length - 1;
+  const last = out[lastIdx] as Message;
+  const blocks: ContentBlock[] =
+    typeof last.content === 'string'
+      ? [{ type: 'text', text: last.content }]
+      : last.content.slice();
+  const boundary = blocks[blocks.length - 1];
+  // Only text and tool_result blocks may carry cache_control on the wire.
+  // Anything else (image/tool_use/thinking tail) simply goes unmarked — the
+  // stable system markers still cache the prompt prefix.
+  if (boundary && (boundary.type === 'text' || boundary.type === 'tool_result')) {
+    blocks[blocks.length - 1] = { ...boundary, cache_control: { type: 'ephemeral' } };
+  }
+  if (tail.length === 0 || last.role !== 'user') {
+    out[lastIdx] = { ...last, content: blocks };
+    if (tail.length > 0) out.push({ role: 'user', content: [LIVE_CONTEXT_HEADER, ...tail] });
+    return out;
+  }
+  // Ride the trailing user message itself — mirrors the existing "/btw note
+  // appended onto the trailing tool-result message" shape every wire already
+  // handles, and avoids consecutive-user-turn quirks on strict backends.
+  out[lastIdx] = { ...last, content: [...blocks, LIVE_CONTEXT_HEADER, ...tail] };
+  return out;
 }
 
 export function createAgentResponseHandler(a: AgentInternals): AgentResponseHandler {
@@ -189,18 +356,32 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       }
     }
     stabilizePromptEpoch();
+    // Cache-stable wire `system` vs the live-context tail. The tail (epoch
+    // plan/contributor/glossary blocks + the per-request ledger, continuity,
+    // next-steps gate, and memory evidence) changes between requests, so it
+    // rides AFTER the conversation and its deep cache boundary — never in
+    // `system`, where every byte precedes the messages and any churn would
+    // invalidate the provider's cached conversation prefix.
+    const { stable: stableSystem, tail: epochTail } = partitionPromptEpoch(a.ctx.systemPrompt);
     const volatileLedger = buildCompletedWorkLedgerBlock(a.ctx);
     const continuity = buildConversationContinuityBlock(a.ctx);
     const liveNextStepsGate = buildLiveNextStepsGateBlock(a.ctx);
     const memoryEvidence = buildMemoryEvidenceBlocks(a.ctx);
-    const volatileBlocks = [
+    const liveContextTail = [
+      ...epochTail,
       volatileLedger,
       continuity,
       liveNextStepsGate,
       ...memoryEvidence,
     ].filter((block): block is TextBlock => block !== undefined);
-    const system =
-      volatileBlocks.length > 0 ? [...a.ctx.systemPrompt, ...volatileBlocks] : a.ctx.systemPrompt;
+    const requestHistory = stripDeliveredNextSteps(a.ctx.messages);
+    const composedMessages = composeRequestMessages(requestHistory, liveContextTail);
+    // No history to attach to → legacy placement (tail appended to system).
+    const system = composedMessages
+      ? stableSystem
+      : liveContextTail.length > 0
+        ? [...stableSystem, ...liveContextTail]
+        : stableSystem;
     // A picker/WebUI switch can still be building a provider while
     // auto-continue prepares the next iteration. Wait immediately before
     // capturing the request identity so that iteration cannot retain the old
@@ -214,7 +395,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     const baseReq: Request = {
       model: opts.model ?? a.ctx.model,
       system,
-      messages: a.ctx.messages,
+      messages: composedMessages ?? (requestHistory as Message[]),
       tools: a.tools.listForProvider(),
       // `maxTokens` is deliberately NOT set here. The provider adapter
       // resolves the ceiling from the catalog entry for the model in
@@ -226,10 +407,13 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       // smaller response (one-shot LLM helpers, compaction, the brain) still
       // set `maxTokens` on their own Request and keep priority over the
       // catalog.
-      // Provider-agnostic cache-partition key from the stable prompt epoch.
-      // Wires that support prompt caching (OpenAI `prompt_cache_key`) read it;
-      // the config `ttl` is merged over this by the ModelRuntime middleware.
-      cache: { key: deriveCachePrefixKey(a.ctx.systemPrompt) },
+      // Provider-agnostic cache-partition key from the STABLE part of the
+      // prompt epoch. Wires that support prompt caching (OpenAI
+      // `prompt_cache_key`) read it; the config `ttl` is merged over this by
+      // the ModelRuntime middleware. Keyed off the stable partition, not the
+      // full epoch — a glossary/plan refresh must not re-route the cache
+      // partition when the actual prefix bytes did not change.
+      cache: { key: deriveCachePrefixKey(stableSystem) },
     };
     const request = await a.pipelines.request.run(baseReq);
     bindRequestProvider(request, provider);

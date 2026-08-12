@@ -54,6 +54,22 @@ async function run(tool: Tool<any, any>, input: Record<string, unknown>) {
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 describe('createFallbackManageTools', () => {
+  it('uses the lowercase "config" category across the whole family', () => {
+    // listByCategory() is case-sensitive; the family used 'Config' while
+    // sibling tools use lowercase ('mcp', 'meta'), so these 8 landed in a
+    // category bucket of their own.
+    const tools = createFallbackManageTools(makeOpts());
+    for (const tool of tools) {
+      expect(tool.category, tool.name).toBe('config');
+    }
+  });
+
+  it('requires confirmation for provider_key_set (writes credentials to disk)', () => {
+    const tools = createFallbackManageTools(makeOpts());
+    const tool = getTool(tools, PROVIDER_KEY_SET_TOOL_NAME);
+    expect(tool.permission).toBe('confirm');
+  });
+
   it('returns all 8 tools', () => {
     const tools = createFallbackManageTools(makeOpts());
     expect(tools.length).toBe(8);
@@ -550,6 +566,20 @@ describe('provider_key_set', () => {
     const result = await run(tool, { provider: 'test-provider', key: 'sk-direct' });
     expect(result.status).toBe('ok');
   });
+
+  it('deletes the legacy apiKey property instead of setting it to undefined', async () => {
+    // `= undefined` kept the property alive in the in-memory configStore
+    // mirror even though JSON serialization dropped it on disk.
+    const opts = makeOpts();
+    const tool = getTool(createFallbackManageTools(opts), PROVIDER_KEY_SET_TOOL_NAME);
+    await run(tool, { provider: 'test-provider', key: 'sk-direct' });
+    const cfg = opts.getConfig() as unknown as {
+      providers: Record<string, Record<string, unknown>>;
+    };
+    const entry = cfg.providers['test-provider']!;
+    expect('apiKey' in entry).toBe(false);
+    expect(Array.isArray(entry.apiKeys)).toBe(true);
+  });
 });
 
 // ── Leader Model Set ─────────────────────────────────────────────────────────
@@ -610,5 +640,53 @@ describe('leader_model_set', () => {
     const tool = getTool(createFallbackManageTools(makeOpts()), LEADER_MODEL_SET_TOOL_NAME);
     const result = await run(tool, { action: 'toggle' });
     expect(result.status).toBe('error');
+  });
+
+  describe('live switch integration', () => {
+    // Mutating cfg.provider/model directly bypassed the host's
+    // switchProviderAndModel, so the live agent context and the config
+    // diverged until restart. When the host wires the switch, the tool
+    // routes through it FIRST and only persists after a successful switch.
+
+    it('notes the config-only limitation when no switch is wired', async () => {
+      const tool = getTool(createFallbackManageTools(makeOpts()), LEADER_MODEL_SET_TOOL_NAME);
+      const result = await run(tool, { action: 'set', provider: 'openai', model: 'gpt-4o' });
+      expect(result.status).toBe('ok');
+      expect(result.message).toContain('live session keeps its current model');
+    });
+
+    it('routes "set" through the wired switch and persists on success', async () => {
+      const switchProviderAndModel = vi.fn(async () => null);
+      const opts = { ...makeOpts(), switchProviderAndModel };
+      const tool = getTool(createFallbackManageTools(opts), LEADER_MODEL_SET_TOOL_NAME);
+      const result = await run(tool, { action: 'set', provider: 'openai', model: 'gpt-4o' });
+      expect(result.status).toBe('ok');
+      expect(result.message).not.toContain('live session keeps');
+      expect(switchProviderAndModel).toHaveBeenCalledWith('openai', 'gpt-4o');
+      expect(opts.updateConfig).toHaveBeenCalled();
+      const cfg = opts.getConfig() as unknown as { provider: string; model: string };
+      expect(cfg.provider).toBe('openai');
+      expect(cfg.model).toBe('gpt-4o');
+    });
+
+    it('does not persist when the live switch fails', async () => {
+      const switchProviderAndModel = vi.fn(async () => 'provider "openai" is not configured');
+      const opts = { ...makeOpts(), switchProviderAndModel };
+      const tool = getTool(createFallbackManageTools(opts), LEADER_MODEL_SET_TOOL_NAME);
+      const result = await run(tool, { action: 'set', provider: 'openai', model: 'gpt-4o' });
+      expect(result.status).toBe('error');
+      expect(result.message).toContain('not configured');
+      expect(result.message).toContain('Config was not changed');
+      expect(opts.updateConfig).not.toHaveBeenCalled();
+    });
+
+    it('routes "profile" through the wired switch too', async () => {
+      const switchProviderAndModel = vi.fn(async () => null);
+      const opts = { ...makeOpts(), switchProviderAndModel };
+      const tool = getTool(createFallbackManageTools(opts), LEADER_MODEL_SET_TOOL_NAME);
+      const result = await run(tool, { action: 'profile', profile: 'fast' });
+      expect(result.status).toBe('ok');
+      expect(switchProviderAndModel).toHaveBeenCalledWith('test-provider', 'test-model');
+    });
   });
 });

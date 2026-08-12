@@ -465,6 +465,28 @@ async function showReport(id: string, ctx: FindingCommandContext): Promise<strin
     `**Review status:** ${report.reviewStatus}`,
     ...(report.cascadeDepth !== undefined ? [`**Cascade depth:** ${report.cascadeDepth}`] : []),
     ...(report.durationSeconds !== undefined ? [`**Duration:** ${report.durationSeconds}s`] : []),
+    ...(report.evidenceStatus !== undefined
+      ? [
+          `**Evidence:** ${
+            report.evidenceStatus === 'verified'
+              ? '✅ verified'
+              : report.evidenceStatus === 'failed'
+                ? '❌ failed'
+                : '⚠️ missing'
+          }`,
+          ...(report.evidenceChecks && report.evidenceChecks.length > 0
+            ? [
+                '',
+                ...report.evidenceChecks.map((check) => {
+                  const mark = check.ok ? '✓' : '✗';
+                  const claimed = check.claimedExitCode ?? '—';
+                  const actual = check.actualExitCode ?? '—';
+                  return `  ${mark} \`${check.name}\` — \`${check.command}\` (claimed ${claimed}, observed ${actual})`;
+                }),
+              ]
+            : []),
+        ]
+      : []),
     '',
     '**Severity counts:**',
     `  🔴 Critical: ${report.counts.critical}`,

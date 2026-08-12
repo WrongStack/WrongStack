@@ -3,7 +3,24 @@ import {
   parseReviewSeverity,
   decideCascadeAgents,
   shouldCascade,
+  severitiesFromFindings,
 } from '../../src/plugins/auto-review-plugin.js';
+import type { ChimeraFinding } from '../../src/plugins/review-finding-types.js';
+
+function makeFinding(overrides: Partial<ChimeraFinding>): ChimeraFinding {
+  return {
+    id: 'f-1',
+    fingerprint: 'fp',
+    severity: 'high',
+    source: 'chimera',
+    title: 'Finding',
+    description: 'Description',
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    originReport: { reportId: 'r1', sessionId: 's1', agentId: 'a1', reviewerModel: 'm1' },
+    ...overrides,
+  };
+}
 
 // ── Sample review reports matching the chimera-review.md format ──
 
@@ -230,5 +247,72 @@ describe('shouldCascade', () => {
   it('returns null when no findings exist at all', () => {
     expect(shouldCascade('high', { critical: 0, high: 0, medium: 0 })).toBeNull();
     expect(shouldCascade('critical', { critical: 0, high: 0, medium: 0 })).toBeNull();
+  });
+});
+
+describe('severitiesFromFindings (P0-2 verified-gating counts)', () => {
+  it('counts only the severities present in the given findings', () => {
+    const findings = [
+      makeFinding({ severity: 'critical' }),
+      makeFinding({ severity: 'high' }),
+      makeFinding({ severity: 'medium' }),
+      makeFinding({ severity: 'low' }),
+    ];
+    expect(severitiesFromFindings(findings)).toEqual({
+      critical: 1,
+      high: 1,
+      medium: 1,
+    });
+  });
+
+  it('returns zeros for an empty array', () => {
+    expect(severitiesFromFindings([])).toEqual({ critical: 0, high: 0, medium: 0 });
+  });
+});
+
+describe('decideCascadeAgents category routing (P0-1)', () => {
+  const sevs = { critical: 1, high: 0, medium: 0 };
+
+  it('routes security-category findings to security-scanner plus bug-hunter', () => {
+    const findings = [
+      makeFinding({ severity: 'critical', category: 'security', confidence: 'high' }),
+    ];
+    const agents = decideCascadeAgents('', sevs, findings);
+    expect(agents).toContain('security-scanner');
+    expect(agents).toContain('bug-hunter');
+  });
+
+  it('routes non-security categories to bug-hunter only (no keyword scan needed)', () => {
+    const findings = [makeFinding({ severity: 'critical', category: 'bug' })];
+    const agents = decideCascadeAgents('', sevs, findings);
+    expect(agents).toEqual(['bug-hunter']);
+  });
+
+  it('falls back to the keyword scan when a High+ finding lacks a category', () => {
+    // Mixed set: one categorized, one not. The uncategorized finding must
+    // still be scanned for security keywords.
+    const findings = [
+      makeFinding({ severity: 'critical', category: 'bug', title: 'Logic error' }),
+      makeFinding({
+        severity: 'critical',
+        title: 'SQL injection via string concat',
+        description: 'unsanitized user input reaches the query builder',
+      }),
+    ];
+    const agents = decideCascadeAgents(
+      [
+        '## 🦂 Chimera Review',
+        '',
+        '### Critical (1)',
+        '1. SQL injection in login query — user input concatenated into SQL',
+        '',
+        '### High (0)',
+        '',
+        '### Medium (0)',
+      ].join('\n'),
+      sevs,
+      findings,
+    );
+    expect(agents).toContain('security-scanner');
   });
 });

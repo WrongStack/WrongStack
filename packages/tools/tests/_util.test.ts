@@ -333,4 +333,70 @@ describe('detectPackageManager', () => {
     const ghost = path.join(os.tmpdir(), `definitely-missing-${Date.now()}`);
     expect(await detectPackageManager(ghost)).toBe('npm');
   });
+
+  it('detects npm from package-lock.json', async () => {
+    await withDir(['package-lock.json'], async (dir) => {
+      expect(await detectPackageManager(dir)).toBe('npm');
+    });
+  });
+
+  it('treats bun lockfiles as npm-compatible', async () => {
+    await withDir(['bun.lockb'], async (dir) => {
+      expect(await detectPackageManager(dir)).toBe('npm');
+    });
+    await withDir(['bun.lock'], async (dir) => {
+      expect(await detectPackageManager(dir)).toBe('npm');
+    });
+  });
+
+  it('honors package.json#packageManager over lockfiles', async () => {
+    await withDir(['yarn.lock'], async (dir) => {
+      await fsp.writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ packageManager: 'pnpm@9.0.0' }),
+      );
+      expect(await detectPackageManager(dir)).toBe('pnpm');
+    });
+  });
+
+  it('ignores an unrecognized packageManager declaration', async () => {
+    await withDir(['yarn.lock'], async (dir) => {
+      await fsp.writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ packageManager: 'weirdpm@1.0.0' }),
+      );
+      expect(await detectPackageManager(dir)).toBe('yarn');
+    });
+  });
+
+  it('walks up from a nested package dir to the project root lockfile', async () => {
+    await withDir(['pnpm-lock.yaml'], async (dir) => {
+      const nested = path.join(dir, 'packages', 'app');
+      await fsp.mkdir(nested, { recursive: true });
+      expect(await detectPackageManager(nested, dir)).toBe('pnpm');
+    });
+  });
+
+  it('does not walk above cwd when no stopAt root is given', async () => {
+    await withDir(['pnpm-lock.yaml'], async (dir) => {
+      const nested = path.join(dir, 'packages', 'app');
+      await fsp.mkdir(nested, { recursive: true });
+      // Single-argument form keeps the historical cwd-local behavior.
+      expect(await detectPackageManager(nested)).toBe('npm');
+    });
+  });
+
+  it('does not walk when cwd is outside stopAt', async () => {
+    await withDir([], async (dir) => {
+      const other = await fsp.mkdtemp(path.join(os.tmpdir(), 'wrongstack-detect-outside-'));
+      try {
+        await fsp.writeFile(path.join(other, 'yarn.lock'), '');
+        // cwd (other) is not inside stopAt (dir): only cwd itself is probed.
+        expect(await detectPackageManager(other, dir)).toBe('yarn');
+        expect(await detectPackageManager(path.join(other, 'sub'), dir)).toBe('npm');
+      } finally {
+        await fsp.rm(other, { recursive: true, force: true });
+      }
+    });
+  });
 });

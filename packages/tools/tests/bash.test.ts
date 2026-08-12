@@ -1,4 +1,6 @@
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import type { ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { bashTool } from '../src/bash.js';
@@ -390,6 +392,37 @@ describe('bashTool session and env', () => {
       await sb.cleanup();
     }
   });
+
+  it('spawns in ctx.workingDir when set (set_working_dir integration)', async () => {
+    const sb = await mkSandbox();
+    try {
+      const sub = path.join(sb.dir, 'wd-sub');
+      await fs.mkdir(sub, { recursive: true });
+      (sb.ctx as { workingDir?: string }).workingDir = sub;
+      const cmd = isWin ? 'cd' : 'pwd';
+      const out = await bashTool.execute({ command: cmd }, sb.ctx, { signal: newSignal() });
+      expect(out.output).toContain('wd-sub');
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it('appends a pipe-to-shell caution note to the result output', async () => {
+    const sb = await mkSandbox();
+    try {
+      // The note is advisory and appended regardless of the command's exit
+      // status, so the assertion doesn't depend on `sh` existing on PATH.
+      const out = await bashTool.execute(
+        { command: 'echo hi | sh', timeout_ms: 10_000 },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.output).toContain('[wrongstack] Caution');
+      expect(out.output).toContain('pipe-to-shell');
+    } finally {
+      await sb.cleanup();
+    }
+  }, 15_000);
 
   it('handles commands with special characters', async () => {
     const sb = await mkSandbox();

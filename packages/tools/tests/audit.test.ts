@@ -48,32 +48,43 @@ describe('auditTool', () => {
     expect(result).toHaveProperty('vulnerabilities');
   });
 
-  it('passes fix flag to args', async () => {
+  it('rejects fix: true — the tool is read-only and must not silently mutate', async () => {
     const ctx = makeCtx();
     const opts = makeOpts();
-    const result = await auditTool.execute({ fix: true }, ctx, opts);
-    expect(result).toHaveProperty('output');
+    await expect(auditTool.execute({ fix: true }, ctx, opts)).rejects.toThrow(
+      /read-only.*install/s,
+    );
+    // No process was spawned for the rejected call.
+    expect(spawnStreamMocks.spawnStream).not.toHaveBeenCalled();
   });
 
-  it('passes packages to args', async () => {
-    const ctx = makeCtx();
-    const opts = makeOpts();
-    const result = await auditTool.execute({ packages: 'foo,bar' }, ctx, opts);
-    expect(result).toHaveProperty('output');
-  });
-
-  it('handles packages as array', async () => {
-    const ctx = makeCtx();
-    const opts = makeOpts();
-    const result = await auditTool.execute({ packages: ['foo', 'bar'] }, ctx, opts);
-    expect(result).toHaveProperty('output');
-  });
-
-  it('handles level filter', async () => {
-    const ctx = makeCtx();
-    const opts = makeOpts();
-    const result = await auditTool.execute({ level: 'critical' }, ctx, opts);
+  it('accepts fix: false without rejecting', async () => {
+    const result = await auditTool.execute({ fix: false }, makeCtx(), makeOpts());
     expect(result).toHaveProperty('exit_code');
+  });
+
+  it('wires level to --audit-level for npm', async () => {
+    let captured: { args: string[] } | undefined;
+    spawnStreamMocks.spawnStream.mockImplementation((opts: { args: string[] }) => {
+      captured = opts;
+      return fakeSpawnStream('', 0)();
+    });
+    await auditTool.execute({ level: 'critical' }, makeCtx(), makeOpts());
+    expect(captured?.args).toContain('--audit-level=critical');
+  });
+
+  it('filters parsed advisories below the requested level', async () => {
+    const payload = JSON.stringify({
+      advisories: {
+        '1': { severity: 'low', module_name: 'low-pkg', title: 'meh', url: 'u' },
+        '2': { severity: 'high', module_name: 'high-pkg', title: 'bad', url: 'u' },
+        '3': { severity: 'critical', module_name: 'crit-pkg', title: 'worse', url: 'u' },
+      },
+    });
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawnStream(payload, 1));
+    const result = await auditTool.execute({ level: 'high' }, makeCtx(), makeOpts());
+    expect(result.total).toBe(2);
+    expect(result.vulnerabilities.map((v) => v.package).sort()).toEqual(['crit-pkg', 'high-pkg']);
   });
 
   it('parses npm audit JSON into vulnerability list (with critical + high tally)', async () => {
@@ -145,6 +156,60 @@ describe('auditTool', () => {
     expect(result.vulnerabilities[0].title).toBe('Unknown vulnerability');
     expect(result.vulnerabilities[0].severity).toBe('unknown');
     expect(result.vulnerabilities[0].package).toBe('only_id');
+  });
+
+  it('parses the npm >=7 vulnerabilities shape (via objects carry title/url)', async () => {
+    const payload = JSON.stringify({
+      auditReportVersion: 2,
+      vulnerabilities: {
+        'evil-pkg': {
+          name: 'evil-pkg',
+          severity: 'critical',
+          isDirect: true,
+          via: [
+            {
+              source: 1001,
+              name: 'evil-pkg',
+              title: 'Remote code execution',
+              url: 'https://example.com/advisory/1001',
+              severity: 'critical',
+            },
+          ],
+        },
+        'transitive-pkg': {
+          name: 'transitive-pkg',
+          severity: 'high',
+          isDirect: false,
+          // String-only via entries: no advisory detail available.
+          via: ['evil-pkg'],
+        },
+      },
+      metadata: { vulnerabilities: { critical: 1, high: 1, total: 2 } },
+    });
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawnStream(payload, 1));
+    const result = await auditTool.execute({}, makeCtx(), makeOpts());
+    expect(result.total).toBe(2);
+    expect(result.summary).toContain('1 critical');
+    expect(result.summary).toContain('1 high');
+    const evil = result.vulnerabilities.find((v) => v.package === 'evil-pkg');
+    expect(evil?.title).toBe('Remote code execution');
+    expect(evil?.url).toBe('https://example.com/advisory/1001');
+    const transitive = result.vulnerabilities.find((v) => v.package === 'transitive-pkg');
+    expect(transitive?.title).toBe('Unknown vulnerability');
+  });
+
+  it('caps huge raw JSON output and reports truncated honestly', async () => {
+    const payload = JSON.stringify({
+      advisories: {
+        '1': { severity: 'high', module_name: 'big', title: 'x'.repeat(120_000), url: 'u' },
+      },
+    });
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawnStream(payload, 1));
+    const result = await auditTool.execute({}, makeCtx(), makeOpts());
+    expect(result.truncated).toBe(true);
+    // Normalized/truncated output stays within the 32 KB command-output cap
+    // (plus a small marker allowance).
+    expect(Buffer.byteLength(result.output, 'utf8')).toBeLessThanOrEqual(33_000);
   });
 
   it('reports zero critical/high when only lower-severity advisories are present', async () => {

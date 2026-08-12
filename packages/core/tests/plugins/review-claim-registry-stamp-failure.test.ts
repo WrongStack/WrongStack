@@ -36,6 +36,8 @@ function bundle(content: string): import('../../src/plugins/chimera-plugin.js').
       model: 'test',
       maxFiles: 15,
       autoFix: 'off',
+      fallbackModels: [],
+      fallbackProfile: undefined,
       cascadeOn: 'off',
       maxCascadeDepth: 0,
     },

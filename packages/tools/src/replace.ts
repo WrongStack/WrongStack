@@ -15,7 +15,10 @@ import {
   unifiedDiff,
 } from '@wrongstack/core/utils';
 import { compileUserRegex } from './_regex.js';
-import { isBinaryBuffer, safeResolve, sha256hex } from './_util.js';
+import { isBinaryBuffer, safeResolve, sha256hex, truncateDiffPayload } from './_util.js';
+
+/** Byte budget for the combined per-file diff payload — matches `maxOutputBytes`. */
+const MAX_DIFF_BYTES = 262_144;
 
 interface ReplaceInput {
   pattern: string;
@@ -31,6 +34,8 @@ interface ReplaceOutput {
   total_replacements: number;
   results: { path: string; replacements: number; diff?: string | undefined }[];
   dry_run: boolean;
+  /** Set when the combined diff payload was truncated to the output budget. */
+  note?: string | undefined;
 }
 
 const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'];
@@ -48,6 +53,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
     '2. Review the diff output, then re-run with `dry_run: false` to apply.\n' +
     '3. Use a specific enough `pattern` (and `glob` / `files`) to avoid accidental broad changes.\n' +
     '4. `replace_all` controls whether only the first match per file or all matches are replaced.\n' +
+    '5. `replacement` supports regex substitutions: `$1`–`$9` insert capture groups, `$&` inserts the whole match, and `$$` inserts a literal dollar sign.\n' +
     'This tool is excellent for large-scale refactors (renaming, import updates, etc.) but must be used with caution.',
   permission: 'confirm',
   // WS-046: gives permission decisions something to key on.
@@ -58,11 +64,16 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
   capabilities: ['fs.write'],
   icon: 'edit',
   timeoutMs: 30_000,
+  maxOutputBytes: 262_144,
   inputSchema: {
     type: 'object',
     properties: {
       pattern: { type: 'string', description: 'Regex pattern to match' },
-      replacement: { type: 'string', description: 'Replacement string' },
+      replacement: {
+        type: 'string',
+        description:
+          'Replacement string. Supports `$1`–`$9` (capture groups), `$&` (whole match), and `$$` (literal dollar sign) — same semantics as JavaScript String.replace.',
+      },
       files: {
         type: 'string',
         description: 'File(s) to target: single path, comma-separated list, or glob pattern',
@@ -124,6 +135,11 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
 
     const results: ReplaceOutput['results'] = [];
     let totalReplacements = 0;
+    // Combined diff budget across all files: once spent, later diffs are
+    // omitted (the summary counters still report every file).
+    let diffBytesUsed = 0;
+    let diffsOmitted = 0;
+    let diffsTruncated = 0;
 
     for (const absPath of fileList) {
       // Use lstat to detect symlinks. resolveFiles already applies
@@ -176,13 +192,14 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       const count = matches.length;
 
       // Rebuild: splice the replacement into each match position from
-      // right to left so earlier indices stay valid.
+      // right to left so earlier indices stay valid. The replacement is
+      // expanded per match with String.replace semantics ($1..$9, $&, $$).
       let newContentLf = contentLf;
       for (let i = matches.length - 1; i >= 0; i--) {
         const m = expectDefined(matches[i]);
         newContentLf =
           newContentLf.slice(0, m.index) +
-          input.replacement +
+          expandReplacement(input.replacement, m) +
           newContentLf.slice(expectDefined(m.index) + m[0].length);
       }
       re.lastIndex = 0;
@@ -211,13 +228,28 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
         });
       }
 
-      const diff =
+      let diff: string | undefined =
         dryRun || matches.length > 0
           ? unifiedDiff(content, toStyle(newContentLf, style), {
               fromFile: absPath,
               toFile: absPath,
             })
           : undefined;
+
+      // Enforce the shared diff budget: truncate the diff that crosses it and
+      // drop diffs entirely once it is spent.
+      if (diff !== undefined) {
+        const remaining = MAX_DIFF_BYTES - diffBytesUsed;
+        if (remaining <= 0) {
+          diff = undefined;
+          diffsOmitted++;
+        } else {
+          const capped = truncateDiffPayload(diff, remaining);
+          if (capped.truncated) diffsTruncated++;
+          diff = capped.text;
+          diffBytesUsed += Buffer.byteLength(diff, 'utf8');
+        }
+      }
 
       results.push({
         path: absPath,
@@ -226,14 +258,69 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
       });
     }
 
+    const overBudget = diffsOmitted > 0 || diffsTruncated > 0;
     return {
       files_modified: results.length,
       total_replacements: totalReplacements,
       results,
       dry_run: dryRun,
+      note: overBudget
+        ? `Diff payload exceeded the 256 KiB output budget: ${diffsTruncated} diff(s) truncated, ` +
+          `${diffsOmitted} diff(s) omitted. Replacement counts are complete; use the read tool to inspect individual files.`
+        : undefined,
     };
   },
 };
+
+/**
+ * Expand a replacement template against one regex match with JavaScript
+ * `String.prototype.replace` semantics: `$1`–`$9` insert capture groups
+ * (empty when the group did not participate), `$&` inserts the whole match,
+ * and `$$` inserts a literal `$`. A `$` followed by anything else — or a
+ * digit that exceeds the pattern's group count — stays literal, mirroring
+ * String.replace.
+ */
+function expandReplacement(template: string, match: RegExpMatchArray): string {
+  if (!template.includes('$')) return template;
+  let out = '';
+  for (let i = 0; i < template.length; i++) {
+    const ch = template[i];
+    if (ch !== '$') {
+      out += ch;
+      continue;
+    }
+    const next = template[i + 1];
+    if (next === '$') {
+      out += '$';
+      i++;
+    } else if (next === '&') {
+      out += match[0];
+      i++;
+    } else if (next !== undefined && next >= '1' && next <= '9') {
+      const idx = next.charCodeAt(0) - 48;
+      if (idx < match.length) {
+        out += match[idx] ?? '';
+        i++;
+      } else {
+        // Group does not exist in the pattern: keep `$N` literal.
+        out += '$';
+      }
+    } else {
+      out += '$';
+    }
+  }
+  return out;
+}
+
+/** True when `name` (basename) or `full` (path) passes the compiled extra glob. */
+function passesExtraGlob(extraGlob: RegExp, name: string, full: string): boolean {
+  extraGlob.lastIndex = 0;
+  const nameMatch = extraGlob.test(name);
+  extraGlob.lastIndex = 0;
+  const fullMatch = extraGlob.test(full);
+  extraGlob.lastIndex = 0;
+  return nameMatch || fullMatch;
+}
 
 async function resolveFiles(
   filesInput: string,
@@ -255,6 +342,10 @@ async function resolveFiles(
 
   for (const p of parts) {
     const absPath = safeResolve(p, ctx);
+    // Honor the extra `glob` filter on explicitly-listed files too — a
+    // comma-separated list combined with `glob: "*.ts"` must not rewrite
+    // the non-.ts entries.
+    if (extraGlob && !passesExtraGlob(extraGlob, path.basename(absPath), absPath)) continue;
     const stat = await fs.stat(absPath).catch(() => null);
     if (stat?.isFile()) {
       resolved.push(absPath);
@@ -273,7 +364,15 @@ async function globFiles(
   if (rgAvailable) {
     try {
       const { promise } = spawnRgFind(pattern, base);
-      return await promise;
+      const files = await promise;
+      // The extra `glob` filter was previously dropped on this path — only the
+      // native fallback walker honored it. Apply it here as an intersection
+      // (rg's own multi-`--glob` semantics are a union, so the narrowing must
+      // happen on the enumerated list).
+      if (extraGlob) {
+        return files.filter((f) => passesExtraGlob(extraGlob, path.basename(f), f));
+      }
+      return files;
     } catch {
       // fall through
     }
@@ -282,8 +381,20 @@ async function globFiles(
   return await globNative(pattern, base, extraGlob);
 }
 
+/**
+ * Memoized rg availability probe. The binary does not appear or vanish
+ * mid-process, so one `rg --version` spawn per process is enough — previously
+ * every replace call paid a fresh probe spawn.
+ */
+let rgAvailabilityCache: Promise<boolean> | undefined;
+
+/** Test-only: forget the cached rg availability so mocks can vary per test. */
+export function __resetRgDetectionForTests(): void {
+  rgAvailabilityCache = undefined;
+}
+
 function checkRg(): Promise<boolean> {
-  return new Promise((resolve) => {
+  rgAvailabilityCache ??= new Promise((resolve) => {
     try {
       const p = spawn('rg', ['--version'], {
         env: buildChildEnv(),
@@ -296,9 +407,14 @@ function checkRg(): Promise<boolean> {
       resolve(false);
     }
   });
+  return rgAvailabilityCache;
 }
 
 function spawnRgFind(pattern: string, base: string): { promise: Promise<string[]> } {
+  // NOTE: the extra `glob` filter is deliberately NOT passed as a second
+  // `--glob` here — rg treats multiple include globs as a union (match ANY),
+  // which would broaden the set. The intersection happens in `globFiles` on
+  // the enumerated list instead.
   const args = ['--files', '--glob', pattern, base];
   // 30-second safety net to prevent zombie rg processes. Unlike the main
   // grep tool, glob file enumeration is fast and should never need more time.

@@ -147,9 +147,15 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   'codebase-index': 'index',
   'codebase-search': 'index',
   'codebase-stats': 'index',
+  'codebase-incoming-calls': 'index',
+  'codebase-outgoing-calls': 'index',
+  'dead-code-scan': 'index',
   codebase_index: 'index',
   codebase_search: 'index',
   codebase_stats: 'index',
+  codebase_incoming_calls: 'index',
+  codebase_outgoing_calls: 'index',
+  dead_code_scan: 'index',
 
   // Data
   json: 'json',

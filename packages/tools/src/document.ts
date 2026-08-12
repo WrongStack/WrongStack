@@ -1,6 +1,8 @@
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
-import { safeResolve } from './_util.js';
+import { ensureInsideRoot, safeResolve } from './_util.js';
 
 interface DocumentInput {
   target: 'file' | 'function' | 'class' | 'type' | 'all';
@@ -31,11 +33,12 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
   name: 'document',
   category: 'Project',
   description:
-    'DEPRECATED — use the `auto_doc` tool with `dryRun: true` instead. ' +
-    'This tool is a read-only preview stub that returns `skipped` candidates without generating real docstrings.',
+    'DEPRECATED — read-only preview stub that lists undocumented symbols as `skipped` candidates. ' +
+    'It never writes files and does not generate real docstrings. ' +
+    'If the auto-doc plugin is enabled, use its `auto_doc` tool (with `dry_run: true` to preview) instead.',
   usageHint:
-    'Deprecated: prefer `auto_doc` with `dryRun: true` for previewing, or `auto_doc` without dryRun for writing. ' +
-    'This tool only lists undocumented symbols with placeholder comments — it does not generate real JSDoc/TSDoc.',
+    'Deprecated: this tool only lists undocumented symbols with placeholder comments — it does not generate real JSDoc/TSDoc and writes nothing. ' +
+    'When the auto-doc plugin is enabled, prefer its `auto_doc` tool (`dry_run: true` for previewing, without it for writing).',
   permission: 'auto',
   mutating: false,
   timeoutMs: 30_000,
@@ -74,7 +77,11 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
     let itemsDocumented = 0;
 
     const fileList = input.files
-      ? await resolveFiles(Array.isArray(input.files) ? input.files.join(',') : input.files, cwd)
+      ? await resolveFiles(
+          Array.isArray(input.files) ? input.files.join(',') : input.files,
+          cwd,
+          ctx,
+        )
       : input.path
         ? [safeResolve(input.path, ctx)]
         : [];
@@ -113,12 +120,24 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
   },
 };
 
-async function resolveFiles(filesInput: string, cwd: string): Promise<string[]> {
-  const files = Array.isArray(filesInput) ? filesInput : filesInput.split(',');
+async function resolveFiles(filesInput: string, cwd: string, ctx: Context): Promise<string[]> {
+  const files = filesInput.split(',');
   const resolved: string[] = [];
 
   for (const f of files) {
-    const absPath = f.trim().startsWith('/') ? f.trim() : `${cwd}/${f.trim()}`;
+    const entry = f.trim();
+    if (!entry) continue;
+    let absPath: string;
+    try {
+      // Same containment as `input.path`: resolve relative entries against the
+      // (already-contained) cwd and reject anything that escapes the project
+      // root — including Windows absolute paths, which the old POSIX-only
+      // leading-'/' check let through unresolved.
+      absPath = ensureInsideRoot(path.resolve(cwd, entry), ctx);
+    } catch {
+      // Outside the project root — skip rather than read it.
+      continue;
+    }
     try {
       const stat = await fs.stat(absPath);
       if (stat.isFile()) resolved.push(absPath);

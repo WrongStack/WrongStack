@@ -52,7 +52,13 @@ export interface BrowserOpenOptions {
 
 export interface BrowserManagerOptions {
   artifactRoot: string;
-  /** Allow navigation to private/loopback addresses (localhost, 127.0.0.1, etc.). True by default. */
+  /**
+   * Allow navigation to private/loopback addresses (localhost, 127.0.0.1,
+   * etc.). FALSE by default (WS-074) — private targets are blocked unless
+   * individually allowlisted via `allowedPrivateOrigins`, which is populated
+   * from the WRONGSTACK_BROWSER_PRIVATE_ORIGINS env var (comma-separated
+   * origins, e.g. "http://localhost:3000,http://127.0.0.1:8080").
+   */
   allowPrivateHosts?: boolean | undefined;
   allowedPrivateOrigins?: string[] | undefined;
   headless?: boolean | undefined;

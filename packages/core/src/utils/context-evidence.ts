@@ -120,7 +120,6 @@ export function buildConversationContinuityBlock(
       ...lines,
       '[/conversation_continuity]',
     ].join('\n'),
-    cache_control: { type: 'ephemeral' },
   };
 }
 
@@ -467,10 +466,12 @@ export function formatCompletedWorkLedger(items: readonly CompletedWorkEvidence[
 export function buildCompletedWorkLedgerBlock(ctx: Context): TextBlock | undefined {
   const items = ensureEvidence(ctx).completedWork;
   if (items.length === 0) return undefined;
+  // Deliberately marker-free: this block changes whenever work completes, and
+  // it rides the live-context tail AFTER the deep cache boundary — a
+  // cache_control marker here would re-introduce per-request cache-write churn.
   return {
     type: 'text',
     text: formatCompletedWorkLedger(items),
-    cache_control: { type: 'ephemeral' },
   };
 }
 

@@ -96,7 +96,9 @@ describe('buildConversationContinuityBlock', () => {
     expect(block?.text).toContain('[conversation_continuity]');
     expect(block?.text).toContain('prior-1: Fix cancellation');
     expect(block?.text).toContain('current: Continue');
-    expect(block?.cache_control).toEqual({ type: 'ephemeral' });
+    // Marker-free by design: the block rides the live-context tail AFTER the
+    // deep cache boundary; a cache_control here would churn the cache.
+    expect(block?.cache_control).toBeUndefined();
     expect(block?.text.length).toBeLessThan(4_000);
   });
 

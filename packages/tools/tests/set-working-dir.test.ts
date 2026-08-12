@@ -103,6 +103,21 @@ describe('set_working_dir tool', () => {
     expect(result.current).toBe(path.resolve(tmpRoot)); // stays at previous
   });
 
+  it('rejects a path that is a file, not a directory', async () => {
+    // fs.access() used to accept plain files, leaving workingDir pointing at
+    // a file — every later spawn/path-resolve then failed confusingly.
+    const filePath = path.join(tmpRoot, 'afile.txt');
+    await fs.writeFile(filePath, 'not a directory');
+    const ctx = mkContext(tmpRoot);
+    const result = await setWorkingDirTool.execute(
+      { path: 'afile.txt' },
+      ctx,
+      { signal: mkSignal() },
+    );
+    expect(result.error).toContain('does not exist');
+    expect(ctx.workingDir).toBe(path.resolve(tmpRoot)); // rolled back
+  });
+
   it('returns error for path outside project root', async () => {
     const ctx = mkContext(tmpRoot);
     const result = await setWorkingDirTool.execute(

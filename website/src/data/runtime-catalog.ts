@@ -348,14 +348,14 @@ export const toolCatalog = [
   },
   {
     name: 'logs',
-    summary: 'Read or stream logs from files, Docker containers, or systemd services.',
+    summary: 'Read logs from files or Docker containers.',
     permission: 'confirm',
     mutating: false,
     category: 'Dependencies & operations',
   },
   {
     name: 'document',
-    summary: 'DEPRECATED — use the `auto_doc` tool with `dryRun: true` instead.',
+    summary: 'DEPRECATED — read-only preview stub that lists undocumented symbols; writes nothing.',
     permission: 'auto',
     mutating: false,
     category: 'Generation & design',

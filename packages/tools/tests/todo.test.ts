@@ -22,6 +22,7 @@ import {
 } from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
+import { planTool } from '../src/plan.js';
 import { todoTool } from '../src/todo.js';
 import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';
 
@@ -148,6 +149,43 @@ describe('todo tool', () => {
 
     const plan = await loadPlan(planPath);
     expect(plan?.items[0]?.status).toBe('open');
+  });
+
+  it('rolls a completed project-scoped promotion up to the backlog plan file', async () => {
+    // Regression: the rollup used to read only the seeded session
+    // meta['plan.path'], while scope:'project' writes to the derived
+    // backlog.plan.json — so project-scoped plan items were never marked done.
+    // plan.ts now records the RESOLVED path in meta['plan.path.resolved'].
+    const sessionPlanPath = path.join(sb.dir, 'sess.plan.json');
+    const meta = sb.ctx.meta as Record<string, unknown>;
+    meta['plan.path'] = sessionPlanPath;
+    meta['task.path'] = path.join(sb.dir, 'sess.tasks.json');
+
+    await planTool.execute({ action: 'add', title: 'Ship feature', scope: 'project' }, sb.ctx, {
+      signal: newSignal(),
+    });
+    const promoted = await planTool.execute(
+      { action: 'promote', target: 'Ship feature', scope: 'project' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    expect(promoted.ok).toBe(true);
+
+    const backlogPath = path.join(sb.dir, 'backlog.plan.json');
+    const backlog = await loadPlan(backlogPath);
+    expect(backlog?.items[0]?.title).toBe('Ship feature');
+    // The session-scoped file must not have absorbed the project item.
+    expect((await loadPlan(sessionPlanPath))?.items ?? []).toHaveLength(0);
+
+    // Complete every promoted todo → the rollup must follow the backlog file.
+    const completed = (sb.ctx.todos ?? []).map((t) => ({
+      ...t,
+      status: 'completed' as const,
+    }));
+    expect(completed.length).toBeGreaterThan(0);
+    await todoTool.execute({ todos: completed }, sb.ctx, { signal: newSignal() });
+
+    expect((await loadPlan(backlogPath))?.items[0]?.status).toBe('done');
   });
 
   it('ignores plan completion when no plan.path is configured', async () => {

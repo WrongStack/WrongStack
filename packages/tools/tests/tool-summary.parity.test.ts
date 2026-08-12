@@ -44,6 +44,10 @@ const cases: readonly Case[] = [
   { label: 'edit delete', tool: 'str_replace', input: { path: 'test.ts', old_string: '1\n2\n3\n4\n5', new_string: '' } },
   { label: 'edit add', tool: 'patch', input: { path: 'file.ts', old_string: '', new_string: 'new' } },
   { label: 'edit no path', tool: 'edit', input: { old_string: 'a', new_string: 'b' } },
+  // patch with a real unified-diff body
+  { label: 'patch multi-file', tool: 'patch', input: { patch: '--- a/x.ts\n+++ b/x.ts\n@@ -1 +1 @@\n-a\n+b\n--- a/y.ts\n+++ b/y.ts\n@@ -1 +1 @@\n-c\n+d\n' } },
+  { label: 'patch single file', tool: 'patch', input: { patch: '--- a/x.ts\n+++ b/x.ts\n@@ -1 +1 @@\n-a\n+b\n' } },
+  { label: 'patch headerless body', tool: 'patch', input: { patch: 'not a real diff\nline two' } },
   // write
   { label: 'write with lines', tool: 'write', input: { path: '/tmp/test.ts', content: 'a\nb\nc' } },
   { label: 'write one line', tool: 'create_file', input: { file_path: 'new.ts', content: 'x' } },
@@ -63,6 +67,23 @@ const cases: readonly Case[] = [
   // glob
   { label: 'glob pattern', tool: 'glob', input: { pattern: '**/*.ts' } },
   { label: 'find pattern', tool: 'find', input: { glob: 'src/**/*.{ts,tsx}' } },
+  // tree
+  { label: 'tree path+depth', tool: 'tree', input: { path: 'src', depth: 2 } },
+  { label: 'tree bare', tool: 'tree', input: {} },
+  // diff
+  { label: 'diff refs a..b', tool: 'diff', input: { a: 'HEAD~1', b: 'HEAD' } },
+  { label: 'diff ref a only', tool: 'diff', input: { a: 'main' } },
+  { label: 'diff one file', tool: 'diff', input: { files: 'src/index.ts' } },
+  { label: 'diff files array', tool: 'diff', input: { files: ['a.ts', 'b.ts', 'c.ts'] } },
+  { label: 'diff files csv', tool: 'diff', input: { files: 'a.ts, b.ts' } },
+  { label: 'diff no target', tool: 'diff', input: { staged: true } },
+  // replace
+  { label: 'replace glob scope', tool: 'replace', input: { pattern: 'OLD', replacement: 'NEW', files: '**/*.ts' } },
+  { label: 'replace csv scope', tool: 'replace', input: { pattern: 'OLD', replacement: 'NEW', files: 'a.ts,b.ts' } },
+  { label: 'replace files array', tool: 'replace', input: { pattern: 'x', replacement: 'y', files: ['one.ts'] } },
+  // codebase calls tools (symbol head field)
+  { label: 'incoming calls symbol', tool: 'codebase-incoming-calls', input: { symbol: 'resolveFiles' } },
+  { label: 'dead code scan', tool: 'dead-code-scan', input: { symbol: 'unusedFn' } },
   // read
   { label: 'read offset+limit', tool: 'read', input: { path: 'file.ts', offset: 10, limit: 50 } },
   { label: 'read offset only', tool: 'read', input: { path: 'file.ts', offset: 5 } },

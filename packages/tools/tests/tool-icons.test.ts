@@ -33,8 +33,11 @@ describe('tool-icons', () => {
     expect(getToolIcon('read')).toBe('file');
     expect(getToolIcon('write')).toBe('file');
     expect(getToolIcon('edit')).toBe('edit');
-    expect(getToolIcon('patch')).toBe('diff');
+    // patch aligns with patchTool's own `icon: 'edit'`
+    expect(getToolIcon('patch')).toBe('edit');
     expect(getToolIcon('grep')).toBe('search');
+    // glob aligns with globTool's own `icon: 'folder'`
+    expect(getToolIcon('glob')).toBe('folder');
     expect(getToolIcon('bash')).toBe('terminal');
     expect(getToolIcon('fetch')).toBe('web');
     expect(getToolIcon('git')).toBe('git');

@@ -27,7 +27,8 @@ export const setWorkingDirTool: Tool<SetWorkingDirInput, SetWorkingDirOutput> = 
   name: 'set_working_dir',
   category: 'Context',
   description:
-    'Change the current working directory for all subsequent file operations. ' +
+    'Change the current working directory for subsequent file operations and shell tools ' +
+    '(`bash`/`exec` spawn in this directory unless given an explicit cwd). ' +
     'The new directory must be inside the project root. ' +
     'Use this to navigate between subdirectories when working on files in different parts of the project.',
   usageHint:
@@ -71,12 +72,18 @@ export const setWorkingDirTool: Tool<SetWorkingDirInput, SetWorkingDirOutput> = 
       };
     }
 
-    // Verify the directory actually exists on disk
+    // Verify the target actually exists on disk AND is a directory.
+    // fs.access() alone accepted plain files, leaving workingDir pointing at
+    // a file — every later spawn/path-resolve then failed confusingly.
+    let isDirectory = false;
     try {
-      await fs.access(resolved);
+      isDirectory = (await fs.stat(resolved)).isDirectory();
     } catch {
-      // Rollback — setWorkingDir validated containment but the dir may not exist
-      // Restore the previous directory and report the error
+      isDirectory = false;
+    }
+    if (!isDirectory) {
+      // Rollback — setWorkingDir validated containment but the target is
+      // missing or not a directory. Restore previous and report the error.
       try {
         ctx.setWorkingDir(previous);
       } catch {
@@ -85,7 +92,7 @@ export const setWorkingDirTool: Tool<SetWorkingDirInput, SetWorkingDirOutput> = 
       }
       return {
         current: ctx.workingDir,
-        error: `Directory does not exist: ${resolved}`,
+        error: `Directory does not exist (or is not a directory): ${resolved}`,
       };
     }
 

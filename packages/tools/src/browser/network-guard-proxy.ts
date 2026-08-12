@@ -111,8 +111,8 @@ export class BrowserNetworkGuardProxy {
       upstream.on('error', () => writeProxyError(response, 502, 'Bad Gateway'));
       request.on('aborted', () => upstream.destroy());
       request.pipe(upstream);
-    } catch {
-      writeProxyError(response, 403, 'Blocked by browser network policy');
+    } catch (error) {
+      writeProxyError(response, 403, policyBlockMessage(error));
     }
   }
 
@@ -141,8 +141,8 @@ export class BrowserNetworkGuardProxy {
         pipeDuplexPair(upstream, client);
       });
       client.once('close', () => upstream.destroy());
-    } catch {
-      client.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+    } catch (error) {
+      client.end(rawForbiddenResponse(policyBlockMessage(error)));
     }
   }
 
@@ -188,9 +188,9 @@ export class BrowserNetworkGuardProxy {
       });
       client.once('close', () => upstream?.destroy());
       upstream.end();
-    } catch {
+    } catch (error) {
       upstream?.destroy();
-      client.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+      client.end(rawForbiddenResponse(policyBlockMessage(error)));
     }
   }
 
@@ -241,4 +241,26 @@ function writeProxyError(response: http.ServerResponse, status: number, message:
   if (response.headersSent || response.destroyed) return;
   response.writeHead(status, { 'content-type': 'text/plain', connection: 'close' });
   response.end(message);
+}
+
+/**
+ * Carry the guard's precise refusal reason (from security.ts assertions, e.g.
+ * `browser: blocked private/loopback address "127.0.0.1"`) into the response
+ * body so callers can see WHY the policy fired, while keeping the stable
+ * "Blocked by browser network policy" prefix as the machine-greppable marker.
+ */
+function policyBlockMessage(error: unknown): string {
+  const reason = error instanceof Error ? error.message : String(error);
+  return reason ? `Blocked by browser network policy: ${reason}` : 'Blocked by browser network policy';
+}
+
+/** Raw 403 for CONNECT/upgrade sockets that never got an http.ServerResponse. */
+function rawForbiddenResponse(message: string): string {
+  return (
+    'HTTP/1.1 403 Forbidden\r\n' +
+    'Content-Type: text/plain\r\n' +
+    `Content-Length: ${Buffer.byteLength(message)}\r\n` +
+    'Connection: close\r\n\r\n' +
+    message
+  );
 }

@@ -254,12 +254,14 @@ export const toolDetailsPart3: Record<string, ToolDetail> = {
       {
         name: 'mode',
         type: '\'unified\' | \'side-by-side\' | \'stat\'',
-        description: 'Output format. "unified" is default, "stat" shows summary only.',
+        description:
+          'Output format for the git-diff path. "unified" is default; "stat" shows a summary only; "side-by-side" is not supported and falls back to unified.',
       },
       {
         name: 'context',
         type: 'integer',
-        description: 'Number of context lines for unified diffs (default: 3).',
+        description:
+          'Number of context lines for git unified diffs (default: 3, passed as -U<n>). Ignored by the `files`-only dump path.',
       },
     ],
     notes: [
@@ -396,12 +398,8 @@ export const toolDetailsPart3: Record<string, ToolDetail> = {
       {
         name: 'all',
         type: 'boolean',
-        description: 'Type-check all projects (pnpm -r) (default: false)',
-      },
-      {
-        name: 'json',
-        type: 'boolean',
-        description: 'Emit JSON output from tsc (default: false)',
+        description:
+          'Type-check all workspace packages (pnpm workspaces run `pnpm -r exec tsc --noEmit`; other setups run a single `tsc --noEmit` at cwd) (default: false)',
       },
     ],
     notes: [
@@ -689,18 +687,14 @@ export const toolDetailsPart3: Record<string, ToolDetail> = {
       {
         name: 'fix',
         type: 'boolean',
-        description: 'Attempt to fix vulnerabilities (default: false)',
-      },
-      {
-        name: 'packages',
-        type: 'string',
-        description: 'Specific package(s) to audit (comma-separated)',
+        description:
+          'Deprecated and rejected — this tool is read-only and never modifies dependencies. Use `install` (or `language_package`) to remediate vulnerabilities.',
       },
     ],
     notes: [
       'Run regularly and especially before any release.',
       'Use `level` to focus on high/critical issues.',
-      '`fix` can attempt automatic remediation for some vulnerabilities.',
+      'This tool is read-only: to remediate, use `install` (or `language_package`) to upgrade the affected packages.',
     ],
   },
 };

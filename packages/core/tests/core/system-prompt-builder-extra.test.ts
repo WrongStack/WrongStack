@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DefaultSystemPromptBuilder } from '../../src/index.js';
+import { SYSTEM_BLOCK_SOURCE } from '../../src/core/system-prompt-builder.js';
 import type { MemoryStore, SkillLoader, Tool } from '../../src/index.js';
 
 const mkTool = (name: string, over: Partial<Tool> = {}): Tool => ({
@@ -233,6 +234,38 @@ describe('DefaultSystemPromptBuilder — edge cases', () => {
     const noUse = new DefaultSystemPromptBuilder({ tokenSavingMode: true, todayIso: '2026-06-15' });
     const b = await noUse.build({ cwd: tmp, projectRoot: tmp, tools: [mkTool('mcp_control')] } as never);
     expect(b.map((x) => x.text).join('\n')).toContain('MCP tools (lazy-loaded)');
+  });
+
+  it('keeps layer2 byte-stable across agent status churn and re-homes peers to a tagged volatile block', async () => {
+    const b = new DefaultSystemPromptBuilder({ todayIso: '2026-06-15' });
+    const tools = [mkTool('mailbox')];
+    const first = await b.build({
+      cwd: tmp,
+      projectRoot: tmp,
+      tools,
+      onlineAgents: [{ name: 'X', source: 'tui', status: 'busy', currentTask: 'task-a' }],
+    } as never);
+    const second = await b.build({
+      cwd: tmp,
+      projectRoot: tmp,
+      tools,
+      onlineAgents: [{ name: 'X', source: 'tui', status: 'idle', currentTask: 'task-b' }],
+    } as never);
+
+    const usage1 = first.find((bl) => SYSTEM_BLOCK_SOURCE.get(bl) === 'tool-usage');
+    const usage2 = second.find((bl) => SYSTEM_BLOCK_SOURCE.get(bl) === 'tool-usage');
+    // Status/task churn must never rewrite the core tool-usage layer.
+    expect(usage1?.text).toBeDefined();
+    expect(usage1?.text).toBe(usage2?.text);
+    expect(usage1?.text).not.toContain('Currently online');
+    expect(usage1?.text).toContain('Inter-agent mailbox');
+
+    const peers = second.find((bl) => SYSTEM_BLOCK_SOURCE.get(bl) === 'peers');
+    expect(peers?.text).toContain('[online_agents]');
+    expect(peers?.text).toContain('task-b');
+    // Marker-free: the request composer re-homes this block after the deep
+    // cache boundary, where a cache_control marker would churn the cache.
+    expect(peers?.cache_control).toBeUndefined();
   });
 
   it('renders an empty online-agents string and reuses cached output across fresh arrays', async () => {

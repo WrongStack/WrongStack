@@ -135,7 +135,7 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
       });
     }
 
-    const rgAvailable = await detectRg(opts.signal);
+    const rgAvailable = await detectRg();
     if (rgAvailable) {
       try {
         yield* runRgStream(input, base, mode, limit, opts.signal);
@@ -150,16 +150,37 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
   },
 };
 
-async function detectRg(signal: AbortSignal): Promise<boolean> {
-  return new Promise((resolve) => {
+/**
+ * Memoized rg availability probe. The binary does not appear or vanish
+ * mid-process, so one `rg --version` spawn per process is enough — previously
+ * every grep call paid a fresh probe spawn. The probe runs under its own short
+ * timeout signal (NOT the caller's abort signal): caching a `false` produced
+ * by an aborted first call would permanently downgrade grep to the native
+ * fallback.
+ */
+let rgAvailabilityCache: Promise<boolean> | undefined;
+
+/** Test-only: forget the cached rg availability so mocks can vary per test. */
+export function __resetRgDetectionForTests(): void {
+  rgAvailabilityCache = undefined;
+}
+
+function detectRg(): Promise<boolean> {
+  rgAvailabilityCache ??= new Promise((resolve) => {
     try {
-      const p = spawn('rg', ['--version'], { env: buildChildEnv(), stdio: 'ignore', signal, windowsHide: true });
+      const p = spawn('rg', ['--version'], {
+        env: buildChildEnv(),
+        stdio: 'ignore',
+        signal: AbortSignal.timeout(10_000),
+        windowsHide: true,
+      });
       p.on('error', () => resolve(false));
       p.on('close', (code) => resolve(code === 0));
     } catch {
       resolve(false);
     }
   });
+  return rgAvailabilityCache;
 }
 
 async function* runRgStream(

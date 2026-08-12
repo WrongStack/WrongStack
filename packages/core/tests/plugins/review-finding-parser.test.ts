@@ -4,7 +4,10 @@
  * FS-P0.2
  */
 import { describe, expect, it } from 'vitest';
-import { parseChimeraReviewReport } from '../../src/plugins/review-finding-parser.js';
+import {
+  extractStructuredFindingsBlock,
+  parseChimeraReviewReport,
+} from '../../src/plugins/review-finding-parser.js';
 
 // ── Helper ──────────────────────────────────────────────────────────
 
@@ -300,6 +303,260 @@ describe('parseChimeraReviewReport — edge cases', () => {
     expect(result.findings[0]!.location?.file).toBe('src/x.ts');
     expect(result.findings[0]!.location?.line).toBe(1);
     expect(result.findings[0]!.title).toContain('Inline `not a path` here');
+  });
+});
+
+// ── Structured JSON contract (P0-1) ────────────────────────────────
+
+describe('parseChimeraReviewReport — structured JSON contract', () => {
+  const JSON_REPORT = [
+    '## 🦂 Chimera Review',
+    '',
+    '### Critical (1)',
+    '1. [SECURITY] `src/auth.ts:42` — SQL injection in login query',
+    '   → use parameterized queries',
+    '',
+    '```json',
+    '{',
+    '  "findings": [',
+    '    {',
+    '      "severity": "critical",',
+    '      "category": "security",',
+    '      "confidence": "high",',
+    '      "file": "src/auth.ts",',
+    '      "line": 42,',
+    '      "title": "SQL injection in login query",',
+    '      "description": "User input concatenated into a SQL query",',
+    '      "suggestedFix": "Use parameterized queries"',
+    '    }',
+    '  ]',
+    '}',
+    '```',
+  ].join('\n');
+
+  it('extracts the fenced JSON block and builds findings from it', () => {
+    const block = extractStructuredFindingsBlock(JSON_REPORT);
+    expect(block).not.toBeNull();
+    expect(block!.findings).toHaveLength(1);
+    expect(block!.findings[0]).toMatchObject({
+      severity: 'critical',
+      category: 'security',
+      confidence: 'high',
+      file: 'src/auth.ts',
+      line: 42,
+      title: 'SQL injection in login query',
+    });
+  });
+
+  it('uses structured findings as authoritative when the block parses', () => {
+    const result = parseChimeraReviewReport(JSON_REPORT, SAMPLE_CONTEXT);
+    expect(result.structured).toBe(true);
+    expect(result.findings).toHaveLength(1);
+    expect(result.unparseableCount).toBe(0);
+    const finding = result.findings[0]!;
+    expect(finding.severity).toBe('critical');
+    expect(finding.category).toBe('security');
+    expect(finding.confidence).toBe('high');
+    expect(finding.location).toEqual({ file: 'src/auth.ts', line: 42 });
+    expect(finding.title).toBe('SQL injection in login query');
+    expect(finding.suggestedFix).toBe('Use parameterized queries');
+  });
+
+  it('stamps origin context on structured findings', () => {
+    const result = parseChimeraReviewReport(JSON_REPORT, {
+      sessionId: 'sess-structured',
+      reviewerModel: 'gpt-5.6-sol',
+      reportId: 'report-structured-1',
+    });
+    expect(result.findings[0]!.originReport).toMatchObject({
+      sessionId: 'sess-structured',
+      reviewerModel: 'gpt-5.6-sol',
+      reportId: 'report-structured-1',
+    });
+  });
+
+  it('falls back to markdown parsing when no JSON block exists', () => {
+    const md = '### High (1)\n1. src/a.ts:1 — Bug one\n';
+    const result = parseChimeraReviewReport(md, SAMPLE_CONTEXT);
+    expect(result.structured).toBeUndefined();
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.location?.file).toBe('src/a.ts');
+    expect(result.findings[0]!.category).toBeUndefined();
+  });
+
+  it('falls back to markdown when the fenced block is not valid JSON', () => {
+    const report = [
+      '### High (1)',
+      '1. src/a.ts:1 — Bug one',
+      '',
+      '```json',
+      '{ this is not json',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.structured).toBeUndefined();
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.title).toContain('Bug one');
+  });
+
+  it('returns empty findings for an all-clear structured block', () => {
+    const report = [
+      '## 🦂 Chimera Review — all clear ✅',
+      'No issues found.',
+      '',
+      '```json',
+      '{ "findings": [] }',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.structured).toBe(true);
+    expect(result.findings).toHaveLength(0);
+    expect(result.unparseableCount).toBe(0);
+  });
+
+  it('takes the LAST parseable fenced JSON block', () => {
+    const report = [
+      '```json',
+      '{ "findings": [{ "severity": "high", "title": "Stale example" }] }',
+      '```',
+      '',
+      '```json',
+      '{ "findings": [{ "severity": "medium", "title": "Real finding" }] }',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.title).toBe('Real finding');
+    expect(result.findings[0]!.severity).toBe('medium');
+  });
+
+  it('drops items with invalid severity or blank title', () => {
+    const report = [
+      '```json',
+      '{',
+      '  "findings": [',
+      '    { "severity": "critical", "title": "Valid one" },',
+      '    { "severity": "blaster", "title": "Bad severity" },',
+      '    { "severity": "high", "title": "   " }',
+      '  ]',
+      '}',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.title).toBe('Valid one');
+  });
+
+  it('reads durationSeconds from the structured block', () => {
+    const report = [
+      '```json',
+      '{ "findings": [], "durationSeconds": 41.7 }',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.durationSeconds).toBe(41);
+  });
+
+  it('leaves category/confidence undefined when the block omits them', () => {
+    const report = [
+      '```json',
+      '{ "findings": [{ "severity": "high", "title": "Bare finding" }] }',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings[0]!.category).toBeUndefined();
+    expect(result.findings[0]!.confidence).toBeUndefined();
+  });
+
+  it('treats a finding without file/line as location-less but valid', () => {
+    const report = [
+      '```json',
+      '{ "findings": [{ "severity": "medium", "title": "No citation", "description": "General risk" }] }',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.location).toBeUndefined();
+  });
+
+  it('keeps findings with invalid category/confidence but leaves the fields unset', () => {
+    const report = [
+      '```json',
+      '{',
+      '  "findings": [',
+      '    { "severity": "high", "title": "Good", "category": "security", "confidence": "high" },',
+      '    { "severity": "high", "title": "Bad category", "category": "wizardry" },',
+      '    { "severity": "high", "title": "Bad confidence", "confidence": "certainly" }',
+      '  ]',
+      '}',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    // Lenient by design: an unknown category/confidence does not drop the
+    // finding (severity/title/file are the contract minimum); the optional
+    // enrichment fields are simply left unset.
+    expect(result.findings).toHaveLength(3);
+    expect(result.findings[0]).toMatchObject({ title: 'Good', category: 'security', confidence: 'high' });
+    expect(result.findings[1]!.category).toBeUndefined();
+    expect(result.findings[1]!.confidence).toBeUndefined();
+    expect(result.findings[2]!.category).toBeUndefined();
+    expect(result.findings[2]!.confidence).toBeUndefined();
+  });
+
+  it('strips non-integer or non-positive lines but keeps the finding (never silently drops)', () => {
+    const report = [
+      '```json',
+      '{',
+      '  "findings": [',
+      '    { "severity": "high", "title": "Float line", "file": "a.ts", "line": 4.2 },',
+      '    { "severity": "high", "title": "Negative line", "file": "a.ts", "line": -3 },',
+      '    { "severity": "high", "title": "Zero line", "file": "a.ts", "line": 0 },',
+      '    { "severity": "high", "title": "String line", "file": "a.ts", "line": "42" }',
+      '  ]',
+      '}',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    // All four items are valid findings; only the unparseable line is dropped
+    // (mirrors the markdown path: "When a finding item lacks a parseable
+    // file:line, it still produces a finding").
+    expect(result.findings).toHaveLength(4);
+    for (const finding of result.findings) {
+      expect(finding.location?.file).toBe('a.ts');
+      expect(finding.location?.line).toBeUndefined();
+    }
+  });
+
+  it('does not treat a fenced block without the json tag as structured', () => {
+    const report = [
+      '### High (1)',
+      '1. src/a.ts:1 — Bug one',
+      '',
+      '```',
+      '{ "findings": [{ "severity": "high", "title": "Ignored" }] }',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.structured).toBeUndefined();
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.title).toContain('Bug one');
+  });
+
+  it('tolerates extra keys in the block and individual items', () => {
+    const report = [
+      '```json',
+      '{',
+      '  "version": 2,',
+      '  "tool": "chimera",',
+      '  "findings": [',
+      '    { "severity": "critical", "title": "Real", "unknownKey": { "nested": true } }',
+      '  ]',
+      '}',
+      '```',
+    ].join('\n');
+    const result = parseChimeraReviewReport(report, SAMPLE_CONTEXT);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]!.title).toBe('Real');
   });
 });
 

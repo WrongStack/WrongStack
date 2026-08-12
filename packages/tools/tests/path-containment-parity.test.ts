@@ -34,6 +34,9 @@ const REALPATH_REQUIRED = [
   'glob.ts',
   'grep.ts',
   'patch.ts',
+  // The `files`-only dump path OPENS the resolved file, so it needs the
+  // realpath form like the other content-opening tools.
+  'diff.ts',
 ] as const;
 
 /**

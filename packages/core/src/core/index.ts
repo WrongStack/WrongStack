@@ -80,7 +80,16 @@ export {
 export { runProviderWithRetry } from './provider-runner.js';
 export { setQueuedMessagesSnapshot } from './queued-messages.js';
 export {
+  // Exported so surfaces that need to *predict* the identity block (e.g. the
+  // CLI's startup system-prompt menu, which shows a per-variant token count)
+  // compose it exactly the way the builder does instead of re-implementing the
+  // WS-016 project-append rule and drifting from it.
+  buildIdentityLayer,
   DefaultSystemPromptBuilder,
   type DefaultSystemPromptBuilderOptions,
   type SystemBlockSource,
 } from './system-prompt-builder.js';
+export {
+  type DomainGlossaryOptions,
+  renderDomainGlossary,
+} from './system-prompt-glossary.js';

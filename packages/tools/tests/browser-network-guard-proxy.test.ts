@@ -61,6 +61,8 @@ describe('BrowserNetworkGuardProxy', () => {
 
     expect(response.status).toBe(403);
     expect(response.body).toContain('Blocked by browser network policy');
+    // The guard's precise refusal reason is propagated into the body.
+    expect(response.body).toContain('private/loopback');
     expect(hits).toBe(0);
   });
 

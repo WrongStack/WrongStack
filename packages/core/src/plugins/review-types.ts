@@ -9,6 +9,9 @@
 // so existing importers keep resolving them from './chimera-plugin.js'.
 // ---------------------------------------------------------------------------
 
+import type { ParsedReviewReport } from './review-finding-parser.js';
+import type { ChimeraFinding } from './review-finding-types.js';
+
 export interface ResolvedChimeraConfig {
   enabled: boolean;
   provider: string;
@@ -150,6 +153,51 @@ export interface ReviewContextBundle {
         observedAt?: string | undefined;
       }>
     | undefined;
+
+  /**
+   * P0-3: machine-evidence verification status of the cascade fix step that
+   * preceded this (re-)review. Set by the cascade handler after re-running
+   * the fix agents' claimed verification commands against the working tree:
+   * - `verified` — every claimed typecheck/lint/test check re-ran and passed.
+   * - `failed`   — at least one check failed, mismatched, timed out, or was
+   *                refused (unsafe command).
+   * - `missing`  — the fix agent returned no evidence block at all.
+   * Absent on initial reviews (no cascade step yet).
+   */
+  evidenceStatus?: CascadeEvidenceStatus | undefined;
+
+  /**
+   * Per-check comparison results from the cascade evidence verification.
+   * Carried so the persisted report can record exactly which commands were
+   * claimed, what the orchestrator observed, and which checks matched.
+   */
+  evidenceChecks?: CascadeEvidenceCheckResult[] | undefined;
+}
+
+/**
+ * Aggregate verdict on a cascade fix agent's machine evidence (P0-3).
+ * See {@link ReviewContextBundle.evidenceStatus} for the semantics of each
+ * value. Shared across the cli cascade handler (which produces it), the
+ * core bundle type, and the report store (which persists it) so the shape
+ * cannot drift between producer and consumers.
+ */
+export type CascadeEvidenceStatus = 'verified' | 'failed' | 'missing';
+
+/**
+ * One check's comparison: the command a cascade fix agent claimed to run,
+ * the exit code it claimed, the exit code the orchestrator observed when it
+ * re-ran the command against the working tree, and whether the check counts
+ * as passed (observed exit code 0 matching a claimed 0).
+ */
+export interface CascadeEvidenceCheckResult {
+  name: 'typecheck' | 'lint' | 'tests';
+  command: string;
+  /** Exit code the agent claimed (null when the block omitted the key). */
+  claimedExitCode: number | null;
+  /** Exit code observed by the orchestrator's re-run. */
+  actualExitCode: number | null;
+  /** True when the check ran and actual matches a passing (0) claim. */
+  ok: boolean;
 }
 
 /** Legacy alias for the bundle emitted when a Chimera review is requested. */
@@ -173,6 +221,15 @@ export interface ChimeraReviewCompletePayload {
    * directory path (which was the previous broken behaviour).
    */
   sessionId?: string | undefined;
+  /**
+   * Findings parsed ONCE by the execution owner (P0-1) and verified against
+   * the working tree (P0-2) before persistence. Threaded through so
+   * `persistReviewReport`, `integrateFindings`, and the cascade gate never
+   * re-parse the report with divergent contexts. Absent for failed reviews
+   * and legacy emitters that do not pre-parse — consumers fall back to
+   * parsing `reviewText` themselves in that case.
+   */
+  parsedReport?: ParsedReviewReport | undefined;
 }
 
 export type CascadeAgentKind = 'security-scanner' | 'bug-hunter';
@@ -183,4 +240,11 @@ export interface ChimeraCascadeNeededPayload {
   severities: { critical: number; high: number; medium: number };
   threshold: 'high' | 'critical';
   agents: CascadeAgentKind[];
+  /**
+   * Findings that passed the P0-2 disk-verification pass (file exists, line
+   * in range, code anchor present). Only these findings may gate a cascade
+   * when the execution owner threaded a parsed report. Absent for legacy
+   * emitters that skip pre-parsing.
+   */
+  verifiedFindings?: ChimeraFinding[] | undefined;
 }

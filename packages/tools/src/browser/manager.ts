@@ -308,7 +308,17 @@ export class BrowserSessionManager {
       if (relative.startsWith('..') || path.isAbsolute(relative)) {
         throw new Error('browser: upload files must stay inside the project root');
       }
-      const realFile = await fs.realpath(absolute);
+      let realFile: string;
+      try {
+        realFile = await fs.realpath(absolute);
+      } catch (error) {
+        // A raw ENOENT here surfaced as an opaque errno; report it in the
+        // tool's own error style like the other upload validations.
+        if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+          throw new Error(`browser: upload file not found: ${file}`);
+        }
+        throw error;
+      }
       const realRelative = path.relative(realRoot, realFile);
       if (realRelative.startsWith('..') || path.isAbsolute(realRelative)) {
         throw new Error('browser: upload files must not escape the project root through a symlink');

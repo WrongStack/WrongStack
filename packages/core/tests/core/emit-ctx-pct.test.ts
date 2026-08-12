@@ -318,12 +318,16 @@ describe('B5 — emitContextPct elision on idle loops', () => {
     // follow-up loop iterations may legitimately compact again after a successful reduction.
     expect(compactCalls.length).toBeGreaterThanOrEqual(1);
     expect(provider.requests).toHaveLength(1);
-    expect(provider.requests[0]!.messages).toEqual(replacement);
-    expect(
-      provider.requests[0]!.messages.some(
-        (message) => typeof message.content === 'string' && message.content.includes('old context'),
-      ),
-    ).toBe(false);
+    // The request reflects the compaction rewrite; the trailing user message
+    // additionally carries the appended live-context tail, so compare the
+    // durable content rather than exact array identity.
+    const sent = provider.requests[0]!.messages;
+    expect(sent).toHaveLength(replacement.length);
+    expect(sent[0]).toEqual(replacement[0]);
+    const sentLast = sent[1]! as { role: string; content: Array<{ type: string; text?: string }> };
+    expect(sentLast.role).toBe('user');
+    expect(sentLast.content[0]).toMatchObject({ type: 'text', text: 'fresh question' });
+    expect(JSON.stringify(sent)).not.toContain('old context');
     expect(ctx.lastRequestTokens).toBe(
       estimateRequestTokens(ctx.messages, ctx.systemPrompt, ctx.tools ?? []).total,
     );

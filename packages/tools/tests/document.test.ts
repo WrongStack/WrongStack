@@ -151,6 +151,27 @@ describe('documentTool', () => {
     expect(result.files_processed).toBe(2);
   });
 
+  it('rejects files entries that escape the project root (relative and absolute)', async () => {
+    // A file that really exists outside the project root must not be readable
+    // through the `files` list — neither via `../` traversal nor via an
+    // absolute path (POSIX or Windows style).
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'doc-outside-'));
+    try {
+      const secret = path.join(outside, 'secret.ts');
+      await fs.writeFile(secret, 'function leaked() {}', 'utf8');
+      const ctx = makeCtx();
+      const rel = path.relative(tmpDir, secret); // ../doc-outside-…/secret.ts
+      const result = await documentTool.execute(
+        { target: 'function', files: `${rel},${secret}` },
+        ctx,
+      );
+      expect(result.files_processed).toBe(0);
+      expect(result.results).toEqual([]);
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
+    }
+  });
+
   it('accepts files passed as an array', async () => {
     await fs.writeFile(path.join(tmpDir, 'arr.ts'), 'function z() {}', 'utf8');
     const ctx = makeCtx();

@@ -365,11 +365,19 @@ describe('Agent', () => {
     expect(JSON.stringify(requestSnapshots[0])).not.toContain('tool_use');
     // Messages carry the internal `_estTokens` annotation (stripped by the
     // provider adapters' normalizeMessage before hitting the wire) — match
-    // the semantic shape, not exact object identity.
-    expect(requestSnapshots[0]).toEqual([
+    // the semantic shape, not exact object identity. The trailing user
+    // message additionally carries the appended live-context tail and the
+    // deep cache boundary on its first (durable) block.
+    expect(requestSnapshots[0]).toHaveLength(2);
+    expect(requestSnapshots[0]![0]).toEqual(
       expect.objectContaining({ role: 'assistant', content: 'still useful' }),
-      expect.objectContaining({ role: 'user', content: [{ type: 'text', text: 'continue' }] }),
-    ]);
+    );
+    const lastSent = requestSnapshots[0]![1] as {
+      role: string;
+      content: Array<{ type: string; text?: string }>;
+    };
+    expect(lastSent.role).toBe('user');
+    expect(lastSent.content[0]).toMatchObject({ type: 'text', text: 'continue' });
   });
 
   it('executes tool use and continues', async () => {

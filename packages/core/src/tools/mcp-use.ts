@@ -75,19 +75,30 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
 
       const { server: serverName, tool: toolName, input: toolInput } = input;
 
-      // Validate server exists
+      // Validate server exists. Lookup failures THROW so the executor records
+      // a failed call — a plain string return was recorded as success, which
+      // hid every misrouted call from failure accounting and retry logic.
       const servers = registry.describe();
       const serverInfo = servers.find((s) => s.name === serverName);
       if (!serverInfo) {
-        return `Server "${serverName}" not found. Available: ${servers.map((s) => s.name).join(', ') || 'none'}.`;
+        throw new Error(
+          `Server "${serverName}" not found. Available: ${servers.map((s) => s.name).join(', ') || 'none'}.`,
+        );
       }
       if (serverInfo.state !== 'connected') {
-        return `Server "${serverName}" is not connected (state: ${serverInfo.state}). Use \`mcp_control({ action: "enable", server: "${serverName}" })\` first.`;
+        throw new Error(
+          `Server "${serverName}" is not connected (state: ${serverInfo.state}). Use \`mcp_control({ action: "enable", server: "${serverName}" })\` first.`,
+        );
       }
 
-      // Activate server tools
-      if (registry.activateServer) {
-        registry.activateServer(serverName);
+      // Activate server tools — but only when they are not already active.
+      // The operator may have activated this server via mcp_control; an
+      // ephemeral mcp_use call must not tear that activation down on exit.
+      // Registries without isActivated keep the old activate-always behavior.
+      const alreadyActive = registry.isActivated?.(serverName) === true;
+      const didActivate = !alreadyActive && Boolean(registry.activateServer);
+      if (didActivate) {
+        registry.activateServer?.(serverName);
       }
 
       try {
@@ -104,7 +115,7 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
             allTools.length > 0
               ? `Available tools on "${serverName}": ${allTools.join(', ')}.`
               : `No tools found on "${serverName}". The server may not have published any tools.`;
-          return `Tool "${toolName}" not found on server "${serverName}". ${hint}`;
+          throw new Error(`Tool "${toolName}" not found on server "${serverName}". ${hint}`);
         }
 
         const governedExecute = ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] as
@@ -117,8 +128,9 @@ export function createMcpUseTool(opts: CreateMcpUseToolOptions): Tool {
         if (!result.success) throw new Error(result.error ?? 'MCP tool execution failed');
         return result.result;
       } finally {
-        // Always deactivate, even if the tool call threw
-        if (registry.deactivateServer) {
+        // Deactivate only what THIS call activated (even if the tool call
+        // threw) — pre-existing activations belong to the operator.
+        if (didActivate && registry.deactivateServer) {
           registry.deactivateServer(serverName);
         }
       }

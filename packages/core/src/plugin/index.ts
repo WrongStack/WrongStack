@@ -48,12 +48,17 @@ export {
 } from '../plugins/review-claim-registry.js';
 export {
   type FindingsIntegrationResult,
+  classifyChimeraReviewSource,
   integrateFindings,
 } from '../plugins/review-finding-integration.js';
 export {
   type ParsedReviewReport,
   parseChimeraReviewReport,
 } from '../plugins/review-finding-parser.js';
+export {
+  verifyFindingsAgainstDisk,
+  type VerifyFindingsOptions,
+} from '../plugins/review-finding-verification.js';
 export {
   persistReviewReport,
   type ReportIntegrationResult,

@@ -19,6 +19,10 @@ import * as path from 'node:path';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import type {
+  CascadeEvidenceCheckResult,
+  CascadeEvidenceStatus,
+} from './review-types.js';
+import type {
   ReviewReport,
   ReviewReportCounts,
   ReviewReportEvent,
@@ -86,6 +90,10 @@ export interface PersistReportInput {
   durationSeconds?: number | undefined;
   rawText: string;
   cascadeDepth?: number | undefined;
+  /** P0-3: cascade fix evidence status (verified/failed/missing). */
+  evidenceStatus?: CascadeEvidenceStatus | undefined;
+  /** P0-3: per-check claimed-vs-observed exit-code comparisons. */
+  evidenceChecks?: CascadeEvidenceCheckResult[] | undefined;
 }
 
 /** Context for who is creating/transitioning a report. */
@@ -145,6 +153,10 @@ export class JsonlReportStore implements ReportStore {
           durationSeconds: input.durationSeconds ?? existing.durationSeconds,
           rawText: input.rawText || existing.rawText,
           files: input.files.length > 0 ? input.files : existing.files,
+          ...(input.evidenceStatus !== undefined
+            ? { evidenceStatus: input.evidenceStatus }
+            : {}),
+          ...(input.evidenceChecks !== undefined ? { evidenceChecks: input.evidenceChecks } : {}),
         };
         await fsp.appendFile(this.filePath, JSON.stringify({ __report: 1, data: updated }) + NL, {
           encoding: 'utf8',
@@ -169,6 +181,10 @@ export class JsonlReportStore implements ReportStore {
         durationSeconds: input.durationSeconds,
         rawText: input.rawText,
         ...(input.cascadeDepth !== undefined ? { cascadeDepth: input.cascadeDepth } : {}),
+        ...(input.evidenceStatus !== undefined
+          ? { evidenceStatus: input.evidenceStatus }
+          : {}),
+        ...(input.evidenceChecks !== undefined ? { evidenceChecks: input.evidenceChecks } : {}),
       };
 
       const createdEvent: ReviewReportEvent = {

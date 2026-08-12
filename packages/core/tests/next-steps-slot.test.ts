@@ -1,4 +1,4 @@
-import { parseNextSteps } from '@wrongstack/tools/next-steps';
+import { isFinalTurnStopReason, parseNextSteps } from '@wrongstack/tools/next-steps';
 import { describe, expect, it } from 'vitest';
 import {
   clearPendingNextSteps,
@@ -53,7 +53,7 @@ describe('renderNextStepsBlock ↔ parseNextSteps round-trip', () => {
       { text: 'Run the parser tests and fix any failures' },
       { text: 'Review the diff for regressions' },
     ];
-    const parsed = parseNextSteps(renderNextStepsBlock(steps), false);
+    const parsed = parseNextSteps(renderNextStepsBlock(steps));
     expect(parsed.texts).toEqual([
       'Run the parser tests and fix any failures',
       'Review the diff for regressions',
@@ -65,7 +65,7 @@ describe('renderNextStepsBlock ↔ parseNextSteps round-trip', () => {
       { text: 'Run the test suite', auto: true },
       { text: 'Update the docs' },
     ]);
-    const parsed = parseNextSteps(rendered, false);
+    const parsed = parseNextSteps(rendered);
     expect(parsed.autoTexts).toEqual(['Run the test suite']);
     // The marker must not leak into the visible item text.
     expect(parsed.texts).toEqual(['Run the test suite', 'Update the docs']);
@@ -74,14 +74,14 @@ describe('renderNextStepsBlock ↔ parseNextSteps round-trip', () => {
   it('renders no auto marker when the slot dropped it from a later item', () => {
     const c = ctx();
     writePendingNextSteps(c, [{ text: 'First' }, { text: 'Second', auto: true }]);
-    const parsed = parseNextSteps(renderNextStepsBlock(readPendingNextSteps(c)!), false);
+    const parsed = parseNextSteps(renderNextStepsBlock(readPendingNextSteps(c)!));
     expect(parsed.autoTexts).toEqual([]);
   });
 
   it('leaves the prose before the block intact once the parser strips it', () => {
     const body = 'Done — the parser now rejects unbalanced blocks.';
     const appended = `${body}\n\n${renderNextStepsBlock([{ text: 'Run the tests' }])}`;
-    expect(parseNextSteps(appended, false).stripped).toBe(body);
+    expect(parseNextSteps(appended).stripped).toBe(body);
   });
 
   it('agrees with the parser about what counts as an existing block', () => {
@@ -143,7 +143,7 @@ describe('maybeAppendPendingNextSteps', () => {
     writePendingNextSteps(c, [{ text: 'Run the parser tests' }]);
     const out = maybeAppendPendingNextSteps(c, res('All done.'));
 
-    expect(parseNextSteps(textOf(out), false).texts).toEqual(['Run the parser tests']);
+    expect(parseNextSteps(textOf(out)).texts).toEqual(['Run the parser tests']);
     // Appended, never prepended: the WebUI only adopts a canonical response
     // that strictly extends the text it already streamed.
     expect(textOf(out).startsWith('All done.')).toBe(true);
@@ -199,7 +199,7 @@ describe('maybeAppendPendingNextSteps', () => {
     const typed = `Done.\n\n${renderNextStepsBlock([{ text: 'From the message' }])}`;
     const out = maybeAppendPendingNextSteps(c, res(typed));
 
-    expect(parseNextSteps(textOf(out), false).texts).toEqual(['From the message']);
+    expect(parseNextSteps(textOf(out)).texts).toEqual(['From the message']);
     expect(readPendingNextSteps(c)).toBeUndefined();
   });
 
@@ -207,7 +207,7 @@ describe('maybeAppendPendingNextSteps', () => {
     const c = ctx();
     writePendingNextSteps(c, [{ text: 'Run the tests' }]);
     const out = maybeAppendPendingNextSteps(c, res(''));
-    expect(parseNextSteps(textOf(out), false).texts).toEqual(['Run the tests']);
+    expect(parseNextSteps(textOf(out)).texts).toEqual(['Run the tests']);
   });
 
   it('does not mutate the response it was given', () => {
@@ -217,5 +217,25 @@ describe('maybeAppendPendingNextSteps', () => {
     const out = maybeAppendPendingNextSteps(c, input);
     expect(out).not.toBe(input);
     expect(textOf(input)).toBe('All done.');
+  });
+
+  // `endsTurn()` in next-steps-slot.ts hand-duplicates `isFinalTurnStopReason`
+  // from `@wrongstack/tools/next-steps` because core cannot import tools in
+  // its source DAG (tests can). This pins the two in lockstep through the
+  // slot's observable behavior: the block is appended iff the stop reason is
+  // final. If either side changes alone, this fails.
+  it.each([
+    'tool_use',
+    'tool_call',
+    'end_turn',
+    'stop',
+    'max_tokens',
+    undefined,
+  ] as const)('endsTurn matches isFinalTurnStopReason (stopReason=%s)', (stopReason) => {
+    const c = ctx();
+    writePendingNextSteps(c, [{ text: 'Run the tests' }]);
+    const out = maybeAppendPendingNextSteps(c, res('Prose.', stopReason as never));
+    const appended = textOf(out).includes('<nextsteps>');
+    expect(appended).toBe(isFinalTurnStopReason(stopReason));
   });
 });

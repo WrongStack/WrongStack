@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { compileGlob, DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { mapWithConcurrency } from './_concurrency.js';
 import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 import { assertRealInsideRoot, safeResolveReal } from './_util.js';
@@ -25,7 +26,9 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
   name: 'glob',
   category: 'Filesystem',
   description:
-    'Find files by path pattern. Use index-backed `codebase-search` first for code symbols or concepts when it is live.',
+    'Find files by path pattern. Results are sorted by modification time, newest first, ' +
+    'so when the list is truncated at `limit` it is the oldest files that are dropped (recency-biased). ' +
+    'Use index-backed `codebase-search` first for code symbols or concepts when it is live.',
   usageHint:
     'PATH DISCOVERY AND SEARCH SCOPING:\n\n' +
     '- When `codebase-search` is live, use it first for code concepts; use `glob` for filenames, path patterns, and non-indexed files.\n' +
@@ -41,7 +44,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
   capabilities: ['fs.read'],
   icon: 'folder',
   maxOutputBytes: 65_536,
-  timeoutMs: 5_000,
+  timeoutMs: 15_000,
   inputSchema: {
     type: 'object',
     properties: {
@@ -55,13 +58,22 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
       },
       limit: {
         type: 'integer',
-        description: 'Maximum number of results to return (default 1000, max 5000).',
+        minimum: 1,
+        maximum: 5000,
+        description:
+          'Maximum number of results to return (default 1000, max 5000). Results are sorted by ' +
+          'mtime descending, so truncation keeps the most recently modified files.',
       },
     },
     required: ['pattern'],
   },
   async execute(input, ctx, opts) {
-    if (!input?.pattern) throw new Error('glob: pattern is required');
+    if (!input?.pattern) {
+      throw new ToolValidationError({
+        message: 'glob: pattern is required',
+        field: 'pattern',
+      });
+    }
     const signal = opts?.signal;
     // `safeResolveReal` validates that the input base — even if symlinked —
     // resolves to a real path inside the project root (or `~/.wrongstack`).

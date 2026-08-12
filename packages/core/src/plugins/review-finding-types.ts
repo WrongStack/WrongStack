@@ -39,6 +39,55 @@ export type FindingSource = 'auto' | 'chimera' | 'cascade' | 'security-scanner';
 /** What kind of actor performed a lifecycle transition. */
 export type ActorKind = 'agent' | 'operator' | 'system';
 
+/**
+ * What kind of defect a finding describes. The reviewer tags every finding
+ * with one of these in the structured JSON contract (P0-1); cascade routing
+ * prefers the tag over keyword heuristics (P1-6).
+ */
+export type FindingCategory =
+  | 'bug'
+  | 'security'
+  | 'performance'
+  | 'type'
+  | 'contract'
+  | 'test'
+  | 'other';
+
+/** How confident the reviewer is that the finding is real. */
+export type FindingConfidence = 'high' | 'medium' | 'low';
+
+/** Whether the deterministic disk-verification pass confirmed the finding. */
+export type FindingVerificationStatus = 'verified' | 'failed' | 'unverified';
+
+/**
+ * Result of the P0-2 disk-verification pass. Attached by the execution owner
+ * AFTER parsing, BEFORE persistence and cascade gating:
+ *
+ * - `verified` — the cited file exists, the cited line is in range, and a
+ *   code anchor extracted from the finding appears at/near that line.
+ * - `failed`   — the citation is provably wrong (file missing, line out of
+ *   range, or the path escapes the workspace).
+ * - `unverified` — could not confirm either way (no location, no line, or
+ *   no anchor found near the cited line).
+ *
+ * Only `verified` findings are actionable: they are counted in the mailbox
+ * message and may trigger a cascade.
+ */
+export interface FindingVerification {
+  status: FindingVerificationStatus;
+  reason:
+    | 'no_line'
+    | 'file_missing'
+    | 'unreadable'
+    | 'outside_workspace'
+    | 'line_out_of_range'
+    | 'anchor_found'
+    | 'no_anchor'
+    | 'anchor_not_found';
+  /** The matched source line (trimmed), when the anchor was found. */
+  evidence?: string | undefined;
+}
+
 // ── Core types ─────────────────────────────────────────────────────
 
 export interface ChimeraFindingLocation {
@@ -80,6 +129,22 @@ export interface ChimeraFinding {
   source: FindingSource;
   /** Where the issue was found. */
   location?: ChimeraFindingLocation | undefined;
+  /**
+   * Defect category from the structured JSON contract. Absent for findings
+   * recovered from the legacy markdown path (no JSON block in the report).
+   */
+  category?: FindingCategory | undefined;
+  /**
+   * Reviewer confidence, from the structured JSON contract. Absent for
+   * findings recovered from the legacy markdown path.
+   */
+  confidence?: FindingConfidence | undefined;
+  /**
+   * Result of the P0-2 disk-verification pass. Absent when the execution
+   * owner did not verify the report (legacy emitters) or for findings
+   * without any citation.
+   */
+  verification?: FindingVerification | undefined;
   /** One-line title extracted from the report item. */
   title: string;
   /** Full description paragraphs. */

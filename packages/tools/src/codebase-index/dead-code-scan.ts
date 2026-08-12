@@ -85,7 +85,7 @@ export interface DeadCodeScanOutput {
 export const deadCodeScanTool: Tool<DeadCodeScanInput, DeadCodeScanOutput> = {
   name: 'dead-code-scan',
   category: 'Project',
-  icon: 'search',
+  icon: 'index',
   description:
     'Scan TypeScript/JavaScript source files for exported symbols that appear ' +
     'unused anywhere in the project. Uses the codebase-index reference graph ' +
@@ -93,11 +93,10 @@ export const deadCodeScanTool: Tool<DeadCodeScanInput, DeadCodeScanOutput> = {
     'package.json entry points. Requires a built codebase-index (run ' +
     '`codebase-index` first if you get no results).',
   usageHint:
-    'PASS `path` TO SCOPE THE SCAN:\n\n' +
-    '- Defaults to the project root (all indexed files).\n' +
-    '- `path` can be a directory to scope the scan (e.g. "src/util/").\n' +
-    '- `entryPoints` overrides auto-detected entry points (comma-separated file paths).\n\n' +
-    'The scan runs against the existing index; results are best-effort.',
+    'SCANS ALL INDEXED FILES UNDER THE PROJECT ROOT:\n\n' +
+    '- `projectRoot` defaults to the current project root; `indexDir` overrides the resolved index location.\n' +
+    '- `entryPoints` is an array of file paths that AUGMENTS the auto-discovered entry points (package.json bin/main/exports/types plus conventional src/index.ts-style files) — it does not replace them.\n\n' +
+    'The scan runs against the existing index; results are best-effort (dynamic imports, external consumers, and config-driven registration are invisible).',
   permission: 'auto',
   mutating: false,
   capabilities: ['fs.read'],
