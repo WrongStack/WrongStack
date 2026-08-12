@@ -30,7 +30,12 @@ import {
   updateTaskAssignment,
 } from '../src/manager.js';
 import { writeBoard } from '../src/storage.js';
-import type { KanbanBoard, KanbanTask, KanbanVerificationReport } from '../src/types.js';
+import type {
+  KanbanBoard,
+  KanbanCheck,
+  KanbanTask,
+  KanbanVerificationReport,
+} from '../src/types.js';
 
 let tmpDir: string;
 
@@ -1012,23 +1017,45 @@ const tickCheckInputBoard = () => {
   return { b, task };
 };
 
-/** Verifier snapshot for the tick-checks fixtures; only the fields these gates read vary. */
+/**
+ * Verifier snapshot for the tick-checks fixtures.
+ *
+ * The reported checks are DERIVED from the card's criteria at call time, because
+ * `validateDefinitionOfDone` only honours `coveredCheckIds` when every current
+ * criterion is covered by a report entry with a matching `description`+`type`
+ * fingerprint. Hand-written report literals silently broke that fingerprint and
+ * turned every "verifier settles the criteria" test into a no-op that asserted
+ * the refusal path instead. Pass `statusOverrides` to vary a single reported
+ * check; pass `fingerprint` to deliberately desync a report entry from the card.
+ */
 const tickCheckReport = (
   task: KanbanTask,
   board: KanbanBoard,
-  checks: KanbanVerificationReport['checks'],
-): KanbanVerificationReport => ({
-  taskId: task.id,
-  taskTitle: task.title,
-  boardId: board.id,
-  verdict: 'passed',
-  startedAt: '2026-08-11T23:59:00.000Z',
-  completedAt: '2026-08-12T00:00:00.000Z',
-  coveredCheckIds: ['check-manual', 'check-command'],
-  checks,
-  markdownSummary: 'verifier run',
-  attachments: [],
-});
+  options: {
+    statusOverrides?: Record<string, KanbanVerificationReport['checks'][number]['status']>;
+    fingerprint?: Record<string, { description?: string; type?: KanbanCheck['type'] }>;
+  } = {},
+): KanbanVerificationReport => {
+  const criteria = task.successCriteria ?? [];
+  return {
+    taskId: task.id,
+    taskTitle: task.title,
+    boardId: board.id,
+    verdict: 'passed',
+    startedAt: '2026-08-11T23:59:00.000Z',
+    completedAt: '2026-08-12T00:00:00.000Z',
+    coveredCheckIds: criteria.map((check) => check.id),
+    checks: criteria.map((check) => ({
+      checkId: check.id,
+      description: options.fingerprint?.[check.id]?.description ?? check.description,
+      type: options.fingerprint?.[check.id]?.type ?? check.type,
+      status: options.statusOverrides?.[check.id] ?? 'passed',
+      evidence: {},
+    })),
+    markdownSummary: 'verifier run',
+    attachments: [],
+  };
+};
 
 describe('validateTickChecks', () => {
   it('returns tickChecks-unknown-id when a checkId is not on the task', () => {
@@ -1060,6 +1087,10 @@ describe('validateTickChecks', () => {
 describe('preflightManagedTransition (Done) — tickChecks seam', () => {
   it('returns no issues for valid manual flips paired with a passing verification report', () => {
     const { b, task } = tickCheckInputBoard();
+    // The canonical tickChecks case: the verifier settled the command
+    // criterion, the agent ticks the manual one it owns. Neither channel
+    // alone clears the gate — together they must.
+    task.verificationReport = tickCheckReport(task, b);
     const issues = preflightManagedTransition(b, task, {
       to: 'done',
       actor: 'agent-1',
@@ -1069,16 +1100,17 @@ describe('preflightManagedTransition (Done) — tickChecks seam', () => {
     expect(issues).toEqual([]);
   });
 
-  it('effective-snapshot drops verificationReport when tickChecks are supplied (verifier authority suspended)', () => {
+  it('effective-snapshot keeps verificationReport so ticks do not suspend verifier coverage', () => {
     const { b, task } = tickCheckInputBoard();
-    // A stale report whose covered criterion is failed on the card — without
-    // ticks, the verifier-coverage shortcut would refuse Done. But once the
-    // agent supplies tickChecks, the effective snapshot drops the report and
-    // uses tick.checkStatus verbatim — that is the intended contract.
-    task.verificationReport = tickCheckReport(task, b, [
-      { checkId: 'check-manual', description: 'm', type: 'manual', status: 'failed', evidence: {} },
-      { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
-    ]);
+    // The report's own per-check status is NOT what the gate reads — it reads
+    // the card's criteria plus the report's coverage/verdict/fingerprint. So a
+    // report entry that says `failed` for the criterion the agent is ticking
+    // must not block, while the SAME report still settles `check-command`.
+    // Dropping the report on any tick would make this card unreachable: no
+    // tick can flip a command criterion, so Done would be impossible.
+    task.verificationReport = tickCheckReport(task, b, {
+      statusOverrides: { 'check-manual': 'failed' },
+    });
     const issues = preflightManagedTransition(b, task, {
       to: 'done',
       actor: 'agent-1',
@@ -1086,6 +1118,22 @@ describe('preflightManagedTransition (Done) — tickChecks seam', () => {
       tickChecks: [{ checkId: 'check-manual', checkStatus: 'passed' }],
     });
     expect(issues).toEqual([]);
+  });
+
+  it('applies tickChecks.checkStatus verbatim — a tick of `failed` refuses Done', () => {
+    const { b, task } = tickCheckInputBoard();
+    // Guards the snapshot against hardcoding 'passed': a fully-covering
+    // passing report is present, so the ONLY thing that can refuse Done here
+    // is the agent's own `failed` tick landing on the criterion.
+    task.verificationReport = tickCheckReport(task, b);
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'manual review did not hold',
+      tickChecks: [{ checkId: 'check-manual', checkStatus: 'failed' }],
+    });
+    expect(issues.map((i) => i.code)).toContain('acceptance-criteria-incomplete');
+    expect(issues[0]?.message).toContain('manual review');
   });
 
   it('refuses Done when assignment.lastResult is missing (only blocking channel)', () => {
@@ -1115,10 +1163,9 @@ describe('preflightManagedTransition (Done) — tickChecks seam', () => {
 
   it('allows Done when the verificationReport verdict=passed AND coveredCheckIds ⊇ current criteria', () => {
     const { b, task } = tickCheckInputBoard();
-    task.verificationReport = tickCheckReport(task, b, [
-      { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
-      { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
-    ]);
+    // Both criteria are still `pending` on the card — the verifier's coverage
+    // is what settles them, with no update_check round-trip.
+    task.verificationReport = tickCheckReport(task, b);
     const issues = preflightManagedTransition(b, task, {
       to: 'done',
       actor: 'agent-1',
@@ -1127,20 +1174,35 @@ describe('preflightManagedTransition (Done) — tickChecks seam', () => {
     expect(issues.filter((i) => i.code === 'acceptance-criteria-incomplete')).toEqual([]);
   });
 
-  it('refuses Done when verdict=passed but a covered criterion is failed on the card (fingerprint mismatch)', () => {
+  it('refuses Done when verdict=passed but a covered criterion is failed on the card', () => {
     const { b, task } = tickCheckInputBoard();
     task.successCriteria = [
       { id: 'check-manual', description: 'm', type: 'manual', status: 'failed' },
       { id: 'check-command', description: 'c', type: 'command', status: 'passed', notes: 'true' },
     ];
-    task.verificationReport = tickCheckReport(task, b, [
-      { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
-      { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
-    ]);
+    // Coverage, verdict and fingerprints all line up; the live `failed` on the
+    // card is the only thing left, and it must still win over the report.
+    task.verificationReport = tickCheckReport(task, b);
     const issues = preflightManagedTransition(b, task, {
       to: 'done',
       actor: 'agent-1',
-      comment: 'mismatch is real',
+      comment: 'a failed criterion outranks a passing report',
+    });
+    expect(issues.map((i) => i.code)).toContain('acceptance-criteria-incomplete');
+  });
+
+  it('refuses Done when a covered criterion was edited after the report (fingerprint mismatch)', () => {
+    const { b, task } = tickCheckInputBoard();
+    // Same ids, same passing verdict, full coverage — but the criterion's
+    // description has moved on since the verifier ran, so the report no longer
+    // describes the card and may not settle it.
+    task.verificationReport = tickCheckReport(task, b, {
+      fingerprint: { 'check-command': { description: 'run the OLD tests' } },
+    });
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'stale report must not settle a rewritten criterion',
     });
     expect(issues.map((i) => i.code)).toContain('acceptance-criteria-incomplete');
   });

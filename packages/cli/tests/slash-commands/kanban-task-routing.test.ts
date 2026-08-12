@@ -746,10 +746,11 @@ describe('/kanban task done — managed preflight on todo stage', () => {
     expect(card.columnId).not.toBe(reviewColumnId);
   });
 
-  it('reports the missing-attachment diagnostic and leaves the card in running when no --attachment is supplied', async () => {
+  it('completes without --attachment (the evidence URL is optional) and records no fabricated attachment', async () => {
     const root = await tempProject();
     const board = managedBoardFixture();
     const runningColumnId = board.lifecycle!.columns.running;
+    const doneColumnId = board.lifecycle!.columns.done;
     const taskId = 'task-preflight-no-attachment-1';
     const stamp = '2026-02-01T00:00:00.000Z';
     board.tasks = [
@@ -790,21 +791,31 @@ describe('/kanban task done — managed preflight on todo stage', () => {
     ];
     await writeBoard(root, board);
 
-    // No --attachment flag → the preflight's review-evidence gate fires
-    // before any transition. Card must stay in `running`, no partial
-    // transitions, no corrupt audit history.
+    // No --attachment flag. `validateReviewEvidence`/`validateDoneEvidence`
+    // treat the evidence URL as OPTIONAL — they require a recorded
+    // `assignment.lastResult` and reviewer action text, both of which are
+    // present here. The preflight must mirror that: refusing the transition
+    // would reject a card the live gate accepts, which is the drift
+    // `preflightManagedTransition` exists to prevent. What must NOT happen is
+    // the audit ledger gaining an attachment the operator never supplied.
     const result = await runKanban(
       root,
       `task done ${board.id} ${taskId} --note "ran and verified"`,
     );
 
     expect(result.message).toBeDefined();
-    expect(result.message).toMatch(/--attachment|Review evidence/i);
-    expect(result.message).toMatch(/needs? attention/);
+    expect(result.message).toMatch(/completed/i);
+    expect(result.message).not.toMatch(/needs? attention/);
 
     const after = await getBoard(root, board.id);
     expect(after).not.toBeNull();
     const card = findTask(after!, 'running-without-evidence card');
-    expect(card.columnId).toBe(runningColumnId);
+    expect(card.columnId).toBe(doneColumnId);
+    expect(card.columnId).not.toBe(runningColumnId);
+    const history = card.lifecycle?.history ?? [];
+    expect(history.map((entry) => entry.to)).toEqual(
+      expect.arrayContaining(['review', 'done']),
+    );
+    expect(history.every((entry) => entry.attachment === undefined)).toBe(true);
   });
 });

@@ -982,12 +982,13 @@ export function validateTickChecks(
  * `tick.checkStatus` and the preflight must agree, otherwise a tick of
  * `failed` or `skipped` would be misrepresented as a pass in preflight only.
  *
- * When `tickChecks` is supplied, the snapshot also drops `verificationReport`
- * — the agent is overriding the verifier's manual-check verdicts, so the
- * verifier's authority is suspended for this transition. A stale report
- * covering criteria that have since been edited or replaced would otherwise
- * authorize Done through the verifier-coverage shortcut even though the
- * agent is asserting different ground truth.
+ * The snapshot KEEPS `verificationReport`: ticking a manual criterion does not
+ * suspend the verifier's authority over the criteria it isn't touching. The
+ * mutating path flips only `successCriteria` and runs the gate with the report
+ * intact, so dropping it here would refuse Done on cards the live gate accepts
+ * — the exact drift this preflight exists to prevent — and would strand every
+ * card whose command criteria only the verifier can settle. Staleness is already
+ * handled by `validateDefinitionOfDone`'s coverage + fingerprint guards.
  */
 function applyTickChecksToSnapshot(
   task: KanbanTask,
@@ -1000,7 +1001,6 @@ function applyTickChecksToSnapshot(
   const tickById = new Map(tickChecks.map((tick) => [tick.checkId, tick]));
   return {
     ...task,
-    verificationReport: undefined,
     successCriteria: (task.successCriteria ?? []).map((check) => {
       const tick = tickById.get(check.id);
       if (!tick || check.type !== 'manual') return check;
@@ -1079,7 +1079,7 @@ export function preflightManagedTransition(
   if (input.to === 'done') {
     const effectiveTask = applyTickChecksToSnapshot(task, input.tickChecks);
     issues.push(
-      ...validateDefinitionOfDone(effectiveTask, task.verificationReport, {
+      ...validateDefinitionOfDone(effectiveTask, effectiveTask.verificationReport, {
         requireCriteria: true,
         board,
       }),
