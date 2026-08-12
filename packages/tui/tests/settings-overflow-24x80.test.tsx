@@ -326,6 +326,14 @@ describe('settings picker fills its box (no blank area above the bottom border)'
     const minimumLines = minimum.lines();
     minimum.unmount();
 
+    const noColor = renderRealTty(
+      React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'no-color' })),
+      { columns: 80, rows: 40 },
+    );
+    await settle();
+    const noColorLines = noColor.lines();
+    noColor.unmount();
+
     const detailed = renderRealTty(
       React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'detailed' })),
       { columns: 80, rows: 40 },
@@ -340,7 +348,9 @@ describe('settings picker fills its box (no blank area above the bottom border)'
       }
       return -1;
     };
+    expect(bottomBorderRow(noColorLines)).toBe(bottomBorderRow(minimumLines));
     expect(bottomBorderRow(minimumLines) - bottomBorderRow(detailedLines)).toBe(3);
+    expect(noColorLines.length).toBeLessThanOrEqual(40);
     expect(detailedLines.length).toBeLessThanOrEqual(40);
     expect(blankRowsAboveBorder(detailedLines)).toBeLessThanOrEqual(2);
   });
