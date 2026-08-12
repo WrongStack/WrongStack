@@ -22,6 +22,11 @@ import {
   settingsPickerJumpByName,
 } from '../src/components/settings-picker.js';
 import type { SettingsPickerProps } from '../src/components/settings-picker.js';
+import {
+  buildVisibleSectionHeaders,
+  deriveSettingsSectionFieldStarts,
+  type SettingsPickerRowData,
+} from '../src/components/settings-picker-row-list.js';
 
 const ROWS = 24;
 const COLS = 80;
@@ -172,14 +177,14 @@ describe('settings picker overflow at 24×80', () => {
 
   it('full bottom-region composition fits at 24×80 with StatusBar + KeyHintBar', async () => {
     // Mirrors AppView's actual bottom-region layout: Input placeholder +
-    // SettingsPicker + StatusBar(2 rows) + KeyHintBar(1 row), all inside
+    // SettingsPicker + StatusBar(4 rows) + KeyHintBar(1 row), all inside
     // the root cap (height=termRows, overflowY=hidden, flex-end).
     // This is the real integration test — if the pickerHeight budget
     // doesn't account for the status chrome, the root cap clips the
     // picker title here even though the standalone test passes.
     const { Box, Text } = await import('../src/ink.js');
     const inputRows = 3;
-    const statusRows = 2; // StatusBar (detailed mode = 2 lines)
+    const statusRows = 4; // StatusBar detailed-mode worst case
     const hintRows = 1; // KeyHintBar
     const historyRows = ROWS - inputRows - statusRows - hintRows - 8; // picker gets the rest
 
@@ -200,8 +205,14 @@ describe('settings picker overflow at 24×80', () => {
                 ))}
               </Box>
               {/* SettingsPicker — the component under test */}
-              <SettingsPicker {...baseProps({ field: 0, inputHeight: inputRows })} />
-              {/* StatusBar placeholder (2 rows in detailed mode) */}
+              <SettingsPicker
+                {...baseProps({
+                  field: 0,
+                  inputHeight: inputRows,
+                  statuslineMode: 'detailed',
+                })}
+              />
+              {/* StatusBar placeholder (4 rows in detailed mode) */}
               <Box flexDirection="column" flexShrink={0}>
                 {Array.from({ length: statusRows }, (_, i) => (
                   <Text key={i}>{`status-${i}`}</Text>
@@ -231,5 +242,175 @@ describe('settings picker overflow at 24×80', () => {
     // KeyHintBar at the bottom edge must be visible.
     expect(view.lastFrame()).toContain('key hints');
     view.unmount();
+  });
+});
+
+describe('settings picker fills its box (no blank area above the bottom border)', () => {
+  // Count blank rows between the last content line and the round border's
+  // bottom edge (╰). The old worst-case VISIBLE_FIELDS budget
+  // (linesPerField + 1 per field) under-filled the box by 8–12 rows on a
+  // 40-row terminal; the exact-fit window leaves at most 1–2.
+  function blankRowsAboveBorder(lines: string[]): number {
+    let borderIdx = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if ((lines[i] ?? '').includes('╰')) {
+        borderIdx = i;
+        break;
+      }
+    }
+    if (borderIdx < 0) return Number.POSITIVE_INFINITY;
+    for (let i = borderIdx - 1; i >= 0; i--) {
+      const line = lines[i] ?? '';
+      // A visually blank row inside the picker still contains its vertical
+      // border glyphs. Count only text between those borders.
+      const left = line.indexOf('│');
+      const right = line.lastIndexOf('│');
+      const content = left >= 0 && right > left ? line.slice(left + 1, right) : line;
+      if (content.trim().length > 0) return borderIdx - i - 1;
+    }
+    return borderIdx;
+  }
+
+  it('fills a 40×80 terminal (2-line fields) without a large blank area', async () => {
+    const view = renderRealTty(
+      React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'minimum' })),
+      { columns: 80, rows: 40 },
+    );
+    await settle();
+    const lines = view.lines();
+    expect(lines.length).toBeLessThanOrEqual(40);
+    // The list reaches the bottom of the box — no ~8-row blank gap.
+    expect(blankRowsAboveBorder(lines)).toBeLessThanOrEqual(2);
+    // 'Plugins' (field 9) was below the old 8-field window; the exact-fit
+    // window now renders it.
+    expect(view.lastFrame()).toContain('Plugins');
+    view.unmount();
+  });
+
+  it('fills a wide 40×120 terminal (1-line fields) without a large blank area', async () => {
+    const view = renderRealTty(
+      React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'minimum' })),
+      { columns: 120, rows: 40 },
+    );
+    await settle();
+    const lines = view.lines();
+    expect(lines.length).toBeLessThanOrEqual(40);
+    expect(blankRowsAboveBorder(lines)).toBeLessThanOrEqual(2);
+    // 'Index on session start' (field 20) was below the old 12-field
+    // window; the exact-fit window now renders it.
+    expect(view.lastFrame()).toContain('Index on session start');
+    view.unmount();
+  });
+
+  it('keeps the focused field visible when scrolled into a mid-list section (40×80)', async () => {
+    const view = renderRealTty(
+      React.createElement(SettingsPicker, baseProps({ field: 20, statuslineMode: 'minimum' })),
+      { columns: 80, rows: 40 },
+    );
+    await settle();
+    const lines = view.lines();
+    expect(lines.length).toBeLessThanOrEqual(40);
+    // No overflow AND the list still fills the box when the window is
+    // centered mid-list (windowStart > 0, so scroll-above also renders).
+    expect(blankRowsAboveBorder(lines)).toBeLessThanOrEqual(2);
+    expect(view.lastFrame()).toContain('Index on session start');
+    view.unmount();
+  });
+
+  it('reserves three additional rows in detailed mode without overflowing', async () => {
+    const minimum = renderRealTty(
+      React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'minimum' })),
+      { columns: 80, rows: 40 },
+    );
+    await settle();
+    const minimumLines = minimum.lines();
+    minimum.unmount();
+
+    const detailed = renderRealTty(
+      React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'detailed' })),
+      { columns: 80, rows: 40 },
+    );
+    await settle();
+    const detailedLines = detailed.lines();
+    detailed.unmount();
+
+    const bottomBorderRow = (lines: string[]): number => {
+      for (let i = lines.length - 1; i >= 0; i--) {
+        if ((lines[i] ?? '').includes('╰')) return i;
+      }
+      return -1;
+    };
+    expect(bottomBorderRow(minimumLines) - bottomBorderRow(detailedLines)).toBe(3);
+    expect(detailedLines.length).toBeLessThanOrEqual(40);
+    expect(blankRowsAboveBorder(detailedLines)).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('settings picker section-header accounting contract', () => {
+  it('keeps gap-derived starts and renderer headers aligned for the production layout', async () => {
+    let layout:
+      | { rows: readonly SettingsPickerRowData[]; fieldRowIndex: readonly number[] }
+      | undefined;
+    const view = renderRealTty(
+      React.createElement(
+        SettingsPicker,
+        baseProps({
+          onLayoutComputed: (computed) => {
+            layout = computed;
+          },
+        }),
+      ),
+      { columns: 80, rows: 40 },
+    );
+    await settle();
+    view.unmount();
+
+    expect(layout).toBeDefined();
+    if (!layout) throw new Error('SettingsPicker did not publish its production layout');
+    const { rows, fieldRowIndex } = layout;
+
+    // Independently derive the expected field start of every section by
+    // walking the production rows, not by repeating the gap algorithm.
+    const expectedStarts: number[] = [];
+    const headerRows: number[] = [];
+    let fieldCount = 0;
+    for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+      if (rows[rowIdx]?.section) {
+        expectedStarts.push(fieldCount);
+        headerRows.push(rowIdx);
+      } else {
+        fieldCount++;
+      }
+    }
+    expect(fieldCount).toBe(fieldRowIndex.length);
+    expect(deriveSettingsSectionFieldStarts(fieldRowIndex)).toEqual(expectedStarts);
+
+    // Exercise windows immediately before, at, and after every real section
+    // boundary. These are the points where budget/header desync can occur.
+    const windows = new Set<string>();
+    for (const boundary of [...expectedStarts, fieldRowIndex.length]) {
+      for (const start of [boundary - 1, boundary]) {
+        for (const end of [boundary, boundary + 1]) {
+          const clampedStart = Math.max(0, Math.min(start, fieldRowIndex.length - 1));
+          const clampedEnd = Math.max(clampedStart + 1, Math.min(end, fieldRowIndex.length));
+          windows.add(`${clampedStart}:${clampedEnd}`);
+        }
+      }
+    }
+
+    for (const window of windows) {
+      const [startText, endText] = window.split(':');
+      const start = Number(startText);
+      const end = Number(endText);
+      const expectedHeaders = new Set(
+        expectedStarts.flatMap((sectionStart, index) => {
+          const sectionEnd = expectedStarts[index + 1] ?? fieldRowIndex.length;
+          return sectionStart < end && sectionEnd > start ? [headerRows[index] ?? -1] : [];
+        }),
+      );
+      expect(buildVisibleSectionHeaders(rows, fieldRowIndex, start, end)).toEqual(
+        expectedHeaders,
+      );
+    }
   });
 });

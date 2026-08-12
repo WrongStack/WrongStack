@@ -1,4 +1,5 @@
 import type React from 'react';
+import { useEffect } from 'react';
 import { Box, Text, useStdout } from '../ink.js';
 import { PANEL_IDS } from '../ui-contracts.js';
 import { buildSettingsFilterState } from './settings-picker-filter.js';
@@ -35,7 +36,11 @@ import {
   STATUSLINE_MODE_DESCS,
   TOKEN_SAVING_TIER_DESCS,
 } from './settings-picker-model.js';
-import { type SettingsPickerRowData, SettingsPickerRowList } from './settings-picker-row-list.js';
+import {
+  deriveSettingsSectionFieldStarts,
+  type SettingsPickerRowData,
+  SettingsPickerRowList,
+} from './settings-picker-row-list.js';
 
 export {
   SETTINGS_PICKER_JUMP_CHORDS,
@@ -167,6 +172,13 @@ export interface SettingsPickerProps {
    */
   inputHeight?: number | undefined;
   hint?: string | undefined;
+  /** @internal Test seam for asserting the production row/header layout contract. */
+  onLayoutComputed?:
+    | ((layout: {
+        rows: readonly SettingsPickerRowData[];
+        fieldRowIndex: readonly number[];
+      }) => void)
+    | undefined;
 }
 
 export function SettingsPicker({
@@ -224,6 +236,7 @@ export function SettingsPicker({
   panelPositions,
   inputHeight,
   hint,
+  onLayoutComputed,
 }: SettingsPickerProps): React.ReactElement {
   const boolVal = (v: boolean) => (v ? 'on' : 'off');
 
@@ -506,6 +519,9 @@ export function SettingsPicker({
   for (let i = 0; i < rows.length; i++) {
     if (!rows[i]?.section) fieldRowIndex.push(i);
   }
+  useEffect(() => {
+    onLayoutComputed?.({ rows, fieldRowIndex });
+  });
 
   const { filterActive, rankedResults, filteredFieldIndices, highlightSegments } =
     buildSettingsFilterState(filter, SETTINGS_PICKER_JUMP_CHORDS);
@@ -529,15 +545,14 @@ export function SettingsPicker({
   //
   // Both numbers derive from the same chain so they cannot disagree:
   //
-  //   pickerHeight     = max(8, termRows − inputHeight − BOTTOM_CHROME_ROWS)
+  //   pickerHeight     = max(8, termRows − inputHeight − bottomChromeRows)
   //   innerHeight      = pickerHeight − BORDER_ROWS
-  //   VISIBLE_FIELDS   = max(3, floor((innerHeight − CHROME_ROWS)
-  //                                    / (linesPerField + 1)))
+  //   visible window  = largest centered field range whose exact wrapped
+  //                     field rows + intersecting headers fit innerHeight.
   //
   // Field rows render a 40-char prefix ("  " + label.padEnd(26) +
-  // value.padEnd(12)) then detail text. At contentWidth < 96 cols the
-  // detail wraps onto a second line for most rows, so we budget 2 lines
-  // per field; wide terminals (≥ 100 cols) keep each field on one line.
+  // value.padEnd(12)) followed by detail text. Deriving each field's wrapped
+  // line cost avoids both narrow-terminal overflow and wide blank gaps.
   const { stdout } = useStdout();
   const termRows = stdout?.rows ?? 24;
   const termCols = stdout?.columns ?? 80;
@@ -546,55 +561,115 @@ export function SettingsPicker({
   // borderStyle="round" consumes 2 cols (left + right borders);
   // paddingX={1} consumes 2 more (1 col each side).
   const contentWidth = Math.max(10, termCols - 4);
-  // Detail text follows the 40-char label+value prefix and wraps.
-  // At narrow widths the available detail space shrinks and each field
-  // consumes more lines. Budget conservatively to avoid overflow:
-  //   ≥ 96 cols content (≥100-col terminal): detail fits on one line
-  //   ≥ 60 cols content (≥64-col terminal): detail wraps to ~2 lines
-  //   < 60 cols content (< 64-col terminal): detail wraps to ~4 lines
-  const linesPerField = contentWidth >= 96 ? 1 : contentWidth >= 60 ? 2 : 4;
+  // Match renderPickerRow's exact printable width: selection prefix + padded
+  // label + padded value + detail. A fixed "2 lines at 80 cols" estimate
+  // over-counted short rows and still left a large blank area in the box.
+  const fieldLineCount = (fieldIdx: number): number => {
+    const rowIdx = fieldRowIndex[fieldIdx];
+    const row = rowIdx === undefined ? undefined : rows[rowIdx];
+    const printableWidth =
+      2 +
+      Math.max(26, (row?.label ?? '').length) +
+      Math.max(12, String(row?.value ?? '').length) +
+      (row?.detail ?? '').length;
+    return Math.max(1, Math.ceil(printableWidth / contentWidth));
+  };
 
   // Fixed rows consumed regardless of field count.
   // Real input height (passed from AppView) accounts for multi-line
   // buffers; default to 3 (single-line prompt + 2 chrome rows) when not
   // supplied (tests, standalone rendering).
   const INPUT_ROWS = inputHeight ?? 3;
-  // StatusBar (1–4 rows in detailed mode: base rails + optional work and
-  // memory/index rails) + KeyHintBar (1 row) render below the picker inside
-  // the bottom region. Reserve the worst case so the picker title stays
-  // visible even with all optional detailed-status rails active. Without
-  // this deduction the picker overshoots and the root cap clips the title.
-  const BOTTOM_CHROME_ROWS = 5;
+  // StatusBar + KeyHintBar render below the picker inside the bottom region.
+  // Minimum/no-color reserve one status rail plus the hint row; detailed
+  // reserves its four-rail worst case plus the hint row.
+  const bottomChromeRows = statuslineMode === 'detailed' ? 5 : 2;
   const BORDER_ROWS = 2; // picker top + bottom borders
-  const CHROME_ROWS = 5; // title + legend + scroll-above/below + footer
+  // Title + legend/filter summary + footer. The keyboard legend wraps to a
+  // second line below 64 content columns, so reserve that real extra row.
+  const BASE_CHROME_ROWS = contentWidth < 64 ? 4 : 3;
 
   // Picker Box height (borders included). Leaves INPUT_ROWS for the
-  // Input box and BOTTOM_CHROME_ROWS for StatusBar + KeyHintBar below.
+  // Input box and bottomChromeRows for StatusBar + KeyHintBar below.
   // The min 8 guarantees a usable picker even on very short terminals
   // (the hard cap clips excess, never scrolls).
-  const pickerHeight = Math.max(8, termRows - INPUT_ROWS - BOTTOM_CHROME_ROWS);
+  const pickerHeight = Math.max(8, termRows - INPUT_ROWS - bottomChromeRows);
   const innerHeight = pickerHeight - BORDER_ROWS;
 
-  // VISIBLE_FIELDS — non-filter mode. Each field row can be preceded by
-  // a section header (── Section ──), so worst-case cost per visible
-  // field is linesPerField + 1 (field row + header row). This formula
-  // avoids a separate maxHeaders estimate and its risk of over/under-
-  // reserving: it's exact in the worst case and generous when fields
-  // cluster within sections (the common case).
-  const VISIBLE_FIELDS = Math.max(3, Math.floor((innerHeight - CHROME_ROWS) / (linesPerField + 1)));
+  // VISIBLE_FIELDS — non-filter mode. Each field row renders linesPerField
+  // lines; section headers (── Section ──) render one line and only for
+  // sections that intersect the window. The old worst-case budget
+  // (linesPerField + 1 per field — one header per field) under-filled the
+  // box whenever fields clustered under headers, leaving a large blank
+  // area above the picker's bottom border. Instead, find the largest
+  // window (centered on the focused field, clamped as before) whose exact
+  // rendered row count fits the available inner height.
   const totalFields = fieldRowIndex.length; // = SETTINGS_FIELD_COUNT
-  const windowStart =
-    totalFields <= VISIBLE_FIELDS
-      ? 0
-      : Math.max(0, Math.min(field - Math.floor(VISIBLE_FIELDS / 2), totalFields - VISIBLE_FIELDS));
+
+  // Shared with SettingsPickerRowList so the exact-fit budget and renderer
+  // cannot silently disagree about which fields begin sections.
+  const sectionFieldStarts = deriveSettingsSectionFieldStarts(fieldRowIndex);
+
+  // Exact rows consumed by window [start, end): the measured line cost of
+  // each field, plus one line per section header that intersects the window.
+  // This includes the header of a section that began above the window and
+  // still contains `start`.
+  const countWindowLines = (start: number, end: number): number => {
+    let lines = 0;
+    for (let fieldIdx = start; fieldIdx < end; fieldIdx++) {
+      lines += fieldLineCount(fieldIdx);
+    }
+    for (const secStart of sectionFieldStarts) {
+      if (secStart >= start && secStart < end) lines++;
+    }
+    if (start > 0 && !sectionFieldStarts.includes(start)) lines++;
+    return lines;
+  };
+
+  // Window start for a given width N, centered on `field` (clamped as
+  // before). The window grows by exactly one field per step, so the exact
+  // row count is monotone in N and binary search finds the maximum fit.
+  const windowStartFor = (n: number): number =>
+    totalFields <= n ? 0 : Math.max(0, Math.min(field - Math.floor(n / 2), totalFields - n));
+
+  const windowFits = (fieldCount: number): boolean => {
+    const start = windowStartFor(fieldCount);
+    const end = Math.min(start + fieldCount, totalFields);
+    const scrollIndicatorRows = (start > 0 ? 1 : 0) + (end < totalFields ? 1 : 0);
+    const chromeRows = BASE_CHROME_ROWS + scrollIndicatorRows + (hint ? 1 : 0);
+    return countWindowLines(start, end) + chromeRows <= innerHeight;
+  };
+
+  let lo = 3;
+  let hi = totalFields;
+  let VISIBLE_FIELDS = Math.min(3, totalFields);
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (windowFits(mid)) {
+      VISIBLE_FIELDS = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  const windowStart = windowStartFor(VISIBLE_FIELDS);
   const windowEnd = Math.min(windowStart + VISIBLE_FIELDS, totalFields);
   const hasAbove = windowStart > 0;
   const hasBelow = windowEnd < totalFields;
 
-  // Filter-mode window: no section headers, so each row costs linesPerField.
-  // Without windowing, a broad query (/m, /ce) matches 15+ fields and the
-  // hard height cap clips the filter header — making it look inactive.
-  const FILTER_VISIBLE_FIELDS = Math.max(3, Math.floor((innerHeight - CHROME_ROWS) / linesPerField));
+  // Filter-mode window has no section headers. Use the most expensive
+  // matching field as the per-result budget so broad queries cannot overflow,
+  // while short rows are not all charged a stale worst-case width estimate.
+  const maxFilteredFieldLines = Math.max(
+    1,
+    ...rankedResults.map((result) => fieldLineCount(result.chord.field)),
+  );
+  const FILTER_CHROME_ROWS = BASE_CHROME_ROWS + 2; // worst-case above + below indicators
+  const FILTER_VISIBLE_FIELDS = Math.max(
+    3,
+    Math.floor((innerHeight - FILTER_CHROME_ROWS - (hint ? 1 : 0)) / maxFilteredFieldLines),
+  );
   const filterMatchCount = rankedResults.length;
   const filterSelectedIdx = filterActive
     ? rankedResults.findIndex((r) => r.chord.field === field)

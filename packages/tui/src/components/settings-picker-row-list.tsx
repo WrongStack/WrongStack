@@ -53,32 +53,39 @@ function renderPickerRow(
   );
 }
 
-function buildVisibleSectionHeaders(
+export function deriveSettingsSectionFieldStarts(
+  fieldRowIndex: readonly number[],
+): readonly number[] {
+  const starts: number[] = [];
+  for (let fieldIdx = 0; fieldIdx < fieldRowIndex.length; fieldIdx++) {
+    const rowIdx = fieldRowIndex[fieldIdx] ?? 0;
+    const previousRowIdx = fieldIdx > 0 ? (fieldRowIndex[fieldIdx - 1] ?? 0) : -1;
+    if (fieldIdx === 0 || rowIdx - previousRowIdx > 1) starts.push(fieldIdx);
+  }
+  return starts;
+}
+
+export function buildVisibleSectionHeaders(
   rows: readonly SettingsPickerRowData[],
   fieldRowIndex: readonly number[],
   windowStart: number,
   windowEnd: number,
 ): Set<number> {
-  const sectionFields: Array<{ headerIdx: number; fieldStart: number; fieldEnd: number }> = [];
-  let curHeader = -1;
-  for (let i = 0; i < rows.length; i++) {
-    if (rows[i]?.section) curHeader = i;
-    else if (curHeader >= 0) {
-      const fieldIdx = fieldRowIndex.indexOf(i);
-      if (fieldIdx === -1) continue;
-      const entry = sectionFields.find((s) => s.headerIdx === curHeader);
-      if (entry) {
-        entry.fieldEnd = fieldIdx + 1;
-      } else {
-        sectionFields.push({ headerIdx: curHeader, fieldStart: fieldIdx, fieldEnd: fieldIdx + 1 });
-      }
-    }
+  const sectionStarts = deriveSettingsSectionFieldStarts(fieldRowIndex);
+  const visibleHeaders = new Set<number>();
+
+  for (let i = 0; i < sectionStarts.length; i++) {
+    const fieldStart = sectionStarts[i] ?? 0;
+    const fieldEnd = sectionStarts[i + 1] ?? fieldRowIndex.length;
+    if (fieldStart >= windowEnd || fieldEnd <= windowStart) continue;
+
+    const firstFieldRow = fieldRowIndex[fieldStart];
+    if (firstFieldRow === undefined) continue;
+    const headerIdx = firstFieldRow - 1;
+    if (rows[headerIdx]?.section) visibleHeaders.add(headerIdx);
   }
-  return new Set(
-    sectionFields
-      .filter((section) => section.fieldStart < windowEnd && section.fieldEnd > windowStart)
-      .map((section) => section.headerIdx),
-  );
+
+  return visibleHeaders;
 }
 
 export function SettingsPickerRowList({

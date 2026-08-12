@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=42; wins=42 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=57; wins=57 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -34,6 +34,16 @@
   - *How:* `runCteWithSeeds`
   - *How:* `ReferenceError`
 
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z -->
+- **When a test-file diff adds a new import block but the test bodies it accompanies never reference those symbols, immediately grep the changed file for every imported name before trusting the diff — `noUnusedLocals: true` (set in `tsconfig.base.json`, inherited by every package's `tsconfig.json` and `tsconfig.test.json`) turns each unused import into `error TS6133` and fails the package's test typecheck. Unused `type`-qualified inline imports are flagged too; do not assume type-only imports are exempt.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `noUnusedLocals: true`
+  - *How:* `tsconfig.base.json`
+  - *How:* `tsconfig.json`
+  - *How:* `tsconfig.test.json`
+  - *How:* `error TS6133`
+  - *How:* `type`
+
 <!-- learned-stamp: category=warning; capturedAt=2026-08-12T05:28:46.207Z; skill=chimera; applied=18; wins=18 -->
 - **When extracting a shared classification helper (e.g. `classifyChimeraReviewSource` in `packages/core/src/plugins/review-finding-integration.ts`) to guarantee two stores agree on a label, the function's parameter shape (`ReviewContextBundle` vs the full `ChimeraReviewCompletePayload`) is a wiring hazard. Grep every call site and confirm each passes the matching shape: finding/report integrations pass `payload.bundle`, while sibling consumers that already hold the bare bundle (e.g. `packages/cli/src/execution-chimera-review.ts`) pass it directly.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
@@ -59,13 +69,7 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=56; wins=54 -->
-- **Always verify a "default/fallback value" test is *discriminating*: when the system under test returns a bounded slice, supply more candidates than the default cap so the assertion count equals the cap (not the candidate count). A test whose expected length is smaller than the default cap cannot distinguish "the default was applied" from "no cap applied at all" — it passes even when the fallback-to-constant branch is broken (e.g. returns `undefined` → `Number.isFinite` false → no slicing).**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `undefined`
-  - *How:* `Number.isFinite`
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=25; wins=25 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=26; wins=26 -->
 - **When a sender pre-validates a payload against a receiver's reject threshold, verify byte-measurement equivalence *and* boundary-direction consistency: confirm the sender measures the exact same sub-object the receiver's validator measures (e.g. `record.board` vs the whole `record`), and that the comparison operators align at the boundary (`>` skip on one side must pair with `<=` accept on the other) — a mismatch here is the classic "sender thinks it's under the limit, receiver drops it" silent-loss bug in `packages/core/src/hq/protocol/kanban.ts` and `packages/cli/src/kanban-hq-sync.ts`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `record.board`
@@ -76,4 +80,4 @@
   - *How:* `packages/cli/src/kanban-hq-sync.ts`
 
 ---
-*Last capture: 2026-08-12T07:41:24.855Z · 8 entries*
+*Last capture: 2026-08-12T09:26:43.569Z · 8 entries*

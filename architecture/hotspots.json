@@ -455,7 +455,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1278,
+      "lines": 1291,
       "relativeImports": 17
     },
     "packages/webui/src/components/ChatView/index.tsx": {
