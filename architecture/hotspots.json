@@ -11,11 +11,11 @@
       "relativeImports": 17
     },
     "packages/cli/src/boot.ts": {
-      "lines": 800,
-      "relativeImports": 17
+      "lines": 828,
+      "relativeImports": 18
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1246,
+      "lines": 1256,
       "relativeImports": 45
     },
     "packages/cli/src/fleet/host.ts": {
@@ -147,7 +147,7 @@
       "relativeImports": 13
     },
     "packages/core/src/core/system-prompt-builder.ts": {
-      "lines": 839,
+      "lines": 863,
       "relativeImports": 24
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
@@ -195,12 +195,12 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1010,
+      "lines": 1008,
       "relativeImports": 153
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
-      "lines": 1063,
-      "relativeImports": 11
+      "lines": 1124,
+      "relativeImports": 12
     },
     "packages/core/src/security/permission-policy.ts": {
       "lines": 1066,
@@ -223,7 +223,7 @@
       "relativeImports": 38
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
-      "lines": 924,
+      "lines": 957,
       "relativeImports": 13
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
@@ -291,7 +291,7 @@
       "relativeImports": 12
     },
     "packages/sage/src/domain-term-extractor.ts": {
-      "lines": 970,
+      "lines": 997,
       "relativeImports": 3
     },
     "packages/sage/src/middleware/tool-call-memory.ts": {
@@ -351,7 +351,7 @@
       "relativeImports": 17
     },
     "packages/tools/src/kanban.ts": {
-      "lines": 1128,
+      "lines": 1197,
       "relativeImports": 12
     },
     "packages/tools/src/session-kanban.ts": {
@@ -367,7 +367,7 @@
       "relativeImports": 12
     },
     "packages/tui/src/app-view.tsx": {
-      "lines": 991,
+      "lines": 992,
       "relativeImports": 52
     },
     "packages/tui/src/app.tsx": {

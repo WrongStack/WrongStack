@@ -236,6 +236,8 @@ export type CascadeAgentKind = 'security-scanner' | 'bug-hunter';
 
 export interface ChimeraCascadeNeededPayload {
   bundle: ReviewContextBundle;
+  /** Source review whose findings triggered this cascade. */
+  reportId?: string | undefined;
   reviewText: string;
   severities: { critical: number; high: number; medium: number };
   threshold: 'high' | 'critical';

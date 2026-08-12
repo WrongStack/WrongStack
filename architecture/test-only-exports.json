@@ -110,6 +110,16 @@
     "packages/cli/src/boot/short-circuit-desktop.ts": [
       "stripDesktopLauncherArgs"
     ],
+    "packages/cli/src/boot/system-prompt-menu.ts": [
+      "countSystemPromptTokens",
+      "isSystemPromptPinned",
+      "persistSystemPromptVariant",
+      "readSavedSystemPromptVariant",
+      "runSystemPromptMenu",
+      "shouldSkipSystemPromptMenu",
+      "SYSTEM_PROMPT_OPTIONS",
+      "SYSTEM_PROMPT_VARIANTS"
+    ],
     "packages/cli/src/boot/webui-session-child.ts": [
       "WEBUI_SESSION_CHILD_PROTOCOL_VERSION"
     ],
@@ -394,9 +404,6 @@
       "handleToolUseStop",
       "safeJsonOrRaw"
     ],
-    "packages/core/src/core/system-prompt-builder.ts": [
-      "buildIdentityLayer"
-    ],
     "packages/core/src/execution/autonomy-brain.ts": [
       "extractConfidence",
       "isNonAnswer",
@@ -455,11 +462,15 @@
     "packages/core/src/plugins/auto-review-plugin.ts": [
       "decideCascadeAgents",
       "resolveAutoReviewConfig",
+      "severitiesFromFindings",
       "shouldCascade",
       "trimKnownFingerprints"
     ],
     "packages/core/src/plugins/review-context-builder.ts": [
       "parsePorcelainStatusZ"
+    ],
+    "packages/core/src/plugins/review-finding-parser.ts": [
+      "extractStructuredFindingsBlock"
     ],
     "packages/core/src/plugins/review-finding-store.ts": [
       "FINDING_IGNORED_RETENTION_MS",
@@ -469,6 +480,10 @@
       "FindingNotFoundError",
       "InvalidTransitionError",
       "normalizeFingerprintTitle"
+    ],
+    "packages/core/src/plugins/review-finding-verification.ts": [
+      "extractFindingAnchor",
+      "resolveFindingPath"
     ],
     "packages/core/src/plugins/review-report-types.ts": [
       "InvalidReportTransitionError"
@@ -725,6 +740,11 @@
     ],
     "packages/plugins/src/git-autocommit/index.ts": [
       "parsePorcelainLine"
+    ],
+    "packages/plugins/src/gitignore-guard/index.ts": [
+      "classifyArtifact",
+      "DEFAULT_ARTIFACT_PATTERNS",
+      "matchGitignorePattern"
     ],
     "packages/plugins/src/injection-shield/index.ts": [
       "scanForInjection",

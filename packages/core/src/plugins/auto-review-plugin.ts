@@ -1091,6 +1091,7 @@ export function createAutoReviewPlugin(): Plugin {
 
           const cascadePayload: ChimeraCascadeNeededPayload = {
             bundle: p.bundle,
+            ...(p.reportId ? { reportId: p.reportId } : {}),
             reviewText: p.reviewText,
             severities,
             threshold,

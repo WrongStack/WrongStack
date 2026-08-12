@@ -25,10 +25,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import type {
-  CascadeEvidenceCheckResult,
-  CascadeEvidenceStatus,
-} from '@wrongstack/core/plugin';
+import type { CascadeEvidenceCheckResult, CascadeEvidenceStatus } from '@wrongstack/core/plugin';
 
 // Re-exported so execution-chimera-cascade.ts and tests consume the shared
 // core shapes (produced here, persisted by the report store) — the element
@@ -123,11 +120,15 @@ function parseSingleCheck(raw: unknown): CascadeEvidenceCheck | undefined {
   const command = check.command;
   const exitCode = check.exitCode;
   if (typeof command !== 'string' || command.trim().length === 0) return undefined;
-  if (typeof exitCode !== 'number' || !Number.isInteger(exitCode) || exitCode < 0 || exitCode > 255) {
+  if (
+    typeof exitCode !== 'number' ||
+    !Number.isInteger(exitCode) ||
+    exitCode < 0 ||
+    exitCode > 255
+  ) {
     return undefined;
   }
-  const output =
-    typeof check.output === 'string' ? truncateOutput(check.output) : undefined;
+  const output = typeof check.output === 'string' ? truncateOutput(check.output) : undefined;
   return { command: command.trim(), exitCode, output };
 }
 
@@ -257,6 +258,10 @@ export async function verifyCascadeEvidence(
   timeoutMs: number = CASCADE_EVIDENCE_COMMAND_TIMEOUT_MS,
 ): Promise<CascadeEvidenceVerification> {
   if (!evidence) return { status: 'missing', checks: [] };
+  // The contract requires a real typecheck. A block that claims only lint/tests
+  // is present but incomplete, so it is a failed verification rather than
+  // missing evidence.
+  if (!evidence.typecheck) return { status: 'failed', checks: [] };
 
   const checks: CascadeEvidenceCheckResult[] = [];
   for (const name of ['typecheck', 'lint', 'tests'] as const) {
@@ -274,8 +279,6 @@ export async function verifyCascadeEvidence(
   }
 
   if (checks.length === 0) return { status: 'missing', checks };
-  const status: CascadeEvidenceStatus = checks.every((c) => c.ok)
-    ? 'verified'
-    : 'failed';
+  const status: CascadeEvidenceStatus = checks.every((c) => c.ok) ? 'verified' : 'failed';
   return { status, checks };
 }

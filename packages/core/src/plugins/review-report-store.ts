@@ -117,6 +117,11 @@ export interface ReportStore {
     opts?: { reason?: string },
   ): Promise<ReviewReport>;
   addNote(reportId: string, actor: ReportActor, note: string): Promise<ReviewReport>;
+  updateEvidence(
+    reportId: string,
+    evidenceStatus: CascadeEvidenceStatus,
+    evidenceChecks: CascadeEvidenceCheckResult[],
+  ): Promise<ReviewReport>;
   list(opts?: ListReportsOptions): Promise<ReviewReport[]>;
   get(id: string): Promise<ReviewReport | null>;
   getEvents(reportId: string): Promise<ReviewReportEvent[]>;
@@ -247,6 +252,30 @@ export class JsonlReportStore implements ReportStore {
       });
 
       return { ...entry.report };
+    });
+  }
+
+  async updateEvidence(
+    reportId: string,
+    status: CascadeEvidenceStatus,
+    checks: CascadeEvidenceCheckResult[],
+  ): Promise<ReviewReport> {
+    return withFileLock(this.filePath, async () => {
+      const all = await this._readAll();
+      const entry = all.find((candidate) => candidate.report.id === reportId);
+      if (!entry) throw new Error(`Review report not found: ${reportId}`);
+
+      const updated: ReviewReport = {
+        ...this._materialize(entry),
+        evidenceStatus: status,
+        evidenceChecks: checks,
+      };
+      await fsp.appendFile(
+        this.filePath,
+        `${JSON.stringify({ __report: 1, data: updated })}${NL}`,
+        { encoding: 'utf8', mode: SECRET_FILE_MODE },
+      );
+      return updated;
     });
   }
 

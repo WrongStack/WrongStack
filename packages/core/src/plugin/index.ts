@@ -33,6 +33,8 @@ export {
 } from '../plugins/auto-review-plugin.js';
 export {
   type CascadeAgentKind,
+  type CascadeEvidenceCheckResult,
+  type CascadeEvidenceStatus,
   CHIMERA_REVIEW_PROMPT,
   createChimeraPlugin,
   type ChimeraCascadeNeededPayload,
@@ -62,6 +64,7 @@ export {
 export {
   persistReviewReport,
   type ReportIntegrationResult,
+  updateReviewReportEvidence,
 } from '../plugins/review-report-integration.js';
 export {
   maybeCompactReviewStores,

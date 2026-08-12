@@ -2,6 +2,8 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type {
   CascadeAgentKind,
+  CascadeEvidenceCheckResult,
+  CascadeEvidenceStatus,
   ChimeraCascadeNeededPayload,
   ChimeraReviewNeededPayload,
 } from '@wrongstack/core/plugin';
@@ -42,6 +44,16 @@ export type InstallChimeraCascadeHandlerOptions = {
    * holds the live config. Omit to keep the single unpinned spawn.
    */
   buildLadder?: (() => ReviewerAttempt[]) | undefined;
+  /** Test seam; production defaults to the real safe command verifier. */
+  verifyEvidence?: typeof verifyCascadeEvidence | undefined;
+  /** Persist every evidence verdict on the source report, even when re-review stops. */
+  persistEvidence?:
+    | ((
+        reportId: string,
+        status: CascadeEvidenceStatus,
+        checks: CascadeEvidenceCheckResult[],
+      ) => Promise<void>)
+    | undefined;
 };
 
 const INHERIT_ONLY_LADDER: ReviewerAttempt[] = [
@@ -55,6 +67,8 @@ export function installChimeraCascadeHandler({
   getPendingWork,
   trackWork,
   buildLadder,
+  verifyEvidence = verifyCascadeEvidence,
+  persistEvidence,
 }: InstallChimeraCascadeHandlerOptions): void {
   events.onPattern('chimera.cascade_needed', (_event, payload) => {
     const p = payload as ChimeraCascadeNeededPayload;
@@ -173,11 +187,24 @@ export function installChimeraCascadeHandler({
         }
       }
 
+      // Merge every successful agent's evidence into the one contract verified
+      // before re-review. Later agents replace a same-named check because they
+      // ran after earlier agents and therefore describe the final tree state.
+      const accumulatedEvidence: CascadeEvidence = {};
+      for (const { evidence } of agentEvidence) {
+        for (const name of ['typecheck', 'lint', 'tests'] as const) {
+          if (evidence[name]) accumulatedEvidence[name] = evidence[name];
+        }
+      }
+
       await maybeReReviewCascade({
         events,
         session,
         bundle: p.bundle,
+        reportId: p.reportId,
         claimedEvidence: accumulatedEvidence,
+        verifyEvidence,
+        persistEvidence,
       });
     })();
 
@@ -189,11 +216,17 @@ async function maybeReReviewCascade({
   events,
   session,
   bundle,
+  reportId,
   claimedEvidence,
+  verifyEvidence,
+  persistEvidence,
 }: {
   events: Events;
   session: Session;
   bundle: ChimeraCascadeNeededPayload['bundle'];
+  reportId?: string | undefined;
+  verifyEvidence: NonNullable<InstallChimeraCascadeHandlerOptions['verifyEvidence']>;
+  persistEvidence?: InstallChimeraCascadeHandlerOptions['persistEvidence'];
   /**
    * P0-3: evidence claimed by the cascade fix agents before re-review. The
    * orchestrator re-runs the claimed commands against the working tree and
@@ -213,50 +246,66 @@ async function maybeReReviewCascade({
   // tests) the agent supposedly ran and compares exit codes. The verdict
   // rides on the re-review bundle so the persisted report records exactly
   // which checks the orchestrator confirmed.
-  let evidenceBundle: ChimeraCascadeNeededPayload['bundle'] = bundle;
-  if (claimedEvidence) {
-    const cwd = bundle.cwd;
-    const verification = await verifyCascadeEvidence(claimedEvidence, cwd);
-    evidenceBundle = {
-      ...bundle,
-      evidenceStatus: verification.status,
-      evidenceChecks: verification.checks,
-    };
+  const hasClaimedEvidence = Object.keys(claimedEvidence).length > 0;
+  const verification = hasClaimedEvidence
+    ? await verifyEvidence(
+        claimedEvidence,
+        bundle.cwd,
+        undefined,
+        CASCADE_EVIDENCE_COMMAND_TIMEOUT_MS,
+      )
+    : { status: 'missing' as const, checks: [] };
+  const evidenceBundle: ChimeraCascadeNeededPayload['bundle'] = {
+    ...bundle,
+    evidenceStatus: verification.status,
+    evidenceChecks: verification.checks,
+  };
+  if (reportId && persistEvidence) {
+    try {
+      await persistEvidence(reportId, verification.status, verification.checks);
+    } catch (error) {
+      await session.append({
+        type: 'error',
+        ts: new Date().toISOString(),
+        message: `Chimera cascade evidence persistence failed: ${errorText(error)}`,
+        phase: 'agent',
+      });
+    }
+  }
+  await session.append({
+    type: 'llm_response',
+    ts: new Date().toISOString(),
+    content: [
+      {
+        type: 'text',
+        text: renderEvidenceSummary(verification.status, verification.checks),
+      },
+    ],
+    stopReason: 'end_turn' as StopReason,
+    usage: { input: 0, output: 0 },
+  });
+  if (verification.status !== 'verified') {
     await session.append({
       type: 'llm_response',
       ts: new Date().toISOString(),
       content: [
         {
           type: 'text',
-          text: renderEvidenceSummary(verification.status, verification.checks),
+          text: `🦂 Chimera cascade evidence ${verification.status} — fix not confirmed, skipping re-review. Findings remain open.`,
         },
       ],
       stopReason: 'end_turn' as StopReason,
       usage: { input: 0, output: 0 },
     });
-    if (verification.status !== 'verified') {
-      await session.append({
-        type: 'llm_response',
-        ts: new Date().toISOString(),
-        content: [
-          {
-            type: 'text',
-            text: `🦂 Chimera cascade evidence ${verification.status} — fix not confirmed, skipping re-review. Findings remain open.`,
-          },
-        ],
-        stopReason: 'end_turn' as StopReason,
-        usage: { input: 0, output: 0 },
-      });
-      return;
-    }
+    return;
   }
 
   if (maxDepth > 0 && currentDepth < maxDepth) {
     try {
       const reReadFiles: ChimeraReviewNeededPayload['files'] = [];
-      for (const f of bundle.files) {
+      for (const f of evidenceBundle.files) {
         try {
-          const absPath = path.join(bundle.cwd, f.path);
+          const absPath = path.join(evidenceBundle.cwd, f.path);
           const content = await fsp.readFile(absPath, 'utf8');
           reReadFiles.push({ path: f.path, status: 'modified', content });
         } catch {
@@ -265,8 +314,11 @@ async function maybeReReviewCascade({
       }
 
       if (reReadFiles.length > 0) {
+        // Spread evidenceBundle (not bundle) so the evidenceStatus /
+        // evidenceChecks fields ride into the re-review payload and onto the
+        // persisted report when it completes.
         const reReviewBundle: ChimeraReviewNeededPayload = {
-          ...bundle,
+          ...evidenceBundle,
           files: reReadFiles,
           cascadeDepth: currentDepth + 1,
         };
@@ -328,4 +380,19 @@ async function maybeReReviewCascade({
       usage: { input: 0, output: 0 },
     });
   }
+}
+
+function renderEvidenceSummary(
+  status: CascadeEvidenceStatus,
+  checks: CascadeEvidenceCheckResult[],
+): string {
+  if (status === 'missing') return 'no machine evidence supplied';
+  const summary = checks
+    .map((check) => `${check.name}:${check.ok ? 'pass' : 'fail'}(${check.actualExitCode})`)
+    .join(', ');
+  return `${status}${summary ? ` — ${summary}` : ''}`;
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

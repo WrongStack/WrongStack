@@ -45,6 +45,19 @@ export interface ReportIntegrationResult {
  * @param projectDir - Project root (~/.wrongstack/projects/<slug>).
  * @returns Integration result summary.
  */
+export async function updateReviewReportEvidence(
+  reportId: string,
+  projectDir: string,
+  evidenceStatus: import('./review-types.js').CascadeEvidenceStatus,
+  evidenceChecks: import('./review-types.js').CascadeEvidenceCheckResult[],
+): Promise<void> {
+  await new JsonlReportStore(projectDir).updateEvidence(
+    reportId,
+    evidenceStatus,
+    evidenceChecks,
+  );
+}
+
 export async function persistReviewReport(
   payload: ChimeraReviewCompletePayload,
   reportId: string,

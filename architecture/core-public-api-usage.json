@@ -104,9 +104,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/plugin": {
-      "files": 24,
+      "files": 25,
       "typeOnly": 16,
-      "runtimeOrMixed": 20
+      "runtimeOrMixed": 21
     },
     "@wrongstack/core/registry": {
       "files": 99,
@@ -6046,6 +6046,12 @@
     {
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/execution-chimera-review.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/execution.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -179,6 +179,40 @@ describe('JsonlReportStore.persist', () => {
     expect(createdEvents).toHaveLength(1);
   });
 
+  it('persists and updates cascade evidence across fresh store reads', async () => {
+    const store = new JsonlReportStore(dir);
+    await store.persist({
+      id: 'evidence-1',
+      sessionId: 's',
+      agentId: 'a',
+      reviewerModel: 'm',
+      source: 'cascade',
+      reviewStatus: 'success',
+      files: [],
+      counts: { critical: 0, high: 1, medium: 0, low: 0 },
+      totalFindings: 1,
+      unparseableCount: 0,
+      rawText: 'review',
+      evidenceStatus: 'missing',
+      evidenceChecks: [],
+    });
+
+    const checks = [
+      {
+        name: 'typecheck' as const,
+        command: 'pnpm typecheck',
+        claimedExitCode: 0,
+        actualExitCode: 0,
+        ok: true,
+      },
+    ];
+    await store.updateEvidence('evidence-1', 'verified', checks);
+
+    const reread = await new JsonlReportStore(dir).get('evidence-1');
+    expect(reread?.evidenceStatus).toBe('verified');
+    expect(reread?.evidenceChecks).toEqual(checks);
+  });
+
   it('persists cascadeDepth when provided', async () => {
     const store = new JsonlReportStore(dir);
     const report = await store.persist({

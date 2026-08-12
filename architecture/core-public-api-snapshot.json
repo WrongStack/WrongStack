@@ -722,8 +722,8 @@
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type PluginEnablementSource, pluginEntryMatchesName, type ResolvePluginConfigInput, type ResolvePluginEnablementInput, type ResolvedPluginConfig, type ResolvedPluginEnablement, redactPluginConfig, resolvePluginConfig, resolvePluginEnablement, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';",
         "export { emitReviewIfChanged, recordCompletedReview, recordStartedReview, } from '../plugins/review-claim-registry.js';",
         "export { maybeCompactReviewStores, type ReviewStoreMaintenanceResult, } from '../plugins/review-store-maintenance.js';",
-        "export { persistReviewReport, type ReportIntegrationResult, } from '../plugins/review-report-integration.js';",
-        "export { type CascadeAgentKind, CHIMERA_REVIEW_PROMPT, createChimeraPlugin, type ChimeraCascadeNeededPayload, type ChimeraReviewCompletePayload, type ChimeraReviewNeededPayload, type ReviewContextBundle, } from '../plugins/chimera-plugin.js';",
+        "export { persistReviewReport, type ReportIntegrationResult, updateReviewReportEvidence, } from '../plugins/review-report-integration.js';",
+        "export { type CascadeAgentKind, type CascadeEvidenceCheckResult, type CascadeEvidenceStatus, CHIMERA_REVIEW_PROMPT, createChimeraPlugin, type ChimeraCascadeNeededPayload, type ChimeraReviewCompletePayload, type ChimeraReviewNeededPayload, type ReviewContextBundle, } from '../plugins/chimera-plugin.js';",
         "export { type FindingsIntegrationResult, classifyChimeraReviewSource, integrateFindings, } from '../plugins/review-finding-integration.js';",
         "export { type ParsedReviewReport, parseChimeraReviewReport, } from '../plugins/review-finding-parser.js';",
         "export { verifyFindingsAgainstDisk, type VerifyFindingsOptions, } from '../plugins/review-finding-verification.js';"
@@ -1242,14 +1242,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 4,
-      "sourceLines": 1769
+      "sourceLines": 1772
     },
     {
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 19,
-      "sourceLines": 8136
+      "sourceLines": 8181
     },
     {
       "directory": "prompts",

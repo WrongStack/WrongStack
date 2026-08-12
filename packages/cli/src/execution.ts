@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { effectiveFallbackChain, setQueuedMessagesSnapshot } from '@wrongstack/core/agent';
 import type { CoordinatorEvent } from '@wrongstack/core/coordination';
+import { updateReviewReportEvidence } from '@wrongstack/core/plugin';
 import { attachTodosCheckpoint } from '@wrongstack/core/storage';
 import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import { mergeCustomModelDefs } from '@wrongstack/core/utils';
@@ -239,6 +240,9 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         session: { provider: config.provider, model: config.model },
       }),
     getPendingWork: () => chimeraWork.pending(),
+    persistEvidence: async (reportId, status, checks) => {
+      await updateReviewReportEvidence(reportId, wpaths.projectDir, status, checks);
+    },
     trackWork: (work) => {
       chimeraWork.track(work);
     },

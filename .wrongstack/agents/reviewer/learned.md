@@ -14,14 +14,27 @@
   - *How:* `*.test.*`
   - *How:* `X.test.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=3; wins=3 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T07:41:24.855Z; skill=chimera; applied=8; wins=8 -->
+- **Always verify a newly-threaded seam end-to-end before accepting it: for every option added to a handler's options type (e.g. `persistEvidence` in `packages/cli/src/execution-chimera-cascade.ts`), grep the whole repo for invocations AND for the production call site — an option that is declared, destructured, and threaded but never called, with no caller supplying it, is dead wiring that silently voids the documented contract (persistence, "report marked unverified").**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `persistEvidence`
+  - *How:* `packages/cli/src/execution-chimera-cascade.ts`
+
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T07:15:21.369Z; skill=chimera; applied=6; wins=5 -->
+- **When a Chimera review diff adds a new local-collection array (`agentEvidence`) **and** a new property at a downstream call site (`claimedEvidence: accumulatedEvidence`) in the same hunk, always grep the *consumed* identifier independently of the collected one — a half-applied wiring names a phantom variable (the verified result) that was never declared because the step that would have produced it (e.g. a `verify...` runner call) was also never added.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `agentEvidence`
+  - *How:* `claimedEvidence: accumulatedEvidence`
+  - *How:* `verify...`
+
+<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=9; wins=9 -->
 - **When a refactor extracts a SQL CTE body into a `(seedSource: string) => string` template builder and delegates execution to a named helper (e.g. `runCteWithSeeds`), grep for the helper's *definition* — not just its call sites — before accepting the change. A diff can introduce a call to a helper that was planned but never written (whole-tree definition count = 0), which typecheck catches as "Cannot find name" and runtime catches as `ReferenceError`.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `(seedSource: string) => string`
   - *How:* `runCteWithSeeds`
   - *How:* `ReferenceError`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T05:28:46.207Z; skill=chimera; applied=12; wins=12 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T05:28:46.207Z; skill=chimera; applied=18; wins=18 -->
 - **When extracting a shared classification helper (e.g. `classifyChimeraReviewSource` in `packages/core/src/plugins/review-finding-integration.ts`) to guarantee two stores agree on a label, the function's parameter shape (`ReviewContextBundle` vs the full `ChimeraReviewCompletePayload`) is a wiring hazard. Grep every call site and confirm each passes the matching shape: finding/report integrations pass `payload.bundle`, while sibling consumers that already hold the bare bundle (e.g. `packages/cli/src/execution-chimera-review.ts`) pass it directly.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `classifyChimeraReviewSource`
@@ -46,13 +59,13 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=45; wins=43 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-11T05:05:03.180Z; skill=testing; applied=56; wins=54 -->
 - **Always verify a "default/fallback value" test is *discriminating*: when the system under test returns a bounded slice, supply more candidates than the default cap so the assertion count equals the cap (not the candidate count). A test whose expected length is smaller than the default cap cannot distinguish "the default was applied" from "no cap applied at all" — it passes even when the fallback-to-constant branch is broken (e.g. returns `undefined` → `Number.isFinite` false → no slicing).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `undefined`
   - *How:* `Number.isFinite`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=22; wins=22 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=25; wins=25 -->
 - **When a sender pre-validates a payload against a receiver's reject threshold, verify byte-measurement equivalence *and* boundary-direction consistency: confirm the sender measures the exact same sub-object the receiver's validator measures (e.g. `record.board` vs the whole `record`), and that the comparison operators align at the boundary (`>` skip on one side must pair with `<=` accept on the other) — a mismatch here is the classic "sender thinks it's under the limit, receiver drops it" silent-loss bug in `packages/core/src/hq/protocol/kanban.ts` and `packages/cli/src/kanban-hq-sync.ts`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `record.board`
@@ -62,24 +75,5 @@
   - *How:* `packages/core/src/hq/protocol/kanban.ts`
   - *How:* `packages/cli/src/kanban-hq-sync.ts`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-09T21:26:29.204Z; applied=10; wins=10 -->
-- **When adding binary/protocol-mode state fields to a socket connection class in `packages/tools/src/codebase-index/project-server-client.ts`, reset them in **both** `connectOnce()` and `close()`. The connection object is reused across reconnects (`ensureConnected` early-returns on a live socket, `connectWithElection` loops `connectOnce` on stale servers), so any unreset mode flag like `useBinary` leaks into the next handshake and routes JSON frames through the binary parser. Grep for every new mutable field against both lifecycle paths before reporting the change complete.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `packages/tools/src/codebase-index/project-server-client.ts`
-  - *How:* `connectOnce()`
-  - *How:* `close()`
-  - *How:* `ensureConnected`
-  - *How:* `connectWithElection`
-  - *How:* `connectOnce`
-  - *How:* `useBinary`
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T21:24:04.188Z; skill=testing; applied=15; wins=15 -->
-- **When validating a multi-predicate *parity* test (e.g. `classifyTaskForQueue` bucket vs `evaluateContractGraphReadiness` ready-vs `validateManagedTaskTransition` issues in `packages/kanban`), prove it is non-vacuous by tracing at least one corpus entry that resolves **ready=true** and one that resolves **ready=false** across *all* predicates — a corpus where every entry agrees on a single outcome cannot catch divergence.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `classifyTaskForQueue`
-  - *How:* `evaluateContractGraphReadiness`
-  - *How:* `validateManagedTaskTransition`
-  - *How:* `packages/kanban`
-
 ---
-*Last capture: 2026-08-12T05:28:46.207Z · 8 entries*
+*Last capture: 2026-08-12T07:41:24.855Z · 8 entries*
