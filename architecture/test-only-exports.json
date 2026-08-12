@@ -236,6 +236,9 @@
     "packages/cli/src/slash-commands/telegram-pairing.ts": [
       "extractTelegramPairingCandidates"
     ],
+    "packages/cli/src/slash-commands/theme.ts": [
+      "truncateDesc"
+    ],
     "packages/cli/src/subcommands/handlers/auth-local-help.ts": [
       "LOCAL_AUTH_FLAGS",
       "LOCAL_AUTH_HELP_USAGE",
@@ -350,12 +353,6 @@
       "MailboxValidationError",
       "parseMailboxHeartbeatInput",
       "parseMailboxRegistrationInput"
-    ],
-    "packages/core/src/coordination/mailbox-constants.ts": [
-      "HTTP_RATE_LIMIT_PER_MINUTE",
-      "HTTP_RATE_LIMIT_WINDOW_MS",
-      "MESSAGE_CACHE_MAX_ENTRIES",
-      "REGISTRY_CACHE_TTL_MS"
     ],
     "packages/core/src/coordination/mailbox-credential-store.ts": [
       "resolveCredentialStorePath"
@@ -1011,6 +1008,9 @@
     "packages/tools/src/tool-summary.ts": [
       "SUMMARIZE_TOOL_INPUT_BROWSER_SRC"
     ],
+    "packages/tui/src/app-ui-state.ts": [
+      "isPickerOverlayOpen"
+    ],
     "packages/tui/src/auth-panel-model.ts": [
       "filterAuthCatalog"
     ],
@@ -1152,9 +1152,6 @@
     "packages/tui/src/file-search.ts": [
       "invalidateFileCache"
     ],
-    "packages/tui/src/height-cache.ts": [
-      "computeWindow"
-    ],
     "packages/tui/src/history-archive.ts": [
       "ARCHIVE_PAGE_SIZE",
       "HistoryArchive",
@@ -1256,8 +1253,7 @@
     ],
     "packages/tui/src/theme.ts": [
       "detectSupportsBackground",
-      "resolveSyntaxPalette",
-      "themePresets"
+      "resolveSyntaxPalette"
     ],
     "packages/tui/src/thinking-word.ts": [
       "TUI_THINKING_WORD_POOL"
@@ -1361,10 +1357,6 @@
     "packages/webui-server/src/server/ws-payload-validation.ts": [
       "validateBrainConfigSetPayload"
     ],
-    "packages/webui/src/components/activity-bar/index.tsx": [
-      "calculateDesktopActivityCapacity",
-      "splitDesktopActivityBarItems"
-    ],
     "packages/webui/src/components/AgentsPage.tsx": [
       "getIterations",
       "getLastEventAt"
@@ -1375,12 +1367,6 @@
     ],
     "packages/webui/src/components/ChatInput/image-attachments.ts": [
       "MAX_PROCESSED_IMAGE_BYTES"
-    ],
-    "packages/webui/src/components/codemap-model.ts": [
-      "_clearNormalizedPathCacheForTests",
-      "_normalizedPathCacheSizeForTests",
-      "SMART_CANVAS_EDGE_LIMIT",
-      "SMART_CANVAS_NODE_LIMIT"
     ],
     "packages/webui/src/components/FileActivityDrawer.tsx": [
       "analyzeFileActivity",
@@ -1441,11 +1427,21 @@
     "packages/webui/src/components/TaskIntelligencePanel.tsx": [
       "deriveTaskIntelligence"
     ],
-    "packages/webui/src/components/toaster-helpers.ts": [
-      "buildUndoToastEntry"
-    ],
     "packages/webui/src/components/WorktreeGraph.tsx": [
       "deriveWorktreeGraph"
+    ],
+    "packages/webui/src/components/activity-bar/index.tsx": [
+      "calculateDesktopActivityCapacity",
+      "splitDesktopActivityBarItems"
+    ],
+    "packages/webui/src/components/codemap-model.ts": [
+      "_clearNormalizedPathCacheForTests",
+      "_normalizedPathCacheSizeForTests",
+      "SMART_CANVAS_EDGE_LIMIT",
+      "SMART_CANVAS_NODE_LIMIT"
+    ],
+    "packages/webui/src/components/toaster-helpers.ts": [
+      "buildUndoToastEntry"
     ],
     "packages/webui/src/hooks/use-ws-handlers.ts": [
       "useWsHandlers"

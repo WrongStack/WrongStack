@@ -426,7 +426,13 @@ describe('techstack-mailbox-consumer', () => {
   });
 
   it('fences the notification body in the spawned task', async () => {
-    const onSpawn = vi.fn(async () => ({ subagentId: 'x', taskId: 'y' }));
+    // Typed like the real `onSpawn` (task, name) — the argument-less form gives
+    // the mock an empty call tuple, so reading `calls[0][0]` below is a type
+    // error rather than the string this assertion depends on.
+    const onSpawn = vi.fn(async (_task: string, _name: string) => ({
+      subagentId: 'x',
+      taskId: 'y',
+    }));
 
     dispose = startTechStackConsumer({ mailbox, onSpawn, pollIntervalMs: 50 });
 

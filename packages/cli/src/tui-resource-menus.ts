@@ -4,7 +4,7 @@ import type { ConfigStore, MemoryPort } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { readJsonObjectFile } from '@wrongstack/core/utils';
 import type { ResourceMenuId, ResourceMenuItem, ResourceMenuSnapshot } from '@wrongstack/tui';
-import { runGit } from './slash-commands/git.js';
+import { runGit } from './services/run-git.js';
 
 export interface TuiResourceMenuContext {
   configStore: ConfigStore;

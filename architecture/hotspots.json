@@ -2,6 +2,14 @@
   "schemaVersion": 1,
   "thresholdLines": 800,
   "files": {
+    "apps/desktop/src/main/runtime-manager.ts": {
+      "lines": 960,
+      "relativeImports": 4
+    },
+    "apps/desktop/src/renderer/src/renderer.ts": {
+      "lines": 944,
+      "relativeImports": 8
+    },
     "packages/acp/src/agent/protocol-handler.ts": {
       "lines": 1075,
       "relativeImports": 2
@@ -26,21 +34,21 @@
       "lines": 922,
       "relativeImports": 1
     },
-    "packages/cli/src/hq-server/routes/auth-handlers.ts": {
-      "lines": 1255,
-      "relativeImports": 6
+    "packages/cli/src/hq-server.ts": {
+      "lines": 1070,
+      "relativeImports": 10
     },
     "packages/cli/src/hq-server/routes.ts": {
       "lines": 1167,
       "relativeImports": 12
     },
+    "packages/cli/src/hq-server/routes/auth-handlers.ts": {
+      "lines": 1255,
+      "relativeImports": 6
+    },
     "packages/cli/src/hq-server/ws.ts": {
       "lines": 1152,
       "relativeImports": 3
-    },
-    "packages/cli/src/hq-server.ts": {
-      "lines": 1070,
-      "relativeImports": 10
     },
     "packages/cli/src/picker.ts": {
       "lines": 832,
@@ -59,7 +67,7 @@
       "relativeImports": 5
     },
     "packages/cli/src/slash-commands/memory.ts": {
-      "lines": 1143,
+      "lines": 1147,
       "relativeImports": 6
     },
     "packages/cli/src/slash-commands/sdd.ts": {
@@ -123,11 +131,11 @@
       "relativeImports": 6
     },
     "packages/core/src/coordination/mailbox-http-router.ts": {
-      "lines": 994,
+      "lines": 1030,
       "relativeImports": 9
     },
     "packages/core/src/coordination/mailbox-types.ts": {
-      "lines": 1275,
+      "lines": 1319,
       "relativeImports": 3
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
@@ -137,6 +145,10 @@
     "packages/core/src/coordination/provider-status-tracker.ts": {
       "lines": 964,
       "relativeImports": 3
+    },
+    "packages/core/src/coordination/sqlite-mailbox.ts": {
+      "lines": 840,
+      "relativeImports": 15
     },
     "packages/core/src/core/agent-loop.ts": {
       "lines": 1172,
@@ -242,6 +254,10 @@
       "lines": 892,
       "relativeImports": 6
     },
+    "packages/kanban/src/manager/_internal.ts": {
+      "lines": 1049,
+      "relativeImports": 16
+    },
     "packages/kanban/src/manager/assignment.ts": {
       "lines": 978,
       "relativeImports": 12
@@ -250,9 +266,9 @@
       "lines": 1130,
       "relativeImports": 7
     },
-    "packages/kanban/src/manager/_internal.ts": {
-      "lines": 1049,
-      "relativeImports": 16
+    "packages/kanban/src/server/project-server.ts": {
+      "lines": 804,
+      "relativeImports": 10
     },
     "packages/kanban/src/types.ts": {
       "lines": 918,
@@ -299,15 +315,15 @@
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 1051,
-      "relativeImports": 41
+      "lines": 1057,
+      "relativeImports": 42
     },
     "packages/sage/src/tools/memory-tools.ts": {
-      "lines": 816,
+      "lines": 879,
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 921,
+      "lines": 939,
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
@@ -343,7 +359,7 @@
       "relativeImports": 5
     },
     "packages/tools/src/codebase-index/project-server.ts": {
-      "lines": 820,
+      "lines": 832,
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/writer.ts": {
@@ -355,7 +371,7 @@
       "relativeImports": 12
     },
     "packages/tools/src/session-kanban.ts": {
-      "lines": 1480,
+      "lines": 1491,
       "relativeImports": 0
     },
     "packages/tui/src/app-key-handler.ts": {
@@ -363,15 +379,15 @@
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 861,
+      "lines": 881,
       "relativeImports": 12
     },
     "packages/tui/src/app-view.tsx": {
-      "lines": 992,
-      "relativeImports": 52
+      "lines": 1034,
+      "relativeImports": 55
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1280,
+      "lines": 1287,
       "relativeImports": 69
     },
     "packages/tui/src/components/agents-monitor.tsx": {
@@ -419,11 +435,11 @@
       "relativeImports": 17
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
-      "lines": 1024,
-      "relativeImports": 6
+      "lines": 1133,
+      "relativeImports": 7
     },
     "packages/tui/src/input-validation.ts": {
-      "lines": 994,
+      "lines": 996,
       "relativeImports": 13
     },
     "packages/tui/src/kanban-slash.ts": {
@@ -431,7 +447,7 @@
       "relativeImports": 1
     },
     "packages/tui/src/memory-slash.ts": {
-      "lines": 1207,
+      "lines": 1215,
       "relativeImports": 1
     },
     "packages/tui/src/submit-controller.ts": {
@@ -441,6 +457,58 @@
     "packages/tui/src/theme.ts": {
       "lines": 1448,
       "relativeImports": 0
+    },
+    "packages/webui-hq/src/app.tsx": {
+      "lines": 823,
+      "relativeImports": 20
+    },
+    "packages/webui-hq/src/views/control.tsx": {
+      "lines": 837,
+      "relativeImports": 2
+    },
+    "packages/webui-hq/src/views/settings.tsx": {
+      "lines": 895,
+      "relativeImports": 2
+    },
+    "packages/webui-server/src/server/collaboration-ws-handler.ts": {
+      "lines": 927,
+      "relativeImports": 2
+    },
+    "packages/webui-server/src/server/connections-health-route.ts": {
+      "lines": 1226,
+      "relativeImports": 2
+    },
+    "packages/webui-server/src/server/context-editor.ts": {
+      "lines": 1020,
+      "relativeImports": 1
+    },
+    "packages/webui-server/src/server/goal-ws-handler.ts": {
+      "lines": 966,
+      "relativeImports": 2
+    },
+    "packages/webui-server/src/server/http-server.ts": {
+      "lines": 1167,
+      "relativeImports": 11
+    },
+    "packages/webui-server/src/server/kanban-routes.ts": {
+      "lines": 982,
+      "relativeImports": 10
+    },
+    "packages/webui-server/src/server/provider-handlers.ts": {
+      "lines": 807,
+      "relativeImports": 6
+    },
+    "packages/webui-server/src/server/setup-events.ts": {
+      "lines": 1036,
+      "relativeImports": 12
+    },
+    "packages/webui-server/src/server/start-webui.ts": {
+      "lines": 1112,
+      "relativeImports": 18
+    },
+    "packages/webui-server/src/server/ws-payload-validation.ts": {
+      "lines": 949,
+      "relativeImports": 1
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
       "lines": 965,
@@ -498,10 +566,6 @@
       "lines": 986,
       "relativeImports": 6
     },
-    "packages/webui/src/components/SettingsPanel/index.tsx": {
-      "lines": 1104,
-      "relativeImports": 19
-    },
     "packages/webui/src/components/SettingsPanel/MCPSection.tsx": {
       "lines": 904,
       "relativeImports": 7
@@ -509,6 +573,10 @@
     "packages/webui/src/components/SettingsPanel/ProviderSection.tsx": {
       "lines": 862,
       "relativeImports": 7
+    },
+    "packages/webui/src/components/SettingsPanel/index.tsx": {
+      "lines": 1104,
+      "relativeImports": 19
     },
     "packages/webui/src/components/SidePanel/SessionList.tsx": {
       "lines": 876,
@@ -522,13 +590,13 @@
       "lines": 812,
       "relativeImports": 5
     },
-    "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 1121,
-      "relativeImports": 0
-    },
     "packages/webui/src/hooks/ws-handlers.ts": {
       "lines": 847,
       "relativeImports": 7
+    },
+    "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
+      "lines": 1121,
+      "relativeImports": 0
     },
     "packages/webui/src/lib/ws-client.ts": {
       "lines": 1248,
@@ -545,66 +613,6 @@
     "packages/webui/src/types/server-message.ts": {
       "lines": 870,
       "relativeImports": 10
-    },
-    "packages/webui-hq/src/app.tsx": {
-      "lines": 823,
-      "relativeImports": 20
-    },
-    "packages/webui-hq/src/views/control.tsx": {
-      "lines": 837,
-      "relativeImports": 2
-    },
-    "packages/webui-hq/src/views/settings.tsx": {
-      "lines": 895,
-      "relativeImports": 2
-    },
-    "packages/webui-server/src/server/collaboration-ws-handler.ts": {
-      "lines": 927,
-      "relativeImports": 2
-    },
-    "packages/webui-server/src/server/connections-health-route.ts": {
-      "lines": 1226,
-      "relativeImports": 2
-    },
-    "packages/webui-server/src/server/context-editor.ts": {
-      "lines": 1020,
-      "relativeImports": 1
-    },
-    "packages/webui-server/src/server/goal-ws-handler.ts": {
-      "lines": 966,
-      "relativeImports": 2
-    },
-    "packages/webui-server/src/server/http-server.ts": {
-      "lines": 1167,
-      "relativeImports": 11
-    },
-    "packages/webui-server/src/server/kanban-routes.ts": {
-      "lines": 982,
-      "relativeImports": 10
-    },
-    "packages/webui-server/src/server/provider-handlers.ts": {
-      "lines": 807,
-      "relativeImports": 6
-    },
-    "packages/webui-server/src/server/setup-events.ts": {
-      "lines": 1036,
-      "relativeImports": 12
-    },
-    "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1112,
-      "relativeImports": 18
-    },
-    "packages/webui-server/src/server/ws-payload-validation.ts": {
-      "lines": 949,
-      "relativeImports": 1
-    },
-    "apps/desktop/src/main/runtime-manager.ts": {
-      "lines": 960,
-      "relativeImports": 4
-    },
-    "apps/desktop/src/renderer/src/renderer.ts": {
-      "lines": 944,
-      "relativeImports": 8
     }
   }
 }

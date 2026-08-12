@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 492,
+      "files": 493,
       "typeOnly": 55,
-      "runtimeOrMixed": 463
+      "runtimeOrMixed": 464
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -14482,6 +14482,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/project-manifest.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/services/run-git.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

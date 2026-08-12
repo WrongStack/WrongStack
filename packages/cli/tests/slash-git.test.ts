@@ -2,12 +2,12 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { runGit } from '../src/services/run-git.js';
 import {
   buildCommitCommand,
   buildGitCommand,
   buildGitcheckCommand,
   buildPushCommand,
-  runGit,
 } from '../src/slash-commands/git.js';
 
 describe('/git family', () => {

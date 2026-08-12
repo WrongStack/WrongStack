@@ -1,40 +1,8 @@
-import { spawn } from 'node:child_process';
 import { assessCommitSafety } from '@wrongstack/core/coordination';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { color, toErrorMessage } from '@wrongstack/core/utils';
+import { color } from '@wrongstack/core/utils';
+import { runGit } from '../services/run-git.js';
 import type { SlashCommandContext } from './command-context.js';
-
-// ── git child process ───────────────────────────────────────────────
-
-export async function runGit(
-  args: string[],
-  cwd: string,
-): Promise<{ stdout: string; stderr: string; code: number }> {
-  try {
-    return await new Promise((resolve, reject) => {
-      const child = spawn('git', args, {
-        cwd,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        signal: AbortSignal.timeout(30_000),
-        windowsHide: true,
-      });
-      let stdout = '';
-      let stderr = '';
-      child.stdout?.on('data', (d) => {
-        stdout += d;
-      });
-      child.stderr?.on('data', (d) => {
-        stderr += d;
-      });
-      child.on('error', (err) => {
-        reject(new Error(`Failed to run git: ${err.message}`));
-      });
-      child.on('close', (code) => resolve({ stdout, stderr, code: code ?? 0 }));
-    });
-  } catch (err) {
-    throw new Error(toErrorMessage(err));
-  }
-}
 
 async function isGitRepo(cwd: string): Promise<boolean> {
   const result = await runGit(['rev-parse', '--git-dir'], cwd);
