@@ -1,5 +1,6 @@
 import type { Middleware } from '@wrongstack/core/kernel';
 import type { Message, Request, TextBlock } from '@wrongstack/core/types';
+import { formatMemoryEvidenceBlock } from '@wrongstack/core/utils';
 import { formatMemoryHintsDetailed } from '../retrieval/format.js';
 import { memoryQueryRelevance } from '../retrieval/relevance.js';
 import { normalizeTextKey, tokenize } from '../store-helpers.js';
@@ -149,7 +150,10 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
                 ...(request.system ?? []),
                 {
                   type: 'text',
-                  text: `[memory_evidence source="sage.turn-memory"]\n${rendered.text}\n[/memory_evidence]`,
+                  // Shared fence builder: `rendered.text` is memory bodies
+                  // verbatim, so the closing delimiter has to be neutralized
+                  // there or the block ends wherever a memory says it does.
+                  text: formatMemoryEvidenceBlock('sage.turn-memory', rendered.text),
                   cache_control: { type: 'ephemeral' },
                 },
               ],

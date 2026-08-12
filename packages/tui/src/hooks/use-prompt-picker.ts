@@ -1,8 +1,8 @@
+import { createRequire } from 'node:module';
+import * as path from 'node:path';
 import { DefaultPromptLoader } from '@wrongstack/core/execution';
 import { PromptUsageStore } from '@wrongstack/core/storage';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
-import { createRequire } from 'node:module';
-import * as path from 'node:path';
 import { useCallback, useRef } from 'react';
 import type { Action } from '../app-reducer.js';
 import type { PromptPickEntry } from '../components/prompt-picker.js';
@@ -54,10 +54,10 @@ export interface UsePromptPickerOptions {
 /**
  * Lazily loads the prompt library and opens the TUI prompt picker.
  */
-export function usePromptPicker({
-  projectRoot,
-  dispatch,
-}: UsePromptPickerOptions): { openPromptPicker: () => Promise<void> } {
+export function usePromptPicker({ projectRoot, dispatch }: UsePromptPickerOptions): {
+  openPromptPicker: () => Promise<void>;
+  setPromptFavorite: (slug: string, favorite: boolean) => Promise<void>;
+} {
   const promptLoaderRef = useRef<DefaultPromptLoader | null>(null);
   const promptUsageRef = useRef<PromptUsageStore | null>(null);
 
@@ -92,5 +92,15 @@ export function usePromptPicker({
     dispatch({ type: 'promptPickerOpen', ...payload });
   }, [dispatch, getPromptLoader]);
 
-  return { openPromptPicker };
+  const setPromptFavorite = useCallback(
+    async (slug: string, favorite: boolean): Promise<void> => {
+      const loader = getPromptLoader();
+      if (!loader) return;
+      await loader.setFavorite(slug, favorite);
+      await openPromptPicker();
+    },
+    [getPromptLoader, openPromptPicker],
+  );
+
+  return { openPromptPicker, setPromptFavorite };
 }

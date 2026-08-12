@@ -11,6 +11,7 @@
 import { useCallback } from 'react';
 import { brainPanelRows } from '../brain-panel-model.js';
 import type { KeyEvent } from '../components/input.js';
+import { filterResourceMenuItems } from '../components/resource-menu.js';
 import { settingsPickerJumpField } from '../components/settings-picker.js';
 import { STATUSLINE_ITEMS } from '../components/statusline-picker.js';
 import type { PickerKeysHost } from './use-picker-keys-types.js';
@@ -354,6 +355,106 @@ export function usePickerKeys(
         return true;
       }
 
+      // ── Skill picker ──────────────────────────────────────────
+      if (state.skillPicker.open) {
+        if (key.escape) {
+          dispatch({ type: 'skillPickerClose' });
+          return true;
+        }
+        if (key.mouse?.kind === 'wheel') {
+          dispatch({ type: 'skillPickerMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+          return true;
+        }
+        if (key.upArrow) {
+          dispatch({ type: 'skillPickerMove', delta: -1 });
+          return true;
+        }
+        if (key.downArrow) {
+          dispatch({ type: 'skillPickerMove', delta: 1 });
+          return true;
+        }
+        if (isEnter) {
+          if (debouncedEnter(host)) return true;
+          const entry = state.skillPicker.entries[state.skillPicker.selected];
+          if (!entry) return true;
+          dispatch({ type: 'skillPickerClose' });
+          host.submit?.(`/skill ${entry.name}`);
+          return true;
+        }
+        return true;
+      }
+
+      // ── Shared operational resource menu ──────────────────────
+      if (state.resourceMenu.open) {
+        const pending = state.resourceMenu.pendingAction;
+        if (pending) {
+          if (input.toLowerCase() === 'y') {
+            dispatch({ type: 'resourceMenuClose' });
+            host.submit?.(pending.command);
+          } else if (input.toLowerCase() === 'n' || key.escape) {
+            dispatch({ type: 'resourceMenuConfirm', action: undefined });
+          }
+          return true;
+        }
+        if (state.resourceMenu.filtering) {
+          if (key.escape) {
+            dispatch({ type: 'resourceMenuFilter', filter: '', active: false });
+          } else if (isEnter) {
+            dispatch({
+              type: 'resourceMenuFilter',
+              filter: state.resourceMenu.filter,
+              active: false,
+            });
+          } else if (key.backspace) {
+            dispatch({
+              type: 'resourceMenuFilter',
+              filter: state.resourceMenu.filter.slice(0, -1),
+              active: true,
+            });
+          } else if (input && !key.ctrl && !key.meta) {
+            dispatch({
+              type: 'resourceMenuFilter',
+              filter: state.resourceMenu.filter + input,
+              active: true,
+            });
+          }
+          return true;
+        }
+        if (input === '/') {
+          dispatch({ type: 'resourceMenuFilter', filter: '', active: true });
+          return true;
+        }
+        if (key.escape) {
+          dispatch({ type: 'resourceMenuClose' });
+          return true;
+        }
+        if (key.mouse?.kind === 'wheel' || key.upArrow || key.downArrow) {
+          const delta =
+            key.mouse?.kind === 'wheel' ? (key.mouse.wheel > 0 ? -1 : 1) : key.upArrow ? -1 : 1;
+          dispatch({ type: 'resourceMenuMove', delta });
+          return true;
+        }
+        const item = state.resourceMenu.snapshot
+          ? filterResourceMenuItems(state.resourceMenu.snapshot, state.resourceMenu.filter)[
+              state.resourceMenu.selected
+            ]
+          : undefined;
+        const action = isEnter
+          ? item?.actions?.[0]
+          : item?.actions?.find((candidate) => candidate.key.toLowerCase() === input.toLowerCase());
+        if (action) {
+          if (debouncedEnter(host)) return true;
+          if (action.confirm) {
+            dispatch({ type: 'resourceMenuConfirm', action });
+          } else {
+            dispatch({ type: 'resourceMenuClose' });
+            host.submit?.(action.command);
+          }
+          return true;
+        }
+        return true;
+      }
+
       // ── Design picker ─────────────────────────────────────────
       if (state.designPicker.open) {
         if (key.escape) {
@@ -415,6 +516,14 @@ export function usePickerKeys(
         }
         if (key.rightArrow) {
           dispatch({ type: 'promptPickerCategory', delta: 1 });
+          return true;
+        }
+        if (input.toLowerCase() === 'f') {
+          host.onPromptPickerFavorite?.();
+          return true;
+        }
+        if (input.toLowerCase() === 'e') {
+          host.onPromptPickerEdit?.();
           return true;
         }
         if (isEnter) {

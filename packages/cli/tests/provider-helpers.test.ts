@@ -220,6 +220,39 @@ describe('buildPickableProviders', () => {
     expect(result[0]!.models).toEqual(['opus', 'haiku']);
   });
 
+  it('threads catalog capability and pricing metadata into the model picker', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-x';
+    const registry = fakeRegistry([
+      {
+        id: 'anthropic',
+        family: 'anthropic',
+        envVars: ['ANTHROPIC_API_KEY'],
+        models: [
+          {
+            id: 'opus',
+            name: 'Opus',
+            tool_call: true,
+            reasoning: true,
+            modalities: { input: ['text', 'image'] },
+            limit: { context: 200_000, output: 16_000 },
+            cost: { input: 5, output: 25, cache_read: 0.5 },
+          },
+        ],
+      },
+    ]);
+    const result = await buildPickableProviders(registry, { providers: {} } as never);
+    expect(result[0]?.modelDetails?.['opus']).toMatchObject({
+      tools: true,
+      vision: true,
+      reasoning: true,
+      maxContext: 200_000,
+      maxOutput: 16_000,
+      inputCost: 5,
+      outputCost: 25,
+      cacheReadCost: 0.5,
+    });
+  });
+
   it('returns providers with stored apiKey in config', async () => {
     const registry = fakeRegistry([
       {

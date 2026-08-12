@@ -209,6 +209,45 @@ export interface PromptPickEntry {
   favorite: boolean;
 }
 
+export type ResourceMenuId =
+  | 'fallback'
+  | 'profile'
+  | 'provider-status'
+  | 'memory'
+  | 'worktree'
+  | 'git';
+
+export interface ResourceMenuDetail {
+  label: string;
+  value: string;
+}
+
+export interface ResourceMenuAction {
+  key: string;
+  label: string;
+  command: string;
+  /** Destructive or session-changing actions require a second y/n keypress. */
+  confirm?: boolean | undefined;
+}
+
+export interface ResourceMenuItem {
+  id: string;
+  label: string;
+  status?: 'good' | 'warn' | 'bad' | 'muted' | undefined;
+  summary?: string | undefined;
+  details: ResourceMenuDetail[];
+  body?: string | undefined;
+  actions?: ResourceMenuAction[] | undefined;
+}
+
+export interface ResourceMenuSnapshot {
+  id: ResourceMenuId;
+  title: string;
+  subtitle?: string | undefined;
+  emptyText?: string | undefined;
+  items: ResourceMenuItem[];
+}
+
 export type SendMode = 'queue' | 'btw' | 'steer';
 
 export type StatuslineItem = StatuslineItemSource;

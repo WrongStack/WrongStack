@@ -428,6 +428,8 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
         React.createElement(App, {
           agent: opts.agent,
           slashRegistry: opts.slashRegistry,
+          skillLoader: opts.skillLoader,
+          getResourceMenu: opts.getResourceMenu,
           secretInputController: opts.secretInputController,
           attachments: opts.attachments,
           events: opts.events,

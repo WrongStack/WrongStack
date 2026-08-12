@@ -42,12 +42,28 @@ export interface MouseTrackingPolicy {
    * scrollback cannot move virtualized content.
    */
   managedHistory: boolean;
+  /**
+   * The user explicitly handed the mouse back to the terminal (`/mouse native`).
+   *
+   * This is the ONLY input that can defeat `managedHistory`, and it exists
+   * because nothing else could: with tracking on, the terminal reports the
+   * wheel to us instead of scrolling, which also means it never starts a
+   * native selection — so there was no way to select and copy transcript text
+   * with the mouse at all. Native mode trades in-app wheel scrolling (PgUp/
+   * PgDn and Ctrl+U/D still page) for that selection.
+   *
+   * It outranks `overlayOpen` too: letting a picker silently re-grab the mouse
+   * would cancel an in-progress drag-selection.
+   */
+  native?: boolean | undefined;
   /** Startup terminal capability probe. Undefined keeps legacy callers enabled. */
   protocol?: 'none' | 'x10' | 'urxvt' | 'sgr' | undefined;
 }
 
 /** Decide whether the TUI should currently own terminal mouse reports. */
 export function shouldEnableMouseTracking(policy: MouseTrackingPolicy): boolean {
+  // An explicit hand-back wins over every other reason to hold the mouse.
+  if (policy.native) return false;
   // This module decodes SGR reports only. Enabling mode 1000 on an X10/URXVT
   // terminal would produce a different byte format and leak it into the composer,
   // so legacy protocols degrade to keyboard/native-scrollback behavior.
@@ -164,6 +180,41 @@ export function parseMouseEvents(data: string): MouseEventInfo[] {
   }
   return events;
 }
+
+/**
+ * Longest tail of `data` that is an SGR report the terminal has only partially
+ * delivered, split off so the caller can carry it into the next chunk.
+ *
+ * A report is `ESC [ < b ; x ; y (M|m)` — up to ~18 bytes, and stdin makes no
+ * promise about chunk boundaries. A fast drag or a wheel burst readily splits
+ * one across two `data` events, and {@link parseMouseEvents} (which scans a
+ * single chunk) then matches NEITHER half: the gesture is silently dropped and
+ * the leading half falls through to the key parsers as garbage.
+ *
+ * Only the unambiguous case is held back: a trailing `ESC [ <` with no `M`/`m`
+ * terminator after it. A bare trailing `ESC` or `ESC [` is deliberately NOT
+ * buffered — a lone `ESC` is how the Esc KEY arrives, and swallowing it would
+ * break the Esc ladder outright.
+ *
+ * The carry is capped: past {@link MAX_PARTIAL_MOUSE} bytes the tail cannot be
+ * a real report any more (a malformed or hostile stream), so it is released as
+ * ordinary data rather than accumulating forever.
+ */
+export function splitTrailingMousePartial(data: string): {
+  consumed: string;
+  pending: string;
+} {
+  const idx = data.lastIndexOf(`${ESC}[<`);
+  if (idx === -1) return { consumed: data, pending: '' };
+  const tail = data.slice(idx);
+  // A terminator anywhere in the tail means the last report is whole.
+  if (/[Mm]/.test(tail)) return { consumed: data, pending: '' };
+  if (tail.length > MAX_PARTIAL_MOUSE) return { consumed: data, pending: '' };
+  return { consumed: data.slice(0, idx), pending: tail };
+}
+
+/** Upper bound on a carried partial report (`ESC[<64;9999;9999M` is 18). */
+const MAX_PARTIAL_MOUSE = 24;
 
 /**
  * True when `input` (Ink's already-ESC-stripped text) is a leaked mouse report.

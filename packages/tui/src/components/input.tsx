@@ -3,7 +3,12 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { fnKey } from '../fn-keys.js';
 import { Box, Text, useInput, useStdin } from '../ink.js';
 import { type InputCell, layoutInputRows } from '../input-tokens.js';
-import { isLeakedMouseInput, type MouseEventInfo, parseMouseEvents } from '../mouse.js';
+import {
+  isLeakedMouseInput,
+  type MouseEventInfo,
+  parseMouseEvents,
+  splitTrailingMousePartial,
+} from '../mouse.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -314,6 +319,10 @@ export const Input = memo(function Input({
   const suppressInkCtrlLeftRef = useRef(false);
   const suppressInkCtrlRightRef = useRef(false);
   const suppressInkShiftEnterRef = useRef(false);
+  // Carries a half-delivered SGR mouse report across `data` events. Lives at
+  // component scope, not inside the effect, so a `disabled` toggle (which
+  // re-creates the listener) cannot strand one mid-drag.
+  const mousePartialRef = useRef('');
 
   useInput((input, key) => {
     // Ctrl+C must survive `disabled`. The prop is set exactly during
@@ -381,7 +390,14 @@ export const Input = memo(function Input({
     let escTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleData = (data: Buffer) => {
-      const s = data.toString();
+      // Rejoin a mouse report the terminal split across chunks before ANY
+      // parser looks at the bytes — otherwise the leading half reaches the
+      // key parsers as garbage and the gesture is lost entirely.
+      const { consumed: s, pending } = splitTrailingMousePartial(
+        mousePartialRef.current + data.toString(),
+      );
+      mousePartialRef.current = pending;
+      if (s === '') return;
 
       // While disabled (status==='aborting', confirm panel open) the parser
       // stays MOUNTED — the sibling `hidden` prop documents why unmounting

@@ -549,6 +549,15 @@ export interface ListSagePageOptions {
   limit?: number | undefined;
   /** Opaque cursor from a previous page's `nextCursor`. Omit for the first page. */
   cursor?: string | undefined;
+  /**
+   * Session ownership filter, matching every other retrieval surface. Unset
+   * hides owned session records rather than listing them, so an enumerator
+   * that forgets it under-reports instead of paging through another session's
+   * private memories.
+   */
+  sessionId?: string | undefined;
+  /** Admin opt-out: list every session's session-scoped memories. */
+  includeAllSessions?: boolean | undefined;
 }
 
 /** A single page of SAGE results plus paging metadata. */
@@ -804,6 +813,15 @@ export interface FindMemoriesForFileOptions {
   includeDeleted?: boolean | undefined;
   /** Cap on returned matches. Default 50. */
   limit?: number | undefined;
+  /**
+   * Session ownership filter, matching every other retrieval surface: pass the
+   * calling session to see its own session-scoped memories. Unset hides owned
+   * session records and leaves only unowned ones — fail-closed, so a caller
+   * that forgets it under-reports instead of leaking another session's notes.
+   */
+  sessionId?: string | undefined;
+  /** Admin opt-out: include every session's session-scoped memories. */
+  includeAllSessions?: boolean | undefined;
 }
 
 /**

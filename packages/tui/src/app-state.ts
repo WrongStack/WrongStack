@@ -5,6 +5,7 @@ import type {
   ContentBlock,
   DesignKitEntry,
   FleetChatVerbosity,
+  SkillEntry,
   TokenSavingTier,
 } from '@wrongstack/core/types';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
@@ -43,6 +44,8 @@ import type {
   ProviderOption,
   RefineFailureDecision,
   RefineFailureModel,
+  ResourceMenuAction,
+  ResourceMenuSnapshot,
   SendMode,
   ShadowState,
   StatuslineItem,
@@ -209,6 +212,23 @@ export type State = {
     modes: ModeOption[];
     selected: number;
     hint?: string | undefined;
+  };
+  /** Skill picker — lists discoverable skills and details the focused row. */
+  skillPicker: {
+    open: boolean;
+    entries: SkillEntry[];
+    selected: number;
+    hint?: string | undefined;
+  };
+  /** Shared two-pane browser for operational resources such as profiles and memory. */
+  resourceMenu: {
+    open: boolean;
+    snapshot: ResourceMenuSnapshot | null;
+    selected: number;
+    filter: string;
+    filtering: boolean;
+    hint?: string | undefined;
+    pendingAction?: ResourceMenuAction | undefined;
   };
   /** Design Studio kit picker — opened by `/design`. */
   designPicker: {

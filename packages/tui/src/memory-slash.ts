@@ -868,6 +868,10 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
             kind: kindVal,
             query: query || undefined,
             limit: limitVal,
+            // Admin surface: the user running this command owns every session in the
+            // project, so it opts out of the session filter the agent-facing tools
+            // rely on. Without this, session-scoped memories vanish from the listing.
+            includeAllSessions: true,
           });
           if (page.memories.length === 0) {
             return { message: 'No memories matched the gather criteria.' };
@@ -961,7 +965,11 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
           let sageTotal: number | undefined;
 
           if (Sage.listSagePage) {
-            const page = await Sage.listSagePage({ limit: parsed.limit });
+            const page = await Sage.listSagePage({
+              limit: parsed.limit,
+              // Admin surface — see the note on the gather listing above.
+              includeAllSessions: true,
+            });
             allMemories = page.memories as unknown as SageLike[];
             sageTotal = page.total;
           } else {

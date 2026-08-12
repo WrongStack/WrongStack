@@ -48,6 +48,8 @@ function baseState(overrides: Partial<State> | Record<string, unknown> = {}): St
     modePicker: { open: false, modes: [], selected: 0 },
     autonomyPicker: { open: false, options: [], selected: 0 },
     themePicker: { open: false, selected: 0 },
+    skillPicker: { open: false, entries: [], selected: 0 },
+    resourceMenu: { open: false, snapshot: null, selected: 0, filter: '', filtering: false },
     designPicker: { open: false, kits: [], selected: 0, stack: 'web' },
     promptPicker: {
       open: false,
@@ -147,6 +149,8 @@ function makeHost(
     onAuthFlowCancel: vi.fn(),
     onAuthCtrlC: vi.fn(),
     onPromptPickerEnter: vi.fn(),
+    onPromptPickerFavorite: vi.fn(),
+    onPromptPickerEdit: vi.fn(),
     onResumePickerEnter: vi.fn(),
     onSessionsPanelEnter: vi.fn(),
     onProjectPickerEnter: vi.fn(),
@@ -1011,6 +1015,114 @@ describe('usePickerKeys — theme picker', () => {
   });
 });
 
+describe('usePickerKeys — skill picker', () => {
+  it('navigates, opens the focused skill, and closes', () => {
+    const host = makeHost(
+      baseState({
+        skillPicker: {
+          open: true,
+          entries: [
+            {
+              name: 'release-check',
+              trigger: 'release validation',
+              scope: ['release'],
+              source: 'bundled',
+              path: '/skills/release-check/SKILL.md',
+            },
+          ],
+          selected: 0,
+        },
+      }),
+    );
+
+    runPickerKey(host, '', key({ downArrow: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'skillPickerMove', delta: 1 });
+
+    host.dispatch.mockClear();
+    host.lastEnterAtRef.current = 0;
+    runPickerKey(host, '', key(), true);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'skillPickerClose' });
+    expect(host.submit).toHaveBeenCalledWith('/skill release-check');
+
+    host.dispatch.mockClear();
+    runPickerKey(host, '', key({ escape: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'skillPickerClose' });
+  });
+});
+
+describe('usePickerKeys — resource menu', () => {
+  const action = {
+    key: 'x',
+    label: 'clear history',
+    command: '/provider-status clear openai gpt-test',
+    confirm: true,
+  } as const;
+  const snapshot = {
+    id: 'provider-status' as const,
+    title: 'Provider health',
+    items: [{ id: 'pair', label: 'openai/gpt-test', details: [], actions: [action] }],
+  };
+
+  it('navigates and asks before a destructive action', () => {
+    const host = makeHost(
+      baseState({
+        resourceMenu: { open: true, snapshot, selected: 0, filter: '', filtering: false },
+      }),
+    );
+    runPickerKey(host, '', key({ downArrow: true }), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'resourceMenuMove', delta: 1 });
+
+    host.dispatch.mockClear();
+    runPickerKey(host, 'x', key(), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'resourceMenuConfirm', action });
+    expect(host.submit).not.toHaveBeenCalled();
+  });
+
+  it('runs a confirmed action only after y', () => {
+    const host = makeHost(
+      baseState({
+        resourceMenu: {
+          open: true,
+          snapshot,
+          selected: 0,
+          filter: '',
+          filtering: false,
+          pendingAction: action,
+        },
+      }),
+    );
+    runPickerKey(host, 'y', key(), false);
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'resourceMenuClose' });
+    expect(host.submit).toHaveBeenCalledWith(action.command);
+  });
+
+  it('filters detail text and exits filter mode without closing', () => {
+    const host = makeHost(
+      baseState({
+        resourceMenu: { open: true, snapshot, selected: 0, filter: '', filtering: false },
+      }),
+    );
+    runPickerKey(host, '/', key(), false);
+    expect(host.dispatch).toHaveBeenCalledWith({
+      type: 'resourceMenuFilter',
+      filter: '',
+      active: true,
+    });
+
+    const filtering = makeHost(
+      baseState({
+        resourceMenu: { open: true, snapshot, selected: 0, filter: 'ope', filtering: true },
+      }),
+    );
+    runPickerKey(filtering, 'n', key(), false);
+    expect(filtering.dispatch).toHaveBeenCalledWith({
+      type: 'resourceMenuFilter',
+      filter: 'open',
+      active: true,
+    });
+  });
+});
+
 describe('usePickerKeys — design picker', () => {
   it('navigates design picker and selects on Enter', () => {
     const host = makeHost(
@@ -1059,6 +1171,8 @@ describe('usePickerKeys — design picker', () => {
 describe('usePickerKeys — prompt picker', () => {
   it('navigates prompt picker with arrows and category arrows', () => {
     const onPromptPickerEnter = vi.fn();
+    const onPromptPickerFavorite = vi.fn();
+    const onPromptPickerEdit = vi.fn();
     const host = makeHost(
       baseState({
         promptPicker: {
@@ -1070,7 +1184,7 @@ describe('usePickerKeys — prompt picker', () => {
           selected: 0,
         },
       }),
-      { onPromptPickerEnter },
+      { onPromptPickerEnter, onPromptPickerFavorite, onPromptPickerEdit },
     );
     host.lastEnterAtRef.current = 0;
 
@@ -1082,6 +1196,12 @@ describe('usePickerKeys — prompt picker', () => {
 
     runPickerKey(host, '', key(), true);
     expect(onPromptPickerEnter).toHaveBeenCalled();
+
+    runPickerKey(host, 'f', key(), false);
+    expect(onPromptPickerFavorite).toHaveBeenCalled();
+
+    runPickerKey(host, 'e', key(), false);
+    expect(onPromptPickerEdit).toHaveBeenCalled();
   });
 });
 

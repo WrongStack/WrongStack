@@ -274,6 +274,8 @@ export function validateAction(action: {
     case 'slashPickerMove':
     case 'modelPickerMove':
     case 'autonomyPickerMove':
+    case 'skillPickerMove':
+    case 'resourceMenuMove':
     case 'settingsPickerMove':
     case 'statuslinePickerMove':
     case 'pluginPickerMove':

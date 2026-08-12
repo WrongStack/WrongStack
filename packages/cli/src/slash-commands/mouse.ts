@@ -21,23 +21,31 @@ export function buildMouseCommand(_opts: SlashCommandContext): SlashCommand {
       '  /mouse            Show current mouse-mode status',
       '  /mouse on         Enable full mouse mode',
       '  /mouse off        Disable scrollbar drag and clickable UI',
-      '  /mouse toggle     Flip the current state',
+      '  /mouse native     Hand the mouse back to the terminal (select + copy)',
+      '  /mouse toggle     Flip between on and off',
       '',
-      'The wheel always scrolls virtualized chat history in-app. Full mouse mode',
-      'also makes the scrollbar drag-able and status-bar chips / confirm buttons',
-      'clickable. Shift+wheel, PgUp/PgDn, and Ctrl+U/D page through history.',
+      'In both on and off the wheel scrolls virtualized chat history in-app. Full',
+      'mouse mode also makes the scrollbar drag-able and status-bar chips /',
+      'confirm buttons clickable.',
+      '',
+      'Native mode releases mouse tracking entirely, so the terminal does its own',
+      'click-drag text selection and copy again. The cost is the wheel: it scrolls',
+      'the terminal, not the transcript. PgUp/PgDn and Ctrl+U/D still page through',
+      'history. Use /mouse on or /mouse off to take the mouse back.',
+      '',
       'The setting persists.',
     ].join('\n'),
     async run(args) {
       const arg = args.trim().toLowerCase();
-      let intent: 'on' | 'off' | 'toggle' | 'query';
+      let intent: 'on' | 'off' | 'native' | 'toggle' | 'query';
       if (!arg || arg === 'status') intent = 'query';
       else if (arg === 'on' || arg === 'enable' || arg === 'true' || arg === '1') intent = 'on';
       else if (arg === 'off' || arg === 'disable' || arg === 'false' || arg === '0') intent = 'off';
+      else if (arg === 'native' || arg === 'none' || arg === 'terminal') intent = 'native';
       else if (arg === 'toggle') intent = 'toggle';
       else {
         return {
-          message: `Unknown argument: ${arg}. Use /mouse on, /mouse off, or /mouse toggle.`,
+          message: `Unknown argument: ${arg}. Use /mouse on, /mouse off, /mouse native, or /mouse toggle.`,
         };
       }
       // The App (TUI) consumes this intent, applies + persists it, and prints

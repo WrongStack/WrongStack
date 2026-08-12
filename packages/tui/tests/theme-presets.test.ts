@@ -17,7 +17,7 @@
 // value ranges, per-preset override completeness, and palette membership.
 
 import { THEME_PRESET_IDS } from '@wrongstack/core/types';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { applyWashTokens } from '../src/components/history/code-block.js';
 import { highlightLine } from '../src/highlight.js';
 import {
@@ -249,5 +249,60 @@ describe('pastel palette', () => {
     for (const [name, value] of Object.entries(pastel)) {
       expect(value, name).toMatch(HEX);
     }
+  });
+});
+
+// Bare ANSI names (`color="cyan"`) used to resolve against the FROZEN pastel
+// map, so ~179 call sites stayed Catppuccin-coloured under every other preset —
+// picking Gruvbox recoloured the tokenized chrome and left these behind. They
+// now route through ANSI_TOKEN to the active palette.
+describe('bare ANSI names follow the active theme', () => {
+  const MAPPED: ReadonlyArray<[string, keyof Theme]> = [
+    ['cyan', 'accent'],
+    ['yellow', 'warn'],
+    ['green', 'success'],
+    ['red', 'error'],
+    ['magenta', 'brand'],
+    ['white', 'textPrimary'],
+  ];
+
+  afterEach(() => {
+    setActiveTheme('catppuccin');
+  });
+
+  it('is a byte-identical no-op on the default preset', () => {
+    setActiveTheme('catppuccin');
+    for (const [name] of MAPPED) {
+      expect(softColor(name), name).toBe((pastel as Record<string, string>)[name]);
+    }
+  });
+
+  it('resolves to the active preset token for every preset', () => {
+    for (const id of THEME_PRESET_IDS) {
+      setActiveTheme(id);
+      for (const [name, token] of MAPPED) {
+        expect(softColor(name), `${id}/${name}`).toBe(themePresets[id][token] as string);
+      }
+    }
+  });
+
+  it('actually changes colour when the preset changes', () => {
+    setActiveTheme('catppuccin');
+    const before = MAPPED.map(([name]) => softColor(name));
+    setActiveTheme('gruvbox-dark');
+    const after = MAPPED.map(([name]) => softColor(name));
+    expect(after).not.toEqual(before);
+  });
+
+  it('leaves unmapped names on the frozen floor', () => {
+    setActiveTheme('gruvbox-dark');
+    // No token equals these on Catppuccin, so mapping them would move the
+    // default theme — they intentionally stay pinned.
+    expect(softColor('gray')).toBe(pastel.gray);
+    expect(softColor('blue')).toBe(pastel.blue);
+    expect(softColor('grayBright')).toBe(pastel.grayBright);
+    // Unknown names still pass through untouched.
+    expect(softColor('transparent')).toBe('transparent');
+    expect(softColor('#abcdef')).toBe('#abcdef');
   });
 });

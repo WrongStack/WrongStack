@@ -25,6 +25,7 @@ export type {
 // session written through the exact message journal, and sitting next to the
 // canonical renderer in the barrel made it easy to reach for by mistake.
 export { replaySessionMessages } from './components/history/replay.js';
+export type { ProviderOption } from './components/model-picker.js';
 export type { PluginPickerItem } from './components/plugin-picker.js';
 export type { ParsedNextStep, ParseNextStepsResult } from './components/suggestions.js';
 // parseNextSteps now lives in @wrongstack/tools/next-steps (shared with WebUI and CLI).
@@ -33,3 +34,10 @@ export { parseNextSteps } from './components/suggestions.js';
 export { parseInline } from './markdown.js';
 export type { RunTuiOptions } from './run-tui.js';
 export { runTui } from './run-tui.js';
+export type {
+  ResourceMenuAction,
+  ResourceMenuDetail,
+  ResourceMenuId,
+  ResourceMenuItem,
+  ResourceMenuSnapshot,
+} from './ui-contracts.js';

@@ -50,6 +50,7 @@ export interface CronListResult {
 export interface CronJobsMonitorProps {
   /** Async callback that returns the current cron list (wired to cron_list tool). */
   getCronJobs: () => Promise<CronListResult>;
+  onCancel?: ((name: string) => Promise<string | null>) | undefined;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -87,13 +88,17 @@ function fmtTime(iso: string | null): string {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.ReactElement {
+export function CronJobsMonitor({
+  getCronJobs,
+  onCancel,
+}: CronJobsMonitorProps): React.ReactElement {
   const size = useMonitorSize();
   // Monotonic tick incremented every second — drives re-renders + re-fetches
   const [tick, setTick] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [snapshot, setSnapshot] = useState<CronListResult | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState<string | null>(null);
 
   // 1s interval for live elapsed-time updates + data refresh
   useEffect(() => {
@@ -156,6 +161,19 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
 
   const shortcutsEnabled = usePanelShortcutsEnabled();
   useInput((input, key) => {
+    if (confirmCancel) {
+      if (input.toLowerCase() === 'y') {
+        const name = confirmCancel;
+        setConfirmCancel(null);
+        void onCancel?.(name).then((error) => {
+          if (error) setFetchError(error);
+          else setTick((value) => value + 1);
+        });
+      } else if (input.toLowerCase() === 'n' || key.escape) {
+        setConfirmCancel(null);
+      }
+      return;
+    }
     // Navigation
     if (key.upArrow) {
       setSelectedIndex((prev) => Math.max(0, prev - 1));
@@ -169,6 +187,9 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
       setSelectedIndex(0);
     } else if (key.end || (shortcutsEnabled && ((key.ctrl && input === 'e') || input === 'G'))) {
       setSelectedIndex(Math.max(0, jobs.length - 1));
+    } else if (input.toLowerCase() === 'x' && onCancel) {
+      const job = jobs[safeIndex];
+      if (job) setConfirmCancel(job.name);
     }
     // Every other key falls through to the app's keyboard handler
   });
@@ -210,6 +231,7 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
         <Box gap={2}>
           <KeyCap keyName="↑↓" label="select" color={theme.accent} />
           <KeyCap keyName="PgUp/Dn" label="page" color={theme.accent} />
+          {onCancel ? <KeyCap keyName="x" label="cancel job" color={theme.error} /> : null}
           <KeyCap keyName="Esc" label="close" color={theme.accent} />
         </Box>
       }
@@ -218,6 +240,11 @@ export function CronJobsMonitor({ getCronJobs }: CronJobsMonitorProps): React.Re
       {fetchError ? (
         <Box marginTop={1}>
           <Text color={theme.error}>⚠ {fetchError}</Text>
+        </Box>
+      ) : null}
+      {confirmCancel ? (
+        <Box marginTop={1}>
+          <Text color={theme.warn}>Cancel “{confirmCancel}”? y confirm · n cancel</Text>
         </Box>
       ) : null}
 

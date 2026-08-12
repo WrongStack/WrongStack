@@ -1,4 +1,5 @@
 import { normalizeProjectPath, normalizeSlashes } from './paths.js';
+import { isVisibleToSession } from './sqlite-store-search-helpers.js';
 import type {
   FindMemoriesForFileOptions,
   FindMemoriesForFileResponse,
@@ -160,6 +161,10 @@ export async function findSqliteMemoriesForFile(
   for (const memory of memories) {
     if (memory.status === 'deleted' && !includeDeleted) continue;
     if (memory.status === 'superseded' && !includeSuperseded) continue;
+    // Session isolation, which this surface previously skipped entirely: with
+    // no clause and no option to carry a session id, a file lookup returned
+    // every session's session-scoped memories to whoever asked.
+    if (!isVisibleToSession(memory, options)) continue;
     const matched = matchMemory(
       ctx.projectRoot,
       memory,

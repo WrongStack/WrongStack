@@ -10,6 +10,7 @@ import {
   parseMouseEvent,
   parseMouseEvents,
   shouldEnableMouseTracking,
+  splitTrailingMousePartial,
 } from '../src/mouse.js';
 
 const ESC = String.fromCharCode(27);
@@ -179,6 +180,74 @@ describe('parseMouseEvents (batched scan)', () => {
 
   it('finds a report even with surrounding noise', () => {
     expect(parseMouseEvents(`x${sgr(2, 7, 8)}`)).toMatchObject([{ button: 'right', x: 7, y: 8 }]);
+  });
+});
+
+describe('shouldEnableMouseTracking — native hand-back', () => {
+  it('releases the mouse even though managed history wants the wheel', () => {
+    expect(
+      shouldEnableMouseTracking({
+        fullMode: false,
+        overlayOpen: false,
+        managedHistory: true,
+        native: true,
+        protocol: 'sgr',
+      }),
+    ).toBe(false);
+  });
+
+  it('outranks full mode and an open overlay', () => {
+    expect(
+      shouldEnableMouseTracking({
+        fullMode: true,
+        overlayOpen: true,
+        managedHistory: true,
+        native: true,
+        protocol: 'sgr',
+      }),
+    ).toBe(false);
+  });
+
+  it('is inert when absent, preserving the previous behaviour', () => {
+    const base = { fullMode: false, overlayOpen: false, managedHistory: true } as const;
+    expect(shouldEnableMouseTracking({ ...base, protocol: 'sgr' })).toBe(true);
+    expect(shouldEnableMouseTracking({ ...base, native: false, protocol: 'sgr' })).toBe(true);
+  });
+});
+
+describe('splitTrailingMousePartial', () => {
+  it('carries a report split across two chunks and loses no event', () => {
+    const whole = sgr(0, 12, 34);
+    const cut = 6; // mid-coordinate split
+    const first = splitTrailingMousePartial(whole.slice(0, cut));
+    expect(first.consumed).toBe('');
+    expect(first.pending).toBe(whole.slice(0, cut));
+
+    const second = splitTrailingMousePartial(first.pending + whole.slice(cut));
+    expect(second.pending).toBe('');
+    expect(parseMouseEvents(second.consumed)).toMatchObject([{ button: 'left', x: 12, y: 34 }]);
+  });
+
+  it('keeps whole reports that precede the partial', () => {
+    const partial = `${ESC}[<64;9`;
+    const { consumed, pending } = splitTrailingMousePartial(sgr(2, 1, 2) + partial);
+    expect(pending).toBe(partial);
+    expect(parseMouseEvents(consumed)).toHaveLength(1);
+  });
+
+  it('never swallows a bare Esc — the Esc key must still arrive', () => {
+    expect(splitTrailingMousePartial(ESC)).toEqual({ consumed: ESC, pending: '' });
+    expect(splitTrailingMousePartial(`${ESC}[`)).toEqual({ consumed: `${ESC}[`, pending: '' });
+  });
+
+  it('passes through terminated reports and ordinary text untouched', () => {
+    expect(splitTrailingMousePartial(sgr(0, 1, 1, 'm')).pending).toBe('');
+    expect(splitTrailingMousePartial('hello').pending).toBe('');
+  });
+
+  it('releases an over-long tail instead of buffering forever', () => {
+    const junk = `${ESC}[<${'9'.repeat(40)}`;
+    expect(splitTrailingMousePartial(junk)).toEqual({ consumed: junk, pending: '' });
   });
 });
 

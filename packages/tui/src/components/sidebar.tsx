@@ -14,7 +14,8 @@
 // placeholder. Callers pass `children` when they have real content.
 
 import type React from 'react';
-import { Box, Text, useStdout } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
 
 /** Terminal widths below this hide the sidebar entirely. */
@@ -76,8 +77,7 @@ export interface RightSidebarProps {
 }
 
 export function RightSidebar({ width, maxHeight, focused = false, children }: RightSidebarProps): React.ReactElement | null {
-  const { stdout } = useStdout();
-  const termCols = stdout?.columns ?? 80;
+  const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
   const resolvedWidth = width ?? computeSidebarWidth(termCols);
 
   // Hide entirely on narrow terminals.

@@ -149,7 +149,12 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
       if (
         anchorsChanged(merged.anchors, existing.anchors) ||
         merged.confidence !== existing.confidence ||
-        merged.text !== existing.text
+        merged.text !== existing.text ||
+        // The merge unions `supersedes`/`contradicts` above, so a merge can
+        // introduce a relationship the graph has never seen while anchors,
+        // text and confidence all stay put. Skipping the sync then loses the
+        // assertion entirely — the row JSON keeps it, the graph never does.
+        relationshipsGrew(merged, existing)
       ) {
         ctx.syncAnchorEdges(merged);
       }
@@ -259,4 +264,21 @@ function tokenizeCount(text: string): number {
     .toLowerCase()
     .split(/[^\p{L}\p{N}_.-]+/u)
     .filter((term) => term.length >= 3).length;
+}
+
+/**
+ * Did the merge introduce a `supersedes`/`contradicts` id the stored row did
+ * not already carry? Only growth matters: the union above can never shrink an
+ * array, and the relationship sync is insert-only, so an unchanged set has
+ * nothing to assert.
+ */
+function relationshipsGrew(merged: Sage, existing: Sage): boolean {
+  const grew = (next: string[] | undefined, prev: string[] | undefined): boolean => {
+    if (!next || next.length === 0) return false;
+    const before = new Set(prev ?? []);
+    return next.some((id) => !before.has(id));
+  };
+  return (
+    grew(merged.supersedes, existing.supersedes) || grew(merged.contradicts, existing.contradicts)
+  );
 }

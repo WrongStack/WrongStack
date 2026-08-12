@@ -34,6 +34,8 @@ export interface PickerKeysHost {
   onAuthCtrlC: (() => void) | undefined;
 
   onPromptPickerEnter: (() => void) | undefined;
+  onPromptPickerFavorite: (() => void) | undefined;
+  onPromptPickerEdit: (() => void) | undefined;
   onResumePickerEnter: (() => Promise<void>) | undefined;
   onSessionsPanelEnter: (() => Promise<void>) | undefined;
   onProjectPickerEnter: (() => Promise<void>) | undefined;

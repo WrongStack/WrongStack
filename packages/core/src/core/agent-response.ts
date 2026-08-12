@@ -14,6 +14,7 @@ import {
   markAssistantReferencedEvidence,
 } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
+import { formatMemoryEvidenceBlock } from '../utils/memory-evidence-fence.js';
 import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-invariants.js';
 import { formatTodoForModel, hasKanbanBoundTodos } from '../utils/todos-format.js';
 import type { AgentInternals } from './agent-internals.js';
@@ -134,13 +135,13 @@ function buildMemoryEvidenceBlocks(ctx: Pick<Context, 'memoryEvidence'>): TextBl
     if (remaining <= 0) break;
     const text = entry.text.trim();
     if (!text) continue;
-    const source = entry.source.replace(/[^a-z0-9_.-]+/gi, '-').slice(0, 80) || 'memory';
     const bounded = text.slice(0, remaining);
     remaining -= bounded.length;
-    blocks.push({
-      type: 'text',
-      text: `[memory_evidence source="${source}"]\n${bounded}\n[/memory_evidence]`,
-    });
+    // `formatMemoryEvidenceBlock` owns the fence and neutralizes the delimiter
+    // inside the body — memory text is attacker-influenceable, and a literal
+    // `[/memory_evidence]` in it would otherwise close the block early and
+    // leave the rest as unfenced live-context text.
+    blocks.push({ type: 'text', text: formatMemoryEvidenceBlock(entry.source, bounded) });
   }
   return blocks;
 }

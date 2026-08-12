@@ -115,7 +115,19 @@ export interface SageSurface {
   retrieveForPath(options: SageForPathOptions): Promise<Sage[]>;
   searchSage(
     query: string,
-    options?: { limit?: number; includeStatuses?: SageStatus[] },
+    options?: {
+      limit?: number;
+      includeStatuses?: SageStatus[];
+      /**
+       * Session ownership filter, consistent with `retrieveForAudience` below and
+       * with every SQL retrieval surface: pass the calling session to see its own
+       * session-scoped memories. Omitting it hides owned session records rather
+       * than exposing them, so a forgetful caller under-reports instead of
+       * crossing a session boundary.
+           */
+      sessionId?: string | undefined;
+      includeAllSessions?: boolean | undefined;
+    },
   ): Promise<Sage[]>;
   acceptCandidate(candidateId: string): Promise<Sage | undefined>;
   rejectCandidate(candidateId: string, reason: string): Promise<boolean>;
@@ -172,10 +184,17 @@ export interface SageServiceLike extends MemoryStore {
     limit?: number;
     includeAncestors?: boolean;
     includeStatuses?: Sage['status'][];
+    sessionId?: string | undefined;
+    includeAllSessions?: boolean | undefined;
   }): Promise<Sage[]>;
   searchSage(
     query: string,
-    opts?: { limit?: number; includeStatuses?: Sage['status'][] },
+    opts?: {
+      limit?: number;
+      includeStatuses?: Sage['status'][];
+      sessionId?: string | undefined;
+      includeAllSessions?: boolean | undefined;
+    },
   ): Promise<Sage[]>;
   retrieveForAudience?(
     context: { role?: string; taskType?: string; mode?: string },

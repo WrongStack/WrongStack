@@ -210,6 +210,21 @@ The complete session log remains available on disk.
 
 For tmux/screen users: ensure `$TERM` is set correctly.
 
+**Symptom**: Cannot select or copy transcript text with the mouse.
+
+While the TUI owns mouse tracking, the terminal reports clicks and the wheel to
+the app instead of starting its own selection — so click-drag never highlights
+anything. This applies in both `/mouse on` and `/mouse off`; the latter only
+drops scrollbar drag and clickable chrome, it does not release the mouse.
+
+**Fix**:
+
+Run `/mouse native` to hand the mouse back to the terminal. Click-drag selection
+and copy work normally again. The trade-off is the wheel: it scrolls the
+terminal rather than the transcript, so use `PgUp`/`PgDn` or `Ctrl+U`/`Ctrl+D`
+to page through history. `/mouse on` or `/mouse off` takes the mouse back. The
+choice persists across sessions.
+
 ### "Models.dev fetch failed"
 
 **Symptom**: `Warning: Failed to fetch models.dev catalog. Using cached version.`

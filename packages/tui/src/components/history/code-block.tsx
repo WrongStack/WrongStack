@@ -5,6 +5,7 @@ import {
   parseUnifiedDiffPreview,
 } from '@wrongstack/tools/tool-diff';
 import type React from 'react';
+import { memo } from 'react';
 import {
   type HLState,
   highlightLine,
@@ -131,7 +132,7 @@ function expandTabs(text: string, tabWidth: number = HARD_TAB_WIDTH): string {
 // ── CodeBlock ──
 
 /** Syntax-highlighted, framed code block. */
-export function CodeBlock({
+function CodeBlockImpl({
   code,
   lang,
   contentWidth,
@@ -834,3 +835,11 @@ export function extractMultiFileDiffs(
   }
   return previews.length > 0 ? previews : undefined;
 }
+
+/**
+ * Syntax-highlighted code / diff block.
+ *
+ * Memoized: highlighting is the single most expensive thing in the transcript,
+ * and a completed fence never changes again while later text streams in.
+ */
+export const CodeBlock = memo(CodeBlockImpl);

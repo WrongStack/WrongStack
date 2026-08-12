@@ -47,6 +47,8 @@ export function isPickerOverlayOpen(state: State): boolean {
     state.fKeyPicker.open ||
     state.authPanel.open ||
     state.themePicker.open ||
+    state.skillPicker.open ||
+    state.resourceMenu.open ||
     state.picker.open
   );
 }

@@ -113,4 +113,24 @@ describe('CronJobsMonitor', () => {
     expect(view.lastFrame() ?? '').toContain('cron_schedule');
     view.unmount();
   });
+
+  it('requires confirmation before cancelling the focused job', async () => {
+    const onCancel = vi.fn().mockResolvedValue(null);
+    const view = render(
+      React.createElement(CronJobsMonitor, {
+        getCronJobs: vi.fn().mockResolvedValue(snapshot()),
+        onCancel,
+      }),
+    );
+    await flush();
+    view.stdin.write('x');
+    await flush();
+    expect(view.lastFrame() ?? '').toContain('Cancel “fast-job”?');
+    expect(onCancel).not.toHaveBeenCalled();
+
+    view.stdin.write('y');
+    await flush();
+    expect(onCancel).toHaveBeenCalledWith('fast-job');
+    view.unmount();
+  });
 });

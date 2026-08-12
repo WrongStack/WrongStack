@@ -69,36 +69,46 @@ export async function findRelatedSqliteSage(
   // truncated to 100. The previous `Math.min(opts.limit ?? 20, 100)`
   // swallowed any caller request above 100 with no observable signal.
   const resultCap = Math.max(1, Math.min(opts.limit ?? 20, bfsBudget));
+  // The graph walk runs unconditionally, before candidates are collected.
+  //
+  // It used to be gated on `candidateIds.length < bfsBudget`, which let the
+  // weakest signal switch off the strongest one: tag co-occurrence scores 1.5
+  // per shared tag (capped at 4) while graph membership scores 8, yet a tag
+  // shared by enough memories pushed the candidate count past the budget and
+  // skipped the traversal entirely. `graphRelatedIds` then stayed empty, so a
+  // memory reachable ONLY through the graph scored 0 and was dropped by the
+  // `score > 0` filter — invisible, not merely outranked. Measured on a
+  // seeded store with `limit: 20` (budget 400): at 178 memories carrying the
+  // seed's tag the graph neighbour was returned; at 428 it vanished. This
+  // repository's live store has a tag on 972 of 2,684 active memories, well
+  // past that line.
+  //
+  // Collecting once afterwards also removes the double tag query the old
+  // shape paid whenever the gate did open (collect → traverse → collect
+  // again), which offsets the unconditional traversal: ~7-15ms of walk
+  // against ~22ms of re-materializing every tag match on the live store.
   const graphRelatedIds = new Set<string>();
-  let candidateIds = collectRelatedSqliteCandidateIds(
+  for (const edge of await ctx.traverseGraph(
+    seeds.map((memory) => memoryNodeId(memory.id)),
+    { maxDepth: opts.maxDepth ?? 3, limit: bfsBudget },
+  )) {
+    for (const node of [edge.from, edge.to]) {
+      if (node.startsWith(MEMORY_NODE_PREFIX)) {
+        graphRelatedIds.add(node.slice(MEMORY_NODE_PREFIX.length));
+      }
+    }
+  }
+  const candidateIds = collectRelatedSqliteCandidateIds(
     { stmt: (sql) => ctx.stmt(sql) },
     seeds,
     graphRelatedIds,
     statuses,
     opts,
+    // Bound the one unbounded candidate source at the same budget the graph
+    // walk gets, so a high-fan-out tag cannot make the fetch/parse cost scale
+    // with the corpus. bfsBudget is at least 100 and 20x the caller's limit.
+    bfsBudget,
   );
-
-  if (candidateIds.length < bfsBudget) {
-    for (const edge of await ctx.traverseGraph(
-      seeds.map((memory) => memoryNodeId(memory.id)),
-      { maxDepth: opts.maxDepth ?? 3, limit: bfsBudget },
-    )) {
-      for (const node of [edge.from, edge.to]) {
-        if (node.startsWith(MEMORY_NODE_PREFIX)) {
-          graphRelatedIds.add(node.slice(MEMORY_NODE_PREFIX.length));
-        }
-      }
-    }
-    if (graphRelatedIds.size > 0) {
-      candidateIds = collectRelatedSqliteCandidateIds(
-        { stmt: (sql) => ctx.stmt(sql) },
-        seeds,
-        graphRelatedIds,
-        statuses,
-        opts,
-      );
-    }
-  }
 
   if (candidateIds.length === 0) return [];
 

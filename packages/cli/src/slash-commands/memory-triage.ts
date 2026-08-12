@@ -193,6 +193,10 @@ async function loadActiveMemories(Sage: SageSurface, limit: number | undefined):
       statuses: ['active', 'stale'],
       limit: pageSize,
       cursor,
+      // Admin surface: the user running this command owns every session in the
+      // project, so it opts out of the session filter the agent-facing tools
+      // rely on. Without this, session-scoped memories vanish from the listing.
+      includeAllSessions: true,
     });
 
     all.push(...page.memories);

@@ -37,6 +37,7 @@ import { ProjectPicker } from './components/project-picker.js';
 import { filterPromptPicker, PromptPicker } from './components/prompt-picker.js';
 import { RefineCountdownPanel } from './components/refine-countdown-panel.js';
 import { RefineFailurePanel } from './components/refine-failure-panel.js';
+import { ResourceMenu } from './components/resource-menu.js';
 import { ResumePicker } from './components/resume-picker.js';
 import { ScrollableHistory } from './components/scrollable-history.js';
 import { SendModePicker } from './components/send-mode-picker.js';
@@ -63,6 +64,7 @@ import {
   TodosPanelSidebar,
   WorktreePanelSidebar,
 } from './components/sidebar-panels.js';
+import { SkillPicker } from './components/skill-picker.js';
 import { SlashConfirmPanel } from './components/slash-confirm-panel.js';
 import { SlashMenu } from './components/slash-menu.js';
 import { StatuslinePicker } from './components/statusline-picker.js';
@@ -74,8 +76,9 @@ import {
   useSidebarKanban,
   useSidebarProcessList,
 } from './hooks/use-sidebar-panel-data.js';
-import { Box, Text, useStdout } from './ink.js';
-import { THEME_OPTIONS, getActiveThemeName, theme } from './theme.js';
+import { useTerminalSize } from './hooks/use-terminal-size.js';
+import { Box, Text } from './ink.js';
+import { getActiveThemeName, THEME_OPTIONS, theme } from './theme.js';
 import { PANEL_IDS, type PanelId, type SendMode, SIDEBAR_PANEL_LIMIT } from './ui-contracts.js';
 
 const CONTINUE_CONFIRM_DELAY_MS = 4000;
@@ -139,8 +142,12 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // sidebar gets a fixed fraction of the terminal width (clamped), and the
   // main column narrows to the remainder so entry text wraps before the
   // sidebar boundary.
-  const { stdout } = useStdout();
-  const termCols = stdout?.columns ?? 80;
+  // Subscribed, not sampled: the sidebar split, the main column width and the
+  // picker row budget below are all derived from this. Reading `stdout.columns`
+  // bare left every one of them a frame (or a whole idle period) behind a
+  // terminal resize — the sidebar kept its old width until some unrelated state
+  // change forced a re-render.
+  const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
   // Per-panel position routing: a panel renders in the right sidebar when
   // its F-key is open AND its position is 'sidebar'. Mirrors
   // app-status-region.tsx's bottom-region suppression so the two surfaces
@@ -159,10 +166,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
   // remaining space instead of the hook's hardcoded 6-row guess — the guess
   // under-reserves whenever the input wraps or the status bar grows, which is
   // the "theme menu doesn't fit" overflow.
-  const pickerMaxRows = Math.max(
-    8,
-    runtime.termRows - runtime.statusBarRows - inputHeight - 1,
-  );
+  const pickerMaxRows = Math.max(8, runtime.termRows - runtime.statusBarRows - inputHeight - 1);
 
   // Sidebar slot allocation (SIDEBAR_PANEL_LIMIT, ui-contracts.ts): when
   // more panels than the limit are open AND routed to 'sidebar', render the
@@ -332,6 +336,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   searchQuery={state.modelPicker.searchQuery}
                   hint={state.modelPicker.hint}
                   titleLabel={state.modelPicker.title}
+                  columns={mainColumnWidth}
+                  maxRows={pickerMaxRows}
                 />
               ) : null}
               {state.autonomyPicker.open ? (
@@ -358,6 +364,27 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   maxRows={pickerMaxRows}
                 />
               ) : null}
+              {state.skillPicker.open ? (
+                <SkillPicker
+                  entries={state.skillPicker.entries}
+                  selected={state.skillPicker.selected}
+                  hint={state.skillPicker.hint}
+                  columns={mainColumnWidth}
+                  maxRows={pickerMaxRows}
+                />
+              ) : null}
+              {state.resourceMenu.open && state.resourceMenu.snapshot ? (
+                <ResourceMenu
+                  snapshot={state.resourceMenu.snapshot}
+                  selected={state.resourceMenu.selected}
+                  hint={state.resourceMenu.hint}
+                  confirming={state.resourceMenu.pendingAction?.label}
+                  filter={state.resourceMenu.filter}
+                  filtering={state.resourceMenu.filtering}
+                  columns={mainColumnWidth}
+                  maxRows={pickerMaxRows}
+                />
+              ) : null}
               {state.designPicker.open ? (
                 <DesignPicker
                   kits={state.designPicker.kits}
@@ -376,6 +403,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
                   selected={state.promptPicker.selected}
                   category={state.promptPicker.categories[state.promptPicker.catIndex] ?? 'all'}
                   total={state.promptPicker.all.length}
+                  columns={mainColumnWidth}
+                  maxRows={pickerMaxRows}
                 />
               ) : null}
               {state.resumePicker.open ? (

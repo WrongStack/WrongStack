@@ -14,6 +14,7 @@ import type {
   ContextSnapshot,
   FleetChatVerbosity,
   Message,
+  SkillLoader,
   ThemePresetId,
   TokenCounter,
   TokenSavingTier,
@@ -25,10 +26,14 @@ import type { McpPickerItem } from './components/mcp-picker.js';
 import type { PluginPickerItem } from './components/plugin-picker.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import type { ToolPickerItem } from './components/tools-picker.js';
+import type { ResourceMenuId, ResourceMenuSnapshot } from './ui-contracts.js';
 
 export interface RunTuiOptions {
   agent: Agent;
   slashRegistry: SlashCommandRegistry;
+  /** Shared loader used by the interactive `/skill` browser. */
+  skillLoader?: SkillLoader | undefined;
+  getResourceMenu?: ((id: ResourceMenuId) => Promise<ResourceMenuSnapshot>) | undefined;
   /** Host-owned mutable bridge for slash commands that need masked input. */
   secretInputController?:
     | {

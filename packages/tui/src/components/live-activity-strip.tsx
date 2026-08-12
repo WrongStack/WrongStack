@@ -1,4 +1,5 @@
-import { Box, Text, useStdout } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text } from '../ink.js';
 import React from 'react';
 import type { FleetEntry } from '../app.js';
 import { theme } from '../theme.js';
@@ -110,9 +111,9 @@ export const LiveActivityStrip = React.memo(function LiveActivityStrip({
   nowTick,
   maxRows = 4,
 }: LiveActivityStripProps): React.ReactElement | null {
-  const { stdout } = useStdout();
   // paddingX={1} on the container eats 2 columns.
-  const width = Math.max(10, (stdout?.columns ?? 80) - 2);
+  const { columns } = useTerminalSize({ fallbackColumns: 80 });
+  const width = Math.max(10, columns - 2);
 
   // When the fleet table is empty there's nothing to show, but we must
   // still render `maxRows` blank rows to keep the bottom region at a

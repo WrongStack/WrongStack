@@ -118,7 +118,7 @@ export function hasApiKey(provider: ResolvedProvider, config?: Config): boolean 
 export async function buildPickableProviders(
   modelsRegistry: ModelsRegistry,
   config: Config,
-): Promise<Array<{ id: string; family: string; models: string[] }>> {
+): Promise<Array<import('@wrongstack/tui').ProviderOption>> {
   const overlay = config.providers ?? {};
   let catalog: Awaited<ReturnType<typeof modelsRegistry.listProviders>> = [];
   try {
@@ -144,7 +144,7 @@ export async function buildPickableProviders(
     });
   };
   const seen = new Set<string>();
-  const out: Array<{ id: string; family: string; models: string[] }> = [];
+  const out: Array<import('@wrongstack/tui').ProviderOption> = [];
   for (const [id, cfg] of Object.entries(overlay)) {
     if (!isSelectable(id)) continue;
     seen.add(id);
@@ -161,15 +161,49 @@ export async function buildPickableProviders(
       (inherited?.models ?? []).map((m) => m.id),
       cfg,
     );
-    out.push({ id, family, models });
+    out.push({
+      id,
+      family,
+      models,
+      ...(inherited ? { modelDetails: modelDetails(inherited.models) } : {}),
+    });
   }
   for (const p of catalog) {
     if (seen.has(p.id)) continue;
     if (p.family === 'unsupported') continue;
     if (!isSelectable(p.id)) continue;
-    out.push({ id: p.id, family: p.family, models: p.models.map((m) => m.id) });
+    out.push({
+      id: p.id,
+      family: p.family,
+      models: p.models.map((m) => m.id),
+      modelDetails: modelDetails(p.models),
+    });
   }
   return out;
+}
+
+function modelDetails(
+  models: ResolvedProvider['models'],
+): NonNullable<import('@wrongstack/tui').ProviderOption['modelDetails']> {
+  return Object.fromEntries(
+    models.map((model) => [
+      model.id,
+      {
+        name: model.name,
+        description: model.description,
+        tools: model.tool_call,
+        vision: model.modalities?.input?.includes('image'),
+        reasoning: model.reasoning ?? model.reasoningConfig !== undefined,
+        maxContext: model.limit?.context,
+        maxOutput: model.limit?.output,
+        inputCost: model.cost?.input,
+        outputCost: model.cost?.output,
+        cacheReadCost: model.cost?.cache_read,
+        knowledge: model.knowledge,
+        releaseDate: model.release_date,
+      },
+    ]),
+  );
 }
 
 /**

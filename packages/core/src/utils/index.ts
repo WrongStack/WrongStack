@@ -71,6 +71,12 @@ export {
 export { mergeCustomModelDefs } from './merge-custom-models.js';
 export { mergeModelsPayload } from './merge-models-payload.js';
 export {
+  formatMemoryEvidenceBlock,
+  MEMORY_EVIDENCE_TAG,
+  sanitizeMemoryEvidenceBody,
+  sanitizeMemoryEvidenceSource,
+} from './memory-evidence-fence.js';
+export {
   hasMeaningfulContent,
   type MessageRepairReport,
   type MessageRepairResult,

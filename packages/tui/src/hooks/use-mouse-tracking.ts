@@ -11,16 +11,24 @@ type MouseWritable = { write(data: string): unknown } | undefined;
 
 export function useMouseTracking(input: {
   initialMouseMode: boolean;
+  initialNativeMouse?: boolean | undefined;
   overlayOpen: boolean;
   protocol?: MouseTrackingPolicy['protocol'];
   stdout: MouseWritable;
-}): { mouseMode: boolean; setMouseMode: (value: boolean) => void } {
-  const { initialMouseMode, overlayOpen, protocol, stdout } = input;
+}): {
+  mouseMode: boolean;
+  setMouseMode: (value: boolean) => void;
+  nativeMouse: boolean;
+  setNativeMouse: (value: boolean) => void;
+} {
+  const { initialMouseMode, initialNativeMouse, overlayOpen, protocol, stdout } = input;
   const [mouseMode, setMouseMode] = useState(initialMouseMode);
+  const [nativeMouse, setNativeMouse] = useState(initialNativeMouse ?? false);
   const mouseTrackingOn = shouldEnableMouseTracking({
     fullMode: mouseMode,
     overlayOpen,
     managedHistory: true,
+    native: nativeMouse,
     protocol,
   });
   const mouseTrackingSequence = mouseTrackingOn
@@ -55,5 +63,5 @@ export function useMouseTracking(input: {
     [stdout],
   );
 
-  return { mouseMode, setMouseMode };
+  return { mouseMode, setMouseMode, nativeMouse, setNativeMouse };
 }

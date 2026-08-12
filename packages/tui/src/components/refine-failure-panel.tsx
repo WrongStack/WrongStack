@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useState, useMemo } from 'react';
-import { Box, Text, useInput, useStdout } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { formatRefinementDuration } from './enhance-panel.js';
@@ -56,8 +57,7 @@ export interface RefineFailurePanelProps {
 const PICK_WINDOW = 8;
 
 function useColumns(): number {
-  const { stdout } = useStdout();
-  return stdout?.columns ?? 90;
+  return useTerminalSize({ fallbackColumns: 90 }).columns;
 }
 
 /**

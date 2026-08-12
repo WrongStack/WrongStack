@@ -389,7 +389,18 @@ Base palette: **Catppuccin Mocha** (soft pastels)
 | `white` | `#cdd6f4` | Primary text |
 | `blackBright` | `#585b70` | Border default |
 
-The `softColor()` function maps ANSI names → pastel hexes and passes hex/rgb/unknown values through unchanged.
+The `softColor()` function resolves a color in three steps and passes hex/rgb/unknown values through unchanged:
+
+1. `syntax.<role>` resolves against the **active** theme (see `SYNTAX_TOKEN`).
+2. A bare ANSI name listed in `ANSI_TOKEN` — `cyan`, `yellow`, `green`, `red`,
+   `magenta`, `white` — resolves to the **active** theme's matching semantic
+   token (`accent`, `warn`, `success`, `error`, `brand`, `textPrimary`). This
+   covers 172 of the ~179 remaining bare-name call sites, so selecting a preset
+   recolors them too. Each of these six is byte-identical to its `pastel` entry
+   on Catppuccin, which is what makes the mapping a no-op on the default theme.
+3. Anything else — `gray`, `blue`, the `*Bright` variants — falls back to the
+   frozen `pastel` map. These have no exactly-equal token on Catppuccin, so
+   mapping them would shift the default theme; they stay pinned deliberately.
 
 ### 5.2 Semantic Theme Tokens
 

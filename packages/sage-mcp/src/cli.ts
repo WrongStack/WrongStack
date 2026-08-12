@@ -180,7 +180,7 @@ async function main(): Promise<number> {
     return 3;
   }
 
-  const server = createSageMcpServer(port, { writable: args.writable });
+  const server = createSageMcpServer(port, { writable: args.writable, projectRoot });
 
   if (args.transport === 'http') {
     const handle = await serveHttp(server, {

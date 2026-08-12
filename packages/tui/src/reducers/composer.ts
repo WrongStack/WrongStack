@@ -2,6 +2,7 @@ import { type PersistedQueueItem, retainPersistedQueueItems } from '@wrongstack/
 import type { Action } from '../app-action-type.js';
 import type { QueueItem, State } from '../app-state.js';
 import { filterPromptPicker } from '../components/prompt-picker.js';
+import { filterResourceMenuItems } from '../components/resource-menu.js';
 import { retainTuiHistory } from '../history-retention.js';
 import { getActiveThemeName, THEME_OPTIONS } from '../theme.js';
 import { closePanels, MAX_TOOL_STREAM_RETAINED_CHARS, retainStreamTail } from './helpers.js';
@@ -49,6 +50,16 @@ const composerActionTypes = [
   'modePickerClose',
   'modePickerMove',
   'modePickerHint',
+  'skillPickerOpen',
+  'skillPickerClose',
+  'skillPickerMove',
+  'skillPickerHint',
+  'resourceMenuOpen',
+  'resourceMenuClose',
+  'resourceMenuMove',
+  'resourceMenuHint',
+  'resourceMenuFilter',
+  'resourceMenuConfirm',
   'designPickerOpen',
   'designPickerClose',
   'designPickerMove',
@@ -471,6 +482,102 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       return {
         ...state,
         modePicker: { ...state.modePicker, hint: action.text },
+      };
+    case 'skillPickerOpen':
+      return {
+        ...state,
+        ...closePanels(state),
+        skillPicker: {
+          open: true,
+          entries: action.entries,
+          selected: 0,
+          hint: undefined,
+        },
+      };
+    case 'skillPickerClose':
+      return {
+        ...state,
+        skillPicker: {
+          open: false,
+          entries: [],
+          selected: 0,
+          hint: undefined,
+        },
+      };
+    case 'skillPickerMove': {
+      const n = state.skillPicker.entries.length;
+      if (n === 0) return state;
+      const next = (state.skillPicker.selected + action.delta + n) % n;
+      return {
+        ...state,
+        skillPicker: { ...state.skillPicker, selected: next },
+      };
+    }
+    case 'skillPickerHint':
+      return {
+        ...state,
+        skillPicker: { ...state.skillPicker, hint: action.text },
+      };
+    case 'resourceMenuOpen':
+      return {
+        ...state,
+        ...closePanels(state),
+        resourceMenu: {
+          open: true,
+          snapshot: action.snapshot,
+          selected: 0,
+          filter: '',
+          filtering: false,
+          hint: undefined,
+          pendingAction: undefined,
+        },
+      };
+    case 'resourceMenuClose':
+      return {
+        ...state,
+        resourceMenu: {
+          open: false,
+          snapshot: null,
+          selected: 0,
+          filter: '',
+          filtering: false,
+          hint: undefined,
+          pendingAction: undefined,
+        },
+      };
+    case 'resourceMenuMove': {
+      const n = state.resourceMenu.snapshot
+        ? filterResourceMenuItems(state.resourceMenu.snapshot, state.resourceMenu.filter).length
+        : 0;
+      if (n === 0) return state;
+      const selected = (state.resourceMenu.selected + action.delta + n) % n;
+      return {
+        ...state,
+        resourceMenu: {
+          ...state.resourceMenu,
+          selected,
+          pendingAction: undefined,
+          hint: undefined,
+        },
+      };
+    }
+    case 'resourceMenuHint':
+      return { ...state, resourceMenu: { ...state.resourceMenu, hint: action.text } };
+    case 'resourceMenuFilter':
+      return {
+        ...state,
+        resourceMenu: {
+          ...state.resourceMenu,
+          filter: action.filter,
+          filtering: action.active,
+          selected: 0,
+          pendingAction: undefined,
+        },
+      };
+    case 'resourceMenuConfirm':
+      return {
+        ...state,
+        resourceMenu: { ...state.resourceMenu, pendingAction: action.action, hint: undefined },
       };
     case 'designPickerOpen':
       return {

@@ -1,4 +1,5 @@
 import type React from 'react';
+import { memo } from 'react';
 import { Box, Text } from './ink.js';
 import { detectTable, renderTable } from './markdown-table.js';
 import { sanitizeTerminalText, truncateDisplay } from './terminal-width.js';
@@ -288,7 +289,7 @@ const QUOTE_RE = /^>\s?(.*)$/;
  * background so any empty space on the right of a narrow table is filled
  * with the panel background rather than showing the terminal background.
  */
-export function MarkdownView({
+function MarkdownViewImpl({
   text,
   termWidth,
   contentWidth,
@@ -413,3 +414,12 @@ export function MarkdownView({
     </Box>
   );
 }
+
+/**
+ * Markdown renderer.
+ *
+ * Memoized: re-parsing prose on every streamed chunk was the bulk of the
+ * per-frame cost for long answers. Only the segment whose text changed is
+ * re-parsed now.
+ */
+export const MarkdownView = memo(MarkdownViewImpl);

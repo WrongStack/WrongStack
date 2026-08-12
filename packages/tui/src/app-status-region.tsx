@@ -299,7 +299,21 @@ export function AppStatusRegion({
         ) : state.processListOpen && routedToBottom('processList') ? (
           <ProcessListMonitor />
         ) : state.cronMonitorOpen ? (
-          <CronJobsMonitor getCronJobs={getCronJobs} />
+          <CronJobsMonitor
+            getCronJobs={getCronJobs}
+            onCancel={async (name) => {
+              const tool = agent.tools.get('cron_cancel');
+              if (!tool) return 'Cron plugin not loaded (cron_cancel tool not found).';
+              try {
+                const result = (await tool.execute({ name }, agent.ctx, {
+                  signal: AbortSignal.timeout(5000),
+                })) as { ok?: boolean | undefined; error?: string | undefined };
+                return result.ok === false ? (result.error ?? `Could not cancel ${name}.`) : null;
+              } catch (error) {
+                return error instanceof Error ? error.message : String(error);
+              }
+            }}
+          />
         ) : state.goalPanelOpen && routedToBottom('goal') ? (
           <GoalPanel
             goal={state.goalSummary}
@@ -426,6 +440,7 @@ export function AppStatusRegion({
               state.settingsPicker.open ||
               state.modelPicker.open ||
               state.autonomyPicker.open ||
+              state.skillPicker.open ||
               state.designPicker.open ||
               state.projectPicker.open ||
               state.promptPicker.open ||

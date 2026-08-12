@@ -131,9 +131,7 @@ export interface CoreDeps {
    * that predate the refactor) can omit it; provider calls then stay
    * pinned to the boot session — same behavior as before this existed.
    */
-  sessionRef?:
-    | { current: import('@wrongstack/core/types').SessionWriter | undefined }
-    | undefined;
+  sessionRef?: { current: import('@wrongstack/core/types').SessionWriter | undefined } | undefined;
   /** Atomically move this process's SessionRegistry ownership after explicit resume. */
   activateSessionIdentity?:
     | ((
@@ -182,7 +180,32 @@ export interface ProviderDeps {
   modelsRegistry: ModelsRegistry;
   savedProviderCfg: ProviderConfig | undefined;
   resolvedProvider: ResolvedProvider | undefined;
-  getPickableProviders: () => Promise<Array<{ id: string; family: string; models: string[] }>>;
+  getPickableProviders: () => Promise<
+    Array<{
+      id: string;
+      family: string;
+      models: string[];
+      modelDetails?:
+        | Record<
+            string,
+            {
+              name?: string | undefined;
+              description?: string | undefined;
+              tools?: boolean | undefined;
+              vision?: boolean | undefined;
+              reasoning?: boolean | undefined;
+              maxContext?: number | undefined;
+              maxOutput?: number | undefined;
+              inputCost?: number | undefined;
+              outputCost?: number | undefined;
+              cacheReadCost?: number | undefined;
+              knowledge?: string | undefined;
+              releaseDate?: string | undefined;
+            }
+          >
+        | undefined;
+    }>
+  >;
   switchProviderAndModel: (
     providerId: string,
     modelId: string,

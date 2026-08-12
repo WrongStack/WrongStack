@@ -1,4 +1,5 @@
-import { Box, Text, useInput, useStdout } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text, useInput } from '../ink.js';
 import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import type { AgentTimelineEntry } from '@wrongstack/core/coordination';
@@ -803,12 +804,13 @@ export function AgentsMonitor({
   }, [selectedTranscriptId]);
 
   // ── Terminal dimensions ─────────────────────────────────────────────
-  const { stdout } = useStdout();
-  const terminalColumns = stdout?.columns ?? 90;
-  const contentWidth = Math.max(24, terminalColumns - 4);
   // Use old ??30 default to match test expectations (ink test env may not
   // set stdout.rows). The height is bounded below by maxPanelRows.
-  const terminalRows = stdout?.rows ?? 30;
+  const { columns: terminalColumns, rows: terminalRows } = useTerminalSize({
+    fallbackColumns: 90,
+    fallbackRows: 30,
+  });
+  const contentWidth = Math.max(24, terminalColumns - 4);
 
   // ── Panel height budget ────────────────────────────────────────────
   // The AgentsMonitor renders below the status bar and input, so the

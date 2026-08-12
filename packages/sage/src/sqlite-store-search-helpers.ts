@@ -153,6 +153,27 @@ export function buildSessionClause(
   };
 }
 
+/**
+ * JS twin of `buildSessionClause`, for the one retrieval surface that filters
+ * in memory rather than in SQL (`findSqliteMemoriesForFile` scores every
+ * anchor of every memory, so it works from a materialized list).
+ *
+ * It lives beside the SQL builder on purpose: the visibility rule is one rule,
+ * and `findMemoriesForFile` originally shipped without any session filter at
+ * all — it was the only surface that returned every session's session-scoped
+ * memories to any caller. A second, independently-written copy of the rule is
+ * how that happens again.
+ */
+export function isVisibleToSession(
+  memory: { scope: string; ownerSessionId?: string | undefined },
+  opts: SessionScopeFilter | undefined,
+): boolean {
+  if (opts?.includeAllSessions) return true;
+  if (memory.scope !== 'session') return true;
+  if (opts?.sessionId) return memory.ownerSessionId === opts.sessionId;
+  return memory.ownerSessionId === undefined || memory.ownerSessionId === null;
+}
+
 export function countRowsByField(rows: readonly SqliteCountRow[], field: 'status' | 'kind'): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const row of rows) {

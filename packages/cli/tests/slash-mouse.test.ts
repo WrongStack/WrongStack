@@ -20,6 +20,7 @@ describe('/mouse slash command', () => {
       expect(cmd.help).toContain('/mouse on');
       expect(cmd.help).toContain('/mouse off');
       expect(cmd.help).toContain('/mouse toggle');
+      expect(cmd.help).toContain('/mouse native');
     });
   });
 
@@ -51,6 +52,15 @@ describe('/mouse slash command', () => {
       const result = await cmd.run!(arg);
       expect(result?.metadata?.mouseToggle).toBe('off');
     });
+
+    it.each(['native', 'none', 'terminal', 'NATIVE'])(
+      '"%s" emits the native intent',
+      async (arg) => {
+        const cmd = buildMouseCommand(makeCtx());
+        const result = await cmd.run!(arg);
+        expect(result?.metadata?.mouseToggle).toBe('native');
+      },
+    );
 
     it('"toggle" emits the toggle intent', async () => {
       const cmd = buildMouseCommand(makeCtx());

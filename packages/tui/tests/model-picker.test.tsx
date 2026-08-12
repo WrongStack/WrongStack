@@ -110,6 +110,47 @@ describe('ModelPicker - step provider', () => {
 describe('ModelPicker - step model', () => {
   const models = ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-haiku'];
 
+  it('renders capability, context, and pricing details on wide terminals', () => {
+    const detailed: ProviderOption[] = [
+      {
+        id: 'anthropic',
+        family: 'claude',
+        models: ['claude-3-5-sonnet'],
+        modelDetails: {
+          'claude-3-5-sonnet': {
+            tools: true,
+            vision: true,
+            reasoning: true,
+            maxContext: 200_000,
+            maxOutput: 8_192,
+            inputCost: 3,
+            outputCost: 15,
+            cacheReadCost: 0.3,
+            knowledge: '2025-01',
+          },
+        },
+      },
+    ];
+    const view = render(
+      React.createElement(ModelPicker, {
+        step: 'model',
+        providerOptions: detailed,
+        modelOptions: detailed[0]?.models ?? [],
+        filteredOptions: detailed[0]?.models ?? [],
+        selected: 0,
+        pickedProviderId: 'anthropic',
+        columns: 110,
+        maxRows: 16,
+      }),
+    );
+    const frame = view.lastFrame() ?? '';
+    expect(frame).toContain('context/output: 200K / 8K');
+    expect(frame).toContain('tools, vision, reasoning');
+    expect(frame).toContain('$3 / $15 / $0.3');
+    expect(frame).toContain('knowledge: 2025-01');
+    view.unmount();
+  });
+
   it('renders step 2 title with provider ID', () => {
     const view = render(
       React.createElement(ModelPicker, {

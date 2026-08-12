@@ -1,4 +1,5 @@
 import type React from 'react';
+import { memo } from 'react';
 import { detectLang, type Lang } from '../../highlight.js';
 import { Box } from '../../ink.js';
 import { MarkdownView } from '../../markdown.js';
@@ -75,7 +76,7 @@ export function splitFencedBlocks(text: string): BodySegment[] {
  * Assistant message body: prose (with markdown tables) interleaved with
  * highlighted code blocks.
  */
-export function AssistantBody({
+function AssistantBodyImpl({
   text,
   termWidth,
   contentWidth,
@@ -104,3 +105,11 @@ export function AssistantBody({
     </Box>
   );
 }
+
+/**
+ * Assistant message body, split into fenced/prose segments.
+ *
+ * Memoized on its primitive props so a streaming re-render only re-splits when
+ * the text itself grows.
+ */
+export const AssistantBody = memo(AssistantBodyImpl);

@@ -129,6 +129,30 @@ const SYNTAX_TOKEN: Readonly<Record<SyntaxRole, keyof Theme>> = Object.freeze({
 /** Prefix that marks a color string as a syntax role rather than a literal. */
 const SYNTAX_PREFIX = 'syntax.';
 
+// ─── Bare ANSI names → semantic tokens ──────────────────────────────────────
+// ~179 call sites still pass bare Ink color names (`color="cyan"`). Resolving
+// those against the frozen `pastel` map made them theme-INDEPENDENT: picking
+// Gruvbox recoloured the tokenized chrome but left every one of these sitting
+// at its Catppuccin value, so no preset ever fully applied.
+//
+// These six names are mapped to the token that carries the same meaning. The
+// mapping is deliberately limited to names whose Catppuccin token value is
+// BYTE-IDENTICAL to their `pastel` entry (accent===pastel.cyan, error===
+// pastel.red, …), which is what makes this a guaranteed no-op on the default
+// preset while every other preset gains 172 of the 179 sites.
+//
+// `gray`, `blue` and the *Bright variants are intentionally absent: no token
+// equals them on Catppuccin (`textMuted` is #6c7086, `pastel.gray` is #7f849c),
+// so mapping them would shift the default theme. They keep the frozen floor.
+const ANSI_TOKEN: Readonly<Record<string, keyof Theme>> = Object.freeze({
+  cyan: 'accent',
+  yellow: 'warn',
+  green: 'success',
+  red: 'error',
+  magenta: 'brand',
+  white: 'textPrimary',
+});
+
 /**
  * Resolve one syntax role against a palette. A preset may pin any role
  * explicitly via its optional `syntax` field (e.g. a scheme whose strings are
@@ -170,6 +194,13 @@ export function softColor(color?: string): string | undefined {
   if (color.startsWith(SYNTAX_PREFIX)) {
     const role = color.slice(SYNTAX_PREFIX.length) as SyntaxRole;
     return role in SYNTAX_TOKEN ? resolveSyntaxColor(role) : color;
+  }
+  // A bare ANSI name whose meaning a token already carries follows the ACTIVE
+  // theme (see ANSI_TOKEN). Everything else falls through to the frozen floor.
+  const token = ANSI_TOKEN[color];
+  if (token !== undefined) {
+    const resolved = theme[token];
+    if (typeof resolved === 'string') return resolved;
   }
   return (pastel as Record<string, string>)[color] ?? color;
 }

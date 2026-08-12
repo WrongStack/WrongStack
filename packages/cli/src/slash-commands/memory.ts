@@ -355,6 +355,10 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
               kind: kindVal,
               query: query || undefined,
               limit,
+              // Admin surface: the user running this command owns every session in the
+              // project, so it opts out of the session filter the agent-facing tools
+              // rely on. Without this, session-scoped memories vanish from the listing.
+              includeAllSessions: true,
             });
             if (page.memories.length === 0) {
               return { message: 'No memories matched the gather criteria.' };

@@ -36,6 +36,54 @@ import {
 /** Resource limit: at most this many memory IDs are individually queried for graph relations during batch gather. */
 const BATCH_GRAPH_SCAN_LIMIT = 10;
 
+/**
+ * The calling session's id, read from the live `Context`.
+ *
+ * Session identity is ambient — the agent loop knows it, the model does not.
+ * Asking the model for it (as `remember`'s `ownerSessionId` argument does) puts
+ * a value nothing can verify into an ownership field: a hallucinated id creates
+ * a memory owned by a session that never existed, invisible to every reader,
+ * while omitting it fails the store's validation outright. Reading it here
+ * makes the write/read round-trip work without the model participating.
+ *
+ * Returns undefined for contexts with no session — notably the synthetic
+ * `Context` the SAGE MCP server builds, where "no session" is the truth and
+ * the fail-closed branch of the session filter is the right outcome.
+ */
+function callerSessionId(ctx: unknown): string | undefined {
+  const session = (ctx as { session?: { id?: unknown } } | undefined)?.session;
+  const id = session?.id;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
+/**
+ * Refuse to mutate a session-scoped memory owned by a different session.
+ *
+ * Reads are isolated on every surface — a memory owned by another session is
+ * not visible to search, path, file, or bulk enumeration — yet update, delete
+ * and recover took a bare id and applied it, so a session could overwrite or
+ * destroy a record it could not even read. Being able to mutate the invisible
+ * is the inconsistency; this closes it at the tool layer, where the ambient
+ * session identity lives.
+ *
+ * The store keeps its unrestricted capability on purpose: hygiene
+ * consolidation and the admin/recovery helpers legitimately act across every
+ * session, and moving the check into the store would break them.
+ */
+async function assertSessionMayMutate(
+  memory: SageServiceLike,
+  id: string,
+  ctx: unknown,
+): Promise<void> {
+  const target = await memory.getSage(id);
+  if (!target || target.scope !== 'session' || !target.ownerSessionId) return;
+  const caller = callerSessionId(ctx);
+  if (target.ownerSessionId === caller) return;
+  throw new Error(
+    `SAGE "${id}" is a session-scoped memory owned by another session and cannot be modified from here.`,
+  );
+}
+
 export function createSageTools(memory: SageServiceLike): Tool[] {
   return [
     memoryForFileTool(memory),
@@ -147,7 +195,7 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
         ownerSessionId: {
           type: 'string',
           description:
-            "Required when scope is 'session'. The owning session ID so the memory can be isolated to its session during retrieval and injection. Ignored for non-session scopes.",
+            "Optional. For scope 'session' the current session is used automatically; pass this only to attribute the memory to a different session. Ignored for non-session scopes.",
         },
         tags: stringArraySchema('Hashtag-style tags for grouping and search (omit the #).'),
         anchors: anchorsSchema(),
@@ -197,7 +245,10 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
         text: input.text,
         kind: input.kind,
         scope: input.scope,
-        ownerSessionId: input.ownerSessionId,
+        // Ambient session identity wins over nothing, but an explicit
+        // argument still wins over ambient: a caller replaying another
+        // session's record must be able to say so.
+        ownerSessionId: input.ownerSessionId ?? callerSessionId(ctx),
         tags: input.tags,
         anchors: input.anchors,
         audience: autoAudience,
@@ -298,9 +349,10 @@ function memoryUpdateTool(
       }
       return [];
     },
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       opts.signal.throwIfAborted();
       const { id, ...patch } = input;
+      await assertSessionMayMutate(memory, id, ctx);
       return memory.updateSage(id, patch);
     },
   };
@@ -355,8 +407,9 @@ function memoryDeleteTool(
       }
       return [];
     },
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       opts.signal.throwIfAborted();
+      await assertSessionMayMutate(memory, input.id, ctx);
       await memory.deleteSage(input.id, input.reason, {
         force: true,
         ...(input.neverInject === true ? { neverInject: true } : {}),
@@ -401,8 +454,9 @@ function memoryRecoverTool(
       },
       ['id'],
     ),
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       opts.signal.throwIfAborted();
+      await assertSessionMayMutate(memory, input.id, ctx);
       // Read pre-call status: only `deleted` → `active` is a real write.
       // Id-equality can't distinguish "wrote and returned same id" from
       // "returned same id unchanged" (the idempotent already-active retry path).
@@ -576,9 +630,10 @@ function memoryForFileTool(memory: SageServiceLike): Tool<
     riskTier: 'safe',
     capabilities: ['memory.read'],
     icon: 'search',
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       opts.signal.throwIfAborted();
       return memory.findMemoriesForFile(input.path, {
+        sessionId: callerSessionId(ctx),
         ...(input.lineStart !== undefined ? { lineStart: input.lineStart } : {}),
         ...(input.lineEnd !== undefined ? { lineEnd: input.lineEnd } : {}),
         limit: input.limit ?? 50,
@@ -608,12 +663,13 @@ function memoryForPathTool(
     riskTier: 'safe',
     capabilities: ['memory.read'],
     icon: 'search',
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       opts.signal.throwIfAborted();
       return memory.retrieveForPath({
         path: input.path,
         limit: input.limit ?? 20,
         includeAncestors: true,
+        sessionId: callerSessionId(ctx),
       });
     },
   };
@@ -639,11 +695,14 @@ function memorySearchTool(
     riskTier: 'safe',
     capabilities: ['memory.read'],
     icon: 'search',
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       opts.signal.throwIfAborted();
       return memory.searchSage(input.query, {
         limit: input.limit ?? 20,
         includeStatuses: input.include_stale ? ['active', 'stale'] : ['active'],
+        // Without this the tool could never read back a session-scoped memory
+        // — not even one written moments earlier by this same session.
+        sessionId: callerSessionId(ctx),
       });
     },
   };
@@ -715,7 +774,7 @@ function memoryGatherBatchTool(
     riskTier: 'safe',
     capabilities: ['memory.read'],
     icon: 'search',
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       opts.signal.throwIfAborted();
       const pageOpts: ListSagePageOptions = {
         statuses: input.statuses,
@@ -723,6 +782,10 @@ function memoryGatherBatchTool(
         query: input.query,
         limit: input.limit,
         cursor: input.cursor,
+        // Bulk enumeration is the widest read in the tool surface — 500 rows a
+        // page, cursor-paged over everything. It gets the same session filter
+        // as every other read rather than an exemption for being a bulk API.
+        sessionId: callerSessionId(ctx),
       };
       const page = await memory.listSagePage(pageOpts);
       // Optionally gather graph relations for the first N memories

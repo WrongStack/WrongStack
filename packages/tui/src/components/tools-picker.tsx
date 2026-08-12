@@ -1,5 +1,6 @@
 import type React from 'react';
-import { Box, Text, useStdout } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text } from '../ink.js';
 
 export interface ToolPickerItem {
   name: string;
@@ -150,9 +151,10 @@ export function ToolsPicker({
   hint,
   filter,
 }: ToolsPickerProps): React.ReactElement {
-  const { stdout } = useStdout();
-  const termRows = stdout?.rows ?? 24;
-  const termColumns = stdout?.columns ?? 100;
+  const { columns: termColumns, rows: termRows } = useTerminalSize({
+    fallbackColumns: 100,
+    fallbackRows: 24,
+  });
   const columnWidths = columnWidthsFor(termColumns);
 
   const maxVisible = Math.min(MAX_PICKER_ITEMS, Math.max(6, termRows - CHROME_ROWS));

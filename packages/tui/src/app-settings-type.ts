@@ -121,6 +121,12 @@ export type Settings = {
   readSymbols: boolean;
   /** Full mouse mode: in-app managed scroll + clickable UI (SGR tracking on). */
   mouseMode?: boolean | undefined;
+  /**
+   * Mouse tracking released to the terminal (`/mouse native`), restoring native
+   * click-drag selection at the cost of in-app wheel scrolling. Outranks
+   * {@link mouseMode}.
+   */
+  mouseNative?: boolean | undefined;
   /** Whether the process circuit breaker gates bash/exec. Default false (off). */
   breakerEnabled?: boolean | undefined;
   /** Auto kill/reset delay (ms) when the breaker trips. 0 = manual recovery. */

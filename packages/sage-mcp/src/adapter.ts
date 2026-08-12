@@ -36,7 +36,25 @@ import {
 import { selectAllowedTools, type SageMcpPolicyOptions } from './policy.js';
 import { SERVER_INFO } from './version.js';
 
-export interface SageMcpToolHostOptions extends SageMcpPolicyOptions {}
+export interface SageMcpToolHostOptions extends SageMcpPolicyOptions {
+  /**
+   * Project root the served memory belongs to, used for the synthetic
+   * `Context`. Defaults to `process.cwd()`.
+   *
+   * The CLI already requires and canonicalizes `--project-root` to build the
+   * port, so defaulting the Context to the server's cwd meant the two could
+   * disagree: every tool would be told it was operating on whatever directory
+   * the MCP server happened to be launched from. No SAGE tool reads
+   * `ctx.projectRoot` today — the store resolves anchors against its OWN root
+   * (`SqliteCreateCandidateContext`), and the middleware that does read it
+   * (`path-remap`, `tool-call-memory`) only runs in the agent loop, never
+   * here — so this is a trap rather than a live defect. It is worth closing
+   * anyway: a tool that later reads the field would mis-resolve paths
+   * silently, and "silently anchored to the wrong root" is not a failure that
+   * announces itself.
+   */
+  projectRoot?: string | undefined;
+}
 
 /**
  * Resolve the SAGE service capability from any `MemoryPort`. Both
@@ -80,7 +98,7 @@ export function createSageMcpToolHost(
   // Synthetic Context — no provider / session / tokenCounter. SAGE-only memory
   // ops never read those fields; `ctx.meta` is empty, which makes
   // `no_auto_audience = true` (set below) both deterministic and defensible.
-  const ctx = createSyntheticContext();
+  const ctx = createSyntheticContext(opts.projectRoot);
   const ac = new AbortController();
   const signal = ac.signal;
 
@@ -149,14 +167,15 @@ export function createSageMcpToolHost(
   };
 }
 
-function createSyntheticContext(): Context {
+function createSyntheticContext(projectRoot?: string): Context {
   // Minimal Context stand-in. SAGE memory ops only read `ctx.meta`; the
   // provider/session/tokenCounter stubs throw on use, which is desired
   // because MCP-side memory calls are pure data operations.
+  const root = projectRoot ?? process.cwd();
   return {
     systemPrompt: [],
-    cwd: process.cwd(),
-    projectRoot: process.cwd(),
+    cwd: root,
+    projectRoot: root,
     allowOutsideProjectRoot: false,
     model: 'sage-mcp',
     tools: [],

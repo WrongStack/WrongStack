@@ -54,6 +54,7 @@ import { installStorageObservability } from './execution-storage-observability.j
 import { createTuiNextStepCallbacks } from './execution-tui-next-step-callbacks.js';
 import { resolveActiveApiKey } from './provider-config-utils.js';
 import { runRepl } from './repl.js';
+import { createTuiResourceMenuGetter } from './tui-resource-menus.js';
 import type { UpdateInfo } from './update-check.js';
 import { CLI_VERSION } from './version.js';
 
@@ -381,6 +382,14 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           agent,
           events,
           slashRegistry,
+          skillLoader,
+          getResourceMenu: createTuiResourceMenuGetter({
+            configStore,
+            paths: wpaths,
+            memoryStore,
+            statusTracker,
+            projectRoot,
+          }),
           secretInputController,
           attachments,
           tokenCounter,

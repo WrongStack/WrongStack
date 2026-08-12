@@ -40,6 +40,7 @@ interface UseAppPickerKeysOptions {
   statuslineHiddenForPicker: () => StatuslineItem[];
   onPickerEnter: () => Promise<void>;
   onThemePickerEnter?: () => void;
+  setPromptFavorite: (slug: string, favorite: boolean) => Promise<void>;
 }
 
 export function useAppPickerKeys({
@@ -64,6 +65,7 @@ export function useAppPickerKeys({
   statuslineHiddenForPicker,
   onPickerEnter,
   onThemePickerEnter,
+  setPromptFavorite,
 }: UseAppPickerKeysOptions) {
   const {
     agent,
@@ -122,6 +124,29 @@ export function useAppPickerKeys({
         dispatch({ type: 'setBuffer', buffer: entry.content, cursor: entry.content.length });
         void promptUsageRef.current?.record(entry.slug).catch(() => {});
       }
+    },
+    onPromptPickerFavorite: () => {
+      const filtered = filterPromptPicker(
+        state.promptPicker.all,
+        state.promptPicker.categories,
+        state.promptPicker.catIndex,
+        state.promptPicker.recentSlugs,
+      );
+      const entry = filtered[state.promptPicker.selected];
+      if (entry) void setPromptFavorite(entry.slug, !entry.favorite);
+    },
+    onPromptPickerEdit: () => {
+      const filtered = filterPromptPicker(
+        state.promptPicker.all,
+        state.promptPicker.categories,
+        state.promptPicker.catIndex,
+        state.promptPicker.recentSlugs,
+      );
+      const entry = filtered[state.promptPicker.selected];
+      if (!entry) return;
+      dispatch({ type: 'promptPickerClose' });
+      const command = `/prompts edit "${entry.title.replaceAll('"', '\\"')}" `;
+      setDraft(command, command.length);
     },
     onResumePickerEnter: async () => {
       const session = state.resumePicker.sessions[state.resumePicker.selected];

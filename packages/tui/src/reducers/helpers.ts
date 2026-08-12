@@ -37,6 +37,8 @@ type PanelResetState = Pick<
   | 'worktreeMonitorOpen'
   | 'coordinator'
   | 'themePicker'
+  | 'skillPicker'
+  | 'resourceMenu'
 >;
 
 export function closePanels(state: State): PanelResetState {
@@ -73,6 +75,8 @@ export function closePanels(state: State): PanelResetState {
     worktreeMonitorOpen: false,
     coordinator: { ...state.coordinator, monitorOpen: false },
     themePicker: { ...state.themePicker, open: false },
+    skillPicker: { ...state.skillPicker, open: false },
+    resourceMenu: { ...state.resourceMenu, open: false, pendingAction: undefined },
   };
 }
 

@@ -11,8 +11,15 @@ import {
   setActiveKit,
   setDesignOverrides,
 } from '@wrongstack/core/design';
+import { SKILL_LIMITS, stripFrontmatter } from '@wrongstack/core/skills';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
+import {
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+  useEffect,
+  useRef,
+} from 'react';
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { Settings, State } from '../app-state.js';
@@ -30,6 +37,8 @@ import { THEME_OPTIONS } from '../theme.js';
 
 interface TuiSlashCommandOptions {
   slashRegistry: AppProps['slashRegistry'];
+  skillLoader: AppProps['skillLoader'];
+  getResourceMenu: AppProps['getResourceMenu'];
   getPickableProviders: AppProps['getPickableProviders'];
   switchProviderAndModel: AppProps['switchProviderAndModel'];
   openModelPicker: () => Promise<void>;
@@ -47,11 +56,14 @@ interface TuiSlashCommandOptions {
   setMailboxPanelOpen: Dispatch<SetStateAction<boolean>>;
   switchAutonomy: AppProps['switchAutonomy'];
   listSessions: AppProps['listSessions'];
+  openPromptPicker: () => Promise<void>;
 }
 
 /** Registers TUI-owned slash commands and releases them on dependency changes. */
 export function useTuiSlashCommands({
   slashRegistry,
+  skillLoader,
+  getResourceMenu,
   getPickableProviders,
   switchProviderAndModel,
   openModelPicker,
@@ -69,7 +81,21 @@ export function useTuiSlashCommands({
   setMailboxPanelOpen,
   switchAutonomy,
   listSessions,
+  openPromptPicker,
 }: TuiSlashCommandOptions): void {
+  // Preserve canonical handlers across React effect cleanup/replay. Reading
+  // from the registry inside each effect setup loses the original after the
+  // first cleanup because unregister removes the TUI wrapper's bare name.
+  const resourceOriginalsRef = useRef(
+    new Map(
+      (['fallback', 'profile', 'provider-status', 'memory', 'worktree', 'git'] as const).map(
+        (name) => [name, slashRegistry.get(name)],
+      ),
+    ),
+  );
+  const panelOriginalsRef = useRef(
+    new Map((['cron', 'prompts'] as const).map((name) => [name, slashRegistry.get(name)])),
+  );
   // Register the TUI-only `/model` command — opens a two-step picker
   // (provider → model). All work is local state mutation; the actual
   // switch fires only after the user confirms a model in step 2.
@@ -559,6 +585,111 @@ export function useTuiSlashCommands({
       slashRegistry.unregister('autonomy');
     };
   }, [slashRegistry, switchAutonomy]);
+
+  // Bare `/skill` is a visual browser in the TUI. The named form keeps the
+  // established behavior and opens the selected skill's capped instructions.
+  useEffect(() => {
+    if (!skillLoader) return;
+    const cmd = {
+      name: 'skill',
+      aliases: ['skills'],
+      description: 'Browse available skills and inspect the selected skill.',
+      argsHint: '[name]',
+      async run(args: string) {
+        const name = (args ?? '').trim();
+        if (name) {
+          const skill = await skillLoader.find(name);
+          if (!skill) return { message: `Skill "${name}" not found.` };
+          const body = stripFrontmatter(await skillLoader.readBody(skill.name));
+          const capped = body.slice(0, SKILL_LIMITS.MAX_SKILL_BODY_CHARS);
+          return {
+            message:
+              capped.length < body.length
+                ? `${capped}\n\n[Skill instructions truncated at ${SKILL_LIMITS.MAX_SKILL_BODY_CHARS.toLocaleString()} characters.]`
+                : capped,
+          };
+        }
+
+        try {
+          const entries = await skillLoader.listEntries();
+          dispatch({ type: 'skillPickerOpen', entries });
+          return { message: undefined };
+        } catch (err) {
+          return { message: `Could not load skills: ${toErrorMessage(err)}` };
+        }
+      },
+    };
+    slashRegistry.register(cmd, 'tui', { official: true });
+    return () => {
+      slashRegistry.unregister('skill');
+    };
+  }, [slashRegistry, skillLoader, dispatch]);
+
+  // Operational commands keep their typed CLI forms, while the bare form
+  // opens a shared two-pane browser backed by live host state.
+  useEffect(() => {
+    if (!getResourceMenu) return;
+    const names = ['fallback', 'profile', 'provider-status', 'memory', 'worktree', 'git'] as const;
+    for (const name of names) {
+      const original = resourceOriginalsRef.current.get(name);
+      slashRegistry.register(
+        {
+          name,
+          description: original?.description ?? `Browse ${name} state interactively.`,
+          argsHint: original?.argsHint,
+          help: original?.help,
+          async run(args: string, ctx) {
+            if (args.trim())
+              return original?.run(args, ctx) ?? { message: `/${name} is unavailable.` };
+            try {
+              const snapshot = await getResourceMenu(name);
+              dispatch({ type: 'resourceMenuOpen', snapshot });
+              return { message: undefined };
+            } catch (err) {
+              return { message: `Could not load ${name}: ${toErrorMessage(err)}` };
+            }
+          },
+        },
+        'tui',
+        { official: true },
+      );
+    }
+    return () => {
+      for (const name of names) slashRegistry.unregister(name);
+    };
+  }, [slashRegistry, getResourceMenu, dispatch]);
+
+  // Existing live monitors are the richer UI for these resources. Typed
+  // subcommands still flow to their canonical CLI handlers.
+  useEffect(() => {
+    const definitions = [
+      { name: 'cron', open: () => dispatch({ type: 'toggleCronMonitor' as const }) },
+      { name: 'prompts', open: () => void openPromptPicker() },
+    ] as const;
+    for (const definition of definitions) {
+      const original = panelOriginalsRef.current.get(definition.name);
+      slashRegistry.register(
+        {
+          name: definition.name,
+          description: original?.description ?? `Open the ${definition.name} browser.`,
+          argsHint: original?.argsHint,
+          help: original?.help,
+          async run(args: string, ctx) {
+            if (args.trim()) {
+              return original?.run(args, ctx) ?? { message: `/${definition.name} is unavailable.` };
+            }
+            definition.open();
+            return { message: undefined };
+          },
+        },
+        'tui',
+        { official: true },
+      );
+    }
+    return () => {
+      for (const { name } of definitions) slashRegistry.unregister(name);
+    };
+  }, [slashRegistry, dispatch, openPromptPicker]);
 
   // Register the TUI-only `/theme` command — opens an interactive theme picker
   // that switches the active palette and persists the choice to configStore.

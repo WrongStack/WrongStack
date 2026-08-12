@@ -21,10 +21,15 @@ import { useStatusbarViewModel } from '../src/hooks/use-statusbar-view-model.js'
 
 const { statMock } = vi.hoisted(() => ({ statMock: vi.fn() }));
 
-vi.mock('node:fs/promises', () => ({
-  stat: statMock,
-  readFile: vi.fn(),
-}));
+// Partial mock: only `stat` is under test. A factory that replaced the whole
+// module broke as soon as anything else in the graph imported `node:fs/promises`
+// — the module's other members (and its default export) vanished, so the suite
+// failed at collection rather than in a test. Spreading the real module keeps
+// this mock scoped to what it actually stubs.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return { ...actual, default: actual, stat: statMock, readFile: vi.fn() };
+});
 
 /** Minimal Agent stub — only provider.capabilities + meta are touched. */
 function makeAgent(maxContext: number, meta: Record<string, unknown> = {}): AppProps['agent'] {

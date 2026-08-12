@@ -19,9 +19,9 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/coordination": {
-      "files": 169,
-      "typeOnly": 71,
-      "runtimeOrMixed": 147
+      "files": 171,
+      "typeOnly": 72,
+      "runtimeOrMixed": 148
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -129,9 +129,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/skills": {
-      "files": 7,
+      "files": 8,
       "typeOnly": 3,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
       "files": 93,
@@ -149,8 +149,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/types": {
-      "files": 888,
-      "typeOnly": 820,
+      "files": 892,
+      "typeOnly": 824,
       "runtimeOrMixed": 227
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 489,
-      "typeOnly": 53,
-      "runtimeOrMixed": 461
+      "files": 492,
+      "typeOnly": 55,
+      "runtimeOrMixed": 463
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -2241,6 +2241,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/tui-resource-menus.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/webui-server-options.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 5
@@ -2520,6 +2526,12 @@
       "file": "packages/cli/tests/tui-coordinator-setup.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/tui-resource-menus.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -7605,6 +7617,12 @@
     },
     {
       "specifier": "@wrongstack/core/skills",
+      "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/skills",
       "file": "packages/webui-server/src/server/backend-services.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9519,6 +9537,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/tui-resource-menus.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/tuneup.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10300,6 +10324,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/token-saving-memory-injection-size.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/tui-resource-menus.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12717,6 +12747,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/components/skill-picker.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/components/status-bar-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13054,6 +13090,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/replay.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/skill-picker.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15045,6 +15087,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/tui-resource-menus.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/update-check.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15417,6 +15465,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/tui-resource-menus.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/webui-server/client-registration-control.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15736,6 +15790,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/sage/src/middleware/session-end-commit-extractor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/sage/src/middleware/turn-memory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

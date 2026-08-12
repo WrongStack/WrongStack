@@ -88,6 +88,8 @@ export function createTestState(
     },
     autonomyPicker: { open: false, options: [], selected: 0 },
     themePicker: { open: false, selected: 0 },
+    skillPicker: { open: false, entries: [], selected: 0 },
+    resourceMenu: { open: false, snapshot: null, selected: 0, filter: '', filtering: false },
     modePicker: { open: false, modes: [], selected: 0 },
     designPicker: { open: false, kits: [], selected: 0, stack: 'web' },
     promptPicker: {

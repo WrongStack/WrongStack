@@ -16,6 +16,7 @@
  */
 
 import type React from 'react';
+import { memo } from 'react';
 import { Box, Text } from '../../ink.js';
 import {
   displayWidth,
@@ -303,7 +304,7 @@ function ToolGroupHeader({
  * Each sub-entry is rendered as a compact list item with its index,
  * arg summary, timing, and a single-line output preview.
  */
-export function ToolGroup({
+function ToolGroupImpl({
   data,
   termWidth,
 }: {
@@ -404,3 +405,12 @@ function ToolGroupItem({
     </Text>
   );
 }
+
+/**
+ * One render group of compacted tool calls.
+ *
+ * Memoized: `data` comes from the `useMemo`d `groupEntries` result in
+ * ScrollableHistory and `termWidth` is memoized beside it, so every group
+ * except the one actually changing bails out of each streaming frame.
+ */
+export const ToolGroup = memo(ToolGroupImpl);

@@ -220,6 +220,15 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     autonomyPicker: { open: false, options: [], selected: 0 },
     themePicker: { open: false, selected: 0 },
     modePicker: { open: false, modes: [], selected: 0 },
+    skillPicker: { open: false, entries: [], selected: 0, hint: undefined },
+    resourceMenu: {
+      open: false,
+      snapshot: null,
+      selected: 0,
+      filter: '',
+      filtering: false,
+      hint: undefined,
+    },
     designPicker: { open: false, kits: [], selected: 0, stack: 'web' },
     promptPicker: {
       open: false,

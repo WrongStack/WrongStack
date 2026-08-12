@@ -10,6 +10,7 @@ import type {
   ContextSnapshot,
   FleetChatVerbosity,
   Message,
+  SkillLoader,
   TokenCounter,
   TokenSavingTier,
 } from '@wrongstack/core/types';
@@ -26,6 +27,8 @@ import type {
   McpPickerItem,
   PluginPickerItem,
   ProviderOption,
+  ResourceMenuId,
+  ResourceMenuSnapshot,
   StatuslineItem,
   ToolPickerItem,
 } from './ui-contracts.js';
@@ -41,6 +44,10 @@ import type {
 export interface AppProps {
   agent: Agent;
   slashRegistry: SlashCommandRegistry;
+  /** Shared loader used by the interactive `/skill` browser. */
+  skillLoader?: SkillLoader | undefined;
+  /** Host-backed snapshots for the shared operational resource browser. */
+  getResourceMenu?: ((id: ResourceMenuId) => Promise<ResourceMenuSnapshot>) | undefined;
   /** Host-owned mutable bridge for slash commands that need masked input. */
   secretInputController?:
     | {

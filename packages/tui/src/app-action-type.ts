@@ -3,6 +3,7 @@ import type {
   ContextSnapshot,
   DesignKitEntry,
   FleetChatVerbosity,
+  SkillEntry,
   TokenSavingTier,
 } from '@wrongstack/core/types';
 import type { SddBoardSnapshot } from '@wrongstack/sdd';
@@ -48,6 +49,8 @@ import type {
   ProjectPickerItem,
   PromptPickEntry,
   ProviderOption,
+  ResourceMenuAction,
+  ResourceMenuSnapshot,
   ShadowState,
   ToolPickerItem,
   WorktreeRow,
@@ -123,6 +126,16 @@ export type Action =
   | { type: 'themePickerClose' }
   | { type: 'themePickerMove'; delta: number }
   | { type: 'themePickerHint'; text?: string | undefined }
+  | { type: 'skillPickerOpen'; entries: SkillEntry[] }
+  | { type: 'skillPickerClose' }
+  | { type: 'skillPickerMove'; delta: number }
+  | { type: 'skillPickerHint'; text?: string | undefined }
+  | { type: 'resourceMenuOpen'; snapshot: ResourceMenuSnapshot }
+  | { type: 'resourceMenuClose' }
+  | { type: 'resourceMenuMove'; delta: number }
+  | { type: 'resourceMenuHint'; text?: string | undefined }
+  | { type: 'resourceMenuFilter'; filter: string; active: boolean }
+  | { type: 'resourceMenuConfirm'; action?: ResourceMenuAction | undefined }
   | {
       type: 'modePickerOpen';
       modes: ModeOption[];

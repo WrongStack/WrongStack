@@ -308,7 +308,7 @@ export function App(props: AppProps): React.ReactElement {
     dispatch,
   });
 
-  const { openPromptPicker } = usePromptPicker({ projectRoot, dispatch });
+  const { openPromptPicker, setPromptFavorite } = usePromptPicker({ projectRoot, dispatch });
 
   const { openModePicker } = useModePicker({ dispatch, getModes });
 
@@ -493,24 +493,20 @@ export function App(props: AppProps): React.ReactElement {
   // enables pointer drag and clickable app chrome. Use the same routing-aware
   // overlay decision as AppView so sidebar-routed panels keep mouse hit-testing
   // aligned with the visible main-column width.
-  const { mouseMode, setMouseMode } = useMouseTracking({
+  const { mouseMode, setMouseMode, nativeMouse, setNativeMouse } = useMouseTracking({
     initialMouseMode: mouse,
+    initialNativeMouse: getSettings?.().mouseNative,
     overlayOpen: sidebarLayout.overlayOpen,
     protocol: capability?.mouseProtocol,
     stdout,
   });
 
-  const {
-    bottomRegionRef,
-    statusBarWrapRef,
-    belowStatusBarRef,
-    termRows,
-    statusBarRows,
-  } = useHistoryViewportSync({
-    stdoutRows: stdout?.rows,
-    viewportRows: state.viewportRows,
-    setViewportRows: (rows) => dispatch({ type: 'setViewportRows', rows }),
-  });
+  const { bottomRegionRef, statusBarWrapRef, belowStatusBarRef, termRows, statusBarRows } =
+    useHistoryViewportSync({
+      stdoutRows: stdout?.rows,
+      viewportRows: state.viewportRows,
+      setViewportRows: (rows) => dispatch({ type: 'setViewportRows', rows }),
+    });
   // Chip click map: written by StatusBar on every render, read by the mouse
   // hit-test in app-key-handler. See StatusBarClickMap.
   const statusBarClickMapRef = React.useRef<StatusBarClickMap | null>(null);
@@ -743,6 +739,8 @@ export function App(props: AppProps): React.ReactElement {
 
   useTuiSlashCommands({
     slashRegistry,
+    skillLoader: props.skillLoader,
+    getResourceMenu: props.getResourceMenu,
     getPickableProviders,
     switchProviderAndModel,
     openModelPicker,
@@ -760,6 +758,7 @@ export function App(props: AppProps): React.ReactElement {
     setMailboxPanelOpen,
     switchAutonomy,
     listSessions,
+    openPromptPicker,
   });
 
   useProviderEventBridge({
@@ -981,6 +980,7 @@ export function App(props: AppProps): React.ReactElement {
     statuslineHiddenForPicker,
     onPickerEnter,
     onThemePickerEnter,
+    setPromptFavorite,
   });
   const { interruptsSyncRef, runInterruptLadder } = useInterruptLadder({
     stateRef,
@@ -1136,6 +1136,7 @@ export function App(props: AppProps): React.ReactElement {
     state,
     live: {
       mouseMode,
+      nativeMouse,
       model: liveModel,
       provider: liveProvider,
       maxContext: activeMaxContext,
@@ -1143,6 +1144,7 @@ export function App(props: AppProps): React.ReactElement {
       autonomy: autonomyLive,
       modeLabel: liveModeLabel,
       setMouseMode,
+      setNativeMouse,
       setModel: setLiveModel,
       setProvider: setLiveProvider,
       setMaxContext: setActiveMaxContext,

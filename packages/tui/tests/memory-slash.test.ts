@@ -602,7 +602,10 @@ describe('/memory slash command', () => {
 
       // listSagePage called exactly once with the requested limit.
       expect(listSagePage).toHaveBeenCalledTimes(1);
-      expect(listSagePage).toHaveBeenCalledWith({ limit: 100 });
+      // `includeAllSessions` marks this as an admin surface: the session filter
+      // that isolates agent-facing reads would otherwise hide session-scoped
+      // memories from the user's own listing.
+      expect(listSagePage).toHaveBeenCalledWith({ limit: 100, includeAllSessions: true });
       // Footer shows "100 of 200" — proves paging took effect.
       expect(out).toContain('100 of 200');
       expect(out).toContain('Paged memory 0');
@@ -624,7 +627,7 @@ describe('/memory slash command', () => {
       await run(cmd, '--limit 99999');
 
       // 99999 must be clamped — the implementation cap is 500.
-      expect(listSagePage).toHaveBeenCalledWith({ limit: 500 });
+      expect(listSagePage).toHaveBeenCalledWith({ limit: 500, includeAllSessions: true });
     });
 
     it('falls back to listSage when listSagePage is absent', async () => {

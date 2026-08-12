@@ -375,15 +375,15 @@
       "relativeImports": 69
     },
     "packages/tui/src/components/agents-monitor.tsx": {
-      "lines": 997,
-      "relativeImports": 13
+      "lines": 999,
+      "relativeImports": 14
     },
     "packages/tui/src/components/context-panel.tsx": {
       "lines": 859,
       "relativeImports": 6
     },
     "packages/tui/src/components/history/code-block.tsx": {
-      "lines": 837,
+      "lines": 846,
       "relativeImports": 6
     },
     "packages/tui/src/components/history/entry.tsx": {
@@ -435,11 +435,11 @@
       "relativeImports": 1
     },
     "packages/tui/src/submit-controller.ts": {
-      "lines": 820,
+      "lines": 843,
       "relativeImports": 13
     },
     "packages/tui/src/theme.ts": {
-      "lines": 1417,
+      "lines": 1448,
       "relativeImports": 0
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {

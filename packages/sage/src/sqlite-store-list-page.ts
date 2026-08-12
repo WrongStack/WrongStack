@@ -7,6 +7,7 @@ import {
 } from './shared/pagination.js';
 import { decodePageCursor, escapeLikePattern } from './sqlite-store-pagination.js';
 import {
+  buildSessionClause,
   countRowsByField,
   finalizeListSagePage,
   type SqliteCountRow,
@@ -48,6 +49,15 @@ export function listSqliteSagePage(
   if (query) {
     where.push("LOWER(json_extract(data, '$.text')) LIKE ? ESCAPE '\\'");
     params.push(`%${escapeLikePattern(query)}%`);
+  }
+  // Session isolation, the same rule every other retrieval surface applies.
+  // This is the bulk enumerator — up to 500 rows a page, cursor-paged across
+  // the whole corpus — so without it one session can page through every other
+  // session's private memories.
+  const session = buildSessionClause(options);
+  if (session.clause) {
+    where.push(session.clause.replace(/^\s*AND\s+/i, ''));
+    params.push(...session.params);
   }
 
   const whereClause = `WHERE ${where.join(' AND ')}`;

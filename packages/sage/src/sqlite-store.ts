@@ -40,6 +40,7 @@ import { traverseSqliteGraph } from './sqlite-store-graph-traverse.js';
 import { findRelatedSqliteSage, type SqliteFindRelatedOptions } from './sqlite-store-find-related.js';
 import { runSqliteSageHygiene } from './sqlite-store-hygiene.js';
 import { syncSqliteAnchorEdges } from './sqlite-store-anchor-sync.js';
+import { syncSqliteRelationshipEdges } from './sqlite-store-relationship-sync.js';
 import {
   sqliteRowToMemory,
 } from './sqlite-store-codec.js';
@@ -506,7 +507,12 @@ export class SqliteSageStore implements MemoryStore {
    *   refreshed confidence and re-sync converges to the newer memory.
    */
   private syncAnchorEdges(memory: Sage): void {
-    syncSqliteAnchorEdges({ stmt: (sql) => this.stmt(sql), nowIso: () => this.nowIso() }, memory);
+    const deps = { stmt: (sql: string) => this.stmt(sql), nowIso: () => this.nowIso() };
+    syncSqliteAnchorEdges(deps, memory);
+    // Same hook, so every writer that refreshes a memory's graph projection
+    // (remember, update, hygiene, admin) also materializes its relationship
+    // assertions. Insert-only — see syncSqliteRelationshipEdges.
+    syncSqliteRelationshipEdges(deps, memory);
   }
 
   async updateSage(id: string, input: UpdateSageInput): Promise<Sage> {

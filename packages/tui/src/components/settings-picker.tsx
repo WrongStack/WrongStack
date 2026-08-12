@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useEffect } from 'react';
-import { Box, Text, useStdout } from '../ink.js';
+import { useTerminalSize } from '../hooks/use-terminal-size.js';
+import { Box, Text } from '../ink.js';
 import { PANEL_IDS } from '../ui-contracts.js';
 import { buildSettingsFilterState } from './settings-picker-filter.js';
 import { SETTINGS_PICKER_JUMP_CHORDS } from './settings-picker-jumps.js';
@@ -553,9 +554,10 @@ export function SettingsPicker({
   // Field rows render a 40-char prefix ("  " + label.padEnd(26) +
   // value.padEnd(12)) followed by detail text. Deriving each field's wrapped
   // line cost avoids both narrow-terminal overflow and wide blank gaps.
-  const { stdout } = useStdout();
-  const termRows = stdout?.rows ?? 24;
-  const termCols = stdout?.columns ?? 80;
+  const { columns: termCols, rows: termRows } = useTerminalSize({
+    fallbackColumns: 80,
+    fallbackRows: 24,
+  });
 
   // Content width inside the bordered, padded picker Box.
   // borderStyle="round" consumes 2 cols (left + right borders);

@@ -459,6 +459,7 @@
         "export { defaultHeapLogPath, type HeapDiagnosticFields, type HeapDiagnosticValue, type HeapSample, type HeapWatchdogOptions, startHeapWatchdog, startSharedHeapWatchdog, takeHeapSample, } from './heap-watchdog.js';",
         "export { deriveCachePrefixKey } from './cache-key.js';",
         "export { expandGlob } from './glob-expand.js';",
+        "export { formatMemoryEvidenceBlock, MEMORY_EVIDENCE_TAG, sanitizeMemoryEvidenceBody, sanitizeMemoryEvidenceSource, } from './memory-evidence-fence.js';",
         "export { getPerfProfile, indexParallelBatchSize, isFrugalPerf, type PerfProfile, SageCachePragmas, sqliteCachePragmas, tuiStreamFlushMs, useDaemonPerfDefaults, } from './perf-profile.js';",
         "export { hasMeaningfulContent, type MessageRepairReport, type MessageRepairResult, repairToolUseAdjacency, } from './message-invariants.js';",
         "export { isPidAlive } from './pid.js';",
@@ -1145,7 +1146,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10673
+      "sourceLines": 10674
     },
     {
       "directory": "defaults",
@@ -1326,8 +1327,8 @@
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 65,
-      "sourceLines": 10425
+      "sourceFiles": 66,
+      "sourceLines": 10504
     },
     {
       "directory": "worktree",

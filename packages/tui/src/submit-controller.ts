@@ -26,6 +26,8 @@ export interface SubmitControllerHost {
   readonly state: State;
   readonly live: {
     readonly mouseMode: boolean;
+    /** Mouse tracking released to the terminal (`/mouse native`). */
+    readonly nativeMouse: boolean;
     readonly model: string;
     readonly provider: string;
     readonly maxContext: number | undefined;
@@ -33,6 +35,7 @@ export interface SubmitControllerHost {
     readonly autonomy: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
     readonly modeLabel: string | undefined;
     setMouseMode(value: boolean): void;
+    setNativeMouse(value: boolean): void;
     setModel(value: string): void;
     setProvider(value: string): void;
     setMaxContext(value: number): void;
@@ -130,6 +133,7 @@ export function createSubmitController(host: SubmitControllerHost) {
     state,
     live: {
       mouseMode,
+      nativeMouse,
       model: liveModel,
       provider: liveProvider,
       maxContext: activeMaxContext,
@@ -137,6 +141,7 @@ export function createSubmitController(host: SubmitControllerHost) {
       autonomy: autonomyLive,
       modeLabel: liveModeLabel,
       setMouseMode,
+      setNativeMouse,
       setModel: setLiveModel,
       setProvider: setLiveProvider,
       setMaxContext: setActiveMaxContext,
@@ -313,6 +318,7 @@ export function createSubmitController(host: SubmitControllerHost) {
         const mouseToggle = res?.metadata?.mouseToggle as
           | 'on'
           | 'off'
+          | 'native'
           | 'toggle'
           | 'query'
           | undefined;
@@ -325,20 +331,37 @@ export function createSubmitController(host: SubmitControllerHost) {
                 : mouseToggle === 'toggle'
                   ? !mouseMode
                   : mouseMode;
-          if (mouseToggle !== 'query' && nextVal !== mouseMode) {
-            setMouseMode(nextVal);
+          // `native` is a third level, not a value of `mouseMode`: it releases
+          // tracking entirely. Any other intent takes the mouse back, so the
+          // flag is cleared on every non-native, non-query command — otherwise
+          // `/mouse on` would appear to do nothing while native was latched.
+          const nextNative = mouseToggle === 'native';
+          const nativeChanged = mouseToggle !== 'query' && nextNative !== nativeMouse;
+          const modeChanged = mouseToggle !== 'query' && !nextNative && nextVal !== mouseMode;
+          if (nativeChanged) setNativeMouse(nextNative);
+          if (modeChanged) setMouseMode(nextVal);
+          if (nativeChanged || modeChanged) {
             const cur = getSettings?.();
             if (cur && saveSettings) {
-              Promise.resolve(saveSettings({ ...cur, mouseMode: nextVal })).catch(() => {});
+              Promise.resolve(
+                saveSettings({
+                  ...cur,
+                  ...(modeChanged ? { mouseMode: nextVal } : {}),
+                  ...(nativeChanged ? { mouseNative: nextNative } : {}),
+                }),
+              ).catch(() => {});
             }
           }
+          const effectiveNative = mouseToggle === 'query' ? nativeMouse : nextNative;
           dispatch({
             type: 'addEntry',
             entry: {
               kind: 'info',
-              text: nextVal
-                ? 'Mouse mode: ON — chat wheel, scrollbar drag, and clickable UI are managed in-app.'
-                : 'Mouse mode: OFF — chat wheel remains managed in-app; scrollbar drag and clickable UI are disabled.',
+              text: effectiveNative
+                ? 'Mouse mode: NATIVE — the terminal owns the mouse, so click-drag selects and copies text. The wheel scrolls the terminal, not the transcript; use PgUp/PgDn or Ctrl+U/D to page history. /mouse on or /mouse off takes it back.'
+                : nextVal
+                  ? 'Mouse mode: ON — chat wheel, scrollbar drag, and clickable UI are managed in-app.'
+                  : 'Mouse mode: OFF — chat wheel remains managed in-app; scrollbar drag and clickable UI are disabled.',
             },
           });
         }
