@@ -30,7 +30,7 @@ import {
   updateTaskAssignment,
 } from '../src/manager.js';
 import { writeBoard } from '../src/storage.js';
-import type { KanbanBoard, KanbanTask } from '../src/types.js';
+import type { KanbanBoard, KanbanTask, KanbanVerificationReport } from '../src/types.js';
 
 let tmpDir: string;
 
@@ -1012,6 +1012,24 @@ const tickCheckInputBoard = () => {
   return { b, task };
 };
 
+/** Verifier snapshot for the tick-checks fixtures; only the fields these gates read vary. */
+const tickCheckReport = (
+  task: KanbanTask,
+  board: KanbanBoard,
+  checks: KanbanVerificationReport['checks'],
+): KanbanVerificationReport => ({
+  taskId: task.id,
+  taskTitle: task.title,
+  boardId: board.id,
+  verdict: 'passed',
+  startedAt: '2026-08-11T23:59:00.000Z',
+  completedAt: '2026-08-12T00:00:00.000Z',
+  coveredCheckIds: ['check-manual', 'check-command'],
+  checks,
+  markdownSummary: 'verifier run',
+  attachments: [],
+});
+
 describe('validateTickChecks', () => {
   it('returns tickChecks-unknown-id when a checkId is not on the task', () => {
     const { task } = tickCheckInputBoard();
@@ -1057,17 +1075,10 @@ describe('preflightManagedTransition (Done) — tickChecks seam', () => {
     // ticks, the verifier-coverage shortcut would refuse Done. But once the
     // agent supplies tickChecks, the effective snapshot drops the report and
     // uses tick.checkStatus verbatim — that is the intended contract.
-    task.verificationReport = {
-      taskId: task.id,
-      boardId: b.id,
-      verdict: 'passed',
-      completedAt: '2026-08-12T00:00:00.000Z',
-      coveredCheckIds: ['check-manual', 'check-command'],
-      checks: [
-        { checkId: 'check-manual', description: 'm', type: 'manual', status: 'failed', evidence: {} },
-        { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
-      ],
-    };
+    task.verificationReport = tickCheckReport(task, b, [
+      { checkId: 'check-manual', description: 'm', type: 'manual', status: 'failed', evidence: {} },
+      { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
+    ]);
     const issues = preflightManagedTransition(b, task, {
       to: 'done',
       actor: 'agent-1',
@@ -1104,17 +1115,10 @@ describe('preflightManagedTransition (Done) — tickChecks seam', () => {
 
   it('allows Done when the verificationReport verdict=passed AND coveredCheckIds ⊇ current criteria', () => {
     const { b, task } = tickCheckInputBoard();
-    task.verificationReport = {
-      taskId: task.id,
-      boardId: b.id,
-      verdict: 'passed',
-      completedAt: '2026-08-12T00:00:00.000Z',
-      coveredCheckIds: ['check-manual', 'check-command'],
-      checks: [
-        { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
-        { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
-      ],
-    };
+    task.verificationReport = tickCheckReport(task, b, [
+      { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
+      { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
+    ]);
     const issues = preflightManagedTransition(b, task, {
       to: 'done',
       actor: 'agent-1',
@@ -1129,17 +1133,10 @@ describe('preflightManagedTransition (Done) — tickChecks seam', () => {
       { id: 'check-manual', description: 'm', type: 'manual', status: 'failed' },
       { id: 'check-command', description: 'c', type: 'command', status: 'passed', notes: 'true' },
     ];
-    task.verificationReport = {
-      taskId: task.id,
-      boardId: b.id,
-      verdict: 'passed',
-      completedAt: '2026-08-12T00:00:00.000Z',
-      coveredCheckIds: ['check-manual', 'check-command'],
-      checks: [
-        { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
-        { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
-      ],
-    };
+    task.verificationReport = tickCheckReport(task, b, [
+      { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
+      { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
+    ]);
     const issues = preflightManagedTransition(b, task, {
       to: 'done',
       actor: 'agent-1',
