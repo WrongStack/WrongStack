@@ -13,6 +13,14 @@ import {
   validateManagedLifecyclePolicy,
   validateManagedTaskTransition,
 } from '../src/manager/lifecycle.js';
+// New-seam helpers exported via the directory convention (per memory
+// `01KZTS94JCBZFAQG2HT39K8A7W`): tests import the same path the slash
+// command uses (`@wrongstack/kanban/manager/lifecycle`) so a build-profile
+// regression would fail tests rather than just runtime.
+import {
+  preflightManagedTransition,
+  validateTickChecks,
+} from '../src/manager/lifecycle/index.js';
 import {
   addTask,
   createBoard,
@@ -973,4 +981,170 @@ describe('transitionTask patch smuggling', () => {
       expect(ok).not.toBeNull();
     },
   );
+});
+
+// ── Done-gate drift fixes (memory 01KZTS94JCBZFAQG2HT39K8A7W) ─────────
+//
+// The Done gate now accepts verifier coverage via coveredCheckIds, refuses
+// Done on stale or fingerprint-mismatching reports, and applies tickChecks
+// to an effective task snapshot before evaluation. Preflight mirrors the
+// live gate's optional-attachment contract and refuses only the channels
+// the live gate actually requires. These tests pin the new seam so the
+// drift cannot return without breaking the suite.
+
+const tickCheckInputBoard = () => {
+  const b = managedBoard();
+  const task = card({
+    id: 'tick-target',
+    columnId: 'done',
+    status: 'in_progress',
+    successCriteria: [
+      { id: 'check-manual', description: 'manual review', type: 'manual', status: 'pending' },
+      { id: 'check-command', description: 'run tests', type: 'command', status: 'pending', notes: 'true' },
+    ],
+    assignment: {
+      status: 'completed',
+      agentId: 'agent-1',
+      lastResult: 'all green; verifier reported tests passed',
+    },
+  });
+  b.tasks.push(task);
+  return { b, task };
+};
+
+describe('validateTickChecks', () => {
+  it('returns tickChecks-unknown-id when a checkId is not on the task', () => {
+    const { task } = tickCheckInputBoard();
+    const issues = validateTickChecks(task, [
+      { checkId: 'check-manual', checkStatus: 'passed' },
+      { checkId: 'does-not-exist', checkStatus: 'passed' },
+    ]);
+    expect(issues.map((i) => i.code)).toContain('tickChecks-unknown-id');
+  });
+
+  it('returns acceptance-criteria-incomplete when target is non-manual', () => {
+    const { task } = tickCheckInputBoard();
+    const issues = validateTickChecks(task, [
+      { checkId: 'check-command', checkStatus: 'passed' },
+    ]);
+    expect(issues.map((i) => i.code)).toContain('acceptance-criteria-incomplete');
+  });
+
+  it('returns no issues for valid manual flips', () => {
+    const { task } = tickCheckInputBoard();
+    const issues = validateTickChecks(task, [
+      { checkId: 'check-manual', checkStatus: 'passed' },
+    ]);
+    expect(issues).toEqual([]);
+  });
+});
+
+describe('preflightManagedTransition (Done) — tickChecks seam', () => {
+  it('returns no issues for valid manual flips paired with a passing verification report', () => {
+    const { b, task } = tickCheckInputBoard();
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'manual override',
+      tickChecks: [{ checkId: 'check-manual', checkStatus: 'passed' }],
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it('effective-snapshot drops verificationReport when tickChecks are supplied (verifier authority suspended)', () => {
+    const { b, task } = tickCheckInputBoard();
+    // A stale report whose covered criterion is failed on the card — without
+    // ticks, the verifier-coverage shortcut would refuse Done. But once the
+    // agent supplies tickChecks, the effective snapshot drops the report and
+    // uses tick.checkStatus verbatim — that is the intended contract.
+    task.verificationReport = {
+      taskId: task.id,
+      boardId: b.id,
+      verdict: 'passed',
+      completedAt: '2026-08-12T00:00:00.000Z',
+      coveredCheckIds: ['check-manual', 'check-command'],
+      checks: [
+        { checkId: 'check-manual', description: 'm', type: 'manual', status: 'failed', evidence: {} },
+        { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
+      ],
+    };
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'agent takes responsibility',
+      tickChecks: [{ checkId: 'check-manual', checkStatus: 'passed' }],
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it('refuses Done when assignment.lastResult is missing (only blocking channel)', () => {
+    const { b, task } = tickCheckInputBoard();
+    task.assignment = undefined;
+    task.successCriteria = []; // strip so the only blocker is lastResult.
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'no real result yet',
+    });
+    expect(issues.map((i) => i.code)).toContain('review-evidence-missing');
+  });
+
+  it('does NOT block on missing optional attachment (mirrors live gate)', () => {
+    const { b, task } = tickCheckInputBoard();
+    task.successCriteria = [
+      { id: 'check-manual', description: 'm', type: 'manual', status: 'passed' },
+    ];
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'no attachment',
+    });
+    expect(issues).toEqual([]);
+  });
+
+  it('allows Done when the verificationReport verdict=passed AND coveredCheckIds ⊇ current criteria', () => {
+    const { b, task } = tickCheckInputBoard();
+    task.verificationReport = {
+      taskId: task.id,
+      boardId: b.id,
+      verdict: 'passed',
+      completedAt: '2026-08-12T00:00:00.000Z',
+      coveredCheckIds: ['check-manual', 'check-command'],
+      checks: [
+        { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
+        { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
+      ],
+    };
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'verifier covered everything',
+    });
+    expect(issues.filter((i) => i.code === 'acceptance-criteria-incomplete')).toEqual([]);
+  });
+
+  it('refuses Done when verdict=passed but a covered criterion is failed on the card (fingerprint mismatch)', () => {
+    const { b, task } = tickCheckInputBoard();
+    task.successCriteria = [
+      { id: 'check-manual', description: 'm', type: 'manual', status: 'failed' },
+      { id: 'check-command', description: 'c', type: 'command', status: 'passed', notes: 'true' },
+    ];
+    task.verificationReport = {
+      taskId: task.id,
+      boardId: b.id,
+      verdict: 'passed',
+      completedAt: '2026-08-12T00:00:00.000Z',
+      coveredCheckIds: ['check-manual', 'check-command'],
+      checks: [
+        { checkId: 'check-manual', description: 'm', type: 'manual', status: 'passed', evidence: {} },
+        { checkId: 'check-command', description: 'c', type: 'command', status: 'passed', evidence: {} },
+      ],
+    };
+    const issues = preflightManagedTransition(b, task, {
+      to: 'done',
+      actor: 'agent-1',
+      comment: 'mismatch is real',
+    });
+    expect(issues.map((i) => i.code)).toContain('acceptance-criteria-incomplete');
+  });
 });

@@ -139,6 +139,19 @@ export const KANBAN_INPUT_SCHEMA: JSONSchema = {
     },
     transitionAction: { type: 'string' },
     transitionComment: { type: 'string' },
+    tickChecks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          checkId: { type: 'string' },
+          checkStatus: { type: 'string', enum: ['passed', 'failed', 'skipped'] },
+        },
+        required: ['checkId', 'checkStatus'],
+      },
+      description:
+        '`transition_task` (to=done only): flip one or more manual criteria to `passed` before the gate fires. Read ids from kanban get_task. Non-manual criteria are refused.',
+    },
     attachmentUrl: { type: 'string' },
     attachmentTitle: { type: 'string' },
     attachmentType: {

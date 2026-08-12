@@ -27,7 +27,16 @@
   - *How:* `claimedEvidence: accumulatedEvidence`
   - *How:* `verify...`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=11; wins=11 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T10:38:35.669Z; skill=chimera; applied=2; wins=2 -->
+- **When a Chimera review diff's line annotations disagree with the live on-disk file (e.g., diff shows `string[]` but the file reads `KanbanLifecycleValidationIssue[]`), always trust the file on disk and flag the divergence — an in-session `file.external.edit` can land a half-applied refactor between the diff being captured and review running. Resolve every finding against `read`/`grep` of the actual file, never the diff hunk, and cite the live line number.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `string[]`
+  - *How:* `KanbanLifecycleValidationIssue[]`
+  - *How:* `file.external.edit`
+  - *How:* `read`
+  - *How:* `grep`
+
+<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=15; wins=15 -->
 - **When a refactor extracts a SQL CTE body into a `(seedSource: string) => string` template builder and delegates execution to a named helper (e.g. `runCteWithSeeds`), grep for the helper's *definition* — not just its call sites — before accepting the change. A diff can introduce a call to a helper that was planned but never written (whole-tree definition count = 0), which typecheck catches as "Cannot find name" and runtime catches as `ReferenceError`.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `(seedSource: string) => string`
@@ -67,17 +76,5 @@
   - *How:* `require()`
   - *How:* `import x = require()`
 
-## What to do
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-10T19:58:34.866Z; skill=bug-hunter; applied=26; wins=26 -->
-- **When a sender pre-validates a payload against a receiver's reject threshold, verify byte-measurement equivalence *and* boundary-direction consistency: confirm the sender measures the exact same sub-object the receiver's validator measures (e.g. `record.board` vs the whole `record`), and that the comparison operators align at the boundary (`>` skip on one side must pair with `<=` accept on the other) — a mismatch here is the classic "sender thinks it's under the limit, receiver drops it" silent-loss bug in `packages/core/src/hq/protocol/kanban.ts` and `packages/cli/src/kanban-hq-sync.ts`.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `record.board`
-  - *How:* `record`
-  - *How:* `>`
-  - *How:* `<=`
-  - *How:* `packages/core/src/hq/protocol/kanban.ts`
-  - *How:* `packages/cli/src/kanban-hq-sync.ts`
-
 ---
-*Last capture: 2026-08-12T09:26:43.569Z · 8 entries*
+*Last capture: 2026-08-12T10:48:11.483Z · 8 entries*

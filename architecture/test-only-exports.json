@@ -1115,6 +1115,9 @@
     "packages/tui/src/components/settings-picker-model.ts": [
       "SETTINGS_DEFAULTS"
     ],
+    "packages/tui/src/components/settings-picker-row-list.tsx": [
+      "buildVisibleSectionHeaders"
+    ],
     "packages/tui/src/components/shell-command-warning.tsx": [
       "truncateShellCommandWarningCommand"
     ],

@@ -35,6 +35,11 @@
       "types": "./dist/queue-anomalies.d.ts",
       "import": "./dist/queue-anomalies.js",
       "default": "./dist/queue-anomalies.js"
+    },
+    "./manager/lifecycle": {
+      "types": "./dist/manager/lifecycle/index.d.ts",
+      "import": "./dist/manager/lifecycle/index.js",
+      "default": "./dist/manager/lifecycle/index.js"
     }
   },
   "files": [

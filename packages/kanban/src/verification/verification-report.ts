@@ -32,6 +32,12 @@ export interface VerificationReportBuilderInput {
   taskRevision?: number | undefined;
   /** Git baseline snapshot captured for the file-scope diff, if any. */
   baseline?: KanbanVerificationBaseline | undefined;
+  /**
+   * Override for `coveredCheckIds` — the list of criterion ids the verifier
+   * actually exercised with a passing result. Computed automatically from
+   * `checks` when omitted, so existing callers stay correct.
+   */
+  coveredCheckIds?: string[] | undefined;
 }
 
 /**
@@ -86,6 +92,8 @@ export function buildVerificationReport(
     subtasks: input.subtasks,
   });
 
+  const coveredCheckIds = deriveCoveredCheckIds(checks, input.coveredCheckIds);
+
   return {
     taskId: input.taskId,
     taskTitle: input.taskTitle,
@@ -102,7 +110,31 @@ export function buildVerificationReport(
     ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
     ...(input.taskRevision !== undefined ? { taskRevision: input.taskRevision } : {}),
     ...(input.baseline !== undefined ? { baseline: input.baseline } : {}),
+    ...(coveredCheckIds !== undefined ? { coveredCheckIds } : {}),
   };
+}
+
+/**
+ * Ids of the checks the verifier actually exercised with a passing verdict.
+ * Manual (human/agent) criteria are NOT covered; the agent must still mark
+ * them `passed` via `update_check` for those. Anything the verifier decided
+ * is recorded here so the Definition-of-Done gate can skip the per-check
+ * `passed` requirement for the same ids.
+ *
+ * Computed from `checks` so callers don't have to track it. Explicit
+ * `coveredCheckIds` on the input is honored (used by tests and by callers
+ * that want to scope coverage to a subset).
+ */
+function deriveCoveredCheckIds(
+  checks: KanbanVerificationCheckResult[],
+  explicit: string[] | undefined,
+): string[] | undefined {
+  if (explicit !== undefined) return explicit;
+  const covered: string[] = [];
+  for (const check of checks) {
+    if (check.status === 'passed') covered.push(check.checkId);
+  }
+  return covered.length > 0 ? covered : undefined;
 }
 
 // ---------------------------------------------------------------------------

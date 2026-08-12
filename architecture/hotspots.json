@@ -55,7 +55,7 @@
       "relativeImports": 1
     },
     "packages/cli/src/slash-commands/kanban.ts": {
-      "lines": 1349,
+      "lines": 1375,
       "relativeImports": 5
     },
     "packages/cli/src/slash-commands/memory.ts": {
@@ -247,7 +247,7 @@
       "relativeImports": 12
     },
     "packages/kanban/src/manager/lifecycle.ts": {
-      "lines": 836,
+      "lines": 1130,
       "relativeImports": 7
     },
     "packages/kanban/src/manager/_internal.ts": {
@@ -255,7 +255,7 @@
       "relativeImports": 16
     },
     "packages/kanban/src/types.ts": {
-      "lines": 907,
+      "lines": 918,
       "relativeImports": 2
     },
     "packages/kanban/src/verification/verification-context.ts": {
@@ -351,7 +351,7 @@
       "relativeImports": 17
     },
     "packages/tools/src/kanban.ts": {
-      "lines": 1197,
+      "lines": 1198,
       "relativeImports": 12
     },
     "packages/tools/src/session-kanban.ts": {

@@ -583,6 +583,29 @@ export async function transitionTask(
       }
       applyTaskPatch(board, task, input.patch);
     }
+    if (input.tickChecks?.length) {
+      // tickChecks is the focused shortcut for Done: the agent that failed
+      // the per-check `passed` gate can re-issue the same transition with
+      // manual criteria ticked, with no separate update_check round-trip.
+      // Validation lives in the shared `validateTickChecks` helper so the
+      // mutating path and `preflightManagedTransition` cannot disagree on
+      // what counts as a valid tick (chimera review finding: parity).
+      const tickIssues = validateTickChecks(task, input.tickChecks);
+      if (tickIssues.length > 0) {
+        throw new KanbanLifecycleError(tickIssues[0]!.message, tickIssues);
+      }
+      const at = nowIso();
+      task.successCriteria = (task.successCriteria ?? []).map((existing) => {
+        const tick = input.tickChecks!.find((entry) => entry.checkId === existing.id);
+        if (!tick || existing.type !== 'manual') return existing;
+        return {
+          ...existing,
+          status: tick.checkStatus,
+          checkedAt: at,
+          checkedBy: 'agent',
+        };
+      });
+    }
     const issues = validateManagedTaskTransition(board, task, input);
     if (issues.length) throw new KanbanLifecycleError(issues[0]!.message, issues);
 
@@ -748,6 +771,51 @@ export function validateDefinitionOfDone(
   const issues: KanbanLifecycleValidationIssue[] = [];
   const requireCriteria = options.requireCriteria !== false;
   const checks = task.successCriteria ?? [];
+  const effectiveReport = report ?? task.verificationReport;
+  // The verifier is authoritative for any criterion whose id is on the
+  // report's coveredCheckIds list. A passing verdict there means the check
+  // already holds — refusing Done on the basis of the criterion's own
+  // `status === 'pending'` field would force the agent to duplicate the
+  // verifier's work by calling update_check, which is exactly the loop the
+  // drift report describes.
+  //
+  // Freshness guards (otherwise an old passing report would shadow any new
+  // failure forever — chimera review finding):
+  //   - the report must cover every current criterion (one-to-one)
+  //   - no current criterion may be `failed` (the verifier wouldn't have
+  //     called it done otherwise)
+  //   - if criteria were added/removed after the report, refuse — the
+  //     report no longer describes the card
+  const coveredByVerifier = new Set(effectiveReport?.coveredCheckIds ?? []);
+  const currentCriterionIds = new Set(checks.map((check) => check.id));
+  // The report must describe the SAME criteria the card currently has. ID
+  // alone is not enough: an agent that edited a criterion's description or
+  // type while keeping the id would inherit an old verifier verdict for a
+  // changed criterion, which is exactly the lie the gate is meant to catch
+  // (chimera review finding). Compare description + type as well.
+  const checkFingerprint = (check: { description: string; type?: string | undefined }) =>
+    `${check.description}\u0001${check.type ?? ''}`;
+  const reportFingerprint = new Map<string, string>();
+  const reportedChecks = (effectiveReport as { checks?: Array<{ checkId?: string; description: string; type?: string }> } | undefined)?.checks ?? [];
+  for (const reported of reportedChecks) {
+    if (reported.checkId) {
+      reportFingerprint.set(reported.checkId, checkFingerprint(reported));
+    }
+  }
+  const fingerprintMatches = checks.every(
+    (check) => reportFingerprint.get(check.id) === checkFingerprint(check),
+  );
+  const coveredAllCurrent =
+    coveredByVerifier.size === checks.length &&
+    fingerprintMatches &&
+    checks.every((check) => coveredByVerifier.has(check.id));
+  const noCurrentFailures = checks.every((check) => check.status !== 'failed');
+  const verifierPassedAll =
+    coveredByVerifier.size > 0 &&
+    effectiveReport?.verdict === 'passed' &&
+    coveredAllCurrent &&
+    noCurrentFailures &&
+    checks.every((check) => currentCriterionIds.has(check.id));
   // Two different situations, and one shared message used to describe only the
   // second: told to "read the ids and pass each one", a caller holding a card
   // with NO criteria went round get_task → nothing to update → retry. Name the
@@ -760,7 +828,7 @@ export function validateDefinitionOfDone(
         'Done requires at least one acceptance criterion, and this card has none. ' +
         'Call kanban add_check with what would prove the work correct, then pass it.',
     });
-  } else if (checks.some((check) => check.status !== 'passed')) {
+  } else if (!verifierPassedAll && checks.some((check) => check.status !== 'passed')) {
     const unmet = checks.filter((check) => check.status !== 'passed');
     issues.push({
       code: 'acceptance-criteria-incomplete',
@@ -768,13 +836,13 @@ export function validateDefinitionOfDone(
       message:
         `Done requires every acceptance criterion to be explicitly passed; ${unmet.length} of ` +
         `${checks.length} still ${unmet.length === 1 ? 'is' : 'are'} not ` +
-        `(${unmet.map((check) => `"${check.description}" [${check.status}]`).join(', ')}). ` +
-        'Read the ids from kanban get_task, then call kanban update_check with ' +
-        '`checkStatus: "passed"` for each. If a criterion no longer applies, ' +
-        'kanban remove_check drops it — never pass one that did not actually hold.',
+        `(${unmet.map((check) => `"${check.description}" [${check.status}] (id=${check.id.slice(0, 8)})`).join(', ')}). ` +
+        'Re-call transition_task with `tickChecks: [{checkId, checkStatus: "passed"}]` per failing id, ' +
+        'or call kanban update_check with checkStatus: "passed" for each. ' +
+        'If a criterion no longer applies, kanban remove_check drops it — ' +
+        'never pass one that did not actually hold.',
     });
   }
-  const effectiveReport = report ?? task.verificationReport;
   // Atomic tasks must have a completed verification report before Done.
   if (task.atomic && !effectiveReport) {
     issues.push({
@@ -832,4 +900,230 @@ function requireDetail(
 
 function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+/**
+ * Preflight check for a managed transition that DOES NOT live inside a
+ * board mutation. Returns the same `KanbanLifecycleValidationIssue[]` shape
+ * the live gate uses, so the slash command's diagnostic and the lifecycle
+ * gate share a single source of truth.
+ *
+ * Without this helper, the slash command had to re-implement ~70 lines of
+ * evidence rules. Drift between the two surfaces produced diagnostics the
+ * user trusted that the underlying gate then rejected, sending them back to
+ * the same `running → done` retry loop. Call this helper from both
+ * surfaces and the diagnostic can no longer outpace the gate.
+ */
+
+/**
+ * Validate a `tickChecks` payload against the task's current criteria.
+ *
+ * Shared by `transitionTask` (the mutating path) and `preflightManagedTransition`
+ * (the slash command's read-only walk), so both surfaces apply the same rules:
+ *
+ * - Each `checkId` must reference an existing criterion on the task. Silently
+ *   dropping a typo'd id made the gate appear to pass while nothing changed
+ *   (chimera review finding).
+ * - Only manual criteria may be ticked. Non-manual criteria are owned by the
+ *   verifier — flipping them by hand is the same lie the gate is trying to
+ *   prevent. Surfacing them here lets the operator delete the criterion via
+ *   `remove_check` instead of pretending it passed.
+ *
+ * Returns the issue list; the caller decides whether to throw (mutating path)
+ * or surface as a diagnostic (preflight path).
+ */
+export function validateTickChecks(
+  task: KanbanTask,
+  tickChecks: readonly { checkId: string; checkStatus: 'passed' | 'failed' | 'skipped' }[],
+): KanbanLifecycleValidationIssue[] {
+  const checks = task.successCriteria ?? [];
+  const issues: KanbanLifecycleValidationIssue[] = [];
+  for (const tick of tickChecks) {
+    const existing = checks.find((check) => check.id === tick.checkId);
+    if (!existing) {
+      issues.push({
+        code: 'tickChecks-unknown-id',
+        field: 'tickChecks',
+        message:
+          `tickChecks references unknown checkId "${tick.checkId}". ` +
+          'Read the ids from kanban get_task and retry.',
+      });
+      continue;
+    }
+    if (existing.type !== 'manual') {
+      issues.push({
+        code: 'acceptance-criteria-incomplete',
+        field: 'tickChecks',
+        message:
+          `tickChecks may only flip manual criteria; "${existing.description}" ` +
+          `is type "${existing.type}" — the verifier owns it. ` +
+          'Use kanban remove_check to drop a criterion that no longer applies.',
+      });
+    }
+  }
+  return issues;
+}
+
+/**
+ * Non-mutating twin of the effective-task snapshot the mutating path
+ * constructs inside `transitionTask`. Apply the supplied `tickChecks` to a
+ * shallow clone so `validateDefinitionOfDone` evaluates the criteria in the
+ * state they would have after the ticks land — without persisting the ticks
+ * themselves. The original `task` is left untouched, so the preflight can
+ * run this as a read-only check and discard the result.
+ *
+ * Mirrors the mutating path's contract EXACTLY: only manual criteria are
+ * flippable; unknown ids and non-manual targets are surfaced as validation
+ * issues by `validateTickChecks` (the caller runs that first and surfaces any
+ * issues before constructing the snapshot). If a `tickChecks` entry would
+ * be rejected by `validateTickChecks`, it is silently skipped here — the
+ * caller has already been told. Each flip carries the `checkStatus` verbatim
+ * (NOT hardcoded to `'passed'`); the mutating path at `transitionTask` uses
+ * `tick.checkStatus` and the preflight must agree, otherwise a tick of
+ * `failed` or `skipped` would be misrepresented as a pass in preflight only.
+ *
+ * When `tickChecks` is supplied, the snapshot also drops `verificationReport`
+ * — the agent is overriding the verifier's manual-check verdicts, so the
+ * verifier's authority is suspended for this transition. A stale report
+ * covering criteria that have since been edited or replaced would otherwise
+ * authorize Done through the verifier-coverage shortcut even though the
+ * agent is asserting different ground truth.
+ */
+function applyTickChecksToSnapshot(
+  task: KanbanTask,
+  tickChecks: KanbanTaskTransitionInput['tickChecks'],
+): KanbanTask {
+  if (!tickChecks?.length) return task;
+  const issues = validateTickChecks(task, tickChecks);
+  if (issues.length > 0) return task;
+  const now = nowIso();
+  const tickById = new Map(tickChecks.map((tick) => [tick.checkId, tick]));
+  return {
+    ...task,
+    verificationReport: undefined,
+    successCriteria: (task.successCriteria ?? []).map((check) => {
+      const tick = tickById.get(check.id);
+      if (!tick || check.type !== 'manual') return check;
+      return {
+        ...check,
+        status: tick.checkStatus,
+        checkedBy: 'agent',
+        checkedAt: now,
+      };
+    }),
+  };
+}
+
+export function preflightManagedTransition(
+  board: KanbanBoard,
+  task: KanbanTask,
+  input: KanbanTaskTransitionInput,
+): KanbanLifecycleValidationIssue[] {
+  const issues: KanbanLifecycleValidationIssue[] = [];
+
+  // Running ownership — the card must hold an active lease to enter
+  // Running. Mirrors the in-mutation check; surfaced here so the slash
+  // command names the missing fields the same way the gate does.
+  if (input.to === 'running') {
+    const assignment = task.assignment;
+    const hasLease =
+      assignment?.status === 'running' &&
+      [
+        assignment.leaseId,
+        assignment.claimedAt,
+        assignment.heartbeatAt,
+        assignment.leaseExpiresAt,
+      ].every((value) => typeof value === 'string' && value.trim().length > 0);
+    if (!hasLease) {
+      issues.push({
+        code: 'running-lease-missing',
+        field: 'assignment',
+        message:
+          'The Running gate requires the card to carry leaseId, claimedAt, heartbeatAt, and leaseExpiresAt. Move it into Running first via /kanban task assign or /kanban task dispatch.',
+      });
+    }
+  }
+
+  // Review/Done lastResult. The live gate's `validateReviewEvidence` and
+  // `validateDoneEvidence` treat `attachment.url` as OPTIONAL — a real
+  // attachment is not required for the gate to allow the transition. The
+  // preflight must mirror the live gate's contract; demanding an attachment
+  // here would reject transitions that the gate itself accepts, which is
+  // exactly the drift the preflight was supposed to prevent. The lastResult
+  // channel is surfaced as a blocking issue; the attachment channel is a
+  // recommendation only (passed via `recommendations`, never via `issues`).
+  if (input.to === 'review' || input.to === 'done') {
+    if (!task.assignment?.lastResult) {
+      issues.push({
+        code: 'review-evidence-missing',
+        field: 'assignment.lastResult',
+        message:
+          'Review/Done evidence requires the card to carry an assignment.lastResult. Dispatch the worker through the agentic supervisor so it records implementation output.',
+      });
+    }
+  }
+
+  // Done evidence — Definition of Done + atomic children. validateDefinitionOfDone
+  // now honors `verificationReport.coveredCheckIds`, so the verifier can
+  // settle the criteria even when they are still `status: 'pending'` on the
+  // card. The diagnostic it emits lists every still-failing check id so the
+  // slash command can recommend a focused `tickChecks` retry.
+  //
+  // When `input.tickChecks` is supplied, the valid manual criteria MUST be
+  // applied to a non-mutating effective task snapshot BEFORE the Definition
+  // of Done runs — otherwise a retry that passes pending manual criteria via
+  // `--tick-check` is still rejected as `acceptance-criteria-incomplete` and
+  // never reaches `transitionTask`. The mutating path at `transitionTask`
+  // builds the same effective snapshot and then persists it; the preflight
+  // builds an identical snapshot, runs the gate against it, and discards it.
+  if (input.to === 'done') {
+    const effectiveTask = applyTickChecksToSnapshot(task, input.tickChecks);
+    issues.push(
+      ...validateDefinitionOfDone(effectiveTask, task.verificationReport, {
+        requireCriteria: true,
+        board,
+      }),
+    );
+    if (task.atomic && task.childTaskIds && task.childTaskIds.length > 0) {
+      const missingChildren = task.childTaskIds.filter(
+        (childId) => !board.tasks.some((entry) => entry.id === childId),
+      );
+      if (missingChildren.length > 0) {
+        issues.push({
+          code: 'atomic-children-unresolved',
+          field: 'childTaskIds',
+          message: `Atomic parent references unresolved children (${missingChildren.join(', ')}). Resolve them via the kanban tool before retrying.`,
+        });
+      }
+      const incompleteChildren = board.tasks.filter(
+        (entry) =>
+          task.childTaskIds!.includes(entry.id) && entry.status !== 'completed',
+      );
+      if (incompleteChildren.length > 0) {
+        const ids = incompleteChildren.map((entry) => entry.id).join(', ');
+        issues.push({
+          code: 'atomic-children-incomplete',
+          field: 'childTaskIds',
+          message: `Atomic parent's children must be completed before Done (pending: ${ids}).`,
+        });
+      }
+    }
+  }
+
+  // Tick checks are the focused shortcut for Done. The preflight must call
+  // the SAME validator as the mutating path (`validateTickChecks`) so that
+  // either surface rejects the same inputs in the same way — silently
+  // skipping an unknown checkId here would let the slash preflight pass while
+  // the live transitionTask throws, which is exactly the drift the refactor
+  // was meant to eliminate. The mutating path constructs an effective task
+  // snapshot before the gate, so the preflight mirrors that against the same
+  // task it received.
+  if (input.tickChecks?.length) {
+    const tickIssues = validateTickChecks(task, input.tickChecks);
+    for (const issue of tickIssues) {
+      issues.push(issue);
+    }
+  }
+
+  return issues;
 }

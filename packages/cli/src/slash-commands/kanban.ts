@@ -40,6 +40,7 @@ import {
   updateTask,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
+import { preflightManagedTransition } from '@wrongstack/kanban/manager/lifecycle';
 import { TaskGraphStore } from '@wrongstack/sdd';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
@@ -501,11 +502,13 @@ async function handleTaskSubcommand(
       try {
         const result = await transitionTask(projectRoot, boardId, taskId, {
           to: to as 'backlog' | 'todo' | 'running' | 'review' | 'done',
-          actor: 'kanban-slash',
-          action: `Moved to ${resolvedColumnId} via /kanban task move`,
+          actor: 'kanban-slash:move',
+          action: moveNote
+            ? `${moveNote} (move → ${resolvedColumnId})`
+            : `Moved to ${resolvedColumnId} via /kanban task move`,
           comment: moveNote
             ? `${moveNote} (move → ${resolvedColumnId})`
-            : `/kanban task move ${resolvedColumnId} (was ${taskId} on board ${boardId})`,
+            : `Moved to ${resolvedColumnId} via /kanban task move (board=${boardId}, task=${taskId})`,
           // Reviewers require a non-empty attachment URL to advance into review.
           // Forward the caller's `--attachment`; if missing, the move must fail at
           // `validateReviewEvidence` so the audit ledger never records a fabricated
@@ -547,7 +550,7 @@ async function handleTaskSubcommand(
     // an attachment (URL) and a non-blank action text on the transition; the
     // optional `--note` lets the operator pass a short reviewer note as the
     // action, and `--attachment` provides the evidence URL.
-    const { attachment, note, positional, warnings } = parseTaskEvidenceFlags(rest.slice(1));
+    const { attachment, note, tickChecks, positional, warnings } = parseTaskEvidenceFlags(rest.slice(1));
     if (positional.length > 0) {
       return {
         message: color.red(
@@ -605,78 +608,51 @@ async function handleTaskSubcommand(
       // Preflight every stage's evidence gate in one pass before mutating
       // the board: lifecycle transitions commit independently, so a partial
       // path leaves the card stuck mid-flow and a corrupt audit history.
-      // Mirrors the rules in `validateRunningOwnership`,
-      // `validateReviewEvidence`, and `validateDoneEvidence` so the user
-      // sees one readable diagnostic instead of a half-applied transition.
-      const preflightIssues: string[] = [];
-      const needsRunningEvidence = path.includes('running');
-      const needsReviewEvidence = path.includes('review');
-      const needsDoneEvidence = path.includes('done');
+      // Delegates to the shared `preflightManagedTransition` helper so the
+      // slash command's diagnostic cannot drift from the lifecycle gate's
+      // evidence rules.
       const currentTask = board.tasks.find((t) => t.id === taskId);
       if (!currentTask) {
         return { message: color.red('Task not found') };
       }
-      if (needsRunningEvidence) {
-        const assignment = currentTask.assignment;
-        const hasLease =
-          assignment?.status === 'running' &&
-          [
-            assignment.leaseId,
-            assignment.claimedAt,
-            assignment.heartbeatAt,
-            assignment.leaseExpiresAt,
-          ].every((value) => typeof value === 'string' && value.trim().length > 0);
-        if (!hasLease) {
-          preflightIssues.push(
-            'The /kanban task done path needs the card to already be Running with lease metadata; move it into Running first via /kanban task assign or /kanban task dispatch.',
-          );
-        }
+      const preflightIssues: string[] = [];
+      // Build the transition input once — the same payload is reused for the
+      // preflight loop and for the actual `transitionTask` call below, so the
+      // evidence the preflight saw matches what the gate will see (chimera
+      // review finding: payload drift between preflight and live transition).
+      // Refuse fabrication: a synthetic audit comment records a claim the
+      // operator never made. The Done gate's reviewer action text would be
+      // empty regardless, so the next transition would fail with an
+      // indistinguishable diagnostic. Let the preflight surface the missing
+      // argument instead (chimera review finding: synthetic audit comments).
+      if (!note || !note.trim()) {
+        return {
+          message: color.red(
+            `Refusing /kanban task ${currentStage ?? 'unknown'} → done without a reviewer note. ` +
+              `Re-run with --note "<what proves the work is ready>".`,
+          ),
+        };
       }
-      if (needsReviewEvidence && !attachment) {
-        preflightIssues.push(
-          'Review evidence requires --attachment <url>; re-run `/kanban task done <boardId> <taskId> --attachment https://example.test/review --note "..."`.',
-        );
-      } else if (needsReviewEvidence && !currentTask.assignment?.lastResult) {
-        preflightIssues.push(
-          'Review evidence requires the card to carry an assignment.lastResult; dispatch the worker through the agentic supervisor so it records implementation output.',
-        );
-      }
-      if (needsDoneEvidence) {
-        if (!attachment) {
-          preflightIssues.push(
-            'Done requires --attachment <url>; re-run with --attachment https://example.test/review --note "verified".',
-          );
-        }
-        const criteria = currentTask.successCriteria ?? [];
-        if (criteria.length === 0 || criteria.some((check) => check.status !== 'passed')) {
-          preflightIssues.push(
-            'Done requires every acceptance criterion to be explicitly passed; update them on the card before re-running.',
-          );
-        }
-        if (currentTask.atomic && currentTask.verificationReport?.verdict !== 'passed') {
-          preflightIssues.push(
-            'Atomic tasks require a passed verification report; run `kanban.verify_completion` on the task before `/kanban task done`.',
-          );
-        }
-        if (currentTask.atomic && currentTask.childTaskIds && currentTask.childTaskIds.length > 0) {
-          const childTasks = board.tasks.filter((entry) =>
-            currentTask.childTaskIds!.includes(entry.id),
-          );
-          const missingChildren = currentTask.childTaskIds.filter(
-            (childId) => !childTasks.some((entry) => entry.id === childId),
-          );
-          if (missingChildren.length > 0) {
-            preflightIssues.push(
-              `Atomic parent references unresolved children (${missingChildren.join(', ')}); resolve them via the kanban tool before retrying.`,
-            );
+      const noteText = note.trim();
+      const sharedAttachment = attachment
+        ? {
+            url: attachment,
+            type: 'url' as const,
+            title: 'Reviewer evidence (kanban-slash:done)',
           }
-          const incompleteChildren = childTasks.filter((child) => child.status !== 'completed');
-          if (incompleteChildren.length > 0) {
-            const ids = incompleteChildren.map((child) => child.id).join(', ');
-            preflightIssues.push(
-              `Atomic parent's children must be completed before the parent can advance to Done (pending: ${ids}).`,
-            );
-          }
+        : undefined;
+      for (const to of path) {
+        const transitionInput = {
+          to,
+          actor: 'kanban-slash:done',
+          action: `${noteText} (${to})`,
+          comment: `${noteText} (${to})`,
+          ...(sharedAttachment ? { attachment: sharedAttachment } : {}),
+          ...(tickChecks ? { tickChecks } : {}),
+        };
+        const issues = preflightManagedTransition(board, currentTask, transitionInput);
+        for (const issue of issues) {
+          preflightIssues.push(issue.message);
         }
       }
       if (preflightIssues.length > 0) {
@@ -691,18 +667,19 @@ async function handleTaskSubcommand(
         for (const to of path) {
           await transitionTask(projectRoot, boardId, taskId, {
             to: to as 'backlog' | 'todo' | 'running' | 'review' | 'done',
-            actor: 'kanban-slash',
-            action: note ?? `Marked done via /kanban task done (${to})`,
-            comment: note ?? `Marked done via /kanban task done (${to})`,
+            actor: 'kanban-slash:done',
+            action: noteText ? `${noteText} (${to})` : '',
+            comment: noteText ? `${noteText} (${to})` : '',
             ...(attachment
               ? {
                   attachment: {
                     url: attachment,
                     type: 'url' as const,
-                    title: 'Reviewer evidence (kanban-slash)',
+                    title: 'Reviewer evidence (kanban-slash:done)',
                   },
                 }
               : {}),
+            ...(tickChecks.length > 0 ? { tickChecks } : {}),
           });
         }
         return { message: color.green('✅ Task marked completed.') };
@@ -1263,6 +1240,14 @@ function resolveColumnReference(board: KanbanBoard, requested: string): string |
 interface TaskEvidenceFlags {
   attachment?: string | undefined;
   note?: string | undefined;
+  /**
+   * Manual criteria the operator wants to mark `passed` on the same transition
+   * call. Empty unless the slash surface received `--tick-check <id>=<status>`
+   * flags. Wired through `transitionTask` so the preflight and the live
+   * mutation agree on the same set (chimera review finding: tickChecks was
+   * half-applied before this parser existed).
+   */
+  tickChecks: { checkId: string; checkStatus: 'passed' | 'failed' | 'skipped' }[];
   positional: string[];
   /** Flags dropped because their value was missing or because the line ended. */
   warnings: string[];
@@ -1284,15 +1269,21 @@ interface TaskEvidenceFlags {
 function parseTaskEvidenceFlags(tokens: readonly string[]): TaskEvidenceFlags {
   let attachment: string | undefined;
   let note: string | undefined;
+  const tickChecks: { checkId: string; checkStatus: 'passed' | 'failed' | 'skipped' }[] = [];
   const positional: string[] = [];
   const warnings: string[] = [];
   const ATTACHMENT_KEYS = new Set(['--attachment', '--evidence', '--link']);
   const NOTE_KEYS = new Set(['--note', '--comment', '--action']);
+  const TICK_CHECK_KEYS = new Set(['--tick-check', '--tick-checks']);
+  const VALID_TICK_STATUSES = new Set(['passed', 'failed', 'skipped']);
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
     const eq = token.indexOf('=');
     const inline =
-      eq > 0 && (ATTACHMENT_KEYS.has(token.slice(0, eq)) || NOTE_KEYS.has(token.slice(0, eq)));
+      eq > 0 &&
+      (ATTACHMENT_KEYS.has(token.slice(0, eq)) ||
+        NOTE_KEYS.has(token.slice(0, eq)) ||
+        TICK_CHECK_KEYS.has(token.slice(0, eq)));
     const key = inline ? token.slice(0, eq) : token;
     if (ATTACHMENT_KEYS.has(key)) {
       const value = inline ? token.slice(eq + 1) : tokens[i + 1];
@@ -1310,6 +1301,41 @@ function parseTaskEvidenceFlags(tokens: readonly string[]): TaskEvidenceFlags {
       }
       if (!inline) i++;
       attachment = value;
+      continue;
+    }
+    if (TICK_CHECK_KEYS.has(key)) {
+      // `--tick-check <id>=<status>` is repeatable and targets manual
+      // criteria only. Inline form `--tick-check=<id>=<status>` is also
+      // accepted. Status must be `passed`/`failed`/`skipped`; anything else
+      // is a warning, not a silent drop (chimera review finding: silently
+      // dropping a typo'd id made the gate appear to pass).
+      const raw = inline ? token.slice(eq + 1) : tokens[i + 1];
+      if (!raw?.trim()) {
+        warnings.push(`${key} expects <checkId>=<status> but none was provided`);
+        i = inline ? i : i + 1;
+        continue;
+      }
+      // If the next token is itself a flag (e.g. `--tick-check --note …`),
+      // treat it as a missing value rather than swallowing the next flag.
+      // Without this guard the parser silently turns `--note` into a check
+      // id whose status defaults to 'passed' and the gate appears to pass.
+      if (!inline && raw.startsWith('-')) {
+        warnings.push(`${key} expects <checkId>=<status> but none was provided`);
+        i++;
+        continue;
+      }
+      const sep = raw.lastIndexOf('=');
+      const checkId = sep >= 0 ? raw.slice(0, sep).trim() : '';
+      const status = sep >= 0 ? raw.slice(sep + 1).trim() : '';
+      if (!checkId || !status || !VALID_TICK_STATUSES.has(status as 'passed' | 'failed' | 'skipped')) {
+        warnings.push(
+          `${key} expects <checkId>=<status> where status is passed|failed|skipped (got "${raw}")`,
+        );
+        i = inline ? i : i + 1;
+        continue;
+      }
+      tickChecks.push({ checkId, checkStatus: status as 'passed' | 'failed' | 'skipped' });
+      i = inline ? i : i + 1;
       continue;
     }
     if (NOTE_KEYS.has(key)) {
@@ -1344,5 +1370,5 @@ function parseTaskEvidenceFlags(tokens: readonly string[]): TaskEvidenceFlags {
     }
     positional.push(token);
   }
-  return { attachment, note, positional, warnings };
+  return { attachment, note, tickChecks, positional, warnings };
 }

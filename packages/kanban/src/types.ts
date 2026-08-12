@@ -625,6 +625,17 @@ export interface KanbanVerificationReport {
    * prior behaviour while making the binding explicit and queryable.
    */
   baseline?: KanbanVerificationBaseline | undefined;
+  /**
+   * Criterion ids the verifier actually exercised with a passing result. Used
+   * by `validateDefinitionOfDone` to skip the per-check `passed` gate when
+   * the verifier is already authoritative — without this list the agent has
+   * to duplicate bookkeeping by calling `update_check` after a successful
+   * `verify_completion` run.
+   *
+   * Backwards-compatible: absent on older reports and on reports produced by
+   * the empty-check fast path; both behave exactly as before.
+   */
+  coveredCheckIds?: string[] | undefined;
 }
 
 export interface KanbanVerificationBaseline {

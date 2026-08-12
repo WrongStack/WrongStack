@@ -642,6 +642,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               actor: input.author,
               comment: input.transitionComment,
               ...(input.transitionAction !== undefined ? { action: input.transitionAction } : {}),
+              ...(input.tickChecks !== undefined ? { tickChecks: input.tickChecks } : {}),
               ...(input.attachmentUrl !== undefined
                 ? {
                     attachment: {

@@ -201,6 +201,16 @@ const profiles = {
       // Browser-safe leaf: the WebUI health bar imports it directly because the
       // barrel reaches the IPC client and drags `node:net` into the bundle.
       'queue-anomalies': 'src/queue-anomalies.ts',
+      // Internal lifecycle seam re-exported as a directory module — the slash
+      // command imports it from `@wrongstack/kanban/manager/lifecycle` to reach
+      // the read-only preflight helpers without dragging the mutating
+      // lifecycle source into the bundle. The key MUST keep the `/index` tail:
+      // it is the output path, so a bare `manager/lifecycle` key would emit
+      // `dist/manager/lifecycle.js` — which is not where the `exports` entry
+      // points, AND whose `.d.ts` shim would overwrite the declarations tsc
+      // emits for the sibling `src/manager/lifecycle.ts`, erasing the whole
+      // lifecycle API (transitionTask and friends) from the barrel.
+      'manager/lifecycle/index': 'src/manager/lifecycle/index.ts',
       'project-server': 'src/server/project-server.ts',
       'test-support': 'src/test-support.ts',
     },

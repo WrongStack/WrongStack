@@ -194,6 +194,8 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   lifecycleStage?: KanbanLifecycleStage | undefined;
   transitionAction?: string | undefined;
   transitionComment?: string | undefined;
+  /** `transition_task`: flip one or more manual criteria to `passed` before the gate fires. */
+  tickChecks?: { checkId: string; checkStatus: 'passed' | 'failed' | 'skipped' }[] | undefined;
   attachmentUrl?: string | undefined;
   attachmentTitle?: string | undefined;
   attachmentType?:

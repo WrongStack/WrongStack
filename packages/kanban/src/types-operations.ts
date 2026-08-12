@@ -192,6 +192,16 @@ export interface KanbanTaskTransitionInput {
   attachment?: KanbanLink | undefined;
   /** Detail fields may be filled atomically with the transition. */
   patch?: Omit<UpdateKanbanTaskInput, 'columnId' | 'status' | 'lifecycle'> | undefined;
+  /**
+   * Atomically tick acceptance criteria `passed` as part of this transition.
+   * Each entry maps a criterion id to the new status; only `manual` criteria
+   * may be flipped this way (the verifier owns non-manual ones). This is the
+   * recommended escape from `acceptance-criteria-incomplete` on Done: instead
+   * of having to read ids from kanban get_task, the refusal diagnostic lists
+   * the failing ids directly and the caller can re-issue the same
+   * transition with `tickChecks` filled in.
+   */
+  tickChecks?: { checkId: string; checkStatus: 'passed' | 'failed' | 'skipped' }[] | undefined;
 }
 
 export interface AdoptManagedLifecycleInput {
@@ -223,7 +233,11 @@ export interface KanbanLifecycleValidationIssue {
     | 'parent-child-incomplete'
     | 'dependency-incomplete'
     | 'requirement-coverage-incomplete'
-    | 'wip-limit-exceeded';
+    | 'wip-limit-exceeded'
+    | 'tickChecks-unknown-id'
+    | 'running-lease-missing'
+    | 'atomic-children-unresolved'
+    | 'atomic-children-incomplete';
   field?: string | undefined;
   message: string;
 }
