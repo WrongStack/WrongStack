@@ -13,17 +13,12 @@ import {
 } from '@wrongstack/core/design';
 import { SKILL_LIMITS, stripFrontmatter } from '@wrongstack/core/skills';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-  useEffect,
-  useRef,
-} from 'react';
+import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
 import type { AppProps } from '../app-props.js';
 import type { Settings, State } from '../app-state.js';
 import { AUTONOMY_OPTIONS } from '../components/autonomy-picker.js';
+import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import {
   formatAllSettingsSummary,
   getSettingsFieldValue,
@@ -83,19 +78,6 @@ export function useTuiSlashCommands({
   listSessions,
   openPromptPicker,
 }: TuiSlashCommandOptions): void {
-  // Preserve canonical handlers across React effect cleanup/replay. Reading
-  // from the registry inside each effect setup loses the original after the
-  // first cleanup because unregister removes the TUI wrapper's bare name.
-  const resourceOriginalsRef = useRef(
-    new Map(
-      (['fallback', 'profile', 'provider-status', 'memory', 'worktree', 'git'] as const).map(
-        (name) => [name, slashRegistry.get(name)],
-      ),
-    ),
-  );
-  const panelOriginalsRef = useRef(
-    new Map((['cron', 'prompts'] as const).map((name) => [name, slashRegistry.get(name)])),
-  );
   // Register the TUI-only `/model` command — opens a two-step picker
   // (provider → model). All work is local state mutation; the actual
   // switch fires only after the user confirms a model in step 2.
@@ -112,10 +94,10 @@ export function useTuiSlashCommands({
     };
     // Register as an official TUI plugin so it can override a CLI built-in
     // of the same name (owner='tui' + official=true → claims the bare name).
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('model');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, getPickableProviders, switchProviderAndModel, openModelPicker]);
 
   // Register the TUI-only `/f` command — opens the keyboard-navigable F-key panel picker.
@@ -130,10 +112,10 @@ export function useTuiSlashCommands({
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
     // /f command. Without this, only /f 1..12 would work.
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('f');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, openFKeyPicker]);
 
   // Register the TUI-only `/design` command. With no args it opens the visual
@@ -274,10 +256,10 @@ export function useTuiSlashCommands({
         return { runText: `design use ${kit.id}${stack ? ` --stack ${stack}` : ''}` };
       },
     };
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('design');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, projectRoot, agent]);
 
   // Register the TUI-only `/settings` command — opens the interactive
@@ -432,10 +414,10 @@ export function useTuiSlashCommands({
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
     // /settings command. Without this, only Ctrl+S could open the picker.
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('settings');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, getSettings, saveSettings, openSettings, dispatch]);
 
   // Register the TUI-only `/settings-get` command — reads a setting's
@@ -476,10 +458,10 @@ export function useTuiSlashCommands({
         return { message: `${result.label}: ${result.displayValue}` };
       },
     };
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('settings-get');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, state.settingsPicker]);
 
   // Register the TUI-only `/statusline` command — opens the interactive
@@ -541,10 +523,10 @@ export function useTuiSlashCommands({
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
     // /statusline command when called without arguments.
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('statusline');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, openStatuslinePicker, setHiddenItems]);
 
   // Register the TUI-only `/mailbox` command — toggles the mailbox panel.
@@ -558,10 +540,10 @@ export function useTuiSlashCommands({
         return { message: undefined };
       },
     };
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('mailbox');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry]);
 
   // Register the TUI-only `/autonomy` command — opens a single-step picker.
@@ -580,10 +562,10 @@ export function useTuiSlashCommands({
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
     // /autonomy command. Opens the interactive picker instead.
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('autonomy');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, switchAutonomy]);
 
   // Bare `/skill` is a visual browser in the TUI. The named form keeps the
@@ -619,10 +601,10 @@ export function useTuiSlashCommands({
         }
       },
     };
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('skill');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, skillLoader, dispatch]);
 
   // Operational commands keep their typed CLI forms, while the bare form
@@ -630,32 +612,35 @@ export function useTuiSlashCommands({
   useEffect(() => {
     if (!getResourceMenu) return;
     const names = ['fallback', 'profile', 'provider-status', 'memory', 'worktree', 'git'] as const;
+    const cleanups: Array<() => void> = [];
     for (const name of names) {
-      const original = resourceOriginalsRef.current.get(name);
-      slashRegistry.register(
-        {
-          name,
-          description: original?.description ?? `Browse ${name} state interactively.`,
-          argsHint: original?.argsHint,
-          help: original?.help,
-          async run(args: string, ctx) {
-            if (args.trim())
-              return original?.run(args, ctx) ?? { message: `/${name} is unavailable.` };
-            try {
-              const snapshot = await getResourceMenu(name);
-              dispatch({ type: 'resourceMenuOpen', snapshot });
-              return { message: undefined };
-            } catch (err) {
-              return { message: `Could not load ${name}: ${toErrorMessage(err)}` };
-            }
+      const original = slashRegistry.get(name);
+      cleanups.push(
+        registerSlashCommandLifecycle(
+          slashRegistry,
+          {
+            name,
+            description: original?.description ?? `Browse ${name} state interactively.`,
+            argsHint: original?.argsHint,
+            help: original?.help,
+            async run(args: string, ctx) {
+              if (args.trim())
+                return original?.run(args, ctx) ?? { message: `/${name} is unavailable.` };
+              try {
+                const snapshot = await getResourceMenu(name);
+                dispatch({ type: 'resourceMenuOpen', snapshot });
+                return { message: undefined };
+              } catch (err) {
+                return { message: `Could not load ${name}: ${toErrorMessage(err)}` };
+              }
+            },
           },
-        },
-        'tui',
-        { official: true },
+          { owner: 'tui', official: true },
+        ),
       );
     }
     return () => {
-      for (const name of names) slashRegistry.unregister(name);
+      for (const cleanup of [...cleanups].reverse()) cleanup();
     };
   }, [slashRegistry, getResourceMenu, dispatch]);
 
@@ -666,28 +651,31 @@ export function useTuiSlashCommands({
       { name: 'cron', open: () => dispatch({ type: 'toggleCronMonitor' as const }) },
       { name: 'prompts', open: () => void openPromptPicker() },
     ] as const;
+    const cleanups: Array<() => void> = [];
     for (const definition of definitions) {
-      const original = panelOriginalsRef.current.get(definition.name);
-      slashRegistry.register(
-        {
-          name: definition.name,
-          description: original?.description ?? `Open the ${definition.name} browser.`,
-          argsHint: original?.argsHint,
-          help: original?.help,
-          async run(args: string, ctx) {
-            if (args.trim()) {
-              return original?.run(args, ctx) ?? { message: `/${definition.name} is unavailable.` };
-            }
-            definition.open();
-            return { message: undefined };
+      const original = slashRegistry.get(definition.name);
+      cleanups.push(
+        registerSlashCommandLifecycle(
+          slashRegistry,
+          {
+            name: definition.name,
+            description: original?.description ?? `Open the ${definition.name} browser.`,
+            argsHint: original?.argsHint,
+            help: original?.help,
+            async run(args: string, ctx) {
+              if (args.trim()) {
+                return original?.run(args, ctx) ?? { message: `/${definition.name} is unavailable.` };
+              }
+              definition.open();
+              return { message: undefined };
+            },
           },
-        },
-        'tui',
-        { official: true },
+          { owner: 'tui', official: true },
+        ),
       );
     }
     return () => {
-      for (const { name } of definitions) slashRegistry.unregister(name);
+      for (const cleanup of [...cleanups].reverse()) cleanup();
     };
   }, [slashRegistry, dispatch, openPromptPicker]);
 
@@ -736,10 +724,10 @@ export function useTuiSlashCommands({
         return { message: undefined };
       },
     };
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('theme');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, dispatch]);
 
   // Register the TUI-only `/resume` command — opens the session resume picker.
@@ -770,9 +758,9 @@ export function useTuiSlashCommands({
     };
     // Register as an official TUI plugin so it overrides the CLI's text-based
     // /resume command (which is an alias on /sessions).
-    slashRegistry.register(cmd, 'tui', { official: true });
-    return () => {
-      slashRegistry.unregister('resume');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
   }, [slashRegistry, listSessions]);
 }

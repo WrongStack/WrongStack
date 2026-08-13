@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agents now walk a cost ladder before writing new code.** Delete instead, does it need to exist, does the repo already do it, does the language, platform, or an installed dependency do it, is it one line — and only then the minimum that works. It carries an explicit limit: the ladder trims what the agent invented, never what the user asked for, and reuse claims need a named file, symbol, or package rather than recollection. Wired into the default, pro, and lite identities plus the subagent baseline, and enforced as a review dimension in the code-reviewer agent.
+
+## [0.306.2] — 2026-08-12
+
+Consolidates the intermediate `0.306.1` package bump.
+
+### Added
+
+- **The TUI now opens runtime resources as native interactive menus.** Models, prompts, skills, memory results, sessions, worktrees, branches, themes, tools, cron jobs, and agents share a searchable picker contract with keyboard and mouse navigation instead of falling back to text-only lists. (`291559eff`, `b04b37796`)
+- **Theme selection includes a live preview.** The picker renders representative status, transcript, diff, code, and panel colors before a preset is applied, while shared windowing keeps large pickers responsive. (`4802564da`)
+- **SAGE relationships are queryable without leaking session-scoped memories.** Remembered items maintain explicit relationship edges, related-candidate traversal follows the graph, and tool, middleware, and MCP paths preserve the caller's session boundary. (`291559eff`)
+- **Memory injected into prompts is fenced as evidence, not instructions.** Shared sanitization and tagged rendering keep stored project text from masquerading as higher-priority agent guidance. (`291559eff`)
+
 ### Security
 
 - **Project daemons no longer hand their IPC token to other local accounts on Windows.** Every project server writes a metadata file carrying the per-process token that gates its IPC surface, with `mode: 0o600` — which Node honors on POSIX and ignores on Windows, where the file instead inherits the parent directory's ACLs. The endpoint excludes nobody on Windows either, so the token was readable by any local account. Mailbox, Chronicle, SAGE, Kanban, and Codebase Index now strip inherited ACEs and grant the owner alone; Session Catalog already did. Verified by reading the resulting ACL on a live daemon, not by inspection. (`4802564da`, `c7b1b39a8`)
@@ -21,11 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`to: "@session"` over the mailbox HTTP bridge answers 400 instead of 500.** The alias needs a session id to expand, and without one `normalizeRecipient` threw a bare `TypeError` that the router classified as an internal error, leaking the message. It is now expanded for credential actors that carry a session and refused with a usable validation error otherwise. (`4802564da`)
 - **Kanban and Codebase Index daemons no longer leave a window with no metadata file.** Both wrote a temp file and renamed it, falling back to `rm(target)` and retrying — and on Windows that fallback is the common path, because the rename fails whenever a reader holds the destination. A client reading between the `rm` and the retry concludes there is no daemon and spawns a second one. Both now use `atomicWrite`, which never unlinks the destination. (`c7b1b39a8`)
 - **The package-outdated watcher's documented sender gate is now applied.** `techStackAgentId` was declared and documented but never read — it appeared exactly once in the codebase, in its own type — so any sender could drive high-priority notifications, including broadcasts to every agent. Both mailbox consumers now match the sender as an agent family, so a worker spawned as `tech-stack-<manifest>` still passes while an unrelated peer does not. (`4802564da`)
+- **Native terminal selection is recoverable without giving up managed history.** `/mouse native` now releases mouse tracking for ordinary click-drag copy, while paging keys continue to navigate WrongStack's bounded transcript; `/mouse on` or `/mouse off` restores application ownership. (`291559eff`)
 
 ### Changed
 
 - **Mailbox read paths are served from indexes instead of materializing the store.** `unreadCount` ran on every pre-tool hook and re-read every message plus the whole receipt table to return an integer (measured 19.1 ms → 4.4 ms over 3,000 messages); the HTTP bridge answered "is this message mine?" on every `ack` by listing the actor's entire mailbox (30 ms → 0.48 ms, 5,000 rows → 3) and now asks by message id; and each agent heartbeat cost a full roster round-trip per attached surface, which only registration now pays. (`4802564da`)
 - **Owner-only file hardening moved to `@wrongstack/persistence`.** It sat in `@wrongstack/core/security`, out of reach of `@wrongstack/kanban`, which depends only on persistence and cannot depend on core without closing a cycle. `@wrongstack/core/security` re-exports it, so no caller changed. (`c7b1b39a8`)
+- **Git process execution now has a reusable service boundary.** Slash commands and TUI resource menus share one bounded, hidden-window runner instead of importing command-layer code across the architecture boundary. (`b04b37796`)
 
 ## [0.306.0] — 2026-08-12
 

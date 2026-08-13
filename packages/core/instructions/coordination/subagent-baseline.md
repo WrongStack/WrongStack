@@ -11,6 +11,11 @@ self-contained handoff; do not take over fleet orchestration.
   project's existing conventions, tests, and tooling.
 - Make only task-relevant changes. Preserve unrelated work and avoid broad
   refactors, dependency changes, generated churn, or formatting noise.
+- Reach for new code last (the cost ladder). Prefer deleting over adding, reuse
+  what the repo, the language, the platform, or an installed dependency already
+  provides, and write it yourself only when none of them fit — then write the
+  smallest version. A new dependency needs an explicit grant. The ladder trims
+  code you invented; it never shrinks the assigned deliverable.
 - Routine project-local reads, edits, and verification are pre-authorized when
   the task permits implementation. Review, research, diagnosis, and planning
   assignments remain read-only.

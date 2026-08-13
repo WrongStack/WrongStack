@@ -21,6 +21,7 @@ import { createKillSlashCommand } from '../kill-slash.js';
 import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
 import { createMemorySlashCommand } from '../memory-slash.js';
 import { createPsSlashCommand } from '../ps-slash.js';
+import { registerSlashCommandLifecycle } from '../slash-command-lifecycle.js';
 import { buildSteeringPreamble } from '../steering-preamble.js';
 
 interface CoreTuiCommandsOptions {
@@ -75,88 +76,75 @@ export function useCoreTuiCommands({
   const stdout = { columns: terminalWidth };
   const getCronJobs = useMemo(() => createCronJobsGetter(agent), [agent]);
   useEffect(() => {
-    slashRegistry.register(createKillSlashCommand());
-    slashRegistry.register(createPsSlashCommand());
-    slashRegistry.register(createCronSlashCommand({ getCronJobs }));
-    if (memoryStore) {
-      slashRegistry.register(createMemorySlashCommand({ memoryStore }));
-    }
-    // `/context` — the panel wrapper must WIN over the CLI's text `context`
-    // command. The registry's rule is "first core registration of a name
-    // wins" and the CLI registers `buildContextCommand` first at boot, so a
-    // plain register() here is a silent no-op (that was the bug: bare
-    // /context printed the text summary and the panel never opened).
-    //
-    // Fix: capture the CLI command as the delegate `fallback`, unregister it
-    // (clears the bare name + `ctx` alias), then register the wrapper which
-    // reclaims both. The `__panelWrapper` sentinel makes this idempotent —
-    // on any re-run of this effect the wrapper is already installed, so we
-    // must NOT re-capture (that would nest wrappers and drop the CLI command).
-    {
-      const existingContext = slashRegistry.get('context') as
-        | (SlashCommand & { __panelWrapper?: boolean })
-        | undefined;
-      if (!existingContext?.__panelWrapper) {
-        if (existingContext) slashRegistry.unregister('context');
-        const contextPanelCmd = createContextSlashCommand({
-          onPanelOpen,
-          fallback: existingContext,
-          getSummary: () => {
-            const leader = stateRef.current.leader;
-            const memories = Object.values(memoryContextMonitorRef.current.memories);
-            return {
-              contextPct: leader.ctxPct,
-              contextTokens: leader.ctxTokens,
-              contextMaxTokens: leader.ctxMaxTokens,
-              memoryTotal: memoryRecordTotalRef.current,
-              memoryCtx: memories.filter((memory) => memory.state === 'active').length,
-              memoryPending: memories.filter((memory) => memory.state === 'injected').length,
-              memoryLeft: memories.filter((memory) => memory.state === 'exited').length,
-            };
-          },
-        }) as SlashCommand & { __panelWrapper?: boolean };
-        contextPanelCmd.__panelWrapper = true;
-        slashRegistry.register(contextPanelCmd);
-      }
-    }
-    // `/connections` — open the interactive service health panel.
-    slashRegistry.register(
-      createConnectionsSlashCommand({ onPanelOpen }),
+    const cleanups: Array<() => void> = [];
+    cleanups.push(registerSlashCommandLifecycle(slashRegistry, createKillSlashCommand()));
+    cleanups.push(registerSlashCommandLifecycle(slashRegistry, createPsSlashCommand()));
+    cleanups.push(
+      registerSlashCommandLifecycle(slashRegistry, createCronSlashCommand({ getCronJobs })),
     );
-    // `/kanban` — open the project kanban panel, create a board, add a task,
-    // or list boards. Mirrors the WebUI `kanban` text surface so users get
-    // the same operations in either client. The panel-open bridge is shared
-    // with `/context`; without it the command would have to fall back to
-    // text-only and lose the "open panel" affordance.
-    slashRegistry.register(
-      createKanbanSlashCommand({
-        projectRoot: agent.ctx.projectRoot,
-        sessionId: agent.ctx.session?.id ?? null,
-        onPanelOpen,
-        // Goal → Kanban bridge & `/kanban use <boardId>` both arrive here.
-        // We capture a `focusedBoardId` and pass it down as `initialBoardId`
-        // so the panel lands on the requested board rather than defaulting
-        // to the session-tag fallback.
-        onBoardFocus: boardFocusRef.current
-          ? boardFocusRef.current
-          : {
-              current: (boardId: string) => {
-                setFocusedBoardId(boardId);
-                return true;
-              },
-            },
-        terminalWidth: stdout.columns ?? 80,
+    if (memoryStore) {
+      cleanups.push(
+        registerSlashCommandLifecycle(
+          slashRegistry,
+          createMemorySlashCommand({ memoryStore }),
+        ),
+      );
+    }
+
+    // Bare `/context` opens the TUI panel, while typed forms retain the
+    // canonical CLI behavior through the captured fallback.
+    const existingContext = slashRegistry.get('context');
+    const contextPanelCmd = createContextSlashCommand({
+      onPanelOpen,
+      fallback: existingContext,
+      getSummary: () => {
+        const leader = stateRef.current.leader;
+        const memories = Object.values(memoryContextMonitorRef.current.memories);
+        return {
+          contextPct: leader.ctxPct,
+          contextTokens: leader.ctxTokens,
+          contextMaxTokens: leader.ctxMaxTokens,
+          memoryTotal: memoryRecordTotalRef.current,
+          memoryCtx: memories.filter((memory) => memory.state === 'active').length,
+          memoryPending: memories.filter((memory) => memory.state === 'injected').length,
+          memoryLeft: memories.filter((memory) => memory.state === 'exited').length,
+        };
+      },
+    });
+    cleanups.push(
+      registerSlashCommandLifecycle(slashRegistry, contextPanelCmd, {
+        owner: 'tui',
+        official: true,
       }),
     );
+
+    cleanups.push(
+      registerSlashCommandLifecycle(
+        slashRegistry,
+        createConnectionsSlashCommand({ onPanelOpen }),
+      ),
+    );
+    cleanups.push(
+      registerSlashCommandLifecycle(
+        slashRegistry,
+        createKanbanSlashCommand({
+          projectRoot: agent.ctx.projectRoot,
+          sessionId: agent.ctx.session?.id ?? null,
+          onPanelOpen,
+          onBoardFocus: boardFocusRef.current
+            ? boardFocusRef.current
+            : {
+                current: (boardId: string) => {
+                  setFocusedBoardId(boardId);
+                  return true;
+                },
+              },
+          terminalWidth: stdout.columns ?? 80,
+        }),
+      ),
+    );
     return () => {
-      slashRegistry.unregister('kill');
-      slashRegistry.unregister('ps');
-      slashRegistry.unregister('cron');
-      if (memoryStore) {
-        slashRegistry.unregister('memory');
-      }
-      slashRegistry.unregister('context');
-      slashRegistry.unregister('kanban');
+      for (const cleanup of cleanups.reverse()) cleanup();
     };
   }, [
     slashRegistry,
@@ -264,10 +252,7 @@ export function useCoreTuiCommands({
         };
       },
     };
-    slashRegistry.register(cmd);
-    return () => {
-      slashRegistry.unregister('steer');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slashRegistry, director, runSteerSequence]);
 
@@ -309,37 +294,33 @@ export function useCoreTuiCommands({
         return {};
       },
     };
-    slashRegistry.register(cmd);
-    return () => {
-      slashRegistry.unregister('rewind');
-    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd);
   }, [slashRegistry, handleRewindTo]);
 
   // `/agents` — bare `/agents` and `/agents monitor` toggle the overlay.
-  // `/agents <id>` falls through to the CLI builtin (same-name registration
-  // from the same 'core' owner is a no-op per SlashCommandRegistry semantics,
-  // so we own the bare/monitor forms here and let the builtin handle IDs).
+  // Typed forms delegate to the canonical host command captured before the
+  // official TUI override is installed.
   useEffect(() => {
-    const cmd = {
+    const original = slashRegistry.get('agents');
+    const cmd: SlashCommand = {
       name: 'agents',
-      description: 'Toggle the agents monitor overlay.',
-      async run(args: string) {
+      description: original?.description ?? 'Toggle the agents monitor overlay.',
+      argsHint: original?.argsHint,
+      help: original?.help,
+      async run(args: string, ctx) {
         const arg = args.trim().toLowerCase();
         if (!arg || arg === 'monitor') {
           dispatch({ type: 'toggleAgentsMonitor' });
           return { message: undefined };
         }
-        // Any other arg falls through to the CLI builtin (same owner
-        // 'core' re-registration = silently ignored). The builtin handles
-        // onAgents UUID lookups and /agents on|off.
-        return { message: undefined };
+        return original?.run(args, ctx) ?? { message: '/agents is unavailable.' };
       },
     };
-    slashRegistry.register(cmd);
-    return () => {
-      slashRegistry.unregister('agents');
-    };
-  }, [slashRegistry]);
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
+  }, [slashRegistry, dispatch]);
 
   return { getCronJobs, runSteerSequence };
 }

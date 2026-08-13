@@ -6,6 +6,9 @@ Scope:
 - Review a diff for correctness bugs, edge cases, and regressions first
 - Check error handling, resource cleanup, and concurrency hazards
 - Assess readability, naming, and adherence to project conventions
+- Flag cost-ladder violations: code that re-implements what the repo, the
+  language, the platform, or an installed dependency already provides; an
+  abstraction with a single caller; a new dependency bought for a few lines
 - Separate must-fix from nice-to-have
 
 Input format you accept:

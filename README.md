@@ -28,7 +28,7 @@ Brain-governed policy decisions, and collaborative debugging — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban/task boards** with atomic verification, an **inter-agent mailbox** that
 links every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **61 built-in tools**, **29 bundled skills**, **72 managed first-party
+It ships with **61 built-in tools**, **29 bundled skills**, **73 managed first-party
 plugins**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
@@ -52,26 +52,28 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.305.1
+### What's new in 0.306.2
 
-- **Choose a TUI that feels like yours.** WrongStack now includes 35 persistent
-  theme presets with an interactive `/theme` picker, full panel and transcript
-  tokens, syntax colors, monitor accents, and readable diff washes.
-- **Project daemons heal instead of wedging the workspace.** One shared endpoint
-  election protects the single-writer boundary and safely reclaims dead Unix
-  sockets without unlinking a live owner's endpoint.
-- **See daemon health without starting anything.** `wstack doctor --daemons`
-  reports each project service as live, stale, or stopped; `--clear-stale`
-  removes only endpoints that a fresh liveness probe proves abandoned.
-- **Keep working when an optional service is down.** A Kanban connection failure
-  now degrades board synchronization and explains the problem instead of
-  aborting the entire CLI session.
-- **Long-running surfaces release what they own.** ACP terminals, the desktop
-  agent bridge, and WebUI reconnect paths now detach listeners, timers, sockets,
-  and child processes deterministically; HQ's operational views also receive a
-  cohesive console and responsive-layout refresh.
+- **Mailbox and project IPC boundaries are substantially tighter.** Authenticated
+  identity now owns mailbox visibility, credentials cannot gain lifetime through
+  rotation, untrusted batches are bounded, and daemon token metadata is
+  owner-only and atomically replaced on Windows as well as POSIX.
+- **The TUI's runtime data is directly explorable.** Models, prompts, skills,
+  memory, sessions, worktrees, branches, themes, tools, cron jobs, and agents
+  open in searchable keyboard-and-mouse resource menus.
+- **Themes can be judged before applying them.** The picker previews transcript,
+  status, panels, code, and diffs, while shared windowing keeps large lists
+  responsive on compact terminals.
+- **SAGE relationships are richer without crossing session boundaries.** Stored
+  memories maintain graph edges and related traversal, while every tool,
+  middleware, and MCP lookup retains the caller's session scope.
+- **Retrieved memory is explicitly treated as evidence.** Shared fencing and
+  sanitization prevent stored project text from impersonating system guidance.
+- **Terminal-native copy is a real mode.** `/mouse native` releases pointer
+  tracking for click-drag selection while keyboard paging continues to navigate
+  the bounded WrongStack transcript.
 
-See the complete [0.305.1 release notes](CHANGELOG.md).
+See the complete [0.306.2 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -80,7 +82,7 @@ See the complete [0.305.1 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.305.1](#whats-new-in-03051)
+- [What's new in 0.306.2](#whats-new-in-03062)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -349,7 +351,7 @@ implement one at a time, and validate against the spec before closing.
 
 ### Plugin ecosystem
 
-**72 managed first-party plugins** (6 core, 64 in `@wrongstack/plugins`, and 2
+**73 managed first-party plugins** (6 core, 65 in `@wrongstack/plugins`, and 2
 bridges)
 extend the agent with focused, single-purpose capabilities. See
 [plugin management](docs/plugin-management.md) and the
@@ -492,7 +494,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/webui` · `@wrongstack/webui-server` · `@wrongstack/webui-hq` · `@wrongstack/simpleui` | Browser UIs, shared backend, and HQ dashboard |
 | `@wrongstack/desktop` | Electron desktop shell |
 | `@wrongstack/plug-lsp` · `@wrongstack/telegram` | LSP and Telegram plugins |
-| `@wrongstack/plugins` | Official collection — 64 focused plugins via subpath exports |
+| `@wrongstack/plugins` | Official collection — 65 focused plugins via subpath exports |
 | `wrongstack` | Published CLI app entry (`wrongstack` / `wstack`) |
 
 ---

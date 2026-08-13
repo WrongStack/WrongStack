@@ -109,9 +109,9 @@
       "runtimeOrMixed": 21
     },
     "@wrongstack/core/registry": {
-      "files": 99,
-      "typeOnly": 50,
-      "runtimeOrMixed": 50
+      "files": 101,
+      "typeOnly": 51,
+      "runtimeOrMixed": 51
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -149,8 +149,8 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/types": {
-      "files": 892,
-      "typeOnly": 824,
+      "files": 894,
+      "typeOnly": 826,
       "runtimeOrMixed": 227
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -6705,6 +6705,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/tui/src/slash-command-lifecycle.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/tui/src/tui-host-capabilities.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6712,6 +6718,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/tui/tests/helpers/app-journey-harness.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/tui/tests/slash-command-lifecycle.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12957,6 +12969,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/slash-command-lifecycle.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/slash-command-search.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13096,6 +13114,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/skill-picker.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/slash-command-lifecycle.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

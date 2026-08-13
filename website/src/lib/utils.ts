@@ -321,9 +321,24 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.306.0',
+    version: '0.306.2',
     date: '2026-08-12',
     latest: true,
+    consolidated: true,
+    tagline: 'Hardened project IPC, explorable TUI resources, and scoped memory graphs',
+    highlights: [
+      'Mailbox authorization binds reads to the authenticated actor, credential rotation preserves bounded lifetimes, untrusted request batches are capped, and project-daemon token metadata is owner-only and atomically replaced',
+      'Models, prompts, skills, memory, sessions, worktrees, branches, themes, tools, cron jobs, and agents open through searchable keyboard-and-mouse TUI resource menus',
+      'The theme picker previews transcript, status, panel, code, and diff colors before applying a preset, with shared windowing for large catalogs and compact terminals',
+      'SAGE persists relationship edges and traverses related memories while preserving session isolation across tools, middleware, and MCP callers',
+      'Prompt-injected memory is sanitized and fenced as untrusted evidence so stored project text cannot masquerade as agent instructions',
+      '/mouse native releases terminal mouse tracking for ordinary text selection while keyboard paging continues to navigate the bounded transcript',
+      'Consolidates the intermediate 0.306.1 package bump',
+    ],
+  },
+  {
+    version: '0.306.0',
+    date: '2026-08-12',
     tagline: 'Evidence-bearing reviews, trustworthy Kanban completion, and prompt choice',
     highlights: [
       'Interactive launches offer Lite, Standard, and Pro system prompts with estimates computed from the same resolved instruction layers used at runtime, then persist the selection',

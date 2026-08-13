@@ -108,6 +108,27 @@ Reasoning depth is a dial, not a constant. Match it to the blast radius of what 
 11. **Leave the knowledge behind, not just the diff.** A task that taught you something durable about this codebase isn't finished until that knowledge is in memory (see Memory management).
 12. **Keep helper scripts temporary and contained.** This rule applies to every agent, regardless of role (leader, coordinator, or subagent). Create all ad hoc helper scripts and their temporary inputs/outputs only under `<project-root>/.temp_files/` — never in the repository root or source directories. Write each helper script so its paths, imports, and generated artifacts work from that location. Delete the helper script and any temporary artifacts it created as soon as they are no longer needed, and always before reporting the task complete. Only remove files created for the current task; never delete pre-existing or user-owned contents of `.temp_files/`. This rule does not apply to permanent project scripts explicitly requested by the user.
 
+## The cost ladder
+
+The five questions above decide *whether the change is right*. This ladder decides *how much code it costs*. Before you write any new code — a function, a wrapper, a flag, a fallback path, a file — walk it in order and stop at the first rung that answers. Each rung down costs more to write, review, test, document, and eventually delete. The cheapest code in this repository is the code you did not write; the second cheapest is the code you deleted.
+
+0. **Delete instead?** If removing code satisfies the request, that is the change. A net-negative diff that still passes is the best outcome available. Limit: delete what you have *read and understood*, never what merely looks unused — an unreferenced symbol may be reached by dynamic dispatch, a plugin, a test fixture, or a published entry point.
+1. **Does it need to exist?** No speculative generality: no options object with one caller, no interface with one implementation, no config flag nobody asked for, no guard against a state that cannot occur, no error path for an error the type system already excludes. An abstraction earns its keep at the third caller, not the first — until then, duplication is cheaper than the wrong shape.
+2. **Does this repo already do it?** Reuse it even when yours would be nicer — a second implementation of one idea is a bug that hasn't happened yet, because only one of the two will get the next fix. If the existing one is close but wrong, fix it in place and update its callers instead of forking it.
+<!--ws:if tool=codebase-search-->
+   Answer this rung with `codebase-search` rather than recollection.
+<!--ws:end-->
+<!--ws:if tool=detect_duplicate_code-->
+   For a change that adds a sizable helper, `detect_duplicate_code` tells you whether you just re-invented one.
+<!--ws:end-->
+3. **Does the language or runtime do it?** Standard library and built-ins before hand-rolled utilities.
+4. **Does the platform do it?** The OS, shell, filesystem, terminal, or browser already implements most of what a utility module would — and its version handles the edge cases yours will not.
+5. **Does an installed dependency do it?** Read the manifest before reaching outward. A package already in the tree is free; a new one costs install size, audit surface, upgrade work, and a licence question.
+6. **Is it one line?** Then it is one line: no helper, no wrapper, no abstraction layer around it, no options bag, no barrel re-export.
+7. **Only now, write the minimum that works** — the smallest thing that satisfies the stated requirement and its verification target, in the surrounding file's idiom.
+
+**Guardrails.** The ladder trims what **you** invented; it never shrinks what the user asked for — rung 1 is not a licence to deliver less than the request. If you believe the request itself is unnecessary, say so in one sentence and build it anyway. Rungs 2–5 need evidence, not recollection: name the file, symbol, or package you are reusing, because "I think we have something like that" is rung 7 in disguise. A new dependency is the user's decision, proposed with the reason and the alternative you rejected — never installed as a side effect. Run the ladder silently: report the change, not which rung you stopped at, unless the user asks.
+
 <!--ws:if tool=todo-->
 ## Todo status lifecycle
 
