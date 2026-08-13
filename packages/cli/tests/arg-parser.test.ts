@@ -13,7 +13,20 @@ describe('parseArgs', () => {
   });
 
   it('treats listed BOOLEAN_FLAGS as true even when next arg looks value-like', () => {
-    for (const flag of ['yolo', 'yolo-destructive', 'force-all-yolo', 'verbose', 'help', 'tui']) {
+    // Must cover the entire yolo/autonomy boolean family — if any of these
+    // drops out of BOOLEAN_FLAGS, parseArgs consumes the following token as
+    // the flag's value and launch scripts silently lose an argument.
+    for (const flag of [
+      'yolo',
+      'no-yolo',
+      'yolo-destructive',
+      'confirm-destructive',
+      'force-all-yolo',
+      'verbose',
+      'help',
+      'tui',
+    ]) {
+      expect(BOOLEAN_FLAGS.has(flag)).toBe(true);
       const result = parseArgs([`--${flag}`, 'next']);
       expect(result.flags[flag]).toBe(true);
       // "next" should remain positional since the flag is boolean-only
@@ -140,6 +153,38 @@ describe('parseArgs', () => {
     const r = parseArgs(['hq', 'serve', '--strict-port', 'leftover']);
     expect(r.flags['strict-port']).toBe(true);
     expect(r.positional).toEqual(['leftover']);
+  });
+
+  it.each(['no-probe', 'probe-only', 'no-key'])(
+    'treats --%s as a boolean flag without swallowing following positional',
+    (flag) => {
+      const r = parseArgs(['auth', 'local', `--${flag}`, 'ollama']);
+      expect(r.flags[flag]).toBe(true);
+      expect(r.positional).toEqual(['auth', 'local', 'ollama']);
+    },
+  );
+
+  it.each(['vision', 'tools', 'reasoning'])(
+    'treats --%s as a boolean capability switch without swallowing positional',
+    (flag) => {
+      const r = parseArgs(['models', 'add', `--${flag}`, 'my-custom-model']);
+      expect(r.flags[flag]).toBe(true);
+      expect(r.positional).toEqual(['models', 'add', 'my-custom-model']);
+    },
+  );
+
+  it('parses space-form --tools as boolean + positional CSV (whitelist recovered by mcp serve)', () => {
+    // 'tools' is a BOOLEAN_FLAGS member (models-add capability toggle), so the
+    // space form cannot carry its value inline; mcp serve recovers the CSV
+    // from the positional (parseToolsFlag). Lock the parse shape so a future
+    // BOOLEAN_FLAGS change cannot silently break `mcp serve --tools a,b,c`.
+    expect(BOOLEAN_FLAGS.has('tools')).toBe(true);
+    const r = parseArgs(['mcp', 'serve', '--tools', 'read,grep']);
+    expect(r.flags.tools).toBe(true);
+    expect(r.positional).toEqual(['mcp', 'serve', 'read,grep']);
+    // Equals form still carries the value inline.
+    const eq = parseArgs(['mcp', 'serve', '--tools=read,grep']);
+    expect(eq.flags.tools).toBe('read,grep');
   });
 
   it('parses --fallback-model as a value flag (comma list preserved)', () => {
