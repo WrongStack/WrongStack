@@ -2,8 +2,10 @@
   "action": {
     "ok": "Tamam",
     "cancel": "İptal",
+    "create": "Oluştur",
     "save": "Kaydet",
     "saved": "Kaydedildi",
+    "dismiss": "Dismiss",
     "close": "Kapat",
     "yes": "Evet",
     "no": "Hayır",

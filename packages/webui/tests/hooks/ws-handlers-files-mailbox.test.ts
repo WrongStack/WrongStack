@@ -7,7 +7,7 @@ let clientImpl: () => unknown = () => ({ send });
 
 vi.mock('@/lib/ws-client', () => ({ getWSClient: () => clientImpl() }));
 
-const { useFileStore } = await import('../../src/stores');
+const { useFileStore, useSessionStore } = await import('../../src/stores');
 const { useMailboxStore } = await import('../../src/stores/mailbox-store');
 const { useVizStore } = await import('../../src/stores/viz-store');
 const handlers = await import('../../src/hooks/ws-handlers/files-mailbox-handlers');
@@ -73,7 +73,9 @@ describe('files + mailbox ws-handler map', () => {
       [
         'files.created',
         'files.deleted',
+        'files.moved',
         'files.read',
+        'files.renamed',
         'files.tree',
         'files.tree.changed',
         'files.written',
@@ -299,6 +301,33 @@ describe('files + mailbox ws-handler map', () => {
       expect(s.error).toBeNull();
       // Neither branch ran, so the file stays dirty.
       expect(s.openFiles[0]?.dirty).toBe(true);
+    });
+  });
+
+  describe('files.tree.changed', () => {
+    it('debounces the tree refresh request by 500ms', () => {
+      useSessionStore.setState({ cwd: '/repo' } as never);
+      handleFilesTreeChanged(msg('files.tree.changed', {}));
+      vi.advanceTimersByTime(499);
+      expect(send).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledWith({ type: 'files.tree', payload: { path: '/repo' } });
+    });
+
+    it('collapses a burst of change events into a single refresh', () => {
+      useSessionStore.setState({ cwd: '/repo' } as never);
+      for (let i = 0; i < 6; i++) handleFilesTreeChanged(msg('files.tree.changed', {}));
+      vi.advanceTimersByTime(500);
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks the tree loading only when the debounced refresh fires', () => {
+      useSessionStore.setState({ cwd: '/repo' } as never);
+      handleFilesTreeChanged(msg('files.tree.changed', {}));
+      expect(useFileStore.getState().treeLoading).toBe(false);
+      vi.advanceTimersByTime(500);
+      expect(useFileStore.getState().treeLoading).toBe(true);
     });
   });
 

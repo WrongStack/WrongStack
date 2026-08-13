@@ -5,8 +5,12 @@ import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import {
+  handleFilesCreate,
+  handleFilesDelete,
   handleFilesList,
+  handleFilesMove,
   handleFilesRead,
+  handleFilesRename,
   handleFilesTree,
   handleFilesWrite,
 } from '@wrongstack/webui-server';
@@ -432,6 +436,485 @@ describe('file handlers integration', () => {
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { files: unknown[] } };
       expect(response.payload.files).toEqual([]);
+    });
+  });
+
+  describe('handleFilesCreate', () => {
+    it('creates a new file successfully', async () => {
+      const ws = createMockWs();
+      await handleFilesCreate(
+        ws,
+        { type: 'files.create', payload: { filePath: 'new-file.ts', type: 'file' } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        type: string;
+        payload: { filePath: string; success: boolean; error?: string };
+      };
+      expect(response.type).toBe('files.created');
+      expect(response.payload.success).toBe(true);
+      expect(response.payload.filePath).toBe('new-file.ts');
+      expect(fsSync.existsSync(path.join(tempDir, 'new-file.ts'))).toBe(true);
+    });
+
+    it('creates a new directory successfully', async () => {
+      const ws = createMockWs();
+      await handleFilesCreate(
+        ws,
+        { type: 'files.create', payload: { filePath: 'new-dir', type: 'directory' } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        type: string;
+        payload: { success: boolean };
+      };
+      expect(response.type).toBe('files.created');
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'new-dir'))).toBe(true);
+      expect(fsSync.statSync(path.join(tempDir, 'new-dir')).isDirectory()).toBe(true);
+    });
+
+    it('rejects path traversal attempts', async () => {
+      const ws = createMockWs();
+      await handleFilesCreate(
+        ws,
+        { type: 'files.create', payload: { filePath: '../../../etc/evil', type: 'file' } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toBe('Forbidden');
+    });
+
+    it('rejects creation when file already exists', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'existing.ts'), 'content');
+      const ws = createMockWs();
+      await handleFilesCreate(
+        ws,
+        { type: 'files.create', payload: { filePath: 'existing.ts', type: 'file' } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/already exists/);
+    });
+
+    it('rejects malformed requests', async () => {
+      const ws = createMockWs();
+      await handleFilesCreate(ws, { type: 'files.create', payload: {} }, tempDir);
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      // Empty payload passes validatedPayload but fails type validation
+      // (type is undefined, not 'file' or 'directory').
+      expect(response.payload.error).toBeDefined();
+    });
+
+    it('creates parent directories when needed', async () => {
+      const ws = createMockWs();
+      await handleFilesCreate(
+        ws,
+        {
+          type: 'files.create',
+          payload: { filePath: 'deep/nested/path/file.ts', type: 'file' },
+        },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as { payload: { success: boolean } };
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'deep/nested/path/file.ts'))).toBe(true);
+    });
+  });
+
+  describe('handleFilesDelete', () => {
+    it('deletes a file successfully', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'to-delete.ts'), 'content');
+      const ws = createMockWs();
+      await handleFilesDelete(
+        ws,
+        { type: 'files.delete', payload: { filePath: 'to-delete.ts' } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        type: string;
+        payload: { filePath: string; success: boolean };
+      };
+      expect(response.type).toBe('files.deleted');
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'to-delete.ts'))).toBe(false);
+    });
+
+    it('deletes a directory with recursive flag', async () => {
+      fsSync.mkdirSync(path.join(tempDir, 'dir-to-delete', 'sub'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'dir-to-delete', 'sub', 'file.ts'), 'x');
+      const ws = createMockWs();
+      await handleFilesDelete(
+        ws,
+        {
+          type: 'files.delete',
+          payload: { filePath: 'dir-to-delete', recursive: true },
+        },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as { payload: { success: boolean } };
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'dir-to-delete'))).toBe(false);
+    });
+
+    it('rejects path traversal attempts', async () => {
+      const ws = createMockWs();
+      await handleFilesDelete(
+        ws,
+        { type: 'files.delete', payload: { filePath: '../../../etc/passwd' } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toBe('Forbidden');
+    });
+
+    it('guards against project root deletion', async () => {
+      const ws = createMockWs();
+      // Send filePath as "." which resolves to projectRoot
+      await handleFilesDelete(
+        ws,
+        { type: 'files.delete', payload: { filePath: '.', recursive: true } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/project root/i);
+      // Verify the directory still exists
+      expect(fsSync.existsSync(tempDir)).toBe(true);
+    });
+
+    it('rejects malformed requests', async () => {
+      const ws = createMockWs();
+      await handleFilesDelete(ws, { type: 'files.delete', payload: {} }, tempDir);
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      // Empty payload passes validatedPayload (it is an object) but
+      // filePath is undefined, which fails the containment check.
+      expect(response.payload.error).toBeDefined();
+    });
+
+    it('returns error for non-existent file', async () => {
+      const ws = createMockWs();
+      await handleFilesDelete(
+        ws,
+        { type: 'files.delete', payload: { filePath: 'no-such-file.ts' } },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+    });
+  });
+
+  describe('handleFilesRename', () => {
+    it('renames a file successfully', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'old-name.ts'), 'content');
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: 'old-name.ts', newPath: 'new-name.ts' },
+        },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        type: string;
+        payload: { oldPath: string; newPath: string; success: boolean };
+      };
+      expect(response.type).toBe('files.renamed');
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'old-name.ts'))).toBe(false);
+      expect(fsSync.existsSync(path.join(tempDir, 'new-name.ts'))).toBe(true);
+    });
+
+    it('renames a directory successfully', async () => {
+      fsSync.mkdirSync(path.join(tempDir, 'old-dir'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'old-dir', 'file.ts'), 'x');
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: 'old-dir', newPath: 'new-dir' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as { payload: { success: boolean } };
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'old-dir'))).toBe(false);
+      expect(fsSync.existsSync(path.join(tempDir, 'new-dir', 'file.ts'))).toBe(true);
+    });
+
+    it('rejects path traversal on source', async () => {
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: '../../../etc/passwd', newPath: 'stolen.txt' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toBe('Forbidden');
+    });
+
+    it('rejects path traversal on destination', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'src.ts'), 'x');
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: 'src.ts', newPath: '../../../etc/evil.txt' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toBe('Forbidden');
+    });
+
+    it('rejects when destination already exists', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'src.ts'), 'a');
+      fsSync.writeFileSync(path.join(tempDir, 'dst.ts'), 'b');
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: 'src.ts', newPath: 'dst.ts' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/already exists/);
+    });
+
+    it('guards against renaming the project root', async () => {
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: '.', newPath: 'renamed-root' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/project root/i);
+    });
+
+    it('rejects when source does not exist', async () => {
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: 'nonexistent.ts', newPath: 'target.ts' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/does not exist/);
+    });
+
+    it('creates parent directories at the destination', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'move-me.ts'), 'x');
+      const ws = createMockWs();
+      await handleFilesRename(
+        ws,
+        {
+          type: 'files.rename',
+          payload: { oldPath: 'move-me.ts', newPath: 'nested/deep/moved.ts' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as { payload: { success: boolean } };
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'nested/deep/moved.ts'))).toBe(true);
+    });
+  });
+
+  describe('handleFilesMove', () => {
+    it('moves a file into a directory successfully', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'file.ts'), 'content');
+      fsSync.mkdirSync(path.join(tempDir, 'target-dir'));
+      const ws = createMockWs();
+      await handleFilesMove(
+        ws,
+        {
+          type: 'files.move',
+          payload: { srcPath: 'file.ts', destDir: 'target-dir' },
+        },
+        tempDir,
+      );
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        type: string;
+        payload: { srcPath: string; destPath: string; success: boolean };
+      };
+      expect(response.type).toBe('files.moved');
+      expect(response.payload.success).toBe(true);
+      expect(response.payload.destPath).toBe('target-dir/file.ts');
+      expect(fsSync.existsSync(path.join(tempDir, 'file.ts'))).toBe(false);
+      expect(fsSync.existsSync(path.join(tempDir, 'target-dir', 'file.ts'))).toBe(true);
+    });
+
+    it('moves a directory into another directory', async () => {
+      fsSync.mkdirSync(path.join(tempDir, 'src-dir', 'sub'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'src-dir', 'sub', 'f.ts'), 'x');
+      fsSync.mkdirSync(path.join(tempDir, 'dest-dir'));
+      const ws = createMockWs();
+      await handleFilesMove(
+        ws,
+        {
+          type: 'files.move',
+          payload: { srcPath: 'src-dir', destDir: 'dest-dir' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as { payload: { success: boolean } };
+      expect(response.payload.success).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'src-dir'))).toBe(false);
+      expect(fsSync.existsSync(path.join(tempDir, 'dest-dir', 'src-dir', 'sub', 'f.ts'))).toBe(true);
+    });
+
+    it('rejects path traversal on source', async () => {
+      const ws = createMockWs();
+      await handleFilesMove(
+        ws,
+        {
+          type: 'files.move',
+          payload: { srcPath: '../../../etc/passwd', destDir: 'dest' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toBe('Forbidden');
+    });
+
+    it('rejects path traversal on destination', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'file.ts'), 'x');
+      const ws = createMockWs();
+      await handleFilesMove(
+        ws,
+        {
+          type: 'files.move',
+          payload: { srcPath: 'file.ts', destDir: '../../../etc' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toBe('Forbidden');
+    });
+
+    it('rejects when destination is not a directory', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'file.ts'), 'x');
+      fsSync.writeFileSync(path.join(tempDir, 'not-a-dir'), 'y');
+      const ws = createMockWs();
+      await handleFilesMove(
+        ws,
+        {
+          type: 'files.move',
+          payload: { srcPath: 'file.ts', destDir: 'not-a-dir' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/not a directory/);
+    });
+
+    it('rejects when a same-named file exists in the destination', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'file.ts'), 'x');
+      fsSync.mkdirSync(path.join(tempDir, 'dest'));
+      fsSync.writeFileSync(path.join(tempDir, 'dest', 'file.ts'), 'y');
+      const ws = createMockWs();
+      await handleFilesMove(
+        ws,
+        {
+          type: 'files.move',
+          payload: { srcPath: 'file.ts', destDir: 'dest' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/already exists/);
+    });
+
+    it('guards against moving the project root', async () => {
+      fsSync.mkdirSync(path.join(tempDir, 'dest'));
+      const ws = createMockWs();
+      await handleFilesMove(
+        ws,
+        {
+          type: 'files.move',
+          payload: { srcPath: '.', destDir: 'dest' },
+        },
+        tempDir,
+      );
+      const response = ws.sent[0] as {
+        payload: { success: boolean; error?: string };
+      };
+      expect(response.payload.success).toBe(false);
+      expect(response.payload.error).toMatch(/project root/i);
     });
   });
 });

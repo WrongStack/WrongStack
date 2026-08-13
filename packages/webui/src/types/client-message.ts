@@ -489,6 +489,10 @@ export type WSClientMessageCore =
   | { type: 'files.tree'; payload: { path?: string | undefined } | Record<string, never> }
   | { type: 'files.read'; payload: { filePath: string } }
   | { type: 'files.write'; payload: { filePath: string; content: string } }
+  | { type: 'files.create'; payload: { filePath: string; type: 'file' | 'directory' } }
+  | { type: 'files.delete'; payload: { filePath: string; recursive?: boolean | undefined } }
+  | { type: 'files.rename'; payload: { oldPath: string; newPath: string } }
+  | { type: 'files.move'; payload: { srcPath: string; destDir: string } }
   | WSCompletionRequest
   | { type: 'todos.get'; payload?: SessionScopedPayload }
   | { type: 'todos.clear'; payload?: SessionScopedPayload }

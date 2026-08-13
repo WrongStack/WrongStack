@@ -1,6 +1,6 @@
 import { toast } from '@/components/Toaster';
 import { getWSClient } from '@/lib/ws-client';
-import { useFileStore } from '@/stores';
+import { useFileStore, useSessionStore } from '@/stores';
 import type { TreeNode } from '@/stores/file-store';
 import { type MailboxAgent, type MailboxMessage, useMailboxStore } from '@/stores/mailbox-store';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
@@ -54,6 +54,80 @@ export function handleFilesWritten(msg: WSServerMessage) {
   } else if (p.error) {
     useFileStore.getState().setError(`Save failed: ${p.error}`);
   }
+}
+
+export function handleFilesCreated(msg: WSServerMessage) {
+  const p = msg.payload as { filePath: string; success: boolean; error?: string | undefined };
+  if (!p.success && p.error) {
+    useFileStore.getState().setError(`Create failed: ${p.error}`);
+  }
+  // On success, the project watcher broadcasts files.tree.changed
+  // which triggers a tree refresh — no explicit action needed here.
+}
+
+export function handleFilesDeleted(msg: WSServerMessage) {
+  const p = msg.payload as { filePath: string; success: boolean; error?: string | undefined };
+  if (p.success) {
+    // Close any open editor tab for the deleted file
+    useFileStore.getState().closeFile(p.filePath);
+  } else if (p.error) {
+    useFileStore.getState().setError(`Delete failed: ${p.error}`);
+  }
+}
+
+export function handleFilesRenamed(msg: WSServerMessage) {
+  const p = msg.payload as {
+    oldPath: string;
+    newPath: string;
+    success: boolean;
+    error?: string | undefined;
+  };
+  if (p.success) {
+    // If the renamed file was open in an editor tab, close the old tab
+    // (the tree watcher will refresh and the user can reopen at the new path).
+    useFileStore.getState().closeFile(p.oldPath);
+  } else if (p.error) {
+    useFileStore.getState().setError(`Rename failed: ${p.error}`);
+  }
+}
+
+export function handleFilesMoved(msg: WSServerMessage) {
+  const p = msg.payload as {
+    srcPath: string;
+    destPath: string;
+    success: boolean;
+    error?: string | undefined;
+  };
+  if (p.success) {
+    useFileStore.getState().closeFile(p.srcPath);
+  } else if (p.error) {
+    useFileStore.getState().setError(`Move failed: ${p.error}`);
+  }
+}
+
+/**
+ * The server's project watcher detected a filesystem change. Re-request
+ * the tree for the current working directory so the explorer refreshes
+ * live. The tree store's `setTree` preserves the user's expansion state
+ * (managed in FileExplorer component state, keyed by directory path).
+ *
+ * The re-request is debounced client-side: the server's project watcher
+ * already debounces its `files.tree.changed` broadcasts (400ms), but
+ * separate watcher events and overlapping create/delete bursts can still
+ * land back-to-back; coalescing here keeps the explorer from firing a
+ * burst of `files.tree` round-trips (and intermediate loading flickers).
+ */
+let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+const TREE_REFRESH_DEBOUNCE_MS = 500;
+
+export function handleFilesTreeChanged(_msg: WSServerMessage) {
+  if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
+  treeRefreshTimer = setTimeout(() => {
+    treeRefreshTimer = null;
+    const cwd = useSessionStore.getState().cwd;
+    useFileStore.getState().setTreeLoading(true);
+    getWSClient().send({ type: 'files.tree', payload: { path: cwd } });
+  }, TREE_REFRESH_DEBOUNCE_MS);
 }
 
 export function handleMailboxEvent(msg: WSServerMessage) {
@@ -141,8 +215,13 @@ export function handleMailboxActionResult(msg: WSServerMessage) {
 
 export const filesMailboxHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {
   'files.tree': handleFilesTree,
+  'files.tree.changed': handleFilesTreeChanged,
   'files.read': handleFilesRead,
   'files.written': handleFilesWritten,
+  'files.created': handleFilesCreated,
+  'files.deleted': handleFilesDeleted,
+  'files.renamed': handleFilesRenamed,
+  'files.moved': handleFilesMoved,
   'mailbox.event': handleMailboxEvent,
   'mailbox.messages': handleMailboxMessages,
   'mailbox.agents': handleMailboxAgents,

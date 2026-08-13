@@ -116,8 +116,12 @@ export {
   type EternalSubscription,
 } from './eternal-iteration-broadcast.js';
 export {
+  handleFilesCreate,
+  handleFilesDelete,
   handleFilesList,
+  handleFilesMove,
   handleFilesRead,
+  handleFilesRename,
   handleFilesTree,
   handleFilesWrite,
 } from './file-handlers.js';
@@ -465,6 +469,7 @@ export {
 } from './skills-handlers.js';
 export { handleSpecsRoute, type SpecsRouteHandlers } from './specs-routes.js';
 export { SpecsWebSocketHandler } from './specs-ws-handler.js';
+export { startProjectWatcher } from './project-watcher.js';
 export { startWebUI } from './start-webui.js';
 export { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 export {

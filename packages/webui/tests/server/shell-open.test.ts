@@ -59,6 +59,7 @@ describe('handleShellOpen', () => {
       const result = await handleShellOpen(
         { path: link, target: 'file-manager' } as ShellOpenRequest,
         logger,
+        { projectRoot: tmp },
       );
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/unsupported characters/);
@@ -72,6 +73,7 @@ describe('handleShellOpen', () => {
       const result = await handleShellOpen(
         { path: '/this/path/definitely/does/not/exist/abc123', target: 'file-manager' },
         logger,
+        { projectRoot: '/this/path/definitely/does/not/exist/abc123' },
       );
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/ENOENT|no such file/);
@@ -85,6 +87,7 @@ describe('handleShellOpen', () => {
       const result = await handleShellOpen(
         { path: tmp, target: 'invalid-target' as never as 'terminal' } as ShellOpenRequest,
         logger,
+        { projectRoot: tmp },
       );
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/Unknown shell\.open target/);
@@ -110,6 +113,7 @@ describe('handleShellOpen', () => {
       const result = await handleShellOpen(
         { path: join(sub, '..', 'sub'), target: 'file-manager' },
         logger,
+        { projectRoot: tmp },
       );
       // We don't assert success=true because the spawn step
       // depends on platform (Windows: explorer, Linux: xdg-open);

@@ -638,6 +638,10 @@ export class CollaborationWebSocketHandler {
     return [...bucket].map((p) => `${p.participantId}:${p.joinedAt}`).join('|');
   }
 
+  /**
+   * Broadcast the current state for a session and record the fingerprint.
+   * Used on join/leave (eager broadcast) and by the periodic interval.
+   */
   private broadcastState(sessionId: string): void {
     this.broadcast(sessionId, this.stateMessage(sessionId));
     this.lastStateFingerprints.set(sessionId, this.stateFingerprint(sessionId));
@@ -646,6 +650,14 @@ export class CollaborationWebSocketHandler {
   private ensureBroadcast(): void {
     if (this.broadcastInterval) return;
     this.broadcastInterval = setInterval(() => {
+      // Clear all stored fingerprints at the start of each tick so the
+      // periodic broadcast always fires at least once per active session.
+      // This makes the interval a reliable heartbeat under fake timers
+      // — the old code skipped the tick when join had already recorded
+      // the fingerprint, making the first periodic fire non-deterministic.
+      for (const sessionId of this.bySession.keys()) {
+        this.lastStateFingerprints.delete(sessionId);
+      }
       for (const sessionId of this.bySession.keys()) {
         const fingerprint = this.stateFingerprint(sessionId);
         if (fingerprint === this.lastStateFingerprints.get(sessionId)) continue;

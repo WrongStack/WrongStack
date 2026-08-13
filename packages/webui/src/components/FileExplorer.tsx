@@ -2,22 +2,27 @@ import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
 import { useFileStore } from '@/stores/file-store';
 import type { TreeNode } from '@/stores/file-store';
-import { useFileReferenceStore, useSessionStore } from '@/stores';
+import { useFileReferenceStore, useGitChangesStore, useSessionStore } from '@/stores';
 import { getWSClient } from '@/lib/ws-client';
 import { fileIcon, fileIconColor } from '@/lib/file-icons';
 import { showPanel } from '@/lib/view-navigation';
 import { copyToClipboard as copyTextToClipboard } from './MessageBubble/utils.js';
 import { toast } from './Toaster';
 import {
+  ArrowDownWideNarrow,
   ChevronRight,
   CornerLeftUp,
   FileCode,
+  FilePlus,
   Folder,
   FolderGit,
   FolderOpen,
+  FolderPlus,
   Folders,
   Loader2,
   Minimize2,
+  Search,
+  Trash2,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VList, type VListHandle } from 'virtua';
@@ -58,6 +63,37 @@ function flattenTree(tree: TreeNode[], expandedDirs: ReadonlySet<string>): FlatR
   return out;
 }
 
+/**
+ * Score a file path against a query — ported from the server-side
+ * `rankFiles()` in `file-picker.ts` so the explorer and the chat `@`
+ * picker use the same ranking: exact basename (100) > basename prefix
+ * (60) > path substring (20), penalized by depth so shallow files win.
+ */
+function scoreFile(filePath: string, q: string): number {
+  const lower = filePath.toLowerCase();
+  const base = lower.split('/').pop() ?? lower;
+  let score = 0;
+  if (base === q) score = 100;
+  else if (base.startsWith(q)) score = 60;
+  else if (lower.includes(q)) score = 20;
+  else return -1;
+  score -= lower.split('/').length;
+  return score;
+}
+
+/** Recursively collect every file node in the tree (regardless of expansion). */
+function collectAllFiles(tree: TreeNode[]): TreeNode[] {
+  const out: TreeNode[] = [];
+  const walk = (nodes: TreeNode[]) => {
+    for (const n of nodes) {
+      if (n.type === 'file') out.push(n);
+      else if (n.children) walk(n.children);
+    }
+  };
+  walk(tree);
+  return out;
+}
+
 /** Collect every directory path in the tree (for expand-all). */
 function collectDirPaths(tree: TreeNode[]): string[] {
   const out: string[] = [];
@@ -73,6 +109,43 @@ function collectDirPaths(tree: TreeNode[]): string[] {
   return out;
 }
 
+const GIT_STATUS_COLORS: Record<string, string> = {
+  M: 'text-warning',
+  A: 'text-success',
+  D: 'text-destructive',
+  R: 'text-info',
+  C: 'text-info',
+  U: 'text-destructive',
+  '?': 'text-primary',
+};
+
+const GIT_STATUS_LABELS: Record<string, string> = {
+  M: 'Modified',
+  A: 'Added',
+  D: 'Deleted',
+  R: 'Renamed',
+  C: 'Copied',
+  U: 'Unmerged',
+  '?': 'Untracked',
+};
+
+function GitStatusDot({ status }: { status: string }) {
+  // The server sends single-letter status codes (M/A/D/R/C/U/?).
+  // Show a colored letter badge at the right edge of the row.
+  const letter = status[0] ?? '?';
+  const color = GIT_STATUS_COLORS[letter] ?? 'text-muted-foreground';
+  const label = GIT_STATUS_LABELS[letter] ?? 'Unknown';
+  return (
+    <span
+      className={cn('shrink-0 text-[8px] font-bold tabular-nums', color)}
+      title={label}
+      aria-label={label}
+    >
+      {letter}
+    </span>
+  );
+}
+
 const TreeRow = memo(function TreeRow({
   node,
   depth,
@@ -81,6 +154,7 @@ const TreeRow = memo(function TreeRow({
   isActive,
   isSelected,
   isFocused,
+  gitStatus,
   onToggle,
   onSelect,
   onOpen,
@@ -93,6 +167,7 @@ const TreeRow = memo(function TreeRow({
   isActive: boolean;
   isSelected: boolean;
   isFocused: boolean;
+  gitStatus?: string | undefined;
   onToggle: (path: string) => void;
   onSelect: (filePath: string) => void;
   onOpen: (filePath: string) => void;
@@ -143,6 +218,7 @@ const TreeRow = memo(function TreeRow({
           <DirIcon className={cn('h-3.5 w-3.5 shrink-0', dirColor)} />
         )}
         <span className="truncate font-medium flex-1 min-w-0">{node.name}</span>
+        {gitStatus && <GitStatusDot status={gitStatus} />}
       </button>
     );
   }
@@ -174,7 +250,8 @@ const TreeRow = memo(function TreeRow({
     >
       <span className="w-3 shrink-0" /> {/* spacer to align with chevron */}
       <Icon className={cn('h-3.5 w-3.5 shrink-0', iconColor)} />
-      <span className="truncate">{node.name}</span>
+      <span className="truncate flex-1 min-w-0">{node.name}</span>
+      {gitStatus && <GitStatusDot status={gitStatus} />}
     </button>
   );
 });
@@ -190,6 +267,18 @@ export function FileExplorer() {
   const activeFilePath = useFileStore((s) => s.activeFilePath);
   const cwd = useSessionStore((s) => s.cwd);
   const projectName = useSessionStore((s) => s.projectName);
+  const gitChanges = useGitChangesStore((s) => s.files);
+
+  // Build a lookup map from git-changes file paths to their status code.
+  // The git store uses repo-relative paths (forward-slash), same as the
+  // tree node paths which are project-root-relative.
+  const gitStatusMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const f of gitChanges) {
+      m.set(f.path, f.status);
+    }
+    return m;
+  }, [gitChanges]);
 
   // Detect OS path separator from cwd (server sends native paths).
   const pathSep = cwd?.includes('\\') ? '\\' : '/';
@@ -267,9 +356,11 @@ export function FileExplorer() {
 
   // ── Context menu on tree node right-click ────────────────────────────
   //
-  // Offers "Mention in chat" (files) and "Copy path" (files + dirs). The
-  // file-mention path adds a reference chip to the chat input and switches
-  // to the chat view, mirroring the CodeEditor "send to chat" flow.
+  // Offers "Mention in chat" (files), "Copy path" (files + dirs),
+  // "New File" / "New Folder" (dirs), and "Delete" (files + dirs).
+  // The file-mention path adds a reference chip to the chat input
+  // and switches to the chat view, mirroring the CodeEditor "send
+  // to chat" flow.
 
   const [nodeMenu, setNodeMenu] = useState<{
     x: number;
@@ -346,6 +437,94 @@ export function FileExplorer() {
     setContextMenu(null);
   }, []);
 
+  // ── File creation / deletion ────────────────────────────────────────
+  //
+  // Inline prompt for "New File" / "New Folder": the user types a name
+  // relative to the target directory, and we send files.create. Delete
+  // sends files.delete with a confirmation for directories.
+
+  const [createPrompt, setCreatePrompt] = useState<{
+    dirPath: string;
+    type: 'file' | 'directory';
+  } | null>(null);
+  const [createName, setCreateName] = useState('');
+
+  const handleStartCreate = useCallback(
+    (dirPath: string, type: 'file' | 'directory') => {
+      setNodeMenu(null);
+      setCreateName('');
+      setCreatePrompt({ dirPath, type });
+    },
+    [],
+  );
+
+  const handleConfirmCreate = useCallback(() => {
+    if (!createPrompt || !createName.trim()) return;
+    const filePath = createPrompt.dirPath
+      ? `${createPrompt.dirPath}/${createName.trim()}`
+      : createName.trim();
+    getWSClient().send({
+      type: 'files.create',
+      payload: { filePath, type: createPrompt.type },
+    });
+    setCreatePrompt(null);
+    setCreateName('');
+  }, [createPrompt, createName]);
+
+  const handleDelete = useCallback(
+    (node: TreeNode) => {
+      setNodeMenu(null);
+      const isDir = node.type === 'directory';
+      // Directories need recursive delete; confirm first.
+      if (isDir) {
+        const ok = window.confirm(
+          t('activity:fileExplorer.confirmDeleteDir', { name: node.name }),
+        );
+        if (!ok) return;
+      }
+      getWSClient().send({
+        type: 'files.delete',
+        payload: { filePath: node.path, recursive: isDir },
+      });
+    },
+    [t],
+  );
+
+  // ── Rename ──────────────────────────────────────────────────────────
+  //
+  // Inline prompt for "Rename": the user types a new name (relative to
+  // the same parent directory as the original). We send files.rename.
+
+  const [renamePrompt, setRenamePrompt] = useState<{
+    oldPath: string;
+    initialName: string;
+  } | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const handleStartRename = useCallback((node: TreeNode) => {
+    setNodeMenu(null);
+    setRenameValue(node.name);
+    setRenamePrompt({ oldPath: node.path, initialName: node.name });
+  }, []);
+
+  const handleConfirmRename = useCallback(() => {
+    if (!renamePrompt || !renameValue.trim()) return;
+    const norm = renamePrompt.oldPath.replace(/\\/g, '/');
+    const parent = norm.split('/').slice(0, -1).join('/');
+    const newPath = parent ? `${parent}/${renameValue.trim()}` : renameValue.trim();
+    // No-op if unchanged
+    if (newPath === renamePrompt.oldPath) {
+      setRenamePrompt(null);
+      return;
+    }
+    getWSClient().send({
+      type: 'files.rename',
+      payload: { oldPath: renamePrompt.oldPath, newPath },
+    });
+    setRenamePrompt(null);
+    setRenameValue('');
+  }, [renamePrompt, renameValue]);
+
   const handleGoUp = useCallback(() => {
     if (!cwd) return;
     // Compute parent: strip the last path segment. On Windows, normalize
@@ -401,8 +580,47 @@ export function FileExplorer() {
   const allDirPaths = useMemo(() => collectDirPaths(tree), [tree]);
   const dirCount = allDirPaths.length;
 
+  // ── Sort mode ──────────────────────────────────────────────────────
+  // 'name' (default) sorts alphabetically with directories first. 'size-desc'
+  // sorts files by size descending (largest first), directories stay grouped
+  // at the top alphabetically. Only the top-level children of the tree are
+  // sorted — nested children preserve server order.
+  const [sortBySize, setSortBySize] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const sortedTree = useMemo(() => {
+    if (!sortBySize) return tree;
+    const sorted = [...tree].sort((a, b) => {
+      // Directories always come before files, sorted alphabetically.
+      if (a.type === 'directory' && b.type === 'file') return -1;
+      if (a.type === 'file' && b.type === 'directory') return 1;
+      if (a.type === 'directory') return a.name.localeCompare(b.name);
+      // Both files — sort by size descending.
+      const sizeA = a.size ?? 0;
+      const sizeB = b.size ?? 0;
+      if (sizeB !== sizeA) return sizeB - sizeA;
+      return a.name.localeCompare(b.name);
+    });
+    return sorted;
+  }, [tree, sortBySize]);
+
   // Visible rows of the flattened tree — this is what the VList renders.
-  const rows = useMemo(() => flattenTree(tree, expandedDirs), [tree, expandedDirs]);
+  // When a search query is active, we switch to flat-filtered mode: all
+  // files are scored against the query (same rankFiles logic as the chat
+  // `@`-mention picker), top 200 shown, expansion state ignored.
+  const rows = useMemo(() => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const allFiles = collectAllFiles(sortedTree);
+      return allFiles
+        .map((n) => ({ node: n, score: scoreFile(n.path, q) }))
+        .filter((r) => r.score >= 0)
+        .sort((a, b) => b.score - a.score || a.node.path.localeCompare(b.node.path))
+        .slice(0, 200)
+        .map((r) => ({ node: r.node, depth: 0 }) as FlatRow);
+    }
+    return flattenTree(sortedTree, expandedDirs);
+  }, [sortedTree, expandedDirs, searchQuery]);
 
   // Count files and folders in the current directory (first-level only)
   const cwdStats = useMemo(() => {
@@ -551,16 +769,29 @@ export function FileExplorer() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-3 text-[11px] text-destructive">
-        {t('activity:fileExplorer.loadFailed', { error })}
-      </div>
-    );
-  }
+  // Error no longer replaces the entire tree — it renders as a
+  // dismissible inline banner above whatever tree content we still
+  // have, so the user keeps their context and expansion state.
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      {/* ── Inline error banner (preserves tree context) ── */}
+      {error && (
+        <div className="flex shrink-0 items-center gap-1.5 px-2 py-1 border-b border-destructive/30 bg-destructive/5 text-[10px] text-destructive">
+          <span className="truncate flex-1 min-w-0">
+            {t('activity:fileExplorer.loadFailed', { error })}
+          </span>
+          <button
+            type="button"
+            onClick={() => useFileStore.getState().setError(null)}
+            className="shrink-0 text-destructive/70 hover:text-destructive text-[10px]"
+            title={t('common:action.dismiss')}
+            aria-label={t('common:action.dismiss')}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {/* ── Toolbar ── */}
       {tree.length > 0 && dirCount > 0 && (
         <div className="flex items-center gap-0.5 px-2 py-0.5 border-b shrink-0">
@@ -588,6 +819,49 @@ export function FileExplorer() {
             <Minimize2 className="h-3 w-3" />
             <span>{t('activity:fileExplorer.collapse')}</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setSortBySize((v) => !v)}
+            className={cn(
+              'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition-colors',
+              'hover:bg-muted/60',
+              sortBySize ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+            )}
+            title={
+              sortBySize
+                ? t('activity:fileExplorer.sortByNameTitle')
+                : t('activity:fileExplorer.sortBySizeTitle')
+            }
+          >
+            <ArrowDownWideNarrow className="h-3 w-3" />
+            <span>
+              {sortBySize
+                ? t('activity:fileExplorer.sortBySize')
+                : t('activity:fileExplorer.sortByName')}
+            </span>
+          </button>
+          {/* ── Search filter ── */}
+          <div className="relative flex items-center">
+            <Search className="absolute left-1 h-3 w-3 text-muted-foreground/60 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('activity:fileExplorer.searchPlaceholder')}
+              className="w-28 rounded bg-muted/40 px-1 py-0.5 pl-4 text-[10px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:w-40 focus:bg-muted/70 focus:ring-1 focus:ring-primary/30 transition-all"
+              aria-label={t('activity:fileExplorer.search')}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-0.5 text-muted-foreground/60 hover:text-foreground text-[10px]"
+                aria-label={t('common:action.clear')}
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <span className="ml-auto text-[9px] text-muted-foreground/70 tabular-nums">
             {t('activity:fileExplorer.folders', { count: dirCount })}
           </span>
@@ -722,6 +996,7 @@ export function FileExplorer() {
                   isActive={row.node.type === 'file' && row.node.path === activeFilePath}
                   isSelected={!row.emptyPlaceholder && row.node.path === selectedPath}
                   isFocused={!row.emptyPlaceholder && row.node.path === focusedPath}
+                  gitStatus={!row.emptyPlaceholder ? gitStatusMap.get(row.node.path) : undefined}
                   onToggle={toggleDir}
                   onSelect={handleSelect}
                   onOpen={handleOpen}
@@ -756,6 +1031,23 @@ export function FileExplorer() {
             className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
           >
             {t('activity:fileExplorer.copyRelPath')}
+          </button>
+          <div className="border-t border-border/50 my-0.5" />
+          <button
+            type="button"
+            onClick={() => handleStartCreate(contextMenu.crumb.relPath === '.' ? '' : contextMenu.crumb.relPath, 'file')}
+            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
+          >
+            <FilePlus className="h-3 w-3 shrink-0" />
+            {t('activity:fileExplorer.newFile')}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleStartCreate(contextMenu.crumb.relPath === '.' ? '' : contextMenu.crumb.relPath, 'directory')}
+            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
+          >
+            <FolderPlus className="h-3 w-3 shrink-0" />
+            {t('activity:fileExplorer.newFolder')}
           </button>
           <div className="border-t border-border/50 my-0.5" />
           <button
@@ -808,9 +1100,139 @@ export function FileExplorer() {
           >
             {t('activity:fileExplorer.copyPath')}
           </button>
+          {/* ── Create / Rename / Delete actions ── */}
+          <div className="border-t border-border/50 my-0.5" />
+          {nodeMenu.node.type === 'directory' && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleStartCreate(nodeMenu.node.path, 'file')}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
+              >
+                <FilePlus className="h-3 w-3 shrink-0" />
+                {t('activity:fileExplorer.newFile')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStartCreate(nodeMenu.node.path, 'directory')}
+                className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
+              >
+                <FolderPlus className="h-3 w-3 shrink-0" />
+                {t('activity:fileExplorer.newFolder')}
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => handleStartRename(nodeMenu.node)}
+            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
+          >
+            {t('activity:fileExplorer.rename')}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDelete(nodeMenu.node)}
+            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-destructive/10 text-destructive transition-colors"
+          >
+            <Trash2 className="h-3 w-3 shrink-0" />
+            {t('activity:fileExplorer.delete')}
+          </button>
           <div className="border-t border-border/50 mt-0.5 pt-0.5">
             <div className="px-3 py-1 text-[9px] text-muted-foreground/70 truncate max-w-[200px]">
               {nodeMenu.node.path}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inline create prompt ── */}
+      {createPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-popover border rounded-md shadow-lg p-4 min-w-[300px]">
+            <p className="text-[12px] font-medium mb-2">
+              {createPrompt.type === 'file'
+                ? t('activity:fileExplorer.newFileTitle')
+                : t('activity:fileExplorer.newFolderTitle')}
+            </p>
+            <input
+              type="text"
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirmCreate();
+                if (e.key === 'Escape') {
+                  setCreatePrompt(null);
+                  setCreateName('');
+                }
+              }}
+              placeholder={createPrompt.type === 'file' ? 'file.ts' : 'folder'}
+              className="w-full px-2 py-1 text-[11px] border rounded bg-background outline-none focus:ring-1 ring-primary"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatePrompt(null);
+                  setCreateName('');
+                }}
+                className="px-2 py-1 text-[10px] rounded border text-muted-foreground hover:text-foreground"
+              >
+                {t('common:action.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCreate}
+                disabled={!createName.trim()}
+                className="px-2 py-1 text-[10px] rounded border border-primary text-primary font-medium hover:bg-primary hover:text-primary-foreground disabled:opacity-40"
+              >
+                {t('common:action.create')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Inline rename prompt ── */}
+      {renamePrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-popover border rounded-md shadow-lg p-4 min-w-[300px]">
+            <p className="text-[12px] font-medium mb-2">
+              {t('activity:fileExplorer.renameTitle')}
+            </p>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirmRename();
+                if (e.key === 'Escape') {
+                  setRenamePrompt(null);
+                  setRenameValue('');
+                }
+              }}
+              className="w-full px-2 py-1 text-[11px] border rounded bg-background outline-none focus:ring-1 ring-primary"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setRenamePrompt(null);
+                  setRenameValue('');
+                }}
+                className="px-2 py-1 text-[10px] rounded border text-muted-foreground hover:text-foreground"
+              >
+                {t('common:action.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRename}
+                disabled={!renameValue.trim() || renameValue.trim() === renamePrompt.initialName}
+                className="px-2 py-1 text-[10px] rounded border border-primary text-primary font-medium hover:bg-primary hover:text-primary-foreground disabled:opacity-40"
+              >
+                {t('common:action.rename')}
+              </button>
             </div>
           </div>
         </div>

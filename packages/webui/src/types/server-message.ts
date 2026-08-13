@@ -268,6 +268,22 @@ export type WSServerMessage =
       type: 'files.written';
       payload: { filePath: string; success: boolean; error?: string | undefined };
     }
+  | {
+      type: 'files.created';
+      payload: { filePath: string; success: boolean; error?: string | undefined };
+    }
+  | {
+      type: 'files.deleted';
+      payload: { filePath: string; success: boolean; error?: string | undefined };
+    }
+  | {
+      type: 'files.renamed';
+      payload: { oldPath: string; newPath: string; success: boolean; error?: string | undefined };
+    }
+  | {
+      type: 'files.moved';
+      payload: { srcPath: string; destPath: string; success: boolean; error?: string | undefined };
+    }
   | WSCompletionResult
   | WSTodosUpdated
   | WSTodosCleared

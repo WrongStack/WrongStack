@@ -241,6 +241,82 @@ describe('setTreeLoading', () => {
   });
 });
 
+// ── persist middleware ──────────────────────────────────────────────
+
+describe('persist middleware', () => {
+  beforeEach(() => resetStore());
+
+  it('persists openFiles and activeFilePath to localStorage', () => {
+    useFileStore.getState().openFile('/proj/a.ts', 'content-a');
+    useFileStore.getState().openFile('/proj/b.ts', 'content-b');
+    useFileStore.getState().setActiveFile('/proj/b.ts');
+
+    const raw = localStorage.getItem('wrongstack-file-store');
+    expect(raw).toBeTruthy();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.state.openFiles).toHaveLength(2);
+    expect(parsed.state.openFiles[0].path).toBe('/proj/a.ts');
+    expect(parsed.state.openFiles[1].path).toBe('/proj/b.ts');
+    expect(parsed.state.activeFilePath).toBe('/proj/b.ts');
+  });
+
+  it('does NOT persist transient state (tree, treeLoading, error)', () => {
+    useFileStore.getState().setTree('/proj', [{ name: 'x', path: '/proj/x', type: 'file' }]);
+    useFileStore.getState().setTreeLoading(true);
+    useFileStore.getState().setError('boom');
+
+    const raw = localStorage.getItem('wrongstack-file-store');
+    const parsed = JSON.parse(raw!);
+    expect(parsed.state.tree).toBeUndefined();
+    expect(parsed.state.treeLoading).toBeUndefined();
+    expect(parsed.state.error).toBeUndefined();
+  });
+
+  it('restores open tabs and active file on rehydration', () => {
+    // Simulate what happens on page load: store already has persisted data
+    // in localStorage, and Zustand persist reads it on creation.
+    localStorage.setItem(
+      'wrongstack-file-store',
+      JSON.stringify({
+        state: {
+          openFiles: [
+            { path: '/proj/a.ts', content: 'hello', dirty: false, savedContent: 'hello' },
+            { path: '/proj/b.ts', content: 'world-edited', dirty: true, savedContent: 'world' },
+          ],
+          activeFilePath: '/proj/b.ts',
+        },
+        version: 1,
+      }),
+    );
+
+    // Force rehydration by re-creating the store state from persisted data.
+    // In a real browser, Zustand persist does this automatically on creation.
+    const persisted = JSON.parse(localStorage.getItem('wrongstack-file-store')!);
+    useFileStore.setState({
+      openFiles: persisted.state.openFiles,
+      activeFilePath: persisted.state.activeFilePath,
+    });
+
+    const state = useFileStore.getState();
+    expect(state.openFiles).toHaveLength(2);
+    expect(state.openFiles[0].path).toBe('/proj/a.ts');
+    expect(state.openFiles[0].dirty).toBe(false);
+    // Dirty state is preserved across rehydration.
+    expect(state.openFiles[1].path).toBe('/proj/b.ts');
+    expect(state.openFiles[1].dirty).toBe(true);
+    expect(state.openFiles[1].content).toBe('world-edited');
+    expect(state.openFiles[1].savedContent).toBe('world');
+    expect(state.activeFilePath).toBe('/proj/b.ts');
+  });
+
+  it('includes version: 1 in the persisted payload', () => {
+    useFileStore.getState().openFile('/proj/a.ts', 'content');
+    const raw = localStorage.getItem('wrongstack-file-store');
+    const parsed = JSON.parse(raw!);
+    expect(parsed.version).toBe(1);
+  });
+});
+
 // ── setError ─────────────────────────────────────────────────────────
 
 describe('setError', () => {

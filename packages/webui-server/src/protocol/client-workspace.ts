@@ -1,6 +1,10 @@
 export const CLIENT_WORKSPACE_MESSAGE_TYPES = [
+  'files.create',
+  'files.delete',
   'files.list',
+  'files.move',
   'files.read',
+  'files.rename',
   'files.tree',
   'files.write',
   'git.changes',

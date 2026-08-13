@@ -11,8 +11,12 @@ import {
   handleDesignVerify,
 } from './design-handlers.js';
 import {
+  handleFilesCreate,
+  handleFilesDelete,
   handleFilesList,
+  handleFilesMove,
   handleFilesRead,
+  handleFilesRename,
   handleFilesTree,
   handleFilesWrite,
 } from './file-handlers.js';
@@ -67,6 +71,18 @@ export async function handleContentRoute(
       await handleFilesWrite(ws, message, ctx.getProjectRoot(), {
         onWritten: ctx.onFileWritten,
       });
+      return true;
+    case 'files.create':
+      await handleFilesCreate(ws, message, ctx.getProjectRoot());
+      return true;
+    case 'files.delete':
+      await handleFilesDelete(ws, message, ctx.getProjectRoot());
+      return true;
+    case 'files.rename':
+      await handleFilesRename(ws, message, ctx.getProjectRoot());
+      return true;
+    case 'files.move':
+      await handleFilesMove(ws, message, ctx.getProjectRoot());
       return true;
     case 'skills.list':
       await handleSkillsList(ws, ctx.getSkillsContext());

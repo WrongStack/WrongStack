@@ -16,6 +16,7 @@ import { registerSetupEventsProviderHandlers } from './setup-events-provider-han
 import { createSetupEventSessionHelpers } from './setup-events-session-helpers.js';
 import { registerSetupEventsStatusWatcher } from './setup-events-status-watcher.js';
 import type { FileWatcherMetrics } from './setup-events-watcher.js';
+import { startProjectWatcher } from './project-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
 export type { FileWatcherMetrics } from './setup-events-watcher.js';
@@ -87,6 +88,24 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   disposers.push(
     ...registerSetupEventsCoreWatchers({ events, broadcast, clients, context, wpaths }),
   );
+
+  // ── Project source-tree watcher ────────────────────────────────
+  //
+  // Watches projectRoot for filesystem changes and broadcasts
+  // `files.tree.changed` so connected WebUI clients re-request the
+  // tree and refresh the file explorer without manual navigation.
+  // The watcher ignores heavyweight dirs (node_modules, .git, …)
+  // and debounces event bursts (400ms) to avoid notification storms.
+  if (context.projectRoot) {
+    disposers.push(
+      startProjectWatcher({
+        projectRoot: context.projectRoot,
+        broadcast,
+        clients,
+      }),
+    );
+  }
+
   const projectRoot = context.projectRoot;
   const { sessionPayload, appendForCurrentSession } = createSetupEventSessionHelpers(
     context,

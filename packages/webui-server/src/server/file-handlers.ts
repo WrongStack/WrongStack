@@ -190,6 +190,8 @@ export async function handleFilesTree(
     path: string;
     type: 'file' | 'directory';
     children?: TreeNode[];
+    size?: number;
+    lastModified?: number;
   }
 
   // Use the optional `path` from the message payload as the tree root.
@@ -258,10 +260,34 @@ export async function handleFilesTree(
         if (!isPathInside(realProjectRoot, realChild)) {
           continue;
         }
+        let dirStat: import('node:fs').Stats;
+        try {
+          dirStat = await fs.stat(realChild);
+        } catch {
+          continue;
+        }
         const children = await buildTree(realChild, childRel, depth + 1);
-        nodes.push({ name: e.name, path: childPath, type: 'directory', children });
+        nodes.push({
+          name: e.name,
+          path: childPath,
+          type: 'directory',
+          children,
+          lastModified: dirStat.mtimeMs,
+        });
       } else if (e.isFile()) {
-        nodes.push({ name: e.name, path: childPath, type: 'file' });
+        let fileStat: import('node:fs').Stats;
+        try {
+          fileStat = await fs.stat(childAbs);
+        } catch {
+          continue;
+        }
+        nodes.push({
+          name: e.name,
+          path: childPath,
+          type: 'file',
+          size: fileStat.size,
+          lastModified: fileStat.mtimeMs,
+        });
       }
     }
     return nodes;
@@ -447,4 +473,371 @@ export async function handleFilesList(
     type: 'files.list',
     payload: { files: rankFiles(results, payload.query ?? '', limit) },
   });
+}
+
+// ── files.create ──────────────────────────────────────────────────────
+
+interface FilesCreatePayload {
+  filePath: string;
+  type: 'file' | 'directory';
+}
+
+/**
+ * Create a new file or directory inside the project root.
+ *
+ * Guards against path traversal via `resolveFileInsideProject`. Rejects
+ * if the target already exists. Responds with
+ * `{ type: 'files.created', payload: { filePath, success } }`.
+ */
+export async function handleFilesCreate(
+  ws: WebSocket,
+  msg: unknown,
+  projectRoot: string,
+): Promise<void> {
+  let filePath: string;
+  let entryType: 'file' | 'directory';
+  try {
+    const payload = validatedPayload<FilesCreatePayload>(msg, 'files.create');
+    filePath = payload.filePath;
+    entryType = payload.type;
+    if (entryType !== 'file' && entryType !== 'directory') {
+      send(ws, {
+        type: 'files.created',
+        payload: { filePath, success: false, error: 'Type must be "file" or "directory".' },
+      });
+      return;
+    }
+  } catch {
+    send(ws, {
+      type: 'files.created',
+      payload: { filePath: '', success: false, error: 'Malformed request' },
+    });
+    return;
+  }
+
+  let realResolved: string;
+  try {
+    realResolved = await resolveFileInsideProject(projectRoot, filePath);
+  } catch {
+    send(ws, {
+      type: 'files.created',
+      payload: { filePath, success: false, error: 'Forbidden' },
+    });
+    return;
+  }
+
+  try {
+    // Reject if the target already exists — the client should use
+    // files.write to overwrite an existing file, not files.create.
+    await fs.access(realResolved);
+    send(ws, {
+      type: 'files.created',
+      payload: { filePath, success: false, error: 'File or directory already exists.' },
+    });
+    return;
+  } catch {
+    // ENOENT is expected — the target doesn't exist yet.
+  }
+
+  try {
+    if (entryType === 'directory') {
+      // recursive: true is safe here — mkdir only creates missing
+      // intermediate directories; existing ones are left untouched.
+      await fs.mkdir(realResolved, { recursive: true });
+    } else {
+      // Create parent directories if needed, then the empty file.
+      // Use flag 'wx' (exclusive create) so the atomic syscall
+      // itself rejects if the file was created in the TOCTOU window
+      // between our fs.access check above and the write here.
+      await fs.mkdir(path.dirname(realResolved), { recursive: true });
+      await fs.writeFile(realResolved, '', { encoding: 'utf8', flag: 'wx' });
+    }
+    send(ws, { type: 'files.created', payload: { filePath, success: true } });
+  } catch (err) {
+    send(ws, {
+      type: 'files.created',
+      payload: { filePath, success: false, error: errMessage(err) },
+    });
+  }
+}
+
+// ── files.delete ──────────────────────────────────────────────────────
+
+interface FilesDeletePayload {
+  filePath: string;
+  recursive?: boolean;
+}
+
+/**
+ * Delete a file or directory inside the project root.
+ *
+ * Guards against path traversal via `resolveFileInsideProject`. Directories
+ * require `recursive: true` to delete non-empty contents. Responds with
+ * `{ type: 'files.deleted', payload: { filePath, success } }`.
+ */
+export async function handleFilesDelete(
+  ws: WebSocket,
+  msg: unknown,
+  projectRoot: string,
+): Promise<void> {
+  let filePath: string;
+  let recursive: boolean;
+  try {
+    const payload = validatedPayload<FilesDeletePayload>(msg, 'files.delete');
+    filePath = payload.filePath;
+    recursive = payload.recursive ?? false;
+  } catch {
+    send(ws, {
+      type: 'files.deleted',
+      payload: { filePath: '', success: false, error: 'Malformed request' },
+    });
+    return;
+  }
+
+  // Reject deletion of the project root itself — a client could send
+  // an empty path or "." which resolves to projectRoot. resolveFileInsideProject
+  // returns the canonical projectRoot for those inputs.
+  let realResolved: string;
+  try {
+    realResolved = await resolveFileInsideProject(projectRoot, filePath);
+  } catch {
+    send(ws, {
+      type: 'files.deleted',
+      payload: { filePath, success: false, error: 'Forbidden' },
+    });
+    return;
+  }
+
+  const realProjectRoot = await fs.realpath(projectRoot);
+  if (realResolved === realProjectRoot) {
+    send(ws, {
+      type: 'files.deleted',
+      payload: { filePath, success: false, error: 'Cannot delete the project root.' },
+    });
+    return;
+  }
+
+  try {
+    await fs.rm(realResolved, { recursive, force: false });
+    send(ws, { type: 'files.deleted', payload: { filePath, success: true } });
+  } catch (err) {
+    send(ws, {
+      type: 'files.deleted',
+      payload: { filePath, success: false, error: errMessage(err) },
+    });
+  }
+}
+
+// ── files.rename ──────────────────────────────────────────────────────
+
+interface FilesRenamePayload {
+  oldPath: string;
+  newPath: string;
+}
+
+/**
+ * Rename or move a file/directory within the project root.
+ *
+ * Guards both source and destination via `resolveFileInsideProject`.
+ * Rejects if the destination already exists or the source doesn't.
+ * Responds with `{ type: 'files.renamed', payload: { oldPath, newPath, success } }`.
+ */
+export async function handleFilesRename(
+  ws: WebSocket,
+  msg: unknown,
+  projectRoot: string,
+): Promise<void> {
+  let oldPath: string;
+  let newPath: string;
+  try {
+    const payload = validatedPayload<FilesRenamePayload>(msg, 'files.rename');
+    oldPath = payload.oldPath;
+    newPath = payload.newPath;
+  } catch {
+    send(ws, {
+      type: 'files.renamed',
+      payload: { oldPath: '', newPath: '', success: false, error: 'Malformed request' },
+    });
+    return;
+  }
+
+  let realOld: string;
+  let realNew: string;
+  try {
+    realOld = await resolveFileInsideProject(projectRoot, oldPath);
+    realNew = await resolveFileInsideProject(projectRoot, newPath);
+  } catch {
+    send(ws, {
+      type: 'files.renamed',
+      payload: { oldPath, newPath, success: false, error: 'Forbidden' },
+    });
+    return;
+  }
+
+  // Reject renaming the project root itself.
+  const realProjectRoot = await fs.realpath(projectRoot);
+  if (realOld === realProjectRoot) {
+    send(ws, {
+      type: 'files.renamed',
+      payload: { oldPath, newPath, success: false, error: 'Cannot rename the project root.' },
+    });
+    return;
+  }
+
+  try {
+    // Source must exist.
+    await fs.access(realOld);
+  } catch {
+    send(ws, {
+      type: 'files.renamed',
+      payload: { oldPath, newPath, success: false, error: 'Source file does not exist.' },
+    });
+    return;
+  }
+
+  try {
+    // Destination must NOT exist — rename should not overwrite.
+    await fs.access(realNew);
+    send(ws, {
+      type: 'files.renamed',
+      payload: {
+        oldPath,
+        newPath,
+        success: false,
+        error: 'Destination already exists.',
+      },
+    });
+    return;
+  } catch {
+    // ENOENT expected — destination is free.
+  }
+
+  try {
+    // Create parent dirs of the destination if needed (supports move semantics).
+    await fs.mkdir(path.dirname(realNew), { recursive: true });
+    await fs.rename(realOld, realNew);
+    send(ws, { type: 'files.renamed', payload: { oldPath, newPath, success: true } });
+  } catch (err) {
+    send(ws, {
+      type: 'files.renamed',
+      payload: { oldPath, newPath, success: false, error: errMessage(err) },
+    });
+  }
+}
+
+// ── files.move ────────────────────────────────────────────────────────
+
+interface FilesMovePayload {
+  srcPath: string;
+  destDir: string;
+}
+
+/**
+ * Move a file/directory into a destination directory within the project root.
+ *
+ * Guards both source and destination via `resolveFileInsideProject`.
+ * The file keeps its basename — it is placed inside `destDir`.
+ * Responds with `{ type: 'files.moved', payload: { srcPath, destPath, success } }`.
+ */
+export async function handleFilesMove(
+  ws: WebSocket,
+  msg: unknown,
+  projectRoot: string,
+): Promise<void> {
+  let srcPath: string;
+  let destDir: string;
+  try {
+    const payload = validatedPayload<FilesMovePayload>(msg, 'files.move');
+    srcPath = payload.srcPath;
+    destDir = payload.destDir;
+  } catch {
+    send(ws, {
+      type: 'files.moved',
+      payload: { srcPath: '', destPath: '', success: false, error: 'Malformed request' },
+    });
+    return;
+  }
+
+  let realSrc: string;
+  let realDestDir: string;
+  try {
+    realSrc = await resolveFileInsideProject(projectRoot, srcPath);
+    realDestDir = await resolveFileInsideProject(projectRoot, destDir);
+  } catch {
+    send(ws, {
+      type: 'files.moved',
+      payload: { srcPath, destPath: '', success: false, error: 'Forbidden' },
+    });
+    return;
+  }
+
+  // Reject moving the project root.
+  const realProjectRoot = await fs.realpath(projectRoot);
+  if (realSrc === realProjectRoot) {
+    send(ws, {
+      type: 'files.moved',
+      payload: { srcPath, destPath: '', success: false, error: 'Cannot move the project root.' },
+    });
+    return;
+  }
+
+  // The destination must be an existing directory.
+  try {
+    const destStat = await fs.stat(realDestDir);
+    if (!destStat.isDirectory()) {
+      send(ws, {
+        type: 'files.moved',
+        payload: { srcPath, destPath: '', success: false, error: 'Destination is not a directory.' },
+      });
+      return;
+    }
+  } catch {
+    send(ws, {
+      type: 'files.moved',
+      payload: { srcPath, destPath: '', success: false, error: 'Destination directory does not exist.' },
+    });
+    return;
+  }
+
+  // Source must exist.
+  try {
+    await fs.access(realSrc);
+  } catch {
+    send(ws, {
+      type: 'files.moved',
+      payload: { srcPath, destPath: '', success: false, error: 'Source file does not exist.' },
+    });
+    return;
+  }
+
+  const baseName = path.basename(realSrc);
+  const destPath = path.join(realDestDir, baseName);
+  const relDestPath = destDir ? `${destDir}/${baseName}` : baseName;
+
+  // Destination file must NOT already exist.
+  try {
+    await fs.access(destPath);
+    send(ws, {
+      type: 'files.moved',
+      payload: {
+        srcPath,
+        destPath: relDestPath,
+        success: false,
+        error: 'A file with that name already exists in the destination directory.',
+      },
+    });
+    return;
+  } catch {
+    // ENOENT expected.
+  }
+
+  try {
+    await fs.rename(realSrc, destPath);
+    send(ws, { type: 'files.moved', payload: { srcPath, destPath: relDestPath, success: true } });
+  } catch (err) {
+    send(ws, {
+      type: 'files.moved',
+      payload: { srcPath, destPath: relDestPath, success: false, error: errMessage(err) },
+    });
+  }
 }

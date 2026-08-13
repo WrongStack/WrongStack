@@ -2,8 +2,10 @@
   "action": {
     "ok": "OK",
     "cancel": "Annulla",
+    "create": "Crea",
     "save": "Salva",
     "saved": "Salvato",
+    "dismiss": "Dismiss",
     "close": "Chiudi",
     "yes": "Sì",
     "no": "No",
