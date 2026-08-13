@@ -16,6 +16,7 @@ import type { SessionEndedLike, ToolExecutedLike } from './format.js';
 import { formatDelegateCompleted, formatSessionEnded, formatToolExecuted } from './format.js';
 import { lockPathForToken, PollLock } from './poll-lock.js';
 import { OffsetStore } from './offset-store.js';
+import { fenceTelegramInboundText } from './security/inbound.js';
 import { scrubTelegramOutboundText } from './security/outbound.js';
 import { tgChatIdCommand, tgHealthCommand, tgSendCommand } from './slash-commands/index.js';
 import { makeTelegramApproveTool } from './tools/telegram-approve.js';
@@ -254,7 +255,11 @@ const plugin: Plugin = {
               subject: scrubTelegramOutboundText(
                 `📨 Telegram from ${msg.userName ?? `user_${msg.userId ?? 'unknown'}`}`,
               ),
-              body: scrubTelegramOutboundText(msg.text),
+              // Scrub credentials first, then fence: the scrubber redacts
+              // secrets but does nothing against prompt injection — inbound
+              // text is untrusted and must arrive inside a delimiter that
+              // says so (see security/inbound.ts).
+              body: fenceTelegramInboundText(scrubTelegramOutboundText(msg.text)),
               priority: 'low',
             })
             .catch((err: unknown) => {
