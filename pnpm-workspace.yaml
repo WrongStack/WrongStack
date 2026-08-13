@@ -25,7 +25,10 @@ overrides:
   # advisory-patched 7.29.0 — clears the undici GHSAs AND keeps jsdom working.
   # Scoped so non-jsdom undici consumers still float to the patched 8.x line.
   "jsdom>undici": "7.29.0"
-  nanoid@<3.3.17: ^3.3.17
+  # nanoid <3.3.18: custom alphabet generators can loop indefinitely when the
+  # requested size is 0 (GHSA-2v37-7h3g-55p8). Pulled in transitively by
+  # postcss (Vite/Vitest). Patched in 3.3.18.
+  nanoid@<3.3.18: ^3.3.18
 peerDependencyRules:
   # TypeScript 7 was released before i18next/react-i18next widened their peer
   # ranges. WrongStack's WebUI passes its TS7 typecheck; allow this known lag.
@@ -65,5 +68,4 @@ onlyBuiltDependencies:
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - electron@43.0.0
-  - nanoid@3.3.17
 patchedDependencies: { ink@7.1.1: patches/ink@7.1.1.patch }
