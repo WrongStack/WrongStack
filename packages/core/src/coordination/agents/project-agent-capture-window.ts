@@ -26,6 +26,7 @@ interface CaptureWindow {
   lastCaptureAt: number | undefined;
 }
 
+const MAX_WINDOWS = 1_000;
 const windows = new Map<string, CaptureWindow>();
 
 function currentWindow(key: string, now: number): CaptureWindow {
@@ -38,9 +39,18 @@ function currentWindow(key: string, now: number): CaptureWindow {
       count: 0,
       lastCaptureAt: existing?.lastCaptureAt,
     };
+    if (windows.size >= MAX_WINDOWS && !windows.has(key)) {
+      const oldestKey = windows.keys().next().value;
+      if (oldestKey !== undefined) {
+        windows.delete(oldestKey);
+      }
+    }
     windows.set(key, fresh);
     return fresh;
   }
+  // Refresh insertion order for LRU retention
+  windows.delete(key);
+  windows.set(key, existing);
   return existing;
 }
 
