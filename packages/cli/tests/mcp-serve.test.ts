@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   loadSelectedMcpServeContent,
   makeServeContext,
+  parseToolsFlag,
   resolveServeFsRestriction,
   selectExposedTools,
 } from '../src/mcp-serve.js';
@@ -42,10 +43,33 @@ describe('resolveServeFsRestriction', () => {
   });
 
   it('honours an explicit opt-out from a trusted user config', () => {
-    // `tools.restrictToProjectRoot` is on the in-project denylist, so only the
-    // operator's own config can reach this branch — never a checked-out repo.
+    // `tools.restrictToProjectRoot` is on the in-project denylist, so only
+    // the operator's own config can reach this branch — never a checked-out repo.
     expect(resolveServeFsRestriction({ tools: { restrictToProjectRoot: false } })).toBe(false);
     expect(resolveServeFsRestriction({ tools: { restrictToProjectRoot: true } })).toBe(true);
+  });
+});
+
+describe('parseToolsFlag', () => {
+  it('parses the equals/string form into a trimmed whitelist', () => {
+    expect(parseToolsFlag({ tools: 'read, grep ,write' })).toEqual(
+      new Set(['read', 'grep', 'write']),
+    );
+  });
+
+  it('recovers the space form from the positional CSV (tools is a BOOLEAN_FLAGS member)', () => {
+    expect(parseToolsFlag({ tools: true }, ['read,grep'])).toEqual(new Set(['read', 'grep']));
+  });
+
+  it('returns null when the flag is absent', () => {
+    expect(parseToolsFlag({})).toBeNull();
+    expect(parseToolsFlag({}, ['read'])).toBeNull();
+  });
+
+  it('returns null when the boolean flag carries no positional list', () => {
+    expect(parseToolsFlag({ tools: true })).toBeNull();
+    expect(parseToolsFlag({ tools: true }, [])).toBeNull();
+    expect(parseToolsFlag({ tools: true }, [' , '])).toBeNull();
   });
 });
 

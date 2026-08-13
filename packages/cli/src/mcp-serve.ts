@@ -41,11 +41,25 @@ class AllowAllPermissionPolicy extends AutoApprovePermissionPolicy {
   }
 }
 
-function parseToolsFlag(flags: Record<string, string | boolean>): Set<string> | null {
+/**
+ * Resolve the `--tools` whitelist for `mcp serve`.
+ *
+ * `'tools'` is in BOOLEAN_FLAGS (a `models add` capability toggle), so
+ * parseArgs turns the space form `mcp serve --tools read,grep` into
+ * `tools: true` plus a positional CSV instead of a string value. Accept both
+ * shapes: a string value directly, or `true` + the following positional CSV.
+ * Returns null only when no list was supplied at all — callers must treat
+ * "flag present but no list" as an error, never as "no whitelist".
+ */
+export function parseToolsFlag(
+  flags: Record<string, string | boolean>,
+  positional?: readonly string[],
+): Set<string> | null {
   const raw = flags['tools'];
-  if (typeof raw !== 'string') return null;
+  const csv = typeof raw === 'string' ? raw : raw === true ? (positional?.[0] ?? '') : '';
+  if (!csv) return null;
   const set = new Set(
-    raw
+    csv
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
@@ -261,10 +275,23 @@ export async function selectExposedTools(
   return allowed;
 }
 
-export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
+export async function serveMcpStdio(
+  deps: SubcommandDeps,
+  positional?: readonly string[],
+): Promise<number> {
   const flags = deps.flags ?? {};
   const yolo = flags['yolo'] === true || flags['allow-all'] === true;
-  const whitelist = parseToolsFlag(flags);
+  const whitelist = parseToolsFlag(flags, positional);
+  // `--tools` present but no list resolvable: fail loudly instead of silently
+  // exposing the default (policy-filtered) toolset — a dropped whitelist is a
+  // security-relevant widening, not a convenience fallback.
+  if (flags['tools'] !== undefined && whitelist === null) {
+    process.stderr.write(
+      'wrongstack MCP server: --tools requires a comma-separated tool list ' +
+        '(e.g. `--tools read,grep` or `--tools=read,grep`)\n',
+    );
+    return 1;
+  }
   const log = (m: string) => process.stderr.write(`${m}\n`);
   let selectedContent: SelectedMcpServeContent;
   try {

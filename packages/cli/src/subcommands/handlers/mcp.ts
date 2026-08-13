@@ -22,8 +22,10 @@ export const mcpCmd: SubcommandHandler = async (args, deps) => {
   if (sub === 'serve') {
     // Run WrongStack as an MCP server over stdio. Blocks until stdin closes.
     // Flags (--yolo/--tools) come via deps.flags — the dispatcher strips them
-    // from positional args.
-    return serveMcpStdio(deps);
+    // from positional args. The remaining positionals are forwarded so
+    // `--tools read,grep` (boolean flag + positional CSV, because `tools` is
+    // a BOOLEAN_FLAGS member) can recover its whitelist.
+    return serveMcpStdio(deps, args.slice(1));
   }
   if (!sub || sub === 'list') {
     const servers = deps.config.mcpServers ?? {};
