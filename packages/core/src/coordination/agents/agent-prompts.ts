@@ -3,12 +3,21 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveWstackPaths } from '../../utils/wstack-paths.js';
 import { buildProjectContextualizedPrompt } from './project-agent-identity.js';
+import { assertProjectAgentRole } from './project-agent-paths.js';
 
 /**
- * Cache of resolved prompt text, keyed by `<envDir>\0<id>`. Prompt files do
- * not change during a process lifetime, so the first successful (or failed)
- * lookup is memoized. The key includes the override env var so tests that set
+ * Cache of resolved prompt text, keyed by
+ * `<envDir>\0<policyOn>\0<projectRoot>\0<overlayFingerprint>\0<id>`. Base
+ * prompt files do not change during a process lifetime, so their resolution
+ * is memoized. The key includes the override env var so tests that set
  * `WRONGSTACK_AGENT_INSTRUCTIONS_DIR` still observe fresh resolution.
+ *
+ * The project overlay files (`identity.md` / `learned.md` / `consolidated.md`)
+ * DO change mid-process — `captureLearnedFromAgentOutput` rewrites
+ * `learned.md` on every capture — so their (mtimeMs, size) fingerprint is
+ * part of the key. Without it, wisdom captured in a running process only
+ * reached subagent spawns after a restart, silently breaking the
+ * capture→inject feedback loop.
  */
 const promptCache = new Map<string, string>();
 
@@ -151,6 +160,45 @@ function policyBody(): string {
   return '';
 }
 
+/**
+ * Files `buildProjectContextualizedPrompt` inlines into the cached prompt.
+ * `learned.md` is rewritten on every capture; `consolidated.md` on every
+ * consolidation pass; `identity.md` on manual/WebUI edits.
+ */
+const OVERLAY_FILES = ['identity.md', 'learned.md', 'consolidated.md'] as const;
+
+/**
+ * Fingerprint of the project overlay files for a role, as
+ * `name:mtimeMs:size;` per present file. Part of the `promptCache` key so a
+ * mid-process capture (which rewrites `learned.md`) invalidates the memoized
+ * prompt and the next spawn in the same process sees the new entry — the
+ * capture→inject feedback loop the learning layer documents.
+ *
+ * Returns '' when the overlay cannot apply: the env override dir disables it
+ * entirely (see `buildProjectContextualizedPrompt`), and non-role ids (e.g.
+ * the policy sentinel) never get one. mtime+size is the deliberate tradeoff:
+ * hashing content would require reading the files, defeating the cache.
+ */
+function agentOverlayFingerprint(id: string, projectRoot: string): string {
+  if (process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR']) return '';
+  let roleDir: string;
+  try {
+    roleDir = path.join(projectRoot, '.wrongstack', 'agents', assertProjectAgentRole(id));
+  } catch {
+    return '';
+  }
+  let fp = '';
+  for (const name of OVERLAY_FILES) {
+    try {
+      const st = statSync(path.join(roleDir, name));
+      fp += `${name}:${st.mtimeMs}:${st.size};`;
+    } catch {
+      // File absent — contributes nothing to the overlay.
+    }
+  }
+  return fp;
+}
+
 export function agentPrompt(id: string): string {
   // The policy body itself is a single shared suffix; return it directly
   // when the sentinel key is requested (used by tests / docs).
@@ -166,7 +214,7 @@ export function agentPrompt(id: string): string {
   // the cached string's identity. Omitting it let a single process serve one
   // project's learned content for another project's prompt.
   const promptProjectRoot = process.env['WRONGSTACK_PROJECT_ROOT'] || process.cwd();
-  const cacheKey = `${envDir}\u0000${policyOn ? 1 : 0}\u0000${promptProjectRoot}\u0000${id}`;
+  const cacheKey = `${envDir}\u0000${policyOn ? 1 : 0}\u0000${promptProjectRoot}\u0000${agentOverlayFingerprint(id, promptProjectRoot)}\u0000${id}`;
   const cached = cacheBypass ? undefined : promptCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
