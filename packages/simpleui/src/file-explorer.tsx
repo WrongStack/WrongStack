@@ -10,7 +10,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { SimpleSocket } from './lib/ws.js';
 
 const SELECTED_FILE_STORAGE_KEY = 'wrongstack-simpleui-file-manager-selected-file';
@@ -377,6 +377,42 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     return () => window.removeEventListener('simpleui:open-file-explorer', onOpen);
   }, [openExplorer]);
 
+  // ── Tab key handling — insert 2 spaces instead of changing focus ──
+  // These hooks must live before the `if (!open)` early return so React's
+  // hook ordering stays stable across renders.
+  const handleEditorKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const ta = e.currentTarget;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const current = editedContent ?? fileContent ?? '';
+        const newValue = current.slice(0, start) + '  ' + current.slice(end);
+        setEditedContent(newValue);
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = start + 2;
+        });
+      }
+      // Ctrl+S / Cmd+S → save
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (!saving) handleSave();
+      }
+    },
+    [editedContent, fileContent, saving, handleSave],
+  );
+
+  // ── Sync scroll position between textarea and highlight overlay ──
+  const syncScroll = useCallback((e: React.UIEvent<HTMLTextAreaElement>) => {
+    const ta = e.currentTarget;
+    const pre = ta.previousElementSibling as HTMLElement | null;
+    if (pre) {
+      pre.scrollTop = ta.scrollTop;
+      pre.scrollLeft = ta.scrollLeft;
+    }
+  }, []);
+
   // Open the panel — load tree on first open
   if (!open) {
     return (
@@ -394,6 +430,44 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
 
   const content = isEditing ? (editedContent ?? fileContent ?? '') : (fileContent ?? '');
   const fileName = selectedPath?.split(/[\\/]/).pop() ?? '';
+
+  // ── Syntax highlighting overlay ─────────────────────────────────────
+  // Lightweight token-based highlighter — wraps keywords, strings, comments,
+  // and numbers in <span> tags with CSS classes. Not a full parser, but
+  // enough to make code readable behind the transparent textarea.
+  function highlightContent(text: string): React.ReactNode {
+    if (!text) return null;
+    const ext = selectedPath?.split('.').pop()?.toLowerCase() ?? '';
+    const isCode = [
+      'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json', 'css', 'scss',
+      'html', 'xml', 'svg', 'py', 'rs', 'go', 'rb', 'java', 'c', 'cpp',
+      'h', 'sh', 'bash', 'yml', 'yaml', 'sql', 'md', 'graphql',
+    ].includes(ext);
+    if (!isCode) return text;
+
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return escaped
+      .replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="hl-comment">$1</span>')
+      .replace(
+        /(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|"[^"\n]*"|'[^'\n]*'|`[^`]*`)/g,
+        '<span class="hl-string">$1</span>',
+      )
+      .replace(/\b(\d+\.?\d*)\b/g, '<span class="hl-number">$1</span>')
+      .replace(
+        /\b(const|let|var|function|return|if|else|for|while|switch|case|break|continue|class|extends|implements|import|export|from|default|async|await|new|try|catch|finally|throw|typeof|instanceof|in|of|void|delete|yield|interface|type|enum|public|private|protected|static|readonly|abstract|namespace|declare|module|def|elif|fn|struct|impl|pub|use|match|package|func|val|nil)\b/g,
+        '<span class="hl-keyword">$1</span>',
+      )
+      .split('\n')
+      .map((line, i) => (
+        <React.Fragment key={i}>
+          <span dangerouslySetInnerHTML={{ __html: line }} />
+          {i < text.split('\n').length - 1 && '\n'}
+        </React.Fragment>
+      ));
+  }
 
   return (
     <>
@@ -540,14 +614,25 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
                 </div>
                 <div className="file-manager-editor-wrap">
                   {isEditing ? (
-                    <textarea
-                      ref={editorRef}
-                      className="file-manager-editor"
-                      value={content}
-                      onChange={(e) => setEditedContent(e.target.value)}
-                      spellCheck={false}
-                      aria-label="File editor"
-                    />
+                    <div className="file-manager-editor-container">
+                      <pre
+                        className="file-manager-editor-highlight"
+                        aria-hidden="true"
+                      >
+                        {highlightContent(content)}
+                        {'\n'}
+                      </pre>
+                      <textarea
+                        ref={editorRef}
+                        className="file-manager-editor"
+                        value={content}
+                        onChange={(e) => setEditedContent(e.target.value)}
+                        onKeyDown={handleEditorKeyDown}
+                        onScroll={syncScroll}
+                        spellCheck={false}
+                        aria-label="File editor"
+                      />
+                    </div>
                   ) : (
                     <pre className="file-manager-viewer">{fileContent}</pre>
                   )}

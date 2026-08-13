@@ -718,6 +718,22 @@ a:focus-visible {
   opacity: 0.5;
 }
 
+/**
+ * Cache-hit sub-line under the context meter. Mirrors the existing
+ * `small` typography in `.context-meter` but uses the success token so
+ * the line reads as an extra metric, not a duplicate of the load %.
+ * Hidden when no cache stats have arrived yet so the meter stays
+ * visually quiet on cold sessions.
+ */
+.context-meter .context-cache {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: hsl(var(--success));
+  opacity: 0.85;
+}
+
 .context-copy {
   grid-column: 1 / -1;
   display: flex;
@@ -4954,6 +4970,72 @@ a:focus-visible {
   color: var(--text);
 }
 
+/* ── SimpleUI editor syntax highlighting overlay ──────────────────── */
+
+.file-manager-editor-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.file-manager-editor-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  white-space: pre;
+  pointer-events: none;
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  tab-size: 2;
+  z-index: 0;
+}
+
+.file-manager-editor-container .file-manager-editor {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--code-text);
+}
+
+.hl-keyword {
+  color: #f28dbc;
+}
+
+.hl-string {
+  color: #64d488;
+}
+
+.hl-comment {
+  color: #6e717a;
+  font-style: italic;
+}
+
+.hl-number {
+  color: #f2a23a;
+}
+
+:root[data-theme='light'] .hl-keyword {
+  color: #d65a9a;
+}
+
+:root[data-theme='light'] .hl-string {
+  color: #3b8c5a;
+}
+
+:root[data-theme='light'] .hl-comment {
+  color: #9a9d99;
+}
+
+:root[data-theme='light'] .hl-number {
+  color: #d97a12;
+}
+
 /* ── Diff panel header extensions ────────────────────────────────── */
 
 .diff-view-head-path {
@@ -5657,6 +5739,24 @@ a:focus-visible {
 }
 .ctx-breakdown-bar span {
   height: 100%;
+}
+
+/**
+ * Cache-coverage bar in the context breakdown modal. Single-segment
+ * (the cached prefix fills from the left edge), distinct from the
+ * multi-segment composition bar above it. Uses the success token so the
+ * indicator reads as "covered", matching the topbar's hit-ratio line.
+ */
+.ctx-breakdown-bar-cache {
+  height: 6px;
+  border-color: hsl(var(--line-strong) / 0.6);
+}
+.ctx-breakdown-cache-note {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  color: hsl(var(--muted));
 }
 
 .ctx-breakdown-legend {
