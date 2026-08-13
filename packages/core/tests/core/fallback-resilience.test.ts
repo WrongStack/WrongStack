@@ -14,7 +14,11 @@ import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import type { Config } from '../../src/types/config.js';
 import { ProviderError } from '../../src/types/provider.js';
 
-function cfg(over: Partial<Config> & Record<string, unknown> = {}): Config {
+// Deliberately `Record<string, unknown>` and not `Partial<Config>`: several
+// cases below inject values the config type forbids (`null`, `0`,
+// `'not-an-array'`) to prove the resolver treats them as "unset" rather than
+// throwing. Narrowing this would make those regressions unwritable.
+function cfg(over: Record<string, unknown> = {}): Config {
   return {
     version: 1,
     provider: 'p1',

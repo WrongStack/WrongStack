@@ -150,6 +150,10 @@
       "lines": 1013,
       "relativeImports": 13
     },
+    "packages/core/src/core/fallback-model.ts": {
+      "lines": 818,
+      "relativeImports": 14
+    },
     "packages/core/src/core/system-prompt-builder.ts": {
       "lines": 863,
       "relativeImports": 24
@@ -199,7 +203,7 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1008,
+      "lines": 1009,
       "relativeImports": 153
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
