@@ -209,7 +209,15 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
    * layer2 stays byte-stable (and provider-cache-friendly) while agents
    * join, leave, or change status.
    */
-  private _toolsUsageCache?: { toolsRef: readonly Tool[]; tier: string; text: string } | undefined;
+  private _toolsUsageCache?:
+    | {
+        toolsRef: readonly Tool[];
+        tier: string;
+        subagent: boolean;
+        maxContextTokens: number;
+        text: string;
+      }
+    | undefined;
   private _instructionBundle?: Promise<InstructionBundle> | undefined;
   /**
    * Cached rendered identity layer. Keyed the same way as `_toolsUsageCache`:
@@ -582,7 +590,14 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     // online-agents snapshot is deliberately NOT an input here — it lives in
     // the `peers` volatile block so this layer stays provider-cache-stable.
     const tier = this.tier;
-    if (this._toolsUsageCache?.toolsRef === tools && this._toolsUsageCache?.tier === tier) {
+    const subagent = ctx.subagent === true;
+    const maxContextTokens = this.modelCapabilities()?.maxContextTokens ?? 0;
+    if (
+      this._toolsUsageCache?.toolsRef === tools &&
+      this._toolsUsageCache?.tier === tier &&
+      this._toolsUsageCache?.subagent === subagent &&
+      this._toolsUsageCache?.maxContextTokens === maxContextTokens
+    ) {
       return this._toolsUsageCache.text;
     }
 
@@ -801,10 +816,12 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       }
     }
 
-    // Store cache — keyed by tools reference (B2 snapshot) + tier, so it
-    // auto-invalidates when tools change or the token-saving tier changes.
+    // Store cache — keyed by tools reference (B2 snapshot) + tier + subagent +
+    // maxContextTokens, so it auto-invalidates when tools change, the token-saving
+    // tier changes, the prompt is for a different audience (host vs subagent),
+    // or a /model switch changes the context-management threshold.
     const text = lines.join('\n');
-    this._toolsUsageCache = { toolsRef: tools, tier, text };
+    this._toolsUsageCache = { toolsRef: tools, tier, subagent, maxContextTokens, text };
     return text;
   }
 
