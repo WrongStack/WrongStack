@@ -1,4 +1,15 @@
+import * as os from 'node:os';
 import * as path from 'node:path';
+import { wstackGlobalRoot } from '../utils/wstack-paths.js';
+
+/**
+ * Basenames under the wstack global root that constitute WrongStack's own
+ * trusted state. Duplicated from permission-helpers.ts to avoid a circular
+ * import (permission-helpers imports getInputString from yolo-risk).
+ * Keep in sync with AGENT_STATE_SENSITIVE_BASENAMES.
+ */
+const PROTECTED_STATE_BASENAMES =
+  /^(?:config\.json|config\.local\.json|trust\.json|auth\.json|\.key)$/i;
 
 // Best-effort heuristic detection of destructive shell commands — NOT a
 // complete security boundary. Static analysis of shell strings is inherently defeatable
@@ -275,11 +286,95 @@ function hasCatastrophicDelete(command: string): boolean {
 }
 
 /**
+ * Best-effort detection of a shell command that writes to WrongStack's own
+ * trusted state files (trust.json, config.local.json, auth.json, .key) via
+ * redirection (`>`, `>>`), `tee`, `cp`/`mv`, or heredoc — even when the
+ * command itself isn't "destructive" in the catastrophic sense. A write to
+ * these files can disable every future confirmation prompt or inject code
+ * execution at boot, so it must never be silently auto-approved under YOLO.
+ *
+ * Like every heuristic in this module, this is defeatable by obfuscation
+ * (env-var indirection, eval, base64). It is a defense-in-depth layer, not
+ * a security boundary.
+ */
+function hasWriteToAgentStateRoot(command: string): boolean {
+  // Strategy: extract every plausible file-path token from the command, then
+  // check each against isProtectedAgentStatePath. We scan:
+  // 1. Redirection targets: `> path`, `>> path`
+  // 2. `tee path` / `tee -a path`
+  // 3. `cp src dst` / `mv src dst` — the last non-flag argument
+  // 4. Heredoc-less `cat > path` patterns (covered by #1)
+  const tokens = tokenizeShell(command);
+
+  // 1. Redirection targets — `>` or `>>` followed by a path.
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const t = tokens[i];
+    if (t === '>' || t === '>>') {
+      const target = tokens[i + 1];
+      if (target && looksLikeAgentStateTarget(target)) return true;
+    }
+  }
+
+  // 2. `tee` target — first non-flag argument after `tee`.
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]?.toLowerCase();
+    if (t === 'tee') {
+      for (let j = i + 1; j < tokens.length; j++) {
+        const arg = tokens[j];
+        if (!arg || arg.startsWith('-')) continue;
+        if (SHELL_OPERATORS.has(arg)) break;
+        if (looksLikeAgentStateTarget(arg)) return true;
+        break; // first non-flag arg is the target
+      }
+    }
+  }
+
+  // 3. `cp src dst` / `mv src dst` — if the destination (last non-flag arg)
+  //    resolves into the agent state root.
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]?.toLowerCase();
+    if (t === 'cp' || t === 'copy' || t === 'mv' || t === 'move') {
+      const args = commandSegment(tokens, i + 1);
+      // The last non-flag, non-operator argument is the destination.
+      const dst = args.filter((a) => !a.startsWith('-') && !SHELL_OPERATORS.has(a)).pop();
+      if (dst && looksLikeAgentStateTarget(dst)) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Quick check: does the token look like it could resolve into the wstack
+ * global root, and does its basename match a protected file? We delegate the
+ * full path resolution to isProtectedAgentStatePath, but we pre-filter on
+ * the path containing `.wrongstack` or starting with `~/.wrongstack` so we
+ * don't call realpath on every token in every command.
+ */
+function looksLikeAgentStateTarget(rawPath: string): boolean {
+  // Expand ~ to the home directory for the comparison.
+  const expanded = rawPath.replace(/^~([\\/])/, (_, sep) => `${os.homedir()}${sep}`);
+  const resolved = path.resolve(expanded);
+  // Fast lexical pre-filter: must contain `.wrongstack` or match the wstack
+  // global root prefix.
+  const rootStr = wstackGlobalRoot();
+  const resolvedNorm = resolved.replace(/\\/g, '/').toLowerCase();
+  const rootNorm = path.resolve(rootStr).replace(/\\/g, '/').toLowerCase();
+  if (!resolvedNorm.startsWith(rootNorm) && !resolvedNorm.includes('.wrongstack')) {
+    return false;
+  }
+  // Check basename against the protected list (inlined to avoid a circular
+  // import with permission-helpers.ts).
+  return PROTECTED_STATE_BASENAMES.test(path.basename(resolved));
+}
+
+/**
  * Best-effort detection of a *catastrophic* shell command — system-/disk-/
- * home-wide, effectively irreversible destruction. `projectRoot` is accepted
- * for signature stability but is intentionally unused: catastrophic targets are
- * absolute (filesystem root, a drive root, the home directory, a system
- * directory) and so are independent of where the project lives.
+ * home-wide, effectively irreversible destruction, OR a write to WrongStack's
+ * own trusted state files that could disable security boundaries.
+ * `projectRoot` is accepted for signature stability but is intentionally
+ * unused for catastrophic targets (they are absolute). It is not used for
+ * state-root detection either (those paths are resolved absolutely).
  */
 export function isClearlyDestructiveBashCommand(
   command: string,
@@ -292,6 +387,7 @@ export function isClearlyDestructiveBashCommand(
   if (hasExternalPublish(trimmed)) return true;
   if (hasFindExec(trimmed)) return true;
   if (hasCatastrophicDelete(trimmed)) return true;
+  if (hasWriteToAgentStateRoot(trimmed)) return true;
   if (CATASTROPHIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
   if (HIGH_IMPACT_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
   return false;
