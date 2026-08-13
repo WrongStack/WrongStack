@@ -22,64 +22,53 @@ import { EmptyState } from './ui/empty-state';
 import { X, Circle, Send, FileText } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor, { type OnMount, loader } from '@monaco-editor/react';
-import type * as MonacoTypes from 'monaco-editor';
+import * as monaco from 'monaco-editor';
 import type { WSCompletionResult } from '@/types';
 import { useTheme } from './ThemeProvider';
+// Side-effect import: defines Monaco themes on module load
+import './monaco-theme';
 import { FileActivityDrawer } from './FileActivityDrawer';
 import { getMonacoTheme } from './monaco-theme';
 
-// Monaco and its theme definitions are loaded lazily on first editor mount
-// to avoid pulling the ~3.5 MB monaco-editor bundle into the initial page load.
-// The module-level `monaco` ref is populated by `ensureMonaco()` before any
-// Monaco API is touched.
-let monaco: typeof MonacoTypes | null = null;
+// Configure Monaco to use the local package (not CDN)
+loader.config({ monaco });
 
-async function ensureMonaco(): Promise<typeof MonacoTypes> {
-  if (monaco) return monaco;
-  const monacoModule = await import('monaco-editor');
-  // Theme definitions must be registered after monaco-editor loads.
-  await import('./monaco-theme');
-  monaco = monacoModule;
-  loader.config({ monaco: monacoModule });
-  return monacoModule;
-}
-
-function completionKind(kind: string | undefined): MonacoTypes.languages.CompletionItemKind {
+function completionKind(kind: string | undefined): monaco.languages.CompletionItemKind {
   switch (kind) {
     case 'method':
-      return monaco!.languages.CompletionItemKind.Method;
+      return monaco.languages.CompletionItemKind.Method;
     case 'function':
-      return monaco!.languages.CompletionItemKind.Function;
+      return monaco.languages.CompletionItemKind.Function;
     case 'constructor':
-      return monaco!.languages.CompletionItemKind.Constructor;
+      return monaco.languages.CompletionItemKind.Constructor;
     case 'field':
-      return monaco!.languages.CompletionItemKind.Field;
+      return monaco.languages.CompletionItemKind.Field;
     case 'variable':
-      return monaco!.languages.CompletionItemKind.Variable;
+      return monaco.languages.CompletionItemKind.Variable;
     case 'class':
-      return monaco!.languages.CompletionItemKind.Class;
+      return monaco.languages.CompletionItemKind.Class;
     case 'interface':
-      return monaco!.languages.CompletionItemKind.Interface;
+      return monaco.languages.CompletionItemKind.Interface;
     case 'module':
-      return monaco!.languages.CompletionItemKind.Module;
+      return monaco.languages.CompletionItemKind.Module;
     case 'property':
-      return monaco!.languages.CompletionItemKind.Property;
+      return monaco.languages.CompletionItemKind.Property;
     case 'unit':
-      return monaco!.languages.CompletionItemKind.Unit;
+      return monaco.languages.CompletionItemKind.Unit;
     case 'value':
-      return monaco!.languages.CompletionItemKind.Value;
+      return monaco.languages.CompletionItemKind.Value;
     case 'enum':
-      return monaco!.languages.CompletionItemKind.Enum;
+      return monaco.languages.CompletionItemKind.Enum;
     case 'keyword':
-      return monaco!.languages.CompletionItemKind.Keyword;
+      return monaco.languages.CompletionItemKind.Keyword;
     case 'snippet':
-      return monaco!.languages.CompletionItemKind.Snippet;
+      return monaco.languages.CompletionItemKind.Snippet;
     case 'file':
-      return monaco!.languages.CompletionItemKind.File;
+      return monaco.languages.CompletionItemKind.File;
     case 'reference':
-      return monaco!.languages.CompletionItemKind.Reference;
+      return monaco.languages.CompletionItemKind.Reference;
     default:
-      return monaco!.languages.CompletionItemKind.Text;
+      return monaco.languages.CompletionItemKind.Text;
   }
 }
 
@@ -147,7 +136,7 @@ export function CodeEditor() {
   const activeFilePath = useFileStore((s) => s.activeFilePath);
   const updateContent = useFileStore((s) => s.updateContent);
   const { theme: appTheme } = useTheme();
-  const editorRef = useRef<MonacoTypes.editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const activeFilePathRef = useRef<string | null>(activeFilePath);
   const completionCacheRef = useRef<
     Map<string, { expiresAt: number; items: WSCompletionResult['payload']['items'] }>
@@ -171,20 +160,13 @@ export function CodeEditor() {
 
   // Sync Monaco theme with app theme
   useEffect(() => {
-    let cancelled = false;
-    ensureMonaco().then((m) => {
-      if (!cancelled) m.editor.setTheme(getMonacoTheme());
-    });
-    return () => { cancelled = true; };
+    const resolved = getMonacoTheme();
+    monaco.editor.setTheme(resolved);
   }, [appTheme]);
 
   useEffect(() => {
-    let disposed = false;
-    let disposables: MonacoTypes.IDisposable[] = [];
-    ensureMonaco().then((m) => {
-      if (disposed) return;
-      disposables = COMPLETION_LANGUAGES.map((registeredLanguage) =>
-        m.languages.registerCompletionItemProvider(registeredLanguage, {
+    const disposables = COMPLETION_LANGUAGES.map((registeredLanguage) =>
+      monaco.languages.registerCompletionItemProvider(registeredLanguage, {
         triggerCharacters: ['.', '_'],
         provideCompletionItems: async (model, position, context, token) => {
           const filePath = activeFilePathRef.current;
@@ -206,7 +188,7 @@ export function CodeEditor() {
 
           const requestId = `cmp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
           const word = model.getWordUntilPosition(position);
-          const range: MonacoTypes.IRange = {
+          const range: monaco.IRange = {
             startLineNumber: position.lineNumber,
             endLineNumber: position.lineNumber,
             startColumn: word.startColumn,
@@ -215,7 +197,7 @@ export function CodeEditor() {
           const client = getWSClient(useConfigStore.getState().wsUrl);
           const toSuggestions = (
             items: WSCompletionResult['payload']['items'],
-          ): MonacoTypes.languages.CompletionItem[] =>
+          ): monaco.languages.CompletionItem[] =>
             items.map((item, index) => ({
               label: item.label,
               kind: completionKind(item.kind),
@@ -225,7 +207,7 @@ export function CodeEditor() {
               sortText: item.sortText ?? `${String(index).padStart(3, '0')}-${item.label}`,
               range,
               insertTextRules: item.kind === 'snippet'
-                ? monaco!.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
                 : undefined,
             }));
           const cacheKey = buildCompletionCacheKey({
@@ -243,13 +225,13 @@ export function CodeEditor() {
             return { suggestions: toSuggestions(cached.items) };
           }
 
-          return await new Promise<MonacoTypes.languages.ProviderResult<MonacoTypes.languages.CompletionList>>(
+          return await new Promise<monaco.languages.ProviderResult<monaco.languages.CompletionList>>(
             (resolve) => {
               let settled = false;
               let unsubscribe: () => void = () => {};
-              let cancelDisposable: MonacoTypes.IDisposable | null = null;
+              let cancelDisposable: monaco.IDisposable | null = null;
               let timer: number | undefined;
-              const finish = (suggestions: MonacoTypes.languages.CompletionItem[]) => {
+              const finish = (suggestions: monaco.languages.CompletionItem[]) => {
                 if (settled) return;
                 settled = true;
                 unsubscribe();
@@ -288,11 +270,9 @@ export function CodeEditor() {
           );
         },
       }),
-      );
-    });
+    );
 
     return () => {
-      disposed = true;
       disposables.forEach((disposable) => {
         disposable.dispose();
       });
@@ -357,7 +337,7 @@ export function CodeEditor() {
     (editor) => {
       editorRef.current = editor;
       // Ensure the editor uses the correct theme on mount
-      monaco!.editor.setTheme(getMonacoTheme());
+      monaco.editor.setTheme(getMonacoTheme());
 
       // Track selection emptiness so the floating "send to chat" toolbar can
       // appear/disappear as the user selects code.
@@ -375,7 +355,7 @@ export function CodeEditor() {
         contextMenuGroupId: 'wrongstack',
         contextMenuOrder: 0,
         precondition: undefined,
-        keybindings: [monaco!.KeyMod.CtrlCmd | monaco!.KeyMod.Shift | monaco!.KeyCode.KeyL],
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyL],
         run: (ed) => {
           const sel = ed.getSelection();
           if (sel && !sel.isEmpty()) {

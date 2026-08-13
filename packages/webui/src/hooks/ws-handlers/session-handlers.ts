@@ -2,6 +2,7 @@ import type { SessionMarker } from '@wrongstack/core/types';
 import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import { toast } from '@/components/Toaster';
 import { isMobileViewport } from '@/hooks/useViewport';
+import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { i18n } from '@/i18n';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
@@ -344,6 +345,9 @@ export function handleSessionStart(msg: WSServerMessage) {
     }
 
     useFileStore.getState().setTreeLoading(true);
+    // Rehydrated tabs are path-only stubs; re-fetch their content from disk,
+    // or drop them when the session belongs to a different project.
+    reconcileFileTabsAfterEnvChange(useSessionStore.getState().projectRoot);
     getWSClient().send({ type: 'files.tree', payload: { path: useSessionStore.getState().cwd } });
   }
   const replay = (payload as { replayMessages?: ReplayMessage[] }).replayMessages;

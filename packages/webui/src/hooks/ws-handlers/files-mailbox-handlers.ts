@@ -29,6 +29,42 @@ function debouncedRefresh(): void {
 
 export { debouncedRefresh, queryMailbox };
 
+/**
+ * Reconcile rehydrated editor tabs once the server environment is known.
+ *
+ * Tabs persist as path-only stubs (content is never trusted across a reload
+ * — stale cached content would silently overwrite on-disk changes on the
+ * next save). After a reload their content is empty and must be re-fetched
+ * from disk before the user edits or saves. When the canonical project
+ * identity (`projectIdentity`, an absolute env root — NOT the `projectRoot`
+ * display label, which can be a cwd-relative label) differs from the server
+ * root, the tabs belong to a different project and are dropped instead of
+ * restored. Re-fetch responses route through `hydrateFileContent`, which
+ * never steals focus and never overwrites mid-flight user edits.
+ */
+export function reconcileFileTabsAfterEnvChange(projectRoot: string): void {
+  const store = useFileStore.getState();
+  if (store.openFiles.length === 0) {
+    store.setProjectIdentity(projectRoot);
+    return;
+  }
+  if (store.projectIdentity && store.projectIdentity !== projectRoot) {
+    store.clearOpenTabs();
+    store.setProjectIdentity(projectRoot);
+    return;
+  }
+  store.setProjectIdentity(projectRoot);
+  const stubPaths = store.openFiles
+    .filter((f) => f.content === '' && !f.dirty)
+    .map((f) => f.path);
+  if (stubPaths.length === 0) return;
+  useFileStore.setState({ hydratingPaths: new Set(stubPaths) });
+  const ws = getWSClient();
+  for (const filePath of stubPaths) {
+    ws?.send?.({ type: 'files.read', payload: { filePath } });
+  }
+}
+
 export function handleFilesTree(msg: WSServerMessage) {
   const p = msg.payload as { root: string; tree: TreeNode[]; error?: string | undefined };
   if (p.error) {
@@ -40,11 +76,24 @@ export function handleFilesTree(msg: WSServerMessage) {
 
 export function handleFilesRead(msg: WSServerMessage) {
   const p = msg.payload as { filePath: string; content: string; error?: string | undefined };
+  const store = useFileStore.getState();
   if (p.error) {
-    useFileStore.getState().setError(p.error);
+    // A hydration read whose file vanished on disk: drop the dead stub
+    // instead of leaving an empty tab that the next save would resurrect.
+    if (store.hydratingPaths.has(p.filePath)) {
+      store.hydrateFileFailed(p.filePath);
+      return;
+    }
+    store.setError(p.error);
     return;
   }
-  useFileStore.getState().openFile(p.filePath, p.content);
+  // Hydration reads (rehydrated stub tabs) go through the guarded path:
+  // they never steal focus and never overwrite user edits made mid-flight.
+  if (store.hydratingPaths.has(p.filePath)) {
+    store.hydrateFileContent(p.filePath, p.content);
+    return;
+  }
+  store.openFile(p.filePath, p.content);
 }
 
 export function handleFilesWritten(msg: WSServerMessage) {

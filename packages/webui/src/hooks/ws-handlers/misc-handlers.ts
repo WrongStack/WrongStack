@@ -1,5 +1,6 @@
 import type { PhaseItem } from '@/components/PhasePanel';
 import { toast } from '@/components/Toaster';
+import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { normalizedEqual } from '@/lib/core-browser-shim';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
@@ -449,6 +450,9 @@ export function handleWorkingDirChanged(msg: WSServerMessage) {
     projectName: p.projectRoot.split(/[/\\]/).pop() || p.projectRoot,
   });
   useFileStore.getState().setTreeLoading(true);
+  // Rehydrated tabs are path-only stubs; re-fetch their content from disk,
+  // or drop them entirely when the server moved to a different project.
+  reconcileFileTabsAfterEnvChange(p.projectRoot);
   getWSClient().send({ type: 'files.tree', payload: { path: p.cwd } });
 }
 

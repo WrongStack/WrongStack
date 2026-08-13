@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useFileStore } from '../../src/stores/file-store';
+import { type FileStoreState, mergePersistedFileStore, useFileStore } from '../../src/stores/file-store';
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -11,6 +11,8 @@ function resetStore() {
     activeFilePath: null,
     treeLoading: false,
     error: null,
+    projectIdentity: '',
+    hydratingPaths: new Set<string>(),
   });
 }
 
@@ -246,7 +248,11 @@ describe('setTreeLoading', () => {
 describe('persist middleware', () => {
   beforeEach(() => resetStore());
 
-  it('persists openFiles and activeFilePath to localStorage', () => {
+  it('persists tab paths, active file, and project identity — never content', () => {
+    useFileStore.getState().setTree('/proj', []);
+    // Identity comes from the server env (absolute root), not the tree
+    // display label — setTree's root can be a cwd-relative label.
+    useFileStore.getState().setProjectIdentity('/proj');
     useFileStore.getState().openFile('/proj/a.ts', 'content-a');
     useFileStore.getState().openFile('/proj/b.ts', 'content-b');
     useFileStore.getState().setActiveFile('/proj/b.ts');
@@ -254,10 +260,15 @@ describe('persist middleware', () => {
     const raw = localStorage.getItem('wrongstack-file-store');
     expect(raw).toBeTruthy();
     const parsed = JSON.parse(raw!);
-    expect(parsed.state.openFiles).toHaveLength(2);
-    expect(parsed.state.openFiles[0].path).toBe('/proj/a.ts');
-    expect(parsed.state.openFiles[1].path).toBe('/proj/b.ts');
+    expect(parsed.state.openFilePaths).toEqual(['/proj/a.ts', '/proj/b.ts']);
     expect(parsed.state.activeFilePath).toBe('/proj/b.ts');
+    expect(parsed.state.projectIdentity).toBe('/proj');
+    expect(parsed.state.openFiles).toBeUndefined();
+    expect(parsed.state.projectRoot).toBeUndefined();
+    // Cached content must never reach localStorage — restoring it after a
+    // reload would silently overwrite on-disk changes on the next save.
+    expect(raw).not.toContain('content-a');
+    expect(raw).not.toContain('content-b');
   });
 
   it('does NOT persist transient state (tree, treeLoading, error)', () => {
@@ -272,48 +283,179 @@ describe('persist middleware', () => {
     expect(parsed.state.error).toBeUndefined();
   });
 
-  it('restores open tabs and active file on rehydration', () => {
-    // Simulate what happens on page load: store already has persisted data
-    // in localStorage, and Zustand persist reads it on creation.
-    localStorage.setItem(
-      'wrongstack-file-store',
-      JSON.stringify({
-        state: {
-          openFiles: [
-            { path: '/proj/a.ts', content: 'hello', dirty: false, savedContent: 'hello' },
-            { path: '/proj/b.ts', content: 'world-edited', dirty: true, savedContent: 'world' },
-          ],
-          activeFilePath: '/proj/b.ts',
-        },
-        version: 1,
-      }),
-    );
-
-    // Force rehydration by re-creating the store state from persisted data.
-    // In a real browser, Zustand persist does this automatically on creation.
-    const persisted = JSON.parse(localStorage.getItem('wrongstack-file-store')!);
-    useFileStore.setState({
-      openFiles: persisted.state.openFiles,
-      activeFilePath: persisted.state.activeFilePath,
-    });
-
-    const state = useFileStore.getState();
-    expect(state.openFiles).toHaveLength(2);
-    expect(state.openFiles[0].path).toBe('/proj/a.ts');
-    expect(state.openFiles[0].dirty).toBe(false);
-    // Dirty state is preserved across rehydration.
-    expect(state.openFiles[1].path).toBe('/proj/b.ts');
-    expect(state.openFiles[1].dirty).toBe(true);
-    expect(state.openFiles[1].content).toBe('world-edited');
-    expect(state.openFiles[1].savedContent).toBe('world');
-    expect(state.activeFilePath).toBe('/proj/b.ts');
-  });
-
-  it('includes version: 1 in the persisted payload', () => {
+  it('includes version: 2 in the persisted payload', () => {
     useFileStore.getState().openFile('/proj/a.ts', 'content');
     const raw = localStorage.getItem('wrongstack-file-store');
     const parsed = JSON.parse(raw!);
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
+  });
+});
+
+// ── mergePersistedFileStore (rehydration) ───────────────────────────
+
+describe('mergePersistedFileStore', () => {
+  beforeEach(() => resetStore());
+
+  function current(): FileStoreState {
+    return useFileStore.getState();
+  }
+
+  it('restores v2 path-only payloads as empty-content stubs', () => {
+    const merged = mergePersistedFileStore(
+      {
+        openFilePaths: ['/proj/a.ts', '/proj/b.ts'],
+        activeFilePath: '/proj/b.ts',
+        projectIdentity: '/proj',
+      },
+      current(),
+    );
+    expect(merged.openFiles).toEqual([
+      { path: '/proj/a.ts', content: '', dirty: false, savedContent: '' },
+      { path: '/proj/b.ts', content: '', dirty: false, savedContent: '' },
+    ]);
+    expect(merged.activeFilePath).toBe('/proj/b.ts');
+    expect(merged.projectIdentity).toBe('/proj');
+  });
+
+  it('never restores legacy v1 payloads carrying file content', () => {
+    // v1 stored full content + dirty flags. Both the migrate step (version
+    // bump) and the merge itself must refuse to resurrect that content.
+    const merged = mergePersistedFileStore(
+      {
+        openFiles: [{ path: '/proj/a.ts', content: 'stale', dirty: true, savedContent: 'old' }],
+        activeFilePath: '/proj/a.ts',
+      },
+      current(),
+    );
+    expect(merged.openFiles).toEqual([]);
+    expect(merged.activeFilePath).toBeNull();
+  });
+
+  it('falls back to the first tab when activeFilePath is not among persisted paths', () => {
+    const merged = mergePersistedFileStore(
+      {
+        openFilePaths: ['/proj/a.ts', '/proj/b.ts'],
+        activeFilePath: '/proj/gone.ts',
+        projectIdentity: '/proj',
+      },
+      current(),
+    );
+    expect(merged.activeFilePath).toBe('/proj/a.ts');
+  });
+
+  it('ignores malformed path entries and non-string projectIdentity', () => {
+    const merged = mergePersistedFileStore(
+      { openFilePaths: ['/proj/a.ts', '', 42, null], projectIdentity: 7 },
+      current(),
+    );
+    expect(merged.openFiles.map((f) => f.path)).toEqual(['/proj/a.ts']);
+    expect(merged.activeFilePath).toBe('/proj/a.ts');
+    expect(merged.projectIdentity).toBe('');
+  });
+
+  it('handles missing persisted state', () => {
+    const merged = mergePersistedFileStore(undefined, current());
+    expect(merged.openFiles).toEqual([]);
+    expect(merged.activeFilePath).toBeNull();
+  });
+});
+
+// ── hydrateFileContent (rehydration race guards) ─────────────────────
+
+describe('hydrateFileContent', () => {
+  beforeEach(() => resetStore());
+
+  function stubTabs(paths: string[]) {
+    useFileStore.setState({
+      openFiles: paths.map((path) => ({ path, content: '', dirty: false, savedContent: '' })),
+      activeFilePath: paths[0] ?? null,
+      hydratingPaths: new Set(paths),
+    });
+  }
+
+  it('fills a pristine stub without changing the active tab', () => {
+    stubTabs(['/proj/a.ts', '/proj/b.ts']);
+    useFileStore.getState().setActiveFile('/proj/b.ts');
+    const applied = useFileStore.getState().hydrateFileContent('/proj/a.ts', 'disk-content');
+    expect(applied).toBe(true);
+    const file = useFileStore.getState().openFiles.find((f) => f.path === '/proj/a.ts');
+    expect(file?.content).toBe('disk-content');
+    expect(file?.savedContent).toBe('disk-content');
+    // Hydration must never steal focus from the persisted active tab.
+    expect(useFileStore.getState().activeFilePath).toBe('/proj/b.ts');
+    expect(useFileStore.getState().hydratingPaths.has('/proj/a.ts')).toBe(false);
+  });
+
+  it('does not overwrite a tab the user has started editing', () => {
+    stubTabs(['/proj/a.ts']);
+    useFileStore.getState().updateContent('/proj/a.ts', 'user typing');
+    const applied = useFileStore.getState().hydrateFileContent('/proj/a.ts', 'late-read');
+    expect(applied).toBe(false);
+    expect(useFileStore.getState().openFiles[0].content).toBe('user typing');
+    expect(useFileStore.getState().hydratingPaths.has('/proj/a.ts')).toBe(false);
+  });
+
+  it('is a no-op for paths that are not hydrating', () => {
+    stubTabs(['/proj/a.ts']);
+    useFileStore.setState({ hydratingPaths: new Set<string>() });
+    const applied = useFileStore.getState().hydrateFileContent('/proj/a.ts', 'late-read');
+    expect(applied).toBe(false);
+    expect(useFileStore.getState().openFiles[0].content).toBe('');
+  });
+});
+
+// ── hydrateFileFailed (vanished-file handling) ───────────────────────
+
+describe('hydrateFileFailed', () => {
+  beforeEach(() => resetStore());
+
+  function stubTabs(paths: string[]) {
+    useFileStore.setState({
+      openFiles: paths.map((path) => ({ path, content: '', dirty: false, savedContent: '' })),
+      activeFilePath: paths[0] ?? null,
+      hydratingPaths: new Set(paths),
+    });
+  }
+
+  it('closes a pristine stub whose file vanished on disk', () => {
+    stubTabs(['/proj/a.ts', '/proj/b.ts']);
+    useFileStore.getState().hydrateFileFailed('/proj/a.ts');
+    const state = useFileStore.getState();
+    // The dead stub is dropped so the next save cannot resurrect the file.
+    expect(state.openFiles.map((f) => f.path)).toEqual(['/proj/b.ts']);
+    expect(state.hydratingPaths.has('/proj/a.ts')).toBe(false);
+  });
+
+  it('keeps a dirty tab open when its hydration read fails', () => {
+    stubTabs(['/proj/a.ts']);
+    useFileStore.getState().updateContent('/proj/a.ts', 'user typing');
+    useFileStore.getState().hydrateFileFailed('/proj/a.ts');
+    const state = useFileStore.getState();
+    expect(state.openFiles).toHaveLength(1);
+    expect(state.openFiles[0].content).toBe('user typing');
+    expect(state.hydratingPaths.has('/proj/a.ts')).toBe(false);
+  });
+
+  it('is a no-op for paths that are not hydrating', () => {
+    stubTabs(['/proj/a.ts']);
+    useFileStore.setState({ hydratingPaths: new Set<string>() });
+    useFileStore.getState().hydrateFileFailed('/proj/a.ts');
+    expect(useFileStore.getState().openFiles).toHaveLength(1);
+  });
+});
+
+// ── clearOpenTabs ────────────────────────────────────────────────────
+
+describe('clearOpenTabs', () => {
+  beforeEach(() => resetStore());
+
+  it('drops all tabs and the active file', () => {
+    useFileStore.getState().openFile('/proj/a.ts', 'a');
+    useFileStore.getState().openFile('/proj/b.ts', 'b');
+    useFileStore.getState().clearOpenTabs();
+    const state = useFileStore.getState();
+    expect(state.openFiles).toEqual([]);
+    expect(state.activeFilePath).toBeNull();
   });
 });
 
