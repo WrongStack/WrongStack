@@ -15,8 +15,11 @@ const handlers = await import('../../src/hooks/ws-handlers/files-mailbox-handler
 const {
   debouncedRefresh,
   filesMailboxHandlerMap,
+  handleFilesCreated,
+  handleFilesDeleted,
   handleFilesRead,
   handleFilesTree,
+  handleFilesTreeChanged,
   handleFilesWritten,
   handleMailboxAgentRegistered,
   handleMailboxAgentDeregistered,
@@ -68,8 +71,11 @@ describe('files + mailbox ws-handler map', () => {
   it('registers a handler for every files/mailbox wire type', () => {
     expect(Object.keys(filesMailboxHandlerMap).sort()).toEqual(
       [
+        'files.created',
+        'files.deleted',
         'files.read',
         'files.tree',
+        'files.tree.changed',
         'files.written',
         'mailbox.agent_registered',
         'mailbox.agent_deregistered',
@@ -87,8 +93,11 @@ describe('files + mailbox ws-handler map', () => {
 
   it('wires each map entry to its exported handler', () => {
     expect(filesMailboxHandlerMap['files.tree']).toBe(handleFilesTree);
+    expect(filesMailboxHandlerMap['files.tree.changed']).toBe(handleFilesTreeChanged);
     expect(filesMailboxHandlerMap['files.read']).toBe(handleFilesRead);
     expect(filesMailboxHandlerMap['files.written']).toBe(handleFilesWritten);
+    expect(filesMailboxHandlerMap['files.created']).toBe(handleFilesCreated);
+    expect(filesMailboxHandlerMap['files.deleted']).toBe(handleFilesDeleted);
     expect(filesMailboxHandlerMap['mailbox.event']).toBe(handleMailboxEvent);
     expect(filesMailboxHandlerMap['mailbox.messages']).toBe(handleMailboxMessages);
     expect(filesMailboxHandlerMap['mailbox.agents']).toBe(handleMailboxAgents);
