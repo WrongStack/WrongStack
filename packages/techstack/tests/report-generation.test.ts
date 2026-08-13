@@ -123,4 +123,40 @@ describe('TechStackEngine.generateReport', () => {
     expect(report).not.toContain('## Findings');
     expect(report).not.toContain('## Dependencies');
   });
+
+  it('generates valid SPDX 2.3 SBOM output', () => {
+    const store = createTestStore();
+    const engine = new TechStackEngine(store);
+    const report = engine.generateReport(SAMPLE_SNAPSHOT, 'spdx');
+    store.close();
+
+    const parsed = JSON.parse(report);
+    expect(parsed.spdxVersion).toBe('SPDX-2.3');
+    expect(parsed.name).toBe('TechStack-SBOM-proj-1');
+    expect(parsed.packages).toHaveLength(2);
+    expect(parsed.packages[0].name).toBe('express');
+    // SPDX 2.3 required package fields (Chimera caba193f)
+    for (const pkg of parsed.packages) {
+      expect(pkg).toHaveProperty('SPDXID');
+      expect(pkg).toHaveProperty('downloadLocation');
+      expect(pkg).toHaveProperty('filesAnalyzed');
+      expect(pkg).toHaveProperty('licenseConcluded');
+      expect(pkg).toHaveProperty('licenseDeclared');
+      expect(pkg).toHaveProperty('supplier');
+      expect(pkg).toHaveProperty('copyrightText');
+    }
+  });
+
+  it('generates valid CycloneDX 1.5 SBOM output', () => {
+    const store = createTestStore();
+    const engine = new TechStackEngine(store);
+    const report = engine.generateReport(SAMPLE_SNAPSHOT, 'cyclonedx');
+    store.close();
+
+    const parsed = JSON.parse(report);
+    expect(parsed.bomFormat).toBe('CycloneDX');
+    expect(parsed.specVersion).toBe('1.5');
+    expect(parsed.components).toHaveLength(2);
+    expect(parsed.components[0].name).toBe('express');
+  });
 });

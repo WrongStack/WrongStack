@@ -25,7 +25,11 @@ export interface SpdxDocument {
     SPDXID: string;
     versionInfo?: string | undefined;
     downloadLocation?: string | undefined;
+    filesAnalyzed: boolean;
     licenseConcluded?: string | undefined;
+    licenseDeclared?: string | undefined;
+    supplier: string;
+    copyrightText: string;
   }>;
 }
 
@@ -46,7 +50,11 @@ export function toSpdx(snapshot: Snapshot): SpdxDocument {
       SPDXID: `SPDXRef-Package-${index}`,
       versionInfo: dep.locked ?? dep.requested,
       downloadLocation: dep.purl ? `https://purl.io/${dep.purl}` : 'NOASSERTION',
+      filesAnalyzed: false,
       licenseConcluded: dep.license ?? 'NOASSERTION',
+      licenseDeclared: dep.license ?? 'NOASSERTION',
+      supplier: 'NOASSERTION',
+      copyrightText: 'NOASSERTION',
     })),
   };
 }
