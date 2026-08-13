@@ -461,9 +461,16 @@ async function executeUnread(
   const batches = await Promise.all(
     targets.map((to) => mb.query({ to, unreadBy: agentId, readerRole: role, limit: 200 }).catch(() => [])),
   );
-  const ids = new Set(
-    batches.flat().filter((m) => isMailboxMessageVisibleTo(m, agentId, role)).map((m) => m.id),
-  );
+  // Session-affinity filter: every read path that touches cross-session
+  // mail must wire the same filter — check (line 284) and query (line 412)
+  // already do. Without it here, a chimera report stamped with another
+  // session's affinity token counts toward this leader's unread total
+  // even though acceptMailboxMessageForSession would reject it on read.
+  const ids = new Set<string>();
+  for (const m of batches.flat()) {
+    if (!isMailboxMessageVisibleTo(m, agentId, role)) continue;
+    if (await acceptMailboxMessageForSession(m, sessionId)) ids.add(m.id);
+  }
   return { ok: true, count: ids.size, summary: `${ids.size} unread message(s) for you.` };
 }
 
