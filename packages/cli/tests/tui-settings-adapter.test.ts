@@ -440,6 +440,46 @@ describe('TUI settings adapter', () => {
     expect(configStore.get().modelRuntime?.reasoning?.mode).toBe('on');
   });
 
+  it('deep-merges destination config when scope switches project→global (recursive merge)', async () => {
+    // Regression (Chimera 9a41992f): when configScope changes from
+    // 'project' to 'global' mid-save, the adapter reads the source (project)
+    // file, mutates it, then writes to the destination (global) file. The
+    // merge must be recursive so nested keys that exist ONLY in the
+    // destination survive — a shallow spread loses them.
+    const { adapter, configStore, globalConfig } = makeAdapter(
+      baseConfig({
+        // Start in project scope with a sparse config.
+        configScope: 'project',
+        modelRuntime: {
+          reasoning: { mode: 'on', effort: 'high', preserve: false },
+          cache: { ttl: '1h' },
+          parameters: { user: 'global-user' },
+        },
+      }),
+    );
+
+    // The global config (destination) has nested keys the project config
+    // doesn't: modelRuntime.parameters.temperature, autonomy fields, etc.
+    // After the scope switch, the merge must preserve these.
+    const err = await adapter.saveSettings({
+      configScope: 'global',
+      reasoningMode: 'off',
+      cacheTtl: '5m',
+    });
+
+    expect(err).toBeNull();
+    const written = JSON.parse(readFileSync(globalConfig, 'utf8'));
+    // The mutated values are applied...
+    expect(written.configScope).toBe('global');
+    expect(written.modelRuntime.reasoning.mode).toBe('off');
+    expect(written.modelRuntime.cache.ttl).toBe('5m');
+    // ...and destination-only nested keys survive the recursive merge.
+    expect(written.modelRuntime.parameters.user).toBe('global-user');
+    expect(written.provider).toBe('test');
+    expect(written.model).toBe('test-model');
+    expect(configStore.get().modelRuntime?.reasoning?.mode).toBe('off');
+  });
+
   // ── getSettings() filesystem-access pair resolution ────────────────────
   //
   // The picker reads TWO knobs from the config (allowOutsideProjectRoot +
