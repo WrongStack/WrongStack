@@ -286,6 +286,16 @@ function normalizeMessageContent(m: Message): unknown {
  * boundary), else the last marked `system` block, else — preserving the old
  * "ttl always applies" contract for marker-less embedder prompts — the last
  * system block outright. Returns the mutable wire object or undefined.
+ *
+ * INTENTIONAL MARKER ADDITION (B7): when no system or message block carries
+ * `cache_control`, the fallback returns the last system block *without* a
+ * marker — the caller (`ttl` placement at the call site) then stamps it with
+ * `cache_control + ttl`, effectively adding a new breakpoint to the wire.
+ * This is deliberate (keeps the "ttl always pins something" contract for
+ * embedders that don't emit their own markers), but it means the total
+ * marker count on the wire can exceed what the embedder produced — which
+ * feeds the pinned-overflow scenario in `capAnthropicCacheBreakpoints`.
+ * The cap runs *after* this step and owns the final count.
  */
 function findDeepestMarkedBlock(body: Record<string, unknown>): Record<string, unknown> | undefined {
   const messages = body['messages'];

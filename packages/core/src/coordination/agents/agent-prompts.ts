@@ -235,7 +235,7 @@ export function agentPrompt(id: string): string {
 
   const fileName = `${id}.md`;
   let resolved = '';
-  for (const dir of agentPromptDirCandidates(envDir)) {
+  for (const dir of agentPromptDirCandidates(envDir, promptProjectRoot)) {
     try {
       resolved = readFileSync(path.join(dir, fileName), 'utf8').trim();
       break;
@@ -271,9 +271,9 @@ export function agentPrompt(id: string): string {
   return resolved;
 }
 
-function agentPromptDirCandidates(envDir: string): string[] {
-  const profileInstructions = resolveWstackPaths({ projectRoot: process.cwd() }).globalInstructions;
-  const candKey = `${envDir}\u0000${profileInstructions}`;
+function agentPromptDirCandidates(envDir: string, projectRoot: string): string[] {
+  const profileInstructions = resolveWstackPaths({ projectRoot }).globalInstructions;
+  const candKey = `${envDir}\u0000${projectRoot}\u0000${profileInstructions}`;
   const cached = candidateCache.get(candKey);
   if (cached !== undefined) return cached;
 
