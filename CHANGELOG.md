@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.306.4] — 2026-08-13
+
+Aligned the release surfaces — root and per-package manifests, both apps, the website
+`META.version` and JSON-LD `softwareVersion`/`dateModified`, the website changelog
+entry, and the README — to a single version line. The substantive 0.306.3 work is
+re-published unchanged under this version.
+
+### Added
+
+- **A card that cannot pass verification now parks instead of wedging the board.** The completion gate could refuse forever: `finalizeTaskCompletion` put a refused card back in `review` and the managed `transitionTask` threw, and neither counted anything — so the same card could be re-verified indefinitely, and on a managed board nothing downstream of it could start. Refusals are now counted on the card, and at the second one (`completionGate.maxVerificationAttempts`, default 2) it is parked with the refusal's own words attached. Only refusals the next call cannot fix spend the budget: a missing `transitionAction` or an exceeded WIP limit still just tells you what to pass. A waiting card is told its blocker is parked and will not clear itself, rather than reporting the same "not completed yet" as a dependency that is merely still running.
+- **Agents now walk a cost ladder before writing new code.** Delete instead, does it need to exist, does the repo already do it, does the language, platform, or an installed dependency do it, is it one line — and only then the minimum that works. It carries an explicit limit: the ladder trims what the agent invented, never what the user asked for, and reuse claims need a named file, symbol, or package rather than recollection. Wired into the default, pro, and lite identities plus the subagent baseline, and enforced as a review dimension in the code-reviewer agent.
+
+## [0.306.3] — 2026-08-13
+
+Initial release of the parked-verification and cost-ladder surfacing (republished
+under 0.306.4 to keep build, package, and website surfaces in lockstep).
+
 ### Added
 
 - **A card that cannot pass verification now parks instead of wedging the board.** The completion gate could refuse forever: `finalizeTaskCompletion` put a refused card back in `review` and the managed `transitionTask` threw, and neither counted anything — so the same card could be re-verified indefinitely, and on a managed board nothing downstream of it could start. Refusals are now counted on the card, and at the second one (`completionGate.maxVerificationAttempts`, default 2) it is parked with the refusal's own words attached. Only refusals the next call cannot fix spend the budget: a missing `transitionAction` or an exceeded WIP limit still just tells you what to pass. A waiting card is told its blocker is parked and will not clear itself, rather than reporting the same "not completed yet" as a dependency that is merely still running.

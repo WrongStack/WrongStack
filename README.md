@@ -52,7 +52,7 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.306.3
+### What's new in 0.306.4
 
 - **Kanban verification failures no longer wedge managed boards.** Refusals are
   counted on the card and, after two unfixable attempts by default, the card is
@@ -70,8 +70,11 @@ agent to phone home to.
 - **Reuse claims require evidence.** Agents must name the existing file, symbol,
   or package they intend to reuse rather than relying on recollection, while the
   ladder is explicitly forbidden from reducing user-requested scope.
+- **Release surfaces re-anchored to 0.306.4.** Root and per-package manifests,
+  both apps, the website META.version, JSON-LD softwareVersion/dateModified,
+  the website changelog, and this README now point at the same release line.
 
-See the complete [0.306.3 release notes](CHANGELOG.md).
+See the complete [0.306.4 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -80,7 +83,7 @@ See the complete [0.306.3 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.306.3](#whats-new-in-03063)
+- [What's new in 0.306.4](#whats-new-in-03064)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

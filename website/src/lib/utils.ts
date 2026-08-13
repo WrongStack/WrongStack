@@ -321,7 +321,7 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.306.3',
+    version: '0.306.4',
     date: '2026-08-13',
     latest: true,
     tagline: 'Parked verification failures and implementation cost discipline',
@@ -331,6 +331,14 @@ export const changelog: ChangelogEntry[] = [
       'Dependencies now distinguish a parked blocker that needs intervention from ordinary work that is still running',
       'Agents follow a cost ladder before writing code: delete, validate necessity, reuse repository patterns, prefer language or platform capabilities, inspect installed dependencies, then write the minimum',
       'Reuse claims must cite the existing file, symbol, or package, and the cost ladder cannot reduce the scope explicitly requested by the user',
+    ],
+  },
+  {
+    version: '0.306.3',
+    date: '2026-08-13',
+    tagline: 'Parked verification failures and implementation cost discipline',
+    highlights: [
+      'Initial release of the parked-verification and cost-ladder surfacing (republished under 0.306.4 to keep build, package, and website surfaces in lockstep)',
     ],
   },
   {
