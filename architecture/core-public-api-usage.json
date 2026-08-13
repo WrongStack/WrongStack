@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 124,
+      "files": 125,
       "typeOnly": 22,
-      "runtimeOrMixed": 105
+      "runtimeOrMixed": 106
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -144,13 +144,13 @@
       "runtimeOrMixed": 21
     },
     "@wrongstack/core/tools": {
-      "files": 4,
+      "files": 5,
       "typeOnly": 0,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 894,
-      "typeOnly": 826,
+      "files": 895,
+      "typeOnly": 827,
       "runtimeOrMixed": 227
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -7161,6 +7161,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/fleet/host-helpers-capabilities.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/hq-auth-admin-capability.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8428,6 +8434,12 @@
     {
       "specifier": "@wrongstack/core/tools",
       "file": "packages/cli/src/wiring/provider-utility-tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tools",
+      "file": "packages/webui-server/src/server/provider-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9988,6 +10000,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/fleet/host-context-skill-budget.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/fleet/host-helpers-capabilities.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

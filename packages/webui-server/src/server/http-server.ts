@@ -590,6 +590,43 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
         return;
       }
 
+      // ── Origin-less mutation gate (the HTTP half of WS-005) ─────────
+      // The origin guard above is a BROWSER control: it compares a header only
+      // a browser is obliged to send. A local process sends no `Origin` at all,
+      // sails past it, and on the loopback default `requireAccessToken` is
+      // false — so `POST /api/sessions/:id/message` (steer any live session's
+      // leader, cross-project, with a spoofable `from`), `/interrupt` and
+      // `/api/fleet/broadcast` needed no credential from any process on the
+      // machine.
+      //
+      // ws-auth.ts closed exactly this on the WS half in WS-005: "non-browser
+      // clients (curl, scripts, automation) must always present a token". The
+      // same reasoning applies verbatim here, and a token always exists —
+      // `resolveAuthToken` generates one when unconfigured and it is printed in
+      // the access URL.
+      //
+      // Deliberately NOT `requireAccessToken = true` on every bind: that was
+      // tried on 2026-08-04 (H3) and reverted, because `GET /` carries no token
+      // on a fresh visit and the gate fired before the SPA could render. This
+      // gate is scoped to mutating `/api` verbs, so the page load, its assets
+      // and every read path keep the loopback bootstrap they depend on.
+      const isMutatingApiRequest =
+        url.pathname.startsWith('/api/') &&
+        (req.method === 'POST' ||
+          req.method === 'PUT' ||
+          req.method === 'PATCH' ||
+          req.method === 'DELETE');
+      if (isMutatingApiRequest && !req.headers.origin && !accessTokenOk) {
+        res.writeHead(401, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(
+          JSON.stringify({
+            error:
+              'Unauthorized: a request without an Origin header must present the access token (X-WS-Token header or ws_token cookie).',
+          }),
+        );
+        return;
+      }
+
       if (shouldSetAuthCookie && opts.apiToken) {
         setAuthCookieHeaders(res, opts.apiToken, secureCookies);
       }

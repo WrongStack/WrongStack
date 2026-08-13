@@ -1,6 +1,10 @@
 import * as path from 'node:path';
 import { type FleetWorktreePolicy, makeSubagentResultTool } from '@wrongstack/core/coordination';
-import { ToolCapabilities, WIDE_SUBAGENT_CAPABILITIES } from '@wrongstack/core/security';
+import {
+  ToolCapabilities,
+  WIDE_SUBAGENT_CAPABILITIES,
+  clampSubagentCapabilities,
+} from '@wrongstack/core/security';
 import type { Config, SubagentConfig, TaskSpec, Tool } from '@wrongstack/core/types';
 import { makePreferSideConflictResolver } from '@wrongstack/sdd';
 
@@ -155,10 +159,23 @@ export function resolveSubagentCapabilities(
   subCfg: SubagentConfig,
   toolsForAllow: (allow: readonly string[]) => readonly Tool[],
 ): readonly string[] | undefined {
+  // Both branches below are fed by `subCfg`, which on the director/kanban
+  // dispatch path is MODEL OUTPUT: `allowedCapabilities` is un-enum'd on those
+  // tool schemas, and `tools` is a free-form string array. Untrusted input may
+  // narrow a grant, never widen one — so every path out of this function is
+  // clamped to the same ceiling the two sibling parsers already use
+  // (`project-agent-identity.ts` and `kanban-task-inputs.ts`). Without this,
+  // prompt injection could name a capability directly, or name a tool and
+  // inherit its capabilities transitively (`plugin_manager` → `config.mutate`
+  // → `npx -y <pkg>`), and the widened grant PERSISTS onto the Kanban board to
+  // be replayed on a later user-initiated dispatch.
   if (subCfg.allowedCapabilities) {
-    return Array.from(
-      new Set([...subCfg.allowedCapabilities, ToolCapabilities.COORDINATION_RESULT_SUBMIT]),
-    );
+    // COORDINATION_RESULT_SUBMIT is inside WIDE_SUBAGENT_CAPABILITIES, so the
+    // clamp preserves it — a subagent can always report its result back.
+    return clampSubagentCapabilities([
+      ...subCfg.allowedCapabilities,
+      ToolCapabilities.COORDINATION_RESULT_SUBMIT,
+    ]).granted;
   }
   const allow = subCfg.tools;
   if (!allow || allow.length === 0) return WIDE_SUBAGENT_CAPABILITIES;
@@ -166,7 +183,7 @@ export function resolveSubagentCapabilities(
   for (const tool of toolsForAllow([...allow])) {
     for (const capability of tool.capabilities ?? []) caps.add(capability);
   }
-  return [...caps];
+  return clampSubagentCapabilities([...caps]).granted;
 }
 
 export function resolveFleetWorktreePolicy(config: Config): FleetWorktreePolicy {

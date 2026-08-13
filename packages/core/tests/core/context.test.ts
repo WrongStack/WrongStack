@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { Context, resolveEventSessionId } from '../../src/core/context.js';
@@ -249,6 +251,48 @@ describe('Context.workingDir', () => {
 });
 
 describe('Context.setWorkingDir', () => {
+  it('refuses a working dir that spells inside the root but resolves outside it', () => {
+    // Attacker goal: commit a symlink/junction to the repo, get the working
+    // dir moved onto it, and every tool that resolves a relative path against
+    // `workingDir` inherits the escape without ever naming a `../` path. This
+    // setter is the amplifier for the whole lexical-containment class, so the
+    // check has to be realpath-based, not spelling-based.
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-wd-'));
+    const root = path.join(base, 'proj');
+    const outside = path.join(base, 'outside');
+    fs.mkdirSync(root);
+    fs.mkdirSync(outside);
+    const link = path.join(root, 'escape');
+    try {
+      // Windows reports a junction as isSymbolicLink(); 'junction' is the only
+      // link type creatable without elevation there.
+      fs.symlinkSync(outside, link, process.platform === 'win32' ? 'junction' : 'dir');
+    } catch {
+      return; // no link privilege in this environment — nothing to assert
+    }
+    const ctx = new Context({
+      systemPrompt: [{ type: 'text', text: 'hi' } as TextBlock],
+      provider: fakeProvider,
+      session: fakeSession,
+      signal: new AbortController().signal,
+      tokenCounter: new DefaultTokenCounter(),
+      cwd: root,
+      projectRoot: root,
+      model: 'm',
+    });
+    try {
+      // `escape` is lexically inside `root` — the old check passed it.
+      expect(() => ctx.setWorkingDir(link)).toThrow(/outside project root/);
+      // A genuine subdirectory still works, so the guard is not just refusing
+      // everything.
+      const real = path.join(root, 'src');
+      fs.mkdirSync(real);
+      expect(ctx.setWorkingDir(real)).toBe(fs.realpathSync.native(real));
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
   it('changes workingDir to a subdirectory', () => {
     const ctx = new Context({
       systemPrompt: [{ type: 'text', text: 'hi' } as TextBlock],

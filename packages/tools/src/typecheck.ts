@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
-import { detectPackageManager, normalizeCommandOutput, safeResolve } from './_util.js';
+import { detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
 interface TypecheckInput {
@@ -63,7 +63,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TypecheckOutput>> {
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     const bridge = await tryLegacyCodeOperation('semantic', {
@@ -107,7 +107,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
         cmdArgs = ['tsc', ...tscArgs];
       }
     } else {
-      const tsconfig = input.project ? safeResolve(input.project, ctx) : await findTsConfig(cwd);
+      const tsconfig = input.project ? await safeResolveReal(input.project, ctx) : await findTsConfig(cwd);
       const tscArgs = ['--noEmit'];
       if (input.strict) tscArgs.push('--strict');
       if (tsconfig) tscArgs.push('--project', tsconfig);

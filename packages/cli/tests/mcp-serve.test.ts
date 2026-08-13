@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   loadSelectedMcpServeContent,
   makeServeContext,
+  resolveServeFsRestriction,
   selectExposedTools,
 } from '../src/mcp-serve.js';
 
@@ -28,6 +29,25 @@ const allowAll: PermissionPolicy = {
   allowOnce: () => {},
   reload: async () => {},
 } as never as PermissionPolicy;
+
+describe('resolveServeFsRestriction', () => {
+  // Attacker goal: an MCP client sends
+  // `tools/call read {path:"C:\\Users\\<u>\\.ssh\\id_rsa"}` and gets the key
+  // back. `mcp serve` is the only surface where a remote caller drives the
+  // file tools, so an unset config must confine, not release.
+  it('confines to the project root when the config says nothing', () => {
+    expect(resolveServeFsRestriction({})).toBe(true);
+    expect(resolveServeFsRestriction({ tools: {} })).toBe(true);
+    expect(resolveServeFsRestriction({ tools: { restrictToProjectRoot: undefined } })).toBe(true);
+  });
+
+  it('honours an explicit opt-out from a trusted user config', () => {
+    // `tools.restrictToProjectRoot` is on the in-project denylist, so only the
+    // operator's own config can reach this branch — never a checked-out repo.
+    expect(resolveServeFsRestriction({ tools: { restrictToProjectRoot: false } })).toBe(false);
+    expect(resolveServeFsRestriction({ tools: { restrictToProjectRoot: true } })).toBe(true);
+  });
+});
 
 describe('selectExposedTools', () => {
   it('safe default (AutoApprove) exposes read-only tools but withholds bash/write/edit', async () => {

@@ -18,6 +18,7 @@ export {
   PROVIDER_KEY_SET_TOOL_NAME,
   PROVIDER_MANAGE_TOOL_NAME,
   SYSTEM_CONFIG_VIEW_TOOL_NAME,
+  validateProviderBaseUrl,
 } from './fallback-manage-tools.js';
 export { createMcpControlTool, type MCPRegistryHandle } from './mcp-control.js';
 export { createMcpUseTool } from './mcp-use.js';

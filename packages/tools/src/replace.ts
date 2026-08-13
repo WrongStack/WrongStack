@@ -15,7 +15,7 @@ import {
   unifiedDiff,
 } from '@wrongstack/core/utils';
 import { compileUserRegex } from './_regex.js';
-import { isBinaryBuffer, safeResolve, sha256hex, truncateDiffPayload } from './_util.js';
+import { isBinaryBuffer, safeResolveReal, sha256hex, truncateDiffPayload } from './_util.js';
 
 /** Byte budget for the combined per-file diff payload — matches `maxOutputBytes`. */
 const MAX_DIFF_BYTES = 262_144;
@@ -341,7 +341,10 @@ async function resolveFiles(
   const resolved: string[] = [];
 
   for (const p of parts) {
-    const absPath = safeResolve(p, ctx);
+    // `safeResolveReal`, not `safeResolve`: this list feeds a MUTATING tool, so
+    // an in-root symlink pointing outside the project must not be rewritten
+    // through. Matches what `edit`/`write` already do per file.
+    const absPath = await safeResolveReal(p, ctx);
     // Honor the extra `glob` filter on explicitly-listed files too — a
     // comma-separated list combined with `glob: "*.ts"` must not rewrite
     // the non-.ts entries.

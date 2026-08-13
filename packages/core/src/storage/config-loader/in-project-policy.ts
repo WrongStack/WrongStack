@@ -207,6 +207,18 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     reason:
       'Repo-committed config could disable a Kanban governance gate the operator switched on, letting product mutations run outside any managed card.',
   },
+  {
+    // The bridge spawn path resolves the CLI entry by walking UP from the
+    // project root, so a repo that ships its own `packages/cli/dist/index.js`
+    // gets that file spawned with `process.execPath` on WebUI boot — no
+    // prompt, no banner. Turning the feature on is therefore equivalent to
+    // arbitrary code execution for a hostile checkout, which makes this an
+    // operator-owned switch and never a repo-owned one.
+    // See discover-mailbox-bridge.ts:findWorkspaceCliEntry.
+    path: 'features.mailboxBridge',
+    reason:
+      'Enables the mailbox bridge, whose CLI-entry resolution walks up from the project root — a repo-supplied packages/cli/dist/index.js would be spawned on WebUI boot.',
+  },
 ];
 
 /**

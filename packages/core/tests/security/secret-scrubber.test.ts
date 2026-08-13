@@ -256,4 +256,44 @@ describe('SecretScrubber', () => {
       expect(scrubbed).not.toContain(url);
     });
   });
+
+  describe('JSON-serialised credentials', () => {
+    // Attacker goal: get a credential into the session JSONL, the chronicle,
+    // an HQ broadcast, or the model's own context by having it appear as a
+    // JSON value rather than a prefixed literal.
+    //
+    // This class was previously undetectable. `JSON_KEY_ANCHORS` listed the key
+    // names, but no pattern consumed them — the anchors only told the pre-scan
+    // to keep going, every regex then declined, and the value was emitted
+    // verbatim. `high_entropy_env` cannot cover it: it requires an uppercase
+    // UNQUOTED key, so `{"apiKey":"…"}` never matched.
+    const secret = 'abcdef0123456789abcdef0123456789';
+
+    it.each([
+      ['camelCase key', `{"apiKey":"${secret}"}`],
+      ['snake_case key', `{"access_token":"${secret}"}`],
+      ['prefixed key', `{"anthropicApiKey": "${secret}"}`],
+      ['whitespace around the colon', `{"token" : "${secret}"}`],
+      ['client_secret', `{"client_secret":"${secret}"}`],
+    ])('redacts a credential behind a %s', (_label, payload) => {
+      const scrubbed = s.scrub(payload);
+      expect(scrubbed).toContain('[REDACTED:json_credential_key]');
+      expect(scrubbed).not.toContain(secret);
+    });
+
+    it('preserves the key and the quotes so the output is still valid JSON', () => {
+      const scrubbed = s.scrub(`{"apiKey":"${secret}"}`);
+      expect(scrubbed).toBe('{"apiKey":"[REDACTED:json_credential_key]"}');
+      expect(() => JSON.parse(scrubbed)).not.toThrow();
+    });
+
+    it.each([
+      ['a numeric token counter', '{"tokenCount": 1234, "maxTokens": 8000}'],
+      ['a short enum value', '{"authorization":"none"}'],
+      ['prose that merely mentions a token', 'the token was rotated yesterday'],
+      ['ordinary package metadata', '{"name":"wrongstack","version":"0.306.3"}'],
+    ])('leaves %s untouched', (_label, payload) => {
+      expect(s.scrub(payload)).toBe(payload);
+    });
+  });
 });

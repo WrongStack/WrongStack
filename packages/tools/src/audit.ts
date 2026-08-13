@@ -1,11 +1,6 @@
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
-import {
-  COMMAND_OUTPUT_MAX_BYTES,
-  detectPackageManager,
-  normalizeCommandOutput,
-  safeResolve,
-} from './_util.js';
+import { COMMAND_OUTPUT_MAX_BYTES, detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
 
 interface AuditInput {
@@ -91,7 +86,7 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
       );
     }
 
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     const bridge = await tryLegacyPackageOperation('package-audit', {

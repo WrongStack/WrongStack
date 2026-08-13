@@ -37,6 +37,27 @@ const REALPATH_REQUIRED = [
   // The `files`-only dump path OPENS the resolved file, so it needs the
   // realpath form like the other content-opening tools.
   'diff.ts',
+  // Opens every file it documents.
+  'document.ts',
+  // Rewrites every file it resolves — a mutating tool must never follow an
+  // in-root link out of the root.
+  'replace.ts',
+  // Walks and lists a tree; a junction as the base enumerated names outside
+  // the root (the `grep` case, one tool over).
+  'tree.ts',
+  // WRITES generated files under the resolved destination.
+  'scaffold.ts',
+  // The remainder spawn a process with the resolved path as its cwd, which
+  // hands the escape to the child instead of performing it directly. Same
+  // boundary, one process removed.
+  'audit.ts',
+  'format.ts',
+  'install.ts',
+  'lint.ts',
+  'logs.ts',
+  'outdated.ts',
+  'test.ts',
+  'typecheck.ts',
 ] as const;
 
 /**
@@ -44,13 +65,20 @@ const REALPATH_REQUIRED = [
  * Adding an entry here is a deliberate decision, not an oversight.
  */
 const SYNTACTIC_ONLY_ALLOWED: Record<string, string> = {
-  // Never opens the path: it lists a tree and skips symlinked entries during
-  // the walk, and the audit's containment finding for it is tracked
-  // separately.
-  'tree.ts': 'listing only — does not open the resolved path',
-  // Resolves a destination that must not exist yet and does its own
-  // parent-realpath + basename rejoin.
-  'scaffold.ts': 'declares fs.write.outside-project and does its own check',
+  // Empty on purpose. Both former entries were removed once their stated
+  // reasons were checked rather than assumed:
+  //
+  //   - `tree.ts` claimed "listing only — does not open the resolved path".
+  //     Listing IS the disclosure: a junction as the base enumerated names
+  //     outside the root, which is the same bug `grep` was carrying.
+  //   - `scaffold.ts` claimed it "does its own check". It did not — the check
+  //     was `path.resolve` alone, so a junction at `cwd` wrote template files
+  //     straight through it. The comment asserting containment was the only
+  //     containment present.
+  //
+  // Both now use the realpath form. An entry here must survive the same
+  // question: not "does the code say it is safe", but "what happens when the
+  // path is a junction".
 };
 
 function read(file: string): string {

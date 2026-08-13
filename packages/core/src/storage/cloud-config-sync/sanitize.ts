@@ -15,6 +15,13 @@
  *
  * Stripping is therefore structural (projection), with `stripSecretMaterial` as a final
  * defense-in-depth pass mirroring the server's own scan.
+ *
+ * The two directions do NOT share one gate. "What may leave this machine" and "what may
+ * a remote peer write into the trusted profile config" are different questions, and the
+ * outbound tree is a wrong — dangerously permissive — answer to the second: it names
+ * `mcpServers.*.command`, `plugins`, `providers.*.baseUrl` and `yolo` as contract-owned,
+ * because pushing them is harmless. Pulls are therefore gated on `INBOUND_CONTRACT`, the
+ * outbound tree minus `INBOUND_DENIED_PATHS`.
  */
 
 /** `true` = the whole value is contract-owned; an object = recurse per key; `'*'` = record wildcard. */
@@ -215,6 +222,209 @@ export const CLOUD_SYNC_CONTRACT: Readonly<Record<string, ContractNode>> = {
 
 export const CLOUD_SYNC_NAMESPACES = Object.keys(CLOUD_SYNC_CONTRACT);
 
+/**
+ * Paths the contract may PUSH but must never ACCEPT on a pull.
+ *
+ * `CLOUD_SYNC_CONTRACT` answers "what may leave this machine". It was also the
+ * gate on the inbound direction, but that is a different question — "what may a
+ * remote peer write into the trusted profile config" — and reusing one answer
+ * for both granted the portal `mcpServers.*.command` (→ spawn), `plugins` (→
+ * `await import`), `providers.*.baseUrl` (→ endpoint redirect, with the local
+ * `apiKey` deliberately preserved by `reinjectLocalSecrets`) and `yolo` (→ every
+ * permission prompt off). A pull runs unattended on a timer.
+ *
+ * Note the asymmetry these entries restore: `in-project-policy.ts` already
+ * denies this same class of field to a checked-out repository. A remote portal
+ * is not more trusted than a repo the user chose to clone.
+ *
+ * Expressed as a denylist over the outbound tree rather than as a second full
+ * tree: one source of truth, and `assertInboundDenyListResolves` fails the build
+ * if an entry stops matching, so a contract rename cannot silently re-open a
+ * path. Pushing these fields is still fine — that is the direction the contract
+ * was designed for.
+ */
+const INBOUND_DENIED_PATHS: ReadonlyArray<{
+  namespace: string;
+  path: string;
+  reason: string;
+}> = [
+  // ── Code execution ──────────────────────────────────────────────────────
+  {
+    namespace: 'mcp.servers',
+    path: 'mcpServers.*.command',
+    reason: 'Executable spawned for a stdio MCP server.',
+  },
+  {
+    namespace: 'mcp.servers',
+    path: 'mcpServers.*.args',
+    reason: 'Argv for that executable.',
+  },
+  {
+    namespace: 'mcp.servers',
+    path: 'mcpServers.*.transport',
+    reason: 'Switching transport to stdio selects the spawning code path.',
+  },
+  {
+    namespace: 'extensions.plugins',
+    path: 'plugins',
+    reason: 'Plugin list is resolved and `await import`ed.',
+  },
+  // `extensions` is deliberately NOT denied: it is per-plugin settings read via
+  // `ConfigStore.getExtension(name)`, not a loader list, so it grants no import.
+  // Syncing it is the feature (`extensions.telegram.notifyChatId` and friends).
+  // Residual risk accepted: a plugin whose own settings include a URL can have
+  // that URL rewritten by the portal. Constrain that in the plugin's
+  // `configSchema`, which is where the loader validates it.
+  // ── Credential redirection / exfiltration ───────────────────────────────
+  {
+    namespace: 'providers.catalog',
+    path: 'providers.*.baseUrl',
+    reason:
+      'Repoints the provider endpoint; reinjectLocalSecrets keeps the local apiKey, so the real key follows the redirect.',
+  },
+  {
+    namespace: 'providers.catalog',
+    path: 'providers.*.envVars',
+    reason: 'Chooses which environment variable is read for the key.',
+  },
+  {
+    namespace: 'providers.catalog',
+    path: 'providers.*.activeKey',
+    reason: 'Selects which stored key is sent.',
+  },
+  {
+    namespace: 'mcp.servers',
+    path: 'mcpServers.*.url',
+    reason: 'Remote MCP endpoint; receives whatever the transport carries.',
+  },
+  {
+    namespace: 'mcp.servers',
+    path: 'mcpServers.*.envVars',
+    reason: 'Names of environment variables forwarded to the server process.',
+  },
+  // ── Operator-owned safety switches ──────────────────────────────────────
+  {
+    namespace: 'mcp.servers',
+    path: 'mcpServers.*.permission',
+    reason: 'Approval requirement for that server’s tools.',
+  },
+  { namespace: 'core.runtime', path: 'yolo', reason: 'Disables every permission prompt.' },
+  {
+    namespace: 'core.runtime',
+    path: 'features.allowOutsideProjectRoot',
+    reason: 'Short-circuits project-root containment and the symlink realpath check.',
+  },
+  {
+    namespace: 'core.runtime',
+    path: 'tools.restrictToProjectRoot',
+    reason: 'The other half of the filesystem confinement switch.',
+  },
+  {
+    namespace: 'core.runtime',
+    path: 'features.developerMode',
+    reason: 'Loosens guardrails; an operator opt-in, not a synced preference.',
+  },
+  {
+    namespace: 'core.runtime',
+    path: 'tools.disabledTools',
+    reason: 'Could re-enable a tool the operator deliberately switched off.',
+  },
+  {
+    namespace: 'ui.preferences',
+    path: 'autonomy.defaultMode',
+    reason: 'Autonomy is user-owned, never remote-owned.',
+  },
+  {
+    namespace: 'ui.preferences',
+    path: 'autonomy.yolo',
+    reason: 'Alias for the denied top-level `yolo`, and it wins over the user setting.',
+  },
+  {
+    namespace: 'ui.preferences',
+    path: 'launch.autonomy',
+    reason: 'Launch-time autonomy mode; same user-owned boundary.',
+  },
+  {
+    namespace: 'models.routing',
+    path: 'brain.mode',
+    reason: 'Selects the policy/LLM/human decision ladder.',
+  },
+  {
+    namespace: 'models.routing',
+    path: 'brain.maxAutoRisk',
+    reason: 'The risk ceiling below which actions proceed without asking.',
+  },
+];
+
+/** Does `tree` contain `segments`? Used by the drift assertion below. */
+function contractHasPath(tree: ContractNode, segments: readonly string[]): boolean {
+  if (segments.length === 0) return true;
+  if (tree === true) return false;
+  const [head, ...rest] = segments;
+  if (head === undefined || !Object.hasOwn(tree, head)) return false;
+  const child = tree[head];
+  return child === undefined ? false : contractHasPath(child, rest);
+}
+
+/** Return a copy of `tree` with `segments` removed. Untouched levels are shared. */
+function pruneContractPath(tree: ContractNode, segments: readonly string[]): ContractNode {
+  if (tree === true || segments.length === 0) return tree;
+  const [head, ...rest] = segments;
+  if (head === undefined || !Object.hasOwn(tree, head)) return tree;
+  const next: { [key: string]: ContractNode } = { ...tree };
+  if (rest.length === 0) {
+    delete next[head];
+    return next;
+  }
+  const child = next[head];
+  if (child === undefined) return tree;
+  next[head] = pruneContractPath(child, rest);
+  return next;
+}
+
+/**
+ * Every inbound-denied path must still resolve against the outbound contract.
+ *
+ * A denylist that silently stops matching is worse than no denylist: it reads
+ * as protection while granting the field. Renaming `mcpServers.*.command` in
+ * the contract without updating the entry here must break the build, not
+ * quietly re-open remote code execution.
+ */
+export function assertInboundDenyListResolves(): void {
+  const unresolved = INBOUND_DENIED_PATHS.filter((entry) => {
+    const tree = CLOUD_SYNC_CONTRACT[entry.namespace];
+    return tree === undefined || !contractHasPath(tree, entry.path.split('.'));
+  });
+  if (unresolved.length > 0) {
+    throw new Error(
+      'INBOUND_DENIED_PATHS entr(ies) no longer resolve against CLOUD_SYNC_CONTRACT — ' +
+        'a rename would silently re-open them: ' +
+        unresolved.map((entry) => `${entry.namespace}:${entry.path}`).join(', '),
+    );
+  }
+}
+
+/**
+ * The contract as it applies to a PULL: the outbound tree minus every path a
+ * remote peer must not be able to write. `applyNamespacePayload` gates on this;
+ * `buildNamespacePayloads` keeps using the full outbound tree.
+ */
+const INBOUND_CONTRACT: Readonly<Record<string, ContractNode>> = (() => {
+  assertInboundDenyListResolves();
+  const out: Record<string, ContractNode> = { ...CLOUD_SYNC_CONTRACT };
+  for (const entry of INBOUND_DENIED_PATHS) {
+    const tree = out[entry.namespace];
+    if (tree === undefined) continue;
+    out[entry.namespace] = pruneContractPath(tree, entry.path.split('.'));
+  }
+  return out;
+})();
+
+/** Exposed for tests and diagnostics — the effective pull-side allow tree. */
+export function inboundContractFor(namespace: string): ContractNode | undefined {
+  return INBOUND_CONTRACT[namespace];
+}
+
 /** Server-side schema versions, sent in every push envelope. */
 export const NAMESPACE_SCHEMA_VERSIONS: Readonly<Record<string, number>> = {
   'core.runtime': 1,
@@ -368,7 +578,10 @@ export function applyNamespacePayload(
   namespace: string,
   payload: Record<string, unknown>,
 ): Record<string, unknown> {
-  const tree = CLOUD_SYNC_CONTRACT[namespace];
+  // INBOUND_CONTRACT, not CLOUD_SYNC_CONTRACT: the outbound tree answers "what
+  // may leave", which is not the same question as "what may a remote peer write
+  // into the trusted profile config". See INBOUND_DENIED_PATHS.
+  const tree = INBOUND_CONTRACT[namespace];
   if (!tree || tree === true) return config;
 
   const next = { ...config };

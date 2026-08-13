@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import * as path from 'node:path';
 import type { TextBlock } from '../types/blocks.js';
 import type { ContextEvidenceState } from '../types/context-evidence.js';
@@ -935,6 +936,33 @@ export class Context implements RunEnv {
       const rel = path.relative(root, resolved);
       if (rel.startsWith('..') || path.isAbsolute(rel)) {
         throw new Error(`Working directory "${resolved}" is outside project root "${root}"`);
+      }
+      // The lexical check above passes any path that merely SPELLS as if it
+      // were inside the root. A symlink or Windows junction committed inside
+      // the repo points outside while spelling as inside, and this setter is
+      // the amplifier for that class: once the working dir sits on the far
+      // side of the link, every tool that resolves a relative path against it
+      // inherits the escape without naming a suspicious path itself.
+      //
+      // Realpath both sides — the root may itself be a link (macOS
+      // `/var`→`/private/var`, Windows 8.3 short names), so a raw-vs-real
+      // comparison would reject legitimate setups. `realpathSync`, not the
+      // async form: this setter is synchronous and used across many callers.
+      // A path that cannot be realpath'd (not yet created, permission denied)
+      // keeps the lexical result, which the check above already validated.
+      let realTarget = resolved;
+      let realRoot = root;
+      try {
+        realTarget = realpathSync.native(resolved);
+        realRoot = realpathSync.native(root);
+      } catch {
+        /* unresolvable — fall back to the lexically-validated pair */
+      }
+      const realRel = path.relative(realRoot, realTarget);
+      if (realRel.startsWith('..') || path.isAbsolute(realRel)) {
+        throw new Error(
+          `Working directory "${resolved}" resolves to "${realTarget}", outside project root "${realRoot}"`,
+        );
       }
     }
 

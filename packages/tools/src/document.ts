@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
-import { ensureInsideRoot, safeResolve } from './_util.js';
+import { ensureInsideRoot, safeResolveReal } from './_util.js';
 
 interface DocumentInput {
   target: 'file' | 'function' | 'class' | 'type' | 'all';
@@ -70,7 +70,7 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
     },
   },
   async execute(input, ctx) {
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const style = input.style ?? 'jsdoc';
     const results: DocumentedItem[] = [];
     let filesProcessed = 0;
@@ -83,7 +83,7 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
           ctx,
         )
       : input.path
-        ? [safeResolve(input.path, ctx)]
+        ? [await safeResolveReal(input.path, ctx)]
         : [];
 
     for (const absPath of fileList) {

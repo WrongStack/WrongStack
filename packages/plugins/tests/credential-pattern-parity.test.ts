@@ -115,6 +115,37 @@ describe('telegram_bot_token detection', () => {
   });
 });
 
+describe('json_credential_key detection', () => {
+  // Attacker goal: a credential with no recognisable prefix rides out of the
+  // machine inside a JSON-shaped tool result. Every other pattern in this table
+  // keys on SHAPE, so an Azure / self-hosted / OAuth token was invisible to
+  // both surfaces until this pattern existed.
+  it.each([
+    ['plain apiKey', '{"apiKey":"abcdef0123456789abcdef"}', true],
+    ['snake_case access_token', '{"access_token":"abcdef0123456789"}', true],
+    ['prefixed camelCase key', '{"anthropicApiKey": "abcdef0123456789"}', true],
+    ['camelCase accessToken', '{"accessToken":"abcdef0123456789"}', true],
+    ['client_secret', '{"client_secret":"abcdef0123456789"}', true],
+    // Must NOT fire: these are the false positives that would make the pattern
+    // unusable against real tool output.
+    ['numeric token counter', '{"tokenCount": 1234}', false],
+    ['token budget field', '{"maxTokens": 8000}', false],
+    ['short enum value', '{"authorization":"none"}', false],
+    ['prose mentioning a token', 'the token was rotated yesterday', false],
+    ['package metadata', '{"name":"wrongstack","version":"0.306.3"}', false],
+  ])('detects %s', (_label, text, shouldMatch) => {
+    const found = cloneCredentialPatterns().find((p) => p.type === 'json_credential_key');
+    expect(found).toBeDefined();
+    found!.regex.lastIndex = 0;
+    expect({ text, matched: found!.regex.test(text) }).toEqual({ text, matched: shouldMatch });
+  });
+
+  it('reaches the outgoing provider request through prompt-firewall', () => {
+    const found = detectSecrets('{"apiKey":"abcdef0123456789abcdef"}', []);
+    expect(found.map((d) => d.kind)).toContain('json_credential_key');
+  });
+});
+
 describe('aws-secret-key detection', () => {
   const alnumKey = 'wJalrXUtnFEMIKbPxRfiCYEXAMPLEKEY12345678';
   const base64Key = 'wJalrXUtnFEMIKbPxRfiCYEXAMPLEKEY123456' + '/+';

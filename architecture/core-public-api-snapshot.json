@@ -962,7 +962,7 @@
       },
       "source": "packages/core/src/tools/index.ts",
       "declarations": [
-        "export { AGENT_MODEL_ASSIGN_TOOL_NAME, createFallbackManageTools, FALLBACK_CHAIN_MANAGE_TOOL_NAME, FALLBACK_PROFILE_MANAGE_TOOL_NAME, FAVORITE_MANAGE_TOOL_NAME, type FallbackManageToolOptions, LEADER_MODEL_SET_TOOL_NAME, PROVIDER_KEY_SET_TOOL_NAME, PROVIDER_MANAGE_TOOL_NAME, SYSTEM_CONFIG_VIEW_TOOL_NAME, } from './fallback-manage-tools.js';",
+        "export { AGENT_MODEL_ASSIGN_TOOL_NAME, createFallbackManageTools, FALLBACK_CHAIN_MANAGE_TOOL_NAME, FALLBACK_PROFILE_MANAGE_TOOL_NAME, FAVORITE_MANAGE_TOOL_NAME, type FallbackManageToolOptions, LEADER_MODEL_SET_TOOL_NAME, PROVIDER_KEY_SET_TOOL_NAME, PROVIDER_MANAGE_TOOL_NAME, SYSTEM_CONFIG_VIEW_TOOL_NAME, validateProviderBaseUrl, } from './fallback-manage-tools.js';",
         "export { COUNCIL_TOOL_NAME, type CouncilToolInput, type CreateCouncilToolOptions, createCouncilTool, MAX_COUNCIL_CONTEXT_CHARS, MAX_COUNCIL_QUESTION_CHARS, MAX_COUNCIL_TOOL_OPTIONS, } from './council-tool.js';",
         "export { createMcpControlTool, type MCPRegistryHandle } from './mcp-control.js';",
         "export { createMcpUseTool } from './mcp-use.js';",
@@ -1146,7 +1146,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10674
+      "sourceLines": 10702
     },
     {
       "directory": "defaults",
@@ -1279,7 +1279,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 6035
+      "sourceLines": 6099
     },
     {
       "directory": "session-catalog",
@@ -1300,7 +1300,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 77,
-      "sourceLines": 17839
+      "sourceLines": 18066
     },
     {
       "directory": "tasking",
@@ -1314,7 +1314,7 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 14,
-      "sourceLines": 3339
+      "sourceLines": 3427
     },
     {
       "directory": "types",

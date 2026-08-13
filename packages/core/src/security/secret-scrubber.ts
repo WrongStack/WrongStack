@@ -18,6 +18,39 @@ interface Pattern {
   anchor: string | readonly string[];
 }
 
+/**
+ * Pre-scan literals for `json_credential_key`.
+ *
+ * The anchor must be a literal substring that MUST appear in anything the
+ * pattern can match, and the pre-scan uses case-sensitive `String.includes`
+ * while the pattern itself is case-insensitive — so the casings are enumerated
+ * here rather than relying on the regex flag.
+ *
+ * Anchoring on `word + closing quote` rather than `opening quote + word` is
+ * what lets the pattern accept a prefixed key (`"anthropicApiKey"`) while still
+ * ignoring prose that merely mentions the word — `the token was rotated` does
+ * not contain `token"`. Over-matching here is free: the anchor only decides
+ * whether the regex pass runs at all.
+ */
+const JSON_CREDENTIAL_KEY_ANCHORS: readonly string[] = [
+  'Key"',
+  'key"',
+  'KEY"',
+  'token"',
+  'Token"',
+  'TOKEN"',
+  'secret"',
+  'Secret"',
+  'SECRET"',
+  'password"',
+  'Password"',
+  'PASSWORD"',
+  'authorization"',
+  'Authorization"',
+  'bearer"',
+  'Bearer"',
+];
+
 const PATTERNS: Pattern[] = [
   // Anchored at the start where possible so partial matches inside larger
   // strings don't trigger false positives.
@@ -121,6 +154,31 @@ const PATTERNS: Pattern[] = [
     regex: /(^|\s)([A-Z_]{4,}(?:KEY|TOKEN|SECRET|PASSWORD|PWD))\s*[:=]\s*['"]?([A-Za-z0-9_/+=-]{20,512})['"]?(?=\s|$)/g,
     anchor: ['KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'PWD'],
   },
+  {
+    type: 'json_credential_key',
+    // The JSON counterpart to `high_entropy_env`, and the pattern that the
+    // now-deleted `JSON_KEY_ANCHORS` list was written for. Without it those
+    // anchors only widened the cheap pre-scan — `hasCredentialAnchors` said
+    // "this text may hold a secret", every pattern then declined to match, and
+    // the value went out verbatim. `high_entropy_env` cannot cover these: it
+    // requires an UPPERCASE unquoted key (`API_KEY=…`), so `{"apiKey":"…"}`
+    // never matched.
+    //
+    // Tool results are routinely serialised as JSON, and a credential with no
+    // recognisable prefix (Azure, self-hosted gateways, Anthropic/Codex OAuth)
+    // has no other pattern that can catch it — this is the only thing standing
+    // between such a value and the session JSONL, chronicle, HQ broadcast and
+    // the model's own context.
+    //
+    // The key may carry a prefix (`"anthropicApiKey"`), but the credential word
+    // must END the key: `"tokenCount"` and `"maxTokens"` do not match, because
+    // the closing quote has to follow the word immediately.
+    // Value floor of 8 chars keeps enum-ish values (`"authorization":"none"`)
+    // out. Capture groups: 1=key + punctuation, 2=value, 3=closing quote.
+    regex:
+      /("[A-Za-z0-9_]*(?:apiKey|api_key|token|secret|password|authorization|bearer|private_key|access_token|refresh_token|client_secret)"\s*:\s*")([^"\\]{8,512})(")/gi,
+    anchor: JSON_CREDENTIAL_KEY_ANCHORS,
+  },
 
   // ── Ported from packages/plugins credential-patterns.ts (WS-034) ─────────
   // The plugin runtime carried 37 patterns while this scrubber — the one that
@@ -212,7 +270,9 @@ const PATTERNS: Pattern[] = [
  * is folded into a single combined regex. Derive the split by type rather than
  * by hard-coded indices so adding/removing a pattern can't silently drop one.
  */
-const SIMPLE_PATTERNS = PATTERNS.filter((p) => p.type !== 'high_entropy_env');
+const SIMPLE_PATTERNS = PATTERNS.filter(
+  (p) => p.type !== 'high_entropy_env' && p.type !== 'json_credential_key',
+);
 
 /**
  * Combined single-pass regex for all simple patterns. Each alternative is a
@@ -225,6 +285,12 @@ const COMBINED_REGEX = new RegExp(SIMPLE_PATTERNS.map((p) => `(${p.regex.source}
 
 /** Separate pattern for high_entropy_env (different replacement logic). */
 const HIGH_ENTROPY_REGEX = PATTERNS.find((p) => p.type === 'high_entropy_env')!.regex;
+
+/**
+ * Separate pattern for json_credential_key — like high_entropy_env, it preserves
+ * the key so the redacted output stays valid, readable JSON.
+ */
+const JSON_CREDENTIAL_REGEX = PATTERNS.find((p) => p.type === 'json_credential_key')!.regex;
 
 /**
  * Replacements for the combined patterns, parallel to SIMPLE_PATTERNS. The
@@ -284,27 +350,18 @@ const PATTERN_ANCHORS: readonly string[] = [
 ];
 
 /**
- * JSON-style credential key names. Tool outputs often serialise objects as raw
- * JSON, where the value may carry no recognisable prefix (`sk-`, `ghp_`, …), so
- * these anchor on the key instead. The leading `"` avoids matching prose that
- * merely mentions the word — JSON always quotes string keys. These belong to no
- * single pattern, so they are listed separately rather than forced onto one.
+ * Every anchor now comes from the pattern table.
+ *
+ * There used to be a second, hand-maintained `JSON_KEY_ANCHORS` list here for
+ * JSON-style credential keys, described as belonging "to no single pattern".
+ * That was the bug: an anchor with no backing pattern does not redact anything,
+ * it only tells the pre-scan to stop short-circuiting. `{"apiKey":"…"}` cleared
+ * the anchor check, matched no pattern, and went out verbatim — the exact drift
+ * the `Pattern.anchor` docblock warns about, in the one place the derivation was
+ * bypassed. The list is now `json_credential_key`'s declared anchor, so a
+ * pattern and its anchors cannot separate again.
  */
-const JSON_KEY_ANCHORS: readonly string[] = [
-  '"apiKey"',
-  '"api_key"',
-  '"token"',
-  '"secret"',
-  '"password"',
-  '"authorization"',
-  '"bearer"',
-  '"private_key"',
-  '"access_token"',
-  '"refresh_token"',
-  '"client_secret"',
-];
-
-const ALL_ANCHORS: readonly string[] = [...PATTERN_ANCHORS, ...JSON_KEY_ANCHORS];
+const ALL_ANCHORS: readonly string[] = PATTERN_ANCHORS;
 
 /**
  * Quick pre-scan: does the text contain any substring that MUST be present for
@@ -395,6 +452,13 @@ export class DefaultSecretScrubber implements SecretScrubber {
     // aren't collapsed), 2=key name, 3=value (redacted).
     out = out.replace(HIGH_ENTROPY_REGEX, (_match, lead, key, _value) => {
       return `${lead}${key}=[REDACTED:high_entropy_env]`;
+    });
+
+    // Pass 3: json_credential_key — preserve the key and both quotes so the
+    // redacted text is still parseable JSON. Groups: 1=key with its punctuation
+    // and opening quote, 2=value (redacted), 3=closing quote.
+    out = out.replace(JSON_CREDENTIAL_REGEX, (_match, keyPrefix, _value, closingQuote) => {
+      return `${keyPrefix}[REDACTED:json_credential_key]${closingQuote}`;
     });
 
     return out;

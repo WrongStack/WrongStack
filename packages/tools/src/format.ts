@@ -1,6 +1,6 @@
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
-import { normalizeCommandOutput, safeResolve } from './_util.js';
+import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
 
 interface FormatInput {
@@ -68,7 +68,7 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<FormatOutput>> {
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const fixer = input.fixer ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).

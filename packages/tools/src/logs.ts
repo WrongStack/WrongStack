@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
 import { compileUserRegex } from './_regex.js';
-import { safeResolve, safeResolveReal } from './_util.js';
+import { safeResolveReal } from './_util.js';
 
 interface LogsInput {
   service?: string | undefined;
@@ -74,7 +74,7 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
     },
   },
   async execute(input, ctx, opts) {
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const lines = input.lines ?? 100;
     let filterRe: RegExp | null = null;
     if (input.filter) {

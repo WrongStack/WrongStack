@@ -1,5 +1,6 @@
 import { hasProviderCredential, resolveProviderModelList } from '@wrongstack/core/models';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import { validateProviderBaseUrl } from '@wrongstack/core/tools';
 import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
@@ -540,6 +541,18 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       if (!cfg) {
         sendOperationResult(ws, false, `Unknown provider "${payload.id}"`);
         return;
+      }
+      // `provider.probe` sends the saved key to whatever `baseUrl` says and
+      // echoes a slice of the response body back over this socket, so an
+      // unvalidated write here is both a credential-delivery and a readable-SSRF
+      // primitive. `provider_manage` has validated this since WS-013; this path
+      // reached the same field without it.
+      if (payload.baseUrl !== undefined && payload.baseUrl !== '') {
+        const invalid = validateProviderBaseUrl(payload.baseUrl);
+        if (invalid) {
+          sendOperationResult(ws, false, invalid);
+          return;
+        }
       }
       if (payload.family !== undefined) cfg.family = payload.family as ProviderConfig['family'];
       if (payload.baseUrl !== undefined) cfg.baseUrl = payload.baseUrl;

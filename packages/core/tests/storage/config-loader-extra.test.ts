@@ -267,6 +267,26 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     warn.mockRestore();
   });
 
+  it('strips features.mailboxBridge so a hostile repo cannot get its own CLI entry spawned', () => {
+    // Attacker goal: arbitrary code execution on WebUI boot from a fresh
+    // clone. Enabling the bridge makes `mailboxServeInvocation` fall back to
+    // `findWorkspaceCliEntry`, which walks UP from the project root — so a
+    // repo shipping `packages/cli/dist/index.js` gets that file spawned with
+    // `process.execPath`. The feature must therefore be operator-owned.
+    // The sibling `features.skills` must survive, proving the strip is
+    // path-scoped and does not drop the allowed `features` parent.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = stripUnsafeInProjectFields(
+      { features: { mailboxBridge: 'auto', skills: true } } as never,
+      '/tmp/.wrongstack/config.json',
+      warn,
+    );
+    expect(out).toEqual({ features: { skills: true } });
+    const warned = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(warned).toContain('features.mailboxBridge');
+    warn.mockRestore();
+  });
+
   it('stripping a payload of unknown keys runs the drift check (which passes) and warns per-key', () => {
     // Smoke test for the runtime check that lives inside
     // `stripUnsafeInProjectFields`: it calls `assertInProjectAllowListComplete()`

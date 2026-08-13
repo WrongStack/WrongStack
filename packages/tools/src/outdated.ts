@@ -1,12 +1,7 @@
 import { spawn } from 'node:child_process';
 import type { Tool } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
-import {
-  COMMAND_OUTPUT_MAX_BYTES,
-  detectPackageManager,
-  normalizeCommandOutput,
-  safeResolve,
-} from './_util.js';
+import { COMMAND_OUTPUT_MAX_BYTES, detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
 
 interface OutdatedInput {
@@ -72,7 +67,7 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
     },
   },
   async execute(input, ctx, opts) {
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const manager = await detectPackageManager(cwd, ctx.projectRoot);
 
     // When no JS package manager was detected (npm is the fallback), try the

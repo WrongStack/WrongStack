@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
 import { DEFAULT_WALK_IGNORE_DIRS, expectDefined } from '@wrongstack/core/utils';
-import { safeResolve } from './_util.js';
+import { safeResolveReal } from './_util.js';
 
 // Shared artifact/dependency dirs, plus tree-specific privacy dirs — tree can
 // be pointed at $HOME, where listing key material is never wanted.
@@ -106,7 +106,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TreeOutput>> {
-    const basePath = input.path ? safeResolve(input.path, ctx) : ctx.cwd;
+    const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
     const maxDepth = input.depth ?? 3;
     const showFiles = input.show_files ?? true;
     const showDirs = input.show_dirs ?? true;

@@ -142,6 +142,29 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   },
   { type: 'mysql_uri', regex: /mysql:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
   { type: 'redis_uri', regex: /redis:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
+  {
+    // Credentials serialised as JSON, keyed rather than prefixed. Every other
+    // entry in this table recognises a credential by its SHAPE (`ghp_`, `sk-`,
+    // `eyJ`), which means a key with no distinctive prefix — Azure, a
+    // self-hosted gateway, an Anthropic/Codex OAuth token — was invisible to
+    // both surfaces. `prompt-firewall` guards the outgoing provider request, so
+    // this is what stops a JSON-shaped tool result carrying such a value to a
+    // third party.
+    //
+    // The key is matched in a LOOKBEHIND, so the reported match is the secret
+    // itself and the pattern keeps zero capturing groups — `secret-scanner`
+    // maps a combined-regex group index back to the pattern that fired, and an
+    // inner group would shift that mapping (see the style note above, enforced
+    // by credential-pattern-parity.test.ts).
+    //
+    // Mirrors `json_credential_key` in
+    // `@wrongstack/core` → `src/security/secret-scrubber.ts`. Keep the two key
+    // lists in step; the core side additionally preserves the key name when it
+    // rewrites, which is why it is written with capture groups instead.
+    type: 'json_credential_key',
+    regex:
+      /(?<="[A-Za-z0-9_]{0,64}(?:apiKey|api_key|token|secret|password|authorization|bearer|private_key|access_token|refresh_token|client_secret)"\s{0,8}:\s{0,8}")[^"\\]{8,512}(?=")/gi,
+  },
 ];
 
 /** Fresh, independently-stateful copies (RegExp `lastIndex` is mutable). */

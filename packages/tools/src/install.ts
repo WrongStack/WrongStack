@@ -5,7 +5,7 @@ import {
 } from '@wrongstack/core/coordination';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
-import { detectPackageManager, normalizeCommandOutput, safeResolve } from './_util.js';
+import { detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
 
 interface InstallInput {
@@ -99,7 +99,7 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<InstallOutput>> {
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     if (!input.global) {

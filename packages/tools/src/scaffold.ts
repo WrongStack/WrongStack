@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
-import { safeResolve } from './_util.js';
+import { safeResolveReal } from './_util.js';
 
 interface ScaffoldInput {
   template: string;
@@ -119,7 +119,7 @@ export const scaffoldTool: Tool<ScaffoldInput, ScaffoldOutput> = {
     required: ['template', 'name'],
   },
   async execute(input, ctx) {
-    const cwd = input.cwd ? safeResolve(input.cwd, ctx) : ctx.cwd;
+    const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const name = input.name;
     const vars = { name, ...input.vars };
 

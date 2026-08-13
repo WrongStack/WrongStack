@@ -182,8 +182,18 @@ export async function resolveRealInsideRoot(absPath: string, ctx: Context): Prom
       }
       throw err;
     }
-    if (isInsideAny(real, realRoots)) {
-      return pendingTail.length > 0 ? path.join(real, ...pendingTail) : real;
+    // Containment is decided on the REASSEMBLED path, not on the bare existing
+    // ancestor. Walking up past a root that does not exist yet (a fresh
+    // project dir, or a caller whose `projectRoot` is not on disk) lands on a
+    // real ancestor that is legitimately outside it — `D:\` while the root is
+    // `D:\project` — and comparing that ancestor alone rejected the very path
+    // the caller asked for. Re-attaching the tail cannot traverse a symlink,
+    // because those segments do not exist, and `pendingTail` is built from
+    // `path.basename` of an already-resolved absolute path, so it can never
+    // contain `..`.
+    const candidate = pendingTail.length > 0 ? path.join(real, ...pendingTail) : real;
+    if (isInsideAny(candidate, realRoots)) {
+      return candidate;
     }
     throw new Error(
       `Path "${absPath}" resolves through a symlink outside project root "${realRoots[0]}"`,

@@ -352,7 +352,7 @@ describe('createHttpServer', () => {
       }
     });
 
-    it('accepts the fleet ping without a token on a loopback bind', async () => {
+    it('accepts the fleet ping from a token-bearing local sibling', async () => {
       let pinged = 0;
       const server = createHttpServer({
         host: '127.0.0.1',
@@ -367,12 +367,54 @@ describe('createHttpServer', () => {
       if (!addr || typeof addr === 'string') throw new Error('bad listen address');
       const base = `http://127.0.0.1:${addr.port}`;
       try {
-        // On loopback the gate is off — a tokenless FleetNotifier-style POST
-        // bounces to the callback so first-load F5 still receives the
-        // immediate fleet re-broadcast.
-        const ok = await fetch(`${base}/api/fleet/ping`, { method: 'POST' });
+        // This assertion used to fetch WITHOUT a token and expect 204 — the
+        // origin-less bypass, asserted as correct. `FleetNotifier` already
+        // sends `x-ws-token`, read from the instances registry that
+        // `webui-server.ts` writes, so the real caller was never relying on
+        // the bypass; only the test was.
+        const ok = await fetch(`${base}/api/fleet/ping`, {
+          method: 'POST',
+          headers: { 'x-ws-token': 'ping-token' },
+        });
         expect(ok.status).toBe(204);
         expect(pinged).toBe(1);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+
+    it('refuses an origin-less mutating API call that carries no token', async () => {
+      // Attacker goal: any process on the machine steers a live session. The
+      // origin guard above is a BROWSER control — it compares a header only a
+      // browser is obliged to send, so `curl` sails past it, and on the
+      // loopback default the token gate is off.
+      //
+      // This is the HTTP half of WS-005, which closed the same hole on the WS
+      // upgrade: non-browser clients must always present a token.
+      let pinged = 0;
+      const server = createHttpServer({
+        host: '127.0.0.1',
+        distDir,
+        apiToken: 'ping-token',
+        onFleetPing: () => {
+          pinged += 1;
+        },
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') throw new Error('bad listen address');
+      const base = `http://127.0.0.1:${addr.port}`;
+      try {
+        const denied = await fetch(`${base}/api/fleet/ping`, { method: 'POST' });
+        expect(denied.status).toBe(401);
+        expect(pinged).toBe(0);
+
+        // The page load and every read path keep the loopback bootstrap the
+        // UX depends on — this gate is scoped to mutating /api verbs. Flipping
+        // the whole token gate instead was tried in H3 (2026-08-04) and
+        // reverted because it broke the very first page load.
+        const page = await fetch(`${base}/`);
+        expect(page.status).toBe(200);
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
       }

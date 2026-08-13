@@ -11,9 +11,11 @@ import {
 
 export {
   applyNamespacePayload,
+  assertInboundDenyListResolves,
   buildNamespacePayloads,
   CLOUD_SYNC_CONTRACT,
   CLOUD_SYNC_NAMESPACES,
+  inboundContractFor,
   LOCAL_ONLY_TOP_LEVEL,
   NAMESPACE_SCHEMA_VERSIONS,
   stripSecretMaterial,

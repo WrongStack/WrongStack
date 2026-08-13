@@ -182,6 +182,26 @@ function isTextMime(mimeType: string): boolean {
   );
 }
 
+/**
+ * Whether the file tools are confined to the project root for `mcp serve`.
+ *
+ * `mcp serve` is the one surface where the file tools are driven by a REMOTE
+ * caller, so an unset config must inherit containment rather than invert it —
+ * an unset value here previously became `false`, which short-circuited
+ * `ensureInsideRoot` and let `tools/call read` return `~/.ssh/id_rsa`.
+ *
+ * This lives in one exported function rather than as a literal repeated at each
+ * call site so the invariant is testable and a third call site cannot quietly
+ * reintroduce the wrong default. Only a trusted user config can opt out:
+ * `tools.restrictToProjectRoot` is on the in-project denylist, so a
+ * checked-out repository cannot reach it.
+ */
+export function resolveServeFsRestriction(config: {
+  tools?: { restrictToProjectRoot?: boolean | undefined } | undefined;
+}): boolean {
+  return config.tools?.restrictToProjectRoot ?? true;
+}
+
 /** Minimal run context — tools read cwd/projectRoot/signal; provider/session are stubs. */
 export function makeServeContext(
   cwd: string,
@@ -273,7 +293,7 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
     deps.cwd,
     deps.projectRoot,
     controller.signal,
-    deps.config.tools?.restrictToProjectRoot ?? false,
+    resolveServeFsRestriction(deps.config),
   );
   const permissionPolicy: PermissionPolicy = yolo
     ? new AllowAllPermissionPolicy()
@@ -325,7 +345,7 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
         deps.cwd,
         deps.projectRoot,
         controller.signal,
-        deps.config.tools?.restrictToProjectRoot ?? false,
+        resolveServeFsRestriction(deps.config),
       );
       const batch = await executor.executeBatch([use], requestCtx, 'sequential');
       const result = batch.outputs[0]?.result;
