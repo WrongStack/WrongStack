@@ -23,6 +23,7 @@ import {
   uniqueIdFromSet,
   uniqueStrings,
 } from './_internal.js';
+import { archiveManagedTask } from './lifecycle.js';
 import {
   applyGraphNodeToTask,
   applyTaskGraphRelationships,
@@ -172,10 +173,11 @@ export async function syncBoardFromTaskGraph(
         if (!isTaskFromGraph(task, graph.id, options.phaseId)) continue;
         if (syncedSourceTaskIds.has(task.origin?.taskId ?? '')) continue;
         if (task.status === 'archived') continue;
-        task.status = 'archived';
+        archiveManagedTask(board, task, {
+          at: now,
+          reason: 'Dropped from the source task graph',
+        });
         delete task.assignment;
-        delete task.completedAt;
-        task.updatedAt = now;
         archivedTaskIds.push(task.id);
       }
     }

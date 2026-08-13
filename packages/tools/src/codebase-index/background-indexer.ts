@@ -38,11 +38,11 @@ import {
 } from './circuit-breaker.js';
 import {
   fileGraphService as fileGraphServiceInline,
-  indexService,
-  incomingCallsService as incomingCallsServiceInline,
   type IncomingCallsResult,
-  outgoingCallsService as outgoingCallsServiceInline,
+  incomingCallsService as incomingCallsServiceInline,
+  indexService,
   type OutgoingCallsResult,
+  outgoingCallsService as outgoingCallsServiceInline,
   packageGraphService as packageGraphServiceInline,
   searchService,
   statsService,
@@ -432,6 +432,13 @@ async function callInline<O extends OpName>(
   args: OpShapes[O]['args'],
   opts: CallOpts,
 ): Promise<OpShapes[O]['result']> {
+  if (op !== 'index' && _indexing) {
+    const error = new Error(
+      'Codebase index refresh in progress; retry after the completed generation is published.',
+    );
+    error.name = 'IndexRefreshInProgressError';
+    throw error;
+  }
   const ac = new AbortController();
   const onOuterAbort = () => ac.abort(opts.signal?.reason ?? new Error('Indexing cancelled'));
   if (opts.signal?.aborted) onOuterAbort();

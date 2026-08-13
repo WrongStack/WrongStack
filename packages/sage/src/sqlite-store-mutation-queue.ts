@@ -12,15 +12,25 @@ function runImmediateTransaction<T>(
   if (signal?.aborted) throw new DOMException('Operation aborted', 'AbortError');
   db.exec('BEGIN IMMEDIATE');
   try {
+    const result = work();
+    // `work` must be synchronous. If it returns a thenable, the COMMIT below
+    // would land before the work finished — committing an empty or partial
+    // transaction and reporting success. `runCounter` forbids this at the type
+    // level; `runMutation`'s `() => T` does not, so enforce it here where the
+    // damage would otherwise be silent.
+    if (typeof (result as { then?: unknown } | undefined)?.then === 'function') {
+      throw new TypeError(
+        'runImmediateTransaction: work() returned a thenable — transaction work must be synchronous',
+      );
+    }
     // Pre-commit abort check: the work between BEGIN and COMMIT may have
     // taken significant time (hygiene over hundreds of memories, JSONL
-    // migration of thousands of rows). If the caller cancelled during
-    // that window, roll back instead of committing a partial result that
-    // the caller will discard anyway. Synchronous SQLite cannot interrupt
-    // mid-statement — this check catches the common case where the signal
-    // fires between statements.
+    // migration of thousands of rows). If the caller cancelled during that
+    // window, roll back instead of committing a result the caller has stopped
+    // listening for. This has to sit *after* work() to mean anything — placed
+    // before it, no event-loop turn separates it from the pre-BEGIN check
+    // above, so it could never observe a different value.
     if (signal?.aborted) throw new DOMException('Operation aborted', 'AbortError');
-    const result = work();
     db.exec('COMMIT');
     return result;
   } catch (err) {

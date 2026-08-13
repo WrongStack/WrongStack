@@ -104,6 +104,7 @@ export const verifyTaskCompletion = bindDomainOperation('verifyTaskCompletion');
 export const enforceCompletionGate = bindDomainOperation('enforceCompletionGate');
 export const attachVerificationReport = bindDomainOperation('attachVerificationReport');
 export const finalizeTaskCompletion = bindDomainOperation('finalizeTaskCompletion');
+export const recordCompletionRefusal = bindDomainOperation('recordCompletionRefusal');
 export const reserveKanbanDispatch = bindDomainOperation('reserveKanbanDispatch');
 export const startKanbanDispatch = bindDomainOperation('startKanbanDispatch');
 export const completeKanbanDispatch = bindDomainOperation('completeKanbanDispatch');

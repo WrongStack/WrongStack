@@ -265,7 +265,11 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
   }
 
   const controller = new AbortController();
-  const ctx = makeServeContext(
+  // This context is only used while deciding which tools to expose. Tool calls
+  // must receive a fresh Context below: Context carries mutable per-run state
+  // such as workingDir and file tracking, which must never bleed between MCP
+  // clients or concurrent requests.
+  const selectionCtx = makeServeContext(
     deps.cwd,
     deps.projectRoot,
     controller.signal,
@@ -286,7 +290,7 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
 
   // Pre-compute the exposed set so tools/list and tools/call agree, and so a
   // withheld tool can never be invoked even if a client guesses its name.
-  const allowed = await selectExposedTools(registry, ctx, permissionPolicy, whitelist);
+  const allowed = await selectExposedTools(registry, selectionCtx, permissionPolicy, whitelist);
   const allowedNames = new Set(allowed.map((t) => t.name));
 
   if (allowed.length === 0) {
@@ -314,7 +318,16 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
         name,
         input: callArgs,
       };
-      const batch = await executor.executeBatch([use], ctx, 'sequential');
+      // `sequential` applies only within this one-item batch. It does not
+      // serialize requests from other MCP clients, while the fresh Context
+      // prevents their mutable run state from being shared.
+      const requestCtx = makeServeContext(
+        deps.cwd,
+        deps.projectRoot,
+        controller.signal,
+        deps.config.tools?.restrictToProjectRoot ?? false,
+      );
+      const batch = await executor.executeBatch([use], requestCtx, 'sequential');
       const result = batch.outputs[0]?.result;
       if (!result || result.type === 'tool_confirm_pending') {
         return {
@@ -345,7 +358,16 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
   ) {
     const port = Number(flags['port'] ?? flags['http'] ?? 0) || 0;
     const httpHost = typeof flags['host'] === 'string' ? flags['host'] : '127.0.0.1';
-    const token = typeof flags['token'] === 'string' ? flags['token'] : undefined;
+    // Keep bearer credentials out of the process list where possible. The
+    // standalone MCP packages use the same environment variable.
+    const tokenFromArg = typeof flags['token'] === 'string' ? flags['token'] : undefined;
+    const token = tokenFromArg ?? process.env.WRONGSTACK_MCP_TOKEN?.trim() ?? undefined;
+    if (tokenFromArg) {
+      log(
+        '[mcp-serve] --token puts the auth token in this process command line, which other local ' +
+          'processes can read. Prefer WRONGSTACK_MCP_TOKEN.',
+      );
+    }
     let handle: Awaited<ReturnType<typeof serveHttp>>;
     try {
       handle = await serveHttp(server, {

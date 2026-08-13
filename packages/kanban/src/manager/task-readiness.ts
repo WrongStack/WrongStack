@@ -11,6 +11,15 @@ export interface KanbanDependencyReadinessIssue {
    * UUID does not say what the work is waiting for.
    */
   dependencyTitle?: string | undefined;
+  /**
+   * Set when the blocking card is parked — its verification budget ran out, so
+   * it will not clear itself. Without this the waiting card reported the same
+   * "not completed yet" as a dependency that is merely still running, and an
+   * agent had no way to tell "wait" from "this subtree is stalled until
+   * someone acts". Carried as a field rather than a third `status` so every
+   * existing consumer keeps working unchanged.
+   */
+  parkedReason?: string | undefined;
 }
 
 /**
@@ -35,6 +44,7 @@ export function getDependencyReadinessIssues(
         status: 'incomplete',
         taskStatus: dependency.status,
         dependencyTitle: dependency.title,
+        ...(dependency.park ? { parkedReason: dependency.park.reason } : {}),
       });
     }
   }
@@ -52,11 +62,16 @@ export function formatDependencyReadinessIssues(
   issues: readonly KanbanDependencyReadinessIssue[],
 ): string {
   return issues
-    .map((issue) =>
-      issue.status === 'missing'
-        ? `${issue.dependencyId} (missing)`
-        : `${issue.dependencyTitle ?? issue.dependencyId} (${issue.taskStatus ?? 'incomplete'})`,
-    )
+    .map((issue) => {
+      if (issue.status === 'missing') return `${issue.dependencyId} (missing)`;
+      const name = issue.dependencyTitle ?? issue.dependencyId;
+      const state = issue.taskStatus ?? 'incomplete';
+      // A parked blocker will not clear on its own, so saying only "blocked"
+      // invites the reader to wait for something that is not coming.
+      return issue.parkedReason
+        ? `${name} (${state}, parked: ${issue.parkedReason})`
+        : `${name} (${state})`;
+    })
     .join(', ');
 }
 
@@ -75,11 +90,20 @@ export function formatDependencyReadinessIssues(
 export function dependencyIncompleteMessage(
   issues: readonly KanbanDependencyReadinessIssue[],
 ): string {
+  const parked = issues.some((issue) => issue.parkedReason !== undefined);
   return (
     `Running requires every dependency to exist and be completed: ` +
     `${formatDependencyReadinessIssues(issues)}. ` +
     'Finish the blocking card, or — if the dependency was recorded in error — ' +
-    'call kanban update_task with the corrected `dependsOn` (an empty array clears it).'
+    'call kanban update_task with the corrected `dependsOn` (an empty array clears it).' +
+    // A parked blocker has already exhausted its retries, so "finish the
+    // blocking card" alone would send the reader back into the loop parking
+    // exists to break.
+    (parked
+      ? ' A parked dependency has spent its verification budget and will not clear itself:' +
+        ' resolve what its park reason names, or correct `dependsOn`. Do not wait on it,' +
+        ' and do not re-run it unchanged.'
+      : '')
   );
 }
 

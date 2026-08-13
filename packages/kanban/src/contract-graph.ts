@@ -48,7 +48,9 @@ export function evaluateContractGraphReadiness(
     return {
       taskId,
       ready: false,
-      issues: [{ code: 'task-not-found', message: `Kanban task not found: ${taskId}` }],
+      issues: [
+        { code: 'task-not-found', field: 'taskId', message: `Kanban task not found: ${taskId}` },
+      ],
     };
   }
   // The card contract belongs to managed boards. On a plain board these rules
@@ -62,14 +64,22 @@ export function evaluateContractGraphReadiness(
     return { taskId, ready: true, issues: [] };
   }
   if (!task.description?.trim()) {
-    issues.push({ code: 'task-description-missing', message: 'Add a complete task description.' });
+    issues.push({
+      code: 'task-description-missing',
+      field: 'description',
+      message: 'Add a complete task description.',
+    });
   }
   if (
     ![task.assignee, task.assignedAgent, task.assignment?.agentId, task.assignment?.name].some(
       (value) => value?.trim(),
     )
   ) {
-    issues.push({ code: 'task-owner-missing', message: 'Assign an owner or agent.' });
+    issues.push({
+      code: 'task-owner-missing',
+      field: 'assignee',
+      message: 'Assign an owner or agent.',
+    });
   }
   // `dueDate` and `labels` are deliberately not required here either; see
   // validateRequiredCardDetails in manager/lifecycle.ts for the reasoning.
@@ -79,6 +89,7 @@ export function evaluateContractGraphReadiness(
   ) {
     issues.push({
       code: 'success-criteria-missing',
+      field: 'successCriteria',
       message: 'Add at least one explicit, executable acceptance criterion.',
     });
   }
@@ -93,6 +104,7 @@ export function evaluateContractGraphReadiness(
   if (task.atomic && !task.childTaskIds?.some((id) => id.trim())) {
     issues.push({
       code: 'task-child-tasks-missing',
+      field: 'childTaskIds',
       message: 'Break the work into at least one persisted subtask.',
     });
   }

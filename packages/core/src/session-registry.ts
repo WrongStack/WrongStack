@@ -203,8 +203,11 @@ export class SessionRegistry {
           if (id !== entry.sessionId) delete registry[id];
           continue;
         }
-        const heartbeatAge = now - new Date(existing.lastHeartbeatAt).getTime();
-        if (heartbeatAge > PID_CHECK_AFTER_MS && !pidAlive(existing.pid)) {
+        const heartbeatAt = Date.parse(existing.lastHeartbeatAt);
+        if (
+          !Number.isFinite(heartbeatAt) ||
+          (now - heartbeatAt > PID_CHECK_AFTER_MS && !pidAlive(existing.pid))
+        ) {
           delete registry[id];
         }
       }

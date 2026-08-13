@@ -152,6 +152,72 @@ describe('SqliteMailbox messages', () => {
     expect(materializedRowCounts).toEqual([3]);
   });
 
+  it('loads receipts in bounded targeted chunks for a query larger than 500 rows', async () => {
+    for (let i = 0; i < 501; i++) {
+      await send({ subject: `receipt-chunk-${i}` });
+    }
+
+    const database = (mb as unknown as { db: { prepare: (sql: string) => unknown } }).db;
+    const prepare = database.prepare.bind(database);
+    const receiptQueries: string[] = [];
+    database.prepare = ((sql: string) => {
+      if (sql.includes('FROM message_receipts')) receiptQueries.push(sql);
+      return prepare(sql);
+    }) as typeof database.prepare;
+
+    const messages = await mb.query({
+      incompleteOnly: true,
+      includeReceiptState: true,
+      limit: 600,
+    });
+
+    expect(messages).toHaveLength(501);
+    expect(receiptQueries).toHaveLength(2);
+    expect(receiptQueries.every((sql) => /WHERE message_id IN/i.test(sql))).toBe(true);
+  });
+
+  it('bounds heartbeat throttle bookkeeping even during a fresh-id burst', () => {
+    const map = new Map<string, number>();
+    const now = Date.now();
+    for (let i = 0; i < 700; i++) map.set(`agent-${i}`, now);
+
+    (
+      mb as unknown as {
+        pruneHeartbeats: (entries: Map<string, number>, nowMs: number) => void;
+      }
+    ).pruneHeartbeats(map, now);
+
+    expect(map.size).toBeLessThanOrEqual(512);
+    expect(map.has('agent-0')).toBe(false);
+    expect(map.has('agent-699')).toBe(true);
+  });
+
+  it('coalesces overlapping auto-compaction calls', async () => {
+    let releaseStatuses: (() => void) | undefined;
+    let statusReads = 0;
+    (mb as unknown as { compactionCtx: () => unknown }).compactionCtx = () => ({
+      getAgentStatuses: async () => {
+        statusReads++;
+        await new Promise<void>((resolve) => {
+          releaseStatuses = resolve;
+        });
+        return [];
+      },
+      readMessages: () => [],
+      deleteMessages: () => {},
+    });
+
+    const first = mb.autoCompact();
+    const second = mb.autoCompact();
+    await Promise.resolve();
+    expect(statusReads).toBe(1);
+    releaseStatuses?.();
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      expect.objectContaining({ totalRemoved: 0 }),
+      expect.objectContaining({ totalRemoved: 0 }),
+    ]);
+  });
+
   it('acks read receipts, completion, and outcome; returns null for unknown ids', async () => {
     const msg = await send({ to: 'b@sess-1' });
     const acked = await mb.ack({

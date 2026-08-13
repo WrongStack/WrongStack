@@ -122,6 +122,24 @@ describe('persistence primitive edge branches', () => {
     expect(doubles.fs.rename).toHaveBeenCalledTimes(1);
   });
 
+  it('does not retry or warn when the Windows rename target is a directory', async () => {
+    usePlatform('win32');
+    const renameError = errorWithCode('EPERM');
+    doubles.fs.rename.mockRejectedValue(renameError);
+    doubles.fs.stat.mockResolvedValue({
+      mode: 0o040755,
+      isDirectory: () => true,
+    });
+    const emitSpy = vi.spyOn(process, 'emitWarning').mockImplementation(() => undefined);
+    const primitives = createPersistencePrimitives();
+
+    await expect(primitives.atomicWrite('C:\\tmp\\existing-dir', 'value')).rejects.toBe(
+      renameError,
+    );
+    expect(doubles.fs.rename).toHaveBeenCalledTimes(1);
+    expect(emitSpy).not.toHaveBeenCalled();
+  });
+
   it('retries Windows rename on ENOENT when the source still exists', async () => {
     usePlatform('win32');
     // commitTemp's stat(target) rejects (new file); the retry's stat(from)

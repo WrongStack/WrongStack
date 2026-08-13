@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
 import * as path from 'node:path';
+import { restrictFilePermissions } from '@wrongstack/core/security';
 import {
   DEFAULT_WALK_IGNORE_SET,
   type ProjectWatchSubscription,
@@ -19,12 +20,12 @@ import {
   useDaemonPerfDefaults,
   watchProjectTree,
 } from '@wrongstack/core/utils';
-import { restrictFilePermissions } from '@wrongstack/core/security';
 import { atomicWrite, bindProjectEndpoint } from '@wrongstack/persistence';
+import type { IncomingCallsResult, OutgoingCallsResult } from './index-service.js';
 import {
   fileGraphService,
-  indexService,
   incomingCallsService,
+  indexService,
   outgoingCallsService,
   packageGraphService,
   searchService,
@@ -50,7 +51,6 @@ import {
   type ProjectServerMessage,
 } from './project-server-protocol.js';
 import type { CodeMapGraph, IndexStats, SearchResult } from './schema.js';
-import type { IncomingCallsResult, OutgoingCallsResult } from './index-service.js';
 import type {
   CallRefsOpArgs,
   FileGraphOpArgs,
@@ -213,13 +213,18 @@ function clearQueryCaches(): void {
 }
 
 function cachedRead<T>(cache: GenerationLruCache<T>, key: string, load: () => T): T {
+  if (indexActivity.indexing) {
+    const error = new Error(
+      `Codebase index refresh in progress (${indexActivity.currentFile}/${indexActivity.totalFiles} files); retry after the completed generation is published.`,
+    );
+    error.name = 'IndexRefreshInProgressError';
+    throw error;
+  }
   const generation = indexActivity.generation;
   const cached = cache.get(key, generation);
   if (cached !== undefined) return cached;
   const value = load();
-  // An indexing run may yield between batches. Do not retain a read assembled
-  // from a partially-updated generation.
-  return indexActivity.indexing ? value : cache.set(key, generation, value);
+  return cache.set(key, generation, value);
 }
 
 /**
@@ -449,12 +454,22 @@ async function dispatchOperation(
       );
     case 'incomingCalls': {
       const callArgs = fixedArgs(message.args as CallRefsOpArgs);
-      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100, callArgs.transitive ?? false]);
+      const cacheKey = JSON.stringify([
+        callArgs.symbol,
+        callArgs.file ?? '',
+        callArgs.limit ?? 100,
+        callArgs.transitive ?? false,
+      ]);
       return cachedRead(incomingCallsCache, cacheKey, () => incomingCallsService(callArgs));
     }
     case 'outgoingCalls': {
       const callArgs = fixedArgs(message.args as CallRefsOpArgs);
-      const cacheKey = JSON.stringify([callArgs.symbol, callArgs.file ?? '', callArgs.limit ?? 100, callArgs.transitive ?? false]);
+      const cacheKey = JSON.stringify([
+        callArgs.symbol,
+        callArgs.file ?? '',
+        callArgs.limit ?? 100,
+        callArgs.transitive ?? false,
+      ]);
       return cachedRead(outgoingCallsCache, cacheKey, () => outgoingCallsService(callArgs));
     }
     default:

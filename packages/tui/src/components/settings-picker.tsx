@@ -2,7 +2,7 @@ import type React from 'react';
 import { useEffect } from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
-import { PANEL_IDS } from '../ui-contracts.js';
+import { PANEL_IDS, SETTINGS_PICKER_MAX_HEIGHT } from '../ui-contracts.js';
 import { buildSettingsFilterState } from './settings-picker-filter.js';
 import { SETTINGS_PICKER_JUMP_CHORDS } from './settings-picker-jumps.js';
 import type {
@@ -546,7 +546,7 @@ export function SettingsPicker({
   //
   // Both numbers derive from the same chain so they cannot disagree:
   //
-  //   pickerHeight     = max(8, termRows − inputHeight − bottomChromeRows)
+  //   pickerHeight     = clamp(termRows − inputHeight − bottomChromeRows, borderRows, maxHeight)
   //   innerHeight      = pickerHeight − BORDER_ROWS
   //   visible window  = largest centered field range whose exact wrapped
   //                     field rows + intersecting headers fit innerHeight.
@@ -593,9 +593,13 @@ export function SettingsPicker({
 
   // Picker Box height (borders included). Leaves INPUT_ROWS for the
   // Input box and bottomChromeRows for StatusBar + KeyHintBar below.
-  // The min 8 guarantees a usable picker even on very short terminals
-  // (the hard cap clips excess, never scrolls).
-  const pickerHeight = Math.max(8, termRows - INPUT_ROWS - bottomChromeRows);
+  // Keep only the two border rows as the minimum so tiny terminals do not
+  // reserve content space they cannot display. The max prevents large
+  // terminals from expanding the menu to the full available screen height.
+  const pickerHeight = Math.min(
+    SETTINGS_PICKER_MAX_HEIGHT,
+    Math.max(BORDER_ROWS, termRows - INPUT_ROWS - bottomChromeRows),
+  );
   const innerHeight = pickerHeight - BORDER_ROWS;
 
   // VISIBLE_FIELDS — non-filter mode. Each field row renders linesPerField

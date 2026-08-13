@@ -35,7 +35,7 @@ import {
   tasksInChain,
   uniqueStrings,
 } from './_internal.js';
-import { initializeAndValidateManagedTask } from './lifecycle.js';
+import { archiveManagedTask, initializeAndValidateManagedTask } from './lifecycle.js';
 import { searchKanban } from './serialization.js';
 export {
   areDependenciesMet,
@@ -213,8 +213,7 @@ export async function mergeTasks(
     for (const source of sourceTasks) {
       source.mergedIntoTaskId = merged.id;
       if (input.closeSourceTasks !== false) {
-        source.status = 'archived';
-        delete source.completedAt;
+        archiveManagedTask(board, source, { at: now, reason: `Merged into ${merged.id}` });
       }
       source.updatedAt = now;
     }

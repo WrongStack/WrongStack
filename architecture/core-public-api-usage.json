@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 264,
-      "typeOnly": 211,
+      "files": 265,
+      "typeOnly": 212,
       "runtimeOrMixed": 70
     },
     "@wrongstack/core/agent-catalog": {
@@ -1174,6 +1174,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/codebase-index-atomic.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

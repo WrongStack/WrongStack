@@ -16,7 +16,10 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { renderRealTty, settle } from './helpers/real-tty.js';
-import { DEFAULT_PANEL_POSITIONS } from '../src/ui-contracts.js';
+import {
+  DEFAULT_PANEL_POSITIONS,
+  SETTINGS_PICKER_MAX_HEIGHT,
+} from '../src/ui-contracts.js';
 import {
   SettingsPicker,
   settingsPickerJumpByName,
@@ -271,34 +274,29 @@ describe('settings picker fills its box (no blank area above the bottom border)'
     return borderIdx;
   }
 
-  it('fills a 40×80 terminal (2-line fields) without a large blank area', async () => {
+  it('caps a 40×80 terminal while filling the capped box', async () => {
     const view = renderRealTty(
       React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'minimum' })),
       { columns: 80, rows: 40 },
     );
     await settle();
     const lines = view.lines();
-    expect(lines.length).toBeLessThanOrEqual(40);
-    // The list reaches the bottom of the box — no ~8-row blank gap.
+    expect(lines).toHaveLength(SETTINGS_PICKER_MAX_HEIGHT);
     expect(blankRowsAboveBorder(lines)).toBeLessThanOrEqual(2);
-    // 'Plugins' (field 9) was below the old 8-field window; the exact-fit
-    // window now renders it.
     expect(view.lastFrame()).toContain('Plugins');
     view.unmount();
   });
 
-  it('fills a wide 40×120 terminal (1-line fields) without a large blank area', async () => {
+  it('caps a wide 40×120 terminal while filling the capped box', async () => {
     const view = renderRealTty(
       React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'minimum' })),
       { columns: 120, rows: 40 },
     );
     await settle();
     const lines = view.lines();
-    expect(lines.length).toBeLessThanOrEqual(40);
+    expect(lines).toHaveLength(SETTINGS_PICKER_MAX_HEIGHT);
     expect(blankRowsAboveBorder(lines)).toBeLessThanOrEqual(2);
-    // 'Index on session start' (field 20) was below the old 12-field
-    // window; the exact-fit window now renders it.
-    expect(view.lastFrame()).toContain('Index on session start');
+    expect(view.lastFrame()).toContain('Plugins');
     view.unmount();
   });
 
@@ -320,7 +318,7 @@ describe('settings picker fills its box (no blank area above the bottom border)'
   it('reserves three additional rows in detailed mode without overflowing', async () => {
     const minimum = renderRealTty(
       React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'minimum' })),
-      { columns: 80, rows: 40 },
+      { columns: 80, rows: 24 },
     );
     await settle();
     const minimumLines = minimum.lines();
@@ -328,7 +326,7 @@ describe('settings picker fills its box (no blank area above the bottom border)'
 
     const noColor = renderRealTty(
       React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'no-color' })),
-      { columns: 80, rows: 40 },
+      { columns: 80, rows: 24 },
     );
     await settle();
     const noColorLines = noColor.lines();
@@ -336,7 +334,7 @@ describe('settings picker fills its box (no blank area above the bottom border)'
 
     const detailed = renderRealTty(
       React.createElement(SettingsPicker, baseProps({ field: 0, statuslineMode: 'detailed' })),
-      { columns: 80, rows: 40 },
+      { columns: 80, rows: 24 },
     );
     await settle();
     const detailedLines = detailed.lines();

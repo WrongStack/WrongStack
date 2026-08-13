@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import type { Agent, InputBuilder } from '@wrongstack/core/agent';
 import { loadGoal } from '@wrongstack/core/storage';
@@ -9,6 +10,13 @@ import { type HeapSample, startSharedHeapWatchdog, takeHeapSample } from '../hea
 import { useAnimation } from '../ink.js';
 import { isRandomTuiThinkingWord, pickRandomTuiThinkingWord } from '../thinking-word.js';
 import { recordTuiAppRender, snapshotTuiMemoryCounters } from '../tui-memory-counters.js';
+
+/**
+ * Stat-fingerprint sentinel meaning "the goal file did not exist on the last
+ * check". Distinct from `undefined` (never checked) so the chip-clearing
+ * dispatch runs exactly once instead of every tick.
+ */
+const GOAL_FILE_MISSING = 'missing';
 
 // ── Shallow retention sentinels (RAM audit) ────────────────────────────────
 // Each helper reads a known Map/Array length without traversing the graph,
@@ -282,12 +290,38 @@ export function useTuiActivity({
 
   const goalSummaryFingerprintRef = useRef<string | undefined>(undefined);
   const goalSummaryGenerationRef = useRef(0);
+  /**
+   * mtime+size of the goal file as of the last read. The 10s `nowTick` drives
+   * this refresh for the whole session, and the summary fingerprint below only
+   * gates the *dispatch* — without this stat the goal file was parsed off disk
+   * six times a minute forever, whether or not it had changed. Callers that
+   * write the goal (submit-controller, autonomy drivers) still get through:
+   * their write moves mtime.
+   */
+  const goalStatFingerprintRef = useRef<string | undefined>(undefined);
   const refreshGoalSummary = useCallback(() => {
     const generation = ++goalSummaryGenerationRef.current;
     if (!projectRoot) return;
     const goalPath = resolveWstackPaths({ projectRoot }).projectGoal;
-    loadGoal(goalPath)
+    fs.stat(goalPath)
+      .then(
+        (stat) => {
+          const statFingerprint = `${stat.mtimeMs}:${stat.size}`;
+          if (statFingerprint === goalStatFingerprintRef.current) return undefined;
+          goalStatFingerprintRef.current = statFingerprint;
+          return loadGoal(goalPath);
+        },
+        () => {
+          // No goal file (or unreadable). Clear the chip once, then stay quiet
+          // until one appears — a goal-less project must not pay a read per
+          // tick. `null` falls into the clear branch below.
+          if (goalStatFingerprintRef.current === GOAL_FILE_MISSING) return undefined;
+          goalStatFingerprintRef.current = GOAL_FILE_MISSING;
+          return null;
+        },
+      )
       .then((goal) => {
+        if (goal === undefined) return; // Unchanged on disk — nothing to do.
         if (generation !== goalSummaryGenerationRef.current) return;
         if (!goal) {
           if (goalSummaryFingerprintRef.current === 'null') return;

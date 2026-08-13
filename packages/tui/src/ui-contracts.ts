@@ -12,6 +12,13 @@ import type { StatuslineItem as StatuslineItemSource } from './components/status
 export const SIDEBAR_MISSION_ROWS = 8;
 
 /**
+ * Maximum outer height of the /settings picker, including its border. Small
+ * terminals still use their smaller available-height budget; large terminals
+ * stop growing here instead of allowing the picker to fill the screen.
+ */
+export const SETTINGS_PICKER_MAX_HEIGHT = 24;
+
+/**
  * Field index where the per-panel-position rows begin. The first 46
  * indices (0–45) are the legacy auto-rebuilt Settings surface; rows 46+
  * are the per-panel position rows (one per PanelId in PANEL_IDS order).

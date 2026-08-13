@@ -49,6 +49,7 @@ export {
   proposeTaskDecomposition,
   pruneSessionBoards,
   reconcileKanbanBoard,
+  recordCompletionRefusal,
   recordTaskActivity,
   recordTaskFileActivity,
   recoverStaleTaskAssignments,

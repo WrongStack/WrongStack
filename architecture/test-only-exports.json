@@ -16,7 +16,6 @@
     "apps/desktop/src/main/validation/schemas.ts": [
       "abortRuntimeSchema",
       "activateRuntimeSchema",
-      "booleanSchema",
       "closeRuntimeSchema",
       "getConversationSchema",
       "navigateWebuiSchema",
@@ -630,6 +629,9 @@
     "packages/kanban/src/manager/task-graph-bridge.ts": [
       "buildTaskGraphFromKanbanBoard"
     ],
+    "packages/kanban/src/manager/task-readiness.ts": [
+      "formatDependencyReadinessIssues"
+    ],
     "packages/kanban/src/server/kanban-store.ts": [
       "ServerKanbanStore"
     ],
@@ -642,6 +644,10 @@
       "eventLogCacheSizeForTests",
       "getKanbanEventsPath",
       "resolveBoardRef"
+    ],
+    "packages/kanban/src/verification/completion-park.ts": [
+      "DEFAULT_MAX_VERIFICATION_ATTEMPTS",
+      "isParked"
     ],
     "packages/kanban/src/verification/verification-context.ts": [
       "BoundedProcessOutput",
@@ -1153,9 +1159,6 @@
       "invalidateFileCache"
     ],
     "packages/tui/src/history-archive.ts": [
-      "ARCHIVE_PAGE_SIZE",
-      "HistoryArchive",
-      "historyArchivePath",
       "MAX_MEMORY_ENTRIES"
     ],
     "packages/tui/src/history-retention.ts": [
@@ -1357,6 +1360,10 @@
     "packages/webui-server/src/server/ws-payload-validation.ts": [
       "validateBrainConfigSetPayload"
     ],
+    "packages/webui/src/components/activity-bar/index.tsx": [
+      "calculateDesktopActivityCapacity",
+      "splitDesktopActivityBarItems"
+    ],
     "packages/webui/src/components/AgentsPage.tsx": [
       "getIterations",
       "getLastEventAt"
@@ -1367,6 +1374,12 @@
     ],
     "packages/webui/src/components/ChatInput/image-attachments.ts": [
       "MAX_PROCESSED_IMAGE_BYTES"
+    ],
+    "packages/webui/src/components/codemap-model.ts": [
+      "_clearNormalizedPathCacheForTests",
+      "_normalizedPathCacheSizeForTests",
+      "SMART_CANVAS_EDGE_LIMIT",
+      "SMART_CANVAS_NODE_LIMIT"
     ],
     "packages/webui/src/components/FileActivityDrawer.tsx": [
       "analyzeFileActivity",
@@ -1427,21 +1440,11 @@
     "packages/webui/src/components/TaskIntelligencePanel.tsx": [
       "deriveTaskIntelligence"
     ],
-    "packages/webui/src/components/WorktreeGraph.tsx": [
-      "deriveWorktreeGraph"
-    ],
-    "packages/webui/src/components/activity-bar/index.tsx": [
-      "calculateDesktopActivityCapacity",
-      "splitDesktopActivityBarItems"
-    ],
-    "packages/webui/src/components/codemap-model.ts": [
-      "_clearNormalizedPathCacheForTests",
-      "_normalizedPathCacheSizeForTests",
-      "SMART_CANVAS_EDGE_LIMIT",
-      "SMART_CANVAS_NODE_LIMIT"
-    ],
     "packages/webui/src/components/toaster-helpers.ts": [
       "buildUndoToastEntry"
+    ],
+    "packages/webui/src/components/WorktreeGraph.tsx": [
+      "deriveWorktreeGraph"
     ],
     "packages/webui/src/hooks/use-ws-handlers.ts": [
       "useWsHandlers"

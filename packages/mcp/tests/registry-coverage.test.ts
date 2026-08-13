@@ -84,6 +84,7 @@ function internals(registry: MCPRegistry) {
     sweepIdle: () => Promise<void>;
     sleepIdle: (slot: Record<string, unknown>) => Promise<void>;
     ensureIdleSweep: () => void;
+    idleTimer?: ReturnType<typeof setInterval> | undefined;
     persistCapabilityManifest: (slot: Record<string, unknown>) => Promise<void>;
     recordOperation: (slot: Record<string, unknown>, kind: 'connect', reason?: string) => void;
   };
@@ -392,10 +393,13 @@ describe('MCPRegistry coverage', () => {
       onDisconnect: vi.fn(),
     });
     internals(registry).servers.set('idle', slot);
+    internals(registry).ensureIdleSweep();
+    expect(internals(registry).idleTimer).toBeDefined();
     vi.setSystemTime(100);
     await internals(registry).sweepIdle();
     expect(slot['state']).toBe('dormant');
     expect(client.close).toHaveBeenCalled();
+    expect(internals(registry).idleTimer).toBeUndefined();
 
     await internals(registry).sleepIdle(makeSlot('already-dormant', { lazy: true }));
     const nonLazy = makeSlot('awake', { lastUsed: 0 });

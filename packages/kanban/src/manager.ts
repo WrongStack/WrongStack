@@ -16,6 +16,7 @@ export * from './manager/task-graph-bridge.js';
 export * from './manager/tasks.js';
 export { getKanbanWorkbench } from './manager/workbench.js';
 export * from './verification/completion-gate.js';
+export * from './verification/completion-park.js';
 export * from './verification/completion-protocol.js';
 export * from './verification/evidence-validator.js';
 export { createDefaultRegistry } from './verification/plugins/index.js';

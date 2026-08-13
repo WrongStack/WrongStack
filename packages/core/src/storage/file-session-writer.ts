@@ -16,11 +16,17 @@ import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { sessionContentPreview, userInputTitle } from './session-helpers.js';
+import { scrubSessionWriterEvent } from './session-writer-scrubber.js';
 import {
   findSessionCheckpointTruncatePlan,
   rewriteSessionToCheckpoint,
 } from './session-writer-truncate.js';
-import { scrubSessionWriterEvent } from './session-writer-scrubber.js';
+
+/** Node has used more than one code for operations on an already-closed FileHandle. */
+function isClosedHandleError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException | undefined)?.code;
+  return code === 'EBADF' || code === 'ERR_CLOSED_RESOURCE' || code === 'ERR_INVALID_HANDLE';
+}
 
 /**
  * Append-mode JSONL session writer with batched writes, write serialization,
@@ -177,8 +183,7 @@ export class FileSessionWriter implements SessionWriter {
       try {
         return await this.handle.appendFile(data, 'utf8');
       } catch (err: unknown) {
-        const nodeErr = err as NodeJS.ErrnoException;
-        if (nodeErr?.code === 'EBADF') {
+        if (isClosedHandleError(err)) {
           this.handle = await fsp.open(this.filePath, 'a', 0o600);
           return await this.handle.appendFile(data, 'utf8');
         }
@@ -226,16 +231,13 @@ export class FileSessionWriter implements SessionWriter {
   private bufferSynchronousEvent(event: SessionEvent): void {
     if (this.closed) return;
     void this.ensureInit();
-    this.observeForSummary(event);
-    // Fire the onAppend callback so file_snapshot and file_observation events
-    // also reach the HQ bridge without a disk read-back. Scrub file_snapshot
-    // events through the shared scrubber (which now handles the file_snapshot
-    // type) to avoid duplicating the scrubbing logic inline. The scrubbed
-    // event is pushed to the JSONL buffer so secrets never persist at rest,
-    // matching the async append() path contract.
-    const appendEvent = event.type === 'file_snapshot'
-      ? scrubSessionWriterEvent(event, this.secretScrubber)
-      : event;
+    // Keep this path equivalent to append(): synchronous callbacks must not
+    // bypass scrubbing merely because they cannot await the writer.
+    const appendEvent = scrubSessionWriterEvent(event, this.secretScrubber);
+    this.observeForSummary(appendEvent);
+    // Fire the onAppend callback so synchronous observations reach the HQ
+    // bridge without a disk read-back. The scrubbed event is pushed to the
+    // JSONL buffer so secrets never persist at rest, matching append().
     try { this._onAppend?.(appendEvent); } catch { /* best-effort */ }
     this.pushWriteBuffer(appendEvent);
     if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
@@ -508,8 +510,7 @@ export class FileSessionWriter implements SessionWriter {
     } catch (err: unknown) {
       // Handle may be closed (e.g. after clearSession with no intervening
       // append). Reopen lazily so the handle is ready for the next write.
-      const nodeErr = err as NodeJS.ErrnoException;
-      if (nodeErr?.code === 'EBADF') {
+      if (isClosedHandleError(err)) {
         this.handle = await fsp.open(this.filePath, 'a', 0o600);
         return;
       }
@@ -783,6 +784,10 @@ export class FileSessionWriter implements SessionWriter {
   }
 
   private async doClose(): Promise<void> {
+    // Session creation opens the transcript eagerly, but its lifecycle
+    // preamble is lazy. Materialize it even for an otherwise idle session so
+    // a valid JSONL never becomes a zero-byte/headerless transcript.
+    await this.ensureInit();
     if (this.pendingFileSnapshots.length > 0) {
       await this.writeFileSnapshot(this.activePromptIndex ?? 0, [...this.pendingFileSnapshots]);
       this.pendingFileSnapshots = [];
@@ -806,8 +811,7 @@ export class FileSessionWriter implements SessionWriter {
     } catch (err: unknown) {
       // Handle may already be closed (e.g. clearSession closed it but no
       // append reopened). Best-effort: the fd is still valid for close().
-      const nodeErr = err as NodeJS.ErrnoException;
-      if (nodeErr?.code !== 'EBADF') throw err;
+      if (!isClosedHandleError(err)) throw err;
     }
     // Finalize the summary before writing.
     const endedAt = new Date().toISOString();

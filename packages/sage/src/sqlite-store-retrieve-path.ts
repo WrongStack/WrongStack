@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
-import { MEMORY_NODE_PREFIX_LEN } from './sqlite-store-graph-helpers.js';
+import { MEMORY_NODE_GLOB, MEMORY_NODE_PREFIX_LEN } from './sqlite-store-graph-helpers.js';
 import {
   buildRetrieveFallbackQuery,
   buildRetrievePathTargets,
@@ -58,13 +58,23 @@ export function retrieveSqliteSageForPath(
   const globClause = `OR ${symbolGlobs.map(() => 'e.to_node GLOB ?').join(' OR ')}`;
   const edgeRows = ctx
     .stmt(
+      // The SUBSTR strips a fixed `mem:` prefix, so the subquery must only see
+      // memory-origin edges. Every writer today emits `mem:` on from_node
+      // (anchor sync, hygiene supersedes, admin link, JSONL replay), but the
+      // edges table also stores file:/dir:/symbol: nodes and nothing in the
+      // schema enforces the side they land on — without this guard a future
+      // non-memory from_node would be silently mis-sliced into a garbage id.
+      // GLOB (not LIKE) so the comparison stays case-sensitive and index-usable.
       `SELECT DISTINCT m.data
        FROM memories m
        WHERE m.id IN (
            SELECT SUBSTR(e.from_node, ${MEMORY_NODE_PREFIX_LEN + 1})
            FROM edges e
-           WHERE e.to_node IN (${targetPlaceholders})
-             ${globClause}
+           WHERE e.from_node GLOB '${MEMORY_NODE_GLOB}'
+             AND (
+               e.to_node IN (${targetPlaceholders})
+               ${globClause}
+             )
        )
        AND m.status IN ('active', 'stale')
        ${session.clause}

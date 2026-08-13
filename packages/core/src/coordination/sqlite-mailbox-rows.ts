@@ -147,20 +147,22 @@ export function materializeMessageRows(
 ): MailboxMessageProjection[] {
   if (rows.length === 0) return [];
 
-  const useTargetedReceipts = rows.length <= 500;
-  const receiptSql = useTargetedReceipts
-    ? `
+  // Keep receipt lookup proportional to the message rows being projected.
+  // SQLite commonly limits a statement to 999 bind parameters, so one large
+  // IN clause is not safe either. Chunking avoids both that limit and the
+  // former >500-row fallback that read the whole receipt table.
+  const receiptRows: ReceiptRow[] = [];
+  for (const ids of chunk(
+    rows.map((row) => row.id),
+    400,
+  )) {
+    const receiptSql = `
         SELECT message_id, actor_id, read_at, completed_at, completed_by, outcome
         FROM message_receipts
-        WHERE message_id IN (${rows.map(() => '?').join(', ')})
-      `
-    : `
-        SELECT message_id, actor_id, read_at, completed_at, completed_by, outcome
-        FROM message_receipts
+        WHERE message_id IN (${ids.map(() => '?').join(', ')})
       `;
-  const receiptRows = db
-    .prepare(receiptSql)
-    .all(...(useTargetedReceipts ? rows.map((row) => row.id) : [])) as unknown as ReceiptRow[];
+    receiptRows.push(...(db.prepare(receiptSql).all(...ids) as unknown as ReceiptRow[]));
+  }
   const receiptState = new Map<string, Record<string, MailboxRecipientState>>();
   for (const row of receiptRows) {
     const states = receiptState.get(row.message_id) ?? {};
@@ -191,8 +193,17 @@ export function materializeMessageRows(
 }
 
 export function deleteMessages(db: DatabaseSync, ids: readonly string[]): void {
-  const statement = db.prepare('DELETE FROM messages WHERE id = ?');
-  for (const id of ids) statement.run(id);
+  for (const chunkIds of chunk(ids, 400)) {
+    db.prepare(`DELETE FROM messages WHERE id IN (${chunkIds.map(() => '?').join(', ')})`).run(
+      ...chunkIds,
+    );
+  }
+}
+
+function* chunk<T>(values: readonly T[], size: number): Generator<readonly T[]> {
+  for (let start = 0; start < values.length; start += size) {
+    yield values.slice(start, start + size);
+  }
 }
 
 // ── Agents ──────────────────────────────────────────────────────────────────

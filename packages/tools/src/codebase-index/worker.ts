@@ -16,8 +16,8 @@
 import { parentPort } from 'node:worker_threads';
 import {
   fileGraphService,
-  indexService,
   incomingCallsService,
+  indexService,
   outgoingCallsService,
   packageGraphService,
   searchService,
@@ -40,22 +40,32 @@ if (!parentPort) throw new Error('codebase-index worker must be started as a wor
 const port = parentPort as NonNullable<typeof parentPort>;
 
 const inFlight = new Map<number, AbortController>();
+let activeIndexes = 0;
 
 function post(msg: WorkerToHost): void {
   port.postMessage(msg);
 }
 
 async function dispatch(msg: Extract<HostToWorker, { type: 'request' }>): Promise<unknown> {
+  if (msg.op !== 'index' && activeIndexes > 0) {
+    const error = new Error(
+      'Codebase index refresh in progress; retry after the completed generation is published.',
+    );
+    error.name = 'IndexRefreshInProgressError';
+    throw error;
+  }
   switch (msg.op) {
     case 'index': {
       const ac = new AbortController();
       inFlight.set(msg.id, ac);
+      activeIndexes++;
       try {
         return await indexService(msg.args as IndexOpArgs, {
           signal: ac.signal,
           onProgress: (current, total) => post({ type: 'progress', id: msg.id, current, total }),
         });
       } finally {
+        activeIndexes--;
         inFlight.delete(msg.id);
       }
     }

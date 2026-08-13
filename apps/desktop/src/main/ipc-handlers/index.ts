@@ -6,16 +6,13 @@ import { ipcMain } from 'electron';
 import type { DesktopWebuiPrefs } from '../../shared/types.js';
 import { IPC } from '../ipc.js';
 import type { IpcHandlerContext } from '../state/types.js';
+import { createValidationLogger, validate, validateOrDefault } from '../validation/index.js';
 import {
-  validate,
-  validateOrDefault,
-  createValidationLogger,
-} from '../validation/index.js';
-import {
-  runtimeIdSchema,
+  booleanSchema,
   pathSchema,
-  webuiCommandAckSchema,
+  runtimeIdSchema,
   setLocaleSchema,
+  webuiCommandAckSchema,
 } from '../validation/schemas.js';
 
 // Validation logger for tracking malformed messages
@@ -49,11 +46,7 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
 
   // Shell handlers
   ipcMain.handle(IPC.setShellSidebarCollapsed, (_event, collapsed: unknown) => {
-    const result = validateOrDefault(
-      pathSchema.transform(() => collapsed === true),
-      collapsed,
-      true,
-    );
+    const result = validateOrDefault(booleanSchema, collapsed, true);
     ctx.setShellSidebarCollapsed(result);
     return true;
   });

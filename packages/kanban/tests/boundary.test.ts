@@ -81,6 +81,36 @@ describe('Kanban boundaries', () => {
     });
   });
 
+  it('matches a terminal globstar against both its root directory and descendants', () => {
+    const layers = resolveKanbanBoundaryLayers({
+      boundary: {
+        enabled: true,
+        enforcement: 'block',
+        shellAccess: 'block',
+        allow: [{ kind: 'glob', path: 'packages/webui/**', access: 'read_write' }],
+      },
+    });
+
+    expect(evaluateKanbanBoundaryPath(layers, 'packages/webui', 'write').decision).toBe('allow');
+    expect(evaluateKanbanBoundaryPath(layers, 'packages/webui/src/App.tsx', 'write').decision).toBe(
+      'allow',
+    );
+    expect(evaluateKanbanBoundaryPath(layers, 'packages/webui-other', 'write').decision).toBe(
+      'block',
+    );
+
+    const denyLayers = resolveKanbanBoundaryLayers({
+      boundary: {
+        enabled: true,
+        enforcement: 'block',
+        shellAccess: 'block',
+        allow: [],
+        deny: [{ kind: 'glob', path: 'packages/webui/**', access: 'read_write' }],
+      },
+    });
+    expect(evaluateKanbanBoundaryPath(denyLayers, 'packages/webui', 'write').decision).toBe('block');
+  });
+
   it('rejects absolute and upward-traversal selectors', () => {
     expect(() =>
       normalizeKanbanBoundaryPolicy({

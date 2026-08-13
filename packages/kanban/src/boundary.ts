@@ -215,6 +215,15 @@ function globToRegExp(pattern: string): RegExp {
       } else {
         source += '[^/]*';
       }
+    } else if (
+      char === '/' &&
+      pattern[index + 1] === '*' &&
+      pattern[index + 2] === '*' &&
+      index + 3 === pattern.length
+    ) {
+      // A terminal `/**` includes the selected directory itself as well as descendants.
+      source += '(?:/.*)?';
+      index += 2;
     } else if (char === '?') {
       source += '[^/]';
     } else {

@@ -34,7 +34,6 @@ import type {
   SearchRanking,
 } from './service-contract.js';
 import type { SqliteAdminHost } from './sqlite-store-admin.js';
-import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { buildRetrievePathTargets } from './sqlite-store-retrieve-helpers.js';
 import {
   buildSessionClause,
@@ -113,7 +112,7 @@ export function executeUnifiedSearch(
   // MATCH + bm25 to both be present. Split paths let both be tested
   // independently. The FTS path additionally selects the raw bm25 rank so
   // hits can be scored absolutely (see computeAbsoluteScores).
-  let dataRows: Array<{ data: string; bm25?: number }>;
+  let dataRows: Array<{ id?: string; data: string; bm25?: number }>;
   let totalRow: { n: number };
   let matchReason: SearchMatchReason;
 
@@ -149,7 +148,9 @@ export function executeUnifiedSearch(
 
     const ftsWhereSql = ' WHERE ' + ftsFilterClauses.join(' AND ');
     const ftsDataSql =
-      `SELECT m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
+      // `m.id` rides along with `m.data` purely so the bm25-by-id map below can
+      // be built without a second JSON.parse of every returned row.
+      `SELECT m.id AS id, m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
       ftsWhereSql +
       ` ORDER BY ${orderBy.fts}` +
       ` LIMIT ${sqlLimit}`;
@@ -157,7 +158,11 @@ export function executeUnifiedSearch(
       `SELECT COUNT(*) AS n FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
       ftsWhereSql;
 
-    dataRows = host.stmt(ftsDataSql).all(...ftsParams) as Array<{ data: string; bm25?: number }>;
+    dataRows = host.stmt(ftsDataSql).all(...ftsParams) as Array<{
+      id?: string;
+      data: string;
+      bm25?: number;
+    }>;
     totalRow = host.stmt(ftsCountSql).get(...ftsParams) as unknown as { n: number };
     matchReason = 'lexical';
   } else {
@@ -208,15 +213,15 @@ export function executeUnifiedSearch(
   // limit. Corrupt rows are skipped leniently by sqliteRowsToMemories, so
   // bm25 is looked up by memory id instead of by position.
   const decodedMemories = sqliteRowsToMemories(dataRows);
-  // bm25 is only selected on the FTS path — skip the decode loop otherwise.
+  // bm25 is only selected on the FTS path — skip the map build otherwise.
+  // Keyed off the SQL-projected `id` column rather than a re-parse of
+  // `row.data`: the ids are identical (both come from the same row) and the
+  // over-fetch window here reaches several hundred rows, so a second
+  // JSON.parse per row was pure waste.
   const bm25ById = new Map<string, number | undefined>();
   if (matchExpr !== undefined) {
     for (const row of dataRows) {
-      try {
-        bm25ById.set(sqliteRowToMemory(row).id, row.bm25);
-      } catch {
-        // Corrupt row — already warned about by the decode path.
-      }
+      if (row.id !== undefined) bm25ById.set(row.id, row.bm25);
     }
   }
   let kept: Sage[] = decodedMemories;
@@ -556,20 +561,20 @@ function suggestLexicalAdjacent(input: SuggestLexicalAdjacentInput): SearchHit[]
       : Math.min(Math.max(limit * 2, 10), MAX_LIMIT);
   const rows = host
     .stmt(
-      `SELECT m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
+      // `m.id` rides along with `m.data` purely so the bm25-by-id map below can
+      // be built without a second JSON.parse of every returned row.
+      `SELECT m.id AS id, m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
         whereSql +
         ` ORDER BY ${buildOrderBy(ranking, true).fts}` +
         ` LIMIT ${suggestionSqlLimit}`,
     )
-    .all(...params) as Array<{ data: string; bm25?: number }>;
+    .all(...params) as Array<{ id?: string; data: string; bm25?: number }>;
 
+  // Keyed off the SQL-projected `id` column — see the primary search path for
+  // why this is not a re-parse of `row.data`.
   const bm25ById = new Map<string, number | undefined>();
   for (const row of rows) {
-    try {
-      bm25ById.set(sqliteRowToMemory(row).id, row.bm25);
-    } catch {
-      // Corrupt row — skipped by the decode below.
-    }
+    if (row.id !== undefined) bm25ById.set(row.id, row.bm25);
   }
   const kept = sqliteRowsToMemories(rows).filter(
     (memory) =>

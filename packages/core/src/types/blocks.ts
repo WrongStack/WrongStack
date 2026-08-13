@@ -51,6 +51,17 @@ export interface ToolResultBlock {
    * to the provider (it's an internal extension, not part of the wire format).
    */
   _toolErrorInfo?: import('./tool.js').ToolErrorInfo | undefined;
+  /**
+   * Structured Kanban denial details for runtime callers and observability.
+   * Provider adapters deliberately serialize only the human-facing `content`.
+   */
+  _kanbanBoundary?:
+    | (import('@wrongstack/kanban').KanbanBoundaryEvaluation & {
+        boardId?: string | undefined;
+        taskId?: string | undefined;
+        readinessIssues?: import('@wrongstack/kanban').KanbanContractReadinessIssue[] | undefined;
+      })
+    | undefined;
 }
 
 export interface ImageBlock {

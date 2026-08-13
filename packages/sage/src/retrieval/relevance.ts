@@ -72,8 +72,7 @@ export interface MemoryQueryRelevance {
  * provides a stronger relationship.
  */
 export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRelevance {
-  const normalizedQuery = query.normalize('NFKC').toLowerCase().replace(/\\/g, '/');
-  const queryTerms = informativeTerms(query);
+  const { normalizedQuery, queryTerms } = prepareQuery(query);
   if (queryTerms.length === 0) return { strength: 0, evidence: [] };
 
   for (const anchor of memory.anchors) {
@@ -163,6 +162,39 @@ export function memoryStructuralRelevance(memory: Sage, seeds: Sage[]): MemoryQu
     }
   }
   return { strength: 0, evidence: [] };
+}
+
+interface PreparedQuery {
+  normalizedQuery: string;
+  queryTerms: string[];
+}
+
+/**
+ * Normalize + tokenize the query, memoizing the last one.
+ *
+ * Both callers of `memoryQueryRelevance` score a whole candidate set against a
+ * single query in one pass — turn-memory inside a `.filter()`, tool-call-memory
+ * inside a `.map()` over an over-fetched pool of 64+ hits. The per-memory work
+ * genuinely differs each call, but the query side does not: without this the
+ * same string was NFKC-normalized, lowercased, regex-split and stop-word
+ * filtered once per candidate. One slot is enough — the access pattern is a
+ * tight loop over one query, not an interleaving of many.
+ *
+ * The returned `queryTerms` array is shared across calls, so it must stay
+ * read-only; `memoryQueryRelevance` only reads and `.filter()`s it.
+ */
+let lastQueryKey: string | undefined;
+let lastQueryValue: PreparedQuery | undefined;
+
+function prepareQuery(query: string): PreparedQuery {
+  if (lastQueryKey === query && lastQueryValue) return lastQueryValue;
+  const prepared: PreparedQuery = {
+    normalizedQuery: query.normalize('NFKC').toLowerCase().replace(/\\/g, '/'),
+    queryTerms: informativeTerms(query),
+  };
+  lastQueryKey = query;
+  lastQueryValue = prepared;
+  return prepared;
 }
 
 function informativeTerms(text: string): string[] {

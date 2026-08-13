@@ -11,6 +11,7 @@ import { expectDefined } from '@wrongstack/core/utils';
  */
 
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import type { Dirent, Stats } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { availableParallelism } from 'node:os';
@@ -89,6 +90,11 @@ const DEFAULT_IGNORE_FILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'pn
 const INDEXABLE_EXTENSION_SET = new Set(INDEXABLE_EXTENSIONS);
 const MAX_INDEX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_GIT_FILE_LIST_BYTES = 64 * 1024 * 1024;
+const GIT_SNAPSHOT_METADATA_KEY = 'git_discovery_snapshot';
+
+class IndexSourceChangedError extends Error {
+  override name = 'IndexSourceChangedError';
+}
 
 function isWithinProject(projectRoot: string, file: string): boolean {
   const rel = path.relative(projectRoot, file);
@@ -132,7 +138,7 @@ async function findGitSourceFiles(
   projectRoot: string,
   ignore: string[],
   signal?: AbortSignal | undefined,
-): Promise<{ files: string[]; trustedUnchanged: Set<string> } | null> {
+): Promise<{ files: string[]; trustedUnchanged: Set<string>; snapshotKey: string } | null> {
   try {
     throwIfAborted(signal);
     const topLevel = (await gitOutput(projectRoot, ['rev-parse', '--show-toplevel']))
@@ -142,7 +148,7 @@ async function findGitSourceFiles(
 
     throwIfAborted(signal);
     const ignoreSet = new Set([...DEFAULT_IGNORE, ...ignore]);
-    const [output, statusOutput] = await Promise.all([
+    const [output, statusOutput, stagedOutput] = await Promise.all([
       gitOutput(projectRoot, ['ls-files', '--cached', '--others', '--exclude-standard', '-z']),
       gitOutput(projectRoot, [
         'status',
@@ -151,6 +157,7 @@ async function findGitSourceFiles(
         '--untracked-files=all',
         '--ignored=no',
       ]),
+      gitOutput(projectRoot, ['ls-files', '--stage', '-z']),
     ]);
     throwIfAborted(signal);
     const dirty = new Set<string>();
@@ -183,9 +190,17 @@ async function findGitSourceFiles(
       const ext = path.extname(relative).toLowerCase();
       if (INDEXABLE_EXTENSION_SET.has(ext) || detectLang(full) !== null) files.push(full);
     }
+    const snapshot = createHash('sha256').update(stagedOutput).update('\0').update(statusOutput);
+    const indexedFiles = new Set(files);
+    for (const dirtyFile of [...dirty].sort()) {
+      if (!indexedFiles.has(dirtyFile) || deleted.has(dirtyFile)) continue;
+      snapshot.update('\0').update(dirtyFile).update('\0');
+      snapshot.update(contentHashHex(await fs.readFile(dirtyFile, 'utf8')));
+    }
     return {
       files,
       trustedUnchanged: new Set(files.filter((file) => !dirty.has(file))),
+      snapshotKey: snapshot.digest('hex'),
     };
   } catch {
     return null;
@@ -225,6 +240,7 @@ async function findSourceFiles(
   complete: boolean;
   errors: string[];
   trustedUnchanged?: Set<string>;
+  snapshotKey?: string;
 }> {
   const gitFiles = await findGitSourceFiles(projectRoot, ignore, signal);
   if (gitFiles) {
@@ -233,6 +249,7 @@ async function findSourceFiles(
       complete: true,
       errors: [],
       trustedUnchanged: gitFiles.trustedUnchanged,
+      snapshotKey: gitFiles.snapshotKey,
     };
   }
 
@@ -395,6 +412,22 @@ export async function runIndexerWithStore(
   store: IndexStore,
   opts: IndexerOptions,
 ): Promise<IndexResult> {
+  let result: IndexResult;
+  try {
+    result = await store.runAtomicIndexUpdate(() => runIndexerAtomic(store, opts));
+  } catch (error) {
+    if (!(error instanceof IndexSourceChangedError)) throw error;
+    // One bounded retry turns an edit that raced discovery into a coherent
+    // generation. A second race fails and preserves the previous generation.
+    result = await store.runAtomicIndexUpdate(() => runIndexerAtomic(store, opts));
+  }
+  // VACUUM cannot run inside a transaction. Publish the completed generation
+  // first, then perform best-effort maintenance on full-project runs.
+  if (!opts.files) store.compactIfNeeded();
+  return result;
+}
+
+async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promise<IndexResult> {
   const { projectRoot, langs, ignore = [], signal } = opts;
   // Graph semantics changed without a structural SQLite schema change. Keep a
   // separate data-version marker so older running processes do not downgrade
@@ -426,6 +459,7 @@ export async function runIndexerWithStore(
   let discoveredFiles: Set<string> | null = null;
   let discoveryComplete = true;
   let trustedUnchanged: Set<string> | undefined;
+  let discoverySnapshotKey: string | undefined;
   if (opts.files && opts.files.length > 0) {
     // Explicit file list (per-edit / watcher path): keep paths inside the
     // project only and apply both always-on and .gitignore exclusions.
@@ -447,6 +481,7 @@ export async function runIndexerWithStore(
     discoveryComplete = discovery.complete;
     discoveredFiles = new Set(files);
     trustedUnchanged = discovery.trustedUnchanged;
+    discoverySnapshotKey = discovery.snapshotKey;
   }
 
   if (langs && langs.length > 0) {
@@ -464,6 +499,16 @@ export async function runIndexerWithStore(
   if (!force) {
     for (const meta of store.getAllFileMetas()) existingMeta.set(meta.file, meta);
   }
+
+  // A clean Git status only proves that disk matches this checkout. It says
+  // nothing about whether the persisted DB was built from this checkout.
+  // Enable the no-stat fast path only for the exact Git snapshot recorded by
+  // the last completed full-project index.
+  const snapshotTrusted =
+    !force &&
+    discoverySnapshotKey !== undefined &&
+    store.getMetadata(GIT_SNAPSHOT_METADATA_KEY) === discoverySnapshotKey;
+  if (!snapshotTrusted) trustedUnchanged = undefined;
 
   // Git has already checked clean tracked files while producing status. Fold
   // their stored counts into the result once, before the async batch loop,
@@ -565,9 +610,6 @@ export async function runIndexerWithStore(
           }
 
           const meta = existingMeta.get(file);
-          if (!force && meta && meta.mtimeMs === Math.floor(stat.mtimeMs)) {
-            return { file, stat, lang, parsed: null, skippedMeta: meta };
-          }
 
           let content: string;
           try {
@@ -897,11 +939,23 @@ export async function runIndexerWithStore(
   });
   store.setMetadata('ref_resolution_version', refResolutionVersion);
   store.setMetadata('relation_graph_version', relationGraphVersion);
+  const completeProjectScope =
+    !opts.files && (!langs || langs.length === 0) && (!opts.ignore || opts.ignore.length === 0);
+  if (completeProjectScope && discoverySnapshotKey !== undefined) {
+    const finalSnapshot = await findGitSourceFiles(projectRoot, ignore, signal);
+    if (!finalSnapshot || finalSnapshot.snapshotKey !== discoverySnapshotKey) {
+      throw new IndexSourceChangedError(
+        'Project files changed during indexing; retrying before publishing the generation.',
+      );
+    }
+    // Do not bless a snapshot that carried any read/parse/relation failure.
+    // The next run must validate content again instead of fast-skipping it.
+    store.setMetadata(GIT_SNAPSHOT_METADATA_KEY, errors.length === 0 ? discoverySnapshotKey : '');
+  }
   // Planner refresh belongs to full/bulk runs, not the edit watcher hot path.
   if (!opts.files || filesIndexed >= 50) store.optimize();
 
   store.setLastIndexed(Date.now());
-  if (!opts.files) store.compactIfNeeded();
   const durationMs = Date.now() - startMs;
 
   return {

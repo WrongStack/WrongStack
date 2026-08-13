@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.306.2",
+  "packageVersion": "0.306.3",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1139,7 +1139,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 152,
-      "sourceLines": 45783
+      "sourceLines": 45810
     },
     {
       "directory": "core",
@@ -1167,7 +1167,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 52,
-      "sourceLines": 18322
+      "sourceLines": 18323
     },
     {
       "directory": "extension",
@@ -1279,7 +1279,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 6031
+      "sourceLines": 6035
     },
     {
       "directory": "session-catalog",
@@ -1300,7 +1300,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 77,
-      "sourceLines": 17835
+      "sourceLines": 17839
     },
     {
       "directory": "tasking",
@@ -1321,7 +1321,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10427
+      "sourceLines": 10438
     },
     {
       "directory": "utils",

@@ -136,6 +136,8 @@ export type KanbanContractReadinessIssueCode =
 
 export interface KanbanContractReadinessIssue {
   code: KanbanContractReadinessIssueCode;
+  /** Canonical card/graph field a caller can update without parsing `message`. */
+  field?: string | undefined;
   nodeId?: string | undefined;
   message: string;
 }

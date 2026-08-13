@@ -18,11 +18,7 @@
 
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  codebaseIndexStats,
-  getIndexState,
-  searchCodebaseIndex,
-} from './background-indexer.js';
+import { codebaseIndexStats, getIndexState, searchCodebaseIndex } from './background-indexer.js';
 import type { SearchResult } from './schema.js';
 import { codebaseIndexDirOverride } from './writer.js';
 
@@ -31,7 +27,15 @@ import { codebaseIndexDirOverride } from './writer.js';
  * and the `langs` validation in codebase-index-tool.ts.
  */
 export const INDEXABLE_LANG_IDS = [
-  'ts', 'tsx', 'js', 'jsx', 'go', 'py', 'rs', 'json', 'yaml',
+  'ts',
+  'tsx',
+  'js',
+  'jsx',
+  'go',
+  'py',
+  'rs',
+  'json',
+  'yaml',
 ] as const;
 export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput> = {
   name: 'codebase-search',
@@ -64,9 +68,26 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
       kind: {
         type: 'string',
         enum: [
-          'class', 'interface', 'enum', 'type', 'function', 'method', 'var', 'const', 'let',
-          'property', 'parameter', 'namespace', 'object', 'literal', 'schema', 'struct', 'trait',
-          'impl', 'static', 'mod',
+          'class',
+          'interface',
+          'enum',
+          'type',
+          'function',
+          'method',
+          'var',
+          'const',
+          'let',
+          'property',
+          'parameter',
+          'namespace',
+          'object',
+          'literal',
+          'schema',
+          'struct',
+          'trait',
+          'impl',
+          'static',
+          'mod',
         ],
         description: 'Filter by indexed symbol kind',
       },
@@ -101,16 +122,14 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
   },
   async execute(input, ctx, execOpts) {
     const state = getIndexState();
-    if (state.indexing && !state.ready) {
+    if (state.indexing) {
       return {
         results: [],
         total: 0,
         query: input.query,
-        indexStatus: `Indexing in progress (${state.currentFile}/${state.totalFiles} files) — retry in a moment.`,
+        indexStatus: `Index refresh in progress (${state.currentFile}/${state.totalFiles} files) — retry after the completed generation is published.`,
       };
     }
-    // WAL provides a consistent previous snapshot while a refresh writes, so
-    // keep search available instead of returning an empty, misleading result.
     if (state.lastError) {
       const circuit = state.circuit;
       const retryHint =

@@ -1,3 +1,5 @@
+import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SecretScrubber, SessionEvent, SessionMetadata } from '../../src/index.js';
@@ -155,6 +157,16 @@ describe('FileSessionWriter', () => {
     await writer.append({ type: 'user_input', ts: now(), content: 'hello' } as SessionEvent);
     await writer.close();
     expect(handle.close).toHaveBeenCalled();
+  });
+
+  it('close writes a lifecycle preamble for an otherwise idle session', async () => {
+    await writer.close();
+
+    expect(capturedWrites).toHaveLength(1);
+    expect(JSON.parse(capturedWrites[0]!.trim())).toMatchObject({
+      type: 'session_start',
+      id: TEST_ID,
+    });
   });
 
   it('close resolves onClose callback with the summary', async () => {
@@ -526,6 +538,42 @@ describe('FileSessionWriter', () => {
     const event = onAppend.mock.calls[0]?.[0];
     expect(event).toHaveProperty('type', 'file_observation');
     expect(event).toHaveProperty('path', '/project/src/index.ts');
+  });
+
+  it('scrubs every synchronous event before it reaches the buffer', () => {
+    const scrubber: SecretScrubber = {
+      scrub: vi.fn((value: string) => value.replace('SECRET', '***')),
+      scrubObject: <T>(value: T): T => value,
+    };
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: '/tmp/test.jsonl',
+      secretScrubber: scrubber,
+    });
+
+    (w as any).bufferSynchronousEvent({
+      type: 'user_input',
+      ts: now(),
+      content: 'SECRET',
+    } as SessionEvent);
+
+    expect(scrubber.scrub).toHaveBeenCalledWith('SECRET');
+    expect((w as any).writeBuffer.at(-1).content).toBe('***');
+  });
+
+  it('reopens after any recognized closed-handle error', async () => {
+    const closed = Object.assign(new Error('closed resource'), { code: 'ERR_CLOSED_RESOURCE' });
+    handle.appendFile.mockRejectedValueOnce(closed);
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-writer-'));
+    (writer as any).filePath = path.join(dir, 'session.jsonl');
+    try {
+      await writer.append({ type: 'user_input', ts: now(), content: 'hello' } as SessionEvent);
+      await (writer as any).flushBuffer();
+
+      expect(await fsp.readFile(path.join(dir, 'session.jsonl'), 'utf8')).toContain('hello');
+    } finally {
+      await writer.close().catch(() => undefined);
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
   });
 
   // ── pendingToolUses tracking ─────────────────────────────────────────

@@ -11,7 +11,13 @@ const state: {
   totalFiles: number;
   lastError?: string;
   circuit: Circuit;
-} = { ready: true, indexing: false, currentFile: 0, totalFiles: 0, circuit: { state: 'closed', cooldownRemainingMs: 0 } };
+} = {
+  ready: true,
+  indexing: false,
+  currentFile: 0,
+  totalFiles: 0,
+  circuit: { state: 'closed', cooldownRemainingMs: 0 },
+};
 
 let isIndexingValue = false;
 let statsError: Error | undefined;
@@ -37,6 +43,18 @@ vi.mock('../src/codebase-index/background-indexer.js', () => ({
     return statsValue;
   },
   searchCodebaseIndex: async () => ({ results: [], total: 0 }),
+  incomingCallsService: async () => ({
+    calls: [],
+    symbolFound: true,
+    ambiguous: false,
+    totalMatches: 0,
+  }),
+  outgoingCallsService: async () => ({
+    calls: [],
+    symbolFound: true,
+    unresolvedCount: 0,
+    totalMatches: 0,
+  }),
   runStartupIndex: async () => ({
     filesIndexed: 1,
     symbolsIndexed: 1,
@@ -53,7 +71,9 @@ vi.mock('../src/codebase-index/circuit-breaker.js', () => ({
   indexCircuitBreaker: { snapshot: () => circuitSnapshot },
 }));
 
+import { codebaseIncomingCallsTool } from '../src/codebase-index/codebase-incoming-calls-tool.js';
 import { codebaseIndexTool } from '../src/codebase-index/codebase-index-tool.js';
+import { codebaseOutgoingCallsTool } from '../src/codebase-index/codebase-outgoing-calls-tool.js';
 import { codebaseSearchTool } from '../src/codebase-index/codebase-search-tool.js';
 import { codebaseStatsTool } from '../src/codebase-index/codebase-stats-tool.js';
 
@@ -195,15 +215,14 @@ describe('codebase-search tool gates', () => {
     const out = await codebaseSearchTool.execute({ query: 'q' }, ctx(), opts());
     // The first build still surfaces a clear "not ready" status so callers
     // know to retry rather than read a misleading zero-result snapshot.
-    expect(out.indexStatus).toMatch(/Indexing in progress/);
+    expect(out.indexStatus).toMatch(/Index refresh in progress/);
   });
 
-  it('proceeds against the persisted snapshot while refreshing', async () => {
+  it('refuses to search a partially published refresh generation', async () => {
     state.ready = true;
     state.indexing = true;
     const out = await codebaseSearchTool.execute({ query: 'q' }, ctx(), opts());
-    // Refresh no longer blocks — WAL readers see the prior snapshot.
-    expect(out.indexStatus).toBeUndefined();
+    expect(out.indexStatus).toMatch(/completed generation is published/);
   });
 
   it('reports a build failure with a circuit-open retry hint', async () => {
@@ -217,5 +236,16 @@ describe('codebase-search tool gates', () => {
     state.lastError = 'parse error';
     const out = await codebaseSearchTool.execute({ query: 'q' }, ctx(), opts());
     expect(out.indexStatus).toMatch(/Try \/codebase-reindex/);
+  });
+});
+
+describe('codebase call-graph tool gates', () => {
+  it('refuses incoming and outgoing reads during a refresh', async () => {
+    state.ready = true;
+    state.indexing = true;
+    const incoming = await codebaseIncomingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
+    const outgoing = await codebaseOutgoingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
+    expect(incoming.indexStatus).toMatch(/completed generation is published/);
+    expect(outgoing.indexStatus).toMatch(/completed generation is published/);
   });
 });

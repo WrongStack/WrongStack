@@ -4,6 +4,23 @@
 **Scope:** `packages/tui` (Ink/React renderer, ~595 files, 19 files over the repo's 800-line hotspot threshold)
 **Method:** Static analysis of source read during the scan; every finding below is verified against the code. No runtime profiling was performed (see [Assumptions](#assumptions--unverified)). Timers and polling paths that checked out clean are listed in [Verified clean](#verified-clean-no-action) so the negative space is explicit.
 
+> **Status as of 2026-08-13 — most of this report is closed. Re-verify before acting on it.**
+>
+> | Finding | State |
+> |---|---|
+> | P1 goal read per tick | **Fixed** — mtime/size gate in `use-tui-activity.ts` |
+> | P2 git child processes | **Fixed** — `gitHidden` visibility gate in `use-git-session-status.ts` |
+> | P3 plan/task `fs.stat` polls | **Fixed** — `planHidden`/`taskHidden` gates in `use-statusbar-view-model.ts` |
+> | P4 1s root animation tick | **Open, but the premise below is wrong** — see the note in P4 |
+> | P5 `@`-search debounce | **Fixed** — `FILE_SEARCH_DEBOUNCE_MS` in `use-file-search.ts` |
+> | I1 history archive stub | **Fixed** — `use-history-archive.ts` wires it; covered by `tests/use-history-archive.test.tsx` |
+> | I2 hotspot files | Open; the line counts below are stale (21 files over threshold, `theme.ts` at 1447 is the largest and is missing from the table) |
+> | I3 duplicated polling | **Not a real finding** — see the correction in I3 |
+>
+> This report has twice been re-derived by tools that read it, restated its
+> closed findings as current, and ranked the already-fixed P2/P3 as the
+> highest-value work. Check the code before trusting a row above.
+
 ---
 
 ## Performance risks
@@ -49,6 +66,22 @@ When SDD `plan.path` / `task.path` metadata exist, both effects `fs.stat` their 
 While `thinkingWorking || fleetRunningCount > 0 || enhanceBusy`, Ink's `useAnimation` at App scope re-renders the whole tree once per second. `workingTimeMs` / `fleetWorkingTimeMs` / `enhanceDots` are consumed by the status bar and the status region, so the elapsed-timer chip forces a full-tree render. This is the largest per-second cost during active work.
 
 **Fix direction:** localize the elapsed-timer 1s tick inside the status bar (a leaf component) rather than the root — the elapsed chip is the only consumer that truly needs per-second updates.
+
+**Correction (2026-08-13):** "re-renders the whole tree" and "largest per-second
+cost" are both wrong. `ScrollableHistory`, `Input`, and `Entry` are all
+`React.memo`-wrapped, so the expensive history subtree is already skipped;
+`deriveAppViewState` is 96 lines with no loop over entries. What actually
+re-renders per second is the App body, the `app-view` JSX, and the two
+components that display the timer — `status-bar.tsx` (unmemoized) and `Input`
+(memo, but `workingTime` changes by design). Those two must repaint every
+second either way, so localizing only saves the App + app-view pass.
+
+It is also not a free win: `useAnimation` is re-exported straight from Ink and
+owns a per-component timer, so giving `status-bar` and `Input` one tick each
+produces two out-of-phase commits per second — *two* terminal repaints where
+there is now one. Doing this correctly needs a shared subscriber clock (one
+interval, both setStates in the same callback so React batches them), which is
+a deliberate design change rather than a drive-by fix. Left open on purpose.
 
 ---
 
@@ -117,6 +150,13 @@ The effect runs on every buffer/cursor change; with an active `@` token it calls
 Same sources, two code paths each, drifting cadences.
 
 **Fix direction:** one data hook per source with a shared refresh signal; panels subscribe instead of re-implementing.
+
+**Correction (2026-08-13):** this does not hold up. `process-list.tsx:41` is not
+a second fetch chain — it is a 1s re-render tick so elapsed times stay live,
+and the list itself is read synchronously from the in-memory
+`getProcessRegistry()` on each render (`:46`). Connections poll at 8s on both
+sides (`use-sidebar-panel-data.ts:117`, `connections-panel.tsx:11`), so there is
+no cadence drift either. No action.
 
 ---
 

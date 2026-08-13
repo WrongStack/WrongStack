@@ -109,6 +109,7 @@ export class SqliteMailbox implements Mailbox {
   private readonly lastHeartbeat = new Map<string, number>();
   private readonly lastClientHeartbeat = new Map<string, number>();
   private autoCompactTimer: NodeJS.Timeout | null = null;
+  private autoCompactInFlight: Promise<AutoCompactResult> | undefined;
   private closed = false;
 
   constructor(
@@ -642,9 +643,13 @@ export class SqliteMailbox implements Mailbox {
    * heartbeat from that id simply is not throttled and writes once more.
    */
   private pruneHeartbeats(map: Map<string, number>, nowMs: number): void {
-    if (map.size <= HEARTBEAT_TRACKING_MAX_ENTRIES) return;
     for (const [id, at] of map) {
       if (nowMs - at > HEARTBEAT_TRACKING_TTL_MS) map.delete(id);
+    }
+    while (map.size > HEARTBEAT_TRACKING_MAX_ENTRIES) {
+      const oldest = map.keys().next().value;
+      if (oldest === undefined) break;
+      map.delete(oldest);
     }
   }
 
@@ -765,7 +770,14 @@ export class SqliteMailbox implements Mailbox {
   }
 
   async autoCompact(options?: AutoCompactOptions): Promise<AutoCompactResult> {
-    return autoCompact(this.compactionCtx(), options);
+    if (this.autoCompactInFlight !== undefined) return this.autoCompactInFlight;
+    const inFlight = autoCompact(this.compactionCtx(), options);
+    this.autoCompactInFlight = inFlight;
+    try {
+      return await inFlight;
+    } finally {
+      if (this.autoCompactInFlight === inFlight) this.autoCompactInFlight = undefined;
+    }
   }
 
   /** Bundle of store operations the retention sweeps drive. */

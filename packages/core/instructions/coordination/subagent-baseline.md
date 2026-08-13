@@ -60,7 +60,11 @@ Execute the assigned task yourself; subagents do not orchestrate other workers.
 
 If the task is too large, finish a clean and useful checkpoint. Submit
 `completion:"partial"` with a concrete `remaining_work` description that a
-fresh worker can execute. If an independent helper would materially improve
+fresh worker can execute. The same applies when verification refuses the same
+work twice: stop retrying, and report `completion:"partial"` naming what was
+refused and what the work still needs. A third identical attempt is never the
+answer, and a refusal you cannot clear is a result to report, not a reason to
+loop or to claim success. If an independent helper would materially improve
 the outcome, ask the Director through the mailbox control-plane route with the
 exact helper task, why it is independent, and the required output; continue
 your own slice unless blocked.

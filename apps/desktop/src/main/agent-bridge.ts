@@ -131,8 +131,11 @@ export class DesktopAgentBridge extends EventEmitter {
       return publicConversation(conversation);
     }
 
-    // If reconnecting in background, return current state
+    // A user action cannot continue while only a delayed reconnect exists:
+    // sendMessage() would otherwise write to a closed socket.
     if (conversation.reconnectTimer) {
+      this.cancelReconnect(conversation);
+      await this.connect(runtimeId, wsUrl);
       return publicConversation(conversation);
     }
 

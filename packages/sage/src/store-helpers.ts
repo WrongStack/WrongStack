@@ -618,46 +618,42 @@ function normalizeSelectorValue(value: string): string {
  * Used by both legacy and current store implementations to reject
  * unsafe candidate proposals before they reach the ReviewQueue.
  */
+// Single anchored alternation covering every provider. Replaces the
+// previous 11-regex array (which ran in O(11) per text node via
+// .some(pattern => pattern.test(text))) with one engine pass. Each
+// alternative is the full body of the original pattern verbatim —
+// boundaries, character classes, and quantifiers are preserved
+// exactly, so the synthetic-token fixtures in store-helpers.test.ts
+// continue to match without modification. Unified flag is /i to
+// preserve the generic env-style key=value match
+// (api|secret|token|password, any case); the trade-off is that
+// AWS AKIA matches case-insensitively (akia... would also match),
+// but no real akia-prefixed token exists, so the false-positive
+// cost is nil.
+//
+// Compiled once at module load rather than per call: `looksLikeSecret` runs
+// against every nested string of a candidate (collectStringValues walks text,
+// tags, anchors, sources), so rebuilding a ten-alternative pattern inside the
+// function body paid the regex compiler on every string. No /g or /y flag, so
+// the shared instance carries no lastIndex state between calls.
+const SECRET_PATTERN = new RegExp(
+  [
+    '-----BEGIN [A-Z ]*PRIVATE KEY-----',
+    '\\b(?:api[_-]?key|secret|token|password)\\b\\s*[:=]\\s*[\'"]?[A-Za-z0-9_\\-./+=]{16,}',
+    '\\b[A-Za-z0-9_]{20,}\\.[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\b',
+    '\\b(?:sk-(?:ant-)?|gh[pousr]_|github_pat_|xox[baprs]-)[A-Za-z0-9_-]{16,}\\b',
+    '\\bAKIA[0-9A-Z]{16}\\b',
+    '\\bAIza[0-9A-Za-z_-]{35}\\b',
+    '\\bhf_[A-Za-z0-9]{20,}\\b',
+    '\\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{20,}\\b',
+    '\\bnpm_[A-Za-z0-9]{36,}\\b',
+    '\\b[MNO][A-Za-z\\d]{23,}\\.[A-Za-z\\d_-]{6,}\\.[A-Za-z\\d_-]{27,}\\b',
+  ].join('|'),
+  'i',
+);
+
 export function looksLikeSecret(text: string): boolean {
-  // Single anchored alternation covering every provider. Replaces the
-  // previous 11-regex array (which ran in O(11) per text node via
-  // .some(pattern => pattern.test(text))) with one engine pass. Each
-  // alternative is the full body of the original pattern verbatim —
-  // boundaries, character classes, and quantifiers are preserved
-  // exactly, so the synthetic-token fixtures in store-helpers.test.ts
-  // continue to match without modification. Unified flag is /i to
-  // preserve the line 343 generic env-style key=value match
-  // (api|secret|token|password, any case); the trade-off is that
-  // AWS AKIA matches case-insensitively (akia... would also match),
-  // but no real akia-prefixed token exists, so the false-positive
-  // cost is nil. Per-string cost: O(1) regex test instead of O(11).
-  // Single anchored alternation covering every provider. Replaces the
-  // previous 11-regex array (which ran in O(11) per text node via
-  // .some(pattern => pattern.test(text))) with one engine pass. Each
-  // alternative is the full body of the original pattern verbatim —
-  // boundaries, character classes, and quantifiers are preserved
-  // exactly, so the synthetic-token fixtures in store-helpers.test.ts
-  // continue to match without modification. Unified flag is /i to
-  // preserve the generic env-style key=value match
-  // (api|secret|token|password, any case); the trade-off is that
-  // AWS AKIA matches case-insensitively (akia... would also match),
-  // but no real akia-prefixed token exists, so the false-positive
-  // cost is nil. Per-string cost: O(1) regex test instead of O(11).
-  return new RegExp(
-    [
-      '-----BEGIN [A-Z ]*PRIVATE KEY-----',
-      '\\b(?:api[_-]?key|secret|token|password)\\b\\s*[:=]\\s*[\'"]?[A-Za-z0-9_\\-./+=]{16,}',
-      '\\b[A-Za-z0-9_]{20,}\\.[A-Za-z0-9_-]{20,}\\.[A-Za-z0-9_-]{20,}\\b',
-      '\\b(?:sk-(?:ant-)?|gh[pousr]_|github_pat_|xox[baprs]-)[A-Za-z0-9_-]{16,}\\b',
-      '\\bAKIA[0-9A-Z]{16}\\b',
-      '\\bAIza[0-9A-Za-z_-]{35}\\b',
-      '\\bhf_[A-Za-z0-9]{20,}\\b',
-      '\\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{20,}\\b',
-      '\\bnpm_[A-Za-z0-9]{36,}\\b',
-      '\\b[MNO][A-Za-z\\d]{23,}\\.[A-Za-z\\d_-]{6,}\\.[A-Za-z\\d_-]{27,}\\b',
-    ].join('|'),
-    'i',
-  ).test(text);
+  return SECRET_PATTERN.test(text);
 }
 
 /**

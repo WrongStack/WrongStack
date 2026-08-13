@@ -39,6 +39,7 @@ import type {
   KanbanVerificationReport,
 } from '../types.js';
 import { verifyTaskCompletion } from './completion-protocol.js';
+import { applyGateRefusal, clearGateRefusals } from './completion-park.js';
 import type { VerifierRegistry } from './verifier-registry.js';
 
 export interface CompletionGateOptions {
@@ -226,6 +227,9 @@ export async function finalizeTaskCompletion(
     if (gate.allowed) {
       task.status = 'completed';
       task.completedAt = task.assignment?.completedAt ?? task.completedAt ?? now;
+      // A card that passed starts its refusal budget over: an earlier park was
+      // earned against evidence this run just replaced.
+      clearGateRefusals(task);
       events.push(
         createKanbanEvent(board.id, task, 'task.verified', {
           ...options.eventContext,
@@ -237,14 +241,35 @@ export async function finalizeTaskCompletion(
         }),
       );
     } else if (gate.enforcement === 'strict') {
-      task.status = 'review';
-      delete task.completedAt;
+      const issueMessages = gate.issues.map((issue) => issue.message);
+      const refusal = applyGateRefusal(board, task, {
+        reason: issueMessages[0] ?? `Verification verdict: ${gate.verdict}`,
+        issues: issueMessages,
+      });
+      // Parking owns the card's status (see completion-park.ts); only a card
+      // still inside its budget goes back to review for another attempt.
+      if (!refusal.parked) {
+        task.status = 'review';
+        delete task.completedAt;
+      }
       events.push(
         createKanbanEvent(board.id, task, 'task.completion.gate_blocked', {
           ...options.eventContext,
-          after: { verdict: gate.verdict, issues: gate.issues.map((issue) => issue.message) },
+          after: { verdict: gate.verdict, issues: issueMessages, attempts: refusal.attempts },
         }),
       );
+      if (refusal.parked) {
+        events.push(
+          createKanbanEvent(board.id, task, 'task.completion.parked', {
+            ...options.eventContext,
+            after: {
+              attempts: refusal.attempts,
+              reason: refusal.park?.reason,
+              issues: refusal.park?.issues ?? [],
+            },
+          }),
+        );
+      }
     } else {
       // Soft enforcement: complete anyway, but leave a durable warning trail.
       task.status = 'completed';

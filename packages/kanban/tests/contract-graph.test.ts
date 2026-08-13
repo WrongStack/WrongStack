@@ -88,6 +88,7 @@ describe('Kanban contract graph', () => {
     const missing = evaluateContractGraphReadiness((await getBoard(tmpDir, board.id))!, taskId);
     expect(missing.ready).toBe(false);
     expect(missing.issues.map((issue) => issue.code)).toEqual(['success-criteria-missing']);
+    expect(missing.issues[0]).toMatchObject({ field: 'successCriteria' });
 
     await addGoalMetricToTask(tmpDir, board.id, taskId, {
       name: 'New syntax parses',

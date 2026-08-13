@@ -88,7 +88,7 @@ describe('runIndexer defensive branches', () => {
     expect(res.errors.some((e) => /parse error/.test(e))).toBe(true);
   });
 
-  it('does not read or parse unchanged files during incremental indexing', async () => {
+  it('content-validates targeted files without reparsing unchanged bytes', async () => {
     const f = path.join(dir, 'a.ts');
     await realFs.writeFile(f, 'export class A {}');
     const first = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir(), files: [f] });
@@ -100,6 +100,6 @@ describe('runIndexer defensive branches', () => {
 
     expect(second.filesIndexed).toBe(1);
     expect(second.errors).toEqual([]);
-    expect(mockedFs.readFile).not.toHaveBeenCalledWith(f, expect.anything());
+    expect(mockedFs.readFile).toHaveBeenCalledWith(f, expect.anything());
   });
 });

@@ -25,6 +25,7 @@ import {
   addTask,
   createBoard,
   getBoard,
+  mergeTasks,
   transitionTask,
   updateTask,
   updateTaskAssignment,
@@ -313,6 +314,108 @@ describe('repairManagedTaskProjection', () => {
       actor: 'repair-agent',
       action: 'Managed projection repaired',
     });
+  });
+});
+
+// ── managed merge tombstones ─────────────────────────────────────────
+
+/**
+ * `mergeTasks` used to write `status = 'archived'` onto its source cards by
+ * hand. On a managed board that produced a card whose status no longer
+ * matched `STATUS_BY_STAGE[stage]`, which meant every later `updateTask`
+ * threw (the card was uneditable) while `repairManagedTaskProjection`
+ * silently reset the status and returned the merged-away card to the board.
+ */
+describe('managed merge tombstones', () => {
+  async function mergedManagedBoard(): Promise<{
+    boardId: string;
+    sourceId: string;
+    mergedId: string;
+  }> {
+    const board = await createBoard(tmpDir, {
+      title: 'Managed merge',
+      columns: COLS,
+      lifecycle: policy,
+    });
+    const first = await addTask(tmpDir, board.id, {
+      title: 'A',
+      description: 'First source card.',
+    });
+    const second = await addTask(tmpDir, board.id, {
+      title: 'B',
+      description: 'Second source card.',
+    });
+    const merged = await mergeTasks(tmpDir, board.id, {
+      taskIds: [first!.task.id, second!.task.id],
+      title: 'Merged',
+      description: 'Merged card.',
+    });
+    return { boardId: board.id, sourceId: first!.task.id, mergedId: merged!.task.id };
+  }
+
+  async function storedTask(boardId: string, taskId: string): Promise<KanbanTask> {
+    const stored = await getBoard(tmpDir, boardId);
+    return stored!.tasks.find((candidate) => candidate.id === taskId)!;
+  }
+
+  it('archives the source card where it stood and records the merge in its ledger', async () => {
+    const { boardId, sourceId, mergedId } = await mergedManagedBoard();
+    const source = await storedTask(boardId, sourceId);
+
+    expect(source.status).toBe('archived');
+    expect(source.mergedIntoTaskId).toBe(mergedId);
+    // Stage and column stay in agreement, so `currentManagedStage` keeps
+    // working on the tombstone rather than throwing stage-mismatch.
+    expect(source.columnId).toBe('backlog');
+    expect(source.lifecycle?.currentStage).toBe('backlog');
+    expect(source.lifecycle?.history.at(-1)).toMatchObject({
+      from: 'backlog',
+      to: 'backlog',
+      action: 'Card archived',
+      comment: `Merged into ${mergedId}`,
+    });
+  });
+
+  it('leaves the archived card editable instead of wedging it', async () => {
+    const { boardId, sourceId } = await mergedManagedBoard();
+    await updateTask(tmpDir, boardId, sourceId, { labels: ['superseded'] });
+    const source = await storedTask(boardId, sourceId);
+    expect(source.labels).toEqual(['superseded']);
+    expect(source.status).toBe('archived');
+  });
+
+  it('still refuses to move or revive the archived card by patch', async () => {
+    const { boardId, sourceId } = await mergedManagedBoard();
+    await expect(updateTask(tmpDir, boardId, sourceId, { status: 'ready' })).rejects.toThrow(
+      /archived/,
+    );
+    await expect(updateTask(tmpDir, boardId, sourceId, { columnId: 'todo' })).rejects.toThrow(
+      /archived/,
+    );
+    expect((await storedTask(boardId, sourceId)).status).toBe('archived');
+  });
+
+  it('refuses to revive the archived card through projection repair', async () => {
+    const { boardId, sourceId } = await mergedManagedBoard();
+    await expect(
+      repairManagedTaskProjection(tmpDir, boardId, sourceId, {
+        actor: 'repair-agent',
+        comment: 'Attempt to revive a merged-away card.',
+      }),
+    ).rejects.toThrow(/archived/);
+    expect((await storedTask(boardId, sourceId)).status).toBe('archived');
+  });
+
+  it('refuses to transition the archived card back into play', async () => {
+    const { boardId, sourceId } = await mergedManagedBoard();
+    await expect(
+      transitionTask(tmpDir, boardId, sourceId, {
+        to: 'todo',
+        actor: 'agent-1',
+        comment: 'Try to restart merged-away work.',
+      }),
+    ).rejects.toThrow(/archived/);
+    expect((await storedTask(boardId, sourceId)).status).toBe('archived');
   });
 });
 

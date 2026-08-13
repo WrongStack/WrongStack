@@ -71,6 +71,7 @@ These apply to what you write on the board, not to whether you may work; none is
 3. **Keep the board current as you go.** Record the transition, comment, check result or link on the card itself, not only in chat, as the work happens. Do not leave finished work sitting in Running. Updating the card follows the action; it does not authorize it.
 4. **Managed boards have a fixed column order.** Cards move `Backlog → Todo → Running → Review → Done`, one step at a time. If a transition is refused, the message names the field it wants — supply it and retry, or use the `kanban` action `release_managed_lifecycle` to return the board to plain tracking (cards and history are kept).
 5. **Never shrink tracked scope by omission.** Todo, task, and plan rows carry Kanban requirement identity. Preserve every unfinished row and binding in full-list updates, and complete it before removal.
+6. **Two refusals park the card — they never park you.** Verification guards Done, not progress. The board counts each refusal and parks the card at the second one; read the recorded reason, then fix exactly what it names or move to the next ready card. Never retry a parked card unchanged. Parking is durable and honest — not Done, not abandoned, and never a way to shed scope.
 
 <!--ws:end-->
 

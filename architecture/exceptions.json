@@ -285,10 +285,11 @@
         "packages/kanban/src/manager/_internal.ts",
         "packages/kanban/src/manager/lifecycle.ts",
         "packages/kanban/src/server/remote-storage.ts",
-        "packages/kanban/src/storage.ts"
+        "packages/kanban/src/storage.ts",
+        "packages/kanban/src/verification/completion-park.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing runtime module SCC: the kanban IPC daemon, storage backend, and manager lifecycle share bidirectional import paths. Mirrors the type-level cycle ARCH-CYCLE-TYPE-XX (same members).",
+      "reason": "Pre-existing runtime module SCC: the kanban IPC daemon, storage backend, and manager lifecycle share bidirectional import paths. Mirrors the type-level cycle ARCH-CYCLE-TYPE-XX (same members). Verification parking joined the same SCC: lifecycle dispatches into completion-park, which needs mutateBoard from storage and the shared manager internals.",
       "introduced": "2026-07-30",
       "reviewBy": "2026-09-15",
       "removeWhen": "Kanban storage and lifecycle modules have one-way runtime and type dependencies.",
@@ -301,10 +302,11 @@
         "packages/kanban/src/manager/_internal.ts",
         "packages/kanban/src/manager/lifecycle.ts",
         "packages/kanban/src/server/remote-storage.ts",
-        "packages/kanban/src/storage.ts"
+        "packages/kanban/src/storage.ts",
+        "packages/kanban/src/verification/completion-park.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC in the kanban IPC daemon and storage backend. Matches the members of ARCH-CYCLE-RUNTIME-02. Type-only imports (LifecycleEvent, StorageConfig, etc.) create the reverse edge.",
+      "reason": "Pre-existing type-level module SCC in the kanban IPC daemon and storage backend. Matches the members of ARCH-CYCLE-RUNTIME-02. Type-only imports (LifecycleEvent, StorageConfig, etc.) create the reverse edge. Verification parking is in the same SCC via the lifecycle -> completion-park -> storage/_internal path.",
       "introduced": "2026-07-30",
       "reviewBy": "2026-09-15",
       "removeWhen": "Kanban storage and lifecycle modules have one-way runtime and type dependencies.",

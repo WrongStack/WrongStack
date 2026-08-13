@@ -104,8 +104,28 @@ export function initSchema(db: DatabaseSync): void {
           COALESCE(old.audience, ''));
       END;
     `);
+    // The WHEN clause is a load-bearing guard, not a micro-optimization.
+    // memories_fts indexes exactly three values (text, tags, audience), so a
+    // delete+reinsert is only meaningful when one of them actually changed.
+    // Without the guard every UPDATE re-indexed the row — and the hottest
+    // writers on this table change no indexed value at all:
+    // recordSqliteInjection/recordSqliteUse json_set() the injectionCount /
+    // useCount / lastAccessedAt keys inside `data` on every injected memory,
+    // every tool turn. That paid a full FTS delete+insert (and the WAL frames
+    // behind it) per counter bump. Note the guard cannot be expressed as
+    // `AFTER UPDATE OF data` — the counter writers do update `data`; only the
+    // extracted `$.text` is unchanged.
+    //
+    // Recreated unconditionally (not IF NOT EXISTS) so databases carrying the
+    // earlier unguarded version pick up the WHEN clause. Dropping and
+    // recreating a trigger is pure DDL — it does not touch the FTS index.
+    db.exec('DROP TRIGGER IF EXISTS memories_au');
     db.exec(`
-      CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
+      CREATE TRIGGER memories_au AFTER UPDATE ON memories
+      WHEN json_extract(old.data, '$.text') IS NOT json_extract(new.data, '$.text')
+        OR COALESCE(old.tags, '') IS NOT COALESCE(new.tags, '')
+        OR COALESCE(old.audience, '') IS NOT COALESCE(new.audience, '')
+      BEGIN
         INSERT INTO memories_fts(memories_fts, rowid, text, tags, audience)
         VALUES('delete', old.rowid,
           json_extract(old.data, '$.text'),

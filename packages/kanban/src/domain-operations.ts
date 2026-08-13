@@ -70,6 +70,7 @@ export const KANBAN_DOMAIN_OPERATIONS = [
   'enforceCompletionGate',
   'attachVerificationReport',
   'finalizeTaskCompletion',
+  'recordCompletionRefusal',
   'reserveKanbanDispatch',
   'startKanbanDispatch',
   'completeKanbanDispatch',

@@ -372,6 +372,21 @@ async function renameWithRetry(from: string, to: string): Promise<void> {
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       let transient = code !== undefined && TRANSIENT_RENAME_CODES.has(code);
+      if (transient) {
+        // Windows reports EPERM when a regular temp file is renamed onto an
+        // existing directory. That is a permanent type mismatch, not reader
+        // contention, so retrying only delays the inevitable failure and emits
+        // a misleading exhaustion warning (notably in conformance tests).
+        // Check after the failed rename to keep the normal file-replacement
+        // path race-free and retain retries for real file locks/AV scanners.
+        try {
+          const target = await fs.stat(to);
+          if (target.isDirectory()) transient = false;
+        } catch {
+          // A missing or temporarily inaccessible target can still be a
+          // transient Windows rename failure; preserve the retry policy.
+        }
+      }
       if (code === 'ENOENT') {
         // The temp was fsynced and chmod'd a moment before this rename, so
         // the source existed — an ENOENT here is a Windows AV/filter-driver
@@ -387,12 +402,12 @@ async function renameWithRetry(from: string, to: string): Promise<void> {
         }
       }
       if (!transient || attempt === delays.length) {
-        // All retries exhausted — emit a diagnostic warning so operators
-        // know the atomic write was skipped (the caller self-heals).
+        // All transient retries exhausted — emit a diagnostic warning so
+        // operators know the atomic write failed without replacing the target.
         if (attempt === delays.length) {
           process.emitWarning(
             `Windows rename retries exhausted for '${from}' → '${to}' (code=${code}). ` +
-              'Write skipped — the caller will retry on the next cycle.',
+              'Atomic write failed; the original target was left untouched.',
             { code: 'WRONGSTACK_WIN32_RENAME_EXHAUSTED' },
           );
         }

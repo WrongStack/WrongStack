@@ -336,6 +336,7 @@ export class ToolExecutor {
           content:
             `Tool "${tool.name}" blocked by Kanban boundary. ${boundary.reason ?? ''}`.trim(),
           is_error: true,
+          _kanbanBoundary: boundary,
         };
         budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };

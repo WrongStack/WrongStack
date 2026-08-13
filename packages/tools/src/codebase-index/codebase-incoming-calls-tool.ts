@@ -16,11 +16,7 @@
 
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  codebaseIndexStats,
-  getIndexState,
-  incomingCallsService,
-} from './background-indexer.js';
+import { codebaseIndexStats, getIndexState, incomingCallsService } from './background-indexer.js';
 import type { CallSite } from './schema.js';
 import { codebaseIndexDirOverride } from './writer.js';
 
@@ -73,12 +69,12 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
   },
   async execute(input, ctx) {
     const state = getIndexState();
-    if (state.indexing && !state.ready) {
+    if (state.indexing) {
       return {
         symbol: input.symbol,
         calls: [],
         total: 0,
-        indexStatus: `Indexing in progress (${state.currentFile}/${state.totalFiles} files) — retry in a moment.`,
+        indexStatus: `Index refresh in progress (${state.currentFile}/${state.totalFiles} files) — retry after the completed generation is published.`,
       };
     }
     if (state.lastError) {
@@ -102,16 +98,14 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
     // raw throw — mirrors codebase-search-tool.ts / codebase-stats-tool.ts.
     let serviced: Awaited<ReturnType<typeof incomingCallsService>>;
     try {
-      serviced = await incomingCallsService(
-        {
-          projectRoot: ctx.projectRoot,
-          indexDir: codebaseIndexDirOverride(ctx),
-          symbol: input.symbol,
-          file: input.file,
-          limit,
-          transitive,
-        },
-      );
+      serviced = await incomingCallsService({
+        projectRoot: ctx.projectRoot,
+        indexDir: codebaseIndexDirOverride(ctx),
+        symbol: input.symbol,
+        file: input.file,
+        limit,
+        transitive,
+      });
     } catch (err) {
       return {
         symbol: input.symbol,
@@ -158,10 +152,14 @@ export const codebaseIncomingCallsTool: Tool<IncomingCallsInput, IncomingCallsOu
 
     const notes: string[] = [];
     if (totalMatches > limit) {
-      notes.push(`Results capped at ${limit} of ${totalMatches} call sites. Increase \`limit\` or use \`file\` to narrow.`);
+      notes.push(
+        `Results capped at ${limit} of ${totalMatches} call sites. Increase \`limit\` or use \`file\` to narrow.`,
+      );
     }
     if (ambiguous) {
-      notes.push(`Symbol "${input.symbol}" exists in multiple files. Results include callers of all same-named symbols. Use codebase-search to find the exact file and pass it as \`file\`.`);
+      notes.push(
+        `Symbol "${input.symbol}" exists in multiple files. Results include callers of all same-named symbols. Use codebase-search to find the exact file and pass it as \`file\`.`,
+      );
     }
 
     return {

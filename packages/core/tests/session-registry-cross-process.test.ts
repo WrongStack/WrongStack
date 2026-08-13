@@ -111,6 +111,40 @@ describe('cross-process session discovery', () => {
     expect(list[0]!.gitBranch).toBe('main');
   });
 
+  it('removes malformed heartbeat entries while claiming a session', async () => {
+    const root = await freshRoot();
+    await fs.writeFile(
+      path.join(root, 'session-registry.json'),
+      JSON.stringify({
+        corrupt: {
+          sessionId: 'corrupt',
+          pid: 1,
+          startedAt: new Date().toISOString(),
+          lastHeartbeatAt: 'not-a-date',
+          agentCount: 0,
+          agents: [],
+          status: 'idle',
+        },
+      }),
+    );
+    const registry = new SessionRegistry(root);
+
+    await registry.register({
+      sessionId: 'sess-healthy',
+      projectSlug: 'project',
+      projectRoot: '/project',
+      projectName: 'Project',
+      workingDir: '/project',
+      gitBranch: 'main',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    });
+
+    const saved = JSON.parse(await fs.readFile(path.join(root, 'session-registry.json'), 'utf8'));
+    expect(saved.corrupt).toBeUndefined();
+    expect(saved['sess-healthy']).toBeDefined();
+  });
+
   it('preserves optional WebUI endpoint hints across register, heartbeat, and agent updates', async () => {
     const root = await freshRoot();
     const registry = new SessionRegistry(root);

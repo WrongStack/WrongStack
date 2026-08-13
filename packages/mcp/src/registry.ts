@@ -644,6 +644,16 @@ export class MCPRegistry {
         await this.sleepIdle(slot);
       }
     }
+    // The sweep only has work while a lazy server is connected. Once the last
+    // one sleeps, stop the otherwise permanent unref'd wake-up; start() and
+    // lazy wake-up paths call ensureIdleSweep() when it is needed again.
+    const hasConnectedLazyServer = [...this.servers.values()].some(
+      (slot) => slot.lazy && slot.state === 'connected' && slot.client,
+    );
+    if (!hasConnectedLazyServer && this.idleTimer) {
+      clearInterval(this.idleTimer);
+      this.idleTimer = undefined;
+    }
   }
 
   /**

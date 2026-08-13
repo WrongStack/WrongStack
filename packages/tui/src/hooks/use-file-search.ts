@@ -19,6 +19,12 @@ import {
   type TokenPreviewStore,
 } from '../token-previews.js';
 
+/**
+ * Keystroke coalescing window for `@`-file search. Long enough to swallow a
+ * burst of typing, short enough that the results feel attached to the keys.
+ */
+export const FILE_SEARCH_DEBOUNCE_MS = 150;
+
 // ── Exported helpers (pure, no hook dependency) ─────────────────────
 
 /**
@@ -78,19 +84,36 @@ export function useFileSearch(options: UseFileSearchOptions): FileSearchResult {
       if (state.picker.open) dispatch({ type: 'pickerClose' });
       return;
     }
-    if (!state.picker.open || state.picker.query !== detected.query) {
+    const justOpened = !state.picker.open;
+    if (justOpened || state.picker.query !== detected.query) {
       dispatch({ type: 'pickerOpen', query: detected.query });
     }
     let cancelled = false;
-    searchFiles(projectRoot, detected.query, 8)
-      .then((matches) => {
-        if (!cancelled) {
-          dispatch({ type: 'pickerSetMatches', query: detected.query, matches });
-        }
-      })
-      .catch(() => undefined);
+    const run = () => {
+      searchFiles(projectRoot, detected.query, 8)
+        .then((matches) => {
+          if (!cancelled) {
+            dispatch({ type: 'pickerSetMatches', query: detected.query, matches });
+          }
+        })
+        .catch(() => undefined);
+    };
+
+    // `searchFiles` fuzzy-scores every indexed path (up to FILE_INDEX_MAX) and
+    // each result dispatches a picker re-render. Typing `@compo` used to pay
+    // that five times. Debounce so a fast typist pays it once — but keep the
+    // first keystroke immediate, or the picker would visibly lag the `@`.
+    if (justOpened) {
+      run();
+      return () => {
+        cancelled = true;
+      };
+    }
+    const timer = setTimeout(run, FILE_SEARCH_DEBOUNCE_MS);
+    timer.unref?.();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.buffer, state.cursor, projectRoot]);

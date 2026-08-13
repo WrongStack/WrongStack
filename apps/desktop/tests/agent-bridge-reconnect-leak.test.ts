@@ -92,4 +92,33 @@ describe('agent-bridge message listener cleanup', () => {
 
     bridge.closeAll();
   });
+
+  it('connects immediately for a user send while a delayed reconnect is pending', async () => {
+    const bridge = new DesktopAgentBridge();
+    const url = `ws://127.0.0.1:${port}`;
+    await bridge.ensureConnected('runtime-send', url);
+
+    const conversation = (
+      bridge as unknown as {
+        conversations: Map<
+          string,
+          { ws: WebSocket | null; reconnectTimer: ReturnType<typeof setTimeout> | null }
+        >;
+      }
+    ).conversations.get('runtime-send');
+    if (!conversation?.ws) throw new Error('Expected an open runtime socket');
+
+    conversation.ws.close();
+    await new Promise<void>((resolve) => conversation.ws?.once('close', () => resolve()));
+    expect(conversation.reconnectTimer).not.toBeNull();
+
+    await expect(
+      bridge.sendMessage('runtime-send', url, 'send during retry'),
+    ).resolves.toMatchObject({
+      runtimeId: 'runtime-send',
+      messages: expect.arrayContaining([expect.objectContaining({ text: 'send during retry' })]),
+    });
+
+    bridge.closeAll();
+  });
 });

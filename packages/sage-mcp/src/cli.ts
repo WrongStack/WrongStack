@@ -180,35 +180,41 @@ async function main(): Promise<number> {
     return 3;
   }
 
-  const server = createSageMcpServer(port, { writable: args.writable, projectRoot });
+  try {
+    const server = createSageMcpServer(port, { writable: args.writable, projectRoot });
 
-  if (args.transport === 'http') {
-    const handle = await serveHttp(server, {
-      port: args.httpPort,
-      host: args.httpHost,
-      ...(args.httpToken ? { token: args.httpToken } : {}),
-      logger: { warn: (m) => process.stderr.write(`[sage-mcp] ${m}\n`) },
-    });
+    if (args.transport === 'http') {
+      const handle = await serveHttp(server, {
+        port: args.httpPort,
+        host: args.httpHost,
+        ...(args.httpToken ? { token: args.httpToken } : {}),
+        logger: { warn: (m) => process.stderr.write(`[sage-mcp] ${m}\n`) },
+      });
+      process.stderr.write(
+        `${SERVER_INFO.name}: ready at ${handle.url} — projectRoot=${projectRoot} ` +
+          `transport=http writable=${String(args.writable)}${args.httpToken ? ' [token auth]' : ''}\n`,
+      );
+      await new Promise<void>((resolve) => {
+        process.once('SIGINT', resolve);
+        process.once('SIGTERM', resolve);
+      });
+      await handle.close();
+      return 0;
+    }
+
+    // stdio mode
+    const handle = serveStdio(server);
     process.stderr.write(
-      `${SERVER_INFO.name}: ready at ${handle.url} — projectRoot=${projectRoot} ` +
-        `transport=http writable=${String(args.writable)}${args.httpToken ? ' [token auth]' : ''}\n`,
+      `${SERVER_INFO.name}: ready on stdio — projectRoot=${projectRoot} ` +
+        `transport=stdio writable=${String(args.writable)}\n`,
     );
-    return await new Promise<number>((resolve) => {
-      const stop = () => resolve(0);
-      process.once('SIGINT', stop);
-      process.once('SIGTERM', stop);
-    });
+    await handle.done;
+    return 0;
+  } finally {
+    // Covers normal stdio EOF, HTTP signal shutdown, and setup failures after
+    // the IPC-backed port has been initialized.
+    await port.dispose();
   }
-
-  // stdio mode
-  const handle = serveStdio(server);
-  process.stderr.write(
-    `${SERVER_INFO.name}: ready on stdio — projectRoot=${projectRoot} ` +
-      `transport=stdio writable=${String(args.writable)}\n`,
-  );
-  await handle.done;
-  await port.dispose();
-  return 0;
 }
 
 /**

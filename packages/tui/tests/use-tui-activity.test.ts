@@ -1,6 +1,6 @@
 import { render } from 'ink-testing-library';
 import React, { act, StrictMode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTuiActivity } from '../src/hooks/use-tui-activity.js';
 import { Text } from '../src/ink.js';
 
@@ -10,8 +10,13 @@ const heapWatchdogMocks = vi.hoisted(() => ({
   start: vi.fn((_options: unknown) => async () => {}),
 }));
 const storageMocks = vi.hoisted(() => ({ loadGoal: vi.fn() }));
+const fsMocks = vi.hoisted(() => ({ stat: vi.fn() }));
 
 vi.mock('@wrongstack/core/storage', () => ({ loadGoal: storageMocks.loadGoal }));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return { ...actual, stat: fsMocks.stat };
+});
 vi.mock('../src/heap-watchdog.js', () => ({
   startHeapWatchdog: heapWatchdogMocks.start,
   startSharedHeapWatchdog: heapWatchdogMocks.start,
@@ -77,10 +82,30 @@ function harness(status: 'idle' | 'running' | 'streaming' | 'aborting'): React.R
   return React.createElement(StrictMode, null, React.createElement(ActivityHarness, { status }));
 }
 
+/**
+ * The goal refresh stats the file before reading it, so a tick only reaches
+ * `loadGoal` when mtime/size moved. Default the stat to a fresh mtime per call
+ * so tests about the *read* path see one read per tick; tests about the gate
+ * itself pin the fingerprint instead.
+ */
+let goalMtime = 0;
+function stubGoalStat(options: { changing: boolean }): void {
+  fsMocks.stat.mockImplementation(async () => ({
+    mtimeMs: options.changing ? ++goalMtime : 1,
+    size: 10,
+  }));
+}
+
+beforeEach(() => {
+  goalMtime = 0;
+  stubGoalStat({ changing: true });
+});
+
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
   storageMocks.loadGoal.mockReset();
+  fsMocks.stat.mockReset();
 });
 
 interface WatchdogOptions {
@@ -252,15 +277,21 @@ describe('useTuiActivity foreground working time', () => {
     const fresh = deferred<unknown>();
     storageMocks.loadGoal.mockReturnValueOnce(stale.promise).mockReturnValueOnce(fresh.promise);
 
+    // The stat gate puts a microtask in front of `loadGoal`, so each step has
+    // to flush before the call count is observable.
     let view!: ReturnType<typeof render>;
-    act(() => {
+    await act(async () => {
       view = render(
         React.createElement(ActivityHarness, { status: 'idle', projectRoot: 'project' }),
       );
+      await Promise.resolve();
     });
     expect(storageMocks.loadGoal).toHaveBeenCalledTimes(1);
 
-    act(() => vi.advanceTimersByTime(10_000));
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+      await Promise.resolve();
+    });
     expect(storageMocks.loadGoal).toHaveBeenCalledTimes(2);
 
     await act(async () => {
@@ -277,6 +308,69 @@ describe('useTuiActivity foreground working time', () => {
       .filter((action) => action.type === 'goalSummary');
     expect(goalActions).toHaveLength(1);
     expect(goalActions[0]?.summary?.goal).toBe('fresh');
+    act(() => view.unmount());
+  });
+
+  // Regression: the 10s shell tick used to call `loadGoal` unconditionally,
+  // so a project with a goal file paid a read + JSON parse six times a minute
+  // forever. The summary fingerprint only ever gated the dispatch.
+  it('does not re-read the goal file while mtime and size are unchanged', async () => {
+    vi.useFakeTimers();
+    stubGoalStat({ changing: false });
+    storageMocks.loadGoal.mockResolvedValue({
+      goal: 'ship it',
+      iterations: 1,
+      progress: 10,
+      deliverables: [],
+    });
+
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        React.createElement(ActivityHarness, { status: 'idle', projectRoot: 'project' }),
+      );
+      await Promise.resolve();
+    });
+    expect(storageMocks.loadGoal).toHaveBeenCalledTimes(1);
+
+    for (let tick = 0; tick < 3; tick++) {
+      await act(async () => {
+        vi.advanceTimersByTime(10_000);
+        await Promise.resolve();
+      });
+    }
+
+    expect(fsMocks.stat).toHaveBeenCalledTimes(4);
+    expect(storageMocks.loadGoal).toHaveBeenCalledTimes(1);
+    act(() => view.unmount());
+  });
+
+  // A project with no goal file must not pay a read per tick either, and must
+  // still clear the chip exactly once rather than on every tick.
+  it('clears the goal summary once when the goal file is missing', async () => {
+    vi.useFakeTimers();
+    fsMocks.stat.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(
+        React.createElement(ActivityHarness, { status: 'idle', projectRoot: 'project' }),
+      );
+      await Promise.resolve();
+    });
+
+    for (let tick = 0; tick < 3; tick++) {
+      await act(async () => {
+        vi.advanceTimersByTime(10_000);
+        await Promise.resolve();
+      });
+    }
+
+    const nullGoalActions = dispatchMock.mock.calls
+      .map(([action]) => action as { type?: string; summary?: unknown })
+      .filter((action) => action.type === 'goalSummary' && action.summary === null);
+    expect(nullGoalActions).toHaveLength(1);
+    expect(storageMocks.loadGoal).not.toHaveBeenCalled();
     act(() => view.unmount());
   });
 });

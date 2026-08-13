@@ -5,6 +5,7 @@ import {
   evaluateKanbanBoundaryOpaque,
   evaluateKanbanBoundaryPath,
   type KanbanBoundaryEvaluation,
+  type KanbanContractReadinessIssue,
   readBoard,
   resolveKanbanBoundaryLayers,
 } from '@wrongstack/kanban';
@@ -14,6 +15,8 @@ import type { Tool } from '../types/tool.js';
 export interface ToolKanbanBoundaryEvaluation extends KanbanBoundaryEvaluation {
   boardId?: string | undefined;
   taskId?: string | undefined;
+  /** Machine-readable readiness failures; `reason` remains the human fallback. */
+  readinessIssues?: KanbanContractReadinessIssue[] | undefined;
 }
 
 export interface ToolKanbanGovernanceOptions {
@@ -122,6 +125,7 @@ export async function evaluateToolKanbanBoundary(
           readiness.issues.map((issue) => issue.message).join(' | '),
         boardId: board.id,
         taskId: task.id,
+        readinessIssues: readiness.issues,
       };
     }
     if (task.lifecycle?.currentStage !== 'running' || task.assignment?.status !== 'running') {

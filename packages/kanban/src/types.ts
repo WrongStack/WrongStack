@@ -566,6 +566,18 @@ export interface KanbanTask {
   atomicityAssessment?: KanbanAtomicityAssessment | undefined;
   /** Latest decomposition proposal lifecycle for this task. */
   decomposition?: KanbanDecompositionProposal | undefined;
+  /**
+   * How many times the completion gate has refused this card, across
+   * assignments. Distinct from `assignment.attempt`, which counts worker
+   * dispatches: a card can be dispatched once and refused three times, or
+   * dispatched three times and refused once. Reset by a passing verification.
+   */
+  verificationAttempts?: number | undefined;
+  /**
+   * Set when the refusal budget ran out. Present means "retrying this
+   * unchanged is pointless" — see {@link KanbanTaskPark}.
+   */
+  park?: KanbanTaskPark | undefined;
 }
 
 /** Expected file operation for a task's verification scope. */
@@ -768,6 +780,36 @@ export type KanbanCompletionGateEnforcement = 'strict' | 'soft' | 'off';
 
 export interface KanbanCompletionGatePolicy {
   enforcement: KanbanCompletionGateEnforcement;
+  /**
+   * How many times the gate may refuse one card before it is parked.
+   * Defaults to `DEFAULT_MAX_VERIFICATION_ATTEMPTS` (2) — the task-level form
+   * of "two failures in the same place means the model is wrong". A value
+   * below 1 is treated as 1; parking cannot be disabled by setting 0, because
+   * a card that can never park is the wedge this policy exists to prevent.
+   */
+  maxVerificationAttempts?: number | undefined;
+}
+
+/**
+ * Why a card stopped being retried.
+ *
+ * A parked card is deliberately NOT a third status: it stays `blocked`, which
+ * every existing readiness, queue, and projection path already understands.
+ * This record is the part those paths could not express — that the block came
+ * from an exhausted verification budget rather than an unmet dependency, so
+ * the next reader knows retrying it unchanged is pointless.
+ *
+ * Parked is honest, durable, and reversible: clearing it is what `update_task`
+ * and a passing verification already do. It is never a completion state.
+ */
+export interface KanbanTaskPark {
+  /** One sentence: what the gate refused, in the words the gate used. */
+  reason: string;
+  parkedAt: string;
+  /** Refusals counted when the budget ran out. */
+  attempts: number;
+  /** The refusal's validation issues, so the card carries its own evidence. */
+  issues?: string[] | undefined;
 }
 
 /** Board-level atomicity policy: whether/how tasks are assessed and decomposed. */

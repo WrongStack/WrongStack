@@ -20,6 +20,13 @@ import {
   findTask,
   nowIso,
 } from './_internal.js';
+// Leaf module, not the `../manager.js` barrel: the barrel re-exports this file
+// and the import would form a cycle that check:architecture flags.
+import {
+  clearGateRefusals,
+  isBudgetedRefusal,
+  recordCompletionRefusal,
+} from '../verification/completion-park.js';
 import { KanbanLifecycleError } from './lifecycle-error.js';
 import { dependencyIncompleteMessage, getDependencyReadinessIssues } from './task-readiness.js';
 
@@ -178,6 +185,12 @@ export async function adoptManagedLifecycle(
           ],
         );
       }
+      // Adoption deliberately normalizes every legacy status onto the stage
+      // projection, `archived` included: a card reached here only if it has no
+      // lifecycle metadata, so it is legacy free-form state being brought into
+      // the managed model, not a managed tombstone. Tombstones are created by
+      // `archiveManagedTask` on cards that already carry a ledger, and the
+      // `task.lifecycle !== undefined` branch above skips those untouched.
       task.status = STATUS_BY_STAGE[stage];
       task.updatedAt = at;
       task.lifecycle = {
@@ -239,6 +252,21 @@ export async function repairManagedTaskProjection(
           message: 'Projection repair requires an actor and audit comment.',
         },
       ]);
+    }
+    if (isManagedTombstone(board, task)) {
+      // Without this the repair would "fix" the archived status back to the
+      // stage status and quietly return a merged-away card to the board,
+      // `mergedIntoTaskId` still pointing at its replacement.
+      throw new KanbanLifecycleError(
+        `Card ${task.id} is archived; repairing its projection would revive it.`,
+        [
+          {
+            code: 'stage-mismatch',
+            field: 'status',
+            message: `Card ${task.id} is archived; repairing its projection would revive it.`,
+          },
+        ],
+      );
     }
     const stage = task.lifecycle.currentStage;
     const expectedColumnId = board.lifecycle.columns[stage];
@@ -355,6 +383,59 @@ export function initializeAndValidateManagedTask(board: KanbanBoard, task: Kanba
   if (issues.length) throw new KanbanLifecycleError(issues[0]!.message, issues);
 }
 
+/**
+ * Whether a managed card is a tombstone: archived, and therefore out of play
+ * for good.
+ *
+ * `archived` is orthogonal to the five lifecycle stages — there is no archive
+ * column in `lifecycle.columns`, so a card that leaves the board (merged away
+ * by `mergeTasks`, or dropped by a task-graph resync) keeps the column and
+ * stage it died in and stops projecting `STATUS_BY_STAGE`. Every managed guard
+ * that assumes `status === STATUS_BY_STAGE[stage]` has to special-case this,
+ * or the tombstone either wedges (no patch can pass) or gets revived (the
+ * projection is "repaired" back to a live status).
+ */
+export function isManagedTombstone(board: KanbanBoard, task: KanbanTask): boolean {
+  return board.lifecycle?.mode === 'managed' && task.status === 'archived';
+}
+
+/**
+ * Take a card out of play, on managed and legacy boards alike.
+ *
+ * Writing `status = 'archived'` by hand is what made `mergeTasks` produce
+ * cards that no `updateTask` could touch and that `repairManagedTaskProjection`
+ * silently un-archived. Managed boards owe an audit entry for every state
+ * change, so the archive is recorded in the card's own ledger at the stage it
+ * died in — `currentStage` does not move, which keeps stage and column in
+ * agreement and leaves `currentManagedStage` happy.
+ */
+export function archiveManagedTask(
+  board: KanbanBoard,
+  task: KanbanTask,
+  options: { at: string; reason: string; actor?: string | undefined },
+): void {
+  if (task.status === 'archived') return;
+  task.status = 'archived';
+  delete task.completedAt;
+  task.updatedAt = options.at;
+  if (board.lifecycle?.mode !== 'managed' || !task.lifecycle) return;
+  const stage = task.lifecycle.currentStage;
+  task.lifecycle = {
+    ...task.lifecycle,
+    history: [
+      ...task.lifecycle.history,
+      {
+        from: stage,
+        to: stage,
+        at: options.at,
+        actor: options.actor?.trim() || 'kanban-agent',
+        action: 'Card archived',
+        comment: options.reason,
+      },
+    ],
+  };
+}
+
 export function assertManagedTaskPatchAllowed(
   board: KanbanBoard,
   task: KanbanTask,
@@ -371,6 +452,23 @@ export function assertManagedTaskPatchAllowed(
         code: 'transition-skipped',
         field: 'lifecycle',
         message: 'Managed lifecycle metadata is immutable outside transitionTask.',
+      },
+    ];
+    throw new KanbanLifecycleError(issues[0]!.message, issues);
+  }
+  if (isManagedTombstone(board, task)) {
+    // A tombstone's status no longer projects from its stage, so the check
+    // below would reject every patch — including a harmless title or label
+    // fix — and leave the card permanently uneditable. Descriptive edits are
+    // fine; moving or reviving it is not.
+    const nextColumn = patch.columnId ?? task.columnId;
+    const nextStatus = patch.status ?? task.status;
+    if (nextColumn === task.columnId && nextStatus === task.status) return;
+    const issues: KanbanLifecycleValidationIssue[] = [
+      {
+        code: 'transition-skipped',
+        field: patch.columnId !== undefined ? 'columnId' : 'status',
+        message: `Card ${task.id} is archived; an archived card cannot be moved or revived by a patch.`,
       },
     ];
     throw new KanbanLifecycleError(issues[0]!.message, issues);
@@ -405,6 +503,15 @@ export function validateManagedTaskTransition(
     ];
   }
   if (issues.length) return issues;
+  if (isManagedTombstone(board, task)) {
+    return [
+      {
+        code: 'transition-skipped',
+        field: 'status',
+        message: `Card ${task.id} is archived and cannot transition; it left the board for good.`,
+      },
+    ];
+  }
 
   let from: KanbanLifecycleStage;
   try {
@@ -554,6 +661,35 @@ export async function transitionTask(
   taskId: string,
   input: KanbanTaskTransitionInput,
 ): Promise<KanbanTaskTransitionResult | null> {
+  try {
+    return await runTaskTransition(projectRoot, boardId, taskId, input);
+  } catch (error) {
+    // A refused transition reports by throwing from inside `mutateBoard`,
+    // which rolls the whole write back — counter included. So the refusal is
+    // recorded in its own write here, where the rollback is already done.
+    // Without this the managed Done gate could refuse the same card forever
+    // and nothing downstream of it could ever start: verification was
+    // guarding Done and stalling progress at the same time.
+    if (
+      input.to === 'done' &&
+      error instanceof KanbanLifecycleError &&
+      isBudgetedRefusal(error.issues)
+    ) {
+      await recordCompletionRefusal(projectRoot, boardId, taskId, {
+        reason: error.issues[0]?.message ?? 'Done transition refused.',
+        issues: error.issues.map((issue) => issue.message),
+      }).catch(() => undefined); // Never let bookkeeping mask the real refusal.
+    }
+    throw error;
+  }
+}
+
+async function runTaskTransition(
+  projectRoot: string,
+  boardId: string,
+  taskId: string,
+  input: KanbanTaskTransitionInput,
+): Promise<KanbanTaskTransitionResult | null> {
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
@@ -635,6 +771,10 @@ export async function transitionTask(
       status: STATUS_BY_STAGE[input.to],
       lifecycle,
     });
+    // Reaching Done means the evidence the refusals were counted against no
+    // longer holds. Only Done clears it: a Review -> Running repair loop keeps
+    // the budget, which is what makes that loop terminate.
+    if (input.to === 'done') clearGateRefusals(task);
     return { task, transition };
   });
   return updated?.result

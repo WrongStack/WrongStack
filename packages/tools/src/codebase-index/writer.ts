@@ -37,6 +37,13 @@ import type {
 import { SCHEMA_VERSION } from './schema.js';
 import { loadDatabaseSync, runSqliteWithRetry } from './sqlite-runtime.js';
 import {
+  cosineSimilarity,
+  decodeVector,
+  embedText,
+  encodeVector,
+  reciprocalRankFusion,
+} from './vector-search.js';
+import {
   getAllFileMetasWithStatement,
   getAllIndexableWithStatement,
   getFileMetaWithStatement,
@@ -46,20 +53,20 @@ import {
 } from './writer-admin.js';
 import {
   type BulkSymbolRow,
-  bulkInsertFtsWithStatement,
-  bulkInsertVectorsWithStatement,
   type BulkVectorRow,
+  bulkInsertFtsWithStatement,
   bulkInsertRefsWithStatement,
   bulkInsertSymbolsWithStatement,
+  bulkInsertVectorsWithStatement,
 } from './writer-bulk-insert.js';
 import {
   findIncomingCallsByName,
   findOutgoingCallsByName,
   findReachableSymbolIds,
   findRefsFromWithStatement,
+  findRefsToWithStatement,
   findTransitiveIncomingCallsByName,
   findTransitiveOutgoingCallsByName,
-  findRefsToWithStatement,
   getFileGraphWithStatement,
   getPackageGraphWithStatement,
   getSymbolGraphWithStatement,
@@ -75,8 +82,8 @@ import {
   REFS_INDEX_SQL,
   REFS_TABLE_SQL,
   SYMBOL_INDEX_SQL,
-  SYMBOLS_FTS_SQL,
   SYMBOL_VECTORS_TABLE_SQL,
+  SYMBOLS_FTS_SQL,
 } from './writer-schema.js';
 import {
   buildWriterSearchWhere,
@@ -87,13 +94,6 @@ import {
   type WriterSearchRow,
 } from './writer-search-helpers.js';
 import { StorePool } from './writer-store-pool.js';
-import {
-  cosineSimilarity,
-  decodeVector,
-  embedText,
-  encodeVector,
-  reciprocalRankFusion,
-} from './vector-search.js';
 
 export { codebaseIndexDirOverride, resolveIndexDir } from './writer-helpers.js';
 export { StorePool } from './writer-store-pool.js';
@@ -111,6 +111,14 @@ const MAX_STATEMENT_CACHE = 128;
 
 export class IndexStore {
   private db: DatabaseSync;
+  /**
+   * True while an index run owns one outer SQLite transaction. Individual
+   * writer methods normally protect themselves with BEGIN/COMMIT, but during
+   * a refresh they join this transaction so readers observe either the last
+   * completed index or the next completed index, never an in-between batch.
+   */
+  private atomicIndexUpdateActive = false;
+  private writeSavepointSequence = 0;
   /** Absolute path to this project's index directory. */
   private readonly indexDir: string;
   /**
@@ -195,6 +203,56 @@ export class IndexStore {
 
   runWithRetry<T>(fn: () => T): T {
     return runSqliteWithRetry(fn);
+  }
+
+  /** Run a complete index mutation as one WAL-visible publication. */
+  async runAtomicIndexUpdate<T>(job: () => Promise<T>): Promise<T> {
+    if (this.atomicIndexUpdateActive) return job();
+    this.runWithRetry(() => this.db.exec('BEGIN IMMEDIATE'));
+    this.atomicIndexUpdateActive = true;
+    try {
+      const result = await job();
+      this.db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        /* preserve the indexing failure */
+      }
+      throw error;
+    } finally {
+      this.atomicIndexUpdateActive = false;
+    }
+  }
+
+  /**
+   * Begin a method-local transaction. Inside an atomic index publication a
+   * SAVEPOINT preserves the old per-batch rollback boundary, which is needed
+   * when commitBatch falls back to per-file writes after one batch fails.
+   */
+  private beginWriteTransaction(): string | null {
+    if (this.atomicIndexUpdateActive) {
+      const savepoint = `index_write_${++this.writeSavepointSequence}`;
+      this.db.exec(`SAVEPOINT ${savepoint}`);
+      return savepoint;
+    }
+    this.db.exec('BEGIN IMMEDIATE');
+    return null;
+  }
+
+  private commitWriteTransaction(savepoint: string | null): void {
+    if (savepoint) this.db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+    else this.db.exec('COMMIT');
+  }
+
+  private rollbackWriteTransaction(savepoint: string | null): void {
+    if (savepoint) {
+      this.db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+      this.db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+    } else {
+      this.db.exec('ROLLBACK');
+    }
   }
 
   /**
@@ -486,7 +544,7 @@ export class IndexStore {
     this.invalidateBm25();
     return this.runWithRetry(() => {
       // BEGIN IMMEDIATE serializes writers so allocateSymbolIds cannot overlap.
-      this.db.exec('BEGIN IMMEDIATE');
+      const ownsTransaction = this.beginWriteTransaction();
       try {
         let nextId = this.allocateSymbolIds(symbols.length);
         const result: IndexSymbol[] = [];
@@ -514,7 +572,9 @@ export class IndexStore {
           }
           vectorRows.push({
             id,
-            vector: encodeVector(embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment))),
+            vector: encodeVector(
+              embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+            ),
           });
           result.push({ ...s, id });
         }
@@ -533,10 +593,10 @@ export class IndexStore {
           );
         }
 
-        this.db.exec('COMMIT');
+        this.commitWriteTransaction(ownsTransaction);
         return result;
       } catch (err) {
-        this.db.exec('ROLLBACK');
+        this.rollbackWriteTransaction(ownsTransaction);
         throw err;
       }
     });
@@ -545,7 +605,7 @@ export class IndexStore {
   deleteSymbolsForFile(file: string): void {
     this.invalidateBm25();
     this.runWithRetry(() => {
-      this.db.exec('BEGIN IMMEDIATE');
+      const ownsTransaction = this.beginWriteTransaction();
       try {
         const affectedNames = this.invalidateIncomingRefsForFiles([file]);
         if (this.ftsAvailable) {
@@ -560,9 +620,9 @@ export class IndexStore {
         }
         this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
         this.resolveRefsForNamesUnsafe(affectedNames);
-        this.db.exec('COMMIT');
+        this.commitWriteTransaction(ownsTransaction);
       } catch (error) {
-        this.db.exec('ROLLBACK');
+        this.rollbackWriteTransaction(ownsTransaction);
         throw error;
       }
     });
@@ -576,7 +636,7 @@ export class IndexStore {
   deleteFile(file: string): void {
     this.invalidateBm25();
     this.runWithRetry(() => {
-      this.db.exec('BEGIN IMMEDIATE');
+      const ownsTransaction = this.beginWriteTransaction();
       try {
         const affectedNames = this.invalidateIncomingRefsForFiles([file]);
         if (this.ftsAvailable) {
@@ -595,9 +655,9 @@ export class IndexStore {
         this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
         this.stmt('DELETE FROM files WHERE file = ?').run(file);
         this.resolveRefsForNamesUnsafe(affectedNames);
-        this.db.exec('COMMIT');
+        this.commitWriteTransaction(ownsTransaction);
       } catch (err) {
-        this.db.exec('ROLLBACK');
+        this.rollbackWriteTransaction(ownsTransaction);
         throw err;
       }
     });
@@ -1114,7 +1174,7 @@ export class IndexStore {
   clearAll(): void {
     this.invalidateBm25();
     this.runWithRetry(() => {
-      this.db.exec('BEGIN IMMEDIATE');
+      const ownsTransaction = this.beginWriteTransaction();
       try {
         // DROP+CREATE is O(1) page-truncation vs DELETE's full-table scan.
         // Force-rebuilds (schema version change, manual /codebase-reindex)
@@ -1126,7 +1186,6 @@ export class IndexStore {
         this.db.exec('DROP TABLE IF EXISTS metadata');
         if (this.ftsAvailable) this.db.exec('DROP TABLE IF EXISTS symbols_fts');
         this.db.exec('DROP TABLE IF EXISTS symbol_vectors');
-        this.db.exec('COMMIT');
         // Clear statement cache — prepared stmts reference the now-dropped tables.
         this.stmtCache.clear();
         this.initSchema();
@@ -1136,8 +1195,9 @@ export class IndexStore {
           IndexStore.NEXT_SYMBOL_ID_KEY,
           '1',
         );
+        this.commitWriteTransaction(ownsTransaction);
       } catch (err) {
-        this.db.exec('ROLLBACK');
+        this.rollbackWriteTransaction(ownsTransaction);
         throw err;
       }
     });
@@ -1215,7 +1275,7 @@ export class IndexStore {
     }
     this.invalidateBm25();
     return this.runWithRetry(() => {
-      this.db.exec('BEGIN IMMEDIATE');
+      const ownsTransaction = this.beginWriteTransaction();
       try {
         const affectedNames = new Set<string>();
         for (const entry of entries) {
@@ -1282,7 +1342,9 @@ export class IndexStore {
             }
             vectorRows.push({
               id,
-              vector: encodeVector(embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment))),
+              vector: encodeVector(
+                embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+              ),
             });
             const inserted = { ...s, id };
             allInserted.push(inserted);
@@ -1333,10 +1395,10 @@ export class IndexStore {
         }
 
         this.resolveRefsForNamesUnsafe(affectedNames);
-        this.db.exec('COMMIT');
+        this.commitWriteTransaction(ownsTransaction);
         return allInserted;
       } catch (err) {
-        this.db.exec('ROLLBACK');
+        this.rollbackWriteTransaction(ownsTransaction);
         throw err;
       }
     });
@@ -1426,7 +1488,7 @@ export class IndexStore {
   replaceEmptyFile(meta: FileMeta): void {
     this.invalidateBm25();
     this.runWithRetry(() => {
-      this.db.exec('BEGIN IMMEDIATE');
+      const ownsTransaction = this.beginWriteTransaction();
       try {
         const affectedNames = this.invalidateIncomingRefsForFiles([meta.file]);
         if (this.ftsAvailable) {
@@ -1461,9 +1523,9 @@ export class IndexStore {
           meta.lastIndexed,
         );
         this.resolveRefsForNamesUnsafe(affectedNames);
-        this.db.exec('COMMIT');
+        this.commitWriteTransaction(ownsTransaction);
       } catch (err) {
-        this.db.exec('ROLLBACK');
+        this.rollbackWriteTransaction(ownsTransaction);
         throw err;
       }
     });
@@ -1524,7 +1586,11 @@ export class IndexStore {
    * Find all symbols that reference the named target symbol (incoming callers).
    * Accepts a name instead of an id so the agent doesn't need a prior lookup.
    */
-  findIncomingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
+  findIncomingCallsByName(
+    symbolName: string,
+    file?: string,
+    limit = 100,
+  ): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
     return findIncomingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
   }
 
@@ -1532,7 +1598,11 @@ export class IndexStore {
    * Find all symbols that the named source symbol references (outgoing callees).
    * Accepts a name instead of an id so the agent doesn't need a prior lookup.
    */
-  findOutgoingCallsByName(symbolName: string, file?: string, limit = 100): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
+  findOutgoingCallsByName(
+    symbolName: string,
+    file?: string,
+    limit = 100,
+  ): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
     return findOutgoingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
   }
 
@@ -1542,7 +1612,11 @@ export class IndexStore {
    * Used by `codebase-incoming-calls` when the caller wants the full call
    * chain rather than just direct callers.
    */
-  findTransitiveIncomingCallsByName(symbolName: string, file?: string, limit = 200): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
+  findTransitiveIncomingCallsByName(
+    symbolName: string,
+    file?: string,
+    limit = 200,
+  ): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
     return findTransitiveIncomingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
   }
 
@@ -1551,7 +1625,11 @@ export class IndexStore {
    * Used by `codebase-outgoing-calls` when the caller wants the full
    * dependency chain rather than just direct callees.
    */
-  findTransitiveOutgoingCallsByName(symbolName: string, file?: string, limit = 200): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
+  findTransitiveOutgoingCallsByName(
+    symbolName: string,
+    file?: string,
+    limit = 200,
+  ): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
     return findTransitiveOutgoingCallsByName((sql) => this.stmt(sql), symbolName, file, limit);
   }
 

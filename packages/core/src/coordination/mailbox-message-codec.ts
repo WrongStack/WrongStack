@@ -1,3 +1,4 @@
+import { LINE_SEPARATOR } from './mailbox-constants.js';
 import type {
   AckRecord,
   MailboxAudience,
@@ -7,7 +8,6 @@ import type {
   MailboxTaskContext,
   ReadReceipts,
 } from './mailbox-types.js';
-import { LINE_SEPARATOR } from './mailbox-constants.js';
 import { normalizeRecipient, validateSendType } from './mailbox-types.js';
 
 const MESSAGE_TYPES = new Set<MailboxMessageType>([
@@ -317,6 +317,7 @@ export function parseMailboxLine(line: string): MailboxMessage | AckRecord | nul
 export function parseMailboxLines(raw: string): MailboxMessage[] {
   const lines = raw.split(LINE_SEPARATOR).filter((line) => line.trim().length > 0);
   const messages: MailboxMessage[] = [];
+  const messagesById = new Map<string, MailboxMessage>();
   const acks: AckRecord[] = [];
   for (const line of lines) {
     const parsed = parseMailboxLine(line);
@@ -324,10 +325,13 @@ export function parseMailboxLines(raw: string): MailboxMessage[] {
       acks.push(parsed);
     } else if (parsed !== null) {
       messages.push(parsed);
+      // Preserve legacy `Array.find()` semantics for malformed JSONL that
+      // happens to contain duplicate message ids: acks target the first row.
+      if (!messagesById.has(parsed.id)) messagesById.set(parsed.id, parsed);
     }
   }
   for (const ack of acks) {
-    const target = messages.find((message) => message.id === ack.messageId);
+    const target = messagesById.get(ack.messageId);
     if (target) applyAckToMessage(target, ack);
   }
   return messages;

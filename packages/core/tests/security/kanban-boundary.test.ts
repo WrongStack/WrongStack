@@ -6,8 +6,10 @@ import {
   addTask,
   assignTask,
   createBoard,
+  readBoard,
   transitionTask,
   updateTaskAssignment,
+  writeBoard,
 } from '@wrongstack/kanban';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
@@ -102,8 +104,70 @@ describe('tool Kanban boundary integration', () => {
       'sequential',
     );
 
-    expect(result.outputs[0]?.result).toMatchObject({ is_error: true });
+    expect(result.outputs[0]?.result).toMatchObject({
+      is_error: true,
+      _kanbanBoundary: {
+        decision: 'block',
+        reason: expect.stringContaining('Kanban governance is mandatory'),
+      },
+    });
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('preserves structured readiness codes and fields at the tool boundary', async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-governance-readiness-'));
+    roots.push(projectRoot);
+    const board = await createBoard(projectRoot, {
+      title: 'Structured readiness failures',
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'in-progress',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const added = await addTask(projectRoot, board.id, {
+      title: 'Incomplete card',
+      description: 'Initially valid persisted card.',
+      assignedAgent: 'agent-1',
+    });
+    const taskId = added!.task.id;
+    const persisted = (await readBoard(projectRoot, board.id))!;
+    const incomplete = persisted.tasks.find((task) => task.id === taskId)!;
+    incomplete.description = '';
+    incomplete.assignedAgent = undefined;
+    incomplete.assignee = undefined;
+    incomplete.successCriteria = [];
+    await writeBoard(projectRoot, persisted);
+
+    const result = await evaluateToolKanbanBoundary(
+      { name: 'write', mutating: true, capabilities: ['fs.write'] } as unknown as Tool,
+      { path: 'src/index.ts' },
+      {
+        projectRoot,
+        workingDir: projectRoot,
+        currentKanbanBoardId: board.id,
+        currentKanbanTaskId: taskId,
+        meta: {},
+      } as unknown as Context,
+      { requireGovernance: true },
+    );
+
+    expect(result).toMatchObject({
+      decision: 'block',
+      boardId: board.id,
+      taskId,
+      readinessIssues: [
+        { code: 'task-description-missing', field: 'description' },
+        { code: 'task-owner-missing', field: 'assignee' },
+        { code: 'success-criteria-missing', field: 'successCriteria' },
+      ],
+    });
+    expect(result.reason).toContain('Active card is not implementation-ready');
   });
 
   it('allows governed mutation on a running detailed card without a Contract Map', async () => {

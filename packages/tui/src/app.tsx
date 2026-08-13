@@ -30,6 +30,7 @@ import { useExitCommand } from './hooks/use-exit-command.js';
 import { useFileSearch } from './hooks/use-file-search.js';
 import { useGitSessionStatus } from './hooks/use-git-session-status.js';
 import { useHelpPanel } from './hooks/use-help-panel.js';
+import { useHistoryArchive } from './hooks/use-history-archive.js';
 import { useHistoryCopyNotice } from './hooks/use-history-copy-notice.js';
 import { useHistoryViewportSync } from './hooks/use-history-viewport-sync.js';
 import { useInitialPrompt } from './hooks/use-initial-prompt.js';
@@ -290,15 +291,12 @@ export function App(props: AppProps): React.ReactElement {
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
     [dispatch],
   );
-  const onRequestOlderEntries = useCallback(() => {
-    // Toggle loading state and load from archive. Currently loads nothing
-    // since the HistoryArchive is not yet wired from the run-tui startup.
-    // Future: create archive, call archive.loadRange(), dispatch results.
-    dispatch({ type: 'startArchiveLoad' });
-    // Fire-and-forget: the actual archive load will be wired when the
-    // HistoryArchive is created in app startup.
-    setTimeout(() => dispatch({ type: 'archiveLoaded', entries: [] }), 0);
-  }, [dispatch]);
+  const { onRequestOlderEntries } = useHistoryArchive({
+    entries: state.entries,
+    dispatch,
+    sessionsDir,
+    sessionId: agent.ctx.session?.id,
+  });
   const onHistoryCopy = useHistoryCopyNotice(dispatch);
   const { focusedBoardId, setFocusedBoardId, boardFocusRef } = useKanbanBoardFocus();
 

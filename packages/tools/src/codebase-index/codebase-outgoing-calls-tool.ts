@@ -16,11 +16,7 @@
 
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  codebaseIndexStats,
-  getIndexState,
-  outgoingCallsService,
-} from './background-indexer.js';
+import { codebaseIndexStats, getIndexState, outgoingCallsService } from './background-indexer.js';
 import type { CallSite } from './schema.js';
 import { codebaseIndexDirOverride } from './writer.js';
 
@@ -31,9 +27,9 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
   description:
     'Find all functions/methods/symbols that a given symbol calls or depends on — its callees. ' +
     'Uses the codebase index ref graph for instant, exact results. ' +
-    'Use this to understand a function\'s dependencies before modifying it.',
+    "Use this to understand a function's dependencies before modifying it.",
   usageHint:
-    'USE THIS TO UNDERSTAND A FUNCTION\'S DEPENDENCIES:\n\n' +
+    "USE THIS TO UNDERSTAND A FUNCTION'S DEPENDENCIES:\n\n" +
     '- Prefer this over grep when the index is available; fall back to grep when the index is cold/unavailable or for dynamic dispatch the ref graph cannot see.\n' +
     '- Call codebase-outgoing-calls({ symbol: "funcName" }) to see everything it calls.\n' +
     '- Returns exact files, line numbers, callee signatures, and call types in milliseconds.\n' +
@@ -73,12 +69,12 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
   },
   async execute(input, ctx) {
     const state = getIndexState();
-    if (state.indexing && !state.ready) {
+    if (state.indexing) {
       return {
         symbol: input.symbol,
         calls: [],
         total: 0,
-        indexStatus: `Indexing in progress (${state.currentFile}/${state.totalFiles} files) — retry in a moment.`,
+        indexStatus: `Index refresh in progress (${state.currentFile}/${state.totalFiles} files) — retry after the completed generation is published.`,
       };
     }
     if (state.lastError) {
@@ -102,16 +98,14 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
     // raw throw — mirrors codebase-search-tool.ts / codebase-stats-tool.ts.
     let serviced: Awaited<ReturnType<typeof outgoingCallsService>>;
     try {
-      serviced = await outgoingCallsService(
-        {
-          projectRoot: ctx.projectRoot,
-          indexDir: codebaseIndexDirOverride(ctx),
-          symbol: input.symbol,
-          file: input.file,
-          limit,
-          transitive,
-        },
-      );
+      serviced = await outgoingCallsService({
+        projectRoot: ctx.projectRoot,
+        indexDir: codebaseIndexDirOverride(ctx),
+        symbol: input.symbol,
+        file: input.file,
+        limit,
+        transitive,
+      });
     } catch (err) {
       return {
         symbol: input.symbol,
@@ -158,10 +152,14 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
 
     const notes: string[] = [];
     if (totalMatches > limit) {
-      notes.push(`Results capped at ${limit} of ${totalMatches} call sites. Increase \`limit\` or use \`file\` to narrow.`);
+      notes.push(
+        `Results capped at ${limit} of ${totalMatches} call sites. Increase \`limit\` or use \`file\` to narrow.`,
+      );
     }
     if (unresolvedCount > 0) {
-      notes.push(`${unresolvedCount} unresolved reference(s) not shown — their targets could not be resolved during indexing.`);
+      notes.push(
+        `${unresolvedCount} unresolved reference(s) not shown — their targets could not be resolved during indexing.`,
+      );
     }
 
     return {
