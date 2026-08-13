@@ -321,9 +321,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.306.3',
+    date: '2026-08-13',
+    latest: true,
+    tagline: 'Parked verification failures and implementation cost discipline',
+    highlights: [
+      'Kanban completion refusals are counted and park a card after two unfixable attempts by default, preserving the verifier reason and allowing downstream work to proceed honestly',
+      'Actionable completion-gate feedback such as a missing transition action or exceeded WIP limit does not consume the card verification-attempt budget',
+      'Dependencies now distinguish a parked blocker that needs intervention from ordinary work that is still running',
+      'Agents follow a cost ladder before writing code: delete, validate necessity, reuse repository patterns, prefer language or platform capabilities, inspect installed dependencies, then write the minimum',
+      'Reuse claims must cite the existing file, symbol, or package, and the cost ladder cannot reduce the scope explicitly requested by the user',
+    ],
+  },
+  {
     version: '0.306.2',
     date: '2026-08-12',
-    latest: true,
     consolidated: true,
     tagline: 'Hardened project IPC, explorable TUI resources, and scoped memory graphs',
     highlights: [

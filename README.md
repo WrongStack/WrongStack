@@ -52,28 +52,26 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.306.2
+### What's new in 0.306.3
 
-- **Mailbox and project IPC boundaries are substantially tighter.** Authenticated
-  identity now owns mailbox visibility, credentials cannot gain lifetime through
-  rotation, untrusted batches are bounded, and daemon token metadata is
-  owner-only and atomically replaced on Windows as well as POSIX.
-- **The TUI's runtime data is directly explorable.** Models, prompts, skills,
-  memory, sessions, worktrees, branches, themes, tools, cron jobs, and agents
-  open in searchable keyboard-and-mouse resource menus.
-- **Themes can be judged before applying them.** The picker previews transcript,
-  status, panels, code, and diffs, while shared windowing keeps large lists
-  responsive on compact terminals.
-- **SAGE relationships are richer without crossing session boundaries.** Stored
-  memories maintain graph edges and related traversal, while every tool,
-  middleware, and MCP lookup retains the caller's session scope.
-- **Retrieved memory is explicitly treated as evidence.** Shared fencing and
-  sanitization prevent stored project text from impersonating system guidance.
-- **Terminal-native copy is a real mode.** `/mouse native` releases pointer
-  tracking for click-drag selection while keyboard paging continues to navigate
-  the bounded WrongStack transcript.
+- **Kanban verification failures no longer wedge managed boards.** Refusals are
+  counted on the card and, after two unfixable attempts by default, the card is
+  parked with the verifier's own reason so downstream work can proceed honestly.
+- **Actionable gate feedback does not waste the refusal budget.** Missing
+  transition actions and exceeded WIP limits still report the exact corrective
+  input without consuming a verification attempt.
+- **Dependencies distinguish parked blockers from ordinary in-flight work.** A
+  waiting card now explains that its blocker is parked and will not clear itself
+  instead of repeating a generic “not completed yet” message.
+- **Agents minimize implementation cost before adding code.** The new cost
+  ladder checks deletion, necessity, existing repository patterns, language and
+  platform capabilities, installed dependencies, and one-line solutions before
+  authoring the smallest implementation that works.
+- **Reuse claims require evidence.** Agents must name the existing file, symbol,
+  or package they intend to reuse rather than relying on recollection, while the
+  ladder is explicitly forbidden from reducing user-requested scope.
 
-See the complete [0.306.2 release notes](CHANGELOG.md).
+See the complete [0.306.3 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -82,7 +80,7 @@ See the complete [0.306.2 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.306.2](#whats-new-in-03062)
+- [What's new in 0.306.3](#whats-new-in-03063)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
