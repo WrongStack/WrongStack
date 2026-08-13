@@ -35,6 +35,7 @@ export async function buildEnvironment(
   env: EnvironmentSectionContext,
 ): Promise<string> {
   const modelCapabilities = env.modelCapabilities;
+  const today = env.todayIso ?? new Date().toISOString().slice(0, 10);
   const cacheKey = [
     ctx.projectRoot,
     ctx.provider ?? '',
@@ -44,6 +45,8 @@ export async function buildEnvironment(
     modelCapabilities?.supportsVision ? 1 : 0,
     modelCapabilities?.supportsReasoning ? 1 : 0,
     env.skillCache ?? '',
+    today,
+    env.modeId ?? '',
   ].join('\0');
   const cached = env.envCacheByRoot.get(cacheKey);
   if (cached) {
@@ -51,7 +54,6 @@ export async function buildEnvironment(
     env.envCacheByRoot.set(cacheKey, cached);
     return cached;
   }
-  const today = env.todayIso ?? new Date().toISOString().slice(0, 10);
   const platform = `${os.platform()} ${os.release()}`;
   // The bash tool's effective shell, pinned at boot via WRONGSTACK_SHELL.
   // On POSIX we keep reporting the raw $SHELL; on Windows we report the
