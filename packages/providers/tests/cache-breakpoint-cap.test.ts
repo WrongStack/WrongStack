@@ -89,4 +89,54 @@ describe('capAnthropicCacheBreakpoints', () => {
     capAnthropicCacheBreakpoints(b);
     expect(a.system.map((x) => !!x.cache_control)).toEqual(b.system.map((x) => !!x.cache_control));
   });
+
+  describe('pinned marker overflow (B6)', () => {
+    async function captureWarnings<T>(fn: () => T): Promise<{ message: string; name: string }[]> {
+      const seen: { message: string; name: string }[] = [];
+      const handler = (warning: Error): void => {
+        seen.push({ message: warning.message, name: warning.name });
+      };
+      process.on('warning', handler);
+      try {
+        fn();
+        // process.emitWarning fires on the next tick — await it.
+        await new Promise((resolve) => setImmediate(resolve));
+      } finally {
+        process.off('warning', handler);
+      }
+      return seen;
+    }
+
+    it('warns when pinned markers alone exceed the limit', async () => {
+      // 5 ttl-pinned markers, limit 4 → overflow.
+      const system = [ttl(), ttl(), ttl(), ttl(), ttl()];
+      const warnings = await captureWarnings(() => capAnthropicCacheBreakpoints({ system }));
+      expect(
+        warnings.some((w) => w.message.includes('5 pinned (ttl) cache_control markers')),
+      ).toBe(true);
+      expect(warnings.some((w) => w.name === 'PinnedCacheBreakpointOverflow')).toBe(true);
+      // All pinned markers are still retained (the cap can't drop them).
+      expect(markerCount(system)).toBe(5);
+    });
+
+    it('does not warn when pinned markers fit within the limit', async () => {
+      const system = [ttl(), ttl(), ttl(), ephemeral(), ephemeral()]; // 3 pinned, 2 plain
+      const warnings = await captureWarnings(() => capAnthropicCacheBreakpoints({ system }));
+      expect(warnings.some((w) => w.name === 'PinnedCacheBreakpointOverflow')).toBe(false);
+      // 5 markers → capped to 4, pinned 3 retained + first/last/gap-fill.
+      expect(markerCount(system)).toBe(ANTHROPIC_MAX_BREAKPOINTS);
+    });
+
+    it('deduplicates the warning across calls within the same process', async () => {
+      // First call triggers the warning (await so the dedup flag is set).
+      await captureWarnings(() =>
+        capAnthropicCacheBreakpoints({ system: [ttl(), ttl(), ttl(), ttl(), ttl()] }),
+      );
+      // Second call should not warn again.
+      const warnings = await captureWarnings(() =>
+        capAnthropicCacheBreakpoints({ system: [ttl(), ttl(), ttl(), ttl(), ttl(), ttl()] }),
+      );
+      expect(warnings.some((w) => w.name === 'PinnedCacheBreakpointOverflow')).toBe(false);
+    });
+  });
 });

@@ -15,6 +15,14 @@
 
 export const ANTHROPIC_MAX_BREAKPOINTS = 4;
 
+/**
+ * Module-scoped warning dedup so the pinned-overflow warning fires once per
+ * process lifetime, mirroring the `WireAdapter._warnedProviders` pattern.
+ * Without dedup a long-lived session with >4 ttl markers would log on every
+ * request.
+ */
+let _warnedPinnedOverflow = false;
+
 interface WireBody {
   tools?: unknown;
   system?: unknown;
@@ -116,6 +124,24 @@ export function capAnthropicCacheBreakpoints(
 
   const keep = new Set<number>();
   for (let i = 0; i < markers.length; i++) if (markers[i]?.pinned) keep.add(i);
+
+  // Pinned (ttl-forced) markers are kept unconditionally, so when the caller
+  // pins more than `limit` the wire will carry >limit breakpoints and
+  // Anthropic rejects the request with 400 invalid_request — exactly the
+  // failure this cap exists to prevent. Surface it once per process via
+  // process.emitWarning (deduped) so the misconfiguration is visible instead
+  // of silent. The cap still does its best (keeps first/last/message on top
+  // of pinned, then gap-fills), but the caller owns the overflow fix.
+  if (keep.size > limit && !_warnedPinnedOverflow) {
+    _warnedPinnedOverflow = true;
+    process.emitWarning(
+      `Anthropic cache cap: ${keep.size} pinned (ttl) cache_control markers exceed the ${limit}-breakpoint limit. ` +
+        'The wire body will carry more breakpoints than Anthropic accepts and the request will be rejected (400 invalid_request). ' +
+        'Reduce the number of ttl-forced markers in the system prompt / message embedder.',
+      'PinnedCacheBreakpointOverflow',
+    );
+  }
+
   keep.add(0);
   keep.add(markers.length - 1);
 
