@@ -89,7 +89,6 @@ async function runTurn(healthy: Set<string>) {
       logger,
     });
 
-  // biome-ignore lint/suspicious/noExplicitAny: exercising the extension point directly
   const result = await (ext.wrapProviderRunner as any)(ctx, { model: 'm1' }, inner);
   return { calls, result, ctx };
 }
@@ -142,7 +141,6 @@ describe('retry MODEL_RETRIES times, then the next model in the chain', () => {
         retry,
         logger,
       });
-    // biome-ignore lint/suspicious/noExplicitAny: exercising the extension point directly
     await expect((ext.wrapProviderRunner as any)(ctx, { model: 'm1' }, inner)).rejects.toThrow();
 
     const budget = MODEL_RETRIES + 1;

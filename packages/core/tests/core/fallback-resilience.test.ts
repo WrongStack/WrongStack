@@ -70,7 +70,6 @@ describe('routing fields cleared by the config watcher', () => {
       }
       return { content: [{ type: 'text', text: 'ok' }] } as never;
     });
-    // biome-ignore lint/suspicious/noExplicitAny: exercising the extension point directly
     const wrap = ext.wrapProviderRunner as any;
     // Previously this rejected with "Cannot read properties of null (reading
     // 'length')" — the 429 never even reached the chain.
@@ -192,7 +191,6 @@ describe('live fallbackStickiness', () => {
     };
     // Force a hop so the extension is "dirty" and beforeRun starts probing.
     let calls = 0;
-    // biome-ignore lint/suspicious/noExplicitAny: exercising the extension point directly
     await (ext.wrapProviderRunner as any)(
       { provider: fakeProvider('p1'), model: 'm1' },
       { model: 'm1' },
@@ -206,7 +204,6 @@ describe('live fallbackStickiness', () => {
 
     // Raise the dwell requirement AFTER construction — it must be honoured.
     config = cfg({ fallbackStickiness: { stickyFallbackTurns: 3, primaryProbeInterval: 0 } });
-    // biome-ignore lint/suspicious/noExplicitAny: exercising the extension point directly
     await (ext.beforeRun as any)(ctx);
     expect(switched).toEqual([]);
   });
