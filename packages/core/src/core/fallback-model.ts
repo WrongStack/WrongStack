@@ -198,16 +198,40 @@ export function smartDefaultFallbackChain(config: Config): string[] {
 
 /**
  * The effective fallback chain for a turn: the explicit `fallbackModels` list
- * when non-empty, otherwise the smart default (unless `fallbackAuto` is off).
+ * when non-empty, otherwise the selected profile, otherwise the smart default
+ * (unless `fallbackAuto` is off).
+ *
+ * NOTE: this is the SELECTED chain, not the full runtime order — it omits the
+ * bridge, the primary re-insertion, the extra `default`-profile depth and the
+ * last-resort sweep that {@link runtimeFallbackChain} adds. Use
+ * `runtimeFallbackChain` for anything shown to a user as "what will be tried".
  */
 export function effectiveFallbackChain(config: Config): string[] {
   const mgr = new FallbackProfileManager(config);
   return mgr
     .resolveEffective({
       fallbackModels: config.fallbackModels,
+      fallbackProfile: config.fallbackProfile,
       fallbackAuto: config.fallbackAuto,
     })
     .map((e) => `${e.providerId}/${e.model}`);
+}
+
+/**
+ * The chain the agent loop will ACTUALLY rotate through, in order, if the
+ * current primary fails right now — the same `resolveCandidates` call the
+ * fallback extension makes, including bridge, primary re-insertion, the
+ * `default`-profile depth and the last-resort sweep.
+ *
+ * `/fallback` used to render `effectiveFallbackChain` instead, so the
+ * displayed chain could be four entries while the runtime rotated through
+ * seventeen — the view was structurally unable to match the behavior it
+ * claimed to describe.
+ */
+export function runtimeFallbackChain(config: Config): string[] {
+  const mgr = new FallbackProfileManager(config);
+  const current = primaryTarget(config);
+  return mgr.resolveCandidates(current, {}).map((e) => `${e.providerId}/${e.model}`);
 }
 
 const DEFAULT_PRIMARY_COOLDOWN_MS = 60_000;
@@ -295,7 +319,18 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
   let primaryBlockedUntil = 0;
 
   const now = () => deps.now?.() ?? Date.now();
-  const cooldownBase = () => Math.max(0, deps.primaryCooldownMs ?? DEFAULT_PRIMARY_COOLDOWN_MS);
+  // Stickiness is read from the LIVE config on every use, with the explicit
+  // dep as the override. Reading it once at construction (the old behavior)
+  // meant `/config`-style edits to `fallbackStickiness` needed a full restart
+  // even though every other fallback input is recomputed per turn.
+  const liveStickiness = () => deps.getConfig().fallbackStickiness;
+  const cooldownBase = () =>
+    Math.max(
+      0,
+      deps.primaryCooldownMs ??
+        liveStickiness()?.primaryProbeInterval ??
+        DEFAULT_PRIMARY_COOLDOWN_MS,
+    );
   const cooldownMax = () =>
     Math.max(cooldownBase(), deps.primaryCooldownMaxMs ?? DEFAULT_PRIMARY_COOLDOWN_MAX_MS);
   const selectedPrimary = (cfg: Config) => deps.getPrimaryTarget?.() ?? primaryTarget(cfg);
@@ -322,7 +357,8 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
   const recoveryTarget = () =>
     Math.max(1, deps.primaryRecoverySuccesses ?? DEFAULT_PRIMARY_RECOVERY_SUCCESSES);
 
-  const stickyTarget = () => Math.max(0, deps.stickyFallbackTurns ?? 0);
+  const stickyTarget = () =>
+    Math.max(0, deps.stickyFallbackTurns ?? liveStickiness()?.stickyFallbackTurns ?? 0);
 
   /** Whether the mandatory fallback dwell period is still in effect. */
   const inStickyWindow = () => stickyTurnsElapsed < stickyTarget();

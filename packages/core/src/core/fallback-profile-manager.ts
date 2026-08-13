@@ -57,6 +57,29 @@ function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+/**
+ * Normalize a "list of model refs" config field to `readonly string[] | undefined`.
+ *
+ * The credential/routing hot-reload watcher clears absent fields by writing
+ * `null` (`provider-runtime-setup.ts`: `mergedPatch[key] = merged[key] ?? null`),
+ * and `patchConfig` is a plain spread — so `config.fallbackModels` can be `null`
+ * at runtime even though the declared type is `string[] | undefined`. A bare
+ * `!== undefined` check then walks straight into `null.length`, which threw
+ * INSIDE the fallback chain resolver: the TypeError replaced the 429 that
+ * triggered the hop and no fallback was ever attempted.
+ *
+ * Every entry point that reads such a field goes through here, so a null (or
+ * any non-array) simply means "not configured".
+ */
+function asRefList(value: unknown): readonly string[] | undefined {
+  return Array.isArray(value) ? (value as readonly string[]) : undefined;
+}
+
+/** Same normalization for the single-profile-name fields. */
+function asProfileName(value: unknown): string | undefined {
+  return hasText(value) ? value : undefined;
+}
+
 function providerHasKey(entry: ProviderConfig | undefined): boolean {
   if (!entry) return false;
   if (hasText(entry.apiKey)) return true;
@@ -72,7 +95,7 @@ function visibleProviderModels(
   providerModels: string[],
 ): string[] {
   const entry = config.providers?.[providerId];
-  return entry?.models !== undefined ? [...entry.models] : providerModels;
+  return Array.isArray(entry?.models) ? [...entry.models] : providerModels;
 }
 
 function buildProfiles(config: Config): ReadonlyMap<string, readonly string[]> {
@@ -119,14 +142,36 @@ export class FallbackProfileManager {
     return Object.freeze([...this.profiles.keys()]);
   }
 
+  /**
+   * The profile the session has selected (`config.fallbackProfile`, set by
+   * `/fallback profile use <name>`), or undefined when none is selected or the
+   * name no longer resolves to a defined profile.
+   *
+   * Consulted by every resolution entry point when the caller does not name a
+   * profile itself. Without this the leader — which passes no profile — could
+   * never use a named profile at all: `config.fallbackProfiles` was reachable
+   * only by copying a chain into `fallbackModels`.
+   */
+  activeProfileName(): string | undefined {
+    const name = asProfileName(this.config.fallbackProfile);
+    return name && this.profiles.has(name) ? name : undefined;
+  }
+
   // ── Resolution ─────────────────────────────────────────────────────────
 
   /**
    * Resolve a named fallback profile to a validated, provider-filtered chain.
    *
-   * Returns an empty chain when:
-   * - The profile doesn't exist.
-   * - Every entry's provider is missing, has no key, or has no matching model.
+   * Returns an empty chain when the profile doesn't exist, or when every entry
+   * is excluded, quarantined, or blacked out.
+   *
+   * Filtering is intentionally identical to {@link resolveRefs} (the explicit
+   * `fallbackModels` path): the self-exclusion, the runtime status tracker,
+   * and the availability calendar — nothing else. Anything a named profile
+   * drops, an explicit chain drops too, and vice versa. Profiles used to apply
+   * two extra filters (provider "usability" and the `providers[].models`
+   * snapshot) that the explicit path did not, which silently rerouted roles
+   * pinned to a profile onto a different model than the one configured.
    *
    * @param name - Profile name from config.fallbackProfiles.
    * @param defaultProvider - Used when an entry has no explicit provider.
@@ -162,8 +207,15 @@ export class FallbackProfileManager {
       // Skip self-reference
       if (excludeKey && key === excludeKey) continue;
 
-      const health = this.checkProvider(providerId);
-      if (!health.usable) continue;
+      // NOTE: `checkProvider().usable` is deliberately NOT applied here.
+      // It reports whether the CONFIG carries a key or endpoint for the
+      // provider, which is a false negative whenever the credential reaches
+      // the provider by some other route. The explicit-refs path
+      // (`resolveRefs`) never applied it, so the same ref survived in
+      // `fallbackModels` while vanishing from every named profile. An entry
+      // that genuinely cannot be constructed throws in `buildProvider`, and
+      // the chain runner already logs it and moves to the next candidate —
+      // one local construction attempt, no network call.
 
       // Skip entries that are blocked by the runtime status tracker
       if (this.statusTracker && !this.statusTracker.isAvailable(providerId, parsed.model)) continue;
@@ -173,10 +225,16 @@ export class FallbackProfileManager {
       )
         continue;
 
-      // Skip entries whose provider has no matching model in its allow-list
-      // (provider may restrict which models are available).
-      const allowedModels = this.config.providers?.[providerId]?.models;
-      if (allowedModels && !allowedModels.includes(parsed.model)) continue;
+      // NOTE: `config.providers[id].models` is deliberately NOT used to drop
+      // entries here. It is an unrefreshed snapshot (re-auth and provider
+      // edits rewrite it), so filtering on it silently deleted profile entries
+      // that were valid when the profile was written — and because
+      // `resolveRefs` never applied the same filter, the identical ref stayed
+      // alive in `fallbackModels` while vanishing from every named profile.
+      // A model the provider no longer serves answers 404 → `invalid_request`,
+      // which the chain runner already treats as "try the next candidate"
+      // (see the per-entry failure note in `fallback-model.ts`). Losing one
+      // doomed request beats silently rerouting a role to a different model.
 
       resolved.push({
         providerId,
@@ -204,17 +262,22 @@ export class FallbackProfileManager {
   ): FallbackChain {
     const bridge = this.resolveBridge(opts.exclude);
     let selected: FallbackChain = FREEZER_EMPTY;
+    const explicitRefs = asRefList(opts.fallbackModels);
+    // A caller that passes no profile inherits the session-selected one
+    // (`/fallback profile use <name>`), mirroring how `fallbackModels` already
+    // falls back to config in `resolveCandidates`.
+    const profileName = asProfileName(opts.fallbackProfile) ?? this.activeProfileName();
 
     // 1. Explicit fallbackModels (already resolved refs)
     //    Only return if non-empty; empty chain falls through to next source.
-    if (opts.fallbackModels && opts.fallbackModels.length > 0) {
-      const resolved = this.resolveRefs(opts.fallbackModels, opts.exclude);
+    if (explicitRefs && explicitRefs.length > 0) {
+      const resolved = this.resolveRefs(explicitRefs, opts.exclude);
       if (resolved.length > 0) selected = resolved;
     }
 
     // 2. Named profile — only return if non-empty
-    if (selected.length === 0 && opts.fallbackProfile) {
-      const resolved = this.resolve(opts.fallbackProfile, { exclude: opts.exclude });
+    if (selected.length === 0 && profileName) {
+      const resolved = this.resolve(profileName, { exclude: opts.exclude });
       if (resolved.length > 0) selected = resolved;
     }
 
@@ -313,7 +376,13 @@ export class FallbackProfileManager {
         ? configFallbackAuto
         : !opts.closedWorld;
 
-    const explicitRefs = opts.fallbackModels ?? this.config.fallbackModels;
+    // `asRefList` — NOT `?? `. The routing hot-reload watcher writes `null`
+    // for a field no config layer defines, and `null ?? x` keeps the null.
+    const explicitRefs = asRefList(opts.fallbackModels) ?? asRefList(this.config.fallbackModels);
+    // The session-selected profile (`/fallback profile use <name>`) applies to
+    // any caller that does not name one itself — this is what makes named
+    // profiles reachable from the leader, which passes no explicit profile.
+    const profileName = asProfileName(opts.fallbackProfile) ?? this.activeProfileName();
 
     // Whether the selected chain comes from an explicit source the user
     // configured themselves. When true, the chain is authoritative — we must
@@ -326,20 +395,20 @@ export class FallbackProfileManager {
       explicitRefs.length > 0 &&
       this.resolveRefs(explicitRefs, current).length > 0;
     const profileUsable =
-      opts.fallbackProfile !== undefined &&
-      this.hasProfile(opts.fallbackProfile) &&
-      this.resolve(opts.fallbackProfile, { exclude: current }).length > 0;
+      profileName !== undefined &&
+      this.hasProfile(profileName) &&
+      this.resolve(profileName, { exclude: current }).length > 0;
     const fromExplicitSource = explicitUsable || profileUsable;
 
     const selectedChain: FallbackChain = opts.closedWorld
       ? explicitRefs && explicitRefs.length > 0
         ? this.resolveRefs(explicitRefs, current)
-        : opts.fallbackProfile
-          ? this.resolve(opts.fallbackProfile, { exclude: current })
+        : profileName
+          ? this.resolve(profileName, { exclude: current })
           : FREEZER_EMPTY
       : this.resolveEffective({
           fallbackModels: explicitRefs,
-          fallbackProfile: opts.fallbackProfile,
+          fallbackProfile: profileName,
           fallbackAuto: effectiveFallbackAuto,
           exclude: current,
         });
@@ -377,7 +446,7 @@ export class FallbackProfileManager {
       // resolved it as the selected chain above). Only for the auto-derivation
       // path — an explicit user-chosen chain is authoritative, and the user
       // turning off fallbackAuto means "no auto-appended depth at all".
-      if (!fromExplicitSource && effectiveFallbackAuto && opts.fallbackProfile !== 'default') {
+      if (!fromExplicitSource && effectiveFallbackAuto && profileName !== 'default') {
         candidates.push(...this.resolve('default', { exclude: current }));
       }
 
@@ -490,7 +559,7 @@ export class FallbackProfileManager {
     const leaderModel = this.config.model;
     const providers = this.config.providers ?? {};
     const favoriteSet = new Set(
-      (this.config.favoriteModels ?? []).map((ref) => {
+      (asRefList(this.config.favoriteModels) ?? []).map((ref) => {
         const p = parseModelRef(ref);
         return `${p.provider ?? leaderProvider}/${p.model}`;
       }),

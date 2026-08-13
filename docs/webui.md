@@ -24,6 +24,14 @@ built React app and accepts WebSocket upgrades on the same listener.
 |---|---|---|---|
 | HTTP + WebSocket | `WEBUI_PORT` / `PORT` | `3456` | serves the React app, `/api/*`, and WS upgrades |
 
+This is one listener, not paired HTTP and WebSocket listeners. The standalone
+runtime resolves only `httpPort` and attaches its `WebSocketServer` to the HTTP
+server (`packages/webui-server/src/server/server-runtime.ts`). The CLI-embedded
+runtime likewise sets `wsPort = httpPort` and constructs the WebSocket server
+with `{ server: httpServer.server }` when the frontend is available
+(`packages/cli/src/webui-server.ts`). `--ws-port` and `WS_PORT` remain compatibility
+aliases for this same shared port; they do not configure a second listener.
+
 Bind host is `WEBUI_HOST` / `WS_HOST` (default `127.0.0.1`). Set
 `--webui-host 0.0.0.0` or `WEBUI_HOST=0.0.0.0` to expose on LAN/Tailscale (this
 requires the auth token for HTTP, API, and WS access — see Security).

@@ -361,7 +361,7 @@ describe('seedContextMeta', () => {
     );
     expect(context.meta['hqEnabled']).toBe(true);
     expect(context.meta['hqUrl']).toBe('https://hq.example.com');
-    expect(context.meta['hqToken']).toBe('secret');
+    expect(context.meta).not.toHaveProperty('hqToken');
     expect(context.meta['hqRawContent']).toBe(true);
   });
 
@@ -370,7 +370,7 @@ describe('seedContextMeta', () => {
     seedContextMeta(makeConfig(), context);
     expect(context.meta['hqEnabled']).toBe(false);
     expect(context.meta['hqUrl']).toBe('');
-    expect(context.meta['hqToken']).toBe('');
+    expect(context.meta).not.toHaveProperty('hqToken');
     expect(context.meta['hqRawContent']).toBe(false);
   });
 

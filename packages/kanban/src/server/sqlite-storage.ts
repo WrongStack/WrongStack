@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-import { STALE_WRITE_PREFIX, StaleWriteError } from '../manager/lifecycle.js';
+import { STALE_WRITE_PREFIX, StaleWriteError } from '../manager/lifecycle-error.js';
 import {
   assertValidBoardId,
   EVENT_LOG_MAX_ENTRIES,

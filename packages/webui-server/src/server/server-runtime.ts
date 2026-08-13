@@ -31,7 +31,7 @@ import { envFlag, resolveAuthToken } from './ws-utils.js';
 
 // ── Port resolution ─────────────────────────────────────────────────────
 
-interface ResolvedPorts {
+export interface ResolvedPorts {
   wsHost: string;
   httpPort: number;
   publicUrl: string | undefined;

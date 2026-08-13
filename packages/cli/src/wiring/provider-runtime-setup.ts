@@ -121,6 +121,27 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     onConfigUpdate(next);
   };
 
+  // ── Keep the shared fallback manager on the live config ────────────────
+  // The manager owns an immutable snapshot and answers EVERY fallback-chain
+  // question (leader, subagents, one-shot). `sync()` was its only reload
+  // point, and `sync()` runs on a provider/model switch or a config-FILE
+  // change — so a `ConfigStore.update` alone (which is how `/fallback add`,
+  // `/fallback profile use`, and the WebUI settings path publish a change)
+  // left the manager on a stale snapshot. With the file watcher disabled
+  // (`WRONGSTACK_DISABLE_CONFIG_WATCH=1`) it never reloaded at all, despite
+  // the documented promise that "the chain is recomputed from live config
+  // every turn". Subscribing here closes both gaps and costs one snapshot
+  // swap per config update.
+  //
+  // `configStore.get()` carries credentials (`update` only strips fields the
+  // PATCH marks env-sourced, never previously-merged ones), so reloading from
+  // it cannot blank out `checkProvider`'s key detection.
+  teardownHandlers.push(
+    configStore.watch((next: Config) => {
+      fallbackProfileManager.reload(next);
+    }),
+  );
+
   // ── Provider config helpers ────────────────────────────────────────────
   const resolveProviderCfg = (providerId: string) => resolveProviderCfgRuntime(cfg, providerId);
 
@@ -175,12 +196,9 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       // or the auto-switch countdown.
       fallbackGate: createFallbackGate(events),
       fallbackGateSeconds: 7,
-      ...(cfg.fallbackStickiness?.primaryProbeInterval !== undefined
-        ? { primaryCooldownMs: cfg.fallbackStickiness.primaryProbeInterval }
-        : {}),
-      ...(cfg.fallbackStickiness?.stickyFallbackTurns !== undefined
-        ? { stickyFallbackTurns: cfg.fallbackStickiness.stickyFallbackTurns }
-        : {}),
+      // `fallbackStickiness` is NOT forwarded here on purpose: the extension
+      // reads it from `getConfig()` on every use, so an edit takes effect
+      // without a restart. Passing it as a dep would pin the boot-time value.
     }),
   );
 
@@ -243,18 +261,27 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     'fallbackModels',
     'fallbackBridge',
     'fallbackProfiles',
+    'fallbackProfile',
     'favoriteModels',
     'favoriteModelsOnly',
     'modelAvailabilitySchedule',
     'modelMatrix',
     'fallbackAuto',
+    'fallbackStickiness',
+    'fallbackMaxLastResortCandidates',
     'uiLocale',
   ];
 
+  const activeProfileOf = (c: Config): string =>
+    typeof c.activeProfile === 'string' && c.activeProfile ? c.activeProfile : 'default';
+
   if (process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] !== '1') {
     // Active profile name from the merged config (bootstrap + layers).
-    const activeProfile =
-      typeof cfg.activeProfile === 'string' && cfg.activeProfile ? cfg.activeProfile : 'default';
+    // Re-evaluated whenever the profile changes (see the rebind watcher at the
+    // end of this block) — a mid-session profile switch used to leave the
+    // watcher pinned to the OLD profile's file, so edits to the profile the
+    // user had actually switched to never hot-reloaded.
+    let activeProfile = activeProfileOf(cfg);
     // `trusted: false` marks a layer the user does not own. `inProjectConfig`
     // (<project>/.wrongstack/config.json) is repo-committed, so cloning a
     // repository is enough to author it — exactly the boundary
@@ -262,22 +289,29 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     // through `stripUnsafeInProjectFields` at boot (config-loader.ts:193).
     // This watcher re-reads the same layers on every config write, so without
     // the same filter the boot-time strip is undone by the first routine save.
-    const configLayers: { path: string; priority: number; trusted: boolean }[] = [
-      { path: wpaths.profileConfig(activeProfile), priority: 1, trusted: true },
-      { path: wpaths.projectLocalConfig, priority: 2, trusted: true },
-      { path: wpaths.inProjectConfig, priority: 3, trusted: false },
-    ];
+    let configLayers: { path: string; priority: number; trusted: boolean }[] = [];
+    const rebuildLayers = (): void => {
+      configLayers = [
+        { path: wpaths.profileConfig(activeProfile), priority: 1, trusted: true },
+        { path: wpaths.projectLocalConfig, priority: 2, trusted: true },
+        { path: wpaths.inProjectConfig, priority: 3, trusted: false },
+      ];
+    };
+    rebuildLayers();
 
     /**
      * Drop the credential-bearing slice of a snapshot read from an untrusted
      * layer, keeping the routing fields that layer is allowed to set.
      *
-     * `providers`, `apiKey` and `baseUrl` are precisely the three snapshot
-     * fields that appear in `KNOWN_DENIED_IN_PROJECT` ("Redirects provider
-     * endpoint; leaks real API key."); every other field on
-     * `ProviderConfigSnapshot` — uiLocale, fallback*, favoriteModels,
-     * modelMatrix, modelAvailabilitySchedule — is in
+     * `providers`, `apiKey`, `baseUrl` and `fallbackMaxLastResortCandidates`
+     * are precisely the snapshot fields that appear in
+     * `KNOWN_DENIED_IN_PROJECT`; every other field on
+     * `ProviderConfigSnapshot` — uiLocale, the remaining fallback and favorite
+     * routing fields, modelMatrix, modelAvailabilitySchedule — is in
      * `IN_PROJECT_ALLOWED_KEYS`, so a repo may still express those.
+     * This list must stay in step with that policy: the watcher re-applies
+     * these layers on every config write, so anything it forgets to strip
+     * undoes the boot-time strip on the first routine save.
      *
      * `snapshotHasProviders` is cleared with them: it exists to tell the merge
      * "a layer really did define providers", and an untrusted layer's claim to
@@ -288,11 +322,18 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       snap: ProviderConfigSnapshot,
       path: string,
     ): ProviderConfigSnapshot => {
-      const { providers, apiKey, baseUrl, ...rest } = snap;
+      // `fallbackMaxLastResortCandidates` rides along because it is in
+      // `KNOWN_DENIED_IN_PROJECT`: a repo-committed 0 would silently strip the
+      // last-resort failover depth. Every other routing field on the snapshot
+      // is in `IN_PROJECT_ALLOWED_KEYS`, so a repo may still express those.
+      const { providers, apiKey, baseUrl, fallbackMaxLastResortCandidates, ...rest } = snap;
       const dropped = [
         ...(Object.keys(providers ?? {}).length > 0 ? ['providers'] : []),
         ...(apiKey !== undefined ? ['apiKey'] : []),
         ...(baseUrl !== undefined ? ['baseUrl'] : []),
+        ...(fallbackMaxLastResortCandidates !== undefined
+          ? ['fallbackMaxLastResortCandidates']
+          : []),
       ];
       if (dropped.length > 0) {
         logger.warn(
@@ -327,69 +368,27 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
           };
         } else {
           // Merge higher-priority layer with carry-forward from lower.
-          // Spread-with-condition avoids `undefined` values that violate
+          // Driven by ROUTING_FIELDS (plus the two credential fields) rather
+          // than a hand-written spread per field: the old form listed each
+          // field three times, so every field added to ROUTING_FIELDS without
+          // a matching spread was silently dropped from the merge while still
+          // being force-cleared by the patch loop below.
+          // Assigning only when the value is defined preserves
           // exactOptionalPropertyTypes.
-          merged = {
+          const next: ProviderConfigSnapshot = {
             providers: { ...merged.providers, ...snap.providers },
-            ...(snap.apiKey !== undefined
-              ? { apiKey: snap.apiKey }
-              : merged.apiKey !== undefined
-                ? { apiKey: merged.apiKey }
-                : {}),
-            ...(snap.baseUrl !== undefined
-              ? { baseUrl: snap.baseUrl }
-              : merged.baseUrl !== undefined
-                ? { baseUrl: merged.baseUrl }
-                : {}),
-            ...(snap.fallbackModels !== undefined
-              ? { fallbackModels: snap.fallbackModels }
-              : merged.fallbackModels !== undefined
-                ? { fallbackModels: merged.fallbackModels }
-                : {}),
-            ...(snap.fallbackBridge !== undefined
-              ? { fallbackBridge: snap.fallbackBridge }
-              : merged.fallbackBridge !== undefined
-                ? { fallbackBridge: merged.fallbackBridge }
-                : {}),
-            ...(snap.fallbackProfiles !== undefined
-              ? { fallbackProfiles: snap.fallbackProfiles }
-              : merged.fallbackProfiles !== undefined
-                ? { fallbackProfiles: merged.fallbackProfiles }
-                : {}),
-            ...(snap.favoriteModels !== undefined
-              ? { favoriteModels: snap.favoriteModels }
-              : merged.favoriteModels !== undefined
-                ? { favoriteModels: merged.favoriteModels }
-                : {}),
-            ...(snap.favoriteModelsOnly !== undefined
-              ? { favoriteModelsOnly: snap.favoriteModelsOnly }
-              : merged.favoriteModelsOnly !== undefined
-                ? { favoriteModelsOnly: merged.favoriteModelsOnly }
-                : {}),
-            ...(snap.modelAvailabilitySchedule !== undefined
-              ? { modelAvailabilitySchedule: snap.modelAvailabilitySchedule }
-              : merged.modelAvailabilitySchedule !== undefined
-                ? { modelAvailabilitySchedule: merged.modelAvailabilitySchedule }
-                : {}),
-            ...(snap.modelMatrix !== undefined
-              ? { modelMatrix: snap.modelMatrix }
-              : merged.modelMatrix !== undefined
-                ? { modelMatrix: merged.modelMatrix }
-                : {}),
-            ...(snap.fallbackAuto !== undefined
-              ? { fallbackAuto: snap.fallbackAuto }
-              : merged.fallbackAuto !== undefined
-                ? { fallbackAuto: merged.fallbackAuto }
-                : {}),
-            ...(snap.uiLocale !== undefined
-              ? { uiLocale: snap.uiLocale }
-              : merged.uiLocale !== undefined
-                ? { uiLocale: merged.uiLocale }
-                : {}),
             // Carry forward the snapshotHasProviders flag from the higher-priority layer.
             // When a layer has providers, merged knows providers were found somewhere.
             snapshotHasProviders: snap.snapshotHasProviders || merged.snapshotHasProviders,
           };
+          const snapRec = snap as unknown as Record<string, unknown>;
+          const mergedRec = merged as unknown as Record<string, unknown>;
+          const nextRec = next as unknown as Record<string, unknown>;
+          for (const key of ['apiKey', 'baseUrl', ...ROUTING_FIELDS] as const) {
+            const winner = snapRec[key] ?? mergedRec[key];
+            if (winner !== undefined) nextRec[key] = winner;
+          }
+          merged = next;
         }
       }
       return merged;
@@ -411,16 +410,28 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
 
       // Build the full patch from the merged snapshot.
       // CREDENTIALS: only propagate when present (they come from the vault).
-      // ROUTING FIELDS: ALWAYS propagate, using null when absent from every
-      // layer, so deleted fields are explicitly cleared in ConfigStore rather
-      // than preserved from the previous state (fixes stale-deleted-settings).
+      // ROUTING FIELDS: ALWAYS propagate, using `undefined` when absent from
+      // every layer, so deleted fields are explicitly cleared in ConfigStore
+      // rather than preserved from the previous state (fixes
+      // stale-deleted-settings). Both `patchConfig` (object spread) and
+      // `ConfigStore.update` (spread + structuredClone) keep an explicitly
+      // assigned `undefined`, so the key really is cleared.
+      //
+      // This used to write `null`, which cleared the field just as well but
+      // produced a value the `Config` type forbids (`string[] | undefined`).
+      // `FallbackProfileManager.resolveCandidates` then hit `null.length` and
+      // threw INSIDE the fallback chain resolver — the TypeError replaced the
+      // 429 that triggered the hop, so no fallback was ever attempted for any
+      // user who had not set an explicit `fallbackModels` list. The resolver is
+      // hardened against non-arrays too (see `asRefList`), but the patch must
+      // not manufacture out-of-type values in the first place.
       const mergedPatch: Record<string, unknown> = {
         providers: merged.providers,
       };
       if (merged.apiKey !== undefined) mergedPatch.apiKey = merged.apiKey;
       if (merged.baseUrl !== undefined) mergedPatch.baseUrl = merged.baseUrl;
       for (const key of ROUTING_FIELDS) {
-        mergedPatch[key] = (merged as unknown as Record<string, unknown>)[key] ?? null;
+        mergedPatch[key] = (merged as unknown as Record<string, unknown>)[key];
       }
 
       // Snapshot credential state before applying, so we can detect
@@ -452,20 +463,44 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     // watcher provides file-watch, debounce, and no-op guard per path.
     // When any layer fires, `onAnyConfigChange` re-reads and merges all
     // layers, so a change to any file produces a correctly-merged result.
-    const watchers = configLayers.map((layer) => {
-      const w = watchProviderConfig(
-        layer.path,
-        vault,
-        () => {
-          void onAnyConfigChange();
-        },
-        { warn: (msg) => logger.warn(`Config watcher (${layer.path}): ${msg}`) },
+    let watchers: ReturnType<typeof watchProviderConfig>[] = [];
+    const openWatchers = (): void => {
+      watchers = configLayers.map((layer) =>
+        watchProviderConfig(
+          layer.path,
+          vault,
+          () => {
+            void onAnyConfigChange();
+          },
+          { warn: (msg) => logger.warn(`Config watcher (${layer.path}): ${msg}`) },
+        ),
       );
-      return w;
-    });
-    teardownHandlers.push(() => {
+    };
+    const closeWatchers = (): void => {
       for (const w of watchers) w.close();
-    });
+      watchers = [];
+    };
+    openWatchers();
+
+    // Re-point the watchers when the session switches profiles. The layer
+    // paths are derived from `activeProfile`, which was captured once at
+    // wiring time — after a `/profile` switch the runtime kept watching the
+    // previous profile's file, so routing edits to the live profile never
+    // reloaded (and edits to the abandoned one still did).
+    teardownHandlers.push(
+      configStore.watch((next: Config) => {
+        const nextProfile = activeProfileOf(next);
+        if (nextProfile === activeProfile) return;
+        activeProfile = nextProfile;
+        closeWatchers();
+        rebuildLayers();
+        openWatchers();
+        // The new profile's file may already differ from what is in memory.
+        previousSnapshotSerialized = undefined;
+        void onAnyConfigChange();
+      }),
+    );
+    teardownHandlers.push(closeWatchers);
   }
 
   return {

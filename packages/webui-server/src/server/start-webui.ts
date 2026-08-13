@@ -69,6 +69,8 @@ import {
   resolvePorts,
   startHttpServer,
 } from './server-runtime.js';
+import { scheduleOwnerlessEmptySessionCleanup } from './session-cleanup-scheduler.js';
+import { toSessionHistoryEntries } from './session-history.js';
 import type { FileWatcherMetrics } from './setup-events.js';
 import type { WebUIOptions } from './types.js';
 import { broadcast, resolveAuthToken } from './ws-utils.js';
@@ -934,6 +936,19 @@ export async function startWebUI(
   // transcript replay, and per-client lifecycle. Both live in their own
   // modules so `startWebUI` reads as orchestration.
   const routes = buildRoutes(state, deps, cb);
+  const stopEmptySessionCleanup = scheduleOwnerlessEmptySessionCleanup({
+    getSessionStore: state.getSessionStore,
+    getActiveSessionId: () => state.getSession().id,
+    hasParticipants: (sessionId) => collabHandler.hasParticipants(sessionId),
+    refreshSessions: async () => {
+      const list = await state.getSessionStore().list(200);
+      broadcast(clients, {
+        type: 'sessions.list',
+        payload: { sessions: toSessionHistoryEntries(list, state.getSession().id) },
+      });
+    },
+    logger,
+  });
   // The Kanban supervisor is created inside the dispatcher (deterministic
   // background auditor + optional agentic mode). Expose its disposer so the
   // shutdown hook below can stop the periodic timer and clear internal maps
@@ -1047,10 +1062,10 @@ export async function startWebUI(
       wssPrimary,
       ...(wssSecondary ? [wssSecondary] : []),
     ],
-    onPreShutdown: () => {
-      // Stop the Kanban supervisor's periodic timer **before** the WS layer
-      // tears down so no audit tick fires mid-shutdown — and so no in-flight
-      // `kanban.*` broadcast races a `WebSocketServer.close()`.
+    onPreShutdown: async () => {
+      // Stop periodic work before the WS layer tears down so no background
+      // broadcast races a `WebSocketServer.close()`.
+      await stopEmptySessionCleanup.dispose();
       kanbanSupervisorDispose?.();
       kanbanSupervisorDispose = null;
     },

@@ -61,10 +61,16 @@ export interface ProviderConfigSnapshot {
   fallbackModels?: string[];
   fallbackBridge?: string;
   fallbackProfiles?: Record<string, string[]>;
+  /** Selected named profile (Config.fallbackProfile). */
+  fallbackProfile?: string;
   favoriteModels?: string[];
   favoriteModelsOnly?: boolean;
   modelMatrix?: Record<string, unknown>;
   fallbackAuto?: boolean;
+  /** Primary-probe cooldown / sticky-dwell tuning (Config.fallbackStickiness). */
+  fallbackStickiness?: { primaryProbeInterval?: number; stickyFallbackTurns?: number };
+  /** Last-resort append cap (Config.fallbackMaxLastResortCandidates). */
+  fallbackMaxLastResortCandidates?: number;
   modelAvailabilitySchedule?: import('../core/model-availability-calendar.js').ModelBlackoutRule[];
 }
 
@@ -118,10 +124,13 @@ export async function readProviderSnapshot(
     fallbackModels?: string[];
     fallbackBridge?: string;
     fallbackProfiles?: Record<string, string[]>;
+    fallbackProfile?: string;
     favoriteModels?: string[];
     favoriteModelsOnly?: boolean;
     modelMatrix?: Record<string, unknown>;
     fallbackAuto?: boolean;
+    fallbackStickiness?: { primaryProbeInterval?: number; stickyFallbackTurns?: number };
+    fallbackMaxLastResortCandidates?: number;
     modelAvailabilitySchedule?: import('../core/model-availability-calendar.js').ModelBlackoutRule[];
   };
   const snapshot: ProviderConfigSnapshot = {
@@ -137,6 +146,18 @@ export async function readProviderSnapshot(
     snapshot.fallbackBridge = decrypted.fallbackBridge.trim();
   }
   if (decrypted.fallbackProfiles) snapshot.fallbackProfiles = decrypted.fallbackProfiles;
+  if (typeof decrypted.fallbackProfile === 'string' && decrypted.fallbackProfile.trim()) {
+    snapshot.fallbackProfile = decrypted.fallbackProfile.trim();
+  }
+  if (decrypted.fallbackStickiness && typeof decrypted.fallbackStickiness === 'object') {
+    snapshot.fallbackStickiness = decrypted.fallbackStickiness;
+  }
+  if (
+    typeof decrypted.fallbackMaxLastResortCandidates === 'number' &&
+    Number.isFinite(decrypted.fallbackMaxLastResortCandidates)
+  ) {
+    snapshot.fallbackMaxLastResortCandidates = decrypted.fallbackMaxLastResortCandidates;
+  }
   if (Array.isArray(decrypted.favoriteModels)) snapshot.favoriteModels = decrypted.favoriteModels;
   if (typeof decrypted.favoriteModelsOnly === 'boolean')
     snapshot.favoriteModelsOnly = decrypted.favoriteModelsOnly;
@@ -157,10 +178,13 @@ function serializeSnapshot(s: ProviderConfigSnapshot): string {
     fallbackModels: s.fallbackModels ?? null,
     fallbackBridge: s.fallbackBridge ?? null,
     fallbackProfiles: s.fallbackProfiles ?? null,
+    fallbackProfile: s.fallbackProfile ?? null,
     favoriteModels: s.favoriteModels ?? null,
     favoriteModelsOnly: s.favoriteModelsOnly ?? null,
     modelMatrix: s.modelMatrix ?? null,
     fallbackAuto: s.fallbackAuto ?? null,
+    fallbackStickiness: s.fallbackStickiness ?? null,
+    fallbackMaxLastResortCandidates: s.fallbackMaxLastResortCandidates ?? null,
     modelAvailabilitySchedule: s.modelAvailabilitySchedule ?? null,
   });
 }

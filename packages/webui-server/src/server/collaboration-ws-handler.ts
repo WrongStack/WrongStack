@@ -109,6 +109,11 @@ export class CollaborationWebSocketHandler {
     ws.on('error', () => this.handleDisconnect(ws));
   }
 
+  /** True while at least one collaboration participant is attached to a session. */
+  hasParticipants(sessionId: string): boolean {
+    return (this.bySession.get(sessionId)?.size ?? 0) > 0;
+  }
+
   dispose(): void {
     for (const off of this.offs) off();
     this.offs.length = 0;

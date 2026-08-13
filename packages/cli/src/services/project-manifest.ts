@@ -45,12 +45,31 @@ export async function loadManifest(
   globalConfigPath?: string | undefined,
 ): Promise<ProjectsManifest> {
   const file = projectsJsonPath(globalConfigPath);
+  let raw: string;
   try {
-    const raw = await fs.readFile(file, 'utf8');
-    const parsed = JSON.parse(raw) as ProjectsManifest;
-    return { projects: parsed.projects ?? [] };
-  } catch {
-    return { projects: [] };
+    raw = await fs.readFile(file, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { projects: [] };
+    throw new ConfigError({
+      message: `Unable to read projects manifest: ${file}`,
+      code: 'CONFIG_INVALID',
+      context: { file, phase: 'manifest-read' },
+      cause: error,
+    });
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as ProjectsManifest).projects)) {
+      throw new Error('projects must be an array');
+    }
+    return { projects: (parsed as ProjectsManifest).projects };
+  } catch (error) {
+    throw new ConfigError({
+      message: `Unable to parse projects manifest: ${file}`,
+      code: 'CONFIG_PARSE_FAILED',
+      context: { file, phase: 'manifest-parse' },
+      cause: error,
+    });
   }
 }
 

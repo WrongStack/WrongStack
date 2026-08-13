@@ -275,43 +275,92 @@ function stripNextStepsFromMessage(msg: Message): Message {
 }
 
 /**
+ * The message position that closed the previous request's cached prefix. Held
+ * by identity AND index so a compaction (which rewrites history and voids the
+ * cache anyway) is detected and the stale mark simply skipped.
+ */
+interface CacheBoundaryRef {
+  message: Message;
+  index: number;
+}
+
+/**
+ * Re-mark an already-transmitted message as a cache boundary.
+ *
+ * Returns undefined when the message cannot carry one, leaving it untouched:
+ * - string content is passed through verbatim by wires that accept it
+ *   (`presets/anthropic.ts` returns `m.content` as-is), so promoting it to a
+ *   block array here would change the very prefix bytes this marker exists to
+ *   preserve, and
+ * - only text and tool_result blocks may carry `cache_control`; any other tail
+ *   (image/tool_use/thinking) goes unmarked, with the stable system markers
+ *   still anchoring the prompt prefix.
+ */
+function markCacheBoundary(msg: Message): Message | undefined {
+  if (typeof msg.content === 'string') return undefined;
+  const blocks: ContentBlock[] = msg.content.slice();
+  const boundary = blocks[blocks.length - 1];
+  if (!boundary || (boundary.type !== 'text' && boundary.type !== 'tool_result')) return undefined;
+  blocks[blocks.length - 1] = { ...boundary, cache_control: { type: 'ephemeral' } };
+  return { ...msg, content: blocks };
+}
+
+/**
  * Compose the request's message array without mutating the durable history:
  *
  * - pins the provider cache boundary (`cache_control`) on the last durable
  *   content block, so the whole conversation becomes an incrementally
- *   extendable cached prefix, and
- * - appends the live-context tail AFTER that boundary, so per-request churn
- *   (todos, ledger, retrieved memory, plan progress) can never invalidate it.
+ *   extendable cached prefix,
+ * - re-marks the position that closed the PREVIOUS request, so the provider
+ *   looks that cache entry up explicitly instead of relying on its bounded
+ *   automatic look-back (Anthropic scans only ~20 blocks back from a
+ *   breakpoint; a turn with many parallel tool calls can exceed that and miss
+ *   the entry entirely), and
+ * - appends the live-context tail AFTER the deepest boundary, so per-request
+ *   churn (todos, ledger, retrieved memory, plan progress) can never
+ *   invalidate it.
  *
  * Returns null when there is no history to attach to — the caller then falls
  * back to carrying the tail in `system` (degenerate embedder flows).
  */
-function composeRequestMessages(history: readonly Message[], tail: TextBlock[]): Message[] | null {
+function composeRequestMessages(
+  history: readonly Message[],
+  tail: TextBlock[],
+  previous: CacheBoundaryRef | undefined,
+): { messages: Message[]; boundary: CacheBoundaryRef | undefined } | null {
   if (history.length === 0) return null;
   const out = history.slice();
   const lastIdx = out.length - 1;
   const last = out[lastIdx] as Message;
+
+  if (previous && previous.index < lastIdx && history[previous.index] === previous.message) {
+    const marked = markCacheBoundary(previous.message);
+    if (marked) out[previous.index] = marked;
+  }
+
   const blocks: ContentBlock[] =
     typeof last.content === 'string'
       ? [{ type: 'text', text: last.content }]
       : last.content.slice();
-  const boundary = blocks[blocks.length - 1];
-  // Only text and tool_result blocks may carry cache_control on the wire.
-  // Anything else (image/tool_use/thinking tail) simply goes unmarked — the
-  // stable system markers still cache the prompt prefix.
-  if (boundary && (boundary.type === 'text' || boundary.type === 'tool_result')) {
-    blocks[blocks.length - 1] = { ...boundary, cache_control: { type: 'ephemeral' } };
+  const tailBlock = blocks[blocks.length - 1];
+  const marked = tailBlock && (tailBlock.type === 'text' || tailBlock.type === 'tool_result');
+  if (marked) {
+    blocks[blocks.length - 1] = { ...tailBlock, cache_control: { type: 'ephemeral' } };
   }
+  // Only hand back a boundary the wire can actually mark; an unmarkable tail
+  // would otherwise be re-offered (and re-rejected) on every later request.
+  const boundary = marked ? { message: last, index: lastIdx } : undefined;
+
   if (tail.length === 0 || last.role !== 'user') {
     out[lastIdx] = { ...last, content: blocks };
     if (tail.length > 0) out.push({ role: 'user', content: [LIVE_CONTEXT_HEADER, ...tail] });
-    return out;
+    return { messages: out, boundary };
   }
   // Ride the trailing user message itself — mirrors the existing "/btw note
   // appended onto the trailing tool-result message" shape every wire already
   // handles, and avoids consecutive-user-turn quirks on strict backends.
   out[lastIdx] = { ...last, content: [...blocks, LIVE_CONTEXT_HEADER, ...tail] };
-  return out;
+  return { messages: out, boundary };
 }
 
 export function createAgentResponseHandler(a: AgentInternals): AgentResponseHandler {
@@ -320,6 +369,9 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
   // provider prefix by pushing/replacing blocks in place. Lifecycle actions
   // such as a mode switch may assign a new array, which becomes a new epoch.
   const stabilizedPromptEpochs = new WeakSet<TextBlock[]>();
+
+  /** Where the previous request closed its cached prefix; see `composeRequestMessages`. */
+  let previousBoundary: CacheBoundaryRef | undefined;
 
   function stabilizePromptEpoch(): void {
     const prompt = a.ctx.systemPrompt;
@@ -376,7 +428,9 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       ...memoryEvidence,
     ].filter((block): block is TextBlock => block !== undefined);
     const requestHistory = stripDeliveredNextSteps(a.ctx.messages);
-    const composedMessages = composeRequestMessages(requestHistory, liveContextTail);
+    const composed = composeRequestMessages(requestHistory, liveContextTail, previousBoundary);
+    if (composed) previousBoundary = composed.boundary;
+    const composedMessages = composed?.messages ?? null;
     // No history to attach to → legacy placement (tail appended to system).
     const system = composedMessages
       ? stableSystem

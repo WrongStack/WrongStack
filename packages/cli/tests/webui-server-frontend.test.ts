@@ -1,14 +1,64 @@
+import * as net from 'node:net';
 import { EventBus } from '@wrongstack/core/kernel';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { WebSocket } from 'ws';
 import { runWebUI } from '../src/webui-server.js';
 
-// High base ports so the test never collides with a real WebUI / dev server.
-const ports = { next: 45_700 };
-const nextPort = () => ports.next++;
+function waitForOpen(socket: WebSocket): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('WebSocket did not open')), 5_000);
+    socket.once('open', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    socket.once('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    socket.once('unexpected-response', (_request, response) => {
+      clearTimeout(timer);
+      reject(new Error(`WebSocket upgrade rejected with ${response.statusCode}`));
+    });
+  });
+}
+
+function closeWebSocket(socket: WebSocket): Promise<void> {
+  if (socket.readyState === WebSocket.CLOSED) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      socket.terminate();
+      resolve();
+    }, 1_000);
+    socket.once('close', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    socket.close();
+  });
+}
+
+async function reserveEphemeralPort(): Promise<number> {
+  const server = net.createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Port probe has no TCP address');
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+  return address.port;
+}
 
 let serverDone: Promise<void> | null = null;
+let clientSocket: WebSocket | null = null;
 
-afterEach(async () => {
+await afterEach(async () => {
+  if (clientSocket) {
+    await closeWebSocket(clientSocket);
+    clientSocket = null;
+  }
   if (serverDone) {
     process.emit('SIGTERM');
     await serverDone;
@@ -23,15 +73,18 @@ describe('runWebUI frontend serving', () => {
     // `WebUIServerOptions.onListening`). Needed since H3 — the HTTP surface
     // requires a token on every bind, so the test fetches the announced URL
     // rather than a bare origin.
-    let info: { httpPort: number; wsPort: number; host: string; url: string } | undefined;
+    let info:
+      | { httpPort: number; wsPort: number; host: string; url: string; authToken: string }
+      | undefined;
     let signalReady: (() => void) | undefined;
     const listening = new Promise<void>((r) => {
       signalReady = r;
     });
 
+    const port = await reserveEphemeralPort();
     serverDone = runWebUI({
-      port: nextPort(),
-      httpPort: nextPort(),
+      port,
+      httpPort: port,
       profileConfigPath: '/tmp/test-profile.json',
       onListening: (i) => {
         info = i;
@@ -47,6 +100,7 @@ describe('runWebUI frontend serving', () => {
 
     await listening;
     expect(info).toBeDefined();
+    expect(info!.wsPort).toBe(info!.httpPort);
 
     // The HTTP server should serve index.html with this instance's WS port
     // stamped in — that's what lets the browser connect back to THIS backend.
@@ -71,5 +125,13 @@ describe('runWebUI frontend serving', () => {
     expect(res.headers.get('content-type')).toBe('text/html');
     const html = await res.text();
     expect(html.toLowerCase()).toContain('<!doctype html>');
+
+    const origin = `http://${info!.host}:${info!.httpPort}`;
+    clientSocket = new WebSocket(
+      `ws://${info!.host}:${info!.httpPort}/?token=${encodeURIComponent(info!.authToken)}`,
+      { headers: { Origin: origin } },
+    );
+    await waitForOpen(clientSocket);
+    expect(clientSocket.url).toContain(`:${info!.httpPort}/`);
   });
 });

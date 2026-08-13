@@ -399,6 +399,10 @@ function analyzeFileToolLifecycle(
  * become semantic receipts while their exact payload remains in the session
  * log. Tool ids and provider metadata stay intact so strict provider replay
  * adjacency remains valid.
+ *
+ * Every edit here rewrites a message the provider has already seen, so callers
+ * must run this on a pressure-gated interval rather than per turn — see
+ * `AutoCompactionMiddleware.shouldRunHygiene`.
  */
 export function eliseAcknowledgedToolResults(
   messages: readonly Message[],

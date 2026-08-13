@@ -150,15 +150,8 @@ describe('AutoCompactionMiddleware', () => {
     expect(ctx.meta['realAnchorMsgCount']).toBeUndefined();
   });
 
-  it('bounds acknowledged protocol receipts below warn without firing pressure compaction', async () => {
-    const mw = new AutoCompactionMiddleware(compactor, 10000, simpleEstimator(3000), {
-      warn: 0.5,
-      soft: 0.75,
-      hard: 0.9,
-    });
-    const ctx = mockContext(0);
-    ctx.meta['contextWindowPolicy'] = { preserveK: 1, eliseThreshold: 50 };
-    for (let i = 0; i < 20; i++) {
+  function pushAcknowledgedExchanges(ctx: Context, count: number): void {
+    for (let i = 0; i < count; i++) {
       ctx.messages.push({
         role: 'assistant',
         content: [{ type: 'tool_use', id: `use-${i}`, name: 'exec', input: { path: `${i}.ts` } }],
@@ -176,10 +169,40 @@ describe('AutoCompactionMiddleware', () => {
       });
     }
     ctx.messages.push({ role: 'assistant', content: [{ type: 'text', text: 'done' }] });
+  }
+
+  it('leaves acknowledged protocol byte-identical below warn so the prompt prefix stays cacheable', async () => {
+    // Collapsing receipts rewrites messages the provider has already seen,
+    // which costs a full prompt re-cache. Below warn there is no pressure
+    // justifying that, so history must stay append-only.
+    const mw = new AutoCompactionMiddleware(compactor, 10000, simpleEstimator(3000), {
+      warn: 0.5,
+      soft: 0.75,
+      hard: 0.9,
+    });
+    const ctx = mockContext(0);
+    ctx.meta['contextWindowPolicy'] = { preserveK: 1, eliseThreshold: 50 };
+    pushAcknowledgedExchanges(ctx, 20);
+    const before = JSON.stringify(ctx.messages);
 
     await mw.handler()(ctx, async (c) => c);
 
     expect(compactor.compactCalls).toHaveLength(0);
+    expect(JSON.stringify(ctx.messages)).toBe(before);
+  });
+
+  it('bounds acknowledged protocol receipts once pressure reaches warn', async () => {
+    const mw = new AutoCompactionMiddleware(compactor, 10000, simpleEstimator(5000), {
+      warn: 0.5,
+      soft: 0.75,
+      hard: 0.9,
+    });
+    const ctx = mockContext(0);
+    ctx.meta['contextWindowPolicy'] = { preserveK: 1, eliseThreshold: 50 };
+    pushAcknowledgedExchanges(ctx, 20);
+
+    await mw.handler()(ctx, async (c) => c);
+
     expect(JSON.stringify(ctx.messages[0])).toContain('[tool_history_digest: 4');
     expect(
       ctx.messages.flatMap((message) =>
@@ -190,8 +213,42 @@ describe('AutoCompactionMiddleware', () => {
     ).toHaveLength(16);
   });
 
+  it('does not re-collapse on the next turn until the context grows by the hygiene interval', async () => {
+    const mw = new AutoCompactionMiddleware(compactor, 10000, simpleEstimator(5000), {
+      warn: 0.5,
+      soft: 0.75,
+      hard: 0.9,
+    });
+    const ctx = mockContext(0);
+    ctx.meta['contextWindowPolicy'] = { preserveK: 1, eliseThreshold: 50 };
+    pushAcknowledgedExchanges(ctx, 20);
+
+    await mw.handler()(ctx, async (c) => c);
+    const afterFirst = JSON.stringify(ctx.messages);
+
+    // A further acknowledged exchange arrives; the digest counter would move
+    // again under per-turn hygiene, invalidating the whole cached prefix.
+    ctx.messages.push({
+      role: 'assistant',
+      content: [{ type: 'tool_use', id: 'use-next', name: 'exec', input: { path: 'next.ts' } }],
+    });
+    ctx.messages.push({
+      role: 'user',
+      content: [
+        { type: 'tool_result', tool_use_id: 'use-next', name: 'exec', content: 'result next' },
+      ],
+    });
+    ctx.messages.push({ role: 'assistant', content: [{ type: 'text', text: 'done again' }] });
+    const beforeSecond = JSON.stringify(ctx.messages);
+
+    await mw.handler()(ctx, async (c) => c);
+
+    expect(JSON.stringify(ctx.messages)).toBe(beforeSecond);
+    expect(afterFirst).not.toBe(beforeSecond);
+  });
+
   it('keeps a useful raw investigation window and semantically receipts only the overflow', async () => {
-    const mw = new AutoCompactionMiddleware(compactor, 200_000, simpleEstimator(30_000), {
+    const mw = new AutoCompactionMiddleware(compactor, 200_000, simpleEstimator(115_000), {
       warn: 0.55,
       soft: 0.7,
       hard: 0.85,
@@ -221,7 +278,6 @@ describe('AutoCompactionMiddleware', () => {
 
     await mw.handler()(ctx, async (c) => c);
 
-    expect(compactor.compactCalls).toHaveLength(0);
     const wire = JSON.stringify(ctx.messages);
     expect(wire).toContain('IMPORTANT_HEAD_0');
     expect(wire).toContain('IMPORTANT_TAIL_0');

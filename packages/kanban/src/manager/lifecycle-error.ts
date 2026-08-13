@@ -4,6 +4,9 @@ import type { KanbanLifecycleValidationIssue } from '../types-operations.js';
 export const LIFECYCLE_ISSUES_PREFIX = '\u0001LIFECYCLE_ISSUES\u0002';
 export const LIFECYCLE_ISSUES_SUFFIX = '\u0003';
 
+/** Shared prefix for optimistic-concurrency failures in local storage backends. */
+export const STALE_WRITE_PREFIX = 'Stale write detected' as const;
+
 /**
  * Thrown when a concurrent modification is detected during board mutation.
  * Using a typed error (rather than `Error` with a message string) lets

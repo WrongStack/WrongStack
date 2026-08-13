@@ -149,9 +149,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 895,
-      "typeOnly": 827,
-      "runtimeOrMixed": 227
+      "files": 898,
+      "typeOnly": 830,
+      "runtimeOrMixed": 228
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 493,
+      "files": 494,
       "typeOnly": 55,
-      "runtimeOrMixed": 464
+      "runtimeOrMixed": 465
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -10187,7 +10187,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/project-manifest.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -13545,6 +13545,18 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/session-cleanup-scheduler.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/session-deletion.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/session-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 2
@@ -13696,6 +13708,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/replay-payload.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/session-cleanup-scheduler.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16804,6 +16822,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/server-runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/session-cleanup-scheduler.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

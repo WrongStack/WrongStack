@@ -42,7 +42,12 @@ describe('FallbackProfileManager', () => {
     expect(chain[1]?.model).toBe('gpt-4o-mini');
   });
 
-  it('filters profile entries whose provider has no usable credentials or endpoint', () => {
+  it('keeps profile entries whose provider carries no credentials in config', () => {
+    // Config-level "usability" is not a reliable signal (a key can reach the
+    // provider without appearing in `config.providers`), and applying it only
+    // on the profile path silently rerouted profile-pinned roles. Entries are
+    // kept; an entry that truly cannot be built is dropped by the chain runner
+    // when `buildProvider` throws.
     const mgr = new FallbackProfileManager(
       makeConfig({
         fallbackProfiles: {
@@ -50,13 +55,9 @@ describe('FallbackProfileManager', () => {
         },
       }),
     );
-    const chain = mgr.resolve('no-key-test');
-    expect(chain).toEqual([
-      {
-        providerId: 'anthropic',
-        model: 'claude-opus-4-8',
-        providerSwitched: true,
-      },
+    expect(mgr.resolve('no-key-test').map((e) => `${e.providerId}/${e.model}`)).toEqual([
+      'unkeyed/some-model',
+      'anthropic/claude-opus-4-8',
     ]);
   });
 
@@ -381,29 +382,64 @@ describe('FallbackProfileManager', () => {
         },
       });
       const mgr = new FallbackProfileManager(cfg);
+      // The subject: a top-level `apiKey` counts as a credential for the
+      // configured primary provider even when its `providers` entry has none.
       expect(mgr.checkProvider('openai').usable).toBe(true);
+      expect(mgr.checkProvider('anthropic').usable).toBe(false);
+      // Chain resolution no longer filters on that verdict (see `resolve`),
+      // so the unconfigured provider's entry is still offered and is dropped
+      // later by `buildProvider` if it really cannot be constructed.
       expect(mgr.resolve('primary-failover')).toEqual([
-        {
-          providerId: 'openai',
-          model: 'gpt-4o-mini',
-          providerSwitched: false,
-        },
+        { providerId: 'anthropic', model: 'claude-opus-4-8', providerSwitched: true },
+        { providerId: 'openai', model: 'gpt-4o-mini', providerSwitched: false },
       ]);
     });
 
-    it('excludes models not in provider allow-list', () => {
+    it('keeps profile entries missing from the provider model list, matching resolveRefs', () => {
+      // `providers[id].models` is an unrefreshed snapshot — re-auth and manual
+      // edits rewrite it. Filtering profiles on it silently deleted entries
+      // that were valid when the profile was written, while the SAME ref
+      // survived in `fallbackModels` (resolveRefs never applied the filter).
+      // Both paths now keep the entry; a model the provider dropped answers
+      // 404 and the chain runner moves to the next candidate.
       const cfg = makeConfig({
         providers: {
           limited: { type: 'openai', apiKey: 'sk-test', models: ['allowed-model'] },
         },
         fallbackProfiles: {
-          restricted: ['limited/allowed-model', 'limited/blocked-model'],
+          restricted: ['limited/allowed-model', 'limited/stale-model'],
         },
       });
       const mgr = new FallbackProfileManager(cfg);
-      const chain = mgr.resolve('restricted');
-      expect(chain).toHaveLength(1);
-      expect(chain[0]?.model).toBe('allowed-model');
+      expect(mgr.resolve('restricted').map((e) => e.model)).toEqual([
+        'allowed-model',
+        'stale-model',
+      ]);
+      // Parity: the explicit-refs path produces the identical chain.
+      expect(
+        mgr.resolveRefs(['limited/allowed-model', 'limited/stale-model']).map((e) => e.model),
+      ).toEqual(['allowed-model', 'stale-model']);
+    });
+
+    it('keeps entries on a provider with no key in config on BOTH paths', () => {
+      // `checkProvider().usable` only sees credentials the CONFIG carries, so
+      // it is a false negative whenever the key reaches the provider by any
+      // other route. Profiles used to apply it and the explicit path did not.
+      // Neither applies it now; a genuinely unbuildable provider is dropped by
+      // the chain runner when `buildProvider` throws.
+      const cfg = makeConfig({
+        providers: {
+          keyed: { type: 'openai', apiKey: 'sk-test' },
+          unkeyed: { type: 'openai' },
+        },
+        fallbackProfiles: { mixed: ['unkeyed/m1', 'keyed/m2'] },
+      });
+      const mgr = new FallbackProfileManager(cfg);
+      const expected = ['unkeyed/m1', 'keyed/m2'];
+      expect(mgr.resolve('mixed').map((e) => `${e.providerId}/${e.model}`)).toEqual(expected);
+      expect(
+        mgr.resolveRefs(['unkeyed/m1', 'keyed/m2']).map((e) => `${e.providerId}/${e.model}`),
+      ).toEqual(expected);
     });
   });
 

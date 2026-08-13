@@ -118,14 +118,41 @@ describe('/fallback', () => {
     });
   });
 
-  it('profile use copies a named profile into the active chain', async () => {
+  it('profile use selects a profile without clobbering the explicit chain', async () => {
+    // It used to copy the profile's entries over `fallbackModels`, destroying
+    // whatever the user had configured with no way back — and that copy was
+    // the ONLY way a profile could take effect, because nothing read a
+    // selected profile name.
     const { ctx, readFile } = makeCtx({
       fallbackProfiles: { fallback1: ['a/1', 'b/2'] },
+      fallbackModels: ['keep/me'],
     });
     const cmd = buildFallbackCommand(ctx);
     const res = await cmd.run('profile use fallback1');
-    expect(stripAnsi(res?.message ?? '')).toContain('active chain');
-    expect(readFile().fallbackModels).toEqual(['a/1', 'b/2']);
+    expect(stripAnsi(res?.message ?? '')).toContain('fallback profile');
+    expect(readFile().fallbackProfile).toBe('fallback1');
+    expect(readFile().fallbackModels).toEqual(['keep/me']);
+  });
+
+  it('profile none deselects the profile', async () => {
+    const { ctx, readFile } = makeCtx({
+      fallbackProfiles: { fallback1: ['a/1'] },
+      fallbackProfile: 'fallback1',
+    });
+    const cmd = buildFallbackCommand(ctx);
+    await cmd.run('profile none');
+    expect(readFile().fallbackProfile).toBeUndefined();
+  });
+
+  it('profile remove clears a selection pointing at the deleted profile', async () => {
+    const { ctx, readFile } = makeCtx({
+      fallbackProfiles: { fallback1: ['a/1'] },
+      fallbackProfile: 'fallback1',
+    });
+    const cmd = buildFallbackCommand(ctx);
+    await cmd.run('profile remove fallback1');
+    expect(readFile().fallbackProfile).toBeUndefined();
+    expect(readFile().fallbackProfiles).toEqual({});
   });
 
   it('fav add stores favorite models and only toggles strict smart fallback mode', async () => {
@@ -169,19 +196,22 @@ describe('/fallback', () => {
       expect(readFile().fallbackModels).toEqual(['anthropic/claude-opus-4']);
     });
 
-    it('rejects /fallback add when the ref is not in the provider model allow-list', async () => {
+    it('accepts /fallback add outside the saved model list but warns', async () => {
+      // The saved model list is a drifting snapshot (re-auth rewrites it), and
+      // the runtime no longer drops entries over it, so refusing here would
+      // block a model the provider actually serves. Warn, don't block.
       const { ctx, readFile } = makeCtx({
         providers: {
           anthropic: { apiKey: 'k', models: ['claude-opus-4', 'claude-sonnet-4'] },
         },
-        favoriteModels: ['anthropic/claude-opus-4'],
+        favoriteModels: ['anthropic/claude-opus-4', 'anthropic/claude-99-new'],
       });
       const cmd = buildFallbackCommand(ctx);
-      const res = await cmd.run('add anthropic/claude-99-not-allowed');
+      const res = await cmd.run('add anthropic/claude-99-new');
       const msg = stripAnsi(res?.message ?? '');
-      expect(msg).toContain('Cannot add');
-      expect(msg).toContain('not in anthropic model list');
-      expect(readFile().fallbackModels ?? []).toEqual([]);
+      expect(msg).toContain('added');
+      expect(msg).toContain('not in anthropic saved model list');
+      expect(readFile().fallbackModels).toEqual(['anthropic/claude-99-new']);
     });
   });
 
@@ -200,19 +230,21 @@ describe('/fallback', () => {
       expect(readFile().fallbackProfiles ?? {}).toEqual({});
     });
 
-    it('rejects profile set when an entry is not in the provider model allow-list', async () => {
+    it('accepts profile set for an entry outside the saved model list', async () => {
+      // Same reasoning as `add`: the list drifts, and refusing here is how a
+      // profile ends up unable to name a model the provider actually serves.
       const { ctx, readFile } = makeCtx({
         providers: {
           openai: { apiKey: 'k', models: ['gpt-4o', 'gpt-4o-mini'] },
         },
-        favoriteModels: ['openai/gpt-4o', 'openai/gpt-4o-mini'],
+        favoriteModels: ['openai/gpt-4o', 'openai/gpt-5-new'],
       });
       const cmd = buildFallbackCommand(ctx);
-      const res = await cmd.run('profile set fast openai/gpt-4o,openai/not-real');
-      const msg = stripAnsi(res?.message ?? '');
-      expect(msg).toContain('Cannot save profile');
-      expect(msg).toContain('not in openai model list');
-      expect(readFile().fallbackProfiles ?? {}).toEqual({});
+      const res = await cmd.run('profile set fast openai/gpt-4o,openai/gpt-5-new');
+      expect(stripAnsi(res?.message ?? '')).toContain('profile fast');
+      expect(readFile().fallbackProfiles).toEqual({
+        fast: ['openai/gpt-4o', 'openai/gpt-5-new'],
+      });
     });
 
     it('accepts profile set when every entry is valid (favorite + allow-list)', async () => {
@@ -273,7 +305,10 @@ describe('/fallback', () => {
   });
 
   describe('currentView inactive warnings', () => {
-    it('flags a profile entry that is not in the provider model list', async () => {
+    it('flags a profile entry missing from the saved model list as advisory only', async () => {
+      // It used to be labelled "inactive", which was accurate when the runtime
+      // dropped it. The runtime tries it now, so the label must not claim the
+      // entry is dead.
       const { ctx } = makeCtx({
         providers: {
           openai: { apiKey: 'k', models: ['gpt-4o', 'gpt-4o-mini'] },
@@ -288,8 +323,9 @@ describe('/fallback', () => {
       const msg = stripAnsi(res?.message ?? '');
       expect(msg).toContain('fast');
       expect(msg).toContain('openai/not-a-real-model');
-      expect(msg).toContain('inactive');
-      expect(msg).toContain('not in openai model list');
+      expect(msg).toContain('not in openai saved model list');
+      expect(msg).toContain('will still be tried');
+      expect(msg).not.toContain('inactive');
     });
 
     it('flags a favorite entry that is not in the provider model list', async () => {
@@ -302,7 +338,7 @@ describe('/fallback', () => {
       const cmd = buildFallbackCommand(ctx);
       const res = await cmd.run('');
       const msg = stripAnsi(res?.message ?? '');
-      expect(msg).toContain('inactive');
+      expect(msg).toContain('not in openai saved model list');
       expect(msg).toContain('openai/gpt-5-not-real');
     });
 

@@ -141,6 +141,20 @@ export interface Config {
    */
   fallbackProfiles?: Record<string, string[]> | undefined;
   /**
+   * The named profile from {@link Config.fallbackProfiles} currently selected
+   * for failover, set by `/fallback profile use <name>` and cleared by
+   * `/fallback profile none`.
+   *
+   * Resolution order is `fallbackModels` → this profile → smart default, so an
+   * explicit chain still wins. Selecting a profile does NOT overwrite
+   * `fallbackModels`: before this field existed, `profile use` was implemented
+   * by copying the profile's entries over the explicit chain, which destroyed
+   * whatever the user had configured and left no way back.
+   *
+   * A name that no longer matches a defined profile is ignored.
+   */
+  fallbackProfile?: string | undefined;
+  /**
    * When `true` (the default) and `fallbackModels` is empty, a fallback chain
    * is derived automatically from the other keyed providers/models so 429s
    * recover out of the box. Set `false` to disable the smart default and only

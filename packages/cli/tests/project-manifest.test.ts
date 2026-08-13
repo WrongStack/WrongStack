@@ -67,18 +67,29 @@ describe('generateSlug', () => {
 });
 
 describe('loadManifest / saveManifest', () => {
-  it('returns an empty manifest when the file is missing or corrupt', async () => {
-    await expect(loadManifest(cfgPath)).resolves.toEqual({ projects: [] });
-    await fs.writeFile(path.join(dir, 'projects.json'), '{ not json');
+  it('returns an empty manifest only when the file is missing', async () => {
     await expect(loadManifest(cfgPath)).resolves.toEqual({ projects: [] });
   });
 
-  it('round-trips a manifest and normalizes missing projects', async () => {
+  it('rejects corrupt or structurally invalid manifests instead of treating them as empty', async () => {
+    const { ConfigError } = await import('@wrongstack/core/types');
+    await fs.writeFile(path.join(dir, 'projects.json'), '{ not json');
+    await expect(loadManifest(cfgPath)).rejects.toMatchObject({
+      name: 'ConfigError',
+      code: 'CONFIG_PARSE_FAILED',
+    } satisfies Partial<InstanceType<typeof ConfigError>>);
+
+    await fs.writeFile(path.join(dir, 'projects.json'), JSON.stringify({ projects: undefined }));
+    await expect(loadManifest(cfgPath)).rejects.toMatchObject({
+      name: 'ConfigError',
+      code: 'CONFIG_PARSE_FAILED',
+    } satisfies Partial<InstanceType<typeof ConfigError>>);
+  });
+
+  it('round-trips a manifest', async () => {
     const manifest: ProjectsManifest = { projects: [{ name: 'A', root: '/a', slug: 'a' }] };
     await saveManifest(manifest, cfgPath);
     await expect(loadManifest(cfgPath)).resolves.toEqual(manifest);
-    await fs.writeFile(path.join(dir, 'projects.json'), JSON.stringify({ projects: undefined }));
-    await expect(loadManifest(cfgPath)).resolves.toEqual({ projects: [] });
   });
 
   it('falls back to wstackGlobalRoot() when no config path is given', async () => {

@@ -118,12 +118,23 @@ function runGate(
     };
     events.on('provider.fallback_choice', handler);
 
-    // ── Safety deadline only ─────────────────────────────────────
-    // The UI owns the countdown and sends `provider.fallback_choice`
-    // when it expires or the user picks. This 1.5× deadline is a
-    // safety net for headless mode (no UI listener) or a dropped
-    // choice event — it resolves null (auto-switch to chain head).
-    // Scheduled BEFORE emit so cleanup has it assigned on same-tick.
+    // ── Countdown + safety deadline ──────────────────────────────
+    // The UI owns the visible countdown and sends `provider.fallback_choice`
+    // when it expires or the user picks. The gate ALSO runs the same
+    // countdown itself: `autoSwitchSeconds` is the contract, and a listener
+    // that receives `provider.fallback_pending` without rendering a picker
+    // must not be able to stall the hop past it. That is not hypothetical —
+    // the WebUI server subscribes to forward the event to browsers and stays
+    // subscribed with zero browsers attached, so `listenerCount` is 1, the
+    // no-listener fast path above does not fire, and nothing ever replies.
+    // Before this timer existed (the `timer` variable was declared and
+    // cleared but never assigned) every hop in that state waited out the full
+    // 1.5× deadline.
+    //
+    // The 1.5× deadline is kept as the outer safety net for a UI that
+    // acknowledged the countdown but dropped the reply.
+    // Both are scheduled BEFORE emit so cleanup has them assigned on same-tick.
+    timer = setTimeout(() => finish(null), Math.round(autoSwitchSeconds * 1000));
     deadline = setTimeout(() => finish(null), Math.round(autoSwitchSeconds * 1500));
 
     // ── Emit the pending event so all UI surfaces show the modal ──

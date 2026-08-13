@@ -85,6 +85,16 @@ describe('buildLiveNextStepsGateBlock', () => {
 });
 
 describe('provider request live-context tail', () => {
+  /** Every content block carrying a cache_control marker, in wire order. */
+  const markedBlocks = (
+    messages: readonly { content: unknown }[],
+  ): { type: string; content?: string; text?: string }[] =>
+    messages.flatMap((message) =>
+      Array.isArray(message.content)
+        ? (message.content as { cache_control?: unknown }[]).filter((b) => b.cache_control)
+        : [],
+    ) as { type: string; content?: string; text?: string }[];
+
   const makeInternals = (
     overrides: Partial<Record<'messages' | 'systemPrompt' | 'todos', unknown>> = {},
   ) => {
@@ -174,6 +184,59 @@ describe('provider request live-context tail', () => {
     for (const block of last.content.slice(boundaryIdx + 1)) {
       expect(block.cache_control).toBeUndefined();
     }
+  });
+
+  it('re-marks the previous request boundary so the provider looks that entry up', async () => {
+    const history: unknown[] = [
+      { role: 'user', content: 'do the work' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'file body' }] },
+    ];
+    const { ctx, a } = makeInternals({ messages: history });
+    const handler = createAgentResponseHandler(a);
+
+    const first = await handler.buildAndRunRequestPipeline({});
+    expect(markedBlocks(first.request.messages)).toHaveLength(1);
+
+    // The turn advances: history is append-only, so the position that closed
+    // the first request is still present and must be marked again.
+    ctx.messages.push(
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't2', name: 'read', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't2', content: 'more' }] },
+    );
+
+    const second = await handler.buildAndRunRequestPipeline({});
+    const marked = markedBlocks(second.request.messages);
+    expect(marked).toHaveLength(2);
+    // Previous boundary first, current boundary last.
+    expect(marked[0]?.content).toBe('file body');
+    expect(marked[1]?.content).toBe('more');
+    // The durable history stays clean — the marks live only in the request copy.
+    expect(JSON.stringify(ctx.messages)).not.toContain('cache_control');
+  });
+
+  it('drops the stale previous boundary after a rewrite instead of misplacing it', async () => {
+    const history: unknown[] = [
+      { role: 'user', content: 'do the work' },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'read', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'file body' }] },
+    ];
+    const { ctx, a } = makeInternals({ messages: history });
+    const handler = createAgentResponseHandler(a);
+    await handler.buildAndRunRequestPipeline({});
+
+    // Compaction replaces the array; the recorded index no longer identifies
+    // the recorded message, so the second breakpoint is simply skipped.
+    ctx.messages = [
+      {
+        role: 'system',
+        content: '[tool_history_digest: 1 older acknowledged exchange(s) omitted]',
+      },
+      { role: 'user', content: [{ type: 'text', text: 'carry on' }] },
+    ] as never;
+
+    const second = await handler.buildAndRunRequestPipeline({});
+    expect(markedBlocks(second.request.messages)).toHaveLength(1);
   });
 
   it('re-homes epoch-volatile prompt blocks (plan/contributor/glossary) to the tail', async () => {

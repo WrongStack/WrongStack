@@ -60,6 +60,25 @@ describe('capAnthropicCacheBreakpoints', () => {
     expect(markerCount(tools) + markerCount(system)).toBe(ANTHROPIC_MAX_BREAKPOINTS);
   });
 
+  it('keeps both conversation breakpoints, sacrificing a middle system marker', () => {
+    // 6 system markers + the previous-turn and current-turn message markers.
+    const system = Array.from({ length: 6 }, (_, i) => ephemeral('s'.repeat((i + 1) * 40)));
+    const previousTurn = ephemeral('previous turn tail');
+    const currentTurn = ephemeral('current turn tail');
+    const messages = [
+      { role: 'user', content: [plain(), previousTurn] },
+      { role: 'assistant', content: [plain()] },
+      { role: 'user', content: [plain(), currentTurn] },
+    ];
+
+    capAnthropicCacheBreakpoints({ system, messages });
+
+    expect(previousTurn.cache_control).toBeDefined();
+    expect(currentTurn.cache_control).toBeDefined();
+    expect(system[0]?.cache_control).toBeDefined(); // static prefix anchor survives
+    expect(markerCount(system) + 2).toBe(ANTHROPIC_MAX_BREAKPOINTS);
+  });
+
   it('is deterministic for the same input', () => {
     const mk = () => ({
       system: Array.from({ length: 7 }, (_, i) => ephemeral('z'.repeat((i + 1) * 10))),

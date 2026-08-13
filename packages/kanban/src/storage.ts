@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { normalizeKanbanBoundaryPolicy } from './boundary.js';
-import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle.js';
+import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle-error.js';
 import { getProductionKanbanStorage } from './server/remote-storage.js';
 import { getInstalledKanbanStorageBackend } from './storage-backend.js';
 import { isInProcessTestMode } from './test-mode.js';

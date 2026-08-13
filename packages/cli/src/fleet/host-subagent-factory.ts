@@ -382,12 +382,8 @@ export function createHostSubagentFactory(
         // dispatch path. The tracker is the same singleton the leader uses,
         // populated by brain-and-orchestration.ts into host.opts.statusTracker.
         ...(host.opts.statusTracker ? { statusTracker: host.opts.statusTracker } : {}),
-        ...(mergedConfig.fallbackStickiness?.primaryProbeInterval !== undefined
-          ? { primaryCooldownMs: mergedConfig.fallbackStickiness.primaryProbeInterval }
-          : {}),
-        ...(mergedConfig.fallbackStickiness?.stickyFallbackTurns !== undefined
-          ? { stickyFallbackTurns: mergedConfig.fallbackStickiness.stickyFallbackTurns }
-          : {}),
+        // `fallbackStickiness` is read live from `getConfig()` inside the
+        // extension — forwarding it here would pin the spawn-time value.
       }),
     );
 

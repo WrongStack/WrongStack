@@ -15,6 +15,14 @@ export {
   handleAutonomyRoute,
 } from './autonomy-routes.js';
 export { bootConfig, patchConfig } from './boot.js';
+export {
+  cleanupOwnerlessEmptySessions,
+  DEFAULT_EMPTY_SESSION_CLEANUP_INTERVAL_MS,
+  EMPTY_SESSION_CLEANUP_INTERVAL_ENV,
+  resolveEmptySessionCleanupInterval,
+  scheduleOwnerlessEmptySessionCleanup,
+} from './session-cleanup-scheduler.js';
+export { deleteWebUISession } from './session-deletion.js';
 export type { BrainRouteHandlers } from './brain-routes.js';
 export { handleBrainRoute } from './brain-routes.js';
 export {

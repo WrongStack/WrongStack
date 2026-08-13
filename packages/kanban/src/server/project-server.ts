@@ -22,7 +22,7 @@ import {
   restrictFilePermissions,
 } from '@wrongstack/persistence';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
-import { StaleWriteError } from '../manager/lifecycle.js';
+import { StaleWriteError } from '../manager/lifecycle-error.js';
 import * as kanban from '../manager.js';
 import { installKanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';

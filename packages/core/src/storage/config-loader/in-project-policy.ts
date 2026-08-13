@@ -23,6 +23,10 @@ const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   'fallbackModels',
   'fallbackBridge',
   'fallbackProfiles',
+  // The profile SELECTOR. No broader than its siblings: a repo that can write
+  // `fallbackModels` and `fallbackProfiles` already controls the chain outright,
+  // and this one can only name a profile the user already defined.
+  'fallbackProfile',
   'favoriteModels',
   'favoriteModelsOnly',
   'modelAvailabilitySchedule',
@@ -75,6 +79,11 @@ const KNOWN_DENIED_IN_PROJECT: ReadonlyArray<{ key: string; reason: string }> = 
     reason:
       "Carries git.identity (GIT_AUTHOR_*/GIT_COMMITTER_* injection): a repo-committed config could spoof the author identity written into the victim's commit history (impersonation).",
   },
+  {
+    key: 'fallbackMaxLastResortCandidates',
+    reason:
+      'Bounds how many of the user\'s OTHER configured providers may be swept in as last-resort failover. Setting it to 0 from a repo-committed config would silently strip that depth during an outage. It was already stripped in practice (absent from the allow-list) but was missing from the key registry, so this gate never checked it.',
+  },
 ];
 
 const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
@@ -95,11 +104,13 @@ const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   'fallbackModels',
   'fallbackBridge',
   'fallbackProfiles',
+  'fallbackProfile',
   'favoriteModels',
   'favoriteModelsOnly',
   'modelAvailabilitySchedule',
   'fallbackAuto',
   'fallbackStickiness',
+  'fallbackMaxLastResortCandidates',
   'hooks',
   'plugins',
   'pluginManager',

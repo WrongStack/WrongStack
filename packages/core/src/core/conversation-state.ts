@@ -1,8 +1,7 @@
 import type { ContentBlock } from '../types/blocks.js';
 import type { Message } from '../types/messages.js';
 import { computeMessageTokens } from '../utils/token-estimate.js';
-import type { TodoItem } from './context.js';
-import { Context } from './context.js';
+import type { Context, TodoItem } from './context.js';
 
 function hasToolResultBlock(message: Message | undefined): boolean {
   return (
@@ -155,16 +154,19 @@ export class ConversationState {
    * cap determines the starting index for the sum but does not gate it.
    */
   private overflowCount(arr: readonly Message[]): number {
-    let drop = Context.MAX_MESSAGES > 0 ? Math.max(0, arr.length - Context.MAX_MESSAGES) : 0;
-    if (Context.MAX_MESSAGE_TOKENS <= 0) return this.protocolSafeDropCount(arr, drop);
+    const contextClass = this.ctx.constructor as typeof Context;
+    const maxMessages = contextClass.MAX_MESSAGES;
+    const maxMessageTokens = contextClass.MAX_MESSAGE_TOKENS;
+    let drop = maxMessages > 0 ? Math.max(0, arr.length - maxMessages) : 0;
+    if (maxMessageTokens <= 0) return this.protocolSafeDropCount(arr, drop);
 
     let total = 0;
     for (let i = drop; i < arr.length; i++) total += arr[i]?._estTokens ?? 0;
-    if (total <= Context.MAX_MESSAGE_TOKENS) return this.protocolSafeDropCount(arr, drop);
+    if (total <= maxMessageTokens) return this.protocolSafeDropCount(arr, drop);
     // Walk forward dropping the oldest survivors until the remainder fits.
     // Always keep the newest message: dropping the one just appended would
     // silently discard the turn the caller is in the middle of.
-    while (drop < arr.length - 1 && total > Context.MAX_MESSAGE_TOKENS) {
+    while (drop < arr.length - 1 && total > maxMessageTokens) {
       total -= arr[drop]?._estTokens ?? 0;
       drop++;
     }

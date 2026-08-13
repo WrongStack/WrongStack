@@ -147,7 +147,7 @@
       "relativeImports": 27
     },
     "packages/core/src/core/context.ts": {
-      "lines": 985,
+      "lines": 1013,
       "relativeImports": 13
     },
     "packages/core/src/core/system-prompt-builder.ts": {
@@ -155,7 +155,7 @@
       "relativeImports": 24
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
-      "lines": 844,
+      "lines": 938,
       "relativeImports": 10
     },
     "packages/core/src/execution/autonomy-brain.ts": {
@@ -167,7 +167,7 @@
       "relativeImports": 13
     },
     "packages/core/src/execution/compaction-core.ts": {
-      "lines": 1427,
+      "lines": 1431,
       "relativeImports": 7
     },
     "packages/core/src/execution/council-orchestrator.ts": {
@@ -223,11 +223,11 @@
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1330,
-      "relativeImports": 38
+      "lines": 1336,
+      "relativeImports": 39
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
-      "lines": 957,
+      "lines": 1044,
       "relativeImports": 13
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
@@ -251,7 +251,7 @@
       "relativeImports": 12
     },
     "packages/kanban/src/manager/lifecycle.ts": {
-      "lines": 1270,
+      "lines": 1261,
       "relativeImports": 8
     },
     "packages/kanban/src/manager/_internal.ts": {
@@ -567,7 +567,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/collaboration-ws-handler.ts": {
-      "lines": 927,
+      "lines": 932,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/connections-health-route.ts": {
@@ -583,7 +583,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/http-server.ts": {
-      "lines": 1167,
+      "lines": 1204,
       "relativeImports": 11
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
@@ -591,7 +591,7 @@
       "relativeImports": 10
     },
     "packages/webui-server/src/server/provider-handlers.ts": {
-      "lines": 807,
+      "lines": 820,
       "relativeImports": 6
     },
     "packages/webui-server/src/server/setup-events.ts": {
@@ -599,8 +599,8 @@
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1112,
-      "relativeImports": 18
+      "lines": 1127,
+      "relativeImports": 20
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
       "lines": 949,

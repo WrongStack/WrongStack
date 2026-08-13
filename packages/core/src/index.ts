@@ -395,6 +395,7 @@ export {
   formatModelRef,
   normalizeModelRef,
   parseModelRef,
+  runtimeFallbackChain,
   smartDefaultFallbackChain,
 } from './core/fallback-model.js';
 export type {

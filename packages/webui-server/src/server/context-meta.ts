@@ -114,7 +114,9 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   ).hq;
   meta['hqEnabled'] = hqConfig?.enabled === true;
   meta['hqUrl'] = hqConfig?.url ?? '';
-  meta['hqToken'] = hqConfig?.token ?? '';
+  // hq.token is a bearer credential. Keep updates write-only: seeding the
+  // decrypted value into context.meta exposes it through prefs snapshots to
+  // every connected WebUI client.
   meta['hqRawContent'] = hqConfig?.rawContent === true;
 
   // Telegram plugin notification settings live under extensions.telegram —

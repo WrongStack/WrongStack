@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/providers",
-  "version": "0.306.3",
+  "version": "0.306.4",
   "license": "MIT",
   "description": "WrongStack LLM provider adapters (Anthropic, OpenAI, Google) built on declarative WireFormatConfig.",
   "repository": {

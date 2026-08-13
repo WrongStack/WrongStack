@@ -23,6 +23,16 @@ import {
 type PressureLevel = 'warn' | 'soft' | 'hard';
 const LEVEL_RANK: Record<PressureLevel, number> = { warn: 0, soft: 1, hard: 2 };
 
+function pressureLevelFor(
+  load: number,
+  thresholds: { warn: number; soft: number; hard: number },
+): PressureLevel | null {
+  if (load >= thresholds.hard) return 'hard';
+  if (load >= thresholds.soft) return 'soft';
+  if (load >= thresholds.warn) return 'warn';
+  return null;
+}
+
 export interface ContextWindowBudgetSnapshot {
   maxContext: number;
   inputTokens: number;
@@ -114,8 +124,21 @@ export class AutoCompactionMiddleware {
    */
   private static readonly GUARD_GATE_LOAD = 0.4;
 
+  /**
+   * How much the context must grow between two history-rewriting hygiene
+   * passes, as a fraction of the available input window and as an absolute
+   * floor. Every pass rewrites already-transmitted messages, which forces the
+   * provider to re-cache the whole prompt; spacing the passes out is what lets
+   * the conversation prefix stay cached for the turns in between.
+   */
+  private static readonly HYGIENE_GROWTH_RATIO = 0.15;
+  private static readonly HYGIENE_MIN_GROWTH_TOKENS = 20_000;
+
   /** Tracks the most recent no-op attempt so we can avoid re-firing per turn. */
   private lastNoopAttempt: { level: PressureLevel; tokens: number } | null = null;
+
+  /** Context size at the last hygiene pass; anchors the growth interval. */
+  private lastHygieneTokens: number | null = null;
 
   /**
    * Cached token estimate from the last handler() invocation. When the
@@ -200,107 +223,12 @@ export class AutoCompactionMiddleware {
       // middleware stays installed but does nothing.
       if (!this._enabled) return next(ctx);
 
-      // Tool results are protocol inputs for the immediately following model
-      // response, not unlimited durable prompt memory. Once a later assistant
-      // message proves the provider consumed them, keep a mode-sized rolling
-      // raw window and replace the rest with semantic head/tail receipts. The
-      // window scales with both preserveK and the model context, so ordinary
-      // multi-file investigation stays available verbatim without letting a
-      // handful of 200 KB results fill the prompt. The trailing, not-yet-
-      // consumed tool batch is never eligible.
-      const rawHygiene = eliseAcknowledgedToolResults(ctx.messages, {
-        maxRetainedTokens: this.resolveToolResultRetention(ctx),
-      });
-      const receiptHygiene = collapseAcknowledgedToolReceipts(rawHygiene.messages, {
-        maxPairs: this.resolveToolReceiptRetention(ctx),
-      });
-      if (rawHygiene.changed || receiptHygiene.changed) {
-        ctx.state.replaceMessages(receiptHygiene.messages);
-        ctx.clearFileTracking();
-        // Both token stashes describe the pre-hygiene array. Message count can
-        // stay unchanged, so count-based invalidation alone is insufficient.
-        this.invalidateTokenCaches(ctx);
-      }
-
-      // Reuse the last token estimate when the context hasn't grown since
-      // the previous check — common in autonomous idle loops. The cached
-      // value is invalidated whenever messages or tools change.
-      //
-      // IMPORTANT: the cache is only valid for the deterministic
-      // estimateRequestTokensCalibrated path (messages+system+tools → fixed
-      // output). When a custom _estimator is provided (e.g. in tests with
-      // a mutable closure, or a dynamic policy provider), always call it
-      // fresh — the estimator owns its own semantics and the middleware
-      // cannot safely cache its result across calls.
-      const msgCount = ctx.messages.length;
-      const toolCount = (ctx.tools ?? []).length;
-      const revision = ctx.state?.revision ?? -1;
-
-      let tokens: number;
-      // Prefer the REAL usage anchor: compaction decisions run against the
-      // provider's authoritative prompt-token count (+ the delta of unsent
-      // messages), not a scaled estimate. Only the newest turn is estimated;
-      // everything else is exact. Falls through to the estimate paths before
-      // the first response or right after compaction shrank the array.
-      const anchorAt =
-        typeof ctx.meta?.['realAnchorMsgCount'] === 'number'
-          ? (ctx.meta['realAnchorMsgCount'] as number)
-          : undefined;
-      const anchored = realAnchoredInputTokens(ctx.messages, ctx.lastRealInputTokens, anchorAt);
-      if (anchored !== null) {
-        tokens = anchored;
-      } else if (this._estimator) {
-        // Custom estimator — never cache; call fresh every invocation.
-        tokens = this._estimator(ctx);
-      } else if (
-        msgCount === this._cachedMsgCount &&
-        toolCount === this._cachedToolCount &&
-        revision === this._cachedRevision &&
-        ctx.systemPrompt === this._cachedSystemRef &&
-        ctx.tools === this._cachedToolsRef &&
-        this._cachedTokens >= 0
-      ) {
-        // Default estimator, context unchanged — reuse cached value.
-        tokens = this._cachedTokens;
-      } else if (this.tryStashedTokens(ctx, msgCount, toolCount, revision) !== null) {
-        // H1: the agent loop's pre-flight (or its restash in emitContextPct)
-        // populated `ctx.lastRequestTokens` this iteration. Apply the
-        // per-(provider,model) calibration ratio and use it. This avoids
-        // a third redundant O(n) walk per iteration.
-        const stashed = this.tryStashedTokens(ctx, msgCount, toolCount, revision) as number;
-        const cal = getCalibrationState(`${ctx.provider?.id ?? 'unknown'}/${ctx.model}`);
-        tokens = cal.calibrated
-          ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
-          : stashed;
-        this._cachedTokens = tokens;
-        this._cachedMsgCount = msgCount;
-        this._cachedToolCount = toolCount;
-        this._cachedRevision = revision;
-        this._cachedSystemRef = ctx.systemPrompt;
-        this._cachedToolsRef = ctx.tools;
-      } else {
-        // Default estimator, context changed and no stash — compute fresh
-        // and cache. Cold-start path: very first iteration, or the
-        // middleware is being driven from somewhere that didn't run the
-        // agent loop's pre-flight (tests, manual compaction trigger).
-        tokens = estimateRequestTokensCalibrated(
-          ctx.messages,
-          ctx.systemPrompt,
-          ctx.tools ?? [],
-          `${ctx.provider?.id ?? 'unknown'}/${ctx.model}`,
-        ).total;
-        this._cachedTokens = tokens;
-        this._cachedMsgCount = msgCount;
-        this._cachedToolCount = toolCount;
-        this._cachedRevision = revision;
-        this._cachedSystemRef = ctx.systemPrompt;
-        this._cachedToolsRef = ctx.tools;
-      }
+      let tokens = this.estimateContextTokens(ctx);
       // A provider overflow can teach the session a route-specific effective
       // limit that is lower than the catalog/native-model value. Resolve it on
       // every pass so the next retry compacts against the learned denominator.
       const runtimeMaxContext = effectiveMaxContext(ctx, this._maxContext);
-      const budget = computeContextWindowBudget(ctx, tokens, runtimeMaxContext);
+      let budget = computeContextWindowBudget(ctx, tokens, runtimeMaxContext);
       const calibratedLoad = budget.load;
       const policy = this.policyProvider?.(ctx);
       const thresholds = policy?.thresholds ?? {
@@ -315,40 +243,43 @@ export class AutoCompactionMiddleware {
       const aggressiveOn = policy?.aggressiveOn ?? this.aggressiveOn;
       const targetLoad = normalizeTargetLoad(policy?.targetLoad, adaptiveThresholds);
 
-      // ── Never-undercount send guard ──────────────────────────────────────
-      // The calibrated estimate can under-count dense content (CJK, base64,
-      // minified) by >1.5×, which would let an over-limit request slip past the
-      // thresholds and reach the provider. Once the calibrated load is high
-      // enough that even the max density factor (2.5×) *could* overflow
-      // (load ≥ 1/2.5 = 0.4), re-check with the upper-bound estimator and
-      // escalate the effective load to whichever is larger. Below 0.4 an
-      // overflow is arithmetically impossible, so the extra scan is skipped.
-      let load = calibratedLoad;
-      if (calibratedLoad >= AutoCompactionMiddleware.GUARD_GATE_LOAD) {
-        const guardTotal = estimateRequestTokensUpperBound(
-          ctx.messages,
-          ctx.systemPrompt,
-          ctx.tools ?? [],
-          `${ctx.provider?.id ?? 'unknown'}/${ctx.model}`,
-        ).total;
-        const guardLoad = guardTotal / budget.availableInputTokens;
-        if (guardLoad > load) load = guardLoad;
-      }
+      // Escalate past a calibrated under-count before deciding pressure.
+      let load = this.applySendGuard(ctx, calibratedLoad, budget.availableInputTokens);
 
-      const level: PressureLevel | null =
-        load >= adaptiveThresholds.hard
-          ? 'hard'
-          : load >= adaptiveThresholds.soft
-            ? 'soft'
-            : load >= adaptiveThresholds.warn
-              ? 'warn'
-              : null;
+      let level = pressureLevelFor(load, adaptiveThresholds);
 
       if (!level) {
         // Load dropped back below all thresholds — any previously stuck state
         // is no longer relevant.
         this.lastNoopAttempt = null;
         return next(ctx);
+      }
+
+      // ── Budget hygiene, deliberately infrequent ──────────────────────────
+      // Bounding raw tool I/O and folding old protocol pairs into the digest
+      // both REWRITE already-transmitted history, which costs a full prompt
+      // re-cache. Running them once per turn (the previous behavior) pinned the
+      // provider's cache read at the static system+tools prefix for the rest of
+      // the session. Gating on real pressure plus a growth interval turns that
+      // into one rewrite per interval, leaving history append-only — and the
+      // prompt prefix cacheable — for every turn in between.
+      if (this.shouldRunHygiene(level, tokens, budget.availableInputTokens)) {
+        const changed = this.runHistoryHygiene(ctx);
+        // Anchor the next interval on the post-hygiene size even when nothing
+        // changed, so a session with nothing left to trim does not re-attempt
+        // the full O(n) walk on every subsequent turn.
+        tokens = changed ? this.estimateContextTokens(ctx) : tokens;
+        this.lastHygieneTokens = tokens;
+        if (changed) {
+          budget = computeContextWindowBudget(ctx, tokens, runtimeMaxContext);
+          load = this.applySendGuard(ctx, budget.load, budget.availableInputTokens);
+          const relevelled = pressureLevelFor(load, adaptiveThresholds);
+          if (!relevelled) {
+            this.lastNoopAttempt = null;
+            return next(ctx);
+          }
+          level = relevelled;
+        }
       }
 
       if (this.shouldSkipNoopRetry(level, tokens)) {
@@ -374,6 +305,169 @@ export class AutoCompactionMiddleware {
 
       return next(ctx);
     };
+  }
+
+  /**
+   * Full-request token total for the current context.
+   *
+   * Reuses the last estimate when the context hasn't grown since the previous
+   * check — common in autonomous idle loops. The cached value is invalidated
+   * whenever messages or tools change.
+   *
+   * IMPORTANT: the cache is only valid for the deterministic
+   * `estimateRequestTokensCalibrated` path (messages+system+tools → fixed
+   * output). When a custom `_estimator` is provided (e.g. in tests with a
+   * mutable closure, or a dynamic policy provider), always call it fresh — the
+   * estimator owns its own semantics and the middleware cannot safely cache its
+   * result across calls.
+   */
+  private estimateContextTokens(ctx: Context): number {
+    const msgCount = ctx.messages.length;
+    const toolCount = (ctx.tools ?? []).length;
+    const revision = ctx.state?.revision ?? -1;
+
+    // Prefer the REAL usage anchor: compaction decisions run against the
+    // provider's authoritative prompt-token count (+ the delta of unsent
+    // messages), not a scaled estimate. Only the newest turn is estimated;
+    // everything else is exact. Falls through to the estimate paths before
+    // the first response or right after compaction shrank the array.
+    const anchorAt =
+      typeof ctx.meta?.['realAnchorMsgCount'] === 'number'
+        ? (ctx.meta['realAnchorMsgCount'] as number)
+        : undefined;
+    const anchored = realAnchoredInputTokens(ctx.messages, ctx.lastRealInputTokens, anchorAt);
+    if (anchored !== null) return anchored;
+    // Custom estimator — never cache; call fresh every invocation.
+    if (this._estimator) return this._estimator(ctx);
+    if (
+      msgCount === this._cachedMsgCount &&
+      toolCount === this._cachedToolCount &&
+      revision === this._cachedRevision &&
+      ctx.systemPrompt === this._cachedSystemRef &&
+      ctx.tools === this._cachedToolsRef &&
+      this._cachedTokens >= 0
+    ) {
+      // Default estimator, context unchanged — reuse cached value.
+      return this._cachedTokens;
+    }
+
+    const stashed = this.tryStashedTokens(ctx, msgCount, toolCount, revision);
+    let tokens: number;
+    if (stashed !== null) {
+      // H1: the agent loop's pre-flight (or its restash in emitContextPct)
+      // populated `ctx.lastRequestTokens` this iteration. Apply the
+      // per-(provider,model) calibration ratio and use it. This avoids
+      // a third redundant O(n) walk per iteration.
+      const cal = getCalibrationState(`${ctx.provider?.id ?? 'unknown'}/${ctx.model}`);
+      tokens = cal.calibrated
+        ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
+        : stashed;
+    } else {
+      // Default estimator, context changed and no stash — compute fresh
+      // and cache. Cold-start path: very first iteration, or the
+      // middleware is being driven from somewhere that didn't run the
+      // agent loop's pre-flight (tests, manual compaction trigger).
+      tokens = estimateRequestTokensCalibrated(
+        ctx.messages,
+        ctx.systemPrompt,
+        ctx.tools ?? [],
+        `${ctx.provider?.id ?? 'unknown'}/${ctx.model}`,
+      ).total;
+    }
+    this._cachedTokens = tokens;
+    this._cachedMsgCount = msgCount;
+    this._cachedToolCount = toolCount;
+    this._cachedRevision = revision;
+    this._cachedSystemRef = ctx.systemPrompt;
+    this._cachedToolsRef = ctx.tools;
+    return tokens;
+  }
+
+  /**
+   * Never-undercount send guard.
+   *
+   * The calibrated estimate can under-count dense content (CJK, base64,
+   * minified) by >1.5×, which would let an over-limit request slip past the
+   * thresholds and reach the provider. Once the calibrated load is high enough
+   * that even the max density factor (2.5×) *could* overflow (load ≥ 1/2.5 =
+   * 0.4), re-check with the upper-bound estimator and escalate to whichever
+   * load is larger. Below 0.4 an overflow is arithmetically impossible, so the
+   * extra scan is skipped.
+   */
+  private applySendGuard(
+    ctx: Context,
+    calibratedLoad: number,
+    availableInputTokens: number,
+  ): number {
+    if (calibratedLoad < AutoCompactionMiddleware.GUARD_GATE_LOAD) return calibratedLoad;
+    const guardTotal = estimateRequestTokensUpperBound(
+      ctx.messages,
+      ctx.systemPrompt,
+      ctx.tools ?? [],
+      `${ctx.provider?.id ?? 'unknown'}/${ctx.model}`,
+    ).total;
+    const guardLoad = guardTotal / availableInputTokens;
+    return guardLoad > calibratedLoad ? guardLoad : calibratedLoad;
+  }
+
+  /**
+   * Rewrite acknowledged tool protocol in place.
+   *
+   * Tool results are protocol inputs for the immediately following model
+   * response, not unlimited durable prompt memory. Once a later assistant
+   * message proves the provider consumed them, keep a mode-sized raw window and
+   * replace the rest with semantic head/tail receipts, then fold fully-aged
+   * pairs into the history digest.
+   *
+   * Every one of those edits touches a message the provider has already seen,
+   * so each call costs a full prompt re-cache — it belongs behind
+   * {@link shouldRunHygiene}, never on the per-turn path. Content staleness is
+   * not a reason to bypass that gate: the edit/replace tools guard against
+   * acting on an out-of-date read with their own mtime + sha-256 check.
+   *
+   * @returns whether the conversation was rewritten.
+   */
+  private runHistoryHygiene(ctx: Context): boolean {
+    const raw = eliseAcknowledgedToolResults(ctx.messages, {
+      maxRetainedTokens: this.resolveToolResultRetention(ctx),
+    });
+    const receipts = collapseAcknowledgedToolReceipts(raw.messages, {
+      maxPairs: this.resolveToolReceiptRetention(ctx),
+    });
+    if (!raw.changed && !receipts.changed) return false;
+    ctx.state.replaceMessages(receipts.messages);
+    ctx.clearFileTracking();
+    // Both token stashes describe the pre-hygiene array. Message count can
+    // stay unchanged, so count-based invalidation alone is insufficient.
+    this.invalidateTokenCaches(ctx);
+    return true;
+  }
+
+  /**
+   * Whether the history-rewriting hygiene pass may run this turn.
+   *
+   * Hard pressure always runs it — staying under the window outranks caching.
+   * Otherwise it runs at most once per growth interval, so the conversation
+   * stays append-only (and therefore cacheable by the provider) in between.
+   */
+  private shouldRunHygiene(
+    level: PressureLevel,
+    tokens: number,
+    availableInputTokens: number,
+  ): boolean {
+    if (level === 'hard') return true;
+    const last = this.lastHygieneTokens;
+    if (last === null) return true;
+    // Compaction or a rewind can shrink the context below the last anchor.
+    // Re-anchor on the smaller size instead of banking the drop as growth
+    // that has already been spent.
+    const anchor = Math.min(last, tokens);
+    this.lastHygieneTokens = anchor;
+    const interval = Math.max(
+      AutoCompactionMiddleware.HYGIENE_MIN_GROWTH_TOKENS,
+      Math.floor(availableInputTokens * AutoCompactionMiddleware.HYGIENE_GROWTH_RATIO),
+    );
+    return tokens - anchor >= interval;
   }
 
   /**

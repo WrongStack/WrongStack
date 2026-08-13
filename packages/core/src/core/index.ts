@@ -43,6 +43,7 @@ export {
   type FallbackGateFn,
   type FallbackModelDeps,
   fallbackProfileChain,
+  runtimeFallbackChain,
   smartDefaultFallbackChain,
 } from './fallback-model.js';
 export { FallbackProfileManager } from './fallback-profile-manager.js';

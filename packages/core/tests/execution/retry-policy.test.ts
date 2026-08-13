@@ -1,14 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
+import { DefaultRetryPolicy, MODEL_RETRIES } from '../../src/execution/retry-policy.js';
 import { ProviderError } from '../../src/types/provider.js';
 
 describe('DefaultRetryPolicy', () => {
   const p = new DefaultRetryPolicy();
-  it('429 retries up to 5 attempts', () => {
+  // Every recoverable kind gets the SAME budget, so "how long until another
+  // model is tried?" no longer depends on which error came back. 429 used to
+  // get 5 — each retry honouring a Retry-After of up to 60s — before the
+  // cross-model fallback engine, which runs only after retries are exhausted,
+  // was reached at all.
+  it('429 retries MODEL_RETRIES times, like every other recoverable kind', () => {
     const err = new ProviderError('rate limited', 429, true, 'anthropic');
     expect(p.shouldRetry(err, 0)).toBe(true);
-    expect(p.shouldRetry(err, 4)).toBe(true);
-    expect(p.shouldRetry(err, 5)).toBe(false);
+    expect(p.shouldRetry(err, MODEL_RETRIES - 1)).toBe(true);
+    expect(p.shouldRetry(err, MODEL_RETRIES)).toBe(false);
+  });
+
+  it('gives every recoverable kind the same budget', () => {
+    for (const [message, status] of [
+      ['rate limited', 429],
+      ['overloaded', 529],
+      ['server', 503],
+    ] as const) {
+      expect(p.maxAttempts(new ProviderError(message, status, true, 'x'))).toBe(MODEL_RETRIES);
+    }
+  });
+
+  it('never replays a depleted quota against the same model', () => {
+    // quota_exhausted IS fallback-worthy: skipping the in-place retries hands
+    // the error straight to the chain instead of delaying the hop.
+    const err = new ProviderError('credit balance too low', 402, false, 'x');
+    expect(err.kind).toBe('quota_exhausted');
+    expect(p.maxAttempts(err)).toBe(0);
+    expect(p.shouldRetry(err, 0)).toBe(false);
   });
   it('5xx retries up to 3', () => {
     const err = new ProviderError('server', 503, true, 'x');
@@ -49,9 +73,9 @@ describe('DefaultRetryPolicy', () => {
   });
 
   it('maxAttempts returns expected counts', () => {
-    expect(p.maxAttempts(new ProviderError('', 429, true, 'x'))).toBe(5);
-    expect(p.maxAttempts(new ProviderError('', 529, true, 'x'))).toBe(3);
-    expect(p.maxAttempts(new ProviderError('', 503, true, 'x'))).toBe(3);
+    expect(p.maxAttempts(new ProviderError('', 429, true, 'x'))).toBe(MODEL_RETRIES);
+    expect(p.maxAttempts(new ProviderError('', 529, true, 'x'))).toBe(MODEL_RETRIES);
+    expect(p.maxAttempts(new ProviderError('', 503, true, 'x'))).toBe(MODEL_RETRIES);
     expect(p.maxAttempts(new ProviderError('', 400, true, 'x'))).toBe(0);
     expect(p.maxAttempts(new Error('x'))).toBe(2);
   });

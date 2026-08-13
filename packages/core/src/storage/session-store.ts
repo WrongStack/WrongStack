@@ -63,6 +63,7 @@ import {
 import { pruneSessionFiles } from './session-store/prune-helpers.js';
 import { searchSessionEvents } from './session-store/search-events.js';
 import { readOrBuildShardManifestEntry } from './session-store/shard-manifest.js';
+import { isStrictlyEmptySessionFile } from './session-store/strict-empty-check.js';
 import { summarizeSessionEvents, summarizeSessionFile } from './session-store/summary-builder.js';
 import { readSessionSummaryHeader } from './session-store/summary-header.js';
 import type {
@@ -1096,6 +1097,11 @@ export class DefaultSessionStore implements SessionStore {
 
     // Write an index tombstone so readIndex() filters this session out.
     await this.writeTombstone(id);
+  }
+
+  async isEmpty(id: string): Promise<boolean> {
+    const canonicalId = await this.resolveId(id);
+    return isStrictlyEmptySessionFile(this.sessionPath(canonicalId, '.jsonl'));
   }
 
   async delete(id: string): Promise<void> {

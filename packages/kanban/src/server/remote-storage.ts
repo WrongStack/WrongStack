@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 
-import { StaleWriteError } from '../manager/lifecycle.js';
+import { StaleWriteError } from '../manager/lifecycle-error.js';
 import { getInstalledKanbanStorageBackend, type KanbanStorageBackend } from '../storage-backend.js';
 import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanEvent } from '../types.js';
 import { getKanbanServerConnection } from './client.js';

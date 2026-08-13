@@ -26,6 +26,7 @@ import {
   validateContextEditorProposal,
 } from './context-editor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
+import { deleteWebUISession } from './session-deletion.js';
 import { buildInspectPayload, toSessionHistoryEntries } from './session-history.js';
 import type { SessionRouteHandlers } from './session-routes.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
@@ -568,22 +569,21 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     deleteSession: async (ws, msg) => {
       const { id } = (msg as { payload: { id: string } }).payload;
       try {
-        if (id === ctx.getSession().id) {
-          result(ws, false, 'Cannot delete the active session');
-          return;
-        }
-        const store = ctx.getSessionStore();
-        await store.delete(id);
+        await deleteWebUISession(
+          {
+            getActiveSessionId: () => ctx.getSession().id,
+            getSessionStore: ctx.getSessionStore,
+            refreshSessions: async () => {
+              const list = await ctx.getSessionStore().list(200);
+              broadcastToAll({
+                type: 'sessions.list',
+                payload: { sessions: toSessionHistoryEntries(list, ctx.getSession().id) },
+              });
+            },
+          },
+          id,
+        );
         result(ws, true, `Session ${id} deleted`);
-        try {
-          const list = await store.list(200);
-          broadcastToAll({
-            type: 'sessions.list',
-            payload: { sessions: toSessionHistoryEntries(list, ctx.getSession().id) },
-          });
-        } catch {
-          // The delete succeeded; a transient refresh failure must not reverse its result.
-        }
       } catch (err) {
         result(ws, false, errMessage(err));
       }

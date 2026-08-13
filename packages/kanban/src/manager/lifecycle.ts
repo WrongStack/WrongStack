@@ -35,6 +35,7 @@ export {
   KanbanLifecycleError,
   LIFECYCLE_ISSUES_PREFIX,
   LIFECYCLE_ISSUES_SUFFIX,
+  STALE_WRITE_PREFIX,
   stripLifecycleIssues,
 } from './lifecycle-error.js';
 
@@ -53,16 +54,6 @@ const STATUS_BY_STAGE: Readonly<Record<KanbanLifecycleStage, KanbanTaskStatus>> 
   review: 'review',
   done: 'completed',
 };
-
-/**
- * Shared prefix for StaleWriteError messages constructed by the local storage
- * backends (SqliteKanbanStorage, file-legacy storage.ts). The prefix ensures
- * error messages are recognisable in logs and test assertions, but callers
- * should use `instanceof StaleWriteError` for local detection or
- * `error.code === 'STALE_WRITE'` when the error has crossed IPC serialization
- * (see remote-storage.ts and project-server.ts).
- */
-export const STALE_WRITE_PREFIX = 'Stale write detected' as const;
 
 /**
  * Re-export. `StaleWriteError` moved to `lifecycle-error.ts` so the IPC client

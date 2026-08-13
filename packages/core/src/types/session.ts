@@ -533,6 +533,13 @@ export interface SessionStore {
    * Returns the refreshed summary. Throws if the session does not exist.
    */
   rename(id: string, name: string): Promise<SessionSummary>;
+  /**
+   * Return true only when the persisted journal is strictly readable and
+   * contains lifecycle envelope events but no messages or other session content.
+   * Implementations should fail closed (false) for malformed or unknown events.
+   * Optional stores that cannot make this guarantee must omit the method.
+   */
+  isEmpty?(id: string): Promise<boolean>;
   delete(id: string): Promise<void>;
   /**
    * Rewrite the session JSONL file to contain only a fresh session_start

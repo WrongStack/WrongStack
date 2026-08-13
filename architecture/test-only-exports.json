@@ -190,6 +190,7 @@
     "packages/cli/src/mcp-serve.ts": [
       "loadSelectedMcpServeContent",
       "makeServeContext",
+      "resolveServeFsRestriction",
       "selectExposedTools"
     ],
     "packages/cli/src/next-task-predictor.ts": [

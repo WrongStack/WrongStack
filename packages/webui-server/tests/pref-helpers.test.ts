@@ -47,7 +47,9 @@ describe('WebUI preference persistence helpers', () => {
   }
 
   it('snapshots only preference keys that are present', () => {
-    expect(prefSnapshot({ yolo: false, uiLocale: 'tr', unrelated: true })).toEqual({
+    expect(
+      prefSnapshot({ yolo: false, uiLocale: 'tr', hqToken: 'secret', unrelated: true }),
+    ).toEqual({
       yolo: false,
       uiLocale: 'tr',
     });

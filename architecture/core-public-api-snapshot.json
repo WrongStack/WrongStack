@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.306.3",
+  "packageVersion": "0.306.4",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -104,7 +104,7 @@
         "export { compactLog, type FileAuthorEntry, type FileAuthorLog, type FileAuthorTrackerOptions, getFileHistory, getFilesByAgent, getFullLog, getLastAuthor, recordFileAction, } from './coordination/file-author-tracker.js';",
         "export { countShellHooks, HookRegistry, type HookRunEnv, HookRunner, type HookRunnerOptions, hookMatcherMatches, type PreToolUseResult, type PromptResult, runShellHook, type ShellHookSpec, shellHooksEqual, } from './hooks/index.js';",
         "export { createCloudConfigSyncPlugin } from './plugins/cloud-config-sync-plugin.js';",
-        "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackModelDeps, fallbackProfileChain, formatModelRef, normalizeModelRef, parseModelRef, smartDefaultFallbackChain, } from './core/fallback-model.js';",
+        "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackModelDeps, fallbackProfileChain, formatModelRef, normalizeModelRef, parseModelRef, runtimeFallbackChain, smartDefaultFallbackChain, } from './core/fallback-model.js';",
         "export { createMcpControlTool, type MCPRegistryHandle } from './tools/mcp-control.js';",
         "export { createMcpUseTool } from './tools/mcp-use.js';",
         "export { createPromptsPlugin } from './plugins/prompts-plugin.js';",
@@ -198,7 +198,7 @@
         "export { InputBuilder, type InputBuilderEvent, type InputBuilderOptions, } from './input-builder.js';",
         "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, setBtwNote, } from './btw.js';",
         "export { clearPendingNextSteps, hasNextStepsTag, MAX_PENDING_NEXT_STEPS, maybeAppendPendingNextSteps, type PendingNextStep, readPendingNextSteps, renderNextStepsBlock, writePendingNextSteps, } from './next-steps-slot.js';",
-        "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackGateFn, type FallbackModelDeps, fallbackProfileChain, smartDefaultFallbackChain, } from './fallback-model.js';",
+        "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackGateFn, type FallbackModelDeps, fallbackProfileChain, runtimeFallbackChain, smartDefaultFallbackChain, } from './fallback-model.js';",
         "export { formatModelRef, type ModelRef, normalizeModelRef, parseModelRef, } from './model-ref.js';",
         "export { runProviderWithRetry } from './provider-runner.js';",
         "export { setQueuedMessagesSnapshot } from './queued-messages.js';",
@@ -546,7 +546,7 @@
         "export { COUNCIL_REFUSAL_OPTION_ID, CouncilOrchestrator, type CouncilOrchestratorOptions, DEFAULT_COUNCIL_MAX_CONCURRENCY, MAX_COUNCIL_CONCURRENCY, } from './council-orchestrator.js';",
         "export { COUNCIL_REFUSE_OPTION_ID, type CouncilBrainOptions, type CouncilVoter, createCouncilBrainArbiter, } from './council-brain.js';",
         "export { DefaultPromptLoader, type PromptLoaderOptions, renderPrompt } from './prompt-loader.js';",
-        "export { DefaultRetryPolicy } from './retry-policy.js';",
+        "export { DefaultRetryPolicy, MODEL_RETRIES } from './retry-policy.js';",
         "export { DefaultSkillLoader, type SkillLoaderOptions } from './skill-loader.js';",
         "export { EternalAutonomyEngine, type EternalAutonomyOptions, type EternalEngineState, type IterationStage, } from './eternal-autonomy.js';",
         "export { IntelligentCompactor, type IntelligentCompactorOptions } from './intelligent-compactor.js';",
@@ -1146,7 +1146,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10702
+      "sourceLines": 10864
     },
     {
       "directory": "defaults",
@@ -1167,7 +1167,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 52,
-      "sourceLines": 18323
+      "sourceLines": 18463
     },
     {
       "directory": "extension",
@@ -1299,8 +1299,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 77,
-      "sourceLines": 18066
+      "sourceFiles": 78,
+      "sourceLines": 18146
     },
     {
       "directory": "tasking",
@@ -1321,7 +1321,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10438
+      "sourceLines": 10459
     },
     {
       "directory": "utils",

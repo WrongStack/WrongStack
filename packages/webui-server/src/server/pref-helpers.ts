@@ -54,7 +54,6 @@ export const PREF_KEYS = [
   'auditLevel',
   'hqEnabled',
   'hqUrl',
-  'hqToken',
   'hqRawContent',
   'tgConfigured',
   'tgSessionEnd',
