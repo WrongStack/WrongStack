@@ -102,3 +102,81 @@ describe('agentPrompt overlay fingerprint', () => {
     }
   });
 });
+
+/**
+ * B3 regression: the tech-version policy body was memoized in a single
+ * module-level `let`, so changing `WRONGSTACK_AGENT_INSTRUCTIONS_DIR` did
+ * not re-resolve the policy — and the candidate list never included the
+ * override dir, so `_policy/tech-version.md` placed there was invisible.
+ * The memo is now keyed by env-dir, and both candidate lists include the
+ * override dir when set.
+ */
+describe('agentPrompt tech-version policy env-dir (B3)', () => {
+  let overrideDir: string;
+  let savedInstructionsDir: string | undefined;
+  let savedPolicy: string | undefined;
+
+  beforeEach(() => {
+    overrideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wrongstack-b3-policy-'));
+    savedInstructionsDir = process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'];
+    savedPolicy = process.env['WRONGSTACK_AGENT_POLICY'];
+    process.env['WRONGSTACK_AGENT_POLICY'] = 'on';
+    delete process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'];
+  });
+
+  afterEach(() => {
+    if (savedInstructionsDir === undefined) delete process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'];
+    else process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'] = savedInstructionsDir;
+    if (savedPolicy === undefined) delete process.env['WRONGSTACK_AGENT_POLICY'];
+    else process.env['WRONGSTACK_AGENT_POLICY'] = savedPolicy;
+    fs.rmSync(overrideDir, { recursive: true, force: true });
+  });
+
+  it('resolves the policy from the override dir when WRONGSTACK_AGENT_INSTRUCTIONS_DIR is set', () => {
+    const policyDir = path.join(overrideDir, '_policy');
+    fs.mkdirSync(policyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(policyDir, 'tech-version.md'),
+      '# Override Policy\n\nAlways use Rust.',
+    );
+
+    process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'] = overrideDir;
+
+    // The sentinel key returns just the policy body, bypassing the base
+    // prompt resolution so the assertion is isolated to the policy layer.
+    const prompt = agentPrompt('\u0000__tech_version_policy__');
+    expect(prompt).toContain('Override Policy');
+    expect(prompt).toContain('Always use Rust.');
+    expect(prompt).not.toContain('Mandatory modern technology policy');
+  });
+
+  it('falls back to the inline policy when the override dir has no tech-version.md', () => {
+    // Empty override dir → policy is not found there, falls back.
+    process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'] = overrideDir;
+
+    const prompt = agentPrompt('\u0000__tech_version_policy__');
+    expect(prompt).toContain('Mandatory modern technology policy');
+    expect(prompt).not.toContain('Override Policy');
+  });
+
+  it('invalidates the cached policy body when WRONGSTACK_AGENT_INSTRUCTIONS_DIR changes', () => {
+    // First: no override → inline policy cached under key ''
+    const inlinePrompt = agentPrompt('\u0000__tech_version_policy__');
+    expect(inlinePrompt).toContain('Mandatory modern technology policy');
+
+    // Now set the override dir with a custom policy
+    const policyDir = path.join(overrideDir, '_policy');
+    fs.mkdirSync(policyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(policyDir, 'tech-version.md'),
+      '# Override Policy\n\nAlways use Rust.',
+    );
+    process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'] = overrideDir;
+
+    // Same process — the env-dir-keyed memo must serve the new body, not the
+    // stale one cached under the empty key.
+    const overridePrompt = agentPrompt('\u0000__tech_version_policy__');
+    expect(overridePrompt).toContain('Override Policy');
+    expect(overridePrompt).not.toContain('Mandatory modern technology policy');
+  });
+});

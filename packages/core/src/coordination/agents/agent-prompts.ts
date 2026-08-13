@@ -32,12 +32,18 @@ const candidateCache = new Map<string, string[]>();
 
 /**
  * Mandatory modern technology policy that every built-in roster agent
- * inherits. Read at most once per process (memoized in `promptCache`) and
- * prepended to each role's base prompt so the rule travels with the persona.
+ * inherits. Memoized per env-dir and prepended to each role's base prompt
+ * so the rule travels with the persona.
  */
 const TECH_VERSION_POLICY_KEY = '\u0000__tech_version_policy__';
 
-let techVersionPolicyBody: string | undefined;
+/**
+ * Cache of resolved policy body keyed by env-dir. The policy file lives on
+ * disk and can be overridden via `WRONGSTACK_AGENT_INSTRUCTIONS_DIR`, so the
+ * memo must invalidate when the env var changes — a single module-level
+ * `let` would serve the first-resolved body forever.
+ */
+const techVersionPolicyCache = new Map<string, string>();
 
 const INLINE_TECH_VERSION_POLICY = `# Mandatory modern technology policy
 
@@ -106,16 +112,20 @@ package you use. The latest stable is preferred; the latest *published* is
     propose a real, maintained alternative.`;
 
 function loadTechVersionPolicy(): string {
-  if (techVersionPolicyBody !== undefined) return techVersionPolicyBody;
-  const fromDisk = policyBody();
-  techVersionPolicyBody = fromDisk || INLINE_TECH_VERSION_POLICY;
-  return techVersionPolicyBody;
+  const envDir = process.env['WRONGSTACK_AGENT_INSTRUCTIONS_DIR'] ?? '';
+  const cached = techVersionPolicyCache.get(envDir);
+  if (cached !== undefined) return cached;
+  const fromDisk = policyBody(envDir);
+  const body = fromDisk || INLINE_TECH_VERSION_POLICY;
+  techVersionPolicyCache.set(envDir, body);
+  return body;
 }
 
-function policyCandidateDirs(): string[] {
+function policyCandidateDirs(envDir: string): string[] {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const profileInstructions = resolveWstackPaths({ projectRoot: process.cwd() }).globalInstructions;
   return [
+    ...(envDir ? [path.resolve(envDir)] : []),
     path.resolve(here, '../../../../instructions/agents'),
     path.resolve(here, '../../../instructions/agents'),
     path.resolve(here, '../../instructions/agents'),
@@ -126,7 +136,7 @@ function policyCandidateDirs(): string[] {
   ].filter((dir, index, all) => all.indexOf(dir) === index);
 }
 
-function policyBody(): string {
+function policyBody(envDir: string): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   // Two layouts must resolve:
   //  * source: `packages/core/src/coordination/agents` → `../../instructions/agents/_policy/tech-version.md`
@@ -143,6 +153,11 @@ function policyBody(): string {
     path.resolve(here, '../../../../instructions/agents/_policy/tech-version.md'),
     path.resolve(here, 'instructions/agents/_policy/tech-version.md'),
   ];
+  // When the caller overrides the instructions dir, check there first so
+  // `_policy/tech-version.md` placed in the override takes precedence.
+  if (envDir) {
+    roots.unshift(path.resolve(envDir, '_policy/tech-version.md'));
+  }
   for (const file of roots) {
     try {
       return readFileSync(file, 'utf8').trim();
@@ -150,7 +165,7 @@ function policyBody(): string {
       // try next candidate
     }
   }
-  for (const dir of policyCandidateDirs()) {
+  for (const dir of policyCandidateDirs(envDir)) {
     try {
       return readFileSync(path.join(dir, '_policy', 'tech-version.md'), 'utf8').trim();
     } catch {
