@@ -60,6 +60,13 @@ export class CollaborationWebSocketHandler {
   /** sessionId → participants currently watching it. */
   private readonly bySession = new Map<string, Set<Participant>>();
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Last-broadcast participant-set fingerprint per session. The 2s interval
+   * only re-sends `collab.state` when the fingerprint changed (join/leave),
+   * so an idle session costs one tiny string build per tick instead of a
+   * serialize + fan-out.
+   */
+  private readonly lastStateFingerprints = new Map<string, string>();
   private readonly offs: Array<() => void> = [];
 
   constructor(
@@ -103,10 +110,17 @@ export class CollaborationWebSocketHandler {
   // ── Public API (called by server/index.ts per WS connection) ───────────
 
   addClient(ws: WebSocket): void {
+    if (this.clients.has(ws)) return;
     this.clients.add(ws);
     this.ensureBroadcast();
-    ws.on('close', () => this.handleDisconnect(ws));
-    ws.on('error', () => this.handleDisconnect(ws));
+    const onDisconnect = () => this.handleDisconnect(ws);
+    if (typeof ws.once === 'function') {
+      ws.once('close', onDisconnect);
+      ws.once('error', onDisconnect);
+    } else if (typeof ws.on === 'function') {
+      ws.on('close', onDisconnect);
+      ws.on('error', onDisconnect);
+    }
   }
 
   /** True while at least one collaboration participant is attached to a session. */
@@ -243,7 +257,7 @@ export class CollaborationWebSocketHandler {
         joinedAt: participant.joinedAt,
       },
     });
-    this.broadcast(sessionId, this.stateMessage(sessionId));
+    this.broadcastState(sessionId);
 
     // Replay last N events to give the late joiner historical context.
     // Best-effort: failures are logged and silently ignored — the live
@@ -287,9 +301,10 @@ export class CollaborationWebSocketHandler {
           bucket.delete(p);
           if (bucket.size === 0) {
             this.bySession.delete(sessionId);
+            this.lastStateFingerprints.delete(sessionId);
           } else {
             this.broadcast(sessionId, leftEvent);
-            this.broadcast(sessionId, this.stateMessage(sessionId));
+            this.broadcastState(sessionId);
           }
           break;
         }
@@ -612,11 +627,29 @@ export class CollaborationWebSocketHandler {
     };
   }
 
+  /**
+   * Cheap participant-set identity: participant ids are unique per join and
+   * `joinedAt` distinguishes a rejoin, so the fingerprint changes exactly on
+   * join/leave — the only events that alter `collab.state`.
+   */
+  private stateFingerprint(sessionId: string): string {
+    const bucket = this.bySession.get(sessionId);
+    if (!bucket || bucket.size === 0) return '';
+    return [...bucket].map((p) => `${p.participantId}:${p.joinedAt}`).join('|');
+  }
+
+  private broadcastState(sessionId: string): void {
+    this.broadcast(sessionId, this.stateMessage(sessionId));
+    this.lastStateFingerprints.set(sessionId, this.stateFingerprint(sessionId));
+  }
+
   private ensureBroadcast(): void {
     if (this.broadcastInterval) return;
     this.broadcastInterval = setInterval(() => {
       for (const sessionId of this.bySession.keys()) {
-        this.broadcast(sessionId, this.stateMessage(sessionId));
+        const fingerprint = this.stateFingerprint(sessionId);
+        if (fingerprint === this.lastStateFingerprints.get(sessionId)) continue;
+        this.broadcastState(sessionId);
       }
     }, 2000);
     this.broadcastInterval.unref?.();
@@ -627,6 +660,7 @@ export class CollaborationWebSocketHandler {
       clearInterval(this.broadcastInterval);
       this.broadcastInterval = null;
     }
+    this.lastStateFingerprints.clear();
   }
 
   private broadcast(sessionId: string, msg: WSServerMessage): void {

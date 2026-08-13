@@ -75,6 +75,24 @@ const VALID_AGENT_STATUS = new Set<HqSessionAgentLiveStatus>([
 const MAX_TRANSCRIPT_BATCH_ENTRIES = 32;
 const MAX_TRANSCRIPT_BATCH_BYTES = 512 * 1024;
 
+/**
+ * Mirror of `HQ_STALE_SNAPSHOT_MS` in `cli/src/hq-server/snapshot.ts`. Core
+ * sits below cli in the dependency graph, so it cannot import the constant —
+ * keep the two in lockstep when the eviction window moves.
+ */
+const HQ_STALE_SNAPSHOT_WINDOW_MS = 5 * 60_000;
+
+/**
+ * HQ evicts session snapshots not refreshed within `HQ_STALE_SNAPSHOT_MS`
+ * (5 minutes, `cli/src/hq-server/snapshot.ts`). The heartbeat tick normally
+ * goes through the dedup hash in `publishSnapshot`, but forces a republish at
+ * this cadence so a fully idle session keeps refreshing `receivedAt` and is
+ * never evicted. Derived as 80% of the eviction window — a full minute of
+ * margin against missed ticks, scheduler stalls, or transient publisher
+ * failures.
+ */
+const KEEPALIVE_REPUBLISH_MS = Math.floor(HQ_STALE_SNAPSHOT_WINDOW_MS * 0.8);
+
 function toAgentSummary(a: TrackedAgentSnapshot): HqSessionAgentSummary {
   const status = (
     VALID_AGENT_STATUS.has(a.status as HqSessionAgentLiveStatus) ? a.status : 'idle'
@@ -128,6 +146,7 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
     startedAt,
   );
   let lastSnapshotHash = '';
+  let lastPublishedAtMs = Date.now();
   let disposed = false;
 
   function buildSnapshot(): HqSessionSnapshotPayload {
@@ -159,6 +178,9 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
     lastSnapshotHash = hash;
     try {
       publisher.publishSessionSnapshot(snap);
+      // Refreshed on successful publish only — a failed publish keeps the
+      // keep-alive deadline armed so the next tick retries.
+      lastPublishedAtMs = Date.now();
     } catch {
       /* best-effort */
     }
@@ -261,7 +283,12 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
   // when the tail path is skipped (writer subscription active).
   let watcher: fs.FSWatcher | null = null;
   let tailTimer: ReturnType<typeof setTimeout> | null = null;
-  const snapshotTimer = setInterval(() => publishSnapshot(true), opts.snapshotIntervalMs ?? 2500);
+  const snapshotTimer = setInterval(() => {
+    // Normal ticks go through the dedup hash; force only the keep-alive
+    // republish so an idle session keeps refreshing HQ's `receivedAt` and
+    // survives the stale-snapshot eviction.
+    publishSnapshot(Date.now() - lastPublishedAtMs >= KEEPALIVE_REPUBLISH_MS);
+  }, opts.snapshotIntervalMs ?? 2500);
   snapshotTimer.unref?.();
 
   // ── Transcript tail (only when no direct writer subscription) ──────────────

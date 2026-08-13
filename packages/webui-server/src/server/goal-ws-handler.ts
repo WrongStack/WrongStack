@@ -79,6 +79,14 @@ export class GoalWebSocketHandler {
   private store: PhaseStore;
   private clients = new Set<WSClient>();
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Change-detection state for the 2s broadcast tick: a cheap content
+   * fingerprint of the graph and the last serialized progress payload, so an
+   * idle run costs one small string build per tick instead of a full
+   * buildState + serialize + fan-out every 2 seconds.
+   */
+  private lastGraphFingerprint = '';
+  private lastProgressJson = '';
   /** Aborts in-flight task agents AND the planning turn when the run is stopped. */
   private abort: AbortController | null = null;
   /** Per-assessment AbortController so a newer assessment can abort the prior
@@ -794,8 +802,19 @@ export class GoalWebSocketHandler {
     if (this.broadcastInterval) return;
     this.broadcastInterval = setInterval(() => {
       const progress = this.orchestrator?.getProgress();
-      if (progress) this.broadcast({ type: 'goal.progress', payload: progress });
-      this.broadcastState();
+      if (progress) {
+        const progressJson = JSON.stringify(progress);
+        if (progressJson !== this.lastProgressJson) {
+          this.lastProgressJson = progressJson;
+          this.broadcast({ type: 'goal.progress', payload: progress });
+        }
+      }
+      // Change detection: real graph mutations broadcast immediately through
+      // their own broadcastState calls; the tick only resyncs when content
+      // moved without one. An idle run skips buildState + serialize +
+      // fan-out entirely.
+      const fingerprint = this.graphFingerprint();
+      if (fingerprint !== this.lastGraphFingerprint) this.broadcastState();
     }, 2000);
     this.broadcastInterval.unref?.();
   }
@@ -823,6 +842,34 @@ export class GoalWebSocketHandler {
         );
       }
     }
+    // Record what clients now have so the tick's change detection does not
+    // immediately re-broadcast the same content.
+    this.lastGraphFingerprint = this.graphFingerprint();
+  }
+
+  /**
+   * Cheap content fingerprint covering exactly what `buildState` renders:
+   * graph identity/flags plus per-phase status, timestamps, assignees, and
+   * task status counts with the newest task update. Any mutation that would
+   * change the projection changes this string, so the 2s tick can skip the
+   * full buildState + serialize + fan-out while the graph is idle.
+   */
+  private graphFingerprint(): string {
+    const g = this.graph;
+    if (!g) return '';
+    let fp = `${g.title}|${g.autonomous}|${g.updatedAt ?? 0}|${g.phases.size}`;
+    for (const p of g.phases.values()) {
+      let completed = 0;
+      let failed = 0;
+      let newestTaskAt = 0;
+      for (const t of p.taskGraph.nodes.values()) {
+        if (t.status === 'completed') completed++;
+        else if (t.status === 'failed') failed++;
+        if ((t.updatedAt ?? 0) > newestTaskAt) newestTaskAt = t.updatedAt ?? 0;
+      }
+      fp += `|${p.id}:${p.status}:${p.updatedAt ?? 0}:${(p.assignedAgents ?? []).join(',')}:${p.taskGraph.nodes.size}:${completed}:${failed}:${newestTaskAt}`;
+    }
+    return fp;
   }
 
   private buildState(activePhaseId?: string): Record<string, unknown> {

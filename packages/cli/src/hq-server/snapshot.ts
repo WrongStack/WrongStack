@@ -90,11 +90,12 @@ export function sendGuarded(ws: WebSocket, data: string): boolean {
  * That is both retained memory and, worse, permanent weight in every
  * `buildSnapshot()` broadcast to every browser.
  *
- * A live session republishes unconditionally every 2.5s (`session-bridge.ts`
- * forces the snapshot on a timer, bypassing its own dedupe hash), so
- * `receivedAt` is a true liveness signal rather than a change signal. Five
- * minutes is 120 consecutive missed publishes — far past any GC pause,
- * scheduler stall, or transient hiccup, so this never evicts a live session.
+ * A live session refreshes `receivedAt` with every changed snapshot, and
+ * `session-bridge.ts` additionally forces a keep-alive republish every
+ * 4 minutes when nothing changed (well inside this window), so `receivedAt`
+ * is a true liveness signal rather than a change signal. Five minutes is
+ * far past any GC pause, scheduler stall, or transient hiccup — and beyond
+ * the keep-alive cadence — so this never evicts a live session.
  */
 export const HQ_STALE_SNAPSHOT_MS = 5 * 60_000;
 

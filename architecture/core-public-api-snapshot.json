@@ -1139,14 +1139,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 152,
-      "sourceLines": 45810
+      "sourceLines": 45890
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10864
+      "sourceLines": 10883
     },
     {
       "directory": "defaults",
@@ -1195,7 +1195,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8774
+      "sourceLines": 8801
     },
     {
       "directory": "infrastructure",
@@ -1279,7 +1279,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 18,
-      "sourceLines": 6099
+      "sourceLines": 6195
     },
     {
       "directory": "session-catalog",

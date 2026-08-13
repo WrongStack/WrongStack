@@ -57,6 +57,14 @@ const CONTROL_TYPES = new Set([
  */
 const LIFECYCLE_TYPES = new Set<SddLifecycleOp>(['cleanup_worktrees', 'rollback', 'destroy']);
 
+/**
+ * Standalone polling cadence for the SDD board snapshot. Each tick probes the
+ * cheap store index first (see `hasNewerSnapshot`) and only loads the full
+ * snapshot when something actually changed, so 5s keeps the board feeling
+ * live without paying a full snapshot read + parse every second.
+ */
+const POLL_INTERVAL_MS = 5_000;
+
 /** Project paths the handler needs to apply lifecycle ops directly. */
 export interface SddBoardLifecycleDeps {
   projectRoot: string;
@@ -306,6 +314,9 @@ export class SddBoardWebSocketHandler {
     if (this.pollInFlight) return;
     this.pollInFlight = true;
     try {
+      // Cheap freshness probe first: an unchanged board costs one small index
+      // read instead of a full snapshot load + parse per tick.
+      if (!(await this.hasNewerSnapshot())) return;
       const snap = await this.loadLatestSnapshot();
       if (this.disposed) return;
       if (!snap) return;
@@ -331,9 +342,32 @@ export class SddBoardWebSocketHandler {
     }
   }
 
+  /**
+   * Cheap freshness probe used before the full snapshot load. In kanban mode
+   * the workflow-state listing IS the snapshot payload (no cheaper probe
+   * exists), so fall through to the load — the post-load `updatedAt` guard
+   * still dedups the broadcast. In legacy-file mode the store index carries
+   * per-run `updatedAt`, letting an unchanged board skip the snapshot file
+   * entirely. Probe failures fall through to the load path.
+   */
+  private async hasNewerSnapshot(): Promise<boolean> {
+    if (this.usesKanbanState()) return true;
+    try {
+      const entry = await this.store.latest();
+      if (!entry) return false;
+      return !(
+        this.latest &&
+        this.latest.runId === entry.runId &&
+        this.latest.updatedAt >= entry.updatedAt
+      );
+    } catch {
+      return true;
+    }
+  }
+
   private startPolling(): void {
     if (!this.standalonePollingEnabled || this.poll !== null || this.clients.size === 0) return;
-    this.poll = setInterval(() => void this.pollLatest(), 1000);
+    this.poll = setInterval(() => void this.pollLatest(), POLL_INTERVAL_MS);
     this.poll.unref?.();
   }
 

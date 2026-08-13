@@ -38,6 +38,13 @@ export class WorktreeWebSocketHandler {
   private readonly clients = new Set<WebSocket>();
   private readonly handles = new Map<string, WorktreeHandleView>();
   private baseBranch = '';
+  /**
+   * Change-detection pair for the 2s resync interval: every state mutation
+   * bumps `stateVersion`, every broadcast records it in `broadcastVersion`,
+   * so the interval only re-sends when something actually changed.
+   */
+  private stateVersion = 0;
+  private broadcastVersion = 0;
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
   private readonly offs: Array<() => void> = [];
   /**
@@ -254,9 +261,14 @@ export class WorktreeWebSocketHandler {
       return;
     }
     // Drop any kept-for-review handles we held — their checkouts are gone now.
+    let removedHandles = 0;
     for (const [id, h] of [...this.handles]) {
-      if (!ACTIVE_STATUSES.has(h.status)) this.handles.delete(id);
+      if (!ACTIVE_STATUSES.has(h.status)) {
+        this.handles.delete(id);
+        removedHandles++;
+      }
     }
+    if (removedHandles > 0) this.stateVersion++;
     this.broadcast({
       type: 'worktree.cleanup_result',
       payload: { ok: true, removed: res.removed },
@@ -308,10 +320,14 @@ export class WorktreeWebSocketHandler {
       ({ removed } = await wt.removeOne(dir, branch));
     }
     // Drop our handle for this branch/dir.
+    let removedMatching = 0;
     for (const [id, h] of [...this.handles]) {
-      if ((branch && h.branch === branch) || (dir && h.handleId && dir.endsWith(h.handleId)))
+      if ((branch && h.branch === branch) || (dir && h.handleId && dir.endsWith(h.handleId))) {
         this.handles.delete(id);
+        removedMatching++;
+      }
     }
+    if (removedMatching > 0) this.stateVersion++;
     this.broadcast({
       type: 'worktree.cleanup_result',
       payload: {
@@ -395,7 +411,10 @@ export class WorktreeWebSocketHandler {
           branch: string;
           baseBranch: string;
         };
-        this.baseBranch = e.baseBranch || this.baseBranch;
+        if (e.baseBranch && e.baseBranch !== this.baseBranch) {
+          this.baseBranch = e.baseBranch;
+          this.stateVersion++;
+        }
         this.upsert(e.handleId, {
           handleId: e.handleId,
           ownerId: e.ownerId,
@@ -452,7 +471,10 @@ export class WorktreeWebSocketHandler {
       }),
       on('worktree.released', (p) => {
         const e = p as { handleId: string; kept: boolean };
-        if (!e.kept) this.handles.delete(e.handleId);
+        if (!e.kept) {
+          this.handles.delete(e.handleId);
+          this.stateVersion++;
+        }
         this.activity(e.handleId, 'released', e.kept ? 'kept for review' : 'removed');
         if (this.handles.size === 0) this.stopBroadcast();
         else this.broadcastState();
@@ -462,12 +484,14 @@ export class WorktreeWebSocketHandler {
 
   private upsert(id: string, view: WorktreeHandleView): void {
     this.handles.set(id, view);
+    this.stateVersion++;
   }
 
   private patch(id: string, patch: Partial<WorktreeHandleView>): void {
     const cur = this.handles.get(id);
     if (!cur) return;
     this.handles.set(id, { ...cur, ...patch, lastEventAt: Date.now() });
+    this.stateVersion++;
   }
 
   private activity(id: string, kind: string, text: string): void {
@@ -477,6 +501,7 @@ export class WorktreeWebSocketHandler {
         -MAX_ACTIVITY,
       );
       this.handles.set(id, { ...cur, recentActivity });
+      this.stateVersion++;
     }
     this.broadcast({
       type: 'worktree.event',
@@ -493,17 +518,23 @@ export class WorktreeWebSocketHandler {
 
   private broadcastState(): void {
     this.broadcast(this.stateMessage());
+    this.broadcastVersion = this.stateVersion;
   }
 
   private ensureBroadcast(): void {
-    this.broadcast(this.stateMessage());
+    this.broadcastState();
     if (this.broadcastInterval) return;
-    this.broadcastInterval = setInterval(() => this.broadcast(this.stateMessage()), 2000);
+    this.broadcastInterval = setInterval(() => {
+      // Resync safety net: every real mutation broadcasts immediately via
+      // `broadcastState`, so the interval only re-sends when a state change
+      // somehow missed its broadcast.
+      if (this.broadcastVersion !== this.stateVersion) this.broadcastState();
+    }, 2000);
     this.broadcastInterval.unref?.();
   }
 
   private stopBroadcast(): void {
-    this.broadcast(this.stateMessage());
+    this.broadcastState();
     if (this.broadcastInterval) {
       clearInterval(this.broadcastInterval);
       this.broadcastInterval = null;

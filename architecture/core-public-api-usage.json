@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 265,
-      "typeOnly": 212,
+      "files": 266,
+      "typeOnly": 213,
       "runtimeOrMixed": 70
     },
     "@wrongstack/core/agent-catalog": {
@@ -1216,6 +1216,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/codebase-index-tree-sitter-polyglot.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/codebase-index-wal-isolation.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
