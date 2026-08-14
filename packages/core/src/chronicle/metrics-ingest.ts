@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '../utils/atomic-write.js';
 import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
-import { CHRONICLE_SQLITE_FILE, LEGACY_JSONL_MIGRATION_KEY } from './sqlite-journal.js';
+import { CHRONICLE_SQLITE_FILE, LEGACY_JSONL_BOUNDARY_KEY, LEGACY_JSONL_MIGRATION_KEY } from './sqlite-journal.js';
 import type { ChronicleEvent } from './types.js';
 import {
   asString,
@@ -21,6 +21,11 @@ import {
   stringAt,
   type ChronicleMetricsRefreshResult,
 } from './metrics-schema.js';
+
+/** ingest_state sentinel recording a completed projection rebuild. Lives under
+ *  the sqlite: prefix so `pruneOffsets` never mistakes it for a partition file
+ *  and the legacy-progress scan in `needsSqliteRebuild` ignores it. */
+const REBUILD_MARKER_KEY = `${SQLITE_SOURCE_PREFIX}rebuild_done`;
 
 export class ChronicleMetricsIngester {
   constructor(
@@ -47,21 +52,49 @@ export class ChronicleMetricsIngester {
         // No SQLite journal yet — legacy JSONL partitions only.
       }
       const migrated = source !== null && this.legacyJsonlConsumed(source);
-      if (!migrated) {
+      const boundary =
+        migrated && source !== null ? this.loadJsonlBoundary(source) : null;
+      const rebuilt = migrated && this.needsSqliteRebuild(offsets);
+      if (rebuilt && source !== null) {
+        // One-time repair: the projection may hold pre-migration JSONL counts
+        // that the SQLite fold would double. Wipe and re-derive from the SQLite
+        // journal; families the import quarantined are re-folded from JSONL.
+        this.rebuildFromSqliteJournal(source, result);
+      }
+      // A pre-boundary-feature migration has no boundary row at all — skip the
+      // partitions to preserve the no-double-count guarantee. A boundary row
+      // that is empty means every family was quarantined: fold them from JSONL.
+      if (!migrated || boundary !== null) {
         for (const file of files) {
           const key = normalizeKey(path.relative(this.directory, file));
-          const consumed = offsets.get(key) ?? 0;
-          const ingested = await this.ingestFile(file, key, consumed, result);
+          let base: number;
+          if (!migrated) {
+            base = offsets.get(key) ?? 0;
+          } else if (boundary !== null && boundary.has(key)) {
+            // Migrated file: bytes up to its import boundary are in SQLite —
+            // fold only post-migration appends (the jsonl-store fallback).
+            base = Math.max(offsets.get(key) ?? 0, boundary.get(key)!);
+          } else {
+            // Quarantined or post-migration file — its events live only in
+            // JSONL. After a rebuild the aggregates were wiped, so re-fold
+            // from the start; otherwise continue from the recorded offset.
+            base = rebuilt ? 0 : (offsets.get(key) ?? 0);
+          }
+          const ingested = await this.ingestFile(file, key, base, result);
           if (ingested) result.sourceFiles++;
         }
       }
       this.pruneOffsets(files);
       if (source !== null) {
         try {
-          if (migrated && this.needsSqliteRebuild(offsets)) {
-            this.rebuildFromSqliteJournal(source, result);
-          } else {
-            this.ingestSqliteJournal(source, offsets, result);
+          if (!rebuilt) {
+            this.ingestSqliteJournal(source, offsets, result, false);
+            // A fresh post-migration db has no pre-migration legacy progress,
+            // so the marker would otherwise never be written — and a later
+            // jsonl-store fallback offset would be misread as pre-migration
+            // progress, triggering a destructive rebuild that drops the
+            // fallback event (the pre-wipe in-memory offset skips it).
+            if (migrated) this.ensureRebuildMarker();
           }
         } finally {
           source.close();
@@ -97,6 +130,35 @@ export class ChronicleMetricsIngester {
     }
   }
 
+  /** Per-partition-file JSONL byte offsets recorded by
+   *  `importLegacyChronicleJournal` at import time (keyed by the same relative
+   *  path the fold uses). Files absent from the map were quarantined (or
+   *  created after the migration) — their events live only in JSONL. */
+  private loadJsonlBoundary(source: DatabaseSync): Map<string, number> | null {
+    try {
+      const row = source
+        .prepare('SELECT value FROM chronicle_meta WHERE key = ?')
+        .get(LEGACY_JSONL_BOUNDARY_KEY) as { value?: string } | undefined;
+      if (!row?.value) return null; // pre-boundary-feature migration
+      const parsed = JSON.parse(row.value) as Record<string, number>;
+      return new Map(Object.entries(parsed));
+    } catch {
+      return null;
+    }
+  }
+
+  /** Persist the rebuild sentinel idempotently. Its presence makes
+   *  `needsSqliteRebuild` return false, so post-migration jsonl-store offsets
+   *  are never mistaken for pre-migration progress. */
+  private ensureRebuildMarker(): void {
+    this.db
+      .prepare(
+        'INSERT INTO ingest_state (file, bytes) VALUES (?, ?) ' +
+          'ON CONFLICT(file) DO UPDATE SET bytes = excluded.bytes',
+      )
+      .run(REBUILD_MARKER_KEY, 1);
+  }
+
   /** Upgrade path: `metrics.db` already aggregated the legacy JSONL, then the
    *  one-shot import copied those same events into the SQLite journal. There
    *  is no `sqlite:` cursor yet, so a plain incremental fold would replay the
@@ -105,15 +167,11 @@ export class ChronicleMetricsIngester {
    *  from the SQLite source exactly once — the rebuild writes the cursors and
    *  subsequent refreshes go back to incremental folding. */
   private needsSqliteRebuild(offsets: Map<string, number>): boolean {
-    let hasLegacyProgress = false;
+    if (offsets.has(REBUILD_MARKER_KEY)) return false;
     for (const [key, bytes] of offsets) {
-      if (key.startsWith(SQLITE_SOURCE_PREFIX)) {
-        if (bytes > 0) return false; // sqlite cursor exists — normal incremental
-      } else if (bytes > 0) {
-        hasLegacyProgress = true;
-      }
+      if (!key.startsWith(SQLITE_SOURCE_PREFIX) && bytes > 0) return true;
     }
-    return hasLegacyProgress;
+    return false;
   }
 
   private rebuildFromSqliteJournal(
@@ -126,7 +184,10 @@ export class ChronicleMetricsIngester {
         ' DELETE FROM family_daily; DELETE FROM agent_daily; DELETE FROM logical_request_daily;' +
         ' DELETE FROM file_seen_daily;',
     );
-    this.ingestSqliteJournal(source, new Map(), result);
+    // Propagate failures: the projection is now partial and the marker is not
+    // yet written, so a throw leaves the next refresh re-entering the rebuild.
+    this.ingestSqliteJournal(source, new Map(), result, true);
+    this.ensureRebuildMarker();
   }
 
   private pruneOffsets(existingFiles: string[]): void {
@@ -146,6 +207,7 @@ export class ChronicleMetricsIngester {
     source: DatabaseSync,
     offsets: Map<string, number>,
     result: ChronicleMetricsRefreshResult,
+    propagateErrors: boolean,
   ): void {
     try {
       const days = source.prepare('SELECT DISTINCT day FROM events ORDER BY day').all() as Array<{
@@ -189,8 +251,11 @@ export class ChronicleMetricsIngester {
         }
         if (cursor > from) result.sourceFiles++;
       }
-    } catch {
-      // Best-effort
+    } catch (error) {
+      // Best-effort in the incremental path: the per-day transactions roll
+      // back and the next refresh retries. The rebuild path propagates so a
+      // wiped projection never silently stays partial.
+      if (propagateErrors) throw error;
     }
   }
 

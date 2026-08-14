@@ -6,6 +6,7 @@ import type { ChronicleEvent } from './types.js';
 export const CHRONICLE_SQLITE_FILE = 'chronicle.sqlite';
 export const LEGACY_JSONL_MIGRATION_KEY = 'legacy-jsonl-v1';
 export const LEGACY_JSONL_QUARANTINE_KEY = 'legacy-jsonl-v1:quarantine';
+export const LEGACY_JSONL_BOUNDARY_KEY = 'legacy-jsonl-v1:boundary';
 
 export const SCHEMA_VERSION = 2;
 

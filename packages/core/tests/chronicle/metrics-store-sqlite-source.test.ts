@@ -15,7 +15,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ChronicleMetricsStore, isChronicleMetricsAvailable } from '../../src/chronicle/index.js';
-import { ChronicleSqliteJournal } from '../../src/chronicle/sqlite-journal.js';
+import { loadDatabaseSync } from '../../src/chronicle/metrics-schema.js';
+import { ChronicleSqliteJournal, LEGACY_JSONL_BOUNDARY_KEY } from '../../src/chronicle/sqlite-journal.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
 const dirs: string[] = [];
@@ -152,6 +153,285 @@ describe.skipIf(!isChronicleMetricsAvailable())('metrics store over the SQLite j
     expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
 
     store.close();
+    journal.close();
+  });
+
+  it('keeps folding quarantined JSONL families after the legacy import ran', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-quarantine-'));
+    dirs.push(dir);
+    const today = new Date().toISOString().slice(0, 10);
+    const quarantinedDay = '2026-08-12';
+
+    // The quarantined family exists only in JSONL (its chain broke at import
+    // time, so the import refused it) — it must keep folding even though the
+    // migration marker is set.
+    await writeFile(
+      path.join(dir, `${quarantinedDay}.events.jsonl`),
+      `${JSON.stringify(
+        input({
+          eventType: 'provider.attempt.started',
+          runtime: { providerId: 'anthropic', modelId: 'claude' },
+          outcome: 'started',
+          occurredAt: `${quarantinedDay}T10:00:00.000Z`,
+        }),
+      )}\n`,
+      'utf8',
+    );
+
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    await journal.appendBatch(attempt());
+    journal.markLegacyJournalImported();
+    // The boundary map covers only the imported partition file — the
+    // quarantined day has no entry and stays JSONL-authoritative.
+    journal.recordLegacyJsonlBoundary({ [`${today}.events.jsonl`]: 0 });
+
+    const store = ChronicleMetricsStore.open(dir);
+    const result = await store.refresh();
+    expect(result.ingestedEvents).toBe(3); // 2 from SQLite + 1 quarantined from JSONL
+    expect(store.providerDaily()).toHaveLength(2);
+    store.close();
+    journal.close();
+  });
+
+  it('rebuilds the projection even when sqlite cursors already exist', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-mixed-'));
+    dirs.push(dir);
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Pre-migration phase: JSONL folded into the metrics projection.
+    await writeFile(
+      path.join(dir, `${today}.events.jsonl`),
+      attempt()
+        .map((event) => `${JSON.stringify({ ...event, occurredAt: `${today}T10:00:00.000Z` })}\n`)
+        .join(''),
+      'utf8',
+    );
+    const store = ChronicleMetricsStore.open(dir);
+    await store.refresh();
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
+
+    // Migration + a pre-fix refresh that also folded SQLite (fake sqlite cursor).
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    await journal.appendBatch(attempt());
+    journal.markLegacyJournalImported();
+    const metricsDb = new (loadDatabaseSync())(path.join(dir, 'metrics.db'));
+    metricsDb
+      .prepare('INSERT INTO ingest_state (file, bytes) VALUES (?, ?)')
+      .run(`sqlite:${today}`, 1);
+    metricsDb.close();
+
+    // A positive sqlite cursor must NOT suppress the rebuild: the projection
+    // already holds the pre-migration JSONL counts, so a plain SQLite fold
+    // would double them.
+    await store.refresh();
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
+    store.close();
+    journal.close();
+  });
+
+  it('ingests JSONL appends written after the migration via the jsonl-store fallback', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-fallback-'));
+    dirs.push(dir);
+    const today = new Date().toISOString().slice(0, 10);
+
+    const migratedEvent = input({
+      eventType: 'provider.attempt.started',
+      runtime: { providerId: 'openai', modelId: 'model-a' },
+      outcome: 'started',
+      occurredAt: `${today}T10:00:00.000Z`,
+    });
+    const migratedLine = `${JSON.stringify(migratedEvent)}\n`;
+
+    // The partition holds the migrated event; the journal holds the same
+    // events; the boundary records the partition's size at import time.
+    await writeFile(path.join(dir, `${today}.events.jsonl`), migratedLine, 'utf8');
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    await journal.appendBatch(attempt());
+    journal.markLegacyJournalImported();
+    journal.recordLegacyJsonlBoundary({
+      [`${today}.events.jsonl`]: Buffer.byteLength(migratedLine, 'utf8'),
+    });
+
+    const store = ChronicleMetricsStore.open(dir);
+    await store.refresh();
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
+
+    // The operator switches to the jsonl store: a new event appends beyond the
+    // import boundary and must be folded, not skipped forever.
+    const appendedEvent = input({
+      eventType: 'provider.attempt.started',
+      runtime: { providerId: 'openai', modelId: 'model-a' },
+      outcome: 'started',
+      occurredAt: `${today}T11:00:00.000Z`,
+    });
+    await writeFile(
+      path.join(dir, `${today}.events.jsonl`),
+      migratedLine + `${JSON.stringify(appendedEvent)}\n`,
+      'utf8',
+    );
+
+    const second = await store.refresh();
+    expect(second.ingestedEvents).toBe(1);
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 2, completed: 1 });
+
+    store.close();
+    journal.close();
+  });
+
+  it('folds quarantined families when the boundary row is empty (all families quarantined)', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-all-quarantine-'));
+    dirs.push(dir);
+    const quarantinedDay = '2026-08-12';
+
+    await writeFile(
+      path.join(dir, `${quarantinedDay}.events.jsonl`),
+      `${JSON.stringify(
+        input({
+          eventType: 'provider.attempt.started',
+          runtime: { providerId: 'anthropic', modelId: 'claude' },
+          outcome: 'started',
+          occurredAt: `${quarantinedDay}T10:00:00.000Z`,
+        }),
+      )}\n`,
+      'utf8',
+    );
+
+    // Migration ran but quarantined every family: the marker is set and the
+    // boundary row exists but is EMPTY — the ingester must still fold the
+    // JSONL (a boundary row that is absent would mean a pre-boundary migration
+    // and skip the partitions entirely).
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    journal.markLegacyJournalImported();
+    journal.recordLegacyJsonlBoundary({});
+
+    const store = ChronicleMetricsStore.open(dir);
+    const result = await store.refresh();
+    expect(result.ingestedEvents).toBe(1);
+    expect(store.providerDaily()).toHaveLength(1);
+    store.close();
+    journal.close();
+  });
+
+  it('does not rebuild away a jsonl-store fallback append on a fresh post-migration db', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-fresh-marker-'));
+    dirs.push(dir);
+    const today = new Date().toISOString().slice(0, 10);
+
+    const migratedEvent = input({
+      eventType: 'provider.attempt.started',
+      runtime: { providerId: 'openai', modelId: 'model-a' },
+      outcome: 'started',
+      occurredAt: `${today}T10:00:00.000Z`,
+    });
+    const migratedLine = `${JSON.stringify(migratedEvent)}\n`;
+    await writeFile(path.join(dir, `${today}.events.jsonl`), migratedLine, 'utf8');
+
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    await journal.appendBatch(attempt());
+    journal.markLegacyJournalImported();
+    journal.recordLegacyJsonlBoundary({
+      [`${today}.events.jsonl`]: Buffer.byteLength(migratedLine, 'utf8'),
+    });
+
+    const store = ChronicleMetricsStore.open(dir);
+    await store.refresh(); // fresh db: SQLite fold + rebuild marker
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
+
+    const appendedEvent = input({
+      eventType: 'provider.attempt.started',
+      runtime: { providerId: 'openai', modelId: 'model-a' },
+      outcome: 'started',
+      occurredAt: `${today}T11:00:00.000Z`,
+    });
+    await writeFile(
+      path.join(dir, `${today}.events.jsonl`),
+      migratedLine + `${JSON.stringify(appendedEvent)}\n`,
+      'utf8',
+    );
+    await store.refresh(); // fallback append folded from JSONL
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 2, completed: 1 });
+
+    // Without the marker written after the first post-migration fold, this
+    // third refresh would misread the fallback offset as pre-migration
+    // progress and rebuild — dropping the appended event via the retained
+    // in-memory offset.
+    await store.refresh();
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 2, completed: 1 });
+    store.close();
+    journal.close();
+  });
+
+  it('folds a post-migration append to the active rotation of a rotated family', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-rotated-'));
+    dirs.push(dir);
+    const today = new Date().toISOString().slice(0, 10);
+
+    const started = input({
+      eventType: 'provider.attempt.started',
+      runtime: { providerId: 'openai', modelId: 'model-a' },
+      outcome: 'started',
+      occurredAt: `${today}T10:00:00.000Z`,
+    });
+    const completed = input({
+      eventType: 'provider.attempt.completed',
+      runtime: { providerId: 'openai', modelId: 'model-a' },
+      outcome: 'success',
+      durationNs: '2000000000',
+      attributes: { inputTokens: 10, outputTokens: 5 },
+      occurredAt: `${today}T10:00:01.000Z`,
+    });
+    const baseLine = `${JSON.stringify(started)}\n`;
+    const rotationLine = `${JSON.stringify(completed)}\n`;
+    await writeFile(path.join(dir, `${today}.events.jsonl`), baseLine, 'utf8');
+    await writeFile(path.join(dir, `${today}.events.00001.jsonl`), rotationLine, 'utf8');
+
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    await journal.appendBatch(attempt());
+    journal.markLegacyJournalImported();
+    journal.recordLegacyJsonlBoundary({
+      [`${today}.events.jsonl`]: Buffer.byteLength(baseLine, 'utf8'),
+      [`${today}.events.00001.jsonl`]: Buffer.byteLength(rotationLine, 'utf8'),
+    });
+
+    const store = ChronicleMetricsStore.open(dir);
+    await store.refresh();
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
+
+    // A post-migration append lands on the ACTIVE rotation (.00001). A
+    // family-wide boundary total would over-skip it until it outgrew both files.
+    const appended = input({
+      eventType: 'provider.attempt.started',
+      runtime: { providerId: 'openai', modelId: 'model-a' },
+      outcome: 'started',
+      occurredAt: `${today}T11:00:00.000Z`,
+    });
+    await writeFile(
+      path.join(dir, `${today}.events.00001.jsonl`),
+      rotationLine + `${JSON.stringify(appended)}\n`,
+      'utf8',
+    );
+    await store.refresh();
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 2, completed: 1 });
+    store.close();
+    journal.close();
+  });
+
+  it('merges per-file boundaries across resume runs', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-merge-'));
+    dirs.push(dir);
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    journal.recordLegacyJsonlBoundary({ 'a.events.jsonl': 10 });
+    journal.recordLegacyJsonlBoundary({ 'b.events.jsonl': 20 });
+
+    const db = new (loadDatabaseSync())(path.join(dir, 'chronicle.sqlite'), { readOnly: true });
+    try {
+      const row = db
+        .prepare('SELECT value FROM chronicle_meta WHERE key = ?')
+        .get(LEGACY_JSONL_BOUNDARY_KEY) as { value: string };
+      expect(JSON.parse(row.value)).toEqual({ 'a.events.jsonl': 10, 'b.events.jsonl': 20 });
+    } finally {
+      db.close();
+    }
     journal.close();
   });
 

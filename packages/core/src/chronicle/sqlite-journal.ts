@@ -33,6 +33,7 @@ import {
 } from './sqlite-journal-quota.js';
 import {
   CHRONICLE_SQLITE_FILE,
+  LEGACY_JSONL_BOUNDARY_KEY,
   ensureChronicleSchema,
   LEGACY_JSONL_MIGRATION_KEY,
   LEGACY_JSONL_QUARANTINE_KEY,
@@ -53,6 +54,7 @@ import {
 export {
   CHRONICLE_SQLITE_FILE,
   ChronicleStorageQuotaError,
+  LEGACY_JSONL_BOUNDARY_KEY,
   LEGACY_JSONL_MIGRATION_KEY,
   LEGACY_JSONL_QUARANTINE_KEY,
 };
@@ -599,6 +601,33 @@ export class ChronicleSqliteJournal {
            ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
       )
       .run(LEGACY_JSONL_QUARANTINE_KEY, JSON.stringify(families));
+  }
+
+  /** Record per-partition-file JSONL byte offsets at import time (merged — the
+   *  import persists per family, so a crash mid-run keeps earlier boundaries).
+   *  The metrics ingester folds only bytes beyond these boundaries after the
+   *  migration, so post-migration appends (the jsonl-store fallback) are
+   *  ingested while the migrated bytes are never re-counted. Files absent from
+   *  the map were quarantined (or created post-migration) — their events live
+   *  only in JSONL. */
+  recordLegacyJsonlBoundary(boundary: Record<string, number>): void {
+    let merged = boundary;
+    try {
+      const row = this.db
+        .prepare('SELECT value FROM chronicle_meta WHERE key = ?')
+        .get(LEGACY_JSONL_BOUNDARY_KEY) as { value?: string } | undefined;
+      if (row?.value) {
+        merged = { ...(JSON.parse(row.value) as Record<string, number>), ...boundary };
+      }
+    } catch {
+      // Corrupt or absent — start from the given boundary.
+    }
+    this.db
+      .prepare(
+        `INSERT INTO chronicle_meta (key, value) VALUES (?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      )
+      .run(LEGACY_JSONL_BOUNDARY_KEY, JSON.stringify(merged));
   }
 
   hasImportedDay(day: string): boolean {

@@ -430,7 +430,7 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
       expect(toolFamily).toBeUndefined();
     } finally {
       db.close();
+      store.close();
     }
-    store.close();
   });
 });

@@ -96,6 +96,7 @@ export async function importLegacyChronicleJournal(
 
   const families = await discoverFamilies(directory);
   const quarantined: ChronicleQuarantinedFamily[] = [];
+  const boundary: Record<string, number> = {};
   let importedEvents = 0;
   let importedFamilies = 0;
 
@@ -127,6 +128,11 @@ export async function importLegacyChronicleJournal(
         let previousHash = checkpoint?.hash ?? GENESIS_HASH;
 
         for (const partition of await collectPartitions(basePath)) {
+          // Per-file boundary: the metrics ingester folds only post-migration
+          // appends beyond each partition's own import-time size. A family-wide
+          // total would over-skip the active rotation after a rotation.
+          boundary[path.relative(directory, partition).replaceAll('\\', '/')] =
+            (await fs.stat(partition)).size;
           for await (const event of streamEntriesStrict(partition)) {
             if (event.sequence !== expectedSequence) {
               throw new ChronicleImportError(
@@ -168,9 +174,17 @@ export async function importLegacyChronicleJournal(
 
     if (familyEvents > 0) importedFamilies += 1;
     importedEvents += familyEvents;
+    // Persist as the family commits: a crash after this family (resume) keeps
+    // its boundary instead of folding it from both SQLite and JSONL later.
+    journal.recordLegacyJsonlBoundary(boundary);
   }
 
   journal.recordQuarantinedFamilies(quarantined);
+  // Always persist the boundary row — even when every family was quarantined —
+  // so the metrics ingester can tell a boundary-recording migration (empty row
+  // → fold quarantined families from JSONL) from a pre-boundary-feature one
+  // (no row → skip the partitions entirely).
+  journal.recordLegacyJsonlBoundary(boundary);
   journal.markLegacyJournalImported();
 
   return {
