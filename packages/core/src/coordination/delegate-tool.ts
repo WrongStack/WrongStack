@@ -233,13 +233,27 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
       // `spawn_subagent` + `assign_task` are the correct path for
       // long-running work and must not stop with a partial checkpoint
       // before they actually finish.
+      //
+      // IMPORTANT: do NOT prepend this preface to `i.task` before passing
+      // it to `dir.assign({ description })`. `TaskSpec.description` is the
+      // canonical brief delivered to the runner; tests and downstream
+      // consumers (e.g. `buildHandoffTask` -> `Original task:`) rely on
+      // it being exactly what the leader passed. Inject the preface into
+      // the subagent prompt layer instead via `systemPromptOverride`,
+      // which composes last and wins on conflict (see
+      // director-prompts.ts:111-114) without rewriting the description.
       const launchModePreface = [
-        'You were launched via the synchronous `delegate` tool, so the leader is blocked on this call for the full duration of your run.',
+        'Launch-mode guidance (delegate): you were launched via the synchronous `delegate` tool, so the leader is blocked on this call for the full duration of your run.',
         'If, after inspecting the task, you judge it will run for tens of minutes or hours (multi-file refactor, monorepo audit, long-running build/test, sweeping migration), do NOT silently grind through it under the blocking call.',
-        'Send `mail_send` to the leader (type `steer` or `ask`, e.g. *"my task is going to run long, please spawn a subagent instead"*) so they can re-dispatch asynchronously via `spawn_subagent` + `assign_task`, then return a clean checkpoint with `completion:"partial"` and a concrete `remaining_work`.',
+        'Escalate to the leader using whatever mail-style tool your role exposes — `mail_send` if available, otherwise `mailbox action=send` (some inspect-only roles expose `mailbox` rather than `mail_send`). Send a `steer` or `ask`, e.g. *"my task is going to run long, please spawn a subagent instead"*, so the leader can re-dispatch asynchronously via `spawn_subagent` + `assign_task`.',
+        'Then return a clean checkpoint with `completion:"partial"` and a concrete `remaining_work`.',
         'If the task is short and bounded, just do it end-to-end — do not over-trigger the escalation for normal work.',
-      ].join(' ');
-      const firstAttemptTask = `${launchModePreface}\n\n---\n\nTask:\n${i.task}`;
+      ].join('\n\n');
+      // The preface above is delivered to the worker through
+      // `systemPromptOverride` on the first attempt only (see the
+      // `attemptConfig.systemPromptOverride` wiring below). `delegatedTask`
+      // is declared inside the loop below and starts equal to `i.task`,
+      // so `TaskSpec.description` stays faithful to the leader's brief.
 
       try {
         let director = await opts.host.ensureDirector();
@@ -266,7 +280,15 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
             };
           }
           cfg = instantiateRosterConfig(i.role, base, i.timeoutMs, defaultTimeoutMs);
-          if (i.systemPromptOverride) cfg.systemPromptOverride = i.systemPromptOverride;
+          // NOTE: do NOT write `i.systemPromptOverride` into
+          // `cfg.systemPromptOverride` here — the roster config's own
+          // override must survive until the launch-preface IIFE below
+          // reads both the roster override and the caller override
+          // separately and layers them in precedence order. Writing the
+          // caller's value into `cfg.systemPromptOverride` would clobber
+          // the roster value, defeating the layering contract. The IIFE
+          // already reads `i.systemPromptOverride` directly from the
+          // outer input, so the explicit assignment here is unnecessary.
           if (i.provider) cfg.provider = i.provider;
           if (i.model) cfg.model = i.model;
         } else {
@@ -326,15 +348,55 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         let handoffCount = 0;
 
         for (;;) {
-          const attemptConfig =
-            handoffCount === 0 ? cfg : freshHandoffConfig(cfg, i.role, handoffCount);
+          const attemptConfig = (() => {
+            const base = handoffCount === 0 ? cfg : freshHandoffConfig(cfg, i.role, handoffCount);
+            if (handoffCount !== 0) return base;
+            // First attempt only: inject the delegate launch-mode preface
+            // through the subagent prompt layer (`systemPromptOverride`),
+            // composing last and winning on conflict per director-prompts.ts
+            // layering. Build a fresh object so we don't mutate the
+            // `cfg` aliased on attempt 0 (cfg is reused across attempts
+            // only on handoff, but writing through the alias is a
+            // dead-write-observable hazard if cfg is later read or if
+            // the spawn fails and cfg is re-entered).
+            //
+            // IMPORTANT: layer in precedence order so we do NOT clobber
+            // a `systemPromptOverride` that the roster config already
+            // supplied (custom roster roles can ship their own override).
+            // For role-based spawns, `cfg.systemPromptOverride` is already
+            // equal to `i.systemPromptOverride` when the caller passed one
+            // (see the role path above), so the second slot is a no-op in
+            // that case — we still include the dedupe check to stay safe
+            // against future refactors that decouple the two slots.
+            const baseOverride = base.systemPromptOverride;
+            const callerOverride = i.systemPromptOverride;
+            const segments = [launchModePreface];
+            if (baseOverride && baseOverride.trim().length > 0) {
+              segments.push(baseOverride);
+            }
+            if (
+              callerOverride &&
+              callerOverride.trim().length > 0 &&
+              callerOverride !== baseOverride
+            ) {
+              segments.push(callerOverride);
+            }
+            return {
+              ...base,
+              systemPromptOverride: segments.join('\n\n'),
+            };
+          })();
+          // Handoffs use `buildHandoffTask` (which already carries its
+          // own escalation language) and must NOT receive the
+          // first-attempt preface — it would re-trigger escalation on a
+          // worker that already escalated.
           const subagentId = await dir.spawn(attemptConfig);
-          // Delegate-specific launch-mode preface is wrapped on the FIRST
-          // attempt only. Handoffs use `buildHandoffTask` (which already
-          // carries its own escalation language), and the continued task
-          // is the original user intent — the leader's brief — so we
-          // don't re-prefix it on every continuation.
-          const description = handoffCount === 0 ? firstAttemptTask : delegatedTask;
+          // `delegatedTask` is the original leader brief on the first
+          // attempt and the `buildHandoffTask` continuation text on later
+          // attempts. Both preserve the verbatim original task inside
+          // their bodies, so `TaskSpec.description` stays faithful to
+          // the leader's brief throughout the delegate loop.
+          const description = delegatedTask;
           const taskId = await dir.assign({
             id: randomUUID(),
             description,
