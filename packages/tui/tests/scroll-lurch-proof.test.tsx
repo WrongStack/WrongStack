@@ -25,14 +25,47 @@ const VP = 12;
  * diff — a genuinely unstable render IS the regression this suite hunts.
  */
 async function waitForStableFrame(v: RealTtyView, polls = 20, gapMs = 25): Promise<string> {
+  // Require N consecutive identical polls before declaring quiescence: a
+  // single equal poll can land in a gap BETWEEN two late layout commits
+  // (the exact "late correction" race this helper exists to absorb).
   let last = v.lastFrame();
+  let quiet = 0;
   for (let i = 0; i < polls; i++) {
     await settle(gapMs);
     const next = v.lastFrame();
-    if (next === last) return next;
+    quiet = next === last ? quiet + 1 : 0;
     last = next;
+    if (quiet >= 3) return next;
   }
   return last;
+}
+
+/**
+ * Wait until BOTH renders are simultaneously quiescent, polling them
+ * alternately so they get equal budgets. Waiting sequentially would let the
+ * first view consume part of its budget before the second even starts
+ * (asymmetric convergence for frames that settle at different speeds).
+ */
+async function waitForStableFrames(
+  a: RealTtyView,
+  b: RealTtyView,
+  polls = 24,
+  gapMs = 25,
+): Promise<[string, string]> {
+  let frameA = a.lastFrame();
+  let frameB = b.lastFrame();
+  let quietA = 0;
+  let quietB = 0;
+  for (let i = 0; i < polls && (quietA < 3 || quietB < 3); i++) {
+    await settle(gapMs);
+    const nextA = a.lastFrame();
+    const nextB = b.lastFrame();
+    quietA = nextA === frameA ? quietA + 1 : 0;
+    quietB = nextB === frameB ? quietB + 1 : 0;
+    frameA = nextA;
+    frameB = nextB;
+  }
+  return [frameA, frameB];
 }
 
 /** Drop the 2-column scrollbar band so frames compare on content only — the
@@ -117,10 +150,10 @@ describe('scroll stability under real layout (lurch proof)', () => {
     // calls intentionally happen without a render/settle between them.
     for (let row = 0; row < 9; row++) batchRef.current?.scrollBy(1);
     directRef.current?.scrollBy(9);
-    // Quiescence, not a fixed window: on slow CI the final Yoga correction
-    // can land after a fixed settle() and break equality by exactly one row.
-    const batchedFrame = await waitForStableFrame(batched);
-    const directFrame = await waitForStableFrame(direct);
+    // Simultaneous quiescence on both renders with equal poll budgets (a
+    // fixed settle() reads one in-flight Yoga correction frame on slow CI
+    // and breaks equality by exactly one row).
+    const [batchedFrame, directFrame] = await waitForStableFrames(batched, direct);
 
     expect(contentOnly(batchedFrame)).toBe(contentOnly(directFrame));
     batched.unmount();
@@ -140,9 +173,9 @@ describe('scroll stability under real layout (lurch proof)', () => {
     await settle();
     pageRef.current?.scrollPage('down');
     wheelRef.current?.scrollBy(-(VP - 1));
-    // Quiescence on both renders (same single-row-offset race as the batch test).
-    const pagedFrame = await waitForStableFrame(paged);
-    const wheeledFrame = await waitForStableFrame(wheeled);
+    // Simultaneous quiescence on both renders (same single-row-offset race
+    // as the batch test); equal poll budgets for both views.
+    const [pagedFrame, wheeledFrame] = await waitForStableFrames(paged, wheeled);
 
     expect(contentOnly(pagedFrame)).toBe(contentOnly(wheeledFrame));
     paged.unmount();
