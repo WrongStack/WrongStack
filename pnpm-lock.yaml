@@ -6,8 +6,8 @@ settings:
 
 overrides:
   dompurify: '>=3.4.13'
-  esbuild: ^0.28.1
-  undici-types: ^8.4.0
+  esbuild: ^0.28.2
+  undici-types: ^8.10.0
   jsdom>undici: 7.29.0
   nanoid@<3.3.18: ^3.3.18
 
@@ -3845,7 +3845,7 @@ packages:
     peerDependencies:
       '@types/node': ^20.19.0 || >=22.12.0
       '@vitejs/devtools': ^0.4.0
-      esbuild: ^0.28.1
+      esbuild: ^0.28.2
       jiti: '>=1.21.0'
       less: ^4.0.0
       sass: ^1.70.0

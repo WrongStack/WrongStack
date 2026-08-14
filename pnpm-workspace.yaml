@@ -18,8 +18,8 @@ overrides:
   # executable -> XSS (GHSA-55q2-fjhq-7xh7). Patched in 3.4.13.
   # Pulled in transitively by monaco-editor (webui).
   dompurify: ">=3.4.13"
-  esbuild: "^0.28.1"
-  undici-types: "^8.4.0"
+  esbuild: "^0.28.2"
+  undici-types: "^8.10.0"
   # jsdom@29.1.1 (vitest test env) needs undici's 7.x line (it requires the
   # internal lib/handler/wrap-handler.js, absent from undici 8.x). Pin it to the
   # advisory-patched 7.29.0 — clears the undici GHSAs AND keeps jsdom working.
