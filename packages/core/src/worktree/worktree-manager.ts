@@ -26,6 +26,7 @@ import type {
   WorktreeStatus,
 } from './worktree-types.js';
 
+export { assertSafePath, parseConflictPaths } from './worktree-git.js';
 // Re-exported so `worktree-manager.js` stays the import site for consumers.
 export type {
   AllocateOpts,
@@ -36,7 +37,6 @@ export type {
   WorktreeManagerOptions,
   WorktreeStatus,
 } from './worktree-types.js';
-export { assertSafePath, parseConflictPaths } from './worktree-git.js';
 
 /**
  * Owns the git-worktree lifecycle for isolated, parallel work units. Shells out
@@ -192,12 +192,20 @@ export class WorktreeManager {
     const conflictFiles = [...new Set([...fromOutput, ...fromIndex])];
 
     if (merged.code !== 0 || conflictFiles.length > 0) {
-
       // Caller-driven resolution: leave the conflicted tree in place, hand the
       // marked files to the resolver, and finalize the merge commit only if it
       // cleared every marker. Any failure falls through to the safe reset below,
       // so the base tree is never left dirty.
-      if (opts.resolve) {
+      //
+      // Gate on actual conflict evidence (conflictFiles): a merge that exits
+      // nonzero WITHOUT detectable CONFLICT lines is a hard git failure (not a
+      // marker-bearing conflict). Letting a resolver "resolve" it committed
+      // through the nothing-to-commit tolerance with a "(conflict resolved)"
+      // message — the third escape route observed on Linux CI (fired-arm
+      // evidence, run 31821313389: ok:true + "(squash, conflict resolved)"
+      // with all three probes empty). Such merges must fall through to the
+      // reset + needs-review path below instead.
+      if (opts.resolve && conflictFiles.length > 0) {
         const finalized = await this.tryResolveConflict(handle, conflictFiles, opts);
         if (finalized) return finalized;
       }
@@ -566,9 +574,7 @@ export class WorktreeManager {
     const paths =
       listed.length > 0
         ? listed
-        : (
-            await this.runGit(['diff', '--cached', '--name-only', '-z'], this.projectRoot)
-          ).stdout
+        : (await this.runGit(['diff', '--cached', '--name-only', '-z'], this.projectRoot)).stdout
             .split('\0')
             .filter(Boolean);
     // {7,} covers merge.conflictMarkerSize > 7; `\r` is stripped so the `$`
@@ -582,9 +588,7 @@ export class WorktreeManager {
     const startMarker = /^(?:<{7,}(?: |$)|\|{7,}(?: |$))/m;
     for (const rel of paths) {
       try {
-        const content = (
-          await readFile(join(this.projectRoot, rel), 'utf8')
-        ).replace(/\r/g, '');
+        const content = (await readFile(join(this.projectRoot, rel), 'utf8')).replace(/\r/g, '');
         const lines = content.split('\n');
         let seenStart = false;
         for (const line of lines) {
