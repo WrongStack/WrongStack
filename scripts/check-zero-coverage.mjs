@@ -23,11 +23,11 @@ export function normalizeCoveragePath(file, root = repoRoot) {
   // branch and broke ratchet comparisons ("D:/repo/packages/..." vs the
   // expected relative "packages/..."). Route drive-letter paths through
   // path.win32 so normalization is host-independent.
-  const fileIsWin = path.win32.isAbsolute(file);
+  const fileIsWin = /^[a-zA-Z]:[\\/]/.test(file);
   if (fileIsWin) {
-    // NOTE: a drive-letter regex, not path.win32.isAbsolute(root) — win32
-    // also treats "/repo/..." as absolute, so the isAbsolute check would
-    // never fire on a POSIX host and the guard would be dead code.
+    // NOTE: drive-letter regexes on BOTH sides — path.win32.isAbsolute also
+    // accepts "/repo/..." POSIX paths, so it misclassifies native Linux
+    // summaries as Windows and (with a POSIX root) trips the guard below.
     if (!/^[a-zA-Z]:[\\/]/.test(root)) {
       // Cross-host artifact: a Windows-generated summary cannot be
       // relativized against a POSIX repo root (different trees). Fail
