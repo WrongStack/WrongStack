@@ -4,57 +4,13 @@
  * Receives JSON-RPC requests from an external ACP client (Zed, JetBrains
  * Junie, VS Code ACP extension, etc.) over stdio and answers them per the
  * v1 spec. See https://agentclientprotocol.com/protocol/v1/overview.
- *
- * Supported methods
- * ─────────────────
- *  - initialize                — handshake
- *  - authenticate              — optional, no-op when auth isn't required
- *  - session/new               — create a session
- *  - session/load              — restore a session by id
- *  - session/prompt            — run one turn, stream session/update
- *                               notifications, return stopReason
- *  - session/cancel            — notification (no response); cancels the
- *                               in-flight turn on the target session
- *  - session/set_mode          — change the active mode for a session
- *  - session/set_config_option — change a config option value
- *  - session/list              — list known sessions
- *
- * Method execution
- * ────────────────
- *  The handler is transport-agnostic; it sends responses via the
- *  `AgentServerTransport` injected at construction. The actual
- *  agent-loop work for a `session/prompt` turn is delegated to the
- *  caller-provided `runTurn` callback, which receives the prompt
- *  blocks and the per-turn AbortSignal and resolves with the final
- *  stopReason. Updates are streamed via the `emit` callback passed
- *  to `runTurn`; the handler wraps each as a `session/update`
- *  notification.
- *
- *  This separation keeps the handler unit-testable: tests can supply
- *  a fake `runTurn` that yields a canned sequence of updates, and
- *  assert on the JSON-RPC traffic the handler produces. A real
- *  production caller wires `runTurn` to a core `Agent` instance.
- *
- * Concurrency
- * ───────────
- *  Each session is single-threaded (one active turn at a time). The
- *  handler keeps a per-session AbortController so a `session/cancel`
- *  notification can stop the running turn mid-stream without tearing
- *  down the session. Multiple sessions can be active concurrently.
  */
 import { randomUUID } from 'node:crypto';
-import * as fsp from 'node:fs/promises';
-import * as path from 'node:path';
 import {
-  ACP_PROTOCOL_VERSION,
   type ACPMessage,
   type ClientCapabilities,
-  type ContentBlock,
   type ProtocolHandlerOptions,
-  type RequestPermissionOutcome,
   type RunTurn,
-  type RunTurnApi,
-  type RunTurnResult,
   type SessionConfigOption,
   type SessionMode,
   type SessionPersistence,
@@ -62,6 +18,21 @@ import {
   toWire,
   WRONGSTACK_VERSION,
 } from './protocol-contract.js';
+import {
+  buildInitializeResult,
+  DEFAULT_MAX_SESSIONS,
+  DEFAULT_MODES,
+  errorToJsonRpc,
+} from './protocol-session-ops.js';
+import {
+  handleSetConfigOptionOp,
+  handleSessionForkOp,
+  handleSessionLoadOp,
+  handleSessionNewOp,
+  handleSessionPromptOp,
+  handleSetModeOp,
+  type ProtocolSessionContext,
+} from './protocol-session-management.js';
 
 export type {
   AgentCapabilities,
@@ -79,28 +50,6 @@ export type {
   SessionState,
 } from './protocol-contract.js';
 export { WRONGSTACK_VERSION };
-
-const WRONGSTACK_AUTH_METHODS = [
-  {
-    id: 'wrongstack-auth',
-    name: 'Run wstack auth',
-    description: 'Configure a WrongStack model provider in an interactive terminal.',
-    type: 'terminal',
-    args: ['auth'],
-  },
-];
-
-/** Single global mode id, sufficient for v1. */
-const DEFAULT_MODE_ID = 'code';
-const DEFAULT_MAX_SESSIONS = 64;
-
-const DEFAULT_MODES: readonly SessionMode[] = [
-  {
-    id: DEFAULT_MODE_ID,
-    name: 'Code',
-    description: 'Default agent mode for code-generation tasks.',
-  },
-];
 
 export class ACPProtocolHandler {
   private readonly transport: ProtocolHandlerOptions['transport'];
@@ -153,12 +102,6 @@ export class ACPProtocolHandler {
         ? Math.floor(opts.maxSessions as number)
         : DEFAULT_MAX_SESSIONS;
     this.store = opts.store;
-    // Route inbound JSON-RPC responses (to our outbound requests)
-    // independently of the server's read loop. StdioTransport fires
-    // onMessage on the stdin 'data' event, so a pending request resolves
-    // even while a session/prompt handler is parked awaiting it.
-    // Guarded: minimal transports (and some test fakes) may omit onMessage;
-    // without it, server→client requests simply aren't supported.
     if (typeof this.transport.onMessage === 'function') {
       this.transport.onMessage((m) => this.maybeResolvePending(m));
     }
@@ -252,6 +195,28 @@ export class ACPProtocolHandler {
     }
   }
 
+  private sessionContext(): ProtocolSessionContext {
+    return {
+      sessions: this.sessions,
+      maxSessions: this.maxSessions,
+      defaultCwd: this.defaultCwd,
+      modes: this.modes,
+      configOptions: this.configOptions,
+      store: this.store,
+      replayFor: this.replayFor,
+      seedFor: this.seedFor,
+      onSessionNew: this.onSessionNew,
+      allocId: () => this.allocId(),
+      persist: (state, history) => this.persist(state, history),
+      sendNotification: (params) => this.sendNotification(params),
+      sendError: (id, code, message, data) => this.sendError(id, code, message, data),
+      sendResult: (id, result) => this.sendResult(id, result),
+      request: (method, params, timeoutMs) => this.request(method, params, timeoutMs),
+      runTurn: this.runTurn,
+      clientCapabilities: this.clientCapabilities,
+    };
+  }
+
   // ────────────────────────────────────────────────────────────────────
   // Requests
   // ────────────────────────────────────────────────────────────────────
@@ -261,7 +226,6 @@ export class ACPProtocolHandler {
     method: string,
     params: unknown,
   ): Promise<boolean> {
-    // The only method allowed before initialize is `initialize` itself.
     if (method !== 'initialize' && !this.initialized) {
       await this.sendError(id, -32000, 'Not initialized');
       return false;
@@ -276,9 +240,9 @@ export class ACPProtocolHandler {
         case 'logout':
           return await this.handleLogout(id, params);
         case 'session/new':
-          return await this.handleSessionNew(id, params);
+          return await handleSessionNewOp(this.sessionContext(), id, params);
         case 'session/load':
-          return await this.handleSessionLoad(id, params);
+          return await handleSessionLoadOp(this.sessionContext(), id, params);
         case 'session/resume':
           return await this.handleSessionResume(id, params);
         case 'session/close':
@@ -286,15 +250,15 @@ export class ACPProtocolHandler {
         case 'session/delete':
           return await this.handleSessionDelete(id, params);
         case 'session/prompt':
-          return await this.handleSessionPrompt(id, params);
+          return await handleSessionPromptOp(this.sessionContext(), id, params);
         case 'session/set_mode':
-          return await this.handleSetMode(id, params);
+          return await handleSetModeOp(this.sessionContext(), id, params);
         case 'session/set_config_option':
-          return await this.handleSetConfigOption(id, params);
+          return await handleSetConfigOptionOp(this.sessionContext(), id, params);
         case 'session/list':
           return await this.handleSessionList(id);
         case 'session/fork':
-          return await this.handleSessionFork(id, params);
+          return await handleSessionForkOp(this.sessionContext(), id, params);
         case 'providers/list':
           return await this.handleProvidersList(id, params);
         case 'providers/set':
@@ -304,11 +268,6 @@ export class ACPProtocolHandler {
         case 'mcp/message':
           return await this.handleMcpMessage(id, params);
         default:
-          // Everything reaching handleRequest carries an id, so it's a
-          // JSON-RPC *request* and MUST get a response — otherwise a
-          // conformant client blocks forever awaiting it. Unimplemented
-          // IDE features (document/*, nes/*, elicitation/*) and any other
-          // unknown method get a standard method-not-found error.
           await this.sendError(id, -32601, `Unknown method: ${method}`);
           return false;
       }
@@ -327,250 +286,21 @@ export class ACPProtocolHandler {
     if (p.clientCapabilities && typeof p.clientCapabilities === 'object') {
       this.clientCapabilities = p.clientCapabilities;
     }
-    // Version negotiation per spec: the client advertises its latest
-    // supported version; the agent replies with the version it will use —
-    // the client's if supported, otherwise the agent's own latest. We must
-    // NOT error on a mismatch (that breaks a forward-compatible client that
-    // requested a newer protocol): we simply respond with the version we
-    // speak and let the client decide whether to proceed. The client side
-    // (`ACPSession.initialize`) already mirrors this lenient negotiation.
     this.initialized = true;
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          protocolVersion: ACP_PROTOCOL_VERSION,
-          agentCapabilities: {
-            loadSession: true,
-            promptCapabilities: {
-              // We route ACP image blocks into the core agent's multimodal
-              // input (server-agent-turn.promptToAgentInput); whether the
-              // model can see them is the configured provider's concern.
-              image: true,
-              audio: false,
-              embeddedContext: true,
-            },
-            mcpCapabilities: {
-              http: false,
-              sse: false,
-            },
-            sessionCapabilities: {
-              close: {},
-              list: {},
-              delete: {},
-              resume: {},
-              fork: {},
-            },
-            auth: {
-              logout: {},
-            },
-          },
-          agentInfo: {
-            name: this.agentName,
-            title: 'WrongStack',
-            version: WRONGSTACK_VERSION,
-          },
-          authMethods: WRONGSTACK_AUTH_METHODS,
-          modes: this.modes,
-          configOptions: this.configOptions,
-        },
-      }),
+    await this.sendResult(
+      id,
+      buildInitializeResult(this.agentName, this.modes, this.configOptions),
     );
     return false;
   }
 
   private async handleAuthenticate(id: string | number, _params: unknown): Promise<boolean> {
-    // WrongStack doesn't currently require auth.
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: { outcome: 'unauthenticated' },
-      }),
-    );
+    await this.sendResult(id, { outcome: 'unauthenticated' });
     return false;
   }
 
   private async handleLogout(id: string | number, _params: unknown): Promise<boolean> {
-    // WrongStack doesn't have persistent auth state, so logout is a no-op.
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {},
-      }),
-    );
-    return false;
-  }
-
-  private async handleSessionNew(id: string | number, params: unknown): Promise<boolean> {
-    if (this.sessions.size >= this.maxSessions) {
-      await this.sendError(id, -32000, `active session limit reached (${this.maxSessions})`);
-      return false;
-    }
-    const p = (params ?? {}) as { cwd?: unknown; mcpServers?: unknown };
-    let cwd = this.defaultCwd;
-    if (typeof p.cwd === 'string') {
-      const resolved = await this.resolveSessionCwd(p.cwd);
-      if (resolved === null) {
-        await this.sendError(id, -32602, `cwd must be an absolute path to an existing directory`);
-        return false;
-      }
-      cwd = resolved;
-    }
-    const sessionId = `sess_${this.allocId()}`;
-    const now = new Date().toISOString();
-    const state: SessionState = {
-      id: sessionId,
-      cwd,
-      abort: new AbortController(),
-      modeId: DEFAULT_MODE_ID,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.sessions.set(sessionId, state);
-    this.onSessionNew(state);
-    await this.persist(state);
-
-    // Per spec, the server MAY emit current_mode_update /
-    // config_option_update / available_commands_update notifications
-    // immediately after session/new to populate the client UI. We do.
-    await this.sendNotification({
-      sessionId,
-      update: {
-        sessionUpdate: 'current_mode_update',
-        modeId: this.modes[0]?.id ?? DEFAULT_MODE_ID,
-      },
-    });
-    if (this.configOptions.length > 0) {
-      await this.sendNotification({
-        sessionId,
-        update: {
-          sessionUpdate: 'config_option_update',
-          configOptions: [...this.configOptions],
-        },
-      });
-    }
-
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          sessionId,
-          modes: this.modes,
-          configOptions: this.configOptions,
-        },
-      }),
-    );
-    return false;
-  }
-
-  private async handleSessionLoad(id: string | number, params: unknown): Promise<boolean> {
-    const p = (params ?? {}) as { sessionId?: unknown; cwd?: unknown; mcpServers?: unknown };
-    const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
-    const loadCwd = typeof p.cwd === 'string' ? p.cwd : undefined;
-    const existing = sessionId ? this.sessions.get(sessionId) : undefined;
-
-    // Cold path: not in memory but persisted (server restarted). Restore the
-    // session state + replay its stored history. The agent's own model
-    // context starts fresh — the client UI is made whole via replay.
-    if (!existing && sessionId && this.store) {
-      const persisted = await this.store.load(sessionId);
-      if (persisted) {
-        if (this.sessions.size >= this.maxSessions) {
-          await this.sendError(id, -32000, `active session limit reached (${this.maxSessions})`);
-          return false;
-        }
-        // The two candidate cwds have different trust: `loadCwd` is supplied
-        // by the client on THIS request and is treated like session/new — a
-        // bad value is an error, not something to quietly substitute.
-        // `persisted.cwd` is our own store file, so a value that no longer
-        // resolves means the workspace moved since it was written; falling
-        // back to the server's defaultCwd is right there, because failing the
-        // restore would strand the session instead.
-        if (loadCwd !== undefined && (await this.resolveSessionCwd(loadCwd)) === null) {
-          await this.sendError(id, -32602, `cwd must be an absolute path to an existing directory`);
-          return false;
-        }
-        const candidateCwd = persisted.cwd ?? loadCwd ?? this.defaultCwd;
-        const restoredCwd = (await this.resolveSessionCwd(candidateCwd)) ?? this.defaultCwd;
-        const restored: SessionState = {
-          id: sessionId,
-          cwd: restoredCwd,
-          abort: new AbortController(),
-          modeId: persisted.modeId ?? DEFAULT_MODE_ID,
-          createdAt: persisted.createdAt ?? new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          ...(persisted.title !== undefined ? { title: persisted.title } : {}),
-        };
-        this.sessions.set(sessionId, restored);
-        // Prime the turn engine so the next prompt's Agent resumes the
-        // model's context, not just the client UI.
-        this.seedFor?.(sessionId, persisted.history ?? []);
-        for (const update of persisted.history ?? []) {
-          await this.sendNotification({ sessionId, update });
-        }
-        await this.sendNotification({
-          sessionId,
-          update: { sessionUpdate: 'current_mode_update', modeId: restored.modeId },
-        });
-        await this.transport.send(
-          toWire({
-            jsonrpc: '2.0',
-            id,
-            result: {
-              initialMode: { currentModeId: restored.modeId, availableModes: this.modes },
-            },
-          }),
-        );
-        return false;
-      }
-    }
-
-    if (existing) {
-      // Session exists in memory — restore it.
-      existing.updatedAt = new Date().toISOString();
-      // Replay the recorded conversation history (user/agent message
-      // chunks) so the reconnecting client sees the prior turns.
-      const replay = this.replayFor?.(sessionId!);
-      if (replay) {
-        for (const update of replay) {
-          await this.sendNotification({ sessionId, update });
-        }
-      }
-      await this.sendNotification({
-        sessionId,
-        update: {
-          sessionUpdate: 'session_info_update',
-          updatedAt: existing.updatedAt,
-        },
-      });
-      await this.sendNotification({
-        sessionId,
-        update: {
-          sessionUpdate: 'current_mode_update',
-          modeId: existing.modeId,
-        },
-      });
-      await this.transport.send(
-        toWire({
-          jsonrpc: '2.0',
-          id,
-          result: {
-            initialMode: {
-              currentModeId: existing.modeId,
-              availableModes: this.modes,
-            },
-          },
-        }),
-      );
-      return false;
-    }
-
-    // Session not found — spec says to return an error.
-    await this.sendError(id, -32000, `session not found: ${sessionId}`);
+    await this.sendResult(id, {});
     return false;
   }
 
@@ -581,18 +311,12 @@ export class ACPProtocolHandler {
 
     if (existing) {
       existing.updatedAt = new Date().toISOString();
-      await this.transport.send(
-        toWire({
-          jsonrpc: '2.0',
-          id,
-          result: {
-            initialMode: {
-              currentModeId: existing.modeId,
-              availableModes: this.modes,
-            },
-          },
-        }),
-      );
+      await this.sendResult(id, {
+        initialMode: {
+          currentModeId: existing.modeId,
+          availableModes: this.modes,
+        },
+      });
       return false;
     }
 
@@ -610,18 +334,11 @@ export class ACPProtocolHandler {
       return false;
     }
 
-    // Abort any in-flight turn and remove the session.
     session.abort.abort();
     this.sessions.delete(sessionId!);
     this.disposeSession(sessionId!);
 
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {},
-      }),
-    );
+    await this.sendResult(id, {});
     return false;
   }
 
@@ -635,9 +352,7 @@ export class ACPProtocolHandler {
     }
 
     if (!this.sessions.has(sessionId)) {
-      await this.transport.send(
-        toWire({ jsonrpc: '2.0', id, result: { configOptions: [...this.configOptions] } }),
-      );
+      await this.sendResult(id, { configOptions: [...this.configOptions] });
       return false;
     }
     const session = this.sessions.get(sessionId)!;
@@ -645,89 +360,15 @@ export class ACPProtocolHandler {
     this.sessions.delete(sessionId);
     this.disposeSession(sessionId);
 
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {},
-      }),
-    );
-    return false;
-  }
-
-  private async handleSessionFork(id: string | number, params: unknown): Promise<boolean> {
-    const p = (params ?? {}) as { sessionId?: unknown; cwd?: unknown; mcpServers?: unknown };
-    const sourceId = typeof p.sessionId === 'string' ? p.sessionId : null;
-    const source = sourceId ? this.sessions.get(sourceId) : undefined;
-    if (!sourceId || !source) {
-      await this.sendError(id, -32000, `session not found: ${sourceId}`);
-      return false;
-    }
-    if (this.sessions.size >= this.maxSessions) {
-      await this.sendError(id, -32000, `active session limit reached (${this.maxSessions})`);
-      return false;
-    }
-
-    let forkCwd = source.cwd;
-    if (typeof p.cwd === 'string') {
-      const resolved = await this.resolveSessionCwd(p.cwd);
-      if (resolved === null) {
-        await this.sendError(id, -32602, `cwd must be an absolute path to an existing directory`);
-        return false;
-      }
-      forkCwd = resolved;
-    }
-
-    const now = new Date().toISOString();
-    const sessionId = `sess_${this.allocId()}`;
-    const forked: SessionState = {
-      id: sessionId,
-      cwd: forkCwd,
-      abort: new AbortController(),
-      modeId: source.modeId,
-      createdAt: now,
-      updatedAt: now,
-      ...(source.title !== undefined ? { title: source.title } : {}),
-    };
-    const history = (this.replayFor?.(sourceId) ?? []).map((update) => ({
-      sessionUpdate: update.sessionUpdate,
-      content: structuredClone(update.content),
-    }));
-    this.sessions.set(sessionId, forked);
-    this.seedFor?.(sessionId, history);
-    this.onSessionNew(forked);
-    await this.persist(forked, history);
-
-    await this.sendNotification({
-      sessionId,
-      update: { sessionUpdate: 'current_mode_update', modeId: forked.modeId },
-    });
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          sessionId,
-          modes: this.modes,
-          configOptions: this.configOptions,
-        },
-      }),
-    );
+    await this.sendResult(id, {});
     return false;
   }
 
   private async handleProvidersList(id: string | number, _params: unknown): Promise<boolean> {
-    // Return the current provider configuration.
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          providers: [],
-          currentProviderId: null,
-        },
-      }),
-    );
+    await this.sendResult(id, {
+      providers: [],
+      currentProviderId: null,
+    });
     return false;
   }
 
@@ -741,179 +382,12 @@ export class ACPProtocolHandler {
   }
 
   private async handleProvidersDisable(id: string | number, _params: unknown): Promise<boolean> {
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: {},
-      }),
-    );
+    await this.sendResult(id, {});
     return false;
   }
 
   private async handleMcpMessage(id: string | number, _params: unknown): Promise<boolean> {
     await this.sendError(id, -32000, 'MCP message routing not available through ACP');
-    return false;
-  }
-
-  private async handleSessionPrompt(id: string | number, params: unknown): Promise<boolean> {
-    const p = (params ?? {}) as { sessionId?: unknown; prompt?: unknown };
-    const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
-    if (!sessionId || !this.sessions.has(sessionId)) {
-      await this.sendError(id, -32000, 'unknown or missing sessionId');
-      return false;
-    }
-    if (!Array.isArray(p.prompt)) {
-      await this.sendError(id, -32602, 'prompt must be an array of content blocks');
-      return false;
-    }
-    const session = this.sessions.get(sessionId)!;
-
-    // If the previous turn was cancelled, recreate the AbortController
-    // so a stale signal doesn't cancel the new turn.
-    if (session.abort.signal.aborted) {
-      session.abort = new AbortController();
-    }
-
-    const turnSignal = new AbortController();
-    // Forward session/cancel notifications to the turn's signal.
-    const onCancel = (): void => turnSignal.abort();
-    session.abort.signal.addEventListener('abort', onCancel, { once: true });
-
-    // Client-callback surface for this turn: lets the agent's tools ask
-    // the connected client for permission, and use the client's filesystem
-    // and terminal (when advertised) instead of the local ones.
-    const api: RunTurnApi = {
-      clientCapabilities: this.clientCapabilities,
-      requestPermission: async (req) => {
-        const res = await this.request('session/request_permission', {
-          sessionId,
-          toolCall: req.toolCall,
-          options: req.options,
-        });
-        const outcome = (res as { outcome?: RequestPermissionOutcome } | undefined)?.outcome;
-        return outcome ?? { outcome: 'cancelled' };
-      },
-      readTextFile: async (params) => {
-        const res = await this.request('fs/read_text_file', { sessionId, ...params });
-        return String((res as { content?: unknown })?.content ?? '');
-      },
-      writeTextFile: async (params) => {
-        await this.request('fs/write_text_file', { sessionId, ...params });
-      },
-      runTerminal: async ({ command, args, cwd }) => {
-        const created = (await this.request('terminal/create', {
-          sessionId,
-          command,
-          ...(args ? { args } : {}),
-          ...(cwd ? { cwd } : {}),
-        })) as { terminalId?: string };
-        const terminalId = created?.terminalId;
-        if (!terminalId) return { output: '', exitCode: null };
-        try {
-          const exit = (await this.request('terminal/wait_for_exit', {
-            sessionId,
-            terminalId,
-          })) as {
-            exitCode?: number | null;
-          };
-          const out = (await this.request('terminal/output', { sessionId, terminalId })) as {
-            output?: unknown;
-          };
-          return {
-            output: String(out?.output ?? ''),
-            exitCode: typeof exit?.exitCode === 'number' ? exit.exitCode : null,
-          };
-        } finally {
-          try {
-            await this.request('terminal/release', { sessionId, terminalId });
-          } catch {
-            // best-effort release
-          }
-        }
-      },
-    };
-
-    let result: RunTurnResult;
-    // Collect pending notification promises so we can await them before
-    // sending the response. Without this, the response can land in
-    // transport.sent before the notification on fast hosts (Linux CI).
-    const pendingNotifications: Array<Promise<void>> = [];
-    const emit = (update: unknown): void => {
-      const p = this.sendNotification({ sessionId, update });
-      pendingNotifications.push(p.catch(() => {}));
-    };
-    try {
-      result = await this.runTurn(
-        { sessionId, prompt: p.prompt as ContentBlock[], signal: turnSignal.signal },
-        emit,
-        api,
-      );
-    } catch (err) {
-      session.abort.signal.removeEventListener('abort', onCancel);
-      const { code, message, data } = errorToJsonRpc(err);
-      await this.sendError(id, code, message, data);
-      return false;
-    }
-    // Flush all pending notifications before sending the response so
-    // test assertions on transport.sent ordering are deterministic.
-    await Promise.all(pendingNotifications);
-    session.abort.signal.removeEventListener('abort', onCancel);
-    session.updatedAt = new Date().toISOString();
-    await this.persist(session);
-
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: { stopReason: result.stopReason },
-      }),
-    );
-    return false;
-  }
-
-  private async handleSetMode(id: string | number, params: unknown): Promise<boolean> {
-    const p = (params ?? {}) as { sessionId?: unknown; modeId?: unknown };
-    const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
-    const modeId = typeof p.modeId === 'string' ? p.modeId : null;
-    const session = sessionId ? this.sessions.get(sessionId) : undefined;
-    if (!session || !modeId || !this.modes.some((m) => m.id === modeId)) {
-      await this.sendError(id, -32602, 'invalid sessionId or modeId');
-      return false;
-    }
-    session.modeId = modeId;
-    session.updatedAt = new Date().toISOString();
-    await this.sendNotification({
-      sessionId,
-      update: { sessionUpdate: 'current_mode_update', modeId },
-    });
-    await this.transport.send(toWire({ jsonrpc: '2.0', id, result: {} }));
-    return false;
-  }
-
-  private async handleSetConfigOption(id: string | number, params: unknown): Promise<boolean> {
-    const p = (params ?? {}) as { sessionId?: unknown; configId?: unknown; value?: unknown };
-    const sessionId = typeof p.sessionId === 'string' ? p.sessionId : null;
-    const optionId = typeof p.configId === 'string' ? p.configId : null;
-    const value = typeof p.value === 'string' ? p.value : null;
-    const session = sessionId ? this.sessions.get(sessionId) : undefined;
-    const option = optionId ? this.configOptions.find((o) => o.id === optionId) : undefined;
-    if (!session || !option || value === null || !option.options.some((o) => o.value === value)) {
-      await this.sendError(id, -32602, 'invalid sessionId, configId, or value');
-      return false;
-    }
-    option.currentValue = value;
-    session.updatedAt = new Date().toISOString();
-    await this.sendNotification({
-      sessionId,
-      update: {
-        sessionUpdate: 'config_option_update',
-        configOptions: [...this.configOptions],
-      },
-    });
-    await this.transport.send(
-      toWire({ jsonrpc: '2.0', id, result: { configOptions: [...this.configOptions] } }),
-    );
     return false;
   }
 
@@ -927,13 +401,7 @@ export class ACPProtocolHandler {
       if (s.title !== undefined) out.title = s.title;
       return out;
     });
-    await this.transport.send(
-      toWire({
-        jsonrpc: '2.0',
-        id,
-        result: { sessions },
-      }),
-    );
+    await this.sendResult(id, { sessions });
     return false;
   }
 
@@ -953,15 +421,12 @@ export class ACPProtocolHandler {
         return false;
       }
       case '$/cancel_request': {
-        // Protocol-level request cancellation — no-op for now.
         return false;
       }
       case 'exit':
-        // Client is shutting down. Best-effort: abort all sessions.
         this.close();
         return true;
       default:
-        // Unknown notification — log and ignore.
         return false;
     }
   }
@@ -974,7 +439,10 @@ export class ACPProtocolHandler {
     await this.transport.send(toWire({ jsonrpc: '2.0', method: 'session/update', params }));
   }
 
-  /** Best-effort durable persistence of a session + its recorded history. */
+  private async sendResult(id: string | number, result: unknown): Promise<void> {
+    await this.transport.send(toWire({ jsonrpc: '2.0', id, result }));
+  }
+
   private async persist(
     state: SessionState,
     history: Array<{ sessionUpdate: string; content: unknown }> | undefined = undefined,
@@ -983,7 +451,7 @@ export class ACPProtocolHandler {
     try {
       await this.store.save(state, history ?? this.replayFor?.(state.id));
     } catch {
-      // persistence is best-effort — never fail a request because the disk hiccuped
+      // persistence is best-effort
     }
   }
 
@@ -998,76 +466,9 @@ export class ACPProtocolHandler {
     await this.transport.send(toWire({ jsonrpc: '2.0', id, error }));
   }
 
-  /**
-   * Allocate a session id (WS-015).
-   *
-   * This was `this.nextId++`, so ids were `sess_1`, `sess_2`, … — and the
-   * handler has no per-connection ownership: any caller that names a session
-   * id can `session/load`, `session/prompt`, `session/cancel` or
-   * `session/delete` it. Over stdio that is academic (one client per process),
-   * but the agent also serves over HTTP, where a guessable id is the whole
-   * authorization story for any local process or page that reaches the port.
-   *
-   * Random ids do not create ownership — they remove the trivial enumeration
-   * that made its absence exploitable. Real per-connection ownership is the
-   * larger fix and is noted in the WS-015 test file.
-   *
-   * The counter is retained: it keeps ids ordered for debugging and guarantees
-   * uniqueness within a process even in the (impossible) event of a UUID
-   * collision. The random half is what makes the id unguessable.
-   */
-  /**
-   * Resolve a client-supplied `cwd` for a session, or `null` when it is not
-   * usable (WS-015).
-   *
-   * `session/new`, `session/load` and `session/fork` all took `params.cwd`
-   * with a single `typeof === 'string'` check and nothing else. That value is
-   * the working directory the agent then reads, writes and executes in.
-   *
-   * SCOPE, deliberately stated: this does NOT confine the session to a root.
-   * In ACP the client IS the editor and legitimately names its own workspace —
-   * Zed and JetBrains pass the project root — so a fixed boundary here would
-   * break the integration this package exists for. What it enforces is that
-   * the directory is absolute and actually exists as a directory: a relative
-   * or missing `cwd` is a bug or an attack under either reading, and silently
-   * running the agent somewhere other than where the client asked is worse
-   * than refusing. Confinement, if wanted, belongs in an operator-set option
-   * on top of this, not in place of it.
-   */
-  private async resolveSessionCwd(requested: string): Promise<string | null> {
-    if (!path.isAbsolute(requested)) return null;
-    const resolved = path.resolve(requested);
-    try {
-      const stat = await fsp.stat(resolved);
-      return stat.isDirectory() ? resolved : null;
-    } catch {
-      return null;
-    }
-  }
-
   private allocId(): string {
     return `${this.nextId++}_${randomUUID().replaceAll('-', '')}`;
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// Error mapping
-// ─────────────────────────────────────────────────────────────────────────
-
-function errorToJsonRpc(err: unknown): { code: number; message: string; data?: unknown } {
-  if (err && typeof err === 'object') {
-    const e = err as { code?: unknown; message?: unknown; data?: unknown };
-    if (typeof e.code === 'number' && typeof e.message === 'string') {
-      const result: { code: number; message: string; data?: unknown } = {
-        code: e.code,
-        message: e.message,
-      };
-      if (e.data !== undefined) result.data = e.data;
-      return result;
-    }
-  }
-  const message = err instanceof Error ? err.message : String(err);
-  return { code: -32603, message };
 }
 
 /** Internal deterministic seam used by the per-file coverage suite. */

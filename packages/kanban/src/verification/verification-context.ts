@@ -19,227 +19,46 @@
  * token. Package managers, shells, interpreters, compilers, and git are absent
  * because each can execute arbitrary code even without a shell operator.
  */
-import { type ChildProcess, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import type { KanbanBoard, KanbanTask } from '../types.js';
+import {
+  BoundedProcessOutput,
+  buildAllowlist,
+  type CommandAllowlistConfig,
+  DEFAULT_ALLOWED_COMMANDS,
+  DEFAULT_BLOCKED_COMMANDS,
+  extractBaseCommand,
+  MAX_PROCESS_OUTPUT_BYTES,
+  normalizeBaseCommand,
+  parseCommandArguments,
+  SHELL_OPERATOR_RE,
+  terminateProcessTree,
+  validateCommand,
+} from './command-security.js';
+import {
+  parseGitNameStatus,
+  parseGitNumstat,
+  tryParseTestJson,
+} from './test-output-parser.js';
 
-/** Maximum retained stdout or stderr for a spawned verification process. */
-export const MAX_PROCESS_OUTPUT_BYTES = 4 * 1024 * 1024;
-
-/** Collect child-process output without allowing a chatty process to exhaust RAM. */
-export class BoundedProcessOutput {
-  private readonly chunks: Buffer[] = [];
-  private bytes = 0;
-  private truncated = false;
-
-  constructor(private readonly maxBytes = MAX_PROCESS_OUTPUT_BYTES) {}
-
-  append(chunk: Buffer | string): void {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    const remaining = this.maxBytes - this.bytes;
-    if (remaining > 0) {
-      if (buffer.byteLength <= remaining) {
-        this.chunks.push(buffer);
-        this.bytes += buffer.byteLength;
-      } else {
-        this.chunks.push(Buffer.from(buffer.subarray(0, remaining)));
-        this.bytes += remaining;
-      }
-    }
-    if (buffer.byteLength > remaining) this.truncated = true;
-  }
-
-  get retainedBytes(): number {
-    return this.bytes;
-  }
-
-  toString(): string {
-    const output = Buffer.concat(this.chunks, this.bytes).toString('utf8');
-    return this.truncated
-      ? `${output}\n--- output truncated after ${this.maxBytes} bytes ---`
-      : output;
-  }
-}
-
-// ─── Command Allowlist ──────────────────────────────────────────────────────
-
-/**
- * Regex that detects shell metacharacters used to chain multiple commands.
- *
- * Blocked operators:
- *   `&&`, `||` — command chaining
- *   `;`, `|`, `` ` `` — separator, pipe, command substitution
- *   `>`, `<`, `&` — redirections and backgrounding
- *   `$(` — command substitution
- *   `\n`, `\r` — newline / carriage return as command separators
- *
- * NOTE: No preceding-character escape guard is used. Shell backslash handling
- * inside `sh -c` is platform-dependent, and a guard creates a clean bypass
- * with even backslash runs. A false positive (rejecting a safe command) is
- * safer than a false negative.
- */
-export const SHELL_OPERATOR_RE = /(?:&&|\|\||[;&<>|`\n\r]|\$[({])/;
-const ENV_EXPANSION_RE = /(?:\$[A-Za-z_]|%[^%\r\n]+%|![^!\r\n]+!)/;
-
-/**
- * Commands permitted by default — read-only inspection only.
- *
- * `git` is intentionally absent — the verifier uses `runGitCommand()` which
- * spawns git directly with an argument array (not through the shell allowlist).
- * Test runners resolve a locally installed package's declared bin entry and
- * invoke it through Node; package managers never use this generic surface.
- */
-export const DEFAULT_ALLOWED_COMMANDS: readonly string[] = ['pwd', 'true', 'false', 'test'];
-
-/** Commands explicitly blocked even when they would otherwise pass the allowlist. */
-export const DEFAULT_BLOCKED_COMMANDS: readonly string[] = [
-  'rm', 'del', 'erase', 'rmdir', 'rd', 'rmtree',
-  'mk', 'mkdir', 'md', 'mv', 'move', 'cp', 'copy', 'xcopy', 'robocopy',
-  'ren', 'rename', 'ln', 'link', 'mklink', 'install', 'touch',
-  'kill', 'taskkill', 'pkill',
-  'shutdown', 'reboot', 'halt', 'poweroff', 'init',
-  'chmod', 'chown', 'chgrp', 'attrib', 'cacls', 'icacls',
-  'format', 'fdisk', 'dd', 'mkfs', 'mount', 'umount', 'diskpart',
-  'wget', 'curl', 'fetch', 'nc', 'netcat', 'telnet', 'ssh', 'scp', 'rsync',
-  'ftp', 'sftp',
-  'sudo', 'su', 'runas', 'doas',
-  'sh', 'bash', 'zsh', 'ksh', 'dash', 'ash',
-  'cmd', 'powershell', 'pwsh',
-  'apt', 'apt-get', 'dpkg', 'rpm', 'yum', 'dnf', 'pacman', 'zypper',
-  'brew', 'port', 'choco', 'scoop', 'winget',
-  'npm', 'npx', 'pnpm', 'yarn', 'bun', 'deno', 'node',
-  'make', 'cmake', 'gcc', 'g++', 'clang', 'rustc',
-  'tar', 'gzip', 'gunzip', 'zip', 'unzip', '7z', 'rar',
-  'base64', 'base32', 'openssl', 'gpg',
-  'reg', 'regedit', 'sc', 'net', 'netsh', 'vssadmin', 'bcdedit',
-  'invoke-webrequest', 'iwr',
-  'perl', 'python', 'python3', 'ruby', 'php', 'lua', 'tclsh',
-  'find',
-];
-
-export interface CommandAllowlistConfig {
-  /**
-   * Additional base commands to permit, or existing ones to add/remove.
-   *
-   * Prefix semantics:
-   *   `"cmd"`    — add `cmd` to the allowlist
-   *   `"+cmd"`   — add `cmd` to the allowlist (explicit)
-   *   `"-cmd"`   — remove `cmd` from the default allowlist
-   */
-  allowedCommands?: readonly string[] | undefined;
-  /** Base commands explicitly blocked, merged with the built-in blocklist. */
-  blockedCommands?: readonly string[] | undefined;
-  /** When true, allow any base command not in the blocked list (default: false).
-   *  Shell-operator detection still applies. */
-  allowAll?: boolean | undefined;
-}
-
-export function normalizeBaseCommand(token: string): string {
-  return token.replace(/^.*[/\\]/, '').toLowerCase().replace(/\.(?:exe|cmd|bat|com)$/i, '');
-}
-
-function buildAllowlist(
-  config: CommandAllowlistConfig | undefined,
-): { allow: Set<string>; block: Set<string> } {
-  const allow = new Set(DEFAULT_ALLOWED_COMMANDS.map((c) => normalizeBaseCommand(c)));
-  const block = new Set(DEFAULT_BLOCKED_COMMANDS.map((c) => normalizeBaseCommand(c)));
-  if (config?.allowedCommands) {
-    for (const cmd of config.allowedCommands) {
-      if (cmd.startsWith('+')) {
-        allow.add(normalizeBaseCommand(cmd.slice(1)));
-      } else if (cmd.startsWith('-')) {
-        allow.delete(normalizeBaseCommand(cmd.slice(1)));
-      } else {
-        allow.add(normalizeBaseCommand(cmd));
-      }
-    }
-  }
-  if (config?.blockedCommands) {
-    for (const cmd of config.blockedCommands) {
-      if (cmd.startsWith('+')) {
-        block.delete(normalizeBaseCommand(cmd.slice(1)));
-      } else {
-        block.add(normalizeBaseCommand(cmd));
-      }
-    }
-  }
-  return { allow, block };
-}
-
-/** Parse a command string into an executable and argv without invoking a shell. */
-function parseCommandArguments(command: string): string[] | string {
-  const args: string[] = [];
-  let current = '';
-  let quote: '"' | "'" | null = null;
-  let tokenStarted = false;
-
-  for (const char of command) {
-    if (quote) {
-      if (char === quote) quote = null;
-      else current += char;
-      tokenStarted = true;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      tokenStarted = true;
-    } else if (/\s/.test(char)) {
-      if (tokenStarted) {
-        args.push(current);
-        current = '';
-        tokenStarted = false;
-      }
-    } else {
-      current += char;
-      tokenStarted = true;
-    }
-  }
-
-  if (quote) return 'Command contains an unterminated quoted argument.';
-  if (tokenStarted) args.push(current);
-  return args;
-}
-
-/** Extract the base executable name from a command string. */
-export function extractBaseCommand(command: string): string {
-  const parsed = parseCommandArguments(command);
-  return typeof parsed === 'string' ? '' : normalizeBaseCommand(parsed[0] ?? '');
-}
-
-/** Validate a command string. Returns null if allowed, or an error message. */
-export function validateCommand(
-  command: string,
-  config: {
-    allow: Set<string>;
-    block: Set<string>;
-    allowAll: boolean;
-    allowShellOperators?: boolean;
-  },
-): string | null {
-  const base = extractBaseCommand(command);
-  if (!base) return 'Empty command.';
-  if (command.includes('\n') || command.includes('\r')) {
-    return 'Command contains newline or carriage return characters which are not permitted.';
-  }
-  const testTarget = process.platform === 'win32' ? command.replaceAll('^', '') : command;
-  if (!config.allowShellOperators && SHELL_OPERATOR_RE.test(testTarget)) {
-    return 'Command contains shell operators (&&, ||, ;, |, &, >, <, backticks, $()) which are not permitted in the verifier.';
-  }
-  if (ENV_EXPANSION_RE.test(testTarget)) {
-    return 'Command contains environment-variable expansion, which is not permitted in the verifier.';
-  }
-  if (config.block.has(base)) {
-    return `Command "${base}" is blocked by the verifier security policy.`;
-  }
-  if (!config.allowAll && !config.allow.has(base)) {
-    return `Command "${base}" is not in the verifier allowlist.`;
-  }
-  return null;
-}
+export {
+  BoundedProcessOutput,
+  type CommandAllowlistConfig,
+  DEFAULT_ALLOWED_COMMANDS,
+  DEFAULT_BLOCKED_COMMANDS,
+  extractBaseCommand,
+  MAX_PROCESS_OUTPUT_BYTES,
+  normalizeBaseCommand,
+  parseCommandArguments,
+  SHELL_OPERATOR_RE,
+  validateCommand,
+};
+export { parseGitNameStatus, parseGitNumstat };
 
 // ─── Tree / Diff / Result Types ────────────────────────────────────────────
 
@@ -847,185 +666,3 @@ export class VerificationContext {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Standalone helpers
-// ---------------------------------------------------------------------------
-
-/** Best-effort process-tree termination that never delays timeout settlement. */
-function terminateProcessTree(child: ChildProcess, detachedProcessGroup: boolean): void {
-  // MUST NOT block promise resolution: timeout callers settle immediately after invoking this helper.
-  const pid = child.pid;
-  if (typeof pid === 'number' && process.platform === 'win32') {
-    try {
-      const killer = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
-        stdio: 'ignore',
-        windowsHide: true,
-      });
-      const forceKillChild = (): void => {
-        try {
-          child.kill('SIGKILL');
-        } catch {
-          // The process already exited.
-        }
-      };
-      killer.once('error', forceKillChild);
-      killer.once('close', (code) => {
-        if (code !== 0) forceKillChild();
-      });
-      killer.unref();
-      return;
-    } catch {
-      // Fall through to direct termination.
-    }
-  }
-  try {
-    if (typeof pid === 'number' && detachedProcessGroup) {
-      process.kill(-pid, 'SIGKILL');
-    } else {
-      child.kill('SIGKILL');
-    }
-  } catch {
-    try {
-      child.kill('SIGKILL');
-    } catch (error) {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'verification_process_termination_failed',
-          message: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString(),
-        }),
-      );
-    }
-  }
-}
-
-/** Parse `git diff --name-status` into file-operation evidence. */
-export function parseGitNameStatus(output: string): Map<string, FileDiffEntry['operation']> {
-  const operations = new Map<string, FileDiffEntry['operation']>();
-  for (const line of output.split('\n').filter(Boolean)) {
-    const [status = '', ...pathParts] = line.split('\t');
-    const filePath = pathParts.at(-1);
-    if (!filePath) continue;
-    operations.set(
-      filePath,
-      status.startsWith('A') ? 'create' : status.startsWith('D') ? 'delete' : 'modify',
-    );
-  }
-  return operations;
-}
-
-/** Parse `git diff --numstat` output into structured entries. */
-export function parseGitNumstat(
-  output: string,
-  operations: ReadonlyMap<string, FileDiffEntry['operation']> = new Map(),
-): FileDiffEntry[] {
-  return output
-    .split('\n')
-    .filter((l) => l.trim())
-    .map((line) => {
-      const parts = line.split('\t');
-      if (parts.length < 3) return null;
-      const added = parseInt(parts[0]!, 10) || 0;
-      const removed = parseInt(parts[1]!, 10) || 0;
-      const filePath = parts[2] ?? '';
-      return {
-        path: filePath,
-        operation: operations.get(filePath) ?? 'modify',
-        linesAdded: added,
-        linesRemoved: removed,
-      };
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null);
-}
-
-function isTestCount(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
-}
-
-function isTestJsonObject(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const candidate = value as Record<string, unknown>;
-  return (
-    Array.isArray(candidate['testResults']) ||
-    (isTestCount(candidate['numPassedTests']) && isTestCount(candidate['numFailedTests']))
-  );
-}
-
-function parseTestJsonObject(output: string): Record<string, unknown> | null {
-  try {
-    const complete = JSON.parse(output.trim()) as unknown;
-    if (isTestJsonObject(complete)) return complete;
-  } catch {
-    // Surrounding runner output requires balanced-object extraction below.
-  }
-
-  for (let start = output.indexOf('{'); start >= 0; start = output.indexOf('{', start + 1)) {
-    let depth = 0;
-    let inString = false;
-    let escaped = false;
-    for (let index = start; index < output.length; index += 1) {
-      const char = output[index];
-      if (inString) {
-        if (escaped) escaped = false;
-        else if (char === '\\') escaped = true;
-        else if (char === '"') inString = false;
-        continue;
-      }
-      if (char === '"') inString = true;
-      else if (char === '{') depth += 1;
-      else if (char === '}') {
-        depth -= 1;
-        if (depth === 0) {
-          try {
-            const parsed = JSON.parse(output.slice(start, index + 1)) as unknown;
-            if (isTestJsonObject(parsed)) return parsed;
-          } catch {
-            // Keep scanning: runner output can contain unrelated brace-delimited text.
-          }
-          break;
-        }
-      }
-    }
-  }
-  return null;
-}
-
-/** Try to parse JSON test runner output. */
-function tryParseTestJson(
-  output: string,
-  pattern: string,
-): Omit<TestResult, 'durationMs'> | null {
-  try {
-    const parsed = parseTestJsonObject(output);
-    if (parsed) {
-      const numPassedTestsValue = parsed['numPassedTests'];
-      const numFailedTestsValue = parsed['numFailedTests'];
-      const numSkippedTestsValue = parsed['numSkippedTests'];
-      const successValue = parsed['success'];
-      const numPassed =
-        typeof numPassedTestsValue === 'number'
-          ? numPassedTestsValue
-          : typeof successValue === 'boolean'
-            ? (successValue ? 1 : 0)
-            : 0;
-      const numFailed =
-        typeof numFailedTestsValue === 'number'
-          ? numFailedTestsValue
-          : typeof successValue === 'boolean'
-            ? (successValue ? 0 : 1)
-            : 0;
-      const numSkipped =
-        typeof numSkippedTestsValue === 'number' ? numSkippedTestsValue : 0;
-      return {
-        testPattern: pattern,
-        passed: numPassed,
-        failed: numFailed,
-        skipped: numSkipped,
-      };
-    }
-  } catch {
-    // Not JSON output — fall through
-  }
-  return null;
-}

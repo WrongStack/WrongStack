@@ -16,9 +16,14 @@ import { isFinalTurnStopReason, projectNextStepsToolInput } from '@wrongstack/to
 import {
   projectChatMessage,
   projectFleetMessage,
-  projectSessionMessage,
-  projectToolMessage,
 } from '@wrongstack/webui-server/protocol';
+import type { MessageHandlerDeps } from './message-handler-deps.js';
+import { handleSessionStartMessage } from './message-handler-session-start.js';
+import {
+  handleToolStarted,
+  handleToolProgress,
+  handleToolExecuted,
+} from './message-handler-tool-events.js';
 import type { FallbackPendingProjection } from '../fallback-modal.js';
 import { projectFallbackPending } from '../fallback-modal.js';
 import type {
@@ -39,7 +44,6 @@ import {
   appendAgentTranscriptEntry,
   LEADER_AGENT_ID,
   mergeSubagentSnapshot,
-  parseAgentSessionReplays,
   projectAgentTimelineEntry,
   projectCompletedAgentText,
   stampAgentUpdates,
@@ -47,7 +51,6 @@ import {
 import {
   boundSimpleChatText,
   contentToText,
-  replayToMessages,
   retainSimpleChatMessages,
   updateSubagents,
 } from './chat-model.js';
@@ -101,86 +104,7 @@ function messageId(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
 }
 
-// ── Dependency types ────────────────────────────────────────────────
-
-export interface MessageHandlerDeps {
-  // Refs — used for reading current state without re-render dependencies
-  prefsRef: { current: SimplePrefs };
-  draftRef: { current: string };
-  fileRefsRef: { current: string[] };
-  queueRef: { current: QueuedItem[] };
-  sessionIdRef: { current: string | null };
-  messagesRef: { current: ChatMessage[] };
-  activeModelRef: { current: { provider: string; model: string } | null };
-  runningRef: { current: boolean };
-  refineStateRef: { current: RefineState | null };
-  refineEpochRef: { current: number };
-  requestedModelsRef: { current: Set<string> };
-  socketRef: {
-    current: { send: (type: string, payload?: Record<string, unknown>) => void } | null;
-  };
-  stickToBottomRef: { current: boolean };
-
-  // State setters
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-  setRunning: React.Dispatch<React.SetStateAction<boolean>>;
-  setActivity: React.Dispatch<React.SetStateAction<string>>;
-  setToolCalls: React.Dispatch<React.SetStateAction<ToolCallInfo[]>>;
-  setSubagents: React.Dispatch<React.SetStateAction<SimpleSubagent[]>>;
-  setAgentTranscripts: React.Dispatch<React.SetStateAction<Record<string, AgentTranscriptEntry[]>>>;
-  setSession: React.Dispatch<React.SetStateAction<SessionInfo | null>>;
-  setSessionMenuOpen?: React.Dispatch<React.SetStateAction<boolean>>;
-  setSessions: React.Dispatch<React.SetStateAction<SimpleSessionSummary[]>>;
-  setContext: React.Dispatch<React.SetStateAction<ContextInfo>>;
-  setModels: React.Dispatch<React.SetStateAction<Record<string, ModelDescriptor[]>>>;
-  setModes: React.Dispatch<React.SetStateAction<AgentMode[]>>;
-  setActiveModeId: React.Dispatch<React.SetStateAction<string>>;
-  setPrefs: React.Dispatch<React.SetStateAction<SimplePrefs>>;
-  setDraft: React.Dispatch<React.SetStateAction<string>>;
-  setFileRefs: React.Dispatch<React.SetStateAction<string[]>>;
-  setFileMention: React.Dispatch<React.SetStateAction<FileMention | null>>;
-  setNotice: React.Dispatch<React.SetStateAction<(StatusNoticeProjection & { id: string }) | null>>;
-  /** Show/dismiss the fallback model modal. */
-  setFallbackPending?: React.Dispatch<React.SetStateAction<FallbackPendingProjection | null>>;
-  setQueue: React.Dispatch<React.SetStateAction<QueuedItem[]>>;
-  setRefineState: React.Dispatch<React.SetStateAction<RefineState | null>>;
-  setPendingConfirm: React.Dispatch<React.SetStateAction<PendingConfirm | null>>;
-  setSelectedAgentId: React.Dispatch<React.SetStateAction<string>>;
-  setSessionStart: React.Dispatch<React.SetStateAction<number | null>>;
-  setShowJumpToLatest: React.Dispatch<React.SetStateAction<boolean>>;
-  setFileMatches: React.Dispatch<React.SetStateAction<string[]>>;
-  setFilePickerIndex: React.Dispatch<React.SetStateAction<number>>;
-  setFileSearching: React.Dispatch<React.SetStateAction<boolean>>;
-  setAttachedImages: React.Dispatch<
-    React.SetStateAction<Array<{ id: string; data: string; mime: string; name: string }>>
-  >;
-  setCopiedMessageId: React.Dispatch<React.SetStateAction<string | null>>;
-  setProviderLabels: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setDiffFiles: React.Dispatch<React.SetStateAction<FileEditMeta[] | null>>;
-  resetAgentNameCache: () => void;
-  /** Called when a run completes and the user has chime enabled. */
-  onChime?: (() => void) | undefined;
-  /** Called when session.start contains version/update info. */
-  onUpdateInfo?:
-    | ((info: { appVersion: string; latestVersion: string; updateAvailable: boolean }) => void)
-    | undefined;
-
-  // Stable callbacks provided by app.tsx
-  /** Returns `true` when the message was dispatched, `false` when dropped
-   *  (no session / empty content / no socket). Queue-drain callers gate on
-   *  this so a dropped drain does not silently consume the queued item. */
-  dispatchUserMessage: (
-    content: string,
-    images?: { data: string; mime: string; mediaType?: string }[],
-  ) => boolean;
-  requestProviderModels: (providerId: string) => void;
-  writeComposerDraft: (sessionId: string, draft: { text: string; fileRefs: string[] }) => void;
-  clearComposerDraft: (sessionId: string) => void;
-  readComposerDraft: (sessionId: string) => { text: string; fileRefs: string[] };
-
-  // External store
-  worklists: WorklistStore;
-}
+export type { MessageHandlerDeps } from './message-handler-deps.js';
 
 // ── Factory ─────────────────────────────────────────────────────────
 
@@ -337,128 +261,14 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
     }
     switch (message.type) {
       case 'session.start': {
-        nextStepsByToolId.clear();
-        completedToolNextSteps = [];
-        const sessionProjection = projectSessionMessage(message);
-        if (!sessionProjection) break;
-        const {
-          id,
-          provider,
-          model,
-          maxContext,
-          projectName,
-          cwd,
-          replayMessages,
-          replayMarkers,
-          replayUsage,
-        } = sessionProjection;
-        const previousId = sessionIdRef.current;
-        const switchedSession = Boolean(previousId && id && previousId !== id);
-        const resetSessionState = switchedSession || sessionProjection.reset;
-        if (switchedSession && previousId) {
-          writeComposerDraft(previousId, {
-            text: draftRef.current,
-            fileRefs: fileRefsRef.current,
-          });
-        }
-        if (!previousId || resetSessionState) {
-          stickToBottomRef.current = true;
-          setShowJumpToLatest(false);
-        }
-        sessionIdRef.current = id || null;
-        if (!previousId || resetSessionState) worklists.reset(id || null);
-        activeModelRef.current = provider && model ? { provider, model } : null;
-        setSession({
-          id,
-          provider,
-          model,
-          projectName,
-          cwd,
-          maxContext,
+        handleSessionStartMessage({
+          message,
+          deps,
+          nextStepsByToolId,
+          resetCompletedToolNextSteps: () => {
+            completedToolNextSteps = [];
+          },
         });
-        setModels((current) => ({
-          ...current,
-          [provider]: current[provider]?.some((item) => item.id === model)
-            ? current[provider]
-            : [{ id: model, name: model }, ...(current[provider] ?? [])].filter((item) => item.id),
-        }));
-        if (replayMessages) {
-          setMessages(replayToMessages(replayMessages, replayMarkers));
-        } else if (resetSessionState) {
-          setMessages([]);
-        }
-        if (payload['appVersion'] || payload['latestVersion']) {
-          deps.onUpdateInfo?.({
-            appVersion: String(payload['appVersion'] ?? ''),
-            latestVersion: String(payload['latestVersion'] ?? ''),
-            updateAvailable: Boolean(payload['updateAvailable']),
-          });
-        }
-
-        if (!previousId || resetSessionState) {
-          const agentSessions = parseAgentSessionReplays(payload['agentSessions']);
-          setSubagents(
-            agentSessions.map(({ subagentId, agentName, status, task }) => ({
-              id: subagentId,
-              name: agentName,
-              status,
-              task,
-            })),
-          );
-          setAgentTranscripts(
-            Object.fromEntries(
-              agentSessions.map(({ subagentId, transcript }) => [subagentId, transcript]),
-            ),
-          );
-        }
-        if (!previousId || switchedSession) {
-          const savedDraft = readComposerDraft(id);
-          draftRef.current = savedDraft.text;
-          fileRefsRef.current = savedDraft.fileRefs;
-          setDraft(savedDraft.text);
-          setFileRefs(savedDraft.fileRefs);
-          setFileMention(null);
-        } else if (sessionProjection.reset) {
-          clearComposerDraft(id);
-          draftRef.current = '';
-          fileRefsRef.current = [];
-          setDraft('');
-          setFileRefs([]);
-          setFileMention(null);
-        }
-        if (resetSessionState) {
-          setPendingConfirm(null);
-          setRunning(false);
-          setActivity('');
-          setToolCalls([]);
-          setSelectedAgentId(LEADER_AGENT_ID);
-          resetAgentNameCache();
-          setSessionStart(Date.now());
-          setAttachedImages([]);
-        }
-        setSessionMenuOpen?.(false);
-        const replayInput = replayUsage ? finiteNumber(replayUsage['input']) : 0;
-        setContext((current) => ({
-          load: resetSessionState
-            ? maxContext > 0
-              ? replayInput / maxContext
-              : 0
-            : current.maxContext > 0
-              ? current.load
-              : maxContext > 0
-                ? replayInput / maxContext
-                : 0,
-          tokens: resetSessionState ? replayInput : current.tokens || replayInput,
-          maxContext: maxContext || current.maxContext,
-          // Reset cache snapshot on session reset; otherwise keep the last
-          // known cache stats — `stats.get` is the only writer that can
-          // upgrade this from `null` to a real payload. Replay payloads
-          // do not include cache stats today (the simpleui replay
-          // builder only ships `usage.input`).
-          cache: resetSessionState ? null : current.cache,
-        }));
-        if (provider) requestProviderModels(provider);
-        socketRef.current?.send('sessions.list', { sessionId: id, limit: 12 });
         break;
       }
       case 'sessions.list': {
@@ -714,73 +524,23 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         setActivity('Thinking');
         break;
       case 'tool.started': {
-        const projection = projectToolMessage(message);
-        if (projection?.kind !== 'started') break;
-        const { name, id } = projection;
-        if (name === 'nextsteps' && id) {
-          nextStepsByToolId.set(id, projectNextStepsToolInput(projection.input));
-        }
-        setRunning(true);
-        setActivity(`Running ${name}`);
-        setToolCalls((current) => [
-          ...current,
-          { id, name, input: projection.input, status: 'running', ts: new Date().toISOString() },
-        ]);
+        handleToolStarted(message, nextStepsByToolId, setRunning, setActivity, setToolCalls);
         break;
       }
       case 'tool.progress': {
-        const projection = projectToolMessage(message);
-        if (projection?.kind === 'progress' && projection.text)
-          setActivity(projection.text.split('\n')[0] ?? 'Working');
+        handleToolProgress(message, setActivity);
         break;
       }
       case 'tool.executed': {
-        const projection = projectToolMessage(message);
-        if (projection?.kind !== 'executed') break;
-        const execId = projection.id;
-        const execName = projection.name;
-        if (execName === 'nextsteps' && execId) {
-          const steps = nextStepsByToolId.get(execId) ?? [];
-          nextStepsByToolId.delete(execId);
-          if (projection.ok && steps.length > 0) completedToolNextSteps = steps;
-        }
-        setActivity('Thinking');
-        if (execId || execName) {
-          setToolCalls((current) => {
-            // Find the single call to close. With an id it's an exact match.
-            // Without an id, pair by name against the LAST still-running call
-            // of that name — mirroring agentTranscriptToToolCalls in
-            // tool-model.ts. A plain `.map` here closed *every* running call
-            // with that name, so two concurrent same-tool calls collapsed
-            // into one (both marked done with the same output).
-            // Only ever close a still-running call. Requiring `running` on
-            // BOTH the id and the name branch makes a duplicate/late
-            // `tool.executed` (same id arriving twice) a safe no-op instead of
-            // re-closing an already-done call and overwriting its output.
-            let matchIndex = -1;
-            for (let index = current.length - 1; index >= 0; index--) {
-              const tc = current[index];
-              if (tc?.status !== 'running') continue;
-              if (execId ? tc.id === execId : tc.name === execName) {
-                matchIndex = index;
-                break;
-              }
-            }
-            if (matchIndex < 0) return current;
-            const target = current[matchIndex];
-            if (!target) return current;
-            const next = current.slice();
-            next[matchIndex] = {
-              ...target,
-              status: projection.ok ? 'done' : 'error',
-              output: projection.output,
-              durationMs: projection.durationMs,
-              ok: projection.ok,
-              ...(projection.sage ? { sage: projection.sage } : {}),
-            };
-            return next;
-          });
-        }
+        handleToolExecuted(
+          message,
+          nextStepsByToolId,
+          (steps) => {
+            completedToolNextSteps = steps;
+          },
+          setActivity,
+          setToolCalls,
+        );
         break;
       }
       case 'run.result': {

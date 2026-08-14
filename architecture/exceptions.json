@@ -21,8 +21,11 @@
       "members": [
         "packages/cli/src/acp-server-agent.ts",
         "packages/cli/src/hq-server.ts",
+        "packages/cli/src/hq-server/mailbox-gateway-manager.ts",
         "packages/cli/src/hq-server/routes.ts",
         "packages/cli/src/hq-server/routes/system-handlers.ts",
+        "packages/cli/src/hq-server/server-lifecycle.ts",
+        "packages/cli/src/hq-server/upgrade-handler.ts",
         "packages/cli/src/mcp-serve.ts",
         "packages/cli/src/subcommands/handlers/acp.ts",
         "packages/cli/src/subcommands/handlers/audit.ts",
@@ -35,6 +38,9 @@
         "packages/cli/src/subcommands/handlers/init.ts",
         "packages/cli/src/subcommands/handlers/mailbox-serve.ts",
         "packages/cli/src/subcommands/handlers/mcp.ts",
+        "packages/cli/src/subcommands/handlers/modeldiag-bench.ts",
+        "packages/cli/src/subcommands/handlers/modeldiag-eval.ts",
+        "packages/cli/src/subcommands/handlers/modeldiag-test.ts",
         "packages/cli/src/subcommands/handlers/modeldiag.ts",
         "packages/cli/src/subcommands/handlers/plugin-usage.ts",
         "packages/cli/src/subcommands/handlers/projects.ts",
@@ -50,7 +56,7 @@
         "packages/cli/src/subcommands/index.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-07-24 to include routes/system-handlers.ts (routes.ts grew a routes/system-handlers.ts submodule). No further new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-07-24 to include routes/system-handlers.ts (routes.ts grew a routes/system-handlers.ts submodule). Membership updated 2026-08-14 to include the hq-server split files (mailbox-gateway-manager.ts, server-lifecycle.ts, upgrade-handler.ts) and the modeldiag extraction files (modeldiag-bench.ts, modeldiag-eval.ts, modeldiag-test.ts). No further new members are allowed.",
       "introduced": "2026-07-21",
       "reviewBy": "2026-09-15",
       "removeWhen": "CLI phase and subcommand contracts are leaf modules with one-way dependencies.",
@@ -89,6 +95,8 @@
       "kind": "type-module-cycle",
       "members": [
         "packages/core/src/core/agent-internals.ts",
+        "packages/core/src/core/agent-loop-context.ts",
+        "packages/core/src/core/agent-loop-detector.ts",
         "packages/core/src/core/agent-loop.ts",
         "packages/core/src/core/agent-response.ts",
         "packages/core/src/core/agent-tools.ts",
@@ -100,7 +108,7 @@
         "packages/core/src/types/plugin.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include agent-loop-context.ts and agent-loop-detector.ts (agent-loop decomposition). No further new members are allowed.",
       "introduced": "2026-07-21",
       "reviewBy": "2026-09-15",
       "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",
@@ -199,10 +207,11 @@
       "kind": "type-module-cycle",
       "members": [
         "packages/tui/src/components/status-bar-chips.tsx",
+        "packages/tui/src/components/status-bar-rails.tsx",
         "packages/tui/src/components/status-bar.tsx"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include status-bar-rails.tsx (status-bar decomposition). No further new members are allowed.",
       "introduced": "2026-07-21",
       "reviewBy": "2026-09-15",
       "removeWhen": "TUI feature models and reducers no longer import views or the root shell.",

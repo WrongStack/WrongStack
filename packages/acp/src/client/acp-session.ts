@@ -49,6 +49,21 @@ import {
   handleAcpTerminalRequest,
 } from './acp-session-callbacks.js';
 import { isBestEffortAckMethod } from './acp-message-routing.js';
+import {
+  type ACPSessionOpContext,
+  executeCreateSession,
+  executeDeleteSession,
+  executeDisableProvider,
+  executeForkSession,
+  executeListProviders,
+  executeListSessions,
+  executeLoadSession,
+  executeMcpMessage,
+  executeResumeSession,
+  executeSetConfigOption,
+  executeSetMode,
+  executeSetProvider,
+} from './acp-session-ops.js';
 
 export type {
   ACPCapturedDiff,
@@ -188,11 +203,6 @@ export class ACPSession {
     try {
       return await ACPSession.attach(opts, transport, `failed to spawn ${opts.command}`);
     } catch (err) {
-      // `attach` already tears down the transport on handshake failure, but a
-      // throw that escapes before `attach` runs (e.g. a future constructor
-      // error) would leave a started transport dangling. Defensive stop here
-      // keeps spawn failures from leaking the transport's IPC + handlers.
-      // RAM-leak audit 2026-07-31, LOW.
       try {
         transport.stop();
       } catch {
@@ -288,12 +298,6 @@ export class ACPSession {
       agentInfo?: { name: string; title?: string | undefined; version: string };
       authMethods?: AuthMethod[];
     };
-    // Negotiation per spec: the client advertises its latest supported
-    // version; the agent replies with the version both will use — the
-    // client's if the agent supports it, otherwise the agent's own latest.
-    // We therefore accept any version <= ours (we can speak it) and only
-    // reject a version HIGHER than we support (the agent demands a protocol
-    // we don't implement). Equal is the common path.
     if (r.protocolVersion > ACP_PROTOCOL_VERSION) {
       throw new ACPSessionError(
         'unsupported_capability',
@@ -301,7 +305,6 @@ export class ACPSession {
       );
     }
     this.negotiatedVersion = r.protocolVersion;
-    // Store agent metadata
     this.agentCapabilities = r.agentCapabilities ?? {};
     this.agentInfo = r.agentInfo ?? null;
     this.authMethods = r.authMethods ?? [];
@@ -315,9 +318,6 @@ export class ACPSession {
   /**
    * Authenticate with the agent using one of the advertised auth methods.
    * Call this AFTER start() and BEFORE any session/new call.
-   *
-   * Throws ACPSessionError('auth_failed') if the agent rejects the
-   * authentication or if the methodId is not in the advertised list.
    */
   async authenticate(methodId: string): Promise<void> {
     if (this.state === 'closed') {
@@ -368,295 +368,81 @@ export class ACPSession {
   }
 
   // ──────────────────────────────────────────────────────────────────────
-  // Session management
+  // Session management delegation
   // ──────────────────────────────────────────────────────────────────────
 
-  /**
-   * Load an existing session. The agent replays the conversation history
-   * via session/update notifications before responding.
-   *
-   * Only works if the agent advertises `loadSession` capability.
-   *
-   * @param sessionId - The session to load
-   * @param mcpServers - Optional MCP servers (defaults to options.mcpServers)
-   * @param cwd - Optional working directory (defaults to options.cwd or projectRoot)
-   */
+  private opContext(): ACPSessionOpContext {
+    return {
+      closed: this.closed,
+      sessionId: this.sessionId,
+      agentCapabilities: this.agentCapabilities,
+      opts: this.opts,
+      allocId: () => this.allocId(),
+      sendRequest: (id, method, params, timeoutMs) =>
+        this.sendRequest(id, method, params, timeoutMs),
+      setSessionId: (id) => {
+        this.sessionId = id;
+      },
+      resetScratch: () => this.resetScratch(),
+      closeSession: () => this.closeSession(),
+    };
+  }
+
   async loadSession(sessionId: SessionId, mcpServers?: McpServer[], cwd?: string): Promise<void> {
-    if (this.closed) {
-      throw new ACPSessionError('closed', 'session is closed');
-    }
-    if (!this.agentCapabilities.loadSession) {
-      throw new ACPSessionError(
-        'unsupported_capability',
-        'agent does not support session/load (loadSession capability not advertised)',
-      );
-    }
-    if (this.sessionId) {
-      // Close current session first
-      await this.closeSession();
-    }
-
-    this.resetScratch();
-    const servers = this.filterMcpServers(mcpServers ?? this.opts.mcpServers);
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'session/load', {
-      sessionId,
-      cwd: cwd ?? this.opts.cwd ?? this.opts.projectRoot,
-      mcpServers: servers,
-    });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError('prompt_failed', `session/load failed: ${result.message}`, result);
-    }
-    this.sessionId = sessionId;
+    return executeLoadSession(this.opContext(), sessionId, mcpServers, cwd);
   }
 
-  /**
-   * Resume an existing session without replaying history.
-   *
-   * Only works if the agent advertises `sessionCapabilities.resume`.
-   *
-   * @param sessionId - The session to resume
-   * @param mcpServers - Optional MCP servers (defaults to options.mcpServers)
-   * @param cwd - Optional working directory (defaults to options.cwd or projectRoot)
-   */
   async resumeSession(sessionId: SessionId, mcpServers?: McpServer[], cwd?: string): Promise<void> {
-    if (this.closed) {
-      throw new ACPSessionError('closed', 'session is closed');
-    }
-    if (!this.agentCapabilities.sessionCapabilities?.resume) {
-      throw new ACPSessionError(
-        'unsupported_capability',
-        'agent does not support session/resume (sessionCapabilities.resume not advertised)',
-      );
-    }
-    if (this.sessionId) {
-      await this.closeSession();
-    }
-
-    const servers = this.filterMcpServers(mcpServers ?? this.opts.mcpServers);
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'session/resume', {
-      sessionId,
-      cwd: cwd ?? this.opts.cwd ?? this.opts.projectRoot,
-      mcpServers: servers,
-    });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError(
-        'prompt_failed',
-        `session/resume failed: ${result.message}`,
-        result,
-      );
-    }
-    this.sessionId = sessionId;
+    return executeResumeSession(this.opContext(), sessionId, mcpServers, cwd);
   }
 
-  /**
-   * List existing sessions known to the agent.
-   *
-   * Only works if the agent advertises `sessionCapabilities.list`.
-   */
   async listSessions(
     cursor?: string,
     cwd?: string,
   ): Promise<{ sessions: SessionInfo[]; nextCursor?: string | undefined }> {
-    if (this.closed) {
-      throw new ACPSessionError('closed', 'session is closed');
-    }
-    if (!this.agentCapabilities.sessionCapabilities?.list) {
-      throw new ACPSessionError(
-        'unsupported_capability',
-        'agent does not support session/list (sessionCapabilities.list not advertised)',
-      );
-    }
-
-    const id = this.allocId();
-    const params: Record<string, unknown> = {};
-    if (cursor !== undefined) params.cursor = cursor;
-    if (cwd !== undefined) params.cwd = cwd;
-    const result = await this.sendRequest(id, 'session/list', params);
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError('prompt_failed', `session/list failed: ${result.message}`, result);
-    }
-    const r = result as { sessions?: SessionInfo[]; nextCursor?: string };
-    return {
-      sessions: r.sessions ?? [],
-      nextCursor: r.nextCursor,
-    };
+    return executeListSessions(this.opContext(), cursor, cwd);
   }
 
-  /**
-   * Delete a session from the agent's session list.
-   *
-   * Only works if the agent advertises `sessionCapabilities.delete`.
-   */
   async deleteSession(sessionId: SessionId): Promise<void> {
-    if (this.closed) {
-      throw new ACPSessionError('closed', 'session is closed');
-    }
-    if (!this.agentCapabilities.sessionCapabilities?.delete) {
-      throw new ACPSessionError(
-        'unsupported_capability',
-        'agent does not support session/delete (sessionCapabilities.delete not advertised)',
-      );
-    }
-
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'session/delete', { sessionId });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError(
-        'prompt_failed',
-        `session/delete failed: ${result.message}`,
-        result,
-      );
-    }
-
-    if (this.sessionId === sessionId) {
-      this.sessionId = null;
-    }
+    return executeDeleteSession(this.opContext(), sessionId);
   }
 
-  /**
-   * Fork a session — create a new session from an existing one.
-   */
   async forkSession(
     sourceSessionId: SessionId,
     cwd?: string,
     mcpServers?: McpServer[],
   ): Promise<SessionId> {
-    if (this.closed) throw new ACPSessionError('closed', 'session is closed');
-
-    const servers = this.filterMcpServers(mcpServers ?? this.opts.mcpServers);
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'session/fork', {
-      sessionId: sourceSessionId,
-      cwd: cwd ?? this.opts.cwd ?? this.opts.projectRoot,
-      ...(servers.length > 0 ? { mcpServers: servers } : {}),
-    });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError('prompt_failed', `session/fork failed: ${result.message}`, result);
-    }
-    const newId = (result as { sessionId?: unknown }).sessionId;
-    if (typeof newId !== 'string' || !newId) {
-      throw new ACPSessionError('protocol_error', 'session/fork returned no sessionId', result);
-    }
-    return newId as SessionId;
+    return executeForkSession(this.opContext(), sourceSessionId, cwd, mcpServers);
   }
 
-  /**
-   * Set the active mode for a session.
-   */
   async setMode(sessionId: SessionId, modeId: string): Promise<void> {
-    if (this.closed) throw new ACPSessionError('closed', 'session is closed');
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'session/set_mode', { sessionId, modeId });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError(
-        'prompt_failed',
-        `session/set_mode failed: ${result.message}`,
-        result,
-      );
-    }
+    return executeSetMode(this.opContext(), sessionId, modeId);
   }
 
-  /**
-   * Set a configuration option for a session.
-   */
   async setConfigOption(sessionId: SessionId, configId: string, value: string): Promise<void> {
-    if (this.closed) throw new ACPSessionError('closed', 'session is closed');
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'session/set_config_option', {
-      sessionId,
-      configId,
-      value,
-    });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError(
-        'prompt_failed',
-        `session/set_config_option failed: ${result.message}`,
-        result,
-      );
-    }
+    return executeSetConfigOption(this.opContext(), sessionId, configId, value);
   }
 
-  /**
-   * List available providers and the current provider.
-   */
   async listProviders(): Promise<{ providers: unknown[]; currentProviderId: string | null }> {
-    if (this.closed) throw new ACPSessionError('closed', 'session is closed');
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'providers/list', {});
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError(
-        'prompt_failed',
-        `providers/list failed: ${result.message}`,
-        result,
-      );
-    }
-    const r = result as { providers?: unknown[]; currentProviderId?: string | null };
-    return { providers: r.providers ?? [], currentProviderId: r.currentProviderId ?? null };
+    return executeListProviders(this.opContext());
   }
 
-  /**
-   * Send an MCP message to the agent for routing.
-   */
   async mcpMessage(connectionId: string, message: Record<string, unknown>): Promise<unknown> {
-    if (this.closed) throw new ACPSessionError('closed', 'session is closed');
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'mcp/message', { connectionId, message });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError('prompt_failed', `mcp/message failed: ${result.message}`, result);
-    }
-    return result;
+    return executeMcpMessage(this.opContext(), connectionId, message);
   }
 
-  /**
-   * Set the active provider for the agent.
-   */
   async setProvider(providerId: string, config?: Record<string, unknown>): Promise<void> {
-    if (this.closed) throw new ACPSessionError('closed', 'session is closed');
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'providers/set', { providerId, ...(config ?? {}) });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError('prompt_failed', `providers/set failed: ${result.message}`, result);
-    }
+    return executeSetProvider(this.opContext(), providerId, config);
   }
 
-  /**
-   * Disable the current provider.
-   */
   async disableProvider(): Promise<void> {
-    if (this.closed) throw new ACPSessionError('closed', 'session is closed');
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'providers/disable', {});
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError(
-        'prompt_failed',
-        `providers/disable failed: ${result.message}`,
-        result,
-      );
-    }
+    return executeDisableProvider(this.opContext());
   }
 
   // ──────────────────────────────────────────────────────────────────────
   // Prompt
   // ──────────────────────────────────────────────────────────────────────
 
-  /**
-   * Run one prompt turn. Creates a session if needed, sends the
-   * prompt, streams session/update notifications, and resolves with
-   * the agent's response.
-   *
-   * @param blocks - Content blocks to send. Use `textContent()` for plain
-   *   text, or include ImageContent/AudioContent if the agent's
-   *   `promptCapabilities` allow it.
-   * @param signal - AbortSignal for cancellation.
-   *
-   * Cancellation: if `signal` aborts mid-prompt, we send
-   * `session/cancel` (a notification per spec) and keep accepting
-   * updates until the agent returns with `stopReason: 'cancelled'`.
-   * The result is the same shape as a normal turn, with
-   * `stopReason === 'cancelled'`.
-   */
   async prompt(
     blocks: ContentBlock[],
     signal: AbortSignal,
@@ -669,14 +455,12 @@ export class ACPSession {
       throw new ACPSessionError('protocol_error', `prompt called in state=${this.state}`);
     }
 
-    // Pre-aborted signals short-circuit BEFORE we create a session
-    // and before any wire activity.
     if (signal.aborted) {
       return emptyRunResult('cancelled');
     }
 
     if (!this.sessionId) {
-      await this.createSession();
+      this.sessionId = await executeCreateSession(this.opContext());
     }
 
     this.resetScratch();
@@ -704,9 +488,7 @@ export class ACPSession {
           method: 'session/cancel',
           params: { sessionId: this.sessionId },
         } as never as ACPMessage)
-        .catch(() => {
-          // transport may already be torn down — ignore
-        });
+        .catch(() => {});
     };
     signal.addEventListener('abort', onAbort, { once: true });
 
@@ -747,34 +529,6 @@ export class ACPSession {
     };
   }
 
-  private async createSession(): Promise<void> {
-    const servers = this.filterMcpServers(this.opts.mcpServers);
-    const id = this.allocId();
-    const result = await this.sendRequest(id, 'session/new', {
-      cwd: this.opts.cwd ?? this.opts.projectRoot,
-      mcpServers: servers,
-    });
-    if (isJsonRpcError(result)) {
-      throw new ACPSessionError(
-        'session_create_failed',
-        `session/new failed: ${result.message}`,
-        result,
-      );
-    }
-    const sessionId = (result as { sessionId?: unknown }).sessionId;
-    if (typeof sessionId !== 'string' || sessionId.length === 0) {
-      throw new ACPSessionError('protocol_error', 'session/new returned no sessionId', result);
-    }
-    this.sessionId = sessionId as SessionId;
-  }
-
-  /**
-   * Close the current session gracefully (if the agent supports it).
-   *
-   * Sends `session/close` JSON-RPC request, then clears the local
-   * session id. Best-effort — errors are swallowed so the caller can
-   * always proceed to transport teardown.
-   */
   private async closeSession(): Promise<void> {
     if (!this.sessionId) return;
     const sid = this.sessionId;
@@ -785,7 +539,7 @@ export class ACPSession {
       try {
         await this.sendRequest(id, 'session/close', { sessionId: sid }, 10_000);
       } catch {
-        // Best-effort: if close fails, we still proceed with transport stop.
+        // Best-effort
       }
     }
   }
@@ -794,7 +548,6 @@ export class ACPSession {
   // Lifecycle — close
   // ──────────────────────────────────────────────────────────────────────
 
-  /** Tear down the session and kill the child process. */
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
@@ -802,14 +555,8 @@ export class ACPSession {
     this.callbackAbort.abort();
     this.promptCallbackAbort?.abort();
     this.promptCallbackAbort = null;
-    // `dispose()` (not `releaseAll()`) so the host AbortSignal listener is
-    // detached unconditionally — releaseAll is now a delegated wrapper and
-    // would work, but `dispose()` is the canonical teardown entry point and
-    // makes the intent explicit. Both paths are idempotent. RAM-leak
-    // audit 2026-08-11, MEDIUM (Finding 2) remediation.
     this.terminalServer.dispose();
 
-    // Graceful session close (if session is active and agent supports it)
     if (this.sessionId && this.agentCapabilities.sessionCapabilities?.close) {
       try {
         await this.closeSession();
@@ -818,7 +565,6 @@ export class ACPSession {
       }
     }
 
-    // Reject any pending outbound requests so their awaits return.
     for (const [, p] of this.pending) {
       clearTimeout(p.timeoutHandle);
       p.reject(new ACPSessionError('closed', 'session was closed'));
@@ -831,26 +577,6 @@ export class ACPSession {
     } catch {
       // best effort
     }
-  }
-
-  // ──────────────────────────────────────────────────────────────────────
-  // Helpers
-  // ──────────────────────────────────────────────────────────────────────
-
-  /**
-   * Filter MCP servers according to agent capabilities.
-   * - Stdio servers are always included.
-   * - HTTP servers are only included if agent supports mcpCapabilities.http.
-   * - SSE servers are only included if agent supports mcpCapabilities.sse.
-   */
-  private filterMcpServers(servers?: McpServer[]): McpServer[] {
-    if (!servers || servers.length === 0) return [];
-    const mcpCaps = this.agentCapabilities.mcpCapabilities ?? {};
-    return servers.filter((s) => {
-      if ('type' in s && s.type === 'http') return mcpCaps.http === true;
-      if ('type' in s && s.type === 'sse') return mcpCaps.sse === true;
-      return true; // stdio — always supported per spec
-    });
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -893,22 +619,10 @@ export class ACPSession {
     });
   }
 
-  /**
-   * Send a JSON-RPC 2.0 success response to an agent-initiated request.
-   *
-   * Per JSON-RPC 2.0 (and the official ACP SDK's message router) a Response
-   * object MUST carry `jsonrpc: "2.0"` and MUST NOT carry a `method` field —
-   * the SDK classifies any object with a `method` key as a Request and drops
-   * it as a response, so an agent's `fs/*`, `terminal/*`, or
-   * `session/request_permission` callback would hang forever. The legacy
-   * `ACPMessage` type predates v1 (requires `method`, lacks `jsonrpc`), so we
-   * build the correct wire object and cast at the boundary.
-   */
   private sendResult(id: string | number, result: unknown): Promise<void> {
     return this.transport.send({ jsonrpc: '2.0', id, result } as never as ACPMessage);
   }
 
-  /** Send a JSON-RPC 2.0 error response (no `method` field, per spec). */
   private sendErrorResponse(id: string | number, code: number, message: string): Promise<void> {
     return this.transport.send({
       jsonrpc: '2.0',
@@ -929,17 +643,10 @@ export class ACPSession {
     const signal = promptSignal
       ? AbortSignal.any([this.callbackAbort.signal, promptSignal])
       : this.callbackAbort.signal;
-    // Opt out of the default wall-clock permission deadline: ACPSession
-    // hosts may inject a permissionPolicy that waits for a human decision,
-    // and the 60s default would auto-fail approvals the user is still
-    // considering. The wait remains fail-closed — close() aborts
-    // callbackAbort/promptCallbackAbort, which cancels any in-flight
-    // permission request (-32800) regardless of the missing deadline.
     return { signal, permissionTimeoutMs: Number.POSITIVE_INFINITY };
   }
 
   private handleMessage(msg: ACPMessage): void {
-    // Response to an outbound request (has id and either result or error)
     if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
       const pending = this.pending.get(msg.id);
       if (!pending) return;
@@ -953,27 +660,21 @@ export class ACPSession {
       return;
     }
 
-    // session/update notification (no id)
     if (msg.method === 'session/update') {
       handleAcpSessionUpdate(msg, this.scratch, (event) => this.emitProgress(event));
       return;
     }
 
-    // session/request_permission (has id, expected response: outcome)
     if (msg.method === 'session/request_permission') {
       handleAcpPermissionRequest(
         msg,
         this.permissionPolicy,
         this.responseSender(),
         this.callbackOptions(),
-      ).catch(() => {
-        // The session may close while a fire-and-forget callback is replying.
-        // Transport send failures during teardown must not become unhandled rejections.
-      });
+      ).catch(() => {});
       return;
     }
 
-    // fs/* requests
     if (msg.method === 'fs/read_text_file' || msg.method === 'fs/write_text_file') {
       handleAcpFsRequest(
         msg,
@@ -981,14 +682,10 @@ export class ACPSession {
         this.permissionPolicy,
         this.responseSender(),
         this.callbackOptions(),
-      ).catch(() => {
-        // The session may close while a fire-and-forget callback is replying.
-        // Transport send failures during teardown must not become unhandled rejections.
-      });
+      ).catch(() => {});
       return;
     }
 
-    // terminal/* requests
     if (msg.method?.startsWith('terminal/')) {
       handleAcpTerminalRequest(
         msg,
@@ -996,10 +693,7 @@ export class ACPSession {
         this.permissionPolicy,
         this.responseSender(),
         this.callbackOptions(),
-      ).catch(() => {
-        // The session may close while a fire-and-forget callback is replying.
-        // Transport send failures during teardown must not become unhandled rejections.
-      });
+      ).catch(() => {});
       return;
     }
 
@@ -1010,12 +704,10 @@ export class ACPSession {
       return;
     }
 
-    // $/cancel_request protocol notification — no response expected.
     if (msg.method === '$/cancel_request') {
       return;
     }
 
-    // Anything else: log to stderr and ignore. Don't crash.
     if (msg.method) {
       // eslint-disable-next-line no-console
       console.warn(
@@ -1038,10 +730,7 @@ export class ACPSession {
     }
   }
 
-  /** Live progress handler installed for the duration of a `prompt()` turn. */
   private progressHandler: ACPProgressHandler | null = null;
-
-  // Per-prompt scratch state
   private scratch: ACPSessionScratch = createSessionScratch();
 
   private resetScratch(): void {

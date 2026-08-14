@@ -1,16 +1,13 @@
-import { ArrowDown, Mail, Sparkles, X } from 'lucide-react';
+import { ArrowDown, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentChatPane } from './agent-chat-pane.js';
-import { BrainPanel } from './brain-panel.js';
 import { ChatMessageList } from './chat-message-list.js';
-import { CommandPalette } from './command-palette.js';
 import { Composer } from './composer.js';
-import { ContextBreakdownModal } from './context-breakdown-modal.js';
 import { ErrorBoundary } from './error-boundary.js';
-import { FallbackModal, type FallbackPendingProjection } from './fallback-modal.js';
+import type { FallbackPendingProjection } from './fallback-modal.js';
 import { FileChangesButton } from './file-changes-button.js';
-import { FileDiffPanel } from './file-diff-panel.js';
-import { FileExplorer } from './file-explorer.js';
+import { SessionAgentStrip } from './session-agent-strip.js';
+import { SessionTopbar } from './session-topbar.js';
 import { useAgentRoster } from './hooks/use-agent-roster.js';
 import { useComposerActions } from './hooks/use-composer-actions.js';
 import { useF5Resilience } from './hooks/use-f5-resilience.js';
@@ -50,14 +47,8 @@ import {
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
 import type { SimpleSocket } from './lib/ws.js';
-import { MailboxSidebar } from './mailbox-sidebar.js';
-import { MemoryDrawer } from './memory-drawer.js';
-import { PromptLibrary } from './prompt-library.js';
-import { ServerOutageOverlay } from './server-outage-overlay.js';
-import { SessionAgentStrip } from './session-agent-strip.js';
-import { SessionHealthPanel } from './session-health-panel.js';
-import { SessionTopbar } from './session-topbar.js';
-import { SettingsPanel } from './settings-panel.js';
+import { SessionMailboxDrawer } from './session-mailbox-drawer.js';
+import { SessionModals } from './session-modals.js';
 import { ToolSidebar } from './tool-sidebar.js';
 import type {
   AgentMode,
@@ -854,98 +845,65 @@ export function SimpleUiSession() {
         onOpenDiff={(files) => setDiffFiles(files)}
       />
 
-      {mailboxOpen && (
-        <>
-          <button
-            type="button"
-            className="sidebar-overlay"
-            aria-label="Close email panel"
-            onClick={() => setMailboxOpen(false)}
-          />
-          <aside className="email-panel" aria-label="Email panel">
-            <header className="tool-sidebar-header">
-              <div>
-                <Mail size={14} aria-hidden="true" />
-                <span>EMAIL</span>
-                <b>PROJECT MAILBOX</b>
-              </div>
-              <button
-                type="button"
-                aria-label="Close email panel"
-                onClick={() => setMailboxOpen(false)}
-              >
-                <X size={15} aria-hidden="true" />
-              </button>
-            </header>
-            <div className="tool-sidebar-list">
-              <MailboxSidebar
-                store={mailboxStore}
-                onRefresh={refreshMailbox}
-                onSend={sendMailboxMessage}
-                onAction={handleMailboxAction}
-              />
-            </div>
-          </aside>
-        </>
-      )}
-
-      <CommandPalette
-        open={commandPaletteOpen}
-        context={{
-          hasSession: Boolean(session),
-          running,
-          canCompose: leaderSelected,
-          canCompact: Boolean(session) && !running,
-        }}
-        onClose={() => setCommandPaletteOpen(false)}
-        onRun={runCommandPaletteAction}
+      <SessionMailboxDrawer
+        open={mailboxOpen}
+        onClose={() => setMailboxOpen(false)}
+        store={mailboxStore}
+        onRefresh={refreshMailbox}
+        onSend={sendMailboxMessage}
+        onAction={handleMailboxAction}
       />
 
-      <MemoryDrawer socketRef={socketRef} />
-      <FileExplorer socketRef={socketRef} />
-      <PromptLibrary
-        onRecall={(text) => {
+      <SessionModals
+        socketRef={socketRef}
+        session={session}
+        running={running}
+        leaderSelected={leaderSelected}
+        commandPaletteOpen={commandPaletteOpen}
+        onCloseCommandPalette={() => setCommandPaletteOpen(false)}
+        onRunCommandPaletteAction={runCommandPaletteAction}
+        onRecallPrompt={(text) => {
           setDraft(text);
           textareaRef.current?.focus();
         }}
-      />
-      <BrainPanel socketRef={socketRef} />
-      <SessionHealthPanel
         context={context}
         messages={messages}
         sessionStart={sessionStart}
+        contextBreakdownOpen={contextBreakdownOpen}
+        onCloseContextBreakdown={() => setContextBreakdownOpen(false)}
         onOpenContextBreakdown={() => setContextBreakdownOpen(true)}
+        onCompactContext={() => {
+          if (sessionIdRef.current) {
+            socketRef.current?.send('context.compact', {
+              sessionId: sessionIdRef.current,
+              aggressive: false,
+            });
+            setActivity('Compacting context');
+          }
+          setContextBreakdownOpen(false);
+        }}
+        fallbackPending={fallbackPending}
+        onCloseFallbackModal={() => setFallbackPending(null)}
+        settingsOpen={settingsOpen}
+        onCloseSettings={() => setSettingsOpen(false)}
+        prefs={prefs}
+        modes={modes}
+        activeModeId={activeModeId}
+        palette={palette}
+        connection={connection}
+        onAutonomyChange={switchAutonomy}
+        onModeChange={switchMode}
+        onPaletteChange={setPalette}
+        onPrefChange={updatePrefs}
+        onResetPrefs={resetPrefs}
+        isAtDefaults={isAtDefaults}
+        diffFiles={diffFiles}
+        onCloseDiffFiles={() => setDiffFiles(null)}
+        outageDismissed={outageDismissed}
+        outage={outage}
+        onDismissOutage={dismissOutage}
+        sessionId={sessionIdRef.current}
       />
-
-      <ErrorBoundary>
-        <ContextBreakdownModal
-          open={contextBreakdownOpen}
-          onClose={() => setContextBreakdownOpen(false)}
-          socketRef={socketRef}
-          context={context}
-          sessionId={sessionIdRef.current}
-          sessionStart={sessionStart}
-          running={running}
-          onCompact={() => {
-            if (sessionIdRef.current) {
-              socketRef.current?.send('context.compact', {
-                sessionId: sessionIdRef.current,
-                aggressive: false,
-              });
-              setActivity('Compacting context');
-            }
-            setContextBreakdownOpen(false);
-          }}
-        />
-      </ErrorBoundary>
-
-      <ErrorBoundary>
-        <FallbackModal
-          info={fallbackPending}
-          socketRef={socketRef}
-          onClose={() => setFallbackPending(null)}
-        />
-      </ErrorBoundary>
 
       {leaderSelected && showJumpToLatest && (
         <button type="button" className="jump-to-latest" onClick={jumpToLatest}>
@@ -1003,30 +961,6 @@ export function SimpleUiSession() {
           </footer>
         </ErrorBoundary>
       )}
-
-      <ErrorBoundary>
-        <SettingsPanel
-          open={settingsOpen}
-          prefs={prefs}
-          modes={modes}
-          activeModeId={activeModeId}
-          palette={palette}
-          connection={connection}
-          onClose={() => setSettingsOpen(false)}
-          onAutonomyChange={switchAutonomy}
-          onModeChange={switchMode}
-          onPaletteChange={setPalette}
-          onPrefChange={updatePrefs}
-          onReset={resetPrefs}
-          isAtDefaults={isAtDefaults}
-        />
-      </ErrorBoundary>
-
-      {diffFiles && (
-        <FileDiffPanel files={diffFiles} socketRef={socketRef} onClose={() => setDiffFiles(null)} />
-      )}
-
-      {!outageDismissed && <ServerOutageOverlay outage={outage} onDismiss={dismissOutage} />}
     </div>
   );
 }

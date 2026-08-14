@@ -6,58 +6,26 @@
  * ceiling), human escalation last. The BrainMonitor also engages it
  * proactively on tool-failure streaks and error storms.
  *
- *   /brain                  status — mode, ceiling, pool, recent decisions
- *   /brain status           same
- *   /brain risk <level>     set the autonomy ceiling (off|low|medium|high|all)
- *   /brain mode <m>         headless (never block on a human) | interactive
- *   /brain model <ref>      single decision model ("session" = session model)
- *   /brain models ...       ordered LLM pool (set/add/remove/clear)
- *   /brain strategy <s>     pool strategy: fallback | round-robin
- *   /brain timeout <ms>     per-LLM-call decision timeout
- *   /brain human-timeout    interactive escalation timeout (ms | off)
- *   /brain council ...      multi-LLM council (on/off/minrisk/voters/personas/
- *                           judge/quorum/approval/distinctness/timeout/
- *                           concurrency/votertokens/judgetokens)
- *   /brain ledger ...       view rows | on|off | autodeny <n>
- *   /brain ask <question>   consult the Brain directly for a decision
- *   /brain save             re-persist the current settings
- *
  * Every setter applies LIVE and persists to the active profile config
  * (config.brain is denied in project scope by design).
  */
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { parseModelRef } from '@wrongstack/core/agent';
-import type { BrainLedgerEntry } from '@wrongstack/core/coordination';
 import type {
   BrainAutoRisk,
   BrainConfigPatch,
   BrainConfigSnapshot,
 } from '@wrongstack/core/execution';
-import { BUILTIN_COUNCIL_PERSONA_IDS, BUILTIN_COUNCIL_PERSONAS } from '@wrongstack/core/execution';
-import type { BrainCouncilVoterConfig, SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
+import { compactEntry, handleBrainCouncilSubcommand, parseRefEntry } from './brain-council.js';
+import {
+  formatBrainStats,
+  formatBrainStatus,
+  readLedgerEntries,
+} from './brain-status.js';
 import type { SlashCommandContext } from './command-context.js';
 
 const RISK_LEVELS: ReadonlySet<string> = new Set(['off', 'low', 'medium', 'high', 'all']);
-const COUNCIL_RISKS: ReadonlySet<string> = new Set(['medium', 'high', 'critical']);
-const COUNCIL_DISTINCTNESS: ReadonlySet<string> = new Set(['none', 'model', 'provider']);
-/** Subcommand → `BrainCouncilPatch` field for the positive-integer knobs. */
-const COUNCIL_NUMERIC_OPS: Record<string, string | undefined> = {
-  timeout: 'perCallTimeoutMs',
-  concurrency: 'maxConcurrency',
-  votertokens: 'voterMaxTokens',
-  judgetokens: 'judgeMaxTokens',
-};
-/**
- * Bare-token personas accepted in the seat grammar (`ref:skeptic`).
- *
- * Sourced from the Council persona registry rather than a local tuple — the
- * previous hard-coded `['executor','skeptic','auditor']` meant `ref:security`
- * parsed as part of the model ref instead of as a lens, so half the shipped
- * lenses were unreachable from the command line.
- */
-const PERSONA_SHORTHANDS: ReadonlySet<string> = new Set(BUILTIN_COUNCIL_PERSONA_IDS);
 const HEURISTIC_FIELDS: Record<string, string> = {
   lowrisk: 'lowRiskAutoAnswer',
   blocked: 'blockedResolved',
@@ -69,88 +37,6 @@ const DENY_TERMINAL_VALUES = ['never', 'when-decided', 'always'];
 const TRACE_CONTENT_VALUES = ['none', 'redacted', 'full'];
 const TERMINAL_POLICY_VALUES = ['conservative', 'deny-all', 'continue-on-recommended'];
 const MONITOR_POLICY_VALUES = ['llm', 'steer', 'observe'];
-/** Tiers that reached a decision without any provider call. */
-const DETERMINISTIC_TIER_NAMES = [
-  'rule',
-  'policy',
-  'heuristic',
-  'cache',
-  'ledger-guard',
-  'terminal',
-];
-
-function parseRefEntry(ref: string): { provider?: string; model: string } | null {
-  const parsed = parseModelRef(ref);
-  const model = parsed.model?.trim();
-  if (!model) return null;
-  return parsed.provider ? { provider: parsed.provider, model } : { model };
-}
-
-function compactEntry(entry: { provider?: string | undefined; model: string }): string {
-  return entry.provider ? `${entry.provider}/${entry.model}` : entry.model;
-}
-
-/**
- * Render the EFFECTIVE council judge as a `, judge: …` suffix.
- *
- * Status used to print `council.judge`, which is the CONFIGURED judge and is
- * usually absent — so in the common case (judge derived from the pool) the
- * line said nothing at all. That is precisely the case worth showing: the
- * judge only runs to break a tie or synthesize a split panel, so a judge that
- * is itself one of the seats re-states its own vote with the deciding weight.
- * `[derived]` marks the non-configured case and `⚠ also a voter` marks the
- * correlation, which happens whenever the pool has no model left over after
- * seating (pool size == seat count).
- */
-function judgeSummary(s: {
-  judgeLabel: string | undefined;
-  judgeIsVoter: boolean;
-  council: { judge?: { provider?: string | undefined; model: string } | undefined };
-}): string {
-  if (!s.judgeLabel) return '';
-  const origin = s.council.judge ? '' : ' [derived]';
-  return `, judge: ${s.judgeLabel}${origin}${s.judgeIsVoter ? ' ⚠ also a voter' : ''}`;
-}
-
-/**
- * Council seat grammar: `<ref>[:<built-in persona>][:persona=NAME][:veto][:w=N]`.
- * Modifiers are stripped from the RIGHT so model ids containing `:`
- * (e.g. ollama tags) survive as part of the ref.
- */
-function parseSeat(token: string): BrainCouncilVoterConfig | null {
-  const parts = token.split(':');
-  const mods: string[] = [];
-  while (parts.length > 1) {
-    const tail = (parts[parts.length - 1] ?? '').toLowerCase();
-    const isMod =
-      tail === 'veto' ||
-      /^w(eight)?=\d+(\.\d+)?$/.test(tail) ||
-      tail.startsWith('persona=') ||
-      PERSONA_SHORTHANDS.has(tail);
-    if (!isMod) break;
-    mods.push(parts.pop() as string);
-  }
-  const entry = parseRefEntry(parts.join(':'));
-  if (!entry) return null;
-  const voter: BrainCouncilVoterConfig = { ...entry };
-  for (const raw of mods) {
-    const mod = raw.toLowerCase();
-    if (mod === 'veto') voter.veto = true;
-    else if (mod.startsWith('w=') || mod.startsWith('weight=')) {
-      voter.weight = Number(raw.slice(raw.indexOf('=') + 1));
-    } else if (mod.startsWith('persona=')) {
-      voter.persona = raw.slice(raw.indexOf('=') + 1);
-    } else voter.persona = mod;
-  }
-  return voter;
-}
-
-function fmtAge(at: number): string {
-  const s = Math.max(0, Math.round((Date.now() - at) / 1000));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  return `${Math.round(s / 3600)}h ago`;
-}
 
 export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
   return {
@@ -212,7 +98,6 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       const [sub, ...rest] = trimmed.split(/\s+/);
       const subcommand = (sub ?? '').toLowerCase();
 
-      /** Apply a live+persist patch through the BrainRuntime and report the outcome. */
       const applyPatch = async (
         patch: BrainConfigPatch,
         describe: (snapshot: BrainConfigSnapshot) => string,
@@ -242,7 +127,6 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       const poolSummary = (snapshot: BrainConfigSnapshot): string =>
         snapshot.poolLabels.length > 0 ? snapshot.poolLabels.join(' → ') : 'session model';
 
-      // TUI mode: bare /brain or /brain status opens the interactive panel.
       if ((subcommand === '' || subcommand === 'status') && opts.onPanelOpen?.current) {
         const opened = opts.onPanelOpen.current('brainOpen');
         if (opened) return { message: '' };
@@ -433,125 +317,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       }
 
       if (subcommand === 'council') {
-        const op = (rest[0] ?? '').toLowerCase();
-        const councilSummary = (s: BrainConfigSnapshot): string =>
-          s.council.enabled
-            ? `council ${color.cyan('convened')}: ${s.councilLabels.join(', ')} ${color.dim(`(minRisk: ${s.council.minRisk}${judgeSummary(s)})`)}`
-            : `council ${color.dim('disabled')}`;
-        if (!op) {
-          const snapshot = opts.brainRuntime?.getSnapshot();
-          const msg = snapshot
-            ? `Brain ${councilSummary(snapshot)}`
-            : 'The Brain runtime is not available in this session.';
-          opts.renderer.write(msg);
-          return { message: msg };
-        }
-        if (op === 'on' || op === 'off') {
-          return applyPatch(
-            { council: { enabled: op === 'on' } },
-            (s) =>
-              `Brain ${councilSummary(s)}${op === 'on' && !s.council.enabled ? ' — needs ≥2 resolvable voters (set /brain council voters or a ≥2-model pool)' : ''}`,
-          );
-        }
-        if (op === 'minrisk') {
-          const level = (rest[1] ?? '').toLowerCase();
-          if (!COUNCIL_RISKS.has(level)) {
-            const msg = 'Usage: /brain council minrisk <medium|high|critical>';
-            opts.renderer.writeWarning(msg);
-            return { message: msg };
-          }
-          return applyPatch(
-            { council: { minRisk: level as 'medium' | 'high' | 'critical' } },
-            (s) =>
-              `Brain council risk floor set to ${color.cyan(s.council.minRisk)} — questions at/above it convene the council`,
-          );
-        }
-        if (op === 'voters') {
-          const seats = rest.slice(1).map(parseSeat);
-          if (seats.length === 0 || seats.some((s) => s === null)) {
-            const msg = `Usage: /brain council voters <ref[:<persona>][:veto][:w=N]> [...] — personas: ${BUILTIN_COUNCIL_PERSONA_IDS.join(', ')} (see /brain council personas)`;
-            opts.renderer.writeWarning(msg);
-            return { message: msg };
-          }
-          return applyPatch(
-            { council: { voters: seats as BrainCouncilVoterConfig[] } },
-            councilSummary,
-          );
-        }
-        if (op === 'personas') {
-          // The seat grammar accepts any string, so the only way to know which
-          // lenses are built in (and which are being treated as ad-hoc text)
-          // is to be able to list them.
-          const lines = [
-            'Council decision lenses (built-in):',
-            ...BUILTIN_COUNCIL_PERSONAS.map(
-              (p) =>
-                `  ${color.cyan(p.id.padEnd(15))} ${p.description}${p.defaultVeto ? color.dim(' [veto by default]') : ''}`,
-            ),
-            color.dim('Any other string is used verbatim as a custom lens instruction.'),
-          ];
-          const msg = lines.join('\n');
-          opts.renderer.write(msg);
-          return { message: msg };
-        }
-        if (op === 'judge') {
-          const ref = rest[1];
-          if (!ref) {
-            const msg = 'Usage: /brain council judge <provider/model | auto>';
-            opts.renderer.writeWarning(msg);
-            return { message: msg };
-          }
-          return applyPatch(
-            { council: { judge: ref.toLowerCase() === 'auto' ? null : ref } },
-            (s) =>
-              `Brain council judge: ${color.cyan(s.council.judge ? compactEntry(s.council.judge) : 'auto')}${s.council.judge ? '' : color.dim(judgeSummary(s).replace(/^, judge: /, ' → '))}`,
-          );
-        }
-        if (op === 'quorum' || op === 'approval') {
-          const value = Number(rest[1]);
-          return applyPatch(
-            op === 'quorum' ? { council: { quorum: value } } : { council: { approval: value } },
-            (s) =>
-              `Brain council ${op} set to ${color.cyan(String(op === 'quorum' ? (s.council.quorum ?? 0.5) : (s.council.approval ?? 0.5)))}`,
-          );
-        }
-        if (op === 'distinctness') {
-          // A same-model panel agrees with itself and adds cost without adding
-          // independence. This knob is what makes that visible, and it was
-          // reachable only from the WebUI settings section.
-          const mode = (rest[1] ?? '').toLowerCase();
-          if (!COUNCIL_DISTINCTNESS.has(mode)) {
-            const msg = 'Usage: /brain council distinctness <none|model|provider>';
-            opts.renderer.writeWarning(msg);
-            return { message: msg };
-          }
-          return applyPatch(
-            { council: { distinctness: mode as 'none' | 'model' | 'provider' } },
-            (s) =>
-              `Brain council distinctness set to ${color.cyan(s.council.distinctness)}${mode === 'none' ? color.dim(' — a non-diverse panel will no longer be reported') : ''}`,
-          );
-        }
-        if (COUNCIL_NUMERIC_OPS[op]) {
-          const field = COUNCIL_NUMERIC_OPS[op] as
-            | 'perCallTimeoutMs'
-            | 'maxConcurrency'
-            | 'voterMaxTokens'
-            | 'judgeMaxTokens';
-          const raw = rest[1];
-          if (!raw) {
-            const msg = `Usage: /brain council ${op} <positive integer | default>`;
-            opts.renderer.writeWarning(msg);
-            return { message: msg };
-          }
-          const value = raw.toLowerCase() === 'default' ? null : Number(raw);
-          return applyPatch({ council: { [field]: value } }, (s) => {
-            const applied = s.council[field];
-            return `Brain council ${op} set to ${color.cyan(applied === undefined ? 'default' : String(applied))}`;
-          });
-        }
-        const msg = `Unknown council subcommand: ${op}. Use on, off, minrisk, voters, personas, judge, quorum, approval, distinctness, timeout, concurrency, votertokens, or judgetokens.`;
-        opts.renderer.writeWarning(msg);
-        return { message: msg };
+        return handleBrainCouncilSubcommand(rest, opts, applyPatch);
       }
 
       if (subcommand === 'save') {
@@ -588,42 +354,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           return { message: msg };
         }
         const n = Math.max(1, Math.min(100, Number.parseInt(rest[0] ?? '15', 10) || 15));
-        let raw: string;
-        try {
-          raw = await readFile(ledgerPath, 'utf8');
-        } catch {
-          const msg = `No ledger entries yet (${ledgerPath}).`;
-          opts.renderer.write(msg);
-          return { message: msg };
-        }
-        const rows = raw
-          .split('\n')
-          .filter((l) => l.trim().length > 0)
-          .slice(-n)
-          .map((l) => {
-            try {
-              return JSON.parse(l) as BrainLedgerEntry;
-            } catch {
-              return null;
-            }
-          })
-          .filter((e): e is BrainLedgerEntry => e !== null);
-        const lines = [
-          `${color.bold('Brain ledger')} — ${color.dim(ledgerPath)}`,
-          ...rows.map((e) => {
-            const what =
-              e.kind === 'outcome'
-                ? `outcome:${e.outcome}`
-                : e.kind === 'answered' && e.optionId
-                  ? `answered [${e.optionId}]`
-                  : e.kind;
-            const detail = e.question ?? e.detail ?? '';
-            const trimmed = detail.length > 70 ? `${detail.slice(0, 67)}…` : detail;
-            return `  ${color.dim(fmtAge(e.at).padEnd(8))} ${what.padEnd(20)} ${trimmed}`;
-          }),
-        ];
-        if (rows.length === 0) lines.push(color.dim('  (empty)'));
-        const msg = lines.join('\n');
+        const msg = await readLedgerEntries(ledgerPath, n);
         opts.renderer.write(msg);
         return { message: msg };
       }
@@ -667,59 +398,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       }
 
       if (subcommand === '' || subcommand === 'status') {
-        const lines: string[] = [];
-        const ceiling = opts.brainSettings?.maxAutoRisk ?? 'unknown';
-        const mode = opts.brainSettings?.mode ?? 'interactive';
-        lines.push(`${color.bold('Brain')} — policy → LLM/council → escalation decision chain`);
-        lines.push(
-          `  escalation mode:  ${color.cyan(mode)} ${color.dim(mode === 'headless' ? '(never blocks on a human — /brain mode interactive to change)' : '(/brain mode headless for fully unattended)')}`,
-        );
-        lines.push(
-          `  autonomy ceiling: ${color.cyan(ceiling)} ${color.dim('(/brain risk <level> to change)')}`,
-        );
-        const snapshot = opts.brainRuntime?.getSnapshot();
-        const pool = opts.brainSettings?.poolLabels ?? [];
-        lines.push(
-          `  LLM pool:         ${pool.length > 0 ? color.cyan(pool.join(' → ')) : color.dim('session model (/brain model <ref> or /brain models <refs>)')}${snapshot && pool.length > 1 ? color.dim(` (strategy: ${snapshot.strategy})`) : ''}`,
-        );
-        if (snapshot?.decisionTimeoutMs) {
-          lines.push(`  decision timeout: ${color.cyan(`${snapshot.decisionTimeoutMs}ms`)}`);
-        }
-        if (snapshot?.humanTimeoutMs) {
-          lines.push(
-            `  human timeout:    ${color.cyan(`${snapshot.humanTimeoutMs}ms`)} ${color.dim('(then terminal policy)')}`,
-          );
-        }
-        const councilSeats = opts.brainSettings?.councilLabels ?? [];
-        if (councilSeats.length > 0) {
-          lines.push(
-            `  council:          ${color.cyan(councilSeats.join(', '))}${snapshot ? color.dim(` (minRisk: ${snapshot.council.minRisk}${judgeSummary(snapshot)})`) : ''}`,
-          );
-        } else if (snapshot) {
-          lines.push(`  council:          ${color.dim('disabled (/brain council on + voters)')}`);
-        }
-        if (opts.brainSettings?.ledgerPath) {
-          lines.push(
-            `  ledger:           ${color.dim(`${opts.brainSettings.ledgerPath} (/brain ledger to view)`)}`,
-          );
-        }
-        if (opts.brainRuntime) {
-          lines.push(color.dim('  setters apply live and persist to the active profile config'));
-        }
-        const log = opts.getBrainLog?.() ?? [];
-        if (log.length === 0) {
-          lines.push(color.dim('  no decisions recorded yet this session'));
-        } else {
-          lines.push(`  recent decisions (${log.length}):`);
-          for (const entry of log.slice(-10)) {
-            const q =
-              entry.question.length > 70 ? `${entry.question.slice(0, 67)}…` : entry.question;
-            lines.push(
-              `  ${color.dim(fmtAge(entry.at).padEnd(8))} ${entry.kind.padEnd(12)} ${q}${entry.outcome ? color.dim(` → ${entry.outcome}`) : ''}`,
-            );
-          }
-        }
-        const msg = lines.join('\n');
+        const msg = formatBrainStatus(opts);
         opts.renderer.write(msg);
         return { message: msg };
       }
@@ -987,10 +666,6 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
 
       if (subcommand === 'monitor') {
         const op = (rest[0] ?? '').toLowerCase();
-        // Monitor settings are live: the host re-tunes the running BrainMonitor
-        // from the runtime's onApplied. A threshold change restarts its
-        // watchers, so partially-accumulated streaks reset (they were measured
-        // against the old threshold); engagement cooldowns are preserved.
         const live = color.dim('(applied live - accumulating signal counters reset)');
         if (op === 'on' || op === 'off') {
           return applyPatch(
@@ -1031,60 +706,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       }
 
       if (subcommand === 'stats') {
-        const log = opts.getBrainLog?.() ?? [];
-        const counts = new Map<string, number>();
-        const councilWarnings: Array<(typeof log)[number]> = [];
-        for (const entry of log) {
-          // Council integrity warnings ride in the same ring but are not
-          // decisions — counting them would inflate 'unattributed'.
-          if (entry.kind === 'council_warn') {
-            councilWarnings.push(entry);
-            continue;
-          }
-          const tier = (entry as { tier?: string }).tier ?? 'unattributed';
-          counts.set(tier, (counts.get(tier) ?? 0) + 1);
-        }
-        let free = 0;
-        let paid = 0;
-        for (const [tier, n] of counts) {
-          if (DETERMINISTIC_TIER_NAMES.includes(tier)) free += n;
-          else if (tier === 'llm' || tier === 'council') paid += n;
-        }
-        const lines = [color.bold('Brain decision tiers'), ''];
-        if (counts.size === 0) {
-          lines.push(color.dim('  No decisions recorded yet this session.'));
-        } else {
-          for (const [tier, n] of [...counts].sort((a, b) => b[1] - a[1])) {
-            lines.push(`  ${tier.padEnd(14)} ${color.cyan(String(n))}`);
-          }
-          const decided = free + paid;
-          const pct =
-            decided > 0 ? color.dim(` (${Math.round((free / decided) * 100)}% of decided)`) : '';
-          lines.push('');
-          lines.push(`  ${'deterministic'.padEnd(14)} ${color.cyan(String(free))}${pct}`);
-          lines.push(`  ${'model-backed'.padEnd(14)} ${color.cyan(String(paid))}`);
-        }
-        const snapshot = opts.brainRuntime?.getSnapshot();
-        if (snapshot?.cache.enabled) {
-          lines.push(
-            '',
-            color.dim(`  cache: ${snapshot.cache.hits} hit / ${snapshot.cache.misses} miss`),
-          );
-        }
-        if (snapshot?.circuit && snapshot.circuit.state !== 'closed') {
-          lines.push(color.dim(`  circuit: ${snapshot.circuit.state}`));
-        }
-        if (councilWarnings.length > 0) {
-          lines.push('', color.bold(`  Council panel integrity (${councilWarnings.length})`));
-          for (const w of councilWarnings.slice(-3)) {
-            lines.push(color.dim(`  ${fmtAge(w.at).padEnd(8)} ${w.outcome}`));
-          }
-        }
-        lines.push(
-          '',
-          color.dim(`  Based on the last ${log.length} logged decision(s) of this session.`),
-        );
-        const msg = lines.join('\n');
+        const msg = formatBrainStats(opts);
         opts.renderer.write(msg);
         return { message: msg };
       }

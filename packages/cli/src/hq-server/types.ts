@@ -191,3 +191,9 @@ export interface ProjectDetail {
   clients: readonly HqClientRecord[];
   mailboxes: readonly HqMailboxSnapshotPayload[];
 }
+
+export interface HqRouterMailboxGateway {
+  mailbox: import('@wrongstack/core/coordination').Mailbox;
+  router: ReturnType<typeof import('@wrongstack/core/coordination').createMailboxHttpRouter>;
+}
+

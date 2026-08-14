@@ -37,6 +37,12 @@ import type { WorktreeHandle } from '@wrongstack/core/worktree';
 import { splitGraphNode } from './graph-split.js';
 import { executeSddTask } from './sdd-task-execution.js';
 import { SddTaskDecomposer, type TaskBatch } from './sdd-task-decomposer.js';
+import {
+  allocateTaskWorktrees,
+  resolveTaskWorktrees,
+  integrateTaskWorktree,
+  forgetTaskWorktree,
+} from './sdd-worktree-integration.js';
 import type {
   RunResult,
   SddParallelRunOptions,
@@ -836,120 +842,33 @@ export class SddParallelRun {
    * disabled or none was allocated for this task. Never throws — a merge hiccup
    * degrades to a (retryable) failure rather than wedging the run.
    */
+  private get worktreeState() {
+    return {
+      taskCwds: this.taskCwds,
+      taskBranches: this.taskBranches,
+      taskWorktrees: this.taskWorktrees,
+      mergedCommits: this.mergedCommits,
+    };
+  }
+
   private async integrateWorktree(
     task: TaskNode,
     result?: TaskResult,
   ): Promise<{ ok: boolean; conflictFiles?: string[]; reason?: string; fatal?: boolean }> {
-    const wt = this.opts.worktrees;
-    if (!wt) return { ok: true };
-    const handle = this.taskWorktrees.get(task.id);
-    if (!handle) return { ok: true };
-    try {
-      await wt.commitAll(handle, `sdd(${task.title}): ${task.id}`);
-      // Capture the base tip before merging so a regressed conflict-resolution
-      // can be reverted to exactly this commit (see the re-verify branch below),
-      // and so we can tell whether this merge actually advanced the base (an
-      // empty squash creates no commit → nothing to record for rollback).
-      const baseShaBefore = await wt.baseHead(handle);
-      const baseSha = this.opts.conflictResolver ? baseShaBefore : null;
-      const res = await wt.merge(handle, {
-        squash: true,
-        ...(this.opts.conflictResolver
-          ? {
-              resolve: (info: { conflictFiles: string[]; cwd: string }) =>
-                this.opts.conflictResolver!({
-                  task,
-                  conflictFiles: info.conflictFiles,
-                  cwd: info.cwd,
-                }),
-            }
-          : {}),
-      });
-      if (res.ok) {
-        // A merge that only landed because the conflictResolver rewrote files is
-        // not trusted blindly: re-run the completion gate against the INTEGRATED
-        // base. If it regresses, revert the squash commit so the auto-resolution
-        // never sticks, and treat the task as a (retryable) failure.
-        if (res.resolved && this.opts.verifyTask && baseSha) {
-          let regressed: string | undefined;
-          try {
-            const verdict = await this.opts.verifyTask({
-              task,
-              result: result ?? ({} as TaskResult),
-              cwd: this.opts.projectRoot,
-            });
-            if (!verdict.ok)
-              regressed = verdict.reason ?? 'verification failed after conflict resolution';
-          } catch (err) {
-            regressed = `verification error after conflict resolution: ${String(err)}`;
-          }
-          if (regressed) {
-            const rolledBack = await wt.revertBaseTo(handle, baseSha).catch(() => false);
-            if (!rolledBack) {
-              // Rollback refused (tracked/index edits block the hard reset) —
-              // the known-invalid merge is still on the base branch. Continuing
-              // would fork every subsequent task off the contaminated base, so
-              // hard-stop the run and keep the worktree + verification output
-              // on disk for inspection. Terminal-fail the task so nothing
-              // re-dispatches against the bad base without human intervention.
-              this.abortRun(
-                `cannot roll back invalid merge of "${task.title}" (${task.id}): ${regressed}`,
-              );
-              await wt.release(handle, { keep: true }).catch(() => {});
-              this.forgetWorktree(task.id, { keepBranchLabel: true });
-              return { ok: false, conflictFiles: [], reason: regressed, fatal: true };
-            }
-            await wt.release(handle, { keep: false }).catch(() => {});
-            this.forgetWorktree(task.id, { keepBranchLabel: true });
-            return { ok: false, conflictFiles: [], reason: regressed };
-          }
-        }
-        // Record the squash commit for rollback — but only if the merge actually
-        // advanced the base tip (an empty/no-op squash leaves it unchanged).
-        const baseShaAfter = await wt.baseHead(handle);
-        if (baseShaAfter && baseShaAfter !== baseShaBefore) {
-          this.mergedCommits.push({ taskId: task.id, sha: baseShaAfter, title: task.title });
-          this.emit('sdd.task.merged', { runId: this.runId, taskId: task.id, sha: baseShaAfter });
-        }
-        await wt.release(handle, { keep: false });
-        this.forgetWorktree(task.id);
-        return { ok: true };
-      }
-      // Unresolved conflict: the manager already hard-reset the base and parked
-      // the handle as `needs-review` (force-kept for inspection). Drop our handle
-      // reference so a retry allocates a fresh worktree off the advanced base.
-      await wt.release(handle, { keep: false }).catch(() => {});
-      this.forgetWorktree(task.id, { keepBranchLabel: true });
-      return { ok: false, conflictFiles: res.conflictFiles ?? [] };
-    } catch {
-      // Commit/merge hiccup — don't wedge the run; treat as a retryable failure.
-      this.forgetWorktree(task.id);
-      return { ok: false, conflictFiles: [] };
-    }
+    return integrateTaskWorktree({
+      opts: this.opts,
+      state: this.worktreeState,
+      task,
+      result,
+      runId: this.runId,
+      emit: this.emit.bind(this),
+      abortRun: this.abortRun.bind(this),
+    });
   }
 
   /** Allocate a fresh git worktree per task in the batch (no-op without a manager). */
   private async allocateWorktrees(tasks: TaskNode[]): Promise<void> {
-    const wt = this.opts.worktrees;
-    if (!wt) return;
-    for (const task of tasks) {
-      if (this.taskWorktrees.has(task.id)) continue;
-      try {
-        const handle = await wt.allocate(`sdd-${task.id}`, {
-          slugHint: task.title,
-          ownerLabel: task.title,
-        });
-        if (handle.status === 'active') {
-          this.taskWorktrees.set(task.id, handle);
-          this.taskCwds.set(task.id, handle.dir);
-          this.taskBranches.set(task.id, handle.branch);
-          const node = this.opts.tracker.getNode(task.id);
-          if (node) node.metadata = { ...node.metadata, worktreeBranch: handle.branch };
-        }
-      } catch {
-        // Allocation failed → this task runs on the shared working tree.
-      }
-    }
+    await allocateTaskWorktrees(this.opts, this.worktreeState, tasks);
   }
 
   /**
@@ -958,47 +877,11 @@ export class SddParallelRun {
    * guarantees dependency order (a task's blockers merged in an earlier wave).
    */
   private async resolveWorktrees(tasks: TaskNode[]): Promise<void> {
-    const wt = this.opts.worktrees;
-    if (!wt) return;
-    for (const task of tasks) {
-      const handle = this.taskWorktrees.get(task.id);
-      if (!handle) continue;
-      const node = this.opts.tracker.getNode(task.id);
-      const status = node?.status;
-      const cancelled = Boolean(node?.metadata?.cancelled);
-      try {
-        if (cancelled) {
-          // User cancelled → throw away the partial checkout, don't merge it.
-          await wt.release(handle, { keep: false });
-          this.forgetWorktree(task.id, { keepBranchLabel: false });
-        } else if (status === 'completed') {
-          await wt.commitAll(handle, `sdd(${task.title}): ${task.id}`);
-          await wt.merge(handle, { squash: true });
-          await wt.release(handle, { keep: false });
-          this.forgetWorktree(task.id);
-        } else if (status === 'failed') {
-          // Discard the failed checkout so worktrees don't pile up across a run
-          // with many failures. (A genuine merge-conflict handle — status
-          // 'needs-review'/'failed' — is force-kept by the manager regardless,
-          // so conflicts that actually need a human still stay on disk.)
-          await wt.release(handle, { keep: false });
-          this.forgetWorktree(task.id, { keepBranchLabel: false });
-        } else {
-          // Pending again (retry) → discard so the next wave starts clean.
-          await wt.release(handle, { keep: false });
-          this.forgetWorktree(task.id, { keepBranchLabel: false });
-        }
-      } catch {
-        // Merge/release hiccup must not abort the run; leave the handle parked.
-        this.forgetWorktree(task.id);
-      }
-    }
+    await resolveTaskWorktrees(this.opts, this.worktreeState, tasks);
   }
 
   private forgetWorktree(taskId: string, opts: { keepBranchLabel?: boolean } = {}): void {
-    this.taskWorktrees.delete(taskId);
-    this.taskCwds.delete(taskId);
-    if (!opts.keepBranchLabel) this.taskBranches.delete(taskId);
+    forgetTaskWorktree(this.worktreeState, taskId, opts);
   }
 
   /** Persist a task's retry count into node metadata (survives crash → resume). */

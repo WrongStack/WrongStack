@@ -20,16 +20,13 @@ import {
 import {
   manifestConfigHash,
   readCapabilityManifest,
-  writeCapabilityManifest,
 } from './manifest-cache.js';
 import {
   createMCPServerOperationState,
-  MCP_OPERATION_LIMITS,
   type MCPFailureKind,
   type MCPOperationKind,
   type MCPOperationListener,
   type MCPServerOperationalHealth,
-  pushBounded,
 } from './operations.js';
 import {
   cloneCatalogRecords,
@@ -52,6 +49,14 @@ import {
 } from './registry-operations.js';
 import { markLazySlotDormant, resetDisconnectedSlotTools } from './registry-disconnect.js';
 import { scheduleRegistryReconnect } from './registry-reconnect.js';
+import {
+  type RegistryConnectContext,
+  applySlotTools,
+  attemptConnectSlot,
+  discoverSlotCapabilities,
+  persistSlotCapabilityManifest,
+} from './registry-connect-loop.js';
+import { type RegistryIdleContext, sleepIdleSlot, sweepIdleSlots } from './registry-idle.js';
 import type {
   MCPGetPromptResult,
   MCPPrompt,
@@ -59,7 +64,6 @@ import type {
   MCPResource,
   MCPResourceTemplate,
 } from './protocol.js';
-import { wrapMCPTool } from './wrap-tool.js';
 export type { MCPRegistryCatalog, MCPRegistryOptions } from './registry-types.js';
 
 export class MCPRegistry {
@@ -499,125 +503,54 @@ export class MCPRegistry {
     return s.toolNames.length > 0 ? s.toolNames.slice() : (s.lazyTools ?? []).map((t) => t.name);
   }
 
-  /**
-   * Wrap + register (or cache) a server's tools. Lazy servers get resolver-backed
-   * wrappers that spawn the process on first use; eager servers bind the live
-   * client directly. Honours token-saving `lazyMode` (cache, don't register) and
-   * a register-once guard for lazy resolver wrappers (so a wake/reconnect reuses
-   * the existing registrations rather than churning the tool list).
-   */
-  private applyTools(slot: ServerSlot, tools: MCPTool[], client?: MCPClient | undefined): void {
-    // Resolver wrappers survive sleep/wake — only register them once.
-    if (slot.lazy && slot.registeredLazy && !this.lazyMode) return;
-    const allowed = slot.cfg.allowedTools;
-    const filtered = tools.filter((t) => !allowed || allowed.includes(t.name));
-    const clientArg = slot.lazy ? () => this.ensureConnected(slot.cfg.name) : expectDefined(client);
-    const wrapped = filtered.map((t) =>
-      wrapMCPTool(slot.cfg.name, t, clientArg, slot.cfg.permission ?? 'confirm', {
-        onStart: () => {
-          slot.operations.inFlightCalls++;
-          slot.operations.peakInFlightCalls = Math.max(
-            slot.operations.peakInFlightCalls,
-            slot.operations.inFlightCalls,
-          );
-          this.recordOperation(slot, 'call', 'started', undefined, undefined, false);
-        },
-        onFinish: ({ durationMs, ok }) => {
-          slot.operations.inFlightCalls = Math.max(0, slot.operations.inFlightCalls - 1);
-          pushBounded(
-            slot.operations.callSamples,
-            durationMs,
-            MCP_OPERATION_LIMITS.LATENCY_SAMPLES,
-          );
-          if (ok) {
-            this.recordSuccess(slot);
-            this.recordOperation(slot, 'call', 'ok', undefined, durationMs, false);
-          } else {
-            this.recordFailure(slot, 'tool', 'tool-call-failed', durationMs);
-          }
-        },
-      }),
-    );
-    if (this.lazyMode) {
-      // Token-saving mode: cache without registering (mcp_use activates on demand).
-      slot.lazyTools = wrapped;
-      return;
-    }
-    for (const tool of wrapped) {
-      try {
-        this.toolRegistry.register(tool, `mcp:${slot.cfg.name}`);
-        slot.toolNames.push(tool.name);
-      } catch (err) {
-        this.log.warn(`MCP tool "${tool.name}" not registered`, err);
-      }
-    }
-    if (slot.lazy && wrapped.length > 0) slot.registeredLazy = true;
+  private connectContext(): RegistryConnectContext {
+    return {
+      servers: this.servers,
+      toolRegistry: this.toolRegistry,
+      events: this.events,
+      log: this.log,
+      lazyMode: this.lazyMode,
+      cacheDir: this.cacheDir,
+      authorizationProviderFactory: this.authorizationProviderFactory,
+      operationListeners: this.operationListeners,
+      ensureConnected: (name) => this.ensureConnected(name),
+      recordOperation: (slot, kind, reason, failureKind, durationMs, retain) =>
+        this.recordOperation(slot, kind, reason, failureKind, durationMs, retain),
+      recordSuccess: (slot, resetFailures) => this.recordSuccess(slot, resetFailures),
+      recordFailure: (slot, failureKind, reason, durationMs) =>
+        this.recordFailure(slot, failureKind, reason, durationMs),
+      onChildExit: this.onChildExit,
+      onTransportDisconnect: this.onTransportDisconnect,
+      onToolsChanged: this.onToolsChanged,
+      addCatalogListeners: (client) => this.addCatalogListeners(client),
+      removeCatalogListeners: (client) => this.removeCatalogListeners(client),
+      ensureIdleSweep: () => this.ensureIdleSweep(),
+    };
   }
 
-  private async discoverCapabilities(slot: ServerSlot, client: MCPClient): Promise<void> {
-    const startedAt = Date.now();
-    slot.serverMetadata = client.getServerMetadata();
-    const capabilities = slot.serverMetadata?.capabilities;
-    if (capabilities?.resources) {
-      try {
-        slot.resources = await collectCatalogPages(
-          (cursor) => client.listResources(cursor ? { cursor } : {}),
-          (page) => page.resources,
-        );
-      } catch (err) {
-        slot.resources = undefined;
-        this.recordFailure(slot, 'protocol', 'resource-discovery-failed');
-        this.log.warn(`MCP server "${slot.cfg.name}" resource discovery failed`, err);
-      }
-      try {
-        slot.resourceTemplates = await collectCatalogPages(
-          (cursor) => client.listResourceTemplates(cursor ? { cursor } : {}),
-          (page) => page.resourceTemplates,
-        );
-      } catch (err) {
-        slot.resourceTemplates = undefined;
-        this.recordFailure(slot, 'protocol', 'resource-template-discovery-failed');
-        this.log.warn(`MCP server "${slot.cfg.name}" resource template discovery failed`, err);
-      }
-    } else {
-      slot.resources = undefined;
-      slot.resourceTemplates = undefined;
-    }
-    if (capabilities?.prompts) {
-      try {
-        slot.prompts = await collectCatalogPages(
-          (cursor) => client.listPrompts(cursor ? { cursor } : {}),
-          (page) => page.prompts,
-        );
-      } catch (err) {
-        slot.prompts = undefined;
-        this.recordFailure(slot, 'protocol', 'prompt-discovery-failed');
-        this.log.warn(`MCP server "${slot.cfg.name}" prompt discovery failed`, err);
-      }
-    } else {
-      slot.prompts = undefined;
-    }
-    const durationMs = Date.now() - startedAt;
-    pushBounded(slot.operations.discoverySamples, durationMs, MCP_OPERATION_LIMITS.LATENCY_SAMPLES);
-    this.recordOperation(slot, 'discover', 'complete', undefined, durationMs, false);
+  private idleContext(): RegistryIdleContext {
+    return {
+      servers: this.servers,
+      idleTimeoutMs: this.idleTimeoutMs,
+      events: this.events,
+      log: this.log,
+      recordOperation: (slot, kind, reason) => this.recordOperation(slot, kind, reason),
+      onChildExit: this.onChildExit,
+      onToolsChanged: this.onToolsChanged,
+      removeCatalogListeners: (client) => this.removeCatalogListeners(client),
+    };
+  }
+
+  private applyTools(slot: ServerSlot, tools: MCPTool[], client?: MCPClient | undefined): void {
+    applySlotTools(this.connectContext(), slot, tools, client);
   }
 
   private async persistCapabilityManifest(slot: ServerSlot): Promise<void> {
-    if (!slot.lazy || !this.cacheDir) return;
-    const cacheDir = this.cacheDir;
-    const previous = slot.manifestWrite ?? Promise.resolve();
-    const pending = previous.then(() =>
-      writeCapabilityManifest(cacheDir, slot.cfg.name, manifestConfigHash(slot.cfg), {
-        tools: slot.client?.listTools() ?? [],
-        serverMetadata: slot.serverMetadata,
-        resources: slot.resources,
-        resourceTemplates: slot.resourceTemplates,
-        prompts: slot.prompts,
-      }),
-    );
-    slot.manifestWrite = pending;
-    await pending;
-    if (slot.manifestWrite === pending) slot.manifestWrite = undefined;
+    return persistSlotCapabilityManifest(this.cacheDir, slot);
+  }
+
+  protected async discoverCapabilities(slot: ServerSlot, client: MCPClient): Promise<void> {
+    await discoverSlotCapabilities(this.connectContext(), slot, client);
   }
 
   /** Start the shared idle sweep timer once (unref'd so it never holds the process). */
@@ -626,64 +559,20 @@ export class MCPRegistry {
     this.idleTimer = setInterval(() => {
       void this.sweepIdle();
     }, MCP_CONSTANTS.IDLE.SWEEP_INTERVAL_MS);
-    // Node-only: don't keep the event loop alive just for the sweep.
     this.idleTimer.unref?.();
   }
 
-  /** Auto-sleep connected lazy servers that have been idle past the timeout. */
   private async sweepIdle(): Promise<void> {
     if (this.idleTimeoutMs <= 0) return;
-    const now = Date.now();
-    for (const slot of this.servers.values()) {
-      if (
-        slot.lazy &&
-        slot.state === 'connected' &&
-        slot.client &&
-        now - slot.lastUsed > this.idleTimeoutMs
-      ) {
-        await this.sleepIdle(slot);
-      }
-    }
-    // The sweep only has work while a lazy server is connected. Once the last
-    // one sleeps, stop the otherwise permanent unref'd wake-up; start() and
-    // lazy wake-up paths call ensureIdleSweep() when it is needed again.
-    const hasConnectedLazyServer = [...this.servers.values()].some(
-      (slot) => slot.lazy && slot.state === 'connected' && slot.client,
-    );
-    if (!hasConnectedLazyServer && this.idleTimer) {
+    const hasConnectedLazy = await sweepIdleSlots(this.idleContext());
+    if (!hasConnectedLazy && this.idleTimer) {
       clearInterval(this.idleTimer);
       this.idleTimer = undefined;
     }
   }
 
-  /**
-   * Soft stop: close the server process but KEEP its resolver wrappers and
-   * cached manifest registered, so the next tool call transparently re-wakes it.
-   * Distinct from {@link stop} (full teardown for disable/remove).
-   */
-  private async sleepIdle(slot: ServerSlot): Promise<void> {
-    slot.reconnectPending = false;
-    // Defense-in-depth: a connect-failure retry timer from an earlier
-    // failed cycle shouldn't outlive a fresh sleep.
-    if (slot.reconnectTimer) {
-      clearTimeout(slot.reconnectTimer);
-      slot.reconnectTimer = undefined;
-    }
-    if (slot.client) {
-      // Remove the exit listener BEFORE close so the teardown isn't seen as a crash.
-      slot.client.removeExitListener(this.onChildExit);
-      if (slot.onDisconnect) slot.client.removeDisconnectListener(slot.onDisconnect);
-      slot.client.removeToolsChangedListener(this.onToolsChanged);
-      this.removeCatalogListeners(slot.client);
-      await slot.client.close();
-      slot.client = undefined;
-    }
-    slot.onDisconnect = undefined;
-    slot.state = 'dormant';
-    slot.operations.sleepCount++;
-    this.recordOperation(slot, 'sleep', 'idle-timeout');
-    this.log.info(`MCP server "${slot.cfg.name}" idle — sleeping (tools stay registered)`);
-    this.events.emit('mcp.server.disconnected', { name: slot.cfg.name, reason: 'idle-sleep' });
+  protected async sleepIdle(slot: ServerSlot): Promise<void> {
+    await sleepIdleSlot(this.idleContext(), slot);
   }
 
   /**
@@ -894,148 +783,7 @@ export class MCPRegistry {
   }
 
   private async attemptConnect(slot: ServerSlot): Promise<void> {
-    const MAX_ATTEMPTS = MCP_CONSTANTS.RECONNECT.MAX_ATTEMPTS;
-    let attempt = 0;
-    while (attempt < MAX_ATTEMPTS) {
-      if (this.servers.has(slot.cfg.name) && this.servers.get(slot.cfg.name) !== slot) {
-        return;
-      }
-      attempt++;
-      const startedAt = Date.now();
-      slot.state = attempt === 1 ? 'connecting' : 'reconnecting';
-      slot.attempts = attempt;
-      let client: MCPClient | undefined;
-      let boundDisconnect: (() => void) | undefined;
-      try {
-        client = new MCPClient({
-          name: slot.cfg.name,
-          transport: slot.cfg.transport,
-          command: slot.cfg.command,
-          args: slot.cfg.args,
-          env: slot.cfg.env,
-          url: slot.cfg.url,
-          headers: slot.cfg.headers,
-          startupTimeoutMs: slot.cfg.startupTimeoutMs,
-          requestTimeoutMs: slot.cfg.requestTimeoutMs,
-          passthroughEnv: slot.cfg.passthroughEnv,
-          authorizationProvider: this.authorizationProviderFactory?.(slot.cfg),
-        });
-        if (slot.cfg.transport === 'stdio') {
-          client.addExitListener(this.onChildExit);
-        } else {
-          // SSE / streamable-http — wire transport disconnect to registry reconnect.
-          // Capture the bound function so we can hand the same reference to
-          // removeDisconnectListener on cleanup paths.
-          boundDisconnect = () => this.onTransportDisconnect(slot.cfg.name);
-          client.addDisconnectListener(boundDisconnect);
-        }
-        // L2-C: react to server-side tool changes by re-registering wrappers.
-        client.addToolsChangedListener(this.onToolsChanged);
-        this.addCatalogListeners(client);
-        await client.connect();
-        if (
-          (slot.state as ConnectionState) === 'disconnected' ||
-          (this.servers.has(slot.cfg.name) && this.servers.get(slot.cfg.name) !== slot)
-        ) {
-          client.removeExitListener(this.onChildExit);
-          if (boundDisconnect) client.removeDisconnectListener(boundDisconnect);
-          client.removeToolsChangedListener(this.onToolsChanged);
-          this.removeCatalogListeners(client);
-          await client.close().catch(() => {});
-          return;
-        }
-        // Close any prior client before swapping refs so the old transport
-        // can release its abort controller, child process, and listeners
-        // instead of being held until GC.
-        if (slot.client && slot.client !== client) {
-          const prior = slot.client;
-          const priorDisconnect = slot.onDisconnect;
-          slot.client.removeExitListener(this.onChildExit);
-          if (priorDisconnect) prior.removeDisconnectListener(priorDisconnect);
-          prior.removeToolsChangedListener(this.onToolsChanged);
-          this.removeCatalogListeners(prior);
-          prior.close().catch(() => {
-            /* best-effort */
-          });
-        }
-        slot.client = client;
-        slot.onDisconnect = boundDisconnect;
-        const isReconnect = slot.reconnectCycles > 0 || attempt > 1;
-        slot.state = 'connected';
-        // L2-B: a healthy connect resets the cycle counter so future
-        // crashes get the full reconnect budget again.
-        slot.reconnectCycles = 0;
-        const mc = client as MCPClient;
-        const discovered = mc.listTools();
-        await this.discoverCapabilities(slot, mc);
-        // Lazy servers persist their manifest so later boots can register cold.
-        await this.persistCapabilityManifest(slot);
-        this.applyTools(slot, discovered, mc);
-        const durationMs = Date.now() - startedAt;
-        pushBounded(
-          slot.operations.connectionSamples,
-          durationMs,
-          MCP_OPERATION_LIMITS.LATENCY_SAMPLES,
-        );
-        this.recordSuccess(slot, (slot.operations.lastFailureAt ?? 0) < startedAt);
-        this.recordOperation(
-          slot,
-          isReconnect ? 'reconnect' : 'connect',
-          'connected',
-          undefined,
-          durationMs,
-        );
-        slot.lastUsed = Date.now();
-        if (slot.lazy) this.ensureIdleSweep();
-        this.events.emit(isReconnect ? 'mcp.server.reconnected' : 'mcp.server.connected', {
-          name: slot.cfg.name,
-          toolCount: slot.toolNames.length,
-        });
-        return; // success
-      } catch (err) {
-        this.recordFailure(slot, 'transport', 'connect-attempt-failed', Date.now() - startedAt);
-        this.log.warn(`MCP server "${slot.cfg.name}" connect attempt ${attempt} failed`, err);
-        if (client) {
-          client.removeExitListener(this.onChildExit);
-          if (boundDisconnect) client.removeDisconnectListener(boundDisconnect);
-          client.removeToolsChangedListener(this.onToolsChanged);
-          this.removeCatalogListeners(client);
-          await client.close().catch(() => {
-            /* ignore */
-          });
-        }
-        if (attempt >= MAX_ATTEMPTS) {
-          this.log.error(
-            `MCP server "${slot.cfg.name}" connect exhausted after ${MAX_ATTEMPTS} attempts`,
-            err,
-          );
-          slot.state = 'failed';
-          slot.client = undefined;
-          // The connect() loop itself doesn't schedule a backoff timer (it
-          // only awaits inline setTimeouts within the `while`), but a
-          // prior `scheduleReconnect` cycle may have left one outstanding.
-          // Drop it so the user can `restart()` without waiting on a stale
-          // fire that would race the fresh `attemptConnect`.
-          if (slot.reconnectTimer) {
-            clearTimeout(slot.reconnectTimer);
-            slot.reconnectTimer = undefined;
-          }
-          slot.reconnectPending = false;
-          this.events.emit('mcp.server.disconnected', {
-            name: slot.cfg.name,
-            reason: err instanceof Error ? err.message : 'unknown',
-          });
-          return;
-        }
-        const delay = 500 * 2 ** attempt;
-        await new Promise((r) => setTimeout(r, delay));
-        if (
-          (slot.state as ConnectionState) === 'disconnected' ||
-          (this.servers.has(slot.cfg.name) && this.servers.get(slot.cfg.name) !== slot)
-        ) {
-          return;
-        }
-      }
-    }
+    return attemptConnectSlot(this.connectContext(), slot);
   }
 }
+

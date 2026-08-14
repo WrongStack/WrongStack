@@ -165,7 +165,7 @@ export function ChatInput({
     useConfirmModalStore.getState().settle(null);
     const ta = textareaRef.current;
     if (ta) ta.style.height = 'auto';
-  }, [sessionId, clearPendingImages, clearRefs, setPasteHint]);
+  }, [sessionId]);
 
   useEffect(() => {
     if (promptInsertRequest == null) return;
