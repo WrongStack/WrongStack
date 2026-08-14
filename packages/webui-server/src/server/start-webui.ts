@@ -8,35 +8,26 @@
  * (Phase 1b/1a), WS + HTTP server creation, and graceful shutdown.
  */
 
-import { randomUUID } from 'node:crypto';
-import * as http from 'node:http';
 import * as path from 'node:path';
 import { createDefaultPipelines } from '@wrongstack/core/agent';
 import { getSharedProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
 import {
-  attachTodosCheckpoint,
   createSessionEventBridge,
   resolveSessionLoggingConfig,
-  watchProviderConfig,
 } from '@wrongstack/core/storage';
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID, type ProviderConfig } from '@wrongstack/core/types';
+import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
 import {
   expectDefined,
-  sessionScopedPath,
   startSharedHeapWatchdog,
-  toErrorMessage,
   wstackGlobalRoot,
 } from '@wrongstack/core/utils';
-import { makeProviderFromConfig } from '@wrongstack/providers';
-import { type PackageOperation, toLanguagePackageInput } from '@wrongstack/techstack';
 import { ensureSessionShell } from '@wrongstack/tools';
 import { createAgentServices } from './backend-services.js';
 import { bootConfig, patchConfig } from './boot.js';
 import { createConnectionHandler } from './connection-handler.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 import { setupWebUiGovernance } from './governance-runtime.js';
-import { unregisterInstance } from './instance-registry.js';
 import { createMessageDispatcher } from './message-dispatcher.js';
 import { formatExternalAccessUrls } from './network-info.js';
 import type { PendingConfirm } from './pending-confirms.js';
@@ -54,7 +45,6 @@ import {
   loadManifest,
   saveManifest,
 } from './projects-manifest.js';
-import { projectSavedProviders } from './provider-handlers.js';
 import {
   buildRoutes,
   type WebuiCallbacks,
@@ -65,87 +55,21 @@ import {
   armEvents,
   createSessionStartPayload,
   createWsServers,
-  registerShutdown,
   resolvePorts,
   startHttpServer,
 } from './server-runtime.js';
 import { scheduleOwnerlessEmptySessionCleanup } from './session-cleanup-scheduler.js';
 import { toSessionHistoryEntries } from './session-history.js';
 import type { FileWatcherMetrics } from './setup-events.js';
+import { setupCompanionServer } from './start-webui-companion.js';
+import { setupWebuiCredentialWatcher } from './start-webui-credential-watcher.js';
+import { createPackageOperationExecutor } from './start-webui-remediation.js';
+import { setupWebuiShutdown } from './start-webui-shutdown.js';
+import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js';
 import type { WebUIOptions } from './types.js';
 import { broadcast, resolveAuthToken } from './ws-utils.js';
 
-export function createStandaloneTodosCheckpointLifecycle(input: {
-  state: Parameters<typeof attachTodosCheckpoint>[0];
-  sessionsDir: string;
-  sessionId: string;
-  events?: Parameters<typeof attachTodosCheckpoint>[3];
-  traceId?: string | undefined;
-  warn?: ((message: string) => void) | undefined;
-}): {
-  rebind: (sessionId: string, sessionsDir: string) => Promise<void>;
-  detach: () => Promise<void>;
-} {
-  let checkpointSessionId = input.sessionId;
-  let checkpointSessionsDir = input.sessionsDir;
-  const attachCheckpoint = (sessionId: string, sessionsDir: string) =>
-    attachTodosCheckpoint(
-      input.state,
-      sessionScopedPath(sessionsDir, sessionId, '.todos.json'),
-      sessionId,
-      input.events,
-      input.traceId,
-      input.warn,
-    );
-  let detachCurrent = attachCheckpoint(input.sessionId, input.sessionsDir);
-  let checkpointAttached = true;
-  const detachCurrentCheckpoint = async (): Promise<void> => {
-    if (!checkpointAttached) return;
-    checkpointAttached = false;
-    await detachCurrent();
-  };
-  let transitionTail = Promise.resolve();
-
-  const rebind = (nextSessionId: string, sessionsDir: string): Promise<void> => {
-    const transition = transitionTail.then(async () => {
-      if (
-        checkpointAttached &&
-        nextSessionId === checkpointSessionId &&
-        sessionsDir === checkpointSessionsDir
-      ) {
-        return;
-      }
-      let detachFailed = false;
-      let detachError: unknown;
-      try {
-        await detachCurrentCheckpoint();
-      } catch (error) {
-        // The listener unsubscribes before its final flush. The runtime has
-        // already selected the next session, so bind that session even when
-        // the old flush reports a failure; reattaching the old session would
-        // persist future todos into the wrong sidecar.
-        detachFailed = true;
-        detachError = error;
-      }
-      const nextDetach = attachCheckpoint(nextSessionId, sessionsDir);
-      checkpointSessionId = nextSessionId;
-      checkpointSessionsDir = sessionsDir;
-      detachCurrent = nextDetach;
-      checkpointAttached = true;
-      if (detachFailed) throw detachError;
-    });
-    transitionTail = transition.catch(() => undefined);
-    return transition;
-  };
-
-  return {
-    rebind,
-    detach: async (): Promise<void> => {
-      await transitionTail;
-      await detachCurrentCheckpoint();
-    },
-  };
-}
+export { createStandaloneTodosCheckpointLifecycle };
 
 export async function startWebUI(
   opts: WebUIOptions & {
@@ -449,56 +373,12 @@ export async function startWebUI(
       context.provider && context.model
         ? { provider: context.provider, model: context.model }
         : undefined,
-    executePackageOperation: async (operation: PackageOperation, workspace?: string) => {
-      const input = toLanguagePackageInput(operation, workspace);
-      const use = {
-        type: 'tool_use' as const,
-        id: `techstack-remediation-${randomUUID()}`,
-        name: 'language_package',
-        input: { ...input },
-      };
-      const execute = async () => {
-        const { outputs } = await toolExecutor.executeBatch([use], context, 'sequential');
-        const output = outputs[0];
-        if (!output) throw new Error('language_package returned no result');
-        return output;
-      };
-      let output = await execute();
-      if (output.result.type === 'tool_confirm_pending') {
-        const pending = output.result;
-        const confirmTool = output.tool;
-        if (!confirmTool) throw new Error('Permission confirmation is missing its tool');
-        if (events.listenerCount('tool.confirm_needed') === 0) {
-          throw new Error('No permission confirmation surface is connected');
-        }
-        const decision = await new Promise<'yes' | 'no' | 'always' | 'deny'>((resolve) => {
-          events.emit('tool.confirm_needed', {
-            sessionId: context.session.id,
-            tool: confirmTool,
-            input: pending.input,
-            toolUseId: pending.toolUseId,
-            suggestedPattern: pending.suggestedPattern,
-            decisionSource: pending.decisionSource,
-            riskTier: pending.riskTier,
-            boundaryReason: pending.boundaryReason,
-            resolve,
-          });
-        });
-        const rule = { tool: 'language_package', pattern: pending.suggestedPattern };
-        if (decision === 'always') await permissionPolicy.trust(rule);
-        else if (decision === 'yes') permissionPolicy.allowOnce(rule);
-        else if (decision === 'deny') await permissionPolicy.deny(rule);
-        else permissionPolicy.denyOnce(rule);
-        if (decision === 'deny' || decision === 'no')
-          throw new Error('Package operation was denied');
-        output = await execute();
-      }
-      if (output.result.type === 'tool_confirm_pending') {
-        throw new Error('Package operation still requires confirmation');
-      }
-      if (output.result.is_error) throw new Error(output.result.content);
-      return { detail: output.result.content };
-    },
+    executePackageOperation: createPackageOperationExecutor({
+      toolExecutor,
+      context,
+      events,
+      permissionPolicy,
+    }),
     distDir: opts.distDir,
   });
 
@@ -575,21 +455,8 @@ export async function startWebUI(
   // HTTP server via {server: httpServer}, so a single listen() binds both the
   // HTTP frontend and the WS upgrade handler on the same port.
   httpServer.listen(httpPort, wsHost, () => {
-    // The URL must carry the token.
-    //
-    // `requireAccessToken` is hard-`true` (http-server.ts) and
-    // `resolveAuthToken` mints a fresh random token per process when
-    // `WEBUI_TOKEN` is unset — so the banner's bare `http://host:port` was a
-    // URL that always answered 401. The token was in scope right here (it is
-    // handed to `formatExternalAccessUrls` two lines down) but that helper
-    // returns `[]` for any non-wildcard bind, so on the DEFAULT loopback bind
-    // the operator was never shown the token at all and had no way to open
-    // the UI. `requestToken` already accepts `?token=` from a loopback peer;
-    // it simply was never printed.
     const tokenQuery = accessToken ? `/?token=${encodeURIComponent(accessToken)}` : '';
     console.log(`[WebUI] HTTP server running on http://${wsHost}:${httpPort}${tokenQuery}`);
-    // For wildcard binds, enumerate external network addresses so the
-    // operator can see Tailscale/LAN URLs without manual lookup.
     const extraUrls = formatExternalAccessUrls({
       bindHost: wsHost,
       port: httpPort,
@@ -601,68 +468,7 @@ export async function startWebUI(
     }
   });
 
-  // Dual-stack / IPv6 companion listener.
-  //
-  // When the primary bind is IPv4-only, also try the IPv6 equivalent so
-  // peers using IPv6 can connect. Tailscale assigns both v4 (100.x.x.x)
-  // and v6 (fd7a:…) addresses; Chrome/Edge on Windows resolve `localhost`
-  // to [::1] before 127.0.0.1. Without the companion listener, a v4-only
-  // bind causes ECONNREFUSED for all IPv6 peers.
-  //
-  // When the primary bind is IPv6-only (::), try the IPv4 companion as a
-  // fallback for systems where `::` does not accept IPv4-mapped
-  // connections (net.ipv6.bindv6only=1, some Windows configs).
-  //
-  // Best-effort: on systems with dual-stack IPv6 sockets (bindv6only=0,
-  // the Linux/macOS default), the companion listener may raise
-  // EADDRINUSE because the primary's port is already covered. We
-  // swallow EADDRINUSE along with EAFNOSUPPORT / EADDRNOTAVAIL (no IPv6
-  // stack, IPv6 disabled, or companion already covered by dual-stack).
-  const companion =
-    wsHost === '127.0.0.1'
-      ? '::1'
-      : wsHost === '0.0.0.0' || wsHost === undefined
-        ? '::'
-        : wsHost === '::' || wsHost === '[::]'
-          ? '0.0.0.0'
-          : null;
-  let companionServer: http.Server | null = null;
-  if (companion) {
-    const companionLabel = companion.includes(':') ? `[${companion}]` : companion;
-    // A single http.Server cannot bind two addresses. Calling .listen() a
-    // second time either throws ERR_SERVER_ALREADY_LISTEN (when the first
-    // bind has completed) or silently overwrites the first (when both
-    // calls run in the same synchronous tick — which is exactly this case).
-    // Create a separate server that shares the request handler, and forward
-    // 'upgrade' events so the WebSocketServer on the primary also serves WS
-    // connections arriving on the companion address.
-    companionServer = http.createServer();
-    companionServer.on('request', (req, res) => httpServer.emit('request', req, res));
-    companionServer.on('upgrade', (req, socket, head) =>
-      httpServer.emit('upgrade', req, socket, head),
-    );
-    companionServer.on('error', (err: NodeJS.ErrnoException) => {
-      // Throwing from an EventEmitter handler becomes an `uncaughtException`
-      // and kills the process. This listener is explicitly best-effort — the
-      // primary is already bound and serving by now — so an unexpected errno
-      // must not take the whole WebUI down after the "server running" banner
-      // has already printed. On Windows a socket held with
-      // SO_EXCLUSIVEADDRUSE, or an AppContainer/firewall restriction, surfaces
-      // as EACCES, which is not in the allow-list below. The WS secondary
-      // handler (server-runtime.ts:337) already only logs.
-      const expected =
-        err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL' || err.code === 'EADDRINUSE';
-      if (!expected) {
-        console.warn(
-          `[WebUI] companion listener on ${companionLabel} failed (${err.code ?? 'unknown'}): ` +
-            `${err.message}. The primary address is unaffected.`,
-        );
-      }
-    });
-    companionServer.listen(httpPort, companion, () => {
-      console.log(`[WebUI] HTTP server running on http://${companionLabel}:${httpPort}`);
-    });
-  }
+  const companionServer = setupCompanionServer(httpServer, wsHost, httpPort);
 
   // ── Project manifest helpers ──────────────────────────────────────────
 
@@ -694,19 +500,6 @@ export async function startWebUI(
   }
 
   // ---- Route table (extracted to ./routes.ts in Phase 1a) ----
-  // The 947-line inline construction block that used to live here
-  // moved into buildRoutes() in ./routes.ts. We bind the local mutables
-  // (`config`, `projectRoot`, `workingDir`, ...) into a `state` object so
-  // routes observe live updates (config switch, project swap, mode
-  // change), pass the static services as `deps`, and forward the
-  // handful of boot-local closures (config persistence, pref snapshot,
-  // …) as `cb`.
-  //
-  // The 13 destructured names (`providerRoutes`, `sessionRoutes`, …)
-  // are then referenced by `handleMessage` exactly the way the inline
-  // `let *Routes` block was — no surface change.
-
-  // Mutable bindings — wrapped by `state` for buildRoutes().
   const state: WebuiMutableState = {
     getConfig: () => config,
     setConfig: (next) => {
@@ -817,103 +610,15 @@ export async function startWebUI(
     prefSnapshot,
   };
 
-  // Hot-reload provider credentials when config file changes on disk (another
-  // terminal's `wstack auth`, a provider panel in another window, or a manual
-  // edit). Rebuild the live agent's provider so the next message uses the
-  // new key without restarting the server, and re-broadcast the saved-providers
-  // projection so every connected panel re-renders. Mirrors `switchModel`'s
-  // live-swap (routes.ts). Escape hatch: WRONGSTACK_DISABLE_CONFIG_WATCH=1.
-  //
-  // Watches the ACTIVE PROFILE config (~/.wrongstack/profiles/<name>/config.json)
-  // where all user settings, providers, and routing configs live. The root
-  // bootstrap is deliberately not watched as a settings source.
-  const watchConfigPath = profileConfigPath;
-  let credentialWatcherClose: (() => void) | undefined;
-  if (process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] !== '1') {
-    let lastActiveCfg = JSON.stringify(
-      state.getConfig().providers?.[deps.context.provider.id] ?? null,
-    );
-    // Track the shared display language so a cross-process change (e.g. the
-    // desktop shell writing config.uiLocale) propagates to every connected
-    // webui client live, without a restart.
-    let lastUiLocale: string | undefined = state.getConfig().uiLocale;
-    const credentialWatcher = watchProviderConfig(
-      watchConfigPath,
-      vault,
-      (snapshot) => {
-        // Refresh in-memory config + store so panels and the next switch read fresh.
-        state.setConfig(
-          patchConfig(state.getConfig(), {
-            providers: snapshot.providers,
-            ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
-            ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
-            fallbackBridge: snapshot.fallbackBridge ?? '',
-          }),
-        );
-        deps.configStore.update({
-          providers: snapshot.providers,
-          ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
-          ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
-          ...(snapshot.fallbackModels !== undefined
-            ? { fallbackModels: snapshot.fallbackModels }
-            : {}),
-          fallbackBridge: snapshot.fallbackBridge ?? '',
-          ...(snapshot.fallbackProfiles !== undefined
-            ? { fallbackProfiles: snapshot.fallbackProfiles }
-            : {}),
-          ...(snapshot.favoriteModels !== undefined
-            ? { favoriteModels: snapshot.favoriteModels }
-            : {}),
-          ...(snapshot.favoriteModelsOnly !== undefined
-            ? { favoriteModelsOnly: snapshot.favoriteModelsOnly }
-            : {}),
-          ...(snapshot.modelMatrix !== undefined ? { modelMatrix: snapshot.modelMatrix } : {}),
-          ...(snapshot.fallbackAuto !== undefined ? { fallbackAuto: snapshot.fallbackAuto } : {}),
-        } as never);
-        broadcast(clients, {
-          type: 'providers.saved',
-          payload: { providers: projectSavedProviders(snapshot.providers) },
-        });
-
-        // Display language live-propagation: when config.uiLocale changes in
-        // another process, seed context.meta + broadcast prefs.updated so every
-        // connected client re-renders in the new language (handlePrefsUpdated →
-        // useLocalPrefs → i18n.changeLanguage).
-        const newUi = snapshot.uiLocale;
-        if (newUi !== lastUiLocale) {
-          lastUiLocale = newUi;
-          if (newUi) {
-            deps.context.meta['uiLocale'] = newUi;
-            broadcast(clients, { type: 'prefs.updated', payload: { uiLocale: newUi } });
-          }
-        }
-
-        const activeId = deps.context.provider.id;
-        const newCfgStr = JSON.stringify(snapshot.providers[activeId] ?? null);
-        if (newCfgStr === lastActiveCfg) return; // active provider creds unchanged
-        lastActiveCfg = newCfgStr;
-        try {
-          const providerCfg: ProviderConfig = snapshot.providers[activeId] ?? {
-            type: activeId,
-            ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
-            ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
-          };
-          const newProv = deps.providerRegistry.has(activeId)
-            ? deps.providerRegistry.create({ ...providerCfg, type: activeId } as never)
-            : makeProviderFromConfig(activeId, { ...providerCfg, type: activeId });
-          deps.context.provider = newProv;
-          void updateAutoCompactionMaxContext(newProv).catch(() => undefined);
-          console.log(`[WebUI] Provider credentials reloaded from config.json (${activeId})`);
-        } catch (err) {
-          console.warn(
-            `[WebUI] Credential hot-reload failed for ${activeId}: ${toErrorMessage(err)}`,
-          );
-        }
-      },
-      { warn: (m) => logger.warn(`Config watcher: ${m}`) },
-    );
-    credentialWatcherClose = credentialWatcher.close;
-  }
+  const credentialWatcherClose = setupWebuiCredentialWatcher({
+    watchConfigPath: profileConfigPath,
+    vault,
+    logger,
+    state,
+    deps,
+    clients,
+    updateAutoCompactionMaxContext,
+  });
 
   // WebUI/SimpleUI joins the process flight recorder, including standalone servers.
   const stopHeapWatchdog = startSharedHeapWatchdog({
@@ -930,11 +635,7 @@ export async function startWebUI(
       runActive: runLockControl.get() !== null,
     }),
   });
-  // Build the route table (Phase 1a) + the message dispatcher and connection
-  // handler (Phase 1b). The dispatcher owns the inbound `switch (msg.type)`
-  // and the runLock guard; the connection handler owns rate-limiting, F5
-  // transcript replay, and per-client lifecycle. Both live in their own
-  // modules so `startWebUI` reads as orchestration.
+
   const routes = buildRoutes(state, deps, cb);
   const stopEmptySessionCleanup = scheduleOwnerlessEmptySessionCleanup({
     getSessionStore: state.getSessionStore,
@@ -949,11 +650,7 @@ export async function startWebUI(
     },
     logger,
   });
-  // The Kanban supervisor is created inside the dispatcher (deterministic
-  // background auditor + optional agentic mode). Expose its disposer so the
-  // shutdown hook below can stop the periodic timer and clear internal maps
-  // before the WS connections close.
-  // Assigned synchronously inside createMessageDispatcher; invoked from onShutdown.
+
   let kanbanSupervisorDispose: (() => void) | null = null;
   const handleMessage = createMessageDispatcher({
     state,
@@ -967,10 +664,7 @@ export async function startWebUI(
       kanbanSupervisorDispose = dispose;
     },
   });
-  // Fire-and-forget callback wired on the connection lifecycle for
-  // `unsafe_key` / `too_deep` decoder rejections. Sends a high-priority
-  // mailbox note to leaders so the running agent-loop can respond if
-  // configured to alert (e.g. slash handler or tool watcher).
+
   const mailbox = getSharedProjectMailbox(
     resolveProjectDir(context.projectRoot, wstackGlobalRoot()),
     events,
@@ -983,19 +677,11 @@ export async function startWebUI(
     loadReplay: async () => {
       await session.flush().catch(() => undefined);
       const data = await sessionStore.load(session.id);
-      // `events` feeds the audit markers; the load already parsed them.
       return { messages: data.messages, events: data.events, usage: data.usage };
     },
     clients,
     pendingConfirms,
     onSecurityRejection: (ev) => {
-      // `try/catch` around a `void`-ed promise only catches a SYNCHRONOUS
-      // throw. `mailbox.send` is IPC to the per-project daemon, so a rejection
-      // (daemon down, zombie Windows named pipe) escaped as an unhandled
-      // rejection and — under Node 22's `--unhandled-rejections=throw` —
-      // killed the server. The trigger is one decoder tripwire, i.e. a single
-      // frame containing `{"__proto__":{}}`: the security alarm became a
-      // one-frame remote DoS. Siblings do it right: client-presence.ts:106.
       void mailbox
         .send({
           from: context.agentId,
@@ -1013,8 +699,6 @@ export async function startWebUI(
           senderSessionId: session.id,
         })
         .catch((err: unknown) => {
-          // Best-effort — a failure here must not crash the message handler
-          // or block future messages.
           console.warn(
             JSON.stringify({
               level: 'warn',
@@ -1036,91 +720,34 @@ export async function startWebUI(
   });
   wssPrimary.on('connection', handleConnection);
   if (wssSecondary) wssSecondary.on('connection', handleConnection);
-  // HTTP server for the React frontend (port 3456) — see `http-server.ts`
-  // for the static-serve, MIME matching, path-traversal guard, and CSP
-  // header logic. Constructed here, listen()d below alongside the WS server.
-  // `globalRoot` powers the /api/sessions and /api/sessions/:id/agents
-  // handlers (read the cross-process SessionRegistry); `apiToken` is the
-  // shared auth token the HTTP API requires when bound to a non-loopback
-  // host (LAN exposure). Loopback binds skip the token check, mirroring
-  // the WS verifyClient loopback-bootstrap policy.
 
-  let unregisterShutdown = (): void => {};
-  unregisterShutdown = registerShutdown({
-    flushSession: async () => {
-      await session.append({
-        type: 'session_end',
-        ts: new Date().toISOString(),
-        usage: tokenCounter.total(),
-      });
-      await session.close();
+  setupWebuiShutdown({
+    session,
+    tokenCounter,
+    clients,
+    httpServer,
+    companionServer,
+    wssPrimary,
+    wssSecondary,
+    stopEmptySessionCleanup,
+    getKanbanSupervisorDispose: () => kanbanSupervisorDispose,
+    todosCheckpoint,
+    stopHeapWatchdog,
+    getCredentialWatcherClose: () => credentialWatcherClose,
+    disposeRealtimeHandlers,
+    governanceHandle,
+    logger,
+    brainMonitor,
+    agentServices,
+    mcpRegistry,
+    sessionIdentity,
+    eventArming,
+    getEternalSubscription: () => eternalSubscription,
+    clearEternalSubscription: () => {
+      eternalSubscription = null;
     },
-    clients: () => clients.keys(),
-    servers: [
-      httpServer,
-      ...(companionServer ? [companionServer] : []),
-      wssPrimary,
-      ...(wssSecondary ? [wssSecondary] : []),
-    ],
-    onPreShutdown: async () => {
-      // Stop periodic work before the WS layer tears down so no background
-      // broadcast races a `WebSocketServer.close()`.
-      await stopEmptySessionCleanup.dispose();
-      kanbanSupervisorDispose?.();
-      kanbanSupervisorDispose = null;
-    },
-    onShutdown: async () => {
-      unregisterShutdown();
-      await todosCheckpoint.detach();
-      await stopHeapWatchdog();
-      credentialWatcherClose?.();
-      disposeRealtimeHandlers();
-      const governanceCleanup = await governanceHandle?.close();
-      if (governanceCleanup && !governanceCleanup.ok) {
-        logger.warn(`governance: standalone WebUI ${governanceCleanup.action} cleanup failed`, {
-          message: governanceCleanup.message,
-        });
-      }
-      brainMonitor.stop();
-      // Read via the services getter — ledger toggles swap the instance.
-      await agentServices.brainLedger?.stop().catch(() => {});
-      await mcpRegistry.stopAll().catch(() => undefined);
-      await sessionIdentity.stop();
-      eventArming.getDispose()?.();
-      if (eternalSubscription) {
-        eternalSubscription.dispose();
-        eternalSubscription = null;
-      }
-      codebaseIndexing.dispose();
-      // Full hygiene option surface + 1h throttle — shared with CLI via setupSage.
-      await agentServices
-        .runSageSessionHygiene()
-        .catch((err: unknown) => logger.warn(`sage session hygiene failed: ${toErrorMessage(err)}`));
-      await memoryStore
-        .dispose()
-        .catch((err: unknown) =>
-          logger.warn(`sage connection disposal failed: ${toErrorMessage(err)}`),
-        );
-      await unregisterInstance(process.pid, path.dirname(globalConfigPath));
-    },
+    codebaseIndexing,
+    memoryStore,
+    globalConfigPath,
   });
 }
-
-/**
- * Webui-side mailbox bridge discovery.
- *
- * The webui doesn't spawn a bridge — the bridge (`wstack mailbox serve`)
- * is spawned by any CLI surface via the auto-bootstrap wiring. We just
- * probe the per-project lock for an already-running instance and stash
- * the discovered handle on `ctx.meta['mailboxBridge']` so any later
- * code (the `/mailbox` HTTP surface, agent-status broadcasters,
- * external-agent proxy) can find it without re-running discovery.
- *
- * If no bridge is running, we log a breadcrumb so the user knows
- * to start one (`wstack --repl`, `wstack --webui`, or
- * `wstack mailbox serve` standalone).
- *
- * Best-effort: never throws. A failure (missing lock dir, ENOENT,
- * etc.) logs at warn level and returns — the webui keeps running.
- */
-// discoverMailboxBridgeForWebui extracted → ./discover-mailbox-bridge.ts
