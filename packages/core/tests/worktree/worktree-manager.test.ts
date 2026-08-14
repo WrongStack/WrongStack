@@ -742,13 +742,26 @@ describe.skipIf(!gitAvailable)('WorktreeManager (real repo)', () => {
         });
 
         // Resolver claims success but leaves the conflict markers in place.
-        const m = await wm.merge(h, { squash: true, resolve: async () => true });
+        // Capture what the resolver was handed so the next Linux failure pins
+        // the escape route exactly: null → resolver never called (clean-merge
+        // escape); [] → conflict path entered but both file probes were empty
+        // (tolerance escape); ['seed.txt'] → markers were known and the
+        // hasConflictMarkers scan missed them.
+        let resolverConflictFiles: string[] | null = null;
+        const m = await wm.merge(h, {
+          squash: true,
+          resolve: async ({ conflictFiles }) => {
+            resolverConflictFiles = conflictFiles;
+            return true;
+          },
+        });
 
         if (m.ok) {
-          // Third escape route in this test's history (see 1d51da80e, de7bb9be8,
-          // 51a4ca708): if the merge reached the clean-commit path, capture WHY
-          // no probe fired so the next Linux failure is diagnosable from the log
-          // alone — three independent probes all missed a real conflict.
+          // Fourth capture round (after 1d51da80e, de7bb9be8, 51a4ca708 and
+          // the disproven 31825862195 evidence gate, reverted in b6b002492).
+          // The prior arm could not distinguish the tolerance escape
+          // (resolver ran, staged nothing, "nothing to commit" was tolerated)
+          // from a genuinely clean merge — this one can.
           const diag = spawnSync('git', ['-C', base, 'log', '-3', '--oneline'], {
             encoding: 'utf8',
             env: GIT_ENV,
@@ -757,9 +770,18 @@ describe.skipIf(!gitAvailable)('WorktreeManager (real repo)', () => {
             encoding: 'utf8',
             env: GIT_ENV,
           });
+          const committedSeed = await fs
+            .readFile(path.join(base, 'seed.txt'), 'utf8')
+            .catch(() => '<unreadable>');
           throw new Error(
-            `merge returned ok:true — conflict probes all missed. ` +
-              `exit-code path must have been 0; unmerged-files probe: [${probe.stdout.trim()}]; ` +
+            `merge returned ok:true — decisive arm fired. ` +
+              `resolverConflictFiles: ${JSON.stringify(resolverConflictFiles)} ` +
+              `(null = resolver never called → clean-merge escape; ` +
+              `[] = conflict path with empty probe → tolerance escape; ` +
+              `seed.txt = marker scan missed known files); ` +
+              `result: ok=${m.ok} conflict=${String(m.conflict)} resolved=${String(m.resolved)}; ` +
+              `unmerged probe now: [${probe.stdout.trim()}]; ` +
+              `committed seed.txt still has markers: ${/<{7}(?: |$)|>{7}(?: |$)/m.test(committedSeed)}; ` +
               `recent history:\n${diag.stdout}`,
           );
         }
