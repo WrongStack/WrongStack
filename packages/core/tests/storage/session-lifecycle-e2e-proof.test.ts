@@ -61,6 +61,7 @@ describe('Session Lifecycle & Invariant Verification Suite (Code-Proven)', () =>
       type: 'llm_response',
       ts: '2026-08-14T10:00:03.000Z',
       content: [{ type: 'text', text: 'Analysis completed.' }],
+      stopReason: 'end_turn',
       usage: { input: 50, output: 20 },
     });
 
@@ -144,6 +145,7 @@ describe('Session Lifecycle & Invariant Verification Suite (Code-Proven)', () =>
           { type: 'text', text: 'Let me read the file' },
           { type: 'tool_use', id: 'orphan_tool_1', name: 'read_file', input: { path: 'a.txt' } },
         ],
+        stopReason: 'tool_use',
         usage: { input: 10, output: 10 },
       }),
     ];
@@ -173,6 +175,8 @@ describe('Session Lifecycle & Invariant Verification Suite (Code-Proven)', () =>
         ts: '2026-08-14T10:00:00Z',
         path: 'service.ts',
         hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // mismatch hash
+        mtimeMs: 0,
+        source: 'write',
       },
     ];
 
