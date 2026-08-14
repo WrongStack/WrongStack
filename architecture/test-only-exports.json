@@ -621,6 +621,12 @@
     "packages/kanban/src/verification/verification-report.ts": [
       "renderVerificationReportMarkdown"
     ],
+    "packages/mcp/src/registry-connect-loop.ts": [
+      "discoverSlotCapabilities"
+    ],
+    "packages/mcp/src/registry-idle.ts": [
+      "sleepIdleSlot"
+    ],
     "packages/mcp/src/test-helpers/mock-server.ts": [
       "MockMCPServer"
     ],
