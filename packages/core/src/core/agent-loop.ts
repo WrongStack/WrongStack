@@ -1,8 +1,8 @@
 import type { RunController } from '../kernel/run-controller.js';
 import { TOKENS } from '../kernel/tokens.js';
 import { attachFleetPulse, attachMailboxChecker } from '../mailbox-attach.js';
-import type { ContentBlock, TextBlock } from '../types/blocks.js';
-import { isTextBlock, isToolUseBlock } from '../types/blocks.js';
+import type { TextBlock } from '../types/blocks.js';
+import { isToolUseBlock } from '../types/blocks.js';
 import { toWrongStackError } from '../types/errors.js';
 import type { Request, Response } from '../types/provider.js';
 import { effectiveInputTokens } from '../types/provider.js';
@@ -13,14 +13,12 @@ import {
 import { toErrorMessage } from '../utils/error.js';
 import { formatTodosForModel, hasKanbanBoundTodos, hasOpenTodos } from '../utils/todos-format.js';
 import {
-  estimateMessageTokens,
-  estimateRequestTokens,
   getCalibrationState,
-  type RequestTokenBreakdown,
-  realAnchoredInputTokens,
   recordActualUsage,
 } from '../utils/token-estimate.js';
 import type { AgentInternals } from './agent-internals.js';
+import { createAgentLoopContextManager } from './agent-loop-context.js';
+import { AgentLoopDetector } from './agent-loop-detector.js';
 import type { AgentResponseHandler } from './agent-response.js';
 import type { AgentToolHandler } from './agent-tools.js';
 import type { RunResult, UserInputPayload } from './agent-types.js';
@@ -78,462 +76,12 @@ export function createAgentLoopHandler(
   const pulseEveryN = Math.max(1, fleetPulseCfg?.everyNIterations ?? 5);
   const backgroundCoordination = () => a.ctx.meta['coordinationContextMode'] === 'background';
 
-  async function refreshProviderContextLimit(
-    provider: import('../types/provider.js').Provider,
-    model: string,
-    opts: { probe?: boolean } = {},
-  ): Promise<void> {
-    a.ctx.meta ??= {};
-    const routeKey = `${provider.id}/${model}`;
-    const previousRouteKey = a.ctx.meta['contextLimitRouteKey'];
-    const routeChanged = previousRouteKey !== undefined && previousRouteKey !== routeKey;
-    const previousMaxContext = currentMaxContext();
-
-    // Route change (provider or model switch): clear all per-route limit state
-    // so the new route starts from its own capability baseline. This runs even
-    // when the new provider has no refreshContextLimit, so switching away from
-    // a probed Codex route does not leave a stale ceiling in force.
-    //
-    // We do NOT mutate provider.capabilities.maxContext (see below) so there is
-    // no cross-provider contamination to undo — meta cleanup alone resets the
-    // effective ceiling to the new provider's native capability.
-    if (routeChanged) {
-      delete a.ctx.meta['providerOverflowMaxContext'];
-      delete a.ctx.meta['contextLimitBaseline'];
-      delete a.ctx.meta['providerLimitEffectiveMaxContext'];
-      delete a.ctx.meta['effectiveMaxContext'];
-      delete a.ctx.meta['effectiveMaxContextSource'];
-      delete a.ctx.meta['contextLimitLastEmittedMaxContext'];
-      delete a.ctx.meta['contextLimitLastEmittedSource'];
-    }
-    a.ctx.meta['contextLimitRouteKey'] = routeKey;
-
-    // Read the new route's native capability only after clearing old route
-    // metadata. The pre-cleanup value is retained solely as event history.
-    //
-    // IMPORTANT: we read from the passed `provider` parameter, NOT from
-    // currentMaxContext() / a.ctx.provider. During a model transition the
-    // agent loop may swap a.ctx.provider to a different object; reading the
-    // wrong one would seed the baseline from the wrong provider's ceiling.
-    const routeMeta = a.ctx.meta['effectiveMaxContext'];
-    const routeProviderCap = provider.capabilities.maxContext;
-    const currentEffective =
-      typeof routeMeta === 'number' && routeMeta > 0
-        ? routeMeta
-        : typeof routeProviderCap === 'number' && routeProviderCap > 0
-          ? routeProviderCap
-          : 200_000;
-    const emitEffectiveLimit = (
-      effective: number,
-      source: 'configured' | 'provider' | 'provider_overflow',
-    ): void => {
-      const lastEmitted = a.ctx.meta['contextLimitLastEmittedMaxContext'];
-      const lastEmittedSource = a.ctx.meta['contextLimitLastEmittedSource'];
-      if (lastEmitted === effective && lastEmittedSource === source) return;
-
-      const eventPrevious =
-        typeof lastEmitted === 'number' && Number.isFinite(lastEmitted) && lastEmitted > 0
-          ? Math.floor(lastEmitted)
-          : previousMaxContext;
-      a.ctx.meta['contextLimitLastEmittedMaxContext'] = effective;
-      a.ctx.meta['contextLimitLastEmittedSource'] = source;
-      a.events.emit('ctx.max_context', {
-        sessionId: resolveEventSessionId(a.ctx),
-        providerId: provider.id,
-        modelId: model,
-        maxContext: effective,
-        ...(eventPrevious > 0 ? { previousMaxContext: eventPrevious } : {}),
-        source,
-        decreased: eventPrevious > 0 && effective < eventPrevious,
-      });
-    };
-    const emitNativeAfterRouteChange = (): void => {
-      if (routeChanged && currentEffective > 0) {
-        // Persist the native ceiling in meta so currentMaxContext() — which
-        // reads meta first — returns this value even if a.ctx.provider has not
-        // been swapped yet by the caller. Without this, the agent loop reads
-        // a stale effective from the old route until ctx.provider catches up.
-        a.ctx.meta['effectiveMaxContext'] = currentEffective;
-        a.ctx.meta['effectiveMaxContextSource'] = 'configured';
-        emitEffectiveLimit(currentEffective, 'configured');
-      }
-    };
-
-    const refresh = provider.refreshContextLimit;
-    if (opts.probe === false || !refresh) {
-      emitNativeAfterRouteChange();
-      return;
-    }
-
-    let discovered: Awaited<ReturnType<NonNullable<typeof refresh>>>;
-    try {
-      discovered = await refresh.call(provider, model, { signal: a.ctx.signal });
-    } catch {
-      // Capability discovery is advisory. The provider request remains usable
-      // when its metadata endpoint is temporarily unavailable.
-      emitNativeAfterRouteChange();
-      return;
-    }
-    const providerLimit = discovered?.maxContext;
-    if (
-      typeof providerLimit !== 'number' ||
-      !Number.isFinite(providerLimit) ||
-      providerLimit <= 0
-    ) {
-      emitNativeAfterRouteChange();
-      return;
-    }
-    const providerLimitFloored = Math.floor(providerLimit);
-
-    const existingBaseline = a.ctx.meta['contextLimitBaseline'];
-    const lastApplied = a.ctx.meta['providerLimitEffectiveMaxContext'];
-    const existingOverflow = a.ctx.meta['providerOverflowMaxContext'];
-    const effectiveChangedOutsideProbe =
-      typeof lastApplied === 'number' &&
-      Number.isFinite(lastApplied) &&
-      currentEffective !== Math.floor(lastApplied) &&
-      currentEffective !== existingOverflow;
-    const baseline =
-      effectiveChangedOutsideProbe ||
-      typeof existingBaseline !== 'number' ||
-      !Number.isFinite(existingBaseline) ||
-      existingBaseline <= 0
-        ? currentEffective
-        : Math.floor(existingBaseline);
-    a.ctx.meta['contextLimitBaseline'] = baseline;
-
-    const overflowLimit = a.ctx.meta['providerOverflowMaxContext'];
-    const overflowFloored =
-      typeof overflowLimit === 'number' && Number.isFinite(overflowLimit) && overflowLimit > 0
-        ? Math.floor(overflowLimit)
-        : undefined;
-
-    const ceilings: number[] = [baseline, providerLimitFloored];
-    if (overflowFloored !== undefined) ceilings.push(overflowFloored);
-    const effective = Math.min(...ceilings.filter((limit) => limit > 0));
-
-    // Determine which ceiling actually won, so the source label is accurate.
-    let effectiveSource: 'configured' | 'provider' | 'provider_overflow';
-    if (overflowFloored !== undefined && effective === overflowFloored) {
-      effectiveSource = 'provider_overflow';
-    } else if (effective === providerLimitFloored) {
-      effectiveSource = 'provider';
-    } else {
-      effectiveSource = 'configured';
-    }
-
-    a.ctx.meta['effectiveMaxContext'] = effective;
-    a.ctx.meta['providerLimitEffectiveMaxContext'] = effective;
-    a.ctx.meta['effectiveMaxContextSource'] = effectiveSource;
-    // Deliberately do NOT mutate provider.capabilities.maxContext. The agent
-    // loop reads the effective ceiling via currentMaxContext(), which prefers
-    // ctx.meta['effectiveMaxContext']. Mutating the shared provider object
-    // would contaminate other models on the same provider and survive across
-    // route changes. The ctx.max_context event carries the new limit to all UI
-    // consumers (TUI activeMaxContext, WebUI session-store maxContext).
-    emitEffectiveLimit(effective, effectiveSource);
-  }
-
-  async function compactContextIfNeeded(): Promise<boolean> {
-    const msgCount = a.ctx.messages.length;
-    const maxContext = currentMaxContext();
-    const revision = a.ctx.state.revision;
-    const toolsRef = a.ctx.tools;
-    const systemRef = a.ctx.systemPrompt;
-    const requestTokens = a.ctx.lastRequestTokens;
-    if (
-      _lastCompactionMsgCount === msgCount &&
-      _lastCompactionRevision === revision &&
-      _lastCompactionToolsRef === toolsRef &&
-      _lastCompactionSystemRef === systemRef &&
-      _lastCompactionRequestTokens === requestTokens &&
-      _lastCompactionWasNoop &&
-      _lastCompactionMaxContext === maxContext &&
-      maxContext > 0
-    ) {
-      return false;
-    }
-    const beforeMessages = a.ctx.messages;
-    const beforeMsgCount = a.ctx.messages.length;
-    const beforeRevision = a.ctx.state.revision;
-    await a.pipelines.contextWindow.run(a.ctx);
-    _lastCompactionMsgCount = a.ctx.messages.length;
-    _lastCompactionRevision = a.ctx.state.revision;
-    _lastCompactionToolsRef = a.ctx.tools;
-    _lastCompactionSystemRef = a.ctx.systemPrompt;
-    _lastCompactionMaxContext = maxContext;
-    const changed =
-      a.ctx.state.revision !== beforeRevision ||
-      a.ctx.messages !== beforeMessages ||
-      a.ctx.messages.length !== beforeMsgCount;
-    const tokens = refreshContextRequestTokenStash({ force: changed });
-    _lastCompactionRequestTokens = tokens;
-    const load = maxContext > 0 ? tokens / maxContext : 0;
-    _lastCompactionWasNoop = tokens > 0 && load < 0.5;
-    if (changed) {
-      _lastEmittedMsgCount = -1;
-      _lastEmittedToolCount = -1;
-      _lastEmittedMaxContext = -1;
-    }
-    return changed;
-  }
-
-  const calibrationKey = (model: string = a.ctx.model): string =>
-    `${a.ctx.provider?.id ?? 'unknown'}/${model}`;
-
-  let _cachedSysRef: unknown = null;
-  let _cachedToolsRef: readonly unknown[] | null = null;
-  let _cachedOverheadTokens = 0;
-
-  function systemAndToolsOverhead(): number {
-    const sysRef = a.ctx.systemPrompt;
-    const toolsRef = a.ctx.tools;
-    if (sysRef === _cachedSysRef && toolsRef === _cachedToolsRef && _cachedOverheadTokens > 0) {
-      return _cachedOverheadTokens;
-    }
-    const breakdown = estimateRequestTokens([], sysRef, toolsRef ?? [], calibrationKey());
-    _cachedSysRef = sysRef;
-    _cachedToolsRef = toolsRef;
-    _cachedOverheadTokens = breakdown.systemPrompt + breakdown.tools;
-    return _cachedOverheadTokens;
-  }
-
-  function stashRequestTokens(req: Request): RequestTokenBreakdown {
-    const preFlight = estimateRequestTokens(
-      req.messages,
-      req.system,
-      req.tools ?? [],
-      calibrationKey(req.model),
-    );
-
-    a.ctx.lastRequestTokens = preFlight.total;
-    _lastPreFlightMsgCount = req.messages.length;
-    _lastPreFlightToolCount = (req.tools ?? []).length;
-    _lastPreFlightRevision = a.ctx.state.revision;
-    _cachedSysRef = req.system;
-    _cachedToolsRef = req.tools ?? [];
-    _cachedOverheadTokens = preFlight.systemPrompt + preFlight.tools;
-    a.ctx.meta['lastRequestTokensAt'] = {
-      msgCount: req.messages.length,
-      toolCount: (req.tools ?? []).length,
-      revision: a.ctx.state.revision,
-    };
-
-    return preFlight;
-  }
-
-  function refreshContextRequestTokenStash(opts: { force?: boolean | undefined } = {}): number {
-    const msgCount = a.ctx.messages.length;
-    const toolCount = (a.ctx.tools ?? []).length;
-    const revision = a.ctx.state.revision;
-    const stashed = a.ctx.lastRequestTokens;
-    const stashedAt = a.ctx.meta?.['lastRequestTokensAt'];
-    if (
-      !opts.force &&
-      typeof stashed === 'number' &&
-      stashed > 0 &&
-      typeof stashedAt === 'object' &&
-      stashedAt !== null
-    ) {
-      const meta = stashedAt as {
-        msgCount?: unknown;
-        toolCount?: unknown;
-        revision?: unknown;
-      };
-      if (
-        meta.msgCount === msgCount &&
-        meta.toolCount === toolCount &&
-        meta.revision === revision &&
-        _lastPreFlightRevision === revision
-      ) {
-        return stashed;
-      }
-    }
-
-    const refreshed = estimateMessageTokens(a.ctx.messages) + systemAndToolsOverhead();
-    a.ctx.lastRequestTokens = refreshed;
-    _lastPreFlightMsgCount = msgCount;
-    _lastPreFlightToolCount = toolCount;
-    _lastPreFlightRevision = revision;
-    a.ctx.meta['lastRequestTokensAt'] = { msgCount, toolCount, revision };
-    return refreshed;
-  }
-
-  async function buildRequestWithPreflightCompaction(opts: RunOptions): Promise<{
-    req: Request;
-    provider: import('../types/provider.js').Provider;
-    preFlight: RequestTokenBreakdown;
-  }> {
-    let prepared = await handlers.response.buildAndRunRequestPipeline(opts);
-    let req = prepared.request;
-    let preFlight = stashRequestTokens(req);
-
-    // Probe the provider's live context limit before each request build.
-    // Post-response compaction does NOT re-probe, avoiding a second metadata
-    // round-trip per iteration. If compaction triggers a route rebuild,
-    // re-probe the new route below.
-    let probedRouteKey = `${prepared.provider.id}/${req.model}`;
-    await refreshProviderContextLimit(prepared.provider, req.model);
-
-    if (await compactContextIfNeeded()) {
-      prepared = await handlers.response.buildAndRunRequestPipeline(opts);
-      req = prepared.request;
-      preFlight = stashRequestTokens(req);
-      // If compaction triggered a model/provider rebuild that changed the
-      // route, re-probe the new route so the effective ceiling matches.
-      const rebuiltRouteKey = `${prepared.provider.id}/${req.model}`;
-      if (rebuiltRouteKey !== probedRouteKey) {
-        probedRouteKey = rebuiltRouteKey;
-        await refreshProviderContextLimit(prepared.provider, req.model);
-        // The re-probe may have discovered a lower ceiling. Re-run compaction
-        // against that new limit so the outgoing request does not overflow.
-        if (await compactContextIfNeeded()) {
-          prepared = await handlers.response.buildAndRunRequestPipeline(opts);
-          req = prepared.request;
-          preFlight = stashRequestTokens(req);
-        }
-      }
-    }
-
-    return { req, provider: prepared.provider, preFlight };
-  }
-
-  function emitContextPct(): void {
-    const msgCount = a.ctx.messages.length;
-    const toolCount = (a.ctx.tools ?? []).length;
-    const maxContext = currentMaxContext();
-    const revision = a.ctx.state.revision;
-    if (
-      msgCount === _lastEmittedMsgCount &&
-      toolCount === _lastEmittedToolCount &&
-      revision === _lastEmittedRevision &&
-      maxContext === _lastEmittedMaxContext &&
-      maxContext > 0
-    ) {
-      return;
-    }
-    _lastEmittedMsgCount = msgCount;
-    _lastEmittedToolCount = toolCount;
-    _lastEmittedRevision = revision;
-    _lastEmittedMaxContext = maxContext;
-
-    if (
-      msgCount !== _lastPreFlightMsgCount ||
-      toolCount !== _lastPreFlightToolCount ||
-      revision !== _lastPreFlightRevision
-    ) {
-      // Any observed state rewrite invalidates the aggregate token stash.
-      // Per-message `_estTokens` keep this full sum cheap while avoiding the
-      // unsafe assumption that a larger array was append-only.
-      refreshContextRequestTokenStash({ force: true });
-    }
-
-    let total: number;
-    const anchored = realAnchoredInputTokens(
-      a.ctx.messages,
-      a.ctx.lastRealInputTokens,
-      typeof a.ctx.meta?.['realAnchorMsgCount'] === 'number'
-        ? (a.ctx.meta['realAnchorMsgCount'] as number)
-        : undefined,
-    );
-    const stashed = a.ctx.lastRequestTokens;
-    if (anchored !== null) {
-      total = anchored;
-    } else if (typeof stashed === 'number' && stashed > 0) {
-      const cal = getCalibrationState(calibrationKey());
-      total = cal.calibrated
-        ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
-        : stashed;
-    } else {
-      const raw = refreshContextRequestTokenStash({ force: true });
-      const cal = getCalibrationState(calibrationKey());
-      total = cal.calibrated ? Math.round(raw * Math.min(1.5, Math.max(0.5, cal.ratio))) : raw;
-    }
-    const rawLoad = maxContext > 0 ? total / maxContext : 0;
-    const load = Math.max(0, Math.min(1, rawLoad));
-    a.events.emit('ctx.pct', {
-      sessionId: resolveEventSessionId(a.ctx),
-      load,
-      rawLoad,
-      tokens: total,
-      maxContext,
-    });
-  }
-
-  function currentMaxContext(): number {
-    const metaLimit = a.ctx.meta?.['effectiveMaxContext'];
-    const providerMax = a.ctx.provider.capabilities.maxContext;
-    return typeof metaLimit === 'number' && metaLimit > 0
-      ? metaLimit
-      : typeof providerMax === 'number' && providerMax > 0
-        ? providerMax
-        : 200_000;
-  }
-
-  let _lastEmittedMsgCount = -1;
-  let _lastEmittedToolCount = -1;
-  let _lastEmittedRevision = -1;
-  let _lastEmittedMaxContext = -1;
-  let _lastPreFlightMsgCount = -1;
-  let _lastPreFlightToolCount = -1;
-  let _lastPreFlightRevision = -1;
-  let _lastCompactionMsgCount = -1;
-  let _lastCompactionRevision = -1;
-  let _lastCompactionToolsRef: unknown = null;
-  let _lastCompactionSystemRef: unknown = null;
-  let _lastCompactionRequestTokens: number | undefined;
-  let _lastCompactionMaxContext = -1;
-  let _lastCompactionWasNoop = false;
+  const loopContext = createAgentLoopContextManager(a, handlers);
 
   function foldBlockIntoConversation(block: TextBlock): void {
     if (!a.ctx.state.appendBlockToLastUserMessage(block)) {
       a.ctx.state.appendMessage({ role: 'user', content: [block], origin: 'runtime' });
     }
-  }
-
-  function iterationFingerprint(blocks: ContentBlock[]): string {
-    const toolUses = blocks.filter(isToolUseBlock);
-    const texts = blocks.filter(isTextBlock);
-
-    const toolNameSet = Array.from(new Set(toolUses.map((u) => u.name))).sort();
-    const firstInputHash = toolUses[0] ? hashSmall(stableStringify(toolUses[0].input ?? {})) : '';
-    const textBlob = texts
-      .map((t) => t.text)
-      .join('')
-      .slice(0, 512);
-
-    const hasContent = toolNameSet.length > 0 || textBlob.length > 0;
-    if (!hasContent) return '__empty__';
-
-    return [
-      `tools=${toolNameSet.join('+') || '-'}`,
-      `in0=${firstInputHash}`,
-      `txt=${textBlob}`,
-    ].join('\n');
-  }
-
-  function stableStringify(value: unknown): string {
-    return JSON.stringify(canonicalize(value));
-  }
-
-  function canonicalize(value: unknown): unknown {
-    if (Array.isArray(value)) return value.map(canonicalize);
-    if (value && typeof value === 'object') {
-      const src = value as Record<string, unknown>;
-      const out: Record<string, unknown> = {};
-      for (const k of Object.keys(src).sort()) out[k] = canonicalize(src[k]);
-      return out;
-    }
-    return value;
-  }
-
-  function hashSmall(s: string): string {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
-    }
-    return h.toString(36);
   }
 
   function injectPendingBtwNotes(onMailboxBlock?: (block: TextBlock) => void): void {
@@ -614,10 +162,6 @@ export function createAgentLoopHandler(
       (a.logger.debug ?? a.logger.warn)?.(`session boundary flush failed: ${toErrorMessage(err)}`);
     }
 
-    // Suggestions belong to the prompt that produced them. Clearing here means a
-    // `nextsteps` tool call from the previous turn can never attach its block to
-    // this turn's answer — including the auto-submitted turn that a suggestion
-    // itself kicked off, which arrives as a fresh `run()`.
     clearPendingNextSteps(a.ctx);
 
     let finalText = '';
@@ -636,16 +180,11 @@ export function createAgentLoopHandler(
         a.ctx.state.replaceMessages(cleaned.messages);
         a.ctx.lastRealInputTokens = undefined;
         delete a.ctx.meta['realAnchorMsgCount'];
-        refreshContextRequestTokenStash({ force: true });
+        loopContext.refreshContextRequestTokenStash({ force: true });
       }
     }
 
-    const loopCfg = a.loopDetection;
-    let lastToolSignature = '';
-    let toolLoopCount = 0;
-    let iterationSteerDone = false;
-    const recentCallKeys: string[] = [];
-    const steeredCallKeys = new Set<string>();
+    const loopDetector = new AgentLoopDetector(a);
     let pendingLoopSteer: string | null = null;
     let todoReconcileSteers = 0;
 
@@ -770,7 +309,7 @@ export function createAgentLoopHandler(
           req,
           provider: requestProvider,
           preFlight,
-        } = await buildRequestWithPreflightCompaction(opts);
+        } = await loopContext.buildRequestWithPreflightCompaction(opts);
         await a.ctx.session
           .append({
             type: 'llm_request',
@@ -785,7 +324,7 @@ export function createAgentLoopHandler(
         let res: Response;
         try {
           res = await customRunner(a.ctx, req);
-          const key = calibrationKey(req.model);
+          const key = loopContext.calibrationKey(req.model);
           const cal = getCalibrationState(key);
           const calibratedTotal = cal.calibrated
             ? Math.round(preFlight.total * Math.min(1.5, Math.max(0.5, cal.ratio)))
@@ -802,10 +341,10 @@ export function createAgentLoopHandler(
             previousRealInput === undefined ||
             realInputTokens > previousRealInput ||
             (previousAnchorMsgCount !== undefined &&
-              _lastPreFlightMsgCount < previousAnchorMsgCount);
+              loopContext.lastPreFlightMsgCount < previousAnchorMsgCount);
           if (realInputTokens > 0 && anchorIsPlausible && anchorAdvanced) {
             a.ctx.lastRealInputTokens = realInputTokens;
-            a.ctx.meta['realAnchorMsgCount'] = _lastPreFlightMsgCount;
+            a.ctx.meta['realAnchorMsgCount'] = loopContext.lastPreFlightMsgCount;
           }
           recoveryRetries = 0;
         } catch (err) {
@@ -899,14 +438,9 @@ export function createAgentLoopHandler(
 
         const responseProvider = providerBoundToRequest(req) ?? requestProvider;
         const responseResult = await handlers.response.processResponse(res, req, responseProvider);
-        // Fallback may rebind this request after its one preflight metadata probe.
-        // Synchronize route-scoped limits before any post-response compaction,
-        // but do not perform a second provider metadata request.
-        await refreshProviderContextLimit(responseProvider, req.model, { probe: false });
-        // Expose the turn's assistant text so post-turn surfaces can re-read it.
-        // `/agent-improve <role> capture` reads `lastAgentOutput` to rescan for
-        // `## LEARNED` blocks; nothing wrote the key, so the command could only
-        // ever report "no blocks found".
+        await loopContext.refreshProviderContextLimit(responseProvider, req.model, {
+          probe: false,
+        });
         if (responseResult.finalText) {
           a.ctx.meta['lastAgentOutput'] = responseResult.finalText;
         }
@@ -932,153 +466,24 @@ export function createAgentLoopHandler(
 
         const toolUses = res.content.filter(isToolUseBlock);
 
-        if (loopCfg.mode !== 'off') {
-          const sig = iterationFingerprint(res.content);
-          if (sig !== '__empty__') {
-            if (sig === lastToolSignature) {
-              toolLoopCount++;
-            } else {
-              lastToolSignature = sig;
-              toolLoopCount = 1;
-              iterationSteerDone = false;
-            }
-
-            const names = toolUses.map((t) => t.name).join(', ');
-            const hasText = res.content.some(isTextBlock);
-            const kind: 'tool' | 'message' | 'mixed' =
-              toolUses.length > 0 && hasText ? 'mixed' : toolUses.length > 0 ? 'tool' : 'message';
-            const observationRepeat =
-              loopCfg.mode === 'steer-then-cut' &&
-              toolUses.length > 0 &&
-              toolUses.every((use) => {
-                const tool = a.tools.get(use.name);
-                return (
-                  tool?.mutating === false &&
-                  (tool.riskTier === 'safe' || (tool.capabilities?.length ?? 0) > 0)
-                );
-              });
-            const repeatMultiplier = observationRepeat ? 2 : 1;
-            const detail =
-              kind === 'tool'
-                ? `"${names}" called with effectively identical inputs ${toolLoopCount} times in a row`
-                : kind === 'mixed'
-                  ? `"${names}" + same text repeated ${toolLoopCount} times in a row`
-                  : `same assistant text repeated ${toolLoopCount} times in a row`;
-
-            const cutAt =
-              (loopCfg.mode === 'cut' ? loopCfg.steerThreshold : loopCfg.cutThreshold) *
-              repeatMultiplier;
-            if (toolLoopCount >= cutAt) {
-              a.logger.warn(`Loop detected: ${detail} — stopping to prevent infinite loop.`);
-              a.events.emit('tool.loop_detected', {
-                sessionId: resolveEventSessionId(a.ctx),
-                ctx: a.ctx,
-                tools: names,
-                repeatCount: toolLoopCount,
-                iteration: i,
-                kind,
-                action: 'cut',
-                scope: 'iteration',
-              });
-              const summary =
-                kind === 'message'
-                  ? `[Loop detected: same assistant message repeated ${toolLoopCount}× — stopping to prevent infinite repetition.]`
-                  : `[Loop detected: ${detail} — stopping to prevent infinite repetition.]`;
-              return {
-                status: 'max_iterations',
-                iterations,
-                finalText: finalText || summary,
-                delegateSummaries,
-              };
-            }
-
-            if (
-              loopCfg.mode === 'steer-then-cut' &&
-              toolLoopCount >= loopCfg.steerThreshold * repeatMultiplier &&
-              !iterationSteerDone
-            ) {
-              iterationSteerDone = true;
-              a.logger.warn(`Loop detected: ${detail} — steering the model to change approach.`);
-              a.events.emit('tool.loop_detected', {
-                sessionId: resolveEventSessionId(a.ctx),
-                ctx: a.ctx,
-                tools: names,
-                repeatCount: toolLoopCount,
-                iteration: i,
-                kind,
-                action: 'steer',
-                scope: 'iteration',
-              });
-              queueLoopSteer(
-                `[loop-detector] Your last ${toolLoopCount} responses were effectively identical (${detail}). ` +
-                  'This approach is not working. Change strategy: use a different tool, different arguments, ' +
-                  'or a different plan — or explain what is blocking you and stop. ' +
-                  `Repeating the same response ${cutAt - toolLoopCount} more time(s) will terminate the turn.`,
-              );
-            }
-          } else {
-            lastToolSignature = '';
-            toolLoopCount = 0;
-            iterationSteerDone = false;
-          }
-
-          if (loopCfg.mode === 'steer-then-cut') {
-            for (const u of toolUses) {
-              const key = `${u.name}:${hashSmall(stableStringify(u.input ?? {}))}`;
-              recentCallKeys.push(key);
-              if (recentCallKeys.length > loopCfg.windowSize) recentCallKeys.shift();
-              if (steeredCallKeys.has(key)) continue;
-              let count = 0;
-              for (const k of recentCallKeys) if (k === key) count++;
-              const tool = a.tools.get(u.name);
-              const observationThreshold =
-                tool?.mutating === false &&
-                (tool.riskTier === 'safe' || (tool.capabilities?.length ?? 0) > 0)
-                  ? loopCfg.callRepeatThreshold * 2
-                  : loopCfg.callRepeatThreshold;
-              if (count < observationThreshold) continue;
-              steeredCallKeys.add(key);
-              const preview = JSON.stringify(u.input ?? {}).slice(0, 160);
-              a.logger.warn(
-                `Loop detected: "${u.name}" called with identical arguments ${count}× within the last ${loopCfg.windowSize} tool calls — steering the model to change approach.`,
-              );
-              a.events.emit('tool.loop_detected', {
-                sessionId: resolveEventSessionId(a.ctx),
-                ctx: a.ctx,
-                tools: u.name,
-                repeatCount: count,
-                iteration: i,
-                kind: 'tool',
-                action: 'steer',
-                scope: 'call',
-              });
-              queueLoopSteer(
-                `[loop-detector] You have called ${u.name}(${preview}) ${count} times with identical arguments ` +
-                  `within the last ${loopCfg.windowSize} tool calls. The result will not change. Do not repeat ` +
-                  'this call — use what you already know, try a different approach, or explain the blocker.',
-              );
-            }
-          }
+        const loopCheck = loopDetector.checkIteration(i, res.content, toolUses, queueLoopSteer);
+        if (loopCheck.cut) {
+          return {
+            status: 'max_iterations',
+            iterations,
+            finalText: finalText || loopCheck.cutSummary || '',
+            delegateSummaries,
+          };
         }
 
         if (toolUses.length === 0) {
-          // Resolve the provider bound to this request at use time because
-          // fallback may have rebound it during response processing.
-          await compactContextIfNeeded();
-          emitContextPct();
+          await loopContext.compactContextIfNeeded();
+          loopContext.emitContextPct();
           a.events.emit('iteration.completed', {
             sessionId: resolveEventSessionId(a.ctx),
             ctx: a.ctx,
             index: i,
           });
-          // A turn-ending prose response is not proof that the tracked work
-          // list advanced. Without this gate a leader can say that an item is
-          // finished while leaving it `in_progress`; TUI auto mode then
-          // re-submits the exact same grounded continuation until its loop
-          // guard halts. Give the model a bounded in-run reconciliation chance
-          // before exposing the turn as complete. The todo tool remains the
-          // authority: this gate never guesses that work succeeded or marks a
-          // card done from prose alone.
           if (
             a.ctx.agentId === 'leader' &&
             a.tools.get('todo') !== undefined &&
@@ -1125,8 +530,8 @@ export function createAgentLoopHandler(
         }
 
         if (autonomousContinue && consumeAutonomousContinue(a.ctx)) {
-          await compactContextIfNeeded();
-          emitContextPct();
+          await loopContext.compactContextIfNeeded();
+          loopContext.emitContextPct();
           a.events.emit('iteration.completed', {
             sessionId: resolveEventSessionId(a.ctx),
             ctx: a.ctx,
@@ -1136,8 +541,8 @@ export function createAgentLoopHandler(
           continue;
         }
 
-        await compactContextIfNeeded();
-        emitContextPct();
+        await loopContext.compactContextIfNeeded();
+        loopContext.emitContextPct();
         a.events.emit('iteration.completed', {
           sessionId: resolveEventSessionId(a.ctx),
           ctx: a.ctx,

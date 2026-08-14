@@ -1,14 +1,13 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { loadDatabaseSync } from '../coordination/sqlite-mailbox-schema.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import type { SessionRegistryEntry } from '../session-registry-types.js';
-import type { SessionEvent, SessionSummary } from '../types/session.js';
+import type { SessionSummary } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { isPidAlive } from '../utils/pid.js';
-import { isSessionTranscriptFileName } from '../utils/session-scoped-path.js';
 import type {
   CatalogSessionRecord,
   MaintenanceLease,
@@ -22,98 +21,28 @@ import {
   SESSION_CATALOG_DEFAULT_RESERVATION_MS,
   SESSION_CATALOG_MAX_AGENTS,
 } from './protocol.js';
-
-const SCHEMA_VERSION = 1;
-const MAX_LEASE_MS = 120_000;
-const MAX_RESERVATION_MS = 60_000;
-const MAX_MAINTENANCE_MS = 5 * 60_000;
-const MAX_PAGE = 1_000;
-
-interface LeaseRow {
-  session_id: string;
-  lease_id: string;
-  lease_secret_hash: string;
-  owner_instance_id: string;
-  owner_pid: number;
-  owner_started_at: string;
-  entry_json: string;
-  agent_revision: number;
-  status: SessionRegistryEntry['status'];
-  last_heartbeat_at: number;
-  lease_expires_at: number;
-}
-
-interface ReservationRow {
-  reservation_id: string;
-  target_session_id: string;
-  requester_instance_id: string;
-  current_session_id: string | null;
-  expires_at: number;
-}
-
-interface CatalogRow {
-  session_id: string;
-  transcript_relative_path: string;
-  summary_relative_path: string;
-  summary_json: string;
-  transcript_size: number;
-  transcript_mtime_ms: number;
-  summary_revision: number;
-  indexed_at: string;
-  damaged: number;
-}
-
-function hashSecret(secret: string): string {
-  return createHash('sha256').update(secret).digest('hex');
-}
-
-function secretMatches(secret: string, expectedHex: string): boolean {
-  const actual = Buffer.from(hashSecret(secret), 'hex');
-  const expected = Buffer.from(expectedHex, 'hex');
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
-}
-
-function boundedMs(value: number | undefined, fallback: number, max: number): number {
-  return Math.min(max, Math.max(1_000, Number.isFinite(value) ? Math.floor(value!) : fallback));
-}
-
-function parseJson<T>(value: string): T {
-  return JSON.parse(value) as T;
-}
-
-function conflict(message: string): Error {
-  const error = new Error(message);
-  error.name = 'SessionOwnershipConflictError';
-  return error;
-}
-
-function assertId(value: string, label = 'session id'): void {
-  if (
-    !value ||
-    value.length > 256 ||
-    value.includes('\\') ||
-    value.startsWith('/') ||
-    value.includes('..')
-  ) {
-    throw new TypeError(`Invalid ${label}`);
-  }
-}
-
-function boundPresenceValue(value: unknown, depth: number): unknown {
-  if (typeof value === 'string') {
-    return value.length <= 6_000 ? value : `${value.slice(0, 5_988)}…[truncated]`;
-  }
-  if (value === null || typeof value !== 'object') return value;
-  if (depth >= 8) return '[truncated depth]';
-  if (Array.isArray(value)) {
-    return value.slice(0, 64).map((item) => boundPresenceValue(item, depth + 1));
-  }
-  const result: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value).slice(0, 64)) {
-    result[key] = boundPresenceValue(item, depth + 1);
-  }
-  return result;
-}
+import {
+  rebuildCatalogIndex,
+  walkSessionFiles,
+} from './store-rebuild.js';
+import {
+  assertId,
+  boundedMs,
+  boundPresenceValue,
+  type CatalogRow,
+  configureCatalogDatabase,
+  conflict,
+  hashSecret,
+  initializeCatalogSchema,
+  type LeaseRow,
+  MAX_LEASE_MS,
+  MAX_MAINTENANCE_MS,
+  MAX_PAGE,
+  MAX_RESERVATION_MS,
+  parseJson,
+  type ReservationRow,
+  secretMatches,
+} from './store-schema.js';
 
 export class SessionCatalogStore {
   readonly databasePath: string;
@@ -164,16 +93,14 @@ export class SessionCatalogStore {
     );
     if (
       rowCount === 0 &&
-      this.walkFiles(this.sessionsDir, '.jsonl').some((file) => !file.endsWith('_index.jsonl'))
+      walkSessionFiles(this.sessionsDir, '.jsonl').some((file) => !file.endsWith('_index.jsonl'))
     ) {
       this.rebuildCatalog();
     }
   }
 
   private configureDatabase(): void {
-    this.db.exec(
-      'PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA synchronous=NORMAL;',
-    );
+    configureCatalogDatabase(this.db);
   }
 
   close(): void {
@@ -181,64 +108,7 @@ export class SessionCatalogStore {
   }
 
   private initialize(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS catalog_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS sessions (
-        session_id TEXT PRIMARY KEY,
-        transcript_relative_path TEXT NOT NULL,
-        summary_relative_path TEXT NOT NULL,
-        summary_json TEXT NOT NULL,
-        transcript_size INTEGER NOT NULL DEFAULT 0,
-        transcript_mtime_ms REAL NOT NULL DEFAULT 0,
-        summary_revision INTEGER NOT NULL DEFAULT 1,
-        indexed_at TEXT NOT NULL,
-        damaged INTEGER NOT NULL DEFAULT 0
-      );
-      CREATE TABLE IF NOT EXISTS session_leases (
-        session_id TEXT PRIMARY KEY,
-        lease_id TEXT NOT NULL UNIQUE,
-        lease_secret_hash TEXT NOT NULL,
-        owner_instance_id TEXT NOT NULL,
-        owner_pid INTEGER NOT NULL,
-        owner_started_at TEXT NOT NULL,
-        entry_json TEXT NOT NULL,
-        agent_revision INTEGER NOT NULL DEFAULT 0,
-        status TEXT NOT NULL,
-        last_heartbeat_at INTEGER NOT NULL,
-        lease_expires_at INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS resume_reservations (
-        reservation_id TEXT PRIMARY KEY,
-        target_session_id TEXT NOT NULL UNIQUE,
-        requester_instance_id TEXT NOT NULL,
-        current_session_id TEXT,
-        created_at INTEGER NOT NULL,
-        expires_at INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS maintenance_leases (
-        session_id TEXT PRIMARY KEY,
-        operation TEXT NOT NULL,
-        holder_id TEXT NOT NULL,
-        lease_id TEXT NOT NULL UNIQUE,
-        acquired_at INTEGER NOT NULL,
-        expires_at INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_sessions_activity ON sessions(indexed_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_leases_expiry ON session_leases(lease_expires_at);
-      CREATE INDEX IF NOT EXISTS idx_reservations_expiry ON resume_reservations(expires_at);
-      CREATE INDEX IF NOT EXISTS idx_maintenance_expiry ON maintenance_leases(expires_at);
-    `);
-    this.db
-      .prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
-      .run('schema_version', String(SCHEMA_VERSION));
-    this.db
-      .prepare('INSERT INTO catalog_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO NOTHING')
-      .run('generation', '0');
-    const row = this.db
-      .prepare('SELECT value FROM catalog_meta WHERE key=?')
-      .get('schema_version') as { value: string };
-    if (Number(row.value) !== SCHEMA_VERSION)
-      throw new Error(`Unsupported session catalog schema ${row.value}`);
+    initializeCatalogSchema(this.db);
   }
 
   private transaction<T>(run: () => T): T {
@@ -300,21 +170,6 @@ export class SessionCatalogStore {
       .get(sessionId) as unknown as LeaseRow | undefined;
   }
 
-  /**
-   * True when `sessionId` has a live `session_leases` row owned by a
-   * different OS process than the *caller*. Used by
-   * `acquireMaintenance` to distinguish "another running wstack" (which
-   * must be fenced off) from "this very TUI owning its own session"
-   * (which is allowed to claim a non-destructive maintenance lease on
-   * its own transcript).
-   *
-   * `callerPid` must be the pid of the process that asked for the lease,
-   * NOT `process.pid`. In the built runtime this store lives inside the
-   * detached project-catalog daemon, so `process.pid` is the daemon's and
-   * would mark every lease — including the caller's own session — foreign,
-   * making `/clear` and `/rewind` fail with "Session … is live". Callers
-   * that run the store in-process may omit it.
-   */
   private foreignLiveLease(sessionId: string, callerPid = process.pid): boolean {
     const live = this.leaseRow(sessionId);
     return Boolean(live) && live!.owner_pid !== callerPid;
@@ -813,12 +668,6 @@ export class SessionCatalogStore {
     return this.transaction(() => {
       this.reapExpired();
       const live = this.leaseRow(sessionId);
-      // `delete` physically removes the JSONL: refuse any live lease
-      // (foreign OR self) so a concurrent writer cannot append to a file
-      // we are about to unlink. Other operations only need to exclude
-      // *other running wstack processes*; the same TUI that owns the
-      // session is allowed to rewind/clear/truncate its own transcript
-      // without a release → re-claim round-trip.
       if (live && (operation === 'delete' || this.foreignLiveLease(sessionId, holderPid))) {
         throw conflict(`Session ${sessionId} is live`);
       }
@@ -861,9 +710,6 @@ export class SessionCatalogStore {
     const record = this.getSummary(sessionId);
     if (!record) throw new Error(`Session not found: ${sessionId}`);
 
-    // Stage every artifact by rename before committing the catalog deletion.
-    // A failed filesystem step can therefore restore the exact prior paths;
-    // irreversible removal happens only after the SQLite transaction commits.
     const transcript = this.containedPath(record.transcriptRelativePath);
     const artifacts = [
       transcript,
@@ -910,8 +756,7 @@ export class SessionCatalogStore {
       const trashParent = path.dirname(trashRoot);
       if (fs.readdirSync(trashParent).length === 0) fs.rmdirSync(trashParent);
     } catch {
-      // Catalog deletion committed; staged artifacts remain recoverable and
-      // are excluded from reconciliation until a later hygiene pass.
+      // Catalog deletion committed
     }
   }
 
@@ -935,142 +780,13 @@ export class SessionCatalogStore {
   }
 
   rebuildCatalog(): { indexed: number; damaged: number } {
-    const summaries = this.walkFiles(this.sessionsDir, '.summary.json');
-    // Excluding `_index.jsonl` alone let every per-session sidecar
-    // (`.replay.jsonl`, `.audit.jsonl`) and `_mailbox.jsonl` become a catalog
-    // row of its own — phantom sessions the picker then offered to resume.
-    const transcripts = this.walkFiles(this.sessionsDir, '.jsonl').filter((file) =>
-      isSessionTranscriptFileName(path.basename(file)),
+    return rebuildCatalogIndex(
+      this.db,
+      this.sessionsDir,
+      (rel) => this.containedPath(rel),
+      <T>(run: () => T) => this.transaction(run),
+      () => this.bumpGeneration(),
     );
-    const ids = new Set<string>();
-    for (const file of [...summaries, ...transcripts]) {
-      const relative = path.relative(this.sessionsDir, file).replaceAll('\\', '/');
-      ids.add(relative.replace(/\.summary\.json$|\.jsonl$/, ''));
-    }
-    let indexed = 0;
-    let damaged = 0;
-    this.transaction(() => {
-      this.db.prepare('DELETE FROM sessions').run();
-      for (const id of ids) {
-        try {
-          const summaryFile = this.containedPath(`${id}.summary.json`);
-          const summary = fs.existsSync(summaryFile)
-            ? parseJson<SessionSummary>(fs.readFileSync(summaryFile, 'utf8'))
-            : this.summarizeTranscript(id);
-          if (!summary || summary.id !== id) throw new Error('summary identity mismatch');
-          const transcript = this.containedPath(`${id}.jsonl`);
-          const stat = fs.existsSync(transcript) ? fs.statSync(transcript) : undefined;
-          const now = new Date().toISOString();
-          this.db
-            .prepare(
-              'INSERT INTO sessions(session_id,transcript_relative_path,summary_relative_path,summary_json,transcript_size,transcript_mtime_ms,summary_revision,indexed_at,damaged) VALUES (?,?,?,?,?,?,?,?,0)',
-            )
-            .run(
-              id,
-              `${id}.jsonl`,
-              `${id}.summary.json`,
-              JSON.stringify(summary),
-              stat?.size ?? 0,
-              stat?.mtimeMs ?? 0,
-              1,
-              now,
-            );
-          indexed++;
-        } catch {
-          const now = new Date().toISOString();
-          const fallback: SessionSummary = {
-            id,
-            title: id,
-            startedAt: now,
-            model: '',
-            provider: '',
-            tokenTotal: 0,
-          };
-          this.db
-            .prepare(
-              'INSERT INTO sessions(session_id,transcript_relative_path,summary_relative_path,summary_json,summary_revision,indexed_at,damaged) VALUES (?,?,?,?,1,?,1)',
-            )
-            .run(id, `${id}.jsonl`, `${id}.summary.json`, JSON.stringify(fallback), now);
-          damaged++;
-        }
-      }
-      this.db
-        .prepare(
-          "INSERT INTO catalog_meta(key,value) VALUES ('last_reconciliation',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-        )
-        .run(new Date().toISOString());
-      this.bumpGeneration();
-    });
-    return { indexed, damaged };
-  }
-
-  private walkFiles(root: string, suffix: string): string[] {
-    const result: string[] = [];
-    const visit = (dir: string): void => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (entry.isDirectory()) {
-          if (entry.name !== '_cas' && entry.name !== '_trash') visit(path.join(dir, entry.name));
-        } else if (entry.isFile() && entry.name.endsWith(suffix))
-          result.push(path.join(dir, entry.name));
-      }
-    };
-    visit(root);
-    return result;
-  }
-
-  private summarizeTranscript(id: string): SessionSummary {
-    const file = this.containedPath(`${id}.jsonl`);
-    const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
-    let start: Extract<SessionEvent, { type: 'session_start' }> | undefined;
-    let endedAt: string | undefined;
-    let lastActivityAt: string | undefined;
-    let messageCount = 0;
-    let iterationCount = 0;
-    let toolCallCount = 0;
-    let compactionCount = 0;
-    let tokenTotal = 0;
-    for (const line of lines) {
-      if (!line) continue;
-      let event: SessionEvent;
-      try {
-        event = parseJson<SessionEvent>(line);
-      } catch {
-        continue;
-      }
-      lastActivityAt = event.ts;
-      if (event.type === 'session_start') start = event;
-      if (event.type === 'session_end') endedAt = event.ts;
-      if (
-        event.type === 'message_appended' &&
-        (event.message.role === 'user' || event.message.role === 'assistant')
-      )
-        messageCount++;
-      if (event.type === 'llm_response') {
-        iterationCount++;
-        tokenTotal +=
-          event.usage.input +
-          event.usage.output +
-          (event.usage.cacheRead ?? 0) +
-          (event.usage.cacheWrite ?? 0);
-      }
-      if (event.type === 'tool_call_end') toolCallCount++;
-      if (event.type === 'compaction') compactionCount++;
-    }
-    if (!start) throw new Error('missing session_start');
-    return {
-      id,
-      title: id,
-      startedAt: start.ts,
-      ...(endedAt ? { endedAt } : {}),
-      model: start.model,
-      provider: start.provider,
-      tokenTotal,
-      ...(lastActivityAt ? { lastActivityAt } : {}),
-      messageCount,
-      iterationCount,
-      toolCallCount,
-      compactionCount,
-    };
   }
 
   health(

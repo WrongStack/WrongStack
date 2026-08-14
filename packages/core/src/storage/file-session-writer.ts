@@ -1,7 +1,5 @@
-import { closeSync, createReadStream, fsyncSync, openSync, writeSync } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
 import type {
@@ -15,7 +13,8 @@ import type {
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
-import { sessionContentPreview, userInputTitle } from './session-helpers.js';
+import { SessionSummaryTracker } from './session-summary-tracker.js';
+import { SessionWriteBuffer } from './session-write-buffer.js';
 import { scrubSessionWriterEvent } from './session-writer-scrubber.js';
 import {
   findSessionCheckpointTruncatePlan,
@@ -40,10 +39,8 @@ export class FileSessionWriter implements SessionWriter {
   private closed = false;
   private closePromise: Promise<void> | null = null;
   private manifestFile: string;
-  private summary: SessionSummary;
-  private tokenIn = 0;
-  private tokenOut = 0;
-  private baseTokenTotal = 0;
+  private readonly summaryTracker: SessionSummaryTracker;
+  private readonly buffer: SessionWriteBuffer;
   private readonly filePath: string;
   get transcriptPath(): string | undefined {
     return this.filePath || undefined;
@@ -60,8 +57,6 @@ export class FileSessionWriter implements SessionWriter {
     return this.initPromise;
   }
   private readonly resumed: boolean;
-  private appendFailCount = 0;
-  private lastAppendWarnAt = 0;
   private readonly secretScrubber?: SecretScrubber | undefined;
   private readonly checkpointCas?: SessionCheckpointCas | undefined;
   /** Mutable slot for onAppend callback — constructor opts seed it, setOnAppend replaces it. */
@@ -83,12 +78,8 @@ export class FileSessionWriter implements SessionWriter {
     this._onAppendBatch = cb;
   }
   private readonly onCloseCb?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
-  private readonly resolveNameCb?: (() => Promise<Pick<SessionSummary, 'name'> | null>) | undefined;
   /** Implements SessionWriter.traceId — propagated from ContextInit.traceId. */
   traceId: string | undefined;
-
-  // ── Write buffer — batches events to reduce per-event disk I/O ──────────────
-  //
 
   /**
    * Set or replace the onAppend callback. Used by telemetry bridges that
@@ -105,108 +96,6 @@ export class FileSessionWriter implements SessionWriter {
     this._onAppendBatch = cb;
   }
 
-  //
-  // Every append() pushes the scrubbed event into an in-memory buffer instead
-  // of calling handle.appendFile() synchronously. The buffer flushes to disk
-  // when it reaches FLUSH_SIZE events OR after FLUSH_INTERVAL_MS of inactivity.
-  // This cuts the number of disk writes by ~95% without changing the on-disk
-  // format — the JSONL is still one JSON object per line.
-  private writeBuffer: SessionEvent[] = [];
-  private writeBufferBytes = 0;
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
-  private static readonly FLUSH_INTERVAL_MS = 500;
-  private static readonly FLUSH_SIZE = 50;
-  private static readonly WRITE_BUFFER_MAX_EVENTS = 2_000;
-  private static readonly WRITE_BUFFER_MAX_BYTES = 16 * 1024 * 1024;
-  private bufferOverflowCount = 0;
-  private lastBufferOverflowWarnAt = 0;
-
-  private eventBytes(event: SessionEvent): number {
-    try {
-      return Buffer.byteLength(JSON.stringify(event), 'utf8') + 1;
-    } catch {
-      return FileSessionWriter.WRITE_BUFFER_MAX_BYTES + 1;
-    }
-  }
-
-  private pushWriteBuffer(event: SessionEvent): boolean {
-    const bytes = this.eventBytes(event);
-    if (
-      this.writeBuffer.length >= FileSessionWriter.WRITE_BUFFER_MAX_EVENTS ||
-      bytes > FileSessionWriter.WRITE_BUFFER_MAX_BYTES ||
-      this.writeBufferBytes + bytes > FileSessionWriter.WRITE_BUFFER_MAX_BYTES
-    ) {
-      this.bufferOverflowCount++;
-      const now = Date.now();
-      if (now - this.lastBufferOverflowWarnAt > 5_000) {
-        console.warn(
-          JSON.stringify({
-            level: 'error',
-            event: 'session.buffer_overflow',
-            sessionId: this.id,
-            bufferedEvents: this.writeBuffer.length,
-            bufferedBytes: this.writeBufferBytes,
-            droppedEvents: this.bufferOverflowCount,
-            timestamp: new Date().toISOString(),
-          }),
-        );
-        this.bufferOverflowCount = 0;
-        this.lastBufferOverflowWarnAt = now;
-      }
-      return false;
-    }
-    this.writeBuffer.push(event);
-    this.writeBufferBytes += bytes;
-    return true;
-  }
-
-  // ── Write serialization ─────────────────────────────────────────────────────
-  //
-  // All disk writes are funneled through a FIFO promise chain. Without it,
-  // a timer-driven flush racing an explicit flush()/close() issues two
-  // concurrent appendFile() calls on the shared O_APPEND handle — the kernel
-  // may complete them out of order (chronology breaks) or, for large
-  // batches, interleave partial writes (torn JSONL lines). The write chain
-  // serializes handle I/O; flushPromise coalesces concurrent flush requests
-  // into one drain so callers cannot create an unbounded promise chain.
-  private writeChain: Promise<void> = Promise.resolve();
-  private flushPromise: Promise<void> | null = null;
-
-  /** Enqueue a write on the FIFO chain. Resolves/rejects with that write. */
-  private enqueueWrite(data: string): Promise<void> {
-    const write = this.writeChain.then(async () => {
-      // Lazy reopen: clearSession() closes the handle to allow a subsequent
-      // clearHistory() atomicWrite (tmp + rename) on the same file. If the
-      // handle is still closed when the next append arrives, reopen it.
-      try {
-        return await this.handle.appendFile(data, 'utf8');
-      } catch (err: unknown) {
-        if (isClosedHandleError(err)) {
-          this.handle = await fsp.open(this.filePath, 'a', 0o600);
-          return await this.handle.appendFile(data, 'utf8');
-        }
-        throw err;
-      }
-    });
-    this.writeChain = write.then(
-      () => undefined,
-      () => undefined,
-    );
-    return write;
-  }
-
-  // ── Enriched summary tracking ───────────────────────────────────────────────
-  private iterationCount = 0;
-  private toolCallCount = 0;
-  private toolErrorCount = 0;
-  private toolBreakdown: Record<string, number> = {};
-  private fileChangeCount = 0;
-  private compactionCount = 0;
-  private messageCount = 0;
-  private lastUserMessage: string | undefined;
-  private lastActivityAt: string;
-  private outcome: SessionSummary['outcome'] = undefined;
-
   private pendingFileSnapshots: Array<{
     path: string;
     action: 'created' | 'modified' | 'deleted';
@@ -218,8 +107,6 @@ export class FileSessionWriter implements SessionWriter {
   private static readonly PENDING_FILE_SNAPSHOT_MAX_BYTES = 16 * 1024 * 1024;
   /** Prompt whose tool work is currently executing. Set by writeCheckpoint. */
   private activePromptIndex: number | null = null;
-  /** Tracks open tool_use IDs during the current run to serialize on close for resume. */
-  private openToolUses = new Set<string>();
 
   /**
    * Buffer an event from a synchronous Context callback. ensureInit() starts
@@ -232,7 +119,7 @@ export class FileSessionWriter implements SessionWriter {
     // Keep this path equivalent to append(): synchronous callbacks must not
     // bypass scrubbing merely because they cannot await the writer.
     const appendEvent = scrubSessionWriterEvent(event, this.secretScrubber);
-    this.observeForSummary(appendEvent);
+    this.summaryTracker.observe(appendEvent);
     // Fire the onAppend callback so synchronous observations reach the HQ
     // bridge without a disk read-back. The scrubbed event is pushed to the
     // JSONL buffer so secrets never persist at rest, matching append().
@@ -241,26 +128,21 @@ export class FileSessionWriter implements SessionWriter {
     } catch {
       /* best-effort */
     }
-    if (!this.pushWriteBuffer(appendEvent)) {
-      if (this.flushTimer) {
-        clearTimeout(this.flushTimer);
-        this.flushTimer = null;
-      }
-      void this.flushBuffer()
+    if (!this.buffer.push(appendEvent)) {
+      this.buffer.cancelTimer();
+      void this.buffer
+        .flushBuffer(this.closed)
         .catch(() => undefined)
         .then(() => {
-          this.pushWriteBuffer(appendEvent);
+          this.buffer.push(appendEvent);
         });
-    } else if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
-      if (this.flushTimer) {
-        clearTimeout(this.flushTimer);
-        this.flushTimer = null;
-      }
-      void this.flushBuffer().catch(() => {
+    } else if (this.buffer.shouldFlushNow()) {
+      this.buffer.cancelTimer();
+      void this.buffer.flushBuffer(this.closed).catch(() => {
         // Retained at the head of writeBuffer for the boundary retry.
       });
     } else {
-      this.scheduleFlush();
+      this.buffer.scheduleFlush(this.closed);
     }
   }
 
@@ -389,28 +271,24 @@ export class FileSessionWriter implements SessionWriter {
     this._onAppend = opts.onAppend;
     this._onAppendBatch = opts.onAppendBatch;
     this.onCloseCb = opts.onClose;
-    this.resolveNameCb = opts.resolveName;
-    this.summary = opts.initialSummary
-      ? { ...opts.initialSummary, id }
-      : {
-          id,
-          title: '(empty session)',
-          startedAt,
-          model: meta.model ?? 'unknown',
-          provider: meta.provider ?? 'unknown',
-          tokenTotal: 0,
-        };
-    this.baseTokenTotal = this.summary.tokenTotal;
-    this.iterationCount = this.summary.iterationCount ?? 0;
-    this.toolCallCount = this.summary.toolCallCount ?? 0;
-    this.toolErrorCount = this.summary.toolErrorCount ?? 0;
-    this.toolBreakdown = { ...(this.summary.toolBreakdown ?? {}) };
-    this.fileChangeCount = this.summary.fileChangeCount ?? 0;
-    this.compactionCount = this.summary.compactionCount ?? 0;
-    this.messageCount = this.summary.messageCount ?? 0;
-    this.lastUserMessage = this.summary.lastUserMessage;
-    this.lastActivityAt = this.summary.lastActivityAt ?? this.summary.endedAt ?? startedAt;
-    this.outcome = this.resumed ? undefined : this.summary.outcome;
+    this.summaryTracker = new SessionSummaryTracker({
+      id,
+      startedAt,
+      meta,
+      resumed: this.resumed,
+      initialSummary: opts.initialSummary,
+      resolveName: opts.resolveName,
+    });
+    this.buffer = new SessionWriteBuffer({
+      sessionId: id,
+      filePath: this.filePath,
+      getHandle: () => this.handle,
+      setHandle: (h) => {
+        this.handle = h;
+      },
+      events: this.events,
+      getTraceId: () => this.traceId,
+    });
     // Propagated from ContextInit.traceId via SessionWriter.traceId so that
     // storage events carry the run-level trace ID without needing a Context
     // handle in every storage operation.
@@ -418,7 +296,7 @@ export class FileSessionWriter implements SessionWriter {
   }
 
   get pendingToolUses(): string[] {
-    return Array.from(this.openToolUses);
+    return this.summaryTracker.pendingToolUses;
   }
 
   private async writeSessionStartLazy(): Promise<void> {
@@ -426,7 +304,7 @@ export class FileSessionWriter implements SessionWriter {
     // reconstruct event. Writing it through a separate one-shot append meant
     // an ENOSPC/transient handle failure could permanently lose session_start
     // while later events survived, leaving an unidentifiable transcript.
-    this.pushWriteBuffer({
+    this.buffer.push({
       type: this.resumed ? 'session_resumed' : 'session_start',
       ts: this.startedAt,
       id: this.id,
@@ -442,11 +320,11 @@ export class FileSessionWriter implements SessionWriter {
     // content) and before buffering, so neither the JSONL nor the sidecar
     // ever holds a cleartext secret.
     const scrubbed = scrubSessionWriterEvent(event, this.secretScrubber);
-    // observeForSummary MUST run synchronously here — the summary counters
+    // observe MUST run synchronously here — the summary counters
     // (toolCallCount, tokenIn/Out, outcome) drive the .summary.json sidecar
     // and the session index. Deferring observation to flush time would leave
     // the summary stale if close() fires before the next timer tick.
-    this.observeForSummary(scrubbed);
+    this.summaryTracker.observe(scrubbed);
     // Fire the onAppend callback with the scrubbed event so the HQ bridge
     // can stream it without reading it back from disk. Synchronous and
     // best-effort — the callback must not throw.
@@ -455,29 +333,23 @@ export class FileSessionWriter implements SessionWriter {
     } catch {
       /* best-effort */
     }
-    if (!this.pushWriteBuffer(scrubbed)) {
-      if (this.flushTimer) {
-        clearTimeout(this.flushTimer);
-        this.flushTimer = null;
-      }
-      await this.flushBuffer().catch(() => undefined);
-      this.pushWriteBuffer(scrubbed);
+    if (!this.buffer.push(scrubbed)) {
+      this.buffer.cancelTimer();
+      await this.buffer.flushBuffer(this.closed).catch(() => undefined);
+      this.buffer.push(scrubbed);
     }
 
-    if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
+    if (this.buffer.shouldFlushNow()) {
       // Buffer full — flush immediately. Cancel any pending timer so we
       // don't double-flush on the next tick.
-      if (this.flushTimer) {
-        clearTimeout(this.flushTimer);
-        this.flushTimer = null;
-      }
-      await this.flushBuffer().catch(() => {
+      this.buffer.cancelTimer();
+      await this.buffer.flushBuffer(this.closed).catch(() => {
         // append() is intentionally best-effort. The failed batch remains at
         // the front of writeBuffer; an explicit boundary flush can surface the
         // error while ordinary audit appends do not abort the agent loop.
       });
     } else {
-      this.scheduleFlush();
+      this.buffer.scheduleFlush(this.closed);
     }
   }
 
@@ -487,7 +359,7 @@ export class FileSessionWriter implements SessionWriter {
     const scrubbedBatch: SessionEvent[] = [];
     for (const event of events) {
       const scrubbed = scrubSessionWriterEvent(event, this.secretScrubber);
-      this.observeForSummary(scrubbed);
+      this.summaryTracker.observe(scrubbed);
       // Fire the per-event callback so subscribers to onAppend (rather than
       // onAppendBatch) also receive batch events individually.
       try {
@@ -495,13 +367,10 @@ export class FileSessionWriter implements SessionWriter {
       } catch {
         /* best-effort */
       }
-      if (!this.pushWriteBuffer(scrubbed)) {
-        if (this.flushTimer) {
-          clearTimeout(this.flushTimer);
-          this.flushTimer = null;
-        }
-        await this.flushBuffer().catch(() => undefined);
-        this.pushWriteBuffer(scrubbed);
+      if (!this.buffer.push(scrubbed)) {
+        this.buffer.cancelTimer();
+        await this.buffer.flushBuffer(this.closed).catch(() => undefined);
+        this.buffer.push(scrubbed);
       }
       scrubbedBatch.push(scrubbed);
     }
@@ -512,16 +381,13 @@ export class FileSessionWriter implements SessionWriter {
     } catch {
       /* best-effort */
     }
-    if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
-      if (this.flushTimer) {
-        clearTimeout(this.flushTimer);
-        this.flushTimer = null;
-      }
-      await this.flushBuffer().catch(() => {
+    if (this.buffer.shouldFlushNow()) {
+      this.buffer.cancelTimer();
+      await this.buffer.flushBuffer(this.closed).catch(() => {
         // Same best-effort append contract as append(); batch is retained.
       });
     } else {
-      this.scheduleFlush();
+      this.buffer.scheduleFlush(this.closed);
     }
   }
 
@@ -536,12 +402,9 @@ export class FileSessionWriter implements SessionWriter {
    */
   async flush(): Promise<void> {
     if (this.closed) return;
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    await this.flushBuffer();
-    await this.writeChain;
+    this.buffer.cancelTimer();
+    await this.buffer.flushBuffer(this.closed);
+    await this.buffer.drainWriteChain();
     try {
       await this.handle.datasync();
     } catch (err: unknown) {
@@ -563,245 +426,7 @@ export class FileSessionWriter implements SessionWriter {
    * be cut off by the exit regardless; errors here are swallowed.
    */
   flushSync(): void {
-    if (this.writeBuffer.length === 0 || !this.filePath) return;
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    const batch = this.writeBuffer.map((e) => JSON.stringify(e)).join('\n') + '\n';
-    this.writeBuffer = [];
-    this.writeBufferBytes = 0;
-    let fd: number | undefined;
-    try {
-      fd = openSync(this.filePath, 'a');
-      writeSync(fd, batch, null, 'utf8');
-      fsyncSync(fd);
-    } catch {
-      // best-effort — the process is exiting either way
-    } finally {
-      if (fd !== undefined) {
-        try {
-          closeSync(fd);
-        } catch {
-          // best-effort — the process is exiting either way
-        }
-      }
-    }
-  }
-
-  /** Schedule a deferred flush. No-op if a timer is already pending. */
-  private scheduleFlush(): void {
-    if (this.flushTimer) return;
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = null;
-      /* v8 ignore start -- defensive: flushBuffer logs its own errors; this guards the timer callback */
-      this.flushBuffer().catch(() => {
-        // flushBuffer already logs via the throttled-warning path;
-        // this catch prevents an unhandled rejection in the timer callback.
-      });
-      /* v8 ignore stop */
-    }, FileSessionWriter.FLUSH_INTERVAL_MS);
-  }
-
-  /**
-   * Flush all buffered events to disk as a single appendFile call.
-   * Concurrent callers join one coalesced drain. On failure the drained batch
-   * is prepended to the live buffer, preserving chronology and allowing the
-   * next timer/boundary flush to retry it. Warnings retain the existing
-   * throttled behavior.
-   */
-  private flushBuffer(): Promise<void> {
-    if (this.flushPromise) return this.flushPromise;
-    const flush = (async () => {
-      while (this.writeBuffer.length > 0) await this.flushBufferOnce();
-    })().finally(() => {
-      if (this.flushPromise === flush) this.flushPromise = null;
-    });
-    this.flushPromise = flush;
-    return flush;
-  }
-
-  private async flushBufferOnce(): Promise<void> {
-    if (this.writeBuffer.length === 0) return;
-    const events = this.writeBuffer;
-    const eventCount = events.length;
-    const eventBytes = this.writeBufferBytes;
-    const batch = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
-    this.writeBuffer = [];
-    this.writeBufferBytes = 0;
-    const t0 = Date.now();
-    let outcome: 'success' | 'failure' = 'success';
-    let errorMsg: string | undefined;
-    try {
-      await this.enqueueWrite(batch);
-    } catch (err) {
-      outcome = 'failure';
-      errorMsg = toErrorMessage(err);
-      // Retain the failed prefix, then admit as much of the newer tail as the
-      // hard budget allows. This preserves chronology without letting a
-      // persistent ENOSPC/permission failure consume the heap indefinitely.
-      const newer = this.writeBuffer;
-      this.writeBuffer = events;
-      this.writeBufferBytes = eventBytes;
-      for (const newerEvent of newer) this.pushWriteBuffer(newerEvent);
-      this.appendFailCount += eventCount;
-      const now = Date.now();
-      if (now - this.lastAppendWarnAt > 5000) {
-        const suppressed = this.appendFailCount - 1;
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'session.flush_failed',
-            sessionId: this.id,
-            message: toErrorMessage(err),
-            ...(suppressed > 0 ? { suppressed } : {}),
-            timestamp: new Date().toISOString(),
-          }),
-        );
-        this.lastAppendWarnAt = now;
-        this.appendFailCount = 0;
-      }
-      if (!this.closed) this.scheduleFlush();
-      throw err;
-    } finally {
-      this.events?.emit('storage.write', {
-        sessionId: this.id,
-        store: 'session',
-        filePath: this.filePath,
-        operation: 'flush',
-        outcome,
-        durationMs: Date.now() - t0,
-        ...(errorMsg !== undefined ? { error: errorMsg } : {}),
-        ...(eventCount !== undefined ? { eventCount } : {}),
-        ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
-      });
-    }
-  }
-
-  /**
-   * Rebuild every accumulated summary counter by replaying the JSONL as it now
-   * stands on disk.
-   *
-   * Only truncation needs this: the counters are fed by `observeForSummary` as
-   * events go by and cannot un-count. Stream the JSONL so a very long session
-   * does not need a second file-sized allocation during rewind.
-   *
-   * `title` is deliberately re-derived too: the first surviving user_input may
-   * differ once earlier prompts are gone.
-   */
-  private async recomputeSummaryFromDisk(): Promise<void> {
-    if (!this.filePath) return;
-    const accessible = await fsp
-      .access(this.filePath)
-      .then(() => true)
-      .catch(() => false);
-    if (!accessible) return;
-
-    this.iterationCount = 0;
-    this.toolCallCount = 0;
-    this.toolErrorCount = 0;
-    this.toolBreakdown = {};
-    this.fileChangeCount = 0;
-    this.compactionCount = 0;
-    this.messageCount = 0;
-    this.lastUserMessage = undefined;
-    this.lastActivityAt = this.startedAt;
-    this.outcome = undefined;
-    this.openToolUses = new Set<string>();
-    this.tokenIn = 0;
-    this.tokenOut = 0;
-    this.baseTokenTotal = 0;
-    const { lastUserMessage: _lastUserMessage, ...summaryWithoutPreview } = this.summary;
-    this.summary = {
-      ...summaryWithoutPreview,
-      title: '(empty session)',
-      tokenTotal: 0,
-      messageCount: 0,
-      lastActivityAt: this.startedAt,
-    };
-
-    const input = createReadStream(this.filePath, { encoding: 'utf8' });
-    const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
-    try {
-      for await (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.length === 0) continue;
-        try {
-          this.observeForSummary(JSON.parse(trimmed) as SessionEvent);
-        } catch {
-          // Skip a malformed line — the rewrite preserves it verbatim, and a
-          // torn record must not abort the recount of everything after it.
-        }
-      }
-    } finally {
-      lines.close();
-      input.destroy();
-    }
-  }
-
-  private observeForSummary(event: SessionEvent): void {
-    const eventActivityMs = Date.parse(event.ts);
-    const lastActivityMs = Date.parse(this.lastActivityAt);
-    if (
-      Number.isFinite(eventActivityMs) &&
-      (!Number.isFinite(lastActivityMs) || eventActivityMs > lastActivityMs)
-    ) {
-      this.lastActivityAt = event.ts;
-    }
-    // Track open tool uses so we can serialize them on close for resume.
-    // The authoritative source is the llm_response content (a core event,
-    // always written at every audit level); the legacy 'tool_use' event is
-    // kept for alternate writers that still emit it.
-    if (event.type === 'llm_response') {
-      for (const block of event.content) {
-        if (block.type === 'tool_use') this.openToolUses.add(block.id);
-      }
-    }
-    if (event.type === 'tool_use') {
-      this.openToolUses.add(event.id);
-    } else if (event.type === 'tool_call_start') {
-      this.toolCallCount++;
-      this.toolBreakdown[event.name] = (this.toolBreakdown[event.name] ?? 0) + 1;
-    } else if (event.type === 'tool_result') {
-      this.openToolUses.delete(event.id);
-      if (event.isError) {
-        this.toolErrorCount++;
-        this.outcome = 'error';
-      }
-    } else if (event.type === 'file_snapshot') {
-      this.fileChangeCount += event.files.length;
-    } else if (event.type === 'compaction') {
-      this.compactionCount++;
-    }
-    // Error events (provider errors, execution errors) mark the session as failed.
-    if (event.type === 'error' || event.type === 'provider_error') {
-      this.outcome = 'error';
-    }
-    if (event.type === 'user_input') {
-      if (this.summary.title === '(empty session)') {
-        this.summary = { ...this.summary, title: userInputTitle(event.content) };
-      }
-      this.lastUserMessage = sessionContentPreview(event.content);
-      this.messageCount++;
-    } else if (event.type === 'llm_response') {
-      this.messageCount++;
-      this.tokenIn += event.usage.input;
-      this.tokenOut += event.usage.output;
-      this.summary = {
-        ...this.summary,
-        tokenTotal: this.baseTokenTotal + this.tokenIn + this.tokenOut,
-      };
-    } else if (event.type === 'session_end') {
-      const total = event.usage.input + event.usage.output;
-      if (total > 0) {
-        this.summary = {
-          ...this.summary,
-          tokenTotal: Math.max(this.summary.tokenTotal, total),
-        };
-      }
-    } else if (event.type === 'in_flight_start') {
-      this.iterationCount++;
-    }
+    this.buffer.flushSync();
   }
 
   async close(): Promise<void> {
@@ -814,7 +439,7 @@ export class FileSessionWriter implements SessionWriter {
       // handle open and allow the timer or a later close() call to retry.
       this.closed = false;
       this.closePromise = null;
-      if (this.writeBuffer.length > 0) this.scheduleFlush();
+      if (this.buffer.length > 0) this.buffer.scheduleFlush(this.closed);
       throw err;
     });
     return this.closePromise;
@@ -835,14 +460,11 @@ export class FileSessionWriter implements SessionWriter {
     // (toolCallCount, tokenIn/Out, outcome) are already up to date because
     // observeForSummary runs synchronously on every append, but the JSONL
     // must have all events on disk before we write the .summary.json sidecar.
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    await this.flushBuffer();
+    this.buffer.cancelTimer();
+    await this.buffer.flushBuffer(this.closed);
     // Drain any write enqueued outside flushBuffer (e.g. the lazy
     // session_start record) before the handle is closed.
-    await this.writeChain;
+    await this.buffer.drainWriteChain();
     try {
       await this.handle.datasync();
     } catch (err: unknown) {
@@ -850,35 +472,8 @@ export class FileSessionWriter implements SessionWriter {
       // append reopened). Best-effort: the fd is still valid for close().
       if (!isClosedHandleError(err)) throw err;
     }
-    // Finalize the summary before writing.
-    const endedAt = new Date().toISOString();
-    const observedActivityMs = Date.parse(this.lastActivityAt);
-    const endedAtMs = Date.parse(endedAt);
-    const finalActivityAt =
-      Number.isFinite(observedActivityMs) && observedActivityMs > endedAtMs
-        ? this.lastActivityAt
-        : endedAt;
-    const previousName = this.summary.name;
-    const {
-      lastUserMessage: _lastUserMessage,
-      name: _name,
-      ...summaryWithoutDisplay
-    } = this.summary;
-    this.summary = {
-      ...summaryWithoutDisplay,
-      ...(previousName !== undefined ? { name: previousName } : {}),
-      endedAt,
-      lastActivityAt: finalActivityAt,
-      messageCount: this.messageCount,
-      ...(this.lastUserMessage !== undefined ? { lastUserMessage: this.lastUserMessage } : {}),
-      iterationCount: this.iterationCount,
-      toolCallCount: this.toolCallCount,
-      toolErrorCount: this.toolErrorCount,
-      fileChangeCount: this.fileChangeCount,
-      compactionCount: this.compactionCount > 0 ? this.compactionCount : undefined,
-      toolBreakdown: { ...this.toolBreakdown },
-      outcome: this.outcome ?? 'completed',
-    };
+
+    const summary = await this.summaryTracker.finalize();
 
     const manifestT0 = Date.now();
     let manifestOutcome: 'success' | 'failure' = 'success';
@@ -887,24 +482,16 @@ export class FileSessionWriter implements SessionWriter {
     let idxOutcome: 'success' | 'failure' = 'success';
     let idxError: string | undefined;
     const persistSummary = async (): Promise<void> => {
-      const resolvedName = this.resolveNameCb ? await this.resolveNameCb().catch(() => null) : null;
-      if (resolvedName !== null) {
-        const { name: _drop, ...summaryWithoutName } = this.summary;
-        this.summary = {
-          ...summaryWithoutName,
-          ...(resolvedName.name !== undefined ? { name: resolvedName.name } : {}),
-        };
-      }
       if (this.manifestFile) {
         try {
-          await atomicWrite(this.manifestFile, JSON.stringify(this.summary), { mode: 0o600 });
+          await atomicWrite(this.manifestFile, JSON.stringify(summary), { mode: 0o600 });
         } catch (err) {
           manifestOutcome = 'failure';
           manifestError = toErrorMessage(err);
         }
       }
       try {
-        await this.onCloseCb?.(this.summary);
+        await this.onCloseCb?.(summary);
         /* v8 ignore start -- best-effort: appendToIndex swallows its own errors */
       } catch (err) {
         idxOutcome = 'failure';
@@ -928,7 +515,7 @@ export class FileSessionWriter implements SessionWriter {
       });
     }
     this.events?.emit('storage.write', {
-      sessionId: this.summary.id,
+      sessionId: summary.id,
       store: 'session',
       filePath: this.filePath,
       operation: 'index_append',
@@ -1011,13 +598,10 @@ export class FileSessionWriter implements SessionWriter {
     // Flush buffered events to disk before reading — otherwise the in-memory
     // events that haven't hit the JSONL yet would be invisible to the
     // truncation logic and would be silently dropped by the rewrite.
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    await this.flushBuffer();
+    this.buffer.cancelTimer();
+    await this.buffer.flushBuffer(this.closed);
     // Drain the write chain so no in-flight write straddles the close/rename/reopen.
-    await this.writeChain;
+    await this.buffer.drainWriteChain();
 
     const plan = await findSessionCheckpointTruncatePlan(this.filePath, targetPromptIndex);
     if (!plan) return 0;
@@ -1025,7 +609,7 @@ export class FileSessionWriter implements SessionWriter {
     // Windows EPERM fix: close the append-mode handle before replacing the
     // file. Windows rejects rename() when the destination still has an open
     // handle, even if that handle belongs to this process.
-    await this.writeChain;
+    await this.buffer.drainWriteChain();
     try {
       await this.handle.close();
     } catch {
@@ -1047,7 +631,7 @@ export class FileSessionWriter implements SessionWriter {
     // about truncation, so without this `close()` would write a .summary.json —
     // and an _index.jsonl row, which list() reads — still counting the tool
     // calls, file changes and tokens of the work just rewound.
-    await this.recomputeSummaryFromDisk();
+    await this.summaryTracker.recomputeFromDisk(this.filePath);
 
     const reverted = [...revertedFiles];
     await this.append({
@@ -1074,19 +658,15 @@ export class FileSessionWriter implements SessionWriter {
     // Discard any buffered events — the caller is explicitly resetting the
     // session to a clean slate. Cancel the timer so it doesn't fire and
     // append stale events to the freshly-cleared file.
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
+    this.buffer.cancelTimer();
     // Wait for a currently-draining batch first. If it failed and re-queued
     // itself, the explicit reset below discards it along with the rest of the
     // old conversation; if it succeeded, writeChain has already serialized it.
-    await this.flushPromise?.catch(() => undefined);
-    this.writeBuffer = [];
-    this.writeBufferBytes = 0;
+    await this.buffer.drainFlushPromise();
+    this.buffer.clear();
     // Let any in-flight append land first — otherwise it would re-append
     // stale events AFTER the reset record below.
-    await this.writeChain;
+    await this.buffer.drainWriteChain();
     const resetAt = new Date().toISOString();
     const record = `${JSON.stringify({
       type: 'session_start',
@@ -1103,44 +683,10 @@ export class FileSessionWriter implements SessionWriter {
     // lazily reopened in enqueueWrite on the next append.
     await this.handle.close();
     await fsp.writeFile(this.filePath, record, 'utf8');
-    const explicitName = this.summary.name;
-    this.baseTokenTotal = 0;
-    this.tokenIn = 0;
-    this.tokenOut = 0;
-    this.iterationCount = 0;
-    this.toolCallCount = 0;
-    this.toolErrorCount = 0;
-    this.toolBreakdown = {};
-    this.fileChangeCount = 0;
-    this.compactionCount = 0;
-    this.messageCount = 0;
-    this.lastUserMessage = undefined;
-    this.lastActivityAt = resetAt;
-    this.outcome = undefined;
-    this.openToolUses = new Set<string>();
-    this.summary = {
-      id: this.id,
-      title: '(empty session)',
-      ...(explicitName !== undefined ? { name: explicitName } : {}),
-      startedAt: resetAt,
-      model: this.meta.model ?? 'unknown',
-      provider: this.meta.provider ?? 'unknown',
-      tokenTotal: 0,
-      lastActivityAt: resetAt,
-      messageCount: 0,
-    };
+    this.summaryTracker.reset(resetAt);
     this.activePromptIndex = null;
     this.pendingFileSnapshots = [];
     this.pendingFileSnapshotBytes = 0;
-    // initPromise is deliberately NOT reset — clearSession already wrote a
-    // session_start line directly via fsp.writeFile (above). Resetting it
-    // would cause the next append() to push a second preamble via
-    // writeSessionStartLazy(), producing duplicate session_start lines.
-    // Reset failure counters to a clean slate.
-    this.appendFailCount = 0;
-    this.lastAppendWarnAt = 0;
-    this.bufferOverflowCount = 0;
-    this.lastBufferOverflowWarnAt = 0;
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { MailboxMessage } from './mailbox-types.js';
+import type { MailboxMessage } from './mailbox-message-types.js';
 
 function isAffectedBySessionAffinity(message: Pick<MailboxMessage, 'sessionAffinity'>): boolean {
   return message.sessionAffinity !== undefined;

@@ -6,7 +6,7 @@ import type {
   ActorMailboxMessage,
   MailboxMessage,
   MailboxReceiptRecordV2,
-} from './mailbox-types.js';
+} from './mailbox-message-types.js';
 
 export function mailboxIdentityBase(agentId: string): string {
   return agentId.split(/[@#]/, 1)[0]!.trim().toLowerCase();

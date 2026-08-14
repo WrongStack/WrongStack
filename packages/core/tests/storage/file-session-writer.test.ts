@@ -557,21 +557,24 @@ describe('FileSessionWriter', () => {
     } as SessionEvent);
 
     expect(scrubber.scrub).toHaveBeenCalledWith('SECRET');
-    expect((w as any).writeBuffer.at(-1).content).toBe('***');
+    expect((w as any).buffer.writeBuffer.at(-1).content).toBe('***');
   });
 
   it('reopens after any recognized closed-handle error', async () => {
     const closed = Object.assign(new Error('closed resource'), { code: 'ERR_CLOSED_RESOURCE' });
     handle.appendFile.mockRejectedValueOnce(closed);
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-writer-'));
-    (writer as any).filePath = path.join(dir, 'session.jsonl');
+    const realPath = path.join(dir, 'session.jsonl');
+    const w = new FileSessionWriter(TEST_ID, handle as any, STARTED_AT, makeMeta(), undefined, {
+      filePath: realPath,
+    });
     try {
-      await writer.append({ type: 'user_input', ts: now(), content: 'hello' } as SessionEvent);
-      await (writer as any).flushBuffer();
+      await w.append({ type: 'user_input', ts: now(), content: 'hello' } as SessionEvent);
+      await w.flush();
 
-      expect(await fsp.readFile(path.join(dir, 'session.jsonl'), 'utf8')).toContain('hello');
+      expect(await fsp.readFile(realPath, 'utf8')).toContain('hello');
     } finally {
-      await writer.close().catch(() => undefined);
+      await w.close().catch(() => undefined);
       await fsp.rm(dir, { recursive: true, force: true });
     }
   });

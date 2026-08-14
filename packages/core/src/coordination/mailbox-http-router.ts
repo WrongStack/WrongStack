@@ -13,7 +13,6 @@ import {
   MailboxHttpValidationError,
   parseSinceMs,
   requireString,
-  type MailboxCheckInput,
   validateAck,
   validateAckMany,
   validateAgentHeartbeat,
@@ -26,22 +25,27 @@ import {
   validationError,
 } from './mailbox-http-validation.js';
 import type {
-  ActorMailboxMessage,
   Mailbox,
   MailboxActorContext,
-  MailboxAudience,
-  MailboxCapability,
-  MailboxMessage,
-  MailboxMessageProjection,
-  MailboxMessageType,
 } from './mailbox-types.js';
-import {
-  hasMailboxCapability,
-  isActionRequiredForActor,
-  isMailboxMessageVisibleTo,
-  sessionRecipient,
-} from './mailbox-types.js';
+import { hasMailboxCapability } from './mailbox-types.js';
 import type { MailboxHttpRateLimiter } from './mailbox-http-rate-limit.js';
+import {
+  checkMailbox,
+  eligibleRecipientsForActor,
+  isMessageVisibleToActor,
+  queryMessagesForActor,
+  requiredCredentialCapability,
+  requiredSendCapability,
+  stripAggregateReceiptState,
+  unreadCountForActor,
+  visibleMessageIdsForActor,
+} from './mailbox-http-actor-query.js';
+import {
+  createCredentialRevalidator,
+  handleSse,
+} from './mailbox-http-sse.js';
+
 export {
   MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
   MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
@@ -49,21 +53,6 @@ export {
 } from './mailbox-http-rate-limit.js';
 
 export const MAILBOX_HTTP_MAX_BODY_BYTES = 256 * 1024;
-
-/**
- * Per-connection cap on unflushed SSE bytes. A consumer whose socket buffers
- * more than this is too slow (or dead) to keep up; we drop it rather than let
- * one stalled client grow the process's memory without bound.
- */
-const MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
-
-// Filter bounds shipped with the router: `MAILBOX_HTTP_DEFAULT_MAX_AGE_MS`
-// is a 1-hour reference default callers may opt into via the `defaultMaxAgeMs`
-// option; `MAILBOX_HTTP_MAX_AGE_CEILING_MS` is the per-request look-back
-// ceiling at 7 days. The router does NOT enable a look-back automatically —
-// leaving `defaultMaxAgeMs` `undefined` returns every retained message; the
-// per-request `?sinceMs=0` URL query parameter remains the disable sentinel
-// for the URL param.
 export const MAILBOX_HTTP_DEFAULT_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 export { MAILBOX_HTTP_MAX_AGE_CEILING_MS };
 
@@ -80,80 +69,24 @@ export interface MailboxHttpRouterOptions {
   authorize?: (
     request: IncomingMessage,
   ) => MailboxHttpAccessDecision | Promise<MailboxHttpAccessDecision>;
-  /** Identity-scoped credential store for principal-based auth (GM-P0.6). */
   credentialStore?: MailboxCredentialVerifier;
-  /** Project ID for credential-based auth project-scoping (GM-P0.9). */
   projectId?: string;
   rateLimiter?: MailboxHttpRateLimiter;
   maxBodyBytes?: number;
-  /**
-   * Server-default look-back window for mailbox routes that return
-   * `MailboxMessage` records (`/mailbox/query`, `/mailbox/check`,
-   * `/mailbox/events`).
-   *
-   * The filter is **opt-in**: leaving `defaultMaxAgeMs` `undefined`
-   * (the default) leaves the filter disabled and every retained
-   * message is eligible to be returned or streamed. Pass an explicit
-   * non-negative integer (e.g. `60 * 60_000` for a 1-hour look-back,
-   * or {@link MAILBOX_HTTP_DEFAULT_MAX_AGE_MS}) to activate it.
-   *
-   * Mail older than the resolved look-back is filtered out of JSON
-   * responses and from SSE delivery so polling agents are never
-   * flooded with stale mail. The library intentionally does NOT
-   * enable a default look-back; host integrators that want the
-   * 1-hour server default must opt in explicitly.
-   *
-   * Per-request override: callers may append `?sinceMs=<ms>` to the
-   * request URL (the URL is rewritten by hosts that mount the router
-   * below a prefix). `0` opts in to the full retained history (matches
-   * the disable semantics of `defaultMaxAgeMs` below) and any positive
-   * value above {@link MAILBOX_HTTP_MAX_AGE_CEILING_MS} is silently
-   * clamped to that ceiling — this is a soft cap, not a hard rejection.
-   *
-   * Disabling the filter server-wide: pass `defaultMaxAgeMs` as
-   * `undefined` (the default), any negative number (`-1` is the
-   * canonical test-suite escape hatch), any non-finite value (`NaN`,
-   * `Infinity`, `-Infinity`), or `0`. `0` here is reserved because
-   * `now - 0` would otherwise map to the current instant and hide
-   * every retained message; `resolveDefault()` therefore treats `0` as
-   * equivalent to "disabled" via the same sentinel path as
-   * `undefined` / negative / non-finite values. The per-request
-   * `?sinceMs=0` URL parameter and the server-side `defaultMaxAgeMs=0`
-   * option therefore share identical "no filter" semantics.
-   */
   defaultMaxAgeMs?: number;
 }
 
 export interface MailboxHttpRouter {
-  /**
-   * Handle one canonical mailbox HTTP request. `routePath` lets a host mount
-   * the protocol below another prefix while preserving the public
-   * `/mailbox/*` route contract internally.
-   */
   handle(request: IncomingMessage, response: ServerResponse, routePath?: string): Promise<void>;
-  /** Close every active SSE stream owned by this router. Idempotent. */
   close(): void;
-  /**
-   * True while at least one SSE stream is open. Hosts that cache routers
-   * (e.g. HQ's per-project mailbox gateway map) use this to skip evicting a
-   * router that still has a live stream — closing it would cut the client.
-   */
   hasActiveStreams(): boolean;
 }
 
 export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): MailboxHttpRouter {
   const maxBodyBytes = options.maxBodyBytes ?? MAILBOX_HTTP_MAX_BODY_BYTES;
-  // Coerce JSON-spread `null` to `undefined` so the documented "absent
-  // means disabled" sentinel path at `resolveDefault()` is the single
-  // source of truth — callers that JSON-decode `{ defaultMaxAgeMs: null }`
-  // and spread it would otherwise leak `null` through, which `!Number.isFinite`
-  // silently treats as a disable but the JSDoc only documents for
-  // `undefined` / negative / non-finite / `0`. See JSDoc on
-  // `MailboxHttpRouterOptions.defaultMaxAgeMs`.
   const defaultMaxAgeMs = options.defaultMaxAgeMs ?? undefined;
   const closeSseStreams = new Set<() => void>();
 
-  // H1: Require projectId when credentialStore is configured.
   if (options.credentialStore !== undefined && options.projectId === undefined) {
     throw new TypeError('projectId is required when credentialStore is configured');
   }
@@ -164,9 +97,6 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
         const url = routePath ?? request.url ?? '/';
         const method = request.method ?? 'GET';
 
-        // Health probes deliberately bypass auth and rate limiting. The route
-        // reveals only process liveness and remains compatible with the
-        // standalone bridge's lock-file probe.
         if (method === 'GET' && url === '/healthz') {
           writeJson(response, 200, { ok: true });
           return;
@@ -196,8 +126,6 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
             } else {
               access = {
                 ...access,
-                // The persisted credential is authoritative for identity and
-                // capabilities; a custom authorizer may hold a stale snapshot.
                 actor: persistedAccess.actor,
                 ...(access.rateLimitKey ?? persistedAccess.rateLimitKey
                   ? { rateLimitKey: access.rateLimitKey ?? persistedAccess.rateLimitKey }
@@ -310,36 +238,9 @@ async function dispatchMailboxRoute(
   actor?: MailboxActorContext,
   credentialStore?: MailboxCredentialVerifier,
 ): Promise<void> {
-  // The look-back window is a per-route concern — only the routes that
-  // return `MailboxMessage` records (query, check, events) care. We
-  // resolve it lazily inside each handler so a malformed `?sinceMs=…`
-  // on an unknown route still surfaces as 404 NOT_FOUND rather than
-  // being shadowed by a 400 VALIDATION_ERROR.
-  //
-  // The dispatched `url` may carry a query string (routePath-as-mounted
-  // by hosts, or `?sinceMs=…` for the per-request override). Strip the
-  // `?…` portion before matching the canonical route table; the full
-  // `url` is still available to `parseSinceMs()` and the 404 message.
-  //
-  // Contract: `routePath` may carry an OPTIONAL per-request query
-  // string (e.g. `?sinceMs=0`) — hosts mount the canonical routes at
-  // a prefix and the query is forwarded verbatim so the router's
-  // `parseSinceMs()` sees the override. Only a literal `?` at position
-  // 0 of the resolved URL is rejected: that signals the request URL
-  // itself (or the rewritten routePath) starts with a query character,
-  // which is always a host-side mistake. Mid-path `?` segments from a
-  // sloppy prefix (e.g. `/api?token=…`) would still be misparsed, so
-  // hosts must mount the router below a path-only prefix.
-  //
-  // Note: a `?` in the *resolved* URL is legitimate when the request
-  // URL (or the per-request `?sinceMs=…` override) carries one.
   if (routePath !== undefined && routePath.indexOf('?') === 0) {
     throw validationError(`routePath must not start with '?' (got ${JSON.stringify(routePath)})`);
   }
-  // Hosts may legitimately append a per-request query (e.g. `?sinceMs=0`)
-  // to the rewritten route path. Strip it here so the canonical route
-  // table matches the path-only form; the full `url` (path + query) is
-  // still passed to `parseSinceMs()` for per-request overrides.
   const queryIndex = url.indexOf('?');
   const path = queryIndex === -1 ? url : url.slice(0, queryIndex);
 
@@ -351,9 +252,6 @@ async function dispatchMailboxRoute(
       });
       return;
     }
-    // Send capabilities depend on the validated message type, so that route is
-    // intentionally authorized after body parsing. All other routes have one
-    // static capability and can be denied before consuming the request body.
     if (path !== '/mailbox/send' && !hasMailboxCapability(actor, requiredCapability)) {
       writeJson(response, 403, {
         error: {
@@ -401,8 +299,6 @@ async function dispatchMailboxRoute(
     const actorProjectionRequired =
       actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts');
     if (actorProjectionRequired && (query.unreadBy !== undefined || query.incompleteOnly === true)) {
-      // Any non-receipt-admin response is actor-relative, even when the actor
-      // may read all message bodies. Never let it select another actor's state.
       query.unreadBy = actor.actorId;
       query.readerRole = actor.role;
     }
@@ -426,7 +322,6 @@ async function dispatchMailboxRoute(
     }
     const checkInput = validateCheck(await readJsonBody(request, maxBodyBytes), actor?.actorId);
     if (actor !== undefined) {
-      // `checkMailbox()` marks messages read unless the caller explicitly opts out.
       const modifiesReceipts =
         checkInput.markRead !== false || checkInput.completed === true || checkInput.outcome !== undefined;
       if (modifiesReceipts && !hasMailboxCapability(actor, 'mail.ack.self')) {
@@ -566,373 +461,6 @@ async function dispatchMailboxRoute(
   });
 }
 
-function stripAggregateReceiptState(
-  message: MailboxMessage,
-  actorId: string,
-): ActorMailboxMessage {
-  const projection = message as Partial<MailboxMessageProjection>;
-  const actorState = projection.recipientState?.[actorId];
-  const readByMe = actorState?.readAt !== undefined || actorId in message.readBy;
-  const completedByMe = actorState?.completedAt !== undefined;
-  const legacyGlobalCompletion = projection.legacyGlobalCompletion === true;
-  const visible = { ...message } as Record<string, unknown>;
-  delete visible['readBy'];
-  delete visible['completed'];
-  delete visible['completedBy'];
-  delete visible['completedAt'];
-  delete visible['outcome'];
-  delete visible['recipientState'];
-  delete visible['legacyGlobalCompletion'];
-
-  return {
-    ...visible,
-    readByMe,
-    completedByMe,
-    actionRequiredForMe: isActionRequiredForActor(message, {
-      completedByMe,
-      legacyGlobalCompletion,
-    }),
-    ...(actorState?.outcome !== undefined ? { myOutcome: actorState.outcome } : {}),
-    ...(legacyGlobalCompletion ? { legacyGlobalCompletion: true } : {}),
-  } as ActorMailboxMessage;
-}
-
-function eligibleRecipientsForActor(actor: MailboxActorContext): string[] {
-  return [...new Set([
-    actor.actorId,
-    ...actor.recipientAliases,
-    ...(actor.sessionId === undefined ? [] : [sessionRecipient(actor.sessionId)]),
-  ])];
-}
-
-async function queryMessagesForActor(
-  mailbox: Mailbox,
-  actor: MailboxActorContext,
-  query: Parameters<Mailbox['query']>[0],
-): Promise<MailboxMessage[]> {
-  const eligibleRecipients = new Set(eligibleRecipientsForActor(actor));
-  const requestedRecipient = query.to;
-  if (requestedRecipient !== undefined && !eligibleRecipients.has(requestedRecipient)) return [];
-
-  const recipients = requestedRecipient === undefined
-    ? [...eligibleRecipients]
-    : [requestedRecipient];
-  const batches = await Promise.all(
-    recipients.map((to) => mailbox.query({ ...query, to })),
-  );
-  const seen = new Set<string>();
-  const visible = batches.flat().filter((message) => {
-    if (seen.has(message.id)) return false;
-    if (!isMailboxMessageVisibleTo(message, actor.actorId, actor.role)) return false;
-    seen.add(message.id);
-    return true;
-  });
-  visible.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  return visible.slice(0, query.limit ?? 50);
-}
-
-/**
- * Which of `messageIds` this actor is allowed to see.
- *
- * Answers the question with an id-scoped query rather than by listing the
- * actor's whole mailbox and scanning it. The listing form asked the store for
- * an unbounded result (`limit: Number.MAX_SAFE_INTEGER`) once per eligible
- * recipient address, and each of those calls materialized every matching row,
- * joined the entire receipt table (`materializeMessageRows` stops using
- * targeted receipt lookups past 500 rows), and — because the query carried no
- * `unreadBy` — re-read and pruned the agent registry as well. That ran on
- * every single `/mailbox/ack`, to decide one boolean.
- *
- * The id filter keeps the exact same visibility semantics: the query still
- * fans out over the actor's eligible recipient addresses and still applies
- * `isMailboxMessageVisibleTo`, so an id the actor may not see is simply
- * absent from the result.
- */
-async function visibleMessageIdsForActor(
-  mailbox: Mailbox,
-  actor: MailboxActorContext,
-  messageIds: readonly string[],
-): Promise<Set<string>> {
-  if (messageIds.length === 0) return new Set();
-  const requested = new Set(messageIds);
-  const ids = [...requested];
-  const messages = await queryMessagesForActor(mailbox, actor, {
-    ids,
-    readerRole: actor.role,
-    includeReceiptState: true,
-    // Bounded by the request: at most one row can come back per requested id.
-    limit: ids.length,
-  });
-  // Intersect rather than trust the store to have honored `ids`. This result
-  // is an authorization decision — the caller compares set sizes to decide
-  // whether every requested message is the actor's — so a store that ignores
-  // the filter (a stub, an older daemon, a future implementation) must not be
-  // able to widen it. The filter is an optimization; this is the boundary.
-  return new Set(messages.filter((message) => requested.has(message.id)).map((m) => m.id));
-}
-
-/**
- * An exact count cannot be bounded by a `limit` the way a visibility check
- * can — truncating the set would report the wrong number — so this one still
- * asks for everything unread. It stays affordable because `unreadBy` is set:
- * the store's unread predicate runs in SQL, the per-subquery agent-registry
- * read is skipped, and the unread set is bounded by retention (24h default,
- * 30 minutes for `status`) rather than by total mailbox size.
- */
-async function unreadCountForActor(
-  mailbox: Mailbox,
-  actor: MailboxActorContext,
-): Promise<number> {
-  const messages = await queryMessagesForActor(mailbox, actor, {
-    unreadBy: actor.actorId,
-    readerRole: actor.role,
-    includeReceiptState: true,
-    limit: Number.MAX_SAFE_INTEGER,
-  });
-  return messages.filter((message) => !isMessageCompletedForActor(message, actor.actorId)).length;
-}
-
-function isMessageCompletedForActor(message: MailboxMessage, actorId: string): boolean {
-  const projection = message as Partial<MailboxMessageProjection>;
-  if (projection.legacyGlobalCompletion === true) return true;
-  const recipientState = projection.recipientState;
-  const actorState = recipientState?.[actorId];
-  if (actorState !== undefined) return actorState.completedAt !== undefined;
-  if (recipientState !== undefined && Object.keys(recipientState).length > 0) return false;
-  return message.completed === true;
-}
-
-async function isMessageVisibleToActor(
-  mailbox: Mailbox,
-  messageId: string,
-  actor: MailboxActorContext,
-): Promise<boolean> {
-  return (await visibleMessageIdsForActor(mailbox, actor, [messageId])).has(messageId);
-}
-
-function requiredSendCapability(type: MailboxMessageType): MailboxCapability | undefined {
-  if (type === 'control') return undefined;
-  if (type === 'steer') return 'mail.send.directive';
-  if (type === 'ask' || type === 'assign' || type === 'review') {
-    return 'mail.send.actionable';
-  }
-  return 'mail.send.informational';
-}
-
-function requiredCredentialCapability(
-  method: string,
-  path: string,
-): MailboxCapability | undefined {
-  if (method === 'POST' && path === '/mailbox/send') return 'mail.send.informational';
-  if (method === 'POST' && (path === '/mailbox/query' || path === '/mailbox/check')) {
-    return 'mail.read.self';
-  }
-  if (method === 'POST' && (path === '/mailbox/ack' || path === '/mailbox/ack-many')) {
-    return 'mail.ack.self';
-  }
-  if (method === 'POST' && path === '/mailbox/unread-count') return 'mail.read.self';
-  if (method === 'POST' && path === '/mailbox/agents/register') {
-    return 'mail.presence.register.self';
-  }
-  if (method === 'POST' && path === '/mailbox/agents/heartbeat') {
-    return 'mail.presence.heartbeat.self';
-  }
-  if (method === 'GET' && (path === '/mailbox/agents' || path === '/mailbox/agents/online')) {
-    return 'mail.presence.read';
-  }
-  if (method === 'GET' && path === '/mailbox/events') return 'mail.events.self';
-  return undefined;
-}
-
-/**
- * Pull a timestamp off an SSE event for the staleness-filter check.
- *
- * SSE events arrive in two shapes:
- *   - Top-level `{ timestamp: string, ... }` — produced by
- *     `MailboxEventEmitter` directly when a single mail is forwarded.
- *   - Nested `{ messageSent: { timestamp: string, ... }, ... }` —
- *     produced when a peer bridge forwards a messageSent replay event.
- *
- * `messageSent` and `ackUpdated` are the documented nested shapes today;
- * if new shapes are added, extend the `nestedKeys` set below. Returns
- * `undefined` for any non-object event or when no recognised timestamp
- * field is present, in which case the filter is skipped (preserves the
- * pre-filter behaviour: drop nothing we cannot classify).
- */
-function extractEventTimestamp(event: unknown): string | undefined {
-  for (const record of mailboxEventRecords(event)) {
-    const timestamp = record['timestamp'];
-    if (typeof timestamp === 'string') return timestamp;
-  }
-  return undefined;
-}
-
-function isEventOlderThan(event: unknown, minTimestampIso: string): boolean {
-  const eventTimestamp = extractEventTimestamp(event);
-  if (eventTimestamp === undefined) return false;
-  return eventTimestamp < minTimestampIso;
-}
-
-function mailboxEventRecords(event: unknown): Record<string, unknown>[] {
-  if (event === null || typeof event !== 'object') return [];
-  const record = event as Record<string, unknown>;
-  const records = [record];
-  // Keep this bounded to the documented one-level envelopes. Recursive walking
-  // would allow unrelated nested objects to accidentally satisfy visibility.
-  for (const key of ['messageSent', 'ackUpdated'] as const) {
-    const nested = record[key];
-    if (nested !== null && typeof nested === 'object' && !Array.isArray(nested)) {
-      records.push(nested as Record<string, unknown>);
-    }
-  }
-  return records;
-}
-
-function isMailboxEventVisibleToActor(event: unknown, actor: MailboxActorContext): boolean {
-  for (const record of mailboxEventRecords(event)) {
-    const from = record['from'];
-    const to = record['to'];
-    const audience = record['audience'];
-    if (typeof from !== 'string' || typeof to !== 'string') continue;
-    if (audience !== undefined && audience !== 'all' && audience !== 'leaders') continue;
-    const addressedToActor =
-      from === actor.actorId ||
-      to === actor.actorId ||
-      to === '*' ||
-      actor.recipientAliases.has(to) ||
-      (actor.sessionId !== undefined && to === `@session:${actor.sessionId}`);
-    if (
-      addressedToActor &&
-      isMailboxMessageVisibleTo(
-        { audience: audience as MailboxAudience | undefined },
-        actor.actorId,
-        actor.role,
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function createCredentialRevalidator(
-  request: IncomingMessage,
-  store: MailboxCredentialVerifier,
-  actor: MailboxActorContext,
-): () => Promise<boolean> {
-  const parsed = parseCredentialAuthorization(request);
-  if (parsed === undefined) return async () => false;
-  return async () => {
-    const validation = await store.verifyPersisted(parsed.credentialId, parsed.secret);
-    return validation.valid &&
-      validation.credential?.principalId === actor.actorId &&
-      validation.credential.projectId === actor.projectId;
-  };
-}
-
-function handleSse(
-  request: IncomingMessage,
-  response: ServerResponse,
-  eventEmitter: MailboxEventEmitter,
-  minTimestampIso: string | undefined,
-  closeSseStreams: Set<() => void>,
-  actor?: MailboxActorContext,
-  revalidateCredential?: () => Promise<boolean>,
-): void {
-  response.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-store',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-  response.write(': connected\n\n');
-
-  // `close` is forward-referenced by the subscribe callback (which may fire
-  // before the rest of the setup runs), so declare its dependencies first.
-  let closed = false;
-  let unsubscribe: () => void = () => {};
-  let keepAlive: ReturnType<typeof setInterval> | undefined;
-  const close = (): void => {
-    if (closed) return;
-    closed = true;
-    if (keepAlive !== undefined) clearInterval(keepAlive);
-    unsubscribe();
-    closeSseStreams.delete(close);
-    try {
-      response.end();
-    } catch {
-      // The client already closed the stream.
-    }
-  };
-
-  let deliveryChain = Promise.resolve();
-  const enqueue = (operation: () => Promise<void>): void => {
-    if (revalidateCredential === undefined) {
-      void operation();
-      return;
-    }
-    deliveryChain = deliveryChain.then(operation, operation);
-  };
-
-  unsubscribe = eventEmitter.subscribe((event) => {
-    enqueue(async () => {
-      if (closed) return;
-      try {
-        if (revalidateCredential !== undefined && !(await revalidateCredential())) {
-          close();
-          return;
-        }
-        // The stream may have closed while persisted credential I/O was in flight.
-        if (closed) return;
-        // SSE events carry a `timestamp` field at the top level. Some event
-        // shapes (e.g. `messageSent`) wrap the timestamp inside a nested
-        // payload — `extractEventTimestamp()` walks one level into the known
-        // nested shape so a long-lived SSE subscriber is not flooded by
-        // bulk historical mail forwarded by another bridge whose outer
-        // timestamp is fresh but whose nested timestamp is stale.
-        if (minTimestampIso !== undefined && isEventOlderThan(event, minTimestampIso)) {
-          return;
-        }
-        if (
-          actor !== undefined &&
-          !isMailboxEventVisibleToActor(event, actor)
-        ) {
-          return;
-        }
-        response.write(`data: ${JSON.stringify(event)}\n\n`);
-        // Backpressure guard: `write()`'s return value was previously ignored, so
-        // a slow or stalled consumer made Node buffer every event in memory
-        // without bound. Once the unflushed backlog exceeds the cap, drop this
-        // one consumer rather than let a single dead client grow the process.
-        if (response.writableLength > MAX_SSE_BUFFER_BYTES) {
-          close();
-        }
-      } catch {
-        close();
-      }
-    });
-  });
-  keepAlive = setInterval(() => {
-    enqueue(async () => {
-      if (closed) return;
-      try {
-        if (revalidateCredential !== undefined && !(await revalidateCredential())) {
-          close();
-          return;
-        }
-        // The stream may have closed while persisted credential I/O was in flight.
-        if (closed) return;
-        response.write(': keepalive\n\n');
-      } catch {
-        close();
-      }
-    });
-  }, 15_000);
-
-  closeSseStreams.add(close);
-  request.once('close', close);
-}
-
 async function readJsonBody(request: IncomingMessage, maxBodyBytes: number): Promise<unknown> {
   const lengthHeader = request.headers['content-length'];
   if (typeof lengthHeader === 'string') {
@@ -969,61 +497,4 @@ function writeJson(response: ServerResponse, status: number, body: unknown): voi
     'Cache-Control': 'no-store',
   });
   response.end(JSON.stringify(body));
-}
-
-async function checkMailbox(
-  mailbox: Mailbox,
-  input: MailboxCheckInput,
-  minTimestampIso: string | undefined,
-  includeReceiptState = false,
-  eligibleRecipients?: readonly string[],
-  readerRole?: string,
-): Promise<{ data: MailboxMessage[]; count: number }> {
-  const limit = input.limit ?? 20;
-  const markRead = input.markRead ?? true;
-  const completed = input.completed ?? false;
-  const targets = eligibleRecipients ?? (
-    input.baseId !== undefined && input.baseId !== input.agentId
-      ? [input.agentId, input.baseId]
-      : [input.agentId]
-  );
-  const batches = await Promise.all(
-    targets.map((to) =>
-      mailbox.query({
-        to,
-        unreadBy: input.agentId,
-        readerRole,
-        limit,
-        includeReceiptState,
-      }),
-    ),
-  );
-  // Apply the staleness filter up-front so a `?sinceMs=0` call cannot
-  // ack messages that the filter then drops from the response — the
-  // response set and the ack-set must stay in lock-step. The same
-  // cut-off is reused by `/mailbox/query` and `/mailbox/events`.
-  const withinWindow = filterMailboxMessagesByTimestamp(batches.flat(), minTimestampIso);
-  const seen = new Set<string>();
-  const messages = withinWindow
-    .filter((message) => {
-      if (seen.has(message.id) || message.from === input.agentId) return false;
-      if (!isMailboxMessageVisibleTo(message, input.agentId, readerRole)) return false;
-      seen.add(message.id);
-      return true;
-    })
-    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    .slice(0, limit);
-  const data =
-    markRead || completed
-      ? await mailbox.ackMany({
-          acks: messages.map((message) => ({
-            messageId: message.id,
-            readerId: input.agentId,
-            read: markRead,
-            completed,
-            outcome: completed ? input.outcome : undefined,
-          })),
-        })
-      : messages;
-  return { data, count: data.length };
 }
