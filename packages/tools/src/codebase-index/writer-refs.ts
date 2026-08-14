@@ -8,8 +8,7 @@ export const FAMILY_MATCH_SQL = `(
      WHERE lf1.lang = sym.lang AND lf2.lang = refs.lang
   )
   OR ? IN (
-    SELECT family FROM lang_family WHERE lang = sym.lang
-    UNION SELECT ?
+    SELECT family FROM lang_family WHERE lang = refs.lang
   )
 )`;
 
@@ -248,7 +247,7 @@ export function resolveRefsForNamesUnsafe(
              SELECT 1 FROM symbols sym
               WHERE sym.name = refs.to_name AND ${FAMILY_MATCH_SQL}
            )`,
-      ).run(LANG_FAMILY_WILDCARD, LANG_FAMILY_WILDCARD, ...chunk, LANG_FAMILY_WILDCARD, LANG_FAMILY_WILDCARD) as {
+      ).run(LANG_FAMILY_WILDCARD, ...chunk, LANG_FAMILY_WILDCARD) as {
         changes?: number;
       };
       total += result.changes ?? 0;
