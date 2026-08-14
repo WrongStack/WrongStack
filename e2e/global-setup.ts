@@ -58,6 +58,9 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
       WEBUI_HOST: expectedURL.hostname,
       WEBUI_PORT: expectedURL.port || (expectedURL.protocol === 'https:' ? '443' : '80'),
       WEBUI_STRICT_PORT: '1',
+      // Chalk emits ANSI codes when it (incorrectly) guesses a TTY; strip
+      // them so the readiness regexes match the plain-text banner.
+      NO_COLOR: '1',
     },
   });
 
@@ -76,7 +79,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   });
 
   // Wait for a readiness line (stdout or stderr), an early exit, or timeout.
-  const url = await waitForServerOutput(server, combined, 60_000);
+  // Pass a getter — a by-value snapshot would freeze the empty initial string.
+  const url = await waitForServerOutput(server, () => combined, 60_000);
   if (!url) {
     server.kill();
     throw new Error('WebUI server failed to start within 60s');
@@ -105,7 +109,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 /** Wait for either readiness line, an early exit, or the deadline. */
 async function waitForServerOutput(
   server: ReturnType<typeof spawn>,
-  combined: string,
+  getCombined: () => string,
   timeout: number,
 ): Promise<string | null> {
   const patterns = [
@@ -113,6 +117,7 @@ async function waitForServerOutput(
     /✦ WebUI running → (https?:\/\/[^\s]+)/,
   ];
   const poll = (): string | null => {
+    const combined = getCombined();
     for (const re of patterns) {
       const match = combined.match(re);
       if (match) {
