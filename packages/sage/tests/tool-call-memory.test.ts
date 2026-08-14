@@ -7,9 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   containsMemoryText,
   createSageToolCallMiddleware,
+  type ExtractedTriggerContext,
   type SageRetrieverLike,
 } from '../src/middleware/tool-call-memory.js';
+import {
+  pathAnchorRelation,
+  retrieveTriggeredMemories,
+} from '../src/middleware/tool-call-memory-retrieval.js';
 import { SqliteSageStore } from '../src/sqlite-store.js';
+import type { Sage } from '../src/types.js';
 
 let tmpDir: string;
 let openStores: SqliteSageStore[] = [];
@@ -91,6 +97,88 @@ function memoryEvidenceText(payload: ToolCallPipelinePayload): string {
       .join('\n') ?? ''
   );
 }
+
+describe('pathAnchorRelation — anchor-type path scoring', () => {
+  it('scores an exact symbol anchor at 0.98 with an anchor:exact-symbol reason', () => {
+    const memory = {
+      anchors: [{ type: 'symbol', path: 'src/a.ts', symbol: 'run' }],
+    } as unknown as Sage;
+    expect(pathAnchorRelation(memory, 'src/a.ts')).toEqual({
+      strength: 0.98,
+      reason: 'anchor:exact-symbol:src/a.ts',
+    });
+  });
+
+  it('keeps the 0.95 exact-file score and anchor:exact-file reason unchanged', () => {
+    const memory = { anchors: [{ type: 'file', path: 'src/a.ts' }] } as unknown as Sage;
+    expect(pathAnchorRelation(memory, 'src/a.ts')).toEqual({
+      strength: 0.95,
+      reason: 'anchor:exact-file:src/a.ts',
+    });
+  });
+
+  it('prefers the narrower symbol-anchor score when a file anchor precedes it', () => {
+    const memory = {
+      anchors: [
+        { type: 'file', path: 'src/a.ts' },
+        { type: 'symbol', path: 'src/a.ts', symbol: 'run' },
+      ],
+    } as unknown as Sage;
+    expect(pathAnchorRelation(memory, 'src/a.ts')).toEqual({
+      strength: 0.98,
+      reason: 'anchor:exact-symbol:src/a.ts',
+    });
+  });
+
+  it('returns undefined for anchors without a path', () => {
+    const memory = { anchors: [{ type: 'symbol', symbol: 'run' }] } as unknown as Sage;
+    expect(pathAnchorRelation(memory, 'src/a.ts')).toBeUndefined();
+  });
+});
+
+describe('retrieveTriggeredMemories — symbol-anchor fix path', () => {
+  it('scores a symbol-anchored memory at 0.98 with the exact-symbol reason', async () => {
+    const memory = {
+      id: 'm-sym',
+      text: 'Symbol-scoped memory for run().',
+      status: 'active',
+      kind: 'fact',
+      contextPolicy: 'auto',
+      importance: 0.9,
+      anchors: [{ type: 'symbol', path: 'src/file.ts', symbol: 'run' }],
+    } as unknown as Sage;
+    const retriever: SageRetrieverLike = {
+      retrieveForPath: async () => [memory],
+      searchSage: async () => [],
+    };
+    const result = await retrieveTriggeredMemories(
+      retriever,
+      { trigger: 'read', queryText: '', paths: ['src/file.ts'] } as ExtractedTriggerContext,
+      5,
+      '/root',
+      0,
+      undefined,
+    );
+    const hit = result.find((r) => r.memory.id === 'm-sym');
+    expect(hit?.relationStrength).toBe(0.98);
+    expect(hit?.retrievalReasons).toEqual(['anchor:exact-symbol:src/file.ts']);
+  });
+});
+
+describe('SageToolCallMiddleware — symbol-anchored memory injection', () => {
+  it('injects a memory anchored to a symbol in the touched file', async () => {
+    const store = makeStore();
+    await store.rememberSage({
+      text: 'Symbol-scoped memory for run() in src/file.ts.',
+      importance: 0.95,
+      anchors: [{ type: 'symbol', path: 'src/file.ts', symbol: 'run' }],
+    });
+    const mw = createSageToolCallMiddleware({ memory: store });
+    const payload = makePayload();
+    await mw.handler(payload as never, async (p) => p);
+    expect(memoryEvidenceText(payload)).toContain('Symbol-scoped memory');
+  });
+});
 
 describe('SageToolCallMiddleware — disabled and no-trigger scenarios', () => {
   it('skips entirely when enabled is false', async () => {

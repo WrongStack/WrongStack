@@ -26,14 +26,20 @@ import {
 } from './sqlite-store-audit.js';
 import { retrieveSqliteSageForAudience } from './sqlite-store-audience.js';
 import {
-  addSqliteCandidate,
-  acceptSqliteCandidate,
-  createSqliteCandidate,
-  listSqliteCandidates,
-  rejectSqliteCandidate,
-  resolveSqliteCandidate,
-} from './sqlite-store-candidates.js';
-import { legacyScopeLabel } from './sqlite-store-legacy.js';
+  acceptCandidateOp,
+  addCandidateOp,
+  createCandidateOp,
+  listCandidatesOp,
+  rejectCandidateOp,
+  resolveCandidateOp,
+  type SqliteCandidateHost,
+} from './sqlite-store-candidate-ops.js';
+import {
+  readAllSqliteMemory,
+  readSqliteMemory,
+  rememberSqliteMemoryBridge,
+} from './sqlite-store-legacy-bridge.js';
+import { upsertSqliteCandidate, upsertSqliteMemory } from './sqlite-store-upsert.js';
 import { probeSqliteAvailable } from './sqlite-store-loader.js';
 import { graphSqliteSageFor } from './sqlite-store-graph-for.js';
 import { traverseSqliteGraph } from './sqlite-store-graph-traverse.js';
@@ -44,7 +50,6 @@ import { syncSqliteRelationshipEdges } from './sqlite-store-relationship-sync.js
 import {
   sqliteRowToMemory,
 } from './sqlite-store-codec.js';
-import { formatLegacyEntry } from './sqlite-store-pagination.js';
 import { retrieveSqliteSageForPath } from './sqlite-store-retrieve-path.js';
 import { initializeSqliteSageStore } from './sqlite-store-initialize.js';
 import { searchSqliteSage } from './sqlite-store-search-sage.js';
@@ -74,9 +79,6 @@ import {
   recoverAdminSage,
   type SqliteAdminHost,
 } from './sqlite-store-operations.js';
-import {
-  normalizeTextKey,
-} from './store-helpers.js';
 import type { SearchOptions, SearchQuery, SearchResult } from './service-contract.js';
 import type {
   CandidateDecision,
@@ -110,8 +112,6 @@ import type {
 } from './types.js';
 import {
   DEFAULT_PERSISTENCE,
-  legacyToSageScope,
-  sageToLegacyScope,
 } from './types.js';
 
 export { sqliteStoreCoverage } from './sqlite-store-coverage.js';
@@ -319,16 +319,11 @@ export class SqliteSageStore implements MemoryStore {
   // ─── Legacy MemoryStore compatibility ──────────────────────────────
 
   async readAll(): Promise<string> {
-    const sections: string[] = [];
-    for (const scope of ['project-agents', 'project-memory', 'user-memory'] as const) {
-      const body = await this.read(scope);
-      if (body) sections.push(`## ${legacyScopeLabel(scope)}\n\n${body}`);
-    }
-    return sections.join('\n\n');
+    return readAllSqliteMemory((scope) => this.read(scope));
   }
 
   async read(scope: MemoryScope): Promise<string> {
-    return (await this.list(scope)).map(formatLegacyEntry).join('\n');
+    return readSqliteMemory((targetScope) => this.list(targetScope), scope);
   }
 
   async remember(
@@ -336,18 +331,12 @@ export class SqliteSageStore implements MemoryStore {
     scope: MemoryScope = 'project-memory',
     metadata?: Omit<Partial<MemoryEntry>, 'scope' | 'text' | 'ts'>,
   ): Promise<void> {
-    await this.rememberSage({
+    return rememberSqliteMemoryBridge(
+      (input) => this.rememberSage(input),
       text,
-      legacyScope: scope,
-      scope: legacyToSageScope(scope),
-      type: metadata?.type,
-      tags: metadata?.tags,
-      priority: metadata?.priority,
-      confidence: metadata?.confidence,
-      sources: metadata?.source
-        ? [{ type: 'legacy_memory', excerptHash: metadata.source }]
-        : undefined,
-    });
+      scope,
+      metadata,
+    );
   }
 
   async forget(query: string, scope: MemoryScope = 'project-memory'): Promise<number> {
@@ -416,63 +405,11 @@ export class SqliteSageStore implements MemoryStore {
   }
 
   private upsertMemory(m: Sage): void {
-    // Prefer INSERT … ON CONFLICT DO UPDATE over DELETE+INSERT:
-    // - Keeps the same INTEGER rowid so the external-content FTS shadow table
-    //   stays aligned without delete/reinsert churn.
-    // - AFTER UPDATE triggers correctly rebuild the FTS row (unlike INSERT OR
-    //   REPLACE, which skips AFTER DELETE when recursive triggers are off).
-    // - One statement instead of two on the hot remember/update path.
-    this.stmt(
-      `INSERT INTO memories
-        (id, data, status, kind, scope, legacy_scope, importance, confidence, freshness, updated_at, created_at, audience, tags, owner_session_id, canonical_text)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        data = excluded.data,
-        status = excluded.status,
-        kind = excluded.kind,
-        scope = excluded.scope,
-        legacy_scope = excluded.legacy_scope,
-        importance = excluded.importance,
-        confidence = excluded.confidence,
-        freshness = excluded.freshness,
-        updated_at = excluded.updated_at,
-        created_at = excluded.created_at,
-        audience = excluded.audience,
-        tags = excluded.tags,
-        owner_session_id = excluded.owner_session_id,
-        canonical_text = excluded.canonical_text`,
-    ).run(
-      m.id,
-      JSON.stringify(m),
-      m.status,
-      m.kind,
-      m.scope,
-      m.legacyScope ?? sageToLegacyScope(m.scope),
-      m.importance,
-      m.confidence,
-      m.freshness,
-      m.updatedAt,
-      m.createdAt,
-      m.audience ? JSON.stringify(m.audience) : null,
-      JSON.stringify(m.tags),
-      m.ownerSessionId ?? null,
-      normalizeTextKey(m.text),
-    );
+    upsertSqliteMemory((sql) => this.stmt(sql), m);
   }
 
   private upsertCandidate(candidate: MemoryCandidate, canonicalText?: string): void {
-    this.stmt(
-      `INSERT OR REPLACE INTO candidates
-        (id, data, status, created_at, updated_at, canonical_text)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(
-      candidate.id,
-      JSON.stringify(candidate),
-      candidate.status,
-      candidate.createdAt,
-      candidate.updatedAt,
-      canonicalText ?? normalizeTextKey(candidate.text),
-    );
+    upsertSqliteCandidate((sql) => this.stmt(sql), candidate, canonicalText);
   }
 
   /**
@@ -845,19 +782,17 @@ export class SqliteSageStore implements MemoryStore {
     };
   }
 
-  private candidateOps() {
+  private candidateHost(): SqliteCandidateHost {
     return {
       projectRoot: this.projectRoot,
-      candidateLockPath: (candidateId: string) =>
-        path.join(this.paths.locksDir, `candidate-accept-${candidateId}`),
-      stmt: (sql: string) => this.stmt(sql),
+      paths: this.paths,
+      stmt: (sql) => this.stmt(sql),
       nowIso: () => this.nowIso(),
-      runMutation: <T>(work: () => T) => this.runMutation(work),
-      rememberSage: (input: RememberSageInput) => this.rememberSage(input),
-      updateSage: (id: string, input: UpdateSageInput) => this.updateSage(id, input),
-      upsertCandidate: (candidate: MemoryCandidate, canonicalText?: string | undefined) =>
-        this.upsertCandidate(candidate, canonicalText),
-      audit: (event: string, data?: Record<string, unknown>) => this.audit(event, data),
+      runMutation: (work) => this.runMutation(work),
+      rememberSage: (input) => this.rememberSage(input),
+      updateSage: (id, input) => this.updateSage(id, input),
+      upsertCandidate: (candidate, canonicalText) => this.upsertCandidate(candidate, canonicalText),
+      audit: (event, data) => this.audit(event, data),
     };
   }
 
@@ -889,29 +824,27 @@ export class SqliteSageStore implements MemoryStore {
 
   async addCandidate(candidate: MemoryCandidate): Promise<void> {
     await this.initialize();
-    addSqliteCandidate(this.candidateOps(), candidate);
+    return addCandidateOp(this.candidateHost(), candidate);
   }
 
   async createCandidate(input: CreateCandidateInput): Promise<MemoryCandidate> {
     await this.initialize();
-    return createSqliteCandidate(this.candidateOps(), input);
+    return createCandidateOp(this.candidateHost(), input);
   }
 
   async listCandidates(includeResolved = false): Promise<MemoryCandidate[]> {
     await this.initialize();
-    return listSqliteCandidates({ stmt: (sql) => this.stmt(sql) }, includeResolved);
+    return listCandidatesOp(this.candidateHost(), includeResolved);
   }
 
   async acceptCandidate(candidateId: string): Promise<Sage | undefined> {
     await this.initialize();
-    return acceptSqliteCandidate(this.candidateOps(), candidateId);
+    return acceptCandidateOp(this.candidateHost(), candidateId);
   }
 
   async rejectCandidate(candidateId: string, reason: string): Promise<boolean> {
     await this.initialize();
-    return this.runMutation(() => {
-      return rejectSqliteCandidate(this.candidateOps(), candidateId, reason);
-    });
+    return rejectCandidateOp(this.candidateHost(), candidateId, reason);
   }
 
   async resolveCandidate(
@@ -920,12 +853,7 @@ export class SqliteSageStore implements MemoryStore {
     reason?: string,
   ): Promise<MemoryCandidateResolution | undefined> {
     await this.initialize();
-    return resolveSqliteCandidate(
-      this.candidateOps(),
-      candidateId,
-      decision,
-      reason,
-    );
+    return resolveCandidateOp(this.candidateHost(), candidateId, decision, reason);
   }
 
   // ─── Legacy compat ──────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 import * as path from 'node:path';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
-import type { Sage } from '../types.js';
 
 export type MemoryToolTrigger =
   | 'read'
@@ -17,9 +16,6 @@ export interface ExtractedTriggerContext {
   paths: string[];
   queryText: string;
 }
-
-export const MIN_ANCESTOR_ANCHOR_SEGMENTS = 2;
-export const ANCESTOR_DECAY_PER_SEGMENT = 0.11;
 
 export function isMutationTrigger(trigger: MemoryToolTrigger): boolean {
   return trigger === 'write' || trigger === 'edit' || trigger === 'patch';
@@ -226,55 +222,4 @@ export function resolveTriggerPaths(values: string[], ctx: ToolCallPipelinePaylo
     result.push(absolute);
   }
   return [...new Set(result)];
-}
-
-export function normalizeAnchorPath(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const normalized = value
-    .replace(/\\/g, '/')
-    .replace(/\/+/g, '/')
-    .replace(/^\.\//, '')
-    .replace(/\/$/, '')
-    .toLowerCase();
-  return normalized && normalized !== '.' ? normalized : undefined;
-}
-
-export function relativeProjectPath(projectRoot: string | undefined, toolPath: string): string {
-  const normalized = toolPath.replace(/\\/g, '/').replace(/^\.\//, '').toLowerCase();
-  if (!projectRoot || !path.isAbsolute(toolPath)) return normalized;
-  const relative = path.relative(path.resolve(projectRoot), toolPath);
-  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return '';
-  return relative.replace(/\\/g, '/').toLowerCase();
-}
-
-export function pathAnchorRelation(
-  memory: Sage,
-  relPath: string,
-): { strength: number; reason: string } | undefined {
-  if (!relPath || relPath === '.') return undefined;
-  const targetDepth = relPath.split('/').filter(Boolean).length;
-  let best: { strength: number; reason: string } | undefined;
-  const keep = (candidate: { strength: number; reason: string }): void => {
-    if (!best || candidate.strength > best.strength) best = candidate;
-  };
-  for (const anchor of memory.anchors) {
-    const anchorPath = normalizeAnchorPath(anchor.path);
-    if (!anchorPath) continue;
-    if (anchorPath === relPath) {
-      keep({
-        strength: anchor.symbol || anchor.command ? 0.98 : 0.95,
-        reason: `anchor:${anchor.type}-exact`,
-      });
-      continue;
-    }
-    if (!relPath.startsWith(`${anchorPath}/`)) continue;
-    const anchorDepth = anchorPath.split('/').filter(Boolean).length;
-    if (anchorDepth < MIN_ANCESTOR_ANCHOR_SEGMENTS) continue;
-    const distance = targetDepth - anchorDepth;
-    keep({
-      strength: Math.max(0, 0.95 - distance * ANCESTOR_DECAY_PER_SEGMENT),
-      reason: `anchor:ancestor-${distance}`,
-    });
-  }
-  return best;
 }

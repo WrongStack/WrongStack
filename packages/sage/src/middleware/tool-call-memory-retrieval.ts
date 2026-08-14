@@ -76,10 +76,23 @@ export function pathAnchorRelation(
   const targetDepth = relPath.split('/').filter(Boolean).length;
   let best: { strength: number; reason: string } | undefined;
   for (const anchor of memory.anchors) {
-    if (anchor.type !== 'file' || !anchor.path) continue;
+    // Every path-bearing anchor counts — `symbol` and `command` anchors pin a
+    // narrower scope than a bare `file` anchor, so an exact path hit scores
+    // higher (matches memoryQueryRelevance / trigger scoring). Accumulate the
+    // strongest candidate instead of returning on the first match: anchor
+    // order must not determine the score when both a file and a symbol anchor
+    // target the same path.
+    if (!anchor.path) continue;
     const anchorNorm = anchor.path.replace(/\\/g, '/').replace(/^\.\//, '');
-    if (anchorNorm === relPath) {
-      return { strength: 0.95, reason: `anchor:exact-file:${anchorNorm}` };
+    if (
+      (anchor.type === 'file' || anchor.type === 'symbol' || anchor.type === 'command') &&
+      anchorNorm === relPath
+    ) {
+      const exact = anchor.type === 'symbol' || anchor.type === 'command' ? 0.98 : 0.95;
+      if (!best || exact > best.strength) {
+        best = { strength: exact, reason: `anchor:exact-${anchor.type}:${anchorNorm}` };
+      }
+      continue;
     }
     const isPrefix = relPath.startsWith(`${anchorNorm}/`);
     if (isPrefix) {
