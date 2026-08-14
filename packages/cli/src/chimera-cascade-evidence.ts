@@ -195,7 +195,7 @@ export function isSafeCascadeCommand(command: string): boolean {
   if (!SAFE_EXECUTABLES.has(tokens[0]!)) return false;
   // Bare tokens only: no shell operators, redirection, expansion, or quoting
   // tricks. Paths and flag values (e.g. --filter @wrongstack/core) are fine.
-  return tokens.every((token) => /^[A-Za-z0-9@/._:=~+*?\[\]-]+$/.test(token));
+  return tokens.every((token) => /^[A-Za-z0-9@/._:=~+*?[\]-]+$/.test(token));
 }
 
 /**

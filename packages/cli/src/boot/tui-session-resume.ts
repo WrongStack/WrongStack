@@ -179,7 +179,7 @@ export async function resumeSession(
     // the ref was only set once at boot (cli-main.ts:317). The ref is
     // optional on TuiRuntimeState, so older hosts that predate the fix
     // simply skip the repoint — same behavior as before.
-    state.sessionRef && (state.sessionRef.current = resumed.writer);
+    if (state.sessionRef) state.sessionRef.current = resumed.writer;
     await agent.ctx.flushConversationJournal().catch((err) => {
       console.error(
         JSON.stringify({

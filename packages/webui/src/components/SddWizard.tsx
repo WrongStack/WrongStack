@@ -728,7 +728,7 @@ function extractQuickReplies(text: string): string[] {
 
   if (results.length === 0) {
     const inlineMatch = text.match(/(?:Options|Choices|Öneriler|Seçenekler):\s*([^\n\r]+)/i);
-    if (inlineMatch && inlineMatch[1]) {
+    if (inlineMatch?.[1]) {
       const parts = inlineMatch[1]
         .split(/[,|/]/)
         .map((p) => p.trim())

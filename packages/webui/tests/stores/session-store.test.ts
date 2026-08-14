@@ -600,7 +600,7 @@ describe('cacheStats', () => {
     useSessionStore.getState().setTodos([{ id: 't1', content: 'do a thing', status: 'pending' }]);
     useSessionStore.getState().setModes([{ id: 'code', name: 'Code', description: '' }]);
     useSessionStore.getState().setIteration({ index: 1, max: 5 });
-    useSessionStore.setState((prev) => ({
+    useSessionStore.setState((_prev) => ({
       inputCost: 3,
       outputCost: 15,
       cacheReadCost: 0.3,

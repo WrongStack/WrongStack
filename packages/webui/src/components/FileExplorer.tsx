@@ -137,9 +137,10 @@ function GitStatusDot({ status }: { status: string }) {
   const label = GIT_STATUS_LABELS[letter] ?? 'Unknown';
   return (
     <span
+      role="img"
+      aria-label={label}
       className={cn('shrink-0 text-[8px] font-bold tabular-nums', color)}
       title={label}
-      aria-label={label}
     >
       {letter}
     </span>
@@ -1167,6 +1168,7 @@ export function FileExplorer() {
               }}
               placeholder={createPrompt.type === 'file' ? 'file.ts' : 'folder'}
               className="w-full px-2 py-1 text-[11px] border rounded bg-background outline-none focus:ring-1 ring-primary"
+              // biome-ignore lint/a11y/noAutofocus: inline create dialog is a transient single-field prompt; focus must land in it on open
               autoFocus
             />
             <div className="flex justify-end gap-2 mt-3">
@@ -1212,6 +1214,7 @@ export function FileExplorer() {
                 }
               }}
               className="w-full px-2 py-1 text-[11px] border rounded bg-background outline-none focus:ring-1 ring-primary"
+              // biome-ignore lint/a11y/noAutofocus: inline rename dialog is a transient single-field prompt; focus must land in it on open
               autoFocus
             />
             <div className="flex justify-end gap-2 mt-3">

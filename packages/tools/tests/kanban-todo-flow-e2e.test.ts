@@ -361,8 +361,8 @@ describe('todo ↔ kanban flow never strands the run', () => {
     await todo(ctx, [row('1', 'Loop-prone', 'completed', boardId, a)]);
 
     // The card should be in Review or Completed with a completed assignment.
-    let board = await getBoard(dir, boardId);
-    let task = board!.tasks.find((t) => t.id === a);
+    const board = await getBoard(dir, boardId);
+    const task = board!.tasks.find((t) => t.id === a);
     expect(['review', 'completed']).toContain(task?.status);
 
     // Now re-apply the same completed list — the todo surface must not revert

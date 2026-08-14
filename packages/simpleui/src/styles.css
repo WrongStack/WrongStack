@@ -5542,7 +5542,7 @@ a:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .health-stat-chevron {
+  .health-stat-action .health-stat-chevron {
     transition: none;
   }
 }

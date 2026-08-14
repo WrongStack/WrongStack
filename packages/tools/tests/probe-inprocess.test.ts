@@ -74,6 +74,7 @@ it('probe: in-process tools daemon lifecycle', { timeout: 60_000 }, async () => 
     socket.on('data', (chunk: string) => {
       buffer += chunk;
       let nl: number;
+      // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic newline framing loop
       while ((nl = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, nl);
         buffer = buffer.slice(nl + 1);
@@ -98,6 +99,7 @@ it('probe: in-process tools daemon lifecycle', { timeout: 60_000 }, async () => 
     const onData = (chunk: string) => {
       let nl: number;
       let buffer = chunk;
+      // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic newline framing loop
       while ((nl = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, nl);
         buffer = buffer.slice(nl + 1);
@@ -124,6 +126,7 @@ it('probe: in-process tools daemon lifecycle', { timeout: 60_000 }, async () => 
     const onData = (chunk: string) => {
       let nl: number;
       let buffer = chunk;
+      // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic newline framing loop
       while ((nl = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, nl);
         buffer = buffer.slice(nl + 1);

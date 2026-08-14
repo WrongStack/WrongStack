@@ -676,7 +676,6 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         const cache = payload['cache'];
         const currentRequest = payload['currentRequest'];
         if (usage && typeof usage === 'object' && cache && typeof cache === 'object') {
-          const u = usage as Record<string, unknown>;
           const c = cache as Record<string, unknown>;
           const currentRequestCacheRead =
             currentRequest && typeof currentRequest === 'object'

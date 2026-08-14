@@ -625,7 +625,7 @@ async function handleTaskSubcommand(
       // empty regardless, so the next transition would fail with an
       // indistinguishable diagnostic. Let the preflight surface the missing
       // argument instead (chimera review finding: synthetic audit comments).
-      if (!note || !note.trim()) {
+      if (!note?.trim()) {
         return {
           message: color.red(
             `Refusing /kanban task ${currentStage ?? 'unknown'} → done without a reviewer note. ` +

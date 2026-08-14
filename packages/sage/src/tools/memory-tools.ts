@@ -76,7 +76,7 @@ async function assertSessionMayMutate(
   ctx: unknown,
 ): Promise<void> {
   const target = await memory.getSage(id);
-  if (!target || target.scope !== 'session' || !target.ownerSessionId) return;
+  if (target?.scope !== 'session' || !target.ownerSessionId) return;
   const caller = callerSessionId(ctx);
   if (target.ownerSessionId === caller) return;
   throw new Error(

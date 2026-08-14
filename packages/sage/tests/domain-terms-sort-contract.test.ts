@@ -137,7 +137,7 @@ function extractMirrorOrder(markdown: string): string[] {
   for (const line of markdown.split('\n')) {
     // Table rows look like: | `Term` | definition | 0.95 |
     const m = line.match(/^\|\s*`([^`]+)`/);
-    if (m && m[1] && !['Term'].includes(m[1])) terms.push(m[1]);
+    if (m?.[1] && !['Term'].includes(m[1])) terms.push(m[1]);
   }
   return terms;
 }
@@ -148,7 +148,7 @@ function extractPromptOrder(block: string): string[] {
   for (const line of block.split('\n')) {
     // Bullet lines look like: - **Term** — definition
     const m = line.match(/^-\s*\*\*([^*]+)\*\*/);
-    if (m && m[1]) terms.push(m[1]);
+    if (m?.[1]) terms.push(m[1]);
   }
   return terms;
 }
