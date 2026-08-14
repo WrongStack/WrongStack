@@ -8,6 +8,8 @@ import { MCPClient } from '../src/client.js';
 import { MCP_CONSTANTS } from '../src/constants.js';
 import { createMCPServerOperationState } from '../src/operations.js';
 import { MCPRegistry } from '../src/registry.js';
+import { discoverSlotCapabilities } from '../src/registry-connect-loop.js';
+import { sleepIdleSlot } from '../src/registry-idle.js';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -66,10 +68,6 @@ function internals(registry: MCPRegistry) {
     attemptConnect: (slot: Record<string, unknown>) => Promise<void>;
     activateServer: (name: string) => void;
     deactivateServer: (name: string) => number;
-    discoverCapabilities: (
-      slot: Record<string, unknown>,
-      client: Record<string, unknown>,
-    ) => Promise<void>;
     applyTools: (
       slot: Record<string, unknown>,
       tools: Array<{ name: string; inputSchema: Record<string, unknown> }>,
@@ -82,7 +80,6 @@ function internals(registry: MCPRegistry) {
     scheduleReconnect: (slot: Record<string, unknown>) => void;
     startLazy: (slot: Record<string, unknown>) => Promise<void>;
     sweepIdle: () => Promise<void>;
-    sleepIdle: (slot: Record<string, unknown>) => Promise<void>;
     ensureIdleSweep: () => void;
     idleTimer?: ReturnType<typeof setInterval> | undefined;
     persistCapabilityManifest: (slot: Record<string, unknown>) => Promise<void>;
@@ -305,7 +302,11 @@ describe('MCPRegistry coverage', () => {
     const slot = makeSlot('catalog', { client });
     internals(registry).servers.set('catalog', slot);
     await expect(registry.listPrompts('catalog', { refresh: true })).resolves.toHaveLength(2);
-    await internals(registry).discoverCapabilities(slot, client);
+    await discoverSlotCapabilities(
+      { recordFailure: vi.fn(), recordOperation: vi.fn(), log: { warn: vi.fn() } } as never,
+      slot as never,
+      client as never,
+    );
     expect(listResourceTemplates).toHaveBeenCalledWith({ cursor: 'next' });
   });
 
@@ -335,7 +336,11 @@ describe('MCPRegistry coverage', () => {
         throw new Error('prompts failed');
       }),
     };
-    await internals(registry).discoverCapabilities(slot, client);
+    await discoverSlotCapabilities(
+      { recordFailure: vi.fn(), recordOperation: vi.fn(), log } as never,
+      slot as never,
+      client as never,
+    );
     expect(log.warn).toHaveBeenCalledTimes(3);
   });
 
@@ -401,7 +406,14 @@ describe('MCPRegistry coverage', () => {
     expect(client.close).toHaveBeenCalled();
     expect(internals(registry).idleTimer).toBeUndefined();
 
-    await internals(registry).sleepIdle(makeSlot('already-dormant', { lazy: true }));
+    await sleepIdleSlot(
+      {
+        recordOperation: vi.fn(),
+        log: { info: vi.fn(), warn: vi.fn() },
+        events: { emit: vi.fn() },
+      } as never,
+      makeSlot('already-dormant', { lazy: true }) as never,
+    );
     const nonLazy = makeSlot('awake', { lastUsed: 0 });
     internals(registry).servers.set('awake', nonLazy);
     await internals(registry).sweepIdle();

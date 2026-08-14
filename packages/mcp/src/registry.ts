@@ -53,10 +53,9 @@ import {
   type RegistryConnectContext,
   applySlotTools,
   attemptConnectSlot,
-  discoverSlotCapabilities,
   persistSlotCapabilityManifest,
 } from './registry-connect-loop.js';
-import { type RegistryIdleContext, sleepIdleSlot, sweepIdleSlots } from './registry-idle.js';
+import { type RegistryIdleContext, sweepIdleSlots } from './registry-idle.js';
 import type {
   MCPGetPromptResult,
   MCPPrompt,
@@ -549,10 +548,6 @@ export class MCPRegistry {
     return persistSlotCapabilityManifest(this.cacheDir, slot);
   }
 
-  protected async discoverCapabilities(slot: ServerSlot, client: MCPClient): Promise<void> {
-    await discoverSlotCapabilities(this.connectContext(), slot, client);
-  }
-
   /** Start the shared idle sweep timer once (unref'd so it never holds the process). */
   private ensureIdleSweep(): void {
     if (this.idleTimer || this.idleTimeoutMs <= 0) return;
@@ -569,10 +564,6 @@ export class MCPRegistry {
       clearInterval(this.idleTimer);
       this.idleTimer = undefined;
     }
-  }
-
-  protected async sleepIdle(slot: ServerSlot): Promise<void> {
-    await sleepIdleSlot(this.idleContext(), slot);
   }
 
   /**
