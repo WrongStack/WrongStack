@@ -742,16 +742,21 @@ describe.skipIf(!gitAvailable)('WorktreeManager (real repo)', () => {
         });
 
         // Resolver claims success but leaves the conflict markers in place.
-        // Capture what the resolver was handed so the next Linux failure pins
-        // the escape route exactly: null → resolver never called (clean-merge
-        // escape); [] → conflict path entered but both file probes were empty
-        // (tolerance escape); ['seed.txt'] → markers were known and the
-        // hasConflictMarkers scan missed them.
+        // The resolver WRITES the markers itself rather than relying on merge
+        // leftovers: decisive-arm evidence (run 31831273637) showed a Linux
+        // runner entering the conflict branch with both probes empty AND no
+        // markers anywhere in the tree (git auto-resolved), which made the
+        // "leaves markers" premise runner-dependent and the test flaky.
+        // Writing them makes the premise hold on every runner shape.
         let resolverConflictFiles: string[] | null = null;
         const m = await wm.merge(h, {
           squash: true,
-          resolve: async ({ conflictFiles }) => {
+          resolve: async ({ conflictFiles, cwd }) => {
             resolverConflictFiles = conflictFiles;
+            await fs.writeFile(
+              path.join(cwd, 'seed.txt'),
+              'line1\n<<<<<<< HEAD\nBASE\n=======\nWORKTREE\n>>>>>>> wstack/ap/resolve-bad\nline3\n',
+            );
             return true;
           },
         });
