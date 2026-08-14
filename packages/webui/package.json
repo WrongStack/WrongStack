@@ -92,7 +92,7 @@
     "zustand": "^5.0.14"
   },
   "optionalDependencies": {
-    "node-pty": "1.2.0-beta.14"
+    "node-pty": "1.2.0-beta.15"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
