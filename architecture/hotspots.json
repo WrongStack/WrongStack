@@ -151,7 +151,7 @@
       "relativeImports": 13
     },
     "packages/core/src/core/fallback-model.ts": {
-      "lines": 846,
+      "lines": 844,
       "relativeImports": 14
     },
     "packages/core/src/core/system-prompt-builder.ts": {
@@ -223,7 +223,7 @@
       "relativeImports": 9
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 1154,
+      "lines": 1193,
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
@@ -339,7 +339,7 @@
       "relativeImports": 18
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1021,
+      "lines": 1033,
       "relativeImports": 55
     },
     "packages/telegram/src/bot.ts": {
@@ -543,7 +543,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 1151,
+      "lines": 1157,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
