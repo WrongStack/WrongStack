@@ -1,263 +1,42 @@
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowDownWideNarrow,
+  CornerLeftUp,
+  FileCode,
+  Folders,
+  Loader2,
+  Minimize2,
+  Search,
+} from 'lucide-react';
+import { VList, type VListHandle } from 'virtua';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
 import { useFileStore } from '@/stores/file-store';
 import type { TreeNode } from '@/stores/file-store';
 import { useFileReferenceStore, useGitChangesStore, useSessionStore } from '@/stores';
 import { getWSClient } from '@/lib/ws-client';
-import { fileIcon, fileIconColor } from '@/lib/file-icons';
 import { showPanel } from '@/lib/view-navigation';
 import { copyToClipboard as copyTextToClipboard } from './MessageBubble/utils.js';
 import { toast } from './Toaster';
 import {
-  ArrowDownWideNarrow,
-  ChevronRight,
-  CornerLeftUp,
-  FileCode,
-  FilePlus,
-  Folder,
-  FolderGit,
-  FolderOpen,
-  FolderPlus,
-  Folders,
-  Loader2,
-  Minimize2,
-  Search,
-  Trash2,
-} from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { VList, type VListHandle } from 'virtua';
-
-// ── Flattened tree rows ────────────────────────────────────────────────
-//
-// The tree is virtualized (virtua VList): only on-screen rows are mounted,
-// so a repo with tens of thousands of files stays cheap. That forces two
-// structural rules:
-//   1. Expansion state lives in the PARENT as a Set of expanded dir paths —
-//      per-row useState would be lost the moment a row scrolls out.
-//   2. Rows are memo'd and receive plain props only. The parent owns the
-//      single `activeFilePath` store subscription for the whole tree
-//      (previously every node subscribed individually, so selecting a file
-//      re-rendered every mounted node).
-
-interface FlatRow {
-  node: TreeNode;
-  depth: number;
-  /** Synthetic "(empty)" placeholder under an expanded empty directory. */
-  emptyPlaceholder?: boolean;
-}
-
-/** Flatten the visible portion of the tree (expanded dirs only). */
-function flattenTree(tree: TreeNode[], expandedDirs: ReadonlySet<string>): FlatRow[] {
-  const out: FlatRow[] = [];
-  const walk = (nodes: TreeNode[], depth: number) => {
-    for (const n of nodes) {
-      out.push({ node: n, depth });
-      if (n.type === 'directory' && expandedDirs.has(n.path)) {
-        const kids = n.children ?? [];
-        if (kids.length > 0) walk(kids, depth + 1);
-        else out.push({ node: n, depth: depth + 1, emptyPlaceholder: true });
-      }
-    }
-  };
-  walk(tree, 0);
-  return out;
-}
-
-/**
- * Score a file path against a query — ported from the server-side
- * `rankFiles()` in `file-picker.ts` so the explorer and the chat `@`
- * picker use the same ranking: exact basename (100) > basename prefix
- * (60) > path substring (20), penalized by depth so shallow files win.
- */
-function scoreFile(filePath: string, q: string): number {
-  const lower = filePath.toLowerCase();
-  const base = lower.split('/').pop() ?? lower;
-  let score = 0;
-  if (base === q) score = 100;
-  else if (base.startsWith(q)) score = 60;
-  else if (lower.includes(q)) score = 20;
-  else return -1;
-  score -= lower.split('/').length;
-  return score;
-}
-
-/** Recursively collect every file node in the tree (regardless of expansion). */
-function collectAllFiles(tree: TreeNode[]): TreeNode[] {
-  const out: TreeNode[] = [];
-  const walk = (nodes: TreeNode[]) => {
-    for (const n of nodes) {
-      if (n.type === 'file') out.push(n);
-      else if (n.children) walk(n.children);
-    }
-  };
-  walk(tree);
-  return out;
-}
-
-/** Collect every directory path in the tree (for expand-all). */
-function collectDirPaths(tree: TreeNode[]): string[] {
-  const out: string[] = [];
-  const walk = (nodes: TreeNode[]) => {
-    for (const n of nodes) {
-      if (n.type === 'directory') {
-        out.push(n.path);
-        if (n.children) walk(n.children);
-      }
-    }
-  };
-  walk(tree);
-  return out;
-}
-
-const GIT_STATUS_COLORS: Record<string, string> = {
-  M: 'text-warning',
-  A: 'text-success',
-  D: 'text-destructive',
-  R: 'text-info',
-  C: 'text-info',
-  U: 'text-destructive',
-  '?': 'text-primary',
-};
-
-const GIT_STATUS_LABELS: Record<string, string> = {
-  M: 'Modified',
-  A: 'Added',
-  D: 'Deleted',
-  R: 'Renamed',
-  C: 'Copied',
-  U: 'Unmerged',
-  '?': 'Untracked',
-};
-
-function GitStatusDot({ status }: { status: string }) {
-  // The server sends single-letter status codes (M/A/D/R/C/U/?).
-  // Show a colored letter badge at the right edge of the row.
-  const letter = status[0] ?? '?';
-  const color = GIT_STATUS_COLORS[letter] ?? 'text-muted-foreground';
-  const label = GIT_STATUS_LABELS[letter] ?? 'Unknown';
-  return (
-    <span
-      role="img"
-      aria-label={label}
-      className={cn('shrink-0 text-[8px] font-bold tabular-nums', color)}
-      title={label}
-    >
-      {letter}
-    </span>
-  );
-}
-
-const TreeRow = memo(function TreeRow({
-  node,
-  depth,
-  emptyPlaceholder,
-  expanded,
-  isActive,
-  isSelected,
-  isFocused,
-  gitStatus,
-  onToggle,
-  onSelect,
-  onOpen,
-  onContextMenu,
-}: {
-  node: TreeNode;
-  depth: number;
-  emptyPlaceholder?: boolean | undefined;
-  expanded: boolean;
-  isActive: boolean;
-  isSelected: boolean;
-  isFocused: boolean;
-  gitStatus?: string | undefined;
-  onToggle: (path: string) => void;
-  onSelect: (filePath: string) => void;
-  onOpen: (filePath: string) => void;
-  onContextMenu: (e: React.MouseEvent, node: TreeNode) => void;
-}) {
-  const { t } = useAppTranslation();
-
-  if (emptyPlaceholder) {
-    return (
-      <div
-        className="text-[10px] text-muted-foreground italic py-0.5"
-        style={{ paddingLeft: `${depth * 14 + 4}px` }}
-      >
-        {t('activity:fileExplorer.emptyDir')}
-      </div>
-    );
-  }
-
-  if (node.type === 'directory') {
-    const DirIcon = expanded ? FolderOpen : Folder;
-    const isGit = node.name === '.git';
-    const dirColor = fileIconColor(node.name, true);
-    return (
-      <button
-        type="button"
-        role="treeitem"
-        aria-expanded={expanded}
-        aria-level={depth + 1}
-        tabIndex={-1}
-        onClick={() => onToggle(node.path)}
-        onContextMenu={(e) => onContextMenu(e, node)}
-        className={cn(
-          'flex items-center gap-1 w-full text-left px-1 py-0.5 text-[11px] rounded',
-          'hover:bg-muted/60 transition-colors',
-          isFocused && 'ring-1 ring-inset ring-primary/40 bg-muted/40',
-        )}
-        style={{ paddingLeft: `${depth * 14 + 4}px` }}
-      >
-        <ChevronRight
-          className={cn(
-            'h-3 w-3 shrink-0 text-muted-foreground transition-transform',
-            expanded && 'rotate-90',
-          )}
-        />
-        {isGit ? (
-          <FolderGit className={cn('h-3.5 w-3.5 shrink-0', dirColor)} />
-        ) : (
-          <DirIcon className={cn('h-3.5 w-3.5 shrink-0', dirColor)} />
-        )}
-        <span className="truncate font-medium flex-1 min-w-0">{node.name}</span>
-        {gitStatus && <GitStatusDot status={gitStatus} />}
-      </button>
-    );
-  }
-
-  // Leaf node (file)
-  const Icon = fileIcon(node.name);
-  const iconColor = fileIconColor(node.name, false);
-  return (
-    <button
-      type="button"
-      role="treeitem"
-      aria-level={depth + 1}
-      aria-selected={isActive || isSelected}
-      tabIndex={-1}
-      onClick={() => onSelect(node.path)}
-      onContextMenu={(e) => onContextMenu(e, node)}
-      onDoubleClick={(e) => {
-        e.preventDefault();
-        onOpen(node.path);
-      }}
-      className={cn(
-        'flex items-center gap-1.5 w-full text-left px-1 py-0.5 text-[11px] rounded',
-        'hover:bg-muted/60 transition-colors',
-        isActive && 'bg-primary/10 text-primary',
-        isSelected && !isActive && 'bg-muted/70 ring-1 ring-inset ring-border',
-        isFocused && !isActive && !isSelected && 'ring-1 ring-inset ring-primary/40 bg-muted/40',
-      )}
-      style={{ paddingLeft: `${depth * 14 + 4}px` }}
-    >
-      <span className="w-3 shrink-0" /> {/* spacer to align with chevron */}
-      <Icon className={cn('h-3.5 w-3.5 shrink-0', iconColor)} />
-      <span className="truncate flex-1 min-w-0">{node.name}</span>
-      {gitStatus && <GitStatusDot status={gitStatus} />}
-    </button>
-  );
-});
-
-// ── File explorer panel ────────────────────────────────────────────────
+  BreadcrumbContextMenu,
+  CreatePromptModal,
+  NodeContextMenu,
+  RenamePromptModal,
+} from './FileExplorer/FileExplorerModals.js';
+import { TreeRow } from './FileExplorer/TreeRow.js';
+import {
+  collectAllFiles,
+  collectDirPaths,
+  flattenTree,
+  scoreFile,
+} from './FileExplorer/tree-helpers.js';
+import type {
+  CreatePromptState,
+  CrumbContext,
+  FlatRow,
+  RenamePromptState,
+} from './FileExplorer/types.js';
 
 export function FileExplorer() {
   const { t } = useAppTranslation();
@@ -270,9 +49,6 @@ export function FileExplorer() {
   const projectName = useSessionStore((s) => s.projectName);
   const gitChanges = useGitChangesStore((s) => s.files);
 
-  // Build a lookup map from git-changes file paths to their status code.
-  // The git store uses repo-relative paths (forward-slash), same as the
-  // tree node paths which are project-root-relative.
   const gitStatusMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const f of gitChanges) {
@@ -281,55 +57,45 @@ export function FileExplorer() {
     return m;
   }, [gitChanges]);
 
-  // Detect OS path separator from cwd (server sends native paths).
   const pathSep = cwd?.includes('\\') ? '\\' : '/';
 
-  /** Middle-truncate a string: keep first N and last M chars, insert … */
   const truncateMiddle = (s: string, keepStart = 8, keepEnd = 4): string => {
     if (s.length <= keepStart + keepEnd + 2) return s;
     return `${s.slice(0, keepStart)}…${s.slice(-keepEnd)}`;
   };
 
-  // Are we in a subdirectory of the project root? Check by comparing
-  // the last segment of cwd against the project name.
   const isAtRoot = (() => {
     if (!cwd || !projectName) return true;
     const segments = cwd.replace(/\\/g, '/').split('/').filter(Boolean);
     return (segments[segments.length - 1] ?? '') === projectName;
   })();
 
-  // Breadcrumb: split cwd into segments, find the project-root anchor
-  // (where the segment matches projectName), then everything after is
-  // the relative path. Each segment is clickable to navigate there.
   const breadcrumbs = useMemo(() => {
     if (!cwd || !projectName) return [];
     const norm = cwd.replace(/\\/g, '/');
     const segments = norm.split('/').filter(Boolean);
-    // Find the index of the project-root segment (last match of projectName)
     let rootIdx = -1;
     for (let i = segments.length - 1; i >= 0; i--) {
-      if (segments[i] === projectName) { rootIdx = i; break; }
+      if (segments[i] === projectName) {
+        rootIdx = i;
+        break;
+      }
     }
     if (rootIdx === -1) {
-      // Fallback: treat the whole path as relative from the root
       return segments.map((s, i) => ({
         label: s,
         path: '/' + segments.slice(0, i + 1).join('/'),
         isLast: i === segments.length - 1,
       }));
     }
-    // Build from rootIdx onward. Segment 0 = project-root label,
-    // subsequent segments are the relative path into the project.
     const rel = segments.slice(rootIdx);
     return rel.map((s, i) => ({
-      label: i === 0 ? s : s,   // first segment = project name
+      label: s,
       path: '/' + segments.slice(0, rootIdx + i + 1).join('/'),
       isLast: i === rel.length - 1,
     }));
   }, [cwd, projectName]);
 
-  // Breadcrumb scroll container — auto-scroll to the rightmost
-  // (current) segment so the user always sees where they are.
   const bcRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = bcRef.current;
@@ -342,26 +108,11 @@ export function FileExplorer() {
     getWSClient().send({ type: 'working_dir.set', payload: { path: crumbPath } });
   }, []);
 
-  // ── Context menu on breadcrumb right-click ──────────────────────────
-
-  interface CrumbContext {
-    absPath: string;
-    relPath: string;
-  }
-
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
     crumb: CrumbContext;
   } | null>(null);
-
-  // ── Context menu on tree node right-click ────────────────────────────
-  //
-  // Offers "Mention in chat" (files), "Copy path" (files + dirs),
-  // "New File" / "New Folder" (dirs), and "Delete" (files + dirs).
-  // The file-mention path adds a reference chip to the chat input
-  // and switches to the chat view, mirroring the CodeEditor "send
-  // to chat" flow.
 
   const [nodeMenu, setNodeMenu] = useState<{
     x: number;
@@ -369,14 +120,11 @@ export function FileExplorer() {
     node: TreeNode;
   } | null>(null);
 
-  const handleNodeContextMenu = useCallback(
-    (e: React.MouseEvent, node: TreeNode) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setNodeMenu({ x: e.clientX, y: e.clientY, node });
-    },
-    [],
-  );
+  const handleNodeContextMenu = useCallback((e: React.MouseEvent, node: TreeNode) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setNodeMenu({ x: e.clientX, y: e.clientY, node });
+  }, []);
 
   const handleMentionInChat = useCallback((node: TreeNode) => {
     if (node.type === 'file') {
@@ -386,14 +134,15 @@ export function FileExplorer() {
     setNodeMenu(null);
   }, []);
 
-  // Close context menu on any click outside or Escape
   useEffect(() => {
     if (!contextMenu && !nodeMenu) return;
     const close = () => {
       setContextMenu(null);
       setNodeMenu(null);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
     window.addEventListener('click', close);
     window.addEventListener('keydown', onKey);
     return () => {
@@ -402,19 +151,14 @@ export function FileExplorer() {
     };
   }, [contextMenu, nodeMenu]);
 
-  const handleBreadcrumbContext = useCallback(
-    (e: React.MouseEvent, crumb: CrumbContext) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setContextMenu({ x: e.clientX, y: e.clientY, crumb });
-    },
-    [],
-  );
+  const handleBreadcrumbContext = useCallback((e: React.MouseEvent, crumb: CrumbContext) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, crumb });
+  }, []);
 
   const copyToClipboard = useCallback(
     (text: string) => {
-      // Shared helper has an execCommand fallback for blocked clipboard APIs;
-      // either way the user gets explicit feedback instead of silence.
       void copyTextToClipboard(text).then((ok) => {
         if (ok) toast.success(t('common:action.copied'));
         else toast.error(t('common:action.copyFailed'));
@@ -423,8 +167,6 @@ export function FileExplorer() {
     },
     [t],
   );
-
-  // ── Current file → navigate to its parent directory ─────────────────
 
   const handleFileIndicatorClick = useCallback(() => {
     if (!activeFilePath) return;
@@ -438,26 +180,14 @@ export function FileExplorer() {
     setContextMenu(null);
   }, []);
 
-  // ── File creation / deletion ────────────────────────────────────────
-  //
-  // Inline prompt for "New File" / "New Folder": the user types a name
-  // relative to the target directory, and we send files.create. Delete
-  // sends files.delete with a confirmation for directories.
-
-  const [createPrompt, setCreatePrompt] = useState<{
-    dirPath: string;
-    type: 'file' | 'directory';
-  } | null>(null);
+  const [createPrompt, setCreatePrompt] = useState<CreatePromptState | null>(null);
   const [createName, setCreateName] = useState('');
 
-  const handleStartCreate = useCallback(
-    (dirPath: string, type: 'file' | 'directory') => {
-      setNodeMenu(null);
-      setCreateName('');
-      setCreatePrompt({ dirPath, type });
-    },
-    [],
-  );
+  const handleStartCreate = useCallback((dirPath: string, type: 'file' | 'directory') => {
+    setNodeMenu(null);
+    setCreateName('');
+    setCreatePrompt({ dirPath, type });
+  }, []);
 
   const handleConfirmCreate = useCallback(() => {
     if (!createPrompt || !createName.trim()) return;
@@ -476,11 +206,8 @@ export function FileExplorer() {
     (node: TreeNode) => {
       setNodeMenu(null);
       const isDir = node.type === 'directory';
-      // Directories need recursive delete; confirm first.
       if (isDir) {
-        const ok = window.confirm(
-          t('activity:fileExplorer.confirmDeleteDir', { name: node.name }),
-        );
+        const ok = window.confirm(t('activity:fileExplorer.confirmDeleteDir', { name: node.name }));
         if (!ok) return;
       }
       getWSClient().send({
@@ -491,15 +218,7 @@ export function FileExplorer() {
     [t],
   );
 
-  // ── Rename ──────────────────────────────────────────────────────────
-  //
-  // Inline prompt for "Rename": the user types a new name (relative to
-  // the same parent directory as the original). We send files.rename.
-
-  const [renamePrompt, setRenamePrompt] = useState<{
-    oldPath: string;
-    initialName: string;
-  } | null>(null);
+  const [renamePrompt, setRenamePrompt] = useState<RenamePromptState | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
   const handleStartRename = useCallback((node: TreeNode) => {
@@ -513,7 +232,6 @@ export function FileExplorer() {
     const norm = renamePrompt.oldPath.replace(/\\/g, '/');
     const parent = norm.split('/').slice(0, -1).join('/');
     const newPath = parent ? `${parent}/${renameValue.trim()}` : renameValue.trim();
-    // No-op if unchanged
     if (newPath === renamePrompt.oldPath) {
       setRenamePrompt(null);
       return;
@@ -528,15 +246,11 @@ export function FileExplorer() {
 
   const handleGoUp = useCallback(() => {
     if (!cwd) return;
-    // Compute parent: strip the last path segment. On Windows, normalize
-    // separators first, then rebuild. Fall back to cwd if already at root.
     const norm = cwd.replace(/\\/g, '/');
     const parent = norm.split('/').slice(0, -1).join('/') || norm;
     getWSClient().send({ type: 'working_dir.set', payload: { path: parent } });
   }, [cwd]);
 
-  // Debounce the loading indicator: only show the spinner after 150ms of
-  // continuous loading. Fast refreshes (<150ms) skip the flash entirely.
   const [showSpinner, setShowSpinner] = useState(false);
   const spinnerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -551,20 +265,12 @@ export function FileExplorer() {
     };
   }, [treeLoading]);
 
-  // Single-click selection highlight (separate from open/sActive state)
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-
-  // Expanded directories — the single source of truth for the whole tree
-  // (rows are virtualized, so per-row state is impossible). Starts empty so
-  // the tree is **collapsed by default** on initial load. The user can
-  // expand directories manually or use the "Expand All" toolbar button.
-  // Once seeded for a cwd, tree REFRESHES (file watcher) keep the user's
-  // expansion untouched.
   const [expandedDirs, setExpandedDirs] = useState<ReadonlySet<string>>(new Set());
   const seededForCwd = useRef<string | null>(null);
   useEffect(() => {
     if (seededForCwd.current === (cwd ?? '')) return;
-    if (tree.length === 0) return; // wait until the tree for this cwd arrives
+    if (tree.length === 0) return;
     seededForCwd.current = cwd ?? '';
   }, [cwd, tree]);
 
@@ -577,26 +283,18 @@ export function FileExplorer() {
     });
   }, []);
 
-  /** All directory paths, reused by the toolbar badge and expand-all. */
   const allDirPaths = useMemo(() => collectDirPaths(tree), [tree]);
   const dirCount = allDirPaths.length;
 
-  // ── Sort mode ──────────────────────────────────────────────────────
-  // 'name' (default) sorts alphabetically with directories first. 'size-desc'
-  // sorts files by size descending (largest first), directories stay grouped
-  // at the top alphabetically. Only the top-level children of the tree are
-  // sorted — nested children preserve server order.
   const [sortBySize, setSortBySize] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const sortedTree = useMemo(() => {
     if (!sortBySize) return tree;
     const sorted = [...tree].sort((a, b) => {
-      // Directories always come before files, sorted alphabetically.
       if (a.type === 'directory' && b.type === 'file') return -1;
       if (a.type === 'file' && b.type === 'directory') return 1;
       if (a.type === 'directory') return a.name.localeCompare(b.name);
-      // Both files — sort by size descending.
       const sizeA = a.size ?? 0;
       const sizeB = b.size ?? 0;
       if (sizeB !== sizeA) return sizeB - sizeA;
@@ -605,10 +303,6 @@ export function FileExplorer() {
     return sorted;
   }, [tree, sortBySize]);
 
-  // Visible rows of the flattened tree — this is what the VList renders.
-  // When a search query is active, we switch to flat-filtered mode: all
-  // files are scored against the query (same rankFiles logic as the chat
-  // `@`-mention picker), top 200 shown, expansion state ignored.
   const rows = useMemo(() => {
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -623,7 +317,6 @@ export function FileExplorer() {
     return flattenTree(sortedTree, expandedDirs);
   }, [sortedTree, expandedDirs, searchQuery]);
 
-  // Count files and folders in the current directory (first-level only)
   const cwdStats = useMemo(() => {
     let files = 0;
     let dirs = 0;
@@ -641,7 +334,6 @@ export function FileExplorer() {
     setExpandedDirs(new Set(allDirPaths));
   }, [allDirPaths]);
 
-  // Single-click: if already open → switch to that tab. Otherwise → highlight.
   const handleSelect = useCallback(
     (filePath: string) => {
       const existing = openFiles.find((f) => f.path === filePath);
@@ -649,31 +341,20 @@ export function FileExplorer() {
         useFileStore.getState().setActiveFile(filePath);
         return;
       }
-      // Not open yet — just visually select it
       setSelectedPath((prev) => (prev === filePath ? null : filePath));
     },
     [openFiles],
   );
 
-  // Double-click: always open the file (dispatch to WS server).
   const handleOpen = useCallback((filePath: string) => {
-    window.dispatchEvent(
-      new CustomEvent('wrongstack:open-file', { detail: { filePath } }),
-    );
+    window.dispatchEvent(new CustomEvent('wrongstack:open-file', { detail: { filePath } }));
     setSelectedPath(null);
   }, []);
 
-  // When a file is opened (via double-click or external tab switch),
-  // clear the local selection highlight so it doesn't linger.
   useEffect(() => {
     if (activeFilePath) setSelectedPath(null);
   }, [activeFilePath]);
 
-  // ── Keyboard navigation (roving focus over the flattened rows) ───────
-  //
-  // Rows unmount when virtualized out, so DOM focus can't rove between row
-  // buttons; instead the container (role="tree") holds focus and arrow keys
-  // move a highlighted index, scrolled into view via the VList handle.
   const listRef = useRef<VListHandle>(null);
   const [focusedIdx, setFocusedIdx] = useState(-1);
   const focusedPath =
@@ -684,7 +365,6 @@ export function FileExplorer() {
   const handleTreeKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (rows.length === 0) return;
-      /** Next navigable index in `dir`, skipping "(empty)" placeholders. */
       const nextNav = (from: number, dir: 1 | -1): number => {
         let i = from + dir;
         while (i >= 0 && i < rows.length && rows[i]?.emptyPlaceholder) i += dir;
@@ -721,7 +401,6 @@ export function FileExplorer() {
             toggleDir(row.node.path);
             break;
           }
-          // Jump to the parent: the nearest shallower row above.
           for (let i = cur - 1; i >= 0; i--) {
             const cand = rows[i];
             if (cand && !cand.emptyPlaceholder && cand.depth < row.depth) {
@@ -756,8 +435,6 @@ export function FileExplorer() {
     [rows, focusedIdx, expandedDirs, toggleDir, handleOpen, handleSelect],
   );
 
-  // Entering the tree with Tab highlights the first row so the roving focus
-  // is visible immediately (the container suppresses its own outline).
   const handleTreeFocus = useCallback(() => {
     setFocusedIdx((i) => (i === -1 && rows.length > 0 ? 0 : i));
   }, [rows.length]);
@@ -770,13 +447,8 @@ export function FileExplorer() {
     );
   }
 
-  // Error no longer replaces the entire tree — it renders as a
-  // dismissible inline banner above whatever tree content we still
-  // have, so the user keeps their context and expansion state.
-
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      {/* ── Inline error banner (preserves tree context) ── */}
       {error && (
         <div className="flex shrink-0 items-center gap-1.5 px-2 py-1 border-b border-destructive/30 bg-destructive/5 text-[10px] text-destructive">
           <span className="truncate flex-1 min-w-0">
@@ -793,7 +465,6 @@ export function FileExplorer() {
           </button>
         </div>
       )}
-      {/* ── Toolbar ── */}
       {tree.length > 0 && dirCount > 0 && (
         <div className="flex items-center gap-0.5 px-2 py-0.5 border-b shrink-0">
           <button
@@ -841,7 +512,6 @@ export function FileExplorer() {
                 : t('activity:fileExplorer.sortByName')}
             </span>
           </button>
-          {/* ── Search filter ── */}
           <div className="relative flex items-center">
             <Search className="absolute left-1 h-3 w-3 text-muted-foreground/60 pointer-events-none" />
             <input
@@ -868,84 +538,77 @@ export function FileExplorer() {
           </span>
         </div>
       )}
-      {/* ── Fixed headers (breadcrumb / current file / parent-dir) — kept
-          outside the virtualized list so they're always visible and the
-          VList owns the scroll area exclusively. ── */}
       <div className="min-h-0 min-w-0 flex flex-1 flex-col py-1">
-        {/* ── Breadcrumb bar — clickable path segments ── */}
         {breadcrumbs.length > 0 && (
           <div
             ref={bcRef}
             className="relative flex shrink-0 items-center gap-0.5 px-1 pb-1 border-b border-border/30 overflow-x-auto"
           >
-            {/* Left-edge fade mask — visible when content overflows to the left */}
             <span className="sticky left-0 shrink-0 w-3 h-full bg-gradient-to-r from-background to-transparent pointer-events-none" />
             {breadcrumbs.map((crumb, i) => {
-              const displayLabel = crumb.isLast
-                ? crumb.label
-                : truncateMiddle(crumb.label);
+              const displayLabel = crumb.isLast ? crumb.label : truncateMiddle(crumb.label);
               const tooltipPath = crumb.path.replace(/\//g, pathSep);
 
-              // Build absolute and relative paths for context menu
-              const normSegments = cwd
-                ? cwd.replace(/\\/g, '/').split('/').filter(Boolean)
-                : [];
+              const normSegments = cwd ? cwd.replace(/\\/g, '/').split('/').filter(Boolean) : [];
               const rootIdx = (() => {
                 for (let j = normSegments.length - 1; j >= 0; j--) {
                   if (normSegments[j] === projectName) return j;
                 }
                 return -1;
               })();
-              const absSegments = rootIdx >= 0
-                ? normSegments.slice(0, rootIdx + i + 1)
-                : normSegments.slice(0, i + 1);
-              const absPath = pathSep === '\\'
-                ? absSegments.join('\\')
-                : '/' + absSegments.join('/');
-              const relSegments = rootIdx >= 0
-                ? normSegments.slice(rootIdx + 1, rootIdx + i + 1)
-                : [];
+              const absSegments =
+                rootIdx >= 0
+                  ? normSegments.slice(0, rootIdx + i + 1)
+                  : normSegments.slice(0, i + 1);
+              const absPath =
+                pathSep === '\\' ? absSegments.join('\\') : '/' + absSegments.join('/');
+              const relSegments = rootIdx >= 0 ? normSegments.slice(rootIdx + 1, rootIdx + i + 1) : [];
               const relPath = relSegments.join(pathSep) || '.';
 
               return (
-              <span key={crumb.path} className="flex items-center gap-0.5 shrink-0">
-                {i > 0 && (
-                  <span className="text-[9px] text-muted-foreground/65 select-none">{pathSep}</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleBreadcrumbClick(crumb.path)}
-                  onContextMenu={(e) => handleBreadcrumbContext(e, { absPath, relPath })}
-                  className={cn(
-                    'px-1 py-0.5 rounded text-[11px] transition-colors whitespace-nowrap',
-                    crumb.isLast
-                      ? 'text-foreground font-medium'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                <span key={crumb.path} className="flex items-center gap-0.5 shrink-0">
+                  {i > 0 && (
+                    <span className="text-[9px] text-muted-foreground/65 select-none">{pathSep}</span>
                   )}
-                  title={crumb.isLast ? t('activity:fileExplorer.currentDirTitle', { path: tooltipPath }) : t('activity:fileExplorer.navigateToTitle', { path: tooltipPath })}
-                >
-                  {displayLabel}
-                </button>
-              </span>
+                  <button
+                    type="button"
+                    onClick={() => handleBreadcrumbClick(crumb.path)}
+                    onContextMenu={(e) => handleBreadcrumbContext(e, { absPath, relPath })}
+                    className={cn(
+                      'px-1 py-0.5 rounded text-[11px] transition-colors whitespace-nowrap',
+                      crumb.isLast
+                        ? 'text-foreground font-medium'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                    )}
+                    title={
+                      crumb.isLast
+                        ? t('activity:fileExplorer.currentDirTitle', { path: tooltipPath })
+                        : t('activity:fileExplorer.navigateToTitle', { path: tooltipPath })
+                    }
+                  >
+                    {displayLabel}
+                  </button>
+                </span>
               );
             })}
-            {/* ── File/folder counter badge ── */}
             {tree.length > 0 && (
               <span className="ml-auto shrink-0 text-[9px] text-muted-foreground/70 tabular-nums pl-2">
-                {cwdStats.files > 0 && t('activity:fileExplorer.filesSuffix', { count: cwdStats.files })}
+                {cwdStats.files > 0 &&
+                  t('activity:fileExplorer.filesSuffix', { count: cwdStats.files })}
                 {cwdStats.files > 0 && cwdStats.dirs > 0 && ', '}
                 {cwdStats.dirs > 0 && t('activity:fileExplorer.folders', { count: cwdStats.dirs })}
               </span>
             )}
           </div>
         )}
-        {/* ── Current file indicator — shows which file is open/selected ── */}
         {activeFilePath && (
           <button
             type="button"
             onClick={handleFileIndicatorClick}
             className="flex shrink-0 items-center gap-1 w-full text-left px-2 py-0.5 border-b border-border/30 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-            title={t('activity:fileExplorer.navigateParentTitle', { path: activeFilePath.replace(/\//g, pathSep) })}
+            title={t('activity:fileExplorer.navigateParentTitle', {
+              path: activeFilePath.replace(/\//g, pathSep),
+            })}
           >
             <FileCode className="h-3 w-3 shrink-0" />
             <span className="truncate">
@@ -959,7 +622,6 @@ export function FileExplorer() {
             </span>
           </button>
         )}
-        {/* ── Parent directory fallback (when breadcrumbs can't be computed) ── */}
         {breadcrumbs.length === 0 && !isAtRoot && (
           <button
             type="button"
@@ -1013,232 +675,56 @@ export function FileExplorer() {
         )}
       </div>
 
-      {/* ── Breadcrumb right-click context menu ── */}
       {contextMenu && (
-        <div
-          className="fixed z-50 min-w-[140px] bg-popover border rounded-md shadow-md py-1 text-[11px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          <button
-            type="button"
-            onClick={() => copyToClipboard(contextMenu.crumb.absPath)}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            {t('activity:fileExplorer.copyAbsPath')}
-          </button>
-          <button
-            type="button"
-            onClick={() => copyToClipboard(contextMenu.crumb.relPath)}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            {t('activity:fileExplorer.copyRelPath')}
-          </button>
-          <div className="border-t border-border/50 my-0.5" />
-          <button
-            type="button"
-            onClick={() => handleStartCreate(contextMenu.crumb.relPath === '.' ? '' : contextMenu.crumb.relPath, 'file')}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            <FilePlus className="h-3 w-3 shrink-0" />
-            {t('activity:fileExplorer.newFile')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleStartCreate(contextMenu.crumb.relPath === '.' ? '' : contextMenu.crumb.relPath, 'directory')}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            <FolderPlus className="h-3 w-3 shrink-0" />
-            {t('activity:fileExplorer.newFolder')}
-          </button>
-          <div className="border-t border-border/50 my-0.5" />
-          <button
-            type="button"
-            onClick={() => handleShellOpen(contextMenu.crumb.absPath, 'terminal')}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            {t('activity:fileExplorer.openInTerminal')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleShellOpen(contextMenu.crumb.absPath, 'file-manager')}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            {t('activity:fileExplorer.openInFileManager')}
-          </button>
-          <div className="border-t border-border/50 mt-0.5 pt-0.5">
-            <div className="px-3 py-1 text-[9px] text-muted-foreground/70 truncate max-w-[200px]">
-              {contextMenu.crumb.absPath}
-            </div>
-          </div>
-        </div>
+        <BreadcrumbContextMenu
+          contextMenu={contextMenu}
+          copyToClipboard={copyToClipboard}
+          handleStartCreate={handleStartCreate}
+          handleShellOpen={handleShellOpen}
+        />
       )}
 
-      {/* ── Tree node right-click context menu ── */}
       {nodeMenu && (
-        <div
-          className="fixed z-50 min-w-[160px] bg-popover border rounded-md shadow-md py-1 text-[11px]"
-          style={{ left: nodeMenu.x, top: nodeMenu.y }}
-        >
-          {nodeMenu.node.type === 'file' && (
-            <button
-              type="button"
-              onClick={() => handleMentionInChat(nodeMenu.node)}
-              className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-            >
-              {t('activity:fileExplorer.mentionInChat')}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              void copyTextToClipboard(nodeMenu.node.path).then((ok) => {
-                if (ok) toast.success(t('common:action.copied'));
-                else toast.error(t('common:action.copyFailed'));
-              });
-              setNodeMenu(null);
-            }}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            {t('activity:fileExplorer.copyPath')}
-          </button>
-          {/* ── Create / Rename / Delete actions ── */}
-          <div className="border-t border-border/50 my-0.5" />
-          {nodeMenu.node.type === 'directory' && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleStartCreate(nodeMenu.node.path, 'file')}
-                className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-              >
-                <FilePlus className="h-3 w-3 shrink-0" />
-                {t('activity:fileExplorer.newFile')}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleStartCreate(nodeMenu.node.path, 'directory')}
-                className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-              >
-                <FolderPlus className="h-3 w-3 shrink-0" />
-                {t('activity:fileExplorer.newFolder')}
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => handleStartRename(nodeMenu.node)}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-accent transition-colors"
-          >
-            {t('activity:fileExplorer.rename')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDelete(nodeMenu.node)}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-destructive/10 text-destructive transition-colors"
-          >
-            <Trash2 className="h-3 w-3 shrink-0" />
-            {t('activity:fileExplorer.delete')}
-          </button>
-          <div className="border-t border-border/50 mt-0.5 pt-0.5">
-            <div className="px-3 py-1 text-[9px] text-muted-foreground/70 truncate max-w-[200px]">
-              {nodeMenu.node.path}
-            </div>
-          </div>
-        </div>
+        <NodeContextMenu
+          nodeMenu={nodeMenu}
+          handleMentionInChat={handleMentionInChat}
+          copyNodePath={(path) => {
+            void copyTextToClipboard(path).then((ok) => {
+              if (ok) toast.success(t('common:action.copied'));
+              else toast.error(t('common:action.copyFailed'));
+            });
+            setNodeMenu(null);
+          }}
+          handleStartCreate={handleStartCreate}
+          handleStartRename={handleStartRename}
+          handleDelete={handleDelete}
+        />
       )}
 
-      {/* ── Inline create prompt ── */}
       {createPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-popover border rounded-md shadow-lg p-4 min-w-[300px]">
-            <p className="text-[12px] font-medium mb-2">
-              {createPrompt.type === 'file'
-                ? t('activity:fileExplorer.newFileTitle')
-                : t('activity:fileExplorer.newFolderTitle')}
-            </p>
-            <input
-              type="text"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleConfirmCreate();
-                if (e.key === 'Escape') {
-                  setCreatePrompt(null);
-                  setCreateName('');
-                }
-              }}
-              placeholder={createPrompt.type === 'file' ? 'file.ts' : 'folder'}
-              className="w-full px-2 py-1 text-[11px] border rounded bg-background outline-none focus:ring-1 ring-primary"
-              // biome-ignore lint/a11y/noAutofocus: inline create dialog is a transient single-field prompt; focus must land in it on open
-              autoFocus
-            />
-            <div className="flex justify-end gap-2 mt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setCreatePrompt(null);
-                  setCreateName('');
-                }}
-                className="px-2 py-1 text-[10px] rounded border text-muted-foreground hover:text-foreground"
-              >
-                {t('common:action.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmCreate}
-                disabled={!createName.trim()}
-                className="px-2 py-1 text-[10px] rounded border border-primary text-primary font-medium hover:bg-primary hover:text-primary-foreground disabled:opacity-40"
-              >
-                {t('common:action.create')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreatePromptModal
+          createPrompt={createPrompt}
+          createName={createName}
+          setCreateName={setCreateName}
+          onCancel={() => {
+            setCreatePrompt(null);
+            setCreateName('');
+          }}
+          onConfirm={handleConfirmCreate}
+        />
       )}
 
-      {/* ── Inline rename prompt ── */}
       {renamePrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-popover border rounded-md shadow-lg p-4 min-w-[300px]">
-            <p className="text-[12px] font-medium mb-2">
-              {t('activity:fileExplorer.renameTitle')}
-            </p>
-            <input
-              type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleConfirmRename();
-                if (e.key === 'Escape') {
-                  setRenamePrompt(null);
-                  setRenameValue('');
-                }
-              }}
-              className="w-full px-2 py-1 text-[11px] border rounded bg-background outline-none focus:ring-1 ring-primary"
-              // biome-ignore lint/a11y/noAutofocus: inline rename dialog is a transient single-field prompt; focus must land in it on open
-              autoFocus
-            />
-            <div className="flex justify-end gap-2 mt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setRenamePrompt(null);
-                  setRenameValue('');
-                }}
-                className="px-2 py-1 text-[10px] rounded border text-muted-foreground hover:text-foreground"
-              >
-                {t('common:action.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmRename}
-                disabled={!renameValue.trim() || renameValue.trim() === renamePrompt.initialName}
-                className="px-2 py-1 text-[10px] rounded border border-primary text-primary font-medium hover:bg-primary hover:text-primary-foreground disabled:opacity-40"
-              >
-                {t('common:action.rename')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <RenamePromptModal
+          renamePrompt={renamePrompt}
+          renameValue={renameValue}
+          setRenameValue={setRenameValue}
+          onCancel={() => {
+            setRenamePrompt(null);
+            setRenameValue('');
+          }}
+          onConfirm={handleConfirmRename}
+        />
       )}
     </div>
   );

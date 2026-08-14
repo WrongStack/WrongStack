@@ -9,10 +9,19 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const KANBAN_TS = path.resolve(
+const SLASH_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../src/slash-commands/kanban.ts',
+  '../../src/slash-commands',
 );
+
+async function loadKanbanSource(): Promise<string> {
+  const files = await fs.readdir(SLASH_DIR);
+  const kanbanFiles = files.filter((f) => f.startsWith('kanban') && f.endsWith('.ts'));
+  const contents = await Promise.all(
+    kanbanFiles.map((f) => fs.readFile(path.join(SLASH_DIR, f), 'utf8')),
+  );
+  return contents.join('\n\n');
+}
 
 const TOP_LEVEL_SUBSUB = new Set([
   'task',
@@ -138,7 +147,7 @@ const ALIASED_REDIRECTS = new Set([
 
 describe('kanban slash subcommand sentinel', () => {
   it('every /kanban <X> reference in kanban.ts points to a real subcommand', async () => {
-    const source = await fs.readFile(KANBAN_TS, 'utf8');
+    const source = await loadKanbanSource();
 
     // Backticks template and 'string' literals both interpolated
     const matches = Array.from(
@@ -163,7 +172,7 @@ describe('kanban slash subcommand sentinel', () => {
   });
 
   it('no aliased command shows a placeholder-only message without a working fallback', async () => {
-    const source = await fs.readFile(KANBAN_TS, 'utf8');
+    const source = await loadKanbanSource();
     for (const cmd of ALIASED_REDIRECTS) {
       // The diagnostic must mention a real workflow, not only a tool action.
       if (source.includes(`/kanban ${cmd}`)) {
@@ -178,7 +187,7 @@ describe('kanban slash subcommand sentinel', () => {
   });
 
   it('task done diagnostics reference only real subcommands (move, assign, dispatch, verify_completion)', async () => {
-    const source = await fs.readFile(KANBAN_TS, 'utf8');
+    const source = await loadKanbanSource();
 
     // Slice out the `task done` handler body so the sentinel stays scoped
     // to the section that produces `/kanban task done` diagnostics — without

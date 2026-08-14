@@ -1,26 +1,16 @@
 import { type FSWatcher, watch } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
-import { getSharedProjectMailbox } from '@wrongstack/core/coordination';
-import {
-  loadPlan,
-  loadTasks,
-  mutatePlan,
-  mutateTasks,
-  type PlanFile,
-  type PlanItem,
-  type TaskFile,
-} from '@wrongstack/core/storage';
+import { loadPlan, loadTasks, type PlanItem } from '@wrongstack/core/storage';
 import { deserializeTaskGraph } from '@wrongstack/core/tasking';
-import type { SerializedTaskGraph, TaskStatus } from '@wrongstack/core/types';
-import { formatTodosForModel, resolveWstackPaths, type TaskItem } from '@wrongstack/core/utils';
+import type { SerializedTaskGraph } from '@wrongstack/core/types';
+import type { TaskItem } from '@wrongstack/core/utils';
 import {
   bridgeKanbanSupervisor,
   compactSessionMirrorBoard,
   createBoard,
   DEFAULT_COLUMNS,
   getBoard,
-  getDependencyReadinessIssues,
   getKanbanOrchestrationSnapshot,
   type KanbanBoard,
   type KanbanColumn,
@@ -32,20 +22,36 @@ import {
   touchKanbanPresence,
   updateBoard,
 } from '@wrongstack/kanban';
+import {
+  planFileToSerializedGraph,
+  taskFileToSerializedGraph,
+  todoListToSerializedGraph,
+} from './session-kanban-graph.js';
+import {
+  applyManagedKanbanBoardToTodos as applyManagedKanbanBoardToTodosSync,
+  applySessionKanbanBoardToTodos as applySessionKanbanBoardToTodosSync,
+  applySessionKanbanTaskToSource as applySessionKanbanTaskToSourceSync,
+  type SessionKanbanSourceUpdate,
+  todosNeedingSessionMirror,
+} from './session-kanban-sync.js';
+
+export {
+  PLAN_STATUS_TO_TASK,
+  planFileToSerializedGraph,
+  taskFileToSerializedGraph,
+  todoListToSerializedGraph,
+} from './session-kanban-graph.js';
+
+export {
+  blockingTitles,
+  orderTasksForTodos,
+  type SessionKanbanSourceUpdate,
+  todosNeedingSessionMirror,
+} from './session-kanban-sync.js';
 
 const SESSION_BOARD_TAG = 'session-work';
 const MIRROR_DISABLED_ENV = 'WRONGSTACK_KANBAN_TASK_MIRROR';
 
-/**
- * The canonical workflow shared by WebUI and TUI session boards.
- *
- * Session boards now use the same 5 standard columns as every other board
- * (backlog, todo, in-progress, review, done). Formerly this shipped a 4-column
- * variant without a backlog; the column lock unified the layout. Existing
- * 4-column session_mirror boards are migrated automatically on the next session
- * touch: `ensureSessionKanbanBoard`'s `sameColumns` check detects the drift
- * and `updateBoard` reconciles to DEFAULT_COLUMNS.
- */
 export const SESSION_KANBAN_COLUMNS: KanbanColumn[] = DEFAULT_COLUMNS.map((column) => ({
   ...column,
 }));
@@ -164,7 +170,6 @@ function sameColumns(columns: readonly KanbanColumn[]): boolean {
   );
 }
 
-/** Create (or migrate) the single Kanban board owned by a session. */
 export async function ensureSessionKanbanBoard(
   projectRoot: string | undefined,
   sessionId: string,
@@ -191,9 +196,6 @@ export async function ensureSessionKanbanBoard(
       });
     }
 
-    // Boards produced by the older task/plan mirrors used the generic five
-    // columns. Migrate only session-owned boards; updateBoard reconciles cards
-    // from Backlog into Todo while preserving Running/Preview/Done cards.
     if (!sameColumns(board.columns) || !board.tags?.includes(SESSION_BOARD_TAG)) {
       board =
         (await updateBoard(projectRoot, board.id, {
@@ -261,11 +263,6 @@ async function removeOwnedSessionBoard(
   });
 }
 
-/**
- * Remove an inactive session's observational mirror, including its cards.
- * The durable source remains the session todo/task/plan files; retaining the
- * mirror after detach only creates historical duplicate work in project views.
- */
 export async function cleanupSessionKanbanBoard(
   projectRoot: string | undefined,
   sessionId: string,
@@ -281,7 +278,6 @@ export async function cleanupSessionKanbanBoard(
   return removed.filter((boardId): boardId is string => Boolean(boardId));
 }
 
-/** Remove a particular inactive session's system-owned board when it has no cards. */
 export async function cleanupSessionKanbanBoardIfEmpty(
   projectRoot: string | undefined,
   sessionId: string,
@@ -300,7 +296,6 @@ export async function cleanupSessionKanbanBoardIfEmpty(
   return removed.filter((boardId): boardId is string => Boolean(boardId));
 }
 
-/** Prune stale empty session boards while preserving manual and live boards. */
 export async function cleanupEmptySessionKanbanBoards(
   projectRoot: string | undefined,
   activeSessionId = '',
@@ -343,24 +338,10 @@ async function projectGraph(
         tags: [...new Set([...(board.tags ?? []), ...sessionBoardTags(sessionId)])],
         archiveMissingTasks: true,
         includeCompletedTasks: true,
-        // The scope ledger stays declared and accurate, but it may not veto a
-        // projection. A session mirror reflects a tactical list that shrinks by
-        // design, and refusing the sync never protected the removed row — it
-        // froze the entire board, permanently, because the stored scope then
-        // outlived every later snapshot (`session-kanban.mirror-failed`).
-        // Nothing is lost by shrinking here: `archiveMissingTasks` keeps the
-        // removed card on the board as `archived`, the reconciliation pass
-        // first walks vanished completed rows to Done, and the session journal
-        // remains the durable record.
         allowRequirementScopeShrink: true,
       },
     );
     if (!result) return null;
-    // The whole board is rewritten on every mutation, so its card count is a
-    // direct per-update cost. A long session cycles through many todo lists
-    // and archives each one, so without a ceiling every later update pays for
-    // work that finished hours ago. Bound the terminal cards; open work and
-    // anything a retained card depends on is never dropped.
     const compacted = await compactSessionMirrorBoard(projectRoot, board.id);
     if (compacted?.removedTaskIds.length) {
       return (await getBoard(projectRoot, board.id)) ?? result.board;
@@ -369,12 +350,6 @@ async function projectGraph(
   });
 }
 
-/**
- * Queue an observational mirror without retaining every intermediate state.
- * Todo/task/plan streams are independent, but within each stream only the
- * newest pending graph matters. This bounds a stalled file lock to one active
- * and one pending projection instead of an arbitrarily long Promise chain.
- */
 function queueLatestMirror(
   projectRoot: string | undefined,
   sessionId: string,
@@ -424,12 +399,6 @@ function queueLatestMirror(
           );
           mirrorFailures.delete(boardKey(pending.projectRoot, pending.sessionId));
         } catch (error) {
-          // A mirror must never fail silently: scope-shrink rejection and IPC
-          // failures otherwise look like successful plan/task/todo updates
-          // while the authoritative board intentionally retains older work.
-          // A console warning alone is not enough — nothing reads stdout mid
-          // session, so the divergence stayed invisible until someone opened
-          // the board. Retain it for the next `todo` call to report.
           const message = error instanceof Error ? error.message : String(error);
           mirrorFailures.set(boardKey(pending.projectRoot, pending.sessionId), {
             message,
@@ -445,14 +414,10 @@ function queueLatestMirror(
               timestamp: new Date().toISOString(),
             }),
           );
-          // A newer pending snapshot, if present, still gets a chance after a
-          // transient lock or filesystem failure.
         }
       }
     } finally {
       activeMirrors.delete(key);
-      // A mirror can arrive between the last Map read and deleting the active
-      // marker. Re-arm once so that snapshot cannot be stranded.
       const pending = pendingMirrors.get(key);
       if (pending) {
         pendingMirrors.delete(key);
@@ -467,14 +432,6 @@ function queueLatestMirror(
   })();
 }
 
-/**
- * Consume the last unreported mirror failure for a session, if any.
- *
- * The mirror is asynchronous and fire-and-forget, so a rejected projection
- * used to be observable only in stdout. The `todo` tool drains this on its
- * next call and reports it as a warning, so a board that stopped tracking the
- * session is surfaced where the divergence actually matters.
- */
 export function takeSessionMirrorFailure(
   projectRoot: string | undefined,
   sessionId: string,
@@ -487,126 +444,10 @@ export function takeSessionMirrorFailure(
   return `Kanban mirror (${failure.sourceSystem}) failed and the board may be stale: ${failure.message}`;
 }
 
-/**
- * True while a todo projection for this session is queued or in flight.
- *
- * Board-to-todo application must stand down in that window: the board on disk
- * is provably older than the local list that produced the pending mirror, so
- * applying it would silently roll back the newer todo state.
- */
 function hasInFlightTodoMirror(projectRoot: string | undefined, sessionId: string): boolean {
   if (!projectRoot || !sessionId) return false;
   const key = mirrorKey(projectRoot, sessionId, 'session-todo');
   return pendingMirrors.has(key) || activeMirrors.has(key);
-}
-
-export function todoListToSerializedGraph(
-  todos: readonly TodoItem[],
-  sessionId: string,
-): SerializedTaskGraph {
-  const graphId = `todo:${sessionId}`;
-  const nodes = todos.map((todo, index) => ({
-    id: todo.id,
-    title: todo.content,
-    description: todo.activeForm ?? '',
-    type: 'chore' as const,
-    priority: 'medium' as const,
-    status: todo.status,
-    specRequirementId: `${graphId}:${todo.id}`,
-    createdAt: index,
-    updatedAt: index,
-  }));
-  return {
-    id: graphId,
-    specId: graphId,
-    requiredRequirementIds: nodes.map((node) => node.specRequirementId),
-    title: 'Session todos',
-    nodes,
-    edges: [],
-    rootNodes: nodes.map((node) => node.id),
-    createdAt: 0,
-    updatedAt: 0,
-  };
-}
-
-export function taskFileToSerializedGraph(
-  tasks: readonly TaskItem[],
-  sessionId: string,
-): SerializedTaskGraph {
-  const graphId = `session:${sessionId}`;
-  const ids = new Set(tasks.map((task) => task.id));
-  const nodes = tasks.map((task, index) => ({
-    id: task.id,
-    title: task.title,
-    description: task.description ?? '',
-    type: task.type,
-    priority: task.priority,
-    status: task.status,
-    specRequirementId: `${graphId}:${task.id}`,
-    ...(task.assignee ? { assignee: task.assignee } : {}),
-    ...(task.estimateHours !== undefined ? { estimateHours: task.estimateHours } : {}),
-    createdAt: index,
-    updatedAt: index,
-  }));
-  const edges = tasks.flatMap((task) =>
-    (task.dependsOn ?? [])
-      .filter((dependency) => ids.has(dependency))
-      .map((dependency) => ({
-        id: `${dependency}->${task.id}`,
-        from: dependency,
-        to: task.id,
-        type: 'depends_on' as const,
-      })),
-  );
-  const hasIncoming = new Set(edges.map((edge) => edge.to));
-  const rootNodes = nodes.filter((node) => !hasIncoming.has(node.id)).map((node) => node.id);
-  return {
-    // Keep the historical graph id so existing mirrored task cards are reused.
-    id: graphId,
-    specId: graphId,
-    requiredRequirementIds: nodes.map((node) => node.specRequirementId),
-    title: 'Session tasks',
-    nodes,
-    edges,
-    rootNodes: rootNodes.length ? rootNodes : nodes[0] ? [nodes[0].id] : [],
-    createdAt: 0,
-    updatedAt: 0,
-  };
-}
-
-const PLAN_STATUS_TO_TASK: Record<PlanItem['status'], TaskStatus> = {
-  open: 'pending',
-  in_progress: 'in_progress',
-  done: 'completed',
-};
-
-export function planFileToSerializedGraph(
-  items: readonly PlanItem[],
-  sessionId: string,
-): SerializedTaskGraph {
-  const graphId = `plan:${sessionId}`;
-  const nodes = items.map((item, index) => ({
-    id: item.id,
-    title: item.title,
-    description: item.details ?? '',
-    type: 'chore' as const,
-    priority: 'medium' as const,
-    status: PLAN_STATUS_TO_TASK[item.status],
-    specRequirementId: `${graphId}:${item.id}`,
-    createdAt: index,
-    updatedAt: index,
-  }));
-  return {
-    id: graphId,
-    specId: graphId,
-    requiredRequirementIds: nodes.map((node) => node.specRequirementId),
-    title: 'Session plan',
-    nodes,
-    edges: [],
-    rootNodes: nodes.map((node) => node.id),
-    createdAt: 0,
-    updatedAt: 0,
-  };
 }
 
 export function projectSessionTodosToKanban(
@@ -663,74 +504,6 @@ function fireAndForget(context: string, work: Promise<unknown>): void {
   });
 }
 
-function broadcastTodoUpdate(context: Context, todos: readonly TodoItem[]): void {
-  const sessionId = context.session?.id ?? '';
-  if (!context.agentId || !sessionId) return;
-  const statusCounts = { pending: 0, inProgress: 0, completed: 0 };
-  for (const todo of todos) {
-    if (todo.status === 'completed') statusCounts.completed++;
-    else if (todo.status === 'in_progress') statusCounts.inProgress++;
-    else statusCounts.pending++;
-  }
-  const projectDir = resolveWstackPaths({ projectRoot: context.projectRoot }).projectDir;
-  const mailbox = getSharedProjectMailbox(projectDir);
-  void mailbox
-    .send({
-      from: context.agentId,
-      to: '*',
-      type: 'status',
-      subject: `Kanban todo list updated (${todos.length} item${todos.length === 1 ? '' : 's'})`,
-      body: JSON.stringify({
-        kind: 'kanban.todos.updated',
-        sessionId,
-        revision: context.state.revision,
-        todoCount: todos.length,
-        statusCounts,
-      }),
-      priority: 'normal',
-      senderSessionId: sessionId,
-    })
-    .catch(() => {
-      // Mailbox awareness is best-effort; canonical state is already updated.
-    });
-}
-
-function notifyTodoUpdate(context: Context, todos: readonly TodoItem[]): void {
-  const summary = formatTodosForModel(todos);
-  const text =
-    `[KANBAN TODO UPDATE]\nAnother Kanban agent reassessed the shared board. The canonical todo list is now:\n${summary}\n` +
-    'Reassess your current plan before continuing; do not rely on the initial todo snapshot. ' +
-    "Preserve each row's <kanban board/task> binding verbatim on your next `todo` call — a row that loses it stops advancing its card.";
-  const state = context.state as Partial<Context['state']>;
-  if (typeof state.appendBlockToLastUserMessage === 'function') {
-    if (state.appendBlockToLastUserMessage({ type: 'text', text })) return;
-  }
-  if (typeof state.appendMessage === 'function') {
-    state.appendMessage({ role: 'user', content: [{ type: 'text', text }] });
-  }
-}
-
-/**
- * The todo rows that still need the session mirror: those not already cards on
- * the board this session is working on.
- *
- * The rule used to be all-or-nothing — the mirror was skipped only when EVERY
- * row was bound. A single unbound row (a todo the model added to the chat list
- * without also filing a card) sent the whole list to a separate session board,
- * so work already tracked on the real board showed up a second time there, and
- * one stray row was enough to leave a session board holding a single card.
- *
- * With no active board every row still needs mirroring, since there is no other
- * place the work is being recorded.
- */
-export function todosNeedingSessionMirror(
-  todos: readonly TodoItem[],
-  activeBoardId: string | undefined,
-): readonly TodoItem[] {
-  if (!activeBoardId) return todos;
-  return todos.filter((todo) => todo.kanbanBoardId !== activeBoardId || !todo.kanbanTaskId);
-}
-
 export function mirrorSessionTodosToKanban(
   projectRoot: string | undefined,
   todos: readonly TodoItem[],
@@ -770,11 +543,6 @@ export function mirrorSessionPlanToKanban(
   );
 }
 
-/**
- * Bind all live session work paths to Kanban. Todo changes are observed from
- * ConversationState; plan/task sidecars are watched so slash commands, WebUI,
- * plugins, and tools all pass through the same board.
- */
 export function attachSessionKanbanMirror(context: Context): () => void {
   const existing = bindings.get(context);
   if (existing) return existing;
@@ -879,10 +647,6 @@ export function attachSessionKanbanMirror(context: Context): () => void {
       if (presenceTimer) clearInterval(presenceTimer);
       presenceTimer = setInterval(() => fireAndForget('touch-presence', touchPresence()), 60_000);
       presenceTimer.unref?.();
-      // Managed boards are authoritative immediately. Session boards were
-      // already hydrated from the local checkpoint above; applying their
-      // initially empty board here can erase a newer local todo update before
-      // its queued mirror reaches disk.
       if (board.lifecycle?.mode === 'managed') applyManagedKanbanBoardToTodos(context, board);
     } catch {
       unsubscribeBoardEvents = null;
@@ -916,8 +680,6 @@ export function attachSessionKanbanMirror(context: Context): () => void {
       });
       watcher.on('error', () => watcher?.close());
     } catch {
-      // The session directory can briefly disappear during project/session
-      // switches; the next meta update re-attempts the binding.
       watcher = null;
       watchedDir = '';
     }
@@ -926,20 +688,8 @@ export function attachSessionKanbanMirror(context: Context): () => void {
   const unsubscribe = context.state.onChange((change) => {
     if (change.kind === 'todos_replaced' && !suppressedTodoMirrors.has(context)) {
       const snapshot = change.completedSnapshot ?? change.todos;
-      // Mirror only the rows that are NOT already cards on the board this
-      // session is working on.
-      //
-      // This used to be all-or-nothing: the mirror was skipped only when EVERY
-      // row was already bound. One unbound row — a todo the model added to the
-      // chat list without also filing a card — sent the whole list to a
-      // separate session board, so work already tracked on the real board
-      // appeared a second time there. That is the "some of these tasks are
-      // also on another board" symptom, and a single stray row is likewise how
-      // a session board ends up holding exactly one card.
       const unbound = todosNeedingSessionMirror(snapshot, activeManagedBoardId());
       if (snapshot.length > 0 && unbound.length === 0) return;
-      // ConversationState auto-clears an all-done tactical list. Project the
-      // pre-clear completion snapshot so every card reaches Done atomically.
       mirrorSessionTodosToKanban(context.projectRoot, unbound, sessionId());
       return;
     }
@@ -982,42 +732,11 @@ export function attachSessionKanbanMirror(context: Context): () => void {
   return detach;
 }
 
-/** Fully hydrate a session board before a host announces the session as ready. */
-/**
- * Re-bind the card this session was working, after a restart or `--resume`.
- *
- * The binding produced by `start_task` lives in `ctx.meta.kanban`, which is
- * conversation state — nothing restores it. So a resumed session came back
- * with `currentKanbanTaskId` undefined while its card still sat in Running on
- * the board: file events lost their task attribution, and under
- * `tools.kanbanGovernance` the run was un-bound until the model happened to
- * call `start_task` again.
- *
- * Board presence is the durable anchor. It is keyed `<sessionId>:<agentId>`,
- * carries the `taskId`, and is stored on the board record itself, so it
- * survives the restart even though its derived `active` flag does not (the TTL
- * is two minutes). Matching it against the cards that are actually still
- * running gives an unambiguous answer without guessing from free-text agent
- * ids.
- *
- * Deliberately conservative — it prefers to do nothing over binding the wrong
- * card:
- * - never overrides a binding this process already has;
- * - only considers cards whose assignment is still `running`;
- * - skips an expired lease, because `recover_stale` may have reassigned that
- *   card to another worker;
- * - picks the most recently seen entry when a session touched several.
- *
- * Session mirrors and archived boards are excluded by the snapshot's default
- * board-kind filter, which is correct: `start_task` never targets them.
- */
 export async function rebindSessionKanbanTask(
   context: Context,
 ): Promise<{ boardId: string; taskId: string } | null> {
   const sessionId = context.session?.id;
   if (!sessionId || !context.projectRoot) return null;
-  // A live binding always wins: this runs at session start, but `start_task`
-  // may already have bound a card in the same boot.
   if (context.currentKanbanTaskId) return null;
 
   let best: { boardId: string; taskId: string; lastSeenAt: string } | undefined;
@@ -1040,8 +759,6 @@ export async function rebindSessionKanbanTask(
       }
     }
   } catch {
-    // Best-effort: a Kanban daemon that is down must not stop a session from
-    // becoming ready. The model can still call start_task itself.
     return null;
   }
   if (!best) return null;
@@ -1051,34 +768,10 @@ export async function rebindSessionKanbanTask(
 
 let degradationReason: string | undefined;
 
-/**
- * Why session Kanban is unavailable, or undefined while it is healthy.
- *
- * Surfaces exist so a startup path can tell the user their board will not sync
- * without having to catch and classify the failure itself. Cleared on the
- * first hydrate that succeeds, so a daemon that comes back stops being
- * reported as down.
- */
 export function sessionKanbanDegradation(): string | undefined {
   return degradationReason;
 }
 
-/**
- * Project the session's todos, plan, and tasks onto its Kanban board.
- *
- * Kanban is a projection: every card here is derived from state that lives
- * somewhere else and is authoritative there. Losing the board costs the user a
- * view, not any work — so an unreachable Kanban daemon degrades this to `null`
- * rather than propagating.
- *
- * That distinction used to be missing, and it cost an entire session. When a
- * killed daemon left a stale IPC endpoint behind, the connect error thrown
- * here unwound through `setupSession` and killed `wstack` at startup: no
- * prompt, no session, just a socket path in a stack trace — for a board the
- * user had not asked to see. `bindProjectEndpoint` now stops the daemon from
- * wedging in the first place, but the call site must still hold: an optional
- * view may never take down the session it decorates.
- */
 export async function hydrateSessionKanban(context: Context): Promise<KanbanBoard | null> {
   const id = context.session?.id ?? '';
   if (!id) return null;
@@ -1097,16 +790,8 @@ async function hydrateSessionKanbanBoard(
   context: Context,
   id: string,
 ): Promise<KanbanBoard | null> {
-  // Before anything else: a resumed session should know which card it is on.
-  // Independent of the session-mirror work below — the card is almost always
-  // on a project board, not on the mirror.
   await rebindSessionKanbanTask(context);
   await cleanupEmptySessionKanbanBoards(context.projectRoot, id);
-  // Board-level retention had no production caller at all: every session mirror
-  // was created with a 7-day `archive_after_ttl` policy that nothing ever
-  // enforced, so expired boards accumulated indefinitely. Session start is the
-  // one moment every surface passes through. Detached on purpose — it sweeps
-  // every board in the project and must not delay the session becoming ready.
   if (context.projectRoot) {
     fireAndForget('prune-session-boards', pruneSessionBoards(context.projectRoot));
   }
@@ -1127,364 +812,23 @@ async function hydrateSessionKanbanBoard(
   return board;
 }
 
-export interface SessionKanbanSourceUpdate {
-  source: 'todo' | 'task' | 'plan' | null;
-  todos?: TodoItem[] | undefined;
-  tasks?: TaskFile | undefined;
-  plan?: PlanFile | undefined;
-}
-
-function sourceStatus(task: KanbanTask): TaskStatus {
-  if (task.status === 'completed') return 'completed';
-  if (task.status === 'in_progress') return 'in_progress';
-  if (task.status === 'review') return 'review';
-  if (task.status === 'blocked') return 'blocked';
-  if (task.status === 'failed') return 'failed';
-  return 'pending';
-}
-
-/**
- * Collapse the card statuses onto the three-state todo surface.
- *
- * `review` maps to `in_progress`: a card in Preview is work underway awaiting
- * acceptance, not unstarted work. The managed projection used to call it
- * `pending`, which both misreported the card and left the run with no
- * in-progress row — and with no in-progress row the governed task binding is
- * cleared, which blocks every subsequent product mutation.
- */
-function todoStatus(task: KanbanTask): TodoItem['status'] {
-  const status = sourceStatus(task);
-  if (status === 'completed') return 'completed';
-  // A card in Review whose worker reported completion is functionally done
-  // from the compact todo surface's perspective — Review is an acceptance
-  // gate, not active work. Mapping it to in_progress created a rewind loop:
-  // the todo marked the row completed → the card reached Review → the board
-  // projection reverted the row to in_progress → the model re-completed it.
-  // Treating a completed-assignment Review card as completed breaks that
-  // cycle while preserving the in_progress mapping for cards that entered
-  // Review without a completion (e.g. a manual transition).
-  if (status === 'review' && task.assignment?.status === 'completed') return 'completed';
-  if (status === 'in_progress' || status === 'review') return 'in_progress';
-  return 'pending';
-}
-
-/**
- * Shape a card as a todo row without claiming a managed binding.
- *
- * `kanbanBoardId`/`kanbanTaskId` are the contract for "this row IS a real
- * managed card": every surface treats a row carrying them as read-only and
- * refuses local edits. An observational session mirror offers no such
- * authority — stamping its ids made `/todos add|clear|remove` and the WebUI
- * worklist reject edits against a board that only reflects them back.
- */
-function sessionTodoFromTask(task: KanbanTask, board?: KanbanBoard): TodoItem {
-  const blockedBy = board ? blockingTitles(board, task) : [];
-  return {
-    id: task.origin?.taskId ?? task.id,
-    content: task.title,
-    status: todoStatus(task),
-    ...(task.description ? { activeForm: task.description } : {}),
-    ...(blockedBy.length ? { blockedBy } : {}),
-  };
-}
-
-function managedTodoFromTask(task: KanbanTask, board: KanbanBoard): TodoItem {
-  return {
-    ...sessionTodoFromTask(task, board),
-    kanbanBoardId: board.id,
-    kanbanTaskId: task.id,
-  };
-}
-
-/**
- * Human-readable titles of the unfinished dependencies blocking a card.
- *
- * The board recomputes readiness on every mutation; this only carries the
- * result to the todo surface. Titles rather than ids, because the row is read
- * by a model and a human, neither of whom can resolve a raw card id.
- */
-export function blockingTitles(board: KanbanBoard, task: KanbanTask): string[] {
-  return getDependencyReadinessIssues(board, task).map((issue) => {
-    const dependency = board.tasks.find((candidate) => candidate.id === issue.dependencyId);
-    if (!dependency) return `${issue.dependencyId} (missing)`;
-    return dependency.title;
+export function applySessionKanbanBoardToTodos(context: Context, board: KanbanBoard): TodoItem[] {
+  return applySessionKanbanBoardToTodosSync(context, board, {
+    sessionIdFromTags,
+    isOwnedSessionBoard,
+    hasInFlightTodoMirror,
+    suppressedTodoMirrors,
   });
 }
 
-const PRIORITY_ORDER: Readonly<Record<string, number>> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-};
-
-/**
- * Order cards the way they must actually be worked: dependencies first, then
- * priority, then the board's own column/manual order.
- *
- * The managed projection previously sorted by `createdAt` — the moment a card
- * happened to be created — which is unrelated to execution order, so the list
- * the model reads top-to-bottom was not a plan. A dependency-respecting
- * (Kahn) order makes the visible sequence the executable sequence; ties fall
- * back to the deterministic board order so the list never reshuffles on its
- * own. Any card left over by a dependency cycle is appended rather than
- * dropped — the board rejects cycles, but a projection must never lose work.
- */
-export function orderTasksForTodos(board: KanbanBoard, tasks: readonly KanbanTask[]): KanbanTask[] {
-  const columnOrder = new Map(board.columns.map((column) => [column.id, column.order]));
-  const baseline = [...tasks].sort(
-    (left, right) =>
-      (columnOrder.get(left.columnId) ?? 0) - (columnOrder.get(right.columnId) ?? 0) ||
-      (PRIORITY_ORDER[left.priority] ?? 2) - (PRIORITY_ORDER[right.priority] ?? 2) ||
-      left.order - right.order ||
-      left.createdAt.localeCompare(right.createdAt) ||
-      left.id.localeCompare(right.id),
-  );
-
-  const included = new Set(baseline.map((task) => task.id));
-  const remaining = new Map(baseline.map((task) => [task.id, task]));
-  const emitted: KanbanTask[] = [];
-  const done = new Set<string>();
-
-  while (remaining.size > 0) {
-    // `baseline` order is preserved inside each ready wave, so equal-depth
-    // work keeps the board's own priority/column sequence.
-    const ready = baseline.filter(
-      (task) =>
-        remaining.has(task.id) &&
-        (task.dependsOn ?? []).every(
-          (dependencyId) => !included.has(dependencyId) || done.has(dependencyId),
-        ),
-    );
-    if (ready.length === 0) break;
-    for (const task of ready) {
-      remaining.delete(task.id);
-      done.add(task.id);
-      emitted.push(task);
-    }
-  }
-  for (const task of baseline) if (remaining.has(task.id)) emitted.push(task);
-  return emitted;
-}
-
-function sameTodos(left: readonly TodoItem[], right: readonly TodoItem[]): boolean {
-  return (
-    left.length === right.length &&
-    left.every((todo, index) => {
-      const candidate = right[index];
-      return (
-        candidate?.id === todo.id &&
-        candidate.content === todo.content &&
-        candidate.status === todo.status &&
-        candidate.activeForm === todo.activeForm &&
-        candidate.promotedFromPlan === todo.promotedFromPlan &&
-        candidate.promotedFromTask === todo.promotedFromTask &&
-        candidate.kanbanBoardId === todo.kanbanBoardId &&
-        candidate.kanbanTaskId === todo.kanbanTaskId &&
-        // Readiness is part of the projection: when a dependency completes,
-        // the rows are otherwise identical and the unblocking would never
-        // reach the model.
-        (candidate.blockedBy ?? []).join('\u0000') === (todo.blockedBy ?? []).join('\u0000')
-      );
-    })
-  );
-}
-
-/**
- * Replace the tactical todo list from the current cards on a session-owned board.
- *
- * Existing mirrored todo cards retain their stable source ids. New cards created
- * by a Kanban worker become todos under their card ids, so reassessment can add,
- * split, merge, reprioritize, or remove work without being overwritten by the
- * todo list that happened to exist when the run started.
- */
-export function applySessionKanbanBoardToTodos(context: Context, board: KanbanBoard): TodoItem[] {
-  const sessionId = context.session?.id ?? '';
-  if (
-    !sessionId ||
-    sessionIdFromTags(board.tags) !== sessionId ||
-    !isOwnedSessionBoard(board.tags)
-  ) {
-    return [...context.todos];
-  }
-  // A queued or in-flight projection means this board snapshot is provably
-  // older than the local list that produced it. Board events are debounced,
-  // so without this the mirror's own echo could land after a newer local
-  // update and roll it back — a lost update the user sees as the todo list
-  // reverting on its own.
-  if (hasInFlightTodoMirror(context.projectRoot, sessionId)) return [...context.todos];
-
-  const projectedTodos = orderTasksForTodos(
-    board,
-    board.tasks.filter(
-      (task) =>
-        task.status !== 'archived' &&
-        (!task.origin ||
-          task.origin.system === 'session-todo' ||
-          (task.origin.graphId ?? '').startsWith('todo:')),
-    ),
-  ).map((task) => sessionTodoFromTask(task, board));
-
-  const allCompleted =
-    projectedTodos.length > 0 && projectedTodos.every((todo) => todo.status === 'completed');
-  const effectiveTodos = allCompleted ? [] : projectedTodos;
-  if (sameTodos(context.todos, effectiveTodos)) return [...context.todos];
-  suppressedTodoMirrors.add(context);
-  try {
-    context.state.replaceTodos(projectedTodos);
-  } finally {
-    suppressedTodoMirrors.delete(context);
-  }
-  notifyTodoUpdate(context, context.todos);
-  broadcastTodoUpdate(context, context.todos);
-  return [...context.todos];
-}
-
-/** Project a durable managed board into the session's compact todo surface. */
 export function applyManagedKanbanBoardToTodos(context: Context, board: KanbanBoard): TodoItem[] {
-  const metaKanban = context.meta['kanban'];
-  const metaBoardId =
-    metaKanban && typeof metaKanban === 'object'
-      ? (metaKanban as Record<string, unknown>)['boardId']
-      : undefined;
-  const activeBoardId =
-    context.currentKanbanBoardId ?? (typeof metaBoardId === 'string' ? metaBoardId : undefined);
-  if (!activeBoardId || board.id !== activeBoardId || board.lifecycle?.mode !== 'managed') {
-    return [...context.todos];
-  }
-
-  const projectedTodos = orderTasksForTodos(
-    board,
-    board.tasks.filter(
-      (task) =>
-        task.status !== 'archived' &&
-        task.mergedIntoTaskId === undefined &&
-        (!task.childTaskIds || task.childTaskIds.length === 0),
-    ),
-  ).map((task) => managedTodoFromTask(task, board));
-
-  if (sameTodos(context.todos, projectedTodos)) return [...context.todos];
-  suppressedTodoMirrors.add(context);
-  try {
-    context.state.replaceTodos(projectedTodos);
-  } finally {
-    suppressedTodoMirrors.delete(context);
-  }
-  notifyTodoUpdate(context, context.todos);
-  broadcastTodoUpdate(context, context.todos);
-  return [...context.todos];
+  return applyManagedKanbanBoardToTodosSync(context, board, suppressedTodoMirrors);
 }
 
-/** Reflect a TUI/WebUI Kanban card edit back to its originating work list. */
-export async function applySessionKanbanTaskToSource(
+export function applySessionKanbanTaskToSource(
   context: Context,
   task: KanbanTask,
   options: { remove?: boolean | undefined } = {},
 ): Promise<SessionKanbanSourceUpdate> {
-  const originId = task.origin?.taskId;
-  const graphId = task.origin?.graphId ?? '';
-  if (!originId) return { source: null };
-
-  if (task.origin?.system === 'session-todo' || graphId.startsWith('todo:')) {
-    // Use the shared `todoStatus` helper so the reverse-mapping (board→todo)
-    // agrees with the forward-mapping (todo→board projection). A separate
-    // inline mapping here used to classify `review` as `in_progress`
-    // unconditionally, which contradicted the projection and produced the
-    // rewind loop: a card marked completed → advanced to Review → was
-    // reflected back as in_progress → was re-completed on the next turn.
-    const mappedStatus = todoStatus(task);
-    const next = options.remove
-      ? context.todos.filter((todo) => todo.id !== originId)
-      : context.todos.map((todo) =>
-          todo.id === originId
-            ? {
-                ...todo,
-                content: task.title,
-                status: mappedStatus,
-              }
-            : todo,
-        );
-    suppressedTodoMirrors.add(context);
-    try {
-      context.state.replaceTodos(next);
-    } finally {
-      suppressedTodoMirrors.delete(context);
-    }
-    return { source: 'todo', todos: [...context.todos] };
-  }
-
-  const id = context.session?.id ?? '';
-  if (task.origin?.system === 'session-plan' || graphId.startsWith('plan:')) {
-    const planPath = context.meta['plan.path'];
-    if (typeof planPath !== 'string' || !planPath) {
-      // A plan-origin card with no plan.path means the board and the plan
-      // file would silently diverge: the board mutation already succeeded
-      // above, but there is nowhere to write the reflection back to. Throw
-      // so callers (TUI syncSource, WebUI syncSessionSource) can surface the
-      // mismatch instead of reporting a silent success.
-      throw new Error(
-        'Cannot reflect this Kanban edit back to its plan source: the session has no plan.path configured. ' +
-          'The board mutation already succeeded; the plan file is now out of sync.',
-      );
-    }
-    const plan = await mutatePlan(planPath, id, (file) => ({
-      ...file,
-      updatedAt: new Date().toISOString(),
-      items: options.remove
-        ? file.items.filter((item) => item.id !== originId)
-        : file.items.map((item) =>
-            item.id === originId
-              ? {
-                  ...item,
-                  title: task.title,
-                  details: task.description,
-                  status:
-                    task.status === 'completed'
-                      ? ('done' as const)
-                      : task.status === 'in_progress' || task.status === 'review'
-                        ? ('in_progress' as const)
-                        : ('open' as const),
-                  updatedAt: new Date().toISOString(),
-                }
-              : item,
-          ),
-    }));
-    return { source: 'plan', plan };
-  }
-
-  if (
-    task.origin?.system === 'session-task' ||
-    task.origin?.system === 'session' ||
-    graphId.startsWith('session:')
-  ) {
-    const taskPath = context.meta['task.path'];
-    if (typeof taskPath !== 'string' || !taskPath) {
-      // Same rationale as the plan branch: a task-origin card with no
-      // task.path would leave the board and the task file silently out of
-      // sync. Throw so the caller can tell the user.
-      throw new Error(
-        'Cannot reflect this Kanban edit back to its task source: the session has no task.path configured. ' +
-          'The board mutation already succeeded; the task file is now out of sync.',
-      );
-    }
-    const tasks = await mutateTasks(taskPath, id, (file) => ({
-      ...file,
-      tasks: options.remove
-        ? file.tasks.filter((item) => item.id !== originId)
-        : file.tasks.map((item) =>
-            item.id === originId
-              ? {
-                  ...item,
-                  title: task.title,
-                  description: task.description,
-                  status: sourceStatus(task),
-                  updatedAt: new Date().toISOString(),
-                }
-              : item,
-          ),
-    }));
-    return { source: 'task', tasks };
-  }
-
-  return { source: null };
+  return applySessionKanbanTaskToSourceSync(context, task, suppressedTodoMirrors, options);
 }

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 267,
-      "typeOnly": 214,
+      "files": 276,
+      "typeOnly": 223,
       "runtimeOrMixed": 70
     },
     "@wrongstack/core/agent-catalog": {
@@ -14,14 +14,14 @@
       "runtimeOrMixed": 17
     },
     "@wrongstack/core/chronicle": {
-      "files": 8,
+      "files": 10,
       "typeOnly": 2,
-      "runtimeOrMixed": 7
+      "runtimeOrMixed": 9
     },
     "@wrongstack/core/coordination": {
-      "files": 171,
-      "typeOnly": 72,
-      "runtimeOrMixed": 148
+      "files": 175,
+      "typeOnly": 73,
+      "runtimeOrMixed": 151
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 56,
+      "files": 57,
       "typeOnly": 17,
-      "runtimeOrMixed": 56
+      "runtimeOrMixed": 57
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/hq": {
-      "files": 113,
+      "files": 118,
       "typeOnly": 73,
-      "runtimeOrMixed": 63
+      "runtimeOrMixed": 68
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 212,
-      "typeOnly": 112,
-      "runtimeOrMixed": 111
+      "files": 218,
+      "typeOnly": 115,
+      "runtimeOrMixed": 114
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 21
     },
     "@wrongstack/core/registry": {
-      "files": 101,
+      "files": 102,
       "typeOnly": 51,
-      "runtimeOrMixed": 51
+      "runtimeOrMixed": 52
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -119,14 +119,14 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 125,
-      "typeOnly": 22,
-      "runtimeOrMixed": 106
+      "files": 128,
+      "typeOnly": 23,
+      "runtimeOrMixed": 108
     },
     "@wrongstack/core/session-catalog": {
-      "files": 10,
+      "files": 11,
       "typeOnly": 0,
-      "runtimeOrMixed": 10
+      "runtimeOrMixed": 11
     },
     "@wrongstack/core/skills": {
       "files": 8,
@@ -134,9 +134,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 93,
-      "typeOnly": 28,
-      "runtimeOrMixed": 99
+      "files": 96,
+      "typeOnly": 29,
+      "runtimeOrMixed": 101
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 901,
-      "typeOnly": 833,
-      "runtimeOrMixed": 228
+      "files": 912,
+      "typeOnly": 841,
+      "runtimeOrMixed": 232
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 494,
-      "typeOnly": 55,
-      "runtimeOrMixed": 465
+      "files": 503,
+      "typeOnly": 58,
+      "runtimeOrMixed": 471
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -993,6 +993,24 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/src/middleware/tool-call-memory-retrieval.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/src/middleware/tool-call-memory-trace.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/src/middleware/tool-call-memory-triggers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/sage/src/middleware/tool-call-memory.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1113,6 +1131,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/kanban-board-actions.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/kanban-decomposition-actions.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1120,6 +1144,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/kanban-evidence-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/kanban-lifecycle-actions.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1138,6 +1168,18 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/replace.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/session-kanban-graph.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/session-kanban-sync.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1413,7 +1455,7 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/tui/src/components/sidebar-panels.tsx",
+      "file": "packages/tui/src/components/sidebar-panels-task.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1468,6 +1510,18 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/src/hooks/use-paste-handling.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/src/hooks/use-session-rewind.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/src/hooks/use-status-sync-interval.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1947,6 +2001,18 @@
     },
     {
       "specifier": "@wrongstack/core/chronicle",
+      "file": "packages/webui-server/src/server/connections/collector.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/chronicle",
+      "file": "packages/webui-server/src/server/connections/service-actions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/chronicle",
       "file": "packages/webui-server/tests/chronicle-routes.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -2292,6 +2358,12 @@
       "file": "packages/cli/src/wiring/brain-and-orchestration.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/wiring/cli-execute-builder.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2673,7 +2745,7 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
-      "file": "packages/tools/src/session-kanban.ts",
+      "file": "packages/tools/src/session-kanban-sync.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -2764,6 +2836,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/tui/src/hooks/use-interrupt-ladder.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tui/src/hooks/use-session-rewind.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -2866,6 +2944,18 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui-server/src/server/connections-health-route.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/connections/collector.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/connections/service-actions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3136,6 +3226,12 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/wiring/brain-and-orchestration.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/src/wiring/cli-execute-builder.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3648,6 +3744,36 @@
       "file": "packages/cli/src/hq-server/routes/auth-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 3
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/routes/auth/bootstrap-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/routes/auth/common.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/routes/auth/password-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/routes/auth/session-audit-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/routes/auth/totp-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -4743,6 +4869,24 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/cli-execute-builder.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/cli-prompt-and-tools-setup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/cli-slash-commands-setup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/command-host-state.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -4822,6 +4966,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/provider-status.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/replay-governance-setup.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5326,6 +5476,18 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/sage/src/middleware/session-end-commit-extractor.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sage/src/middleware/tool-call-memory-scoring.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sage/src/middleware/tool-call-memory-trace.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6297,6 +6459,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/src/wiring/cli-prompt-and-tools-setup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/wiring/command-host-adapters.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6963,6 +7131,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/hq-server/routes/auth/totp-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/hq-server/trust-boundary.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7419,6 +7593,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/connections/types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7432,6 +7612,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/http-server/api-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/http-server/api-router.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7612,6 +7798,12 @@
     {
       "specifier": "@wrongstack/core/session-catalog",
       "file": "packages/webui-server/src/server/connections-health-route.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/session-catalog",
+      "file": "packages/webui-server/src/server/connections/collector.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7959,13 +8151,25 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
-      "file": "packages/tools/src/kanban.ts",
+      "file": "packages/tools/src/kanban-board-actions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/tools/src/plan.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tools/src/session-kanban-graph.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tools/src/session-kanban-sync.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8046,6 +8250,12 @@
       "file": "packages/tui/src/hooks/use-queue-manager.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/tui/src/hooks/use-session-rewind.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -8403,7 +8613,7 @@
     },
     {
       "specifier": "@wrongstack/core/tasking",
-      "file": "packages/tools/src/kanban.ts",
+      "file": "packages/tools/src/kanban-board-actions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9675,6 +9885,18 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/cli-execute-builder.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/cli-prompt-and-tools-setup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/codebase-index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9786,6 +10008,12 @@
       "file": "packages/cli/src/wiring/provider.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/replay-governance-setup.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12459,6 +12687,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/kanban-board-actions.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/kanban-tool-schema.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12570,6 +12804,18 @@
       "file": "packages/tools/src/search.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/session-kanban-graph.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/session-kanban-sync.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12939,6 +13185,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/hooks/use-theme-picker-handler.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/hooks/use-theme-state.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12982,6 +13234,24 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/memory-slash-format.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/memory-slash-gather.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/memory-slash-renderers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/memory-slash-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13059,7 +13329,7 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/tui/src/theme.ts",
+      "file": "packages/tui/src/theme-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13396,6 +13666,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/http-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/http-server/api-router.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14799,7 +15075,19 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/kanban-board-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/kanban-format.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/kanban-task-subcommands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15237,6 +15525,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/wiring/cli-heap-watchdog.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/wiring/command-host-adapters.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -15262,6 +15556,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/wiring/fleet-command-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/wiring/heap-watchdog-setup.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -15306,6 +15606,12 @@
       "file": "packages/cli/src/wiring/provider-status.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/wiring/replay-governance-setup.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -16263,7 +16569,7 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/writer.ts",
+      "file": "packages/tools/src/codebase-index/writer-search.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16371,9 +16677,21 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/session-kanban.ts",
+      "file": "packages/tools/src/session-kanban-graph.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/session-kanban-sync.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/session-kanban.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -16720,6 +17038,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/connections-health-route.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/connections/collector.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/connections/service-actions.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
