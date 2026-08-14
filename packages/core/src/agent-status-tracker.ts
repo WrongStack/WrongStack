@@ -140,6 +140,7 @@ export class AgentStatusTracker {
   }
 
   start(): void {
+    this.stop();
     const on = (pattern: string, fn: (event: string, payload: unknown) => void): (() => void) =>
       this.events.onPattern(pattern, (event, payload) => {
         if (!this.acceptsSession(payload)) return;

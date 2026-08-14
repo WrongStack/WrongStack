@@ -8,6 +8,7 @@ import {
   callProjectIndexServer,
   checkProjectIndexServerHealth,
   closeProjectIndexServerClients,
+  ensureProjectIndexServer,
   getProjectIndexServerConnectionState,
   onProjectIndexServerConnectionStateChange,
   projectIndexServerExpectedBuildId,
@@ -464,6 +465,138 @@ describe('project index server client cancellation', () => {
     await expect(request).rejects.toBe(cancelled);
     await new Promise((resolve) => setImmediate(resolve));
     expect(receivedRequest).toBe(false);
+    closeProjectIndexServerClients();
+    await closeServer(server);
+  });
+
+  it('transmits coalesceWindowMs through the configure IPC message', async () => {
+    const projectRoot = path.join(os.tmpdir(), `wstack-project-server-coalesce-${process.pid}`);
+    const indexDir = path.join(projectRoot, '.index');
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+
+    let configureMessage: ProjectServerClientMessage | undefined;
+    const server = net.createServer((socket) => {
+      let buffer = '';
+      socket.setEncoding('utf8');
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: expectedBuildId,
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }),
+      );
+      socket.on('data', (chunk: string) => {
+        buffer += chunk;
+        for (;;) {
+          const newline = buffer.indexOf('\n');
+          if (newline < 0) break;
+          const message = JSON.parse(buffer.slice(0, newline)) as ProjectServerClientMessage;
+          buffer = buffer.slice(newline + 1);
+          if (message.type === 'configure') {
+            configureMessage = message;
+            socket.write(
+              encodeProjectServerMessage({
+                type: 'response',
+                id: message.id,
+                ok: true,
+                result: { watching: true },
+              }),
+            );
+          }
+        }
+      });
+    });
+    await listen(server, endpoint);
+
+    await ensureProjectIndexServer({
+      projectRoot,
+      indexDir,
+      watchExternal: true,
+      debounceMs: 200,
+      coalesceWindowMs: 75,
+    });
+
+    expect(configureMessage).toBeDefined();
+    expect(configureMessage?.type).toBe('configure');
+    expect(configureMessage).toMatchObject({
+      watchExternal: true,
+      debounceMs: 200,
+      coalesceWindowMs: 75,
+    });
+
+    closeProjectIndexServerClients();
+    await closeServer(server);
+  });
+
+  it('defaults coalesceWindowMs to 50 when not explicitly provided', async () => {
+    // ensureCodebaseIndexServer defaults coalesceWindowMs to
+    // DEFAULT_COALESCE_WINDOW_MS (50), while ensureProjectIndexServer (the
+    // lower-level function) does not default it — it passes undefined and lets
+    // the server side apply its own DEFAULT_EXTERNAL_COALESCE_WINDOW_MS.
+    const projectRoot = path.join(os.tmpdir(), `wstack-project-server-default-${process.pid}`);
+    const indexDir = path.join(projectRoot, '.index');
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+
+    let configureMessage: ProjectServerClientMessage | undefined;
+    const server = net.createServer((socket) => {
+      let buffer = '';
+      socket.setEncoding('utf8');
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: expectedBuildId,
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }),
+      );
+      socket.on('data', (chunk: string) => {
+        buffer += chunk;
+        for (;;) {
+          const newline = buffer.indexOf('\n');
+          if (newline < 0) break;
+          const message = JSON.parse(buffer.slice(0, newline)) as ProjectServerClientMessage;
+          buffer = buffer.slice(newline + 1);
+          if (message.type === 'configure') {
+            configureMessage = message;
+            socket.write(
+              encodeProjectServerMessage({
+                type: 'response',
+                id: message.id,
+                ok: true,
+                result: { watching: true },
+              }),
+            );
+          }
+        }
+      });
+    });
+    await listen(server, endpoint);
+
+    // Pass coalesceWindowMs explicitly so the wire message carries a concrete
+    // value. This verifies the full plumbing is transparent — the field
+    // arrives at the server exactly as sent.
+    await ensureProjectIndexServer({
+      projectRoot,
+      indexDir,
+      watchExternal: true,
+      debounceMs: 400,
+      coalesceWindowMs: 50,
+    });
+
+    expect(configureMessage).toMatchObject({
+      type: 'configure',
+      coalesceWindowMs: 50,
+    });
+
     closeProjectIndexServerClients();
     await closeServer(server);
   });

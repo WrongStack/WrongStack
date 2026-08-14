@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plug-lsp",
-  "version": "0.306.4",
+  "version": "0.307.0",
   "license": "MIT",
   "description": "WrongStack plugin that exposes Language Server Protocol tools.",
   "repository": {
@@ -33,7 +33,7 @@
     "setup": "node ./dist/setup.js",
     "test": "vitest run --config vitest.config.ts",
     "test:coverage": "node ../../scripts/coverage-lock.mjs node ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts",
-    "typecheck": "pnpm --filter @wrongstack/tools run build && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {

@@ -53,7 +53,7 @@ export function makeTelegramReadTool(opts: {
 
       let acked = 0;
       if (input.ack_last !== undefined && input.ack_last > 0) {
-        acked = opts.bot.acknowledge(input.ack_last);
+        acked = opts.bot.acknowledge(input.ack_last, input.chat_id);
       }
 
       return {

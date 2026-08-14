@@ -250,7 +250,6 @@ describe('PerSubcommandHelp shape (data contract)', () => {
       'usage',
       'update',
       'quick',
-      'acp',
     ]) {
       const renderer = makeRenderer();
       renderFocusedHelp(name, renderer);
@@ -259,7 +258,7 @@ describe('PerSubcommandHelp shape (data contract)', () => {
     }
   });
 
-  it('mcp / plugin / models / config / sessions / bench / export / audit / replay / rewind / providers DO render a Subcommands table', () => {
+  it('mcp / plugin / models / config / sessions / bench / export / audit / replay / rewind / providers / acp / chronicle / hq / permissions / project DO render a Subcommands table', () => {
     const withSubcommands = [
       'mcp',
       'plugin',
@@ -272,6 +271,12 @@ describe('PerSubcommandHelp shape (data contract)', () => {
       'replay',
       'rewind',
       'providers',
+      'acp',
+      'chronicle',
+      'hq',
+      'permissions',
+      'project',
+      'modeldiag',
     ];
     for (const name of withSubcommands) {
       const renderer = makeRenderer();

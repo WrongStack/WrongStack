@@ -60,4 +60,38 @@ describe('director-state — extra coverage', () => {
     await (cp as never as { persist(): Promise<void> }).persist();
     expect((cp as never as { rewriteRequested: boolean }).rewriteRequested).toBe(true);
   });
+
+  it('reconcileCrashedState transitions running tasks and allocated worktrees to failed', async () => {
+    const file = path.join(dir, 'reconcile.json');
+    const cp = new DirectorStateCheckpoint(file, { directorRunId: 'r', spawnDepth: 0, maxSpawnDepth: 2 }, 10);
+    cp.recordTaskAssigned({
+      taskId: 't-crashed',
+      subagentId: 'sub-1',
+      description: 'work in flight',
+      status: 'running',
+      worktree: {
+        taskId: 't-crashed',
+        subagentId: 'sub-1',
+        handleId: 'h-1',
+        dir: '/tmp/wt-1',
+        branch: 'feat/t-1',
+        baseBranch: 'main',
+        status: 'allocated',
+      },
+    });
+    cp.recordTaskAssigned({
+      taskId: 't-done',
+      subagentId: 'sub-2',
+      description: 'finished work',
+      status: 'completed',
+    });
+
+    const repaired = cp.reconcileCrashedState();
+    expect(repaired).toEqual(['t-crashed']);
+    const current = cp.current();
+    expect(current.tasks[0]?.status).toBe('failed');
+    expect(current.tasks[0]?.error).toContain('Director crashed');
+    expect(current.tasks[0]?.worktree?.status).toBe('failed');
+    expect(current.tasks[1]?.status).toBe('completed');
+  });
 });

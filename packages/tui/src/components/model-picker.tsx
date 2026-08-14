@@ -144,6 +144,11 @@ export function ModelPicker({
       </Box>
     );
     if (!split || !focused) return list;
+    // Fixed line budget for the model preview so the detail panel height never
+    // changes as the user navigates between providers with different model
+    // counts — mirrors the padding idiom Step 2 uses for its scroll window.
+    const previewBudget = Math.max(3, (maxRows ?? 14) - 8);
+    const previewModels = focused.models.slice(0, previewBudget);
     return (
       <Box flexDirection="row">
         {list}
@@ -170,10 +175,29 @@ export function ModelPicker({
             {focused.modelsLabel ?? 'provider catalog/config'}
           </Text>
           <Text> </Text>
-          <Text dimColor>available models</Text>
-          <Text wrap="wrap">
-            {focused.models.slice(0, Math.max(3, (maxRows ?? 14) - 8)).join('\n') || '(none)'}
+          <Text dimColor>
+            available models
+            {focused.models.length > previewBudget
+              ? ` (${focused.models.length} — first ${previewBudget} shown)`
+              : ''}
           </Text>
+          {previewModels.length > 0 ? (
+            previewModels.map((m) => (
+              <Text key={m} wrap="truncate-end">
+                {m}
+              </Text>
+            ))
+          ) : (
+            <Text dimColor>(none)</Text>
+          )}
+          {/* Pad remaining slots so every provider's panel is the same height.
+           * When the preview is empty the "(none)" line above already occupies
+           * one budget slot, so the padding budget shrinks to match. */}
+          {Array.from({
+            length: previewBudget - (previewModels.length > 0 ? previewModels.length : 1),
+          }).map((_, i) => (
+            <Text key={`pad-${i}`}> </Text>
+          ))}
         </Box>
       </Box>
     );

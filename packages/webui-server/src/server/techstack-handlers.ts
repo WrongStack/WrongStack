@@ -230,6 +230,14 @@ export async function handleTechStackDependencyResearch(
     return;
   }
 
+  const version = dependency.locked ?? dependency.requested ?? 'latest';
+  const cacheKey = `research:${dependency.ecosystem}:${dependency.name}:${version}`;
+  const cached = deps.store.getCachedResearch(cacheKey);
+  if (cached && cached.length > 0) {
+    sendJson(res, 200, { dependencyId, findings: cached, cached: true });
+    return;
+  }
+
   let researcher: TechStackResearcher | undefined;
   try {
     researcher = await buildResearcher(deps, 'analyze');
@@ -259,7 +267,10 @@ export async function handleTechStackDependencyResearch(
       [triaged ?? { dependency, cluster: 'breaking_change', priority: 0 }],
       { signal: controller.signal },
     );
-    sendJson(res, 200, { dependencyId, findings });
+    if (findings.length > 0) {
+      deps.store.setCachedResearch(cacheKey, findings);
+    }
+    sendJson(res, 200, { dependencyId, findings, cached: false });
   } catch (error) {
     sendJson(res, 500, { error: 'Research failed', detail: errorMessage(error) });
   } finally {
@@ -282,12 +293,12 @@ export function handleTechStackJobStatus(
   sendJson(res, 200, { job });
 }
 
-/** GET /api/techstack/reports/:id?format=md|json */
+/** GET /api/techstack/reports/:id?format=md|json|spdx|cyclonedx */
 export function handleTechStackReport(
   res: http.ServerResponse,
   deps: TechStackHandlerDeps,
   reportId: string,
-  format: 'md' | 'json',
+  format: 'md' | 'json' | 'spdx' | 'cyclonedx',
 ): void {
   const snapshot = deps.store.getSnapshotById(reportId);
   if (!snapshot) {
@@ -296,9 +307,16 @@ export function handleTechStackReport(
   }
   if (deps.engine) {
     const report = deps.engine.generateReport(snapshot, format);
+    const contentType = format === 'md' ? 'text/markdown' : 'application/json';
+    const filename =
+      format === 'spdx'
+        ? 'techstack-sbom-spdx.json'
+        : format === 'cyclonedx'
+          ? 'techstack-sbom-cyclonedx.json'
+          : `techstack-report.${format}`;
     res.writeHead(200, {
-      'Content-Type': format === 'json' ? 'application/json' : 'text/markdown',
-      'Content-Disposition': `attachment; filename="techstack-report.${format}"`,
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.end(report);
   } else {

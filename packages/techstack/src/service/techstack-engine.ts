@@ -5,10 +5,11 @@ import type { TechStackStore } from '../store/sqlite.js';
 import type { Snapshot, TechStackJob, TechStackJobProgress, TechStackJobStatus } from '../types.js';
 import { runEnrichPhase, type EnrichOptions } from './enrich-phase.js';
 import { runInventoryPhase } from './inventory-phase.js';
-import { generateReport } from './report-generator.js';
+import { generateReport, type ReportFormat } from './report-generator.js';
 import { runResearchPhase, type ResearchPhaseOptions } from './research-phase.js';
 
 export type { EnrichOptions } from './enrich-phase.js';
+export type { ReportFormat } from './report-generator.js';
 
 export interface AnalyzeOptions {
   readonly targetRoot: string;
@@ -45,7 +46,7 @@ export class TechStackEngine {
     return runResearchPhase(snapshot, options);
   }
 
-  generateReport(snapshot: Snapshot, format: 'md' | 'json' = 'md'): string {
+  generateReport(snapshot: Snapshot, format: ReportFormat = 'md'): string {
     return generateReport(snapshot, format);
   }
 

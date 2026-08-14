@@ -1,4 +1,4 @@
-import type { SddInterviewDriver, SddInterviewSnapshot } from '@wrongstack/sdd';
+import type { AISpecPhase, SddInterviewDriver, SddInterviewSnapshot } from '@wrongstack/sdd';
 import type { WebSocket } from 'ws';
 import { sendSerialized } from './ws-utils.js';
 
@@ -219,6 +219,9 @@ export class SddWizardWebSocketHandler {
         case 'sdd.spec.approve':
           await this.onApprove();
           break;
+        case 'sdd.spec.rewind':
+          await this.onRewind(msg.payload?.targetPhase as AISpecPhase | undefined);
+          break;
         case 'sdd.spec.get':
           if (this.driver) {
             this.broadcast(this.snapshotMsg());
@@ -367,6 +370,15 @@ export class SddWizardWebSocketHandler {
       return;
     }
     await this.runTurn(prompt);
+  }
+
+  private async onRewind(targetPhase?: AISpecPhase): Promise<void> {
+    if (!this.driver || this.busy) return;
+    const { phase, prompt } = await this.driver.rewind(targetPhase);
+    this.broadcast(this.snapshotMsg());
+    if (phase === 'questioning' || phase === 'implementation') {
+      await this.runTurn(prompt);
+    }
   }
 
   private async onRunStart(opts: SddRunStartOpts): Promise<void> {

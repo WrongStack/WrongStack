@@ -25,13 +25,18 @@ const WITH_NEXT_STEPS = [
   '</nextsteps>',
 ].join('\n');
 
-function assistantMessage(text: string, final: boolean | undefined): ChatMessage {
+function assistantMessage(
+  text: string,
+  final: boolean | undefined,
+  overrides: Partial<ChatMessage> = {},
+): ChatMessage {
   return {
     id: 'msg_1',
     role: 'assistant',
     text,
     ts: '2026-07-31T12:00:00.000Z',
     final,
+    ...overrides,
   } as ChatMessage;
 }
 
@@ -90,5 +95,70 @@ describe('SimpleUI next-steps final-message gate', () => {
     expect(panel?.textContent).toContain('Run the focused tests');
     expect(panel?.textContent).toContain('Review the diff');
     expect(host.textContent).not.toContain('<nextsteps>');
+  });
+
+  it('renders structured nextsteps tool input with no XML fallback text', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    act(() => {
+      root.render(
+        <ChatMessageList
+          messages={[
+            {
+              ...assistantMessage('', true),
+              nextSteps: [{ index: 1, text: 'Run the focused tests', auto: true }],
+            },
+          ]}
+          copiedMessageId={null}
+          running={false}
+          activity=""
+          emptyState={null}
+          theme="dark"
+          onCopyMessage={() => undefined}
+          onSelectNextStep={() => undefined}
+          consumedNextSteps={new Set<string>()}
+        />,
+      );
+    });
+
+    expect(host.querySelector('.next-steps')?.textContent).toContain('Run the focused tests');
+    expect(host.textContent).not.toContain('<nextsteps>');
+  });
+
+  it('shows next steps only for the latest assistant response', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push(root);
+    act(() => {
+      root.render(
+        <ChatMessageList
+          messages={[
+            assistantMessage(WITH_NEXT_STEPS, true),
+            assistantMessage(
+              WITH_NEXT_STEPS.replace('Run the focused tests', 'Inspect the final diff'),
+              true,
+              {
+                id: 'msg_2',
+                ts: '2026-07-31T12:01:00.000Z',
+              },
+            ),
+          ]}
+          copiedMessageId={null}
+          running={false}
+          activity=""
+          emptyState={null}
+          theme="dark"
+          onCopyMessage={() => undefined}
+          onSelectNextStep={() => undefined}
+          consumedNextSteps={new Set<string>()}
+        />,
+      );
+    });
+
+    expect(host.textContent).not.toContain('Run the focused tests');
+    expect(host.textContent).toContain('Inspect the final diff');
   });
 });

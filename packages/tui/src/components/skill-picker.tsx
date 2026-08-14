@@ -2,6 +2,7 @@ import type { SkillEntry } from '@wrongstack/core/types';
 import type React from 'react';
 import { useWindowedPicker } from '../hooks/use-windowed-picker.js';
 import { Box, Text } from '../ink.js';
+import { wrapRefinementPreview } from './enhance-panel.js';
 
 export interface SkillPickerProps {
   entries: readonly SkillEntry[];
@@ -103,15 +104,32 @@ function SkillDetail({
   const showPath = maxRows === undefined || maxRows >= 11;
   const contentColumns = Math.max(20, columns - 4);
   const triggerLines = Math.max(1, Math.min(4, (maxRows ?? DETAIL_FULL_ROWS) - 10));
+  // Pre-wrap the trigger into a FIXED number of lines so the detail panel's
+  // height never changes as the user navigates between skills with different
+  // trigger lengths — same idiom the /model picker uses for its model preview.
+  // wrapRefinementPreview is word-aware, caps at triggerLines, and ellipsizes
+  // overflow, so a one-line trigger and a four-line trigger occupy the same
+  // height (the remainder is padded with blank lines below).
+  const triggerWrapped = wrapRefinementPreview(
+    entry.trigger || '(not specified)',
+    contentColumns,
+    triggerLines,
+  );
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={1} flexGrow={1}>
       <Text color="cyan" bold wrap="truncate-end">
         {entry.name}
       </Text>
       <Text dimColor>use when</Text>
-      <Text wrap="wrap">
-        {truncate(entry.trigger || '(not specified)', contentColumns * triggerLines)}
-      </Text>
+      {triggerWrapped.map((line, i) => (
+        <Text key={`trig-${i}`} wrap="truncate-end">
+          {line}
+        </Text>
+      ))}
+      {/* Pad remaining trigger slots so every skill's panel is the same height. */}
+      {Array.from({ length: triggerLines - triggerWrapped.length }).map((_, i) => (
+        <Text key={`trig-pad-${i}`}> </Text>
+      ))}
       <Text> </Text>
       <Text wrap="truncate-end">
         <Text dimColor>scope: </Text>

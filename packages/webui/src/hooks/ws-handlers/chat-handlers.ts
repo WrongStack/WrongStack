@@ -1,5 +1,5 @@
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
-import { parseNextSteps } from '@wrongstack/tools/next-steps';
+import { parseNextSteps, projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
 import { projectChatMessage, projectToolMessage } from '@wrongstack/webui-server/protocol';
 import { toWireImages } from '@/components/ChatInput/image-attachments';
 import { toast } from '@/components/Toaster';
@@ -36,9 +36,16 @@ export const chatHandlerMap: Partial<Record<string, (msg: WSServerMessage) => vo
   'run.result': handleRunResult,
 };
 
+const nextStepsByToolId = new Map<string, ReturnType<typeof projectNextStepsToolInput>>();
+let completedToolNextSteps: ReturnType<typeof projectNextStepsToolInput> = [];
+
 export function handleIterationStarted(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
   pipeViz(msg);
+  if ((msg.payload as { index?: unknown }).index === 1) {
+    nextStepsByToolId.clear();
+    completedToolNextSteps = [];
+  }
   const payload = msg.payload as { index: number; maxIterations?: number | undefined };
   useSessionStore
     .getState()
@@ -87,6 +94,9 @@ export function handleToolStarted(msg: WSServerMessage) {
   pipeViz(msg);
   const payload = projectToolMessage(msg);
   if (payload?.kind !== 'started') return;
+  if (payload.name === 'nextsteps' && payload.id) {
+    nextStepsByToolId.set(payload.id, projectNextStepsToolInput(payload.input));
+  }
   const existingId = useChatStore.getState().getToolMessageId(payload.id);
   if (existingId) {
     useChatStore.getState().setCurrentToolId(existingId);
@@ -138,6 +148,11 @@ export function handleToolExecuted(msg: WSServerMessage) {
   pipeViz(msg);
   const payload = projectToolMessage(msg);
   if (payload?.kind !== 'executed') return;
+  if (payload.name === 'nextsteps' && payload.id) {
+    const steps = nextStepsByToolId.get(payload.id) ?? [];
+    nextStepsByToolId.delete(payload.id);
+    if (payload.ok && steps.length > 0) completedToolNextSteps = steps;
+  }
   const { currentToolId } = useChatStore.getState();
   const ownerId = payload.id ? useChatStore.getState().getToolMessageId(payload.id) : currentToolId;
   if (ownerId) {
@@ -264,6 +279,21 @@ export function handleRunResult(msg: WSServerMessage) {
         .addMessage({ role: 'assistant', content: finalText });
       useChatStore.getState().finalizeMessage(messageId, { final: true });
     }
+  }
+  if (payload.status === 'done' && completedToolNextSteps.length > 0) {
+    const hasRenderedSuggestions = useChatStore
+      .getState()
+      .messages.some(
+        (message) => message.role === 'assistant' && (message.nextSteps?.steps.length ?? 0) > 0,
+      );
+    if (!hasRenderedSuggestions) {
+      useChatStore.getState().addMessage({
+        role: 'assistant',
+        content: '',
+        nextSteps: { steps: completedToolNextSteps },
+      });
+    }
+    completedToolNextSteps = [];
   }
   useChatStore.getState().setCurrentAssistantMessage(null);
   useChatStore.getState().clearThinking();

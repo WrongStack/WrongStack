@@ -118,8 +118,9 @@ export async function handleIntrospectionRoute(
     }
     case 'stats.get': {
       if (!sessionAllowed(ctx, ws, message)) return true;
-      const usage = actx.tokenCounter.total();
-      const cache = actx.tokenCounter.cacheStats();
+      const usage = typeof actx.tokenCounter?.total === 'function' ? actx.tokenCounter.total() : { input: 0, output: 0, total: 0 };
+      const cache = typeof actx.tokenCounter?.cacheStats === 'function' ? actx.tokenCounter.cacheStats() : { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
+      const currentRequest = typeof actx.tokenCounter?.currentRequestTokens === 'function' ? actx.tokenCounter.currentRequestTokens() : 0;
       const metadata = ctx.modelsRegistry
         ? await resolveProviderModelMetadata(
             ctx.modelsRegistry,
@@ -136,6 +137,11 @@ export async function handleIntrospectionRoute(
           model: actx.model,
           usage,
           cache,
+          // Per-request token snapshot — `usage.cacheRead` above is
+          // cumulative and would mislead the "cache covers the first N
+          // tokens of THIS prompt" indicator. `currentRequest.cacheRead`
+          // is the cached prefix of the most recent request only.
+          currentRequest,
           cost: metadata ? computeUsageCost(usage, getCostRates(metadata)) : null,
           messages: actx.messages.length,
           readFiles: actx.readFiles.size,

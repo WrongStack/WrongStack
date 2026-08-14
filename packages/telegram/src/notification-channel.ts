@@ -57,8 +57,9 @@ export interface TelegramNotificationChannelOptions {
   readonly chatId: string | number;
   /**
    * Maximum message length in characters. Default 4000 (Telegram's hard
-   * cap is 4096; `truncateForTelegram` clamps internally). */
-  readonly maxMessageLength?: number | undefined;
+   * cap is 4096; `truncateForTelegram` clamps internally). Can be passed
+   * as a live getter for dynamic config updates. */
+  readonly maxMessageLength?: number | (() => number) | undefined;
   /** Logger for debug-level diagnostics. */
   readonly log?: Logger | undefined;
 }
@@ -72,14 +73,18 @@ export class TelegramNotificationChannel implements NotificationChannel {
   readonly #enqueueNotification:
     | ((chatId: string | number, text: string) => void)
     | undefined;
-  readonly #maxLen: number;
+  readonly #getMaxLen: () => number;
   readonly #log: Logger | undefined;
 
   constructor(opts: TelegramNotificationChannelOptions) {
     this.#bot = opts.bot;
     this.#chatId = opts.chatId;
     this.#enqueueNotification = opts.enqueueNotification;
-    this.#maxLen = opts.maxMessageLength ?? 4000;
+    const maxLenOption = opts.maxMessageLength;
+    this.#getMaxLen =
+      typeof maxLenOption === 'function'
+        ? maxLenOption
+        : () => maxLenOption ?? 4000;
     this.#log = opts.log;
   }
 
@@ -110,7 +115,7 @@ export class TelegramNotificationChannel implements NotificationChannel {
       const scrubbed = scrubTelegramOutboundText(rawText);
 
       // 3. Truncate to fit Telegram's message size limit
-      const truncated = truncateForTelegram(scrubbed, this.#maxLen);
+      const truncated = truncateForTelegram(scrubbed, this.#getMaxLen());
 
       // 4. Queue when the plugin runtime supplies its bounded outbound path.
       if (this.#enqueueNotification) {

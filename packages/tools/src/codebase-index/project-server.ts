@@ -72,6 +72,7 @@ interface ClientState {
   cancel: Map<number, () => void>;
   watchExternal: boolean;
   debounceMs: number;
+  coalesceWindowMs: number;
   lastSeenAt: number;
 }
 
@@ -197,10 +198,12 @@ const stopMemoryWatchdog = startSharedHeapWatchdog({
 let lastProgressBroadcastAt = 0;
 let externalWatcher: ProjectWatchSubscription | undefined;
 const DEFAULT_EXTERNAL_DEBOUNCE_MS = 400;
+const DEFAULT_EXTERNAL_COALESCE_WINDOW_MS = 50;
 let externalDebounceMs = DEFAULT_EXTERNAL_DEBOUNCE_MS;
+let externalCoalesceWindowMs = DEFAULT_EXTERNAL_COALESCE_WINDOW_MS;
 const externalDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const externalReadyFiles = new Set<string>();
-let externalReadyFlush: ReturnType<typeof setImmediate> | undefined;
+let externalReadyFlush: ReturnType<typeof setTimeout> | undefined;
 
 function clearQueryCaches(): void {
   searchCache.clear();
@@ -507,9 +510,11 @@ async function handleMessage(
   if (message.type === 'configure') {
     const previousWatchExternal = state.watchExternal;
     const previousDebounceMs = state.debounceMs;
+    const previousCoalesceWindowMs = state.coalesceWindowMs;
     try {
       state.watchExternal = message.watchExternal;
       state.debounceMs = Math.max(0, message.debounceMs);
+      state.coalesceWindowMs = Math.max(0, message.coalesceWindowMs ?? DEFAULT_EXTERNAL_COALESCE_WINDOW_MS);
       reconcileExternalWatcher();
       send(state, {
         type: 'response',
@@ -523,6 +528,7 @@ async function handleMessage(
     } catch (error) {
       state.watchExternal = previousWatchExternal;
       state.debounceMs = previousDebounceMs;
+      state.coalesceWindowMs = previousCoalesceWindowMs;
       try {
         reconcileExternalWatcher();
       } catch {
@@ -582,27 +588,30 @@ function enqueueExternalFile(file: string): void {
   const timer = setTimeout(() => {
     externalDebounceTimers.delete(file);
     externalReadyFiles.add(file);
-    if (!externalReadyFlush) {
-      externalReadyFlush = setImmediate(() => {
-        externalReadyFlush = undefined;
-        const files = [...externalReadyFiles].sort();
-        externalReadyFiles.clear();
-        void withIndexWrite((onProgress) =>
-          indexService(
-            {
-              projectRoot,
-              indexDir,
-              files,
-            },
-            { onProgress },
-          ),
-        ).catch(() => {
-          // External indexing is best effort. A subsequent explicit request
-          // surfaces errors through the normal RPC/circuit-breaker path.
-        });
+    // Sliding coalescing window: each file that arrives resets the flush
+    // timer so a staggered burst (formatter-on-save touching several files
+    // over ~10-50ms) stays open until the gap between arrivals exceeds the
+    // window. windowMs=0 falls back to immediate flush via setTimeout(fn, 0).
+    if (externalReadyFlush) clearTimeout(externalReadyFlush);
+    externalReadyFlush = setTimeout(() => {
+      externalReadyFlush = undefined;
+      const files = [...externalReadyFiles].sort();
+      externalReadyFiles.clear();
+      void withIndexWrite((onProgress) =>
+        indexService(
+          {
+            projectRoot,
+            indexDir,
+            files,
+          },
+          { onProgress },
+        ),
+      ).catch(() => {
+        // External indexing is best effort. A subsequent explicit request
+        // surfaces errors through the normal RPC/circuit-breaker path.
       });
-      externalReadyFlush.unref?.();
-    }
+    }, externalCoalesceWindowMs);
+    externalReadyFlush.unref?.();
   }, externalDebounceMs);
   timer.unref?.();
   externalDebounceTimers.set(file, timer);
@@ -644,7 +653,7 @@ function stopExternalWatcher(): void {
   externalWatcher = undefined;
   for (const timer of externalDebounceTimers.values()) clearTimeout(timer);
   externalDebounceTimers.clear();
-  if (externalReadyFlush) clearImmediate(externalReadyFlush);
+  if (externalReadyFlush) clearTimeout(externalReadyFlush);
   externalReadyFlush = undefined;
   externalReadyFiles.clear();
 }
@@ -653,10 +662,12 @@ function reconcileExternalWatcher(): void {
   const owners = [...clients].filter((client) => client.watchExternal);
   if (owners.length === 0) {
     externalDebounceMs = DEFAULT_EXTERNAL_DEBOUNCE_MS;
+    externalCoalesceWindowMs = DEFAULT_EXTERNAL_COALESCE_WINDOW_MS;
     stopExternalWatcher();
     return;
   }
   externalDebounceMs = Math.min(...owners.map((client) => client.debounceMs));
+  externalCoalesceWindowMs = Math.min(...owners.map((client) => client.coalesceWindowMs));
   ensureExternalWatcher();
 }
 
@@ -745,6 +756,7 @@ const server = net.createServer((socket) => {
     cancel: new Map(),
     watchExternal: false,
     debounceMs: DEFAULT_EXTERNAL_DEBOUNCE_MS,
+    coalesceWindowMs: DEFAULT_EXTERNAL_COALESCE_WINDOW_MS,
     lastSeenAt: Date.now(),
   };
   clients.add(state);

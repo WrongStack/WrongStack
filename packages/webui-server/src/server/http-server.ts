@@ -1001,7 +1001,9 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           if (reportMatch && req.method === 'GET') {
             const id = strictDecodeParam(reportMatch[1]!, res);
             if (id === null) return;
-            const fmt = url.searchParams.get('format') === 'json' ? 'json' : 'md';
+            const rawFmt = url.searchParams.get('format');
+            const fmt =
+              rawFmt === 'json' || rawFmt === 'spdx' || rawFmt === 'cyclonedx' ? rawFmt : 'md';
             handleTechStackReport(res, deps, id, fmt);
             return;
           }

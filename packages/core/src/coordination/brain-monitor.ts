@@ -456,6 +456,17 @@ export class BrainMonitor {
       });
       return;
     }
+    if (this.editTimestamps.size >= 500 && !this.editTimestamps.has(path)) {
+      for (const [p, times] of this.editTimestamps) {
+        if (times.every((t) => now - t > this.fileChurnWindowMs)) {
+          this.editTimestamps.delete(p);
+        }
+      }
+      if (this.editTimestamps.size >= 500) {
+        const oldest = this.editTimestamps.keys().next().value;
+        if (oldest !== undefined) this.editTimestamps.delete(oldest);
+      }
+    }
     this.editTimestamps.set(path, stamps);
   }
 

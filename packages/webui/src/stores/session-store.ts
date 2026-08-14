@@ -24,6 +24,25 @@ interface SessionState {
     providerId: string;
     modelId: string;
   } | null;
+  /**
+   * Live prompt-cache snapshot from the most recent `stats.get`
+   * reply. `null` until the first reply lands — distinguishes "no
+   * cache yet" from "0 hit". Cleared on session start/end and on
+   * provider/model switch (same lifecycle as `contextLimitWarning`,
+   * so a stale reading from the previous session can never leak into
+   * the new one).
+   */
+  cacheStats: {
+    readTokens: number;
+    writeTokens: number;
+    hitRatio: number;
+    /**
+     * Cached prefix of the most recent prompt, capped at `lastInputTokens`
+     * so the coverage figure never overshoots the live request size.
+     * Used by the context breakdown modal and topbar cache badge.
+     */
+    coverageTokens: number;
+  } | null;
   /** USD per 1M tokens — used to compute cost deltas on every provider.response. */
   inputCost: number;
   outputCost: number;
@@ -98,10 +117,15 @@ interface SessionState {
   setIteration: (it: { index: number; max: number } | null) => void;
   setContextUsage: (tokens: number, maxContext?: number | undefined) => void;
   setContextLimitWarning: (warning: SessionState['contextLimitWarning']) => void;
+  setCacheStats: (cache: SessionState['cacheStats']) => void;
   setModes: (modes: Array<{ id: string; name: string; description: string }>) => void;
   setContextModes: (modes: SessionState['contextModes']) => void;
   setTodos: (todos: SessionState['todos']) => void;
-  setUpdateInfo: (info: { appVersion: string; latestVersion: string; updateAvailable: boolean }) => void;
+  setUpdateInfo: (info: {
+    appVersion: string;
+    latestVersion: string;
+    updateAvailable: boolean;
+  }) => void;
   setDroppedTools: (count: number) => void;
 }
 
@@ -123,6 +147,7 @@ export const useSessionStore = create<SessionState>()(
       startTime: null,
       maxContext: 0,
       contextLimitWarning: null,
+      cacheStats: null,
       inputCost: 0,
       outputCost: 0,
       cacheReadCost: 0,
@@ -153,7 +178,10 @@ export const useSessionStore = create<SessionState>()(
           return {
             session,
             lastVisitedAt: Date.now(),
-            ...(sessionOrRouteChanged ? { contextLimitWarning: null } : {}),
+            // Clear cache snapshot on provider/model switch — a stale
+            // reading from the previous provider can never apply to the
+            // new prompt cache. Same lifecycle as `contextLimitWarning`.
+            ...(sessionOrRouteChanged ? { contextLimitWarning: null, cacheStats: null } : {}),
           };
         }),
 
@@ -186,6 +214,7 @@ export const useSessionStore = create<SessionState>()(
           lastVisitedAt: Date.now(),
           droppedTools: 0,
           contextLimitWarning: null,
+          cacheStats: null,
         }),
 
       endSession: () =>
@@ -195,6 +224,7 @@ export const useSessionStore = create<SessionState>()(
           iteration: null,
           droppedTools: 0,
           contextLimitWarning: null,
+          cacheStats: null,
           // Note: we intentionally do NOT clear lastVisitedAt here. The
           // verifier view uses it to show "previous activity at …" even
           // when the user explicitly ended a session.
@@ -220,6 +250,7 @@ export const useSessionStore = create<SessionState>()(
           maxContext: maxContext ?? state.maxContext,
         })),
       setContextLimitWarning: (contextLimitWarning) => set({ contextLimitWarning }),
+      setCacheStats: (cacheStats) => set({ cacheStats }),
       setModes: (modes) => set({ modes }),
       setContextModes: (contextModes) => set({ contextModes }),
       setTodos: (todos) => set({ todos }),

@@ -803,7 +803,7 @@ describe('createDelegateTool — edge coverage', () => {
     const origSpawn = director.spawn.bind(director);
     director.spawn = (async (cfg: Record<string, unknown>, price?: unknown) => {
       captured.push(cfg);
-      return origSpawn(cfg as never, price);
+      return origSpawn(cfg as never, price as never);
     }) as never;
     const tool = createDelegateTool({ host: buildHost(director), roster: FLEET_ROSTER });
     await tool.execute(
@@ -845,7 +845,7 @@ describe('createDelegateTool — edge coverage', () => {
     const origSpawn = director.spawn.bind(director);
     director.spawn = (async (cfg: Record<string, unknown>, price?: unknown) => {
       captured.push(cfg);
-      return origSpawn(cfg as never, price);
+      return origSpawn(cfg as never, price as never);
     }) as never;
     const rosterWithOverride = {
       ...FLEET_ROSTER,
@@ -886,7 +886,7 @@ describe('createDelegateTool — edge coverage', () => {
     const origSpawn = director.spawn.bind(director);
     director.spawn = (async (cfg: Record<string, unknown>, price?: unknown) => {
       captured.push(cfg);
-      return origSpawn(cfg as never, price);
+      return origSpawn(cfg as never, price as never);
     }) as never;
     const rosterWithOverride = {
       ...FLEET_ROSTER,

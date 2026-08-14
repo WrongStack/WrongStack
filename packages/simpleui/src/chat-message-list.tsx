@@ -28,6 +28,7 @@ interface ChatMessageListProps {
 
 interface MessageItemProps {
   message: ChatMessage;
+  showNextSteps: boolean;
   copiedMessageId: string | null;
   theme: 'dark' | 'light';
   onCopyMessage: (id: string, text: string) => void;
@@ -42,6 +43,7 @@ function codeTheme(theme: 'dark' | 'light'): string {
 
 const MessageItem = memo(function MessageItem({
   message,
+  showNextSteps,
   copiedMessageId,
   theme,
   onCopyMessage,
@@ -65,8 +67,11 @@ const MessageItem = memo(function MessageItem({
   // The block is stripped from `projection.text` either way; only the panel
   // is gated.
   const nextSteps =
-    message.final === true && !message.streaming && !consumedNextSteps.has(message.id)
-      ? projection.nextSteps
+    showNextSteps &&
+    message.final === true &&
+    !message.streaming &&
+    !consumedNextSteps.has(message.id)
+      ? (message.nextSteps ?? projection.nextSteps)
       : [];
 
   return (
@@ -108,9 +113,7 @@ const MessageItem = memo(function MessageItem({
         {projection.text && !message.streaming && (
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            rehypePlugins={[
-              [rehypePrettyCode, { theme: codeTheme(theme), keepBackground: false }],
-            ]}
+            rehypePlugins={[[rehypePrettyCode, { theme: codeTheme(theme), keepBackground: false }]]}
             components={{
               a: ({ children, ...props }) => (
                 <a {...props} target="_blank" rel="noreferrer">
@@ -176,9 +179,23 @@ export function ChatMessageList({
   consumedNextSteps,
   onOpenDiff,
 }: ChatMessageListProps) {
+  // Suggestions are an action surface, not transcript history. Keep only the
+  // latest assistant response actionable, matching WebUI and avoiding a stack
+  // of stale panels when the conversation has several completed turns.
+  const latestAssistantId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index];
+      if (message?.role === 'assistant') return message.id;
+    }
+    return null;
+  }, [messages]);
+
   // Interleave file edits into the timeline by timestamp
   const timeline = useMemo(() => {
-    const entries: Array<{ kind: 'message'; ts: string; message: ChatMessage } | { kind: 'file_edit'; ts: string; edit: FileEditMeta }> = [];
+    const entries: Array<
+      | { kind: 'message'; ts: string; message: ChatMessage }
+      | { kind: 'file_edit'; ts: string; edit: FileEditMeta }
+    > = [];
 
     for (const m of messages) {
       entries.push({ kind: 'message', ts: m.ts ?? '0', message: m });
@@ -211,6 +228,7 @@ export function ChatMessageList({
             <MessageItem
               key={entry.message.id}
               message={entry.message}
+              showNextSteps={entry.message.id === latestAssistantId}
               copiedMessageId={copiedMessageId}
               theme={theme}
               onCopyMessage={onCopyMessage}

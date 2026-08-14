@@ -19,6 +19,7 @@ import {
   Sparkles,
   Workflow,
 } from 'lucide-react';
+import { META } from '../lib/utils';
 
 export type SettingGroup = {
   name: string;
@@ -303,7 +304,8 @@ export const securityLayers = [
 export const installCommand = 'npm install -g wrongstack';
 export const repoUrl = 'https://github.com/WrongStack/WrongStack';
 export const docsUrl = `${repoUrl}/tree/main/docs`;
-export const version = '0.306.4';
+/** Single source of truth with JSON-LD / META — do not hard-code a second number. */
+export const version = META.version;
 
 export const nodeVersion = '22.19+';
 export const license = 'MIT';

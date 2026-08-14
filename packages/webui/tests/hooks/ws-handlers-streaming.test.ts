@@ -34,7 +34,12 @@ vi.mock('@/lib/notify', () => ({
 vi.mock('@/lib/ws-client', () => ({ getWSClient: () => ({ send: vi.fn() }) }));
 
 // ── SUT (imported after mocks) ────────────────────────────────────────────
-import { handleTextDelta, handleRunResult, handleToolStarted } from '../../src/hooks/ws-handlers/chat-handlers';
+import {
+  handleRunResult,
+  handleTextDelta,
+  handleToolExecuted,
+  handleToolStarted,
+} from '../../src/hooks/ws-handlers/chat-handlers';
 import { handleProviderResponse } from '../../src/hooks/ws-handlers/session-handlers';
 import { streamCoalescer } from '../../src/lib/stream-coalescer';
 import { useChatStore } from '../../src/stores/chat-store';
@@ -72,6 +77,32 @@ afterEach(() => {
 });
 
 describe('streaming pipeline: text_delta → coalescer → chat-store', () => {
+  it('falls back to successful nextsteps tool input when no terminal text arrives', () => {
+    handleToolStarted({
+      type: 'tool.started',
+      payload: {
+        id: 'tool_nextsteps',
+        name: 'nextsteps',
+        input: { steps: [{ text: 'Run the focused tests', auto: true }] },
+        sessionId: 'sess_stream',
+      },
+    } as unknown as WSServerMessage);
+    handleToolExecuted({
+      type: 'tool.executed',
+      payload: { id: 'tool_nextsteps', name: 'nextsteps', ok: true, sessionId: 'sess_stream' },
+    } as unknown as WSServerMessage);
+    handleRunResult({
+      type: 'run.result',
+      payload: { status: 'done', iterations: 1, sessionId: 'sess_stream' },
+    } as unknown as WSServerMessage);
+
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: '',
+      nextSteps: { steps: [{ index: 1, text: 'Run the focused tests', auto: true }] },
+    });
+  });
+
   it('assembles multiple deltas into one assistant message after a flush', async () => {
     const messageId = 'msg_1';
     // Fire three deltas in the same frame (no flush between them).

@@ -190,6 +190,7 @@
     "packages/cli/src/mcp-serve.ts": [
       "loadSelectedMcpServeContent",
       "makeServeContext",
+      "parseToolsFlag",
       "resolveServeFsRestriction",
       "selectExposedTools"
     ],
@@ -270,8 +271,6 @@
     "packages/cli/src/subcommands/handlers/per-subcommand-help.ts": [
       "deepSubcommandsWithFocusedHelp",
       "renderBlockToString",
-      "renderDeepHelp",
-      "renderFocusedHelp",
       "renderGenericHelp",
       "subcommandsWithFocusedHelp"
     ],
@@ -918,6 +917,10 @@
     "packages/telegram/src/offset-store.ts": [
       "offsetPathForToken"
     ],
+    "packages/telegram/src/security/inbound.ts": [
+      "sanitizeTelegramInboundBody",
+      "TELEGRAM_INBOUND_TAG"
+    ],
     "packages/telegram/src/telemetry.ts": [
       "bumpCounter",
       "observeHistogram",
@@ -1478,6 +1481,9 @@
     ],
     "packages/webui/src/hooks/ws-handlers/files-mailbox-handlers.ts": [
       "debouncedRefresh",
+      "handleFilesCreated",
+      "handleFilesDeleted",
+      "handleFilesTreeChanged",
       "handleFilesWritten",
       "handleMailboxActionResult",
       "handleMailboxAgentDeregistered",
@@ -1601,6 +1607,9 @@
       "boundChatField",
       "BTW_DISPATCH_GRACE_MS",
       "retainWebChatMessages"
+    ],
+    "packages/webui/src/stores/file-store.ts": [
+      "mergePersistedFileStore"
     ],
     "packages/webui/src/stores/goal-store.ts": [
       "useGoalStore"

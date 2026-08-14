@@ -199,6 +199,10 @@ export {
   type RecoveryLockOptions,
 } from './recovery-lock.js';
 export {
+  cleanOrphanLocks,
+  type OrphanLockCleanResult,
+} from './orphan-lock-cleaner.js';
+export {
   type ReplayEntry,
   ReplayLogStore,
   type ReplayLogStoreOptions,
@@ -234,6 +238,8 @@ export {
 } from './session-read-scrubber.js';
 export { DefaultSessionReader } from './session-reader.js';
 export {
+  extractInterruptedTools,
+  type InterruptedToolDetail,
   type RecoveryPlan,
   SessionRecovery,
   type StaleSession,

@@ -160,7 +160,8 @@ export const MessageBubble = memo(function MessageBubble({
    * The canonical <nextsteps> block is stripped from message.content at
    * finalization time (chat-store.finalizeMessage) and the parsed steps
    * are persisted on message.nextSteps. We read them directly here — no
-   * re-parsing, no gating on isLatestAssistant.
+   * re-parsing. Only the latest assistant response exposes its panel, so
+   * old suggestions do not accumulate through the visible transcript.
    *
    * The previous implementation re-parsed content on every render and
    * gated the strip on isLatestAssistant. When the user clicked a
@@ -497,7 +498,7 @@ export const MessageBubble = memo(function MessageBubble({
                       <span className="inline-block animate-pulse text-muted-foreground">
                         {t('activity:message.typing')}
                       </span>
-                    ) : hasAttachments ? null : (
+                    ) : hasAttachments || nextSteps.length > 0 ? null : (
                       <span className="text-muted-foreground italic">
                         {t('activity:message.noContent')}
                       </span>
@@ -521,7 +522,7 @@ export const MessageBubble = memo(function MessageBubble({
             trigger "a run is already in progress" by clicking a suggestion
             mid-run. The <nextsteps> XML is still stripped from content at
             finalize time regardless of this gate. */}
-        {!isLoading && nextSteps.length > 0 && (
+        {isLatestAssistant && nextSteps.length > 0 && (
           <NextStepsBar
             steps={nextSteps}
             yoloMode={yolo}

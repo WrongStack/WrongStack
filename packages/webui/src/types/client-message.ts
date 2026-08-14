@@ -165,6 +165,7 @@ export type WSClientMessageCore =
   | { type: 'sdd.spec.start'; payload: { goal: string; force?: boolean | undefined } }
   | { type: 'sdd.spec.message'; payload: { text: string } }
   | { type: 'sdd.spec.approve'; payload?: Record<string, never> }
+  | { type: 'sdd.spec.rewind'; payload?: { targetPhase?: string | undefined } }
   | { type: 'sdd.spec.get'; payload?: Record<string, never> }
   /** Abandon the in-progress interview (clears on-disk session) so a new one can start. */
   | { type: 'sdd.spec.discard'; payload?: Record<string, never> }

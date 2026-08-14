@@ -153,3 +153,56 @@ describe('SkillPicker', () => {
     view.unmount();
   });
 });
+
+describe('SkillPicker - detail panel height stability (split mode)', () => {
+  // Regression: navigating between skills with different trigger lengths used
+  // to change the detail-panel height because the "use when" trigger rendered
+  // with wrap="wrap" and no height floor. The trigger is now pre-wrapped into
+  // a fixed line budget with blank-line padding, so every skill's frame must
+  // be the same height.
+  const columns = 100;
+  const maxRows = 14;
+
+  function frameLineCount(frame: string): number {
+    const trimmed = frame.replace(/\s+$/, '');
+    return trimmed === '' ? 0 : trimmed.split('\n').length;
+  }
+
+  it('renders the same frame height for a one-line vs a long multi-line trigger', async () => {
+    const entries: SkillEntry[] = [
+      {
+        name: 'short-trigger-skill',
+        trigger: 'Short.',
+        scope: ['typescript'],
+        source: 'project',
+        path: 'D:/project/.wrongstack/skills/short/SKILL.md',
+      },
+      {
+        name: 'long-trigger-skill',
+        trigger:
+          'Use when reviewing authentication and authorization boundaries across distributed services, including OAuth flows, session validation, token refresh edge cases, and cross-origin resource sharing policies.',
+        scope: ['security', 'architecture'],
+        source: 'project',
+        path: 'D:/project/.wrongstack/skills/long/SKILL.md',
+      },
+    ];
+
+    const viewShort = renderRealTty(
+      React.createElement(SkillPicker, { entries, selected: 0, columns, maxRows }),
+      { columns, rows: 24 },
+    );
+    await settle();
+    const shortFrame = viewShort.lastFrame() ?? '';
+    viewShort.unmount();
+
+    const viewLong = renderRealTty(
+      React.createElement(SkillPicker, { entries, selected: 1, columns, maxRows }),
+      { columns, rows: 24 },
+    );
+    await settle();
+    const longFrame = viewLong.lastFrame() ?? '';
+    viewLong.unmount();
+
+    expect(frameLineCount(shortFrame)).toBe(frameLineCount(longFrame));
+  });
+});

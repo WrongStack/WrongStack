@@ -31,6 +31,7 @@ export interface MetricsWiringResult {
   healthRegistry: HealthRegistry | undefined;
   metricsServerHandle: MetricsServerHandle | undefined;
   metricsStatus: MetricsRuntimeStatus;
+  dispose?: (() => void) | undefined;
 }
 
 type McpHealthState = ReturnType<MCPRegistry['describe']>[number]['state'];
@@ -262,14 +263,16 @@ export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
       // best-effort
     }
   };
-  // Dump on natural exit. We deliberately do NOT register a SIGINT
-  // handler that calls process.exit() — doing so would preempt the
-  // REPL's "press Ctrl+C twice to exit" semantics and turn a soft
-  // abort (cancel current iteration) into a hard kill of the process.
-  // Other SIGINT handlers (repl.ts, execution.ts, tui/app.tsx) own
-  // the exit lifecycle; when they ultimately call process.exit the
-  // 'exit' event fires and dumpMetrics runs.
-  process.on('exit', dumpMetrics);
+  const onExit = () => {
+    dumpMetrics();
+    void metricsServerHandle?.close().catch(() => {});
+  };
+  process.on('exit', onExit);
+
+  const dispose = () => {
+    process.removeListener('exit', onExit);
+    void metricsServerHandle?.close().catch(() => {});
+  };
 
   if (metricsPort !== undefined && Number.isFinite(metricsPort)) {
     metricsStatus.httpExporter = 'failed';
@@ -285,9 +288,6 @@ export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
         `metrics endpoint listening on ${(metricsServerHandle as never as { url?: string | undefined }).url} (healthz on same port)`,
       );
       metricsStatus.httpExporter = 'listening';
-      process.on('exit', () => {
-        void metricsServerHandle?.close().catch(() => {});
-      });
     } catch (err) {
       logger.warn(`metrics endpoint failed to start: ${toErrorMessage(err)}`);
     }
@@ -295,5 +295,5 @@ export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
     metricsStatus.httpExporter = 'failed';
   }
 
-  return { metricsSink, healthRegistry, metricsServerHandle, metricsStatus };
+  return { metricsSink, healthRegistry, metricsServerHandle, metricsStatus, dispose };
 }

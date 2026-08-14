@@ -59,6 +59,7 @@ function renderModal(
           load: 0.5,
           tokens: options.contextTokens ?? 5000,
           maxContext: options.contextMaxContext ?? 10000,
+          cache: null,
         }}
         sessionId={options.sessionId === undefined ? 'sess-1' : options.sessionId}
         sessionStart={options.sessionStart === undefined ? null : options.sessionStart}

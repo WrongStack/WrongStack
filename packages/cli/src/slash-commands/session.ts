@@ -1,5 +1,5 @@
 import type { SessionRegistry } from '@wrongstack/core/storage';
-import { SessionRecovery } from '@wrongstack/core/storage';
+import { extractInterruptedTools, SessionRecovery } from '@wrongstack/core/storage';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { color, isPidAlive, toErrorMessage } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
@@ -229,6 +229,14 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
           );
         } else {
           lines.push(`  Last checkpoint: ${color.dim('(none — full re-execution)')}`);
+        }
+        const interruptedTools = extractInterruptedTools(plan);
+        if (interruptedTools.length > 0) {
+          lines.push(`  Interrupted tool call(s) in flight: ${color.yellow(String(interruptedTools.length))}`);
+          for (const tool of interruptedTools) {
+            const args = tool.argsSummary ? color.dim(` (${tool.argsSummary})`) : '';
+            lines.push(`    - ${color.yellow(tool.name)}${args}`);
+          }
         }
         lines.push(
           `  Pending events: ${plan.pendingEvents.length} (the work that would re-run on resume)`,

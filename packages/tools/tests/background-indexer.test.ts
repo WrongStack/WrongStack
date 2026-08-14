@@ -87,7 +87,7 @@ describe('enqueueReindex (debounce)', () => {
   it('coalesces rapid edits to the same file into one reindex', async () => {
     vi.useFakeTimers();
     for (let i = 0; i < 3; i++) {
-      enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20 });
+      enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20, coalesceWindowMs: 0 });
     }
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(1);
@@ -96,8 +96,8 @@ describe('enqueueReindex (debounce)', () => {
 
   it('batches distinct files whose debounce expires in the same turn', async () => {
     vi.useFakeTimers();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20 });
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/b.ts'], debounceMs: 20 });
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20, coalesceWindowMs: 0 });
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/b.ts'], debounceMs: 20, coalesceWindowMs: 0 });
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(1);
     expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
@@ -107,8 +107,8 @@ describe('enqueueReindex (debounce)', () => {
 
   it('keeps different project indexes in separate batches', async () => {
     vi.useFakeTimers();
-    enqueueReindex({ projectRoot: '/proj-a', files: ['/proj-a/a.ts'], debounceMs: 20 });
-    enqueueReindex({ projectRoot: '/proj-b', files: ['/proj-b/b.ts'], debounceMs: 20 });
+    enqueueReindex({ projectRoot: '/proj-a', files: ['/proj-a/a.ts'], debounceMs: 20, coalesceWindowMs: 0 });
+    enqueueReindex({ projectRoot: '/proj-b', files: ['/proj-b/b.ts'], debounceMs: 20, coalesceWindowMs: 0 });
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(2);
   });
@@ -123,7 +123,7 @@ describe('enqueueReindex (debounce)', () => {
 
   it('schedules extended languages such as markdown', async () => {
     vi.useFakeTimers();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/README.md'], debounceMs: 20 });
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/README.md'], debounceMs: 20, coalesceWindowMs: 0 });
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(1);
     expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({ files: ['/proj/README.md'] });
@@ -133,9 +133,198 @@ describe('enqueueReindex (debounce)', () => {
     vi.useFakeTimers();
     indexServiceMock.mockRejectedValueOnce(new Error('boom'));
     const onError = vi.fn();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, onError });
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, coalesceWindowMs: 0, onError });
     await vi.advanceTimersByTimeAsync(20);
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('enqueueReindex staggered-burst coalescing', () => {
+  // Three-tier debounce:
+  //   1. Per-file setTimeout(debounceMs) — resets on re-edit of the same file.
+  //   2. Per-project coalescing window (default 50ms, sliding) — after a file's
+  //      debounce timer fires, the ready batch stays open for this long. Any
+  //      file arriving within the window joins the batch and resets the timer.
+  //   3. Mutex serialization — the batch flush acquires the write mutex and
+  //      dispatches one callIndexOp('index', …).
+  //
+  // Timing convention: advances past a boundary use a 10ms margin so both the
+  // setTimeout callback and the async indexServiceMock settle within the same
+  // advanceTimersByTimeAsync call.
+
+  it('a staggered two-file burst coalesces into one run within the window', async () => {
+    vi.useFakeTimers();
+    // coalesceWindowMs defaults to 50ms.
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 100 });
+    await vi.advanceTimersByTimeAsync(50); // t=50: A's timer (at t=100) hasn't fired.
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/b.ts'], debounceMs: 100 });
+    // t=110 (10ms past A's timer at t=100): A enters the batch. Coalesce window
+    // (50ms) starts ticking — batch would flush at t=150, but B's timer fires
+    // at t=150, within the window, so it joins and resets the window to t=200.
+    await vi.advanceTimersByTimeAsync(60);
+    // t=170: B has entered the batch at t=150 and reset the window. No flush yet.
+    expect(indexServiceMock).not.toHaveBeenCalled();
+    // Advance to t=210 (10ms past the reset window flush at t=200).
+    await vi.advanceTimersByTimeAsync(100);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
+      files: ['/proj/a.ts', '/proj/b.ts'],
+    });
+  });
+
+  it('three files in a staggered burst coalesce into one run', async () => {
+    vi.useFakeTimers();
+    const debounceMs = 100;
+    const stepMs = 30;
+
+    // Enqueue f0 at t=0, f1 at t=30, f2 at t=60 — debounce timers fire at
+    // t=100, t=130, t=160. Each arrives within the 50ms coalesce window of
+    // the previous, so the sliding window stays open until t=160+50 = t=210.
+    for (let i = 0; i < 3; i++) {
+      enqueueReindex({ projectRoot: '/proj', files: [`/proj/f${i}.ts`], debounceMs });
+      if (i < 2) await vi.advanceTimersByTimeAsync(stepMs);
+    }
+    // Advance to t=160 — all three debounce timers have fired, each joining
+    // the batch. Window slides to t=160+50 = t=210. No flush yet.
+    await vi.advanceTimersByTimeAsync(100);
+    expect(indexServiceMock).not.toHaveBeenCalled();
+    // Advance past t=210 (10ms margin).
+    await vi.advanceTimersByTimeAsync(60);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
+      files: ['/proj/f0.ts', '/proj/f1.ts', '/proj/f2.ts'],
+    });
+  });
+
+  it('a file arriving after the window closes starts a new batch', async () => {
+    vi.useFakeTimers();
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 50 });
+    // t=60: A's timer fired at t=50, entered the batch, window ticks until t=100.
+    await vi.advanceTimersByTimeAsync(60);
+    // t=120 (10ms past the window at t=100): A flushes alone.
+    await vi.advanceTimersByTimeAsync(60);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({ files: ['/proj/a.ts'] });
+    // B arrives well after A's batch flushed — starts a fresh batch.
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/b.ts'], debounceMs: 50 });
+    // t=230: B's timer fires at t=170, window ticks until t=220, flush at t=230.
+    await vi.advanceTimersByTimeAsync(110);
+    expect(indexServiceMock).toHaveBeenCalledTimes(2);
+    expect(indexServiceMock.mock.calls[1]?.[0]).toMatchObject({ files: ['/proj/b.ts'] });
+  });
+
+  it('files whose timers fire simultaneously still coalesce', async () => {
+    vi.useFakeTimers();
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 100 });
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/b.ts'], debounceMs: 100 });
+    // Both timers fire at t=100, both enter the batch. Window (50ms) starts
+    // ticking from the first arrival; flush at t=150 + 10ms margin.
+    await vi.advanceTimersByTimeAsync(160);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
+      files: ['/proj/a.ts', '/proj/b.ts'],
+    });
+  });
+
+  it('re-editing a file within the debounce window resets its timer', async () => {
+    vi.useFakeTimers();
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 100 });
+    await vi.advanceTimersByTimeAsync(80); // t=80: 20ms left on the timer.
+    // Re-enqueue — old timer is cleared, new one set for 100ms from t=80 (t=180).
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 100 });
+    // Advance to t=130 — original timer would have fired at t=100, but the
+    // reset pushed the deadline to t=180. Nothing should have run yet.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(indexServiceMock).not.toHaveBeenCalled();
+    // Advance to t=240: debounce fires at t=180, enters batch, window flushes
+    // at t=180+50 = t=230, plus 10ms margin.
+    await vi.advanceTimersByTimeAsync(110);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({ files: ['/proj/a.ts'] });
+  });
+
+  it('staggered bursts across two projects coalesce independently', async () => {
+    vi.useFakeTimers();
+    enqueueReindex({ projectRoot: '/proj-a', files: ['/proj-a/a.ts'], debounceMs: 100 });
+    await vi.advanceTimersByTimeAsync(50); // t=50
+    enqueueReindex({ projectRoot: '/proj-b', files: ['/proj-b/b.ts'], debounceMs: 100 });
+    // t=110: proj-a's timer fires at t=100, enters batch. proj-b's timer fires
+    // at t=150. Each project has its own coalesce window; they don't interfere.
+    await vi.advanceTimersByTimeAsync(60);
+    // proj-a window flushes at t=150 (50ms after t=100). 10ms margin → t=160.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
+      projectRoot: '/proj-a',
+      files: ['/proj-a/a.ts'],
+    });
+    // proj-b window flushes at t=200 (50ms after t=150). 10ms margin → t=210.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(indexServiceMock).toHaveBeenCalledTimes(2);
+    expect(indexServiceMock.mock.calls[1]?.[0]).toMatchObject({
+      projectRoot: '/proj-b',
+      files: ['/proj-b/b.ts'],
+    });
+  });
+
+  it('coalesceWindowMs=0 falls back to immediate flush (no coalescing)', async () => {
+    // Setting coalesceWindowMs to 0 restores the legacy behavior: each file's
+    // debounce timer fires and flushes independently (no trailing window).
+    vi.useFakeTimers();
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/a.ts'],
+      debounceMs: 100,
+      coalesceWindowMs: 0,
+    });
+    await vi.advanceTimersByTimeAsync(50);
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/b.ts'],
+      debounceMs: 100,
+      coalesceWindowMs: 0,
+    });
+    // t=110: A's timer fires at t=100, window=0 means flush fires in the next
+    // macrotask. B's timer hasn't fired yet (fires at t=150).
+    await vi.advanceTimersByTimeAsync(60);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({ files: ['/proj/a.ts'] });
+    // t=160: B's timer fires at t=150, flushes alone.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(indexServiceMock).toHaveBeenCalledTimes(2);
+    expect(indexServiceMock.mock.calls[1]?.[0]).toMatchObject({ files: ['/proj/b.ts'] });
+  });
+
+  it('explicit coalesceWindowMs overrides the default', async () => {
+    vi.useFakeTimers();
+    // Use a 100ms window so files arriving 80ms apart still coalesce.
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/a.ts'],
+      debounceMs: 100,
+      coalesceWindowMs: 100,
+    });
+    await vi.advanceTimersByTimeAsync(80); // t=80
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/b.ts'],
+      debounceMs: 100,
+      coalesceWindowMs: 100,
+    });
+    // A's timer fires at t=100, window (100ms) closes at t=200. B's timer fires
+    // at t=180 (within the window) → joins the batch, resets window to t=280.
+    await vi.advanceTimersByTimeAsync(30); // t=110
+    expect(indexServiceMock).not.toHaveBeenCalled();
+    // Advance to t=190 — B's timer fires at t=180, joins batch, resets window
+    // to t=180+100 = t=280.
+    await vi.advanceTimersByTimeAsync(80); // t=190
+    expect(indexServiceMock).not.toHaveBeenCalled();
+    // Flush at t=280 + 10ms margin.
+    await vi.advanceTimersByTimeAsync(100);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
+      files: ['/proj/a.ts', '/proj/b.ts'],
+    });
   });
 });
 
@@ -213,7 +402,7 @@ describe('circuit breaker integration', () => {
     vi.useFakeTimers();
     for (let i = 0; i < 3; i++) indexCircuitBreaker.recordFailure(new Error('boom'));
     const onError = vi.fn();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, onError });
+    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, coalesceWindowMs: 0, onError });
     await vi.advanceTimersByTimeAsync(20);
     expect(indexServiceMock).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledTimes(1);

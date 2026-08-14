@@ -1,10 +1,12 @@
 import * as fs from 'node:fs/promises';
+import type { CacheStats } from '@wrongstack/core/types';
 import { type ContextBreakdown, getContextBreakdown } from '@wrongstack/core/utils';
 import { useEffect, useMemo, useState } from 'react';
 import type { AppProps } from '../app-props.js';
 import type { FleetEntry, State } from '../app-state.js';
 import type { StatuslineItem } from '../components/statusline-picker.js';
 import { resolveContextFill } from '../context-fill.js';
+import type { TokenRefreshData } from './use-token-counter-refresh.js';
 
 interface StatusbarViewModelOptions {
   agent: AppProps['agent'];
@@ -22,6 +24,17 @@ interface StatusbarViewModelOptions {
    * user-hidden, skip the poll entirely until it is visible again.
    */
   hiddenItems?: readonly StatuslineItem[] | undefined;
+  /**
+   * Live token-counter refresh snapshot — supplies per-request
+   * `currentRequestTokens` plus cumulative `cacheStats`. When omitted the
+   * view model falls back to reading the counter directly so existing
+   * callers stay correct (the older path was a render-time poll of
+   * mutable counters and lagged async provider responses).
+   *
+   * Typed as the exact `TokenRefreshData` shape so callers passing the
+   * hook's return value stay assignable under `exactOptionalPropertyTypes`.
+   */
+  tokenRefresh?: TokenRefreshData;
 }
 
 interface PlanCounts {
@@ -74,10 +87,22 @@ export function useStatusbarViewModel({
   sidebarVisible,
   state,
   hiddenItems = [],
+  tokenRefresh,
 }: StatusbarViewModelOptions): {
   contextBreakdown: ContextBreakdown | undefined;
   currentContextTokens: number;
   contextWindow: { used: number; max: number } | undefined;
+  cacheStats: CacheStats;
+  /**
+   * "Cache coverage" — how far the cached prefix reaches through the live
+   * request, expressed in tokens. Computed from the per-request
+   * `cacheRead` snapshot (the cached prefix of the current prompt) and
+   * the measured `used` total. Capped at `used` so the figure never
+   * overshoots the actual request size. Zero when no cache read was
+   * reported on the latest request — the indicator stays hidden instead
+   * of suggesting a meaningless 0.
+   */
+  cacheCoverageTokens: number;
   todos: { pending: number; inProgress: number; completed: number };
   fleetCounts: { running: number; idle: number; pending: number; completed: number } | undefined;
   visibleSubagentCount: number;
@@ -358,10 +383,29 @@ export function useStatusbarViewModel({
   const droppedTools =
     providerMaxTools > 0 ? Math.max(0, (agent.ctx.tools?.length ?? 0) - providerMaxTools) : 0;
 
+  // Cache stats — prefer the live refresh snapshot (which subscribes to
+  // `token.accounted`) so the sidebar reflects async provider responses
+  // without waiting for an unrelated re-render. Fall back to a direct
+  // counter read so legacy callers that don't pass `tokenRefresh` still
+  // see something other than zeros.
+  const cacheStats: CacheStats = tokenRefresh?.cacheStats ??
+    tokenCounter?.cacheStats?.() ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
+
+  // Cache coverage: the cached prefix of the most recent prompt, capped at
+  // the live request's `used` total so it never exceeds what is actually
+  // being sent. Falls back to the per-request `cacheRead` when no refresh
+  // snapshot is available. Surfaced as a marker on the context window
+  // detail so users can see "cache covers the first N tokens" rather
+  // than guessing from a percentage.
+  const requestCacheRead = tokenRefresh?.currentRequest?.cacheRead ?? perRequest?.cacheRead ?? 0;
+  const cacheCoverageTokens = Math.max(0, Math.min(currentContextTokens, requestCacheRead));
+
   return {
     contextBreakdown,
     currentContextTokens,
     contextWindow,
+    cacheStats,
+    cacheCoverageTokens,
     todos,
     fleetCounts,
     visibleSubagentCount,

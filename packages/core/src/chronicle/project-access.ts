@@ -364,6 +364,10 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
       this.sqlite = undefined;
       store.close();
     }
+    for (const journal of this.journals.values()) {
+      await journal.flush().catch(() => {});
+    }
+    this.journals.clear();
   }
 
   private get chronicleDirectory(): string {

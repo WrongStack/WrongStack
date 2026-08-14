@@ -56,6 +56,7 @@ import { useSlashPicker } from './hooks/use-slash-picker.js';
 import { useStableKeyHandler } from './hooks/use-stable-key-handler.js';
 import { useStatusbarViewModel } from './hooks/use-statusbar-view-model.js';
 import { useStatuslineHiddenSync } from './hooks/use-statusline-hidden-sync.js';
+import { useTokenCounterRefresh } from './hooks/use-token-counter-refresh.js';
 import { useStreamChipExpiration } from './hooks/use-stream-chip-expiration.js';
 import { useThemeState } from './hooks/use-theme-state.js';
 import { useTuiActivity } from './hooks/use-tui-activity.js';
@@ -622,6 +623,12 @@ export function App(props: AppProps): React.ReactElement {
 
   const gitInfo = useGitSessionStatus({ agent, getLiveSessions, setSessionCount, hiddenItems });
 
+  // Subscribes to `token.accounted` so the sidebar's cache card stays in
+  // sync with async provider responses instead of waiting for an
+  // unrelated re-render (the bare counter is a mutable object that React
+  // never observes).
+  const tokenRefresh = useTokenCounterRefresh(tokenCounter, events, agent.ctx.session?.id);
+
   const statusbar = useStatusbarViewModel({
     agent,
     tokenCounter,
@@ -633,6 +640,7 @@ export function App(props: AppProps): React.ReactElement {
     sidebarVisible: sidebarLayout.sidebarWidth > 0,
     hiddenItems,
     state,
+    ...(tokenRefresh ? { tokenRefresh } : {}),
   });
   const { fleetCounts } = statusbar;
 

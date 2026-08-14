@@ -10,8 +10,12 @@
  * neither flag was present (caller should proceed to boot()).
  */
 import { parseArgs } from '../arg-parser.js';
-import { subcommandNames } from '../subcommands/index.js';
+import {
+  renderDeepHelp,
+  renderFocusedHelp,
+} from '../subcommands/handlers/per-subcommand-help.js';
 import { helpCmd, versionCmd } from '../subcommands/handlers/version-help.js';
+import { subcommandNames } from '../subcommands/index.js';
 
 /**
  * Check argv for --help / --version and dispatch directly.
@@ -21,8 +25,8 @@ import { helpCmd, versionCmd } from '../subcommands/handlers/version-help.js';
  * `write` calls, no TTY needed.
  *
  * When `--help` accompanies a known subcommand positional (e.g.
- * `wstack hq --help`), this defers to the subcommand dispatcher
- * (returns null) so the subcommand can print its own focused help.
+ * `wstack hq --help` or `wstack mcp add --help`), this renders the
+ * focused / deep help directly for instantaneous output.
  * `--version` always fires globally — the CLI version is not
  * subcommand-specific.
  */
@@ -32,20 +36,30 @@ export async function handleHelpVersionShortCircuit(argv: string[]): Promise<num
     return null;
   }
 
-  // --help with a known subcommand positional: defer to boot's dispatcher.
-  if (
-    earlyFlags['help'] === true &&
-    positional.length > 0 &&
-    subcommandNames.includes(positional[0]!)
-  ) {
-    return null;
-  }
-
   const stubRenderer = {
     write: (line: string) => {
       process.stdout.write(line);
     },
   } as never as Parameters<typeof helpCmd>[1]['renderer'];
-  const handler = earlyFlags['help'] === true ? helpCmd : versionCmd;
-  return await handler([], { renderer: stubRenderer } as Parameters<typeof helpCmd>[1]);
+
+  if (earlyFlags['version'] === true) {
+    return await versionCmd([], { renderer: stubRenderer } as Parameters<typeof versionCmd>[1]);
+  }
+
+  if (earlyFlags['help'] === true) {
+    if (positional.length > 0 && subcommandNames.includes(positional[0]!)) {
+      const first = positional[0]!;
+      const deep = positional[1];
+      if (deep && renderDeepHelp(`${first}:${deep}`, stubRenderer)) {
+        return 0;
+      }
+      if (renderFocusedHelp(first, stubRenderer)) {
+        return 0;
+      }
+    }
+    return await helpCmd([], { renderer: stubRenderer } as Parameters<typeof helpCmd>[1]);
+  }
+
+  return null;
 }
+

@@ -98,23 +98,34 @@ export function registerSetupEventsFleetBroadcaster(
 
   let eventDebounce: ReturnType<typeof setTimeout> | undefined;
   let unsubscribe: (() => Promise<void>) | undefined;
+  let disposed = false;
+
   void import('@wrongstack/core/storage')
     .then(async ({ getSessionRegistry }) => {
+      if (disposed || isDisposed()) return;
       const registry = getSessionRegistry(globalRoot);
       const projectSlug = wpaths?.projectSlug;
-      if (!projectSlug || isDisposed()) return;
-      unsubscribe = await registry.subscribeProject(projectSlug, context.projectRoot, () => {
+      if (!projectSlug || disposed || isDisposed()) return;
+      const unsub = await registry.subscribeProject(projectSlug, context.projectRoot, () => {
         if (eventDebounce) clearTimeout(eventDebounce);
         eventDebounce = setTimeout(() => void broadcastSessions(), 25);
       });
+      if (disposed || isDisposed()) {
+        void unsub();
+        return;
+      }
+      unsubscribe = unsub;
       subscriptionLive = true;
     })
     .catch(() => {
       subscriptionLive = false;
     });
+
   disposers.push(() => {
+    disposed = true;
     if (eventDebounce) clearTimeout(eventDebounce);
     void unsubscribe?.();
+    unsubscribe = undefined;
   });
   scheduleStatusPoll();
   void broadcastSessions();

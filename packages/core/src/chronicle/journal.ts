@@ -735,9 +735,11 @@ async function readLastEntryState(filePath: string): Promise<{
  *  on partitions of any size, so only individual lines are materialized. */
 export async function* streamEntriesStrict(filePath: string): AsyncGenerator<ChronicleEvent> {
   let lineNumber = 0;
+  let input: ReturnType<typeof createReadStream> | undefined;
+  let lines: ReturnType<typeof createInterface> | undefined;
   try {
-    const input = createReadStream(filePath, { encoding: 'utf8', highWaterMark: 256 * 1024 });
-    const lines = createInterface({ input, crlfDelay: Infinity });
+    input = createReadStream(filePath, { encoding: 'utf8', highWaterMark: 256 * 1024 });
+    lines = createInterface({ input, crlfDelay: Infinity });
     for await (const line of lines) {
       lineNumber++;
       const trimmed = line.trim();
@@ -753,6 +755,9 @@ export async function* streamEntriesStrict(filePath: string): AsyncGenerator<Chr
   } catch (error) {
     if (isNotFound(error)) return;
     throw error;
+  } finally {
+    lines?.close();
+    input?.destroy();
   }
 }
 

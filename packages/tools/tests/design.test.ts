@@ -86,32 +86,26 @@ describe('designTool', () => {
     expect(wrote).toBe(false);
   });
 
-  // #249: this test is skipped because resolveReal() can resolve the caller's
-  // absolute temp path and the project.root (both under os.tmpdir()) to the
-  // same parent directory on GitHub ubuntu-latest CI, making the relative
-  // check pass through. Root cause: resolveReal uses fs.realpath on the
-  // parent directory of the absolute path, which may resolve '/tmp' → '/tmp'
-  // or '/private/tmp' depending on the CI runner, losing the expected '..'
-  // prefix. Needs a deeper fix to the escape check inside design.ts.
-  it.skipIf(true, 'https://github.com/WrongStack/WrongStack/issues/249')(
-    'blocks an absolute out path outside the project root',
-    async () => {
-      const ctx = makeCtx();
-      await designTool.execute({ action: 'use', kit: 'minimal-clarity', stack: 'web' }, ctx, opts);
+  // #249: dest and projectRoot are siblings under os.tmpdir() — the case
+  // that used to pass through when realpath of the dest parent collapsed
+  // onto a shared tmp mount. The containment check now realpaths both
+  // sides and rejects any relative that starts with '..' or is absolute.
+  it('blocks an absolute out path outside the project root', async () => {
+    const ctx = makeCtx();
+    await designTool.execute({ action: 'use', kit: 'minimal-clarity', stack: 'web' }, ctx, opts);
 
-      const abs = path.join(os.tmpdir(), `ws-design-abs-${Date.now()}.css`);
-      await expect(
-        designTool.execute({ action: 'materialize', out: abs }, ctx, opts),
-      ).rejects.toThrow(/escape the project root/i);
-      let wrote = true;
-      try {
-        await fs.access(abs);
-      } catch {
-        wrote = false;
-      }
-      expect(wrote).toBe(false);
-    },
-  );
+    const abs = path.join(os.tmpdir(), `ws-design-abs-${Date.now()}.css`);
+    await expect(
+      designTool.execute({ action: 'materialize', out: abs }, ctx, opts),
+    ).rejects.toThrow(/escape the project root/i);
+    let wrote = true;
+    try {
+      await fs.access(abs);
+    } catch {
+      wrote = false;
+    }
+    expect(wrote).toBe(false);
+  });
 
   it('tune resolves high-level knobs and flows into materialize', async () => {
     const ctx = makeCtx();

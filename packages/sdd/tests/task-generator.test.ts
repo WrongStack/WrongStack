@@ -597,4 +597,58 @@ describe('TaskGenerator — atomicity annotation (opt-in)', () => {
     expect(atomicity.verdict).toBe('needs_decomposition');
     expect(atomicity.reasons.length).toBeGreaterThan(0);
   });
+
+  describe('ensureRequirementCoverage — uncovered branches', () => {
+    function freshTracker() {
+      const trk = new TaskTracker({ store: makeFakeStore() });
+      const gen = new TaskGenerator({ taskTracker: trk });
+      return { trk, gen };
+    }
+
+    it('throws when the graph targets a different spec (:228)', async () => {
+      const { trk, gen } = freshTracker();
+      const graph = await trk.createGraph('spec-1', 'Mismatched graph');
+
+      expect(() => gen.ensureRequirementCoverage(makeSpec({ id: 'spec-2' }), graph)).toThrow(
+        'Task graph spec mismatch',
+      );
+    });
+
+    it('treats a spec without requirements as an empty scope (:235, :253)', async () => {
+      const { trk, gen } = freshTracker();
+      const graph = await trk.createGraph('spec-1', 'Empty scope');
+      const spec = makeSpec();
+      delete (spec as { requirements?: unknown }).requirements;
+
+      const added = gen.ensureRequirementCoverage(spec, graph);
+
+      expect(added).toEqual([]);
+      expect(graph.requiredRequirementIds).toEqual([]);
+    });
+
+    it('drops a node mapping that points outside the approved scope (:240)', async () => {
+      const { trk, gen } = freshTracker();
+      const graph = await trk.createGraph('spec-1', 'Typo mapping');
+      const node = trk.addNode({
+        title: 'Model task with a typo requirement id',
+        description: 'Maps to no approved requirement.',
+        type: 'feature',
+        priority: 'medium',
+        status: 'pending',
+        specRequirementId: 'REQ-TYPO',
+      });
+      const spec = makeSpec({
+        requirements: [makeRequirement({ id: 'REQ-1', description: 'Real requirement' })],
+      });
+
+      const added = gen.ensureRequirementCoverage(spec, graph);
+
+      // The untrusted mapping is dropped; the canonical requirement still
+      // receives its deterministic task.
+      expect(node.specRequirementId).toBeUndefined();
+      expect(added.map((n) => n.specRequirementId)).toEqual(['REQ-1']);
+      // The proposed task remains as additional work.
+      expect(graph.nodes.has(node.id)).toBe(true);
+    });
+  });
 });

@@ -29,6 +29,21 @@ export interface ContextPanelData {
   mode: string;
   uptime: string;
   /**
+   * Cumulative prompt-cache stats from the per-session TokenCounter.
+   * Surfaced in the panel so `/context` answers "how much of my spend
+   * is hitting the cache" without asking the user to chase the CLI
+   * `/context cache` subcommand.
+   */
+  cacheStats?:
+    | { readTokens: number; writeTokens: number; hitRatio: number; savedUsd: number }
+    | undefined;
+  /**
+   * How far the cached prefix reaches through the live request, in
+   * tokens. Drawn on the per-request coverage meter so users see the
+   * exact extent of the cache, not just a percentage.
+   */
+  cacheCoverageTokens?: number | undefined;
+  /**
    * Real, measured per-category token accounting for the live request. When
    * present the Composition tab shows honest numbers; when absent (no request
    * has been assembled yet) the tab shows an empty state instead of fabricated
@@ -565,6 +580,67 @@ function MetricsSection({ data }: { data: ContextPanelData }): React.ReactElemen
   );
 }
 
+/**
+ * Cache coverage section — answers "exactly how far does the prompt cache
+ * extend into the live request?" Renders the cumulative cache hit ratio
+ * plus a per-request coverage meter that visibly marks where the cached
+ * prefix ends. Hidden when nothing has been cached yet so the panel does
+ * not advertise a 0% figure as if it were meaningful.
+ */
+function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement {
+  const cs = data.cacheStats ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
+  const hasCache = cs.readTokens > 0 || cs.writeTokens > 0;
+  const coverage = Math.max(0, data.cacheCoverageTokens ?? 0);
+  const max = data.ctxMaxTokens ?? 0;
+  const covBarLen = 30;
+  const covPct = max > 0 ? Math.min(100, (coverage / max) * 100) : 0;
+  const covFilled = Math.round((covPct / 100) * covBarLen);
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <SectionLabel>PROMPT CACHE</SectionLabel>
+
+      <Box>
+        <Text color={theme.textMuted}>Hit ratio </Text>
+        <Text color={hasCache ? theme.success : theme.textMuted} bold>
+          {(cs.hitRatio * 100).toFixed(1)}%
+        </Text>
+        <Text color={theme.textMuted}> · read </Text>
+        <Text color={theme.textPrimary}>{cs.readTokens.toLocaleString('en-US')}</Text>
+        <Text color={theme.textMuted}> · write </Text>
+        <Text color={theme.textSecondary}>{cs.writeTokens.toLocaleString('en-US')}</Text>
+      </Box>
+
+      {coverage > 0 && max > 0 ? (
+        <>
+          {/* Coverage meter — `■` cells mark the cached span, `┊` line
+              pins the exact endpoint. `□` shows the rest of the window
+              that was billed at full input rate. */}
+          <Box marginTop={1}>
+            <Text color={theme.textMuted}>Coverage </Text>
+            <Text color={theme.success}>{'■'.repeat(Math.max(0, covFilled))}</Text>
+            <Text color={theme.textSecondary}>{'┊'}</Text>
+            <Text color={theme.borderSubtle}>{'□'.repeat(Math.max(0, covBarLen - covFilled))}</Text>
+            <Text color={theme.textMuted}> </Text>
+            <Text color={theme.success}>
+              {coverage.toLocaleString('en-US')} / {max.toLocaleString('en-US')} (
+              {covPct.toFixed(1)}%)
+            </Text>
+          </Box>
+          <Text color={theme.textMuted}>
+            The first {coverage.toLocaleString('en-US')} tokens of this prompt are served from the
+            provider cache; everything after the marked boundary is fresh.
+          </Text>
+        </>
+      ) : (
+        <Text color={theme.textMuted}>
+          No cached prefix on the current request — the next assistant turn will start building one.
+        </Text>
+      )}
+    </Box>
+  );
+}
+
 /** Renders a compact horizontal bar using block chars. Clamps pct to [0,1]. */
 function tuiMiniBar(pct: number, width: number): string {
   const clamped = Math.max(0, Math.min(1, pct));
@@ -834,6 +910,7 @@ export function ContextPanel({ data, onClose }: ContextPanelProps): React.ReactE
             <PressureSection data={data} contentWidth={contentWidth} />
             <StatusSection data={data} />
             <MetricsSection data={data} />
+            <CacheSection data={data} />
           </>
         ) : null}
         {tab === 'composition' ? (

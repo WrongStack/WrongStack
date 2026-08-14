@@ -1,5 +1,6 @@
 import { ToolCapabilities } from '@wrongstack/core/security';
 import type { Logger, Tool } from '@wrongstack/core/types';
+import type { TelegramBotOutbound } from '../bot-queue.js';
 import type { TelegramBot } from '../bot.js';
 import {
   resolveTelegramOutboundTarget,
@@ -17,6 +18,7 @@ interface TelegramSendInput {
 
 export function makeTelegramSendTool(opts: {
   bot: TelegramBot;
+  outbound?: TelegramBotOutbound | undefined;
   /** Paired/default target, resolved on every call for live config updates. */
   getDefaultChatId(): TelegramChatId | undefined;
   /** Additional trusted targets, resolved on every call for live config updates. */
@@ -60,9 +62,11 @@ export function makeTelegramSendTool(opts: {
 
       opts.log.info(`telegram_send → chat_id=${chatId} (${truncated.length} chars)`);
 
-      const res = toolOpts?.signal
-        ? await opts.bot.sendMessage(chatId, truncated, toolOpts.signal)
-        : await opts.bot.sendMessage(chatId, truncated);
+      const res = opts.outbound
+        ? await opts.outbound.sendManual(chatId, truncated)
+        : (toolOpts?.signal
+            ? await opts.bot.sendMessage(chatId, truncated, toolOpts.signal)
+            : await opts.bot.sendMessage(chatId, truncated));
 
       return {
         ok: res.ok,

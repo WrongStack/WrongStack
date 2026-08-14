@@ -4,6 +4,7 @@ import { Context } from '@wrongstack/core/agent';
 import { ProviderCacheLedger } from '@wrongstack/core/infrastructure';
 import {
   attachTodosCheckpoint,
+  cleanOrphanLocks,
   DefaultAttachmentStore,
   loadDirectorState,
   loadPlan,
@@ -129,6 +130,19 @@ export async function setupSession(params: {
       if (count > 0) renderer.writeInfo(`Pruned ${count} old session${count === 1 ? '' : 's'}.`);
     })
     .catch((err) => console.debug(`[session] prune failed: ${err}`));
+
+  // Sweep stale locks and orphaned worktrees left behind by previous crashes.
+  if (projectRoot) {
+    cleanOrphanLocks(projectRoot)
+      .then((cleaned: import('@wrongstack/core/storage').OrphanLockCleanResult) => {
+        if (cleaned.cleanedGitLocks.length > 0 || cleaned.cleanedWorktrees.length > 0) {
+          renderer.writeInfo(
+            `Cleaned up ${cleaned.cleanedGitLocks.length} stale lock(s) and ${cleaned.cleanedWorktrees.length} orphaned worktree lock(s).`,
+          );
+        }
+      })
+      .catch((err: unknown) => console.debug(`[session] cleanOrphanLocks failed: ${err}`));
+  }
 
   let resumeId = typeof flags['resume'] === 'string' ? (flags['resume'] as string) : undefined;
 

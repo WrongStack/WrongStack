@@ -181,3 +181,163 @@ describe('PromptPicker', () => {
     view.unmount();
   });
 });
+
+describe('PromptPicker - detail panel height stability (split mode)', () => {
+  // Regression: navigating between prompts with different description/preview
+  // lengths used to change the detail-panel height because both sections
+  // rendered with wrap="wrap" and no height floor. Both are now pre-wrapped
+  // into fixed line budgets with blank-line padding, so every prompt's frame
+  // must be the same height.
+  const columns = 100;
+  const maxRows = 20;
+
+  function frameLineCount(frame: string): number {
+    const trimmed = frame.replace(/\s+$/, '');
+    return trimmed === '' ? 0 : trimmed.split('\n').length;
+  }
+
+  it('renders the same frame height for short vs long description and content', () => {
+    const varied: PromptPickEntry[] = [
+      {
+        slug: 'short',
+        title: 'Short',
+        description: 'Brief.',
+        category: 'test',
+        source: 'project',
+        content: 'Do the thing.',
+        favorite: false,
+      },
+      {
+        slug: 'long',
+        title: 'Long',
+        description:
+          'This is a much longer description that spans multiple lines when wrapped at the detail panel width, exercising the word-aware wrapper and its ellipsis truncation behavior.',
+        category: 'test',
+        source: 'project',
+        content:
+          'Line one of a very long prompt body.\nLine two continues with more detail.\nLine three adds additional context.\nLine four has even more content.\nLine five keeps going.\nLine six is here too.\nLine seven would overflow the budget.\nLine eight definitely overflows.',
+        favorite: false,
+      },
+    ];
+
+    const viewShort = render(
+      React.createElement(PromptPicker, {
+        entries: varied,
+        selected: 0,
+        category: 'all',
+        total: 2,
+        columns,
+        maxRows,
+      }),
+    );
+    const shortFrame = viewShort.lastFrame() ?? '';
+    viewShort.unmount();
+
+    const viewLong = render(
+      React.createElement(PromptPicker, {
+        entries: varied,
+        selected: 1,
+        category: 'all',
+        total: 2,
+        columns,
+        maxRows,
+      }),
+    );
+    const longFrame = viewLong.lastFrame() ?? '';
+    viewLong.unmount();
+
+    expect(frameLineCount(shortFrame)).toBe(frameLineCount(longFrame));
+  });
+
+  it('fits the detail panel within maxRows at the 14-row boundary', () => {
+    const entry: PromptPickEntry = {
+      slug: 'x',
+      title: 'Boundary',
+      description:
+        'A description long enough to wrap to multiple lines at the detail panel width, exercising the budget derivation.',
+      category: 'test',
+      source: 'project',
+      content:
+        'Line one of a long body that would overflow a fixed 6-line preview budget.\nLine two.\nLine three.\nLine four.\nLine five.\nLine six.\nLine seven.\nLine eight.',
+      favorite: false,
+    };
+
+    const view = render(
+      React.createElement(PromptPicker, {
+        entries: [entry],
+        selected: 0,
+        category: 'all',
+        total: 1,
+        columns: 100,
+        maxRows: 14,
+      }),
+    );
+    const frame = view.lastFrame() ?? '';
+    view.unmount();
+
+    // Detail panel: 10 chrome + 2 desc + 2 preview = 14, which must fit.
+    expect(frame).toContain('slug:');
+    expect(frame).toContain('preview');
+    expect(frameLineCount(frame)).toBeLessThanOrEqual(14);
+  });
+
+  it('falls back to list-only below the 14-row split threshold', () => {
+    const entry: PromptPickEntry = {
+      slug: 'x',
+      title: 'Low',
+      description: 'desc',
+      category: 'test',
+      source: 'project',
+      content: 'content',
+      favorite: false,
+    };
+
+    const view = render(
+      React.createElement(PromptPicker, {
+        entries: [entry],
+        selected: 0,
+        category: 'all',
+        total: 1,
+        columns: 100,
+        maxRows: 13,
+      }),
+    );
+    const frame = view.lastFrame() ?? '';
+    view.unmount();
+
+    // Below SPLIT_MIN_ROWS the detail panel must not render at all.
+    expect(frame).not.toContain('slug:');
+    expect(frame).not.toContain('preview');
+  });
+
+  it('fits the detail panel within maxRows at the 17-row boundary', () => {
+    const entry: PromptPickEntry = {
+      slug: 'x',
+      title: 'Mid',
+      description:
+        'A description long enough to wrap to multiple lines at the detail panel width, exercising the budget derivation.',
+      category: 'test',
+      source: 'project',
+      content:
+        'Line one of a long body.\nLine two.\nLine three.\nLine four.\nLine five.\nLine six.\nLine seven.\nLine eight.',
+      favorite: false,
+    };
+
+    const view = render(
+      React.createElement(PromptPicker, {
+        entries: [entry],
+        selected: 0,
+        category: 'all',
+        total: 1,
+        columns: 100,
+        maxRows: 17,
+      }),
+    );
+    const frame = view.lastFrame() ?? '';
+    view.unmount();
+
+    // 10 chrome + 2 desc + 5 preview = 17, must fit within the 17-row budget.
+    expect(frame).toContain('slug:');
+    expect(frameLineCount(frame)).toBeLessThanOrEqual(17);
+  });
+});

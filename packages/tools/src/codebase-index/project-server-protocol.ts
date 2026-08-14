@@ -85,6 +85,7 @@ export type ProjectServerClientMessage =
       id: number;
       watchExternal: boolean;
       debounceMs: number;
+      coalesceWindowMs?: number | undefined;
       authToken?: string | undefined;
     }
   | { type: 'ping'; id: number; authToken?: string | undefined }

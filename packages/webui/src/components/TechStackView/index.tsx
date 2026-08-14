@@ -15,9 +15,15 @@
  * @see docs/specs/techstack-sdd.md §4.2, §6
  */
 
-import { Boxes, Download, Loader2, RefreshCw, Sparkles, X } from 'lucide-react';
+import { Boxes, Download, FileCode, FileText, Loader2, RefreshCw, Shield, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
   type TechStackDependency,
@@ -28,7 +34,7 @@ import {
 import { DependencyDetail } from './DependencyDetail';
 import { DependencyTable } from './DependencyTable';
 import { FindingsPanel } from './FindingsPanel';
-import { COVERAGE_META, ECOSYSTEM_META, EcosystemIcon, ecosystemLabel, MetricCard, needsAttention, statusMeta, versionDrift } from './shared';
+import { COVERAGE_META, downloadReport, ECOSYSTEM_META, EcosystemIcon, ecosystemLabel, MetricCard, needsAttention, statusMeta, versionDrift } from './shared';
 import { type DependencySort, TechStackToolbar } from './TechStackToolbar';
 import { useAppTranslation } from '@/i18n';
 
@@ -390,16 +396,37 @@ export function TechStackView() {
                 <X className="size-4" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => snapshot && downloadSnapshot(snapshot)}
-              disabled={!snapshot}
-              aria-label={t('activity:techStack.exportSnapshotAsJson')}
-              title={t('activity:techStack.exportSnapshotAsJson')}
-            >
-              <Download className="size-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={!snapshot}
+                  aria-label={t('activity:techStack.exportOptions')}
+                  title={t('activity:techStack.exportOptions')}
+                >
+                  <Download className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuItem onClick={() => snapshot && downloadReport(snapshot, 'json')}>
+                  <FileCode className="mr-2 size-4" />
+                  {t('activity:techStack.exportSnapshotAsJson')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapshot && downloadReport(snapshot, 'spdx')}>
+                  <Shield className="mr-2 size-4" />
+                  {t('activity:techStack.exportSbomSpdx')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapshot && downloadReport(snapshot, 'cyclonedx')}>
+                  <ShieldCheck className="mr-2 size-4" />
+                  {t('activity:techStack.exportSbomCycloneDx')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => snapshot && downloadReport(snapshot, 'md')}>
+                  <FileText className="mr-2 size-4" />
+                  {t('activity:techStack.exportReportMd')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -800,12 +827,4 @@ function tally(values: readonly string[]): Array<[string, number]> {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
-function downloadSnapshot(snapshot: TechStackSnapshot): void {
-  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = 'techstack.json';
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
+

@@ -386,9 +386,7 @@ export function handleDiagGet(msg: WSServerMessage) {
   // Store the dropped count for the status-bar chip (reactive).
   // Defense-in-depth: guard against maxTools=0 (no limit) even though
   // the server already sends droppedTools=0 in that case.
-  useSessionStore.getState().setDroppedTools(
-    (p.maxTools ?? 0) > 0 ? (p.droppedTools ?? 0) : 0,
-  );
+  useSessionStore.getState().setDroppedTools((p.maxTools ?? 0) > 0 ? (p.droppedTools ?? 0) : 0);
   useChatStore.getState().addMessage({
     role: 'assistant',
     content: [
@@ -421,6 +419,7 @@ export function handleStatsGet(msg: WSServerMessage) {
       cacheWrite?: number | undefined;
     };
     cache: { readTokens: number; writeTokens: number; hitRatio: number } | null;
+    currentRequest?: { input: number; cacheRead: number; cacheWrite: number } | undefined;
     cost: number;
     messages: number;
     readFiles: number;
@@ -435,6 +434,27 @@ export function handleStatsGet(msg: WSServerMessage) {
       : elapsedSec < 3600
         ? `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s`
         : `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}m`;
+
+  // Live cache snapshot — drives the topbar cache badge and the
+  // ContextBreakdownModal coverage bar. `currentRequest.cacheRead` is
+  // the cached prefix of the most recent prompt (per-request), capped
+  // at the live request size so the coverage figure never overshoots
+  // what was actually sent. `usage.cacheRead` would be cumulative and
+  // misleading here. `null` clears the field when the server reports
+  // no cache yet.
+  const lastInputTokens = useSessionStore.getState().lastInputTokens;
+  const currentRequestCacheRead = p.currentRequest?.cacheRead ?? 0;
+  useSessionStore.getState().setCacheStats(
+    p.cache
+      ? {
+          readTokens: p.cache.readTokens,
+          writeTokens: p.cache.writeTokens,
+          hitRatio: p.cache.hitRatio,
+          coverageTokens: Math.max(0, Math.min(lastInputTokens, currentRequestCacheRead)),
+        }
+      : null,
+  );
+
   useChatStore.getState().addMessage({
     role: 'assistant',
     content: [

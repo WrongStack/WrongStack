@@ -124,6 +124,20 @@ describe('TelegramBot buffer', () => {
     expect(acked).toBe(0);
     expect(bot.bufferCount).toBe(1);
   });
+
+  it('scoped acknowledge only clears matching chat and preserves other chats', () => {
+    const bot = makeBot({ onMessage: (m) => received.push(m) });
+    pushMsg(bot, { messageId: 1000, chatId: 111, text: 'chat1 msg' });
+    pushMsg(bot, { messageId: 20, chatId: 222, text: 'chat2 msg' });
+
+    expect(bot.bufferCount).toBe(2);
+    // Acknowledge chat 222 up to messageId 20
+    const acked = bot.acknowledge(20, 222);
+    expect(acked).toBe(1);
+    expect(bot.bufferCount).toBe(1);
+    expect(bot.getMessages()[0]!.chatId).toBe(111);
+    expect(bot.getMessages()[0]!.text).toBe('chat1 msg');
+  });
 });
 
 // ---------------------------------------------------------------------------

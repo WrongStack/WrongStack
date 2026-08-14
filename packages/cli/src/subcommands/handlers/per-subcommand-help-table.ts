@@ -344,11 +344,19 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
     name: 'acp',
     title: 'wstack acp — Agent Client Protocol (ACP) integration',
     description:
-      'Run WrongStack as an ACP server (stdio) so it can be embedded ' +
-      'in editor clients (Zed, JetBrains, VS Code ACP extension). ' +
-      'The server blocks until stdin closes. Spawning a named ACP ' +
-      'agent is reserved for a future release.',
-    usage: 'wstack acp [serve]',
+      'Run WrongStack as an ACP server (stdio) for editor clients (Zed, JetBrains, ' +
+      'VS Code ACP), or orchestrate external ACP agents through spawn, probe, bench, ' +
+      'and parallel fan-out.',
+    usage: 'wstack acp [server|list|sync|spawn|parallel|probe|bench] [...]',
+    subcommands: [
+      { name: 'server / serve', description: 'Start WrongStack as an ACP stdio server (default).' },
+      { name: 'list', description: 'List available ACP agents from the cache.' },
+      { name: 'sync', description: 'Sync the official ACP agent registry into local cache.' },
+      { name: 'spawn <id> <task>', description: 'Spawn an ACP agent and wait for results.' },
+      { name: 'parallel <csv> <task>', description: 'Fan a task out to multiple ACP agents in parallel.' },
+      { name: 'probe [csv]', description: 'Handshake-test installed ACP agents.' },
+      { name: 'bench [csv] [--fs]', description: 'End-to-end benchmark and grade ACP agents.' },
+    ],
     seeAlso: 'wstack mcp serve (the MCP equivalent; pick the protocol your client speaks)',
   },
 
@@ -362,7 +370,21 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'strengths/weaknesses (bestFor / avoidFor), sequential live ' +
       'provider/model smoke tests, and real benchmarks against a small ' +
       'prompt suite. Smoke tests use tiny prompts and never print credentials.',
-    usage: 'wstack modeldiag',
+    usage: 'wstack modeldiag [test|eval] [...]',
+    subcommands: [
+      {
+        name: '<no subcommand>',
+        description: 'Print configured model capabilities, context limits, and recommendations.',
+      },
+      {
+        name: 'test [--plan|--all-models|--json]',
+        description: 'Run live sequential smoke tests across configured models.',
+      },
+      {
+        name: 'eval [--providers <csv>]',
+        description: 'Run model competency matrix evaluation across tasks.',
+      },
+    ],
     seeAlso:
       'wstack modeldiag test --plan; wstack modeldiag test; wstack modeldiag test --all-models',
   },
@@ -419,16 +441,16 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
   // -- HQ (dashboard server) ──────────────────────────────────────────
   hq: {
     name: 'hq',
-    title: 'wstack hq — start the HQ dashboard server',
+    title: 'wstack hq — start HQ command center or manage tokens',
     description:
       'Start the HQ server — a web dashboard for monitoring sessions, fleet ' +
-      'status, and agent activity across projects. The server binds to a ' +
-      'local port and serves a browser UI plus a WebSocket API for real-time ' +
-      'updates. Use --port to override the default port.',
-    usage: 'wstack hq [--port <n>] [--no-browser]',
+      'status, and agent activity across projects — or manage browser and client authentication tokens.',
+    usage: 'wstack hq [serve] [--port <n>] [--password <secret>] [--tunnel] [--open] | wstack hq token [create|list|revoke]',
     subcommands: [
-      { name: '--port <n>', description: 'Override the default port.' },
-      { name: '--no-browser', description: 'Do not auto-open a browser tab.' },
+      { name: 'serve', description: 'Start the HQ dashboard server (default).' },
+      { name: 'token create [label]', description: 'Mint a browser or client authentication token.' },
+      { name: 'token list', description: 'List active HQ authentication tokens.' },
+      { name: 'token revoke <id>', description: 'Revoke an issued HQ authentication token.' },
     ],
     seeAlso: 'wstack sessions fleet (CLI equivalent for fleet status)',
   },
@@ -449,34 +471,33 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
   // -- Permissions ────────────────────────────────────────────────────
   permissions: {
     name: 'permissions',
-    title: 'wstack permissions — manage tool permission policies',
+    title: 'wstack permissions — explain tool permission decisions',
     description:
-      'List, grant, and revoke tool-level permissions for the agent. ' +
-      'Permissions control which tools the agent may invoke without ' +
-      'asking for confirmation. Use `wstack permissions list` to see ' +
-      'the current policy, or `wstack permissions reset` to restore ' +
-      'defaults.',
-    usage: 'wstack permissions [list|reset] [...]',
+      'Side-effect-free permission decision explainer. Evaluates the effective ' +
+      'permission rules for a tool and input arguments without prompting, ' +
+      'modifying trust files, or mutating state.',
+    usage: 'wstack permissions explain <tool> [--input \'<json>\'] [--json]',
     subcommands: [
-      { name: 'list', description: 'Show the current permission policy.' },
-      { name: 'reset', description: 'Restore the default permission policy.' },
+      {
+        name: 'explain <tool>',
+        description: 'Explain how the permission policy evaluates a tool call.',
+      },
     ],
     seeAlso: 'wstack tools (list available tools)',
   },
   // -- Project management ─────────────────────────────────────────────
   project: {
     name: 'project',
-    title: 'wstack project — manage project registration',
+    title: 'wstack project — manage committed repository identity',
     description:
-      'Register, unregister, or inspect the current project. WrongStack ' +
-      'tracks projects by their root path; use `wstack project register` ' +
-      'to add the current directory, or `wstack project status` to see ' +
-      'registration details.',
-    usage: 'wstack project [register|unregister|status] [...]',
+      'Manage the committed repository identity (project.json) used to scope ' +
+      'HQ dashboards, Kanban state, and multi-agent coordination. Commit the ' +
+      'generated ID file so every clone shares the same project.',
+    usage: 'wstack project [id|init|rekey] [--yes]',
     subcommands: [
-      { name: 'register', description: 'Register the current project.' },
-      { name: 'unregister', description: 'Remove the current project from tracking.' },
-      { name: 'status', description: 'Show project registration details.' },
+      { name: 'id', description: 'Show the current project ID and config path (default).' },
+      { name: 'init', description: 'Initialize a project ID if not already present.' },
+      { name: 'rekey', description: 'Generate a new project ID for a fork (requires --yes).' },
     ],
     seeAlso: 'wstack projects (list all tracked projects)',
   },
@@ -494,16 +515,18 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
   // -- Chronicle ──────────────────────────────────────────────────────
   chronicle: {
     name: 'chronicle',
-    title: 'wstack chronicle — session metrics and timeline',
+    title: 'wstack chronicle — query cross-session provenance ledger',
     description:
-      'Inspect aggregated session metrics: token usage, cost, tool-call ' +
-      'counts, and iteration timeline. Provides a chronological view of ' +
-      'agent activity across sessions for a given project. Use ' +
-      '`wstack chronicle --since <date>` to filter.',
-    usage: 'wstack chronicle [--since <date>] [--session <id>]',
+      'Query the cross-session event ledger, inspect daemon status, compute ' +
+      'facet aggregations, view token/cost metrics, or purge old retention entries.',
+    usage: 'wstack chronicle [query|status|facet|metrics|prune|compact] [...]',
     subcommands: [
-      { name: '--since <date>', description: 'Only show entries after this date.' },
-      { name: '--session <id>', description: 'Filter to a specific session.' },
+      { name: 'query [field=value ...]', description: 'Query recorded provenance events.' },
+      { name: 'status', description: 'Check the Chronicle daemon and pipeline status.' },
+      { name: 'facet <field>', description: 'Group and count events across a facet.' },
+      { name: 'metrics [providers|tasks|files|summary]', description: 'Query aggregated metrics from metrics.db.' },
+      { name: 'prune [--days N] [--dry-run]', description: 'Purge journal entries older than N days.' },
+      { name: 'compact', description: 'Defragment and compact SQLite ledger.' },
     ],
     seeAlso: 'wstack audit (per-session audit log); wstack usage (cost summary)',
   },

@@ -16,7 +16,7 @@ function renderPanel() {
   act(() =>
     root.render(
       <SessionHealthPanel
-        context={{ load: 0.5, tokens: 5000, maxContext: 10000 }}
+        context={{ load: 0.5, tokens: 5000, maxContext: 10000, cache: null }}
         messages={[
           { id: 'm1', role: 'user', text: 'hello' },
           { id: 'm2', role: 'assistant', text: 'hi', final: true },

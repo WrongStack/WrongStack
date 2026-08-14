@@ -12,13 +12,15 @@
  *   );
  */
 
-import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
+import { isFinalTurnStopReason, projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
 import {
   projectChatMessage,
   projectFleetMessage,
   projectSessionMessage,
   projectToolMessage,
 } from '@wrongstack/webui-server/protocol';
+import type { FallbackPendingProjection } from '../fallback-modal.js';
+import { projectFallbackPending } from '../fallback-modal.js';
 import type {
   AgentMode,
   AgentTranscriptEntry,
@@ -50,7 +52,7 @@ import {
   updateSubagents,
 } from './chat-model.js';
 import type { FileMention } from './file-mention.js';
-import { projectFallbackPending } from '../fallback-modal.js';
+import { projectAssistantMessage } from './message-projection.js';
 import {
   parseCatalogProviders,
   parseSavedProviderIds,
@@ -139,18 +141,7 @@ export interface MessageHandlerDeps {
   setFileMention: React.Dispatch<React.SetStateAction<FileMention | null>>;
   setNotice: React.Dispatch<React.SetStateAction<(StatusNoticeProjection & { id: string }) | null>>;
   /** Show/dismiss the fallback model modal. */
-  setFallbackPending?: React.Dispatch<
-    React.SetStateAction<
-      | {
-          requestId: string;
-          from: { providerId: string; model: string };
-          status: number;
-          candidates: Array<{ providerId: string; model: string }>;
-          autoSwitchSeconds: number;
-        }
-      | null
-    >
-  >;
+  setFallbackPending?: React.Dispatch<React.SetStateAction<FallbackPendingProjection | null>>;
   setQueue: React.Dispatch<React.SetStateAction<QueuedItem[]>>;
   setRefineState: React.Dispatch<React.SetStateAction<RefineState | null>>;
   setPendingConfirm: React.Dispatch<React.SetStateAction<PendingConfirm | null>>;
@@ -289,6 +280,8 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
    * never overtake text that arrived before it.
    */
   let pendingDelta = '';
+  const nextStepsByToolId = new Map<string, ReturnType<typeof projectNextStepsToolInput>>();
+  let completedToolNextSteps: ReturnType<typeof projectNextStepsToolInput> = [];
   let frameHandle: ReturnType<typeof setTimeout> | number | null = null;
 
   const scheduleFlush =
@@ -344,6 +337,8 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
     }
     switch (message.type) {
       case 'session.start': {
+        nextStepsByToolId.clear();
+        completedToolNextSteps = [];
         const sessionProjection = projectSessionMessage(message);
         if (!sessionProjection) break;
         const {
@@ -455,6 +450,12 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
                 : 0,
           tokens: resetSessionState ? replayInput : current.tokens || replayInput,
           maxContext: maxContext || current.maxContext,
+          // Reset cache snapshot on session reset; otherwise keep the last
+          // known cache stats — `stats.get` is the only writer that can
+          // upgrade this from `null` to a real payload. Replay payloads
+          // do not include cache stats today (the simpleui replay
+          // builder only ships `usage.input`).
+          cache: resetSessionState ? null : current.cache,
         }));
         if (provider) requestProviderModels(provider);
         socketRef.current?.send('sessions.list', { sessionId: id, limit: 12 });
@@ -661,6 +662,48 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         }
         break;
       }
+      case 'stats.get': {
+        // Server-side session stats carry both the cumulative prompt-cache
+        // figures and the per-request `currentRequest.cacheRead` snapshot.
+        // Coverage must come from the per-request figure — `usage.cacheRead`
+        // is cumulative across the whole session and would mislead the
+        // "cache covers the first N tokens of THIS prompt" indicator.
+        // Defensive parse: the reply arrives as `Record<string, unknown>`,
+        // so every field is coerced through a finite-number guard rather
+        // than cast.
+        const payload = message.payload;
+        const usage = payload['usage'];
+        const cache = payload['cache'];
+        const currentRequest = payload['currentRequest'];
+        if (usage && typeof usage === 'object' && cache && typeof cache === 'object') {
+          const u = usage as Record<string, unknown>;
+          const c = cache as Record<string, unknown>;
+          const currentRequestCacheRead =
+            currentRequest && typeof currentRequest === 'object'
+              ? finiteNumber((currentRequest as Record<string, unknown>)['cacheRead'])
+              : 0;
+          const readTokens = finiteNumber(c['readTokens']);
+          const writeTokens = finiteNumber(c['writeTokens']);
+          const hitRatioRaw = c['hitRatio'];
+          const hitRatio =
+            typeof hitRatioRaw === 'number' && Number.isFinite(hitRatioRaw) ? hitRatioRaw : 0;
+          setContext((current) => ({
+            ...current,
+            // Coverage is the per-request snapshot, capped at the live
+            // request size so the figure never overshoots what is
+            // actually being sent. Falls back to 0 when the server
+            // omits `currentRequest` (older clients, or before the
+            // server-side addition in `introspection-routes.ts`).
+            cache: {
+              readTokens,
+              writeTokens,
+              hitRatio,
+              coverageTokens: Math.max(0, Math.min(current.tokens, currentRequestCacheRead)),
+            },
+          }));
+        }
+        break;
+      }
       case 'context.compacted':
         setActivity('Context compacted');
         break;
@@ -675,6 +718,9 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         const projection = projectToolMessage(message);
         if (projection?.kind !== 'started') break;
         const { name, id } = projection;
+        if (name === 'nextsteps' && id) {
+          nextStepsByToolId.set(id, projectNextStepsToolInput(projection.input));
+        }
         setRunning(true);
         setActivity(`Running ${name}`);
         setToolCalls((current) => [
@@ -694,6 +740,11 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         if (projection?.kind !== 'executed') break;
         const execId = projection.id;
         const execName = projection.name;
+        if (execName === 'nextsteps' && execId) {
+          const steps = nextStepsByToolId.get(execId) ?? [];
+          nextStepsByToolId.delete(execId);
+          if (projection.ok && steps.length > 0) completedToolNextSteps = steps;
+        }
         setActivity('Thinking');
         if (execId || execName) {
           setToolCalls((current) => {
@@ -748,6 +799,33 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
               : item,
           ),
         );
+        // The normal path carries the tool's steps in the final response as a
+        // <nextsteps> block. If that response was absent, retain the exact
+        // structured suggestions instead of silently losing the tool result.
+        if (completedToolNextSteps.length > 0) {
+          setMessages((current) => {
+            const hasRenderedSuggestions = current.some(
+              (item) =>
+                item.role === 'assistant' &&
+                item.final === true &&
+                ((item.nextSteps?.length ?? 0) > 0 ||
+                  projectAssistantMessage(item.text).nextSteps.length > 0),
+            );
+            return hasRenderedSuggestions
+              ? current
+              : retainSimpleChatMessages([
+                  ...current,
+                  {
+                    id: messageId('nextsteps'),
+                    role: 'assistant',
+                    text: '',
+                    final: true,
+                    nextSteps: completedToolNextSteps,
+                  },
+                ]);
+          });
+          completedToolNextSteps = [];
+        }
         drainQueue();
         break;
       }
@@ -845,7 +923,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         break;
       }
       case 'ctx.pct': {
-        setContext({
+        setContext((prev) => ({
           // `load` is emitted as a 0-1 fraction of the context budget
           // (e.g. 0.68 = 68%); values > 1 mean the budget is overflowed
           // (e.g. 1.35 = 135%). See core `ctx.pct` emit + agent-status
@@ -854,7 +932,11 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
           load: normalizeContextLoad(payload['load']),
           tokens: finiteNumber(payload['tokens']),
           maxContext: finiteNumber(payload['maxContext']),
-        });
+          // `ctx.pct` does not carry cache stats — keep whatever the
+          // `stats.get` handler most recently wrote. Going `null` here
+          // would erase a valid reading on every per-request tick.
+          cache: prev.cache,
+        }));
         break;
       }
       case 'ctx.max_context': {

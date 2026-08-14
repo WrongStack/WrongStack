@@ -192,13 +192,14 @@ export function ChatView() {
   // here re-rendered ChatView on every unrelated session-store write (todos,
   // modes, env, …). The shallow slice only changes when one of these five
   // fields actually flips.
-  const { totalTokens, startTime, lastInputTokens, maxContext, contextLimitWarning, iteration } = useSessionStore(
+  const { totalTokens, startTime, lastInputTokens, maxContext, contextLimitWarning, cacheStats, iteration } = useSessionStore(
     useShallow((s) => ({
       totalTokens: s.totalTokens,
       startTime: s.startTime,
       lastInputTokens: s.lastInputTokens,
       maxContext: s.maxContext,
       contextLimitWarning: s.contextLimitWarning,
+      cacheStats: s.cacheStats,
       iteration: s.iteration,
     })),
   );
@@ -804,6 +805,7 @@ export function ChatView() {
                   pct={ctxPct}
                   tokens={lastInputTokens}
                   maxTokens={maxContext > 0 ? maxContext : undefined}
+                  {...(cacheStats ? { cache: cacheStats } : {})}
                   onClick={() => setBreakdownOpen(true)}
                 />
               )}

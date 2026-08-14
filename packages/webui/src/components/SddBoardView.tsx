@@ -93,7 +93,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
       setDestroying(true);
       if (active) {
         send({ type: 'sdd.board.stop', payload: {} });
-        pendingDestroy.current = { revertMerged, deadline: Date.now() + 20_000 };
+        pendingDestroy.current = { revertMerged, deadline: Date.now() + 5_000 };
       } else {
         fireDestroy(revertMerged);
       }

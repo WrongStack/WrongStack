@@ -364,6 +364,7 @@ export class FleetManager implements IFleetManager {
       // Full snapshot re-attach when possible; otherwise only counters matter.
       if (snapshot.version === 1 && snapshot.directorRunId && snapshot.updatedAt) {
         this.stateCheckpoint.resume(snapshot as import('../storage/director-state.js').DirectorStateSnapshot);
+        this.stateCheckpoint.reconcileCrashedState();
       }
       this.stateCheckpoint.applyLiveMaxSpawns(
         Number.isFinite(this.maxSpawns) ? this.maxSpawns : undefined,

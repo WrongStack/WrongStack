@@ -22,6 +22,19 @@ interface ContextBarProps {
   tokens?: number | undefined;
   /** Max context window tokens. */
   maxTokens?: number | undefined;
+  /**
+   * Live prompt-cache snapshot. When supplied AND the cache has
+   * activity (`readTokens + writeTokens > 0`), a compact cache-hit
+   * sub-line renders next to the bar showing the hit ratio and the
+   * cached prefix of the current prompt. Hidden when `null` so cold
+   * sessions stay visually quiet.
+   */
+  cache?: {
+    readTokens: number;
+    writeTokens: number;
+    hitRatio: number;
+    coverageTokens: number;
+  } | null;
   /** Number of visual segments (default 10, matches TUI). */
   segments?: number | undefined;
   /** Whether to show the token numbers (default true). */
@@ -136,6 +149,7 @@ export function ContextBar({
   pct,
   tokens,
   maxTokens,
+  cache,
   segments = 10,
   showTokens = true,
   className,
@@ -149,6 +163,7 @@ export function ContextBar({
   const isWarning = clamped >= 60 && clamped < 85;
   const ZoneIcon = getZoneIcon(clamped);
   const isIridescent = variant === 'iridescent';
+  const cacheActive = !!cache && cache.readTokens + cache.writeTokens > 0;
 
   // Build bar segments
   const bars: Array<{ fill: number; positionPct: number }> = [];
@@ -180,22 +195,29 @@ export function ContextBar({
         'inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-mono font-medium shrink-0 transition-all duration-300',
         onClick && 'cursor-pointer hover:scale-[1.02] hover:ring-1 hover:ring-ring',
         getTextColor(clamped),
-        isCritical
-          ? 'bg-destructive/10'
-          : isWarning
-            ? 'bg-warning/10'
-            : 'bg-success/10',
+        isCritical ? 'bg-destructive/10' : isWarning ? 'bg-warning/10' : 'bg-success/10',
         getGlow(clamped),
         isCritical && 'animate-pulse',
         className,
       )}
       title={
         (tokens !== undefined && maxTokens !== undefined
-          ? t('activity:context.barWithTokens', { tokens: tokens.toLocaleString(), max: maxTokens.toLocaleString(), pct: pctText })
+          ? t('activity:context.barWithTokens', {
+              tokens: tokens.toLocaleString(),
+              max: maxTokens.toLocaleString(),
+              pct: pctText,
+            })
           : t('activity:context.barPct', { pct: pctText })) +
         (onClick ? t('activity:context.barClick') : '')
       }
-      onClick={onClick ? (e: React.MouseEvent) => { e.stopPropagation(); onClick(); } : undefined}
+      onClick={
+        onClick
+          ? (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onClick();
+            }
+          : undefined
+      }
       type={onClick ? 'button' : undefined}
     >
       {/* Zone icon — changes by severity */}
@@ -224,6 +246,21 @@ export function ContextBar({
       </span>
       <span className="font-bold tracking-tight">{pctText}</span>
       {tokenText && <span className="tabular-nums opacity-80">{tokenText}</span>}
+      {cacheActive && cache ? (
+        <span
+          className="ml-1 inline-flex items-center gap-1 text-[10px] font-mono tabular-nums text-success"
+          title={
+            cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
+              ? `Cache covers ${cache.coverageTokens.toLocaleString()} of ${maxTokens.toLocaleString()} tokens`
+              : `Prompt cache: ${(cache.hitRatio * 100).toFixed(1)}% hit`
+          }
+        >
+          · {(cache.hitRatio * 100).toFixed(1)}% hit
+          {cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
+            ? ` · covers ${fmtTok(cache.coverageTokens)}`
+            : ''}
+        </span>
+      ) : null}
     </Element>
   );
 }
@@ -236,6 +273,7 @@ export function ContextFillBar({
   pct,
   tokens,
   maxTokens,
+  cache,
   showTokens = true,
   className,
   onClick,
@@ -247,6 +285,7 @@ export function ContextFillBar({
     showTokens && tokens !== undefined && maxTokens !== undefined && maxTokens > 0
       ? ` ${fmtTok(tokens)}/${fmtTok(maxTokens)}`
       : '';
+  const cacheActive = !!cache && cache.readTokens + cache.writeTokens > 0;
 
   const isCritical = clamped >= 85;
   const isWarning = clamped >= 60 && clamped < 85;
@@ -268,11 +307,22 @@ export function ContextFillBar({
       )}
       title={
         (tokens !== undefined && maxTokens !== undefined
-          ? t('activity:context.barWithTokens', { tokens: tokens.toLocaleString(), max: maxTokens.toLocaleString(), pct: pctText })
+          ? t('activity:context.barWithTokens', {
+              tokens: tokens.toLocaleString(),
+              max: maxTokens.toLocaleString(),
+              pct: pctText,
+            })
           : t('activity:context.barPct', { pct: pctText })) +
         (onClick ? t('activity:context.barClick') : '')
       }
-      onClick={onClick ? (e: React.MouseEvent) => { e.stopPropagation(); onClick(); } : undefined}
+      onClick={
+        onClick
+          ? (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onClick();
+            }
+          : undefined
+      }
       type={onClick ? 'button' : undefined}
     >
       {/* Gradient bar with rounded track */}
@@ -322,6 +372,21 @@ export function ContextFillBar({
       {tokenText && (
         <span className="text-[10px] text-muted-foreground tabular-nums">{tokenText}</span>
       )}
+      {cacheActive && cache ? (
+        <span
+          className="text-[10px] font-mono tabular-nums text-success"
+          title={
+            cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
+              ? `Cache covers ${cache.coverageTokens.toLocaleString()} of ${maxTokens.toLocaleString()} tokens`
+              : `Prompt cache: ${(cache.hitRatio * 100).toFixed(1)}% hit`
+          }
+        >
+          · {(cache.hitRatio * 100).toFixed(1)}% hit
+          {cache.coverageTokens > 0 && maxTokens !== undefined && maxTokens > 0
+            ? ` · covers ${fmtTok(cache.coverageTokens)}`
+            : ''}
+        </span>
+      ) : null}
     </Element>
   );
 }

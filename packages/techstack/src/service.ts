@@ -6,4 +6,4 @@
  */
 
 export { TechStackEngine } from './service/techstack-engine.js';
-export type { AnalyzeOptions, EnrichOptions } from './service/techstack-engine.js';
+export type { AnalyzeOptions, EnrichOptions, ReportFormat } from './service/techstack-engine.js';

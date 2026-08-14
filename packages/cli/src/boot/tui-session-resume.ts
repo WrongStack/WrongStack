@@ -236,7 +236,8 @@ export async function resumeSession(
     // Sync the agent's provider/model to what was used in the resumed session.
     // Route all changes through the live switch callback when available so the
     // provider instance, ConfigStore, auto-compactor denominator, and context
-    // chip are refreshed together.
+    // chip are refreshed together. If the target provider/model is unavailable,
+    // gracefully fall back to the active working provider/model.
     const currentProviderId = (agent.ctx.provider as { id?: string }).id;
     const targetProviderId =
       typeof meta.provider === 'string' && meta.provider.length > 0
@@ -249,20 +250,20 @@ export async function resumeSession(
       targetProviderId &&
       (targetProviderId !== currentProviderId || targetModel !== agent.ctx.model)
     ) {
-      await Promise.resolve(switchProviderAndModel(targetProviderId, targetModel)).catch(
-        (err: unknown) => {
-          console.error(
-            JSON.stringify({
-              level: 'error',
-              event: 'execution.resume_model_restore_failed',
-              provider: targetProviderId,
-              model: targetModel,
-              message: err instanceof Error ? err.message : String(err),
-              timestamp: new Date().toISOString(),
-            }),
-          );
-        },
-      );
+      try {
+        await Promise.resolve(switchProviderAndModel(targetProviderId, targetModel));
+      } catch (err) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'execution.resume_model_restore_failed',
+            provider: targetProviderId,
+            model: targetModel,
+            message: err instanceof Error ? err.message : String(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
     } else if (targetModel !== agent.ctx.model) {
       agent.ctx.model = targetModel;
     }

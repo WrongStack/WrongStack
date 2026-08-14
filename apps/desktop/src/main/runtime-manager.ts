@@ -812,28 +812,51 @@ function waitForHttpReady(baseUrl: string, token: string, timeoutMs: number): Pr
   url.searchParams.set('shell', 'desktop');
 
   return new Promise((resolve, reject) => {
+    let probeTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const cleanup = (): void => {
+      if (probeTimer) {
+        clearTimeout(probeTimer);
+        probeTimer = undefined;
+      }
+    };
+
     const probe = (): void => {
+      let done = false;
+
+      const triggerRetry = (): void => {
+        if (done) return;
+        done = true;
+        if (Date.now() >= deadline) {
+          reject(new Error(`WebUI did not become ready at ${baseUrl}`));
+          return;
+        }
+        probeTimer = setTimeout(probe, 250);
+      };
+
       const req = http.get(url, (res) => {
         res.resume();
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 500) {
-          resolve();
+          if (!done) {
+            done = true;
+            cleanup();
+            resolve();
+          }
           return;
         }
-        retry();
+        triggerRetry();
       });
-      req.once('error', retry);
+
+      req.once('error', () => {
+        triggerRetry();
+      });
+
       req.setTimeout(1000, () => {
         req.destroy();
-        retry();
+        triggerRetry();
       });
     };
-    const retry = (): void => {
-      if (Date.now() >= deadline) {
-        reject(new Error(`WebUI did not become ready at ${baseUrl}`));
-        return;
-      }
-      setTimeout(probe, 250);
-    };
+
     probe();
   });
 }

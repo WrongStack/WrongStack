@@ -81,6 +81,26 @@ describe('cli main() — baseline boot shape (PR 0 of #29)', () => {
     expect(exit).toBe(0);
   });
 
+  it('returns exit 0 and renders focused help for subcommand --help', async () => {
+    const { handleHelpVersionShortCircuit } = await import('../src/boot/short-circuit-flags.js');
+    const exit = await handleHelpVersionShortCircuit(['mcp', '--help']);
+    expect(exit).toBe(0);
+    const combined = stdoutWrites.join('');
+    expect(combined).toContain('wstack mcp');
+    expect(combined).toContain('Subcommands');
+  });
+
+  it('returns exit 0 and renders deep help for subcommand <deep> --help', async () => {
+    const { handleHelpVersionShortCircuit } = await import('../src/boot/short-circuit-flags.js');
+    const exit = await handleHelpVersionShortCircuit(['mcp', 'add', '--help']);
+    expect(exit).toBe(0);
+    const combined = stdoutWrites.join('');
+    expect(combined).toContain('wstack mcp add');
+    expect(combined).toContain('--enable');
+  });
+
+
+
   it('does not write the provider-missing notice on --help short-circuit', async () => {
     // Companion to the previous baseline assertion. Pre-PR-1 the
     // `--help` path fell through to `boot()` and emitted the

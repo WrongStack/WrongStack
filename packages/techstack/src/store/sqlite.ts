@@ -22,6 +22,7 @@ import { applySchema } from './schema.js';
 import type {
   DeliveryOutbox,
   DeliveryStatus,
+  Finding,
   Snapshot,
   TechStackJob,
   TechStackJobStatus,
@@ -315,6 +316,65 @@ export class TechStackStore {
     `);
     const rows = stmt.all(status) as Array<Record<string, unknown>>;
     return rows.map((r) => this.rowToOutbox(r));
+  }
+
+  // ── Research Cache Operations ───────────────────────────────────────────
+
+  /** Get cached research findings by cache key (returns null if missing or expired). */
+  getCachedResearch(cacheKey: string): readonly Finding[] | null {
+    const stmt = this.stmt(`
+      SELECT findings_json, expires_at FROM research_cache
+      WHERE cache_key = ?
+    `);
+    const row = stmt.get(cacheKey) as { findings_json: string; expires_at: string } | undefined;
+    if (!row) return null;
+
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      this.deleteCachedResearch(cacheKey);
+      return null;
+    }
+
+    try {
+      return JSON.parse(row.findings_json) as readonly Finding[];
+    } catch {
+      return null;
+    }
+  }
+
+  /** Store research findings in cache with a TTL (defaults to 7 days). */
+  setCachedResearch(
+    cacheKey: string,
+    findings: readonly Finding[],
+    ttlMs: number = 7 * 24 * 60 * 60 * 1000,
+  ): void {
+    const expiresAt = new Date(Date.now() + ttlMs).toISOString();
+    const findingsJson = JSON.stringify(findings);
+    const stmt = this.stmt(`
+      INSERT INTO research_cache (cache_key, findings_json, created_at, expires_at)
+      VALUES (?, ?, datetime('now'), ?)
+      ON CONFLICT(cache_key) DO UPDATE SET
+        findings_json = excluded.findings_json,
+        created_at = datetime('now'),
+        expires_at = excluded.expires_at
+    `);
+    stmt.run(cacheKey, findingsJson, expiresAt);
+  }
+
+  /** Delete a specific cached research entry. */
+  deleteCachedResearch(cacheKey: string): void {
+    const stmt = this.stmt(`
+      DELETE FROM research_cache WHERE cache_key = ?
+    `);
+    stmt.run(cacheKey);
+  }
+
+  /** Prune all expired research cache entries. */
+  pruneExpiredResearchCache(): void {
+    const nowIso = new Date().toISOString();
+    const stmt = this.stmt(`
+      DELETE FROM research_cache WHERE expires_at <= ?
+    `);
+    stmt.run(nowIso);
   }
 
   // ── Row mapping helpers ─────────────────────────────────────────────────

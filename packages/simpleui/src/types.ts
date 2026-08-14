@@ -13,6 +13,8 @@ export interface ChatMessage {
    * panel; mid-turn prose keeps its `<nextsteps>` block stripped but silent.
    */
   final?: boolean | undefined;
+  /** Structured fallback for a successful `nextsteps` tool call. */
+  nextSteps?: Array<{ index: number; text: string; auto?: boolean | undefined }> | undefined;
   ts?: string | undefined;
   /** Base64-encoded images attached to user messages. */
   images?: { data: string; mime: string }[] | undefined;
@@ -44,6 +46,21 @@ export interface ContextInfo {
   load: number;
   tokens: number;
   maxContext: number;
+  /**
+   * Cumulative prompt-cache stats from the session TokenCounter. Kept
+   * on `ContextInfo` (rather than a separate store) because the only
+   * live writer is `stats.get` and the only live reader is the topbar
+   * context meter + the breakdown modal — same lifetime as the
+   * context window itself. `null` until the first `stats.get` reply
+   * lands so the topbar can distinguish "no cache yet" from "0 hit".
+   */
+  cache: {
+    readTokens: number;
+    writeTokens: number;
+    hitRatio: number;
+    /** Tokens billed at the cache-read rate on the most recent prompt. */
+    coverageTokens: number;
+  } | null;
 }
 
 export interface ModelDescriptor {

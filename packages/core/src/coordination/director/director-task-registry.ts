@@ -312,6 +312,8 @@ export class DirectorTaskRegistry {
     if (overflow <= 0) return;
     for (const taskId of [...this.completed.keys()].slice(0, overflow)) {
       this.completed.delete(taskId);
+      this.descriptions.delete(taskId);
+      this.owners.delete(taskId);
     }
   }
 

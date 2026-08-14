@@ -47,6 +47,10 @@ describe('tokenizeCommand', () => {
     expect(tokenizeCommand('echo a\\ b')).toEqual(['echo', 'a b']);
   });
 
+  it('collapses runs of whitespace without emitting empty tokens (:99)', () => {
+    expect(tokenizeCommand('pnpm  vitest\t\trun')).toEqual(['pnpm', 'vitest', 'run']);
+  });
+
   it('handles backslash escapes inside double quotes', () => {
     // Escaped double quote inside a double-quoted token.
     expect(tokenizeCommand('echo "say \\"hi\\""')).toEqual(['echo', 'say "hi"']);

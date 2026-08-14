@@ -1,4 +1,6 @@
 import { queryOsvBatch } from '../advisory/osv.js';
+import { createLicenseFinding } from '../policy/license.js';
+import { detectWorkspaceMisalignments } from '../policy/misalignment.js';
 import { classifyStatus, type AdvisoryStatusData, type RegistryStatusData } from '../policy/status.js';
 import { lookupRegistry, RegistryAuthError, RegistryNotFoundError, type RegistryEntry } from '../registry/client.js';
 import type { DependencyObservation, EcosystemId, Evidence, Finding, Snapshot } from '../types.js';
@@ -62,18 +64,24 @@ export async function runEnrichPhase(snapshot: Snapshot, options: EnrichOptions 
         if (dependency.name !== name) continue;
         const status = classifyStatus(dependency, registryStatus, advisoryStatus);
         const evidence: Evidence[] = [...dependency.evidence, ...(registryStatus?.evidence ?? []), ...(advisoryStatus?.evidence ?? [])];
+        const license = registryEntry?.license ?? dependency.license;
         enriched.set(dependency.id, {
           ...dependency,
           latestStable: registryEntry?.latestStable ?? dependency.latestStable,
-          license: registryEntry?.license ?? dependency.license,
+          license,
           deprecated: registryEntry?.deprecated ?? dependency.deprecated,
           yanked: registryEntry?.yanked ?? dependency.yanked,
           status,
           evidence,
         });
         if (status !== 'current' && status !== 'local_path' && status !== 'git_dependency') findings.push(createFindingForStatus(dependency.id, status));
+        const licenseFinding = createLicenseFinding(dependency.id, dependency.name, license);
+        if (licenseFinding) findings.push(licenseFinding);
       }
     }
   }
-  return { ...snapshot, dependencies: snapshot.dependencies.map((dependency) => enriched.get(dependency.id) ?? dependency), findings };
+  const enrichedDeps = snapshot.dependencies.map((dependency) => enriched.get(dependency.id) ?? dependency);
+  const misalignmentFindings = detectWorkspaceMisalignments(enrichedDeps, snapshot.workspaces);
+  findings.push(...misalignmentFindings);
+  return { ...snapshot, dependencies: enrichedDeps, findings };
 }

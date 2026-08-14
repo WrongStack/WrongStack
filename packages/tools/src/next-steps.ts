@@ -51,6 +51,34 @@ export interface ParseNextStepsResult {
   autoTexts: string[];
 }
 
+/**
+ * Validate the structured input of the `nextsteps` tool for UI consumers.
+ *
+ * The runtime normally folds this input into the terminal assistant response.
+ * Browser clients still keep this projection as a fallback for a terminal
+ * response that is missing (for example after an interrupted stream).
+ */
+export function projectNextStepsToolInput(input: unknown): ParsedNextStep[] {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return [];
+  const rawSteps = (input as Record<string, unknown>)['steps'];
+  if (!Array.isArray(rawSteps)) return [];
+
+  const steps: ParsedNextStep[] = [];
+  for (const candidate of rawSteps) {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
+    const text = (candidate as Record<string, unknown>)['text'];
+    if (typeof text !== 'string' || !text.trim()) continue;
+    const auto = steps.length === 0 && (candidate as Record<string, unknown>)['auto'] === true;
+    steps.push(
+      auto
+        ? { index: steps.length + 1, text: text.trim(), auto: true }
+        : { index: steps.length + 1, text: text.trim() },
+    );
+    if (steps.length >= MAX_STEPS) break;
+  }
+  return steps;
+}
+
 // ── Turn boundary ──────────────────────────────────────────────────────────
 
 /**
@@ -113,12 +141,7 @@ export function parseNextSteps(content: string, requireHeading = true): ParseNex
 }
 
 /** Push a step into the array, omitting `auto` when false (cleaner shape, matches WebUI parity). */
-function pushStep(
-  steps: ParsedNextStep[],
-  index: number,
-  text: string,
-  hasAuto: boolean,
-): void {
+function pushStep(steps: ParsedNextStep[], index: number, text: string, hasAuto: boolean): void {
   steps.push(hasAuto ? { index, text, auto: true } : { index, text });
 }
 
@@ -220,10 +243,9 @@ function parseWithHeading(content: string): ParseNextStepsResult {
   // that block, so `content.slice(blockStart + blockEnd)` is the rest of the content.
   const blockStart = headingMatch.index;
   const blockEnd = headingMatch[0]!.length + findBlockEnd(afterHeading, steps.length);
-  const stripped =
-    (content.slice(0, blockStart) + content.slice(blockStart + blockEnd))
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+  const stripped = (content.slice(0, blockStart) + content.slice(blockStart + blockEnd))
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 
   return { steps, texts, stripped, autoTexts };
 }

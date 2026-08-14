@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.306.4",
+  "packageVersion": "0.307.0",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -762,8 +762,10 @@
         "export { applyGoalDeliverableCompletions, type CompletedGoalDeliverable, type CoordinateGoalIterationOptions, coordinateGoalIteration, type GoalCoordinationResult, isGoalDeliverableComplete, parseCompletedGoalDeliverables, recomputeGoalProgress, stripGoalDeliverableMarker, } from './goal-coordination.js';",
         "export { applyNamespacePayload, buildNamespacePayloads, CLOUD_SYNC_CONTRACT, CLOUD_SYNC_NAMESPACES, CloudConfigSync, type CloudConfigSyncDeps, type CloudConfigSyncSettings, type CloudSyncPassSummary, LOCAL_ONLY_TOP_LEVEL, NAMESPACE_SCHEMA_VERSIONS, stripSecretMaterial, } from './cloud-config-sync.js';",
         "export { attachTodosCheckpoint, loadTodosCheckpoint, saveTodosCheckpoint, type TodosCheckpointFile, } from './todos-checkpoint.js';",
+        "export { cleanOrphanLocks, type OrphanLockCleanResult, } from './orphan-lock-cleaner.js';",
         "export { createGoalKanbanBoard, deleteGoalKanbanBoard, findGoalBoardByTag, findGoalKanbanBoard, formatGoalAutonomyChoice, formatGoalEvent, formatGoalKanbanPreview, type GoalFileWithKanban, parseAutonomyChoice, } from './goal-kanban.js';",
         "export { emptyTaskFile, loadTasks, mutateTasks, saveTasks, type TaskFile, } from './task-store.js';",
+        "export { extractInterruptedTools, type InterruptedToolDetail, type RecoveryPlan, SessionRecovery, type StaleSession, } from './session-recovery.js';",
         "export { formatPlanTemplates, getPlanTemplate, listPlanTemplates, type PlanTemplate, } from './plan-templates.js';",
         "export { generateSessionId, sanitizeModel } from './session-id.js';",
         "export { getProjectSessionRegistry as getSessionRegistry, hasProjectSessionRegistry as hasSessionRegistry, ProjectSessionRegistry as SessionRegistry, } from '../session-catalog/registry.js';",
@@ -783,7 +785,6 @@
         "export { type PersistedQueueItem, QUEUE_MAX_BYTES, QUEUE_MAX_ITEM_BYTES, QUEUE_MAX_ITEMS, QueueStore, retainPersistedQueueItems, } from './queue-store.js';",
         "export { type PromptUsage, PromptUsageStore } from './prompt-usage-store.js';",
         "export { type ProviderConfigSnapshot, readProviderSnapshot, type WatchProviderConfigOptions, watchProviderConfig, } from './provider-config-watcher.js';",
-        "export { type RecoveryPlan, SessionRecovery, type StaleSession, } from './session-recovery.js';",
         "export { type ReplayEntry, ReplayLogStore, type ReplayLogStoreOptions, } from './replay-log-store.js';"
       ]
     },
@@ -1132,14 +1133,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 31,
-      "sourceLines": 9314
+      "sourceLines": 9330
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 152,
-      "sourceLines": 45890
+      "sourceLines": 45997
     },
     {
       "directory": "core",
@@ -1299,8 +1300,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 78,
-      "sourceLines": 18146
+      "sourceFiles": 79,
+      "sourceLines": 18367
     },
     {
       "directory": "tasking",

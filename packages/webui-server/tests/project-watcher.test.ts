@@ -3,12 +3,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { startProjectWatcher } from '../src/server/project-watcher.js';
+import type { ConnectedClient } from '../src/server/types.js';
 import type { WebSocket } from 'ws';
 
-// Minimal ConnectedClient stub — we only need the Map shape.
-type FakeClient = Record<string, unknown>;
-
-function createMockClients(): Map<WebSocket, FakeClient> {
+function createMockClients(): Map<WebSocket, ConnectedClient> {
   return new Map();
 }
 

@@ -30,6 +30,7 @@ function baseProps(overrides: Partial<SessionTopbarProps> = {}): SessionTopbarPr
     contextTokens: 42000,
     contextMaxContext: 200000,
     load: 0.21,
+    cache: null,
     connection: 'open',
     theme: 'dark',
     commandPaletteOpen: false,

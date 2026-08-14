@@ -594,11 +594,17 @@ export function makeKanbanQueueTool(
         renewalTimer.unref?.();
         for (const dispatch of dispatches) {
           const dispose = director.fleet.subscribe(dispatch.subagentId, (event) => {
-            if (event.type !== 'subagent.completed' && event.type !== 'subagent.stopped') return;
+            const isTerminalEvent =
+              event.type === 'subagent.completed' ||
+              event.type === 'subagent.stopped' ||
+              event.type === 'subagent.failed' ||
+              event.type === 'subagent.error' ||
+              event.type === 'subagent.killed';
+            if (!isTerminalEvent) return;
             if (event.type === 'subagent.completed' && event.taskId !== dispatch.runTaskId) return;
             disposers.get(dispatch.runTaskId)?.();
             disposers.delete(dispatch.runTaskId);
-            if (disposers.size === 0) clearInterval(renewalTimer);
+            if (disposers.size === 0) stopAll();
           });
           disposers.set(dispatch.runTaskId, dispose);
         }

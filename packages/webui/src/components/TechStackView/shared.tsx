@@ -379,3 +379,112 @@ export function MetricCard({
     </div>
   );
 }
+
+export function downloadReport(
+  snapshot: import('@/stores').TechStackSnapshot,
+  format: 'json' | 'spdx' | 'cyclonedx' | 'md',
+): void {
+  let content: string;
+  let filename: string;
+  let mimeType: string;
+
+  if (format === 'json') {
+    content = JSON.stringify(snapshot, null, 2);
+    filename = 'techstack.json';
+    mimeType = 'application/json';
+  } else if (format === 'spdx') {
+    const spdx = {
+      spdxVersion: 'SPDX-2.3',
+      dataLicense: 'CC0-1.0',
+      SPDXID: 'SPDXRef-DOCUMENT',
+      name: `TechStack-SBOM-${snapshot.projectId}`,
+      documentNamespace: `https://wrongstack.dev/spdx/${snapshot.id}`,
+      creationInfo: {
+        created: snapshot.createdAt,
+        creators: ['Tool: WrongStack TechStack Engine'],
+      },
+      packages: snapshot.dependencies.map((dep, index) => ({
+        name: dep.name,
+        SPDXID: `SPDXRef-Package-${index}`,
+        versionInfo: dep.locked ?? dep.requested,
+        downloadLocation: dep.purl ? `https://purl.io/${dep.purl}` : 'NOASSERTION',
+        licenseConcluded: dep.license ?? 'NOASSERTION',
+      })),
+    };
+    content = JSON.stringify(spdx, null, 2);
+    filename = 'techstack-sbom-spdx.json';
+    mimeType = 'application/json';
+  } else if (format === 'cyclonedx') {
+    const cdx = {
+      bomFormat: 'CycloneDX',
+      specVersion: '1.5',
+      version: 1,
+      metadata: {
+        timestamp: snapshot.createdAt,
+        tools: [{ name: 'WrongStack TechStack Engine', version: snapshot.adapterVersion }],
+      },
+      components: snapshot.dependencies.map((dep) => ({
+        type: 'library',
+        name: dep.name,
+        version: dep.locked ?? dep.requested,
+        ...(dep.purl ? { purl: dep.purl } : {}),
+        ...(dep.license ? { licenses: [{ license: { id: dep.license } }] } : {}),
+      })),
+    };
+    content = JSON.stringify(cdx, null, 2);
+    filename = 'techstack-sbom-cyclonedx.json';
+    mimeType = 'application/json';
+  } else {
+    const lines = [
+      '# TechStack Report', '', `**Generated:** ${snapshot.createdAt}`, `**Target:** ${snapshot.targetRoot}`,
+      `**Fingerprint:** ${snapshot.fingerprint}`, `**Workspaces:** ${snapshot.workspaces.length}`,
+      `**Dependencies:** ${snapshot.dependencies.length}`, `**Findings:** ${snapshot.findings.length}`,
+      `**Coverage:** ${snapshot.coverage}`, '',
+    ];
+    if (snapshot.workspaces.length > 0) {
+      lines.push('## Workspaces', '', '| Workspace | Ecosystem | Coverage | Deps |', '|---|---|---|---|');
+      for (const workspace of snapshot.workspaces) {
+        const count = snapshot.dependencies.filter((dependency) => dependency.workspaceId === workspace.id).length;
+        lines.push(`| ${workspace.relativeRoot} | ${workspace.ecosystem} | ${workspace.coverage} | ${count} |`);
+      }
+      lines.push('');
+    }
+    if (snapshot.findings.length > 0) {
+      lines.push('## Findings', '');
+      const bySeverity = new Map<string, typeof snapshot.findings>();
+      for (const finding of snapshot.findings) {
+        bySeverity.set(finding.severity, [...(bySeverity.get(finding.severity) ?? []), finding]);
+      }
+      for (const severity of ['critical', 'high', 'medium', 'low', 'info']) {
+        const findings = bySeverity.get(severity);
+        if (!findings?.length) continue;
+        lines.push(`### ${severity.charAt(0).toUpperCase() + severity.slice(1)} (${findings.length})`, '');
+        for (const finding of findings) {
+          const dependency = snapshot.dependencies.find((candidate) => candidate.id === finding.dependencyId);
+          lines.push(`- **${dependency?.name ?? finding.dependencyId}** — ${finding.type} — ${finding.rationale}`);
+        }
+        lines.push('');
+      }
+    }
+    if (snapshot.dependencies.length > 0) {
+      lines.push('## Dependencies', '', '| Name | Ecosystem | Status | Locked | Latest |', '|---|---|---|---|---|');
+      for (const dependency of snapshot.dependencies) {
+        lines.push(
+          `| ${dependency.name} | ${dependency.ecosystem} | ${dependency.status} | ${dependency.locked ?? '—'} | ${dependency.latestStable ?? '—'} |`,
+        );
+      }
+    }
+    content = lines.join('\n');
+    filename = 'techstack-report.md';
+    mimeType = 'text/markdown';
+  }
+
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+

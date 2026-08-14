@@ -1,7 +1,12 @@
+import { toCycloneDX, toSpdx } from '../sbom.js';
 import type { Snapshot } from '../types.js';
 
-export function generateReport(snapshot: Snapshot, format: 'md' | 'json' = 'md'): string {
+export type ReportFormat = 'md' | 'json' | 'spdx' | 'cyclonedx';
+
+export function generateReport(snapshot: Snapshot, format: ReportFormat = 'md'): string {
   if (format === 'json') return JSON.stringify(snapshot, null, 2);
+  if (format === 'spdx') return JSON.stringify(toSpdx(snapshot), null, 2);
+  if (format === 'cyclonedx') return JSON.stringify(toCycloneDX(snapshot), null, 2);
   const lines = [
     '# TechStack Report', '', `**Generated:** ${snapshot.createdAt}`, `**Target:** ${snapshot.targetRoot}`,
     `**Fingerprint:** ${snapshot.fingerprint}`, `**Workspaces:** ${snapshot.workspaces.length}`,

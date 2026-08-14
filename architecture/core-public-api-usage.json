@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 266,
-      "typeOnly": 213,
+      "files": 267,
+      "typeOnly": 214,
       "runtimeOrMixed": 70
     },
     "@wrongstack/core/agent-catalog": {
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 211,
+      "files": 212,
       "typeOnly": 112,
-      "runtimeOrMixed": 110
+      "runtimeOrMixed": 111
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -136,11 +136,11 @@
     "@wrongstack/core/storage": {
       "files": 93,
       "typeOnly": 28,
-      "runtimeOrMixed": 98
+      "runtimeOrMixed": 99
     },
     "@wrongstack/core/tasking": {
-      "files": 31,
-      "typeOnly": 10,
+      "files": 32,
+      "typeOnly": 11,
       "runtimeOrMixed": 21
     },
     "@wrongstack/core/tools": {
@@ -149,8 +149,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 898,
-      "typeOnly": 830,
+      "files": 901,
+      "typeOnly": 833,
       "runtimeOrMixed": 228
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -1030,6 +1030,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/sdd/src/start-sdd-run.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sdd/tests/start-sdd-run-kanban.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5415,6 +5421,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sdd/tests/start-sdd-run-kanban.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/telegram/tests/integration/plugin-entry.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7835,7 +7847,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/wiring/session.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -8364,6 +8376,12 @@
       "file": "packages/sdd/tests/sdd-board-projector.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/tests/start-sdd-run-kanban.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/tasking",
@@ -12057,6 +12075,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/tests/start-sdd-run-kanban.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/security-scanner/src/_compat-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12789,6 +12813,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/components/sidebar-content.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/components/skill-picker.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12892,6 +12922,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/hooks/use-queue-manager.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/hooks/use-statusbar-view-model.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

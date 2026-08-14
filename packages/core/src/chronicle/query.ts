@@ -98,14 +98,21 @@ const MAX_CURSOR_SNAPSHOT_ENTRIES = 10_000;
 
 // ── Streaming line-by-line reader ──────────────────────────────────────────
 
-function streamLines(filePath: string, maxBytes?: number): AsyncIterableIterator<string> {
+async function* streamLines(filePath: string, maxBytes?: number): AsyncGenerator<string> {
   const stream = createReadStream(filePath, {
     encoding: 'utf8',
     highWaterMark: 256 * 1024,
     ...(maxBytes !== undefined ? { end: maxBytes - 1 } : {}),
   });
   const rl = createInterface({ input: stream, crlfDelay: Infinity });
-  return rl[Symbol.asyncIterator]() as AsyncIterableIterator<string>;
+  try {
+    for await (const line of rl) {
+      yield line;
+    }
+  } finally {
+    rl.close();
+    stream.destroy();
+  }
 }
 
 /** One dedicated full pass over a closed file to learn its true occurredAt bounds. */

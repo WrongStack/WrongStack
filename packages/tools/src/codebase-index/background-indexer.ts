@@ -521,6 +521,18 @@ function circuitOpenError(): CircuitOpenError {
 
 // ─── Debounce ────────────────────────────────────────────────────────────────
 const DEFAULT_DEBOUNCE_MS = 400;
+/**
+ * Per-project trailing coalescing window. After a file's debounce timer fires
+ * and enters a ready batch, the batch stays open for this long before flushing.
+ * Any file whose debounce timer fires within the window joins the same batch
+ * and resets the timer (sliding window). This turns staggered bursts — a
+ * formatter-on-save touching several files over ~10-50ms — into one index run
+ * instead of N.
+ *
+ * Set to 0 to restore the old setImmediate behavior (files only coalesce when
+ * their debounce timers fire in the exact same event-loop turn).
+ */
+const DEFAULT_COALESCE_WINDOW_MS = 50;
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 interface ReadyReindexBatch {
   projectRoot: string;
@@ -528,7 +540,7 @@ interface ReadyReindexBatch {
   files: Set<string>;
   timeoutMs: number;
   onErrors: Set<(err: unknown) => void>;
-  flush?: ReturnType<typeof setImmediate> | undefined;
+  flush?: ReturnType<typeof setTimeout> | undefined;
 }
 const readyReindexBatches = new Map<string, ReadyReindexBatch>();
 
@@ -576,13 +588,23 @@ function addReadyReindex(opts: {
   indexDir?: string | undefined;
   timeoutMs: number;
   onError?: ((err: unknown) => void) | undefined;
+  coalesceWindowMs?: number | undefined;
 }): void {
   const key = reindexBatchKey(opts.projectRoot, opts.indexDir);
+  const windowMs = opts.coalesceWindowMs ?? DEFAULT_COALESCE_WINDOW_MS;
   const existing = readyReindexBatches.get(key);
   if (existing) {
     existing.files.add(opts.file);
     existing.timeoutMs = Math.max(existing.timeoutMs, opts.timeoutMs);
     if (opts.onError) existing.onErrors.add(opts.onError);
+    // Sliding window: each file that joins resets the flush timer so a
+    // staggered burst stays open until the gap between arrivals exceeds
+    // the window. Only schedule a new timer when a window is configured.
+    if (windowMs > 0 && existing.flush) {
+      clearTimeout(existing.flush);
+      existing.flush = setTimeout(() => flushReadyReindexBatch(key), windowMs);
+      existing.flush.unref?.();
+    }
     return;
   }
 
@@ -593,7 +615,12 @@ function addReadyReindex(opts: {
     timeoutMs: opts.timeoutMs,
     onErrors: new Set(opts.onError ? [opts.onError] : []),
   };
-  batch.flush = setImmediate(() => flushReadyReindexBatch(key));
+  // setTimeout(fn, 0) is equivalent to setImmediate but keeps the timer type
+  // uniform so clearTimeout works on both branches without casts.
+  batch.flush = setTimeout(
+    () => flushReadyReindexBatch(key),
+    Math.max(0, windowMs),
+  );
   batch.flush.unref?.();
   readyReindexBatches.set(key, batch);
 }
@@ -708,6 +735,14 @@ export function enqueueReindex(opts: {
   files: string[];
   indexDir?: string | undefined;
   debounceMs?: number | undefined;
+  /**
+   * Per-project trailing coalescing window. After a file's debounce timer
+   * fires, the ready batch stays open for this long before flushing. Any file
+   * whose timer fires within the window joins the same batch and resets the
+   * timer (sliding). Default: 50ms. Set to 0 to flush immediately after each
+   * debounce timer fires (legacy behavior — staggered bursts don't coalesce).
+   */
+  coalesceWindowMs?: number | undefined;
   /** Watchdog timeout per file. Default: 30s. */
   timeoutMs?: number | undefined;
   onError?: ((err: unknown) => void) | undefined;
@@ -722,16 +757,16 @@ export function enqueueReindex(opts: {
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
       debounceTimers.delete(key);
-      // All per-file debounce timers that expire in this event-loop turn are
-      // folded into one worker/SQLite operation per project index. This keeps
-      // same-file debounce semantics while avoiding N full index lifecycles
-      // for watcher bursts such as branch switches or generated-file updates.
+      // After per-file debounce: add to the per-project ready batch, which
+      // stays open for `coalesceWindowMs` so staggered bursts coalesce into
+      // one worker/SQLite operation instead of N separate index runs.
       addReadyReindex({
         projectRoot: opts.projectRoot,
         file,
         indexDir: opts.indexDir,
         timeoutMs: opts.timeoutMs ?? DEFAULT_INCREMENTAL_TIMEOUT_MS,
         onError: opts.onError,
+        coalesceWindowMs: opts.coalesceWindowMs,
       });
     }, ms);
     // Don't keep the event loop alive solely for a pending reindex.
@@ -745,7 +780,7 @@ export function cancelPendingReindexes(): void {
   for (const t of debounceTimers.values()) clearTimeout(t);
   debounceTimers.clear();
   for (const batch of readyReindexBatches.values()) {
-    if (batch.flush) clearImmediate(batch.flush);
+    if (batch.flush) clearTimeout(batch.flush);
   }
   readyReindexBatches.clear();
 }
@@ -831,6 +866,7 @@ export function ensureCodebaseIndexServer(options: {
   indexDir?: string | undefined;
   watchExternal?: boolean | undefined;
   debounceMs?: number | undefined;
+  coalesceWindowMs?: number | undefined;
 }): Promise<void> {
   const availability = resolveProjectIndexDaemonAvailability(options.projectRoot, options.indexDir);
   if (availability.kind !== 'available') {
@@ -842,6 +878,7 @@ export function ensureCodebaseIndexServer(options: {
     indexDir: options.indexDir,
     watchExternal: options.watchExternal ?? false,
     debounceMs: options.debounceMs ?? DEFAULT_DEBOUNCE_MS,
+    coalesceWindowMs: options.coalesceWindowMs ?? DEFAULT_COALESCE_WINDOW_MS,
   });
 }
 

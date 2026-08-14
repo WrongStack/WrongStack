@@ -60,6 +60,10 @@ import { activeProfileConfigPath } from './profile-config-path.js';
 import { resolveActiveApiKey } from './provider-config-utils.js';
 import { isKeylessLocalProvider, visibleModelIds } from './provider-helpers.js';
 import { TerminalRenderer } from './renderer.js';
+import {
+  renderDeepHelp,
+  renderFocusedHelp,
+} from './subcommands/handlers/per-subcommand-help.js';
 import { runUpdateCommand } from './subcommands/handlers/update.js';
 import { subcommands } from './subcommands/index.js';
 import type { UpdateInfo } from './update-check.js';
@@ -350,6 +354,18 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
   // intercept above clears it).
   const subcommandHandler = first ? subcommands[first] : undefined;
   if (first && subcommandHandler) {
+    if (flags['help'] === true || flags['h'] === true) {
+      const deepSub = positional[1];
+      if (deepSub && renderDeepHelp(`${first}:${deepSub}`, renderer)) {
+        await reader.close();
+        return 0;
+      }
+      if (renderFocusedHelp(first, renderer)) {
+        await reader.close();
+        return 0;
+      }
+    }
+
     // Create container to get the SAME skillLoader instance that the main
     // interactive CLI uses. This ensures cache invalidation after
     // /skill-install propagates correctly to /skill and other commands.

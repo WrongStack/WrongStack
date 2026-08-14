@@ -313,6 +313,7 @@ const plugin: Plugin = {
       // ---- Register tools ----
       const sendTool = makeTelegramSendTool({
         bot,
+        outbound,
         getDefaultChatId: () => runtimeCfg.notifyChatId,
         getAllowedOutboundChatIds: () => runtimeCfg.allowedOutboundChats,
         maxMessageLength: runtimeCfg.maxMessageLength,
@@ -385,7 +386,7 @@ const plugin: Plugin = {
         notifyChannel = new TelegramNotificationChannel({
           bot,
           chatId: runtimeCfg.notifyChatId,
-          maxMessageLength: runtimeCfg.maxMessageLength,
+          maxMessageLength: () => runtimeCfg.maxMessageLength,
           enqueueNotification: (chatId, text) => outbound.enqueueNotification(chatId, text),
           log,
         });
@@ -496,7 +497,6 @@ const plugin: Plugin = {
         // botToken, offsetStoragePath) keep their previous values until
         // the operator restarts the plugin.
         const fresh = telegramFromConfig(next);
-        const was = telegramFromConfig(prev);
         const hotSet = new Set<string>(hotKeys);
 
         // Table-driven hot-apply. Each entry maps a Telegram config key
@@ -524,23 +524,9 @@ const plugin: Plugin = {
         // one here would make outbound notifications target a chat the
         // inbound allowlist does not yet recognise.  Deferred to restart.
 
-        // When maxMessageLength changes (hot), rebuild the notification
-        // channel so it picks up the new limit.  notifyChatId changes
-        // are deferred to restart, so the channel keeps the current
-        // (old) chat ID.
-        if (hotSet.has('maxMessageLength') && fresh.maxMessageLength !== was.maxMessageLength) {
-          notifyChannel =
-            runtimeCfg.notifyChatId !== undefined
-              ? new TelegramNotificationChannel({
-                  bot,
-                  chatId: runtimeCfg.notifyChatId,
-                  maxMessageLength: fresh.maxMessageLength,
-                  enqueueNotification: (chatId, text) =>
-                    outbound.enqueueNotification(chatId, text),
-                  log,
-                })
-              : undefined;
-        }
+        // maxMessageLength is hot-applied via the getter callback passed to
+        // TelegramNotificationChannel at setup time, keeping api.notifier
+        // and local event handlers fully synchronised without split-brain.
 
         // Phase 2: Surface restart-required keys.
         if (restartKeys.length > 0) {

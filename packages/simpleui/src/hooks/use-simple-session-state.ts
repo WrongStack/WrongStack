@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ContextInfo, SessionInfo, SimpleSessionSummary } from '../types.js';
 
-const EMPTY_CONTEXT: ContextInfo = { load: 0, tokens: 0, maxContext: 0 };
+const EMPTY_CONTEXT: ContextInfo = { load: 0, tokens: 0, maxContext: 0, cache: null };
 
 /** Owns session identity, catalog, context, and lifecycle timestamps for SimpleUI. */
 export function useSimpleSessionState() {

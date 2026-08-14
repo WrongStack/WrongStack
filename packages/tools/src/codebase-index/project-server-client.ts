@@ -441,11 +441,15 @@ class ProjectServerConnection {
     }
   }
 
-  async configure(watchExternal: boolean, debounceMs: number): Promise<void> {
+  async configure(
+    watchExternal: boolean,
+    debounceMs: number,
+    coalesceWindowMs?: number,
+  ): Promise<void> {
     await this.ensureConnected(true);
     const startedAt = Date.now();
     const result = await this.request<{ watching: boolean; health?: unknown }>(
-      { type: 'configure', watchExternal, debounceMs },
+      { type: 'configure', watchExternal, debounceMs, coalesceWindowMs },
       { timeoutMs: SERVER_CONTROL_TIMEOUT_MS },
     );
     if (isProjectIndexServerHealth(result.health)) {
@@ -515,7 +519,7 @@ class ProjectServerConnection {
           type: 'shutdown';
           reason?: string | undefined;
         }
-      | { type: 'configure'; watchExternal: boolean; debounceMs: number }
+      | { type: 'configure'; watchExternal: boolean; debounceMs: number; coalesceWindowMs?: number | undefined }
       | { type: 'ping' },
     options: ProjectServerCallOptions,
   ): Promise<T> {
@@ -982,10 +986,12 @@ export function ensureProjectIndexServer(options: {
   indexDir?: string | undefined;
   watchExternal: boolean;
   debounceMs: number;
+  coalesceWindowMs?: number | undefined;
 }): Promise<void> {
   return connectionFor(options.projectRoot, options.indexDir).configure(
     options.watchExternal,
     options.debounceMs,
+    options.coalesceWindowMs,
   );
 }
 

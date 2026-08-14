@@ -53,6 +53,7 @@ export const CLIENT_SDD_MESSAGE_TYPES = [
   'sdd.spec.discard',
   'sdd.spec.get',
   'sdd.spec.message',
+  'sdd.spec.rewind',
   'sdd.spec.start',
   'specs.get',
   'specs.list',

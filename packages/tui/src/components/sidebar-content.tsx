@@ -19,6 +19,7 @@
 // sync when changing the layout.
 
 import type { TodoItem } from '@wrongstack/core/agent';
+import type { CacheStats } from '@wrongstack/core/types';
 import type { ContextBreakdown } from '@wrongstack/core/utils';
 import type React from 'react';
 import type { ResumeSessionEntry } from '../app-state.js';
@@ -44,6 +45,19 @@ export interface SidebarContentProps {
   contextWindow: { used: number; max: number } | undefined;
   /** Honest per-category accounting behind the context window display. */
   contextBreakdown?: ContextBreakdown | undefined;
+  /**
+   * Live prompt-cache hit ratio + token counts for the sidebar card.
+   * Surfaced so a user staring at the right rail can see how much of
+   * the spend is hitting the prompt cache without opening `/context`.
+   */
+  cacheStats?: CacheStats | undefined;
+  /**
+   * How far the cached prefix reaches into the live request, in tokens.
+   * Drawn as an overlay marker on the context-window spectrum bar so
+   * "exactly how far the cache extends" is answerable at a glance.
+   * Zero hides the marker — no prompt cached this request.
+   */
+  cacheCoverageTokens?: number | undefined;
   /** Fleet entries (leader + subagents) from useStatusbarViewModel. */
   entries: Record<string, FleetEntry>;
   /** Fleet counts summary. */
@@ -450,6 +464,8 @@ function DialRow({
 export function SidebarContent({
   contextWindow,
   contextBreakdown,
+  cacheStats,
+  cacheCoverageTokens = 0,
   entries,
   fleetCounts,
   provider,
@@ -479,6 +495,19 @@ export function SidebarContent({
   const meter = blockMeter(ctxRatio, innerWidth);
   const spectrum = contextSpectrum(contextBreakdown, contextWindow, innerWidth);
   const modelIdentity = provider && model ? `${provider}/${model}` : (model ?? provider);
+
+  // Cache summary — `hitRatio` is the cumulative session figure
+  // (`cacheRead / (cacheRead + input)`), zero when no caching has
+  // happened yet. The cache card stays visible with a "no cache yet"
+  // hint so users learn about the metric instead of wondering where it
+  // went.
+  const cs = cacheStats ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
+  const hasCacheActivity = cs.readTokens > 0 || cs.writeTokens > 0;
+  const cacheHitPct = Math.round(cs.hitRatio * 100);
+  const cacheCoveragePct =
+    contextWindow && contextWindow.max > 0
+      ? Math.min(100, Math.round((cacheCoverageTokens / contextWindow.max) * 100))
+      : 0;
 
   // Fleet entries: show leader first, then running subagents.
   // Cap at 12 agents total (leader + up to 11 subagents), each rendered
@@ -563,6 +592,12 @@ export function SidebarContent({
                 </Text>
               ))}
             </Box>
+            {cacheCoverageTokens > 0 && contextWindow.max > 0 ? (
+              <Text color={theme.success} wrap="truncate">
+                ┊ cache covers {fmtTok(cacheCoverageTokens)} / {fmtTok(contextWindow.max)} (
+                {cacheCoveragePct}%)
+              </Text>
+            ) : null}
             <Text color={theme.textMuted} wrap="truncate">
               {fmtTok(contextWindow.used)} / {fmtTok(contextWindow.max)} tokens
             </Text>
@@ -584,6 +619,61 @@ export function SidebarContent({
         ) : (
           <Text color={theme.textMuted}>awaiting context telemetry</Text>
         )}
+      </Card>
+
+      {/* ── Prompt cache card: hit ratio + coverage ── */}
+      <Card innerWidth={innerWidth}>
+        <SectionHeader
+          glyph={glyphs.context}
+          label="PROMPT CACHE"
+          color={theme.success}
+          badge={hasCacheActivity ? `${cacheHitPct}%` : '—'}
+          badgeColor={hasCacheActivity ? theme.success : theme.textMuted}
+          innerWidth={innerWidth}
+        />
+        <Box flexDirection="row" width={innerWidth}>
+          <Text color={theme.textSecondary} bold>
+            {hasCacheActivity ? `${cacheHitPct}%` : 'no cache yet'}
+          </Text>
+          <Text color={theme.textMuted}>
+            {hasCacheActivity ? ' cache-hit' : ' — first prompt writes a prefix'}
+          </Text>
+        </Box>
+        {hasCacheActivity ? (
+          <>
+            {/* Token-bar mini-meter for the cache hit ratio. */}
+            <Box flexDirection="row" width={innerWidth}>
+              <Text color={theme.success}>
+                {'█'.repeat(Math.round((cacheHitPct / 100) * Math.max(4, innerWidth - 4)))}
+              </Text>
+              <Text color={theme.borderSubtle}>
+                {'░'.repeat(
+                  Math.max(
+                    0,
+                    Math.max(4, innerWidth - 4) -
+                      Math.round((cacheHitPct / 100) * Math.max(4, innerWidth - 4)),
+                  ),
+                )}
+              </Text>
+            </Box>
+            <Box flexDirection="row" width={innerWidth}>
+              <Text color={theme.textMuted}>read </Text>
+              <Text color={theme.textPrimary}>{fmtTok(cs.readTokens)}</Text>
+              <Box flexGrow={1} />
+              <Text color={theme.textMuted}>write </Text>
+              <Text color={theme.textSecondary}>{fmtTok(cs.writeTokens)}</Text>
+            </Box>
+          </>
+        ) : null}
+        {cacheCoverageTokens > 0 && contextWindow ? (
+          <Box flexDirection="row" width={innerWidth}>
+            <Text color={theme.success}>coverage </Text>
+            <Text color={theme.textPrimary}>
+              {fmtTok(cacheCoverageTokens)} / {fmtTok(contextWindow.max)}
+            </Text>
+            <Text color={theme.textMuted}> ({cacheCoveragePct}% of window)</Text>
+          </Box>
+        ) : null}
       </Card>
 
       {/* ── System vitals: CPU, RAM, heap — relocated from the statusline ── */}
@@ -689,7 +779,9 @@ export function SidebarContent({
                 {/* Line 2: status + current tool, aligned beneath node identity. */}
                 <Box flexDirection="row">
                   <Text color={color}>▎</Text>
-                  <Text color={theme.borderSubtle}>{isLeader ? '   ' : isLast ? '   ' : '│  '}</Text>
+                  <Text color={theme.borderSubtle}>
+                    {isLeader ? '   ' : isLast ? '   ' : '│  '}
+                  </Text>
                   <Text color={theme.textMuted} wrap="truncate">
                     {statusLabel}
                     {tool ? ` · ${tool}` : ''}
@@ -718,10 +810,22 @@ export function SidebarContent({
           {/* Progress matrix bar */}
           <Box width={innerWidth} marginBottom={1}>
             <Text color={theme.success}>
-              {'█'.repeat(Math.round((mission.done / Math.max(1, mission.total)) * Math.max(4, innerWidth - 8)))}
+              {'█'.repeat(
+                Math.round(
+                  (mission.done / Math.max(1, mission.total)) * Math.max(4, innerWidth - 8),
+                ),
+              )}
             </Text>
             <Text color={theme.borderSubtle}>
-              {'░'.repeat(Math.max(0, Math.max(4, innerWidth - 8) - Math.round((mission.done / Math.max(1, mission.total)) * Math.max(4, innerWidth - 8))))}
+              {'░'.repeat(
+                Math.max(
+                  0,
+                  Math.max(4, innerWidth - 8) -
+                    Math.round(
+                      (mission.done / Math.max(1, mission.total)) * Math.max(4, innerWidth - 8),
+                    ),
+                ),
+              )}
             </Text>
             <Text color={theme.textMuted}>
               {' '}
@@ -862,7 +966,9 @@ export function SidebarContent({
               label="TOOL TICKER"
               color={theme.accent}
               badge={liveTools.some((t) => t.status === 'RUNNING') ? '● STREAM' : 'OFFLINE'}
-              badgeColor={liveTools.some((t) => t.status === 'RUNNING') ? theme.success : theme.textMuted}
+              badgeColor={
+                liveTools.some((t) => t.status === 'RUNNING') ? theme.success : theme.textMuted
+              }
               innerWidth={innerWidth}
             />
             {liveTools.slice(0, 3).map((item, i) => (

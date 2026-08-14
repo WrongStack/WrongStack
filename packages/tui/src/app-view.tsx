@@ -1005,6 +1005,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               <SidebarContent
                 contextWindow={statusbar.contextWindow}
                 contextBreakdown={statusbar.contextBreakdown}
+                cacheStats={statusbar.cacheStats}
+                cacheCoverageTokens={statusbar.cacheCoverageTokens}
                 entries={statusbar.entriesWithLeader}
                 fleetCounts={statusbar.fleetCounts}
                 provider={liveProvider}

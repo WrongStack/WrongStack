@@ -97,6 +97,24 @@ export const BOOLEAN_FLAGS = new Set([
   'no-diagnostics',
   'unsupported',
   'ws',
+  'force',
+  'no-browser',
+  // `wstack auth local` booleans
+  'no-key',
+  'skip-key',
+  'no-probe',
+  'skip-probe',
+  'probe-only',
+  // `wstack models add` capability toggles
+  'tools',
+  'vision',
+  'no-vision',
+  'reasoning',
+  'no-reasoning',
+  'streaming',
+  'no-streaming',
+  'json-mode',
+  'no-json-mode',
 ]);
 
 // ------------------------------------------------------------------ main args

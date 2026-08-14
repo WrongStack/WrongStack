@@ -177,11 +177,6 @@
       "fingerprint": "3c611f3df7189b61"
     },
     {
-      "file": "packages/sdd/tests/sdd-interview-driver.test.ts",
-      "kind": "skip",
-      "fingerprint": "46a5ff27fae8ada5"
-    },
-    {
       "file": "packages/tools/tests/_win32-resolve.test.ts",
       "kind": "skipIf",
       "fingerprint": "1c95f6dfd19e4e92"
@@ -225,11 +220,6 @@
       "file": "packages/tools/tests/codebase-index-worker.test.ts",
       "kind": "skipIf",
       "fingerprint": "73f47856be4c7a02"
-    },
-    {
-      "file": "packages/tools/tests/design.test.ts",
-      "kind": "skipIf",
-      "fingerprint": "23fb6be57c432e62"
     },
     {
       "file": "packages/tools/tests/exec-kill-guard.test.ts",

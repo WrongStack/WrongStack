@@ -203,8 +203,21 @@ export function createConnectionLifecycle<Client, Request, Message>(
   };
 
   return async (ws, request) => {
-    ws.on('error', (error) => log('warn', 'webui_server.client_socket_error', error));
-    if (options.authenticate && !(await options.authenticate(ws, request))) return;
+    const onError = (error: unknown) => log('warn', 'webui_server.client_socket_error', error);
+    if (typeof ws.on === 'function') ws.on('error', onError);
+    if (options.authenticate && !(await options.authenticate(ws, request))) {
+      if (typeof ws.removeListener === 'function') {
+        ws.removeListener('error', onError);
+      } else if (typeof (ws as unknown as { off?: unknown }).off === 'function') {
+        (ws as unknown as { off: (event: string, fn: unknown) => void }).off('error', onError);
+      }
+      try {
+        ws.close?.(4401, 'Unauthorized');
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
 
     const client = options.createClient(ws, `c${++connectionSequence}`);
     options.clients.set(ws, client);

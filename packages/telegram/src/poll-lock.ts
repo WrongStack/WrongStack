@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { Logger } from '@wrongstack/core/types';
-import { wstackGlobalRoot } from '@wrongstack/core/utils';
+import { isPidAlive, wstackGlobalRoot } from '@wrongstack/core/utils';
 
 /**
  * Cross-process single-poller lock for a Telegram bot token.
@@ -71,25 +71,51 @@ export class PollLock {
     const existing = this.readLock();
     if (existing && !this.isStale(existing)) return false;
 
+    const now = Date.now();
+    const payload: LockFilePayload = {
+      id: this.id,
+      pid: process.pid,
+      acquiredAt: now,
+      heartbeatAt: now,
+    };
+
+    mkdirSync(dirname(this.lockPath), { recursive: true });
+
+    // Fast path: exclusive creation when no file exists.
     try {
-      mkdirSync(dirname(this.lockPath), { recursive: true });
-      // Remove any stale or corrupt file first, then create exclusively: when
-      // two standby instances race for a stale lock, `wx` makes exactly one win.
-      try {
-        unlinkSync(this.lockPath);
-      } catch {
-        // Nothing to remove, or a competing instance already removed it.
-      }
-      const now = Date.now();
-      const payload: LockFilePayload = {
-        id: this.id,
-        pid: process.pid,
-        acquiredAt: now,
-        heartbeatAt: now,
-      };
       writeFileSync(this.lockPath, JSON.stringify(payload), { flag: 'wx' });
+      this._held = true;
+      this.startHeartbeat();
+      return true;
+    } catch (err) {
+      // Only proceed to stale takeover if the file already exists (EEXIST).
+      // Any other I/O error or write failure fails closed.
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
+        return false;
+      }
+    }
+
+    // Slow path: file exists but may be stale. Check again before attempting takeover.
+    const fresh = this.readLock();
+    if (fresh && !this.isStale(fresh)) return false;
+
+    // Take over stale lock atomically via temp file + rename (never blind unlink).
+    const tmp = `${this.lockPath}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
+    try {
+      writeFileSync(tmp, JSON.stringify(payload));
+      renameSync(tmp, this.lockPath);
     } catch {
-      return false; // Lost the race or the directory is unwritable.
+      try {
+        unlinkSync(tmp);
+      } catch {
+        // Temp cleanup is best-effort.
+      }
+      return false;
+    }
+
+    // Verify this instance actually won the rename race.
+    if (this.readLock()?.id !== this.id) {
+      return false;
     }
 
     this._held = true;
@@ -137,13 +163,18 @@ export class PollLock {
       this.onLost?.();
       return;
     }
+    const tmp = `${this.lockPath}.${process.pid}.tmp`;
     try {
       const payload: LockFilePayload = { ...current, heartbeatAt: Date.now() };
       // Write via temp + rename so a reader never sees a half-written file.
-      const tmp = `${this.lockPath}.${process.pid}.tmp`;
       writeFileSync(tmp, JSON.stringify(payload));
       renameSync(tmp, this.lockPath);
     } catch (err) {
+      try {
+        unlinkSync(tmp);
+      } catch {
+        // Temp cleanup is best-effort.
+      }
       this.log?.debug(`Telegram: poll lock heartbeat write failed: ${err}`);
     }
   }
@@ -166,17 +197,6 @@ export class PollLock {
 
   private isStale(payload: LockFilePayload): boolean {
     if (Date.now() - payload.heartbeatAt > this.staleMs) return true;
-    return !this.isPidAlive(payload.pid);
-  }
-
-  private isPidAlive(pid: number): boolean {
-    if (pid === process.pid) return true;
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch (err) {
-      // EPERM means the process exists but belongs to another user.
-      return (err as NodeJS.ErrnoException).code === 'EPERM';
-    }
+    return !isPidAlive(payload.pid);
   }
 }

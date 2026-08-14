@@ -276,17 +276,23 @@ export class TelegramBot {
     return msgs.slice(0, limit);
   }
 
-  /** Drop messages older than the given message ID from the buffer. */
-  acknowledge(lastMessageId: number): number {
+  /** Drop messages older than or equal to the given message ID from the buffer (optionally scoped to a specific chat). */
+  acknowledge(lastMessageId: number, chatId?: string | number | undefined): number {
     const before = this.buffer.length;
-    let i = this.buffer.length;
-    while (i-- > 0) {
-      const buffered = this.buffer[i];
-      if (buffered && buffered.messageId <= lastMessageId) {
-        this.buffer.splice(0, i + 1);
-        break;
+    const cid = chatId !== undefined && chatId !== null && String(chatId).trim() !== '' ? String(chatId).trim() : undefined;
+    const remaining: TelegramIncomingMessage[] = [];
+    for (const buffered of this.buffer) {
+      if (cid !== undefined) {
+        if (String(buffered.chatId) === cid && buffered.messageId <= lastMessageId) {
+          continue;
+        }
+      } else if (buffered.messageId <= lastMessageId) {
+        continue;
       }
+      remaining.push(buffered);
     }
+    this.buffer.length = 0;
+    this.buffer.push(...remaining);
     return before - this.buffer.length;
   }
 
@@ -546,7 +552,16 @@ export class TelegramBot {
     if (request.signal && request.abortHandler) {
       request.signal.removeEventListener('abort', request.abortHandler);
     }
-    request.pendingCallbacks.length = 0;
+    const leftoverCallbacks = request.pendingCallbacks.splice(0);
+    for (const cq of leftoverCallbacks) {
+      const notice =
+        state === 'expired'
+          ? 'Approval request expired'
+          : state === 'cancelled'
+            ? 'Approval request cancelled'
+            : 'Approval request settled';
+      void this.answerCallback(cq.id, notice, true);
+    }
     this.callbackWaiters.delete(requestId);
     request.resolve(result);
     return true;

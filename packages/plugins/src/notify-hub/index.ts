@@ -553,6 +553,21 @@ const plugin: Plugin = {
       }
     }
     state.eventUnsubscribers = [];
+    if (api.tools?.unregister) {
+      try {
+        api.tools.unregister('notify_send');
+        api.tools.unregister('notify_hub_status');
+      } catch {
+        // best-effort
+      }
+    }
+    if (api.notifier?.unregisterChannel) {
+      try {
+        api.notifier.unregisterChannel('webhook');
+      } catch {
+        // best-effort
+      }
+    }
     const channelCounters = state.channel?.counters();
     state.channel = null;
     state.lastDelivery = null;

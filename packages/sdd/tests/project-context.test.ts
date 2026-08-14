@@ -112,4 +112,15 @@ describe('gatherProjectContext', () => {
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('omits the Packages section for an empty packages/ dir (:58)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sdd-ctx-pkgs-empty-'));
+    try {
+      await fs.mkdir(path.join(dir, 'packages'), { recursive: true });
+      const ctx = await gatherProjectContext(dir);
+      expect(ctx).not.toContain('Packages:');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
 });

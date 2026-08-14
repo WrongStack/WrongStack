@@ -72,6 +72,8 @@ interface ClientState {
 let projectRoot = '';
 let endpoint = '';
 let serverInfo: KanbanProjectServerInfo | null = null;
+let sigtermHandler: (() => void) | undefined;
+let sigintHandler: (() => void) | undefined;
 
 /**
  * Per-process auth token. WS-027: this daemon owns every board in the project
@@ -242,6 +244,14 @@ async function stop(_reason: string, gracefulSocket?: net.Socket): Promise<void>
   livenessTimer = undefined;
   if (leaseTimer) clearInterval(leaseTimer);
   leaseTimer = undefined;
+  if (sigtermHandler) {
+    process.removeListener('SIGTERM', sigtermHandler);
+    sigtermHandler = undefined;
+  }
+  if (sigintHandler) {
+    process.removeListener('SIGINT', sigintHandler);
+    sigintHandler = undefined;
+  }
   for (const state of clients) {
     // Handlers are intentionally NOT aborted here: once a request reaches the
     // storage layer the mutation may have committed server-side. Aborting would
@@ -748,8 +758,12 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }, CLIENT_LEASE_SWEEP_MS);
   leaseTimer.unref?.();
 
-  process.on('SIGTERM', () => stopAndExit('SIGTERM'));
-  process.on('SIGINT', () => stopAndExit('SIGINT'));
+  if (sigtermHandler) process.removeListener('SIGTERM', sigtermHandler);
+  if (sigintHandler) process.removeListener('SIGINT', sigintHandler);
+  sigtermHandler = () => stopAndExit('SIGTERM');
+  sigintHandler = () => stopAndExit('SIGINT');
+  process.on('SIGTERM', sigtermHandler);
+  process.on('SIGINT', sigintHandler);
 }
 
 function acceptClient(socket: net.Socket): void {

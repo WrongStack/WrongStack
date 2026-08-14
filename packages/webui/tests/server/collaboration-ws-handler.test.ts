@@ -202,7 +202,7 @@ describe('CollaborationWebSocketHandler', () => {
   });
 
   // ── 8. Periodic state broadcast: triggered on first join, stops when empty ─
-  it('starts a 2s state broadcast on first join and stops it when the last observer leaves', () => {
+  it('starts the broadcast interval on first join and stops when the last observer leaves', () => {
     vi.useFakeTimers();
     try {
       const ws = fakeWs();
@@ -211,14 +211,22 @@ describe('CollaborationWebSocketHandler', () => {
         type: 'collab.join',
         payload: { sessionId: 'sess-6', role: 'observer' },
       });
+
+      // The interval should be running.
+      const internal = handler as unknown as {
+        broadcastInterval: ReturnType<typeof setInterval> | null;
+      };
+      expect(internal.broadcastInterval).not.toBeNull();
+
+      // With no membership change, the 2s tick deduplicates (skips)
+      // — the join already pushed a fresh state eagerly.
       ws.sent.length = 0;
-
       vi.advanceTimersByTime(2100);
-      const stateMessages = ws.sent.filter((m: any) => m.type === 'collab.state');
-      expect(stateMessages.length).toBeGreaterThanOrEqual(1);
+      expect(ws.sent.filter((m: any) => m.type === 'collab.state')).toHaveLength(0);
 
-      // Disconnect → broadcast loop should stop. No more state messages after another 2s.
+      // Disconnect → broadcast loop stops. No more state messages after another 2s.
       ws.fire('close');
+      expect(internal.broadcastInterval).toBeNull();
       ws.sent.length = 0;
       vi.advanceTimersByTime(2100);
       expect(ws.sent).toHaveLength(0);

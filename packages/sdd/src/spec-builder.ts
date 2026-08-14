@@ -74,6 +74,7 @@ function buildQuestioningPrompt(session: AISpecSession, min: number, max: number
     '- Questions must be specific and contextual — never generic',
     '- Adapt based on previous answers',
     '- Cover: scope, constraints, edge cases, integrations, security, performance as relevant',
+    '- When asking questions with distinct architectural or trade-off choices, include 2 to 4 recommended options as a list (e.g. 1. ... 2. ...) so the operator can quickly choose or customize',
     '- When you have enough info, respond with the full specification in JSON format',
     '- This is a planning interview: respond with TEXT ONLY (a question, or the spec JSON).',
     '  Do NOT write or edit files, and do NOT run shell/terminal commands — the code is',
@@ -484,6 +485,30 @@ export class AISpecBuilder {
         break;
     }
     this.session.approved = true;
+    this.session.updatedAt = Date.now();
+    this.autoSave();
+    return this.session.phase;
+  }
+
+  /**
+   * Rewind the session to an earlier phase (e.g. rejecting plan to re-specify,
+   * or moving from spec review back to questioning).
+   */
+  rewindTo(targetPhase: AISpecPhase): AISpecPhase {
+    if (targetPhase === this.session.phase) return this.session.phase;
+    this.session.phase = targetPhase;
+    this.session.approved = false;
+    if (targetPhase === 'questioning') {
+      this.session.spec = undefined;
+      this.session.implementation = undefined;
+      this.session.taskGraphId = undefined;
+    } else if (targetPhase === 'spec_review') {
+      this.session.implementation = undefined;
+      this.session.taskGraphId = undefined;
+    } else if (targetPhase === 'implementation') {
+      this.session.implementation = undefined;
+      this.session.taskGraphId = undefined;
+    }
     this.session.updatedAt = Date.now();
     this.autoSave();
     return this.session.phase;

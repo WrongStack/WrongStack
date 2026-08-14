@@ -21,9 +21,20 @@ export interface FallbackPendingInfo {
   autoSwitchSeconds: number;
 }
 
+/**
+ * Shared projection shape — used by the `useState<FallbackPendingProjection | null>`
+ * site in `simple-ui-session.tsx`, the `setFallbackPending` prop type in
+ * `lib/message-handler.ts`, and the `projectFallbackPending` return type
+ * below. Single source of truth so a server-side field addition lands
+ * in exactly one place.
+ */
+export type FallbackPendingProjection = FallbackPendingInfo;
+
 export interface FallbackModalProps {
   info: FallbackPendingInfo | null;
-  socketRef: { current: { send: (type: string, payload?: Record<string, unknown>) => void } | null };
+  socketRef: {
+    current: { send: (type: string, payload?: Record<string, unknown>) => void } | null;
+  };
   onClose: () => void;
 }
 
@@ -109,7 +120,8 @@ export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) 
           <span className="fallback-modal-countdown">{remaining}s</span>
         </div>
         <p className="fallback-modal-from">
-          <span className="mono">{fromLabel}</span> returned <span className="mono">{info.status}</span>
+          <span className="mono">{fromLabel}</span> returned{' '}
+          <span className="mono">{info.status}</span>
         </p>
         <p className="fallback-modal-hint">
           Select a fallback model (↑/↓ to move, Enter to pick, Esc for auto):
@@ -131,7 +143,9 @@ export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) 
                 onMouseEnter={() => setSelected(i)}
               >
                 <span className="fallback-modal-marker">{isSel ? '▸' : '\u00a0'}</span>
-                <span className="mono">{c.providerId}/{c.model}</span>
+                <span className="mono">
+                  {c.providerId}/{c.model}
+                </span>
               </button>
             );
           })}
@@ -145,7 +159,9 @@ export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) 
 }
 
 function sendChoice(
-  socketRef: { current: { send: (type: string, payload?: Record<string, unknown>) => void } | null },
+  socketRef: {
+    current: { send: (type: string, payload?: Record<string, unknown>) => void } | null;
+  },
   requestId: string,
   choice: { providerId: string; model: string } | null,
 ) {
@@ -171,9 +187,7 @@ function sendChoice(
  * Project a `provider.fallback_pending` server message into a
  * `FallbackPendingInfo` for the modal.
  */
-export function projectFallbackPending(
-  msg: ServerMessage,
-): FallbackPendingInfo | null {
+export function projectFallbackPending(msg: ServerMessage): FallbackPendingInfo | null {
   const payload = msg.payload ?? {};
   const from =
     payload['from'] && typeof payload['from'] === 'object'
@@ -197,6 +211,7 @@ export function projectFallbackPending(
     },
     status: typeof payload['status'] === 'number' ? payload['status'] : 0,
     candidates,
-    autoSwitchSeconds: typeof payload['autoSwitchSeconds'] === 'number' ? payload['autoSwitchSeconds'] : 7,
+    autoSwitchSeconds:
+      typeof payload['autoSwitchSeconds'] === 'number' ? payload['autoSwitchSeconds'] : 7,
   };
 }

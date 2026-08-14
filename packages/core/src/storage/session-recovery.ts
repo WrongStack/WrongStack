@@ -51,6 +51,108 @@ export interface RecoveryPlan {
   context: string | null;
 }
 
+export interface InterruptedToolDetail {
+  name: string;
+  argsSummary?: string | undefined;
+  ts?: string | undefined;
+}
+
+/**
+ * Extracts any unresolved tool calls from a recovery plan's pending events.
+ */
+export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDetail[] {
+  const tools: InterruptedToolDetail[] = [];
+  const openCalls = new Map<string, { name: string; args?: unknown; ts?: string }>();
+
+  for (const ev of plan.pendingEvents) {
+    if (ev.type === 'tool_use' && typeof (ev as { name?: string }).name === 'string') {
+      const toolName = (ev as { name: string }).name;
+      const callId = (ev as { id?: string }).id ?? toolName;
+      openCalls.set(callId, {
+        name: toolName,
+        args:
+          (ev as { input?: unknown; args?: unknown }).input ??
+          (ev as { input?: unknown; args?: unknown }).args,
+        ts: ev.ts,
+      });
+    } else if (ev.type === 'tool_result') {
+      const callId =
+        (ev as { id?: string; toolUseId?: string; name?: string }).id ??
+        (ev as { id?: string; toolUseId?: string; name?: string }).toolUseId ??
+        (ev as { id?: string; toolUseId?: string; name?: string }).name;
+      if (callId) openCalls.delete(callId);
+    } else if (
+      ev.type === 'llm_response' &&
+      Array.isArray((ev as { content?: unknown[] }).content)
+    ) {
+      for (const block of (
+        ev as {
+          content: Array<{
+            type?: string;
+            id?: string;
+            name?: string;
+            input?: unknown;
+          }>;
+        }
+      ).content) {
+        if (block && block.type === 'tool_use' && typeof block.name === 'string') {
+          const callId = block.id ?? block.name;
+          openCalls.set(callId, {
+            name: block.name,
+            args: block.input,
+            ts: ev.ts,
+          });
+        }
+      }
+    } else if (
+      ev.type === 'message_appended' &&
+      (ev as { message?: { role?: string; content?: unknown } }).message
+    ) {
+      const msg = (ev as { message: { role?: string; content?: unknown } }).message;
+      if (Array.isArray(msg.content)) {
+        for (const block of msg.content as Array<{
+          type?: string;
+          id?: string;
+          name?: string;
+          input?: unknown;
+          tool_use_id?: string;
+        }>) {
+          if (block && block.type === 'tool_use' && typeof block.name === 'string') {
+            const callId = block.id ?? block.name;
+            openCalls.set(callId, {
+              name: block.name,
+              args: block.input,
+              ts: ev.ts,
+            });
+          } else if (block && block.type === 'tool_result') {
+            const callId = block.tool_use_id ?? block.id;
+            if (callId) openCalls.delete(callId);
+          }
+        }
+      }
+    }
+  }
+
+  for (const call of openCalls.values()) {
+    let argsSummary: string | undefined;
+    if (call.args && typeof call.args === 'object') {
+      try {
+        const str = JSON.stringify(call.args);
+        argsSummary = str.length > 80 ? `${str.slice(0, 77)}...` : str;
+      } catch {
+        // ignore JSON serialization failure
+      }
+    }
+    tools.push({
+      name: call.name,
+      argsSummary,
+      ts: call.ts,
+    });
+  }
+
+  return tools;
+}
+
 /**
  * Result of `SessionRecovery.recover(sessionId)`. Distinct from
  * `StaleSession`: a session is "stale" if its latest lifecycle

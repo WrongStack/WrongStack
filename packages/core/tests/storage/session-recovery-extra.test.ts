@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { SessionRecovery } from '../../src/storage/session-recovery.js';
+import { extractInterruptedTools, SessionRecovery } from '../../src/storage/session-recovery.js';
 
 // Covers detectStale (stale / clean / empty / missing / all-corrupt-tail),
 // recover (checkpoint / legacy / empty / missing) and listResumable's
@@ -100,5 +100,73 @@ describe('session-recovery — extra coverage', () => {
     expect(ids).not.toContain('clean');
     // sorted by lastEventTs desc — sharded (Jan 03) before flat (Jan 02).
     expect(ids.indexOf('2026-06-11/sharded-stale')).toBeLessThan(ids.indexOf('flat-stale'));
+  });
+
+  it('extractInterruptedTools extracts open tool_use without matching tool_result', () => {
+    const plan = {
+      sessionId: 'test',
+      stale: true,
+      lastCheckpoint: null,
+      inFlightStart: null,
+      context: 'executing tools',
+      pendingEvents: [
+        { type: 'tool_use', id: 'call_1', name: 'read_file', args: { path: 'a.txt' }, ts: '2026-01-01T00:00:01Z' },
+        { type: 'tool_result', toolUseId: 'call_1', name: 'read_file', output: 'content' },
+        { type: 'tool_use', id: 'call_2', name: 'write_to_file', args: { path: 'b.txt', content: 'new' }, ts: '2026-01-01T00:00:02Z' },
+      ],
+    };
+
+    const interrupted = extractInterruptedTools(plan as never);
+    expect(interrupted).toHaveLength(1);
+    expect(interrupted[0]?.name).toBe('write_to_file');
+    expect(interrupted[0]?.argsSummary).toContain('b.txt');
+    expect(interrupted[0]?.ts).toBe('2026-01-01T00:00:02Z');
+  });
+
+  it('extractInterruptedTools extracts tool_use from llm_response and message_appended', () => {
+    const plan = {
+      sessionId: 'test-blocks',
+      stale: true,
+      lastCheckpoint: null,
+      inFlightStart: null,
+      context: 'executing assistant response',
+      pendingEvents: [
+        {
+          type: 'llm_response',
+          ts: '2026-01-01T00:00:01Z',
+          content: [
+            { type: 'text', text: 'let me run bash' },
+            { type: 'tool_use', id: 'call_bash', name: 'run_command', input: { command: 'pnpm test' } },
+          ],
+        },
+        {
+          type: 'message_appended',
+          ts: '2026-01-01T00:00:02Z',
+          version: 1,
+          message: {
+            role: 'assistant',
+            content: [
+              { type: 'tool_use', id: 'call_edit', name: 'replace_file_content', input: { file: 'app.ts' } },
+            ],
+          },
+        },
+        {
+          type: 'message_appended',
+          ts: '2026-01-01T00:00:03Z',
+          version: 1,
+          message: {
+            role: 'user',
+            content: [
+              { type: 'tool_result', tool_use_id: 'call_bash', content: 'ok' },
+            ],
+          },
+        },
+      ],
+    };
+
+    const interrupted = extractInterruptedTools(plan as never);
+    expect(interrupted).toHaveLength(1);
+    expect(interrupted[0]?.name).toBe('replace_file_content');
+    expect(interrupted[0]?.argsSummary).toContain('app.ts');
   });
 });

@@ -1,17 +1,22 @@
 import {
   Bot,
   Check,
+  CheckCheck,
   ChevronDown,
   ChevronRight,
+  Copy,
+  Lightbulb,
   Loader2,
   Network,
   Rocket,
+  RotateCcw,
   Send,
   SlidersHorizontal,
   Sparkles,
   Target,
   User,
   X,
+  Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProviderModels } from '@/hooks/useProviderModels';
@@ -38,12 +43,6 @@ const PHASE_LABEL: Record<string, string> = {
 
 const PHASE_ORDER = ['questioning', 'spec_review', 'implementation', 'task_review', 'executing'];
 
-/**
- * SddWizard — the interactive "New SDD Project" flow. Drives the server-side
- * SddInterviewDriver over WS: goal → Q&A → spec → task graph → Start Run, then
- * hands off to the live board. Works on both webui servers (the run uses the
- * CLI's director-backed fleet or the runtime light factory respectively).
- */
 export function SddWizard({
   onClose,
   onRunStarted,
@@ -61,23 +60,18 @@ export function SddWizard({
 
   const [goal, setGoal] = useState('');
   const [reply, setReply] = useState('');
-  // Tracks the "Start Interview" click until the first snapshot lands, so the
-  // goal screen gives immediate feedback instead of sitting there enabled.
   const [submitting, setSubmitting] = useState(false);
-  // Collapse the (tall) decomposition graph to reclaim vertical space.
   const [graphOpen, setGraphOpen] = useState(true);
-  // Collapse the implementation-plan card (can be long).
   const [planOpen, setPlanOpen] = useState(true);
-  // Run config (the whole-plan default model + fallback chain), applied at Start Run.
   const [runCfgOpen, setRunCfgOpen] = useState(false);
   const [runModel, setRunModel] = useState<string | undefined>(undefined);
   const [runProvider, setRunProvider] = useState<string | undefined>(undefined);
   const [runFallbacks, setRunFallbacks] = useState<string[]>([]);
-  // Parallel worker slots (how many tasks run at once) + worktree isolation + plan decompose.
   const [runSlots, setRunSlots] = useState(4);
   const [runWorktrees, setRunWorktrees] = useState(true);
   const [runPlanDecompose, setRunPlanDecompose] = useState(false);
   const modelCandidates = useProviderModels(runCfgOpen);
+
   const send = useCallback(
     (msg: Parameters<NonNullable<typeof client>['send']>[0]) => client?.send?.(msg),
     [client],
@@ -89,14 +83,11 @@ export function SddWizard({
     send({ type: 'sdd.spec.get' });
   }, [send]);
 
-  // Auto-scroll the transcript to the newest message as the interview advances.
   const answerCount = snapshot?.answers.length ?? 0;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [answerCount, agentText]);
 
-  // Notify parent (e.g. SddHub) when a run id lands. Hub owns clearing the flag
-  // so Specs/Kanban-started runs also flip to the Live Board tab.
   useEffect(() => {
     if (!startedRunId) return;
     setStartedRunId(null);
@@ -109,10 +100,10 @@ export function SddWizard({
   const resumed = Boolean(snapshot?.resumed);
   const priorRunId = snapshot?.lastRunId;
 
-  // Clear the submit spinner once the interview session actually exists.
   useEffect(() => {
     if (started) setSubmitting(false);
   }, [started]);
+
   const lastQuestion = snapshot?.answers[snapshot.answers.length - 1]?.question ?? '';
   const canRun =
     !!snapshot &&
@@ -127,13 +118,24 @@ export function SddWizard({
     setSubmitting(true);
     send({ type: 'sdd.spec.start', payload: { goal: g } });
   };
+
   const sendReply = () => {
     const text = reply.trim();
     if (!text || busy) return;
     send({ type: 'sdd.spec.message', payload: { text } });
     setReply('');
   };
+
+  const sendDirectReply = (text: string) => {
+    if (busy || !text.trim()) return;
+    send({ type: 'sdd.spec.message', payload: { text: text.trim() } });
+    setReply('');
+  };
+
   const approve = () => !busy && send({ type: 'sdd.spec.approve', payload: {} });
+  const rewind = (targetPhase?: string) =>
+    !busy && send({ type: 'sdd.spec.rewind', payload: targetPhase ? { targetPhase } : {} });
+
   const startRun = () => {
     send({
       type: 'sdd.run.start',
@@ -147,6 +149,7 @@ export function SddWizard({
     });
     setRunCfgOpen(false);
   };
+
   const discardInterview = () => {
     if (busy) return;
     send({ type: 'sdd.spec.discard', payload: {} });
@@ -168,6 +171,14 @@ export function SddWizard({
     [snapshot?.board],
   );
   const hasGraph = flowTasks.length > 0;
+
+  const activeQuestion = agentText && phase === 'questioning' ? agentText : (lastQuestion ?? '');
+  const quickReplies = useMemo(() => extractQuickReplies(activeQuestion), [activeQuestion]);
+  const answeredCount = snapshot?.answers.length ?? 0;
+  const minQuestions = snapshot?.minQuestions ?? 2;
+  const maxQuestions = snapshot?.maxQuestions ?? 5;
+  const hasMetMin = answeredCount >= minQuestions;
+  const progressPct = Math.min(100, Math.round((answeredCount / Math.max(1, maxQuestions)) * 100));
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
@@ -334,21 +345,34 @@ export function SddWizard({
           {PHASE_ORDER.map((p, i) => {
             const active = p === phase;
             const done = PHASE_ORDER.indexOf(phase) > i;
+            const canRewindToThis = done && !busy && phase !== 'executing' && phase !== 'done';
             return (
               <span key={p} className="flex items-center gap-1">
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5',
-                    active
-                      ? 'bg-primary/15 text-primary'
-                      : done
-                        ? 'text-success'
-                        : 'text-muted-foreground',
-                  )}
-                >
-                  {done && <Check className="mr-0.5 inline h-3 w-3" />}
-                  {t(`activity:sddWizard.${PHASE_LABEL[p]}`)}
-                </span>
+                {canRewindToThis ? (
+                  <button
+                    type="button"
+                    onClick={() => rewind(p)}
+                    title={t('activity:sddWizard.rewindToPhaseTitle', 'Return to this phase to revise')}
+                    className="inline-flex items-center rounded-full px-2 py-0.5 text-success transition hover:bg-success/10 hover:underline"
+                  >
+                    <Check className="mr-0.5 inline h-3 w-3" />
+                    {t(`activity:sddWizard.${PHASE_LABEL[p]}`)}
+                  </button>
+                ) : (
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5',
+                      active
+                        ? 'bg-primary/15 text-primary font-medium'
+                        : done
+                          ? 'text-success'
+                          : 'text-muted-foreground',
+                    )}
+                  >
+                    {done && <Check className="mr-0.5 inline h-3 w-3" />}
+                    {t(`activity:sddWizard.${PHASE_LABEL[p]}`)}
+                  </span>
+                )}
                 {i < PHASE_ORDER.length - 1 && <span className="text-muted-foreground/65">→</span>}
               </span>
             );
@@ -404,8 +428,41 @@ export function SddWizard({
         ) : (
           // ── Conversation / review ──
           <div className="space-y-4">
-            {/* Decomposition reveal — the task graph as an animated DAG.
-                Collapsible + capped height so it never crowds out the transcript. */}
+            {/* ── Interview progress & depth bar in questioning phase ── */}
+            {phase === 'questioning' && (
+              <div className="rounded-md border border-border/80 bg-card/60 p-2.5 shadow-sm">
+                <div className="mb-1.5 flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 font-medium text-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    {t('activity:sddWizard.interviewProgress', 'Interview Progress')}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {t('activity:sddWizard.questionOf', { current: answeredCount + 1, max: maxQuestions })}
+                    {' · '}
+                    {hasMetMin ? (
+                      <span className="font-medium text-success">
+                        {t('activity:sddWizard.minRequiredMet', 'Min met ✓')}
+                      </span>
+                    ) : (
+                      <span>
+                        {t('activity:sddWizard.minRequiredRemaining', { count: minQuestions - answeredCount })}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      'h-full transition-all duration-500',
+                      hasMetMin ? 'bg-success' : 'bg-primary',
+                    )}
+                    style={{ width: `${Math.max(12, progressPct)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Decomposition reveal — the task graph as an animated DAG. */}
             {hasGraph && (
               <div className="sdd-rise overflow-hidden rounded-lg border border-primary/20 bg-[hsl(var(--surface-2)/0.85)]">
                 <button
@@ -426,135 +483,221 @@ export function SddWizard({
               </div>
             )}
 
-            <div className="mx-auto max-w-2xl space-y-3">
-              {/* ── Goal block — the operator's full prompt, leading the flow
-                  (the header title is only a short heading). ── */}
-              {snapshot?.goal && (
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                  <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Target className="h-3 w-3" /> {t('activity:sddWizard.goalLabel')}
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                    {snapshot.goal}
-                  </p>
+            {/* ── Goal block — the operator's full prompt ── */}
+            {snapshot?.goal && (
+              <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Target className="h-3 w-3" /> {t('activity:sddWizard.goalLabel')}
                 </div>
-              )}
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                  {snapshot.goal}
+                </p>
+              </div>
+            )}
 
-              {/* ── Interview transcript — full Q&A history ── */}
-              {snapshot?.answers.length || (agentText && phase === 'questioning') || busy ? (
-                <div className="space-y-2.5">
-                  {snapshot?.answers.map((qa) => (
-                    <div key={qa.question.slice(0, 64)} className="space-y-2.5">
-                      <ChatBubble speaker="assistant" text={qa.question} />
-                      <ChatBubble speaker="user" text={qa.answer} />
-                    </div>
+            {/* ── Interview transcript — full Q&A history ── */}
+            {snapshot?.answers.length || (agentText && phase === 'questioning') || busy ? (
+              <div className="space-y-2.5">
+                {snapshot?.answers.map((qa, idx) => (
+                  <div key={`${idx}-${qa.question.slice(0, 32)}`} className="space-y-2.5">
+                    <ChatBubble speaker="assistant" text={qa.question} questionIndex={idx + 1} />
+                    <ChatBubble speaker="user" text={qa.answer} />
+                  </div>
+                ))}
+                {/* The current unanswered agent question */}
+                {agentText && phase === 'questioning' && agentText !== lastQuestion && (
+                  <ChatBubble
+                    speaker="assistant"
+                    text={agentText}
+                    live
+                    questionIndex={answeredCount + 1}
+                  />
+                )}
+                {/* "thinking" indicator while the agent works the next turn */}
+                {busy && <ChatBubble speaker="assistant" text="" thinking />}
+              </div>
+            ) : null}
+
+            {/* Spec card once generated */}
+            {snapshot?.spec && (
+              <div className="sdd-rise rounded-md border border-border bg-card p-3">
+                <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  {snapshot.spec.title}
+                </div>
+                <p className="mb-2 text-xs text-muted-foreground">{snapshot.spec.overview}</p>
+                <ul className="space-y-0.5 text-xs">
+                  {snapshot.spec.requirements.map((r, idx) => (
+                    <li key={`${r.priority}-${idx}-${r.description.slice(0, 24)}`} className="flex gap-1.5">
+                      <span
+                        className={cn(
+                          'shrink-0 font-mono uppercase',
+                          priorityStyle(r.priority).text,
+                        )}
+                      >
+                        {r.priority[0]}
+                      </span>
+                      <span>{r.description}</span>
+                    </li>
                   ))}
-                  {/* The current unanswered agent question. Hidden while it still
-                      equals the just-answered question (the next turn is in
-                      flight) so it never duplicates the last transcript entry. */}
-                  {agentText && phase === 'questioning' && agentText !== lastQuestion && (
-                    <ChatBubble speaker="assistant" text={agentText} />
-                  )}
-                  {/* "thinking" indicator while the agent works the next turn. */}
-                  {busy && <ChatBubble speaker="assistant" text="" thinking />}
-                </div>
-              ) : null}
+                </ul>
+              </div>
+            )}
 
-              {/* Spec card once generated */}
-              {snapshot?.spec && (
-                <div className="sdd-rise rounded-md border border-border bg-card p-3">
-                  <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    {snapshot.spec.title}
+            {/* Implementation plan card */}
+            {agentText && (phase === 'implementation' || phase === 'task_review') && (
+              <div className="sdd-rise rounded-md border border-border bg-card">
+                <button
+                  type="button"
+                  onClick={() => setPlanOpen((o) => !o)}
+                  className="flex w-full items-center gap-1.5 border-b border-border/60 px-3 py-2 text-sm font-semibold hover:bg-muted/40"
+                >
+                  {planOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  <Sparkles className="h-3.5 w-3.5 text-primary" /> {t('activity:sddWizard.implementationPlan')}
+                </button>
+                {planOpen && (
+                  <div className="max-h-[40dvh] overflow-auto px-3 py-2">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                      {stripJsonBlocks(agentText)}
+                    </p>
                   </div>
-                  <p className="mb-2 text-xs text-muted-foreground">{snapshot.spec.overview}</p>
-                  <ul className="space-y-0.5 text-xs">
-                    {snapshot.spec.requirements.map((r) => (
-                      <li key={`${r.priority}-${r.description.slice(0, 32)}`} className="flex gap-1.5">
-                        <span
-                          className={cn(
-                            'shrink-0 font-mono uppercase',
-                            priorityStyle(r.priority).text,
-                          )}
-                        >
-                          {r.priority[0]}
-                        </span>
-                        <span>{r.description}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              {/* Implementation plan — rendered as a readable, collapsible card
-                  (raw task JSON stripped) instead of a wall-of-text bubble. */}
-              {agentText && (phase === 'implementation' || phase === 'task_review') && (
-                <div className="sdd-rise rounded-md border border-border bg-card">
-                  <button
-                    type="button"
-                    onClick={() => setPlanOpen((o) => !o)}
-                    className="flex w-full items-center gap-1.5 border-b border-border/60 px-3 py-2 text-sm font-semibold hover:bg-muted/40"
+            {/* Other review-phase narration */}
+            {agentText &&
+              phase !== 'questioning' &&
+              phase !== 'implementation' &&
+              phase !== 'task_review' &&
+              !snapshot?.spec && <ChatBubble speaker="assistant" text={agentText} />}
+
+            {/* Approve & Revise buttons for review phases */}
+            {(phase === 'spec_review' ||
+              phase === 'implementation' ||
+              phase === 'task_review') && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {phase === 'task_review' ? (
+                  <Button
+                    className="bg-success/15 text-success hover:bg-success/25"
+                    onClick={startRun}
+                    disabled={busy}
                   >
-                    {planOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                    <Sparkles className="h-3.5 w-3.5 text-primary" /> {t('activity:sddWizard.implementationPlan')}
-                  </button>
-                  {planOpen && (
-                    <div className="max-h-[40dvh] overflow-auto px-3 py-2">
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                        {stripJsonBlocks(agentText)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Other review-phase narration (e.g. spec_review feedback before the
-                  spec card parses). */}
-              {agentText &&
-                phase !== 'questioning' &&
-                phase !== 'implementation' &&
-                phase !== 'task_review' &&
-                !snapshot?.spec && <ChatBubble speaker="assistant" text={agentText} />}
-
-              {/* Approve button for review phases */}
-              {(phase === 'spec_review' ||
-                phase === 'implementation' ||
-                phase === 'task_review') && (
-                <Button variant="secondary" onClick={approve} disabled={busy}>
-                  <Check className="mr-1.5 h-4 w-4" />
-                  {phase === 'spec_review'
-                    ? t('activity:sddWizard.approveSpec')
-                    : phase === 'task_review'
-                      ? t('activity:sddWizard.approveTasks')
+                    <Rocket className="mr-1.5 h-4 w-4" />
+                    {t('activity:sddWizard.startRun', 'Start Run')}
+                  </Button>
+                ) : (
+                  <Button variant="secondary" onClick={approve} disabled={busy}>
+                    <Check className="mr-1.5 h-4 w-4" />
+                    {phase === 'spec_review'
+                      ? t('activity:sddWizard.approveSpec')
                       : t('activity:sddWizard.approvePlan')}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => rewind()}
+                  disabled={busy}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  title={
+                    phase === 'spec_review'
+                      ? t('activity:sddWizard.backToQuestionsTitle', 'Reject spec and return to questioning')
+                      : t('activity:sddWizard.backToSpecTitle', 'Reject plan and return to spec review')
+                  }
+                >
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  {phase === 'spec_review'
+                    ? t('activity:sddWizard.backToQuestions', 'Back to Questions')
+                    : phase === 'task_review'
+                      ? t('activity:sddWizard.backToSpec', 'Back to Spec')
+                      : t('activity:sddWizard.backToSpec', 'Back to Spec')}
                 </Button>
-              )}
-              <div ref={bottomRef} />
-            </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
           </div>
         )}
       </div>
 
-      {/* Reply input (during the interview) */}
+      {/* Reply input & Quick actions (during the interview) */}
       {started && phase !== 'executing' && phase !== 'done' && (
-        <div className="flex shrink-0 items-end gap-2 border-t bg-card px-4 py-2">
-          <textarea
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendReply();
+        <div className="border-t bg-card">
+          {/* Quick-reply chips and directives during questioning */}
+          {phase === 'questioning' && !busy && (
+            <div className="flex flex-wrap items-center gap-1.5 px-4 pt-2">
+              {quickReplies.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setReply(opt)}
+                  className="inline-flex items-center rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs text-primary transition hover:bg-primary/15 hover:border-primary/40 active:scale-95"
+                >
+                  <span className="mr-1 opacity-70">👉</span>
+                  {opt}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() =>
+                  sendDirectReply(
+                    t(
+                      'activity:sddWizard.quickBestPracticeDirective',
+                      'Use standard industry best practices for this.',
+                    ),
+                  )
+                }
+                className="inline-flex items-center rounded-full border border-warning/30 bg-warning/10 px-2.5 py-1 text-xs text-warning transition hover:bg-warning/20 active:scale-95"
+                title="Answer using standard industry best practice"
+              >
+                <Lightbulb className="mr-1 h-3 w-3" />
+                {t('activity:sddWizard.quickBestPractice', 'Use Best Practice')}
+              </button>
+
+              {hasMetMin && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    sendDirectReply(
+                      'We have covered the necessary requirements. Please generate the complete specification JSON now.',
+                    )
+                  }
+                  className="inline-flex items-center rounded-full border border-success/30 bg-success/15 px-2.5 py-1 text-xs font-medium text-success transition hover:bg-success/25 active:scale-95"
+                  title={t(
+                    'activity:sddWizard.generateSpecNowTitle',
+                    'Generate the specification now with gathered requirements',
+                  )}
+                >
+                  <Zap className="mr-1 h-3 w-3" />
+                  {t('activity:sddWizard.generateSpecNow', 'Generate Spec Now')}
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex shrink-0 items-end gap-2 px-4 py-2">
+            <textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendReply();
+                }
+              }}
+              rows={1}
+              placeholder={
+                phase === 'questioning'
+                  ? t('activity:sddWizard.answerPlaceholder')
+                  : t('activity:sddWizard.changePlaceholder')
               }
-            }}
-            rows={1}
-            placeholder={phase === 'questioning' ? t('activity:sddWizard.answerPlaceholder') : t('activity:sddWizard.changePlaceholder')}
-            disabled={busy}
-            className="max-h-32 flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
-          />
-          <Button size="icon" onClick={sendReply} disabled={busy || !reply.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+              disabled={busy}
+              className="max-h-32 flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
+            />
+            <Button size="icon" onClick={sendReply} disabled={busy || !reply.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -563,54 +706,143 @@ export function SddWizard({
 
 /**
  * Strip fenced ```json … ``` blocks (the machine-readable task array) from the
- * agent's plan text so the rendered plan stays prose-only and readable. Falls
- * back to the original text if stripping would leave it empty.
+ * agent's plan text so the rendered plan stays prose-only and readable.
  */
 function stripJsonBlocks(text: string): string {
   const stripped = text.replace(/```json[\s\S]*?```/gi, '').trim();
   return stripped.length > 0 ? stripped : text.trim();
 }
 
-/** One transcript message — agent question (left) or the user's answer (right). */
+/** Extracts candidate quick-reply choices from agent question text. */
+function extractQuickReplies(text: string): string[] {
+  if (!text) return [];
+  const results: string[] = [];
+
+  const listMatches = text.matchAll(/(?:^|\n)\s*(?:[0-9]+[.)]|[A-D][.)]|[-*]\s+\*\*|[-*]\s+\[)\s*([^:\n\r]+)/gi);
+  for (const m of listMatches) {
+    const raw = (m[1] ?? '').trim().replace(/^[`"']|[`"']$/g, '');
+    if (raw && raw.length > 2 && raw.length < 50 && !results.includes(raw)) {
+      results.push(raw);
+    }
+  }
+
+  if (results.length === 0) {
+    const inlineMatch = text.match(/(?:Options|Choices|Öneriler|Seçenekler):\s*([^\n\r]+)/i);
+    if (inlineMatch && inlineMatch[1]) {
+      const parts = inlineMatch[1]
+        .split(/[,|/]/)
+        .map((p) => p.trim())
+        .filter((p) => p.length > 2 && p.length < 45);
+      results.push(...parts.slice(0, 4));
+    }
+  }
+
+  return results.slice(0, 4);
+}
+
+/** Detects architectural topic badge from question content. */
+function detectTopicBadge(text: string): { label: string; color: string } | null {
+  const lower = text.toLowerCase();
+  if (/security|auth|jwt|oauth|token|permission|role|rbac|şifre|güvenlik/i.test(lower)) {
+    return { label: 'Security & Auth', color: 'bg-destructive/10 text-destructive border-destructive/20' };
+  }
+  if (/database|sql|postgres|sqlite|redis|mongodb|schema|tablo|veritabanı/i.test(lower)) {
+    return { label: 'Data & Storage', color: 'bg-info/10 text-info border-info/20' };
+  }
+  if (/api|endpoint|rest|graphql|grpc|route|http/i.test(lower)) {
+    return { label: 'API & Routing', color: 'bg-success/10 text-success border-success/20' };
+  }
+  if (/test|vitest|jest|e2e|playwright|coverage|mock/i.test(lower)) {
+    return { label: 'Testing & QA', color: 'bg-warning/10 text-warning border-warning/20' };
+  }
+  if (/ui|css|component|frontend|react|tailwind|button|view|görsel|arayüz/i.test(lower)) {
+    return { label: 'UI & Layout', color: 'bg-primary/10 text-primary border-primary/20' };
+  }
+  if (/architecture|microservice|queue|worker|scale|mimari/i.test(lower)) {
+    return { label: 'Architecture', color: 'bg-accent/30 text-accent-foreground border-border' };
+  }
+  return null;
+}
+
+/** One transcript message — agent question (left) or user answer (right). */
 function ChatBubble({
   speaker,
   text,
   live,
   thinking,
+  questionIndex,
 }: {
   speaker: 'assistant' | 'user';
   text: string;
   live?: boolean;
   thinking?: boolean;
+  questionIndex?: number | undefined;
 }): React.ReactElement {
   const isUser = speaker === 'user';
+  const [copied, setCopied] = useState(false);
+  const topicBadge = !isUser && text ? detectTopicBadge(text) : null;
+
+  const handleCopy = () => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <div className={cn('sdd-rise flex items-start gap-2', isUser && 'flex-row-reverse')}>
+    <div className={cn('group sdd-rise flex items-start gap-2', isUser && 'flex-row-reverse')}>
       <span
         className={cn(
-          'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full',
-          isUser
-            ? 'bg-info/15 text-info'
-            : 'bg-primary/15 text-primary',
+          'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs',
+          isUser ? 'bg-info/15 text-info' : 'bg-primary/15 text-primary',
           (live || thinking) && 'sdd-agent-live',
         )}
       >
         {isUser ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
       </span>
+
       <div
         className={cn(
-          'max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed text-foreground',
-          isUser ? 'rounded-tr-sm bg-info/10' : 'rounded-tl-sm bg-muted',
+          'relative max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed text-foreground shadow-sm transition-all',
+          isUser
+            ? 'rounded-tr-sm bg-info/10 border border-info/20'
+            : 'rounded-tl-sm bg-muted/80 border border-border/70',
         )}
       >
+        {!isUser && !thinking && (
+          <div className="mb-1.5 flex items-center gap-1.5 text-[10px]">
+            {questionIndex !== undefined && (
+              <span className="rounded bg-primary/15 px-1.5 py-0.2 font-mono font-semibold text-primary">
+                Q{questionIndex}
+              </span>
+            )}
+            {topicBadge && (
+              <span className={cn('rounded border px-1.5 py-0.2 font-medium', topicBadge.color)}>
+                {topicBadge.label}
+              </span>
+            )}
+          </div>
+        )}
+
         {thinking ? (
-          <span className="flex items-center gap-1 py-0.5">
+          <span className="flex items-center gap-1 py-1">
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-200ms]" />
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-100ms]" />
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" />
           </span>
         ) : (
-          text
+          <p className="whitespace-pre-wrap">{text}</p>
+        )}
+
+        {!thinking && text && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            title={copied ? 'Copied' : 'Copy'}
+            className="absolute -bottom-2 right-2 hidden rounded bg-background/90 p-1 text-[10px] text-muted-foreground shadow border group-hover:flex items-center gap-1 hover:text-foreground"
+          >
+            {copied ? <CheckCheck className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+          </button>
         )}
       </div>
     </div>

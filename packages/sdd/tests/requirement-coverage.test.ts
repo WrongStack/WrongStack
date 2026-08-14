@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertSpecTaskGraphCoverage,
   assertTaskGraphExecutionIntegrity,
+  assertTaskGraphRequirementCoverage,
   evaluateTaskGraphRequirementCoverage,
 } from '../src/requirement-coverage.js';
 import { TaskGenerator } from '../src/task-generator.js';
@@ -125,5 +126,122 @@ describe('task graph requirement coverage', () => {
       { id: 'two', from: second.id, to: first.id, type: 'depends_on' },
     );
     expect(() => assertTaskGraphExecutionIntegrity(graph)).toThrow('dependency cycle');
+  });
+
+  it('falls back to an empty scope when the graph declares no requirements (:17, :39)', async () => {
+    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const graph = await tracker.createGraph('spec-1', 'Scope-less graph');
+    expect(graph.requiredRequirementIds).toBeUndefined();
+
+    const result = evaluateTaskGraphRequirementCoverage(graph);
+    expect(result).toEqual({
+      valid: true,
+      requiredRequirementIds: [],
+      missingRequirementIds: [],
+      unknownRequirementIds: [],
+    });
+    expect(() => assertTaskGraphRequirementCoverage(graph)).not.toThrow();
+  });
+
+  it('reports unknown-only problems without a missing section (:44)', async () => {
+    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const graph = await tracker.createGraph('spec-1', 'Unknown mapping');
+    tracker.addNode({
+      title: 'Wrong mapping',
+      description: 'Maps outside the declared scope.',
+      type: 'feature',
+      priority: 'medium',
+      status: 'pending',
+      specRequirementId: 'REQ-X',
+    });
+
+    let message = '';
+    try {
+      assertTaskGraphRequirementCoverage(graph, []);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('unknown requirements REQ-X');
+    expect(message).not.toContain('missing task coverage');
+  });
+
+  it('reports missing-only problems without an unknown section (:47)', async () => {
+    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const graph = await tracker.createGraph('spec-1', 'Missing mapping');
+
+    let message = '';
+    try {
+      assertTaskGraphRequirementCoverage(graph, ['REQ-9']);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('missing task coverage for REQ-9');
+    expect(message).not.toContain('unknown requirements');
+  });
+
+  it('throws when the graph targets a different spec (:55)', async () => {
+    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const graph = await tracker.createGraph('spec-1', 'Mismatched graph');
+
+    expect(() =>
+      assertSpecTaskGraphCoverage(graph, { ...specification(), id: 'spec-2' }),
+    ).toThrow('Task graph spec mismatch');
+  });
+
+  it('treats a spec without requirements as an empty scope (:62)', async () => {
+    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const graph = await tracker.createGraph('spec-1', 'Empty scope');
+    const spec = { ...specification(), requirements: undefined } as unknown as Specification;
+
+    expect(() => assertSpecTaskGraphCoverage(graph, spec)).not.toThrow();
+  });
+
+  it('rejects a self-referencing dependency (:75)', async () => {
+    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const graph = await tracker.createGraph('spec-1', 'Self cycle');
+    const node = tracker.addNode({
+      title: 'Self',
+      description: 'Self',
+      type: 'feature',
+      priority: 'high',
+      status: 'pending',
+    });
+    graph.edges.push({ id: 'self', from: node.id, to: node.id, type: 'depends_on' });
+
+    expect(() => assertTaskGraphExecutionIntegrity(graph)).toThrow('is a self-cycle');
+  });
+
+  it('decrements multi-edge indegree before a dependent becomes ready (:96)', async () => {
+    const tracker = new TaskTracker({ store: new DefaultTaskStore() });
+    const graph = await tracker.createGraph('spec-1', 'Diamond DAG');
+    const a = tracker.addNode({
+      title: 'A',
+      description: 'A',
+      type: 'feature',
+      priority: 'high',
+      status: 'pending',
+    });
+    const b = tracker.addNode({
+      title: 'B',
+      description: 'B',
+      type: 'feature',
+      priority: 'high',
+      status: 'pending',
+    });
+    const c = tracker.addNode({
+      title: 'C',
+      description: 'C',
+      type: 'feature',
+      priority: 'high',
+      status: 'pending',
+    });
+    // C waits on both A and B: after the first decrement its indegree is 1,
+    // so it must NOT be queued early.
+    graph.edges.push(
+      { id: 'ac', from: a.id, to: c.id, type: 'depends_on' },
+      { id: 'bc', from: b.id, to: c.id, type: 'depends_on' },
+    );
+
+    expect(() => assertTaskGraphExecutionIntegrity(graph)).not.toThrow();
   });
 });

@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MessageBubble } from '../../src/components/MessageBubble/index.js';
+import { useChatStore } from '../../src/stores/chat-store.js';
 import type { ChatMessage } from '../../src/stores/types.js';
 
 function userMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
@@ -13,12 +14,13 @@ function userMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   };
 }
 
-function assistantMessage(): ChatMessage {
+function assistantMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
     id: 'assistant_1',
     role: 'assistant',
     content: 'hi back',
     timestamp: 1_700_000_000_000,
+    ...overrides,
   };
 }
 
@@ -67,5 +69,33 @@ describe('MessageBubble user-message styling', () => {
     const { container } = render(<MessageBubble message={userMessage()} isFirst />);
     const bubble = container.querySelector('[data-message-id="user_1"] .shadow-sm');
     expect(bubble?.className).toContain('rounded-br-sm');
+  });
+
+  it('shows next steps only for the latest assistant response', () => {
+    const older = assistantMessage();
+    older.nextSteps = { steps: [{ index: 1, text: 'Older suggestion' }] };
+    const latest = assistantMessage({
+      id: 'assistant_2',
+      content: 'new reply',
+      timestamp: 1_700_000_000_001,
+    });
+    latest.nextSteps = { steps: [{ index: 1, text: 'Latest suggestion' }] };
+    useChatStore.getState().setMessages([older, latest]);
+    useChatStore.getState().setLoading(false);
+    expect(useChatStore.getState().messages.map((message) => message.id)).toEqual([
+      'assistant_1',
+      'assistant_2',
+    ]);
+
+    const { queryByText } = render(
+      <>
+        <MessageBubble message={older} isFirst />
+        <MessageBubble message={latest} isFirst />
+      </>,
+    );
+
+    expect(queryByText('Older suggestion')).toBeNull();
+    expect(queryByText('Latest suggestion')).not.toBeNull();
+    useChatStore.getState().clearMessages();
   });
 });

@@ -124,7 +124,7 @@ export function SddBoardOverlay({
         <Text dimColor>│ Ctrl+B close · c clean wt · z rollback · x destroy</Text>
         {focused !== null ? (
           <Text dimColor>
-            │ column {focused + 1}/{snapshot.columns.length}
+            │ column {focused + 1}/{snapshot.columns.length} (←/→)
           </Text>
         ) : null}
       </Box>

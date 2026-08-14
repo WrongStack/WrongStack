@@ -563,4 +563,65 @@ describe('TechStackStore', () => {
     const entries = lastStore!.listOutboxByStatus('delivered' as DeliveryStatus);
     expect(entries).toEqual([]);
   });
+
+  describe('Research Cache', () => {
+    it('sets and gets cached research findings', () => {
+      const mockFindings = [
+        {
+          id: 'f-1',
+          dependencyId: 'dep-1',
+          type: 'upgrade' as const,
+          severity: 'info' as const,
+          action: 'upgrade_minor' as const,
+          confidence: 0.9,
+          rationale: 'Safe minor upgrade',
+          evidence: [],
+        },
+      ];
+
+      lastStore!.setCachedResearch('cache-key-1', mockFindings);
+      const setStmt = findStatement('INSERT INTO research_cache');
+      expect(setStmt).toBeDefined();
+      expect(setStmt!.run).toHaveBeenCalledWith(
+        'cache-key-1',
+        JSON.stringify(mockFindings),
+        expect.any(String),
+      );
+
+      // First call compiles statement
+      lastStore!.getCachedResearch('cache-key-1');
+      const getStmt = findStatement('SELECT findings_json, expires_at FROM research_cache');
+      expect(getStmt).toBeDefined();
+      getStmt!.get.mockReturnValue({
+        findings_json: JSON.stringify(mockFindings),
+        expires_at: new Date(Date.now() + 100000).toISOString(),
+      });
+
+      const cached = lastStore!.getCachedResearch('cache-key-1');
+      expect(cached).toEqual(mockFindings);
+    });
+
+    it('returns null when research cache entry is expired', () => {
+      lastStore!.getCachedResearch('expired-key');
+      const getStmt = findStatement('SELECT findings_json, expires_at FROM research_cache');
+      expect(getStmt).toBeDefined();
+      getStmt!.get.mockReturnValue({
+        findings_json: '[]',
+        expires_at: new Date(Date.now() - 10000).toISOString(),
+      });
+
+      const cached = lastStore!.getCachedResearch('expired-key');
+      expect(cached).toBeNull();
+
+      const deleteStmt = findStatement('DELETE FROM research_cache WHERE cache_key');
+      expect(deleteStmt).toBeDefined();
+    });
+
+    it('prunes expired research cache entries', () => {
+      lastStore!.pruneExpiredResearchCache();
+      const pruneStmt = findStatement('DELETE FROM research_cache WHERE expires_at <=');
+      expect(pruneStmt).toBeDefined();
+      expect(pruneStmt!.run).toHaveBeenCalledWith(expect.any(String));
+    });
+  });
 });

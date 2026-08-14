@@ -7,7 +7,7 @@ import { CommandPalette } from './command-palette.js';
 import { Composer } from './composer.js';
 import { ContextBreakdownModal } from './context-breakdown-modal.js';
 import { ErrorBoundary } from './error-boundary.js';
-import { FallbackModal } from './fallback-modal.js';
+import { FallbackModal, type FallbackPendingProjection } from './fallback-modal.js';
 import { FileChangesButton } from './file-changes-button.js';
 import { FileDiffPanel } from './file-diff-panel.js';
 import { FileExplorer } from './file-explorer.js';
@@ -92,13 +92,7 @@ export function SimpleUiSession() {
   const [queue, setQueue] = useState<QueuedItem[]>([]);
   const [refineState, setRefineState] = useState<RefineState | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
-  const [fallbackPending, setFallbackPending] = useState<{
-    requestId: string;
-    from: { providerId: string; model: string };
-    status: number;
-    candidates: Array<{ providerId: string; model: string }>;
-    autoSwitchSeconds: number;
-  } | null>(null);
+  const [fallbackPending, setFallbackPending] = useState<FallbackPendingProjection | null>(null);
   const [draft, setDraft] = useState('');
   const [fileRefs, setFileRefs] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
@@ -722,6 +716,7 @@ export function SimpleUiSession() {
         contextTokens={context.tokens}
         contextMaxContext={context.maxContext}
         load={load}
+        cache={context.cache}
         connection={connection}
         theme={theme}
         commandPaletteOpen={commandPaletteOpen}

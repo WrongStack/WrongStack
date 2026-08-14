@@ -240,6 +240,42 @@ export class DirectorStateCheckpoint {
   }
 
   /**
+   * Reconciles tasks and worktrees that were left in 'running' or 'allocated'
+   * state when the previous director crashed. Transitions abandoned tasks to
+   * 'failed' with a descriptive error and returns the list of repaired task IDs.
+   */
+  reconcileCrashedState(
+    reason = 'Director crashed or was terminated while task was in flight',
+  ): string[] {
+    const repairedTaskIds: string[] = [];
+    const now = new Date().toISOString();
+    this.snapshot = {
+      ...this.snapshot,
+      tasks: this.snapshot.tasks.map((task) => {
+        if (task.status === 'running') {
+          repairedTaskIds.push(task.taskId);
+          return {
+            ...task,
+            status: 'failed',
+            completedAt: now,
+            error: task.error ? `${task.error} (${reason})` : reason,
+            worktree:
+              task.worktree && task.worktree.status === 'allocated'
+                ? { ...task.worktree, status: 'failed', error: reason }
+                : task.worktree,
+          };
+        }
+        return task;
+      }),
+    };
+    if (repairedTaskIds.length > 0) {
+      this.bumpUpdatedAt();
+      this.schedule();
+    }
+    return repairedTaskIds;
+  }
+
+  /**
    * After resume, pin the live spawn ceiling from the current profile/flag
    * while preserving `spawnCount` (cumulative used budget). Checkpoint
    * metadata previously stored a historical `maxSpawns` that can diverge

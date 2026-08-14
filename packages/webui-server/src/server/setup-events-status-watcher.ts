@@ -19,7 +19,7 @@ export interface SetupEventsStatusWatcherDeps {
   watcherMetrics?: FileWatcherMetrics | undefined;
   clients: Map<WebSocket, ConnectedClient>;
   broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
-  on: <E extends EventName>(event: E, listener: Listener<E>) => void;
+  on: <E extends EventName>(event: E, listener: Listener<E>) => (() => void) | void;
   isDisposed: () => boolean;
 }
 
@@ -132,7 +132,7 @@ export function registerSetupEventsStatusWatcher(
     }
   };
 
-  on('client.status', (e) => {
+  const unlistenClientStatus = on('client.status', (e) => {
     if (e.projectHash) {
       const hash = String(e.projectHash);
       if (!knownProjectHashes.has(hash)) {
@@ -145,6 +145,7 @@ export function registerSetupEventsStatusWatcher(
   startWatcher();
 
   return () => {
+    if (typeof unlistenClientStatus === 'function') unlistenClientStatus();
     if (metricsInterval) clearInterval(metricsInterval);
     logWatcherMetrics();
 

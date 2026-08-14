@@ -138,7 +138,7 @@ export type {
   NativeAuditResult,
 } from './advisory/native-audit.js';
 
-// ── Policy / status classification (§7) ───────────────────────────────────
+// ── Policy / status & license classification (§7) ─────────────────────────
 export {
   classifyStatus,
   compareVersions,
@@ -146,10 +146,21 @@ export {
   privateOrUnresolvedStatus,
 } from './policy/status.js';
 export type { AdvisoryStatusData, RegistryStatusData } from './policy/status.js';
+export {
+  assessLicense,
+  createLicenseFinding,
+  normalizeLicenseId,
+  type LicenseCategory,
+  type LicenseRiskAssessment,
+} from './policy/license.js';
+export {
+  detectWorkspaceMisalignments,
+  type VersionMisalignment,
+} from './policy/misalignment.js';
 
 // ── Service engine (§3.2) ─────────────────────────────────────────────────
 export { TechStackEngine } from './service.js';
-export type { AnalyzeOptions, EnrichOptions } from './service.js';
+export type { AnalyzeOptions, EnrichOptions, ReportFormat } from './service.js';
 
 // ── Research stage (§31, §557) ────────────────────────────────────────────
 export {

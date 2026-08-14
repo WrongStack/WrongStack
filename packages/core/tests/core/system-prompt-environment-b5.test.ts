@@ -54,7 +54,6 @@ describe('system prompt environment cache — date rollover (B5)', () => {
   });
 
   it('includes today in the cache key so different dates occupy separate slots', async () => {
-    const builder = new DefaultSystemPromptBuilder();
     const ctx = { cwd: projectRoot, projectRoot, tools: [] } as never;
 
     // Override todayIso via the builder's env state by building with

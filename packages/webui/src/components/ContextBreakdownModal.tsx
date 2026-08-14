@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Wrench,
   X,
+  Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -61,8 +62,12 @@ function MiniTokenBar({ value, total, color }: { value: number; total: number; c
 
 export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalProps) {
   const wsUrl = useConfigStore((s) => s.wsUrl);
-  const { lastInputTokens, maxContext } = useSessionStore(
-    useShallow((s) => ({ lastInputTokens: s.lastInputTokens, maxContext: s.maxContext })),
+  const { lastInputTokens, maxContext, cacheStats } = useSessionStore(
+    useShallow((s) => ({
+      lastInputTokens: s.lastInputTokens,
+      maxContext: s.maxContext,
+      cacheStats: s.cacheStats,
+    })),
   );
   const { t } = useAppTranslation();
 
@@ -143,11 +148,54 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
   const categories = useMemo(() => {
     if (!data) return null;
     return [
-      { label: t('activity:ctxDash.systemPrompt'), key: 'systemPrompt', value: data.systemPrompt, color: 'hsl(var(--info))' },
-      { label: t('activity:ctxDash.tools'), key: 'tools', value: data.tools.total, color: 'hsl(var(--warning))' },
-      { label: t('activity:ctxDash.messages'), key: 'messages', value: data.messages.total, color: 'hsl(var(--success))' },
+      {
+        label: t('activity:ctxDash.systemPrompt'),
+        key: 'systemPrompt',
+        value: data.systemPrompt,
+        color: 'hsl(var(--info))',
+      },
+      {
+        label: t('activity:ctxDash.tools'),
+        key: 'tools',
+        value: data.tools.total,
+        color: 'hsl(var(--warning))',
+      },
+      {
+        label: t('activity:ctxDash.messages'),
+        key: 'messages',
+        value: data.messages.total,
+        color: 'hsl(var(--success))',
+      },
     ];
   }, [data]);
+
+  // ── Cache coverage section (hoisted to keep the JSX parser happy). ──
+  const cacheCoverageSection =
+    cacheStats && cacheStats.coverageTokens > 0 && maxContext > 0 ? (
+      <section>
+        <div className="flex items-center gap-2 mb-2">
+          <Zap className="h-4 w-4 text-success" />
+          <span className="text-xs font-bold uppercase tracking-wider text-foreground/80">
+            Cache coverage
+          </span>
+          <span className="text-[10px] text-muted-foreground ml-auto">
+            {fmtTok(cacheStats.coverageTokens)} of {fmtTok(maxContext)} (
+            {((cacheStats.coverageTokens / maxContext) * 100).toFixed(1)}%)
+          </span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-full bg-muted/50 ring-1 ring-inset ring-border/20">
+          <div
+            className="h-full rounded-full bg-success transition-all duration-700 ease-out"
+            style={{ width: `${Math.max(2, (cacheStats.coverageTokens / maxContext) * 100)}%` }}
+            title={`Cached prefix: ${fmtTok(cacheStats.coverageTokens)} of ${fmtTok(maxContext)}`}
+          />
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          The first {fmtTok(cacheStats.coverageTokens)} of this prompt are served from the provider
+          cache; everything past that boundary is fresh and billed at full input rate.
+        </p>
+      </section>
+    ) : null;
 
   if (!open) return null;
 
@@ -203,7 +251,6 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
         {/* ── Scrollable body ── */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="p-4 space-y-5">
-
             {/* ── Quick summary cards ── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <SummaryCard
@@ -212,6 +259,25 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                 value={`${fmtTok(lastInputTokens)} / ${fmtTok(maxContext)}`}
                 sub={`${ctxPct}%`}
                 accent={ctxPct > 85 ? 'destructive' : ctxPct > 60 ? 'warning' : 'success'}
+              />
+              <SummaryCard
+                icon={Zap}
+                label="Cache hit"
+                value={
+                  cacheStats && cacheStats.readTokens + cacheStats.writeTokens > 0
+                    ? `${(cacheStats.hitRatio * 100).toFixed(1)}%`
+                    : '—'
+                }
+                sub={
+                  cacheStats && cacheStats.coverageTokens > 0 && maxContext > 0
+                    ? `covers ${fmtTok(cacheStats.coverageTokens)}`
+                    : 'prompt-cache'
+                }
+                accent={
+                  cacheStats && cacheStats.readTokens + cacheStats.writeTokens > 0
+                    ? 'success'
+                    : 'default'
+                }
               />
               <SummaryCard
                 icon={Code2}
@@ -252,6 +318,8 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
               </div>
             ) : data ? (
               <>
+                {/* ── Cache coverage: how far the prompt cache extends ── */}
+                {cacheCoverageSection}
 
                 {/* ── Token allocation: composition ring + bar ── */}
                 <section>
@@ -299,9 +367,18 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                               return seg;
                             });
                           })()}
-                          <circle cx="48" cy="48" r="24" fill="hsl(var(--card))" className="drop-shadow-sm" />
+                          <circle
+                            cx="48"
+                            cy="48"
+                            r="24"
+                            fill="hsl(var(--card))"
+                            className="drop-shadow-sm"
+                          />
                           <text
-                            x="48" y="48" textAnchor="middle" dominantBaseline="central"
+                            x="48"
+                            y="48"
+                            textAnchor="middle"
+                            dominantBaseline="central"
                             fill="currentColor"
                             className="text-[10px] font-bold font-mono tabular-nums"
                           >
@@ -315,7 +392,8 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                     <div className="flex-1 min-w-0 space-y-2 w-full">
                       {/* Segmented fill bar */}
                       <div className="h-3 w-full overflow-hidden rounded-full bg-muted/50 flex ring-1 ring-inset ring-border/20">
-                        {data.total > 0 && categories &&
+                        {data.total > 0 &&
+                          categories &&
                           categories.map((category) => (
                             <span
                               key={category.key}
@@ -332,10 +410,14 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                       {/* Legend */}
                       <div className="grid grid-cols-3 gap-1 text-[10px]">
                         {categories?.map((cat) => {
-                          const pct = data.total > 0 ? ((cat.value / data.total) * 100).toFixed(1) : '0';
+                          const pct =
+                            data.total > 0 ? ((cat.value / data.total) * 100).toFixed(1) : '0';
                           return (
                             <div key={cat.key} className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
+                              <span
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: cat.color }}
+                              />
                               <span className="text-muted-foreground truncate">{cat.label}</span>
                               <span className="font-mono tabular-nums ml-auto">{pct}%</span>
                             </div>
@@ -369,9 +451,20 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                               'hover:bg-muted/40 transition-colors',
                             )}
                           >
-                            <span className="font-mono truncate flex-1 text-foreground/80">{t.name}</span>
-                            <MiniTokenBar value={t.tokens} total={data.tools.total} color="hsl(var(--warning))" />
-                            <span className={cn('tabular-nums w-16 text-right font-mono', tokenColor(t.tokens, data.tools.total))}>
+                            <span className="font-mono truncate flex-1 text-foreground/80">
+                              {t.name}
+                            </span>
+                            <MiniTokenBar
+                              value={t.tokens}
+                              total={data.tools.total}
+                              color="hsl(var(--warning))"
+                            />
+                            <span
+                              className={cn(
+                                'tabular-nums w-16 text-right font-mono',
+                                tokenColor(t.tokens, data.tools.total),
+                              )}
+                            >
                               {t.tokens.toLocaleString()}
                             </span>
                             <span className="tabular-nums w-10 text-right text-[10px] text-muted-foreground">
@@ -422,14 +515,23 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                           >
                             {m.role}
                           </span>
-                          <MiniTokenBar value={m.tokens} total={data.messages.total} color={
-                            m.role === 'assistant'
-                              ? 'hsl(var(--accent-foreground))'
-                              : m.role === 'user'
-                                ? 'hsl(var(--primary))'
-                                : 'hsl(var(--warning))'
-                          } />
-                          <span className={cn('tabular-nums w-14 text-right font-mono shrink-0', tokenColor(m.tokens, data.messages.total))}>
+                          <MiniTokenBar
+                            value={m.tokens}
+                            total={data.messages.total}
+                            color={
+                              m.role === 'assistant'
+                                ? 'hsl(var(--accent-foreground))'
+                                : m.role === 'user'
+                                  ? 'hsl(var(--primary))'
+                                  : 'hsl(var(--warning))'
+                            }
+                          />
+                          <span
+                            className={cn(
+                              'tabular-nums w-14 text-right font-mono shrink-0',
+                              tokenColor(m.tokens, data.messages.total),
+                            )}
+                          >
                             {m.tokens.toLocaleString()}
                           </span>
                           <span className="text-muted-foreground/70 truncate flex-1 min-w-0">
@@ -440,7 +542,6 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                     })}
                   </div>
                 </section>
-
               </>
             ) : null}
           </div>
@@ -471,7 +572,12 @@ function SummaryCard({
     default: 'border-border/50 bg-muted/30 text-muted-foreground',
   };
   return (
-    <div className={cn('rounded-lg border px-3 py-2.5 transition-all duration-300 hover:shadow-sm', accentColors[accent])}>
+    <div
+      className={cn(
+        'rounded-lg border px-3 py-2.5 transition-all duration-300 hover:shadow-sm',
+        accentColors[accent],
+      )}
+    >
       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
         <Icon className="h-3 w-3" />
         <span className="truncate">{label}</span>

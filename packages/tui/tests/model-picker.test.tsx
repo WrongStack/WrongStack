@@ -307,22 +307,107 @@ describe('ModelPicker - step model', () => {
   });
 });
 
-describe('getVisibleWindow', () => {
-  // Import the internal helper via component behavior
-  it('selects first model when selected=0', () => {
-    const models = Array.from({ length: 15 }, (_, i) => `m${i}`);
-    const view = render(
+describe('ModelPicker - height stability across providers (split mode)', () => {
+  // Regression: navigating between providers with different model counts used
+  // to change the detail-panel height because the "available models" preview
+  // rendered a variable line count (slice().join('\n') with no padding). The
+  // panel now pads to a fixed budget, so every provider's frame must be the
+  // same height. Uses wide columns to trigger split-mode rendering.
+  const columns = 110;
+  const maxRows = 16;
+
+  function frameLineCount(frame: string): number {
+    const trimmed = frame.replace(/\s+$/, '');
+    return trimmed === '' ? 0 : trimmed.split('\n').length;
+  }
+
+  it('renders the same frame height for providers with 1 vs many models', () => {
+    const mixed: ProviderOption[] = [
+      {
+        id: 'minimal-provider',
+        family: 'mini',
+        models: ['solo-model'],
+      },
+      {
+        id: 'maximal-provider',
+        family: 'maxi',
+        models: Array.from({ length: 40 }, (_, i) => `huge-model-${i}`),
+      },
+    ];
+
+    const viewMinimal = render(
       React.createElement(ModelPicker, {
-        step: 'model',
-        providerOptions: providers,
-        modelOptions: models,
-        filteredOptions: models,
+        step: 'provider',
+        providerOptions: mixed,
+        modelOptions: [],
+        filteredOptions: [],
         selected: 0,
-        pickedProviderId: 'anthropic',
+        columns,
+        maxRows,
       }),
     );
-    const frame = view.lastFrame() ?? '';
-    expect(frame).toContain('› m0');
-    view.unmount();
+    const minimalFrame = viewMinimal.lastFrame() ?? '';
+    viewMinimal.unmount();
+
+    const viewMaximal = render(
+      React.createElement(ModelPicker, {
+        step: 'provider',
+        providerOptions: mixed,
+        modelOptions: [],
+        filteredOptions: [],
+        selected: 1,
+        columns,
+        maxRows,
+      }),
+    );
+    const maximalFrame = viewMaximal.lastFrame() ?? '';
+    viewMaximal.unmount();
+
+    expect(frameLineCount(minimalFrame)).toBe(frameLineCount(maximalFrame));
+  });
+
+  it('renders the same frame height for an empty-models provider', () => {
+    const mixed: ProviderOption[] = [
+      {
+        id: 'empty-provider',
+        family: 'empty',
+        models: [],
+      },
+      {
+        id: 'full-provider',
+        family: 'full',
+        models: Array.from({ length: 20 }, (_, i) => `m-${i}`),
+      },
+    ];
+
+    const viewEmpty = render(
+      React.createElement(ModelPicker, {
+        step: 'provider',
+        providerOptions: mixed,
+        modelOptions: [],
+        filteredOptions: [],
+        selected: 0,
+        columns,
+        maxRows,
+      }),
+    );
+    const emptyFrame = viewEmpty.lastFrame() ?? '';
+    viewEmpty.unmount();
+
+    const viewFull = render(
+      React.createElement(ModelPicker, {
+        step: 'provider',
+        providerOptions: mixed,
+        modelOptions: [],
+        filteredOptions: [],
+        selected: 1,
+        columns,
+        maxRows,
+      }),
+    );
+    const fullFrame = viewFull.lastFrame() ?? '';
+    viewFull.unmount();
+
+    expect(frameLineCount(emptyFrame)).toBe(frameLineCount(fullFrame));
   });
 });

@@ -294,7 +294,51 @@ export function ContextBreakdownModal({
                   <strong>{data.messages.count}</strong>
                   <em>{compactTokens(data.messages.total)} tokens</em>
                 </div>
+                <div className="ctx-breakdown-stat">
+                  <span>CACHE</span>
+                  <strong>
+                    {context.cache && context.cache.readTokens + context.cache.writeTokens > 0
+                      ? `${(context.cache.hitRatio * 100).toFixed(1)}%`
+                      : '—'}
+                  </strong>
+                  <em>
+                    {context.cache && context.cache.coverageTokens > 0
+                      ? `covers ${compactTokens(context.cache.coverageTokens)} of ${compactTokens(context.maxContext)}`
+                      : 'prompt-cache hit'}
+                  </em>
+                </div>
               </div>
+
+              {context.cache && context.cache.coverageTokens > 0 && context.maxContext > 0 ? (
+                <section className="ctx-breakdown-section">
+                  <div className="ctx-breakdown-section-head">
+                    <span>CACHE COVERAGE</span>
+                    <em>
+                      {compactTokens(context.cache.coverageTokens)} of {compactTokens(context.maxContext)}{' '}
+                      cached (
+                      {((context.cache.coverageTokens / context.maxContext) * 100).toFixed(1)}%)
+                    </em>
+                  </div>
+                  <div
+                    className="ctx-breakdown-bar ctx-breakdown-bar-cache"
+                    role="img"
+                    aria-label="Prompt-cache coverage"
+                  >
+                    <span
+                      style={{
+                        width: `${(context.cache.coverageTokens / context.maxContext) * 100}%`,
+                        background: 'var(--success)',
+                      }}
+                      title={`Cached prefix: ${compactTokens(context.cache.coverageTokens)}`}
+                    />
+                  </div>
+                  <p className="ctx-breakdown-cache-note">
+                    The first {compactTokens(context.cache.coverageTokens)} of this prompt are
+                    served from the provider cache; everything past that boundary is fresh and
+                    billed at full input rate.
+                  </p>
+                </section>
+              ) : null}
 
               <section className="ctx-breakdown-section">
                 <div className="ctx-breakdown-section-head">

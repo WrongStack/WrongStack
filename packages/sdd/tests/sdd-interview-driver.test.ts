@@ -200,7 +200,7 @@ describe('SddInterviewDriver', () => {
     expect(graph!.edges.length).toBe(1);
   });
 
-  it.skip('deterministically generates a graph on approve→executing when no task array was emitted', async () => {
+  it('deterministically generates a graph on approve→executing when no task array was emitted', async () => {
     h.driver.start('OAuth login');
     await h.driver.ingestAgentOutput(SPEC_OUTPUT); // → spec_review
     expect(h.driver.getGraph()).toBeNull();
@@ -315,5 +315,45 @@ describe('SddInterviewDriver', () => {
     const second = await h.driver.ingestAgentOutput(TASKS_OUTPUT);
     expect(second.tasksDetected).toBe(true);
     expect(h.driver.getGraph()).toBe(firstGraph);
+  });
+
+  it('allows revising the specification during spec_review', async () => {
+    h.driver.start('OAuth login');
+    await h.driver.ingestAgentOutput(SPEC_OUTPUT);
+    expect(h.driver.snapshot().spec?.title).toBe('OAuth login');
+
+    const REVISED_SPEC = `Here is the updated spec:
+\`\`\`json
+{
+  "title": "OAuth login (GitHub only)",
+  "overview": "Single-provider auth",
+  "requirements": [
+    { "id": "REQ-1", "type": "functional", "priority": "critical", "description": "GitHub OAuth" }
+  ]
+}
+\`\`\``;
+    const res = await h.driver.ingestAgentOutput(REVISED_SPEC);
+    expect(res.specDetected).toBe(true);
+    expect(h.driver.snapshot().spec?.title).toBe('OAuth login (GitHub only)');
+    expect(h.driver.snapshot().spec?.requirements).toHaveLength(1);
+  });
+
+  it('supports rewinding phases from task_review back to spec_review and questioning', async () => {
+    h.driver.start('OAuth login');
+    await h.driver.ingestAgentOutput(SPEC_OUTPUT);
+    await h.driver.approve(); // moves to implementation
+    await h.driver.ingestAgentOutput(`Here is the implementation plan:\nArchitecture decisions...\n\`\`\`json\n[{"id":"t1","title":"Task 1","description":"desc"}]\n\`\`\``);
+    expect(h.driver.phase()).toBe('task_review');
+
+    // Rewind back to spec_review
+    const rewoundToSpec = await h.driver.rewind('spec_review');
+    expect(rewoundToSpec.phase).toBe('spec_review');
+    expect(h.driver.phase()).toBe('spec_review');
+
+    // Rewind back to questioning
+    const rewoundToQ = await h.driver.rewind('questioning');
+    expect(rewoundToQ.phase).toBe('questioning');
+    expect(h.driver.phase()).toBe('questioning');
+    expect(h.driver.snapshot().spec).toBeUndefined();
   });
 });

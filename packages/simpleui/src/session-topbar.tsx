@@ -4,7 +4,13 @@ import type { Theme } from './hooks/use-theme.js';
 import { compactTokens } from './lib/session-helpers.js';
 import { ModelSwitcher } from './model-switcher.js';
 import { SessionSwitcher } from './session-switcher.js';
-import type { ConnectionState, ModelDescriptor, SessionInfo, SimpleSessionSummary } from './types.js';
+import type {
+  ConnectionState,
+  ContextInfo,
+  ModelDescriptor,
+  SessionInfo,
+  SimpleSessionSummary,
+} from './types.js';
 
 /**
  * The subset of the model catalog the top bar renders and drives. Deliberately
@@ -29,6 +35,13 @@ export interface SessionTopbarProps {
   contextTokens: number;
   contextMaxContext: number;
   load: number;
+  /**
+   * Live prompt-cache snapshot for the topbar badge. Mirrors the
+   * `cache` field on `ContextInfo`. `null` until the first `stats.get`
+   * reply lands — shown as "—" in the badge so users learn the metric
+   * exists instead of wondering where it went.
+   */
+  cache: ContextInfo['cache'];
   connection: ConnectionState;
   theme: Theme;
   commandPaletteOpen: boolean;
@@ -63,6 +76,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
     contextTokens,
     contextMaxContext,
     load,
+    cache,
     connection,
     theme,
     commandPaletteOpen,
@@ -149,6 +163,14 @@ export function SessionTopbar(props: SessionTopbarProps) {
           <small>
             {compactTokens(contextTokens)} / {compactTokens(contextMaxContext)}
           </small>
+          {cache && cache.readTokens + cache.writeTokens > 0 ? (
+            <small className="context-cache">
+              cache-hit {(cache.hitRatio * 100).toFixed(1)}%
+              {cache.coverageTokens > 0
+                ? ` · covers ${compactTokens(cache.coverageTokens)}`
+                : ''}
+            </small>
+          ) : null}
           <span className="context-details-hint">DETAILS</span>
         </button>
         <button

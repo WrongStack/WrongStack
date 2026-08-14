@@ -201,18 +201,26 @@ export class SddInterviewDriver {
       tasksDetected: false,
     };
 
-    // 1. Spec JSON → spec_review.
-    if (!this.builder.getSession().spec) {
-      const spec = this.builder.tryParseSpecFromOutput(text);
-      if (spec) {
+    // 1. Spec JSON → spec_review (accept fresh spec or updated spec on revision).
+    const currentSpec = this.builder.getSession().spec;
+    const spec = this.builder.tryParseSpecFromOutput(text);
+    if (spec) {
+      const isNewOrUpdated =
+        !currentSpec ||
+        currentSpec.title !== spec.title ||
+        currentSpec.overview !== spec.overview ||
+        JSON.stringify(currentSpec.requirements) !== JSON.stringify(spec.requirements) ||
+        JSON.stringify(currentSpec.sections) !== JSON.stringify(spec.sections);
+      if (isNewOrUpdated) {
         this.builder.setSpec(spec);
         await this.persistSpec(spec);
         result.specDetected = true;
       }
     }
 
-    // 2. Implementation plan (only meaningful in the implementation phase).
-    if (this.builder.getPhase() === 'implementation') {
+    // 2. Implementation plan (meaningful in implementation or when revising in task_review).
+    const phase = this.builder.getPhase();
+    if (phase === 'implementation' || phase === 'task_review') {
       if (this.trySaveImplementationPlan(text)) result.implementationDetected = true;
     }
 
@@ -240,6 +248,32 @@ export class SddInterviewDriver {
     if (phase === 'executing') {
       await this.ensureTaskGraph();
     }
+    return { phase, prompt: this.builder.getAIPrompt() };
+  }
+
+  /**
+   * Rewind the interview to an earlier phase (e.g. reject plan, back to spec review,
+   * or back to questioning).
+   */
+  async rewind(targetPhase?: AISpecPhase): Promise<{ phase: AISpecPhase; prompt: string }> {
+    const cur = this.builder.getPhase();
+    const target: AISpecPhase =
+      targetPhase ??
+      (cur === 'task_review'
+        ? 'implementation'
+        : cur === 'implementation'
+          ? 'spec_review'
+          : cur === 'spec_review'
+            ? 'questioning'
+            : cur === 'executing'
+              ? 'task_review'
+              : 'questioning');
+    const phase = this.builder.rewindTo(target);
+    if (target === 'questioning' || target === 'spec_review' || target === 'implementation') {
+      this.tracker = null;
+      this.graph = null;
+    }
+    await this.builder.saveSession();
     return { phase, prompt: this.builder.getAIPrompt() };
   }
 
