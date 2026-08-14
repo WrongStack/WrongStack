@@ -243,5 +243,5 @@ async function revertSnapshots(
     }
   }
 
-  return { revertedFiles, errors };
+  return { revertedFiles: Array.from(new Set(revertedFiles)), errors };
 }

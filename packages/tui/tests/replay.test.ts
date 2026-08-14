@@ -354,11 +354,11 @@ describe('replaySessionEvents', () => {
     ];
 
     const entries = replaySessionMessages(messages, events, 10);
+    // [MAILBOX BTW] runtime injection is filtered out so the visible history matches live interaction
     expect(entries.map((entry) => entry.kind)).toEqual([
       'user',
       'assistant',
       'tool',
-      'user',
       'info',
       'assistant',
     ]);
@@ -373,12 +373,14 @@ describe('replaySessionEvents', () => {
       outputTokens: 4,
       outputLines: 1,
     });
-    expect(entries[3]).toMatchObject({
-      kind: 'user',
-      text: '[MAILBOX BTW] exact intervening text',
-    });
-    expect(entries[4]).toMatchObject({ kind: 'info', text: '[note between messages]' });
-    expect(entries.map((entry) => entry.id)).toEqual([10, 11, 12, 13, 14, 15]);
+    expect(entries[3]).toMatchObject({ kind: 'info', text: '[note between messages]' });
+    expect(entries[4]).toMatchObject({ kind: 'assistant', text: 'I received the result.' });
+    expect(
+      entries.some(
+        (e) => 'text' in e && typeof e.text === 'string' && e.text.includes('[MAILBOX BTW]'),
+      ),
+    ).toBe(false);
+    expect(entries.map((entry) => entry.id)).toEqual([10, 11, 12, 13, 14]);
   });
 
   it('assigns incrementing sequential ids', () => {
@@ -461,7 +463,14 @@ describe('replaySessionEvents', () => {
       },
       {
         role: 'user' as const,
-        content: [{ type: 'tool_result' as const, tool_use_id: 'tu-1', content: 'actual contents', is_error: false }],
+        content: [
+          {
+            type: 'tool_result' as const,
+            tool_use_id: 'tu-1',
+            content: 'actual contents',
+            is_error: false,
+          },
+        ],
         ts: '2026-01-01T00:00:01Z',
       },
     ];
@@ -471,7 +480,12 @@ describe('replaySessionEvents', () => {
     // Expected block order: assistant(pre) → tool → assistant(post)
     expect(entries.map((e) => e.kind)).toEqual(['assistant', 'tool', 'assistant']);
     expect((entries[0] as { text: string }).text).toBe('Let me check that file.');
-    expect(entries[1]).toMatchObject({ kind: 'tool', name: 'read', ok: true, output: 'actual contents' });
+    expect(entries[1]).toMatchObject({
+      kind: 'tool',
+      name: 'read',
+      ok: true,
+      output: 'actual contents',
+    });
     expect((entries[2] as { text: string }).text).toBe('Now I can see the issue is on line 5.');
     // Both text segments are mid-turn (the message carries a tool_use),
     // so neither is `final`. `final` is per-message, not per-text-block.

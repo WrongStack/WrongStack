@@ -13,7 +13,11 @@ let rec: SessionRecovery;
 const ts = '2026-01-01T00:00:00.000Z';
 
 const write = (rel: string, lines: object[]) =>
-  fs.writeFile(path.join(dir, `${rel}.jsonl`), lines.map((l) => JSON.stringify(l)).join('\n') + '\n', 'utf8');
+  fs.writeFile(
+    path.join(dir, `${rel}.jsonl`),
+    lines.map((l) => JSON.stringify(l)).join('\n') + '\n',
+    'utf8',
+  );
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-srec-'));
@@ -82,7 +86,9 @@ describe('session-recovery — extra coverage', () => {
     // Real stale sessions: one flat, one sharded.
     await write('flat-stale', [{ type: 'in_flight_start', ts: '2026-01-02T00:00:00Z' }]);
     await fs.mkdir(path.join(dir, '2026-06-11'), { recursive: true });
-    await write('2026-06-11/sharded-stale', [{ type: 'in_flight_start', ts: '2026-01-03T00:00:00Z' }]);
+    await write('2026-06-11/sharded-stale', [
+      { type: 'in_flight_start', ts: '2026-01-03T00:00:00Z' },
+    ]);
     // Skipped: dot dir, special dirs, index/mailbox, sidecar logs, clean session.
     await fs.mkdir(path.join(dir, '.hidden'), { recursive: true });
     await fs.mkdir(path.join(dir, 'shared'), { recursive: true });
@@ -110,9 +116,21 @@ describe('session-recovery — extra coverage', () => {
       inFlightStart: null,
       context: 'executing tools',
       pendingEvents: [
-        { type: 'tool_use', id: 'call_1', name: 'read_file', args: { path: 'a.txt' }, ts: '2026-01-01T00:00:01Z' },
+        {
+          type: 'tool_use',
+          id: 'call_1',
+          name: 'read_file',
+          args: { path: 'a.txt' },
+          ts: '2026-01-01T00:00:01Z',
+        },
         { type: 'tool_result', toolUseId: 'call_1', name: 'read_file', output: 'content' },
-        { type: 'tool_use', id: 'call_2', name: 'write_to_file', args: { path: 'b.txt', content: 'new' }, ts: '2026-01-01T00:00:02Z' },
+        {
+          type: 'tool_use',
+          id: 'call_2',
+          name: 'write_to_file',
+          args: { path: 'b.txt', content: 'new' },
+          ts: '2026-01-01T00:00:02Z',
+        },
       ],
     };
 
@@ -136,7 +154,12 @@ describe('session-recovery — extra coverage', () => {
           ts: '2026-01-01T00:00:01Z',
           content: [
             { type: 'text', text: 'let me run bash' },
-            { type: 'tool_use', id: 'call_bash', name: 'run_command', input: { command: 'pnpm test' } },
+            {
+              type: 'tool_use',
+              id: 'call_bash',
+              name: 'run_command',
+              input: { command: 'pnpm test' },
+            },
           ],
         },
         {
@@ -146,7 +169,12 @@ describe('session-recovery — extra coverage', () => {
           message: {
             role: 'assistant',
             content: [
-              { type: 'tool_use', id: 'call_edit', name: 'replace_file_content', input: { file: 'app.ts' } },
+              {
+                type: 'tool_use',
+                id: 'call_edit',
+                name: 'replace_file_content',
+                input: { file: 'app.ts' },
+              },
             ],
           },
         },
@@ -156,9 +184,7 @@ describe('session-recovery — extra coverage', () => {
           version: 1,
           message: {
             role: 'user',
-            content: [
-              { type: 'tool_result', tool_use_id: 'call_bash', content: 'ok' },
-            ],
+            content: [{ type: 'tool_result', tool_use_id: 'call_bash', content: 'ok' }],
           },
         },
       ],
@@ -168,5 +194,38 @@ describe('session-recovery — extra coverage', () => {
     expect(interrupted).toHaveLength(1);
     expect(interrupted[0]?.name).toBe('replace_file_content');
     expect(interrupted[0]?.argsSummary).toContain('app.ts');
+  });
+
+  it('extractInterruptedTools extracts open tool_call_start without matching tool_call_end', () => {
+    const plan = {
+      sessionId: 'test-tool-calls',
+      stale: true,
+      lastCheckpoint: null,
+      inFlightStart: null,
+      context: 'executing tool calls',
+      pendingEvents: [
+        {
+          type: 'tool_call_start',
+          id: 'call_1',
+          name: 'read_file',
+          input: { path: 'a.txt' },
+          ts: '2026-01-01T00:00:01Z',
+        },
+        { type: 'tool_call_end', id: 'call_1', name: 'read_file', ok: true },
+        {
+          type: 'tool_call_start',
+          id: 'call_2',
+          name: 'exec_command',
+          input: { cmd: 'pnpm test' },
+          ts: '2026-01-01T00:00:02Z',
+        },
+      ],
+    };
+
+    const interrupted = extractInterruptedTools(plan as never);
+    expect(interrupted).toHaveLength(1);
+    expect(interrupted[0]?.name).toBe('exec_command');
+    expect(interrupted[0]?.argsSummary).toContain('pnpm test');
+    expect(interrupted[0]?.ts).toBe('2026-01-01T00:00:02Z');
   });
 });

@@ -355,4 +355,92 @@ describe('/fallback', () => {
       expect(msg).not.toContain('inactive');
     });
   });
+
+  describe('/fallback gate', () => {
+    it('sets the countdown duration and persists', async () => {
+      const { ctx, update, readFile } = makeCtx();
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('gate 10');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('countdown set to 10s');
+      expect(readFile().fallbackGateSeconds).toBe(10);
+      expect(update).toHaveBeenCalledWith({ fallbackGateSeconds: 10 });
+    });
+
+    it('disables gate countdown on gate off', async () => {
+      const { ctx, update, readFile } = makeCtx({ fallbackGateSeconds: 10 });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('gate off');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('disabled');
+      expect(readFile().fallbackGateSeconds).toBe(0);
+      expect(update).toHaveBeenCalledWith({ fallbackGateSeconds: 0 });
+    });
+
+    it('shows current gate status with no args', async () => {
+      const { ctx } = makeCtx({ fallbackGateSeconds: 5 });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('gate');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Fallback Gate Countdown');
+      expect(msg).toContain('5s');
+    });
+  });
+
+  describe('/fallback doctor', () => {
+    it('diagnoses single provider sibling quarantine risk', async () => {
+      const { ctx } = makeCtx({
+        provider: 'openai',
+        model: 'gpt-4o',
+        fallbackModels: ['openai/gpt-4o-mini'],
+        providers: {
+          openai: { apiKey: 'key', models: ['gpt-4o', 'gpt-4o-mini'] },
+        },
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('doctor');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Fallback Doctor');
+      expect(msg).toContain('WARNING');
+      expect(msg).toContain('All fallback models belong to the same provider');
+    });
+
+    it('reports healthy when multi-provider fallback is active', async () => {
+      const { ctx } = makeCtx({
+        provider: 'openai',
+        model: 'gpt-4o',
+        fallbackModels: ['anthropic/claude-3-7-sonnet'],
+        providers: {
+          openai: { apiKey: 'k1', models: ['gpt-4o'] },
+          anthropic: { apiKey: 'k2', models: ['claude-3-7-sonnet'] },
+        },
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('doctor');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('HEALTHY');
+      expect(msg).toContain('All fallback chains and configured providers are healthy');
+    });
+  });
+
+  describe('/fallback test', () => {
+    it('simulates failover step-by-step', async () => {
+      const { ctx } = makeCtx({
+        provider: 'openai',
+        model: 'gpt-4o',
+        fallbackModels: ['anthropic/claude-3-7-sonnet'],
+        providers: {
+          openai: { apiKey: 'k1', models: ['gpt-4o'] },
+          anthropic: { apiKey: 'k2', models: ['claude-3-7-sonnet'] },
+        },
+      });
+      const cmd = buildFallbackCommand(ctx);
+      const res = await cmd.run('test rate_limit');
+      const msg = stripAnsi(res?.message ?? '');
+      expect(msg).toContain('Fallback Simulation');
+      expect(msg).toContain('DISPATCH TARGET');
+      expect(msg).toContain('anthropic/claude-3-7-sonnet');
+      expect(msg).toContain('Failover succeeded');
+    });
+  });
 });

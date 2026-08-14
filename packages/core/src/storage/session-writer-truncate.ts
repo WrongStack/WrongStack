@@ -16,7 +16,6 @@ export async function findSessionCheckpointTruncatePlan(
   let pendingLine = Buffer.alloc(0);
   let checkpointByteOffset = -1;
   let removedCount = 0;
-  let targetCheckpointSeen = false;
 
   try {
     fd = await fsp.open(filePath, 'r', 0o600);
@@ -50,26 +49,12 @@ export async function findSessionCheckpointTruncatePlan(
               if (event.type === 'checkpoint') {
                 if (event.promptIndex === targetPromptIndex) {
                   checkpointByteOffset = lineStartOffset;
-                  targetCheckpointSeen = true;
-                } else if (event.promptIndex !== undefined && event.promptIndex > targetPromptIndex) {
+                } else if (
+                  event.promptIndex !== undefined &&
+                  event.promptIndex > targetPromptIndex
+                ) {
                   checkpointByteOffset = lineStartOffset;
                 }
-              } else if (
-                targetCheckpointSeen &&
-                event.promptIndex !== undefined &&
-                event.promptIndex > targetPromptIndex
-              ) {
-                removedCount++;
-              } else if (targetCheckpointSeen && event.promptIndex === undefined) {
-                removedCount++;
-              } else if (!targetCheckpointSeen && event.promptIndex === undefined) {
-                removedCount++;
-              } else if (
-                !targetCheckpointSeen &&
-                event.promptIndex !== undefined &&
-                event.promptIndex > targetPromptIndex
-              ) {
-                removedCount++;
               }
             } catch {
               // Malformed JSON is preserved by the rewrite step.
@@ -132,39 +117,6 @@ export async function rewriteSessionToCheckpoint(
         if (r === 0) break;
         await writeFd.write(copyBuf, 0, r);
         readOffset += r;
-      }
-
-      let tailOffset = newlineAfterCheckpoint;
-      let leftover = '';
-      while (tailOffset < totalSize) {
-        const toRead = Math.min(CHUNK_SIZE, totalSize - tailOffset);
-        const tailBuf = Buffer.alloc(toRead);
-        const { bytesRead: tr } = await src.read(tailBuf, 0, toRead, tailOffset);
-        if (tr === 0) break;
-        const chunk = leftover + tailBuf.subarray(0, tr).toString('utf8');
-        const lastNl = chunk.lastIndexOf('\n');
-        if (lastNl === -1) {
-          leftover = chunk;
-        } else {
-          for (const line of chunk.slice(0, lastNl + 1).split('\n')) {
-            if (!line.trim()) continue;
-            try {
-              JSON.parse(line);
-            } catch {
-              await writeFd.write(`${line}\n`, undefined, 'utf8');
-            }
-          }
-          leftover = chunk.slice(lastNl + 1);
-        }
-        tailOffset += tr;
-      }
-
-      if (leftover.trim()) {
-        try {
-          JSON.parse(leftover);
-        } catch {
-          await writeFd.write(`${leftover}\n`, undefined, 'utf8');
-        }
       }
 
       await writeFd.sync();

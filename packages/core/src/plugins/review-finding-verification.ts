@@ -36,22 +36,195 @@ const DEFAULT_ANCHOR_WINDOW = 2;
 
 /** English stopwords + finding-prose generics never treated as code anchors. */
 const STOPWORDS = new Set([
-  'a', 'about', 'above', 'after', 'again', 'against', 'all', 'an', 'and', 'any', 'are', 'as',
-  'at', 'be', 'been', 'before', 'below', 'between', 'both', 'but', 'by', 'can', 'could', 'did',
-  'do', 'does', 'each', 'few', 'for', 'from', 'further', 'get', 'had', 'has', 'have', 'he', 'her',
-  'here', 'him', 'his', 'how', 'if', 'in', 'into', 'is', 'it', 'its', 'just', 'may', 'me', 'might',
-  'more', 'most', 'much', 'must', 'my', 'new', 'no', 'nor', 'not', 'now', 'of', 'off', 'on',
-  'once', 'only', 'or', 'other', 'our', 'out', 'own', 'same', 'she', 'should', 'so', 'some',
-  'such', 'than', 'that', 'the', 'their', 'them', 'then', 'there', 'these', 'they', 'this',
-  'those', 'through', 'to', 'too', 'under', 'until', 'up', 'us', 'very', 'was', 'we', 'were',
-  'what', 'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'will', 'with', 'would',
-  'you', 'your',
+  'a',
+  'about',
+  'above',
+  'after',
+  'again',
+  'against',
+  'all',
+  'an',
+  'and',
+  'any',
+  'are',
+  'as',
+  'at',
+  'be',
+  'been',
+  'before',
+  'below',
+  'between',
+  'both',
+  'but',
+  'by',
+  'can',
+  'could',
+  'did',
+  'do',
+  'does',
+  'each',
+  'few',
+  'for',
+  'from',
+  'further',
+  'get',
+  'had',
+  'has',
+  'have',
+  'he',
+  'her',
+  'here',
+  'him',
+  'his',
+  'how',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'its',
+  'just',
+  'may',
+  'me',
+  'might',
+  'more',
+  'most',
+  'much',
+  'must',
+  'my',
+  'new',
+  'no',
+  'nor',
+  'not',
+  'now',
+  'of',
+  'off',
+  'on',
+  'once',
+  'only',
+  'or',
+  'other',
+  'our',
+  'out',
+  'own',
+  'same',
+  'she',
+  'should',
+  'so',
+  'some',
+  'such',
+  'than',
+  'that',
+  'the',
+  'their',
+  'them',
+  'then',
+  'there',
+  'these',
+  'they',
+  'this',
+  'those',
+  'through',
+  'to',
+  'too',
+  'under',
+  'until',
+  'up',
+  'us',
+  'very',
+  'was',
+  'we',
+  'were',
+  'what',
+  'when',
+  'where',
+  'which',
+  'while',
+  'who',
+  'whom',
+  'why',
+  'will',
+  'with',
+  'would',
+  'you',
+  'your',
   // Finding-prose generics: common English nouns that are terrible anchors
   // because they match prose everywhere. Kept deliberately small.
-  'area', 'bug', 'check', 'code', 'data', 'endpoint', 'error', 'file', 'fix', 'issue', 'line',
-  'make', 'may', 'potential', 'request', 'response', 'result', 'use', 'used', 'user', 'using',
+  'area',
+  'bug',
+  'check',
+  'code',
+  'data',
+  'endpoint',
+  'error',
+  'file',
+  'fix',
+  'issue',
+  'line',
+  'make',
+  'may',
+  'potential',
+  'request',
+  'response',
+  'result',
+  'use',
+  'used',
+  'user',
+  'using',
   'value',
 ]);
+
+/**
+ * Extract all candidate code identifiers from finding text, prioritizing:
+ *   1. Identifiers inside backticks (explicit code mentions: `foo.bar()`, `varName`)
+ *   2. Code-like identifiers (camelCase, snake_case, $-suffixed)
+ *   3. Other meaningful non-stopword tokens (>= 3 chars)
+ */
+export function extractFindingAnchors(
+  title: string,
+  description: string,
+  suggestedFix?: string,
+): string[] {
+  const fullText = `${title ?? ''} ${description ?? ''} ${suggestedFix ?? ''}`;
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (token: string): void => {
+    const trimmed = token.trim();
+    if (trimmed.length >= 3 && !STOPWORDS.has(trimmed.toLowerCase()) && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      candidates.push(trimmed);
+    }
+  };
+
+  // 1. Backticked code tokens: `foo.bar` or `myFunc()`
+  const backtickMatches = fullText.match(/`([^`]+)`/g) ?? [];
+  for (const match of backtickMatches) {
+    const inner = match.slice(1, -1).trim();
+    const innerTokens = inner.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
+    for (const t of innerTokens) add(t);
+  }
+
+  // 2. Code-like tokens: camelCase (lower followed by upper), snake_case, or $ suffix.
+  const tokens = fullText.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
+  const meaningful = tokens.filter((t) => t.length >= 3 && !STOPWORDS.has(t.toLowerCase()));
+  const codeLike = meaningful.filter(
+    (t) => /[a-z][A-Z]/.test(t) || t.includes('_') || t.endsWith('$'),
+  );
+  codeLike.sort((a, b) => b.length - a.length);
+  for (const t of codeLike) add(t);
+
+  // If we found any explicit backticked or code-like identifiers, return those!
+  if (candidates.length > 0) {
+    return candidates;
+  }
+
+  // Fallback only when NO code-like identifiers exist: longest meaningful tokens
+  const remaining = [...meaningful].sort((a, b) => b.length - a.length);
+  for (const t of remaining) add(t);
+
+  return candidates;
+}
 
 /**
  * Extract the most distinctive code identifier from a finding's
@@ -60,24 +233,8 @@ const STOPWORDS = new Set([
  * token of length >= 3. Exported for unit tests.
  */
 export function extractFindingAnchor(title: string, description: string): string | undefined {
-  const text = `${title ?? ''} ${description ?? ''}`;
-  const tokens = text.match(/[A-Za-z_$][A-Za-z0-9_$]*/g) ?? [];
-  if (tokens.length === 0) return undefined;
-
-  const meaningful = tokens.filter(
-    (t) => t.length >= 3 && !STOPWORDS.has(t.toLowerCase()),
-  );
-  if (meaningful.length === 0) return undefined;
-
-  // Code-like: camelCase (lower followed by upper), snake_case, or $ suffix.
-  const codeLike = meaningful.filter((t) => /[a-z][A-Z]/.test(t) || t.includes('_') || t.endsWith('$'));
-  if (codeLike.length > 0) {
-    codeLike.sort((a, b) => b.length - a.length);
-    return codeLike[0];
-  }
-  // Fallback: longest meaningful identifier token.
-  meaningful.sort((a, b) => b.length - a.length);
-  return meaningful[0];
+  const anchors = extractFindingAnchors(title, description);
+  return anchors[0];
 }
 
 /**
@@ -114,7 +271,9 @@ export async function verifyFindingsAgainstDisk(
   const window = opts.anchorWindow ?? DEFAULT_ANCHOR_WINDOW;
   const cache = new Map<string, { lines: string[] } | { error: 'missing' | 'unreadable' }>();
 
-  const readFile = async (abs: string): Promise<{ lines: string[] } | { error: 'missing' | 'unreadable' }> => {
+  const readFile = async (
+    abs: string,
+  ): Promise<{ lines: string[] } | { error: 'missing' | 'unreadable' }> => {
     const cached = cache.get(abs);
     if (cached) return cached;
     let result: { lines: string[] } | { error: 'missing' | 'unreadable' };
@@ -122,7 +281,9 @@ export async function verifyFindingsAgainstDisk(
       const content = await fsp.readFile(abs, 'utf8');
       result = { lines: content.split('\n') };
     } catch (err) {
-      result = { error: (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing' : 'unreadable' };
+      result = {
+        error: (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing' : 'unreadable',
+      };
     }
     cache.set(abs, result);
     return result;
@@ -148,22 +309,28 @@ export async function verifyFindingsAgainstDisk(
         };
       }
 
-      const anchor = extractFindingAnchor(finding.title, finding.description);
+      const anchors = extractFindingAnchors(
+        finding.title,
+        finding.description,
+        finding.suggestedFix,
+      );
 
-      // No line: search the whole file for the anchor (weak signal, only
-      // meaningful for code-like anchors); otherwise stay unverified.
+      // No line: search the whole file for code-like anchors (weak signal, only
+      // meaningful for distinctive anchors); otherwise stay unverified.
       if (finding.location.line === undefined) {
-        if (anchor && /[a-z][A-Z]/.test(anchor)) {
-          const hit = file.lines.findIndex((l) => l.includes(anchor));
-          if (hit !== -1) {
-            return {
-              ...finding,
-              verification: {
-                status: 'verified',
-                reason: 'anchor_found',
-                evidence: trimEvidence(file.lines[hit] ?? ''),
-              },
-            };
+        for (const a of anchors) {
+          if (/[a-z][A-Z]/.test(a) || a.includes('_')) {
+            const hit = file.lines.findIndex((l) => l.includes(a));
+            if (hit !== -1) {
+              return {
+                ...finding,
+                verification: {
+                  status: 'verified',
+                  reason: 'anchor_found',
+                  evidence: trimEvidence(file.lines[hit] ?? ''),
+                },
+              };
+            }
           }
         }
         return { ...finding, verification: { status: 'unverified', reason: 'no_line' } };
@@ -174,25 +341,30 @@ export async function verifyFindingsAgainstDisk(
         return { ...finding, verification: { status: 'failed', reason: 'line_out_of_range' } };
       }
 
-      if (!anchor) {
+      if (anchors.length === 0) {
         return { ...finding, verification: { status: 'unverified', reason: 'no_anchor' } };
       }
 
       const from = Math.max(0, line - 1 - window);
       const to = Math.min(file.lines.length, line - 1 + window + 1);
-      for (let i = from; i < to; i++) {
-        const sourceLine = file.lines[i]!;
-        if (sourceLine.includes(anchor)) {
-          return {
-            ...finding,
-            verification: {
-              status: 'verified',
-              reason: 'anchor_found',
-              evidence: trimEvidence(sourceLine),
-            },
-          };
+
+      // Check all candidate anchors against the window lines
+      for (const a of anchors) {
+        for (let i = from; i < to; i++) {
+          const sourceLine = file.lines[i]!;
+          if (sourceLine.includes(a)) {
+            return {
+              ...finding,
+              verification: {
+                status: 'verified',
+                reason: 'anchor_found',
+                evidence: trimEvidence(sourceLine),
+              },
+            };
+          }
         }
       }
+
       return { ...finding, verification: { status: 'unverified', reason: 'anchor_not_found' } };
     }),
   );

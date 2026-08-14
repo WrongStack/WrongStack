@@ -283,13 +283,13 @@ export async function resumeSession(
     // re-bound `agent.ctx.session = oldWriter` (rollback arm) while
     // the close was already in flight against the (resumed) writer.
     // The fix is to defer the close until after the snapshot return.
-    let oldWriterFinalize: void | undefined;
+    let finalizeOldWriter: (() => Promise<void>) | undefined;
     if (oldWriter && oldWriter !== resumed.writer) {
       // Capture the OLD session's usage synchronously — the counter
       // is reset for the resumed session below, and this closure
       // runs after that reset.
       const endedUsage = tokenCounter.total();
-      oldWriterFinalize = void (async () => {
+      finalizeOldWriter = async () => {
         let appendOk = false;
         try {
           await oldWriter.append({
@@ -324,7 +324,7 @@ export async function resumeSession(
             );
           }
         }
-      })();
+      };
     }
 
     // Token accounting is per-session: without a reset the resumed
@@ -370,7 +370,7 @@ export async function resumeSession(
     // `agent.ctx.session = oldWriter` while the old writer is still
     // open — the close then runs against the still-open writer, not
     // against the resumed writer the rollback just restored.
-    void oldWriterFinalize;
+    if (finalizeOldWriter) void finalizeOldWriter();
     return result;
   } catch (err) {
     if (!identityClaimed) await resumeClaim?.cancel().catch(() => undefined);

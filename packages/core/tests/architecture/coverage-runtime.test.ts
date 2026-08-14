@@ -366,9 +366,16 @@ describe('defaultCheckProcessAlive', () => {
 
 describe('coverage runner script', () => {
   it('serializes package-local coverage entrypoints', () => {
-    for (const packageName of ['plug-lsp', 'webui']) {
+    // Map of every coverage-gate participant to its workspace directory.
+    // desktop is an app under apps/, not a package under packages/.
+    const gateLocation: Record<string, string> = {
+      'plug-lsp': 'packages',
+      webui: 'packages',
+      desktop: 'apps',
+    };
+    for (const [packageName, parentDir] of Object.entries(gateLocation)) {
       const packageJson = JSON.parse(
-        readFileSync(path.join(repoRoot, 'packages', packageName, 'package.json'), 'utf8'),
+        readFileSync(path.join(repoRoot, parentDir, packageName, 'package.json'), 'utf8'),
       ) as { scripts?: { 'test:coverage'?: string } };
 
       expect(packageJson.scripts?.['test:coverage']).toMatch(

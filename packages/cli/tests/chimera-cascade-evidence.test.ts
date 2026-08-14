@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  extractCascadeEvidence,
-  verifyCascadeEvidence,
-} from '../src/chimera-cascade-evidence.js';
+import { extractCascadeEvidence, verifyCascadeEvidence } from '../src/chimera-cascade-evidence.js';
 
-const block = (body: unknown): string =>
-  `fixed\n\n\`\`\`json\n${JSON.stringify(body)}\n\`\`\``;
+const block = (body: unknown): string => `fixed\n\n\`\`\`json\n${JSON.stringify(body)}\n\`\`\``;
 
 describe('extractCascadeEvidence', () => {
   it('extracts the canonical verification_evidence block', () => {
@@ -21,6 +17,13 @@ describe('extractCascadeEvidence', () => {
     ).toEqual({
       typecheck: { command: 'pnpm typecheck', exitCode: 0 },
       lint: { command: 'pnpm lint', exitCode: 0 },
+    });
+  });
+
+  it('extracts evidence from untagged code fences and handles trailing commas', () => {
+    const raw = `fixed code\n\n\`\`\`\n{\n  "verification_evidence": {\n    "typecheck": { "command": "pnpm typecheck", "exitCode": 0, },\n  },\n}\n\`\`\``;
+    expect(extractCascadeEvidence(raw)).toEqual({
+      typecheck: { command: 'pnpm typecheck', exitCode: 0 },
     });
   });
 
@@ -90,8 +93,6 @@ describe('verifyCascadeEvidence', () => {
       '.',
     );
     expect(result.status).toBe('failed');
-    expect(result.checks[0]).toEqual(
-      expect.objectContaining({ actualExitCode: 126, ok: false }),
-    );
+    expect(result.checks[0]).toEqual(expect.objectContaining({ actualExitCode: 126, ok: false }));
   });
 });

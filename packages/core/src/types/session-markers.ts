@@ -217,3 +217,32 @@ export function projectSessionMarkers(
   }
   return markers;
 }
+
+/**
+ * System-injected metadata prefixes that are folded into the conversation
+ * as `user`/`system`-role messages by the agent loop at runtime (mailbox,
+ * fleet pulse, loop detector, resume validation notices) but should NOT appear
+ * in the human-facing chat history on session resume/replay.
+ */
+export const SYSTEM_INJECTION_PREFIXES: readonly string[] = [
+  '[MAILBOX]',
+  '[MAILBOX BTW]',
+  '[BY THE WAY —',
+  '[QUEUED MESSAGES —',
+  '[FLEET PULSE]',
+  '[loop-detector]',
+  '[SESSION RESUME FILE VALIDATION]',
+  '[SESSION RESUME INTERRUPTED WORK]',
+];
+
+/**
+ * Check if a text block is an internal runtime system injection that should be
+ * hidden from the human chat transcript on replay across all surfaces (TUI, WebUI, SimpleUI).
+ */
+export function isSystemInjectedMessage(text: string): boolean {
+  const trimmed = text.trimStart();
+  for (const prefix of SYSTEM_INJECTION_PREFIXES) {
+    if (trimmed.startsWith(prefix)) return true;
+  }
+  return false;
+}

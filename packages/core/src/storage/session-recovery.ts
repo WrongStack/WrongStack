@@ -65,7 +65,10 @@ export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDeta
   const openCalls = new Map<string, { name: string; args?: unknown; ts?: string }>();
 
   for (const ev of plan.pendingEvents) {
-    if (ev.type === 'tool_use' && typeof (ev as { name?: string }).name === 'string') {
+    if (
+      (ev.type === 'tool_use' || ev.type === 'tool_call_start') &&
+      typeof (ev as { name?: string }).name === 'string'
+    ) {
       const toolName = (ev as { name: string }).name;
       const callId = (ev as { id?: string }).id ?? toolName;
       openCalls.set(callId, {
@@ -75,7 +78,7 @@ export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDeta
           (ev as { input?: unknown; args?: unknown }).args,
         ts: ev.ts,
       });
-    } else if (ev.type === 'tool_result') {
+    } else if (ev.type === 'tool_result' || ev.type === 'tool_call_end') {
       const callId =
         (ev as { id?: string; toolUseId?: string; name?: string }).id ??
         (ev as { id?: string; toolUseId?: string; name?: string }).toolUseId ??

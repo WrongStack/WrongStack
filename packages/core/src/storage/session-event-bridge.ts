@@ -212,9 +212,9 @@ export function createSessionEventBridge(
       const target = resolveWriter();
       if (!target) return;
 
-      // Clean up sampling state when a tool call ends to prevent
-      // progressCounters from accumulating UUID keys indefinitely.
-      if (event.type === 'tool_call_end') {
+      // Clean up sampling state when a tool call ends or returns a result to prevent
+      // progressCounters from accumulating keys indefinitely.
+      if (event.type === 'tool_call_end' || event.type === 'tool_result') {
         progressCounters.delete(event.id);
       }
 
@@ -237,9 +237,9 @@ export function createSessionEventBridge(
       const target = resolveWriter();
       if (!target || events.length === 0) return;
 
-      // Clean up sampling state for any tool_call_end events in the batch.
+      // Clean up sampling state for any tool_call_end or tool_result events in the batch.
       for (const e of events) {
-        if (e.type === 'tool_call_end') progressCounters.delete(e.id);
+        if (e.type === 'tool_call_end' || e.type === 'tool_result') progressCounters.delete(e.id);
       }
 
       const allowed = events.filter((e) => isAllowed(e.type, currentLevel) && shouldSample(e));

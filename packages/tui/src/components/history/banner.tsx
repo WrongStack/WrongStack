@@ -1,18 +1,23 @@
 import type React from 'react';
+import { useActiveTheme } from '../../hooks/use-active-theme.js';
 import { Box, Text } from '../../ink.js';
 import { truncateDisplay } from '../../terminal-width.js';
+import { theme } from '../../theme.js';
 import { mixHex } from '../animation-style.js';
 import type { AutonomyAgentStatus, HistoryEntry } from './types.js';
 import { shortenPath } from './utils.js';
 
-// Canonical palette from website/public/wrongstack.svg. The mark itself keeps
-// these exact colours; only the large terminal wordmark interpolates between
-// them.
-const STACK_ORANGE = '#FD9F02';
-const SIGNAL_PINK = '#FE2E5F';
-const BORDER = '#3B3C36';
-const MUTED = '#B6B2A8';
-const TEXT = '#F5F2E9';
+// Brand-mark colours now follow the active theme rather than the literal SVG
+// hex values. `brandPrimary` (Catppuccin peach on the default preset) and
+// `brandAccent` (pink) are the documented home for these tokens — selecting
+// a different `/theme` preset re-skins the mark accordingly. Resolved at
+// render time so `/theme` swaps during a running session take effect on the
+// next paint without re-mounting the banner.
+const STACK_ORANGE = () => theme.brandPrimary;
+const SIGNAL_PINK = () => theme.brandAccent;
+const BORDER = () => theme.borderDefault;
+const MUTED = () => theme.textMuted;
+const TEXT = () => theme.textPrimary;
 
 // The SVG is five 60px blocks: four orange blocks share a baseline and the
 // pink second block is shifted down by half a block. Two terminal cells make
@@ -42,9 +47,9 @@ function BrandMark({ pinkRow = 1 }: { pinkRow?: 0 | 1 }): React.ReactElement {
   const rows = Array.from({ length: 3 }, (_, row) =>
     Array.from({ length: MARK_COLS }, (_, column) => {
       if (column === PINK_HOME && (row === pinkRow || row === pinkRow + 1)) {
-        return SIGNAL_PINK;
+        return SIGNAL_PINK();
       }
-      if (row < 2 && column !== PINK_HOME) return STACK_ORANGE;
+      if (row < 2 && column !== PINK_HOME) return STACK_ORANGE();
       return null;
     }),
   );
@@ -117,7 +122,7 @@ export const WORDMARK_LINES: ReadonlyArray<string> = Object.freeze(
 
 export function bannerGradientColor(position: number, length: number): string {
   const progress = length > 1 ? position / (length - 1) : 0.5;
-  return mixHex(STACK_ORANGE, SIGNAL_PINK, progress);
+  return mixHex(STACK_ORANGE(), SIGNAL_PINK(), progress);
 }
 
 function GradientText({ text }: { text: string }): React.ReactElement {
@@ -169,12 +174,12 @@ function InfoRow({
 }): React.ReactElement {
   const labelWidth = compact ? 6 : 9;
   const valueWidth = Math.max(1, contentWidth - labelWidth - 3);
-  const color = accent ? STACK_ORANGE : MUTED;
+  const color = accent ? STACK_ORANGE() : MUTED();
   return (
     <Text>
       <Text color={color}>{icon}</Text>
       <Text color={color} bold>{` ${trunc(label, labelWidth).padEnd(labelWidth)} `}</Text>
-      <Text color={accent ? TEXT : MUTED}>{trunc(value, valueWidth)}</Text>
+      <Text color={accent ? TEXT() : MUTED()}>{trunc(value, valueWidth)}</Text>
     </Text>
   );
 }
@@ -216,8 +221,7 @@ function ProfileRow({
   }
 
   const fullPath = profileConfigPath;
-  const displayPath =
-    fullPath.length <= valueWidth ? fullPath : shortenPath(fullPath, valueWidth);
+  const displayPath = fullPath.length <= valueWidth ? fullPath : shortenPath(fullPath, valueWidth);
 
   // Locate the profile-name segment so we can highlight just that part.
   // Match either "/profiles/<name>/config.json" or "\profiles\<name>\config.json".
@@ -229,16 +233,18 @@ function ProfileRow({
 
   return (
     <Text>
-      <Text color={STACK_ORANGE}>{icon}</Text>
-      <Text color={STACK_ORANGE} bold>{` ${trunc(label, labelWidth).padEnd(labelWidth)} `}</Text>
+      <Text color={STACK_ORANGE()}>{icon}</Text>
+      <Text color={STACK_ORANGE()} bold>{` ${trunc(label, labelWidth).padEnd(labelWidth)} `}</Text>
       {segIdx >= 0 && profileSegment ? (
         <>
-          <Text color={MUTED}>{displayPath.slice(0, segIdx)}</Text>
-          <Text color={STACK_ORANGE} bold>{profileSegment}</Text>
-          <Text color={MUTED}>{displayPath.slice(segIdx + profileSegment.length)}</Text>
+          <Text color={MUTED()}>{displayPath.slice(0, segIdx)}</Text>
+          <Text color={STACK_ORANGE()} bold>
+            {profileSegment}
+          </Text>
+          <Text color={MUTED()}>{displayPath.slice(segIdx + profileSegment.length)}</Text>
         </>
       ) : (
-        <Text color={MUTED}>{displayPath}</Text>
+        <Text color={MUTED()}>{displayPath}</Text>
       )}
     </Text>
   );
@@ -247,21 +253,25 @@ function ProfileRow({
 // OSC 8 terminal hyperlinks — the same escape-sequence mechanism used by the
 // OAuth flows. Terminals that support clickable links (iTerm2, Windows Terminal,
 // Kitty, etc.) will render these as interactive; others see plain underlined text.
-const OSC8_WRONGSTACK =
-  '\x1b]8;;https://wrongstack.com\x1b\\wrongstack.com\x1b]8;;\x1b\\';
-const OSC8_GITHUB =
-  '\x1b]8;;https://github.com/wrongstack/wrongstack\x1b\\github\x1b]8;;\x1b\\';
+const OSC8_WRONGSTACK = '\x1b]8;;https://wrongstack.com\x1b\\wrongstack.com\x1b]8;;\x1b\\';
+const OSC8_GITHUB = '\x1b]8;;https://github.com/wrongstack/wrongstack\x1b\\github\x1b]8;;\x1b\\';
 
-function Footer({ contentWidth, compact }: { contentWidth: number; compact: boolean }): React.ReactElement {
+function Footer({
+  contentWidth,
+  compact,
+}: {
+  contentWidth: number;
+  compact: boolean;
+}): React.ReactElement {
   return (
     <Box flexDirection="column" alignItems="center" marginTop={1} marginBottom={1}>
       <Text>
-        <Text color={SIGNAL_PINK}>◆ </Text>
+        <Text color={SIGNAL_PINK()}>◆ </Text>
         <Text dimColor>{OSC8_WRONGSTACK}</Text>
         {!compact || contentWidth >= 35 ? (
           <>
             <Text dimColor> · </Text>
-            <Text color={STACK_ORANGE}>★ </Text>
+            <Text color={STACK_ORANGE()}>★ </Text>
             <Text dimColor>{OSC8_GITHUB}</Text>
           </>
         ) : null}
@@ -273,13 +283,7 @@ function Footer({ contentWidth, compact }: { contentWidth: number; compact: bool
 // ── Animated autonomy agent status ────────────────────────────────────────
 
 /** Agent display order (canonical left-to-right). */
-const AGENT_ORDER: ReadonlyArray<string> = [
-  'Brain',
-  'Shadow',
-  'Kanban',
-  'Mailbox',
-  'Memory',
-];
+const AGENT_ORDER: ReadonlyArray<string> = ['Brain', 'Shadow', 'Kanban', 'Mailbox', 'Memory'];
 
 function AutonomyAgentsSection({
   agents,
@@ -299,7 +303,7 @@ function AutonomyAgentsSection({
   return (
     <Box flexDirection="column" marginTop={1}>
       {/* Thin rule to separate from footer */}
-      <Text color={BORDER}>──────────────</Text>
+      <Text color={BORDER()}>──────────────</Text>
       <Box flexDirection="row" flexWrap="wrap" marginTop={0}>
         {AGENT_ORDER.map((name) => {
           const agent = lookup.get(name);
@@ -307,15 +311,18 @@ function AutonomyAgentsSection({
 
           const online = agent.online;
           const indicator = online ? '●' : '·';
-          const color = online ? STACK_ORANGE : MUTED;
+          const color = online ? STACK_ORANGE() : MUTED();
           const detail = agent.detail;
 
           return (
             <Box key={name} flexDirection="row" marginRight={2}>
               <Text color={color}>{indicator}</Text>
-              <Text color={color}>{' '}{trunc(compact ? name.slice(0, 4) : name, compact ? 4 : 8)}</Text>
+              <Text color={color}>
+                {' '}
+                {trunc(compact ? name.slice(0, 4) : name, compact ? 4 : 8)}
+              </Text>
               {!compact && detail ? (
-                <Text dimColor>{' '}{trunc(detail, Math.max(1, maxLabelWidth - 12))}</Text>
+                <Text dimColor> {trunc(detail, Math.max(1, maxLabelWidth - 12))}</Text>
               ) : null}
             </Box>
           );
@@ -335,11 +342,13 @@ const COMPACT_BASE_ROWS = 16;
 const FULL_LAYOUT_EXTRA_ROWS = 5;
 
 function bannerOptionalRows(entry: Extract<HistoryEntry, { kind: 'banner' }>): number {
-  return Number(Boolean(entry.family))
-    + Number(Boolean(entry.keyTail))
-    + Number(Boolean(entry.sessionId))
-    + Number(Boolean(entry.profileConfigPath || entry.profile))
-    + (entry.autonomyAgents?.length ? 3 : 0);
+  return (
+    Number(Boolean(entry.family)) +
+    Number(Boolean(entry.keyTail)) +
+    Number(Boolean(entry.sessionId)) +
+    Number(Boolean(entry.profileConfigPath || entry.profile)) +
+    (entry.autonomyAgents?.length ? 3 : 0)
+  );
 }
 
 export function Banner({
@@ -351,11 +360,15 @@ export function Banner({
   termWidth?: number;
   termHeight?: number;
 }): React.ReactElement | null {
+  // Subscribe to active-theme changes so a `/theme` swap during a live
+  // session re-paints the banner. Banner sits inside the memoized History
+  // list, so without this hook a swap would leave the mark / wordmark on
+  // the old palette while every other component repainted.
+  useActiveTheme();
   const panelWidth = Math.max(20, Math.floor(termWidth));
   const optionalRows = bannerOptionalRows(entry);
   const compactRows = COMPACT_BASE_ROWS + optionalRows;
-  const condensed =
-    termHeight !== undefined && termHeight < compactRows + FULL_LAYOUT_EXTRA_ROWS;
+  const condensed = termHeight !== undefined && termHeight < compactRows + FULL_LAYOUT_EXTRA_ROWS;
   const compact = panelWidth < FULL_LAYOUT_MIN_WIDTH || condensed;
   const paddingX = compact ? 1 : 2;
   const contentWidth = Math.max(1, panelWidth - paddingX * 2 - 2);
@@ -378,11 +391,17 @@ export function Banner({
       Math.max(1, panelWidth - (unbordered ? 0 : 4)),
     );
     if (unbordered) {
-      return <Text color={STACK_ORANGE} bold>{summary}</Text>;
+      return (
+        <Text color={STACK_ORANGE()} bold>
+          {summary}
+        </Text>
+      );
     }
     return (
-      <Box width={panelWidth} borderStyle="round" borderColor={BORDER} paddingX={1}>
-        <Text color={STACK_ORANGE} bold>{summary}</Text>
+      <Box width={panelWidth} borderStyle="round" borderColor={BORDER()} paddingX={1}>
+        <Text color={STACK_ORANGE()} bold>
+          {summary}
+        </Text>
       </Box>
     );
   }
@@ -392,14 +411,14 @@ export function Banner({
       width={panelWidth}
       flexDirection="column"
       borderStyle="round"
-      borderColor={BORDER}
+      borderColor={BORDER()}
       paddingX={paddingX}
       paddingY={0}
     >
       <Box justifyContent="flex-end" marginTop={1}>
-        <Text color={MUTED}>v{version}</Text>
+        <Text color={MUTED()}>v{version}</Text>
         {entry.updateAvailable && entry.latestVersion ? (
-          <Text color={STACK_ORANGE}> · (update available: v{entry.latestVersion})</Text>
+          <Text color={STACK_ORANGE()}> · (update available: v{entry.latestVersion})</Text>
         ) : null}
       </Box>
 
@@ -413,7 +432,7 @@ export function Banner({
             <GradientText text="WrongStack" />
           </Box>
           <Box justifyContent="center">
-            <Text color={MUTED}>{trunc('TERMINAL AI ENGINE', contentWidth)}</Text>
+            <Text color={MUTED()}>{trunc('TERMINAL AI ENGINE', contentWidth)}</Text>
           </Box>
         </>
       ) : (
@@ -422,7 +441,7 @@ export function Banner({
             <PixelWordmark />
           </Box>
           <Box justifyContent="center" marginTop={1}>
-            <Text color={MUTED} italic>
+            <Text color={MUTED()} italic>
               BUILT ON THE WRONG STACK. SHIPPED ANYWAY.
             </Text>
           </Box>

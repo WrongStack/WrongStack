@@ -1,10 +1,5 @@
 import type { ConfiguredHook, HookEvent } from '../hooks.js';
 import type {
-  AdaptiveConcurrencyConfig,
-  CircuitBreakerRuntimeConfig,
-  ContextConfig,
-} from './context.js';
-import type {
   AutonomyConfig,
   ChronicleConfig,
   IndexingConfig,
@@ -12,6 +7,11 @@ import type {
   SessionLoggingConfig,
   SyncConfig,
 } from './autonomy.js';
+import type {
+  AdaptiveConcurrencyConfig,
+  CircuitBreakerRuntimeConfig,
+  ContextConfig,
+} from './context.js';
 import type {
   FeaturesConfig,
   LogConfig,
@@ -28,8 +28,8 @@ import type {
   SystemPromptConfig,
 } from './runtime.js';
 import type { BrainConfig, FleetConfig, SkillsConfig } from './skills-fleet-brain.js';
-import type { ThemePresetId } from './ui.js';
 import type { ToolsConfig } from './tools.js';
+import type { ThemePresetId } from './ui.js';
 
 export interface GitBehaviorConfig {
   /**
@@ -197,6 +197,11 @@ export interface Config {
    * compiled-in default is exposed as `MAX_LAST_RESORT_CANDIDATES` (12).
    */
   fallbackMaxLastResortCandidates?: number | undefined;
+  /**
+   * Seconds the UI modal counts down before automatically switching to the
+   * next fallback candidate model. Default: 7 seconds. Set via `/fallback gate <seconds>`.
+   */
+  fallbackGateSeconds?: number | undefined;
   /**
    * Lifecycle command/HTTP hooks, keyed by event. Commands receive HookInput
    * JSON on stdin; HTTP hooks receive the same object as a POST body. A typed

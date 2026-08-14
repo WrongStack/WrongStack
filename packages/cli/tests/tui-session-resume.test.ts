@@ -292,6 +292,7 @@ describe('TUI session resume ownership', () => {
     // Writer + messages restored to the pre-swap values.
     expect(h.context.session).toBe(h.oldWriter);
     expect(h.context.messages).toEqual(h.oldMessages);
+    expect(h.oldWriter.close).not.toHaveBeenCalled();
 
     // Identity rolled back to the previous session: claim first
     // (resume path), then rollback (post-swap arm of the outer catch).

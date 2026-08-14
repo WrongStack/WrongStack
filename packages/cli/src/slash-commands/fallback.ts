@@ -1,12 +1,14 @@
 import * as fs from 'node:fs/promises';
 import {
+  diagnoseFallbackConfig,
   normalizeModelRef,
   parseModelRef,
   runtimeFallbackChain,
+  simulateFallbackFailover,
   smartDefaultFallbackChain,
 } from '@wrongstack/core/agent';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
-import { ConfigError, type SlashCommand } from '@wrongstack/core/types';
+import { ConfigError, type ProviderErrorKind, type SlashCommand } from '@wrongstack/core/types';
 import { atomicWrite, color, toErrorMessage } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import type { SlashCommandContext } from './command-context.js';
@@ -166,6 +168,9 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
     '  /fallback fav add <provider/model>          Add a favorite model',
     '  /fallback fav remove <n|ref>     Remove a favorite model',
     '  /fallback fav only on|off        Restrict smart defaults to favorites',
+    '  /fallback gate [seconds|off]     Configure modal countdown (e.g. 5, off=immediate)',
+    '  /fallback doctor                 Diagnose chain health, single-provider risks, and credentials',
+    '  /fallback test [errorKind]       Simulate a failover step-by-step (e.g. rate_limit, quota_exhausted)',
     '',
     'When the explicit chain is empty and auto is on, a chain is derived from',
     'your other keyed providers/models so 429s recover without any setup.',
@@ -238,7 +243,10 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
     // rendering only the explicit list left the view describing something the
     // runtime does not do.
     const runtime: string[] = runtimeFallbackChain(config);
-    lines.push('', `  ${color.bold('effective order')} ${color.dim('(what will actually be tried)')}`);
+    lines.push(
+      '',
+      `  ${color.bold('effective order')} ${color.dim('(what will actually be tried)')}`,
+    );
     if (runtime.length === 0) {
       lines.push(
         `    ${color.red('empty')} ${color.dim('— a failure on the leader has nowhere to go')}`,
@@ -249,10 +257,17 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
       });
     }
 
+    const gateSec = config.fallbackGateSeconds ?? 7;
+    const gateLabel =
+      config.fallbackGateSeconds === 0
+        ? color.dim('off (immediate auto-switch)')
+        : color.green(`${gateSec}s`);
+
     lines.push(
       '',
       `  ${color.bold('auto')}  ${auto ? color.green('on') : color.dim('off')}  ${color.dim('/fallback auto on|off')}`,
       `  ${color.bold('favorites only')}  ${config.favoriteModelsOnly ? color.green('on') : color.dim('off')}  ${color.dim('/fallback fav only on|off')}`,
+      `  ${color.bold('gate countdown')}  ${gateLabel}  ${color.dim('/fallback gate <seconds|off>')}`,
       `  ${color.bold('last-resort cap')}  ${capLabel}  ${color.dim('(max auto-discovered models appended, 0=disabled)')}`,
       '',
       `  ${color.bold('profiles')} ${Object.keys(profiles).length ? '' : color.dim('(none)')}`,
@@ -307,6 +322,115 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
       const explicit = [...(config.fallbackModels ?? [])];
 
       try {
+        if (sub === 'doctor' || sub === 'check' || sub === 'diag') {
+          const report = diagnoseFallbackConfig(config);
+          const badge =
+            report.status === 'healthy'
+              ? color.green('[HEALTHY]')
+              : report.status === 'warning'
+                ? color.amber('[WARNING]')
+                : color.red('[CRITICAL]');
+
+          const lines = [
+            `${color.bold('WrongStack')} ${color.dim('— Fallback Doctor')} ${badge}`,
+            '',
+            `  ${color.bold('primary')}            ${color.cyan(`${report.primary.providerId}/${report.primary.model}`)}`,
+            `  ${color.bold('active profile')}     ${report.activeProfile ? color.amber(report.activeProfile) : color.dim('(none)')}`,
+            `  ${color.bold('effective depth')}   ${color.cyan(String(report.effectiveOrder.length))} candidate(s)`,
+            `  ${color.bold('cross-provider')}     ${report.crossProviderCount > 0 ? color.green(`${report.crossProviderCount} alternative(s)`) : color.amber('0 (single provider)')}`,
+            `  ${color.bold('providers in chain')} ${report.uniqueProviders.length > 0 ? report.uniqueProviders.join(', ') : color.dim('(none)')}`,
+            '',
+          ];
+
+          if (report.warnings.length === 0) {
+            lines.push(
+              `  ${color.green('✓')} All fallback chains and configured providers are healthy.`,
+              `  ${color.dim('Cross-provider failover is active and protected against sibling quarantine.')}`,
+            );
+          } else {
+            lines.push(`  ${color.bold('Findings')} (${report.warnings.length}):`);
+            for (const w of report.warnings) {
+              const tag =
+                w.severity === 'critical'
+                  ? color.red('✖ CRITICAL')
+                  : w.severity === 'warning'
+                    ? color.amber('⚠ WARNING')
+                    : color.cyan('ℹ INFO');
+              lines.push(`    ${tag}${w.target ? ` [${color.cyan(w.target)}]` : ''}: ${w.message}`);
+              if (w.recommendation) {
+                lines.push(`      ${color.dim(`↳ Recommendation: ${w.recommendation}`)}`);
+              }
+            }
+          }
+
+          lines.push(
+            '',
+            color.dim('  Run /fallback test to simulate a live failover step-by-step.'),
+          );
+          return { message: lines.join('\n') };
+        }
+
+        if (sub === 'test' || sub === 'simulate') {
+          const validErrorKinds: readonly ProviderErrorKind[] = [
+            'rate_limit',
+            'quota_exhausted',
+            'overloaded',
+            'server',
+            'timeout',
+            'network',
+            'stream_hang',
+            'auth',
+            'context_overflow',
+            'content_filter',
+            'invalid_request',
+          ];
+          const requestedKind = parts[1] ?? 'rate_limit';
+          if (!validErrorKinds.includes(requestedKind as ProviderErrorKind)) {
+            return {
+              message: `${color.amber('Error')}: unknown error kind '${color.cyan(requestedKind)}'. Valid kinds: ${validErrorKinds.map((k) => color.cyan(k)).join(', ')}`,
+            };
+          }
+          const errorKind = requestedKind as ProviderErrorKind;
+          const result = simulateFallbackFailover(config, { errorKind });
+
+          const lines = [
+            `${color.bold('WrongStack')} ${color.dim('— Fallback Simulation')} [${color.cyan(result.triggeringError)}]`,
+            '',
+            `  ${color.bold('trigger')}       ${color.cyan(`${result.primary.providerId}/${result.primary.model}`)} failed with ${color.amber(result.triggeringError)}`,
+            `  ${color.bold('eligible')}      ${result.isFallbackEligible ? color.green('yes') : color.red('no (request-shaped error, no fallback)')}`,
+            '',
+          ];
+
+          if (!result.isFallbackEligible) {
+            lines.push(`  ${color.amber('Result')}: ${result.summary}`);
+            return { message: lines.join('\n') };
+          }
+
+          lines.push(`  ${color.bold('Rotation sequence')}:`);
+          if (result.steps.length === 0) {
+            lines.push(`    ${color.red('No candidate models available in chain.')}`);
+          } else {
+            for (const s of result.steps) {
+              const targetStr = `${s.providerId}/${s.model}`;
+              if (s.skipped) {
+                lines.push(
+                  `    ${color.dim(`${s.index}.`)} ${color.dim(targetStr)}  ${color.amber(`[SKIPPED: ${s.reason}]`)}`,
+                );
+              } else {
+                lines.push(
+                  `    ${color.green(`${s.index}.`)} ${color.cyan(targetStr)}  ${color.green('✓ [DISPATCH TARGET]')} ${s.providerSwitched ? color.dim('(cross-provider switch)') : color.dim('(same provider)')}`,
+                );
+              }
+            }
+          }
+
+          lines.push(
+            '',
+            `  ${color.bold('Outcome')}: ${result.finalTarget ? color.green(result.summary) : color.red(result.summary)}`,
+          );
+          return { message: lines.join('\n') };
+        }
+
         if (sub === 'bridge') {
           const action = (parts[1] ?? '').toLowerCase();
           if (action === 'clear' || action === 'off') {
@@ -428,6 +552,46 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
           };
         }
 
+        if (sub === 'gate') {
+          const val = (parts[1] ?? '').toLowerCase();
+          if (!val) {
+            const currentSec = config.fallbackGateSeconds ?? 7;
+            const currentLabel =
+              config.fallbackGateSeconds === 0
+                ? color.dim('off (immediate auto-switch)')
+                : color.green(`${currentSec}s`);
+            return {
+              message:
+                `${color.bold('Fallback Gate Countdown')}: ${currentLabel}\n` +
+                `${color.dim('Usage: /fallback gate <seconds> | /fallback gate off')}`,
+            };
+          }
+          if (val === 'off' || val === '0' || val === 'disable' || val === 'disabled') {
+            const decrypted = await patchGlobalConfig(globalConfigPath, (cfg) => {
+              cfg.fallbackGateSeconds = 0;
+            });
+            opts.configStore.update({
+              fallbackGateSeconds: decrypted.fallbackGateSeconds as number,
+            });
+            return {
+              message: `${color.green('✓')} fallback gate countdown disabled ${color.dim('(immediate auto-switch)')}`,
+            };
+          }
+          const num = Number.parseInt(val, 10);
+          if (!Number.isFinite(num) || num < 1 || num > 60) {
+            return {
+              message: `${color.amber('Usage:')} /fallback gate <1-60 seconds> | off`,
+            };
+          }
+          const decrypted = await patchGlobalConfig(globalConfigPath, (cfg) => {
+            cfg.fallbackGateSeconds = num;
+          });
+          opts.configStore.update({ fallbackGateSeconds: decrypted.fallbackGateSeconds as number });
+          return {
+            message: `${color.green('✓')} fallback gate countdown set to ${color.green(`${num}s`)}`,
+          };
+        }
+
         if (sub === 'profile') {
           const action = (parts[1] ?? '').toLowerCase();
           const name = parts[2];
@@ -522,7 +686,9 @@ export function buildFallbackCommand(opts: SlashCommandContext): SlashCommand {
             return {
               message:
                 `${color.green('✓')} removed profile ${color.amber(name)}` +
-                (wasSelected ? color.dim(' (it was the selected profile — selection cleared)') : ''),
+                (wasSelected
+                  ? color.dim(' (it was the selected profile — selection cleared)')
+                  : ''),
             };
           }
         }

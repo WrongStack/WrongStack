@@ -1,5 +1,14 @@
-import type { DistributiveOmit, Message, SessionEvent, SessionMarker } from '@wrongstack/core/types';
-import { SESSION_MARKER_EVENT_TYPES, sessionEventToMarker } from '@wrongstack/core/types';
+import type {
+  DistributiveOmit,
+  Message,
+  SessionEvent,
+  SessionMarker,
+} from '@wrongstack/core/types';
+import {
+  isSystemInjectedMessage,
+  SESSION_MARKER_EVENT_TYPES,
+  sessionEventToMarker,
+} from '@wrongstack/core/types';
 import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import type { HistoryEntry } from './types.js';
 
@@ -129,13 +138,9 @@ export function replaySessionMessages(
   // `final` marks the last assistant message of a turn — the only kind that
   // may surface a `<nextsteps>` panel on replay. A message carrying a tool_use
   // block stopped for a tool call, so its prose is mid-turn.
-  const appendText = (
-    role: Message['role'],
-    text: string,
-    ts: string,
-    final: boolean,
-  ): void => {
+  const appendText = (role: Message['role'], text: string, ts: string, final: boolean): void => {
     if (!text.trim()) return;
+    if (isSystemInjectedMessage(text)) return;
     push(
       ts,
       role === 'assistant'

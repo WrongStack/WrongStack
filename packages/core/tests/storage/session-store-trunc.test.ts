@@ -21,13 +21,34 @@ describe('truncateToCheckpoint edge cases', () => {
     const id = 'malformed-before';
     const malformedLine = 'NOT_VALID_JSON {{{';
     const goodLines = [
-      JSON.stringify({ type: 'session_start', ts: '2024-01-01T00:00:00Z', id, model: 'gpt4', provider: 'openai' }),
-      JSON.stringify({ type: 'user_input', ts: '2024-01-01T00:00:01Z', content: 'first prompt', promptIndex: 0 }),
-      JSON.stringify({ type: 'checkpoint', ts: '2024-01-01T00:00:02Z', promptIndex: 0 }),
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2024-01-01T00:00:00Z',
+        id,
+        model: 'gpt4',
+        provider: 'openai',
+      }),
       malformedLine, // malformed before target
-      JSON.stringify({ type: 'user_input', ts: '2024-01-01T00:00:03Z', content: 'second prompt', promptIndex: 1 }),
+      JSON.stringify({
+        type: 'user_input',
+        ts: '2024-01-01T00:00:01Z',
+        content: 'first prompt',
+        promptIndex: 0,
+      }),
+      JSON.stringify({ type: 'checkpoint', ts: '2024-01-01T00:00:02Z', promptIndex: 0 }),
+      JSON.stringify({
+        type: 'user_input',
+        ts: '2024-01-01T00:00:03Z',
+        content: 'second prompt',
+        promptIndex: 1,
+      }),
       JSON.stringify({ type: 'checkpoint', ts: '2024-01-01T00:00:04Z', promptIndex: 1 }),
-      JSON.stringify({ type: 'user_input', ts: '2024-01-01T00:00:05Z', content: 'third prompt', promptIndex: 2 }),
+      JSON.stringify({
+        type: 'user_input',
+        ts: '2024-01-01T00:00:05Z',
+        content: 'third prompt',
+        promptIndex: 2,
+      }),
     ];
     const fileContent = goodLines.join('\n') + '\n';
     await fs.writeFile(path.join(tmp, `${id}.jsonl`), fileContent);
@@ -36,13 +57,14 @@ describe('truncateToCheckpoint edge cases', () => {
     const removed = await resumed.writer.truncateToCheckpoint(0);
     await resumed.writer.close();
 
+    expect(removed).toBe(3);
     const raw = await fs.readFile(path.join(tmp, `${id}.jsonl`), 'utf8');
     const lines = raw.split('\n').filter(Boolean);
-    // DEBUG
-    console.log('removedCount:', removed);
-    console.log('remaining lines:', lines.length, JSON.stringify(lines));
     // Malformed line should be kept (it was before the target checkpoint at promptIndex 0)
     expect(lines.some((l) => l.includes('NOT_VALID_JSON'))).toBe(true);
+    // Events after promptIndex 0 should be removed
+    expect(lines.some((l) => l.includes('second prompt'))).toBe(false);
+    expect(lines.some((l) => l.includes('third prompt'))).toBe(false);
   });
 
   it('finds a checkpoint whose JSONL record straddles the scan chunk boundary', async () => {
@@ -90,16 +112,17 @@ describe('truncateToCheckpoint edge cases', () => {
     });
     const fileContent = `${sessionStart}\n${paddingEvent}\n${targetCheckpoint}\n${laterEvent}\n${laterCheckpoint}\n`;
     expect(Buffer.byteLength(`${sessionStart}\n${paddingEvent}\n`, 'utf8')).toBe(checkpointStart);
-    expect(Buffer.byteLength(targetCheckpoint, 'utf8')).toBeGreaterThan(chunkSize - checkpointStart);
+    expect(Buffer.byteLength(targetCheckpoint, 'utf8')).toBeGreaterThan(
+      chunkSize - checkpointStart,
+    );
     await fs.writeFile(path.join(tmp, `${id}.jsonl`), fileContent);
 
     const resumed = await store.resume(id);
     const removed = await resumed.writer.truncateToCheckpoint(0);
     await resumed.writer.close();
 
-    // truncateToCheckpoint flushes lazy initialization before scanning, so the
-    // later event, later checkpoint, and session_resumed marker are removed.
-    expect(removed).toBe(3);
+    // The later event and later checkpoint after promptIndex 0 are removed.
+    expect(removed).toBe(2);
     const raw = await fs.readFile(path.join(tmp, `${id}.jsonl`), 'utf8');
     const events = raw
       .split('\n')

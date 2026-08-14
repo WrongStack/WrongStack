@@ -71,14 +71,20 @@ afterEach(async () => {
 
 describe('extractFindingAnchor', () => {
   it('prefers a camelCase code identifier over prose', () => {
-    expect(extractFindingAnchor('Null dereference', 'getUser returns null when token missing')).toBe(
-      'getUser',
-    );
+    expect(
+      extractFindingAnchor('Null dereference', 'getUser returns null when token missing'),
+    ).toBe('getUser');
   });
 
   it('prefers snake_case identifiers', () => {
     expect(extractFindingAnchor('Config issue', 'parse_config_file never validates size')).toBe(
       'parse_config_file',
+    );
+  });
+
+  it('extracts backticked code tokens with high priority', () => {
+    expect(extractFindingAnchor('Missing validation', 'check `userToken` before proceeding')).toBe(
+      'userToken',
     );
   });
 

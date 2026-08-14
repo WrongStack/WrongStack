@@ -1,4 +1,5 @@
 import type { SessionMarker } from '@wrongstack/core/types';
+import { isSystemInjectedMessage } from '@wrongstack/core/types/session-markers';
 import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import { toast } from '@/components/Toaster';
 import { isMobileViewport } from '@/hooks/useViewport';
@@ -99,6 +100,7 @@ function hydrateReplayMessages(
 
   const pushText = (role: 'user' | 'assistant' | 'system', content: string, timestamp: number) => {
     if (!content) return;
+    if (isSystemInjectedMessage(content)) return;
     messages.push({ id: replayMessageId(messages.length), role, content, timestamp });
   };
   const pushMarker = (marker: SessionMarker) => {
@@ -880,7 +882,11 @@ export function handleDelegateCompleted(msg: WSServerMessage) {
     kind: 'task_completed',
     subagentId,
     name: p.target,
-    status: p.ok ? 'success' : p.status === 'timeout' || p.status === 'host_timeout' ? 'timeout' : 'failed',
+    status: p.ok
+      ? 'success'
+      : p.status === 'timeout' || p.status === 'host_timeout'
+        ? 'timeout'
+        : 'failed',
     iterations: p.iterations,
     toolCalls: p.toolCalls,
     finalText: p.summary,

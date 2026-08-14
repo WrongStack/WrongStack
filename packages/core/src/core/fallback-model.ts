@@ -420,11 +420,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         // repeatedly sending a request the primary cannot accept.
         const currentTokens = ctx.lastRequestTokens;
         const maxContext = maxContextOf(primaryProvider);
-        if (
-          maxContext > 0 &&
-          typeof currentTokens === 'number' &&
-          currentTokens > maxContext
-        ) {
+        if (maxContext > 0 && typeof currentTokens === 'number' && currentTokens > maxContext) {
           deps.events.emit('provider.primary_probe_context_blocked', {
             sessionId: resolveEventSessionId(ctx),
             providerId: primary.providerId,
@@ -580,7 +576,8 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         // pick would be silently ignored — and the last-working-fallback
         // re-order must not front-load one either.
         usableChain = usableChain.filter(
-          (e) => evaluateModelCalendar(cfg.modelAvailabilitySchedule, e.providerId, e.model).allowed,
+          (e) =>
+            evaluateModelCalendar(cfg.modelAvailabilitySchedule, e.providerId, e.model).allowed,
         );
 
         // ── Last-working-fallback prioritization ──────────────────────
@@ -652,9 +649,10 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         // the modal to the right gate when parallel requests fail on the
         // same primary.
         let gateRequestId: string | undefined;
-        if (deps.fallbackGate && usableChain.length > 0) {
+        const configuredGateSeconds = cfg.fallbackGateSeconds ?? deps.fallbackGateSeconds;
+        if (configuredGateSeconds !== 0 && deps.fallbackGate && usableChain.length > 0) {
           gateRequestId = randomUUID();
-          const autoSwitchSeconds = Math.max(1, deps.fallbackGateSeconds ?? 7);
+          const autoSwitchSeconds = Math.max(1, configuredGateSeconds ?? 7);
           const gateCandidates = usableChain.map((e) => ({
             providerId: e.providerId,
             model: e.model,

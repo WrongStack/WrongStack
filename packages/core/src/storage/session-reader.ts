@@ -390,7 +390,8 @@ function renderMarkdown(meta: SessionMetadata, events: SessionEvent[]): string {
         lines.push('');
         break;
       }
-      case 'tool_use': {
+      case 'tool_use':
+      case 'tool_call_start': {
         lines.push(`### Tool call: \`${e.name}\``);
         lines.push('');
         lines.push('```json');
@@ -445,6 +446,7 @@ function renderPlainText(meta: SessionMetadata, events: SessionEvent[]): string 
         lines.push('');
         break;
       case 'tool_use':
+      case 'tool_call_start':
         lines.push(`[${e.ts}] TOOL_USE ${e.name} ${JSON.stringify(e.input)}`);
         break;
       case 'tool_result':

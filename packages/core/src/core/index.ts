@@ -38,6 +38,14 @@ export {
   wrapAsState,
 } from './conversation-state.js';
 export {
+  diagnoseFallbackConfig,
+  type FallbackDiagnosticReport,
+  type FallbackDiagnosticWarning,
+  type FallbackSimulationResult,
+  type FallbackSimulationStep,
+  simulateFallbackFailover,
+} from './fallback-doctor.js';
+export {
   createFallbackModelExtension,
   effectiveFallbackChain,
   type FallbackGateFn,

@@ -1,9 +1,14 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { bannerGradientColor, brandMarkPinkRow, WORDMARK_LINES } from '../src/components/history/banner.js';
+import {
+  bannerGradientColor,
+  brandMarkPinkRow,
+  WORDMARK_LINES,
+} from '../src/components/history/banner.js';
 import { Banner, shortenPath } from '../src/components/history.js';
 import { displayWidth } from '../src/terminal-width.js';
+import { theme } from '../src/theme.js';
 
 // ── ANSI / OSC 8 stripping ──
 // Ink writes raw escape sequences to stdout — OSC 8 hyperlink framing and
@@ -332,35 +337,42 @@ describe('<Banner />', () => {
     expect(frame).toContain('WrongStack');
   });
 
-  it.each([64, 65, 66])('stays inside the viewport around the layout breakpoint at %i columns', (termWidth) => {
-    const { lastFrame, unmount } = render(
-      React.createElement(Banner, {
-        termWidth,
-        entry: {
-          id: 0,
-          kind: 'banner',
-          version: '1.2.3',
-          provider: 'anthropic',
-          model: 'claude-opus-test',
-          cwd: '/workspace/wrongstack',
-        },
-      }),
-    );
+  it.each([64, 65, 66])(
+    'stays inside the viewport around the layout breakpoint at %i columns',
+    (termWidth) => {
+      const { lastFrame, unmount } = render(
+        React.createElement(Banner, {
+          termWidth,
+          entry: {
+            id: 0,
+            kind: 'banner',
+            version: '1.2.3',
+            provider: 'anthropic',
+            model: 'claude-opus-test',
+            cwd: '/workspace/wrongstack',
+          },
+        }),
+      );
 
-    const frame = lastFrame() ?? '';
-    unmount();
+      const frame = lastFrame() ?? '';
+      unmount();
 
-    expect(frame.split('\n').every((line) => visibleLength(line) <= termWidth)).toBe(true);
-    expect(frame.includes(WORDMARK_LINES[0] ?? '')).toBe(termWidth >= 65);
-  });
+      expect(frame.split('\n').every((line) => visibleLength(line) <= termWidth)).toBe(true);
+      expect(frame.includes(WORDMARK_LINES[0] ?? '')).toBe(termWidth >= 65);
+    },
+  );
 });
 
 describe('banner brand gradient', () => {
-  it('moves smoothly between the exact SVG endpoint colours', () => {
+  it('moves smoothly between the active theme brand endpoints', () => {
     const colors = Array.from({ length: 9 }, (_, index) => bannerGradientColor(index, 9));
 
-    expect(colors[0]?.toUpperCase()).toBe('#FD9F02');
-    expect(colors.at(-1)?.toUpperCase()).toBe('#FE2E5F');
+    // Endpoints follow the active theme rather than the literal SVG hex —
+    // Catppuccin peach (#FAB387) → Catppuccin pink (#F5C2E7) on the default
+    // preset. Re-running after a `/theme` swap will produce different
+    // endpoints; that's expected.
+    expect(colors[0]?.toUpperCase()).toBe(theme.brandPrimary.toUpperCase());
+    expect(colors.at(-1)?.toUpperCase()).toBe(theme.brandAccent.toUpperCase());
     expect(new Set(colors)).toHaveLength(colors.length);
   });
 });

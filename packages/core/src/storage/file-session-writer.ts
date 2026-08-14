@@ -83,9 +83,7 @@ export class FileSessionWriter implements SessionWriter {
     this._onAppendBatch = cb;
   }
   private readonly onCloseCb?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
-  private readonly resolveNameCb?:
-    | (() => Promise<Pick<SessionSummary, 'name'> | null>)
-    | undefined;
+  private readonly resolveNameCb?: (() => Promise<Pick<SessionSummary, 'name'> | null>) | undefined;
   /** Implements SessionWriter.traceId — propagated from ContextInit.traceId. */
   traceId: string | undefined;
 
@@ -238,9 +236,22 @@ export class FileSessionWriter implements SessionWriter {
     // Fire the onAppend callback so synchronous observations reach the HQ
     // bridge without a disk read-back. The scrubbed event is pushed to the
     // JSONL buffer so secrets never persist at rest, matching append().
-    try { this._onAppend?.(appendEvent); } catch { /* best-effort */ }
-    this.pushWriteBuffer(appendEvent);
-    if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
+    try {
+      this._onAppend?.(appendEvent);
+    } catch {
+      /* best-effort */
+    }
+    if (!this.pushWriteBuffer(appendEvent)) {
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      void this.flushBuffer()
+        .catch(() => undefined)
+        .then(() => {
+          this.pushWriteBuffer(appendEvent);
+        });
+    } else if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
         this.flushTimer = null;
@@ -439,8 +450,19 @@ export class FileSessionWriter implements SessionWriter {
     // Fire the onAppend callback with the scrubbed event so the HQ bridge
     // can stream it without reading it back from disk. Synchronous and
     // best-effort — the callback must not throw.
-    try { this._onAppend?.(scrubbed); } catch { /* best-effort */ }
-    this.pushWriteBuffer(scrubbed);
+    try {
+      this._onAppend?.(scrubbed);
+    } catch {
+      /* best-effort */
+    }
+    if (!this.pushWriteBuffer(scrubbed)) {
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      await this.flushBuffer().catch(() => undefined);
+      this.pushWriteBuffer(scrubbed);
+    }
 
     if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
       // Buffer full — flush immediately. Cancel any pending timer so we
@@ -468,13 +490,28 @@ export class FileSessionWriter implements SessionWriter {
       this.observeForSummary(scrubbed);
       // Fire the per-event callback so subscribers to onAppend (rather than
       // onAppendBatch) also receive batch events individually.
-      try { this._onAppend?.(scrubbed); } catch { /* best-effort */ }
-      this.pushWriteBuffer(scrubbed);
+      try {
+        this._onAppend?.(scrubbed);
+      } catch {
+        /* best-effort */
+      }
+      if (!this.pushWriteBuffer(scrubbed)) {
+        if (this.flushTimer) {
+          clearTimeout(this.flushTimer);
+          this.flushTimer = null;
+        }
+        await this.flushBuffer().catch(() => undefined);
+        this.pushWriteBuffer(scrubbed);
+      }
       scrubbedBatch.push(scrubbed);
     }
     // Fire the batch callback with all scrubbed events so the HQ bridge
     // can stream them without reading them back from disk.
-    try { this._onAppendBatch?.(scrubbedBatch); } catch { /* best-effort */ };
+    try {
+      this._onAppendBatch?.(scrubbedBatch);
+    } catch {
+      /* best-effort */
+    }
     if (this.writeBuffer.length >= FileSessionWriter.FLUSH_SIZE) {
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
@@ -822,7 +859,11 @@ export class FileSessionWriter implements SessionWriter {
         ? this.lastActivityAt
         : endedAt;
     const previousName = this.summary.name;
-    const { lastUserMessage: _lastUserMessage, name: _name, ...summaryWithoutDisplay } = this.summary;
+    const {
+      lastUserMessage: _lastUserMessage,
+      name: _name,
+      ...summaryWithoutDisplay
+    } = this.summary;
     this.summary = {
       ...summaryWithoutDisplay,
       ...(previousName !== undefined ? { name: previousName } : {}),
@@ -846,9 +887,7 @@ export class FileSessionWriter implements SessionWriter {
     let idxOutcome: 'success' | 'failure' = 'success';
     let idxError: string | undefined;
     const persistSummary = async (): Promise<void> => {
-      const resolvedName = this.resolveNameCb
-        ? await this.resolveNameCb().catch(() => null)
-        : null;
+      const resolvedName = this.resolveNameCb ? await this.resolveNameCb().catch(() => null) : null;
       if (resolvedName !== null) {
         const { name: _drop, ...summaryWithoutName } = this.summary;
         this.summary = {

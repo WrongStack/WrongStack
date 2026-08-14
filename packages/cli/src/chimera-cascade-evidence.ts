@@ -64,12 +64,26 @@ export interface CascadeEvidenceVerification {
 // Extraction
 // ---------------------------------------------------------------------------
 
-const JSON_BLOCK_RE = /```json\s*([\s\S]*?)```/gi;
+const JSON_BLOCK_RE = /```(?:json)?\s*([\s\S]*?)```/gi;
+
+function tryParseJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    try {
+      // Strip trailing commas before closing braces/brackets
+      const cleaned = raw.replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(cleaned);
+    } catch {
+      return null;
+    }
+  }
+}
 
 /**
  * Extract a `verification_evidence` block from a cascade agent's response.
  *
- * Scans every fenced ```json block in the text and returns the first that
+ * Scans every fenced code block in the text and returns the first that
  * parses as an object with a `verification_evidence` member whose value is an
  * object of `{command, exitCode}` checks. Any malformed JSON fence is ignored
  * (the agent may have used a fence for something else); when the evidence is
@@ -83,12 +97,8 @@ export function extractCascadeEvidence(text: string | null | undefined): Cascade
   for (const match of text.matchAll(JSON_BLOCK_RE)) {
     const body = match[1]?.trim();
     if (!body) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(body);
-    } catch {
-      continue; // not JSON — keep scanning
-    }
+    const parsed = tryParseJson(body);
+    if (!parsed) continue;
     const evidence = parseEvidenceObject(parsed);
     if (evidence) return evidence;
   }

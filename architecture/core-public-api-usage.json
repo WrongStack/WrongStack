@@ -149,9 +149,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 901,
+      "files": 902,
       "typeOnly": 833,
-      "runtimeOrMixed": 228
+      "runtimeOrMixed": 229
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -159,9 +159,9 @@
       "runtimeOrMixed": 0
     },
     "@wrongstack/core/types/session-markers": {
-      "files": 1,
+      "files": 2,
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     "@wrongstack/core/types/spec.js": {
       "files": 6,
@@ -12117,6 +12117,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/simpleui/src/lib/chat-model.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/techstack/src/research/llm.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13888,6 +13894,12 @@
     {
       "specifier": "@wrongstack/core/types/session-markers",
       "file": "packages/webui-server/src/protocol/replay-payload.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types/session-markers",
+      "file": "packages/webui/src/hooks/ws-handlers/session-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

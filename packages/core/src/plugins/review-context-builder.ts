@@ -14,7 +14,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 const GIT_TIMEOUT_MS = 15_000;
-const MAX_DIFF_BYTES = 50_000; // cap individual file diffs to ~50KB
+const MAX_DIFF_BYTES = 100_000; // cap individual file diffs to ~100KB
 const MAX_RECENT_COMMITS = 10;
 
 async function runGit(
@@ -55,7 +55,7 @@ async function getFileDiff(cwd: string, filePath: string): Promise<string | unde
   const r = await runGit(['diff', 'HEAD', '--', filePath], cwd);
   if (r.code !== 0 || !r.stdout.trim()) return undefined;
   return r.stdout.length > MAX_DIFF_BYTES
-    ? `${r.stdout.slice(0, MAX_DIFF_BYTES)}\n... (diff truncated at ${MAX_DIFF_BYTES} bytes)`
+    ? `${r.stdout.slice(0, MAX_DIFF_BYTES)}\n... (diff truncated at ${MAX_DIFF_BYTES} bytes — please use the read tool to view full file content)`
     : r.stdout;
 }
 
@@ -320,9 +320,7 @@ async function findFileProvenance(
       },
     });
     const rows = result.data as ChronicleFileLineageRow[];
-    const byPath = new Map(
-      rows.map((row) => [normalizeReviewPath(row.path), row] as const),
-    );
+    const byPath = new Map(rows.map((row) => [normalizeReviewPath(row.path), row] as const));
     for (const filePath of uniquePaths) {
       const row = byPath.get(normalizeReviewPath(filePath));
       if (!row) continue;
@@ -345,7 +343,5 @@ function normalizeReviewPath(filePath: string): string {
 }
 
 function lineageEventType(row: ChronicleFileLineageRow): string {
-  return row.source === 'external'
-    ? `file.external.${row.operation || 'modified'}`
-    : 'file.event';
+  return row.source === 'external' ? `file.external.${row.operation || 'modified'}` : 'file.event';
 }

@@ -57,17 +57,19 @@ export async function forkSession(
     .update(parentPrefix.map((event) => JSON.stringify(event)).join('\n') + '\n', 'utf8')
     .digest('hex');
   const inherited = parentPrefix.filter(inheritsIntoFork);
-  // Identity comes from the raw stream for the same reason the prefix does:
-  // this must describe the parent as persisted, not as reconstructed.
-  const start = parentEvents.find(
-    (event): event is Extract<SessionEvent, { type: 'session_start' }> =>
-      event.type === 'session_start',
-  );
+  // Identity comes from the raw stream: prefer the most recent active
+  // model/provider (e.g. after a resume/switch) or fall back to session_start.
+  const activeIdentity = [...parentEvents]
+    .reverse()
+    .find(
+      (event): event is Extract<SessionEvent, { type: 'session_start' | 'session_resumed' }> =>
+        event.type === 'session_start' || event.type === 'session_resumed',
+    );
   const writer = await host.create({
     id: '',
     title: '',
-    model: start?.model,
-    provider: start?.provider,
+    model: activeIdentity?.model,
+    provider: activeIdentity?.provider,
   });
 
   try {

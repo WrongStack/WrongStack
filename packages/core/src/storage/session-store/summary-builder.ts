@@ -2,8 +2,8 @@ import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionEvent, SessionSummary } from '../../types/session.js';
-import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 import { sessionContentPreview, userInputTitle } from '../session-helpers.js';
+import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 
 export async function summarizeSessionFile(opts: {
   id: string;
@@ -68,7 +68,10 @@ async function summarizeSessionEventSequence(opts: {
     for await (const e of events) {
       lastEventType = e.type;
       const eventActivityMs = Date.parse(e.ts);
-      if (Number.isFinite(eventActivityMs) && (!Number.isFinite(lastActivityMs) || eventActivityMs > lastActivityMs)) {
+      if (
+        Number.isFinite(eventActivityMs) &&
+        (!Number.isFinite(lastActivityMs) || eventActivityMs > lastActivityMs)
+      ) {
         lastActivityAt = e.ts;
         lastActivityMs = eventActivityMs;
       }
@@ -79,6 +82,13 @@ async function summarizeSessionEventSequence(opts: {
           model = e.model ?? 'unknown';
           provider = e.provider ?? 'unknown';
         }
+      } else if (e.type === 'session_resumed') {
+        if (!sawStart) {
+          sawStart = true;
+          startedAt = e.ts;
+        }
+        if (e.model) model = e.model;
+        if (e.provider) provider = e.provider;
       } else if (e.type === 'session_end') {
         endedAt = e.ts;
       } else if (e.type === 'user_input') {
@@ -89,6 +99,16 @@ async function summarizeSessionEventSequence(opts: {
           if (Number.isFinite(userMessageMs)) lastUserMessageMs = userMessageMs;
         }
         messageCount++;
+      } else if (e.type === 'message_appended' && e.version === 1 && e.message) {
+        messageCount++;
+        if (e.message.role === 'user') {
+          if (title === '(empty session)') title = userInputTitle(e.message.content);
+          const userMessageMs = Date.parse(e.ts);
+          if (!Number.isFinite(userMessageMs) || userMessageMs >= lastUserMessageMs) {
+            lastUserMessage = sessionContentPreview(e.message.content);
+            if (Number.isFinite(userMessageMs)) lastUserMessageMs = userMessageMs;
+          }
+        }
       } else if (e.type === 'llm_response') {
         messageCount++;
         tokenIn += e.usage.input ?? 0;

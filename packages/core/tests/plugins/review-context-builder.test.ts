@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createBoard } from '@wrongstack/kanban';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { ResolvedChimeraConfig } from '../../src/plugins/chimera-plugin.js';
 import {
   buildReviewContext,
   parsePorcelainStatusZ,
 } from '../../src/plugins/review-context-builder.js';
-import type { ResolvedChimeraConfig } from '../../src/plugins/chimera-plugin.js';
-import { createBoard } from '@wrongstack/kanban';
 
 const MOCK_CONFIG: ResolvedChimeraConfig = {
   enabled: true,
@@ -29,7 +29,13 @@ function git(args: string[], cwd: string): void {
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
-    env: { ...process.env, GIT_AUTHOR_NAME: 'Test', GIT_AUTHOR_EMAIL: 'test@test.com', GIT_COMMITTER_NAME: 'Test', GIT_COMMITTER_EMAIL: 'test@test.com' },
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: 'Test',
+      GIT_AUTHOR_EMAIL: 'test@test.com',
+      GIT_COMMITTER_NAME: 'Test',
+      GIT_COMMITTER_EMAIL: 'test@test.com',
+    },
   });
 }
 
@@ -192,8 +198,8 @@ describe('buildReviewContext', () => {
   });
 
   it('truncates large diffs to prevent payload bloat', async () => {
-    // Create a file with a very large change
-    const largeContent = 'x'.repeat(100_000) + '\n';
+    // Create a file with a very large change (>100KB)
+    const largeContent = 'x'.repeat(200_000) + '\n';
     await fsp.writeFile(path.join(tmpDir, 'initial.txt'), largeContent);
     git(['add', 'initial.txt'], tmpDir);
 
@@ -205,8 +211,8 @@ describe('buildReviewContext', () => {
 
     const diff = result.files[0]!.diff;
     expect(diff).toBeDefined();
-    // Should be capped at ~50KB + truncation notice
-    expect(diff!.length).toBeLessThan(52_000);
+    // Should be capped at ~100KB + truncation notice
+    expect(diff!.length).toBeLessThan(102_000);
     expect(diff!).toContain('truncated');
   });
 
@@ -270,7 +276,12 @@ describe('buildReviewContext', () => {
           description: 'Handle raw Git paths',
           status: 'in_progress',
           successCriteria: [
-            { id: 'criterion-1', description: 'Unicode paths are preserved', type: 'manual', status: 'pending' },
+            {
+              id: 'criterion-1',
+              description: 'Unicode paths are preserved',
+              type: 'manual',
+              status: 'pending',
+            },
           ],
         },
       ],

@@ -34,27 +34,84 @@ function makeReader(summaries: FakeSummary[], eventsById: Record<string, Session
 describe('session-reader — extra coverage', () => {
   it('applies sessionQuery filters when searching across all sessions', async () => {
     const summaries: FakeSummary[] = [
-      { id: 'keep', title: 'Keep me', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 500 },
-      { id: 'old', title: 'old', startedAt: '2025-01-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 500 },
-      { id: 'future', title: 'future', startedAt: '2027-01-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 500 },
-      { id: 'wrongprov', title: 'wrongprov', startedAt: '2026-02-01T00:00:00Z', provider: 'openai', model: 'opus', tokenTotal: 500 },
-      { id: 'wrongmodel', title: 'wrongmodel', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'planner', tokenTotal: 500 },
-      { id: 'lowtok', title: 'lowtok', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 1 },
-      { id: 'wrongtitle', title: 'nope', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 500 },
+      {
+        id: 'keep',
+        title: 'Keep me',
+        startedAt: '2026-02-01T00:00:00Z',
+        provider: 'anthropic',
+        model: 'opus',
+        tokenTotal: 500,
+      },
+      {
+        id: 'old',
+        title: 'old',
+        startedAt: '2025-01-01T00:00:00Z',
+        provider: 'anthropic',
+        model: 'opus',
+        tokenTotal: 500,
+      },
+      {
+        id: 'future',
+        title: 'future',
+        startedAt: '2027-01-01T00:00:00Z',
+        provider: 'anthropic',
+        model: 'opus',
+        tokenTotal: 500,
+      },
+      {
+        id: 'wrongprov',
+        title: 'wrongprov',
+        startedAt: '2026-02-01T00:00:00Z',
+        provider: 'openai',
+        model: 'opus',
+        tokenTotal: 500,
+      },
+      {
+        id: 'wrongmodel',
+        title: 'wrongmodel',
+        startedAt: '2026-02-01T00:00:00Z',
+        provider: 'anthropic',
+        model: 'planner',
+        tokenTotal: 500,
+      },
+      {
+        id: 'lowtok',
+        title: 'lowtok',
+        startedAt: '2026-02-01T00:00:00Z',
+        provider: 'anthropic',
+        model: 'opus',
+        tokenTotal: 1,
+      },
+      {
+        id: 'wrongtitle',
+        title: 'nope',
+        startedAt: '2026-02-01T00:00:00Z',
+        provider: 'anthropic',
+        model: 'opus',
+        tokenTotal: 500,
+      },
     ];
-    const ev = (): SessionEvent[] => [{ type: 'user_input', ts, content: 'needle here' } as SessionEvent];
+    const ev = (): SessionEvent[] => [
+      { type: 'user_input', ts, content: 'needle here' } as SessionEvent,
+    ];
     const eventsById = Object.fromEntries(summaries.map((s) => [s.id, ev()]));
     const reader = makeReader(summaries, eventsById);
-    const hits = await reader.search(
-      { query: 'needle' },
-      undefined,
-      { since: '2026-01-01T00:00:00Z', until: '2026-12-31T00:00:00Z', provider: 'anthropic', model: 'opus', minTokens: 100, titleContains: 'keep' },
-    );
+    const hits = await reader.search({ query: 'needle' }, undefined, {
+      since: '2026-01-01T00:00:00Z',
+      until: '2026-12-31T00:00:00Z',
+      provider: 'anthropic',
+      model: 'opus',
+      minTokens: 100,
+      titleContains: 'keep',
+    });
     expect(hits.map((h) => h.sessionId)).toEqual(['keep']);
   });
 
   it('stops collecting hits once the limit is reached', async () => {
-    const events: SessionEvent[] = Array.from({ length: 10 }, () => ({ type: 'user_input', ts, content: 'match' }) as SessionEvent);
+    const events: SessionEvent[] = Array.from(
+      { length: 10 },
+      () => ({ type: 'user_input', ts, content: 'match' }) as SessionEvent,
+    );
     const reader = makeReader(
       [{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }],
       { s: events },
@@ -64,8 +121,13 @@ describe('session-reader — extra coverage', () => {
   });
 
   it('throws on an invalid search regex', async () => {
-    const reader = makeReader([{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }], { s: [] });
-    await expect(reader.search({ query: '(unclosed', regex: true }, 's')).rejects.toThrow(/Invalid search regex/);
+    const reader = makeReader(
+      [{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }],
+      { s: [] },
+    );
+    await expect(reader.search({ query: '(unclosed', regex: true }, 's')).rejects.toThrow(
+      /Invalid search regex/,
+    );
   });
 
   it('export honors includeTools:false and includeDiagnostics:false', async () => {
@@ -74,8 +136,15 @@ describe('session-reader — extra coverage', () => {
       { type: 'tool_use', ts, id: 'x', name: 'bash', input: { cmd: 'ls' } } as SessionEvent,
       { type: 'error', ts, phase: 'tool', message: 'boom' } as SessionEvent,
     ];
-    const reader = makeReader([{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }], { s: events });
-    const md = await reader.export('s', { format: 'json', includeTools: false, includeDiagnostics: false });
+    const reader = makeReader(
+      [{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }],
+      { s: events },
+    );
+    const md = await reader.export('s', {
+      format: 'json',
+      includeTools: false,
+      includeDiagnostics: false,
+    });
     expect(md).not.toContain('bash');
     expect(md).not.toContain('boom');
     expect(md).toContain('hello');
@@ -102,8 +171,36 @@ describe('session-reader — extra coverage', () => {
         usage: { input: 0, output: 0 },
       } as never as SessionEvent,
     ];
-    const reader = makeReader([{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }], { s: events });
+    const reader = makeReader(
+      [{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }],
+      { s: events },
+    );
     const hits = await reader.search({ query: 'NEEDLE', caseInsensitive: false, limit: 100 }, 's');
     expect(hits.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it('renders tool_call_start in markdown and text exports', async () => {
+    const events: SessionEvent[] = [
+      { type: 'user_input', ts, content: 'export test' } as SessionEvent,
+      {
+        type: 'tool_call_start',
+        ts,
+        id: 'call_1',
+        name: 'read_file',
+        input: { path: 'a.txt' },
+      } as SessionEvent,
+      { type: 'tool_result', ts, id: 'call_1', content: 'file content' } as SessionEvent,
+    ];
+    const reader = makeReader(
+      [{ id: 's', title: 't', startedAt: ts, provider: 'p', model: 'm', tokenTotal: 0 }],
+      { s: events },
+    );
+    const md = await reader.export('s', { format: 'markdown' });
+    expect(md).toContain('### Tool call: `read_file`');
+    expect(md).toContain('a.txt');
+
+    const txt = await reader.export('s', { format: 'text' });
+    expect(txt).toContain('TOOL_USE read_file');
+    expect(txt).toContain('a.txt');
   });
 });

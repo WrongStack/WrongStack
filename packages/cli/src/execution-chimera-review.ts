@@ -331,8 +331,7 @@ export function installChimeraReviewHandler({
           const winningAttempt = outcome.wonAt ? ladder[outcome.wonAt - 1] : undefined;
           const parsedReport: ParsedReviewReport = parseChimeraReviewReport(reviewText, {
             sessionId: reviewSessionId,
-            agentId:
-              p.fileProvenance?.find((entry) => entry.agentId)?.agentId ?? 'chimera-review',
+            agentId: p.fileProvenance?.find((entry) => entry.agentId)?.agentId ?? 'chimera-review',
             reviewerModel: winningAttempt ? attemptLabel(winningAttempt) : undefined,
             reviewType: reviewSource,
             reportId,
@@ -390,6 +389,11 @@ export function installChimeraReviewHandler({
             const inScopeCited = citedFindings.filter((finding) => {
               const citedKey = normalizeFileKeyForCitation(finding.location!.file, p.cwd);
               if (citedPaths.has(citedKey)) return true;
+              // Suffix match: e.g. "src/index.ts" resolves to "packages/cli/src/index.ts"
+              const suffixMatches = [...citedPaths].filter(
+                (cp) => cp.endsWith(`/${citedKey}`) || cp === citedKey,
+              );
+              if (suffixMatches.length === 1) return true;
               const basename = path.basename(finding.location!.file).toLowerCase();
               const bucket = changedBasenameIndex.get(basename);
               return !!(bucket && bucket.length === 1);
@@ -397,12 +401,10 @@ export function installChimeraReviewHandler({
             const droppedCitations = citedFindings.filter(
               (finding) => !inScopeCited.includes(finding),
             );
-            // P0-2: only disk-VERIFIED findings in the changed-file set are
-            // actionable. An in-scope finding that failed verification
-            // (missing file / line out of range) or stays unverified (anchor
-            // not found) must not be advertised as a potential issue — the
-            // whole point of the verification pass is that phantom citations
-            // do not drive follow-up.
+            // P0-2: disk-VERIFIED findings in the changed-file set are strictly
+            // actionable. In-scope findings that remain unverified (e.g. anchor
+            // not matched) are flagged for user inspection, while failed
+            // verifications (missing file / line out of range) are discarded.
             const actionableFindings = inScopeCited.filter(
               (finding) => finding.verification?.status === 'verified',
             );
@@ -412,7 +414,8 @@ export function installChimeraReviewHandler({
             const failedVerificationCount = inScopeCited.filter(
               (finding) => finding.verification?.status === 'failed',
             ).length;
-            const effectiveHasFindings = reviewHasFindings && actionableFindings.length > 0;
+            const effectiveHasFindings =
+              reviewHasFindings && (actionableFindings.length > 0 || unverifiedInScope.length > 0);
             const verifiedCount = actionableFindings.length;
             const unverifiedCount = unverifiedInScope.length;
             const hallucinationNote =
