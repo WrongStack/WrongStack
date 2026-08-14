@@ -1,0 +1,201 @@
+import * as fsp from 'node:fs/promises';
+import * as path from 'node:path';
+import type { EventBus } from '../../kernel/events.js';
+import type { Message } from '../../types/messages.js';
+import type { SecretScrubber } from '../../types/secret-scrubber.js';
+import type { ResumedSession, SessionData, SessionEvent, SessionSummary } from '../../types/session.js';
+import { toErrorMessage } from '../../utils/index.js';
+import { FileSessionWriter } from '../file-session-writer.js';
+import type { SessionCheckpointCas } from '../session-checkpoint-cas.js';
+import { sessionContentText } from '../session-helpers.js';
+import {
+  formatInterruptedToolNotice,
+  formatResumeValidationNotice,
+  isResumeNoticeMessage,
+  validateResumeFileObservations,
+} from '../session-resume-validation.js';
+import { emitSessionStoreError, emitSessionStoreWrite } from './events.js';
+import { summarizeSessionEvents, summarizeSessionFile } from './summary-builder.js';
+
+export interface ResumeSessionParams {
+  id: string;
+  canonicalId: string;
+  file: string;
+  projectRoot?: string | undefined;
+  events?: EventBus | undefined;
+  secretScrubber: SecretScrubber;
+  checkpointCas?: SessionCheckpointCas | undefined;
+  onAppend?: ((event: SessionEvent) => void) | undefined;
+  onAppendBatch?: ((events: SessionEvent[]) => void) | undefined;
+  load: (id: string) => Promise<SessionData>;
+  readSummaryManifest: (id: string) => Promise<SessionSummary | null>;
+  searchEvents: (
+    id: string,
+    predicate: (event: SessionEvent, index: number, ts: string) => boolean,
+  ) => Promise<Array<{ event: SessionEvent }>>;
+  persistCatalogSummary: (summary: SessionSummary) => Promise<void>;
+  logWarn: (msg: string, ctx?: Record<string, unknown>) => void;
+}
+
+export async function executeResumeSession(params: ResumeSessionParams): Promise<ResumedSession> {
+  const {
+    canonicalId,
+    file,
+    projectRoot,
+    events,
+    secretScrubber,
+    checkpointCas,
+    onAppend,
+    onAppendBatch,
+    load,
+    readSummaryManifest,
+    searchEvents,
+    persistCatalogSummary,
+    logWarn,
+  } = params;
+
+  const t0 = Date.now();
+  const data = await load(canonicalId);
+  const persistedSummary = await readSummaryManifest(canonicalId);
+  const fileStat = await fsp.stat(file);
+  const eventsDropped = data.eventsDropped ?? 0;
+  const derivedSummary =
+    eventsDropped > 0
+      ? await summarizeSessionFile({
+          id: canonicalId,
+          file,
+          mtime: fileStat.mtime.toISOString(),
+          secretScrubber,
+        })
+      : await summarizeSessionEvents({
+          id: canonicalId,
+          events: data.events,
+          mtime: fileStat.mtime.toISOString(),
+        });
+  const initialSummary: SessionSummary = {
+    ...derivedSummary,
+    ...(persistedSummary?.name !== undefined ? { name: persistedSummary.name } : {}),
+  };
+
+  const noticeMessages: Message[] = [];
+  let resumeValidation: import('../../types/session.js').ResumeValidation | undefined;
+  if (projectRoot) {
+    try {
+      const validationEvents =
+        eventsDropped > 0
+          ? (
+              await searchEvents(
+                canonicalId,
+                (ev: SessionEvent) => ev.type === 'file_observation',
+              )
+            ).map((h) => h.event)
+          : data.events;
+      resumeValidation = await validateResumeFileObservations(validationEvents, projectRoot);
+      const notice = formatResumeValidationNotice(resumeValidation, projectRoot);
+      if (notice) {
+        noticeMessages.push({
+          role: 'system',
+          content: notice,
+          ts: resumeValidation.checkedAt,
+        });
+      }
+    } catch (err) {
+      emitSessionStoreError(
+        events,
+        canonicalId,
+        file,
+        'resume_validation',
+        toErrorMessage(err),
+        true,
+      );
+    }
+  }
+
+  const interruptedNotice = formatInterruptedToolNotice(data.pendingToolUseCount ?? 0);
+  if (interruptedNotice) {
+    noticeMessages.push({
+      role: 'system',
+      content: interruptedNotice,
+      ts: new Date().toISOString(),
+    });
+  }
+
+  const carriedMessages = data.messages.filter((message) => !isResumeNoticeMessage(message));
+  const resumedData: SessionData = {
+    ...data,
+    ...(resumeValidation ? { resumeValidation } : {}),
+    messages: [...carriedMessages, ...noticeMessages],
+  };
+
+  let handle: fsp.FileHandle;
+  try {
+    handle = await openSessionForAppend(file);
+  } catch (err) {
+    emitSessionStoreError(events, canonicalId, file, 'resume', toErrorMessage(err), false);
+    throw new Error(
+      `Failed to open session "${canonicalId}" for append: ${toErrorMessage(err)}`,
+      { cause: err },
+    );
+  }
+
+  try {
+    const writer = new FileSessionWriter(
+      canonicalId,
+      handle,
+      new Date().toISOString(),
+      {
+        id: canonicalId,
+        model: data.metadata.model,
+        provider: data.metadata.provider,
+      },
+      events,
+      {
+        resumed: true,
+        initialSummary,
+        dir: path.dirname(file),
+        filePath: file,
+        secretScrubber,
+        checkpointCas,
+        onAppend,
+        onAppendBatch,
+        resolveName: async () => {
+          const current = await readSummaryManifest(canonicalId);
+          if (!current) return null;
+          return current.name === undefined
+            ? {}
+            : { name: sessionContentText(secretScrubber.scrub(current.name)) };
+        },
+        onClose: (s) => persistCatalogSummary(s),
+      },
+    );
+    emitSessionStoreWrite(events, canonicalId, file, 'resume', 'success', Date.now() - t0);
+    return { writer, data: resumedData };
+  } catch (err) {
+    await handle.close().catch((e) =>
+      logWarn('Session handle close failed', {
+        event: 'session_store.handle_close_failed',
+        message: e instanceof Error ? e.message : String(e),
+      }),
+    );
+    emitSessionStoreError(events, canonicalId, file, 'resume', toErrorMessage(err), true);
+    throw err;
+  }
+}
+
+export async function openSessionForAppend(file: string): Promise<fsp.FileHandle> {
+  const handle = await fsp.open(file, 'a+', 0o600);
+  try {
+    const stat = await handle.stat();
+    if (stat.size > 0) {
+      const tail = Buffer.allocUnsafe(1);
+      const { bytesRead } = await handle.read(tail, 0, 1, stat.size - 1);
+      if (bytesRead === 1 && tail[0] !== 0x0a) {
+        await handle.appendFile('\n', 'utf8');
+      }
+    }
+    return handle;
+  } catch (err) {
+    await handle.close().catch(() => undefined);
+    throw err;
+  }
+}

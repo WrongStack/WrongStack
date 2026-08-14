@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 57,
+      "files": 56,
       "typeOnly": 17,
-      "runtimeOrMixed": 57
+      "runtimeOrMixed": 56
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/hq": {
-      "files": 118,
+      "files": 117,
       "typeOnly": 73,
-      "runtimeOrMixed": 68
+      "runtimeOrMixed": 65
     },
     "@wrongstack/core/hq/protocol": {
       "files": 3,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 21
     },
     "@wrongstack/core/registry": {
-      "files": 102,
+      "files": 101,
       "typeOnly": 51,
-      "runtimeOrMixed": 52
+      "runtimeOrMixed": 51
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 128,
+      "files": 127,
       "typeOnly": 23,
-      "runtimeOrMixed": 108
+      "runtimeOrMixed": 107
     },
     "@wrongstack/core/session-catalog": {
       "files": 11,
@@ -134,9 +134,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 96,
+      "files": 95,
       "typeOnly": 29,
-      "runtimeOrMixed": 101
+      "runtimeOrMixed": 100
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -151,7 +151,7 @@
     "@wrongstack/core/types": {
       "files": 912,
       "typeOnly": 841,
-      "runtimeOrMixed": 232
+      "runtimeOrMixed": 231
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -3171,12 +3171,6 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
-      "file": "packages/cli/src/cli-main.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 3
@@ -3738,12 +3732,6 @@
       "file": "packages/cli/src/hq-server/routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 2
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/cli/src/hq-server/routes/auth-handlers.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -6393,12 +6381,6 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
-      "file": "packages/cli/src/cli-main.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7122,12 +7104,6 @@
       "file": "packages/cli/src/hq-server/routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/security",
-      "file": "packages/cli/src/hq-server/routes/auth-handlers.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -8211,12 +8187,6 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
-      "file": "packages/tui/src/app.tsx",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/storage",
       "file": "packages/tui/src/hooks/use-app-picker-keys.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8957,7 +8927,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/cli-main.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/types",

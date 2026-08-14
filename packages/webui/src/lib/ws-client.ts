@@ -23,6 +23,7 @@ import type { ProviderCustomModelWire } from '../types/client-message';
 import type { ContextEditorMessage, ContextEditorRemoval } from '../types/runtime';
 import { streamCoalescer } from './stream-coalescer';
 import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
+import { installWsClientDomainMethods, type WsClientDomainMethods } from './ws-client-domain-methods';
 import type { WSSendOptions } from './ws-client-contracts';
 import {
   buildClearModelsMessage,
@@ -825,20 +826,6 @@ class WrongStackWebSocketClientBase {
     });
   }
 
-  getGitInfo() {
-    this.send({ type: 'git.info' });
-  }
-
-  /** Request the working-tree change set (file list for the Changes panel). */
-  getGitChanges() {
-    this.send({ type: 'git.changes' });
-  }
-
-  /** Request the before/after content for one changed file. */
-  getGitDiff(path: string) {
-    this.send({ type: 'git.diff', payload: { path } });
-  }
-
   sendConfirm(id: string, decision: 'yes' | 'no' | 'always' | 'deny') {
     if (this.pendingConfirms.has(id)) {
       this.pendingConfirms.delete(id);
@@ -886,24 +873,6 @@ class WrongStackWebSocketClientBase {
     });
   }
 
-  // ---- Provider/model health (waiting room) ----
-
-  getProviderStatus() {
-    this.send({ type: 'provider.status.get' });
-  }
-
-  retryProviderModel(providerId: string, model: string) {
-    this.send({ type: 'provider.status.retry', payload: { providerId, model } });
-  }
-
-  clearProviderStatus(providerId: string, model: string) {
-    this.send({ type: 'provider.status.clear', payload: { providerId, model } });
-  }
-
-  newSession() {
-    this.send({ type: 'session.new', payload: this.withSession({}) });
-  }
-
   shutdownCodebaseIndexServer(
     timeoutMs = 8_000,
   ): Promise<
@@ -948,230 +917,6 @@ class WrongStackWebSocketClientBase {
     });
   }
 
-  // ---- Provider/Model/Key management (mirrors TUI/CLI auth-menu) ----
-
-  listProviders() {
-    this.send({ type: 'providers.list' });
-  }
-
-  listProviderModels(providerId: string) {
-    this.send({ type: 'provider.models', payload: { providerId } });
-  }
-
-  listSavedProviders() {
-    this.send({ type: 'providers.saved' });
-  }
-
-  searchProviderModels(query: string, limit?: number) {
-    this.send({
-      type: 'provider.models.search',
-      payload: { query, ...(limit !== undefined ? { limit } : {}) },
-    });
-  }
-
-  addKey(providerId: string, label: string, apiKey: string) {
-    this.send({ type: 'key.add', payload: { providerId, label, apiKey } });
-  }
-
-  updateKey(providerId: string, label: string, apiKey: string) {
-    this.send({ type: 'key.update', payload: { providerId, label, apiKey } });
-  }
-
-  deleteKey(providerId: string, label: string) {
-    this.send({ type: 'key.delete', payload: { providerId, label } });
-  }
-
-  setActiveKey(providerId: string, label: string) {
-    this.send({ type: 'key.set_active', payload: { providerId, label } });
-  }
-
-  addProvider(
-    id: string,
-    family: string,
-    baseUrl?: string | undefined,
-    apiKey?: string,
-    models?: string[] | undefined,
-    customModels?: Record<string, ProviderCustomModelWire> | undefined,
-  ) {
-    this.send({
-      type: 'provider.add',
-      payload: {
-        id,
-        family,
-        baseUrl,
-        apiKey,
-        ...(models ? { models } : {}),
-        ...(customModels ? { customModels } : {}),
-      },
-    });
-  }
-
-  removeProvider(providerId: string) {
-    this.send({ type: 'provider.remove', payload: { providerId } });
-  }
-
-  // ---- Subscription OAuth login (ChatGPT / Claude / Copilot) ----
-
-  /** Begin a subscription sign-in; progress arrives as `auth.oauth.status`. */
-  startOAuth(kind: 'chatgpt' | 'claude' | 'copilot', providerId?: string) {
-    this.send({
-      type: 'auth.oauth.start',
-      payload: providerId ? { kind, providerId } : { kind },
-    });
-  }
-
-  /** Manual-paste fallback for loopback flows (port busy / remote browser). */
-  submitOAuthCode(kind: 'chatgpt' | 'claude' | 'copilot', input: string) {
-    this.send({ type: 'auth.oauth.code', payload: { kind, input } });
-  }
-
-  /** Cancel an in-flight subscription sign-in. */
-  cancelOAuth(kind: 'chatgpt' | 'claude' | 'copilot') {
-    this.send({ type: 'auth.oauth.cancel', payload: { kind } });
-  }
-
-  /** Run a health probe against a saved provider's `/v1/models`. */
-  probeProvider(providerId: string, timeoutMs?: number) {
-    this.send({
-      type: 'provider.probe',
-      payload: timeoutMs !== undefined ? { providerId, timeoutMs } : { providerId },
-    });
-  }
-
-  /** Remove the saved model allowlist for a provider. */
-  clearProviderModels(providerId: string) {
-    this.send(buildClearModelsMessage(providerId));
-  }
-
-  /** Restore a previously-cleared model allowlist (pairs with clear). */
-  undoProviderClear(providerId: string, previousModels: string[]) {
-    this.send(buildUndoClearMessage(providerId, previousModels));
-  }
-
-  /** Set/update a single custom model definition (ME-3). */
-  setCustomModel(providerId: string, modelId: string, customModel: ProviderCustomModelWire) {
-    this.send({
-      type: 'provider.custom_models.set',
-      payload: { providerId, modelId, customModel },
-    });
-  }
-
-  /** Remove a single custom model entry (ME-3). */
-  removeCustomModel(providerId: string, modelId: string) {
-    this.send({
-      type: 'provider.custom_models.remove',
-      payload: { providerId, modelId },
-    });
-  }
-
-  /** Update a saved provider's wire config (family / baseUrl / envVars / models / customModels). */
-  updateProvider(payload: {
-    id: string;
-    family?: string | undefined;
-    baseUrl?: string | undefined;
-    envVars?: string[] | undefined;
-    models?: string[] | undefined;
-    customModels?: Record<string, ProviderCustomModelWire> | undefined;
-  }) {
-    this.send(buildProviderUpdateMessage(payload));
-  }
-
-  clearContext() {
-    this.send({ type: 'context.clear', payload: this.withSession({}) });
-  }
-
-  compactContext(aggressive = false) {
-    this.send({ type: 'context.compact', payload: this.withSession({ aggressive }) });
-  }
-
-  repairContext() {
-    this.send({ type: 'context.repair', payload: this.withSession({}) });
-  }
-
-  openContextEditor() {
-    this.send({ type: 'context.editor.open', payload: this.withSession({}) });
-  }
-
-  validateContextEditor(
-    baseRevision: string,
-    messages: ContextEditorMessage[],
-    removals: ContextEditorRemoval[],
-    allowRepair: boolean,
-  ) {
-    this.send({
-      type: 'context.editor.validate',
-      payload: this.withSession({ baseRevision, messages, removals, allowRepair }),
-    });
-  }
-
-  applyContextEditor(
-    baseRevision: string,
-    messages: ContextEditorMessage[],
-    removals: ContextEditorRemoval[],
-    allowRepair: boolean,
-  ) {
-    this.send({
-      type: 'context.editor.apply',
-      payload: this.withSession({ baseRevision, messages, removals, allowRepair }),
-    });
-  }
-
-  debugContext(options?: WSSendOptions) {
-    this.send({ type: 'context.debug', payload: this.withSession({}) }, options);
-  }
-
-  listContextModes() {
-    this.send({ type: 'context.modes.list', payload: this.withSession({}) });
-  }
-
-  switchContextMode(id: string) {
-    this.send({ type: 'context.mode.switch', payload: this.withSession({ id }) });
-  }
-
-  createContextMode(mode: {
-    id: string;
-    name: string;
-    description: string;
-    thresholds: { warn: number; soft: number; hard: number };
-    preserveK: number;
-    eliseThreshold: number;
-  }) {
-    this.send({ type: 'context.mode.create', payload: this.withSession(mode) });
-  }
-
-  updateContextMode(
-    id: string,
-    patch: {
-      name?: string | undefined;
-      description?: string | undefined;
-      thresholds?:
-        | { warn?: number | undefined; soft?: number | undefined; hard?: number | undefined }
-        | undefined;
-      preserveK?: number | undefined;
-      eliseThreshold?: number | undefined;
-    },
-  ) {
-    this.send({ type: 'context.mode.update', payload: this.withSession({ id, ...patch }) });
-  }
-
-  deleteContextMode(id: string) {
-    this.send({ type: 'context.mode.delete', payload: this.withSession({ id }) });
-  }
-
-  // ---- Autonomy / Preferences ----
-
-  switchAutonomy(mode: string) {
-    this.send({ type: 'autonomy.switch', payload: { mode } });
-  }
-
-  updatePrefs(prefs: Record<string, unknown>) {
-    this.send({ type: 'prefs.update', payload: prefs });
-  }
-
-  getPrefs() {
-    this.send({ type: 'prefs.get' });
-  }
-
   disconnect() {
     this.shouldReconnect = false;
     this.connectionState = stopConnection(this.connectionState);
@@ -1208,8 +953,11 @@ class WrongStackWebSocketClientBase {
 }
 
 installWsClientActionMethods(WrongStackWebSocketClientBase);
+installWsClientDomainMethods(WrongStackWebSocketClientBase);
 
-export type WrongStackWebSocketClient = WrongStackWebSocketClientBase & WsClientActionMethods;
+export type WrongStackWebSocketClient = WrongStackWebSocketClientBase &
+  WsClientActionMethods &
+  WsClientDomainMethods;
 
 interface WrongStackWebSocketClientConstructor {
   new (url?: string): WrongStackWebSocketClient;

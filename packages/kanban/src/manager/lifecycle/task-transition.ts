@@ -195,6 +195,8 @@ export async function transitionTask(
   }
 }
 
+export const transitionManagedTask = transitionTask;
+
 async function runTaskTransition(
   projectRoot: string,
   boardId: string,

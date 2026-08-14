@@ -166,11 +166,16 @@ describe('scroll stability under real layout (lurch proof)', () => {
     const entries = makeEntries();
     const paged = renderRealTty(view(entries, pageRef), { columns: 60, rows: VP + 2 });
     const wheeled = renderRealTty(view(entries, wheelRef), { columns: 60, rows: VP + 2 });
-    await settle();
+    // Quiescence at EVERY capture point, not just the outputs: the
+    // 31831273637 flake had scrollPage('down') firing from a mid-correction
+    // offset on one view while the other was settled — the input delta was
+    // baked in one row apart, and output-side quiescence alone cannot fix a
+    // delta computed from an unsettled input.
+    await waitForStableFrames(paged, wheeled);
 
     pageRef.current?.scrollToTop();
     wheelRef.current?.scrollToTop();
-    await settle();
+    await waitForStableFrames(paged, wheeled);
     pageRef.current?.scrollPage('down');
     wheelRef.current?.scrollBy(-(VP - 1));
     // Simultaneous quiescence on both renders (same single-row-offset race
