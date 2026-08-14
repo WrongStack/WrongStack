@@ -171,7 +171,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
   const session = makeHolder<SessionInfo | null>(null);
   const sessions = makeHolder<SimpleSessionSummary[]>([]);
   const sessionMenuOpen = makeHolder<boolean>(false);
-  const context = makeHolder<ContextInfo>({ load: 0, tokens: 0, maxContext: 0 });
+  const context = makeHolder<ContextInfo>({ load: 0, tokens: 0, maxContext: 0, cache: null });
   const models = makeHolder<Record<string, ModelDescriptor[]>>({});
   const modes = makeHolder<{ id: string; name: string; description?: string }[]>([]);
   const activeModeId = makeHolder<string>('default');
@@ -586,6 +586,55 @@ describe('session.start', () => {
 });
 
 describe('tool call lifecycle', () => {
+  it('retains successful nextsteps tool input when the terminal response is absent', () => {
+    harness.handler({
+      type: 'tool.started',
+      payload: {
+        id: 'next-1',
+        name: 'nextsteps',
+        input: {
+          steps: [{ text: 'Run the focused tests', auto: true }, { text: 'Review the diff' }],
+        },
+      },
+    });
+    harness.handler({
+      type: 'tool.executed',
+      payload: { id: 'next-1', name: 'nextsteps', ok: true },
+    });
+    harness.handler({ type: 'run.result', payload: { status: 'done' } });
+
+    expect(harness.state.messages.at(-1)).toMatchObject({
+      role: 'assistant',
+      final: true,
+      nextSteps: [
+        { index: 1, text: 'Run the focused tests', auto: true },
+        { index: 2, text: 'Review the diff' },
+      ],
+    });
+  });
+
+  it('does not duplicate nextsteps already folded into the terminal response', () => {
+    harness.handler({
+      type: 'tool.started',
+      payload: { id: 'next-2', name: 'nextsteps', input: { steps: [{ text: 'Fallback step' }] } },
+    });
+    harness.handler({
+      type: 'tool.executed',
+      payload: { id: 'next-2', name: 'nextsteps', ok: true },
+    });
+    harness.handler({
+      type: 'provider.response',
+      payload: {
+        content: 'Done.\n<nextsteps>\n1. Canonical step\n</nextsteps>',
+        stopReason: 'end_turn',
+      },
+    });
+    harness.handler({ type: 'run.result', payload: { status: 'done' } });
+
+    expect(harness.state.messages).toHaveLength(1);
+    expect(harness.state.messages[0]?.text).toContain('Canonical step');
+  });
+
   it('records running → done transitions for tool.started and tool.executed', () => {
     harness.handler({
       type: 'tool.started',
@@ -634,8 +683,14 @@ describe('tool call lifecycle', () => {
 
   it('closes only the last running same-name call when tool.executed has no id', () => {
     // Two concurrent `read` calls are running at once.
-    harness.handler({ type: 'tool.started', payload: { id: 'read-a', name: 'read', input: { path: 'a' } } });
-    harness.handler({ type: 'tool.started', payload: { id: 'read-b', name: 'read', input: { path: 'b' } } });
+    harness.handler({
+      type: 'tool.started',
+      payload: { id: 'read-a', name: 'read', input: { path: 'a' } },
+    });
+    harness.handler({
+      type: 'tool.started',
+      payload: { id: 'read-b', name: 'read', input: { path: 'b' } },
+    });
     expect(harness.state.toolCalls.map((tc) => tc.status)).toEqual(['running', 'running']);
 
     // An id-less executed event arrives. Regression: a `.map` fallback closed
@@ -983,7 +1038,7 @@ describe('context accounting', () => {
       type: 'ctx.pct',
       payload: { load: 0.68, tokens: 136_000, maxContext: 200_000 },
     });
-    expect(harness.state.context).toEqual({ load: 0.68, tokens: 136_000, maxContext: 200_000 });
+    expect(harness.state.context).toEqual({ load: 0.68, tokens: 136_000, maxContext: 200_000, cache: null });
   });
 
   it('keeps a 1% fraction as 0.01 (not inflated to 100%)', () => {
