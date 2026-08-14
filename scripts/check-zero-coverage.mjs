@@ -17,6 +17,17 @@ export const DEFAULT_BASELINE_PATH = path.join(
 );
 
 export function normalizeCoveragePath(file, root = repoRoot) {
+  // Coverage summaries can carry Windows drive-letter paths (generated on a
+  // Windows host). POSIX `path.isAbsolute` does not recognise "D:\..." as
+  // absolute, so on a Linux host the raw string leaked past the relativize
+  // branch and broke ratchet comparisons ("D:/repo/packages/..." vs the
+  // expected relative "packages/..."). Route drive-letter paths through
+  // path.win32 so normalization is host-independent.
+  const fileIsWin = path.win32.isAbsolute(file);
+  if (fileIsWin) {
+    const rel = path.win32.isAbsolute(root) ? path.win32.relative(root, file) : file;
+    return rel.replaceAll('\\', '/').replace(/^\.\//, '');
+  }
   const relative = path.isAbsolute(file) ? path.relative(root, file) : file;
   return relative.replaceAll('\\', '/').replace(/^\.\//, '');
 }
