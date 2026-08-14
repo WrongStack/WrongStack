@@ -518,6 +518,16 @@ describe('zero-coverage ratchet script', () => {
     expect(normalizeCoveragePath('D:\\repo\\packages\\core\\src\\zero.ts', 'D:\\repo')).toBe(
       'packages/core/src/zero.ts',
     );
+    // Host-neutral POSIX pin: path.win32.isAbsolute('/repo/...') is true, so
+    // an isAbsolute-based Windows predicate misclassifies native Linux
+    // summaries and trips the cross-host guard. This assertion throws on that
+    // regression and passes on both hosts with the drive-letter regex.
+    expect(normalizeCoveragePath('/repo/packages/core/src/zero.ts', '/repo')).toBe(
+      'packages/core/src/zero.ts',
+    );
+    // Cross-host artifact must fail loudly (never silently leak into the
+    // ratchet comparison, where it can never match a baseline key).
+    expect(() => normalizeCoveragePath('D:\\repo\\x.ts', '/repo')).toThrow(/Windows path/);
     expect(zeroStatementFiles(summary, 'D:\\repo')).toEqual(['packages/core/src/zero.ts']);
     expect(normalizeCoveragePath('./packages/core/src/zero.ts', 'D:\\repo')).toBe(
       'packages/core/src/zero.ts',
