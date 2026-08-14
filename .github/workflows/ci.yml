@@ -272,6 +272,25 @@ jobs:
 
       - name: Run E2E tests
         run: pnpm test:e2e
+        # Scoped to this step only — the other E2E steps (cache, browser
+        # install) must not see provider env vars. Do NOT hoist to job level.
+        env:
+          # CI has no saved provider config. These are surfaced by
+          # e2e/global-setup.ts as --provider/--model so the WebUI boots
+          # into the ready (chat) state instead of the setup screen or the
+          # "No provider or model configured" boot gate. openai/gpt-4o-mini
+          # is used rather than a fake id because webui-server's provider
+          # creation requires a known family (anthropic|openai|...).
+          E2E_PROVIDER: openai
+          E2E_MODEL: gpt-4o-mini
+          # Provider construction needs the key env-var present at startup;
+          # the E2E suite is static-only (input fill, send button visibility,
+          # slash menu — no chat-completion path), so a placeholder key is
+          # enough to satisfy construction. If a future test ever sends a
+          # real chat message, route through `${{ secrets.OPENAI_API_KEY }}`
+          # or wire a mock LLM endpoint instead. The model id is a real
+          # models.dev catalog entry; keep it in sync if OpenAI renames it.
+          OPENAI_API_KEY: placeholder-e2e-static-only
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4

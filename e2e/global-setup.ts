@@ -8,10 +8,12 @@ import type { FullConfig } from '@playwright/test';
  * tests complete.
  *
  * Environment variables:
- *   WEBUI_URL   — base URL of an already-running server (skip startup)
+ *   WEBUI_URL    — base URL of an already-running server (skip startup)
  *   CLI_PATH     — path to the CLI binary (default: packages/cli/dist/index.js)
+ *   E2E_PROVIDER — provider id passed through as --provider (CI only)
+ *   E2E_MODEL    — model id passed through as --model (CI only)
  */
-export default async function globalSetup(config: FullConfig) {
+export default async function globalSetup(config: FullConfig): Promise<void> {
   const baseURL = process.env.WEBUI_URL;
 
   if (baseURL) {
@@ -21,8 +23,7 @@ export default async function globalSetup(config: FullConfig) {
     return;
   }
 
-  const configuredBaseURL = (config.projects[0]?.use as { baseURL?: unknown } | undefined)
-    ?.baseURL;
+  const configuredBaseURL = (config.projects[0]?.use as { baseURL?: unknown } | undefined)?.baseURL;
   const expectedURL =
     typeof configuredBaseURL === 'string'
       ? new URL(configuredBaseURL)
@@ -30,7 +31,23 @@ export default async function globalSetup(config: FullConfig) {
 
   // Start the CLI in webui mode.
   const cliPath = process.env.CLI_PATH ?? 'packages/cli/dist/index.js';
-  const server = spawn('node', [cliPath, '--webui'], {
+  // CI boots the WebUI without a saved config. E2E_PROVIDER/E2E_MODEL (set in
+  // ci.yml) are surfaced as --provider/--model so boot skips the auth gate and
+  // the server starts in the ready (chat) state instead of the setup screen.
+  const providerOverride = process.env.E2E_PROVIDER;
+  const modelOverride = process.env.E2E_MODEL;
+  const providerSet = providerOverride !== undefined && providerOverride !== '';
+  const modelSet = modelOverride !== undefined && modelOverride !== '';
+  if (providerSet !== modelSet) {
+    // Partial overrides would silently fall back to the dev's saved config
+    // (or the setup screen) — fail fast instead of debugging that later.
+    throw new Error('E2E_PROVIDER and E2E_MODEL must be set together (or both omitted)');
+  }
+  const cliArgs: string[] = [cliPath, '--webui'];
+  if (providerSet && modelSet) {
+    cliArgs.push('--provider', providerOverride as string, '--model', modelOverride as string);
+  }
+  const server = spawn('node', cliArgs, {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
     // Playwright resolves `use.baseURL` before global setup runs. Pin the CLI
@@ -57,7 +74,9 @@ export default async function globalSetup(config: FullConfig) {
 
   if (new URL(url).origin !== expectedURL.origin) {
     server.kill();
-    throw new Error(`WebUI started at ${url}, but Playwright is configured for ${expectedURL.origin}`);
+    throw new Error(
+      `WebUI started at ${url}, but Playwright is configured for ${expectedURL.origin}`,
+    );
   }
 
   if (!(await waitForUrl(url, 10_000))) {

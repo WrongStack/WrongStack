@@ -60,10 +60,7 @@ import { activeProfileConfigPath } from './profile-config-path.js';
 import { resolveActiveApiKey } from './provider-config-utils.js';
 import { isKeylessLocalProvider, visibleModelIds } from './provider-helpers.js';
 import { TerminalRenderer } from './renderer.js';
-import {
-  renderDeepHelp,
-  renderFocusedHelp,
-} from './subcommands/handlers/per-subcommand-help.js';
+import { renderDeepHelp, renderFocusedHelp } from './subcommands/handlers/per-subcommand-help.js';
 import { runUpdateCommand } from './subcommands/handlers/update.js';
 import { subcommands } from './subcommands/index.js';
 import type { UpdateInfo } from './update-check.js';
@@ -496,8 +493,18 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
   // otherwise a custom-provider-only config fails the presence check below and
   // shows "No provider or model configured". The TUI reaches the picker instead.
   if (noInteractiveMode && (!config.provider || !config.model)) {
-    const picked = await autoSelectSavedProvider(config, modelsRegistry);
-    if (picked) config = patchConfig(config, picked);
+    // Explicit --provider/--model flags surface into the live config so --webui
+    // boots into the ready state instead of the setup screen. Combined with the
+    // `if (!(!!providerFlag && !!modelFlag))` gate below skipping registry
+    // validation entirely in non-interactive mode, callers (notably CI E2E)
+    // can provide any id pair to skip the auth gate — downstream provider
+    // resolution is still typed, just unvalidated at boot.
+    if (providerFlag && modelFlag) {
+      config = patchConfig(config, { provider: providerFlag, model: modelFlag });
+    } else {
+      const picked = await autoSelectSavedProvider(config, modelsRegistry);
+      if (picked) config = patchConfig(config, picked);
+    }
   }
   if (!(!!providerFlag && !!modelFlag)) {
     if (isStdinTTY() && !noInteractiveMode) {
