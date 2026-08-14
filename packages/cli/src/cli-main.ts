@@ -9,19 +9,16 @@ import { wireEventWiring } from './boot/event-wiring.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import type { CliContext } from './cli-context.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
-import {
-  createTeardownEventRegistrar,
-  loadOnlineAgentsForPrompt,
-} from './cli-main-helpers.js';
+import { createTeardownEventRegistrar, loadOnlineAgentsForPrompt } from './cli-main-helpers.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { SessionStats } from './session-stats.js';
 import { CLI_VERSION } from './version.js';
 import { setupBrainAndOrchestration } from './wiring/brain-and-orchestration.js';
-import { setupCommandHostState } from './wiring/command-host-state.js';
 import { runCliExecution } from './wiring/cli-execute-builder.js';
 import { setupCliPromptAndTools } from './wiring/cli-prompt-and-tools-setup.js';
 import { setupCliSlashCommands } from './wiring/cli-slash-commands-setup.js';
+import { setupCommandHostState } from './wiring/command-host-state.js';
 import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
 import { setupDepWatcherBridge } from './wiring/dep-watcher-bridge.js';
 import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
@@ -41,10 +38,10 @@ import {
   adoptResumedProvider,
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
+import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
 import { setupSession } from './wiring/session.js';
 import { setupSessionRegistry } from './wiring/session-registry.js';
-import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 
 export { CLI_VERSION };
 
@@ -214,7 +211,15 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       };
     },
   });
-  const { context, planPath, session, attachments, queueStore, detachTodosCheckpoint, priorFleetState } = sessResult;
+  const {
+    context,
+    planPath,
+    session,
+    attachments,
+    queueStore,
+    detachTodosCheckpoint,
+    priorFleetState,
+  } = sessResult;
   context.meta['promptOnlineAgents'] = onlineAgents;
   sessionRef.current = session;
 
@@ -553,7 +558,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     sddRunRegistry,
   } = await setupCommandHostState({
     getConfig: () => config,
-    setConfig: (nextConfig: any) => {
+    setConfig: (nextConfig: typeof config) => {
       config = nextConfig;
     },
     getDirector: () => director,
@@ -785,7 +790,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     saveStatuslineHiddenItems,
     setYoloMode,
     autonomyMode,
-    setAutonomyMode: (mode: any) => {
+    setAutonomyMode: (mode: typeof autonomyMode) => {
       autonomyMode = mode;
     },
     nextPredictEnabled,
@@ -803,7 +808,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     brainRuntime,
     brainLog,
     currentSuggestions,
-    setCurrentSuggestions: (suggestions: any) => {
+    setCurrentSuggestions: (suggestions: typeof currentSuggestions) => {
       currentSuggestions = suggestions;
     },
     eternalEngine,
@@ -815,7 +820,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     pluginHost,
     teardownHandlers,
     governanceHandle,
-    setConfig: (nextConfig: any) => {
+    setConfig: (nextConfig: typeof config) => {
       config = nextConfig;
     },
   });
