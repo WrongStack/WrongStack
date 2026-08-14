@@ -10,7 +10,7 @@
  * held 100 000 events, so `wstack chronicle metrics` and the WebUI reliability
  * strip were rendering an empty projection that looked like "no activity".
  */
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -82,6 +82,74 @@ describe.skipIf(!isChronicleMetricsAvailable())('metrics store over the SQLite j
     const third = await store.refresh();
     expect(third.ingestedEvents).toBe(2);
     expect(store.providerDaily()[0]).toMatchObject({ attempts: 2, completed: 2 });
+
+    store.close();
+    journal.close();
+  });
+
+  it('does not double-count JSONL events once the legacy journal was migrated into SQLite', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-migrated-'));
+    dirs.push(dir);
+
+    // A leftover legacy partition that the one-shot import already moved into
+    // the SQLite journal. It must NOT be folded again — that would double-count
+    // every migrated event (2 SQLite events + 1 JSONL event = 3 with the bug).
+    await writeFile(
+      path.join(dir, '2026-08-13.events.jsonl'),
+      `${JSON.stringify(
+        input({
+          eventType: 'tool.executed',
+          outcome: 'success',
+          occurredAt: '2026-08-13T10:00:00.000Z',
+        }),
+      )}\n`,
+      'utf8',
+    );
+
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    await journal.appendBatch(attempt());
+    // Simulate the one-shot `importLegacyChronicleJournal` having run.
+    journal.markLegacyJournalImported();
+
+    const store = ChronicleMetricsStore.open(dir);
+    const first = await store.refresh();
+    expect(first.ingestedEvents).toBe(2);
+
+    const second = await store.refresh();
+    expect(second.ingestedEvents).toBe(0);
+
+    store.close();
+    journal.close();
+  });
+
+  it('rebuilds from SQLite when JSONL was aggregated before the legacy import ran', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-upgrade-'));
+    dirs.push(dir);
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 1. Legacy phase: JSONL partition only — the metrics store aggregates it.
+    await writeFile(
+      path.join(dir, `${today}.events.jsonl`),
+      attempt()
+        .map((event) => `${JSON.stringify({ ...event, occurredAt: `${today}T10:00:00.000Z` })}\n`)
+        .join(''),
+      'utf8',
+    );
+    const store = ChronicleMetricsStore.open(dir);
+    const first = await store.refresh();
+    expect(first.ingestedEvents).toBe(2);
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
+
+    // 2. The one-shot import copies the same events into the SQLite journal
+    //    and records the migration marker.
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    await journal.appendBatch(attempt());
+    journal.markLegacyJournalImported();
+
+    // 3. Next refresh must not replay the migrated history on top of the
+    //    existing aggregates (attempts would become 2 without the rebuild).
+    await store.refresh();
+    expect(store.providerDaily()[0]).toMatchObject({ attempts: 1, completed: 1 });
 
     store.close();
     journal.close();

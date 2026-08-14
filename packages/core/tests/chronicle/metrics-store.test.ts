@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -7,6 +7,7 @@ import {
   ChronicleMetricsStore,
   isChronicleMetricsAvailable,
 } from '../../src/chronicle/index.js';
+import { loadDatabaseSync } from '../../src/chronicle/metrics-schema.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
 const dirs: string[] = [];
@@ -371,5 +372,65 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
     } finally {
       store.close();
     }
+  });
+
+  it('does not commit partial aggregate updates from an event that throws mid-way', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-savepoint-'));
+    dirs.push(dir);
+
+    const valid = input({
+      eventType: 'tool.executed',
+      outcome: 'success',
+      durationNs: '1000000',
+      resource: { kind: 'file', id: 'src/a.ts', path: 'src/a.ts' },
+    });
+    // Deliberately malformed fixture: a numeric path is not a valid
+    // ChronicleResourceRef — cross-cast so the runtime can be exercised while
+    // the test project stays type-checked.
+    const broken = {
+      scope,
+      correlation,
+      occurredAt: '2026-07-24T10:00:00.000Z',
+      eventType: 'file.event',
+      outcome: 'started',
+      resource: { kind: 'file', id: 'broken', path: 123 },
+    } as unknown as ChronicleEventInput;
+    await writeFile(
+      path.join(dir, '2026-07-24.events.jsonl'),
+      `${JSON.stringify(valid)}\n${JSON.stringify(broken)}\n`,
+      'utf8',
+    );
+
+    const store = ChronicleMetricsStore.open(dir);
+    const result = await store.refresh();
+    expect(result.ingestedEvents).toBe(1);
+    expect(result.invalidLines).toBe(1);
+
+    const db = new (loadDatabaseSync())(path.join(dir, 'metrics.db'), { readOnly: true });
+    try {
+      const counters = db
+        .prepare('SELECT file_events_all FROM daily_counters WHERE day = ?')
+        .get('2026-07-24') as { file_events_all: number } | undefined;
+      // Only the valid event's bump — the broken event's partial bump was
+      // rolled back (would be 2 without the per-event savepoint).
+      expect(counters?.file_events_all).toBe(1);
+      // `signalFamily` returns 'file' for ANY event whose resource.kind ===
+      // 'file' (checked before the event-type regex), so the valid event
+      // landed in family 'file' (count 1) AND the broken event reached the
+      // family upsert before `normalizePathKey` threw — which is exactly why
+      // the count would be 2 without the per-event savepoint. No 'tool'
+      // family row exists for either event.
+      const fileFamily = db
+        .prepare('SELECT count FROM family_daily WHERE day = ? AND family = ?')
+        .get('2026-07-24', 'file') as { count: number };
+      expect(fileFamily.count).toBe(1);
+      const toolFamily = db
+        .prepare('SELECT count FROM family_daily WHERE day = ? AND family = ?')
+        .get('2026-07-24', 'tool');
+      expect(toolFamily).toBeUndefined();
+    } finally {
+      db.close();
+    }
+    store.close();
   });
 });

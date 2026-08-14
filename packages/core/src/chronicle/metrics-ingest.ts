@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '../utils/atomic-write.js';
 import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
-import { CHRONICLE_SQLITE_FILE } from './sqlite-journal.js';
+import { CHRONICLE_SQLITE_FILE, LEGACY_JSONL_MIGRATION_KEY } from './sqlite-journal.js';
 import type { ChronicleEvent } from './types.js';
 import {
   asString,
@@ -39,14 +39,34 @@ export class ChronicleMetricsIngester {
     await withFileLock(this.dbPath, async () => {
       const files = await findChroniclePartitions(this.directory);
       const offsets = this.loadOffsets();
-      for (const file of files) {
-        const key = normalizeKey(path.relative(this.directory, file));
-        const consumed = offsets.get(key) ?? 0;
-        const ingested = await this.ingestFile(file, key, consumed, result);
-        if (ingested) result.sourceFiles++;
+      const journalPath = path.join(this.directory, CHRONICLE_SQLITE_FILE);
+      let source: DatabaseSync | null = null;
+      try {
+        source = new (loadDatabaseSync())(journalPath, { readOnly: true });
+      } catch {
+        // No SQLite journal yet — legacy JSONL partitions only.
+      }
+      const migrated = source !== null && this.legacyJsonlConsumed(source);
+      if (!migrated) {
+        for (const file of files) {
+          const key = normalizeKey(path.relative(this.directory, file));
+          const consumed = offsets.get(key) ?? 0;
+          const ingested = await this.ingestFile(file, key, consumed, result);
+          if (ingested) result.sourceFiles++;
+        }
       }
       this.pruneOffsets(files);
-      this.ingestSqliteJournal(offsets, result);
+      if (source !== null) {
+        try {
+          if (migrated && this.needsSqliteRebuild(offsets)) {
+            this.rebuildFromSqliteJournal(source, result);
+          } else {
+            this.ingestSqliteJournal(source, offsets, result);
+          }
+        } finally {
+          source.close();
+        }
+      }
     });
     return result;
   }
@@ -57,6 +77,56 @@ export class ChronicleMetricsIngester {
       bytes: number;
     }>;
     return new Map(rows.map((row) => [row.file, Number(row.bytes)]));
+  }
+
+  /** True once the legacy JSONL journal was imported into the SQLite journal
+   *  (`importLegacyChronicleJournal` records the marker in `chronicle_meta`).
+   *  After that point the SQLite `events` table already holds every JSONL
+   *  event, so folding the leftover partition files again would double-count
+   *  every migrated event in the aggregates. `source` is the already-opened
+   *  read-only journal handle (null when no SQLite journal exists yet). */
+  private legacyJsonlConsumed(source: DatabaseSync | null): boolean {
+    if (source === null) return false;
+    try {
+      const row = source
+        .prepare('SELECT value FROM chronicle_meta WHERE key = ?')
+        .get(LEGACY_JSONL_MIGRATION_KEY) as { value?: unknown } | undefined;
+      return row?.value !== undefined;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Upgrade path: `metrics.db` already aggregated the legacy JSONL, then the
+   *  one-shot import copied those same events into the SQLite journal. There
+   *  is no `sqlite:` cursor yet, so a plain incremental fold would replay the
+   *  entire migrated history on top of the existing aggregates. The metrics
+   *  projection is disposable (fully derived from the journal), so rebuild it
+   *  from the SQLite source exactly once — the rebuild writes the cursors and
+   *  subsequent refreshes go back to incremental folding. */
+  private needsSqliteRebuild(offsets: Map<string, number>): boolean {
+    let hasLegacyProgress = false;
+    for (const [key, bytes] of offsets) {
+      if (key.startsWith(SQLITE_SOURCE_PREFIX)) {
+        if (bytes > 0) return false; // sqlite cursor exists — normal incremental
+      } else if (bytes > 0) {
+        hasLegacyProgress = true;
+      }
+    }
+    return hasLegacyProgress;
+  }
+
+  private rebuildFromSqliteJournal(
+    source: DatabaseSync,
+    result: ChronicleMetricsRefreshResult,
+  ): void {
+    this.db.exec(
+      'DELETE FROM ingest_state; DELETE FROM provider_daily; DELETE FROM task_outcomes;' +
+        ' DELETE FROM file_lineage; DELETE FROM token_cost; DELETE FROM daily_counters;' +
+        ' DELETE FROM family_daily; DELETE FROM agent_daily; DELETE FROM logical_request_daily;' +
+        ' DELETE FROM file_seen_daily;',
+    );
+    this.ingestSqliteJournal(source, new Map(), result);
   }
 
   private pruneOffsets(existingFiles: string[]): void {
@@ -73,16 +143,10 @@ export class ChronicleMetricsIngester {
   }
 
   private ingestSqliteJournal(
+    source: DatabaseSync,
     offsets: Map<string, number>,
     result: ChronicleMetricsRefreshResult,
   ): void {
-    const journalPath = path.join(this.directory, CHRONICLE_SQLITE_FILE);
-    let source: DatabaseSync;
-    try {
-      source = new (loadDatabaseSync())(journalPath, { readOnly: true });
-    } catch {
-      return;
-    }
     try {
       const days = source.prepare('SELECT DISTINCT day FROM events ORDER BY day').all() as Array<{
         day: string;
@@ -108,8 +172,7 @@ export class ChronicleMetricsIngester {
             if (rows.length === 0) break;
             for (const row of rows) {
               try {
-                this.ingestEvent(JSON.parse(row.payload) as ChronicleEvent);
-                result.ingestedEvents++;
+                this.ingestEventAtomically(JSON.parse(row.payload) as ChronicleEvent, result);
               } catch {
                 result.invalidLines++;
               }
@@ -128,8 +191,6 @@ export class ChronicleMetricsIngester {
       }
     } catch {
       // Best-effort
-    } finally {
-      source.close();
     }
   }
 
@@ -172,8 +233,7 @@ export class ChronicleMetricsIngester {
             const trimmed = line.trim();
             if (!trimmed) continue;
             try {
-              this.ingestEvent(JSON.parse(trimmed) as ChronicleEvent);
-              result.ingestedEvents++;
+              this.ingestEventAtomically(JSON.parse(trimmed) as ChronicleEvent, result);
             } catch {
               result.invalidLines++;
             }
@@ -196,6 +256,31 @@ export class ChronicleMetricsIngester {
       return advanced > consumed;
     } finally {
       await handle.close();
+    }
+  }
+
+  /** Fold one event into the aggregates atomically. `ingestEvent` runs several
+   *  statements; when one throws mid-way (e.g. a malformed resource path), the
+   *  statements before it already mutated the aggregates. The savepoint rolls
+   *  those partial updates back: `ROLLBACK TO` rewinds, `RELEASE` (reached
+   *  before the re-throw) pops the savepoint so the next event in the batch
+   *  starts from a clean stack, and the batch commits only fully-succeeded
+   *  events. Dropping the `RELEASE` would leak the savepoint into the next
+   *  event's stack — the outer transaction ROLLBACK is never reached because
+   *  the per-event catch swallows the error and continues the batch. */
+  private ingestEventAtomically(
+    event: ChronicleEvent,
+    result: ChronicleMetricsRefreshResult,
+  ): void {
+    this.db.exec('SAVEPOINT ingest_event');
+    try {
+      this.ingestEvent(event);
+      this.db.exec('RELEASE ingest_event');
+      result.ingestedEvents++;
+    } catch (error) {
+      this.db.exec('ROLLBACK TO ingest_event');
+      this.db.exec('RELEASE ingest_event');
+      throw error;
     }
   }
 
