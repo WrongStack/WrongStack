@@ -197,15 +197,14 @@ export class WorktreeManager {
       // cleared every marker. Any failure falls through to the safe reset below,
       // so the base tree is never left dirty.
       //
-      // Gate on actual conflict evidence (conflictFiles): a merge that exits
-      // nonzero WITHOUT detectable CONFLICT lines is a hard git failure (not a
-      // marker-bearing conflict). Letting a resolver "resolve" it committed
-      // through the nothing-to-commit tolerance with a "(conflict resolved)"
-      // message — the third escape route observed on Linux CI (fired-arm
-      // evidence, run 31821313389: ok:true + "(squash, conflict resolved)"
-      // with all three probes empty). Such merges must fall through to the
-      // reset + needs-review path below instead.
-      if (opts.resolve && conflictFiles.length > 0) {
+      // NOTE: do NOT gate this on conflictFiles.length — Linux CI evidence
+      // (run 31825862195) shows REAL content conflicts can present with a
+      // nonzero exit AND both probes empty (no CONFLICT lines, no unmerged
+      // index entries) while markers sit in the working tree. The
+      // staged-listing fallback inside hasConflictMarkers is what lets
+      // legitimate resolvers handle that shape; gating on the probes broke
+      // four real-repo resolve tests.
+      if (opts.resolve) {
         const finalized = await this.tryResolveConflict(handle, conflictFiles, opts);
         if (finalized) return finalized;
       }

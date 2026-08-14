@@ -1141,8 +1141,8 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 152,
-      "sourceLines": 46003
+      "sourceFiles": 154,
+      "sourceLines": 46199
     },
     {
       "directory": "core",
@@ -1169,8 +1169,8 @@
       "directory": "execution",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
-      "sourceFiles": 52,
-      "sourceLines": 18463
+      "sourceFiles": 54,
+      "sourceLines": 19555
     },
     {
       "directory": "extension",
@@ -1302,8 +1302,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 79,
-      "sourceLines": 18385
+      "sourceFiles": 83,
+      "sourceLines": 18866
     },
     {
       "directory": "tasking",
@@ -1338,7 +1338,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused worktree implementation",
       "sourceFiles": 5,
-      "sourceLines": 1205
+      "sourceLines": 1204
     }
   ]
 }
