@@ -37,7 +37,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "typescript": "^7.0.2",
-    "undici-types": "^8.9.0",
+    "undici-types": "^8.10.0",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

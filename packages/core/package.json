@@ -194,6 +194,6 @@
     "access": "public"
   },
   "optionalDependencies": {
-    "@datadog/pprof": "5.17.0"
+    "@datadog/pprof": "5.18.0"
   }
 }

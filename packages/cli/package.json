@@ -69,7 +69,7 @@
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-hq": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
-    "ws": "^8.21.1"
+    "ws": "^8.21.3"
   },
   "optionalDependencies": {
     "@wrongstack/desktop": "workspace:*"
