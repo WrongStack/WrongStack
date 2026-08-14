@@ -508,6 +508,12 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
       }
 
       const todoCount = phases.reduce((n, p) => n + (p.taskTemplates?.length ?? 0), 0);
+      if (todoCount === 0) {
+        return {
+          ok: false,
+          error: 'The planner produced phases without executable tasks. Refine the goal and try again.',
+        };
+      }
       log(`📋 Plan ready: ${phases.length} phases, ${todoCount} todos.`);
 
       // 2) BUILD + persist
@@ -628,6 +634,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
         // tasks at once (visible on the board); raise/lower via
         // WRONGSTACK_GOAL_TASK_CONCURRENCY (1 = strictly sequential).
         maxConcurrentTasks: resolveTaskConcurrency(),
+        stopOnFailure: true,
       });
 
       // Re-persist on terminal graph events. NOTE: call through `deps.events`
@@ -783,6 +790,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
           ? (deps.maxConcurrentPhases ?? WORKTREE_PHASE_CONCURRENCY)
           : 1,
         maxConcurrentTasks: resolveTaskConcurrency(),
+        stopOnFailure: true,
       });
       const busOn = deps.events as unknown as {
         on(event: string, handler: (payload: unknown) => void): void;

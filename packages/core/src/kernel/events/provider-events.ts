@@ -158,6 +158,19 @@ export interface ProviderEventMap {
       | undefined;
   };
   /**
+   * The fallback extension deferred a half-open primary recovery probe because
+   * the target model's known context window cannot fit the current request.
+   * The active fallback stays selected; no doomed primary request is sent.
+   */
+  'provider.primary_probe_context_blocked': {
+    sessionId?: string | undefined;
+    providerId: string;
+    model: string;
+    currentTokens: number;
+    maxContext: number;
+    timestamp: number;
+  };
+  /**
    * Fired by the fallback gate function (supplied to the fallback-model
    * extension via `FallbackModelDeps.fallbackGate`) when the chain is about
    * to engage, BEFORE attempting any fallback entry. Carries the full

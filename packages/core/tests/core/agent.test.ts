@@ -546,6 +546,32 @@ describe('Agent', () => {
     expect(result.status).toBe('max_iterations');
   });
 
+  it('does not auto-extend an iteration cap without an explicit host policy', async () => {
+    const echo: Tool = {
+      name: 'echo',
+      description: '',
+      inputSchema: { type: 'object' },
+      permission: 'auto',
+      mutating: false,
+      async execute() {
+        return '';
+      },
+    };
+    const provider = new MockProvider(
+      Array.from({ length: 4 }, (_, i) => ({
+        content: [{ type: 'tool_use' as const, id: `u-${i}`, name: 'echo', input: {} }],
+        stopReason: 'tool_use' as const,
+      })),
+    );
+    const { agent, tmp } = await buildAgent(provider, [echo]);
+    cleanupDirs.push(tmp);
+
+    const result = await agent.run('loop', { maxIterations: 2 });
+
+    expect(result.status).toBe('max_iterations');
+    expect(provider.calls).toBe(2);
+  });
+
   it('aborts cleanly on signal', async () => {
     const provider = new MockProvider([
       { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },

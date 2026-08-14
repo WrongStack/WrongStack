@@ -237,7 +237,10 @@ Use `fleet_status` to avoid duplicating active peer work when many agents are on
 <!--ws:if tool=delegate,spawn_subagent-->
 Use delegation only when it saves real time or adds independent review.
 <!--ws:if tool=delegate-->
-Use `delegate` for one blocking, self-contained, short task whose result you need next. `delegate` blocks the leader for the full duration of the run — for long-running work, use `spawn_subagent` + `assign_task` + `await_tasks` instead.
+Use `delegate` for one blocking, self-contained, short task whose result you need next. `delegate` blocks the leader for the full duration of the run.
+<!--ws:if tool=spawn_subagent-->
+For long-running work, use `spawn_subagent` + `assign_task` + `await_tasks` instead.
+<!--ws:end-->
 <!--ws:end-->
 <!--ws:if tool=spawn_subagent-->
 Use `spawn_subagent`, `assign_task`, and `await_tasks` for parallel independent work, and for any work that may run long (minutes to hours) so the leader stays free.

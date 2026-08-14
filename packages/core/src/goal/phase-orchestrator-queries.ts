@@ -23,7 +23,9 @@ export function getReadyPhases(graph: PhaseGraph): PhaseNode[] {
 
     const depsDone = phase.dependsOn.every((depId) => {
       const dep = graph.phases.get(depId);
-      return dep?.status === 'completed' || dep?.status === 'skipped' || dep?.status === 'failed';
+      // A failed predecessor does not satisfy a dependency. Treating it as
+      // resolved started downstream phases with missing source evidence.
+      return dep?.status === 'completed' || dep?.status === 'skipped';
     });
 
     // A phase is ready ONLY when its dependencies are resolved. `parallelizable`
@@ -71,9 +73,7 @@ export function getCompletedTaskCount(trackerFor: TrackerLookup, phase: PhaseNod
 
 export function isGraphComplete(graph: PhaseGraph): boolean {
   const allPhases = Array.from(graph.phases.values());
-  return allPhases.every(
-    (p) => p.status === 'completed' || p.status === 'skipped' || p.status === 'failed',
-  );
+  return allPhases.every((p) => p.status === 'completed' || p.status === 'skipped');
 }
 
 export function getProgress(graph: PhaseGraph, trackerFor: TrackerLookup): PhaseProgress {

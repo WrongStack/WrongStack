@@ -404,7 +404,8 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
         a.logger.warn(
           `Repaired context tool adjacency: removed ${repaired.report.removedToolUses.length} tool_use block(s), ` +
             `${repaired.report.removedToolResults.length} tool_result block(s), ` +
-            `${repaired.report.removedMessages} empty message(s)`,
+            `${repaired.report.removedMessages} empty message(s)` +
+            formatAdjacencyRepairIds(repaired.report.removedToolUses, repaired.report.removedToolResults),
         );
       }
     }
@@ -579,4 +580,12 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
   }
 
   return { buildAndRunRequestPipeline, processResponse };
+}
+
+/** Keep repair telemetry actionable without turning a damaged large context into a log flood. */
+function formatAdjacencyRepairIds(toolUses: string[], toolResults: string[]): string {
+  const ids = [...new Set([...toolUses, ...toolResults])].slice(0, 8);
+  return ids.length > 0
+    ? `; affected tool ids: ${ids.join(', ')}${toolUses.length + toolResults.length > ids.length ? ', …' : ''}`
+    : '';
 }

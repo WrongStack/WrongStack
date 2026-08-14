@@ -336,11 +336,6 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           cfg.timeoutMs = Math.max(30_000, timeoutMs - SUBAGENT_TIMEOUT_BUFFER_MS);
         }
 
-        // Announce the delegation before we block — UIs render a
-        // "started" line immediately so the (often minutes-long) wait
-        // doesn't look idle.
-        opts.events?.emit('delegate.started', { sessionId, target, task: i.task });
-
         const dir = director;
         const maxHandoffs = Math.min(8, Math.max(0, Math.floor(i.maxHandoffs ?? 1)));
         const handoffs: DelegateHandoff[] = [];
@@ -391,6 +386,17 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           // first-attempt preface — it would re-trigger escalation on a
           // worker that already escalated.
           const subagentId = await dir.spawn(attemptConfig);
+          // Publish once the runtime identity exists. The WebUI can now add
+          // this synchronous delegate to its live roster instead of keeping
+          // only an unaddressable timeline line while the leader waits.
+          if (handoffCount === 0) {
+            opts.events?.emit('delegate.started', {
+              sessionId,
+              target,
+              task: i.task,
+              subagentId,
+            });
+          }
           // `delegatedTask` is the original leader brief on the first
           // attempt and the `buildHandoffTask` continuation text on later
           // attempts. Both preserve the verbatim original task inside

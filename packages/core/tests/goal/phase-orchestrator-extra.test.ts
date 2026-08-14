@@ -124,7 +124,79 @@ describe('PhaseOrchestrator — autonomous tick loop', () => {
 });
 
 describe('PhaseOrchestrator — task retry + failure', () => {
-  it('legacy contract: completes the phase after task failure when stopOnFailure is omitted', async () => {
+  it('fails closed when a phase has no executable tasks', async () => {
+    const graph = await new PhaseGraphBuilder({
+      title: 'Dynamic work',
+      phases: [
+        { name: 'Remediation', description: 'Added after synthesis', priority: 'high', estimateHours: 1, parallelizable: false },
+      ],
+    }).build();
+    const events: string[] = [];
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      autonomous: false,
+      events: { emit: (event: string) => events.push(event) } as never,
+    });
+
+    await orch.start();
+
+    const phase = Array.from(graph.phases.values())[0]!;
+    expect(phase.status).toBe('failed');
+    expect(graph.completedPhaseIds).not.toContain(phase.id);
+    expect(graph.failedPhaseIds).toContain(phase.id);
+    expect(events).toContain('phase.failed');
+    expect(events).not.toContain('phase.completed');
+  });
+
+  it('does not release a dependent phase after its prerequisite failed', async () => {
+    const graph = await new PhaseGraphBuilder({
+      title: 'Fail closed dependency graph',
+      phases: [
+        {
+          name: 'Synthesis',
+          description: '',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'Collect findings', description: '', type: 'chore', priority: 'high', estimateHours: 1 },
+          ],
+        },
+        {
+          name: 'Remediation',
+          description: '',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            { title: 'Fix verified finding', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+          ],
+        },
+      ],
+    }).build();
+    const ran: string[] = [];
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: {
+        executeTask: async (task) => {
+          ran.push(task.title);
+          throw new Error('synthesis failed');
+        },
+      },
+      autonomous: false,
+      maxRetries: 0,
+    });
+
+    await orch.start();
+
+    expect(ran).toEqual(['Collect findings']);
+    const phases = Array.from(graph.phases.values());
+    expect(phases[0]?.status).toBe('failed');
+    expect(phases[1]?.status).toBe('pending');
+  });
+
+  it('fails the phase after task failure when stopOnFailure is omitted', async () => {
     const graph = await singlePhase();
     const orch = new PhaseOrchestrator({
       graph,
@@ -142,7 +214,8 @@ describe('PhaseOrchestrator — task retry + failure', () => {
     const phase = Array.from(graph.phases.values())[0]!;
     const task = Array.from(phase.taskGraph.nodes.values())[0]!;
     expect(task.status).toBe('failed');
-    expect(phase.status).toBe('completed');
+    expect(phase.status).toBe('failed');
+    expect(graph.failedPhaseIds).toContain(phase.id);
   });
 
   it('retries a failing task up to maxRetries, then marks it failed', async () => {

@@ -28,6 +28,25 @@ const distReady =
   fsSync.existsSync(distEntry) && fsSync.existsSync(distServer) && fsSync.existsSync(coreDist);
 const execFileAsync = promisify(execFile);
 
+/**
+ * Run a read query that may land while the server is publishing a generation.
+ *
+ * The project server refuses reads for the duration of a refresh
+ * (`IndexRefreshInProgressError`, see `project-server.ts` `cachedRead`), which
+ * is exactly the window a poll loop waiting on that refresh keeps hitting.
+ * Production callers absorb it the same way — `codebaseSearchTool` reports it
+ * as `indexStatus` instead of throwing — so a poll loop must treat it as
+ * "not ready yet", not as a failure. Any other error still propagates.
+ */
+async function settleIndexRead<T>(read: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await read();
+  } catch (error) {
+    if ((error as { name?: string }).name === 'IndexRefreshInProgressError') return undefined;
+    throw error;
+  }
+}
+
 function processExists(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -262,13 +281,15 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
       let watchedFound = false;
       for (let i = 0; i < 100 && !watchedFound; i++) {
         await new Promise((resolve) => setTimeout(resolve, 25));
-        const watched = await api.searchCodebaseIndex({
-          projectRoot: tmpDir,
-          indexDir,
-          query: 'watched sentinel',
-          limit: 10,
-        });
-        watchedFound = watched.results.some((result) => result.name === 'watchedSentinel');
+        const watched = await settleIndexRead(() =>
+          api!.searchCodebaseIndex({
+            projectRoot: tmpDir,
+            indexDir,
+            query: 'watched sentinel',
+            limit: 10,
+          }),
+        );
+        watchedFound = watched?.results.some((result) => result.name === 'watchedSentinel') ?? false;
       }
       expect(watchedFound).toBe(true);
 
@@ -452,7 +473,12 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
         await api.shutdownCodebaseIndexServer(tmpDir, indexDir, 'integration-finally');
         activeProject = undefined;
       }
-      await fs.rm(tmpDir, { recursive: true, force: true });
+      // Windows releases the server process's SQLite handles (`index.db`,
+      // `-wal`, `-shm`) asynchronously after it exits, so a bare rm races the
+      // OS and throws EBUSY roughly half the time even though every assertion
+      // above already proved the process is gone. Node's rm retries on
+      // EBUSY/EPERM/ENOTEMPTY when `maxRetries` is set.
+      await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
     }
   }, 90_000);
 });

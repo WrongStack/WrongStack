@@ -94,7 +94,9 @@ export class Agent {
     this.maxIterations = init.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     this.executionStrategy = init.executionStrategy ?? 'smart';
     this.perIterationOutputCapBytes = init.perIterationOutputCapBytes ?? 100_000;
-    this.autoExtendLimit = init.autoExtendLimit ?? true;
+    // A missing host policy must not turn a finite iteration budget into an
+    // unbounded autonomous run. Hosts/users can still opt in explicitly.
+    this.autoExtendLimit = init.autoExtendLimit ?? false;
     this.loopDetection = resolveLoopDetection(init.loopDetection);
     this.autonomousContinue = init.autonomousContinue ?? false;
     this.refreshSystemPrompt = init.refreshSystemPrompt ?? false;

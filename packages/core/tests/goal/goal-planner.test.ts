@@ -73,6 +73,18 @@ describe('GoalPlanner', () => {
     expect(result.phases).toHaveLength(0);
   });
 
+  it('rejects phases with no executable tasks instead of creating instant-complete work', async () => {
+    const planner = new GoalPlanner({
+      goal: 'x',
+      runOnce: async () => JSON.stringify([{ name: 'Later remediation', tasks: [] }]),
+    });
+    const result = await planner.plan();
+
+    expect(result.parseFailed).toBe(true);
+    expect(result.phases).toEqual([]);
+    expect(result.warnings).toContain('Phase "Later remediation" has no executable tasks and was rejected.');
+  });
+
   it('produces templates a PhaseGraphBuilder can materialize into a populated graph', async () => {
     const planner = new GoalPlanner({ goal: 'Build a thing', runOnce: async () => VALID_PLAN });
     const { phases } = await planner.plan();

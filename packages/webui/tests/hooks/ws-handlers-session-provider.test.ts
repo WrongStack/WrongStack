@@ -460,6 +460,22 @@ describe('session ws-handlers — provider / delegate / context', () => {
       handleDelegateStarted(msg('delegate.started', { target: 'w1', task: 'x'.repeat(300) }));
       expect(chat().length).toBeLessThan(300);
     });
+
+    it('adds the running delegate to the live fleet roster by stable id', () => {
+      handleDelegateStarted(
+        msg('delegate.started', {
+          target: 'worker-1',
+          task: 'refactor the store',
+          subagentId: 'delegate-runtime-1',
+        }),
+      );
+
+      expect(useFleetStore.getState().agents.get('delegate-runtime-1')).toMatchObject({
+        name: 'worker-1',
+        description: 'refactor the store',
+        status: 'running',
+      });
+    });
   });
 
   describe('delegate.completed', () => {
@@ -520,6 +536,19 @@ describe('session ws-handlers — provider / delegate / context', () => {
       expect(pushAgentTimelineEntry).toHaveBeenCalledWith(
         expect.objectContaining({ subagentId: 'sub-9', agentName: 'worker-1' }),
       );
+    });
+
+    it('marks the matching live delegate as completed', () => {
+      handleDelegateStarted(
+        msg('delegate.started', { target: 'worker-1', task: 't', subagentId: 'sub-9' }),
+      );
+      handleDelegateCompleted(msg('delegate.completed', { ...base, subagentId: 'sub-9' }));
+
+      expect(useFleetStore.getState().agents.get('sub-9')).toMatchObject({
+        status: 'completed',
+        iteration: 4,
+        toolCalls: 9,
+      });
     });
   });
 

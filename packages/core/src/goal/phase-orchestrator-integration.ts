@@ -52,6 +52,7 @@ export async function failPhaseAfterTasks(
   phase.actualDurationMs = Date.now() - (phase.startedAt ?? Date.now());
   int.runningPhases.delete(phase.id);
   int.graph.activePhaseIds = int.graph.activePhaseIds.filter((id) => id !== phase.id);
+  if (!int.graph.failedPhaseIds.includes(phase.id)) int.graph.failedPhaseIds.push(phase.id);
   int.emit('phase.failed', { phaseId: phase.id, name: phase.name, error });
   int.ctx.onPhaseFail?.(phase, new Error(error));
   await keepWorktreeForReview(int, phase);

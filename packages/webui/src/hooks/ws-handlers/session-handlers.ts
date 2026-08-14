@@ -816,14 +816,28 @@ export function handleToolLoopDetected(msg: WSServerMessage) {
 export function handleDelegateStarted(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
   pipeViz(msg);
-  const p = msg.payload as { target: string; task: string };
+  const p = msg.payload as { target: string; task: string; subagentId?: string | undefined };
   const task = truncateLine(p.task, 180);
+  const subagentId = p.subagentId ?? p.target;
   useChatStore.getState().addMessage({
     role: 'assistant',
     content: `Delegating to \`${p.target}\`: ${task}`,
   });
-  useFleetStore.getState().pushAgentTimelineEntry({
-    subagentId: p.target,
+  const fleet = useFleetStore.getState();
+  fleet.applyEvent({
+    kind: 'spawned',
+    subagentId,
+    name: p.target,
+    description: task,
+  });
+  fleet.applyEvent({
+    kind: 'task_started',
+    subagentId,
+    name: p.target,
+    description: task,
+  });
+  fleet.pushAgentTimelineEntry({
+    subagentId,
     agentName: p.target,
     content: task,
     kind: 'status',
@@ -860,8 +874,20 @@ export function handleDelegateCompleted(msg: WSServerMessage) {
     ].join('\n'),
     isError: !p.ok,
   });
-  useFleetStore.getState().pushAgentTimelineEntry({
-    subagentId: p.subagentId ?? p.target,
+  const fleet = useFleetStore.getState();
+  const subagentId = p.subagentId ?? p.target;
+  fleet.applyEvent({
+    kind: 'task_completed',
+    subagentId,
+    name: p.target,
+    status: p.ok ? 'success' : p.status === 'timeout' || p.status === 'host_timeout' ? 'timeout' : 'failed',
+    iterations: p.iterations,
+    toolCalls: p.toolCalls,
+    finalText: p.summary,
+    ...(p.ok ? {} : { failureReason: p.status ?? 'failed' }),
+  });
+  fleet.pushAgentTimelineEntry({
+    subagentId,
     agentName: p.target,
     content: p.summary,
     kind: p.ok ? 'status' : 'error',

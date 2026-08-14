@@ -138,8 +138,17 @@ export class GoalPlanner {
     for (const entry of data) {
       const result = this.coercePhase(entry);
       if (result) {
-        phases.push(result.phase);
         warnings.push(...result.warnings);
+        // A phase without executable work is not a valid autonomous phase.
+        // Keeping it used to let the orchestrator observe 0 failed tasks,
+        // skip verification, and mark the phase completed in a few ms.
+        // Dynamic follow-up work is not represented by PhaseTemplate, so make
+        // that unsupported plan shape explicit instead of silently succeeding.
+        if (result.phase.taskTemplates?.length) {
+          phases.push(result.phase);
+        } else {
+          warnings.push(`Phase "${result.phase.name}" has no executable tasks and was rejected.`);
+        }
       }
     }
     return { phases, warnings };

@@ -69,6 +69,60 @@ const okResponse = {
 } as never as Response;
 
 describe('fallback-model context-window pre-filter', () => {
+  it('defers a primary recovery probe when the target window cannot fit the fallback history', async () => {
+    const config = makeConfig();
+    let now = 0;
+    const events = new EventBus();
+    const blocked: Array<{ currentTokens: number; maxContext: number }> = [];
+    events.on('provider.primary_probe_context_blocked', (event) => blocked.push(event as never));
+    const ext = createFallbackModelExtension({
+      getConfig: () => config,
+      buildProvider: async (providerId, modelId) =>
+        makeProvider(
+          providerId,
+          (providerId === 'primary' && modelId === 'model-a') || modelId === 'small-model'
+            ? 4_000
+            : 200_000,
+        ),
+      events,
+      now: () => now,
+      primaryCooldownMs: 100,
+    });
+    const { ctx, request } = makeHarness(config, 50_000, async (providerId, modelId) =>
+      makeProvider(
+        providerId,
+        (providerId === 'primary' && modelId === 'model-a') || modelId === 'small-model'
+          ? 4_000
+          : 200_000,
+      ),
+    );
+    ctx.provider = makeProvider('primary', 4_000);
+    let calls = 0;
+    await ext.wrapProviderRunner?.(
+      ctx,
+      request,
+      (async () => {
+        calls++;
+        if (calls === 1) throw new ProviderError('rate limited', 429, true, 'primary');
+        return okResponse;
+      }) as never,
+    );
+
+    expect(ctx.model).toBe('large-model');
+    now = 100;
+    await ext.beforeRun?.(ctx, {} as never);
+
+    expect(ctx.model).toBe('large-model');
+    expect(blocked).toEqual([
+      expect.objectContaining({
+        providerId: 'primary',
+        model: 'model-a',
+        currentTokens: 50_000,
+        maxContext: 4_000,
+      }),
+    ]);
+  });
+
   it('skips a fallback entry whose context window is smaller than the current request tokens', async () => {
     const config = makeConfig();
     // buildProvider returns providers with different context windows:

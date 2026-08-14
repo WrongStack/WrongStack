@@ -1140,14 +1140,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 152,
-      "sourceLines": 45997
+      "sourceLines": 46003
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 41,
-      "sourceLines": 10883
+      "sourceLines": 10922
     },
     {
       "directory": "defaults",
@@ -1182,7 +1182,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
       "sourceFiles": 14,
-      "sourceLines": 3378
+      "sourceLines": 3398
     },
     {
       "directory": "hooks",
@@ -1210,7 +1210,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3601
+      "sourceLines": 3616
     },
     {
       "directory": "middleware",
@@ -1322,7 +1322,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10459
+      "sourceLines": 10461
     },
     {
       "directory": "utils",

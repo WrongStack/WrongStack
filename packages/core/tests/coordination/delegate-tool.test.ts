@@ -555,7 +555,7 @@ describe('createDelegateTool', () => {
   it('emits delegate.started before and delegate.completed after a successful delegation', async () => {
     director = buildLiveDirector();
     const hostBus = new EventBus();
-    const started: Array<{ target: string; task: string }> = [];
+    const started: Array<{ target: string; task: string; subagentId?: string }> = [];
     const completed: Array<{
       target: string;
       ok: boolean;
@@ -564,7 +564,9 @@ describe('createDelegateTool', () => {
       iterations: number;
       toolCalls: number;
     }> = [];
-    hostBus.on('delegate.started', (e) => started.push({ target: e.target, task: e.task }));
+    hostBus.on('delegate.started', (e) =>
+      started.push({ target: e.target, task: e.task, subagentId: e.subagentId }),
+    );
     hostBus.on('delegate.completed', (e) =>
       completed.push({
         target: e.target,
@@ -588,7 +590,13 @@ describe('createDelegateTool', () => {
     )) as { ok: boolean };
 
     expect(out.ok).toBe(true);
-    expect(started).toEqual([{ target: 'bug-hunter', task: 'audit src/parser.ts' }]);
+    expect(started).toEqual([
+      expect.objectContaining({
+        target: 'bug-hunter',
+        task: 'audit src/parser.ts',
+        subagentId: expect.any(String),
+      }),
+    ]);
     expect(completed).toHaveLength(1);
     expect(completed[0]).toMatchObject({
       target: 'bug-hunter',

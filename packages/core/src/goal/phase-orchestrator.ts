@@ -90,7 +90,10 @@ export class PhaseOrchestrator {
       maxVerifyAttempts: opts.maxVerifyAttempts ?? 2,
       autonomous: opts.autonomous ?? true,
       phaseDelayMs: opts.phaseDelayMs ?? 0,
-      stopOnFailure: opts.stopOnFailure ?? false,
+      // Autonomous goals must fail closed. Continuing after a terminal task or
+      // gate failure can make dependent phases look complete without their
+      // required evidence.
+      stopOnFailure: opts.stopOnFailure ?? true,
       taskTimeoutMs: opts.taskTimeoutMs ?? 600_000,
       events: this.events,
     };
@@ -271,6 +274,13 @@ export class PhaseOrchestrator {
     this.emit('phase.started', { phaseId: phase.id, name: phase.name });
 
     try {
+      if (phase.taskGraph.nodes.size === 0) {
+        await this.failPhaseAfterTasks(
+          phase,
+          'Phase has no executable tasks. Add task evidence before starting this phase.',
+        );
+        return;
+      }
       await this.executePhaseTasks(phase);
 
       const failedTasks = this.getFailedTaskCount(phase);

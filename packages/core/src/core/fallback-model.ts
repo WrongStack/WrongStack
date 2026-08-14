@@ -412,7 +412,35 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
       )
         return;
       try {
-        ctx.provider = await deps.buildProvider(primary.providerId, primary.model);
+        const primaryProvider = await deps.buildProvider(primary.providerId, primary.model);
+        // A fallback can safely carry a larger history than the recovered
+        // primary. Do this check *after* building the target provider so its
+        // own, model-specific maxContext is authoritative. This mirrors the
+        // fallback-chain pre-filter below and prevents a half-open probe from
+        // repeatedly sending a request the primary cannot accept.
+        const currentTokens = ctx.lastRequestTokens;
+        const maxContext = maxContextOf(primaryProvider);
+        if (
+          maxContext > 0 &&
+          typeof currentTokens === 'number' &&
+          currentTokens > maxContext
+        ) {
+          deps.events.emit('provider.primary_probe_context_blocked', {
+            sessionId: resolveEventSessionId(ctx),
+            providerId: primary.providerId,
+            model: primary.model,
+            currentTokens,
+            maxContext,
+            timestamp: now(),
+          });
+          deps.logger?.warn(
+            `fallback-model: deferring primary probe "${primary.providerId}/${primary.model}" — ` +
+              `context (${currentTokens}) exceeds target window (${maxContext})`,
+          );
+          markPrimaryFailure(cfg);
+          return;
+        }
+        ctx.provider = primaryProvider;
         ctx.model = primary.model;
         await deps.onModelSwitch?.(primary.providerId, primary.model);
         // The next provider call is the half-open primary probe. If it

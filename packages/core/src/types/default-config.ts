@@ -13,7 +13,9 @@ export const DEFAULT_TOOLS_CONFIG = Object.freeze({
   perIterationOutputCapBytes: 100_000,
   descriptionMode: Object.freeze({}) as Record<string, 'extend' | 'simple' | undefined>,
   disabledTools: Object.freeze([]) as readonly string[],
-  autoExtendLimit: true,
+  // Extension requires an explicit host/user policy. Without that boundary a
+  // nominal maxIterations cap can grow forever in autonomous sessions.
+  autoExtendLimit: false,
   restrictToProjectRoot: true,
   // Off by default: the board is a record of the work, not a permit for it.
   // See ToolsConfig.kanbanGovernance for what turning it on costs and gates.

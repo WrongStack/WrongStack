@@ -67,6 +67,7 @@ export interface WSDelegateStarted {
   payload: SessionScopedPayload & {
     target: string;
     task: string;
+    subagentId?: string | undefined;
   };
 }
 

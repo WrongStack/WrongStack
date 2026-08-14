@@ -41,6 +41,8 @@ export interface AgentEventMap {
     target: string;
     /** The task instruction handed to the subagent (untruncated — UIs trim). */
     task: string;
+    /** Runtime identity for the spawned delegate, when creation succeeded. */
+    subagentId?: string | undefined;
   };
   /**
    * Fired by the `delegate` tool once the subagent settles (success,
