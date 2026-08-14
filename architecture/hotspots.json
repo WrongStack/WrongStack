@@ -23,7 +23,7 @@
       "relativeImports": 22
     },
     "packages/cli/src/goal-host.ts": {
-      "lines": 922,
+      "lines": 930,
       "relativeImports": 1
     },
     "packages/cli/src/hq-server/routes/auth-handlers.ts": {
@@ -107,7 +107,7 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/delegate-tool.ts": {
-      "lines": 968,
+      "lines": 974,
       "relativeImports": 8
     },
     "packages/core/src/coordination/director-tools.ts": {
@@ -151,7 +151,7 @@
       "relativeImports": 13
     },
     "packages/core/src/core/fallback-model.ts": {
-      "lines": 818,
+      "lines": 846,
       "relativeImports": 14
     },
     "packages/core/src/core/system-prompt-builder.ts": {
@@ -335,7 +335,7 @@
       "relativeImports": 9
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 1051,
+      "lines": 1050,
       "relativeImports": 18
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
@@ -471,7 +471,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1291,
+      "lines": 1297,
       "relativeImports": 17
     },
     "packages/webui/src/components/ChatView/index.tsx": {
@@ -495,7 +495,7 @@
       "relativeImports": 2
     },
     "packages/webui/src/components/FileExplorer.tsx": {
-      "lines": 1243,
+      "lines": 1246,
       "relativeImports": 2
     },
     "packages/webui/src/components/KanbanTaskInspector.tsx": {
@@ -543,7 +543,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 1125,
+      "lines": 1151,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
@@ -555,7 +555,7 @@
       "relativeImports": 9
     },
     "packages/webui/src/stores/chat-store.ts": {
-      "lines": 1113,
+      "lines": 1115,
       "relativeImports": 1
     },
     "packages/webui/src/stores/viz-store.ts": {
