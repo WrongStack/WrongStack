@@ -11,7 +11,7 @@
       "relativeImports": 17
     },
     "packages/cli/src/boot.ts": {
-      "lines": 844,
+      "lines": 851,
       "relativeImports": 19
     },
     "packages/cli/src/cli-main.ts": {

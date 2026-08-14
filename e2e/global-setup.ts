@@ -61,12 +61,22 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     },
   });
 
-  // Capture server output for debugging.
-  server.stdout?.on('data', (chunk) => process.stdout.write(`[webui:stdout] ${chunk}`));
-  server.stderr?.on('data', (chunk) => process.stderr.write(`[webui:stderr] ${chunk}`));
+  // Capture server output for debugging and readiness polling. The canonical
+  // stdout line ([WebUI] HTTP server running on <url>) is not emitted on every
+  // build path, but the CLI's stderr banner (✦ WebUI running → <url>) is
+  // printed by dispatch-webui on every --webui boot and carries the bound URL.
+  let combined = '';
+  server.stdout?.on('data', (chunk) => {
+    combined += chunk;
+    process.stdout.write(`[webui:stdout] ${chunk}`);
+  });
+  server.stderr?.on('data', (chunk) => {
+    combined += chunk;
+    process.stderr.write(`[webui:stderr] ${chunk}`);
+  });
 
-  // Wait for the HTTP server URL to appear in stdout.
-  const url = await waitForServerOutput(server, 60_000);
+  // Wait for a readiness line (stdout or stderr), an early exit, or timeout.
+  const url = await waitForServerOutput(server, combined, 60_000);
   if (!url) {
     server.kill();
     throw new Error('WebUI server failed to start within 60s');
@@ -92,35 +102,47 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   (config as FullConfig & { _serverProcess: typeof server })._serverProcess = server;
 }
 
-/** Wait for the canonical HTTP-ready line, an early exit, or the deadline. */
+/** Wait for either readiness line, an early exit, or the deadline. */
 async function waitForServerOutput(
   server: ReturnType<typeof spawn>,
+  combined: string,
   timeout: number,
 ): Promise<string | null> {
+  const patterns = [
+    /\[WebUI\] HTTP server running on (https?:\/\/[^\s]+)/,
+    /✦ WebUI running → (https?:\/\/[^\s]+)/,
+  ];
+  const poll = (): string | null => {
+    for (const re of patterns) {
+      const match = combined.match(re);
+      if (match) {
+        const announced = new URL(match[1]!);
+        announced.search = '';
+        return announced.origin;
+      }
+    }
+    return null;
+  };
+  const already = poll();
+  if (already) return already;
   return new Promise((resolve) => {
     let settled = false;
     const finish = (url: string | null): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      server.stdout?.off('data', handler);
+      clearInterval(poller);
       server.off('exit', onExit);
       server.off('error', onError);
       resolve(url);
     };
-    function handler(chunk: Buffer) {
-      const line = chunk.toString();
-      const match = line.match(/\[WebUI\] HTTP server running on (https?:\/\/[^\s]+)/);
-      if (match) {
-        const announced = new URL(match[1]!);
-        announced.search = '';
-        finish(announced.origin);
-      }
-    }
     const onExit = (): void => finish(null);
     const onError = (): void => finish(null);
     const timer = setTimeout(() => finish(null), timeout);
-    server.stdout?.on('data', handler);
+    const poller = setInterval(() => {
+      const found = poll();
+      if (found) finish(found);
+    }, 250);
     server.once('exit', onExit);
     server.once('error', onError);
   });
