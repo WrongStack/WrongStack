@@ -1,6 +1,14 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": true, "rootDir": "../..", "types": ["node", "vitest/globals", "vite/client"] },
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "../..",
+    "types": ["node", "vitest/globals", "vite/client"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@wrongstack/webui-server/server/*": ["../webui-server/src/server/*"]
+    }
+  },
   "include": ["src/**/*", "tests/**/*", "vitest.config.ts"],
   "exclude": ["dist", "node_modules", "tests/fixtures/**/*"]
 }
