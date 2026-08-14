@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -104,8 +105,12 @@ describe('setupHqTelemetry', () => {
       config: {} as never,
       flags: { 'hq-allow-exec': true },
       tuiOwnsScreen: true,
-      projectRoot: 'D:\\work\\repo',
-      globalRoot: 'D:\\global',
+      // Use the HOST path separator so path.basename() behaves identically on
+      // every platform: a Windows-style literal ('D:\\work\\repo') is only one
+      // path segment to Linux's basename (no '\\' separator there), which
+      // previously made this assertion platform-dependent (CI is Linux).
+      projectRoot: path.join('/work', 'repo'),
+      globalRoot: path.join('/global'),
       tracker: { getAgents: () => [{ id: 'agent-1' }] },
       agentMonitor: {} as never,
       brainMailbox: {} as never,
@@ -118,7 +123,7 @@ describe('setupHqTelemetry', () => {
     expect(mocks.startCliHqConnection).toHaveBeenCalledWith(
       expect.objectContaining({
         clientKind: 'tui',
-        projectRoot: 'D:\\work\\repo',
+        projectRoot: path.join('/work', 'repo'),
         projectName: 'repo',
         onCommand: hqOnCommand,
       }),

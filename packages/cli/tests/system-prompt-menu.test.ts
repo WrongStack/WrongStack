@@ -27,9 +27,9 @@ import {
   runSystemPromptMenu,
   SYSTEM_PROMPT_OPTIONS,
   SYSTEM_PROMPT_VARIANTS,
-  shouldSkipSystemPromptMenu,
   type SystemPromptMenuOutcome,
   type SystemPromptMenuPaths,
+  shouldSkipSystemPromptMenu,
 } from '../src/boot/system-prompt-menu.js';
 import type { ReadlineInputReader } from '../src/input-reader.js';
 import { LaunchAbortedError } from '../src/pre-launch.js';
@@ -458,7 +458,11 @@ describe('maybeRunSystemPromptMenu', () => {
   });
 
   it('captures a persistence failure in persistError instead of throwing', async () => {
-    const configPath = tmpProfileConfig();
+    // Own the parent directory: chmod'ing the root-owned shared /tmp fails
+    // with EPERM on Linux CI (the old tmpProfileConfig placed the file
+    // directly under os.tmpdir()). A mkdtemp dir is ours to chmod 0o555.
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-spm-ro-'));
+    const configPath = path.join(dir, 'config.json');
     // Pre-create the file with a parseable JSON so the loader does NOT short-
     // circuit. Then make the directory read-only so the atomicWrite fails.
     await fs.writeFile(configPath, JSON.stringify({}), 'utf8');
@@ -483,6 +487,7 @@ describe('maybeRunSystemPromptMenu', () => {
       } catch {
         // best-effort
       }
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
     }
     expect(res).toBeDefined();
     expect(res?.aborted).toBe(false);

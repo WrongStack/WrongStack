@@ -728,36 +728,58 @@ describe.skipIf(!gitAvailable)('WorktreeManager (real repo)', () => {
   it.skipIf(process.platform === 'win32')(
     'resolve callback that leaves markers → aborts to needs-review (never commits)',
     async () => {
-    const base = await makeRepo();
-    try {
-      const wm = new WorktreeManager({ projectRoot: base });
-      const h = await wm.allocate('p', { slugHint: 'resolve-bad' });
+      const base = await makeRepo();
+      try {
+        const wm = new WorktreeManager({ projectRoot: base });
+        const h = await wm.allocate('p', { slugHint: 'resolve-bad' });
 
-      await fs.writeFile(path.join(h.dir, 'seed.txt'), 'line1\nWORKTREE\nline3\n');
-      await wm.commitAll(h, 'edit on branch');
-      await fs.writeFile(path.join(base, 'seed.txt'), 'line1\nBASE\nline3\n');
-      spawnSync('git', ['-C', base, 'commit', '-aqm', 'edit on base'], {
-        stdio: 'ignore',
-        env: GIT_ENV,
-      });
+        await fs.writeFile(path.join(h.dir, 'seed.txt'), 'line1\nWORKTREE\nline3\n');
+        await wm.commitAll(h, 'edit on branch');
+        await fs.writeFile(path.join(base, 'seed.txt'), 'line1\nBASE\nline3\n');
+        spawnSync('git', ['-C', base, 'commit', '-aqm', 'edit on base'], {
+          stdio: 'ignore',
+          env: GIT_ENV,
+        });
 
-      // Resolver claims success but leaves the conflict markers in place.
-      const m = await wm.merge(h, { squash: true, resolve: async () => true });
+        // Resolver claims success but leaves the conflict markers in place.
+        const m = await wm.merge(h, { squash: true, resolve: async () => true });
 
-      expect(m.ok).toBe(false);
-      expect(m.conflict).toBe(true);
-      expect(m.resolved).toBeFalsy();
-      expect(h.status).toBe('needs-review');
-      // base HEAD is still the pre-merge commit (nothing was committed)
-      const head = spawnSync('git', ['-C', base, 'log', '-1', '--pretty=%s'], {
-        encoding: 'utf8',
-        env: GIT_ENV,
-      });
-      expect(head.stdout.trim()).toBe('edit on base');
-    } finally {
-      await fs.rm(base, { recursive: true, force: true });
-    }
-  }, 120_000);
+        if (m.ok) {
+          // Third escape route in this test's history (see 1d51da80e, de7bb9be8,
+          // 51a4ca708): if the merge reached the clean-commit path, capture WHY
+          // no probe fired so the next Linux failure is diagnosable from the log
+          // alone — three independent probes all missed a real conflict.
+          const diag = spawnSync('git', ['-C', base, 'log', '-3', '--oneline'], {
+            encoding: 'utf8',
+            env: GIT_ENV,
+          });
+          const probe = spawnSync('git', ['-C', base, 'diff', '--name-only', '--diff-filter=U'], {
+            encoding: 'utf8',
+            env: GIT_ENV,
+          });
+          throw new Error(
+            `merge returned ok:true — conflict probes all missed. ` +
+              `exit-code path must have been 0; unmerged-files probe: [${probe.stdout.trim()}]; ` +
+              `recent history:\n${diag.stdout}`,
+          );
+        }
+
+        expect(m.ok).toBe(false);
+        expect(m.conflict).toBe(true);
+        expect(m.resolved).toBeFalsy();
+        expect(h.status).toBe('needs-review');
+        // base HEAD is still the pre-merge commit (nothing was committed)
+        const head = spawnSync('git', ['-C', base, 'log', '-1', '--pretty=%s'], {
+          encoding: 'utf8',
+          env: GIT_ENV,
+        });
+        expect(head.stdout.trim()).toBe('edit on base');
+      } finally {
+        await fs.rm(base, { recursive: true, force: true });
+      }
+    },
+    120_000,
+  );
 
   // Regression: `hasConflictMarkers` used a regex that matched any line
   // consisting of 7+ `=` characters. Markdown setext-heading underlines
