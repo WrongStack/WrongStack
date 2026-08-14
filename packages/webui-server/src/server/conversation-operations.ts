@@ -118,12 +118,14 @@ export function createConversationOperations(
     userMessage: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'user_message')) return;
       const payload = (msg.payload ?? {}) as {
+        id?: unknown;
         content?: unknown;
         freshContext?: unknown;
         images?: IncomingImagePayload[] | undefined;
         imageBase64?: string | undefined;
       };
       const originSessionId = ctx.getSessionId();
+      const requestId = typeof payload.id === 'string' ? payload.id : undefined;
       const controller = ctx.runControl.begin(ws, originSessionId);
       if (!controller) {
         ctx.send(ws, {
@@ -167,6 +169,7 @@ export function createConversationOperations(
           type: 'run.result',
           payload: sessionPayload({
             sessionId: originSessionId,
+            requestId,
             status: runResult.status,
             iterations: runResult.iterations,
             finalText: runResult.finalText,

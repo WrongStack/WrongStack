@@ -361,7 +361,9 @@ interface ChatState {
    *  bleed check survives F5. */
   boundSessionId: string | null;
 
-  addMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'> & { timestamp?: number }) => string;
+  addMessage: (
+    msg: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string; timestamp?: number },
+  ) => string;
   setMessages: (messages: ChatMessage[]) => void;
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
   appendToMessage: (id: string, text: string) => void;
@@ -448,7 +450,7 @@ export const useChatStore = create<ChatState>()(
       boundSessionId: null as string | null,
 
       addMessage: (msg) => {
-        const id = `msg_${Date.now()}_${safeId().slice(0, 8)}`;
+        const id = msg.id ?? `msg_${Date.now()}_${safeId().slice(0, 8)}`;
         const fullMsg: ChatMessage = { ...msg, id, timestamp: msg.timestamp ?? Date.now() };
         set((state) => {
           // Cap the live chat transcript at MAX_CHAT_MESSAGES so a long-running

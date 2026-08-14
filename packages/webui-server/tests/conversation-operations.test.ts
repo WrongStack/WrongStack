@@ -109,7 +109,10 @@ describe('createConversationOperations', () => {
 
   it('runs through the host controller and projects the live session result', async () => {
     const h = harness();
-    await h.routes.userMessage(ws, { type: 'user_message', payload: { content: 'hello' } });
+    await h.routes.userMessage(ws, {
+      type: 'user_message',
+      payload: { id: 'request-42', content: 'hello' },
+    });
 
     expect(h.run).toHaveBeenCalledWith('hello', {
       signal: h.controller.signal,
@@ -118,7 +121,7 @@ describe('createConversationOperations', () => {
     expect(h.end).toHaveBeenCalledWith(ws, 'session-live', h.controller);
     expect(h.sent.at(-1)).toMatchObject({
       type: 'run.result',
-      payload: { sessionId: 'session-live', finalText: 'done' },
+      payload: { sessionId: 'session-live', requestId: 'request-42', finalText: 'done' },
     });
   });
 

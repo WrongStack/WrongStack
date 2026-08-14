@@ -653,15 +653,21 @@ export function ChatInput({
               ...(freshContext ? { freshContext: true } : {}),
             });
           } else {
+            const wireImages = images.length > 0 ? toWireImages(images) : undefined;
+            const requestId = freshContext
+              ? sendMessage(combined, wireImages, true)
+              : sendMessage(combined, wireImages);
+            if (!requestId) {
+              toast.error(t('chat:input.notConnectedDraftKept'));
+              return;
+            }
             addMessage({
+              id: requestId,
               role: 'user',
               content: combined,
               ...(attachments.length > 0 ? { attachments } : {}),
             });
             setLoading(true);
-            const wireImages = images.length > 0 ? toWireImages(images) : undefined;
-            if (freshContext) sendMessage(combined, wireImages, true);
-            else sendMessage(combined, wireImages);
             clearPendingImages();
           }
         } else {

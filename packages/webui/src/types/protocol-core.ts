@@ -310,6 +310,8 @@ export interface WSProviderStreamError {
 export interface WSRunResult {
   type: 'run.result';
   payload: SessionScopedPayload & {
+    /** Id of the user_message that initiated this run. */
+    requestId?: string | undefined;
     status: 'done' | 'failed' | 'max_iterations' | 'aborted';
     iterations: number;
     finalText?: string | undefined;

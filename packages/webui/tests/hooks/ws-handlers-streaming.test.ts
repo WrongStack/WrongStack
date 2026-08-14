@@ -379,6 +379,31 @@ describe('streaming pipeline: text_delta → coalescer → chat-store', () => {
     expect(messages[0]?.nextSteps?.steps[0]?.text).toBe('Continue investigating');
   });
 
+  it('marks the initiating user bubble failed when its provider turn fails', () => {
+    useChatStore.getState().addMessage({
+      id: 'request-provider-failed',
+      role: 'user',
+      content: 'please do this',
+    });
+
+    handleRunResult({
+      type: 'run.result',
+      payload: {
+        status: 'failed',
+        iterations: 1,
+        sessionId: 'sess_stream',
+        requestId: 'request-provider-failed',
+        error: { code: 'provider_error', message: 'provider unavailable', recoverable: true },
+      },
+    } as unknown as WSServerMessage);
+
+    expect(useChatStore.getState().messages[0]).toMatchObject({
+      id: 'request-provider-failed',
+      role: 'user',
+      status: 'failed',
+    });
+  });
+
   it('ignores deltas for a non-active session', async () => {
     // Mark a different session id on the payload; isActiveSessionMessage
     // should drop it.

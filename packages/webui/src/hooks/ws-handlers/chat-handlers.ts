@@ -222,11 +222,17 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
 export function handleRunResult(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
   const payload = safePayload<{
+    requestId?: string;
     status: string;
     iterations?: number;
     finalText?: string;
     error?: { code?: string; message: string; recoverable: boolean };
-  }>(msg, { status: 'string' }, { iterations: 'number', finalText: 'string', error: 'object' });
+  }>(msg, { status: 'string' }, {
+    requestId: 'string',
+    iterations: 'number',
+    finalText: 'string',
+    error: 'object',
+  });
   if (!payload) return;
   // iterations is optional on the wire (some server builds omit it on
   // early-exit paths); default to 1 so downstream math + copy stays sane.
@@ -322,6 +328,9 @@ export function handleRunResult(msg: WSServerMessage) {
   }
   useChatStore.getState().setRunStart(null);
   if (payload.status !== 'done' && payload.error) {
+    if (payload.requestId) {
+      useChatStore.getState().updateMessage(payload.requestId, { status: 'failed' });
+    }
     useChatStore
       .getState()
       .addMessage({ role: 'assistant', content: `Error: ${payload.error.message}`, isError: true });
