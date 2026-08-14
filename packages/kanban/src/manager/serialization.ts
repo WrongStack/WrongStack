@@ -1,12 +1,12 @@
 import { readBoard, summarizeBoard } from '../storage.js';
-import {
-  type CreateKanbanBoardInput,
-  type CreateKanbanTaskInput,
-  type KanbanBoard,
-  type KanbanGenerationInput,
-  type KanbanSearchInput,
-  type KanbanSearchResult,
-  type KanbanTaskPriority,
+import type {
+  CreateKanbanBoardInput,
+  CreateKanbanTaskInput,
+  KanbanBoard,
+  KanbanGenerationInput,
+  KanbanSearchInput,
+  KanbanSearchResult,
+  KanbanTaskPriority,
 } from '../types.js';
 import { matchesKanbanSearch } from './_internal.js';
 import { listBoards } from './boards.js';
