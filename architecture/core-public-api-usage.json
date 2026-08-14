@@ -19,9 +19,9 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/coordination": {
-      "files": 170,
+      "files": 171,
       "typeOnly": 72,
-      "runtimeOrMixed": 147
+      "runtimeOrMixed": 148
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -2668,6 +2668,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/tools/src/install.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tools/src/session-kanban.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
