@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises';
-import * as http from 'node:http';
+import type * as http from 'node:http';
 import * as path from 'node:path';
 import {
   buildCspHeader,

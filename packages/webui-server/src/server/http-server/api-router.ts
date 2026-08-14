@@ -1,4 +1,4 @@
-import * as http from 'node:http';
+import type * as http from 'node:http';
 import * as v8 from 'node:v8';
 import { sanitizeApiError } from '@wrongstack/core/security';
 import { getIndexState } from '@wrongstack/tools';
