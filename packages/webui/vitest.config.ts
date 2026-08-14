@@ -135,6 +135,15 @@ export default defineConfig({
       ...coreAliases(path.resolve(__dirname, '../core')),
       '@wrongstack/kanban': path.resolve(__dirname, '../../packages/kanban/src'),
       '@wrongstack/sdd': path.resolve(__dirname, '../../packages/sdd/src'),
+      // Resolve governance from source like core/kanban/sdd above. Without
+      // this alias, @wrongstack/runtime's dependency on governance resolves
+      // through node_modules to packages/governance/dist, which vite's client
+      // (jsdom) environment tries to BUNDLE — and dies on the `node:sqlite`
+      // import in event-store.ts ("Cannot bundle Node.js built-in"), failing
+      // collection of every tests/server/* suite in CI (49 files, run
+      // 31794455442). Source files go through the transform pipeline, which
+      // externalizes node builtins instead of bundling them.
+      '@wrongstack/governance': path.resolve(__dirname, '../../packages/governance/src'),
       // Force @wrongstack/webui-server to resolve from source (its src/) instead
       // of the published dist bundle, so per-module vi.mock() boundaries and
       // partial @wrongstack/core / node:fs mocks work exactly as they did when
