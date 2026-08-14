@@ -30,7 +30,7 @@
     "lint:console": "node scripts/lint-console-logging.mjs --all",
     "lint:i18n": "node scripts/check-i18n-completeness.mjs",
     "format": "biome format --write .",
-    "typecheck": "pnpm --filter @wrongstack/persistence build && cross-env NODE_OPTIONS=--max-old-space-size=4096 pnpm -r --workspace-concurrency=1 typecheck",
+    "typecheck": "pnpm --filter @wrongstack/persistence build && pnpm --filter @wrongstack/sdd build && cross-env NODE_OPTIONS=--max-old-space-size=4096 pnpm -r --workspace-concurrency=1 typecheck",
     "clean": "pnpm -r --parallel clean && node -e \"require('node:fs').rmSync('node_modules',{recursive:true,force:true})\"",
     "version:patch": "node scripts/bump-version.mjs patch",
     "version:minor": "node scripts/bump-version.mjs minor",
