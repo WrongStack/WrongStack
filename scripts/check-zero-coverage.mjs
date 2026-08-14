@@ -25,7 +25,16 @@ export function normalizeCoveragePath(file, root = repoRoot) {
   // path.win32 so normalization is host-independent.
   const fileIsWin = path.win32.isAbsolute(file);
   if (fileIsWin) {
-    const rel = path.win32.isAbsolute(root) ? path.win32.relative(root, file) : file;
+    if (!path.win32.isAbsolute(root)) {
+      // Cross-host artifact: a Windows-generated summary cannot be
+      // relativized against a POSIX repo root (different trees). Fail
+      // loudly instead of silently leaking a raw drive-letter path into
+      // the ratchet comparison (it would never match a baseline key).
+      throw new Error(
+        `coverage summary carries a Windows path (${file}) but the repo root is not Windows-style (${root}); regenerate the summary on this host`,
+      );
+    }
+    const rel = path.win32.relative(root, file);
     return rel.replaceAll('\\', '/').replace(/^\.\//, '');
   }
   const relative = path.isAbsolute(file) ? path.relative(root, file) : file;
