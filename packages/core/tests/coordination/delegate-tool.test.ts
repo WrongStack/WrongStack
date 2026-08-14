@@ -815,7 +815,17 @@ describe('createDelegateTool — edge coverage', () => {
       { signal: new AbortController().signal },
     );
     const cfg = captured[0]!;
-    expect(cfg.systemPromptOverride).toBe('extra');
+    // The caller's `systemPromptOverride` is preserved verbatim AND the
+    // delegate launch-mode preface is prepended. Layering order matters:
+    // the preface must come first so the caller's per-spawn guidance
+    // remains the "last word" on conflict (matching the
+    // director-prompts.ts layering — override composes last and wins).
+    const override = String(cfg.systemPromptOverride ?? '');
+    expect(override).toContain('Launch-mode guidance (delegate):');
+    expect(override).toContain('extra');
+    expect(override.indexOf('extra')).toBeGreaterThan(
+      override.indexOf('Launch-mode guidance (delegate):'),
+    );
     expect(cfg.provider).toBe('openai');
     expect(cfg.model).toBe('gpt-x');
     expect(cfg.maxIterations).toBe(99);
@@ -823,6 +833,95 @@ describe('createDelegateTool — edge coverage', () => {
     expect(cfg.idleTimeoutMs).toBe(7_000);
     expect(cfg.maxTokens).toBe(6_000);
     expect(cfg.maxCostUsd).toBe(0.5);
+  });
+
+  it('preserves a roster-supplied systemPromptOverride instead of clobbering it', async () => {
+    // Regression test: a custom roster role that ships its own
+    // `systemPromptOverride` must not be overwritten by the delegate
+    // launch-mode preface wiring. Layering order is
+    // `[preface] + [roster override] + [caller override if distinct]`.
+    director = buildLiveDirector();
+    const captured: Array<Record<string, unknown>> = [];
+    const origSpawn = director.spawn.bind(director);
+    director.spawn = (async (cfg: Record<string, unknown>, price?: unknown) => {
+      captured.push(cfg);
+      return origSpawn(cfg as never, price);
+    }) as never;
+    const rosterWithOverride = {
+      ...FLEET_ROSTER,
+      'custom-with-override': {
+        ...FLEET_ROSTER['bug-hunter'],
+        systemPromptOverride: 'roster-supplied-override-body',
+      } as never,
+    };
+    const tool = createDelegateTool({ host: buildHost(director), roster: rosterWithOverride });
+    await tool.execute(
+      { role: 'custom-with-override', task: 'x' },
+      null as never,
+      { signal: new AbortController().signal },
+    );
+    const cfg = captured[0]!;
+    const override = String(cfg.systemPromptOverride ?? '');
+    expect(override).toContain('Launch-mode guidance (delegate):');
+    expect(override).toContain('roster-supplied-override-body');
+    // The roster override must NOT be clobbered (regression: prior IIFE
+    // only read `i.systemPromptOverride`, dropping the roster value).
+    expect(override).not.toMatch(/Launch-mode guidance \(delegate\):\s*$/);
+    // Mirror the established sibling-test cleanup pattern (see lines
+    // 248, 314, 416, 547, 647, 703, 757) so the live Director and any
+    // FleetBus filters registered by buildLiveDirector() are released.
+    await director.shutdown();
+  });
+
+  it('layers roster + caller overrides in precedence order when both are distinct', async () => {
+    // Regression test: when a roster role supplies its own
+    // `systemPromptOverride` AND the delegate caller supplies a distinct
+    // `systemPromptOverride`, both must survive into the layered
+    // override in order: `[preface] + [roster] + [caller]`. The
+    // upstream `cfg.systemPromptOverride = i.systemPromptOverride`
+    // assignment at the role-path must NOT clobber the roster value
+    // before the IIFE reads it.
+    director = buildLiveDirector();
+    const captured: Array<Record<string, unknown>> = [];
+    const origSpawn = director.spawn.bind(director);
+    director.spawn = (async (cfg: Record<string, unknown>, price?: unknown) => {
+      captured.push(cfg);
+      return origSpawn(cfg as never, price);
+    }) as never;
+    const rosterWithOverride = {
+      ...FLEET_ROSTER,
+      'custom-with-override': {
+        ...FLEET_ROSTER['bug-hunter'],
+        systemPromptOverride: 'roster-supplied-override-body',
+      } as never,
+    };
+    const tool = createDelegateTool({ host: buildHost(director), roster: rosterWithOverride });
+    await tool.execute(
+      {
+        role: 'custom-with-override',
+        task: 'x',
+        systemPromptOverride: 'caller-supplied-override-body',
+      },
+      null as never,
+      { signal: new AbortController().signal },
+    );
+    const cfg = captured[0]!;
+    const override = String(cfg.systemPromptOverride ?? '');
+    expect(override).toContain('Launch-mode guidance (delegate):');
+    expect(override).toContain('roster-supplied-override-body');
+    expect(override).toContain('caller-supplied-override-body');
+    // Ordering: preface first, then roster, then caller. Caller wins
+    // last because director-prompts.ts layers the override last.
+    const prefaceIdx = override.indexOf('Launch-mode guidance (delegate):');
+    const rosterIdx = override.indexOf('roster-supplied-override-body');
+    const callerIdx = override.indexOf('caller-supplied-override-body');
+    expect(prefaceIdx).toBeGreaterThanOrEqual(0);
+    expect(rosterIdx).toBeGreaterThan(prefaceIdx);
+    expect(callerIdx).toBeGreaterThan(rosterIdx);
+    // Mirror the established sibling-test cleanup pattern (see lines
+    // 248, 314, 416, 547, 647, 703, 757) so the live Director and any
+    // FleetBus filters registered by buildLiveDirector() are released.
+    await director.shutdown();
   });
 
   it('returns an empty-result error when awaitTasks resolves with []', async () => {
