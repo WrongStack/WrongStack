@@ -6,28 +6,94 @@ import { getVitestMaxWorkers } from '../../vitest.workers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
-  // Exclude typescript from the SSR transform (same fix as the root
-  // vitest.config.ts): typescript.js declares a sourceMappingURL but the npm
-  // package ships no .map file, so vite logs an ENOENT sourcemap warning on
-  // every run when the aliased-from-source packages pull it into the graph.
-  ssr: {
-    external: ['typescript', 'typescript/lib/typescript'],
+// Shared resolver + SSR config. Inline vitest projects do NOT inherit the
+// root `resolve`/`ssr` blocks: without repeating them here, subpath imports
+// (`@wrongstack/webui-server/server/*`) fall through to the package exports
+// map (no such subpaths exist), `@/*` imports from src/ stop resolving, and
+// barrel imports silently load the prebuilt dist instead of src.
+const sharedSsr = {
+  // typescript.js declares a sourceMappingURL but the npm package ships no
+  // .map file — excluding it from the transform silences the ENOENT
+  // sourcemap warning (same fix as the root vitest.config.ts).
+  external: ['typescript', 'typescript/lib/typescript'],
+};
+
+const sharedResolve = {
+  alias: {
+    '@': path.resolve(__dirname, './src'),
+    // Force @wrongstack/core to resolve from source (packages/core/src) instead
+    // of going through the package's "exports" field which points to dist/.
+    ...coreAliases(path.resolve(__dirname, '../core')),
+    '@wrongstack/kanban': path.resolve(__dirname, '../../packages/kanban/src'),
+    '@wrongstack/sdd': path.resolve(__dirname, '../../packages/sdd/src'),
+    // governance: resolve from source like kanban/sdd. Through node_modules it
+    // reaches packages/governance/dist, whose `node:sqlite` import
+    // (event-store.ts) vite's jsdom client environment cannot bundle on CI.
+    '@wrongstack/governance': path.resolve(__dirname, '../../packages/governance/src'),
+    // Force @wrongstack/webui-server to resolve from source (its src/) instead
+    // of the published dist bundle, so per-module vi.mock() boundaries and
+    // partial @wrongstack/core / node:fs mocks work exactly as they did when
+    // these suites imported ../../src/server/* before the PR-018b extraction.
+    '@wrongstack/webui-server': path.resolve(__dirname, '../../packages/webui-server/src'),
+    '@wrongstack/tools/tool-diff': path.resolve(__dirname, '../../packages/tools/src/tool-diff.ts'),
+    '@wrongstack/tools/tool-icons': path.resolve(
+      __dirname,
+      '../../packages/tools/src/tool-icons.ts',
+    ),
+    '@wrongstack/tools/next-steps': path.resolve(
+      __dirname,
+      '../../packages/tools/src/next-steps.ts',
+    ),
+    '@wrongstack/tools/auto-proceed-loop-guard': path.resolve(
+      __dirname,
+      '../../packages/tools/src/auto-proceed-loop-guard.ts',
+    ),
   },
+};
+
+export default defineConfig({
+  ssr: sharedSsr,
   test: {
     maxWorkers: getVitestMaxWorkers(),
-    globals: true,
-    environment: 'jsdom',
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
-    // A handful of server suites spawn real `git` / worktree processes
-    // (git-handlers, worktree-ws-handler). Each passes comfortably in
-    // isolation, but under the full 200+ file suite the box is CPU-starved
-    // and those spawns miss vitest's default ceilings (test 5s / hook 10s) —
-    // surfacing as spurious timeouts that abort `release:check`'s `pnpm test`
-    // step. Raise the ceilings so load, not a real hang, no longer fails the
-    // release. See memory: full-suite-load-flakes.
-    testTimeout: 30_000,
-    hookTimeout: 30_000,
+    // Two projects split by environment. tests/server suites exercise the
+    // webui-server backend (HTTP routes, WS handlers, stores) and need no
+    // DOM — but their import graph reaches @wrongstack/governance, whose
+    // `node:sqlite` import (an experimental builtin) is REJECTED by vite's
+    // jsdom client-environment bundler on Linux CI ("Cannot bundle Node.js
+    // built-in", run 31799552021: 49 suites failed collection). Node
+    // environments externalize builtins, so the same graph loads cleanly.
+    // vitest 4 removed environmentMatchGlobs — projects is the replacement.
+    projects: [
+      {
+        // Inline projects do not inherit root resolve/ssr — repeat them.
+        resolve: sharedResolve,
+        ssr: sharedSsr,
+        test: {
+          name: 'server-node',
+          environment: 'node',
+          include: ['tests/server/**/*.test.ts'],
+          globals: true,
+          // Server suites spawn real `git`/worktree child processes; keep the
+          // raised ceilings so load, not a hang, never fails the run.
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
+        },
+      },
+      {
+        resolve: sharedResolve,
+        ssr: sharedSsr,
+        test: {
+          name: 'browser-jsdom',
+          environment: 'jsdom',
+          include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+          // Keep the two projects disjoint: server suites belong to node.
+          exclude: ['tests/server/**', '**/node_modules/**', '**/dist/**'],
+          globals: true,
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       // Package-local dir — never share root monorepo coverage/.tmp.
@@ -125,46 +191,6 @@ export default defineConfig({
         lines: 55,
         perFile: false,
       },
-    },
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      // Force @wrongstack/core to resolve from source (packages/core/src) instead
-      // of going through the package's "exports" field which points to dist/.
-      ...coreAliases(path.resolve(__dirname, '../core')),
-      '@wrongstack/kanban': path.resolve(__dirname, '../../packages/kanban/src'),
-      '@wrongstack/sdd': path.resolve(__dirname, '../../packages/sdd/src'),
-      // Resolve governance from source like core/kanban/sdd above. Without
-      // this alias, @wrongstack/runtime's dependency on governance resolves
-      // through node_modules to packages/governance/dist, which vite's client
-      // (jsdom) environment tries to BUNDLE — and dies on the `node:sqlite`
-      // import in event-store.ts ("Cannot bundle Node.js built-in"), failing
-      // collection of every tests/server/* suite in CI (49 files, run
-      // 31794455442). Source files go through the transform pipeline, which
-      // externalizes node builtins instead of bundling them.
-      '@wrongstack/governance': path.resolve(__dirname, '../../packages/governance/src'),
-      // Force @wrongstack/webui-server to resolve from source (its src/) instead
-      // of the published dist bundle, so per-module vi.mock() boundaries and
-      // partial @wrongstack/core / node:fs mocks work exactly as they did when
-      // these suites imported ../../src/server/* before the PR-018b extraction.
-      '@wrongstack/webui-server': path.resolve(__dirname, '../../packages/webui-server/src'),
-      '@wrongstack/tools/tool-diff': path.resolve(
-        __dirname,
-        '../../packages/tools/src/tool-diff.ts',
-      ),
-      '@wrongstack/tools/tool-icons': path.resolve(
-        __dirname,
-        '../../packages/tools/src/tool-icons.ts',
-      ),
-      '@wrongstack/tools/next-steps': path.resolve(
-        __dirname,
-        '../../packages/tools/src/next-steps.ts',
-      ),
-      '@wrongstack/tools/auto-proceed-loop-guard': path.resolve(
-        __dirname,
-        '../../packages/tools/src/auto-proceed-loop-guard.ts',
-      ),
     },
   },
 });

@@ -6,8 +6,13 @@
  * These are tested by mocking the browser download APIs and the WS client.
  */
 
+// Deep import (not the package barrel): the barrel's module graph reaches
+// @wrongstack/governance → `node:sqlite`, which vite's jsdom client
+// environment cannot bundle on Linux CI. This file stays in the jsdom
+// project (it needs document/download APIs) and zip.ts only uses
+// `node:zlib`, a client-safe builtin.
+import { createZipBuffer } from '@wrongstack/webui-server/server/zip';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createZipBuffer } from '@wrongstack/webui-server';
 
 // ── Mock browser APIs ───────────────────────────────────────────────────
 
@@ -177,7 +182,9 @@ describe('handleExportAll', () => {
     // Simulate the handleExportAll behavior: exportingAll is true for the
     // duration of the call, then cleared in the WS 'skills.exported' handler.
     let exportingAll = false;
-    const setExportingAll = (val: boolean) => { exportingAll = val; };
+    const setExportingAll = (val: boolean) => {
+      exportingAll = val;
+    };
 
     setExportingAll(true);
     // Still true while the request is in flight (before the response handler runs).
@@ -193,7 +200,9 @@ describe('handleExportAll', () => {
     const client = { exportAllSkills };
 
     let exportingAll = false;
-    const setExportingAll = (val: boolean) => { exportingAll = val; };
+    const setExportingAll = (val: boolean) => {
+      exportingAll = val;
+    };
 
     setExportingAll(true);
     await client.exportAllSkills();
@@ -248,7 +257,9 @@ describe('handleExportAll', () => {
     };
 
     // Simulate the client sending the export request:
-    (ws as { send: (d: string) => void }).send(JSON.stringify({ type: 'skills.export', payload: {} }));
+    (ws as { send: (d: string) => void }).send(
+      JSON.stringify({ type: 'skills.export', payload: {} }),
+    );
 
     expect(sent).toHaveLength(1);
     const msg = sent[0] as { type: string; payload: Record<string, unknown> };
