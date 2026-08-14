@@ -6,9 +6,34 @@ import {
 } from '../src/components/scrollable-history.js';
 import { computeLayout } from '../src/layout-engine.js';
 import { LayoutStore } from '../src/layout-store.js';
-import { renderRealTty, settle } from './helpers/real-tty.js';
+import { type RealTtyView, renderRealTty, settle } from './helpers/real-tty.js';
 
 const VP = 12;
+
+/**
+ * Poll until the rendered frame stops changing (bounded quiescence wait).
+ *
+ * Why not plain `settle()`: on slow Linux CI runners the final Yoga layout
+ * correction can land just after `settle()`'s fixed 40ms window, so an
+ * assertion reads one in-flight correction frame and frame-equality breaks
+ * by exactly one row (the single-row offset signature of the 31811761154
+ * flake). Waiting for the frame to go QUIESCENT instead of a fixed duration
+ * removes that race: comparisons always read a settled frame.
+ *
+ * Bounded fallback: if the frame never quiesces within the poll budget the
+ * latest frame is returned and the caller's equality assertion fails with a
+ * diff — a genuinely unstable render IS the regression this suite hunts.
+ */
+async function waitForStableFrame(v: RealTtyView, polls = 20, gapMs = 25): Promise<string> {
+  let last = v.lastFrame();
+  for (let i = 0; i < polls; i++) {
+    await settle(gapMs);
+    const next = v.lastFrame();
+    if (next === last) return next;
+    last = next;
+  }
+  return last;
+}
 
 /** Drop the 2-column scrollbar band so frames compare on content only — the
  *  thumb legitimately moves when content grows below an anchored viewport. */
@@ -92,9 +117,12 @@ describe('scroll stability under real layout (lurch proof)', () => {
     // calls intentionally happen without a render/settle between them.
     for (let row = 0; row < 9; row++) batchRef.current?.scrollBy(1);
     directRef.current?.scrollBy(9);
-    await settle();
+    // Quiescence, not a fixed window: on slow CI the final Yoga correction
+    // can land after a fixed settle() and break equality by exactly one row.
+    const batchedFrame = await waitForStableFrame(batched);
+    const directFrame = await waitForStableFrame(direct);
 
-    expect(contentOnly(batched.lastFrame())).toBe(contentOnly(direct.lastFrame()));
+    expect(contentOnly(batchedFrame)).toBe(contentOnly(directFrame));
     batched.unmount();
     direct.unmount();
   });
@@ -112,9 +140,11 @@ describe('scroll stability under real layout (lurch proof)', () => {
     await settle();
     pageRef.current?.scrollPage('down');
     wheelRef.current?.scrollBy(-(VP - 1));
-    await settle();
+    // Quiescence on both renders (same single-row-offset race as the batch test).
+    const pagedFrame = await waitForStableFrame(paged);
+    const wheeledFrame = await waitForStableFrame(wheeled);
 
-    expect(contentOnly(paged.lastFrame())).toBe(contentOnly(wheeled.lastFrame()));
+    expect(contentOnly(pagedFrame)).toBe(contentOnly(wheeledFrame));
     paged.unmount();
     wheeled.unmount();
   });
@@ -127,13 +157,16 @@ describe('scroll stability under real layout (lurch proof)', () => {
 
     controllerRef.current?.scrollToTrackCell(Math.floor(VP / 2));
     await settle();
-    const selected = contentOnly(v.lastFrame());
+    // Quiescence before capturing the baseline (and again after the two wheel
+    // steps): a mid-correction baseline is what makes the round-trip compare
+    // off by one row on slow runners.
+    const selected = contentOnly(await waitForStableFrame(v));
     controllerRef.current?.scrollBy(1);
     await settle();
     controllerRef.current?.scrollBy(-1);
-    await settle();
+    const settledFrame = await waitForStableFrame(v);
 
-    expect(contentOnly(v.lastFrame())).toBe(selected);
+    expect(contentOnly(settledFrame)).toBe(selected);
     v.unmount();
   });
 
