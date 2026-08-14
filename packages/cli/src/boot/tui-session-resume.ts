@@ -285,6 +285,9 @@ export async function resumeSession(
     // The fix is to defer the close until after the snapshot return.
     let finalizeOldWriter: (() => Promise<void>) | undefined;
     if (oldWriter && oldWriter !== resumed.writer) {
+      // Capture the narrowed writer for the async closure below — TS cannot
+      // keep the outer guard's narrowing across the mutable let binding.
+      const staleWriter = oldWriter;
       // Capture the OLD session's usage synchronously — the counter
       // is reset for the resumed session below, and this closure
       // runs after that reset.
@@ -292,7 +295,7 @@ export async function resumeSession(
       finalizeOldWriter = async () => {
         let appendOk = false;
         try {
-          await oldWriter.append({
+          await staleWriter.append({
             type: 'session_end',
             ts: new Date().toISOString(),
             usage: endedUsage,
@@ -312,7 +315,7 @@ export async function resumeSession(
         // a partially-written session file corrupts recovery/summaries.
         if (appendOk) {
           try {
-            await oldWriter.close();
+            await staleWriter.close();
           } catch (err) {
             console.error(
               JSON.stringify({
