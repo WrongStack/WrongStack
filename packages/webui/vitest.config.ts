@@ -71,7 +71,7 @@ export default defineConfig({
         test: {
           name: 'server-node',
           environment: 'node',
-          include: ['tests/server/**/*.test.ts'],
+          include: ['tests/server/**/*.test.{ts,tsx}'],
           globals: true,
           // Server suites spawn real `git`/worktree child processes; keep the
           // raised ceilings so load, not a hang, never fails the run.

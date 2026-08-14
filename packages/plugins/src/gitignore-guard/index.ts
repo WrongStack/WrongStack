@@ -99,7 +99,10 @@ export const DEFAULT_ARTIFACT_PATTERNS: readonly string[] = Object.freeze([
 // ---------------------------------------------------------------------------
 
 function toForwardSlashes(p: string): string {
-  return sep === '/' ? p : p.split(sep).join('/');
+  // Normalize both the host separator and literal backslashes: project-relative
+  // paths handed to the matcher can carry Windows-style separators regardless
+  // of the host platform (CI runs Linux; tool callers run Windows).
+  return p.split(sep).join('/').replaceAll('\\', '/');
 }
 
 /** Inner pattern of a single-`*`/`?` glob (no anchors) over path parts. */
@@ -144,10 +147,7 @@ export function matchGitignorePattern(relPath: string, pattern: string): boolean
 }
 
 /** First artifact pattern matching `relPath`, or null when none match. */
-export function classifyArtifact(
-  relPath: string,
-  patterns: readonly string[],
-): string | null {
+export function classifyArtifact(relPath: string, patterns: readonly string[]): string | null {
   for (const p of patterns) {
     if (matchGitignorePattern(relPath, p)) return p;
   }
@@ -584,8 +584,7 @@ const plugin: Plugin = {
           typeof input?.pattern === 'string' && input.pattern.trim().length > 0
             ? input.pattern.trim()
             : null;
-        const pattern =
-          explicit ?? classifyArtifact(resolved.rel, cfg.artifactPatterns);
+        const pattern = explicit ?? classifyArtifact(resolved.rel, cfg.artifactPatterns);
         if (!pattern) {
           return {
             ok: false,
