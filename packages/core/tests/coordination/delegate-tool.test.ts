@@ -565,7 +565,11 @@ describe('createDelegateTool', () => {
       toolCalls: number;
     }> = [];
     hostBus.on('delegate.started', (e) =>
-      started.push({ target: e.target, task: e.task, subagentId: e.subagentId }),
+      started.push({
+        target: e.target,
+        task: e.task,
+        ...(e.subagentId === undefined ? {} : { subagentId: e.subagentId }),
+      }),
     );
     hostBus.on('delegate.completed', (e) =>
       completed.push({
