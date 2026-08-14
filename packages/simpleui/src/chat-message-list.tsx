@@ -208,8 +208,15 @@ export function ChatMessageList({
     }
 
     entries.sort((a, b) => {
-      if (a.ts < b.ts) return -1;
-      if (a.ts > b.ts) return 1;
+      const hasA = a.ts && a.ts !== '0';
+      const hasB = b.ts && b.ts !== '0';
+      if (hasA && hasB) {
+        if (a.ts < b.ts) return -1;
+        if (a.ts > b.ts) return 1;
+        return 0;
+      }
+      if (hasA && !hasB) return -1;
+      if (!hasA && hasB) return 1;
       return 0;
     });
 

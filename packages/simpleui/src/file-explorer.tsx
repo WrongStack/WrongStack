@@ -449,17 +449,21 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    return escaped
-      .replace(/(\/\/[^\n]*|#[^\n]*)/g, '<span class="hl-comment">$1</span>')
-      .replace(
-        /(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|"[^"\n]*"|'[^'\n]*'|`[^`]*`)/g,
-        '<span class="hl-string">$1</span>',
-      )
-      .replace(/\b(\d+\.?\d*)\b/g, '<span class="hl-number">$1</span>')
-      .replace(
-        /\b(const|let|var|function|return|if|else|for|while|switch|case|break|continue|class|extends|implements|import|export|from|default|async|await|new|try|catch|finally|throw|typeof|instanceof|in|of|void|delete|yield|interface|type|enum|public|private|protected|static|readonly|abstract|namespace|declare|module|def|elif|fn|struct|impl|pub|use|match|package|func|val|nil)\b/g,
-        '<span class="hl-keyword">$1</span>',
-      )
+    const tokenRegex =
+      /(\/\/[^\n]*|#[^\n]*)|(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|"[^"\n]*"|'[^'\n]*'|`[^`]*`)|(\b\d+\.?\d*\b)|(\b(?:const|let|var|function|return|if|else|for|while|switch|case|break|continue|class|extends|implements|import|export|from|default|async|await|new|try|catch|finally|throw|typeof|instanceof|in|of|void|delete|yield|interface|type|enum|public|private|protected|static|readonly|abstract|namespace|declare|module|def|elif|fn|struct|impl|pub|use|match|package|func|val|nil)\b)/g;
+
+    const highlighted = escaped.replace(
+      tokenRegex,
+      (match, comment, str, num, kw) => {
+        if (comment) return `<span class="hl-comment">${comment}</span>`;
+        if (str) return `<span class="hl-string">${str}</span>`;
+        if (num) return `<span class="hl-number">${num}</span>`;
+        if (kw) return `<span class="hl-keyword">${kw}</span>`;
+        return match;
+      },
+    );
+
+    return highlighted
       .split('\n')
       .map((line, i) => (
         <React.Fragment key={i}>

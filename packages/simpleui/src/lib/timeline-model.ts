@@ -148,6 +148,7 @@ export function extractFileEditMeta(toolCall: ToolCallInfo): FileEditMeta | null
       if (!path) return null;
 
       const meta: FileEditMeta = { path };
+      if (toolCall.ts) meta.ts = toolCall.ts;
       if (typeof parsed['replacements'] === 'number') meta.replacements = parsed['replacements'];
       if (typeof parsed['bytes_written'] === 'number') meta.bytesWritten = parsed['bytes_written'];
       if (typeof parsed['created'] === 'boolean') meta.created = parsed['created'];
@@ -190,6 +191,7 @@ export function extractFileEditMeta(toolCall: ToolCallInfo): FileEditMeta | null
   if (!path) return null;
 
   const meta: FileEditMeta = { path };
+  if (toolCall.ts) meta.ts = toolCall.ts;
 
   if (fields['replacements']) {
     const r = parseInt(fields['replacements'], 10);
@@ -260,6 +262,7 @@ export function aggregateFileEdits(toolCalls: ToolCallInfo[]): {
       existing.replacements = (existing.replacements ?? 0) + (meta.replacements ?? 0);
       existing.bytesWritten = (existing.bytesWritten ?? 0) + (meta.bytesWritten ?? 0);
       if (meta.created) existing.created = true;
+      if (tc.ts) existing.ts = tc.ts;
       if (meta.diff) {
         existing.diff = existing.diff
           ? existing.diff.trimEnd() + '\n' + meta.diff

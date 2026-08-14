@@ -125,7 +125,8 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
       }
 
       const content = composePromptWithFileReferences(draft, fileRefs);
-      if (!content) return;
+      const hasImages = (attachedImagesRef.current?.length ?? 0) > 0;
+      if (!content && !hasImages) return;
 
       const plan = resolveSendPlan(mode, running);
       const now = Date.now();

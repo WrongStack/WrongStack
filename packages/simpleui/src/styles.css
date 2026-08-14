@@ -4209,6 +4209,16 @@ a:focus-visible {
   color: var(--muted);
 }
 
+.diff-line-hunk {
+  display: block;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+  padding: 2px 4px;
+  margin: 4px 0 2px;
+  border-radius: 2px;
+}
+
 .diff-view-empty {
   display: flex;
   align-items: center;

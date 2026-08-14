@@ -149,9 +149,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 902,
+      "files": 901,
       "typeOnly": 833,
-      "runtimeOrMixed": 229
+      "runtimeOrMixed": 228
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -12113,12 +12113,6 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/security-scanner/tests/orchestrator-flow.test.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/simpleui/src/lib/chat-model.ts",
-      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {

@@ -46,6 +46,50 @@ function codeTheme(theme: 'dark' | 'light'): string {
   return theme === 'light' ? 'github-light' : 'github-dark-dimmed';
 }
 
+interface AgentTranscriptEntryItemProps {
+  entry: AgentTranscriptEntry;
+  theme?: 'dark' | 'light' | undefined;
+}
+
+const AgentTranscriptEntryItem = memo(function AgentTranscriptEntryItem({
+  entry,
+  theme = 'dark',
+}: AgentTranscriptEntryItemProps) {
+  const meta = KIND_META[entry.kind as keyof typeof KIND_META] ?? KIND_META.status;
+  const Icon = meta.icon;
+  return (
+    <article className={`agent-transcript-entry ${meta.className}`}>
+      <div className="agent-entry-label">
+        <Icon size={13} aria-hidden="true" />
+        <span>{meta.label}</span>
+        <time dateTime={entry.ts}>{formatTime(entry.ts)}</time>
+      </div>
+      <div className="agent-entry-body">
+        {entry.kind === 'text' ? (
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[
+              [rehypePrettyCode, { theme: codeTheme(theme), keepBackground: false }],
+            ]}
+            components={{
+              a: ({ children, ...props }) => (
+                <a {...props} target="_blank" rel="noreferrer">
+                  {children}
+                </a>
+              ),
+            }}
+            fallback={null}
+          >
+            {stripNextStepsBlock(entry.content)}
+          </ReactMarkdown>
+        ) : (
+          <pre>{entry.content}</pre>
+        )}
+      </div>
+    </article>
+  );
+});
+
 /** A mounted pane preserves its DOM and scroll position while another tab is selected. */
 export const AgentChatPane = memo(function AgentChatPane({
   agentId,
@@ -73,41 +117,9 @@ export const AgentChatPane = memo(function AgentChatPane({
             <p>{running ? 'Live output will appear here.' : 'This agent has no transcript yet.'}</p>
           </div>
         ) : (
-          conversationEntries.map((entry) => {
-            const meta = KIND_META[entry.kind as keyof typeof KIND_META];
-            const Icon = meta.icon;
-            return (
-              <article className={`agent-transcript-entry ${meta.className}`} key={entry.id}>
-                <div className="agent-entry-label">
-                  <Icon size={13} aria-hidden="true" />
-                  <span>{meta.label}</span>
-                  <time dateTime={entry.ts}>{formatTime(entry.ts)}</time>
-                </div>
-                <div className="agent-entry-body">
-                  {entry.kind === 'text' ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[
-                        [rehypePrettyCode, { theme: codeTheme(theme), keepBackground: false }],
-                      ]}
-                      components={{
-                        a: ({ children, ...props }) => (
-                          <a {...props} target="_blank" rel="noreferrer">
-                            {children}
-                          </a>
-                        ),
-                      }}
-                      fallback={null}
-                    >
-                      {stripNextStepsBlock(entry.content)}
-                    </ReactMarkdown>
-                  ) : (
-                    <pre>{entry.content}</pre>
-                  )}
-                </div>
-              </article>
-            );
-          })
+          conversationEntries.map((entry) => (
+            <AgentTranscriptEntryItem key={entry.id} entry={entry} theme={theme} />
+          ))
         )}
         {running && (
           <div className="agent-activity-line" role="status" aria-live="polite">

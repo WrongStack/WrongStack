@@ -1,5 +1,23 @@
-import { isSystemInjectedMessage } from '@wrongstack/core/types';
 import type { ChatMessage, SimpleSubagent } from '../types.js';
+
+export const SYSTEM_INJECTION_PREFIXES = [
+  '[MAILBOX]',
+  '[MAILBOX BTW]',
+  '[BY THE WAY —',
+  '[QUEUED MESSAGES —',
+  '[FLEET PULSE]',
+  '[loop-detector]',
+  '[SESSION RESUME FILE VALIDATION]',
+  '[SESSION RESUME INTERRUPTED WORK]',
+] as const;
+
+export function isSystemInjectedMessage(text: string): boolean {
+  const trimmed = text.trimStart();
+  for (const prefix of SYSTEM_INJECTION_PREFIXES) {
+    if (trimmed.startsWith(prefix)) return true;
+  }
+  return false;
+}
 
 export const SIMPLE_CHAT_MAX_MESSAGES = 600;
 export const SIMPLE_CHAT_MAX_RETAINED_BYTES = 32 * 1024 * 1024;

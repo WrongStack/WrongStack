@@ -158,6 +158,8 @@ export interface FileEditMeta {
   bytesWritten?: number | undefined;
   /** Whether the file was created (write tool). */
   created?: boolean | undefined;
+  /** Timestamp when the file edit occurred. */
+  ts?: string | undefined;
 }
 
 /** Unified timeline entry — either a chat message or an interleaved tool call. */

@@ -195,7 +195,7 @@ export function SimpleUiSession() {
     (content: string, images?: { data: string; mime: string; mediaType?: string }[]): boolean => {
       const sessionId = sessionIdRef.current;
       const socket = socketRef.current;
-      if (!content || !sessionId || !socket) return false;
+      if ((!content && (!images || images.length === 0)) || !sessionId || !socket) return false;
       setMessages((current) =>
         retainSimpleChatMessages([
           ...current,
@@ -389,8 +389,20 @@ export function SimpleUiSession() {
     setFileSearching,
   } = useFileMention({ socketRef });
 
-  const { attachedImages, attachImages, removeImage, setAttachedImages } = useImageAttachments();
+  const { attachedImages, attachImages, removeImage, setAttachedImages, rejectedImages } =
+    useImageAttachments();
   attachedImagesRef.current = attachedImages;
+
+  useEffect(() => {
+    if (rejectedImages.length > 0) {
+      const first = rejectedImages[0];
+      setNotice({
+        id: messageId('notice'),
+        text: `Image rejected: ${first?.name} (${first?.reason})`,
+        tone: 'error',
+      });
+    }
+  }, [rejectedImages, setNotice]);
 
   const { palette, setPalette } = usePalette();
 
@@ -565,7 +577,7 @@ export function SimpleUiSession() {
     const aggregate = aggregateFileEdits(toolCalls);
     return {
       fileEditSummary: aggregate,
-      fileEdits: aggregate.files.map((edit) => ({ edit, ts: '' })),
+      fileEdits: aggregate.files.map((edit) => ({ edit, ts: edit.ts ?? '' })),
     };
   }, [toolCalls]);
 

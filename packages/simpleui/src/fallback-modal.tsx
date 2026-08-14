@@ -61,23 +61,19 @@ export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) 
   useEffect(() => {
     if (!info) return;
     const id = setInterval(() => {
-      setRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(id);
-          if (!resolvedRef.current) {
-            resolvedRef.current = true;
-            const chosen = info.candidates[selectedRef.current] ?? null;
-            sendChoice(socketRef, info.requestId, chosen);
-            onClose();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
+      setRemaining((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [info?.requestId]);
+
+  // Auto-resolve on countdown expiration.
+  useEffect(() => {
+    if (!info || remaining > 0 || resolvedRef.current) return;
+    resolvedRef.current = true;
+    const chosen = info.candidates[selectedRef.current] ?? null;
+    sendChoice(socketRef, info.requestId, chosen);
+    onClose();
+  }, [remaining, info, socketRef, onClose]);
 
   // Keyboard navigation.
   useEffect(() => {

@@ -13,12 +13,13 @@ interface FileDiffPanelProps {
   onClose: () => void;
 }
 
-function diffLines(diff: string): { kind: 'add' | 'remove' | 'context'; text: string }[] {
+function diffLines(diff: string): { kind: 'add' | 'remove' | 'context' | 'hunk'; text: string }[] {
   const start = diff.indexOf('@@');
   if (start === -1) return [{ kind: 'context', text: diff }];
-  const lines: { kind: 'add' | 'remove' | 'context'; text: string }[] = [];
+  const lines: { kind: 'add' | 'remove' | 'context' | 'hunk'; text: string }[] = [];
   for (const line of diff.slice(start).replace(/\r\n/g, '\n').split('\n')) {
-    if (line.startsWith('+') && !line.startsWith('+++')) lines.push({ kind: 'add', text: line });
+    if (line.startsWith('@@')) lines.push({ kind: 'hunk', text: line });
+    else if (line.startsWith('+') && !line.startsWith('+++')) lines.push({ kind: 'add', text: line });
     else if (line.startsWith('-') && !line.startsWith('---')) lines.push({ kind: 'remove', text: line });
     else lines.push({ kind: 'context', text: line });
   }

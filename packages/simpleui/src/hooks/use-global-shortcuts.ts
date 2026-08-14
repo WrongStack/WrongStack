@@ -64,6 +64,8 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
   // ── Global keyboard shortcuts ──────────────────────────────────
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+
       // ── Escape: close the topmost open panel ──
       if (event.key === 'Escape') {
         if (diffFilesRef.current) {
@@ -171,6 +173,7 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
   // Ctrl/Cmd+L: new session (second, independent listener).
   useEffect(() => {
     const handleGlobalKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === 'l' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
         event.preventDefault();
         if (!runningRef.current && sessionIdRef.current) {
