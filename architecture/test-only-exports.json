@@ -174,10 +174,6 @@
     "packages/cli/src/hq-server/utils.ts": [
       "isSafeSessionId"
     ],
-    "packages/cli/src/hq-server/ws.ts": [
-      "fanoutKanbanDelta",
-      "handleClientResume"
-    ],
     "packages/cli/src/hq-tunnel.ts": [
       "extractQuickTunnelUrl",
       "hasRegisteredQuickTunnelConnection"
@@ -372,9 +368,6 @@
       "materializeMessages",
       "serializeReceiptRecordV2"
     ],
-    "packages/core/src/coordination/mailbox-types.ts": [
-      "acceptMailboxMessageForSessionSync"
-    ],
     "packages/core/src/coordination/subagent-nicknames.ts": [
       "getAllNicknameKeys"
     ],
@@ -401,16 +394,8 @@
       "safeJsonOrRaw"
     ],
     "packages/core/src/execution/autonomy-brain.ts": [
-      "extractConfidence",
-      "isNonAnswer",
-      "parseFreeTextDecision",
       "quickDecide",
-      "readLlmDenyKind",
-      "resolveRiskCeiling",
-      "withDecisionDigest"
-    ],
-    "packages/core/src/execution/compaction-core.ts": [
-      "findExchangeStart"
+      "resolveRiskCeiling"
     ],
     "packages/core/src/execution/council-brain.ts": [
       "makeSeatCallerForVoter"
@@ -454,13 +439,6 @@
       "kanbanServer",
       "mailboxServer",
       "requirementIntakeServer"
-    ],
-    "packages/core/src/plugins/auto-review-plugin.ts": [
-      "decideCascadeAgents",
-      "resolveAutoReviewConfig",
-      "severitiesFromFindings",
-      "shouldCascade",
-      "trimKnownFingerprints"
     ],
     "packages/core/src/plugins/review-context-builder.ts": [
       "parsePorcelainStatusZ"
@@ -610,21 +588,12 @@
     ],
     "packages/kanban/src/manager/_internal.ts": [
       "compareTasksForWork",
-      "normalizeDependencyIds",
-      "reconcileTaskColumns",
-      "uniqueColumnId"
+      "reconcileTaskColumns"
     ],
     "packages/kanban/src/manager/boards.ts": [
       "addColumn",
       "removeColumn",
       "updateColumn"
-    ],
-    "packages/kanban/src/manager/lifecycle.ts": [
-      "createManagedLifecyclePolicy",
-      "initializeManagedTaskLifecycle",
-      "KANBAN_AGENT_STAGES",
-      "lifecycleStageForColumn",
-      "validateManagedTaskTransition"
     ],
     "packages/kanban/src/manager/task-graph-bridge.ts": [
       "buildTaskGraphFromKanbanBoard"
@@ -648,15 +617,6 @@
     "packages/kanban/src/verification/completion-park.ts": [
       "DEFAULT_MAX_VERIFICATION_ATTEMPTS",
       "isParked"
-    ],
-    "packages/kanban/src/verification/verification-context.ts": [
-      "BoundedProcessOutput",
-      "DEFAULT_BLOCKED_COMMANDS",
-      "extractBaseCommand",
-      "normalizeBaseCommand",
-      "parseGitNameStatus",
-      "parseGitNumstat",
-      "SHELL_OPERATOR_RE"
     ],
     "packages/kanban/src/verification/verification-report.ts": [
       "renderVerificationReportMarkdown"
@@ -761,10 +721,6 @@
       "pickRule",
       "requestCharSize"
     ],
-    "packages/plugins/src/path-guard/index.ts": [
-      "compilePathGlob",
-      "destructiveTargets"
-    ],
     "packages/plugins/src/plugin-audit-catalog/index.ts": [
       "HOST_PLUGIN_AUDIT_ENTRIES"
     ],
@@ -824,8 +780,10 @@
     "packages/sage/src/middleware/memory-injector-agent.ts": [
       "memoryInjectorAgentCoverage"
     ],
+    "packages/sage/src/middleware/tool-call-memory-retrieval.ts": [
+      "pathAnchorRelation"
+    ],
     "packages/sage/src/middleware/tool-call-memory.ts": [
-      "containsMemoryText",
       "toolCallMemoryCoverage"
     ],
     "packages/sage/src/middleware/turn-memory.ts": [
@@ -972,9 +930,6 @@
       "isLspKind",
       "LSPSymbolKind"
     ],
-    "packages/tools/src/codebase-index/project-server-client.ts": [
-      "projectIndexServerExpectedBuildId"
-    ],
     "packages/tools/src/codebase-index/project-server-endpoint.ts": [
       "projectIndexServerKey"
     ],
@@ -982,6 +937,9 @@
       "buildRankMap",
       "RRF_K",
       "VECTOR_DIMENSIONS"
+    ],
+    "packages/tools/src/codebase-index/writer-refs.ts": [
+      "FAMILY_MATCH_SQL"
     ],
     "packages/tools/src/kanban-task-inputs.ts": [
       "mergedDependsOn"
@@ -1001,11 +959,7 @@
     "packages/tools/src/session-kanban.ts": [
       "cleanupEmptySessionKanbanBoards",
       "cleanupSessionKanbanBoard",
-      "cleanupSessionKanbanBoardIfEmpty",
-      "orderTasksForTodos",
-      "planFileToSerializedGraph",
-      "todoListToSerializedGraph",
-      "todosNeedingSessionMirror"
+      "cleanupSessionKanbanBoardIfEmpty"
     ],
     "packages/tools/src/spawn-background.ts": [
       "spawnBackground",
@@ -1081,10 +1035,6 @@
     ],
     "packages/tui/src/components/history/code-block.tsx": [
       "applyWashTokens"
-    ],
-    "packages/tui/src/components/history/entry.tsx": [
-      "councilHeadline",
-      "councilSeatLine"
     ],
     "packages/tui/src/components/history/replay.ts": [
       "replaySessionEvents"
@@ -1258,10 +1208,6 @@
       "frameRuleParts",
       "padDisplayEnd"
     ],
-    "packages/tui/src/theme.ts": [
-      "detectSupportsBackground",
-      "resolveSyntaxPalette"
-    ],
     "packages/tui/src/thinking-word.ts": [
       "TUI_THINKING_WORD_POOL"
     ],
@@ -1346,17 +1292,11 @@
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"
     ],
-    "packages/webui-server/src/server/http-server.ts": [
-      "requestToken"
-    ],
     "packages/webui-server/src/server/mcp-handlers.ts": [
       "toView"
     ],
     "packages/webui-server/src/server/provider-config-standalone.ts": [
       "vaultKeyFileForConfigPath"
-    ],
-    "packages/webui-server/src/server/start-webui.ts": [
-      "createStandaloneTodosCheckpointLifecycle"
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": [
       "resolveTerminalShell"
@@ -1516,34 +1456,6 @@
       "handleGoalUpdated",
       "handlePrefsUpdated"
     ],
-    "packages/webui/src/hooks/ws-handlers/session-handlers.ts": [
-      "handleCheckpointWritten",
-      "handleCompactionFailed",
-      "handleContextCompacted",
-      "handleContextDebug",
-      "handleContextMaxContext",
-      "handleContextPct",
-      "handleContextRepaired",
-      "handleDelegateCompleted",
-      "handleDelegateStarted",
-      "handleInFlightEnded",
-      "handleInFlightStarted",
-      "handleIterationLimitReached",
-      "handleKeyOperationResult",
-      "handleProviderActiveBlocked",
-      "handleProviderError",
-      "handleProviderFallback",
-      "handleProviderRetry",
-      "handleProviderStatusChanged",
-      "handleProviderStatusSnapshot",
-      "handleProviderStreamError",
-      "handleSessionDamaged",
-      "handleSessionRewound",
-      "handleTokenCostEstimateUnavailable",
-      "handleTokenThreshold",
-      "handleToolLoopDetected",
-      "handleTrustPersisted"
-    ],
     "packages/webui/src/hooks/ws-handlers/techstack-handlers.ts": [
       "handleTechStackJobCancelled",
       "handleTechStackJobFailed",
@@ -1603,10 +1515,8 @@
     "packages/webui/src/lib/ws-client-utils.ts": [
       "resolvePublicWsUrl"
     ],
-    "packages/webui/src/stores/chat-store.ts": [
-      "boundChatField",
-      "BTW_DISPATCH_GRACE_MS",
-      "retainWebChatMessages"
+    "packages/webui/src/stores/chat-queue-helpers.ts": [
+      "enqueueSequence"
     ],
     "packages/webui/src/stores/file-store.ts": [
       "mergePersistedFileStore"
