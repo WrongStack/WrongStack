@@ -27,10 +27,7 @@
 import { spawn, type SpawnOptions } from 'node:child_process';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import * as os from 'node:os';
-import {
-  buildWin32CmdShimInvocation,
-  resolveWin32Command,
-} from './_win32-resolve.js';
+import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
 
 const isWin = os.platform() === 'win32';
 
@@ -71,7 +68,7 @@ export function spawnBackground(opts: SpawnBackgroundOptions): {
   child: ReturnType<typeof spawn>;
 } {
   // Determine shell and args
-  const shell = opts.shell ?? (isWin ? process.env['COMSPEC'] ?? 'cmd.exe' : '/bin/bash');
+  const shell = opts.shell ?? (isWin ? (process.env['COMSPEC'] ?? 'cmd.exe') : '/bin/bash');
   const shellArgs = isWin ? ['/c', opts.command] : ['-c', opts.command];
 
   // Platform-specific spawn options for maximum detachment.
@@ -96,7 +93,14 @@ export function spawnBackground(opts: SpawnBackgroundOptions): {
   child.on('error', (err) => {
     // ENOENT / EACCES on the binary itself is expected for missing commands;
     // don't crash the parent — just log at debug level.
-    console.log(JSON.stringify({ level: 'debug', event: 'spawn_error', cmd: opts.command, error: err.message }));
+    console.log(
+      JSON.stringify({
+        level: 'debug',
+        event: 'spawn_error',
+        cmd: opts.command,
+        error: err.message,
+      }),
+    );
   });
 
   // Unref immediately so the parent can exit even if the child is still running
@@ -157,7 +161,9 @@ export function spawnBackgroundExec(
   child.on('error', (err) => {
     // ENOENT / EACCES on the binary itself is expected for missing commands;
     // don't crash the parent — just log at debug level.
-    console.log(JSON.stringify({ level: 'debug', event: 'spawn_error', cmd: command, error: err.message }));
+    console.log(
+      JSON.stringify({ level: 'debug', event: 'spawn_error', cmd: command, error: err.message }),
+    );
   });
 
   // Unref immediately so the parent can exit even if the child is still running

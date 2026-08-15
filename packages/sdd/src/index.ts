@@ -207,3 +207,17 @@ export {
   type ConflictSide,
   type LlmConflictResolverOptions,
 } from './conflict-resolver.js';
+
+// VIBE Three-Stage Verification Protocol
+export {
+  synthesizeVibeSpec,
+  buildCoderContract,
+  auditVibeExecution,
+  formatVibeReport,
+  type VibeScopeBoundaries,
+  type VibeSpecSynthesizerResult,
+  type VibeCoderContract,
+  type VibeAuditCheck,
+  type VibeAuditVerdict,
+  type VibeVerificationReport,
+} from './vibe-protocol.js';

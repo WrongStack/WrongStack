@@ -33,9 +33,7 @@ export function searchWithStatement(
   const sql = `SELECT id, lang, kind, name, file, line, col, signature, doc_comment FROM symbols ${where}${limitSql}`;
 
   const binds = limit !== undefined ? [...values, limit] : values;
-  const rows = stmtFn(sql).all(
-    ...(binds as (string | number)[]),
-  ) as unknown as WriterSearchRow[];
+  const rows = stmtFn(sql).all(...(binds as (string | number)[])) as unknown as WriterSearchRow[];
 
   return rows.map((row) => mapWriterSearchRow(row, filter?.lspKind));
 }
@@ -75,7 +73,14 @@ export function searchRankedWithStatement(
   const tokens = tokenise(query);
 
   if (tokens.length === 0 || !ftsAvailable) {
-    return searchRankedFallbackWithStatement(stmtFn, searchFn, getOrBuildBm25, query, filter, safeLimit);
+    return searchRankedFallbackWithStatement(
+      stmtFn,
+      searchFn,
+      getOrBuildBm25,
+      query,
+      filter,
+      safeLimit,
+    );
   }
 
   let effectiveKind: SymbolKind | undefined = filter?.kind;
@@ -89,7 +94,14 @@ export function searchRankedWithStatement(
   const shortTokens = tokens.filter((t) => t.length < 3);
 
   if (longTokens.length === 0) {
-    return searchRankedFallbackWithStatement(stmtFn, searchFn, getOrBuildBm25, query, filter, safeLimit);
+    return searchRankedFallbackWithStatement(
+      stmtFn,
+      searchFn,
+      getOrBuildBm25,
+      query,
+      filter,
+      safeLimit,
+    );
   }
 
   const match = longTokens.map((t) => `"${t.replaceAll('"', '')}"`).join(' OR ');

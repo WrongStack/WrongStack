@@ -57,10 +57,16 @@ function coerceSymbols(value: unknown): RawParsedSymbol[] {
 function coerceRefs(value: unknown, lang: SymbolLang): Ref[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry): Ref[] => {
-    const candidate = entry as { toName?: unknown; callType?: unknown; line?: unknown; module?: unknown };
+    const candidate = entry as {
+      toName?: unknown;
+      callType?: unknown;
+      line?: unknown;
+      module?: unknown;
+    };
     if (typeof candidate.toName !== 'string' || !candidate.toName) return [];
     if (typeof candidate.callType !== 'string' || !CALL_TYPES.has(candidate.callType)) return [];
-    const module = typeof candidate.module === 'string' && candidate.module ? candidate.module : undefined;
+    const module =
+      typeof candidate.module === 'string' && candidate.module ? candidate.module : undefined;
     return [
       {
         fromId: 0,

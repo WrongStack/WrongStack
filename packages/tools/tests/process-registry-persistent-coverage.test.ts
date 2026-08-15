@@ -10,7 +10,9 @@ import {
   resetPersistentProcessRegistry,
 } from '../src/process-registry-persistent.js';
 
-function noopHandler(_reason: unknown): void { /* swallow fire-and-forget ENOENT */ }
+function noopHandler(_reason: unknown): void {
+  /* swallow fire-and-forget ENOENT */
+}
 
 let tempDir: string;
 let originalEnv: string | undefined;

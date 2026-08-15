@@ -390,9 +390,33 @@ const RULES: readonly DangerRule[] = [
     id: 'shell-launcher',
     level: 'caution',
     test: (cmd, args) => {
-      const launchers = ['env', 'timeout', 'nohup', 'nice', 'script', 'expect', 'tmux', 'screen', 'byobu', 'dtach'];
+      const launchers = [
+        'env',
+        'timeout',
+        'nohup',
+        'nice',
+        'script',
+        'expect',
+        'tmux',
+        'screen',
+        'byobu',
+        'dtach',
+      ];
       if (!launchers.includes(cmd)) return false;
-      const shells = ['sh', 'bash', 'zsh', 'fish', 'python', 'python3', 'perl', 'ruby', 'node', 'pwsh', 'powershell', 'cmd'];
+      const shells = [
+        'sh',
+        'bash',
+        'zsh',
+        'fish',
+        'python',
+        'python3',
+        'perl',
+        'ruby',
+        'node',
+        'pwsh',
+        'powershell',
+        'cmd',
+      ];
       // For `env`, the target program is the first arg that isn't VAR=value
       // or a flag. For other launchers, check all args for a shell name.
       if (cmd === 'env') {

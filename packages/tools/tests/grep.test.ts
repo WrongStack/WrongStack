@@ -232,11 +232,9 @@ describe('grep tool', () => {
 
   it('executeStream uses path from input when provided', async () => {
     await fs.writeFile(path.join(sb.dir, 'target.txt'), 'needle in haystack');
-    const out = await grepTool.execute(
-      { pattern: 'needle', path: sb.dir },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await grepTool.execute({ pattern: 'needle', path: sb.dir }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.count).toBeGreaterThanOrEqual(1);
   });
 
@@ -330,11 +328,9 @@ describe('grep tool', () => {
   it('native grep in count mode aggregates totals', async () => {
     await fs.writeFile(path.join(sb.dir, 'a.txt'), 'a\nb\na\n');
     await fs.writeFile(path.join(sb.dir, 'b.txt'), 'a\na\na\n');
-    const out = await grepTool.execute(
-      { pattern: 'a', output_mode: 'count' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await grepTool.execute({ pattern: 'a', output_mode: 'count' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.count).toBe(5);
   });
 
@@ -382,11 +378,9 @@ describe('grep tool', () => {
     // Just test that stream works end-to-end
     await fs.writeFile(path.join(sb.dir, 'test.txt'), 'content');
     const events: any[] = [];
-    for await (const ev of grepTool.executeStream!(
-      { pattern: 'content' },
-      sb.ctx,
-      { signal: newSignal() },
-    )) {
+    for await (const ev of grepTool.executeStream!({ pattern: 'content' }, sb.ctx, {
+      signal: newSignal(),
+    })) {
       events.push(ev);
     }
     expect(events.some((e) => e.type === 'final')).toBe(true);
@@ -567,11 +561,9 @@ describe('grep tool', () => {
 
   it('content mode format is file:line:content', async () => {
     await fs.writeFile(path.join(sb.dir, 'm.txt'), 'line1\nline2\ntarget line\nline4');
-    const out = await grepTool.execute(
-      { pattern: 'target', output_mode: 'content' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await grepTool.execute({ pattern: 'target', output_mode: 'content' }, sb.ctx, {
+      signal: newSignal(),
+    });
     // Format should be "path:line:content"
     const match = out.matches.find((m) => m.includes('target'));
     expect(match).toMatch(/m\.txt:\d+:.*target/);

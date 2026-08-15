@@ -117,10 +117,14 @@ export const jsonTool: Tool<JsonInput, JsonOutput> = {
       action: {
         type: 'string',
         enum: ['parse', 'query', 'validate', 'transform', 'merge'],
-        description: 'Operation (default: parse). parse=read/pretty-print, query=JMESPath, validate=schema, transform=chained queries, merge=deep merge.',
+        description:
+          'Operation (default: parse). parse=read/pretty-print, query=JMESPath, validate=schema, transform=chained queries, merge=deep merge.',
       },
       file: { type: 'string', description: 'Path to JSON/JSON5/YAML file (parse/query/validate)' },
-      data: { type: 'string', description: 'JSON/JSON5/YAML string (parse/query/validate, alternative to file)' },
+      data: {
+        type: 'string',
+        description: 'JSON/JSON5/YAML string (parse/query/validate, alternative to file)',
+      },
       format: {
         type: 'string',
         enum: ['json', 'json5', 'yaml'],
@@ -195,7 +199,13 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
   } else if (input.data) {
     raw = input.data;
   } else {
-    return { data: null, formatted: '', type: 'unknown', action: 'parse', error: 'Provide file or data' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'parse',
+      error: 'Provide file or data',
+    };
   }
 
   try {
@@ -245,8 +255,7 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
     formatted,
     type: Array.isArray(parsed) ? 'array' : typeof parsed,
     action: 'parse',
-    keys:
-      typeof parsed === 'object' && parsed !== null ? Object.keys(parsed as object) : undefined,
+    keys: typeof parsed === 'object' && parsed !== null ? Object.keys(parsed as object) : undefined,
   };
 }
 
@@ -256,7 +265,13 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
 
 async function executeQuery(input: JsonInput, ctx: Context): Promise<JsonOutput> {
   if (!input.query) {
-    return { data: null, formatted: '', type: 'unknown', action: 'query', error: 'query is required for action: query' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'query',
+      error: 'query is required for action: query',
+    };
   }
 
   let parsed: unknown;
@@ -277,10 +292,22 @@ async function executeQuery(input: JsonInput, ctx: Context): Promise<JsonOutput>
     try {
       parsed = JSON.parse(input.data);
     } catch {
-      return { data: null, formatted: '', type: 'unknown', action: 'query', error: 'Could not parse data string' };
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: 'query',
+        error: 'Could not parse data string',
+      };
     }
   } else {
-    return { data: null, formatted: '', type: 'unknown', action: 'query', error: 'Provide file or data' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'query',
+      error: 'Provide file or data',
+    };
   }
 
   try {
@@ -311,7 +338,13 @@ async function executeQuery(input: JsonInput, ctx: Context): Promise<JsonOutput>
 
 async function executeValidate(input: JsonInput, ctx: Context): Promise<JsonOutput> {
   if (!input.schema) {
-    return { data: null, formatted: '', type: 'unknown', action: 'validate', error: 'schema is required for action: validate' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'validate',
+      error: 'schema is required for action: validate',
+    };
   }
 
   let parsed: unknown;
@@ -332,10 +365,22 @@ async function executeValidate(input: JsonInput, ctx: Context): Promise<JsonOutp
     try {
       parsed = JSON.parse(input.data);
     } catch {
-      return { data: null, formatted: '', type: 'unknown', action: 'validate', error: 'Could not parse data string' };
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: 'validate',
+        error: 'Could not parse data string',
+      };
     }
   } else {
-    return { data: null, formatted: '', type: 'unknown', action: 'validate', error: 'Provide file or data' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'validate',
+      error: 'Provide file or data',
+    };
   }
 
   try {
@@ -366,7 +411,13 @@ async function executeValidate(input: JsonInput, ctx: Context): Promise<JsonOutp
 
 async function executeTransform(input: JsonInput, ctx: Context): Promise<JsonOutput> {
   if (!input.transforms || input.transforms.length === 0) {
-    return { data: null, formatted: '', type: 'unknown', action: 'transform', error: 'transforms array is required for action: transform' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'transform',
+      error: 'transforms array is required for action: transform',
+    };
   }
 
   let parsed: unknown;
@@ -387,10 +438,22 @@ async function executeTransform(input: JsonInput, ctx: Context): Promise<JsonOut
     try {
       parsed = JSON.parse(input.data);
     } catch {
-      return { data: null, formatted: '', type: 'unknown', action: 'transform', error: 'Could not parse data string' };
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: 'transform',
+        error: 'Could not parse data string',
+      };
     }
   } else {
-    return { data: null, formatted: '', type: 'unknown', action: 'transform', error: 'Provide file or data' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'transform',
+      error: 'Provide file or data',
+    };
   }
 
   try {
@@ -429,7 +492,13 @@ async function executeTransform(input: JsonInput, ctx: Context): Promise<JsonOut
 
 async function executeMerge(input: JsonInput): Promise<JsonOutput> {
   if (input.base === undefined || input.patch === undefined) {
-    return { data: null, formatted: '', type: 'unknown', action: 'merge', error: 'base and patch are required for action: merge' };
+    return {
+      data: null,
+      formatted: '',
+      type: 'unknown',
+      action: 'merge',
+      error: 'base and patch are required for action: merge',
+    };
   }
 
   const conflictResolution = input.conflictResolution ?? 'prefer-patch';
@@ -508,7 +577,9 @@ function jmespathSearch(data: unknown, query: string): unknown {
   }
 
   // Filter: [?foo==`bar`]
-  const filterMatch = query.match(/^\[\\?([a-zA-Z_][a-zA-Z0-9_]*)(==|!=|<|>|<=|>=)(`[^`]+`|'[^']*')\](?:\.(.+))?$/);
+  const filterMatch = query.match(
+    /^\[\\?([a-zA-Z_][a-zA-Z0-9_]*)(==|!=|<|>|<=|>=)(`[^`]+`|'[^']*')\](?:\.(.+))?$/,
+  );
   if (filterMatch) {
     const field = filterMatch[1]!;
     const op = filterMatch[2]!;
@@ -520,14 +591,21 @@ function jmespathSearch(data: unknown, query: string): unknown {
     const filtered = arr.filter((item) => {
       const itemVal = (item as Record<string, unknown>)[field];
       switch (op) {
-        case '==': return itemVal === cmpVal;
-        case '!=': return itemVal !== cmpVal;
-        case '>': return Number(itemVal) > Number(cmpVal);
-        case '<': return Number(itemVal) < Number(cmpVal);
-        case '>=': return Number(itemVal) >= Number(cmpVal);
-        case '<=': return Number(itemVal) <= Number(cmpVal);
+        case '==':
+          return itemVal === cmpVal;
+        case '!=':
+          return itemVal !== cmpVal;
+        case '>':
+          return Number(itemVal) > Number(cmpVal);
+        case '<':
+          return Number(itemVal) < Number(cmpVal);
+        case '>=':
+          return Number(itemVal) >= Number(cmpVal);
+        case '<=':
+          return Number(itemVal) <= Number(cmpVal);
         /* v8 ignore next -- op is constrained to the six operators by the filter regex; default is unreachable. */
-        default: return true;
+        default:
+          return true;
       }
     });
     if (rest === undefined) return filtered;
@@ -545,10 +623,12 @@ function jmespathSearch(data: unknown, query: string): unknown {
         if (typeof data === 'object' && data !== null) return Object.keys(data as object).length;
         return 0;
       case 'keys':
-        if (typeof data === 'object' && data !== null && !Array.isArray(data)) return Object.keys(data as object);
+        if (typeof data === 'object' && data !== null && !Array.isArray(data))
+          return Object.keys(data as object);
         return [];
       case 'values':
-        if (typeof data === 'object' && data !== null && !Array.isArray(data)) return Object.values(data as object);
+        if (typeof data === 'object' && data !== null && !Array.isArray(data))
+          return Object.values(data as object);
         return [];
       case 'type':
         if (data === null) return 'null';
@@ -567,7 +647,10 @@ function jmespathSearch(data: unknown, query: string): unknown {
 // JSON Schema validator (from json-path plugin)
 // ---------------------------------------------------------------------------
 
-function validateJsonSchema(data: unknown, schema: Record<string, unknown>): { valid: boolean; errors: string[] } {
+function validateJsonSchema(
+  data: unknown,
+  schema: Record<string, unknown>,
+): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   function check(value: unknown, s: Record<string, unknown>, path: string): void {
@@ -582,7 +665,11 @@ function validateJsonSchema(data: unknown, schema: Record<string, unknown>): { v
     }
 
     if (typeof value === 'string' && s['format'] === 'uri' && value) {
-      try { new URL(value); } catch { errors.push(`${path}: not a valid URI`); }
+      try {
+        new URL(value);
+      } catch {
+        errors.push(`${path}: not a valid URI`);
+      }
     }
 
     if (typeof value === 'string' && s['pattern']) {
@@ -603,19 +690,35 @@ function validateJsonSchema(data: unknown, schema: Record<string, unknown>): { v
       }
     }
 
-    if (typeof value === 'string' && s['minLength'] !== undefined && value.length < (s['minLength'] as number)) {
+    if (
+      typeof value === 'string' &&
+      s['minLength'] !== undefined &&
+      value.length < (s['minLength'] as number)
+    ) {
       errors.push(`${path}: string too short (min ${s['minLength']})`);
     }
 
-    if (typeof value === 'string' && s['maxLength'] !== undefined && value.length > (s['maxLength'] as number)) {
+    if (
+      typeof value === 'string' &&
+      s['maxLength'] !== undefined &&
+      value.length > (s['maxLength'] as number)
+    ) {
       errors.push(`${path}: string too long (max ${s['maxLength']})`);
     }
 
-    if (typeof value === 'number' && s['minimum'] !== undefined && value < (s['minimum'] as number)) {
+    if (
+      typeof value === 'number' &&
+      s['minimum'] !== undefined &&
+      value < (s['minimum'] as number)
+    ) {
       errors.push(`${path}: below minimum ${s['minimum']}`);
     }
 
-    if (typeof value === 'number' && s['maximum'] !== undefined && value > (s['maximum'] as number)) {
+    if (
+      typeof value === 'number' &&
+      s['maximum'] !== undefined &&
+      value > (s['maximum'] as number)
+    ) {
       errors.push(`${path}: above maximum ${s['maximum']}`);
     }
 

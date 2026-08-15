@@ -44,7 +44,10 @@ let tmpRoot: string;
 let subDir: string;
 
 beforeEach(async () => {
-  tmpRoot = path.join(os.tmpdir(), `wstack-swd-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  tmpRoot = path.join(
+    os.tmpdir(),
+    `wstack-swd-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  );
   await fs.mkdir(tmpRoot, { recursive: true });
   subDir = path.join(tmpRoot, 'src');
   await fs.mkdir(subDir, { recursive: true });
@@ -94,11 +97,7 @@ describe('set_working_dir tool', () => {
 
   it('returns error when directory does not exist', async () => {
     const ctx = mkContext(tmpRoot);
-    const result = await setWorkingDirTool.execute(
-      { path: 'nope' },
-      ctx,
-      { signal: mkSignal() },
-    );
+    const result = await setWorkingDirTool.execute({ path: 'nope' }, ctx, { signal: mkSignal() });
     expect(result.error).toContain('does not exist');
     expect(result.current).toBe(path.resolve(tmpRoot)); // stays at previous
   });
@@ -109,33 +108,25 @@ describe('set_working_dir tool', () => {
     const filePath = path.join(tmpRoot, 'afile.txt');
     await fs.writeFile(filePath, 'not a directory');
     const ctx = mkContext(tmpRoot);
-    const result = await setWorkingDirTool.execute(
-      { path: 'afile.txt' },
-      ctx,
-      { signal: mkSignal() },
-    );
+    const result = await setWorkingDirTool.execute({ path: 'afile.txt' }, ctx, {
+      signal: mkSignal(),
+    });
     expect(result.error).toContain('does not exist');
     expect(ctx.workingDir).toBe(path.resolve(tmpRoot)); // rolled back
   });
 
   it('returns error for path outside project root', async () => {
     const ctx = mkContext(tmpRoot);
-    const result = await setWorkingDirTool.execute(
-      { path: '/etc' },
-      ctx,
-      { signal: mkSignal() },
-    );
+    const result = await setWorkingDirTool.execute({ path: '/etc' }, ctx, { signal: mkSignal() });
     expect(result.error).toContain('outside project root');
     expect(result.current).toBe(path.resolve(tmpRoot)); // unchanged
   });
 
   it('returns error for relative path escaping via ..', async () => {
     const ctx = mkContext(tmpRoot);
-    const result = await setWorkingDirTool.execute(
-      { path: '../../etc' },
-      ctx,
-      { signal: mkSignal() },
-    );
+    const result = await setWorkingDirTool.execute({ path: '../../etc' }, ctx, {
+      signal: mkSignal(),
+    });
     expect(result.error).toContain('outside project root');
   });
 
@@ -143,11 +134,7 @@ describe('set_working_dir tool', () => {
     // An existing directory outside tmpRoot. os.tmpdir() is the parent of tmpRoot.
     const outside = path.resolve(os.tmpdir());
     const ctx = mkContext(tmpRoot, undefined, /* allowOutsideProjectRoot */ true);
-    const result = await setWorkingDirTool.execute(
-      { path: outside },
-      ctx,
-      { signal: mkSignal() },
-    );
+    const result = await setWorkingDirTool.execute({ path: outside }, ctx, { signal: mkSignal() });
     expect(result.error).toBeUndefined();
     expect(ctx.workingDir).toBe(outside);
   });
@@ -156,11 +143,7 @@ describe('set_working_dir tool', () => {
     const ctx = mkContext(tmpRoot, subDir);
     const before = ctx.workingDir;
     // Try to navigate to a non-existent subdirectory
-    await setWorkingDirTool.execute(
-      { path: 'ghost' },
-      ctx,
-      { signal: mkSignal() },
-    );
+    await setWorkingDirTool.execute({ path: 'ghost' }, ctx, { signal: mkSignal() });
     // Should stay at the previous working directory
     expect(ctx.workingDir).toBe(before);
   });
@@ -181,11 +164,7 @@ describe('set_working_dir tool', () => {
 
   it('reports the previous directory in the result', async () => {
     const ctx = mkContext(tmpRoot);
-    const result = await setWorkingDirTool.execute(
-      { path: 'src' },
-      ctx,
-      { signal: mkSignal() },
-    );
+    const result = await setWorkingDirTool.execute({ path: 'src' }, ctx, { signal: mkSignal() });
     expect(result.previous).toBe(path.resolve(tmpRoot));
   });
 });

@@ -214,7 +214,7 @@
     {
       "file": "packages/tools/tests/browser-manager.test.ts",
       "kind": "skipIf",
-      "fingerprint": "0d6135124fec37cd"
+      "fingerprint": "8f0a065f34a0d18f"
     },
     {
       "file": "packages/tools/tests/codebase-index-worker.test.ts",
@@ -229,7 +229,7 @@
     {
       "file": "packages/tools/tests/exec-kill-guard.test.ts",
       "kind": "runIf",
-      "fingerprint": "38788e7d77adc623"
+      "fingerprint": "58b56cb289888b83"
     },
     {
       "file": "packages/tools/tests/exec-spawn.test.ts",

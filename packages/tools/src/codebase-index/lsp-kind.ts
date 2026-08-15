@@ -45,20 +45,33 @@ export enum LSPSymbolKind {
  */
 export function lspKindToInternalKind(k: number): SymbolKind | null {
   switch (k) {
-    case LSPSymbolKind.Class:        return 'class';
-    case LSPSymbolKind.Method:       return 'method';
+    case LSPSymbolKind.Class:
+      return 'class';
+    case LSPSymbolKind.Method:
+      return 'method';
     case LSPSymbolKind.Property:
-    case LSPSymbolKind.Field:        return 'property';
-    case LSPSymbolKind.Constructor:  return 'class';
-    case LSPSymbolKind.Enum:         return 'enum';
-    case LSPSymbolKind.Interface:    return 'interface';
-    case LSPSymbolKind.Function:     return 'function';
-    case LSPSymbolKind.Variable:     return 'var';
-    case LSPSymbolKind.Constant:     return 'const';
-    case LSPSymbolKind.EnumMember:   return 'enum';
-    case LSPSymbolKind.TypeParameter:return 'type';
-    case LSPSymbolKind.Namespace:    return 'namespace';
-    default:                         return null;
+    case LSPSymbolKind.Field:
+      return 'property';
+    case LSPSymbolKind.Constructor:
+      return 'class';
+    case LSPSymbolKind.Enum:
+      return 'enum';
+    case LSPSymbolKind.Interface:
+      return 'interface';
+    case LSPSymbolKind.Function:
+      return 'function';
+    case LSPSymbolKind.Variable:
+      return 'var';
+    case LSPSymbolKind.Constant:
+      return 'const';
+    case LSPSymbolKind.EnumMember:
+      return 'enum';
+    case LSPSymbolKind.TypeParameter:
+      return 'type';
+    case LSPSymbolKind.Namespace:
+      return 'namespace';
+    default:
+      return null;
   }
 }
 
@@ -68,19 +81,31 @@ export function lspKindToInternalKind(k: number): SymbolKind | null {
  */
 export function internalKindToLspKind(k: SymbolKind): number | null {
   switch (k) {
-    case 'class':     return LSPSymbolKind.Class;
-    case 'method':    return LSPSymbolKind.Method;
-    case 'property':  return LSPSymbolKind.Property;
-    case 'function':  return LSPSymbolKind.Function;
-    case 'var':       return LSPSymbolKind.Variable;
-    case 'const':     return LSPSymbolKind.Constant;
-    case 'let':       return LSPSymbolKind.Variable;
-    case 'enum':      return LSPSymbolKind.Enum;
-    case 'interface': return LSPSymbolKind.Interface;
-    case 'namespace': return LSPSymbolKind.Namespace;
-    case 'type':      return LSPSymbolKind.TypeParameter;
+    case 'class':
+      return LSPSymbolKind.Class;
+    case 'method':
+      return LSPSymbolKind.Method;
+    case 'property':
+      return LSPSymbolKind.Property;
+    case 'function':
+      return LSPSymbolKind.Function;
+    case 'var':
+      return LSPSymbolKind.Variable;
+    case 'const':
+      return LSPSymbolKind.Constant;
+    case 'let':
+      return LSPSymbolKind.Variable;
+    case 'enum':
+      return LSPSymbolKind.Enum;
+    case 'interface':
+      return LSPSymbolKind.Interface;
+    case 'namespace':
+      return LSPSymbolKind.Namespace;
+    case 'type':
+      return LSPSymbolKind.TypeParameter;
     // parameter and other internal-only kinds have no LSP equivalent
-    default:          return null;
+    default:
+      return null;
   }
 }
 

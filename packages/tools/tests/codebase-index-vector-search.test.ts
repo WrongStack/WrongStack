@@ -58,9 +58,7 @@ describe('cosineSimilarity', () => {
     const query = embedText('verifySession');
     const similar = embedText('verifySessionToken');
     const unrelated = embedText('deleteUserAccount');
-    expect(cosineSimilarity(query, similar)).toBeGreaterThan(
-      cosineSimilarity(query, unrelated),
-    );
+    expect(cosineSimilarity(query, similar)).toBeGreaterThan(cosineSimilarity(query, unrelated));
   });
 
   it('is ~0 for completely disjoint character sets', () => {

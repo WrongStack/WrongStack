@@ -25,8 +25,7 @@ export function derivePackage(filePath: string): string | undefined {
 export function createPackageLabeller(
   stored: ReadonlyMap<string, string>,
 ): (file: string) => string {
-  return (file: string): string =>
-    stored.get(file) ?? derivePackageFromLayout(file) ?? '(root)';
+  return (file: string): string => stored.get(file) ?? derivePackageFromLayout(file) ?? '(root)';
 }
 
 export function buildPackageGraphNodes(
@@ -150,7 +149,9 @@ export function buildSymbolGraphNodes(
     .sort((a, b) => {
       const aExternal = a.file === fileFilter ? 0 : 1;
       const bExternal = b.file === fileFilter ? 0 : 1;
-      return aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id;
+      return (
+        aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id
+      );
     })
     .map((s) => ({
       id: `sym:${s.id}`,

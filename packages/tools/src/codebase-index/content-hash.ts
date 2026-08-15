@@ -46,7 +46,7 @@ const MASK64 = 0xffffffffffffffffn;
 
 /** 64-bit modular multiplication: `(a * b) mod 2^64`. */
 function mul64(a: bigint, b: bigint): bigint {
-  return (a & MASK64) * (b & MASK64) & MASK64;
+  return ((a & MASK64) * (b & MASK64)) & MASK64;
 }
 
 /**
@@ -74,11 +74,12 @@ function readU64LE(buf: Uint8Array, off: number): bigint {
 /** Read 4 bytes from `buf` at byte offset `off` as a little-endian BigInt. */
 function readU32LE(buf: Uint8Array, off: number): bigint {
   return (
-    BigInt(buf[off] ?? 0) |
-    (BigInt(buf[off + 1] ?? 0) << 8n) |
-    (BigInt(buf[off + 2] ?? 0) << 16n) |
-    (BigInt(buf[off + 3] ?? 0) << 24n)
-  ) & MASK64;
+    (BigInt(buf[off] ?? 0) |
+      (BigInt(buf[off + 1] ?? 0) << 8n) |
+      (BigInt(buf[off + 2] ?? 0) << 16n) |
+      (BigInt(buf[off + 3] ?? 0) << 24n)) &
+    MASK64
+  );
 }
 
 /**
@@ -141,9 +142,7 @@ export function xxhash64Hex(buf: Uint8Array, explicitLen?: number): string {
       off += 32;
     }
     // Step 3 — converge the four accumulators.
-    h =
-      (rotl64(v1, 1) + rotl64(v2, 7) + rotl64(v3, 12) + rotl64(v4, 18)) &
-      MASK64;
+    h = (rotl64(v1, 1) + rotl64(v2, 7) + rotl64(v3, 12) + rotl64(v4, 18)) & MASK64;
     h = xxh64MergeRound(h, v1);
     h = xxh64MergeRound(h, v2);
     h = xxh64MergeRound(h, v3);
@@ -165,15 +164,12 @@ export function xxhash64Hex(buf: Uint8Array, explicitLen?: number): string {
   }
   if (off + 4 <= length) {
     h =
-      (mul64(rotl64(h ^ mul64(readU32LE(buf, off), PRIME64_1), 23), PRIME64_2) +
-        PRIME64_3) &
+      (mul64(rotl64(h ^ mul64(readU32LE(buf, off), PRIME64_1), 23), PRIME64_2) + PRIME64_3) &
       MASK64;
     off += 4;
   }
   while (off < length) {
-    h =
-      (mul64(rotl64(h ^ mul64(BigInt(buf[off] ?? 0), PRIME64_5), 11), PRIME64_1)) &
-      MASK64;
+    h = mul64(rotl64(h ^ mul64(BigInt(buf[off] ?? 0), PRIME64_5), 11), PRIME64_1) & MASK64;
     off += 1;
   }
 

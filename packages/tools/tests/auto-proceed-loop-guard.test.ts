@@ -445,7 +445,10 @@ describe('generateAdvancementPrompt', () => {
     // replacer-function fix ensures literal insertion.
     const special = String.fromCharCode(0x24, 0x26); // "$&"
     const backtick = String.fromCharCode(0x24, 0x60); // dollar + backtick
-    const specialTodo = { id: 's1', content: 'Fix ' + special + ' and ' + backtick + ' in template' };
+    const specialTodo = {
+      id: 's1',
+      content: 'Fix ' + special + ' and ' + backtick + ' in template',
+    };
     const result = generateAdvancementPrompt(specialTodo, null, 2, []);
     // The label should appear literally, not expanded.
     expect(result).toContain(special);
@@ -479,7 +482,10 @@ describe('matchTodoIdFromPrompt', () => {
       { id: 't1', content: 'Fix login', status: 'in_progress' },
       { id: 't2', content: 'Write docs', status: 'pending' },
     ];
-    const result = matchTodoIdFromPrompt(todos, 'Current todo board:\n  [~] Fix login\n  [ ] Write docs');
+    const result = matchTodoIdFromPrompt(
+      todos,
+      'Current todo board:\n  [~] Fix login\n  [ ] Write docs',
+    );
     expect(result).not.toBeNull();
     expect(result!.id).toBe('t1');
     expect(result!.content.length).toBeGreaterThan(0);
@@ -507,9 +513,7 @@ describe('matchTodoIdFromPrompt', () => {
   });
 
   it('last resort returns the first non-completed todo', () => {
-    const todos = [
-      { id: 't1', content: 'Obscure task ßpecial', status: 'pending' },
-    ];
+    const todos = [{ id: 't1', content: 'Obscure task ßpecial', status: 'pending' }];
     // Content "obscure task" is not in the prompt, so content-match fails.
     const result = matchTodoIdFromPrompt(todos, 'Nothing matches exactly');
     expect(result).not.toBeNull();
@@ -517,9 +521,7 @@ describe('matchTodoIdFromPrompt', () => {
   });
 
   it('returns null when all todos are completed', () => {
-    const todos = [
-      { id: 't1', content: 'Done', status: 'completed' },
-    ];
+    const todos = [{ id: 't1', content: 'Done', status: 'completed' }];
     expect(matchTodoIdFromPrompt(todos, 'Board: [x] Done')).toBeNull();
   });
 

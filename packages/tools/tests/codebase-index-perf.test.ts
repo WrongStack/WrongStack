@@ -8,15 +8,17 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Symbol as IndexSymbol, SymbolKind, SymbolLang } from '../src/codebase-index/schema.js';
+import type {
+  Symbol as IndexSymbol,
+  SymbolKind,
+  SymbolLang,
+} from '../src/codebase-index/schema.js';
 import { IndexStore } from '../src/codebase-index/writer.js';
 
 let store: IndexStore;
 let tmpDir: string;
 
-const sym = (
-  over: Partial<IndexSymbol> & { name: string; file: string },
-): IndexSymbol => ({
+const sym = (over: Partial<IndexSymbol> & { name: string; file: string }): IndexSymbol => ({
   id: 0,
   lang: (over.lang ?? 'ts') as SymbolLang,
   kind: (over.kind ?? 'function') as SymbolKind,
@@ -119,9 +121,7 @@ describe('IndexStore performance paths', () => {
           name: i % 40 === 0 ? `AuthHandler${i}` : `Util${i}`,
           file: path.join(tmpDir, `src/mod${i % 30}.ts`),
           text:
-            i % 40 === 0
-              ? `AuthHandler${i} authentication session token`
-              : `Util${i} helper misc`,
+            i % 40 === 0 ? `AuthHandler${i} authentication session token` : `Util${i} helper misc`,
         }),
       ),
     );
@@ -259,8 +259,7 @@ describe('IndexStore performance paths', () => {
     expect(fileGraph.edges.length).toBeGreaterThan(0);
     // Aggregated edge weight should collapse 5 duplicate refs into weight 5.
     const bridge = fileGraph.edges.find(
-      (edge) =>
-        edge.source === `file:${files[0]}` && edge.target === `file:${files[1]}`,
+      (edge) => edge.source === `file:${files[0]}` && edge.target === `file:${files[1]}`,
     );
     expect(bridge?.weight).toBe(5);
     expect(fileMs).toBeLessThan(1_000);

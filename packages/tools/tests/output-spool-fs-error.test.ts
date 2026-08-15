@@ -30,9 +30,9 @@ vi.mock('node:fs', async (orig) => {
         process.nextTick(() => s.emit('error', new Error('ENOSPC')));
         return s as never as ReturnType<typeof actual.createWriteStream>;
       }
-      return (actual.createWriteStream as (...a: unknown[]) => unknown)(
-        ...args,
-      ) as ReturnType<typeof actual.createWriteStream>;
+      return (actual.createWriteStream as (...a: unknown[]) => unknown)(...args) as ReturnType<
+        typeof actual.createWriteStream
+      >;
     },
   };
 });

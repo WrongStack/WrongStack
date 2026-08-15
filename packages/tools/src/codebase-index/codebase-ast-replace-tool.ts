@@ -12,10 +12,7 @@
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import {
-  replaceSymbolInFile,
-  type MutateSymbolOptions,
-} from './ast-symbol-mutator.js';
+import { type MutateSymbolOptions, replaceSymbolInFile } from './ast-symbol-mutator.js';
 
 export interface CodebaseAstReplaceInput extends MutateSymbolOptions {}
 
@@ -25,6 +22,7 @@ export interface CodebaseAstReplaceOutput {
   symbol: string;
   originalRange?: { startLine: number; endLine: number } | undefined;
   newRange?: { startLine: number; endLine: number } | undefined;
+  violations?: string[] | undefined;
   error?: string | undefined;
 }
 
@@ -39,13 +37,14 @@ export const codebaseAstReplaceTool: Tool<CodebaseAstReplaceInput, CodebaseAstRe
   description:
     'Surgically replace the implementation body or full definition of a function, method, class, or type alias using AST parsing. ' +
     'Guarantees zero string-matching errors, regex escape bugs, or whitespace indentation mismatches. ' +
-    'Prefer this over standard line edits when modifying entire functions or methods whose signature/location is known from skeleton.',
+    'Automatically verifies AST backward-compatibility invariants (no mandatory param addition, no export deletion, no interface breaking).',
   usageHint:
     'SURGICAL AST-BASED CODE EDITING:\n\n' +
     '- Use when updating an existing function, method, or class without worrying about context lines.\n' +
     '- Pass `symbol: "calculateTotal"` and `newBody: "return items.reduce(...);"`.\n' +
     '- Default `target: "body"` replaces only the inner `{ ... }` block while preserving the signature and JSDoc.\n' +
-    '- Use `target: "full"` if you also need to modify the function parameters or return type.',
+    '- Use `target: "full"` if you also need to modify the function parameters or return type.\n' +
+    '- Setting `allowBreakingChanges: true` bypasses the invariant engine if breaking changes are deliberate.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -64,7 +63,18 @@ export const codebaseAstReplaceTool: Tool<CodebaseAstReplaceInput, CodebaseAstRe
       target: {
         type: 'string',
         enum: ['body', 'full'],
-        description: "Whether to replace only the inner body ('body', default) or the entire symbol declaration ('full').",
+        description:
+          "Whether to replace only the inner body ('body', default) or the entire symbol declaration ('full').",
+      },
+      checkInvariants: {
+        type: 'boolean',
+        description:
+          'Whether to check AST backward-compatibility invariants before write. Defaults to true.',
+      },
+      allowBreakingChanges: {
+        type: 'boolean',
+        description:
+          'Explicitly allow breaking changes (e.g. adding mandatory parameter, removing export) if intentional.',
       },
     },
     required: ['file', 'symbol', 'newBody'],

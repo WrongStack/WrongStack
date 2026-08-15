@@ -1,6 +1,11 @@
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
-import { COMMAND_OUTPUT_MAX_BYTES, detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
+import {
+  COMMAND_OUTPUT_MAX_BYTES,
+  detectPackageManager,
+  normalizeCommandOutput,
+  safeResolveReal,
+} from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
 
 interface AuditInput {
@@ -224,7 +229,8 @@ function extractAdvisories(data: Record<string, unknown>): AuditVulnerability[] 
       advisories.push({
         severity: typeof adv['severity'] === 'string' ? (adv['severity'] as string) : 'unknown',
         package: typeof adv['module_name'] === 'string' ? (adv['module_name'] as string) : id,
-        title: typeof adv['title'] === 'string' ? (adv['title'] as string) : 'Unknown vulnerability',
+        title:
+          typeof adv['title'] === 'string' ? (adv['title'] as string) : 'Unknown vulnerability',
         url: typeof adv['url'] === 'string' ? (adv['url'] as string) : '',
       });
     }

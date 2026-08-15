@@ -106,13 +106,7 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
   const fileTrimEnd = fileLines.map((l) => l.trimEnd());
   const needleTrimEnd = needleLines.map((l) => l.trimEnd());
 
-  const trailing = windowScan(
-    fileTrimEnd,
-    needleTrimEnd,
-    offsets,
-    fileLines,
-    (a, b) => a === b,
-  );
+  const trailing = windowScan(fileTrimEnd, needleTrimEnd, offsets, fileLines, (a, b) => a === b);
   if (trailing.length > 0) return { tier: 'trailing-whitespace', matches: trailing };
 
   const normalizedLen = needleTrimEnd.reduce((n, l) => n + l.trimStart().length, 0);
@@ -120,13 +114,7 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
 
   const fileTrimmed = fileTrimEnd.map((l) => l.trimStart());
   const needleTrimmed = needleTrimEnd.map((l) => l.trimStart());
-  const normalized = windowScan(
-    fileTrimmed,
-    needleTrimmed,
-    offsets,
-    fileLines,
-    (a, b) => a === b,
-  );
+  const normalized = windowScan(fileTrimmed, needleTrimmed, offsets, fileLines, (a, b) => a === b);
   if (normalized.length > 0) return { tier: 'whitespace-normalized', matches: normalized };
 
   return fuzzyScan(fileLines, needleLines, offsets);

@@ -13,7 +13,10 @@
  */
 
 import * as os from 'node:os';
-import { getPersistentProcessRegistry, type PersistentProcessRegistry } from './process-registry-persistent.js';
+import {
+  getPersistentProcessRegistry,
+  type PersistentProcessRegistry,
+} from './process-registry-persistent.js';
 
 export interface ProcessGuardianConfig {
   /** Interval for heartbeat in ms */
@@ -56,40 +59,47 @@ export class ProcessGuardian {
   private processHandlersInstalled = false;
 
   private readonly onProcessExit = (code: number): void => {
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'process_guardian.process_exiting',
-      pid: process.pid,
-      code,
-      instanceId: this.instanceId,
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'process_guardian.process_exiting',
+        pid: process.pid,
+        code,
+        instanceId: this.instanceId,
+      }),
+    );
     this.stop();
   };
 
   private readonly onUncaughtException = (err: Error): void => {
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'process_guardian.uncaught_exception',
-      error: err.message,
-      stack: err.stack,
-      instanceId: this.instanceId,
-      fatal: true,
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'process_guardian.uncaught_exception',
+        error: err.message,
+        stack: err.stack,
+        instanceId: this.instanceId,
+        fatal: true,
+      }),
+    );
     this.stop();
     process.exit(1);
   };
 
   private readonly onUnhandledRejection = (reason: unknown): void => {
-    const err = reason instanceof Error
-      ? { message: reason.message, stack: reason.stack }
-      : { value: String(reason) };
-    console.error(JSON.stringify({
-      level: 'error',
-      event: 'process_guardian.unhandled_rejection',
-      ...err,
-      instanceId: this.instanceId,
-      fatal: true,
-    }));
+    const err =
+      reason instanceof Error
+        ? { message: reason.message, stack: reason.stack }
+        : { value: String(reason) };
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'process_guardian.unhandled_rejection',
+        ...err,
+        instanceId: this.instanceId,
+        fatal: true,
+      }),
+    );
     this.stop();
     process.exit(1);
   };
@@ -98,49 +108,58 @@ export class ProcessGuardian {
     this.sigtermCount++;
     const threshold = this.config.sigtermThreshold;
     if (threshold === Infinity) {
-      console.log(JSON.stringify({
-        level: 'warn',
-        event: 'process_guardian.sigterm_ignored',
-        pid: process.pid,
-        instanceId: this.instanceId,
-        sigtermCount: this.sigtermCount,
-        message: 'SIGTERM received but sigtermThreshold is Infinity — ignoring (use graceful shutdown instead)',
-      }));
+      console.log(
+        JSON.stringify({
+          level: 'warn',
+          event: 'process_guardian.sigterm_ignored',
+          pid: process.pid,
+          instanceId: this.instanceId,
+          sigtermCount: this.sigtermCount,
+          message:
+            'SIGTERM received but sigtermThreshold is Infinity — ignoring (use graceful shutdown instead)',
+        }),
+      );
       return;
     }
     if (this.sigtermCount < threshold) {
-      console.log(JSON.stringify({
+      console.log(
+        JSON.stringify({
+          level: 'warn',
+          event: 'process_guardian.sigterm_deferred',
+          pid: process.pid,
+          instanceId: this.instanceId,
+          sigtermCount: this.sigtermCount,
+          threshold,
+          message: `SIGTERM received (${this.sigtermCount}/${threshold}) — ignoring until threshold is reached`,
+        }),
+      );
+      return;
+    }
+    console.log(
+      JSON.stringify({
         level: 'warn',
-        event: 'process_guardian.sigterm_deferred',
+        event: 'process_guardian.sigterm_exiting',
         pid: process.pid,
         instanceId: this.instanceId,
         sigtermCount: this.sigtermCount,
         threshold,
-        message: `SIGTERM received (${this.sigtermCount}/${threshold}) — ignoring until threshold is reached`,
-      }));
-      return;
-    }
-    console.log(JSON.stringify({
-      level: 'warn',
-      event: 'process_guardian.sigterm_exiting',
-      pid: process.pid,
-      instanceId: this.instanceId,
-      sigtermCount: this.sigtermCount,
-      threshold,
-      message: `SIGTERM threshold (${threshold}) reached — shutting down gracefully`,
-    }));
+        message: `SIGTERM threshold (${threshold}) reached — shutting down gracefully`,
+      }),
+    );
     this.stop();
     process.exit(0);
   };
 
   private readonly onSighup = (): void => {
-    console.log(JSON.stringify({
-      level: 'warn',
-      event: 'process_guardian.sighup_received',
-      pid: process.pid,
-      instanceId: this.instanceId,
-      message: 'SIGHUP received but ignored - WrongStack continues running',
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'warn',
+        event: 'process_guardian.sighup_received',
+        pid: process.pid,
+        instanceId: this.instanceId,
+        message: 'SIGHUP received but ignored - WrongStack continues running',
+      }),
+    );
   };
 
   constructor(config: ProcessGuardianConfig = {}) {
@@ -177,14 +196,16 @@ export class ProcessGuardian {
     // Set up process event handlers
     this.setupProcessHandlers();
 
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'process_guardian.started',
-      instanceId: this.instanceId,
-      mainPid: process.pid,
-      hostname: os.hostname(),
-      platform: process.platform,
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'process_guardian.started',
+        instanceId: this.instanceId,
+        mainPid: process.pid,
+        hostname: os.hostname(),
+        platform: process.platform,
+      }),
+    );
   }
 
   /**
@@ -202,12 +223,14 @@ export class ProcessGuardian {
 
     this.registry.stop();
 
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'process_guardian.stopped',
-      instanceId: this.instanceId,
-      mainPid: process.pid,
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'process_guardian.stopped',
+        instanceId: this.instanceId,
+        mainPid: process.pid,
+      }),
+    );
   }
 
   /**
@@ -224,13 +247,15 @@ export class ProcessGuardian {
     // Also register with persistent registry
     this.registry.registerChildProcess(pid, name, name, undefined, 'spawn');
 
-    console.log(JSON.stringify({
-      level: 'info',
-      event: 'process_guardian.registered',
-      pid,
-      name,
-      instanceId: this.instanceId,
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'process_guardian.registered',
+        pid,
+        name,
+        instanceId: this.instanceId,
+      }),
+    );
   }
 
   /**
@@ -238,13 +263,15 @@ export class ProcessGuardian {
    */
   unregisterProcess(pid: number): void {
     this.protectedProcesses.delete(pid);
-    this.registry.unregister(pid).catch(err => {
-      console.error(JSON.stringify({
-        level: 'error',
-        event: 'process_guardian.unregister_failed',
-        pid,
-        error: err.message,
-      }));
+    this.registry.unregister(pid).catch((err) => {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          event: 'process_guardian.unregister_failed',
+          pid,
+          error: err.message,
+        }),
+      );
     });
   }
 
@@ -278,12 +305,14 @@ export class ProcessGuardian {
 
     // Log status periodically (every 10 heartbeats)
     if (Math.random() < 0.1) {
-      console.log(JSON.stringify({
-        level: 'debug',
-        event: 'process_guardian.heartbeat',
-        protectedCount: this.protectedProcesses.size,
-        instanceId: this.instanceId,
-      }));
+      console.log(
+        JSON.stringify({
+          level: 'debug',
+          event: 'process_guardian.heartbeat',
+          protectedCount: this.protectedProcesses.size,
+          instanceId: this.instanceId,
+        }),
+      );
     }
   }
 

@@ -76,7 +76,10 @@ describe('redactCommand — secret redaction (P2 #13)', () => {
 
   describe('high-entropy base64 after a secret-flag name', () => {
     it.each([
-      ['--github-token=EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIi', /--github-token=\[REDACTED\]/],
+      [
+        '--github-token=EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIi',
+        /--github-token=\[REDACTED\]/,
+      ],
       ['--api-key=SkRmOQzN3a8qP4xY7vW2bH1cU6tZ0sL9', /--api-key=\[REDACTED\]/],
     ])('redacts %j', (cmd, pattern) => {
       expect(redactCommand(cmd)).toMatch(pattern);

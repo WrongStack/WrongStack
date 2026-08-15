@@ -112,11 +112,7 @@ describe('diffTool', () => {
 
   it('git path maps side-by-side to unified and reports what it produced', async () => {
     const gitCtx = { cwd: process.cwd(), tools: [], projectRoot: process.cwd() } as any;
-    const result = await diffTool.execute(
-      { a: 'HEAD', mode: 'side-by-side' },
-      gitCtx,
-      makeOpts(),
-    );
+    const result = await diffTool.execute({ a: 'HEAD', mode: 'side-by-side' }, gitCtx, makeOpts());
     expect(result.mode).toBe('unified');
     expect(result.note).toMatch(/side-by-side/);
   });

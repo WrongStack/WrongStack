@@ -12,9 +12,9 @@ type PrepareStatement = (sql: string) => Statement;
 export function getAllIndexableWithStatement(
   stmt: PrepareStatement,
 ): Array<{ id: number; text: string }> {
-  return (
-    stmt('SELECT id, text FROM symbols').all() as { id: number; text: string }[]
-  ).map(({ id, text }) => ({ id, text }));
+  return (stmt('SELECT id, text FROM symbols').all() as { id: number; text: string }[]).map(
+    ({ id, text }) => ({ id, text }),
+  );
 }
 
 export function getMaxSymbolIdWithStatement(stmt: PrepareStatement): number {
@@ -57,20 +57,14 @@ export function getStatsWithStatement(stmt: PrepareStatement, indexDir: string):
   };
 }
 
-export function getMetadataWithStatement(
-  stmt: PrepareStatement,
-  key: string,
-): string | undefined {
+export function getMetadataWithStatement(stmt: PrepareStatement, key: string): string | undefined {
   const rows = stmt('SELECT value FROM metadata WHERE key = ?').all(key) as {
     value: string;
   }[];
   return rows[0]?.value;
 }
 
-export function getFileMetaWithStatement(
-  stmt: PrepareStatement,
-  file: string,
-): FileMeta | null {
+export function getFileMetaWithStatement(stmt: PrepareStatement, file: string): FileMeta | null {
   const rows = stmt(
     'SELECT file, lang, mtime_ms, symbol_count, last_indexed, content_hash FROM files WHERE file = ?',
   ).all(file) as Array<{

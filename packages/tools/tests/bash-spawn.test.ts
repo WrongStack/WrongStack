@@ -40,7 +40,7 @@ const cfg: {
   wrongstackShell: string | undefined;
 } = hoisted.cfg;
 
-let _lastChild: (EventEmitter & { killSignals: string[]; killed: boolean; exitCode: number | null });
+let _lastChild: EventEmitter & { killSignals: string[]; killed: boolean; exitCode: number | null };
 
 vi.mock('node:os', async (orig) => {
   const actual = await orig<typeof import('node:os')>();
@@ -462,7 +462,8 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
     cfg.platform = 'win32';
     cfg.stdout = '';
     await withShell(undefined, async () => {
-      const script = "$env:PATH\nGet-ChildItem -Recurse | Where-Object { $_.PSIsContainer -eq $false }";
+      const script =
+        '$env:PATH\nGet-ChildItem -Recurse | Where-Object { $_.PSIsContainer -eq $false }';
       await runFinal({ command: script });
       // The script body is wrapped (BOM + bootstrap + try/finally) but its
       // contents are carried through verbatim.

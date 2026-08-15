@@ -1,7 +1,12 @@
 import { spawn } from 'node:child_process';
 import type { Tool } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
-import { COMMAND_OUTPUT_MAX_BYTES, detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
+import {
+  COMMAND_OUTPUT_MAX_BYTES,
+  detectPackageManager,
+  normalizeCommandOutput,
+  safeResolveReal,
+} from './_util.js';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
 
 interface OutdatedInput {
@@ -197,7 +202,8 @@ function parseOutdatedOutput(json: string, exitCode: number): OutdatedOutput {
     };
   }
 
-  const truncated = json.length >= 100_000 || Buffer.byteLength(json, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
+  const truncated =
+    json.length >= 100_000 || Buffer.byteLength(json, 'utf8') > COMMAND_OUTPUT_MAX_BYTES;
   let parsedOk = false;
 
   try {

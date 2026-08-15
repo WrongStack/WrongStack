@@ -514,7 +514,10 @@ async function handleMessage(
     try {
       state.watchExternal = message.watchExternal;
       state.debounceMs = Math.max(0, message.debounceMs);
-      state.coalesceWindowMs = Math.max(0, message.coalesceWindowMs ?? DEFAULT_EXTERNAL_COALESCE_WINDOW_MS);
+      state.coalesceWindowMs = Math.max(
+        0,
+        message.coalesceWindowMs ?? DEFAULT_EXTERNAL_COALESCE_WINDOW_MS,
+      );
       reconcileExternalWatcher();
       send(state, {
         type: 'response',

@@ -104,11 +104,7 @@ export async function handleKanbanBoardAction(
     }
     case 'duplicate_board': {
       if (!input.boardId) return fail('duplicate_board requires boardId.');
-      const board = await duplicateBoard(
-        projectRoot,
-        input.boardId,
-        duplicateBoardOptions(input),
-      );
+      const board = await duplicateBoard(projectRoot, input.boardId, duplicateBoardOptions(input));
       return board ? okBoard(board, 'Board duplicated.') : fail('Board not found.');
     }
     case 'delete_board': {
@@ -151,9 +147,7 @@ export async function handleKanbanBoardAction(
         ...(input.preserveOriginTaskIds !== undefined
           ? { preserveOriginTaskIds: input.preserveOriginTaskIds }
           : {}),
-        ...(input.includeArchived !== undefined
-          ? { includeArchived: input.includeArchived }
-          : {}),
+        ...(input.includeArchived !== undefined ? { includeArchived: input.includeArchived } : {}),
       });
       if (!exported) return fail('Board not found.');
       return {
@@ -214,9 +208,7 @@ export async function handleKanbanBoardAction(
       };
     }
     case 'import_session_tasks': {
-      const taskPath = (ctx.meta as Record<string, unknown>)?.['task.path'] as
-        | string
-        | undefined;
+      const taskPath = (ctx.meta as Record<string, unknown>)?.['task.path'] as string | undefined;
       if (!taskPath) return fail('No session task file for this session.');
       const file = await loadTasks(taskPath);
       if (!file || file.tasks.length === 0) return fail('No session tasks to import.');

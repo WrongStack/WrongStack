@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 279,
-      "typeOnly": 226,
-      "runtimeOrMixed": 70
+      "files": 282,
+      "typeOnly": 227,
+      "runtimeOrMixed": 72
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 58,
+      "files": 59,
       "typeOnly": 18,
-      "runtimeOrMixed": 56
+      "runtimeOrMixed": 57
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -74,14 +74,14 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/infrastructure": {
-      "files": 37,
+      "files": 38,
       "typeOnly": 5,
-      "runtimeOrMixed": 36
+      "runtimeOrMixed": 37
     },
     "@wrongstack/core/kernel": {
-      "files": 225,
-      "typeOnly": 121,
-      "runtimeOrMixed": 115
+      "files": 227,
+      "typeOnly": 122,
+      "runtimeOrMixed": 116
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -109,9 +109,9 @@
       "runtimeOrMixed": 21
     },
     "@wrongstack/core/registry": {
-      "files": 102,
+      "files": 103,
       "typeOnly": 52,
-      "runtimeOrMixed": 51
+      "runtimeOrMixed": 52
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -119,9 +119,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 127,
+      "files": 128,
       "typeOnly": 24,
-      "runtimeOrMixed": 106
+      "runtimeOrMixed": 107
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -134,9 +134,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 99,
+      "files": 100,
       "typeOnly": 30,
-      "runtimeOrMixed": 103
+      "runtimeOrMixed": 104
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -149,8 +149,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 937,
-      "typeOnly": 864,
+      "files": 940,
+      "typeOnly": 867,
       "runtimeOrMixed": 234
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 528,
+      "files": 529,
       "typeOnly": 59,
-      "runtimeOrMixed": 495
+      "runtimeOrMixed": 496
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -490,6 +490,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/subcommands/handlers/permissions.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/vibe-protocol-wiring.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -858,6 +864,18 @@
       "file": "packages/cli/tests/tui-project-switch-identity.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/vibe-protocol-wiring.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3387,6 +3405,12 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/tests/webui-server/ws-handlers-brain.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -4647,6 +4671,12 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/tests/wiring-codebase-index.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4918,6 +4948,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/slash-commands/command-context.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/vibe-protocol-wiring.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5278,6 +5314,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/token-saving-memory-injection-size.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6837,6 +6879,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/wiring-pipeline.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7557,6 +7605,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/wiring-pipeline.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8248,6 +8302,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/tui-settings-adapter.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9999,6 +10059,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/vibe-protocol-wiring.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/webui-server-options.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -10810,6 +10876,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/tui-settings-adapter.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/vibe-protocol-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12813,6 +12891,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-invariant-check-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/codebase-index/codebase-outgoing-calls-tool.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13162,12 +13246,6 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/tools/tests/codebase-skeleton-tool.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16900,6 +16978,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/codebase-incoming-calls-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-invariant-check-tool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -83,7 +83,10 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
   ],
   kotlin: [
     { re: /\b(?:fun)\s+([A-Za-z_]\w*)/g, kind: 'function' },
-    { re: /\b(?:class|interface|object|enum\s+class|data\s+class)\s+([A-Za-z_]\w*)/g, kind: 'class' },
+    {
+      re: /\b(?:class|interface|object|enum\s+class|data\s+class)\s+([A-Za-z_]\w*)/g,
+      kind: 'class',
+    },
   ],
   scala: [
     { re: /\b(?:def)\s+([A-Za-z_]\w*)/g, kind: 'function' },
@@ -94,14 +97,13 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
     { re: /^([A-Za-z_][\w]*)\s*\(\)\s*\{/gm, kind: 'function' },
   ],
   sql: [
-    { re: /\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|INDEX|FUNCTION|PROCEDURE|TRIGGER)\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z_"][\w."]*)/gi, kind: 'type' },
+    {
+      re: /\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|INDEX|FUNCTION|PROCEDURE|TRIGGER)\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z_"][\w."]*)/gi,
+      kind: 'type',
+    },
   ],
-  md: [
-    { re: /^(#{1,6})\s+(.+)$/gm, kind: 'namespace' },
-  ],
-  toml: [
-    { re: /^\[([^\]]+)\]/gm, kind: 'namespace' },
-  ],
+  md: [{ re: /^(#{1,6})\s+(.+)$/gm, kind: 'namespace' }],
+  toml: [{ re: /^\[([^\]]+)\]/gm, kind: 'namespace' }],
   html: [
     { re: /\bid\s*=\s*["']([^"']+)["']/gi, kind: 'property' },
     { re: /<(?:script|template|style)\b/gi, kind: 'namespace' },
@@ -111,11 +113,17 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
     { re: /@(?:keyframes|media|supports)\s+([^{\s]+)/g, kind: 'namespace' },
   ],
   vue: [
-    { re: /\b(?:function|const|let|var|class|export\s+(?:default\s+)?(?:function|class|const))\s+([A-Za-z_]\w*)/g, kind: 'function' },
+    {
+      re: /\b(?:function|const|let|var|class|export\s+(?:default\s+)?(?:function|class|const))\s+([A-Za-z_]\w*)/g,
+      kind: 'function',
+    },
     { re: /<(?:script|template|style)\b/gi, kind: 'namespace' },
   ],
   svelte: [
-    { re: /\b(?:function|const|let|var|class|export\s+(?:default\s+)?(?:function|class|const))\s+([A-Za-z_]\w*)/g, kind: 'function' },
+    {
+      re: /\b(?:function|const|let|var|class|export\s+(?:default\s+)?(?:function|class|const))\s+([A-Za-z_]\w*)/g,
+      kind: 'function',
+    },
   ],
   dart: [
     { re: /\b(?:class|enum|mixin|extension)\s+([A-Za-z_]\w*)/g, kind: 'class' },
@@ -318,7 +326,10 @@ export function parseGeneric(opts: {
 
   for (const pattern of patterns) {
     // Clone flags so lastIndex never leaks across files.
-    const re = new RegExp(pattern.re.source, pattern.re.flags.includes('g') ? pattern.re.flags : `${pattern.re.flags}g`);
+    const re = new RegExp(
+      pattern.re.source,
+      pattern.re.flags.includes('g') ? pattern.re.flags : `${pattern.re.flags}g`,
+    );
     re.lastIndex = 0;
     for (const match of content.matchAll(re)) {
       if (symbols.length >= maxSymbols) break;

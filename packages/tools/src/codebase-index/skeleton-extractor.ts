@@ -149,7 +149,8 @@ async function extractTsSkeleton(
         return;
       }
 
-      const nodeStart = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+      const nodeStart =
+        sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
       const nodeEnd = sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
       let bodyStart: number | undefined;
       let bodyEnd: number | undefined;
@@ -273,7 +274,12 @@ function collapseTsImports(code: string): string {
       inImportGroup = true;
       importGroupCount++;
       // Consume multi-line import
-      while (!trimmed.includes(';') && !trimmed.includes("from '") && !trimmed.includes('from "') && i + 1 < lines.length) {
+      while (
+        !trimmed.includes(';') &&
+        !trimmed.includes("from '") &&
+        !trimmed.includes('from "') &&
+        i + 1 < lines.length
+      ) {
         i++;
       }
     } else {
@@ -463,7 +469,10 @@ function extractFallbackSkeleton(
       }
     } else if (trimmed === '}' && inBlock) {
       inBlock = false;
-    } else if (!inBlock && (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*'))) {
+    } else if (
+      !inBlock &&
+      (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*'))
+    ) {
       skeletonLines.push(line);
     }
   }
@@ -484,7 +493,7 @@ export async function extractFileSkeleton(opts: {
   options?: SkeletonOptions;
 }): Promise<FileSkeletonResult> {
   const detected = detectLang(opts.file);
-  const lang: SymbolLang = opts.lang ?? (detected ?? 'other');
+  const lang: SymbolLang = opts.lang ?? detected ?? 'other';
   const options = opts.options ?? {};
   const originalLines = opts.content.split('\n').length;
 
@@ -552,7 +561,12 @@ export async function extractDirectorySkeleton(opts: {
 
     for (const entry of entries) {
       if (filePaths.length >= maxFiles) break;
-      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'build') {
+      if (
+        entry.name.startsWith('.') ||
+        entry.name === 'node_modules' ||
+        entry.name === 'dist' ||
+        entry.name === 'build'
+      ) {
         continue;
       }
       const fullPath = path.join(dir, entry.name);
@@ -589,7 +603,9 @@ export async function extractDirectorySkeleton(opts: {
       totalSkelLines += res.stats.skeletonLines;
 
       const rel = path.relative(opts.dirPath, fp).replace(/\\/g, '/');
-      combinedParts.push(`// ═══════════════════ ${rel} (${res.lang}) ═══════════════════\n${res.skeleton}`);
+      combinedParts.push(
+        `// ═══════════════════ ${rel} (${res.lang}) ═══════════════════\n${res.skeleton}`,
+      );
     } catch {
       // Ignore unreadable files
     }

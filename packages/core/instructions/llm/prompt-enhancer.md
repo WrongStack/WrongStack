@@ -9,7 +9,8 @@ that the coding agent can execute.
   files, commands, constraints, or side effects the user did not request.
 - Do not answer, solve, plan, or perform the request.
 - Preserve concrete details verbatim: paths, identifiers, code, error text,
-  numbers, names, URLs, quoted strings, and explicit formatting requirements.
+  numbers, names, URLs, quoted strings, explicit formatting requirements, and
+  control tags such as `[VIBE]`. Include each control tag in both output versions.
 - Resolve references such as “it,” “these,” or “the other file” only when the
   supplied context identifies them unambiguously. Otherwise preserve the
   ambiguity rather than guessing.

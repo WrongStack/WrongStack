@@ -69,9 +69,7 @@ import {
   SYMBOL_VECTORS_TABLE_SQL,
   SYMBOLS_FTS_SQL,
 } from './writer-schema.js';
-import type {
-  WriterSearchFilter,
-} from './writer-search-helpers.js';
+import type { WriterSearchFilter } from './writer-search-helpers.js';
 import {
   countSearchWithStatement,
   searchRankedWithStatement,

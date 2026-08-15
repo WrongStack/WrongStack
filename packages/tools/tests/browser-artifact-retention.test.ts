@@ -11,10 +11,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  _resetArtifactSweepForTests,
-  BrowserArtifactStore,
-} from '../src/browser/artifacts.js';
+import { _resetArtifactSweepForTests, BrowserArtifactStore } from '../src/browser/artifacts.js';
 
 let root: string;
 const DAY_MS = 24 * 60 * 60 * 1000;

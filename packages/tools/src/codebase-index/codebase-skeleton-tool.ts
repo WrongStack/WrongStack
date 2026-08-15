@@ -98,7 +98,9 @@ export const codebaseSkeletonTool: Tool<CodebaseSkeletonInput, CodebaseSkeletonO
     try {
       stat = await fs.stat(targetPath);
     } catch (err) {
-      throw new Error(`codebase-skeleton: file or directory not found at "${input.path}": ${toErrorMessage(err)}`);
+      throw new Error(
+        `codebase-skeleton: file or directory not found at "${input.path}": ${toErrorMessage(err)}`,
+      );
     }
 
     const options: SkeletonOptions = {

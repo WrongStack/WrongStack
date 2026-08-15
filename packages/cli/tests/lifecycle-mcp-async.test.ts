@@ -56,6 +56,7 @@ describe('Lifecycle MCP Background Initialization', () => {
       },
       pipelines: {
         userInput: { use: vi.fn() },
+        response: { use: vi.fn() },
         executeTurn: { use: vi.fn() },
       },
       logger: {
@@ -100,6 +101,12 @@ describe('Lifecycle MCP Background Initialization', () => {
     const result = await setupPromise;
 
     expect(result).toBeDefined();
+    expect(mockDeps.pipelines.userInput.use).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'VibeProtocolInput' }),
+    );
+    expect(mockDeps.pipelines.response.use).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'VibeProtocolAuditor' }),
+    );
     expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ name: 'testServer' }));
     expect(mcpStarted).toBe(false); // Proves setupLifecycle did not block on MCP start!
 

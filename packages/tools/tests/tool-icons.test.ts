@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getToolIcon, TOOL_ICON_CONFIG, TOOL_ICON_MAP, type ToolIconId } from '../src/tool-icons.js';
+import {
+  getToolIcon,
+  TOOL_ICON_CONFIG,
+  TOOL_ICON_MAP,
+  type ToolIconId,
+} from '../src/tool-icons.js';
 
 const expectedIconIds: readonly ToolIconId[] = [
   'file',

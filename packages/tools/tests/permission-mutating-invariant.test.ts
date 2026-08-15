@@ -106,7 +106,9 @@ describe('builtin tool permission/mutating invariant (H7)', () => {
       'memory.delete',
     ]);
     const offenders = builtinTools
-      .filter((t) => t.permission === 'auto' && (t.capabilities ?? []).some((c) => dangerous.has(c)))
+      .filter(
+        (t) => t.permission === 'auto' && (t.capabilities ?? []).some((c) => dangerous.has(c)),
+      )
       .map((t) => `${t.name} (${(t.capabilities ?? []).join(', ')})`);
 
     expect(
@@ -144,7 +146,9 @@ describe('builtin tool permission/mutating invariant (H7)', () => {
     const offenders = builtinTools
       .filter(
         (t) =>
-          t.mutating === true && !META_TOOLS.has(t.name) && (!t.capabilities || t.capabilities.length === 0),
+          t.mutating === true &&
+          !META_TOOLS.has(t.name) &&
+          (!t.capabilities || t.capabilities.length === 0),
       )
       .map((t) => t.name);
 

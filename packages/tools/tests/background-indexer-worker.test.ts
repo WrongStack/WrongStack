@@ -16,7 +16,13 @@ import type {
 } from '../src/codebase-index/worker-protocol.js';
 
 const hoisted = vi.hoisted(() => {
-  const OK_RESULT = { filesIndexed: 2, symbolsIndexed: 5, langStats: {}, durationMs: 1, errors: [] };
+  const OK_RESULT = {
+    filesIndexed: 2,
+    symbolsIndexed: 5,
+    langStats: {},
+    durationMs: 1,
+    errors: [],
+  };
   // Self-contained emitter: vi.hoisted runs before static imports init, so we
   // can't `extends EventEmitter` here.
   class FakeWorker {
@@ -86,7 +92,9 @@ const STATS_ARGS: StatsOpArgs = { projectRoot: '/proj' };
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const lastWorker = () => FakeWorker.instances[FakeWorker.instances.length - 1]!;
 const lastRequest = (w: FakeWorker): Extract<HostToWorker, { type: 'request' }> =>
-  w.postMessage.mock.calls.map((c) => c[0] as HostToWorker).find((m) => m.type === 'request') as never;
+  w.postMessage.mock.calls
+    .map((c) => c[0] as HostToWorker)
+    .find((m) => m.type === 'request') as never;
 const respond = (w: FakeWorker, msg: WorkerToHost) => w.emit('message', msg);
 
 beforeEach(async () => {
@@ -123,7 +131,12 @@ describe('worker RPC round-trip', () => {
     const p1 = searchCodebaseIndex(SEARCH_ARGS);
     await tick();
     const w = lastWorker();
-    respond(w, { type: 'response', id: lastRequest(w).id, ok: true, result: { results: [], total: 0 } });
+    respond(w, {
+      type: 'response',
+      id: lastRequest(w).id,
+      ok: true,
+      result: { results: [], total: 0 },
+    });
     await p1;
     const p2 = codebaseIndexStats(STATS_ARGS);
     await tick();
@@ -235,7 +248,9 @@ describe('watchdog + cancel', () => {
     const p = searchCodebaseIndex(SEARCH_ARGS, { signal: ac.signal });
     const w = lastWorker();
     expect(w).toBeTruthy();
-    expect(w!.postMessage.mock.calls.some((c) => (c[0] as HostToWorker).type === 'request')).toBe(false);
+    expect(w!.postMessage.mock.calls.some((c) => (c[0] as HostToWorker).type === 'request')).toBe(
+      false,
+    );
     // The promise rejects with the supplied reason verbatim — a DOMException
     // for `ac.abort()` with no reason, an Error for any other.
     await expect(p).rejects.toBeInstanceOf(DOMException);

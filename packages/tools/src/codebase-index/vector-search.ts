@@ -111,11 +111,7 @@ export function decodeVector(buf: Buffer | Uint8Array): Float32Array {
   // node:sqlite returns Uint8Array for BLOB columns, not Buffer. Buffer methods
   // like readFloatLE only exist on Buffer instances. Use DataView for portable
   // float decoding regardless of which type arrives from SQLite.
-  const view = new DataView(
-    buf.buffer,
-    buf.byteOffset,
-    buf.byteLength,
-  );
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const copy = new Float32Array(buf.byteLength / 4);
   for (let i = 0; i < copy.length; i++) {
     copy[i] = view.getFloat32(i * 4, true);

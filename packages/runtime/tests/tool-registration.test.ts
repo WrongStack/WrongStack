@@ -46,7 +46,7 @@ function legacyMemoryStore(): MemoryStore {
 }
 
 describe('canonical host tool registration', () => {
-  it('keeps the normal leader direct surface at or below 48 while retaining lazy tools', () => {
+  it('keeps the normal leader direct surface bounded while retaining lazy tools', () => {
     const registry = new ToolRegistry();
     const context = { ...coordinationTool, name: 'context_manager' };
     const coordination = ['mailbox', 'mail_send', 'mail_inbox', 'fleet_status'].map((name) => ({
@@ -65,11 +65,11 @@ describe('canonical host tool registration', () => {
       registry.exposeToProvider(name);
     }
 
-    // 61 built-ins + context + 4 legacy-memory + 4 coordination + 4 host
-    // gateways stay executable, but only the bounded 48-schema surface is sent
+    // 68 built-ins + context + 4 legacy-memory + 4 coordination + 4 host
+    // gateways stay executable, but only the bounded 55-schema surface is sent
     // directly to the provider.
-    expect(registry.list()).toHaveLength(74);
-    expect(registry.listForProvider()).toHaveLength(48);
+    expect(registry.list()).toHaveLength(81);
+    expect(registry.listForProvider()).toHaveLength(55);
     expect(registry.get('browser_open')).toBeDefined();
     expect(registry.listForProvider().map((tool) => tool.name)).not.toContain('browser_open');
   });

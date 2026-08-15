@@ -1,18 +1,14 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ToolExecutionContext } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
-import {
-  codebaseSkeletonTool,
-  extractDirectorySkeleton,
-  extractFileSkeleton,
-} from '../src/codebase-index/index.js';
+import { codebaseSkeletonTool, extractFileSkeleton } from '../src/codebase-index/index.js';
 
 describe('codebase-skeleton tool & extractor', () => {
-  const dummyCtx: ToolExecutionContext = {
+  const dummyCtx = {
     projectRoot: process.cwd(),
-  };
+  } as never;
+  const dummyOpts = { signal: new AbortController().signal };
 
   it('strips function bodies in TypeScript while preserving signatures and types and emitting line ranges', async () => {
     const tsCode = `
@@ -51,7 +47,9 @@ export class Calculator {
       lang: 'ts',
     });
 
-    expect(res.skeleton).toContain('export function add(a: number, b: number): number { /* L9-L13 */ }');
+    expect(res.skeleton).toContain(
+      'export function add(a: number, b: number): number { /* L9-L13 */ }',
+    );
     expect(res.skeleton).toContain('public multiply(val: number): number { /* L24-L27 */ }');
     expect(res.skeleton).toContain('export interface User');
     expect(res.skeleton).toContain('Adds two numbers.');
@@ -107,7 +105,9 @@ class DataProcessor:
     expect(res.skeleton).toContain('def calculate_metrics(data, threshold=0.5):');
     expect(res.skeleton).toContain('... # L3-L6');
     expect(res.skeleton).not.toContain('filtered = [x for x in data if x > threshold]');
-    expect(res.symbols?.some((s) => s.name === 'calculate_metrics' && s.kind === 'function')).toBe(true);
+    expect(res.symbols?.some((s) => s.name === 'calculate_metrics' && s.kind === 'function')).toBe(
+      true,
+    );
   });
 
   it('strips Go function bodies with Tree-Sitter', async () => {
@@ -131,7 +131,9 @@ func ProcessOrder(orderId string, amount float64) error {
       lang: 'go',
     });
 
-    expect(res.skeleton).toContain('func ProcessOrder(orderId string, amount float64) error { /* L6-L12 */ }');
+    expect(res.skeleton).toContain(
+      'func ProcessOrder(orderId string, amount float64) error { /* L6-L12 */ }',
+    );
     expect(res.skeleton).not.toContain('fmt.Println("Processing order", orderId)');
   });
 
@@ -212,7 +214,8 @@ private:
     try {
       const output = await codebaseSkeletonTool.execute(
         { path: filePath },
-        { projectRoot: tempDir },
+        { projectRoot: tempDir } as never,
+        dummyOpts,
       );
 
       expect(output.isDir).toBe(false);
@@ -239,7 +242,8 @@ private:
     try {
       const output = await codebaseSkeletonTool.execute(
         { path: tempDir },
-        { projectRoot: tempDir },
+        { projectRoot: tempDir } as never,
+        dummyOpts,
       );
 
       expect(output.isDir).toBe(true);
@@ -258,8 +262,8 @@ private:
       codebaseSkeletonTool.execute(
         { path: '/non/existent/path/for/skeleton/test.ts' },
         dummyCtx,
+        dummyOpts,
       ),
     ).rejects.toThrow(/not found/);
   });
 });
-

@@ -40,7 +40,11 @@ const allowedDirectSignalSources = new Set([
 const negativeProcessKillPattern = /process\.kill\s*\(\s*-/;
 const directProcessSignalPattern = /process\.kill\s*\([^,\n]+,\s*['"]SIG(?:KILL|TERM|INT|HUP)['"]/;
 
-function walk(dir: string, out: string[] = [], predicate: (name: string) => boolean = (name) => name.endsWith('.test.ts')): string[] {
+function walk(
+  dir: string,
+  out: string[] = [],
+  predicate: (name: string) => boolean = (name) => name.endsWith('.test.ts'),
+): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name === 'dist') continue;
     const full = path.join(dir, entry.name);
@@ -65,7 +69,11 @@ describe('POSIX signal safety in tests', () => {
   it('does not add unguarded negative-PID process.kill calls to tests', () => {
     const offenders: string[] = [];
     for (const root of sourceRoots) {
-      for (const file of walk(root, [], (name) => name.endsWith('.test.ts') || name.endsWith('.spec.ts'))) {
+      for (const file of walk(
+        root,
+        [],
+        (name) => name.endsWith('.test.ts') || name.endsWith('.spec.ts'),
+      )) {
         const relative = rel(file);
         if (relative === self) continue;
         const text = withoutLineComments(readFileSync(file, 'utf8'));
@@ -94,7 +102,12 @@ describe('POSIX signal safety in tests', () => {
     for (const root of sourceRoots) {
       for (const file of walk(root, [], (name) => name.endsWith('.ts'))) {
         const relative = rel(file);
-        if (relative.includes('/tests/') || relative.endsWith('.test.ts') || relative.endsWith('.spec.ts')) continue;
+        if (
+          relative.includes('/tests/') ||
+          relative.endsWith('.test.ts') ||
+          relative.endsWith('.spec.ts')
+        )
+          continue;
         const text = withoutLineComments(readFileSync(file, 'utf8'));
         if (!negativeProcessKillPattern.test(text)) continue;
         if (!allowedNegativeKillSources.has(relative)) offenders.push(relative);
@@ -109,7 +122,12 @@ describe('POSIX signal safety in tests', () => {
     for (const root of sourceRoots) {
       for (const file of walk(root, [], (name) => name.endsWith('.ts'))) {
         const relative = rel(file);
-        if (relative.includes('/tests/') || relative.endsWith('.test.ts') || relative.endsWith('.spec.ts')) continue;
+        if (
+          relative.includes('/tests/') ||
+          relative.endsWith('.test.ts') ||
+          relative.endsWith('.spec.ts')
+        )
+          continue;
         const text = withoutLineComments(readFileSync(file, 'utf8'));
         if (!directProcessSignalPattern.test(text)) continue;
         if (!allowedDirectSignalSources.has(relative)) offenders.push(relative);

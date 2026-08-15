@@ -54,28 +54,17 @@ describe('exec-kill-guard', () => {
     });
 
     it('blocks taskkill /PID targeting current process (dash flags)', async () => {
-      const result = await checkExecKillCommand('taskkill', [
-        '-F',
-        '-PID',
-        String(process.pid),
-      ]);
+      const result = await checkExecKillCommand('taskkill', ['-F', '-PID', String(process.pid)]);
       expect(result.blocked).toBe(true);
     });
 
     it('blocks taskkill.exe with full extension', async () => {
-      const result = await checkExecKillCommand('taskkill.exe', [
-        '/IM',
-        'node.exe',
-      ]);
+      const result = await checkExecKillCommand('taskkill.exe', ['/IM', 'node.exe']);
       expect(result.blocked).toBe(true);
     });
 
     it('blocks taskkill with /FI IMAGENAME filter', async () => {
-      const result = await checkExecKillCommand('taskkill', [
-        '/F',
-        '/FI',
-        'IMAGENAME eq node.exe',
-      ]);
+      const result = await checkExecKillCommand('taskkill', ['/F', '/FI', 'IMAGENAME eq node.exe']);
       expect(result.blocked).toBe(true);
     });
 
@@ -92,11 +81,7 @@ describe('exec-kill-guard', () => {
     });
 
     it('returns not blocked for taskkill targeting unrelated process', async () => {
-      const result = await checkExecKillCommand('taskkill', [
-        '/F',
-        '/PID',
-        '99999999',
-      ]);
+      const result = await checkExecKillCommand('taskkill', ['/F', '/PID', '99999999']);
       expect(result.blocked).toBe(false);
     });
 
@@ -125,27 +110,18 @@ describe('exec-kill-guard', () => {
     });
 
     it('blocks Stop-Process alias kill with -Name', async () => {
-      const result = await checkExecKillCommand('Stop-Process', [
-        '-Name',
-        'node',
-      ]);
+      const result = await checkExecKillCommand('Stop-Process', ['-Name', 'node']);
       expect(result.blocked).toBe(true);
     });
 
     it('blocks Stop-Process alias kill with -Id current PID', async () => {
-      const result = await checkExecKillCommand('Stop-Process', [
-        '-Id',
-        String(process.pid),
-      ]);
+      const result = await checkExecKillCommand('Stop-Process', ['-Id', String(process.pid)]);
       expect(result.blocked).toBe(true);
       expect(result.reason).toMatch(/current WrongStack|protected WrongStack/i);
     });
 
     it('blocks Stop-Process alias kill with -PID flag', async () => {
-      const result = await checkExecKillCommand('kill', [
-        '-n',
-        'node',
-      ]);
+      const result = await checkExecKillCommand('kill', ['-n', 'node']);
       expect(result.blocked).toBe(true);
     });
 
@@ -165,35 +141,23 @@ describe('exec-kill-guard', () => {
     });
 
     it('blocks wmic process delete without name filter', async () => {
-      const result = await checkExecKillCommand('wmic', [
-        'process',
-        'delete',
-      ]);
+      const result = await checkExecKillCommand('wmic', ['process', 'delete']);
       expect(result.blocked).toBe(true);
       expect(result.reason).toMatch(/protected WrongStack/i);
     });
 
     it('blocks node -e process.kill()', async () => {
-      const result = await checkExecKillCommand('node', [
-        '-e',
-        `process.kill(${process.pid})`,
-      ]);
+      const result = await checkExecKillCommand('node', ['-e', `process.kill(${process.pid})`]);
       expect(result.blocked).toBe(true);
     });
 
     it('blocks node --eval process.kill() (PID extractable)', async () => {
-      const result = await checkExecKillCommand('node', [
-        '--eval',
-        `process.kill(${process.pid})`,
-      ]);
+      const result = await checkExecKillCommand('node', ['--eval', `process.kill(${process.pid})`]);
       expect(result.blocked).toBe(true);
     });
 
     it('blocks node -e process.kill() even when PID not extractable', async () => {
-      const result = await checkExecKillCommand('node', [
-        '-e',
-        'process.kill(someVar)',
-      ]);
+      const result = await checkExecKillCommand('node', ['-e', 'process.kill(someVar)']);
       expect(result.blocked).toBe(true);
       expect(result.reason).toMatch(/process\.kill/);
     });
@@ -202,26 +166,18 @@ describe('exec-kill-guard', () => {
   // ── POSIX-only tests ─────────────────────────────────────────────────
   describe.runIf(!isWin)('POSIX kill variants', () => {
     it('blocks kill -9 targeting current process PID', async () => {
-      const result = await checkExecKillCommand('kill', [
-        '-9',
-        String(process.pid),
-      ]);
+      const result = await checkExecKillCommand('kill', ['-9', String(process.pid)]);
       expect(result.blocked).toBe(true);
       expect(result.reason).toMatch(/current WrongStack/i);
     });
 
     it('blocks kill targeting current process PID (no signal)', async () => {
-      const result = await checkExecKillCommand('kill', [
-        String(process.pid),
-      ]);
+      const result = await checkExecKillCommand('kill', [String(process.pid)]);
       expect(result.blocked).toBe(true);
     });
 
     it('blocks kill with negative group PID', async () => {
-      const result = await checkExecKillCommand('kill', [
-        '--',
-        `-${process.pid}`,
-      ]);
+      const result = await checkExecKillCommand('kill', ['--', `-${process.pid}`]);
       expect(result.blocked).toBe(true);
     });
 
@@ -245,11 +201,7 @@ describe('exec-kill-guard', () => {
     });
 
     it('allows taskkill to unknown PID (non-Windows still safe)', async () => {
-      const result = await checkExecKillCommand('taskkill', [
-        '/F',
-        '/PID',
-        '99999999',
-      ]);
+      const result = await checkExecKillCommand('taskkill', ['/F', '/PID', '99999999']);
       expect(result.blocked).toBe(false);
     });
   });

@@ -77,7 +77,12 @@ export function diffFromToolInput(toolName: string | undefined, input: unknown):
       const content = typeof obj.content === 'string' ? obj.content : '';
       if (!content) return null;
       // Fresh write: no "old" side, everything shows green.
-      return { mode: 'lcs', oldText: '', newText: content, caption: `write ${filePath} (new)`.trim() };
+      return {
+        mode: 'lcs',
+        oldText: '',
+        newText: content,
+        caption: `write ${filePath} (new)`.trim(),
+      };
     }
     case 'patch': {
       const patchText = typeof obj.patch === 'string' ? obj.patch : '';
@@ -157,7 +162,11 @@ export function parseUnifiedDiff(patchText: string): DiffRow[] {
     }
   }
   // Drop a trailing empty row that a final newline in patchText introduces.
-  if (rows.length > 0 && rows[rows.length - 1]!.kind === 'ctx' && rows[rows.length - 1]!.text === '') {
+  if (
+    rows.length > 0 &&
+    rows[rows.length - 1]!.kind === 'ctx' &&
+    rows[rows.length - 1]!.text === ''
+  ) {
     rows.pop();
   }
   return rows;

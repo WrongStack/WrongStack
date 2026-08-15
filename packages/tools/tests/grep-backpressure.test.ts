@@ -43,13 +43,11 @@ describe('grep rg stream lifecycle', () => {
     });
     spawnMock.fn.mockReturnValueOnce(rg);
 
-    const stream = grepTool
-      .executeStream!(
-        { pattern: 'match', output_mode: 'content' },
-        { cwd: process.cwd(), projectRoot: process.cwd() } as never,
-        { signal: new AbortController().signal },
-      )
-      [Symbol.asyncIterator]();
+    const stream = grepTool.executeStream!(
+      { pattern: 'match', output_mode: 'content' },
+      { cwd: process.cwd(), projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )[Symbol.asyncIterator]();
     const first = stream.next();
     await vi.waitFor(() => expect(spawnMock.fn).toHaveBeenCalledTimes(2));
 
@@ -85,13 +83,11 @@ describe('grep rg stream lifecycle', () => {
     });
     spawnMock.fn.mockReturnValueOnce(rg);
 
-    const stream = grepTool
-      .executeStream!(
-        { pattern: 'match', output_mode: 'content' },
-        { cwd: process.cwd(), projectRoot: process.cwd() } as never,
-        { signal: new AbortController().signal },
-      )
-      [Symbol.asyncIterator]();
+    const stream = grepTool.executeStream!(
+      { pattern: 'match', output_mode: 'content' },
+      { cwd: process.cwd(), projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )[Symbol.asyncIterator]();
     const first = stream.next();
     await vi.waitFor(() => expect(spawnMock.fn).toHaveBeenCalledTimes(2));
 

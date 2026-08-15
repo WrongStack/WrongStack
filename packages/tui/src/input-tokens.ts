@@ -6,11 +6,11 @@
  *     e.g. `, 123 lines`, is tolerated; legacy `[file #N]` is included)
  *   - path-keyed `[file:<path>]`
  */
-export const INLINE_TOKEN_SRC = '\\[(?:pasted|image|file) #\\d+[^\\]]*\\]|\\[file:[^\\]]+\\]';
+export const INLINE_TOKEN_SRC = '\\[(?:pasted|image|file) #\\d+[^\\]]*\\]|\\[file:[^\\]]+\\]|\\[VIBE\\]';
 
-const AT_END = new RegExp(`(?:${INLINE_TOKEN_SRC})$`);
-const AT_START = new RegExp(`^(?:${INLINE_TOKEN_SRC})`);
-const GLOBAL = new RegExp(INLINE_TOKEN_SRC, 'g');
+const AT_END = new RegExp(`(?:${INLINE_TOKEN_SRC})$`, 'i');
+const AT_START = new RegExp(`^(?:${INLINE_TOKEN_SRC})`, 'i');
+const GLOBAL = new RegExp(INLINE_TOKEN_SRC, 'gi');
 
 /**
  * If a whole chip ends immediately before `cursor`, return the buffer and

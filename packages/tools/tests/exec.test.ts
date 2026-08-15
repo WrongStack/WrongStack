@@ -147,7 +147,11 @@ describe('execTool', () => {
 
   it('blocks rm with absolute path /etc', async () => {
     const ctx = makeCtx();
-    const result = await execTool.execute({ command: 'rm', args: ['-rf', '/etc'] }, ctx, makeOpts());
+    const result = await execTool.execute(
+      { command: 'rm', args: ['-rf', '/etc'] },
+      ctx,
+      makeOpts(),
+    );
     expect(result.allowed).toBe(false);
     expect(result.stderr).toContain('Blocked argument');
   });
@@ -303,14 +307,26 @@ async function mkRealSandbox() {
     cwd: dir,
     projectRoot: dir,
     tools: [],
-    session: { id: 'test', append: async () => {}, close: async () => {}, recordFileChange: () => {} },
+    session: {
+      id: 'test',
+      append: async () => {},
+      close: async () => {},
+      recordFileChange: () => {},
+    },
     messages: [],
     todos: [],
     readFiles: new Set<string>(),
     fileMtimes: new Map<string, number>(),
-    hasRead(p: string) { return this.readFiles.has(p); },
-    lastReadMtime(p: string) { return this.fileMtimes.get(p); },
-    recordRead(p: string, m: number) { this.readFiles.add(p); this.fileMtimes.set(p, m); },
+    hasRead(p: string) {
+      return this.readFiles.has(p);
+    },
+    lastReadMtime(p: string) {
+      return this.fileMtimes.get(p);
+    },
+    recordRead(p: string, m: number) {
+      this.readFiles.add(p);
+      this.fileMtimes.set(p, m);
+    },
   } as never as Context;
   return { ctx, cleanup: async () => fs.rm(dir, { recursive: true, force: true }) };
 }
@@ -466,7 +482,11 @@ describe('exec command policy (configurable allowlist)', () => {
     // cwd-containment check (after the allowlist) realpath-resolves it.
     const sb = await mkRealSandbox();
     try {
-      const result = await execTool.execute({ command: 'go', args: ['build', './...'] }, sb.ctx, makeOpts2());
+      const result = await execTool.execute(
+        { command: 'go', args: ['build', './...'] },
+        sb.ctx,
+        makeOpts2(),
+      );
       expect(result.allowed).toBe(true);
     } finally {
       await sb.cleanup();
@@ -507,7 +527,11 @@ describe('exec command policy (configurable allowlist)', () => {
     configureExecPolicy({ allow: ['terraform'] });
     const sb = await mkRealSandbox();
     try {
-      const allowed = await execTool.execute({ command: 'terraform', args: ['version'] }, sb.ctx, makeOpts2());
+      const allowed = await execTool.execute(
+        { command: 'terraform', args: ['version'] },
+        sb.ctx,
+        makeOpts2(),
+      );
       expect(allowed.allowed).toBe(true);
     } finally {
       await sb.cleanup();
@@ -523,11 +547,25 @@ describe('exec command policy (configurable allowlist)', () => {
     // BLOCKED_ARG_PATTERNS + the destructive-ops gate in bash-kill-guard.ts.
     for (const cmd of [
       'gh', // GitHub CLI — lives at "C:\Program Files\GitHub CLI\gh.exe"
-      'where', 'tasklist', 'systeminfo', 'wmic', 'sc',
-      'netstat', 'ipconfig', 'nslookup', 'tracert', 'pathping',
+      'where',
+      'tasklist',
+      'systeminfo',
+      'wmic',
+      'sc',
+      'netstat',
+      'ipconfig',
+      'nslookup',
+      'tracert',
+      'pathping',
       'tar',
-      'curl', 'wget',
-      'clang', 'clang-cl', 'gcc', 'g++', 'ninja', 'msbuild',
+      'curl',
+      'wget',
+      'clang',
+      'clang-cl',
+      'gcc',
+      'g++',
+      'ninja',
+      'msbuild',
     ]) {
       expect(isExecCommandAllowed(cmd)).toBe(true);
     }
@@ -541,75 +579,164 @@ describe('exec command policy (configurable allowlist)', () => {
     // drops a category fails loudly.
     for (const cmd of [
       // Archives
-      '7z', 'xz', 'unzip',
+      '7z',
+      'xz',
+      'unzip',
       // Android / mobile
-      'adb', 'fastboot',
+      'adb',
+      'fastboot',
       // DevOps / config mgmt
-      'ansible', 'ansible-playbook',
+      'ansible',
+      'ansible-playbook',
       // Cloud CLIs
-      'aws', 'az', 'gcloud',
+      'aws',
+      'az',
+      'gcloud',
       // Native / linker
-      'clang-format', 'clangd', 'lld', 'lldb', 'meson', 'conan',
+      'clang-format',
+      'clangd',
+      'lld',
+      'lldb',
+      'meson',
+      'conan',
       // Image / media
-      'ffmpeg', 'magick', 'exiftool',
+      'ffmpeg',
+      'magick',
+      'exiftool',
       // HTTP / fetch
-      'httpie', 'wget2',
+      'httpie',
+      'wget2',
       // Diff / patch
-      'diff', 'patch', 'meld',
+      'diff',
+      'patch',
+      'meld',
       // Encoding / file inspection
-      'iconv', 'file', 'xxd', 'base64',
+      'iconv',
+      'file',
+      'xxd',
+      'base64',
       // SSH / crypto
-      'ssh', 'ssh-keygen', 'scp', 'rsync', 'gpg', 'openssl',
+      'ssh',
+      'ssh-keygen',
+      'scp',
+      'rsync',
+      'gpg',
+      'openssl',
       // Search
-      'jq', 'yq', 'fd', 'ugrep',
+      'jq',
+      'yq',
+      'fd',
+      'ugrep',
       // K8s ecosystem
-      'helm', 'k9s', 'kustomize', 'skaffold', 'minikube', 'kind',
+      'helm',
+      'k9s',
+      'kustomize',
+      'skaffold',
+      'minikube',
+      'kind',
       // Container ecosystem
-      'docker-compose', 'buildah', 'nerdctl',
+      'docker-compose',
+      'buildah',
+      'nerdctl',
       // Databases
-      'sqlite3', 'psql', 'mysql', 'redis-cli', 'mongosh', 'etcdctl',
+      'sqlite3',
+      'psql',
+      'mysql',
+      'redis-cli',
+      'mongosh',
+      'etcdctl',
       // Windows extended
-      'taskkill', 'hostname', 'whoami',
+      'taskkill',
+      'hostname',
+      'whoami',
       // VCS ecosystem
-      'glab', 'hub', 'lazygit', 'tig',
+      'glab',
+      'hub',
+      'lazygit',
+      'tig',
       // POSIX extended
-      'tree', 'env', 'tr', 'cut', 'printf', 'timeout',
+      'tree',
+      'env',
+      'tr',
+      'cut',
+      'printf',
+      'timeout',
       // Process / system
-      'htop', 'lsof', 'strace', 'kill', 'pkill', 'ps',
+      'htop',
+      'lsof',
+      'strace',
+      'kill',
+      'pkill',
+      'ps',
       // Network
-      'ip', 'ss', 'tcpdump', 'nmap', 'socat',
+      'ip',
+      'ss',
+      'tcpdump',
+      'nmap',
+      'socat',
       // Sync / backup
-      'rclone', 'restic', 'borg',
+      'rclone',
+      'restic',
+      'borg',
       // Permissions
-      'chown', 'chmod', 'setfacl',
+      'chown',
+      'chmod',
+      'setfacl',
       // Crypto / cert
-      'certbot', 'mkcert',
+      'certbot',
+      'mkcert',
       // Editors
-      'vim', 'nvim', 'code', 'helix', 'micro',
+      'vim',
+      'nvim',
+      'code',
+      'helix',
+      'micro',
       // Multiplexers
-      'tmux', 'screen', 'expect',
+      'tmux',
+      'screen',
+      'expect',
       // Calculators / REPLs
-      'bc', 'julia', 'irb', 'octave',
+      'bc',
+      'julia',
+      'irb',
+      'octave',
       // PHP / Lua / Perl / Ruby
-      'phpcs', 'luarocks', 'cpan', 'rake',
+      'phpcs',
+      'luarocks',
+      'cpan',
+      'rake',
       // JS / TS toolchain extended
-      'electron', 'swc', 'mocha', 'puppeteer', 'lighthouse',
+      'electron',
+      'swc',
+      'mocha',
+      'puppeteer',
+      'lighthouse',
       // Linters
-      'tslint', 'stylelint',
+      'tslint',
+      'stylelint',
       // Document conversion
-      'pandoc', 'wkhtmltopdf',
+      'pandoc',
+      'wkhtmltopdf',
       // Office
-      'soffice', 'libreoffice',
+      'soffice',
+      'libreoffice',
       // Spell
-      'aspell', 'hunspell',
+      'aspell',
+      'hunspell',
       // Source highlight
-      'delta', 'bat',
+      'delta',
+      'bat',
       // Job schedulers
-      'systemd-run', 'cronie',
+      'systemd-run',
+      'cronie',
       // Plotting
-      'gnuplot', 'grace',
+      'gnuplot',
+      'grace',
       // Security / recon
-      'nmap', 'tcpdump', 'masscan', 'nuclei',
+      'nmap',
+      'tcpdump',
+      'masscan',
+      'nuclei',
     ]) {
       expect(isExecCommandAllowed(cmd)).toBe(true);
     }
@@ -637,7 +764,11 @@ describe('exec command policy (configurable allowlist)', () => {
       // (/^\// and the win32 drive-letter equivalent), so an absolute arg here
       // would exercise the refusal path, not the danger banner.
       await fs.mkdir(path.join(sb.ctx.cwd, 'build'), { recursive: true });
-      const r2 = await execTool.execute({ command: 'rm', args: ['-rf', 'build'] }, sb.ctx, makeOpts2());
+      const r2 = await execTool.execute(
+        { command: 'rm', args: ['-rf', 'build'] },
+        sb.ctx,
+        makeOpts2(),
+      );
       expect(r2.allowed).toBe(true);
       expect(r2.danger.level).toBe('destructive');
       expect(r2.danger.reasons).toContain('recursive force-delete');

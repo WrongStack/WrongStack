@@ -14,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // with WRONGSTACK_INDEX_INLINE=1.
 process.env['WRONGSTACK_INDEX_INLINE'] = '1';
 
-
 // Mock the index-service module BEFORE importing the unit under test. The mock
 // is declared via vi.hoisted so it's initialized before the hoisted vi.mock
 // factory. background-indexer.ts calls indexService(args, hooks) from
@@ -87,7 +86,12 @@ describe('enqueueReindex (debounce)', () => {
   it('coalesces rapid edits to the same file into one reindex', async () => {
     vi.useFakeTimers();
     for (let i = 0; i < 3; i++) {
-      enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20, coalesceWindowMs: 0 });
+      enqueueReindex({
+        projectRoot: '/proj',
+        files: ['/proj/a.ts'],
+        debounceMs: 20,
+        coalesceWindowMs: 0,
+      });
     }
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(1);
@@ -96,8 +100,18 @@ describe('enqueueReindex (debounce)', () => {
 
   it('batches distinct files whose debounce expires in the same turn', async () => {
     vi.useFakeTimers();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20, coalesceWindowMs: 0 });
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/b.ts'], debounceMs: 20, coalesceWindowMs: 0 });
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/a.ts'],
+      debounceMs: 20,
+      coalesceWindowMs: 0,
+    });
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/b.ts'],
+      debounceMs: 20,
+      coalesceWindowMs: 0,
+    });
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(1);
     expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
@@ -107,8 +121,18 @@ describe('enqueueReindex (debounce)', () => {
 
   it('keeps different project indexes in separate batches', async () => {
     vi.useFakeTimers();
-    enqueueReindex({ projectRoot: '/proj-a', files: ['/proj-a/a.ts'], debounceMs: 20, coalesceWindowMs: 0 });
-    enqueueReindex({ projectRoot: '/proj-b', files: ['/proj-b/b.ts'], debounceMs: 20, coalesceWindowMs: 0 });
+    enqueueReindex({
+      projectRoot: '/proj-a',
+      files: ['/proj-a/a.ts'],
+      debounceMs: 20,
+      coalesceWindowMs: 0,
+    });
+    enqueueReindex({
+      projectRoot: '/proj-b',
+      files: ['/proj-b/b.ts'],
+      debounceMs: 20,
+      coalesceWindowMs: 0,
+    });
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(2);
   });
@@ -116,14 +140,23 @@ describe('enqueueReindex (debounce)', () => {
   it('drops non-indexable files before scheduling', async () => {
     vi.useFakeTimers();
     // plain assets are still filtered; markdown/source-like files are indexable
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/photo.png', '/proj/notes.txt'], debounceMs: 20 });
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/photo.png', '/proj/notes.txt'],
+      debounceMs: 20,
+    });
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).not.toHaveBeenCalled();
   });
 
   it('schedules extended languages such as markdown', async () => {
     vi.useFakeTimers();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/README.md'], debounceMs: 20, coalesceWindowMs: 0 });
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/README.md'],
+      debounceMs: 20,
+      coalesceWindowMs: 0,
+    });
     await vi.advanceTimersByTimeAsync(30);
     expect(indexServiceMock).toHaveBeenCalledTimes(1);
     expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({ files: ['/proj/README.md'] });
@@ -133,7 +166,13 @@ describe('enqueueReindex (debounce)', () => {
     vi.useFakeTimers();
     indexServiceMock.mockRejectedValueOnce(new Error('boom'));
     const onError = vi.fn();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, coalesceWindowMs: 0, onError });
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/a.ts'],
+      debounceMs: 10,
+      coalesceWindowMs: 0,
+      onError,
+    });
     await vi.advanceTimersByTimeAsync(20);
     expect(onError).toHaveBeenCalledTimes(1);
   });
@@ -402,7 +441,13 @@ describe('circuit breaker integration', () => {
     vi.useFakeTimers();
     for (let i = 0; i < 3; i++) indexCircuitBreaker.recordFailure(new Error('boom'));
     const onError = vi.fn();
-    enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, coalesceWindowMs: 0, onError });
+    enqueueReindex({
+      projectRoot: '/proj',
+      files: ['/proj/a.ts'],
+      debounceMs: 10,
+      coalesceWindowMs: 0,
+      onError,
+    });
     await vi.advanceTimersByTimeAsync(20);
     expect(indexServiceMock).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledTimes(1);

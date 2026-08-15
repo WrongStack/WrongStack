@@ -104,7 +104,11 @@ describe('detectLinter config detection', () => {
   });
 
   it('resolves an explicit cwd', async () => {
-    const result = await lintTool.execute({ linter: 'biome', cwd: '.' }, makeCtx(tmpDir), makeOpts());
+    const result = await lintTool.execute(
+      { linter: 'biome', cwd: '.' },
+      makeCtx(tmpDir),
+      makeOpts(),
+    );
     expect(result).toHaveProperty('linter');
   });
 

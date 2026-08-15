@@ -87,10 +87,7 @@ describe('glob tool', () => {
   });
 
   it('applies full .gitignore semantics: globs, anchored dirs, and nested paths', async () => {
-    await fs.writeFile(
-      path.join(sb.dir, '.gitignore'),
-      '*.generated.ts\n/artifacts/\nsrc/tmp/\n',
-    );
+    await fs.writeFile(path.join(sb.dir, '.gitignore'), '*.generated.ts\n/artifacts/\nsrc/tmp/\n');
     await fs.mkdir(path.join(sb.dir, 'artifacts'));
     await fs.writeFile(path.join(sb.dir, 'artifacts', 'bundle.ts'), '');
     await fs.mkdir(path.join(sb.dir, 'src', 'tmp'), { recursive: true });
@@ -188,11 +185,9 @@ describe('glob tool', () => {
       await fs.symlink(outsideRoot, path.join(sb.dir, 'outside-link'), 'dir');
 
       await expect(
-        globTool.execute(
-          { pattern: '**/*.ts', path: 'outside-link' },
-          sb.ctx,
-          { signal: newSignal() },
-        ),
+        globTool.execute({ pattern: '**/*.ts', path: 'outside-link' }, sb.ctx, {
+          signal: newSignal(),
+        }),
       ).rejects.toThrow(/outside project root/);
     });
   });

@@ -147,7 +147,9 @@ describe('auditTool', () => {
   it('uses fallback "Unknown vulnerability" when advisory entries are missing fields', async () => {
     const payload = JSON.stringify({
       advisories: {
-        only_id: { /* no fields at all */ },
+        only_id: {
+          /* no fields at all */
+        },
       },
     });
     spawnStreamMocks.spawnStream.mockImplementation(fakeSpawnStream(payload, 0));
@@ -260,7 +262,9 @@ describe('auditTool', () => {
       yield { type: 'log', text: 'no final' } as never;
     };
     try {
-      await expect(auditTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(/without final event/);
+      await expect(auditTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
+        /without final event/,
+      );
     } finally {
       auditTool.executeStream = original;
     }

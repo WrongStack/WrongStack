@@ -211,7 +211,9 @@ describe('search engine parsers (realistic fixtures)', () => {
   });
 
   it('decodes Bing tracking URLs when present', async () => {
-    const target = Buffer.from('https://github.com/WrongStack/WrongStack', 'utf8').toString('base64');
+    const target = Buffer.from('https://github.com/WrongStack/WrongStack', 'utf8').toString(
+      'base64',
+    );
     const html = `
       <li class="b_algo">
         <h2><a href="https://www.bing.com/ck/a?u=a1${target}&amp;ntb=1">WrongStack on GitHub</a></h2>
@@ -257,7 +259,11 @@ describe('search engine parsers (realistic fixtures)', () => {
     globalThis.fetch = vi.fn(async () => {
       throw new Error('net down');
     }) as never as typeof globalThis.fetch;
-    const result = await searchTool.execute({ query: 'q', source: 'google' }, {} as any, makeOpts());
+    const result = await searchTool.execute(
+      { query: 'q', source: 'google' },
+      {} as any,
+      makeOpts(),
+    );
     expect(result.source).toBe('duckduckgo');
     expect(result.results).toHaveLength(0);
     expect(result.error).toMatch(/duckduckgo unreachable/);
@@ -294,7 +300,11 @@ describe('fetchWithTimeout error path', () => {
     }) as never as typeof globalThis.fetch;
 
     const ctx = {} as any;
-    const result = await searchTool.execute({ query: 'test', source: 'duckduckgo' }, ctx, makeOpts());
+    const result = await searchTool.execute(
+      { query: 'test', source: 'duckduckgo' },
+      ctx,
+      makeOpts(),
+    );
     // Should degrade to empty results + error from the catch block, not throw
     expect(result.results).toHaveLength(0);
     expect(result.error).toMatch(/duckduckgo unreachable/);
@@ -316,11 +326,9 @@ describe('anySignal already-aborted', () => {
     ac.abort(); // abort BEFORE passing to execute
 
     const ctx = {} as any;
-    const result = await searchTool.execute(
-      { query: 'test', source: 'duckduckgo' },
-      ctx,
-      { signal: ac.signal },
-    );
+    const result = await searchTool.execute({ query: 'test', source: 'duckduckgo' }, ctx, {
+      signal: ac.signal,
+    });
     // Should degrade to empty results + error, not throw, because anySignal immediately aborted
     expect(result.results).toHaveLength(0);
     expect(result.error).toMatch(/duckduckgo unreachable/);
@@ -385,7 +393,11 @@ describe('search cache, dedup, and ranking', () => {
     const ctx = {} as any;
     globalThis.fetch = countAll();
     const firstGoogle = await searchTool.execute({ query: 'q', source: 'google' }, ctx, makeOpts());
-    const secondGoogle = await searchTool.execute({ query: 'q', source: 'google' }, ctx, makeOpts());
+    const secondGoogle = await searchTool.execute(
+      { query: 'q', source: 'google' },
+      ctx,
+      makeOpts(),
+    );
     expect(firstGoogle.source).toBe('duckduckgo');
     expect(secondGoogle.source).toBe('duckduckgo');
     expect(secondGoogle.cached).toBe(true);

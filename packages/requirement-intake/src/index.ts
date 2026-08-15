@@ -185,3 +185,13 @@ export {
   type IntakeSubmitResult,
   type IntakeListFilter,
 } from './service.js';
+
+// Vibe Protocol
+export {
+  VIBE_TAG_REGEX,
+  hasVibeTag,
+  stripVibeTag,
+  deriveVibeState,
+  type VibeProtocolStage,
+  type VibeProtocolState,
+} from './vibe.js';

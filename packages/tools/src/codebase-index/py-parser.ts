@@ -313,41 +313,40 @@ print(json.dumps({"symbols": [s.to_dict() for s in syms], "refs": refs}))
  *   Unix:     python3 → python
  */
 async function resolvePython(): Promise<string | null> {
-	const candidates = process.platform === 'win32'
-		? ['python3', 'python', 'py']
-		: ['python3', 'python'];
-	for (const name of candidates) {
-		const resolved = resolveWin32Command(name);
-		// On Windows: verify even if resolveWin32Command found a
-		// file — the WindowsApps redirector stub (python3.exe) passes the
-		// accessSync check but exits with code 9009 (app not found).
-		if (!(await commandIsAvailable(resolved))) continue;
-		return resolved;
-	}
-	return null;
+  const candidates =
+    process.platform === 'win32' ? ['python3', 'python', 'py'] : ['python3', 'python'];
+  for (const name of candidates) {
+    const resolved = resolveWin32Command(name);
+    // On Windows: verify even if resolveWin32Command found a
+    // file — the WindowsApps redirector stub (python3.exe) passes the
+    // accessSync check but exits with code 9009 (app not found).
+    if (!(await commandIsAvailable(resolved))) continue;
+    return resolved;
+  }
+  return null;
 }
 
 function commandIsAvailable(command: string): Promise<boolean> {
-	return new Promise((resolve) => {
-		let settled = false;
-		const proc = spawn(command, ['--version'], {
-			stdio: 'ignore',
-			windowsHide: true,
-		});
-		const finish = (available: boolean) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timer);
-			resolve(available);
-		};
-		const timer = setTimeout(() => {
-			proc.kill('SIGKILL');
-			finish(false);
-		}, 5_000);
-		timer.unref?.();
-		proc.once('error', () => finish(false));
-		proc.once('close', (code) => finish(code === 0));
-	});
+  return new Promise((resolve) => {
+    let settled = false;
+    const proc = spawn(command, ['--version'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    const finish = (available: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(available);
+    };
+    const timer = setTimeout(() => {
+      proc.kill('SIGKILL');
+      finish(false);
+    }, 5_000);
+    timer.unref?.();
+    proc.once('error', () => finish(false));
+    proc.once('close', (code) => finish(code === 0));
+  });
 }
 
 /**
@@ -361,52 +360,54 @@ function commandIsAvailable(command: string): Promise<boolean> {
  * listens on 'close'.
  */
 function spawnPyParser(
-	pyBinary: string,
-	scriptPath: string,
-	filePath: string,
-	content: string,
+  pyBinary: string,
+  scriptPath: string,
+  filePath: string,
+  content: string,
 ): Promise<{ code: number | null; stdout: string }> {
-	return new Promise((resolve, reject) => {
-		let settled = false;
+  return new Promise((resolve, reject) => {
+    let settled = false;
 
-		const proc: ChildProcess = spawn(pyBinary, [scriptPath, filePath], {
-			stdio: ['pipe', 'pipe', 'pipe'],
-			windowsHide: true,
-		});
+    const proc: ChildProcess = spawn(pyBinary, [scriptPath, filePath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
 
-		// Mandatory: catch ENOENT / permission-denied / spawn failures.
-		proc.on('error', (err) => {
-			if (settled) return;
-			settled = true;
-			reject(err);
-		});
+    // Mandatory: catch ENOENT / permission-denied / spawn failures.
+    proc.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
 
-		// Write source content via stdin so the child doesn't reopen the file.
-		proc.stdin?.write(content);
-		proc.stdin?.end();
+    // Write source content via stdin so the child doesn't reopen the file.
+    proc.stdin?.write(content);
+    proc.stdin?.end();
 
-		let stdout = '';
-		proc.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    let stdout = '';
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
 
-		// Discard stderr to avoid backpressure deadlocks when Python emits
-		// warnings (e.g. deprecation notices).
-		proc.stderr?.resume();
+    // Discard stderr to avoid backpressure deadlocks when Python emits
+    // warnings (e.g. deprecation notices).
+    proc.stderr?.resume();
 
-		const timer = setTimeout(() => {
-			if (settled) return;
-			settled = true;
-			proc.kill('SIGKILL');
-			reject(new Error('timeout'));
-		}, 15_000);
-		timer.unref?.();
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      proc.kill('SIGKILL');
+      reject(new Error('timeout'));
+    }, 15_000);
+    timer.unref?.();
 
-		proc.on('close', (code) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timer);
-			resolve({ code, stdout });
-		});
-	});
+    proc.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ code, stdout });
+    });
+  });
 }
 
 // Cache the temp script path + resolved Python binary so we don't rewrite
@@ -420,58 +421,53 @@ let cachedPyBinary: Promise<string | null> | undefined;
  * - `FileSymbols` → Python ran (even if the file was invalid → empty symbols)
  */
 async function syncPyParse(
-	filePath: string,
-	content: string,
-	lang: SymbolLang,
+  filePath: string,
+  content: string,
+  lang: SymbolLang,
 ): Promise<FileSymbols | null> {
-	try {
-		// Write the parser script once per process — not per file.
-		// Passing the whole 200-line program via `python -c "..."` breaks
-		// under cmd.exe on Windows (embedded newlines truncate the command).
-		// A real file sidesteps all quoting and can be reused across calls.
-		if (!_cachedScriptPath) {
-			const tmpDir = path.join(os.tmpdir(), 'ws-py-parse');
-			await fs.mkdir(tmpDir, { recursive: true });
-			_cachedScriptPath = path.join(tmpDir, 'parse.py');
-			await fs.writeFile(_cachedScriptPath, PY_PARSE_SCRIPT, 'utf8');
-		}
+  try {
+    // Write the parser script once per process — not per file.
+    // Passing the whole 200-line program via `python -c "..."` breaks
+    // under cmd.exe on Windows (embedded newlines truncate the command).
+    // A real file sidesteps all quoting and can be reused across calls.
+    if (!_cachedScriptPath) {
+      const tmpDir = path.join(os.tmpdir(), 'ws-py-parse');
+      await fs.mkdir(tmpDir, { recursive: true });
+      _cachedScriptPath = path.join(tmpDir, 'parse.py');
+      await fs.writeFile(_cachedScriptPath, PY_PARSE_SCRIPT, 'utf8');
+    }
 
-		// Resolve Python binary once (expensive: walks PATH on Windows).
-		cachedPyBinary ??= resolvePython();
-		const pyBinary = await cachedPyBinary;
-		if (!pyBinary) return null;
+    // Resolve Python binary once (expensive: walks PATH on Windows).
+    cachedPyBinary ??= resolvePython();
+    const pyBinary = await cachedPyBinary;
+    if (!pyBinary) return null;
 
-		// argv-array form: no shell, so a hostile filename cannot inject commands.
-		// Content is piped via stdin — avoids a second file read in the child.
-		const { code, stdout } = await spawnPyParser(
-			pyBinary,
-			_cachedScriptPath,
-			filePath,
-			content,
-		);
+    // argv-array form: no shell, so a hostile filename cannot inject commands.
+    // Content is piped via stdin — avoids a second file read in the child.
+    const { code, stdout } = await spawnPyParser(pyBinary, _cachedScriptPath, filePath, content);
 
-		if (code !== 0 || !stdout.trim()) {
-			// Python ran but AST parse failed (syntax error) — empty, not fallback.
-			return { file: filePath, lang, symbols: [], mtimeMs: Date.now() };
-		}
+    if (code !== 0 || !stdout.trim()) {
+      // Python ran but AST parse failed (syntax error) — empty, not fallback.
+      return { file: filePath, lang, symbols: [], mtimeMs: Date.now() };
+    }
 
-		const { symbols: raw, refs } = parseParserOutput(stdout, lang);
-		const symbols: IndexSymbol[] = raw.map((s) => ({
-			id: 0,
-			lang,
-			kind: s.kind as IndexSymbol['kind'],
-			name: s.name,
-			file: filePath,
-			line: s.line,
-			col: s.col,
-			signature: s.signature ?? '',
-			docComment: '',
-			scope: s.scope ?? '',
-			text: `${s.name} ${s.signature ?? ''}`.trim(),
-		}));
-		return { file: filePath, lang, symbols, refs, mtimeMs: Date.now() };
-	} catch {
-		// Spawn/IO failure → generic fallback.
-		return null;
-	}
+    const { symbols: raw, refs } = parseParserOutput(stdout, lang);
+    const symbols: IndexSymbol[] = raw.map((s) => ({
+      id: 0,
+      lang,
+      kind: s.kind as IndexSymbol['kind'],
+      name: s.name,
+      file: filePath,
+      line: s.line,
+      col: s.col,
+      signature: s.signature ?? '',
+      docComment: '',
+      scope: s.scope ?? '',
+      text: `${s.name} ${s.signature ?? ''}`.trim(),
+    }));
+    return { file: filePath, lang, symbols, refs, mtimeMs: Date.now() };
+  } catch {
+    // Spawn/IO failure → generic fallback.
+    return null;
+  }
 }

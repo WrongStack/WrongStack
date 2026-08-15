@@ -55,6 +55,7 @@ export {
   resetIndexCircuitBreaker,
 } from './circuit-breaker.js';
 export { codebaseAstReplaceTool } from './codebase-ast-replace-tool.js';
+export { codebaseInvariantCheckTool } from './codebase-invariant-check-tool.js';
 export {
   replaceSymbolInFile,
   type MutateSymbolOptions,
@@ -133,3 +134,11 @@ export { SCHEMA_VERSION } from './schema.js';
 // Re-export shared internal helpers so external consumers (e.g. plug-lsp)
 // can use them without importing from implementation detail files.
 export { codebaseIndexDirOverride, IndexStore, resolveIndexDir } from './writer.js';
+export {
+  PolyglotInvariantEngine,
+  polyglotInvariantEngine,
+  type InvariantEvaluationResult,
+  type InvariantRuleId,
+  type InvariantViolation,
+  type ModuleContract,
+} from './ast-invariant-engine.js';

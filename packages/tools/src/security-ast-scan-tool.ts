@@ -72,11 +72,9 @@ const REDOS_PATTERNS = [
 const DB_QUERY_CALL_REGEX =
   /(?:db|prisma|sequelize|knex|typeorm|connection|pool|repo|repository|client)\.(?:query|execute|raw|find|findAll|findOne|findMany|create|update|delete|save|insert|select)\s*\(/i;
 
-const SQL_INTERPOLATION_REGEX =
-  /(?:SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|JOIN).*\$\{[^}]+\}/i;
+const SQL_INTERPOLATION_REGEX = /(?:SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|JOIN).*\$\{[^}]+\}/i;
 
-const RAW_SQL_CONCAT_REGEX =
-  /(?:SELECT|INSERT|UPDATE|DELETE).+['"]\s*\+\s*[a-zA-Z0-9_]/i;
+const RAW_SQL_CONCAT_REGEX = /(?:SELECT|INSERT|UPDATE|DELETE).+['"]\s*\+\s*[a-zA-Z0-9_]/i;
 
 export function analyzeSecurityAndPerformance(
   filePath: string,
@@ -103,7 +101,8 @@ export function analyzeSecurityAndPerformance(
             line: i + 1,
             message: `Hardcoded ${secretRule.name} detected.`,
             snippet: line.trim(),
-            recommendation: 'Store sensitive keys and credentials in environment variables or a secret vault.',
+            recommendation:
+              'Store sensitive keys and credentials in environment variables or a secret vault.',
           });
         }
       }
@@ -164,7 +163,8 @@ export function analyzeSecurityAndPerformance(
         severity: 'critical',
         file: relPath,
         line: i + 1,
-        message: 'Raw SQL query constructed via string concatenation or template literal interpolation.',
+        message:
+          'Raw SQL query constructed via string concatenation or template literal interpolation.',
         snippet: line.trim(),
         recommendation:
           'Use parameterized queries ($1, ?), prepared statements, or ORM query builder methods.',
@@ -184,9 +184,11 @@ export function analyzeSecurityAndPerformance(
             severity: 'warning',
             file: relPath,
             line: i + 1,
-            message: 'Regular expression contains nested quantifiers prone to catastrophic backtracking (ReDoS).',
+            message:
+              'Regular expression contains nested quantifiers prone to catastrophic backtracking (ReDoS).',
             snippet: line.trim(),
-            recommendation: 'Refactor regular expression to avoid nested repetitions like `(a+)+` or `(x*)*`.',
+            recommendation:
+              'Refactor regular expression to avoid nested repetitions like `(a+)+` or `(x*)*`.',
           });
           break;
         }

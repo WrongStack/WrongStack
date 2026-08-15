@@ -16,7 +16,7 @@ const spawnStreamMock = vi.hoisted(() => vi.fn());
 vi.mock('../src/_spawn-stream.js', () => ({
   spawnStream: ((opts: unknown) => {
     spawnStreamMock(opts);
-    return (async function * (): AsyncGenerator<ToolProgressEvent, SpawnStreamResult> {
+    return (async function* (): AsyncGenerator<ToolProgressEvent, SpawnStreamResult> {
       yield { type: 'partial_output', text: 'added 1 package\n' };
       return {
         stdout: 'added 1 package',
@@ -234,16 +234,14 @@ describe('installTool', () => {
     expect(call.args).toContain(spec);
   });
 
-  it.each([
-    'file:../../etc/passwd',
-    'pkg@1.0.0; rm -rf /',
-    'pkg@1.0.0 --flag',
-    'pkg@ver$(whoami)',
-  ])('still rejects malicious spec %s', async (spec) => {
-    const result = await installTool.execute({ packages: spec }, makeCtx(), makeOpts());
-    expect(result.exit_code).toBe(1);
-    expect(result.output).toContain('Invalid package name');
-  });
+  it.each(['file:../../etc/passwd', 'pkg@1.0.0; rm -rf /', 'pkg@1.0.0 --flag', 'pkg@ver$(whoami)'])(
+    'still rejects malicious spec %s',
+    async (spec) => {
+      const result = await installTool.execute({ packages: spec }, makeCtx(), makeOpts());
+      expect(result.exit_code).toBe(1);
+      expect(result.output).toContain('Invalid package name');
+    },
+  );
 
   it('emits `pnpm install` (not bare `pnpm add`) when packages is empty', async () => {
     spawnStreamMock.mockClear();
@@ -397,7 +395,11 @@ describe('installTool', () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inst-pnpm-ignore-'));
     try {
       await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), '');
-      await installTool.execute({ packages: 'foo' }, makeCtx({ cwd: dir, projectRoot: dir }), makeOpts());
+      await installTool.execute(
+        { packages: 'foo' },
+        makeCtx({ cwd: dir, projectRoot: dir }),
+        makeOpts(),
+      );
       const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
       expect(call.cmd).toBe('pnpm');
       expect(call.args).toContain('--ignore-scripts');
@@ -411,7 +413,11 @@ describe('installTool', () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'inst-yarn-ignore-'));
     try {
       await fs.writeFile(path.join(dir, 'yarn.lock'), '');
-      await installTool.execute({ packages: 'foo' }, makeCtx({ cwd: dir, projectRoot: dir }), makeOpts());
+      await installTool.execute(
+        { packages: 'foo' },
+        makeCtx({ cwd: dir, projectRoot: dir }),
+        makeOpts(),
+      );
       const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
       expect(call.cmd).toBe('yarn');
       expect(call.args).toContain('--ignore-scripts');
@@ -422,14 +428,22 @@ describe('installTool', () => {
 
   it('omits --ignore-scripts when lifecycleScripts: true is explicit', async () => {
     spawnStreamMock.mockClear();
-    await installTool.execute({ packages: 'vitest', lifecycleScripts: true }, makeCtx(), makeOpts());
+    await installTool.execute(
+      { packages: 'vitest', lifecycleScripts: true },
+      makeCtx(),
+      makeOpts(),
+    );
     const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
     expect(call.args).not.toContain('--ignore-scripts');
   });
 
   it('omits --ignore-scripts when lifecycleScripts: false is explicit (no change from default)', async () => {
     spawnStreamMock.mockClear();
-    await installTool.execute({ packages: 'vitest', lifecycleScripts: false }, makeCtx(), makeOpts());
+    await installTool.execute(
+      { packages: 'vitest', lifecycleScripts: false },
+      makeCtx(),
+      makeOpts(),
+    );
     const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
     expect(call.args).toContain('--ignore-scripts');
   });

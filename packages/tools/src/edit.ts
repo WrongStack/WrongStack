@@ -73,7 +73,8 @@ export const editTool: Tool<EditInput, EditOutput> = {
     'If `old_string` differs from the file only in whitespace (trailing spaces, indentation), a lower-confidence fallback match is applied and reported in `matched_by`/`note` — always verify the diff when this happens.\n' +
     'After the edit, TS/JS/JSON files are syntax-checked; if `syntax_errors` is present in the output, fix those errors immediately with a follow-up edit.',
   selection: {
-    doNotUseWhen: 'creating a new file, replacing the whole file, or applying an existing unified diff.',
+    doNotUseWhen:
+      'creating a new file, replacing the whole file, or applying an existing unified diff.',
     useInstead: ['write', 'patch'],
   },
   permission: 'confirm',

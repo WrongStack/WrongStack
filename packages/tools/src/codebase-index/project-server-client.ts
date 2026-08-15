@@ -4,11 +4,7 @@ import * as net from 'node:net';
 import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
 import { IndexTimeoutError } from './circuit-breaker.js';
-import {
-  encodeBinaryFrame,
-  isBinaryFrame,
-  decodeBinaryFrame,
-} from './binary-frame.js';
+import { encodeBinaryFrame, isBinaryFrame, decodeBinaryFrame } from './binary-frame.js';
 import {
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
   projectIndexServerEndpoint,
@@ -310,7 +306,12 @@ class ProjectServerConnection {
           type: 'shutdown';
           reason?: string | undefined;
         }
-      | { type: 'configure'; watchExternal: boolean; debounceMs: number; coalesceWindowMs?: number | undefined }
+      | {
+          type: 'configure';
+          watchExternal: boolean;
+          debounceMs: number;
+          coalesceWindowMs?: number | undefined;
+        }
       | { type: 'ping' },
     options: ProjectServerCallOptions,
   ): Promise<T> {

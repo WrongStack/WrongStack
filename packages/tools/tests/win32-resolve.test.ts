@@ -163,8 +163,19 @@ describe('assertSafeWin32ShellArgs', () => {
   });
 
   it('rejects command chaining, redirection, and quote-breaking metacharacters', () => {
-    for (const bad of ['a & calc', 'x | whoami', 'in < f', 'out > f', '"breakout"', 'line1\nline2', 'cr\rinject', 'nul\0byte']) {
-      expect(() => assertSafeWin32ShellArgs(['ok', bad])).toThrow(/command injection|metacharacter/i);
+    for (const bad of [
+      'a & calc',
+      'x | whoami',
+      'in < f',
+      'out > f',
+      '"breakout"',
+      'line1\nline2',
+      'cr\rinject',
+      'nul\0byte',
+    ]) {
+      expect(() => assertSafeWin32ShellArgs(['ok', bad])).toThrow(
+        /command injection|metacharacter/i,
+      );
     }
   });
 

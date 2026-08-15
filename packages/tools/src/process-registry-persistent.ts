@@ -25,8 +25,19 @@ function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function emitStructuredLog(level: 'debug' | 'info' | 'warn' | 'error', event: string, message: string, error?: unknown): void {
-  const payload: { level: 'debug' | 'info' | 'warn' | 'error'; event: string; message: string; error?: string; timestamp: string } = {
+function emitStructuredLog(
+  level: 'debug' | 'info' | 'warn' | 'error',
+  event: string,
+  message: string,
+  error?: unknown,
+): void {
+  const payload: {
+    level: 'debug' | 'info' | 'warn' | 'error';
+    event: string;
+    message: string;
+    error?: string;
+    timestamp: string;
+  } = {
     level,
     event,
     message,
@@ -204,8 +215,7 @@ async function readRegistryFile(filePath: string): Promise<PersistentRegistryDat
       protectedPatterns: Array.isArray(parsed.protectedPatterns)
         ? parsed.protectedPatterns
         : base.protectedPatterns,
-      lastCleanup:
-        typeof parsed.lastCleanup === 'number' ? parsed.lastCleanup : base.lastCleanup,
+      lastCleanup: typeof parsed.lastCleanup === 'number' ? parsed.lastCleanup : base.lastCleanup,
     };
   } catch {
     return freshRegistryData();
@@ -217,12 +227,16 @@ async function readRegistryFile(filePath: string): Promise<PersistentRegistryDat
  */
 async function writeRegistryFile(filePath: string, data: PersistentRegistryData): Promise<void> {
   const tmpPath = `${filePath}.tmp.${process.pid}`;
-  const content = JSON.stringify(data, (_k, v) => {
-    if (v instanceof Map) {
-      return Array.from(v.entries());
-    }
-    return v;
-  }, 2);
+  const content = JSON.stringify(
+    data,
+    (_k, v) => {
+      if (v instanceof Map) {
+        return Array.from(v.entries());
+      }
+      return v;
+    },
+    2,
+  );
 
   await fs.writeFile(tmpPath, content, 'utf-8');
   await fs.rename(tmpPath, filePath);
@@ -259,7 +273,12 @@ export class PersistentProcessRegistry {
 
     // Ensure the .wrongstack directory exists
     this.ensureDirectory().catch((err) => {
-      emitStructuredLog('warn', 'process_registry.dir_create_failed', 'PersistentProcessRegistry: failed to create .wrongstack directory', err);
+      emitStructuredLog(
+        'warn',
+        'process_registry.dir_create_failed',
+        'PersistentProcessRegistry: failed to create .wrongstack directory',
+        err,
+      );
     });
   }
 
@@ -356,7 +375,13 @@ export class PersistentProcessRegistry {
   /**
    * Register a spawned child process with the persistent registry.
    */
-  registerChildProcess(pid: number, name: string, command: string, sessionId?: string, spawnMode: 'spawn' | 'fork' = 'spawn'): void {
+  registerChildProcess(
+    pid: number,
+    name: string,
+    command: string,
+    sessionId?: string,
+    spawnMode: 'spawn' | 'fork' = 'spawn',
+  ): void {
     const entry: PersistentProcessEntry = {
       pid,
       name,
@@ -480,7 +505,10 @@ export class PersistentProcessRegistry {
           entry.lastHeartbeat = now;
         }
         // Only keep non-stale entries (or entries from this instance)
-        if (entry.instanceId === this.instanceId || (now - entry.lastHeartbeat) < STALE_THRESHOLD_MS) {
+        if (
+          entry.instanceId === this.instanceId ||
+          now - entry.lastHeartbeat < STALE_THRESHOLD_MS
+        ) {
           updatedInstances.set(_pidStr, entry);
         }
       }
@@ -489,7 +517,12 @@ export class PersistentProcessRegistry {
       data.lastCleanup = now;
       await writeRegistryFile(this.registryPath, data);
     } catch (err) {
-      emitStructuredLog('warn', 'process_registry.sync_failed', 'PersistentProcessRegistry: sync failed', err);
+      emitStructuredLog(
+        'warn',
+        'process_registry.sync_failed',
+        'PersistentProcessRegistry: sync failed',
+        err,
+      );
     } finally {
       await release();
     }
@@ -521,7 +554,6 @@ export class PersistentProcessRegistry {
                 `PersistentProcessRegistry: checking stale pid ${entry.pid} (${age}ms old)`,
               );
             }
-
           } catch {
             // Process is dead - mark for removal
             stalePids.push(_pidStr);
@@ -536,7 +568,12 @@ export class PersistentProcessRegistry {
         await writeRegistryFile(this.registryPath, data);
       }
     } catch (err) {
-      emitStructuredLog('warn', 'process_registry.cleanup_failed', 'PersistentProcessRegistry: cleanup failed', err);
+      emitStructuredLog(
+        'warn',
+        'process_registry.cleanup_failed',
+        'PersistentProcessRegistry: cleanup failed',
+        err,
+      );
     } finally {
       await release();
     }
@@ -554,7 +591,7 @@ export class PersistentProcessRegistry {
       if (!entry) return false;
 
       // Check if stale
-      if ((Date.now() - entry.lastHeartbeat) > STALE_THRESHOLD_MS) {
+      if (Date.now() - entry.lastHeartbeat > STALE_THRESHOLD_MS) {
         return false;
       }
 
@@ -575,7 +612,7 @@ export class PersistentProcessRegistry {
       const protectedPids: number[] = [];
 
       for (const [_pidStr, entry] of data.instances) {
-        if (entry.protected && (now - entry.lastHeartbeat) < STALE_THRESHOLD_MS) {
+        if (entry.protected && now - entry.lastHeartbeat < STALE_THRESHOLD_MS) {
           protectedPids.push(entry.pid);
         }
       }
@@ -609,7 +646,7 @@ export class PersistentProcessRegistry {
         instances.set(entry.instanceId, instanceEntries);
 
         if (entry.protected) protectedCount++;
-        if ((now - entry.lastHeartbeat) > STALE_THRESHOLD_MS) staleCount++;
+        if (now - entry.lastHeartbeat > STALE_THRESHOLD_MS) staleCount++;
       }
 
       return {

@@ -254,10 +254,7 @@ export async function __smokeRootType(opts: {
  * Parse source code using Tree-Sitter and return the AST and parser.
  * Caller MUST call `tree.delete()` and `parser.delete()` in a finally block.
  */
-export async function parseTreeSitterAst(opts: {
-  content: string;
-  lang: SymbolLang;
-}): Promise<{
+export async function parseTreeSitterAst(opts: { content: string; lang: SymbolLang }): Promise<{
   tree: import('web-tree-sitter').Tree;
   parser: import('web-tree-sitter').Parser;
 } | null> {

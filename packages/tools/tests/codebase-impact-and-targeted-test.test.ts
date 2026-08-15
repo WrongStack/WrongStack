@@ -14,7 +14,8 @@ describe('codebase-impact-analysis and codebase-targeted-test tools', () => {
     try {
       const output = await codebaseImpactAnalysisTool.execute(
         { symbol: 'calculateDiscount' },
-        { projectRoot: tempDir },
+        { projectRoot: tempDir } as never,
+        { signal: new AbortController().signal },
       );
 
       expect(output.status).toBe('ok');
@@ -36,13 +37,22 @@ describe('codebase-impact-analysis and codebase-targeted-test tools', () => {
     const sourceFile = path.join(srcDir, 'calculator.ts');
     const testFile = path.join(testsDir, 'calculator.test.ts');
 
-    await fs.writeFile(sourceFile, 'export function add(a: number, b: number) { return a + b; }', 'utf8');
-    await fs.writeFile(testFile, 'import { add } from "../src/calculator.js"; console.log("Test passed");', 'utf8');
+    await fs.writeFile(
+      sourceFile,
+      'export function add(a: number, b: number) { return a + b; }',
+      'utf8',
+    );
+    await fs.writeFile(
+      testFile,
+      'import { add } from "../src/calculator.js"; console.log("Test passed");',
+      'utf8',
+    );
 
     try {
       const result = await codebaseTargetedTestTool.execute(
         { file: 'src/calculator.ts' },
-        { projectRoot: tempDir },
+        { projectRoot: tempDir } as never,
+        { signal: new AbortController().signal },
       );
 
       expect(result.discoveredSuites).toContain('tests/calculator.test.ts');

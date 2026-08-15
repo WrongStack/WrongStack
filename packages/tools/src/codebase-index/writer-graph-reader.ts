@@ -123,7 +123,8 @@ export function findIncomingCallsByName(
   limit: number,
 ): { calls: CallSite[]; symbolFound: boolean; ambiguous: boolean; totalMatches: number } {
   const targetIds = resolveSymbolIds(stmt, symbolName, file);
-  if (targetIds.length === 0) return { calls: [], symbolFound: false, ambiguous: false, totalMatches: 0 };
+  if (targetIds.length === 0)
+    return { calls: [], symbolFound: false, ambiguous: false, totalMatches: 0 };
 
   // Ref resolution (writer.ts `resolveRefs`) assigns `to_id` via `MIN(id)`
   // across the ref's language family — it is not file-aware. When `file` scopes
@@ -202,7 +203,12 @@ export function findIncomingCallsByName(
   rows.sort((a, b) => a.ref_line - b.ref_line || a.sym_id - b.sym_id);
 
   const allCalls = rows.map(mapCallSiteRow);
-  return { calls: allCalls.slice(0, limit), symbolFound: true, ambiguous, totalMatches: allCalls.length };
+  return {
+    calls: allCalls.slice(0, limit),
+    symbolFound: true,
+    ambiguous,
+    totalMatches: allCalls.length,
+  };
 }
 
 /**
@@ -217,7 +223,8 @@ export function findOutgoingCallsByName(
   limit: number,
 ): { calls: CallSite[]; symbolFound: boolean; unresolvedCount: number; totalMatches: number } {
   const sourceIds = resolveSymbolIds(stmt, symbolName, file);
-  if (sourceIds.length === 0) return { calls: [], symbolFound: false, unresolvedCount: 0, totalMatches: 0 };
+  if (sourceIds.length === 0)
+    return { calls: [], symbolFound: false, unresolvedCount: 0, totalMatches: 0 };
 
   // Count refs that could not be resolved (to_id IS NULL) so callers know
   // dependencies were silently dropped.
@@ -475,10 +482,7 @@ export function findTransitiveOutgoingCallsByName(
  * the seeds themselves). Callers subtract this from the full symbol set to
  * find dead code.
  */
-export function findReachableSymbolIds(
-  stmt: PrepareStatement,
-  seedIds: number[],
-): Set<number> {
+export function findReachableSymbolIds(stmt: PrepareStatement, seedIds: number[]): Set<number> {
   if (seedIds.length === 0) return new Set();
 
   // For large seed sets (>900), chunkedIdQuery would run the CTE per chunk,
@@ -625,7 +629,9 @@ export function getFileGraphWithStatement(
   // to read a language from. The path is enough, and cheaper than a query —
   // getting it wrong would paint an imported Go file as TypeScript.
   const langOf = (file: string): SymbolLang => detectLang(file) ?? 'other';
-  const pkgFilePaths = allFiles.filter((f) => packageOf(f.file) === packageFilter).map((f) => f.file);
+  const pkgFilePaths = allFiles
+    .filter((f) => packageOf(f.file) === packageFilter)
+    .map((f) => f.file);
   const localFiles = new Set(pkgFilePaths);
   if (localFiles.size === 0) return { nodes: [], edges: [] };
 

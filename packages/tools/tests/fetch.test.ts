@@ -424,11 +424,9 @@ describe('fetchTool', () => {
       try {
         let caught: unknown;
         try {
-          await fetchTool.execute(
-            { url: 'https://broken.example/' },
-            sb.ctx,
-            { signal: newSignal() },
-          );
+          await fetchTool.execute({ url: 'https://broken.example/' }, sb.ctx, {
+            signal: newSignal(),
+          });
         } catch (err) {
           caught = err;
         }

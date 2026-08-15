@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseSymbols } from '../src/codebase-index/json-parser.js';
 
-const parse = (file: string, content: string) =>
-  parseSymbols({ file, content, lang: 'json' });
+const parse = (file: string, content: string) => parseSymbols({ file, content, lang: 'json' });
 
 const names = (file: string, content: string) => parse(file, content).symbols.map((s) => s.name);
 const find = (file: string, content: string, name: string) =>

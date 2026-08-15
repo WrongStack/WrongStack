@@ -73,7 +73,9 @@ export interface Config {
       expect(result.rankedFiles.length).toBeGreaterThanOrEqual(2);
 
       // Test tool execution
-      const toolOutput = await codebaseRepoMapTool.execute({}, { projectRoot: tempDir });
+      const toolOutput = await codebaseRepoMapTool.execute({}, { projectRoot: tempDir } as never, {
+        signal: new AbortController().signal,
+      });
       expect(toolOutput.status).toBe('ok');
       expect(toolOutput.filesCount).toBe(result.filesCount);
       expect(toolOutput.map).toContain('src/index.ts');

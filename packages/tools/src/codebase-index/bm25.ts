@@ -19,7 +19,7 @@ const B = 0.75;
 // The constructor form is deliberate: a literal here embeds a bare apostrophe
 // that automated edit tooling has repeatedly mangled.
 // biome-ignore lint/complexity/useRegexLiterals: keep the escaped-string form
-const TOKENISE_RE = new RegExp('[^\\p{L}\\p{N}$\']', 'gu');
+const TOKENISE_RE = new RegExp("[^\\p{L}\\p{N}$']", 'gu');
 
 interface Bm25Doc {
   id: number;
@@ -52,15 +52,17 @@ export interface IndexableDoc {
  * via the shared "complex" token.
  */
 function splitName(name: string): string {
-  return name
-    // Split an acronym from the word that follows it: HTTPServer → HTTP Server.
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
-    // Identifiers commonly encode versions/algorithms with digits.
-    .replace(/([\p{L}])(\d)/gu, '$1 $2')
-    .replace(/(\d)([\p{L}])/gu, '$1 $2')
-    .replace(/[_-]+/g, ' ')
-    .trim();
+  return (
+    name
+      // Split an acronym from the word that follows it: HTTPServer → HTTP Server.
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+      .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+      // Identifiers commonly encode versions/algorithms with digits.
+      .replace(/([\p{L}])(\d)/gu, '$1 $2')
+      .replace(/(\d)([\p{L}])/gu, '$1 $2')
+      .replace(/[_-]+/g, ' ')
+      .trim()
+  );
 }
 
 /**

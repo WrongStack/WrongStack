@@ -186,7 +186,9 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
       // but we also stop dispatching new walks once truncated, so siblings of
       // a hit-limit subdir don't keep adding results.
       const remainingSubdirs = truncated ? [] : subdirs;
-      await mapWithConcurrency(remainingSubdirs, WALK_CONCURRENCY, ({ full, rel }) => walk(full, rel));
+      await mapWithConcurrency(remainingSubdirs, WALK_CONCURRENCY, ({ full, rel }) =>
+        walk(full, rel),
+      );
     };
     await walk(base, '');
     results.sort((a, b) => b.mtime - a.mtime);

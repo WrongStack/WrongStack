@@ -107,7 +107,9 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
         cmdArgs = ['tsc', ...tscArgs];
       }
     } else {
-      const tsconfig = input.project ? await safeResolveReal(input.project, ctx) : await findTsConfig(cwd);
+      const tsconfig = input.project
+        ? await safeResolveReal(input.project, ctx)
+        : await findTsConfig(cwd);
       const tscArgs = ['--noEmit'];
       if (input.strict) tscArgs.push('--strict');
       if (tsconfig) tscArgs.push('--project', tsconfig);

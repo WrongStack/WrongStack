@@ -1,12 +1,15 @@
 /**
  * Global Process Registry - Cross-Instance Process Tracking
- * 
+ *
  * Provides functionality to list all WrongStack instances running on the system,
  * track their processes, and display detailed status information.
  */
 
 import * as os from 'node:os';
-import { getPersistentProcessRegistry, type PersistentProcessEntry } from './process-registry-persistent.js';
+import {
+  getPersistentProcessRegistry,
+  type PersistentProcessEntry,
+} from './process-registry-persistent.js';
 
 // ============================================================================
 // Types
@@ -145,7 +148,7 @@ export async function listInstances(options: InstanceListOptions = {}): Promise<
 
   const registry = getPersistentProcessRegistry();
   const globalStatus = await registry.getGlobalStatus();
-  
+
   const instances: InstanceInfo[] = [];
   const instanceMap = globalStatus.instances;
 
@@ -153,15 +156,15 @@ export async function listInstances(options: InstanceListOptions = {}): Promise<
     if (processes.length === 0) continue;
 
     // Find the main process (protected: true, spawnMode: 'main')
-    const mainProc = processes.find(p => p.spawnMode === 'main');
+    const mainProc = processes.find((p) => p.spawnMode === 'main');
     const firstProc = processes.at(0);
     const mainPid = mainProc?.pid ?? firstProc?.pid ?? 0;
     const hostname_ = firstProc?.hostname ?? os.hostname();
-    const startedAt = Math.min(...processes.map(p => p.startedAt));
-    
+    const startedAt = Math.min(...processes.map((p) => p.startedAt));
+
     // Calculate last activity (most recent heartbeat)
-    const lastActivity = Math.max(...processes.map(p => p.lastHeartbeat));
-    
+    const lastActivity = Math.max(...processes.map((p) => p.lastHeartbeat));
+
     // Determine status based on last activity
     const age = timestamp - lastActivity;
     let instanceStatus: 'active' | 'idle' | 'stale' = 'stale';
@@ -216,9 +219,15 @@ export async function getInstanceCount(): Promise<InstanceCounts> {
     byHostname.set(inst.hostname, current + 1);
 
     switch (inst.status) {
-      case 'active': active++; break;
-      case 'idle': idle++; break;
-      case 'stale': stale++; break;
+      case 'active':
+        active++;
+        break;
+      case 'idle':
+        idle++;
+        break;
+      case 'stale':
+        stale++;
+        break;
     }
   }
 
@@ -242,11 +251,11 @@ export async function getGlobalProcessStatus(): Promise<GlobalProcessStatus> {
 
   // Local instance
   const localInstanceId = registry.getInstanceId();
-  const localInstance = instances.find(i => i.instanceId === localInstanceId);
-  
+  const localInstance = instances.find((i) => i.instanceId === localInstanceId);
+
   let localProtectedCount = 0;
   if (localInstance) {
-    localProtectedCount = localInstance.processes.filter(p => p.protected).length;
+    localProtectedCount = localInstance.processes.filter((p) => p.protected).length;
   }
 
   let activeInstanceCount = 0;
@@ -255,22 +264,24 @@ export async function getGlobalProcessStatus(): Promise<GlobalProcessStatus> {
   }
 
   return {
-    localInstance: localInstance ? {
-      instanceId: localInstance.instanceId,
-      mainPid: localInstance.mainPid,
-      protectedCount: localProtectedCount,
-      platform: process.platform,
-      hostname: localInstance.hostname,
-      uptime: timestamp - localInstance.startedAt,
-    } : {
-      instanceId: localInstanceId,
-      mainPid: process.pid,
-      protectedCount: 0,
-      platform: process.platform,
-      hostname: os.hostname(),
-      uptime: 0,
-    },
-    allInstances: instances.map(inst => ({
+    localInstance: localInstance
+      ? {
+          instanceId: localInstance.instanceId,
+          mainPid: localInstance.mainPid,
+          protectedCount: localProtectedCount,
+          platform: process.platform,
+          hostname: localInstance.hostname,
+          uptime: timestamp - localInstance.startedAt,
+        }
+      : {
+          instanceId: localInstanceId,
+          mainPid: process.pid,
+          protectedCount: 0,
+          platform: process.platform,
+          hostname: os.hostname(),
+          uptime: 0,
+        },
+    allInstances: instances.map((inst) => ({
       instanceId: inst.instanceId,
       hostname: inst.hostname,
       mainPid: inst.mainPid,
@@ -309,7 +320,9 @@ export async function formatGlobalStatus(): Promise<string> {
   lines.push(`  Total processes: ${status.summary.totalProcesses}`);
   lines.push(`  Protected: ${status.summary.protectedCount}`);
   lines.push(`  Stale entries: ${status.summary.staleCount}`);
-  lines.push(`  Instances: ${status.summary.instanceCount} (${status.summary.activeInstanceCount} active)`);
+  lines.push(
+    `  Instances: ${status.summary.instanceCount} (${status.summary.activeInstanceCount} active)`,
+  );
   lines.push('');
 
   // Local instance
@@ -334,7 +347,7 @@ export async function formatGlobalStatus(): Promise<string> {
 
       lines.push(
         `  ${protected_} ${String(proc.pid).padStart(6)}  ${proc.name.padEnd(20)} ` +
-        `started ${procAge.padStart(8)}  heartbeat ${heartbeatAge.padStart(6)}  ${proc.spawnMode}`
+          `started ${procAge.padStart(8)}  heartbeat ${heartbeatAge.padStart(6)}  ${proc.spawnMode}`,
       );
     }
     lines.push(`  Last activity: ${age}s ago`);
@@ -360,7 +373,9 @@ export async function formatInstanceList(options: InstanceListOptions = {}): Pro
   const lines: string[] = [];
 
   lines.push('=== WrongStack Instances ===');
-  lines.push(`Total: ${count.total} instances (${count.active} active, ${count.idle} idle, ${count.stale} stale)`);
+  lines.push(
+    `Total: ${count.total} instances (${count.active} active, ${count.idle} idle, ${count.stale} stale)`,
+  );
   lines.push('');
 
   if (count.byHostname.size > 1) {
@@ -378,15 +393,18 @@ export async function formatInstanceList(options: InstanceListOptions = {}): Pro
 
   // Table header
   lines.push('INSTANCES:');
-  lines.push('  ' + [
-    'STATUS'.padEnd(7),
-    'HOSTNAME'.padEnd(16),
-    'MAIN PID'.padEnd(9),
-    'PROCS'.padEnd(6),
-    'SESSIONS'.padEnd(8),
-    'UPTIME'.padEnd(8),
-    'LAST ACTIVITY',
-  ].join('  '));
+  lines.push(
+    '  ' +
+      [
+        'STATUS'.padEnd(7),
+        'HOSTNAME'.padEnd(16),
+        'MAIN PID'.padEnd(9),
+        'PROCS'.padEnd(6),
+        'SESSIONS'.padEnd(8),
+        'UPTIME'.padEnd(8),
+        'LAST ACTIVITY',
+      ].join('  '),
+  );
   lines.push('  ' + '-'.repeat(80));
 
   // Table rows
@@ -396,15 +414,16 @@ export async function formatInstanceList(options: InstanceListOptions = {}): Pro
     const statusIcon = inst.status === 'active' ? '[*]' : inst.status === 'idle' ? '[-]' : '[ ]';
 
     lines.push(
-      '  ' + [
-        `${statusIcon} ${inst.status}`.padEnd(7),
-        inst.hostname.padEnd(16),
-        String(inst.mainPid).padEnd(9),
-        String(inst.processCount).padEnd(6),
-        String(inst.sessionIds.size).padEnd(8),
-        uptime.padEnd(8),
-        `${lastAct} ago`,
-      ].join('  ')
+      '  ' +
+        [
+          `${statusIcon} ${inst.status}`.padEnd(7),
+          inst.hostname.padEnd(16),
+          String(inst.mainPid).padEnd(9),
+          String(inst.processCount).padEnd(6),
+          String(inst.sessionIds.size).padEnd(8),
+          uptime.padEnd(8),
+          `${lastAct} ago`,
+        ].join('  '),
     );
   }
 
@@ -508,11 +527,15 @@ export function createGlobalPsSlashCommand() {
           if (!['active', 'idle', 'stale', 'all'].includes(filterStatus ?? '')) {
             return { message: 'Usage: /ps status <active|idle|stale|all>' };
           }
-          const output = await formatInstanceList({ status: filterStatus as 'active' | 'idle' | 'stale' | 'all' });
+          const output = await formatInstanceList({
+            status: filterStatus as 'active' | 'idle' | 'stale' | 'all',
+          });
           return { message: output };
         }
 
-        return { message: 'Usage: /ps [list|summary|count|full|hostname <pattern>|status <state>]' };
+        return {
+          message: 'Usage: /ps [list|summary|count|full|hostname <pattern>|status <state>]',
+        };
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         return { message: `Error getting process status: ${message}` };

@@ -154,7 +154,13 @@ async function dockerLogs(
       resolve(result);
     };
 
-    const child = spawn('docker', args, { cwd, signal, env: buildChildEnv(), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const child = spawn('docker', args, {
+      cwd,
+      signal,
+      env: buildChildEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
 
     // `docker logs --tail N` reads recent lines and exits — fast when the
     // daemon is up. But if the daemon is unreachable (common on CI runners
@@ -177,10 +183,14 @@ async function dockerLogs(
     // that surfaces as an unhandled error and can fail the host/test — swallow
     // it at debug level; `child.on('error')` and the timeout already drive the result.
     child.stdout?.on('error', (e) => {
-      console.log(JSON.stringify({ level: 'debug', event: 'pipe_error', stream: 'stdout', error: e.message }));
+      console.log(
+        JSON.stringify({ level: 'debug', event: 'pipe_error', stream: 'stdout', error: e.message }),
+      );
     });
     child.stderr?.on('error', (e) => {
-      console.log(JSON.stringify({ level: 'debug', event: 'pipe_error', stream: 'stderr', error: e.message }));
+      console.log(
+        JSON.stringify({ level: 'debug', event: 'pipe_error', stream: 'stderr', error: e.message }),
+      );
     });
     child.on('close', () => {
       const output = stdout + stderr;
@@ -208,11 +218,7 @@ const DOCKER_LOGS_TIMEOUT_MS = 3_000;
 // callers that need more should narrow with `filter`.
 const MAX_TAIL_LINES = 100_000;
 
-async function fileLogs(
-  path: string,
-  lines: number,
-  filterRe: RegExp | null,
-): Promise<LogsOutput> {
+async function fileLogs(path: string, lines: number, filterRe: RegExp | null): Promise<LogsOutput> {
   const { createInterface } = await import('node:readline');
   const { createReadStream } = await import('node:fs');
   const entries: LogEntry[] = [];

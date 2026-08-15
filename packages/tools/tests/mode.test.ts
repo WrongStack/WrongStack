@@ -43,8 +43,18 @@ describe('createModeTool', () => {
   it('list action returns all modes with family and tags metadata', async () => {
     const modes = [
       { id: 'default', name: 'Default', description: 'Balanced', tags: ['balanced'] },
-      { id: 'review-lite', name: 'Review Lite', description: 'Narrow review', tags: ['lite', 'review'] },
-      { id: 'code-reviewer', name: 'Review Deep', description: 'Full review', tags: ['deep', 'review'] },
+      {
+        id: 'review-lite',
+        name: 'Review Lite',
+        description: 'Narrow review',
+        tags: ['lite', 'review'],
+      },
+      {
+        id: 'code-reviewer',
+        name: 'Review Deep',
+        description: 'Full review',
+        tags: ['deep', 'review'],
+      },
     ];
     const store = mockModeStore(modes, null);
     const tool = createModeTool(store);

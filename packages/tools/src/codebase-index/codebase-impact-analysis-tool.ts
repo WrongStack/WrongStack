@@ -73,11 +73,13 @@ export const codebaseImpactAnalysisTool: Tool<ImpactAnalysisInput, ImpactAnalysi
       },
       file: {
         type: 'string',
-        description: 'Optional file path to disambiguate when multiple symbols share the same name.',
+        description:
+          'Optional file path to disambiguate when multiple symbols share the same name.',
       },
       transitive: {
         type: 'boolean',
-        description: 'Whether to traverse transitive callers (callers of callers). Defaults to true.',
+        description:
+          'Whether to traverse transitive callers (callers of callers). Defaults to true.',
       },
     },
     required: ['symbol'],

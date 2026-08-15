@@ -33,7 +33,7 @@ export function createModeTool(modeStore: ModeStore): Tool<ModeInput, ModeOutput
     name: 'mode',
     category: 'Session',
     description:
-      'Manage agent operating modes. Modes change the agent\'s behavior, personality, and system prompt for different workflows (e.g. coding, security review, planning).',
+      "Manage agent operating modes. Modes change the agent's behavior, personality, and system prompt for different workflows (e.g. coding, security review, planning).",
     usageHint:
       'POWERFUL BEHAVIOR CONTROL TOOL:\n\n' +
       '- Use `list` to see available modes.\n' +

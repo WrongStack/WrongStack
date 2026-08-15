@@ -43,9 +43,7 @@ export class ParserWorkerPool {
   private creating = false;
   private unavailable = false;
 
-  constructor(
-    private readonly maxWorkers: number = defaultWorkerCount(),
-  ) {}
+  constructor(private readonly maxWorkers: number = defaultWorkerCount()) {}
 
   /**
    * True if the pool is available for use. Returns false when:
@@ -232,10 +230,7 @@ function defaultWorkerCount(): number {
  * so the pool reports unavailable and the indexer falls back to inline.
  */
 function resolveWorkerScriptUrl(): URL | null {
-  for (const rel of [
-    './parser-worker-script.js',
-    './codebase-index/parser-worker-script.js',
-  ]) {
+  for (const rel of ['./parser-worker-script.js', './codebase-index/parser-worker-script.js']) {
     try {
       const url = new URL(rel, import.meta.url);
       if (url.protocol === 'file:' && fs.existsSync(fileURLToPath(url))) return url;

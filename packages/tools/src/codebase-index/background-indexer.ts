@@ -617,10 +617,7 @@ function addReadyReindex(opts: {
   };
   // setTimeout(fn, 0) is equivalent to setImmediate but keeps the timer type
   // uniform so clearTimeout works on both branches without casts.
-  batch.flush = setTimeout(
-    () => flushReadyReindexBatch(key),
-    Math.max(0, windowMs),
-  );
+  batch.flush = setTimeout(() => flushReadyReindexBatch(key), Math.max(0, windowMs));
   batch.flush.unref?.();
   readyReindexBatches.set(key, batch);
 }

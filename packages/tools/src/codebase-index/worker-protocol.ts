@@ -5,16 +5,8 @@
  * Errors cross the boundary as strings and are re-wrapped by the host.
  */
 
-import type {
-  CodeMapGraph,
-  IndexResult,
-  IndexStats,
-  SearchResult,
-} from './schema.js';
-import type {
-  IncomingCallsResult,
-  OutgoingCallsResult,
-} from './index-service.js';
+import type { CodeMapGraph, IndexResult, IndexStats, SearchResult } from './schema.js';
+import type { IncomingCallsResult, OutgoingCallsResult } from './index-service.js';
 
 // ─── Operation arguments ─────────────────────────────────────────────────────
 

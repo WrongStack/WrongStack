@@ -1,8 +1,4 @@
-import type {
-  KanbanBoard,
-  KanbanCompletionGateEnforcement,
-  KanbanTask,
-} from '@wrongstack/kanban';
+import type { KanbanBoard, KanbanCompletionGateEnforcement, KanbanTask } from '@wrongstack/kanban';
 import type { KanbanToolOutput } from './kanban-tool-types.js';
 
 /** One-line guidance appended when a freshly created task should be split. */

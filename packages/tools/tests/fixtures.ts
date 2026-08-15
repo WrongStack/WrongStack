@@ -69,17 +69,16 @@ export async function mkSandbox(): Promise<Sandbox> {
     },
     messages,
   } as never as Context;
-  (ctx as never as { state: Pick<Context['state'], 'replaceMessages' | 'replaceTodos'> }).state =
-    {
-      replaceMessages(next) {
-        messages.length = 0;
-        messages.splice(0, 0, ...next);
-      },
-      replaceTodos(next) {
-        todos.length = 0;
-        todos.splice(0, 0, ...next);
-      },
-    };
+  (ctx as never as { state: Pick<Context['state'], 'replaceMessages' | 'replaceTodos'> }).state = {
+    replaceMessages(next) {
+      messages.length = 0;
+      messages.splice(0, 0, ...next);
+    },
+    replaceTodos(next) {
+      todos.length = 0;
+      todos.splice(0, 0, ...next);
+    },
+  };
   return {
     dir,
     ctx,

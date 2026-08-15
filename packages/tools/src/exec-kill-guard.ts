@@ -84,7 +84,11 @@ export async function checkExecKillCommand(
           if (filterArg) {
             const nameMatch = filterArg.match(/IMAGENAME\s+eq\s+"?([^"\s]+)/i);
             if (nameMatch?.[1]) {
-              const result = await checkKillTarget({ name: nameMatch[1], signal, cmd: fullCommand });
+              const result = await checkKillTarget({
+                name: nameMatch[1],
+                signal,
+                cmd: fullCommand,
+              });
               if (result.blocked) return result;
             }
           }

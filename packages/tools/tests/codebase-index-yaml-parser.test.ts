@@ -3,7 +3,8 @@ import { parseSymbols } from '../src/codebase-index/yaml-parser.js';
 
 const parse = (content: string, file = 'config.yaml') =>
   parseSymbols({ file, content, lang: 'yaml' });
-const names = (content: string, file = 'config.yaml') => parse(content, file).symbols.map((s) => s.name);
+const names = (content: string, file = 'config.yaml') =>
+  parse(content, file).symbols.map((s) => s.name);
 const find = (content: string, name: string, file = 'config.yaml') =>
   parse(content, file).symbols.find((s) => s.name === name);
 

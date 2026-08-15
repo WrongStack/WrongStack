@@ -49,7 +49,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   const anchorRegex = /&(\w[\w-]*)/g;
   for (let match = anchorRegex.exec(content); match !== null; match = anchorRegex.exec(content)) {
     const name = expectDefined(match[1]);
-    const offset = (match.index ?? 0);
+    const offset = match.index ?? 0;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);
     symbols.push(
@@ -69,7 +69,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   const aliasRegex = /\*(\w[\w-]*)/g;
   for (let match = aliasRegex.exec(content); match !== null; match = aliasRegex.exec(content)) {
     const name = expectDefined(match[1]);
-    const offset = (match.index ?? 0);
+    const offset = match.index ?? 0;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);
     symbols.push(
@@ -94,7 +94,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
     const key = match[2];
     /* v8 ignore next -- the capture group always matches ≥1 char, so key is never empty; defensive. */
     if (!key) continue;
-    const offset = (match.index ?? 0);
+    const offset = match.index ?? 0;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);
 
@@ -106,7 +106,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
     // Skip keys that are clearly part of a string value (unusual indent)
     if (indent > 12) continue;
 
-    const value = extractValue(content, (match.index ?? 0));
+    const value = extractValue(content, match.index ?? 0);
     const kind: IndexSymbol['kind'] = isScalar(value) ? 'literal' : 'property';
     const signature = `${key}: ${truncate(value, 60)}`;
 
@@ -116,9 +116,13 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   // ── 3. List item keys ──────────────────────────────────────────────────────
   // `- key: value` (list item that is a keyed object)
   const listItemRegex = /^-(\s+)([^:#\s][^:#\s]*)\s*:/gm;
-  for (let match = listItemRegex.exec(content); match !== null; match = listItemRegex.exec(content)) {
+  for (
+    let match = listItemRegex.exec(content);
+    match !== null;
+    match = listItemRegex.exec(content)
+  ) {
     const key = expectDefined(match[2]);
-    const offset = (match.index ?? 0);
+    const offset = match.index ?? 0;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);
     const value = extractValue(content, offset + match[0]?.length);
@@ -138,9 +142,13 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
 
   // ── 4. Block scalar keys (key: | or key: >) ────────────────────────────────
   const blockScalarRegex = /^(\s*)([^:#\s][^:#\s]*)\s*:\s*[|>](\s|$)/gm;
-  for (let match = blockScalarRegex.exec(content); match !== null; match = blockScalarRegex.exec(content)) {
+  for (
+    let match = blockScalarRegex.exec(content);
+    match !== null;
+    match = blockScalarRegex.exec(content)
+  ) {
     const key = expectDefined(match[2]);
-    const offset = (match.index ?? 0);
+    const offset = match.index ?? 0;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);
     symbols.push(

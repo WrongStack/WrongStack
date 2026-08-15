@@ -123,10 +123,11 @@ async function parseErrors(filePath: string, content: string): Promise<string[] 
   // home of the parser's syntactic diagnostics for a decade (the public
   // alternative, program.getSyntacticDiagnostics, needs a full Program).
   const diags =
-    (sourceFile as unknown as {
-      parseDiagnostics?: import('@typescript/typescript6').Diagnostic[];
-    })
-      .parseDiagnostics ?? [];
+    (
+      sourceFile as unknown as {
+        parseDiagnostics?: import('@typescript/typescript6').Diagnostic[];
+      }
+    ).parseDiagnostics ?? [];
   return diags.slice(0, MAX_ERRORS).map((d) => formatDiag(ts, d, content, sourceFile));
 }
 

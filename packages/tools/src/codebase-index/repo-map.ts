@@ -18,7 +18,8 @@ export interface RepoMapResult {
   rankedFiles: string[];
 }
 
-const ENTRY_POINT_REGEX = /(?:^|[/\\])(?:index|main|app|server|cli|lib|api|types|routes|mod)\.[a-zA-Z0-9]+$/i;
+const ENTRY_POINT_REGEX =
+  /(?:^|[/\\])(?:index|main|app|server|cli|lib|api|types|routes|mod)\.[a-zA-Z0-9]+$/i;
 const TEST_OR_MOCK_REGEX = /(?:test|spec|mock|fixture|bench|example)[s]?[/\\._]/i;
 
 /**

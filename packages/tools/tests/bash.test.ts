@@ -140,7 +140,8 @@ describe('bashTool', () => {
       expect(registry.bySession('test').some((p) => p.pid === out.pid)).toBe(true);
       if (out.pid !== undefined) registry.kill(out.pid, { force: true, graceMs: 10 });
     } finally {
-      for (const proc of registry.bySession('test')) registry.kill(proc.pid, { force: true, graceMs: 10 });
+      for (const proc of registry.bySession('test'))
+        registry.kill(proc.pid, { force: true, graceMs: 10 });
       try {
         await sb.cleanup();
       } catch {
@@ -163,11 +164,9 @@ describe('bashTool timeout kill paths', () => {
     const sb = await mkSandbox();
     try {
       // sleep 10 will be killed after timeout
-      const out = await bashTool.execute(
-        { command: 'sleep 10', timeout_ms: 300 },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await bashTool.execute({ command: 'sleep 10', timeout_ms: 300 }, sb.ctx, {
+        signal: newSignal(),
+      });
       expect(out.timed_out).toBe(true);
     } finally {
       await sb.cleanup();
@@ -265,9 +264,7 @@ describe('bashTool error handling', () => {
   it('handles stderr output separately', async () => {
     const sb = await mkSandbox();
     try {
-      const cmd = isWin
-        ? 'dir /invalidflag 2>&1'
-        : 'ls --invalid-option 2>&1 || true';
+      const cmd = isWin ? 'dir /invalidflag 2>&1' : 'ls --invalid-option 2>&1 || true';
       const out = await bashTool.execute({ command: cmd }, sb.ctx, { signal: newSignal() });
       // Should capture output (may include error message)
       expect(out).toHaveProperty('output');
@@ -412,11 +409,9 @@ describe('bashTool session and env', () => {
     try {
       // The note is advisory and appended regardless of the command's exit
       // status, so the assertion doesn't depend on `sh` existing on PATH.
-      const out = await bashTool.execute(
-        { command: 'echo hi | sh', timeout_ms: 10_000 },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await bashTool.execute({ command: 'echo hi | sh', timeout_ms: 10_000 }, sb.ctx, {
+        signal: newSignal(),
+      });
       expect(out.output).toContain('[wrongstack] Caution');
       expect(out.output).toContain('pipe-to-shell');
     } finally {

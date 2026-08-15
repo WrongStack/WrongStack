@@ -13,7 +13,11 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import * as os from 'node:os';
-import { CircuitBreaker, type CircuitBreakerSnapshot, type CircuitBreakerConfig } from './circuit-breaker.js';
+import {
+  CircuitBreaker,
+  type CircuitBreakerSnapshot,
+  type CircuitBreakerConfig,
+} from './circuit-breaker.js';
 export type { CircuitBreakerSnapshot, CircuitBreakerConfig } from './circuit-breaker.js';
 
 export interface TrackedProcess {
@@ -144,14 +148,17 @@ export function killWin32Tree(pid: number, opts: Win32TreeKillOptions = {}): boo
     // and the registry still has the direct child.kill() fallback.
     child.on('error', settle);
     child.on('close', settle);
-    timeout = setTimeout(() => {
-      try {
-        child.kill();
-      } catch {
-        /* already exited */
-      }
-      settle();
-    }, Math.max(1, opts.timeoutMs ?? WIN32_TASKKILL_TIMEOUT_MS));
+    timeout = setTimeout(
+      () => {
+        try {
+          child.kill();
+        } catch {
+          /* already exited */
+        }
+        settle();
+      },
+      Math.max(1, opts.timeoutMs ?? WIN32_TASKKILL_TIMEOUT_MS),
+    );
     timeout.unref?.();
     child.unref();
     return true;
@@ -347,7 +354,10 @@ export class ProcessRegistryImpl {
    * timeout is cleared or protection disabled, and re-arms if the breaker is
    * currently open under the new settings.
    */
-  setBreakerConfig(cfg: { enabled?: boolean | undefined; autoKillResetMs?: number | undefined }): void {
+  setBreakerConfig(cfg: {
+    enabled?: boolean | undefined;
+    autoKillResetMs?: number | undefined;
+  }): void {
     if (cfg.enabled !== undefined) this.breaker.setEnabled(cfg.enabled);
     if (cfg.autoKillResetMs !== undefined) this.autoKillResetMs = Math.max(0, cfg.autoKillResetMs);
 
@@ -370,7 +380,10 @@ export class ProcessRegistryImpl {
   getBreakerCountdown(): BreakerCountdown | null {
     if (this.autoKillArmedAt === null || this.autoKillResetMs <= 0) return null;
     const elapsed = Date.now() - this.autoKillArmedAt;
-    return { remainingMs: Math.max(0, this.autoKillResetMs - elapsed), totalMs: this.autoKillResetMs };
+    return {
+      remainingMs: Math.max(0, this.autoKillResetMs - elapsed),
+      totalMs: this.autoKillResetMs,
+    };
   }
 
   /**

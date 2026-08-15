@@ -15,7 +15,10 @@ import { formatTool } from '../src/format.js';
 const makeCtx = () => ({ cwd: '/fake', tools: [], projectRoot: '/fake' }) as any;
 const makeOpts = () => ({ signal: new AbortController().signal });
 
-function fakeSpawn(stdout: string, opts: { stderr?: string; error?: string; truncated?: boolean; exitCode?: number } = {}) {
+function fakeSpawn(
+  stdout: string,
+  opts: { stderr?: string; error?: string; truncated?: boolean; exitCode?: number } = {},
+) {
   // biome-ignore lint/correctness/useYield: test mock doesn't need actual yield
   return async function* () {
     return {
@@ -142,11 +145,7 @@ describe('formatTool', () => {
     spawnStreamMocks.spawnStream.mockImplementation(
       fakeSpawn('Checked 12 files in 30ms. Fixed 3 files.\n'),
     );
-    const result = await formatTool.execute(
-      { fixer: 'biome' },
-      makeCtx(),
-      makeOpts(),
-    );
+    const result = await formatTool.execute({ fixer: 'biome' }, makeCtx(), makeOpts());
     expect(result.files_checked).toBe(12);
     expect(result.files_changed).toBe(3);
   });
@@ -191,11 +190,7 @@ describe('formatTool', () => {
       receivedArgs = opts.args;
       return fakeSpawn('')();
     });
-    await formatTool.execute(
-      { fixer: 'biome', files: 'a.ts, b.ts' },
-      makeCtx(),
-      makeOpts(),
-    );
+    await formatTool.execute({ fixer: 'biome', files: 'a.ts, b.ts' }, makeCtx(), makeOpts());
     expect(receivedArgs).toContain('--');
     expect(receivedArgs).toContain('a.ts');
     expect(receivedArgs).toContain('b.ts');
@@ -217,9 +212,7 @@ describe('formatTool', () => {
   });
 
   it('falls back to stderr or error when stdout is empty', async () => {
-    spawnStreamMocks.spawnStream.mockImplementation(
-      fakeSpawn('', { stderr: 'permission denied' }),
-    );
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawn('', { stderr: 'permission denied' }));
     const result = await formatTool.execute({ fixer: 'biome' }, makeCtx(), makeOpts());
     expect(result.output).toBe('permission denied');
   });
@@ -247,7 +240,9 @@ describe('formatTool', () => {
       yield { type: 'log', text: 'no final' } as never;
     };
     try {
-      await expect(formatTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(/without final event/);
+      await expect(formatTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
+        /without final event/,
+      );
     } finally {
       formatTool.executeStream = original;
     }
@@ -259,11 +254,7 @@ describe('formatTool', () => {
       receivedArgs = opts.args;
       return fakeSpawn('')();
     });
-    const result = await formatTool.execute(
-      { fixer: 'biome' },
-      makeCtx(),
-      makeOpts(),
-    );
+    const result = await formatTool.execute({ fixer: 'biome' }, makeCtx(), makeOpts());
     expect(result.fixer).toBe('biome');
     expect(receivedArgs).toContain('format');
   });

@@ -91,7 +91,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
       match = pattern.regex.exec(content)
     ) {
       const name = expectDefined(match[1]);
-      const offset = (match.index ?? 0);
+      const offset = match.index ?? 0;
       const line = lineFromOffset(offset);
       const col = offset - (lineOffsets[line - 1] ?? 0);
       const lineIdx = line - 1;

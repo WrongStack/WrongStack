@@ -10,7 +10,13 @@ vi.mock('node:os', async (orig) => {
 import { _resetProcessRegistry, getProcessRegistry } from '../src/process-registry.js';
 
 const fakeChild = (): ChildProcess => {
-  const c = { killed: false, kill: vi.fn(() => { c.killed = true; return true; }) };
+  const c = {
+    killed: false,
+    kill: vi.fn(() => {
+      c.killed = true;
+      return true;
+    }),
+  };
   return c as never as ChildProcess;
 };
 const makeProc = (pid: number, opts: { processGroupLeader?: boolean; childPid?: number } = {}) => {
@@ -42,7 +48,7 @@ describe('ProcessRegistry POSIX kill', () => {
     r.register(proc);
     expect(r.kill(proc.pid, { force: true })).toBe(true);
     expect(process.kill).not.toHaveBeenCalled();
-    expect((proc.child.kill as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith('SIGKILL');
+    expect(proc.child.kill as ReturnType<typeof vi.fn>).toHaveBeenCalledWith('SIGKILL');
     expect(r.get(proc.pid)?.killed).toBe(true);
   });
 

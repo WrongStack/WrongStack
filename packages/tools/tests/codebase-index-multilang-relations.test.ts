@@ -185,9 +185,9 @@ describe('module resolution', () => {
     const structure = await detectModuleRoots(root, files);
     const resolver = new ModuleResolver(structure, files);
 
-    expect(
-      resolver.resolve(at('go/cmd/main.go'), 'go', 'example.com/demo/internal/util'),
-    ).toBe(at('go/internal/util/util.go'));
+    expect(resolver.resolve(at('go/cmd/main.go'), 'go', 'example.com/demo/internal/util')).toBe(
+      at('go/internal/util/util.go'),
+    );
 
     expect(resolver.resolve(at('py/src/demo/api.py'), 'py', 'demo.sub.core')).toBe(
       at('py/src/demo/sub/core.py'),
@@ -296,13 +296,9 @@ describe('schema self-repair', () => {
   it('preserves existing rows rather than rebuilding the index', () => {
     const { projectRoot, indexDir } = legacyIndex('4');
     const db = new DatabaseSync(path.join(indexDir, 'index.db'));
-    db.prepare('INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed) VALUES (?,?,?,?,?)').run(
-      '/repo/a.ts',
-      'ts',
-      1,
-      0,
-      1,
-    );
+    db.prepare(
+      'INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed) VALUES (?,?,?,?,?)',
+    ).run('/repo/a.ts', 'ts', 1, 0, 1);
     db.close();
 
     const store = new IndexStore(projectRoot, { indexDir });
@@ -338,9 +334,9 @@ describe('end-to-end polyglot Code Atlas graphs', () => {
       .edges.some((edge) => edge.source === `file:${at(from)}` && edge.target === `file:${at(to)}`);
 
   it('draws Go import edges between package directories', () => {
-    expect(
-      hasFileEdge('example.com/demo/cmd', 'go/cmd/main.go', 'go/internal/util/util.go'),
-    ).toBe(true);
+    expect(hasFileEdge('example.com/demo/cmd', 'go/cmd/main.go', 'go/internal/util/util.go')).toBe(
+      true,
+    );
   });
 
   it('draws Python import edges between modules', () => {

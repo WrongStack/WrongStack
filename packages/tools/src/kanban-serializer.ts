@@ -26,9 +26,7 @@ export const KANBAN_FULL_BOARD_ACTIONS = new Set<string>([
  */
 export function serializeKanbanOutput(output: KanbanToolOutput, input: unknown): string {
   const action =
-    input && typeof input === 'object'
-      ? (input as { action?: unknown }).action
-      : undefined;
+    input && typeof input === 'object' ? (input as { action?: unknown }).action : undefined;
   const board = output.board;
   if (board) {
     const keepFull = typeof action === 'string' && KANBAN_FULL_BOARD_ACTIONS.has(action);

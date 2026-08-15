@@ -1,11 +1,6 @@
 import type { MemoryEntry, MemoryStore } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  forgetTool,
-  relatedMemoryTool,
-  rememberTool,
-  searchMemoryTool,
-} from '../src/memory.js';
+import { forgetTool, relatedMemoryTool, rememberTool, searchMemoryTool } from '../src/memory.js';
 import { mkSandbox, newSignal } from './fixtures.js';
 
 const sampleEntry: MemoryEntry = {
@@ -173,9 +168,9 @@ describe('memory tools', () => {
     const tool = forgetTool(store);
     const sb = await mkSandbox();
     try {
-      await expect(
-        tool.execute({ query: '' }, sb.ctx, { signal: newSignal() }),
-      ).rejects.toThrow(/query is required/);
+      await expect(tool.execute({ query: '' }, sb.ctx, { signal: newSignal() })).rejects.toThrow(
+        /query is required/,
+      );
     } finally {
       await sb.cleanup();
     }
@@ -189,7 +184,11 @@ describe('memory tools', () => {
     try {
       const out = await tool.execute({ query: 'pnpm', limit: 99 }, sb.ctx, { signal: newSignal() });
       expect(store.search).toHaveBeenCalledWith('pnpm', 'project-memory', 20); // clamped to 20
-      expect(out.results[0]).toMatchObject({ text: 'use pnpm', type: 'convention', priority: 'high' });
+      expect(out.results[0]).toMatchObject({
+        text: 'use pnpm',
+        type: 'convention',
+        priority: 'high',
+      });
     } finally {
       await sb.cleanup();
     }
@@ -200,9 +199,9 @@ describe('memory tools', () => {
     const tool = searchMemoryTool(store);
     const sb = await mkSandbox();
     try {
-      await expect(
-        tool.execute({ query: '' }, sb.ctx, { signal: newSignal() }),
-      ).rejects.toThrow(/query is required/);
+      await expect(tool.execute({ query: '' }, sb.ctx, { signal: newSignal() })).rejects.toThrow(
+        /query is required/,
+      );
     } finally {
       await sb.cleanup();
     }
@@ -243,9 +242,9 @@ describe('memory tools', () => {
     const tool = relatedMemoryTool(store);
     const sb = await mkSandbox();
     try {
-      await expect(
-        tool.execute({ text: '' }, sb.ctx, { signal: newSignal() }),
-      ).rejects.toThrow(/text is required/);
+      await expect(tool.execute({ text: '' }, sb.ctx, { signal: newSignal() })).rejects.toThrow(
+        /text is required/,
+      );
     } finally {
       await sb.cleanup();
     }

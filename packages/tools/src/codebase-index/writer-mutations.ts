@@ -57,9 +57,7 @@ export function commitBatchWithStatement(
     stmtFn(
       `DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
     ).run(...options.deleteForFiles);
-    stmtFn(`DELETE FROM symbols WHERE file IN (${placeholders})`).run(
-      ...options.deleteForFiles,
-    );
+    stmtFn(`DELETE FROM symbols WHERE file IN (${placeholders})`).run(...options.deleteForFiles);
   }
 
   const totalSymbols = entries.reduce((n, e) => n + e.symbols.length, 0);
@@ -108,18 +106,9 @@ export function commitBatchWithStatement(
   }
 
   bulkInsertSymbolsWithStatement((sql) => stmtFn(sql), maxSqlVars, bulkSyms);
-  bulkInsertFtsWithStatement(
-    (sql) => stmtFn(sql),
-    maxSqlVars,
-    ftsAvailable,
-    ftsRows,
-  );
+  bulkInsertFtsWithStatement((sql) => stmtFn(sql), maxSqlVars, ftsAvailable, ftsRows);
   if (vectorsAvailable) {
-    bulkInsertVectorsWithStatement(
-      (sql) => stmtFn(sql),
-      maxSqlVars,
-      vectorRows,
-    );
+    bulkInsertVectorsWithStatement((sql) => stmtFn(sql), maxSqlVars, vectorRows);
   }
 
   bulkInsertRefsWithStatement((sql) => stmtFn(sql), maxSqlVars, refsToInsert);
@@ -160,18 +149,18 @@ export function replaceEmptyFileWithStatement(
 ): void {
   const affectedNames = invalidateIncomingRefsForFiles([meta.file]);
   if (ftsAvailable) {
-    stmtFn(
-      'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
-    ).run(meta.file);
+    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+      meta.file,
+    );
   }
   if (vectorsAvailable) {
     stmtFn(
       'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
     ).run(meta.file);
   }
-  stmtFn(
-    'DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
-  ).run(meta.file);
+  stmtFn('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+    meta.file,
+  );
   stmtFn('DELETE FROM symbols WHERE file_fk = ?').run(meta.file);
   stmtFn(
     `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
@@ -244,9 +233,9 @@ export function deleteSymbolsForFileWithStatement(
 ): void {
   const affectedNames = invalidateIncomingRefsForFiles([file]);
   if (ftsAvailable) {
-    stmtFn(
-      'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
-    ).run(file);
+    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+      file,
+    );
   }
   if (vectorsAvailable) {
     stmtFn(
@@ -267,18 +256,16 @@ export function deleteFileWithStatement(
 ): void {
   const affectedNames = invalidateIncomingRefsForFiles([file]);
   if (ftsAvailable) {
-    stmtFn(
-      'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
-    ).run(file);
+    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+      file,
+    );
   }
   if (vectorsAvailable) {
     stmtFn(
       'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
     ).run(file);
   }
-  stmtFn(
-    'DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
-  ).run(file);
+  stmtFn('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)').run(file);
   stmtFn('DELETE FROM symbols WHERE file_fk = ?').run(file);
   stmtFn('DELETE FROM files WHERE file = ?').run(file);
   resolveRefsForNamesUnsafe(affectedNames);
@@ -375,4 +362,3 @@ export function applyImportResolutionsWithStatement(
   db.exec('DROP TABLE IF EXISTS temp.import_resolution');
   return result.changes ?? 0;
 }
-

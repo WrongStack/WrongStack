@@ -70,14 +70,16 @@ function coerceInput(input: unknown): { obj: Record<string, unknown> | null; raw
     if (s.startsWith('{') || s.startsWith('[')) {
       try {
         const parsed = JSON.parse(s);
-        if (parsed && typeof parsed === 'object') return { obj: parsed as Record<string, unknown>, raw: parsed };
+        if (parsed && typeof parsed === 'object')
+          return { obj: parsed as Record<string, unknown>, raw: parsed };
       } catch {
         // fall through — non-JSON string
       }
     }
     return { obj: null, raw: input };
   }
-  if (input && typeof input === 'object') return { obj: input as Record<string, unknown>, raw: input };
+  if (input && typeof input === 'object')
+    return { obj: input as Record<string, unknown>, raw: input };
   return { obj: null, raw: input };
 }
 

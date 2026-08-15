@@ -155,11 +155,17 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
     yield { type: 'log', text: `GET ${input.url}` };
 
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(new ToolError({
-      message: 'fetch timeout',
-      code: 'TOOL_TIMEOUT',
-      toolName: 'fetch',
-    })), TIMEOUT_MS);
+    const timer = setTimeout(
+      () =>
+        ctrl.abort(
+          new ToolError({
+            message: 'fetch timeout',
+            code: 'TOOL_TIMEOUT',
+            toolName: 'fetch',
+          }),
+        ),
+      TIMEOUT_MS,
+    );
     const combined = combineSignals([opts.signal, ctrl.signal]);
 
     try {

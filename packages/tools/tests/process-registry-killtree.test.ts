@@ -21,7 +21,10 @@ function erroringChild(): EventEmitter & { unref: () => unknown } {
   return c;
 }
 
-function controllableChild(): EventEmitter & { kill: ReturnType<typeof vi.fn>; unref: ReturnType<typeof vi.fn> } {
+function controllableChild(): EventEmitter & {
+  kill: ReturnType<typeof vi.fn>;
+  unref: ReturnType<typeof vi.fn>;
+} {
   const c = new EventEmitter() as EventEmitter & {
     kill: ReturnType<typeof vi.fn>;
     unref: ReturnType<typeof vi.fn>;

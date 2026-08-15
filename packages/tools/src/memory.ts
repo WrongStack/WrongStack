@@ -5,7 +5,14 @@ interface RememberInput {
   text: string;
   scope?: MemoryScope | undefined;
   /** Memory type for categorization. */
-  type?: 'fact' | 'decision' | 'convention' | 'preference' | 'reference' | 'anti_pattern' | undefined;
+  type?:
+    | 'fact'
+    | 'decision'
+    | 'convention'
+    | 'preference'
+    | 'reference'
+    | 'anti_pattern'
+    | undefined;
   /** Hashtag-style tags for grouping and search. */
   tags?: string[] | undefined;
   /** Priority level — critical entries always injected into context. */
@@ -70,7 +77,8 @@ export function rememberTool(memory: MemoryStore): Tool<RememberInput, RememberO
         scope: {
           type: 'string',
           enum: ['project-agents', 'project-memory', 'user-memory'],
-          description: 'Where to store it: project-memory (shared), user-memory (personal), or project-agents.',
+          description:
+            'Where to store it: project-memory (shared), user-memory (personal), or project-agents.',
         },
         type: {
           type: 'string',
@@ -253,7 +261,9 @@ interface RelatedMemoryInput {
   limit?: number | undefined;
 }
 
-export function relatedMemoryTool(memory: MemoryStore): Tool<RelatedMemoryInput, SearchMemoryOutput> {
+export function relatedMemoryTool(
+  memory: MemoryStore,
+): Tool<RelatedMemoryInput, SearchMemoryOutput> {
   return {
     name: 'find_related_memories',
     category: 'Session',

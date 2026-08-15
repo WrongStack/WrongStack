@@ -31,11 +31,17 @@ describe('diffFromToolInput', () => {
 
   it('extracts a unified diff from patch', () => {
     const patch = '--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n';
-    expect(diffFromToolInput('patch', { patch })).toEqual({ mode: 'unified', patchText: patch, caption: 'patch' });
+    expect(diffFromToolInput('patch', { patch })).toEqual({
+      mode: 'unified',
+      patchText: patch,
+      caption: 'patch',
+    });
   });
 
   it('captions patch with the file path when present', () => {
-    expect(diffFromToolInput('patch', { patch: '@@ -1 +1 @@\n-a\n+b', path: 'x.ts' })?.caption).toBe('patch x.ts');
+    expect(
+      diffFromToolInput('patch', { patch: '@@ -1 +1 @@\n-a\n+b', path: 'x.ts' })?.caption,
+    ).toBe('patch x.ts');
   });
 
   it('returns null for non-diff tools and empty input', () => {
@@ -111,7 +117,10 @@ describe('tool-diff parity (TS vs embedded browser source)', () => {
     { tool: 'str_replace', input: { file_path: 't.ts', old_string: '1\n2', new_string: '' } },
     { tool: 'write', input: { path: 'new.ts', content: 'line1\nline2\nline3' } },
     { tool: 'create_file', input: { file_path: 'c.ts', content: 'only' } },
-    { tool: 'patch', input: { patch: '--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n ctx\n-old\n+new\n', path: 'x.ts' } },
+    {
+      tool: 'patch',
+      input: { patch: '--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n ctx\n-old\n+new\n', path: 'x.ts' },
+    },
     { tool: 'bash', input: { command: 'ls' } },
     { tool: 'edit', input: { old_string: '', new_string: '' } },
     { tool: undefined, input: { old_string: 'x' } },
@@ -145,7 +154,8 @@ describe('tool-diff parity (TS vs embedded browser source)', () => {
   }
 
   it('parseUnifiedDiff parity', () => {
-    const patch = 'diff --git a/x b/x\nindex 111..222\n--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n ctx\n-old\n+new\n';
+    const patch =
+      'diff --git a/x b/x\nindex 111..222\n--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n ctx\n-old\n+new\n';
     expect(bs.parseUnifiedDiff(patch)).toEqual(parseUnifiedDiff(patch));
   });
 });
@@ -157,7 +167,10 @@ describe('tool-diff parity (TS vs embedded browser source)', () => {
 // ---------------------------------------------------------------------------
 describe('parseUnifiedDiffPreview (rich, TUI-promoted)', () => {
   it('tracks old/new line gutters and a dedicated hunk kind', () => {
-    const p = parseUnifiedDiffPreview('@@ -10,2 +10,2 @@\n ctx\n-old\n+new', Number.POSITIVE_INFINITY);
+    const p = parseUnifiedDiffPreview(
+      '@@ -10,2 +10,2 @@\n ctx\n-old\n+new',
+      Number.POSITIVE_INFINITY,
+    );
     // Note: context and +/- rows keep their raw leading marker/space (' ctx',
     // '-old', '+new') — the terminal renderer strips/colours the marker itself.
     expect(p.rows).toEqual([
@@ -172,7 +185,10 @@ describe('parseUnifiedDiffPreview (rich, TUI-promoted)', () => {
   });
 
   it('drops +++/---/diff/index header lines', () => {
-    const p = parseUnifiedDiffPreview('diff --git a/x b/x\nindex 1..2\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b', Number.POSITIVE_INFINITY);
+    const p = parseUnifiedDiffPreview(
+      'diff --git a/x b/x\nindex 1..2\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b',
+      Number.POSITIVE_INFINITY,
+    );
     expect(p.rows.map((r) => r.kind)).toEqual(['hunk', 'del', 'add']);
   });
 

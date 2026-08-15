@@ -42,7 +42,10 @@ const TEST_FILE_REGEX = /(?:test|spec|mock|fixture|bench)[s]?[/\\._]/i;
 /**
  * Locate candidate test files matching a source file path using common conventions.
  */
-async function findConventionTestFiles(projectRoot: string, sourceRelPath: string): Promise<string[]> {
+async function findConventionTestFiles(
+  projectRoot: string,
+  sourceRelPath: string,
+): Promise<string[]> {
   const parsed = path.parse(sourceRelPath);
   const candidates = [
     path.join(parsed.dir, `${parsed.name}.test${parsed.ext}`),
@@ -204,7 +207,11 @@ export const codebaseTargetedTestTool: Tool<TargetedTestInput, TargetedTestOutpu
       const passMatch = combinedOutput.match(/(\d+)\s+passed/i);
       const failMatch = combinedOutput.match(/(\d+)\s+failed/i);
 
-      const passed = passMatch ? parseInt(passMatch[1] ?? '0', 10) : isPassed ? discoveredSuites.length : 0;
+      const passed = passMatch
+        ? parseInt(passMatch[1] ?? '0', 10)
+        : isPassed
+          ? discoveredSuites.length
+          : 0;
       const failed = failMatch ? parseInt(failMatch[1] ?? '0', 10) : isPassed ? 0 : 1;
       const testsRun = passed + failed;
 

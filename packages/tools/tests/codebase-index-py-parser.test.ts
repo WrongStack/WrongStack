@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseSymbols } from '../src/codebase-index/py-parser.js';
 
-async function withPythonFile(content: string, run: (file: string, content: string) => Promise<void>) {
+async function withPythonFile(
+  content: string,
+  run: (file: string, content: string) => Promise<void>,
+) {
   const dir = await mkdtemp(join(tmpdir(), 'ws-py-parser-'));
   const file = join(dir, 'mod.py');
   try {

@@ -45,7 +45,10 @@ const DIRECTORY_ENTRIES: Readonly<Record<string, readonly string[]>> = {
  * must land on the same key.
  */
 function normalizeNamespace(value: string): string {
-  return value.replace(/::|[\\/]/g, '.').replace(/^\.+|\.+$/g, '').toLowerCase();
+  return value
+    .replace(/::|[\\/]/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .toLowerCase();
 }
 
 export class ModuleResolver {

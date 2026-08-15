@@ -280,6 +280,13 @@ export function isValidEnglishRefinement(text: string): boolean {
 
 type LatestMessageLanguage = 'english' | 'non_english' | 'unknown';
 
+const VIBE_TAG_PATTERN = /\[vibe\]/iu;
+
+function preserveVibeTag(original: string, candidate: string): string {
+  if (!VIBE_TAG_PATTERN.test(original) || VIBE_TAG_PATTERN.test(candidate)) return candidate;
+  return `[VIBE] ${candidate}`;
+}
+
 function latestMessageLanguage(text: string): LatestMessageLanguage {
   const scores = languageScores(text);
   if (scores.nonEnglish > scores.english) return 'non_english';
@@ -299,9 +306,12 @@ export function parseBilingualEnhancement(raw: string, original: string): Enhanc
   if (matches.length !== 1) return null;
   const [match] = matches;
   if (!match) return null;
-  const refined = raw.slice(0, match.index).trim();
-  const english = raw.slice(match.index + match[0].length).trim();
-  if (!refined || !english || !isValidEnglishRefinement(english)) return null;
+  const rawRefined = raw.slice(0, match.index).trim();
+  const rawEnglish = raw.slice(match.index + match[0].length).trim();
+  if (!rawRefined || !rawEnglish) return null;
+  const refined = preserveVibeTag(original, rawRefined);
+  const english = preserveVibeTag(original, rawEnglish);
+  if (!isValidEnglishRefinement(english)) return null;
 
   // Reject a clearly English first half when the original was non-English.
   // For lexically ambiguous input, require the model to make the first half

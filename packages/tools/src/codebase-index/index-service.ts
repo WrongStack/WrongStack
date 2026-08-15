@@ -13,8 +13,21 @@
  */
 
 import { runIndexerWithStore } from './indexer.js';
-import type { CallSite, CodeMapGraph, IndexResult, IndexStats, SymbolKind, SymbolLang } from './schema.js';
-import type { CallRefsOpArgs, IndexOpArgs, SearchOpArgs, SearchOpResult, StatsOpArgs } from './worker-protocol.js';
+import type {
+  CallSite,
+  CodeMapGraph,
+  IndexResult,
+  IndexStats,
+  SymbolKind,
+  SymbolLang,
+} from './schema.js';
+import type {
+  CallRefsOpArgs,
+  IndexOpArgs,
+  SearchOpArgs,
+  SearchOpResult,
+  StatsOpArgs,
+} from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
 
 export interface ServiceHooks {

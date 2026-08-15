@@ -126,16 +126,10 @@ describe('planTool', () => {
       signal: newSignal(),
     });
 
-    const removed = await planTool.execute(
-      { action: 'remove', target: '1' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
-    const cleared = await planTool.execute(
-      { action: 'clear' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const removed = await planTool.execute({ action: 'remove', target: '1' }, sb.ctx, {
+      signal: newSignal(),
+    });
+    const cleared = await planTool.execute({ action: 'clear' }, sb.ctx, { signal: newSignal() });
 
     expect(removed.ok).toBe(false);
     expect(removed.message).toContain('is not done');

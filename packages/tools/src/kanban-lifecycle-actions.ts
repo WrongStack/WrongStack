@@ -64,9 +64,7 @@ export async function handleKanbanLifecycleAction(
         taskIds: input.taskIds,
         title: input.title,
         ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.targetColumnId !== undefined
-          ? { targetColumnId: input.targetColumnId }
-          : {}),
+        ...(input.targetColumnId !== undefined ? { targetColumnId: input.targetColumnId } : {}),
         ...(input.preserveAssignment !== undefined
           ? { preserveAssignment: input.preserveAssignment }
           : {}),
@@ -88,9 +86,7 @@ export async function handleKanbanLifecycleAction(
         input.taskId,
         input.targetBoardId,
         {
-          ...(input.targetColumnId !== undefined
-            ? { targetColumnId: input.targetColumnId }
-            : {}),
+          ...(input.targetColumnId !== undefined ? { targetColumnId: input.targetColumnId } : {}),
           ...(input.order !== undefined ? { targetOrder: input.order } : {}),
           ...(input.preserveAssignment !== undefined
             ? { preserveAssignment: input.preserveAssignment }
@@ -114,9 +110,7 @@ export async function handleKanbanLifecycleAction(
         input.taskId,
         input.targetBoardId,
         {
-          ...(input.targetColumnId !== undefined
-            ? { targetColumnId: input.targetColumnId }
-            : {}),
+          ...(input.targetColumnId !== undefined ? { targetColumnId: input.targetColumnId } : {}),
           ...(input.order !== undefined ? { targetOrder: input.order } : {}),
           ...(input.preserveAssignment !== undefined
             ? { preserveAssignment: input.preserveAssignment }
@@ -131,8 +125,7 @@ export async function handleKanbanLifecycleAction(
         : fail('Board or task not found.');
     }
     case 'get_task': {
-      if (!input.boardId || !input.taskId)
-        return fail('get_task requires boardId and taskId.');
+      if (!input.boardId || !input.taskId) return fail('get_task requires boardId and taskId.');
       const task = await getTask(projectRoot, input.boardId, input.taskId);
       return task ? { ok: true, message: 'Task loaded.', task } : fail('Task not found.');
     }
@@ -227,14 +220,8 @@ export async function handleKanbanLifecycleAction(
       );
     }
     case 'update_task': {
-      if (!input.boardId || !input.taskId)
-        return fail('update_task requires boardId and taskId.');
-      const board = await updateTask(
-        projectRoot,
-        input.boardId,
-        input.taskId,
-        taskPatch(input),
-      );
+      if (!input.boardId || !input.taskId) return fail('update_task requires boardId and taskId.');
+      const board = await updateTask(projectRoot, input.boardId, input.taskId, taskPatch(input));
       return board ? okBoard(board, 'Task updated.') : fail('Task not found.');
     }
     case 'transition_task': {
@@ -260,14 +247,9 @@ export async function handleKanbanLifecycleAction(
           !taskBefore.verificationReport &&
           (taskBefore.atomic || Boolean(taskBefore.successCriteria?.length))
         ) {
-          const preGate = await verifyTaskCompletion(
-            projectRoot,
-            input.boardId,
-            taskBefore.id,
-            {
-              persist: false,
-            },
-          );
+          const preGate = await verifyTaskCompletion(projectRoot, input.boardId, taskBefore.id, {
+            persist: false,
+          });
           await updateTask(projectRoot, input.boardId, taskBefore.id, {
             verificationReport: preGate.report,
             successCriteria: preGate.task.successCriteria,
@@ -285,9 +267,7 @@ export async function handleKanbanLifecycleAction(
               attachment: {
                 url: input.attachmentUrl,
                 type: input.attachmentType ?? 'url',
-                ...(input.attachmentTitle !== undefined
-                  ? { title: input.attachmentTitle }
-                  : {}),
+                ...(input.attachmentTitle !== undefined ? { title: input.attachmentTitle } : {}),
               },
             }
           : {}),
@@ -306,15 +286,10 @@ export async function handleKanbanLifecycleAction(
           'repair_managed_projection requires boardId, taskId, author, and transitionComment.',
         );
       }
-      const result = await repairManagedTaskProjection(
-        projectRoot,
-        input.boardId,
-        input.taskId,
-        {
-          actor: input.author,
-          comment: input.transitionComment,
-        },
-      );
+      const result = await repairManagedTaskProjection(projectRoot, input.boardId, input.taskId, {
+        actor: input.author,
+        comment: input.transitionComment,
+      });
       return result
         ? okTask(
             result.board,
@@ -337,8 +312,7 @@ export async function handleKanbanLifecycleAction(
       return board ? okBoard(board, 'Task moved.') : fail('Move failed.');
     }
     case 'delete_task': {
-      if (!input.boardId || !input.taskId)
-        return fail('delete_task requires boardId and taskId.');
+      if (!input.boardId || !input.taskId) return fail('delete_task requires boardId and taskId.');
       const board = await removeTask(projectRoot, input.boardId, input.taskId);
       if (board && ctx.currentKanbanTaskId === input.taskId) {
         ctx.setCurrentKanbanTask?.(undefined, ctx.currentKanbanBoardId);
@@ -406,8 +380,7 @@ export async function handleKanbanLifecycleAction(
       return board ? okBoard(board, 'Task claim released.') : fail('Task not found.');
     }
     case 'assign_task': {
-      if (!input.boardId || !input.taskId)
-        return fail('assign_task requires boardId and taskId.');
+      if (!input.boardId || !input.taskId) return fail('assign_task requires boardId and taskId.');
       const board = await assignTask(
         projectRoot,
         input.boardId,
@@ -436,9 +409,7 @@ export async function handleKanbanLifecycleAction(
           ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
           ...(input.claimedAt !== undefined ? { claimedAt: input.claimedAt } : {}),
           ...(input.heartbeatAt !== undefined ? { heartbeatAt: input.heartbeatAt } : {}),
-          ...(input.leaseExpiresAt !== undefined
-            ? { leaseExpiresAt: input.leaseExpiresAt }
-            : {}),
+          ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
           ...(input.attempt !== undefined ? { attempt: input.attempt } : {}),
           ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
         },
@@ -526,11 +497,7 @@ export async function handleKanbanLifecycleAction(
 
             if (hasCriteria) {
               try {
-                const verResult = await verifyTaskCompletion(
-                  projectRoot,
-                  board.id,
-                  input.taskId,
-                );
+                const verResult = await verifyTaskCompletion(projectRoot, board.id, input.taskId);
                 if (verResult.report) {
                   recordKanbanVerificationEvidence(ctx, verResult.report);
                 }
@@ -547,22 +514,17 @@ export async function handleKanbanLifecycleAction(
                   );
                 } else if (verdict === 'passed') {
                   try {
-                    const doneResult = await transitionTask(
-                      projectRoot,
-                      board.id,
-                      input.taskId,
-                      {
-                        to: 'done',
-                        actor,
-                        action: 'Automated acceptance after verification',
-                        comment: 'Auto-accepted: verification passed.',
-                        attachment: {
-                          url: `kanban://task/${input.taskId}/verification`,
-                          title: 'Auto-verification result',
-                          type: 'file',
-                        },
+                    const doneResult = await transitionTask(projectRoot, board.id, input.taskId, {
+                      to: 'done',
+                      actor,
+                      action: 'Automated acceptance after verification',
+                      comment: 'Auto-accepted: verification passed.',
+                      attachment: {
+                        url: `kanban://task/${input.taskId}/verification`,
+                        title: 'Auto-verification result',
+                        type: 'file',
                       },
-                    );
+                    });
                     transitionResult = doneResult;
                   } catch (acceptErr: unknown) {
                     lifecycleWarnings.push(
@@ -604,12 +566,8 @@ export async function handleKanbanLifecycleAction(
       }
       const board = await heartbeatTaskAssignment(projectRoot, input.boardId, input.taskId, {
         ...(input.heartbeatAt !== undefined ? { heartbeatAt: input.heartbeatAt } : {}),
-        ...(input.leaseExpiresAt !== undefined
-          ? { leaseExpiresAt: input.leaseExpiresAt }
-          : {}),
-        ...(input.expectedLeaseId !== undefined
-          ? { expectedLeaseId: input.expectedLeaseId }
-          : {}),
+        ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
+        ...(input.expectedLeaseId !== undefined ? { expectedLeaseId: input.expectedLeaseId } : {}),
       });
       return board
         ? okBoard(board, 'Assignment heartbeat updated.')

@@ -76,6 +76,10 @@ export function buildIntakeCommand(opts: SlashCommandContext): SlashCommand {
       );
       const { record: submitted } = await service.submitIntake(record.id, ctx);
 
+      const vibeLine = submitted.isVibeMode
+        ? '  🌊 Mode: VIBE Protocol Active (Spec-Synthesizer -> Coder -> Auditor)'
+        : undefined;
+
       return {
         message: [
           idempotent
@@ -84,6 +88,7 @@ export function buildIntakeCommand(opts: SlashCommandContext): SlashCommand {
           `  id: ${submitted.id}`,
           `  title: ${submitted.title}`,
           `  type: ${submitted.requestType}`,
+          ...(vibeLine ? [vibeLine] : []),
           `  status: ${submitted.status} (${created ? 'new' : 'existing'})`,
           `  stored: ${baseDir}`,
           '',

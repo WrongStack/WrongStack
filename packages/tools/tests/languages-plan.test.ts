@@ -158,23 +158,20 @@ describe('planLanguageOperation', () => {
     expect(result.status === 'planned' && result.workspace.root).toBe(path.join(root, 'b'));
   });
 
-  it.each([
-    '--evil',
-    '../local',
-    'file:../local',
-    'https://evil.test/x',
-    'x;calc',
-  ])('rejects unsafe package identifier %s', async (name) => {
-    await file('package.json', '{}');
-    await expect(
-      planLanguageOperation({
-        projectRoot: root,
-        language: 'javascript',
-        operation: 'package-add',
-        operationOptions: { packages: [name] },
-      }),
-    ).rejects.toThrow(/Invalid package|not supported/);
-  });
+  it.each(['--evil', '../local', 'file:../local', 'https://evil.test/x', 'x;calc'])(
+    'rejects unsafe package identifier %s',
+    async (name) => {
+      await file('package.json', '{}');
+      await expect(
+        planLanguageOperation({
+          projectRoot: root,
+          language: 'javascript',
+          operation: 'package-add',
+          operationOptions: { packages: [name] },
+        }),
+      ).rejects.toThrow(/Invalid package|not supported/);
+    },
+  );
 
   it('returns unavailable instead of guessing across conflicting Node lockfiles', async () => {
     await file('package.json', '{}');

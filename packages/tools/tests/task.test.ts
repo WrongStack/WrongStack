@@ -32,7 +32,9 @@ async function mkTaskSandbox(): Promise<TaskSandbox> {
 }
 
 /** Read the raw task file from disk. */
-async function readTasksOnDisk(taskPath: string): Promise<Array<{ id: string; title: string; status: string; dependsOn?: string[] }>> {
+async function readTasksOnDisk(
+  taskPath: string,
+): Promise<Array<{ id: string; title: string; status: string; dependsOn?: string[] }>> {
   const raw = JSON.parse(await fs.readFile(taskPath, 'utf8')) as {
     tasks: Array<{ id: string; title: string; status: string; dependsOn?: string[] }>;
   };
@@ -71,10 +73,24 @@ describe('taskTool', () => {
   // -------------------------------------------------------------------
   it('replace sets the full task list and persists to disk', async () => {
     const tasks = [
-      { id: 't1', title: 'Task one', type: 'feature' as const, priority: 'high' as const, status: 'pending' as const },
-      { id: 't2', title: 'Task two', type: 'bugfix' as const, priority: 'medium' as const, status: 'completed' as const },
+      {
+        id: 't1',
+        title: 'Task one',
+        type: 'feature' as const,
+        priority: 'high' as const,
+        status: 'pending' as const,
+      },
+      {
+        id: 't2',
+        title: 'Task two',
+        type: 'bugfix' as const,
+        priority: 'medium' as const,
+        status: 'completed' as const,
+      },
     ];
-    const out = await taskTool.execute({ action: 'replace', tasks }, sb.ctx, { signal: newSignal() });
+    const out = await taskTool.execute({ action: 'replace', tasks }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.ok).toBe(true);
     expect(out.count).toBe(2);
     expect(out.completed).toBe(1);
@@ -104,11 +120,9 @@ describe('taskTool', () => {
       { signal: newSignal() },
     );
 
-    const out = await taskTool.execute(
-      { action: 'replace', tasks: [] },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await taskTool.execute({ action: 'replace', tasks: [] }, sb.ctx, {
+      signal: newSignal(),
+    });
 
     expect(out.ok).toBe(false);
     expect(out.message).toContain('cannot omit unfinished tasks: keep');
@@ -181,7 +195,9 @@ describe('taskTool', () => {
     await taskTool.execute(
       {
         action: 'replace',
-        tasks: [{ id: 'p1', title: 'Parent', type: 'feature', priority: 'high', status: 'pending' }],
+        tasks: [
+          { id: 'p1', title: 'Parent', type: 'feature', priority: 'high', status: 'pending' },
+        ],
       },
       sb.ctx,
       { signal: newSignal() },
@@ -234,7 +250,9 @@ describe('taskTool', () => {
     await taskTool.execute(
       {
         action: 'replace',
-        tasks: [{ id: 't1', title: 'Work item', type: 'feature', priority: 'high', status: 'pending' }],
+        tasks: [
+          { id: 't1', title: 'Work item', type: 'feature', priority: 'high', status: 'pending' },
+        ],
       },
       sb.ctx,
       { signal: newSignal() },
@@ -250,11 +268,9 @@ describe('taskTool', () => {
     expect(out.inProgress).toBe(1);
 
     // → completed
-    out = await taskTool.execute(
-      { action: 'status', id: 't1', status: 'completed' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    out = await taskTool.execute({ action: 'status', id: 't1', status: 'completed' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.ok).toBe(true);
     expect(out.completed).toBe(1);
     expect(out.inProgress).toBe(0);
@@ -274,11 +290,7 @@ describe('taskTool', () => {
   });
 
   it('status without id or status returns ok=false', async () => {
-    const out = await taskTool.execute(
-      { action: 'status' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await taskTool.execute({ action: 'status' }, sb.ctx, { signal: newSignal() });
     expect(out.ok).toBe(false);
   });
 
@@ -290,7 +302,7 @@ describe('taskTool', () => {
     (sb.ctx as never as { state: { replaceTodos: (todos: unknown[]) => void } }).state = {
       replaceTodos(todos: unknown[]) {
         replacedTodos.length = 0;
-        replacedTodos.push(...todos as Array<{ id: string; content: string; status: string }>);
+        replacedTodos.push(...(todos as Array<{ id: string; content: string; status: string }>));
       },
     };
 
@@ -312,11 +324,9 @@ describe('taskTool', () => {
       { signal: newSignal() },
     );
 
-    const out = await taskTool.execute(
-      { action: 'promote', target: 'login-task' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await taskTool.execute({ action: 'promote', target: 'login-task' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.ok).toBe(true);
     expect(out.message).toMatch(/promote/i);
     expect(out.message).toContain('todo');
@@ -330,7 +340,7 @@ describe('taskTool', () => {
     (sb.ctx as never as { state: { replaceTodos: (todos: unknown[]) => void } }).state = {
       replaceTodos(todos: unknown[]) {
         replacedTodos.length = 0;
-        replacedTodos.push(...todos as Array<{ id: string; content: string; status: string }>);
+        replacedTodos.push(...(todos as Array<{ id: string; content: string; status: string }>));
       },
     };
 
@@ -353,8 +363,8 @@ describe('taskTool', () => {
     expect(out.ok).toBe(true);
     expect(replacedTodos.length).toBe(3); // 1 parent + 2 subtasks
     expect(replacedTodos[0]?.status).toBe('in_progress'); // parent active
-    expect(replacedTodos[1]?.status).toBe('pending');      // subtask 1
-    expect(replacedTodos[2]?.status).toBe('pending');      // subtask 2
+    expect(replacedTodos[1]?.status).toBe('pending'); // subtask 1
+    expect(replacedTodos[2]?.status).toBe('pending'); // subtask 2
   });
 
   // -------------------------------------------------------------------
@@ -364,17 +374,24 @@ describe('taskTool', () => {
     await taskTool.execute(
       {
         action: 'replace',
-        tasks: [{ id: 't1', title: 'Strategic initiative', description: 'Big picture goal', type: 'feature', priority: 'high', status: 'pending' }],
+        tasks: [
+          {
+            id: 't1',
+            title: 'Strategic initiative',
+            description: 'Big picture goal',
+            type: 'feature',
+            priority: 'high',
+            status: 'pending',
+          },
+        ],
       },
       sb.ctx,
       { signal: newSignal() },
     );
 
-    const out = await taskTool.execute(
-      { action: 'planify', target: 't1' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await taskTool.execute({ action: 'planify', target: 't1' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.ok).toBe(true);
     expect(out.message).toMatch(/planify ok/i);
     expect(out.message).toContain('Strategic initiative');
@@ -390,11 +407,7 @@ describe('taskTool', () => {
   });
 
   it('planify without target returns ok=false', async () => {
-    const out = await taskTool.execute(
-      { action: 'planify' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await taskTool.execute({ action: 'planify' }, sb.ctx, { signal: newSignal() });
     expect(out.ok).toBe(false);
     expect(out.message).toMatch(/target/i);
   });
@@ -420,7 +433,9 @@ describe('taskTool', () => {
   });
 
   it('unknown action returns ok=false', async () => {
-    const out = await taskTool.execute({ action: 'bogus' as 'show' }, sb.ctx, { signal: newSignal() });
+    const out = await taskTool.execute({ action: 'bogus' as 'show' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.ok).toBe(false);
   });
 
@@ -432,7 +447,14 @@ describe('taskTool', () => {
       {
         action: 'replace',
         tasks: [
-          { id: 't1', title: 'A', type: 'feature', priority: 'high', status: 'pending', dependsOn: ['nope'] },
+          {
+            id: 't1',
+            title: 'A',
+            type: 'feature',
+            priority: 'high',
+            status: 'pending',
+            dependsOn: ['nope'],
+          },
         ],
       },
       sb.ctx,
@@ -450,7 +472,14 @@ describe('taskTool', () => {
       {
         action: 'replace',
         tasks: [
-          { id: 't1', title: 'Build login', description: 'OAuth + sessions', type: 'feature', priority: 'high', status: 'pending' },
+          {
+            id: 't1',
+            title: 'Build login',
+            description: 'OAuth + sessions',
+            type: 'feature',
+            priority: 'high',
+            status: 'pending',
+          },
         ],
       },
       sb.ctx,
@@ -530,7 +559,9 @@ describe('taskTool', () => {
     await taskTool.execute(
       {
         action: 'replace',
-        tasks: [{ id: 't1', title: 'Done task', type: 'feature', priority: 'low', status: 'completed' }],
+        tasks: [
+          { id: 't1', title: 'Done task', type: 'feature', priority: 'low', status: 'completed' },
+        ],
       },
       sb.ctx,
       { signal: newSignal() },
@@ -556,7 +587,14 @@ describe('taskTool', () => {
         action: 'replace',
         tasks: [
           { id: 't1', title: 'First', type: 'feature', priority: 'high', status: 'pending' },
-          { id: 't2', title: 'Second', type: 'bugfix', priority: 'low', status: 'pending', dependsOn: ['t1'] },
+          {
+            id: 't2',
+            title: 'Second',
+            type: 'bugfix',
+            priority: 'low',
+            status: 'pending',
+            dependsOn: ['t1'],
+          },
         ],
       },
       sb.ctx,

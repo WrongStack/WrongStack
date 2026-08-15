@@ -217,6 +217,26 @@ export function Composer({
             ))}
           </fieldset>
         )}
+        {/\[VIBE\]/i.test(draft) && (
+          <div
+            className="vibe-mode-pill"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              padding: '3px 8px',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              color: '#38bdf8',
+              borderRadius: '4px',
+              marginBottom: '6px',
+            }}
+          >
+            <span>🌊</span>
+            <span><strong>VIBE Protocol:</strong> Three-Stage Verification (Spec → Coder → Auditor)</span>
+          </div>
+        )}
         <textarea
           ref={textareaRef}
           aria-label="Message"

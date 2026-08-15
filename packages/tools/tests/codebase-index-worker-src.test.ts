@@ -39,10 +39,12 @@ describe('codebase-index worker entry (src)', () => {
 
   it('dispatches an index request and forwards progress', async () => {
     await import('../src/codebase-index/worker.js');
-    indexService.mockImplementation(async (_args, optsArg: { onProgress: (c: number, t: number) => void }) => {
-      optsArg.onProgress(1, 3);
-      return { filesIndexed: 1 };
-    });
+    indexService.mockImplementation(
+      async (_args, optsArg: { onProgress: (c: number, t: number) => void }) => {
+        optsArg.onProgress(1, 3);
+        return { filesIndexed: 1 };
+      },
+    );
     port.emit('message', { type: 'request', id: 1, op: 'index', args: {} });
     await flush();
     const msgs = port.postMessage.mock.calls.map((c) => c[0] as { type: string; id: number });

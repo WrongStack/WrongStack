@@ -17,7 +17,6 @@ import { getProcessRegistry, redactCommand } from './process-registry.js';
 
 const isWin = process.platform === 'win32';
 
-
 // The live, effective allowlist: DEFAULT ∪ config.allow − config.deny. Replaced
 // wholesale by configureExecPolicy(); defaults until boot wires the config.
 let allowedCommands: Set<string> = new Set(DEFAULT_ALLOWED_COMMANDS);

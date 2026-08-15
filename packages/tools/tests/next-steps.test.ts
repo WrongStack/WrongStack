@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  isFinalTurnStopReason,
-  parseNextSteps,
-  stripNextStepsBlock,
-} from '../src/next-steps.js';
+import { isFinalTurnStopReason, parseNextSteps, stripNextStepsBlock } from '../src/next-steps.js';
 
 /**
  * Tests for the canonical `<nextsteps>` block parser, now extracted into
@@ -23,14 +19,9 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
     // Regression test: the legacy webui parser fell back to treating any
     // "1. foo" line in the message body as a step. The parser must not —
     // a canonical <nextsteps> tag is required before items are recognised.
-    const text = [
-      'Here is my plan:',
-      '',
-      '1. First do X',
-      '2. Then do Y',
-      '',
-      'That is all.',
-    ].join('\n');
+    const text = ['Here is my plan:', '', '1. First do X', '2. Then do Y', '', 'That is all.'].join(
+      '\n',
+    );
     const { steps, stripped } = parseNextSteps(text, true);
     expect(steps).toEqual([]);
     expect(stripped).toBe(text);
@@ -55,16 +46,8 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
       'Some postamble.',
     ].join('\n');
     const { steps, stripped, texts } = parseNextSteps(text, true);
-    expect(steps.map((s) => s.text)).toEqual([
-      'Run the smoke test',
-      'Commit the change',
-      'Push',
-    ]);
-    expect(texts).toEqual([
-      'Run the smoke test',
-      'Commit the change',
-      'Push',
-    ]);
+    expect(steps.map((s) => s.text)).toEqual(['Run the smoke test', 'Commit the change', 'Push']);
+    expect(texts).toEqual(['Run the smoke test', 'Commit the change', 'Push']);
     expect(stripped).not.toContain('<nextsteps>');
     expect(stripped).not.toContain('1. Run the smoke test');
     expect(stripped).toContain('Some preamble.');
@@ -72,13 +55,7 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
   });
 
   it('ignores legacy loose next-step headings', () => {
-    const text = [
-      'I did the thing.',
-      '',
-      '💡 Next steps',
-      '1. First',
-      '2. Second',
-    ].join('\n');
+    const text = ['I did the thing.', '', '💡 Next steps', '1. First', '2. Second'].join('\n');
     const { stripped, texts } = parseNextSteps(text, true);
     expect(texts).toEqual([]);
     expect(stripped).toBe(text);

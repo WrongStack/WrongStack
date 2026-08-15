@@ -24,7 +24,9 @@ describe('pickShell — POSIX', () => {
   it('ignores WRONGSTACK_SHELL on POSIX (POSIX keeps its own resolver path)', () => {
     // pickShell is a Windows-only helper; on POSIX the env var is
     // handled by bash.ts directly. Confirm pickShell does not second-guess.
-    expect(pickShell('linux', 'echo hi', envFrom({ WRONGSTACK_SHELL: '/bin/zsh' }))).toBe(POSIX_DEFAULT);
+    expect(pickShell('linux', 'echo hi', envFrom({ WRONGSTACK_SHELL: '/bin/zsh' }))).toBe(
+      POSIX_DEFAULT,
+    );
   });
 });
 
@@ -63,15 +65,15 @@ describe('pickShell — WRONGSTACK_SHELL override', () => {
     // /bin/zsh is a POSIX shell — silently ignored on Windows so a stale
     // POSIX-derived WRONGSTACK_SHELL does not brick the tool.
     expect(pickShell(win, 'echo hi', envFrom({ WRONGSTACK_SHELL: '/bin/zsh' }))).toBe('cmd');
-    expect(pickShell(win, 'Get-Content foo', envFrom({ WRONGSTACK_SHELL: '/bin/zsh' }))).toBe('pwsh');
+    expect(pickShell(win, 'Get-Content foo', envFrom({ WRONGSTACK_SHELL: '/bin/zsh' }))).toBe(
+      'pwsh',
+    );
   });
 
   it('override wins over auto-detect', () => {
     // Even when the command looks like PowerShell, an explicit cmd override
     // forces cmd.exe. The user knows their shell.
-    expect(
-      pickShell(win, 'Get-Content foo', envFrom({ WRONGSTACK_SHELL: 'cmd' })),
-    ).toBe('cmd');
+    expect(pickShell(win, 'Get-Content foo', envFrom({ WRONGSTACK_SHELL: 'cmd' }))).toBe('cmd');
   });
 });
 

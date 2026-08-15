@@ -38,6 +38,7 @@ import {
   deterministicTitle,
   normalizeRequestType,
 } from './validation.js';
+import { deriveVibeState } from './vibe.js';
 
 export function appendItems(target: string[], raw: string): void {
   const items = raw
@@ -138,6 +139,12 @@ export function buildNewIntakeRecord(
     addedAt: now,
   }));
 
+  const vibeState = deriveVibeState(
+    input.originalRequest,
+    input.vibeProtocol ?? (input.isVibeMode ? { isVibeMode: true, detectedAt: now, stage: 'synthesizer' } : undefined),
+    now,
+  );
+
   return {
     id: newIntakeId(),
     projectId: input.projectId,
@@ -148,6 +155,7 @@ export function buildNewIntakeRecord(
     status: 'draft',
     priority: input.priority ?? 'unspecified',
     requestedBy: input.requestedBy,
+    ...(vibeState ? { isVibeMode: true, vibeProtocol: vibeState } : {}),
     ...(input.businessGoal !== undefined ? { businessGoal: input.businessGoal } : {}),
     targetUsers: [...(input.targetUsers ?? [])],
     ...(input.expectedOutcome !== undefined ? { expectedOutcome: input.expectedOutcome } : {}),

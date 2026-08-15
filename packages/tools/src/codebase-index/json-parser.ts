@@ -35,7 +35,6 @@ export { detectLang } from './languages.js';
 
 // ─── Regex parser ───────────────────────────────────────────────────────────
 
-
 /**
  * Extract key-value pairs from JSON content using regex.
  * Handles: "key": value, arrays with keyed objects, nested objects (depth ≤ 3).
@@ -96,7 +95,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
     match = topLevelKeyRegex.exec(content)
   ) {
     const key = expectDefined(match[1]);
-    const offset = (match.index ?? 0);
+    const offset = match.index ?? 0;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);
 
@@ -185,7 +184,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   for (const pat of defsPatterns) {
     pat.lastIndex = 0;
     for (let match = pat.exec(content); match !== null; match = pat.exec(content)) {
-      const offset = (match.index ?? 0);
+      const offset = match.index ?? 0;
       const line = lineFromOffset(offset);
       const key = match[0]?.match(/"([^"]+)"/)?.[1] ?? expectDefined(match[0]);
       symbols.push(
@@ -221,7 +220,7 @@ function extractPackageScripts(
     match = scriptsBlockRegex.exec(content)
   ) {
     const blockContent = expectDefined(match[0]);
-    const blockOffset = (match.index ?? 0);
+    const blockOffset = match.index ?? 0;
 
     // Extract each "key" inside the block (simple approach)
     const scriptKeyRegex = /"(\w[\w-]*)"\s*:/g;
@@ -265,7 +264,7 @@ function extractCompilerOptions(
     match = optsBlockRegex.exec(content)
   ) {
     const blockContent = expectDefined(match[0]);
-    const blockOffset = (match.index ?? 0);
+    const blockOffset = match.index ?? 0;
 
     // Extract nested key inside compilerOptions (up to depth 1)
     const optKeyRegex = /"(\w[\w]*)"\s*:/g;

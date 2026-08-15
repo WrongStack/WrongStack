@@ -86,10 +86,11 @@ export function diagnosticsForInternalSyntax(
       scriptKind,
     );
     const native =
-      (sourceFile as unknown as {
-        parseDiagnostics?: import('@typescript/typescript6').Diagnostic[];
-      })
-        .parseDiagnostics ?? [];
+      (
+        sourceFile as unknown as {
+          parseDiagnostics?: import('@typescript/typescript6').Diagnostic[];
+        }
+      ).parseDiagnostics ?? [];
     const diagnostics = native.map<LanguageDiagnostic>((diagnostic) => {
       const start = diagnostic.start ?? 0;
       const location = sourceFile.getLineAndCharacterOfPosition(start);

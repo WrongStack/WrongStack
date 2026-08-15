@@ -28,10 +28,7 @@ export type PackageManager = 'pnpm' | 'yarn' | 'npm';
  * rather than throwing, so a `safeResolve`-checked cwd that happens to be
  * empty never aborts the tool.
  */
-export async function detectPackageManager(
-  cwd: string,
-  stopAt?: string,
-): Promise<PackageManager> {
+export async function detectPackageManager(cwd: string, stopAt?: string): Promise<PackageManager> {
   let dir = path.resolve(cwd);
   const stop = stopAt ? path.resolve(stopAt) : dir;
   for (;;) {

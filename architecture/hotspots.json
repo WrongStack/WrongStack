@@ -95,7 +95,7 @@
       "relativeImports": 8
     },
     "packages/core/src/execution/prompt-enhancer.ts": {
-      "lines": 813,
+      "lines": 823,
       "relativeImports": 8
     },
     "packages/core/src/hq/auth-store.ts": {
@@ -111,8 +111,8 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1009,
-      "relativeImports": 153
+      "lines": 1018,
+      "relativeImports": 154
     },
     "packages/core/src/security/secret-vault.ts": {
       "lines": 828,
@@ -215,7 +215,7 @@
       "relativeImports": 3
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
-      "lines": 912,
+      "lines": 909,
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/indexer.ts": {
@@ -223,16 +223,20 @@
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {
-      "lines": 829,
+      "lines": 830,
       "relativeImports": 6
     },
     "packages/tools/src/codebase-index/project-server.ts": {
-      "lines": 859,
+      "lines": 862,
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 890,
+      "lines": 888,
       "relativeImports": 18
+    },
+    "packages/tools/src/json.ts": {
+      "lines": 811,
+      "relativeImports": 2
     },
     "packages/tools/src/session-kanban.ts": {
       "lines": 835,
@@ -319,7 +323,7 @@
       "relativeImports": 2
     },
     "packages/webui/src/components/FileActivityDrawer.tsx": {
-      "lines": 881,
+      "lines": 1063,
       "relativeImports": 2
     },
     "packages/webui/src/components/KanbanTaskInspector.tsx": {
@@ -371,7 +375,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 886,
+      "lines": 903,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -395,7 +399,7 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/file-handlers.ts": {
-      "lines": 844,
+      "lines": 916,
       "relativeImports": 3
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {

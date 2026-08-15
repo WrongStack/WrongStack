@@ -8,11 +8,7 @@ describe('mapWithConcurrency', () => {
   });
 
   it('maps all items with default concurrency', async () => {
-    const result = await mapWithConcurrency(
-      [1, 2, 3, 4, 5],
-      3,
-      async (x: number) => x * 2,
-    );
+    const result = await mapWithConcurrency([1, 2, 3, 4, 5], 3, async (x: number) => x * 2);
     expect(result).toEqual([2, 4, 6, 8, 10]);
   });
 
@@ -30,40 +26,28 @@ describe('mapWithConcurrency', () => {
   it('handles limit=1 (serial execution)', async () => {
     let running = 0;
     let maxRunning = 0;
-    const result = await mapWithConcurrency(
-      [1, 2, 3],
-      1,
-      async (x: number) => {
-        running++;
-        maxRunning = Math.max(maxRunning, running);
-        await new Promise((r) => setTimeout(r, 5));
-        running--;
-        return x;
-      },
-    );
+    const result = await mapWithConcurrency([1, 2, 3], 1, async (x: number) => {
+      running++;
+      maxRunning = Math.max(maxRunning, running);
+      await new Promise((r) => setTimeout(r, 5));
+      running--;
+      return x;
+    });
     expect(result).toEqual([1, 2, 3]);
     expect(maxRunning).toBe(1);
   });
 
   it('handles limit higher than items length', async () => {
-    const result = await mapWithConcurrency(
-      ['a', 'b'],
-      10,
-      async (x: string) => x.toUpperCase(),
-    );
+    const result = await mapWithConcurrency(['a', 'b'], 10, async (x: string) => x.toUpperCase());
     expect(result).toEqual(['A', 'B']);
   });
 
   it('rejects on first error (fail-fast)', async () => {
     await expect(
-      mapWithConcurrency(
-        [1, 2, 3, 4, 5],
-        2,
-        async (x: number) => {
-          if (x === 3) throw new Error('boom');
-          return x;
-        },
-      ),
+      mapWithConcurrency([1, 2, 3, 4, 5], 2, async (x: number) => {
+        if (x === 3) throw new Error('boom');
+        return x;
+      }),
     ).rejects.toThrow('boom');
   });
 });

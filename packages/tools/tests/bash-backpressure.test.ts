@@ -56,11 +56,7 @@ describe('bash backpressure — MAX_QUEUE_CHUNKS upper bound (P1 #3)', () => {
   it('terminates and truncates output from a command exceeding MAX_QUEUE_CHUNKS', async () => {
     const sb = await mkSandbox();
     try {
-      const out = await bashTool.execute(
-        { command: bigCmd },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await bashTool.execute({ command: bigCmd }, sb.ctx, { signal: newSignal() });
       // 1. Process terminated cleanly (not hung by backpressure).
       expect(out.exit_code).toBe(0);
       expect(out.timed_out).toBe(false);
@@ -77,11 +73,7 @@ describe('bash backpressure — MAX_QUEUE_CHUNKS upper bound (P1 #3)', () => {
     const sb = await mkSandbox();
     try {
       const before = process.memoryUsage().heapUsed;
-      const out = await bashTool.execute(
-        { command: bigCmd },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await bashTool.execute({ command: bigCmd }, sb.ctx, { signal: newSignal() });
       const after = process.memoryUsage().heapUsed;
       const heapDelta = after - before;
 
@@ -109,11 +101,7 @@ describe('bash backpressure — MAX_QUEUE_CHUNKS upper bound (P1 #3)', () => {
       const cmd = isWin
         ? 'Write-Output START; 1..3000 | ForEach-Object { Write-Output $_ }'
         : 'echo START; seq 3000';
-      const out = await bashTool.execute(
-        { command: cmd },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await bashTool.execute({ command: cmd }, sb.ctx, { signal: newSignal() });
       expect(out.exit_code).toBe(0);
       expect(out.output.length).toBeLessThan(40_000);
       // The head marker survives (start of output is preserved).

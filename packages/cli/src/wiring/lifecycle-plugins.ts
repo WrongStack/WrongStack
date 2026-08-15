@@ -44,6 +44,7 @@ import {
   createUserPromptSubmitMiddleware,
 } from '../hooks-wiring.js';
 import { makeConfirmAwaiter } from '../permission-prompt.js';
+import { installVibeProtocol } from '../vibe-protocol-wiring.js';
 import { installDesignStudio } from './design-studio.js';
 import type { HqPublisherRef } from './hq-telemetry.js';
 import { registerMcpObservability } from './metrics.js';
@@ -196,6 +197,9 @@ export async function setupLifecycleAndPlugins(
       }
     }
   });
+
+  // VIBE protocol — synthesize/coder input contract + final-response audit.
+  installVibeProtocol(pipelines);
 
   // Design Studio — per-turn UI-intent detection + kit-menu injection.
   installDesignStudio({ pipelines, context });

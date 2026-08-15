@@ -13,7 +13,13 @@ import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { normalizeCommandOutput } from './_util.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 import { checkAndBlockKillCommand } from './bash-kill-guard.js';
-import { pickShell, shellArgs, type BashShell, wrapPowerShellScript, diagnoseBashism } from './_shell-pick.js';
+import {
+  pickShell,
+  shellArgs,
+  type BashShell,
+  wrapPowerShellScript,
+  diagnoseBashism,
+} from './_shell-pick.js';
 import { resolvePowerShell } from './_win32-resolve.js';
 
 interface BashInput {
@@ -60,9 +66,9 @@ export const bashTool: Tool<BashInput, BashOutput> = {
   name: 'bash',
   category: 'Shell',
   description:
-    'Execute an arbitrary command in the user\'s default shell (bash/zsh/pwsh/cmd). ' +
+    "Execute an arbitrary command in the user's default shell (bash/zsh/pwsh/cmd). " +
     'stdout and stderr are merged into one stream. This is the most powerful and dangerous tool — ' +
-    'it gives the model full access to the developer\'s machine. Prefer specialized tools whenever possible.',
+    "it gives the model full access to the developer's machine. Prefer specialized tools whenever possible.",
   usageHint:
     'SECURITY WARNING: This tool runs with the full privileges of the current user.\n\n' +
     'Best practices for the model:\n' +
@@ -73,7 +79,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     '- The working directory is the session working dir (changed via `set_working_dir`), defaulting to the project root.\n' +
     '- Output may be truncated in the middle for very large results.',
   selection: {
-    doNotUseWhen: 'the command is allowlisted and does not require pipes, redirection, or shell expansion.',
+    doNotUseWhen:
+      'the command is allowlisted and does not require pipes, redirection, or shell expansion.',
     useInstead: ['exec'],
   },
   permission: 'confirm',
@@ -109,7 +116,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       },
       background: {
         type: 'boolean',
-        description: 'If true, launch the process in the background and return the PID immediately.',
+        description:
+          'If true, launch the process in the background and return the PID immediately.',
       },
     },
     required: ['command'],
@@ -158,7 +166,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
           exit_code: 1,
           timed_out: false,
           pid: null,
-          error: killCheck.reason || 'Kill command blocked: targets a protected WrongStack process.',
+          error:
+            killCheck.reason || 'Kill command blocked: targets a protected WrongStack process.',
         },
       };
       return;
@@ -238,12 +247,15 @@ export const bashTool: Tool<BashInput, BashOutput> = {
           ? resolvePowerShell('powershell.exe')
           : shell === 'pwsh'
             ? resolvePowerShell('pwsh.exe')
-            : process.env['COMSPEC'] ?? 'cmd.exe';
+            : (process.env['COMSPEC'] ?? 'cmd.exe');
       plan = {
         bin,
         argv: shellArgs(shell),
         useStdin: shell === 'powershell' || shell === 'pwsh',
-        stdinBody: (shell === 'powershell' || shell === 'pwsh') ? wrapPowerShellScript(input.command) : undefined,
+        stdinBody:
+          shell === 'powershell' || shell === 'pwsh'
+            ? wrapPowerShellScript(input.command)
+            : undefined,
       };
     } else {
       // POSIX: use WRONGSTACK_SHELL if set; else honor $SHELL only when it
@@ -476,10 +488,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     // a marker pointing at it — file-based instead of in-memory/in-context.
     const spool = createOutputSpool({ tool: 'bash', thresholdBytes: MAX_OUTPUT });
 
-    function killWithTimeout(
-      child: ReturnType<typeof spawn>,
-      timeoutMs: number,
-    ): void {
+    function killWithTimeout(child: ReturnType<typeof spawn>, timeoutMs: number): void {
       if (isWin) {
         // Let the registry handle Windows tree-kill and its fallback timing.
         // A direct child.kill() before taskkill settles can orphan the real
@@ -487,10 +496,18 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         if (typeof child.pid === 'number' && child.exitCode === null) {
           const attempted = registry.kill(child.pid, { force: true, graceMs: timeoutMs });
           if (!attempted) {
-            try { child.kill(); } catch { /* ignore */ }
+            try {
+              child.kill();
+            } catch {
+              /* ignore */
+            }
           }
         } else {
-          try { child.kill(); } catch { /* ignore */ }
+          try {
+            child.kill();
+          } catch {
+            /* ignore */
+          }
         }
         return;
       }
@@ -669,9 +686,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
             toolName: 'bash',
             ts: new Date().toISOString(),
             input: { command: redactCommand(input.command) },
-            outcome: timedOut
-              ? `timed out (exit ${c.code})`
-              : `exit ${c.code}`,
+            outcome: timedOut ? `timed out (exit ${c.code})` : `exit ${c.code}`,
             risk: 'shell',
           });
           return;

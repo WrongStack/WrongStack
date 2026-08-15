@@ -7,41 +7,13 @@ import type { WebSocket } from 'ws';
 
 const searchCodebaseIndex = vi.fn();
 
-vi.mock('@wrongstack/tools/codebase-index/index', () => ({
-  searchCodebaseIndex,
-  codebaseIndexTool: undefined as never,
-  codebaseIncomingCallsTool: undefined as never,
-  codebaseOutgoingCallsTool: undefined as never,
-  codebaseSearchTool: undefined as never,
-  codebaseStatsTool: undefined as never,
-  deadCodeScanTool: undefined as never,
-  runDeadCodeScan: undefined as never,
-  runIndexer: undefined as never,
-  runStartupIndex: undefined as never,
-  enqueueReindex: undefined as never,
-  isIndexableFile: undefined as never,
-  cancelPendingReindexes: undefined as never,
-  isIndexReady: undefined as never,
-  isIndexing: undefined as never,
-  getIndexState: undefined as never,
-  onIndexStateChange: undefined as never,
-  codebaseIndexStats: undefined as never,
-  shutdownCodebaseIndexHost: undefined as never,
-  IndexCircuitBreaker: undefined as never,
-  indexCircuitBreaker: undefined as never,
-  resetIndexCircuitBreaker: undefined as never,
-  CircuitOpenError: undefined as never,
-  IndexTimeoutError: undefined as never,
-  IndexStore: undefined as never,
-  resolveIndexDir: undefined as never,
-  codebaseIndexDirOverride: undefined as never,
-  tokenise: undefined as never,
-  buildIndexableText: undefined as never,
-  buildBm25Index: undefined as never,
-  internalKindToLspKind: undefined as never,
-  lspKindToInternalKind: undefined as never,
-  SCHEMA_VERSION: undefined as never,
-}));
+vi.mock('@wrongstack/tools/codebase-index/index', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    searchCodebaseIndex,
+  };
+});
 
 // The in-test `await import(...)` of completion-handlers pays the whole module
 // graph's transform cost on first hit — under full-suite CPU contention that

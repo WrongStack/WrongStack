@@ -255,11 +255,7 @@ describe('truncateHeadTail', () => {
 describe('normalizeCommandOutput', () => {
   it('strips ANSI, collapses progress, dedups, and squeezes blanks', () => {
     const raw =
-      '[32mok[0m\n' +
-      'step 1%\rstep 99%\n' +
-      'warn\nwarn\nwarn\nwarn\n' +
-      '\n\n\n' +
-      'done   ';
+      '[32mok[0m\n' + 'step 1%\rstep 99%\n' + 'warn\nwarn\nwarn\nwarn\n' + '\n\n\n' + 'done   ';
     const out = normalizeCommandOutput(raw);
     expect(out).not.toContain('['); // no ANSI
     expect(out).toContain('step 99%');
@@ -288,10 +284,7 @@ describe('detectPackageManager', () => {
   // Spin up an isolated temp dir, optionally pre-seeded with lockfiles, and
   // clean it up afterwards. The detection is cwd-local so each test must own
   // its own directory to avoid flake from leftover state.
-  async function withDir(
-    files: string[],
-    fn: (dir: string) => Promise<void>,
-  ): Promise<void> {
+  async function withDir(files: string[], fn: (dir: string) => Promise<void>): Promise<void> {
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wrongstack-detect-pm-'));
     try {
       for (const f of files) {

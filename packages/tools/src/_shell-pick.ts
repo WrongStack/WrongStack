@@ -141,7 +141,11 @@ export function looksLikePowerShell(command: string): boolean {
   // pattern is rare in cmd.exe scripts (cmd.exe flags are usually `/x`),
   // so `-eq`, `-like`, etc. are reliable tells. We require a word boundary
   // on each side to avoid matching inside paths like `C:\foo-eq\bar`.
-  if (/(?:^|[\s[({,;])(?:-eq|-ne|-lt|-gt|-le|-ge|-like|-notlike|-match|-notmatch|-contains|-notcontains|-in|-notin|-and|-or|-not|-band|-bor|-bxor|-replace|-isplit|-csplit|-osplit|-join|-is|-as|-f)(?:$|[\s\])},;])/i.test(trimmed)) {
+  if (
+    /(?:^|[\s[({,;])(?:-eq|-ne|-lt|-gt|-le|-ge|-like|-notlike|-match|-notmatch|-contains|-notcontains|-in|-notin|-and|-or|-not|-band|-bor|-bxor|-replace|-isplit|-csplit|-osplit|-join|-is|-as|-f)(?:$|[\s\])},;])/i.test(
+      trimmed,
+    )
+  ) {
     return true;
   }
 
@@ -202,7 +206,11 @@ export function looksLikePowerShellExtended(command: string): boolean {
   }
 
   // Pipeline cmdlets that only exist in PowerShell.
-  if (/(?:^|[\s;&|])(Where-Object|ForEach-Object|Select-Object|Sort-Object|Group-Object|Measure-Object|Compare-Object|Tee-Object)(?:\s|$)/i.test(trimmed)) {
+  if (
+    /(?:^|[\s;&|])(Where-Object|ForEach-Object|Select-Object|Sort-Object|Group-Object|Measure-Object|Compare-Object|Tee-Object)(?:\s|$)/i.test(
+      trimmed,
+    )
+  ) {
     return true;
   }
 
@@ -224,7 +232,11 @@ export function looksLikePowerShellExtended(command: string): boolean {
 
   // Common PS-only parameters: -AsPlainText, -PipelineVariable/-pv,
   // -FilterHashtable, -OutVariable/-ov
-  if (/(?:^|\s)[-//](?:AsPlainText|PipelineVariable|pv|FilterHashtable|OutVariable|ov)(?:\s|=|$)/i.test(trimmed)) {
+  if (
+    /(?:^|\s)[-//](?:AsPlainText|PipelineVariable|pv|FilterHashtable|OutVariable|ov)(?:\s|=|$)/i.test(
+      trimmed,
+    )
+  ) {
     return true;
   }
 
@@ -286,13 +298,13 @@ const PS_VERB_RE = new RegExp(
   '(?:^|[\\s;&|\\(\\{,])' +
     // The verb itself, followed by `-`.
     '(?:' +
-      'Get|Set|New|Remove|Add|Clear|Copy|Move|Rename|Test|Update|Write|Read|Push|Pop|Invoke|Start|Stop|Wait|' +
-      'Out|Format|Group|Measure|Compare|Resolve|ConvertTo|ConvertFrom|Convert|Import|Export|Select|Where|ForEach|Sort|' +
-      'Tee|Split|Join|Limit|Skip|Step|Trace|Debug|Register|Unregister|Enable|Disable|Restart|Suspend|Resume|Save|' +
-      'Open|Close|Lock|Unlock|Mount|Dismount|Enter|Exit|Use|Show|Hide|Find|Search|Watch|Initialize|Optimize|' +
-      'Compress|Expand|Merge|Checkpoint|Undo|Redo|Approve|Deny|Block|Grant|Revoke|Assert|Confirm|Receive|Send|' +
-      'Connect|Disconnect|Reset|Backup|Restore|Publish|Unpublish|Install|Uninstall|Build|Rebuild|Deploy|' +
-      'Submit|Process|Complete|Approve|Revoke|Pay|Refund|Decline|Receive|Send' +
+    'Get|Set|New|Remove|Add|Clear|Copy|Move|Rename|Test|Update|Write|Read|Push|Pop|Invoke|Start|Stop|Wait|' +
+    'Out|Format|Group|Measure|Compare|Resolve|ConvertTo|ConvertFrom|Convert|Import|Export|Select|Where|ForEach|Sort|' +
+    'Tee|Split|Join|Limit|Skip|Step|Trace|Debug|Register|Unregister|Enable|Disable|Restart|Suspend|Resume|Save|' +
+    'Open|Close|Lock|Unlock|Mount|Dismount|Enter|Exit|Use|Show|Hide|Find|Search|Watch|Initialize|Optimize|' +
+    'Compress|Expand|Merge|Checkpoint|Undo|Redo|Approve|Deny|Block|Grant|Revoke|Assert|Confirm|Receive|Send|' +
+    'Connect|Disconnect|Reset|Backup|Restore|Publish|Unpublish|Install|Uninstall|Build|Rebuild|Deploy|' +
+    'Submit|Process|Complete|Approve|Revoke|Pay|Refund|Decline|Receive|Send' +
     ')-' +
     // Noun: at least one non-space, non-quote character. We require a `-`
     // after the verb, so the matched token is at minimum `Verb-X` — already
@@ -372,7 +384,9 @@ export function diagnoseBashism(command: string, shell: BashShell): string | und
   // && / || only break in Windows PowerShell 5.1; pwsh 7 and cmd.exe accept them
   // (and those commands therefore succeed and never reach this diagnosis).
   if (shell === 'powershell' && /(&&|\|\|)/.test(command)) {
-    add('Windows PowerShell 5.1 has no `&&`/`||` — separate commands with `;` (check `$LASTEXITCODE`)');
+    add(
+      'Windows PowerShell 5.1 has no `&&`/`||` — separate commands with `;` (check `$LASTEXITCODE`)',
+    );
   }
   if (/\brm\s+-[A-Za-z]*[rf]/.test(command)) {
     add(
@@ -382,7 +396,9 @@ export function diagnoseBashism(command: string, shell: BashShell): string | und
     );
   }
   if (/\bwhich\s+\S/.test(command)) {
-    add(isCmd ? 'use `where <cmd>` instead of `which`' : 'use `Get-Command <cmd>` instead of `which`');
+    add(
+      isCmd ? 'use `where <cmd>` instead of `which`' : 'use `Get-Command <cmd>` instead of `which`',
+    );
   }
 
   if (hints.length === 0) return undefined;

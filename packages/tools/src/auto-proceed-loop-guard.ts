@@ -261,12 +261,17 @@ export function generateAdvancementPrompt(
   stalledTodo: { id: string; content: string },
   nextTodo: { id: string; content: string; status: string; activeForm?: string | undefined } | null,
   attemptCount: number,
-  todos: readonly { id: string; content: string; status: string; activeForm?: string | undefined }[],
+  todos: readonly {
+    id: string;
+    content: string;
+    status: string;
+    activeForm?: string | undefined;
+  }[],
 ): string {
   const idx = Math.max(0, Math.min(attemptCount - 1, ADVANCE_PREAMBLES.length - 1));
-  const preamble = ADVANCE_PREAMBLES[idx]!
-    .replace(/\{attempts\}/g, () => String(attemptCount))
-    .replace(/\{label\}/g, () => stalledTodo.content.slice(0, 72));
+  const preamble = ADVANCE_PREAMBLES[idx]!.replace(/\{attempts\}/g, () =>
+    String(attemptCount),
+  ).replace(/\{label\}/g, () => stalledTodo.content.slice(0, 72));
 
   if (!nextTodo) {
     return [
@@ -297,7 +302,10 @@ export function generateAdvancementPrompt(
     );
   }
 
-  lines.push('', 'If this item is already done, mark it complete and move to the next open todo. Keep the board honest as you work.');
+  lines.push(
+    '',
+    'If this item is already done, mark it complete and move to the next open todo. Keep the board honest as you work.',
+  );
 
   return lines.join('\n');
 }
@@ -322,7 +330,12 @@ export interface StalledTodoMatch {
  * Returns `null` when the board is empty or all items are completed.
  */
 export function matchTodoIdFromPrompt(
-  todos: readonly { id: string; content: string; status: string; activeForm?: string | undefined }[],
+  todos: readonly {
+    id: string;
+    content: string;
+    status: string;
+    activeForm?: string | undefined;
+  }[],
   prompt: string,
 ): StalledTodoMatch | null {
   if (todos.length === 0 || !prompt) return null;
@@ -349,7 +362,9 @@ export function matchTodoIdFromPrompt(
 
   // 3. Last resort — pick the first non-completed todo.
   const firstOpen = todos.find((t) => t.status !== 'completed');
-  return firstOpen ? { id: firstOpen.id, content: firstOpen.activeForm ?? firstOpen.content } : null;
+  return firstOpen
+    ? { id: firstOpen.id, content: firstOpen.activeForm ?? firstOpen.content }
+    : null;
 }
 
 /**

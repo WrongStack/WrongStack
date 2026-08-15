@@ -296,9 +296,15 @@
       "getUpdateNotification",
       "isNewer"
     ],
+    "packages/cli/src/vibe-protocol-wiring.ts": [
+      "VIBE_PROTOCOL_META_KEY"
+    ],
     "packages/cli/src/webui-server/privileged-actions.ts": [
       "authorizeCliWebUIAction",
       "createCliProcessRoutes"
+    ],
+    "packages/cli/src/wiring/cli-heap-watchdog.ts": [
+      "startCliHeapWatchdog"
     ],
     "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts": [
       "MAILBOX_BRIDGE_META_KEY"
@@ -496,6 +502,12 @@
     ],
     "packages/core/src/storage/goal-store.ts": [
       "updateGoal"
+    ],
+    "packages/core/src/storage/session-writer/session-writer-flush.ts": [
+      "flushBufferSync"
+    ],
+    "packages/core/src/storage/session-writer/session-writer-summary-tracker.ts": [
+      "SessionWriterSummaryTracker"
     ],
     "packages/core/src/types/provider.ts": [
       "MAX_RESET_HINT_MS"
@@ -1134,6 +1146,12 @@
       "formatHistoryDuration",
       "shortenTaskPreview"
     ],
+    "packages/tui/src/hooks/use-app-event-bridges.ts": [
+      "useAppEventBridges"
+    ],
+    "packages/tui/src/hooks/use-app-panels-state.ts": [
+      "useAppPanelsState"
+    ],
     "packages/tui/src/hooks/use-chip-staleness-guard.ts": [
       "formatDiagnosis"
     ],
@@ -1195,6 +1213,9 @@
     "packages/tui/src/markdown-table.ts": [
       "renderMarkdownTables",
       "strWidth"
+    ],
+    "packages/tui/src/memory-slash-gather.ts": [
+      "handleGatherSubcommand"
     ],
     "packages/tui/src/mouse.ts": [
       "MOUSE_HOVER_ON",

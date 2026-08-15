@@ -71,6 +71,7 @@ describe('ENHANCER_SYSTEM_PROMPT', () => {
   it('loads the file-backed helper prompt', () => {
     expect(ENHANCER_SYSTEM_PROMPT).toContain('request refiner');
     expect(ENHANCER_SYSTEM_PROMPT).toContain('Output ONLY');
+    expect(ENHANCER_SYSTEM_PROMPT).toContain('control tags such as `[VIBE]`');
   });
 });
 
@@ -149,6 +150,30 @@ describe('bilingual enhancement parsing', () => {
         'auth.ts içindeki login hatasını düzelt',
       ),
     ).toEqual({ refined: 'auth.ts login()', english: 'Fix auth.ts login().' });
+  });
+
+  it('restores a source [VIBE] tag in both refined versions when the model drops it', () => {
+    expect(
+      parseBilingualEnhancement(
+        'auth.ts içindeki giriş hatasını düzelt.\n---\nFix the login error in auth.ts.',
+        '[vibe] auth.ts içindeki giriş hatasını düzelt',
+      ),
+    ).toEqual({
+      refined: '[VIBE] auth.ts içindeki giriş hatasını düzelt.',
+      english: '[VIBE] Fix the login error in auth.ts.',
+    });
+  });
+
+  it('does not duplicate a preserved [VIBE] tag regardless of case', () => {
+    expect(
+      parseBilingualEnhancement(
+        '[VIBE] auth.ts içindeki giriş hatasını düzelt.\n---\n[vibe] Fix the login error in auth.ts.',
+        '[VIBE] auth.ts içindeki giriş hatasını düzelt',
+      ),
+    ).toEqual({
+      refined: '[VIBE] auth.ts içindeki giriş hatasını düzelt.',
+      english: '[vibe] Fix the login error in auth.ts.',
+    });
   });
 
   it('rejects an English first version for non-English input', () => {

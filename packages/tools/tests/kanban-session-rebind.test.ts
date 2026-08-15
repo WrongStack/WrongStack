@@ -2,7 +2,12 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { addTask, createBoard, touchKanbanPresence, updateTaskAssignment } from '@wrongstack/kanban';
+import {
+  addTask,
+  createBoard,
+  touchKanbanPresence,
+  updateTaskAssignment,
+} from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rebindSessionKanbanTask } from '../src/session-kanban.js';
 

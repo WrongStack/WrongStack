@@ -30,7 +30,10 @@ const checkUnixSocketPathMock = vi.hoisted(() => vi.fn());
 // so the mock must DELEGATE to the real implementation by default — a bare
 // `vi.fn()` would return undefined and crash `!check.ok` at the call site.
 const realCheckUnixSocketPath = vi.hoisted<{
-  fn?: (socketPath: string, platform?: NodeJS.Platform) => {
+  fn?: (
+    socketPath: string,
+    platform?: NodeJS.Platform,
+  ) => {
     ok: boolean;
     byteLength: number;
     maxBytes: number;

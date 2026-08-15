@@ -708,7 +708,9 @@ describe('todo tool', () => {
     expect(heldTask?.lifecycle?.currentStage).toBe('review');
     expect(heldTask?.status).toBe('review');
     expect(result.kanban_warnings).toEqual(
-      expect.arrayContaining([expect.stringMatching(/Held for review.*Review.*not re-activating/i)]),
+      expect.arrayContaining([
+        expect.stringMatching(/Held for review.*Review.*not re-activating/i),
+      ]),
     );
   });
 

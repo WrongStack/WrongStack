@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type * as TS from '@typescript/typescript6';
 import { atomicWrite } from '@wrongstack/core/utils';
+import { type InvariantViolation, polyglotInvariantEngine } from './ast-invariant-engine.js';
 import { enqueueReindex } from './background-indexer.js';
 import { detectLang } from './languages.js';
 import type { SymbolLang } from './schema.js';
@@ -22,6 +23,8 @@ export interface MutateSymbolOptions {
   symbol: string;
   newBody: string;
   target?: 'body' | 'full' | undefined;
+  checkInvariants?: boolean | undefined;
+  allowBreakingChanges?: boolean | undefined;
 }
 
 export interface MutateSymbolResult {
@@ -30,6 +33,7 @@ export interface MutateSymbolResult {
   originalRange: { startLine: number; endLine: number };
   newRange: { startLine: number; endLine: number };
   updatedContent: string;
+  violations?: InvariantViolation[] | undefined;
 }
 
 /**
@@ -91,7 +95,10 @@ async function mutateTsSymbol(
       for (const decl of node.declarationList.declarations) {
         if (ts.isIdentifier(decl.name) && decl.name.text === symbolName) {
           targetNode = decl;
-          if (decl.initializer && (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer))) {
+          if (
+            decl.initializer &&
+            (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer))
+          ) {
             bodyNode = decl.initializer.body;
           }
           return;
@@ -171,7 +178,8 @@ async function mutateTreeSitterSymbol(
               'code_block',
               'do_block',
             ].includes(c.type),
-          ) ?? null;
+          ) ??
+          null;
         return;
       }
 
@@ -226,9 +234,7 @@ export async function replaceSymbolInFile(
   opts: MutateSymbolOptions,
   projectRoot: string,
 ): Promise<MutateSymbolResult> {
-  const resolved = path.isAbsolute(opts.file)
-    ? opts.file
-    : path.resolve(projectRoot, opts.file);
+  const resolved = path.isAbsolute(opts.file) ? opts.file : path.resolve(projectRoot, opts.file);
 
   const content = await fs.readFile(resolved, 'utf8');
   const lang = detectLang(resolved) ?? 'other';
@@ -248,6 +254,24 @@ export async function replaceSymbolInFile(
   }
 
   result.file = resolved;
+
+  if (opts.checkInvariants !== false) {
+    const inv = await polyglotInvariantEngine.evaluate({
+      originalCode: content,
+      modifiedCode: result.updatedContent,
+      lang,
+      filePath: resolved,
+    });
+
+    if (!inv.valid && !opts.allowBreakingChanges) {
+      const summary = inv.violations.map((v) => `[${v.ruleId}] ${v.message}`).join('\n');
+      throw new Error(
+        `AST Invariant Violation: Mutating '${opts.symbol}' introduces breaking changes:\n${summary}\nPass allowBreakingChanges: true if this breaking change is intended.`,
+      );
+    }
+    result.violations = inv.violations;
+  }
+
   await atomicWrite(resolved, result.updatedContent);
 
   try {

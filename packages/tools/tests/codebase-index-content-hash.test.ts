@@ -13,7 +13,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseContentHash, xxhash64Hex, xxhash64String } from '../src/codebase-index/content-hash.js';
+import {
+  parseContentHash,
+  xxhash64Hex,
+  xxhash64String,
+} from '../src/codebase-index/content-hash.js';
 
 describe('xxHash64 — known-answer vectors (seed 0)', () => {
   it.each([

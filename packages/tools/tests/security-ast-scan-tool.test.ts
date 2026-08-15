@@ -2,10 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  analyzeSecurityAndPerformance,
-  securityAstScanTool,
-} from '../src/index.js';
+import { analyzeSecurityAndPerformance, securityAstScanTool } from '../src/index.js';
 
 describe('security-ast-scan tool & analyzer', () => {
   it('detects N+1 database queries inside loops', () => {
@@ -93,7 +90,8 @@ const emailRegex = /^([a-zA-Z0-9_]+)+@domain.com$/;
       // Clean scan
       const cleanRes = await securityAstScanTool.execute(
         { file: 'clean.ts' },
-        { projectRoot: tempDir },
+        { projectRoot: tempDir } as never,
+        { signal: new AbortController().signal },
       );
       expect(cleanRes.status).toBe('clean');
       expect(cleanRes.totalFindings).toBe(0);
@@ -101,7 +99,8 @@ const emailRegex = /^([a-zA-Z0-9_]+)+@domain.com$/;
       // Dirty scan
       const dirtyRes = await securityAstScanTool.execute(
         { file: 'dirty.ts' },
-        { projectRoot: tempDir },
+        { projectRoot: tempDir } as never,
+        { signal: new AbortController().signal },
       );
       expect(dirtyRes.status).toBe('findings_detected');
       expect(dirtyRes.criticalCount).toBeGreaterThanOrEqual(1);

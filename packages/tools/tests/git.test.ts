@@ -95,7 +95,14 @@ describe('gitTool — shared-worktree commit warning', () => {
   it('attaches a warning when a dirty file was authored by another session', async () => {
     await fs.writeFile(path.join(repo, 'foreign.ts'), 'not mine');
     await seedTracker([
-      { filePath: 'foreign.ts', action: 'edit', agentId: 'leader', agentName: 'Other', sessionId: 'other', timestamp: new Date(0).toISOString() },
+      {
+        filePath: 'foreign.ts',
+        action: 'edit',
+        agentId: 'leader',
+        agentName: 'Other',
+        sessionId: 'other',
+        timestamp: new Date(0).toISOString(),
+      },
     ]);
 
     const result = await gitTool.execute(
@@ -114,7 +121,13 @@ describe('gitTool — shared-worktree commit warning', () => {
   it('omits the warning when the only dirty file is ours', async () => {
     await fs.writeFile(path.join(repo, 'mine.ts'), 'my work');
     await seedTracker([
-      { filePath: 'mine.ts', action: 'edit', agentId: 'leader', sessionId: 'mine', timestamp: new Date(0).toISOString() },
+      {
+        filePath: 'mine.ts',
+        action: 'edit',
+        agentId: 'leader',
+        sessionId: 'mine',
+        timestamp: new Date(0).toISOString(),
+      },
     ]);
 
     const result = await gitTool.execute(
@@ -294,7 +307,11 @@ describe('gitTool buildArgs edge cases', () => {
   it('checkout works with just files (no branch)', async () => {
     const ctx = makeCtx(process.cwd());
     // Just files, no branch specified
-    const result = await gitTool.execute({ command: 'checkout', files: 'README.md' }, ctx, makeOpts());
+    const result = await gitTool.execute(
+      { command: 'checkout', files: 'README.md' },
+      ctx,
+      makeOpts(),
+    );
     // May fail if file doesn't exist or has conflicts, but shouldn't crash
     expect(result).toHaveProperty('exitCode');
   });
@@ -322,11 +339,7 @@ describe('gitTool runGit close handling', () => {
 describe('gitTool truncation', () => {
   it('marks truncated true when stdout exceeds MAX_OUTPUT', async () => {
     const ctx = makeCtx(process.cwd());
-    const result = await gitTool.execute(
-      { command: 'log', limit: 10000 },
-      ctx,
-      makeOpts(),
-    );
+    const result = await gitTool.execute({ command: 'log', limit: 10000 }, ctx, makeOpts());
     // Output is now normalized + head/tail-truncated to the unified command
     // cap (32 KiB), so when `truncated` is set the returned stdout is capped
     // there and carries the truncation marker — it is no longer the raw 100K.
@@ -449,7 +462,13 @@ describe('gitTool worktree hardening', () => {
     try {
       const ctx = { cwd: base, tools: [], projectRoot: base } as any;
       const result = await gitTool.execute(
-        { command: 'worktree', worktreeAction: 'add', worktreePath: '../../etc/evil', newBranch: true, branch: 'x' },
+        {
+          command: 'worktree',
+          worktreeAction: 'add',
+          worktreePath: '../../etc/evil',
+          newBranch: true,
+          branch: 'x',
+        },
         ctx,
         makeOpts(),
       );
@@ -465,7 +484,13 @@ describe('gitTool worktree hardening', () => {
     try {
       const ctx = { cwd: base, tools: [], projectRoot: base } as any;
       const result = await gitTool.execute(
-        { command: 'worktree', worktreeAction: 'add', worktreePath: 'wt', branch: '--upload-pack=evil', newBranch: true },
+        {
+          command: 'worktree',
+          worktreeAction: 'add',
+          worktreePath: 'wt',
+          branch: '--upload-pack=evil',
+          newBranch: true,
+        },
         ctx,
         makeOpts(),
       );
@@ -519,7 +544,13 @@ describe('gitTool worktree hardening', () => {
     try {
       const ctx = { cwd: base, tools: [], projectRoot: base } as any;
       const result = await gitTool.execute(
-        { command: 'worktree', worktreeAction: 'add', worktreePath: '--force', newBranch: true, branch: 'x' },
+        {
+          command: 'worktree',
+          worktreeAction: 'add',
+          worktreePath: '--force',
+          newBranch: true,
+          branch: 'x',
+        },
         ctx,
         makeOpts(),
       );
@@ -534,7 +565,13 @@ describe('gitTool worktree hardening', () => {
     const base = await fs.mkdtemp(path.join(os.tmpdir(), 'wt-add-'));
     try {
       const { spawnSync } = await import('node:child_process');
-      const env = { ...process.env, GIT_AUTHOR_NAME: 'T', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 'T', GIT_COMMITTER_EMAIL: 't@t' };
+      const env = {
+        ...process.env,
+        GIT_AUTHOR_NAME: 'T',
+        GIT_AUTHOR_EMAIL: 't@t',
+        GIT_COMMITTER_NAME: 'T',
+        GIT_COMMITTER_EMAIL: 't@t',
+      };
       if (spawnSync('git', ['init', '-q', base], { stdio: 'ignore' }).status !== 0) return; // git absent
       await fs.writeFile(path.join(base, 'seed.txt'), 'seed\n');
       spawnSync('git', ['-C', base, 'add', '-A'], { stdio: 'ignore', env });
@@ -543,7 +580,13 @@ describe('gitTool worktree hardening', () => {
       const wtDir = path.join(base, '.wrongstack', 'worktrees', 'wt1');
       const ctx = { cwd: base, tools: [], projectRoot: base } as any;
       const result = await gitTool.execute(
-        { command: 'worktree', worktreeAction: 'add', worktreePath: wtDir, newBranch: true, branch: 'wstack/ap/wt1' },
+        {
+          command: 'worktree',
+          worktreeAction: 'add',
+          worktreePath: wtDir,
+          newBranch: true,
+          branch: 'wstack/ap/wt1',
+        },
         ctx,
         makeOpts(),
       );
@@ -586,8 +629,7 @@ describe('gitTool runGit stdout/stderr MAX_OUTPUT cap', () => {
 describe('gitTool — checkout must not destroy uncommitted work', () => {
   let repo: string;
 
-  const run = (...args: string[]) =>
-    execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+  const run = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
 
   beforeEach(async () => {
     repo = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'git-checkout-')));
@@ -612,7 +654,11 @@ describe('gitTool — checkout must not destroy uncommitted work', () => {
     run('branch', 'docs');
     await fs.writeFile(path.join(repo, 'docs', 'f.txt'), 'UNCOMMITTED\n');
 
-    const result = await gitTool.execute({ command: 'checkout', branch: 'docs' }, makeCtx(repo), makeOpts());
+    const result = await gitTool.execute(
+      { command: 'checkout', branch: 'docs' },
+      makeCtx(repo),
+      makeOpts(),
+    );
 
     expect(result.exitCode).toBe(0);
     expect(await fs.readFile(path.join(repo, 'docs', 'f.txt'), 'utf8')).toBe('UNCOMMITTED\n');
@@ -624,7 +670,11 @@ describe('gitTool — checkout must not destroy uncommitted work', () => {
   it('fails instead of restoring when the branch name collides with a path', async () => {
     await fs.writeFile(path.join(repo, 'docs', 'f.txt'), 'UNCOMMITTED\n');
 
-    const result = await gitTool.execute({ command: 'checkout', branch: 'docs' }, makeCtx(repo), makeOpts());
+    const result = await gitTool.execute(
+      { command: 'checkout', branch: 'docs' },
+      makeCtx(repo),
+      makeOpts(),
+    );
 
     expect(result.exitCode).not.toBe(0);
     expect(await fs.readFile(path.join(repo, 'docs', 'f.txt'), 'utf8')).toBe('UNCOMMITTED\n');

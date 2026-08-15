@@ -1,9 +1,6 @@
 import type { ChildProcess } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  _resetProcessRegistry,
-  getProcessRegistry,
-} from '../src/process-registry.js';
+import { _resetProcessRegistry, getProcessRegistry } from '../src/process-registry.js';
 
 type Tracked = {
   pid: number;
@@ -83,7 +80,12 @@ describe('ProcessRegistry', () => {
     r.register(makeProc({ pid: 10002 }));
     r.register(makeProc({ pid: 10003 }));
     expect(r.list()).toHaveLength(3);
-    expect(r.list().map((p) => p.pid).sort()).toEqual([10001, 10002, 10003]);
+    expect(
+      r
+        .list()
+        .map((p) => p.pid)
+        .sort(),
+    ).toEqual([10001, 10002, 10003]);
   });
 
   it('byName filters by tool name', () => {

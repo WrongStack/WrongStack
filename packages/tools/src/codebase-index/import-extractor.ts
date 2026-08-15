@@ -52,10 +52,7 @@ const LANG_IMPORTS: Partial<Record<SymbolLang, ImportPattern[]>> = {
     // quoted path. A stray match elsewhere resolves to no file and is dropped.
     { re: /^[ \t]*(?:[A-Za-z_.]\w*\s+)?"([^"]+)"\s*$/gm },
   ],
-  py: [
-    { re: /^[ \t]*import\s+([\w.]+)/gm },
-    { re: /^[ \t]*from\s+([.\w]+)\s+import\b/gm },
-  ],
+  py: [{ re: /^[ \t]*import\s+([\w.]+)/gm }, { re: /^[ \t]*from\s+([.\w]+)\s+import\b/gm }],
 
   rs: [
     // use a::b::C;  |  use a::b::{C, D};  → the path before any brace

@@ -58,11 +58,9 @@ describe('write tool', () => {
   });
 
   it('writes new files verbatim — no EOL normalization', async () => {
-    const out = await writeTool.execute(
-      { path: 'fresh.txt', content: 'a\r\nb\nc\r\n' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await writeTool.execute({ path: 'fresh.txt', content: 'a\r\nb\nc\r\n' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.created).toBe(true);
     expect(await fs.readFile(path.join(sb.dir, 'fresh.txt'), 'utf8')).toBe('a\r\nb\nc\r\n');
   });

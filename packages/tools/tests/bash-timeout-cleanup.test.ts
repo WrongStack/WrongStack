@@ -35,14 +35,10 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
     try {
       // Spawn a long-running bash command and let it register with the
       // ProcessRegistry (the executeStream path does this in bash.ts:392).
-      const longRun = isWin
-        ? 'ping -n 30 127.0.0.1 > NUL'
-        : 'sleep 30';
-      const execPromise = bashTool.execute(
-        { command: longRun, timeout_ms: 200 },
-        sb.ctx,
-        { signal: new AbortController().signal },
-      );
+      const longRun = isWin ? 'ping -n 30 127.0.0.1 > NUL' : 'sleep 30';
+      const execPromise = bashTool.execute({ command: longRun, timeout_ms: 200 }, sb.ctx, {
+        signal: new AbortController().signal,
+      });
       // The command times out at 200ms; by the time it resolves the child is
       // force-killed via the generator's finally block. cleanup() is the
       // executor's defensive second layer — it must be a no-op on already-
@@ -82,7 +78,13 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
       command: 'sleep 9999',
       startedAt: Date.now(),
       sessionId,
-      child: { exitCode: null, killed: false, kill() { return true; } },
+      child: {
+        exitCode: null,
+        killed: false,
+        kill() {
+          return true;
+        },
+      },
       killed: false,
       protected: false,
     } as unknown as TrackedProcess;
@@ -93,7 +95,13 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
       command: 'echo done',
       startedAt: Date.now(),
       sessionId,
-      child: { exitCode: 0, killed: false, kill() { return true; } },
+      child: {
+        exitCode: 0,
+        killed: false,
+        kill() {
+          return true;
+        },
+      },
       killed: false,
       protected: false,
     } as unknown as TrackedProcess;
@@ -104,7 +112,13 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
       command: 'vite',
       startedAt: Date.now(),
       sessionId,
-      child: { exitCode: null, killed: false, kill() { return true; } },
+      child: {
+        exitCode: null,
+        killed: false,
+        kill() {
+          return true;
+        },
+      },
       killed: false,
       protected: true,
     } as unknown as TrackedProcess;
@@ -115,7 +129,13 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
       command: 'node build.js',
       startedAt: Date.now(),
       sessionId,
-      child: { exitCode: null, killed: false, kill() { return true; } },
+      child: {
+        exitCode: null,
+        killed: false,
+        kill() {
+          return true;
+        },
+      },
       killed: false,
       protected: false,
     } as unknown as TrackedProcess;
@@ -164,9 +184,7 @@ describe('bashTool.cleanup — timeout / abort teardown (P1 #2)', () => {
     try {
       // A bare-bones context (tests, embedded callers) may not set session.id.
       (sb.ctx.session as { id?: string }).id = undefined;
-      await expect(
-        bashTool.cleanup!({ command: 'anything' }, sb.ctx),
-      ).resolves.toBeUndefined();
+      await expect(bashTool.cleanup!({ command: 'anything' }, sb.ctx)).resolves.toBeUndefined();
       expect(registry.list()).toHaveLength(0);
     } finally {
       (sb.ctx.session as { id?: string }).id = originalId;

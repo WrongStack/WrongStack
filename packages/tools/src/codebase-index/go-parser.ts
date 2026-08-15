@@ -58,19 +58,46 @@ function fallbackParse(filePath: string, content: string, lang: SymbolLang): Fil
     const col = line.length - trimmed.length + 1;
     const fn = /^func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\(/.exec(trimmed);
     if (fn?.[1]) {
-      addFallbackSymbol(symbols, { filePath, lang, kind: trimmed.startsWith('func (') ? 'method' : 'function', name: fn[1], line: idx + 1, col, signature: trimmed, scope: packageName ? `${packageName}.${fn[1]}` : fn[1] });
+      addFallbackSymbol(symbols, {
+        filePath,
+        lang,
+        kind: trimmed.startsWith('func (') ? 'method' : 'function',
+        name: fn[1],
+        line: idx + 1,
+        col,
+        signature: trimmed,
+        scope: packageName ? `${packageName}.${fn[1]}` : fn[1],
+      });
       continue;
     }
 
     const typeDecl = /^type\s+([A-Za-z_]\w*)\b/.exec(trimmed);
     if (typeDecl?.[1]) {
-      addFallbackSymbol(symbols, { filePath, lang, kind: 'type', name: typeDecl[1], line: idx + 1, col, signature: trimmed, scope: packageName });
+      addFallbackSymbol(symbols, {
+        filePath,
+        lang,
+        kind: 'type',
+        name: typeDecl[1],
+        line: idx + 1,
+        col,
+        signature: trimmed,
+        scope: packageName,
+      });
       continue;
     }
 
     const valueDecl = /^(const|var)\s+([A-Za-z_]\w*)\b/.exec(trimmed);
     if (valueDecl?.[1] && valueDecl[2]) {
-      addFallbackSymbol(symbols, { filePath, lang, kind: valueDecl[1] as 'const' | 'var', name: valueDecl[2], line: idx + 1, col, signature: trimmed, scope: packageName });
+      addFallbackSymbol(symbols, {
+        filePath,
+        lang,
+        kind: valueDecl[1] as 'const' | 'var',
+        name: valueDecl[2],
+        line: idx + 1,
+        col,
+        signature: trimmed,
+        scope: packageName,
+      });
     }
   }
 

@@ -248,6 +248,8 @@ export class RequirementIntakeService {
         if (validated.providedContext !== undefined)
           next.providedContext = [...validated.providedContext];
         if (validated.metadata !== undefined) next.metadata = validated.metadata;
+        if (validated.isVibeMode !== undefined) next.isVibeMode = validated.isVibeMode;
+        if (validated.vibeProtocol !== undefined) next.vibeProtocol = validated.vibeProtocol;
         markUserSources(next, changedKeys);
       })
       .then((updated) => {

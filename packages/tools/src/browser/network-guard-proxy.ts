@@ -251,7 +251,9 @@ function writeProxyError(response: http.ServerResponse, status: number, message:
  */
 function policyBlockMessage(error: unknown): string {
   const reason = error instanceof Error ? error.message : String(error);
-  return reason ? `Blocked by browser network policy: ${reason}` : 'Blocked by browser network policy';
+  return reason
+    ? `Blocked by browser network policy: ${reason}`
+    : 'Blocked by browser network policy';
 }
 
 /** Raw 403 for CONNECT/upgrade sockets that never got an http.ServerResponse. */

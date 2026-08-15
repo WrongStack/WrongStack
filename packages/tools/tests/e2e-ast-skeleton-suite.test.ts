@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import {
   codebaseAstReplaceTool,
   codebaseRepoMapTool,
-  codebaseSkeletonTool,
   extractFileSkeleton,
   generateRepoMap,
   replaceSymbolInFile,
@@ -120,10 +119,14 @@ func HandleRequest(payload string) (bool, error) {
       });
 
       expect(tsSkel.skeleton).toContain('export interface Order');
-      expect(tsSkel.skeleton).toContain('public calculateDiscount(order: Order, rate: number): number { /* L16-L20 */ }');
+      expect(tsSkel.skeleton).toContain(
+        'public calculateDiscount(order: Order, rate: number): number { /* L16-L20 */ }',
+      );
       expect(tsSkel.skeleton).not.toContain('const rawDiscount');
       expect(tsSkel.stats.tokenSavingsPercent).toBeGreaterThan(15);
-      expect(tsSkel.symbols?.some((s) => s.name === 'calculateDiscount' && s.startLine === 16)).toBe(true);
+      expect(
+        tsSkel.symbols?.some((s) => s.name === 'calculateDiscount' && s.startLine === 16),
+      ).toBe(true);
 
       const pySkel = await extractFileSkeleton({
         file: pyService,
@@ -142,7 +145,9 @@ func HandleRequest(payload string) (bool, error) {
         lang: 'go',
       });
 
-      expect(goSkel.skeleton).toContain('func HandleRequest(payload string) (bool, error) { /* L3-L8 */ }');
+      expect(goSkel.skeleton).toContain(
+        'func HandleRequest(payload string) (bool, error) { /* L3-L8 */ }',
+      );
 
       // ═══════════════════════════════════════════════════════════════════════
       // PROOF STEP 2: Token-budgeted Repo Map generation
@@ -160,7 +165,11 @@ func HandleRequest(payload string) (bool, error) {
       expect(repoMapResult.estimatedTokens).toBeLessThanOrEqual(800);
 
       // Tool execution check
-      const repoMapToolOut = await codebaseRepoMapTool.execute({}, { projectRoot: tempDir });
+      const repoMapToolOut = await codebaseRepoMapTool.execute(
+        {},
+        { projectRoot: tempDir } as never,
+        { signal: new AbortController().signal },
+      );
       expect(repoMapToolOut.status).toBe('ok');
       expect(repoMapToolOut.filesCount).toBe(repoMapResult.filesCount);
 
@@ -181,7 +190,9 @@ func HandleRequest(payload string) (bool, error) {
       expect(tsMutateRes.symbol).toBe('calculateDiscount');
       const updatedTsContent = await fs.readFile(orderServiceTs, 'utf8');
       expect(updatedTsContent).toContain('return order.total * (1 - rate);');
-      expect(updatedTsContent).toContain('public calculateDiscount(order: Order, rate: number): number {');
+      expect(updatedTsContent).toContain(
+        'public calculateDiscount(order: Order, rate: number): number {',
+      );
       expect(updatedTsContent).toContain('export interface Order'); // rest of file intact
       expect(updatedTsContent).toContain('public async initialize()'); // sibling method intact
 
@@ -209,7 +220,8 @@ func HandleRequest(payload string) (bool, error) {
           symbol: 'initialize',
           newBody: 'console.log("Superfast cache ready");',
         },
-        { projectRoot: tempDir },
+        { projectRoot: tempDir } as never,
+        { signal: new AbortController().signal },
       );
 
       expect(astReplaceToolOut.status).toBe('ok');

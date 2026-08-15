@@ -270,7 +270,10 @@ function rankSearchResults(results: SearchResult[], query: string): SearchResult
 }
 
 function scoreResults(results: SearchResult[], query: string): SearchResult[] {
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
   return results
     .map((r) => {
       const titleLower = r.title.toLowerCase();
@@ -287,7 +290,10 @@ function scoreResults(results: SearchResult[], query: string): SearchResult[] {
 
 function shouldFallbackToDuckDuckGo(results: SearchResult[], query: string): boolean {
   if (results.length === 0) return true;
-  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length >= 3);
+  const terms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length >= 3);
   if (terms.length === 0) return false;
   return !results.some((r) => {
     const haystack = `${r.title} ${r.url} ${r.snippet}`.toLowerCase();
@@ -345,9 +351,7 @@ function parseDuckDuckGo(html: string, num: number): SearchResult[] {
   );
 
   const snippetMatches = takeFrom(
-    [...html.matchAll(snippetRegex)]
-      .filter((m) => m[4])
-      .map((m) => stripTags(expectDefined(m[4]))),
+    [...html.matchAll(snippetRegex)].filter((m) => m[4]).map((m) => stripTags(expectDefined(m[4]))),
     num,
   );
 
@@ -452,21 +456,29 @@ async function bingSearch(query: string, signal: AbortSignal): Promise<EngineRes
 
 function parseBingResults(html: string, num: number): SearchResult[] {
   const results: SearchResult[] = [];
-  const blocks = [...html.matchAll(/<li\b[^>]*class=(["'])[^"']*\bb_algo\b[^"']*\1[^>]*>([\s\S]*?)(?=<li\b[^>]*class=(["'])[^"']*\bb_algo\b[^"']*\3|<\/ol>)/gi)]
-    .map((m) => expectDefined(m[2]));
+  const blocks = [
+    ...html.matchAll(
+      /<li\b[^>]*class=(["'])[^"']*\bb_algo\b[^"']*\1[^>]*>([\s\S]*?)(?=<li\b[^>]*class=(["'])[^"']*\bb_algo\b[^"']*\3|<\/ol>)/gi,
+    ),
+  ].map((m) => expectDefined(m[2]));
   const candidates = blocks.length > 0 ? blocks : [html];
 
-  const entries = takeFrom(candidates.flatMap((block) => {
-    const titleMatch = /<h2[^>]*>\s*<a\b([^>]*)>([\s\S]*?)<\/a>\s*<\/h2>/i.exec(block);
-    if (!titleMatch) return [];
-    const href = getHtmlAttr(expectDefined(titleMatch[1]), 'href');
-    const title = stripTags(expectDefined(titleMatch[2]));
-    if (!href || !title) return [];
-    const snippetMatch = /<p\b[^>]*class=(["'])[^"']*\b(?:b_paractl|b_lineclamp\d*)\b[^"']*\1[^>]*>([\s\S]*?)<\/p>/i.exec(block)
-      ?? /<p\b[^>]*>([\s\S]*?)<\/p>/i.exec(block);
-    const snippet = snippetMatch ? capSnippet(stripTags(expectDefined(snippetMatch.at(-1)))) : '';
-    return [{ url: normalizeBingUrl(href), title, snippet, score: 1 }];
-  }), num);
+  const entries = takeFrom(
+    candidates.flatMap((block) => {
+      const titleMatch = /<h2[^>]*>\s*<a\b([^>]*)>([\s\S]*?)<\/a>\s*<\/h2>/i.exec(block);
+      if (!titleMatch) return [];
+      const href = getHtmlAttr(expectDefined(titleMatch[1]), 'href');
+      const title = stripTags(expectDefined(titleMatch[2]));
+      if (!href || !title) return [];
+      const snippetMatch =
+        /<p\b[^>]*class=(["'])[^"']*\b(?:b_paractl|b_lineclamp\d*)\b[^"']*\1[^>]*>([\s\S]*?)<\/p>/i.exec(
+          block,
+        ) ?? /<p\b[^>]*>([\s\S]*?)<\/p>/i.exec(block);
+      const snippet = snippetMatch ? capSnippet(stripTags(expectDefined(snippetMatch.at(-1)))) : '';
+      return [{ url: normalizeBingUrl(href), title, snippet, score: 1 }];
+    }),
+    num,
+  );
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
@@ -501,7 +513,10 @@ function decodeBingTarget(encoded: string | null): string | undefined {
   if (!encoded) return undefined;
   const payload = encoded.startsWith('a1') ? encoded.slice(2) : encoded;
   try {
-    const padded = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    const padded = payload
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payload.length / 4) * 4, '=');
     return Buffer.from(padded, 'base64').toString('utf8');
   } catch {
     return undefined;
@@ -560,7 +575,9 @@ function stripTags(html: string): string {
 }
 
 function capSnippet(snippet: string): string {
-  return snippet.length > MAX_SNIPPET_CHARS ? `${snippet.slice(0, MAX_SNIPPET_CHARS - 1)}…` : snippet;
+  return snippet.length > MAX_SNIPPET_CHARS
+    ? `${snippet.slice(0, MAX_SNIPPET_CHARS - 1)}…`
+    : snippet;
 }
 
 function decodeHtmlEntities(text: string): string {

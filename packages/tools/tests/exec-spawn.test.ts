@@ -89,7 +89,11 @@ describe('execTool runCommand (faked child)', () => {
     // `rm` has BLOCKED_ARG_PATTERNS; a safe relative target passes validateArgs
     // (the loop finds no match and returns null).
     cfg.stdout = '';
-    const result = await execTool.execute({ command: 'rm', args: ['-rf', 'scratch'] }, ctx(), opts());
+    const result = await execTool.execute(
+      { command: 'rm', args: ['-rf', 'scratch'] },
+      ctx(),
+      opts(),
+    );
     expect(result.allowed).toBe(true);
     expect(result.exitCode).toBe(0);
   });
@@ -102,7 +106,11 @@ describe('execTool runCommand (faked child)', () => {
     );
     expect(vitest.allowed).toBe(true);
 
-    const script = await execTool.execute({ command: 'pnpm', args: ['run', 'test'] }, ctx(), opts());
+    const script = await execTool.execute(
+      { command: 'pnpm', args: ['run', 'test'] },
+      ctx(),
+      opts(),
+    );
     expect(script.allowed).toBe(true);
   });
 
@@ -124,14 +132,26 @@ describe('execTool runCommand (faked child)', () => {
     expect(blocked.allowed).toBe(false);
     expect(blocked.stderr).toContain('Blocked subcommand "publish"');
 
-    const dockerPush = await execTool.execute({ command: 'docker', args: ['push', 'repo/image'] }, ctx(), opts());
+    const dockerPush = await execTool.execute(
+      { command: 'docker', args: ['push', 'repo/image'] },
+      ctx(),
+      opts(),
+    );
     expect(dockerPush.allowed).toBe(false);
     expect(dockerPush.stderr).toContain('Blocked subcommand "push"');
 
-    const yarnInfo = await execTool.execute({ command: 'yarn', args: ['npm', 'info', 'typescript'] }, ctx(), opts());
+    const yarnInfo = await execTool.execute(
+      { command: 'yarn', args: ['npm', 'info', 'typescript'] },
+      ctx(),
+      opts(),
+    );
     expect(yarnInfo.allowed).toBe(true);
 
-    const yarnPublish = await execTool.execute({ command: 'yarn', args: ['npm', 'publish'] }, ctx(), opts());
+    const yarnPublish = await execTool.execute(
+      { command: 'yarn', args: ['npm', 'publish'] },
+      ctx(),
+      opts(),
+    );
     expect(yarnPublish.allowed).toBe(false);
     expect(yarnPublish.stderr).toContain('Blocked subcommand "npm publish"');
 
@@ -154,7 +174,11 @@ describe('execTool runCommand (faked child)', () => {
         throw err;
       }
 
-      const result = await execTool.execute({ command: 'echo', cwd: 'outside-link' }, ctx(), opts());
+      const result = await execTool.execute(
+        { command: 'echo', cwd: 'outside-link' },
+        ctx(),
+        opts(),
+      );
       expect(result.allowed).toBe(false);
       expect(result.stderr).toContain('outside project root');
     } finally {

@@ -147,7 +147,11 @@ describe('jsonTool', () => {
 describe('jsonTool action: query', () => {
   it('returns the whole document for @', async () => {
     const data = { a: 1 };
-    const result = await jsonTool.execute({ action: 'query', data: JSON.stringify(data), query: '@' });
+    const result = await jsonTool.execute({
+      action: 'query',
+      data: JSON.stringify(data),
+      query: '@',
+    });
     expect(result.query_result).toEqual(data);
   });
 
@@ -164,19 +168,31 @@ describe('jsonTool action: query', () => {
   });
 
   it('handles multi-select projections', async () => {
-    const result = await jsonTool.execute({ action: 'query', data: '{"items":[{"v":1},{"v":2}]}', query: 'items[*].v' });
+    const result = await jsonTool.execute({
+      action: 'query',
+      data: '{"items":[{"v":1},{"v":2}]}',
+      query: 'items[*].v',
+    });
     expect(result.query_result).toEqual([1, 2]);
   });
 
   it('supports filter expressions', async () => {
-    const result = await jsonTool.execute({ action: 'query', data: '[{"n":1},{"n":2},{"n":3}]', query: '[n>`2`]' });
+    const result = await jsonTool.execute({
+      action: 'query',
+      data: '[{"n":1},{"n":2},{"n":3}]',
+      query: '[n>`2`]',
+    });
     expect(result.query_result).toEqual([{ n: 3 }]);
   });
 
   it('supports length/keys/values/type functions', async () => {
     const len = await jsonTool.execute({ action: 'query', data: '[1,2,3]', query: 'length(@)' });
     expect(len.query_result).toBe(3);
-    const keys = await jsonTool.execute({ action: 'query', data: '{"a":1,"b":2}', query: 'keys(@)' });
+    const keys = await jsonTool.execute({
+      action: 'query',
+      data: '{"a":1,"b":2}',
+      query: 'keys(@)',
+    });
     expect(keys.query_result).toEqual(['a', 'b']);
     const type = await jsonTool.execute({ action: 'query', data: 'null', query: 'type(@)' });
     expect(type.query_result).toBe('null');
@@ -194,25 +210,45 @@ describe('jsonTool action: query', () => {
 
 describe('jsonTool action: validate', () => {
   it('validates type matches', async () => {
-    const result = await jsonTool.execute({ action: 'validate', data: '5', schema: { type: 'integer' } });
+    const result = await jsonTool.execute({
+      action: 'validate',
+      data: '5',
+      schema: { type: 'integer' },
+    });
     expect(result.valid).toBe(true);
   });
 
   it('reports type mismatches', async () => {
-    const result = await jsonTool.execute({ action: 'validate', data: '"x"', schema: { type: 'number' } });
+    const result = await jsonTool.execute({
+      action: 'validate',
+      data: '"x"',
+      schema: { type: 'number' },
+    });
     expect(result.valid).toBe(false);
     expect(result.errors?.[0]).toMatch(/expected number/);
   });
 
   it('validates uri format', async () => {
-    const ok = await jsonTool.execute({ action: 'validate', data: '"https://example.com"', schema: { type: 'string', format: 'uri' } });
+    const ok = await jsonTool.execute({
+      action: 'validate',
+      data: '"https://example.com"',
+      schema: { type: 'string', format: 'uri' },
+    });
     expect(ok.valid).toBe(true);
-    const bad = await jsonTool.execute({ action: 'validate', data: '":::bad"', schema: { type: 'string', format: 'uri' } });
+    const bad = await jsonTool.execute({
+      action: 'validate',
+      data: '":::bad"',
+      schema: { type: 'string', format: 'uri' },
+    });
     expect(bad.valid).toBe(false);
   });
 
   it('validates nested object properties', async () => {
-    const result = await jsonTool.execute({ action: 'validate', data: '{"a":"x"}', schema: { type: 'object', properties: { a: { type: 'number' } } } });
+    const result = await jsonTool.execute({
+      action: 'validate',
+      data: '{"a":"x"}',
+      schema: { type: 'object', properties: { a: { type: 'number' } } },
+    });
     expect(result.valid).toBe(false);
     expect(result.errors?.some((e) => e.includes('$.a'))).toBe(true);
   });
@@ -318,7 +354,12 @@ describe('jsonTool action: merge', () => {
   });
 
   it('prefer-base keeps the base for a scalar collision', async () => {
-    const result = await jsonTool.execute({ action: 'merge', base: 5, patch: 10, conflictResolution: 'prefer-base' });
+    const result = await jsonTool.execute({
+      action: 'merge',
+      base: 5,
+      patch: 10,
+      conflictResolution: 'prefer-base',
+    });
     expect(result.result).toBe(5);
   });
 
@@ -332,7 +373,7 @@ describe('jsonTool action: merge', () => {
     expect(result.error).toContain('base and patch are required');
   });
 
-describe('path containment (CWE-22)', () => {
+  describe('path containment (CWE-22)', () => {
     it('blocks reading a real file that sits outside the pinned project root', async () => {
       // Create a genuinely readable JSON file in tmpDir, then pin projectRoot
       // to a *subdirectory* so the file is provably outside the root. Without
@@ -342,10 +383,12 @@ describe('path containment (CWE-22)', () => {
       const sub = path.join(tmpDir, 'sub');
       await fs.mkdir(sub, { recursive: true });
 
-      const result = await jsonTool.execute(
-        { file: secret },
-        { cwd: sub, workingDir: sub, tools: [], projectRoot: sub } as never,
-      );
+      const result = await jsonTool.execute({ file: secret }, {
+        cwd: sub,
+        workingDir: sub,
+        tools: [],
+        projectRoot: sub,
+      } as never);
       expect(result.data).toBeNull();
       expect(result.error).toBeTruthy();
     });

@@ -1,9 +1,6 @@
 import * as dns from 'node:dns/promises';
 import * as net from 'node:net';
-import {
-  isPrivateIPv4,
-  isPrivateIPv6,
-} from '@wrongstack/core/utils';
+import { isPrivateIPv4, isPrivateIPv6 } from '@wrongstack/core/utils';
 import { FetchError, ToolValidationError } from '@wrongstack/core/types';
 import { Agent, fetch as undiciFetch } from 'undici';
 
@@ -22,8 +19,8 @@ export const ALLOW_PRIVATE = process.env['WRONGSTACK_FETCH_ALLOW_PRIVATE'] === '
 if (ALLOW_PRIVATE && !process.env['CI']) {
   console.warn(
     '[WrongStack] WARNING: WRONGSTACK_FETCH_ALLOW_PRIVATE=1 is active —\n' +
-    '  fetch tool can now access private IPs (10.x, 192.168.x, 169.254.x),\n' +
-    '  cloud metadata endpoints, and plaintext HTTP. Use only on isolated networks.',
+      '  fetch tool can now access private IPs (10.x, 192.168.x, 169.254.x),\n' +
+      '  cloud metadata endpoints, and plaintext HTTP. Use only on isolated networks.',
   );
 }
 

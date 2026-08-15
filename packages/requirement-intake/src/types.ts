@@ -17,6 +17,7 @@ import type {
   SuggestionKind,
   SuggestionStatus,
 } from './constants.js';
+import type { VibeProtocolState } from './vibe.js';
 
 /** Actor identity used for authorization and audit. */
 export interface IntakeActor {
@@ -136,6 +137,10 @@ export interface RequirementIntakeRecord {
   questions: IntakeQuestion[];
   llmSuggestions: LlmSuggestionProposal[];
   metadata: Record<string, unknown>;
+  /** True when the request is processed under the Three-Stage VIBE Verification Protocol. */
+  isVibeMode?: boolean | undefined;
+  /** Persisted state of the VIBE protocol pipeline (Spec-Synthesizer -> Coder -> Auditor). */
+  vibeProtocol?: VibeProtocolState | undefined;
   /** Source annotation per record field ('user' | 'llm' | 'deterministic'). */
   fieldSources: Partial<Record<IntakeField, IntakeFieldSource>>;
   /** Raw idempotency key used at creation (kept for diagnostics). */
@@ -172,6 +177,10 @@ export interface CreateIntakeInput {
   attachments?: IntakeAttachmentInput[] | undefined;
   relatedResources?: RelatedResourceInput[] | undefined;
   metadata?: Record<string, unknown> | undefined;
+  /** Explicit override for Vibe Mode; if omitted, automatically detected from originalRequest. */
+  isVibeMode?: boolean | undefined;
+  /** Optional initial vibe state if resuming an existing cycle. */
+  vibeProtocol?: VibeProtocolState | undefined;
   /** Idempotent-create key: same key + project returns the existing record. */
   idempotencyKey?: string | undefined;
   /**
@@ -216,6 +225,8 @@ export interface UpdateIntakeInput {
   constraints?: string[] | undefined;
   providedContext?: string[] | undefined;
   metadata?: Record<string, unknown> | undefined;
+  isVibeMode?: boolean | undefined;
+  vibeProtocol?: VibeProtocolState | undefined;
 }
 
 /** Payload for answering an intake question. */

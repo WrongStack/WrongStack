@@ -205,7 +205,12 @@ async function* runRgStream(
   // non-repo trees (scratch dirs, exported archives) get the same pruning as
   // repos and as the native fallback.
   const gitignorePath = path.join(base, '.gitignore');
-  if (await fs.access(gitignorePath).then(() => true, () => false)) {
+  if (
+    await fs.access(gitignorePath).then(
+      () => true,
+      () => false,
+    )
+  ) {
     args.push('--ignore-file', gitignorePath);
   }
   if (input.glob) args.push('--glob', input.glob);
@@ -247,21 +252,12 @@ async function* runRgStream(
     }
   };
   const pauseIfFlooded = (): void => {
-    if (
-      paused ||
-      (queue.length < RG_MAX_QUEUE_CHUNKS && queuedChars < RG_MAX_QUEUE_CHARS)
-    )
-      return;
+    if (paused || (queue.length < RG_MAX_QUEUE_CHUNKS && queuedChars < RG_MAX_QUEUE_CHARS)) return;
     paused = true;
     child.stdout?.pause();
   };
   const resumeIfDrained = (): void => {
-    if (
-      !paused ||
-      queue.length >= RG_MAX_QUEUE_CHUNKS ||
-      queuedChars >= RG_MAX_QUEUE_CHARS
-    )
-      return;
+    if (!paused || queue.length >= RG_MAX_QUEUE_CHUNKS || queuedChars >= RG_MAX_QUEUE_CHARS) return;
     paused = false;
     child.stdout?.resume();
   };
@@ -422,7 +418,8 @@ async function runNative(
   const isGitIgnored = await loadGitignoreMatcher(base);
   const matches: string[] = [];
   const countOnlyFirstHit = mode === 'count' && limit === 1;
-  const maxBytes = mode === 'content' ? NATIVE_MAX_FILE_BYTES : Math.min(NATIVE_MAX_FILE_BYTES, 256 * 1024);
+  const maxBytes =
+    mode === 'content' ? NATIVE_MAX_FILE_BYTES : Math.min(NATIVE_MAX_FILE_BYTES, 256 * 1024);
   let total = 0;
   let stopped = false;
 
@@ -446,7 +443,12 @@ async function runNative(
 
         while (!stopped && !signal.aborted && bytesReadTotal < maxBytes) {
           const remaining = maxBytes - bytesReadTotal;
-          const { bytesRead } = await file.read(buffer, 0, Math.min(buffer.length, remaining), null);
+          const { bytesRead } = await file.read(
+            buffer,
+            0,
+            Math.min(buffer.length, remaining),
+            null,
+          );
           if (bytesRead === 0) break;
           const chunk = buffer.subarray(0, bytesRead);
           if (!binaryChecked) {
@@ -512,7 +514,8 @@ async function runNative(
         }
 
         if (mode === 'content' && matches.length >= limit) stopped = true;
-        if (mode === 'count' && matches.length >= limit && (countOnlyFirstHit || mode !== 'count')) stopped = true;
+        if (mode === 'count' && matches.length >= limit && (countOnlyFirstHit || mode !== 'count'))
+          stopped = true;
       } finally {
         await file.close();
       }
@@ -545,7 +548,9 @@ async function runNative(
         files.push({ full, name: e.name });
       }
     }
-    await mapWithConcurrency(files, NATIVE_SCAN_CONCURRENCY, ({ full, name }) => scanFile(full, name));
+    await mapWithConcurrency(files, NATIVE_SCAN_CONCURRENCY, ({ full, name }) =>
+      scanFile(full, name),
+    );
     await mapWithConcurrency(subdirs, Math.min(16, NATIVE_SCAN_CONCURRENCY), ({ full, rel }) =>
       walk(full, rel),
     );

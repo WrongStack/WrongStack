@@ -289,7 +289,8 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
             limit: 10,
           }),
         );
-        watchedFound = watched?.results.some((result) => result.name === 'watchedSentinel') ?? false;
+        watchedFound =
+          watched?.results.some((result) => result.name === 'watchedSentinel') ?? false;
       }
       expect(watchedFound).toBe(true);
 

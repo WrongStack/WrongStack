@@ -255,9 +255,7 @@ describe('IndexStore refs', () => {
       sym({ name: 'Config', lang: 'ts', file: '/p/ts-config.ts' }),
       sym({ name: 'Config', lang: 'go', file: '/p/go-config.go' }),
     ])[0]!;
-    store.insertRefs(callerId, [
-      { fromId: callerId, toName: 'Config', callType: 'call', line: 7 },
-    ]);
+    store.insertRefs(callerId, [{ fromId: callerId, toName: 'Config', callType: 'call', line: 7 }]);
     store.resolveRefs();
 
     expect(store.findRefsFrom(callerId)[0]?.toId).toBe(tsConfig.id);
@@ -373,9 +371,9 @@ describe('IndexStore CodeMap graphs', () => {
     // `import { readFile } … ` followed by a `readFile()` call is two distinct
     // relations to the same symbol, so the symbol graph carries both.
     expect(graph.edges.map((edge) => edge.refType).sort()).toEqual(['call', 'import']);
-    expect(
-      graph.edges.every((edge) => graph.nodes.some((node) => node.id === edge.target)),
-    ).toBe(true);
+    expect(graph.edges.every((edge) => graph.nodes.some((node) => node.id === edge.target))).toBe(
+      true,
+    );
   });
 });
 

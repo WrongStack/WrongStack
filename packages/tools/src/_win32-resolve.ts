@@ -68,7 +68,12 @@ export function resolveWin32Command(cmd: string): string {
 export function resolvePowerShell(cmd: string): string {
   if (process.platform !== 'win32') return cmd;
   const lower = cmd.toLowerCase();
-  if (lower !== 'pwsh' && lower !== 'powershell' && lower !== 'pwsh.exe' && lower !== 'powershell.exe') {
+  if (
+    lower !== 'pwsh' &&
+    lower !== 'powershell' &&
+    lower !== 'pwsh.exe' &&
+    lower !== 'powershell.exe'
+  ) {
     return resolveWin32Command(cmd);
   }
   // Prefer the requested edition, fall back to the other one.

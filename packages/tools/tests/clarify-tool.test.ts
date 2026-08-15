@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { clarifyTool } from '../src/index.js';
 
+const makeOpts = () => ({ signal: new AbortController().signal });
+
 describe('clarify tool', () => {
   it('auto-selects recommended option in headless mode', async () => {
     const output = await clarifyTool.execute(
@@ -15,6 +17,7 @@ describe('clarify tool', () => {
         recommendedOption: '(Recommended) E.164 international format with unique index',
       },
       {} as never,
+      makeOpts(),
     );
 
     expect(output.status).toBe('auto_decided');
@@ -40,6 +43,7 @@ describe('clarify tool', () => {
         options: ['Option A', 'Option B'],
       },
       ctx as never,
+      makeOpts(),
     );
 
     expect(mockHostAsk).toHaveBeenCalledOnce();
@@ -55,6 +59,7 @@ describe('clarify tool', () => {
         options: ['Only one'],
       },
       {} as never,
+      makeOpts(),
     );
 
     expect(output.status).toBe('skipped');
