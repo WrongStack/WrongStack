@@ -56,12 +56,12 @@ describe('VectorMemoryStore', () => {
 
   it('removes an entry on forget', async () => {
     const created = await store.remember({ text: 'delete me' });
-    expect(store.forget(created.id)).toBe(true);
+    expect(await store.forget(created.id)).toBe(true);
     expect(store.get(created.id)).toBeUndefined();
   });
 
-  it('returns false on forget for unknown id', () => {
-    expect(store.forget('nonexistent-id')).toBe(false);
+  it('returns false on forget for unknown id', async () => {
+    expect(await store.forget('nonexistent-id')).toBe(false);
   });
 
   it('ranks search results by cosine similarity', async () => {

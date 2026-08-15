@@ -3538,6 +3538,7 @@
     "emptyHint": "I prompt che invii appariranno qui quando il registro avrà voci.",
     "tokens": "token",
     "rawInput": "Input originale",
+    "refinedBody": "Copia perfezionata",
     "model": "Modello",
     "provider": "Fornitore",
     "iteration": "Iterazione",

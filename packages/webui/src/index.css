@@ -1141,3 +1141,61 @@ kbd {
     radial-gradient(1200px 200px at 0% -40%, hsl(265 80% 60% / 0.18), transparent),
     radial-gradient(800px 200px at 100% -40%, hsl(199 89% 55% / 0.16), transparent);
 }
+
+/* ===========================================================================
+   Vector memory panel — pairwise similarity heatmap.
+   The grid is a CSS grid; each cell is colored by inline `background` style
+   (HSL with lightness mapped from cosine similarity) so the heatmap stays
+   a single source of truth and doesn't need a color palette file.
+   =========================================================================== */
+.vector-memory-panel__heatmap {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.6);
+}
+.vector-memory-panel__heatmap h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.vector-memory-panel__heatmap-hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+}
+.vector-memory-panel__heatmap-grid {
+  display: grid;
+  gap: 2px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+.vector-memory-panel__heatmap-corner,
+.vector-memory-panel__heatmap-col-label,
+.vector-memory-panel__heatmap-row-label {
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  padding: 2px 0;
+}
+.vector-memory-panel__heatmap-cell {
+  text-align: center;
+  padding: 4px 2px;
+  border-radius: 2px;
+  color: hsl(220 30% 20%);
+  font-weight: 500;
+  cursor: default;
+  transition: transform 80ms ease-out;
+}
+.vector-memory-panel__heatmap-cell:hover {
+  transform: scale(1.1);
+  z-index: 1;
+  position: relative;
+  outline: 1px solid hsl(220 80% 50%);
+}
+.vector-memory-panel__heatmap-cell--diagonal {
+  outline: 1px solid hsl(220 60% 50% / 0.4);
+  font-weight: 700;
+}

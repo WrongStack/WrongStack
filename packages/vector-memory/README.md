@@ -12,6 +12,69 @@ stores cannot contend on the same file lock. A built-in `syncFromSage`
 bridge indexes active SAGE memories into the vector store, giving
 semantic search over your existing knowledge.
 
+## Parallel operation with SAGE
+
+`wrapMemoryPortWithVectorRecall(port, { store })` returns a new
+`MemoryPort` whose `searchSage` calls automatically fuse lexical and
+semantic recall via Reciprocal Rank Fusion. Hosts that opt in get
+**vector-augmented retrieval without changing any caller code** — the
+tool-call middleware, the turn middleware, and the surface/retrieval
+capabilities all see the same `searchSage(query, options)` shape.
+
+```ts
+import {
+  VectorMemoryStore,
+  TransformersEmbeddingProvider,
+  wrapMemoryPortWithVectorRecall,
+} from '@wrongstack/vector-memory';
+
+const vectorStore = new VectorMemoryStore({
+  provider: new TransformersEmbeddingProvider({ cacheDir }),
+  projectRoot,
+});
+
+const augmentedPort = wrapMemoryPortWithVectorRecall(sagePort, {
+  store: vectorStore,
+  weight: 0.3, // default; mirrors SAGE's hybridRerankMemories baseline
+});
+
+// Every downstream searchSage(query, options) now does
+//   lexical candidates + vector hits → RRF → fused result list
+const hits = await augmentedPort
+  .getCapability(SAGE_RETRIEVAL_CAPABILITY)!
+  .searchSage('quantum entanglement', { limit: 10 });
+```
+
+The wrapper is fail-open: a thrown error from the vector backend
+(offline model, missing dependency) falls back to the lexical list
+unchanged. The vector channel only **re-orders and boosts** — it does
+not inject foreign memories, because vector hits that map to SAGE
+memories not present in the lexical list are dropped (no Sage object to
+materialize).
+
+## Embedding result cache
+
+A provider-level cache keyed by `(content_hash, provider_id, dimensions)`
+skips the ONNX forward pass for repeated text. Both `remember()` and
+`search()` use the same cache, so the second embedding of an identical
+text costs only a SQLite lookup. Hosts that want to bound cache growth
+can call `store.evictCache(keepMostRecent)` for an LRU sweep.
+
+```ts
+const stats = store.cacheStats();
+// { entries: 142, providers: 1, totalUseCount: 1834, oldestLastUsedAt: '...' }
+```
+
+## Cross-process safety
+
+Mutating operations (`remember`, `forget`, `reindexAll`, `syncFromSage`,
+`evictCache`) are wrapped in a host-OS file lock. Two processes pointing
+at the same `.wrongstack/vector-memory/vector-memory.db` cannot interleave
+a read-modify-write. `remember()` is also idempotent on `content_hash`:
+calling it twice with the same text returns the existing entry instead of
+inserting a duplicate (the `UNIQUE` index on `entries.content_hash` is
+the second line of defense).
+
 ## Installation
 
 `@huggingface/transformers` is listed as an **optional** dependency so

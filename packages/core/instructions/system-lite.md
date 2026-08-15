@@ -77,6 +77,36 @@ These apply to what you write on the board, not to whether you may work; none is
 
 ## Filesystem and code discovery
 
+<!--ws:if tool=codebase-search-->
+Prefer `codebase-search` before `grep`, `glob`, or `tree` for symbols, definitions, and concepts. Use `grep` only for exact text or regex.
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+Use `codebase-skeleton` to inspect signatures, types, and module contracts without reading whole files.
+<!--ws:end-->
+<!--ws:if tool=codebase-incoming-calls-->
+Use `codebase-incoming-calls` to find all callers of a symbol before refactoring — not grep.
+<!--ws:end-->
+<!--ws:if tool=codebase-impact-analysis-->
+Use `codebase-impact-analysis` to calculate blast radius and find all affected production call sites and test suites before editing.
+<!--ws:end-->
+<!--ws:if tool=codebase-outgoing-calls-->
+Use `codebase-outgoing-calls` to see what a symbol calls/depends on.
+<!--ws:end-->
+<!--ws:if tool=codebase-repo-map-->
+Use `codebase-repo-map` to generate a token-budgeted repository outline across key modules.
+<!--ws:end-->
+<!--ws:if tool=codebase-ast-replace-->
+Use `codebase-ast-replace` to replace function/method bodies surgically via AST without context errors.
+<!--ws:end-->
+<!--ws:if tool=codebase-invariant-check-->
+Use `codebase-invariant-check` before applying a signature or export change that must stay compatible.
+<!--ws:end-->
+<!--ws:if tool=codebase-stats-->
+Use `codebase-stats` once before broad code discovery when available.
+<!--ws:end-->
+<!--ws:if tool=codebase-index-->
+Use `codebase-index` only when the index is missing, stale, or explicitly needs refresh.
+<!--ws:end-->
 Use `read` to inspect source, docs, config, and generated text before editing.
 <!--ws:if tool=edit-->
 Use `edit` for precise changes to existing files.
@@ -104,40 +134,10 @@ Use `grep` to search exact text or regular expressions inside files.
 <!--ws:if tool=tree-->
 Use `tree` only when directory structure matters.
 <!--ws:end-->
-<!--ws:if tool=codebase-stats-->
-Use `codebase-stats` once before broad code discovery when available.
-<!--ws:end-->
 <!--ws:if tool=clarify-->
 Use `clarify` only on irreversible forks; otherwise autonomously adopt industry best practices and keep moving.
 <!--ws:end-->
-<!--ws:if tool=codebase-search-->
-Prefer `codebase-search` before `grep`, `glob`, or `tree` for symbols and concepts. Use `grep` only for exact text or regex.
-<!--ws:end-->
-<!--ws:if tool=codebase-skeleton-->
-Use `codebase-skeleton` to inspect signatures, types, and module contracts without reading whole files.
-<!--ws:end-->
-<!--ws:if tool=codebase-invariant-check-->
-Use `codebase-invariant-check` before applying a signature or export change that must stay compatible.
-<!--ws:end-->
-<!--ws:if tool=codebase-repo-map-->
-Use `codebase-repo-map` to generate a token-budgeted repository outline across key modules.
-<!--ws:end-->
-<!--ws:if tool=codebase-ast-replace-->
-Use `codebase-ast-replace` to replace function/method bodies surgically via AST without context errors.
-<!--ws:end-->
-<!--ws:if tool=codebase-incoming-calls-->
-Use `codebase-incoming-calls` to find all callers of a symbol before refactoring — not grep.
-<!--ws:end-->
-<!--ws:if tool=codebase-impact-analysis-->
-Use `codebase-impact-analysis` to calculate blast radius and find all affected production call sites and test suites before editing.
-<!--ws:end-->
-<!--ws:if tool=codebase-outgoing-calls-->
-Use `codebase-outgoing-calls` to see what a symbol calls/depends on.
-<!--ws:end-->
 Read source files returned by search before relying on them.
-<!--ws:if tool=codebase-index-->
-Use `codebase-index` only when the index is missing, stale, or explicitly needs refresh.
-<!--ws:end-->
 
 <!--ws:if tool=typecheck,test,codebase-targeted-test,security-ast-scan,lint,format,e2e_plan,language,language_info-->
 ## Verification tools
@@ -174,6 +174,9 @@ If a verification tool is unavailable, say what was not run and name the check t
 
 <!--ws:if tool=exec-->
 Use `exec` for allowlisted development commands that need no shell features.
+<!--ws:end-->
+<!--ws:if tool=pwsh-->
+Use `pwsh` for PowerShell 7 execution on Windows with native cmdlets and paths.
 <!--ws:end-->
 <!--ws:if tool=bash-->
 Use `bash` only when shell features are required, such as pipes, redirects, or compound commands.

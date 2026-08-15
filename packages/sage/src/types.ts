@@ -736,6 +736,35 @@ export interface SageSearchOptions {
    * SQL order. Stronger semantic indexing remains a future option.
    */
   semanticRerank?: boolean | undefined;
+  /**
+   * Optional semantic-recall backend. When set, the lexical candidate set
+   * is fused with semantic matches from this provider via
+   * `augmentLexicalWithVectorRecall`. The provider is decoupled from any
+   * specific vector store — pass any object satisfying the structural
+   * `VectorRecallProvider` contract. Fail-open: any error in the backend
+   * is swallowed and the lexical list passes through unchanged.
+   *
+   * Production wiring: `@wrongstack/vector-memory`'s `VectorMemoryStore`
+   * wrapped in a thin adapter that returns `{id, score, text, summary,
+   * tags, metadata}` from `store.search()`.
+   */
+  vectorRecall?: import('./retrieval/vector-augment.js').VectorRecallProvider | undefined;
+  /**
+   * Weight of the vector channel when fusing with lexical. 0 = pure
+   * lexical order, 1 = pure vector order. Default 0.3 (mirrors
+   * `hybridRerankMemories`).
+   */
+  vectorRecallWeight?: number | undefined;
+  /**
+   * Cosine threshold for the vector-only channel. Vector-only hits below
+   * this floor are dropped. Default 0.
+   */
+  vectorRecallThreshold?: number | undefined;
+  /**
+   * Cosine threshold forwarded to the vector backend's `search()`. Default
+   * unset (backend default).
+   */
+  vectorRecallMinScore?: number | undefined;
 }
 
 export interface SageForAudienceOptions extends MemoryAudienceContext {

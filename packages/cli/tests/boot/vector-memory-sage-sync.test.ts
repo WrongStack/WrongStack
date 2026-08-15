@@ -29,7 +29,7 @@ import {
   SAGE_SYNC_MARKER_FILENAME,
   decideWhetherToSync,
   startFirstBootSageSync,
-} from '../../src/boot/vector-memory-sage-sync.js';
+} from '@wrongstack/vector-memory';
 
 function tmpProjectRoot(): string {
   return path.join(

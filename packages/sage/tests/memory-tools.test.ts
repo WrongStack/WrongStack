@@ -144,14 +144,15 @@ describe('isSageService', () => {
 });
 
 describe('createSageTools', () => {
-  it('returns 14 tools with correct names', () => {
+  it('returns 15 tools with correct names', () => {
     const service = createMockService();
     const tools = createSageTools(service);
-    expect(tools).toHaveLength(14);
+    expect(tools).toHaveLength(15);
     expect(tools.map((t) => t.name)).toEqual([
       'memory_for_file',
       'memory_for_path',
       'memory_search',
+      'memory_search_explain',
       'memory_graph',
       'memory_gather_batch',
       'memory_verify',
@@ -319,7 +320,7 @@ describe('memory_graph tool', () => {
     service.graphFor = graphFor;
 
     const tools = createSageTools(service);
-    const tool = tools[3]!;
+    const tool = tools.find((t) => t.name === 'memory_graph')!;
     await tool.execute(
       { query: 'test' },
       {} as never,
@@ -344,7 +345,7 @@ describe('memory_gather_batch tool', () => {
     service.listSagePage = listSagePage;
 
     const tools = createSageTools(service);
-    const tool = tools[4]!;
+    const tool = tools.find((t) => t.name === 'memory_gather_batch')!;
     expect(tool.name).toBe('memory_gather_batch');
 
     const result = (await tool.execute(
@@ -386,7 +387,7 @@ describe('memory_gather_batch tool', () => {
     service.listSagePage = listSagePage;
     service.graphFor = graphFor;
 
-    const tool = createSageTools(service)[4]!;
+    const tool = createSageTools(service).find((t) => t.name === 'memory_gather_batch')!;
     const result = (await tool.execute(
       {} as never,
       {} as never,
@@ -424,7 +425,7 @@ describe('memory_gather_batch tool', () => {
     service.listSagePage = listSagePage;
     service.graphFor = graphFor;
 
-    const tool = createSageTools(service)[4]!;
+    const tool = createSageTools(service).find((t) => t.name === 'memory_gather_batch')!;
     const result = (await tool.execute(
       {} as never,
       {} as never,
@@ -455,7 +456,7 @@ describe('memory_gather_batch tool', () => {
     service.listSagePage = listSagePage;
     service.graphFor = graphFor;
 
-    const tool = createSageTools(service)[4]!;
+    const tool = createSageTools(service).find((t) => t.name === 'memory_gather_batch')!;
     const result = (await tool.execute(
       {} as never,
       {} as never,
@@ -491,7 +492,7 @@ describe('memory_gather_batch tool', () => {
     service.listSagePage = listSagePage;
     service.graphFor = graphFor;
 
-    const tool = createSageTools(service)[4]!;
+    const tool = createSageTools(service).find((t) => t.name === 'memory_gather_batch')!;
     const result = (await tool.execute(
       {} as never,
       {} as never,
@@ -507,7 +508,7 @@ describe('memory_gather_batch tool', () => {
   });
 
   it('throws on abort signal', async () => {
-    const tool = createSageTools(createMockService())[4]!;
+    const tool = createSageTools(createMockService()).find((t) => t.name === 'memory_graph')!;
     const abort = new AbortController();
     abort.abort();
     await expect(
@@ -523,7 +524,7 @@ describe('memory_verify tool', () => {
     service.verify = verify;
 
     const tools = createSageTools(service);
-    const tool = tools[5]!;
+    const tool = tools.find((t) => t.name === 'memory_verify')!;
     const signal = new AbortController().signal;
     await tool.execute({ memory_id: 'mem_123' }, {} as never, { signal } as never);
 
@@ -536,7 +537,7 @@ describe('memory_verify tool', () => {
     service.verify = verify;
 
     const tools = createSageTools(service);
-    const tool = tools[5]!;
+    const tool = tools.find((t) => t.name === 'memory_verify')!;
     const signal = new AbortController().signal;
     await tool.execute({}, {} as never, { signal } as never);
 
@@ -562,7 +563,7 @@ describe('memory_hygiene tool', () => {
     service.hygiene = hygiene;
 
     const tools = createSageTools(service);
-    const tool = tools[6]!;
+    const tool = tools.find((t) => t.name === 'memory_hygiene')!;
     const signal = new AbortController().signal;
     await tool.execute({ retentionDays: 30 }, {} as never, { signal } as never);
 
@@ -577,7 +578,7 @@ describe('memory_candidates tool', () => {
     service.listCandidates = listCandidates;
 
     const tools = createSageTools(service);
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     const signal = new AbortController().signal;
     await tool.execute({}, {} as never, { signal } as never);
 
@@ -590,7 +591,7 @@ describe('memory_candidates tool', () => {
     service.listCandidates = listCandidates;
 
     const tools = createSageTools(service);
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     await tool.execute(
       { include_resolved: true },
       {} as never,
@@ -606,7 +607,7 @@ describe('memory_candidates tool', () => {
     service.acceptCandidate = acceptCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     await tool.execute(
       { action: 'accept', candidate_id: 'cand_1' },
       {} as never,
@@ -622,7 +623,7 @@ describe('memory_candidates tool', () => {
     service.rejectCandidate = rejectCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     const result = await tool.execute(
       { action: 'reject', candidate_id: 'cand_1', reason: 'Not needed' },
       {} as never,
@@ -635,7 +636,7 @@ describe('memory_candidates tool', () => {
 
   it('validates candidate_id required for accept/reject', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     const errors = tool.validate?.({ action: 'accept' }) ?? [];
     expect(errors).toContain('candidate_id is required for accept or reject');
   });
@@ -646,7 +647,7 @@ describe('memory_candidates tool', () => {
     service.createCandidate = createCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     await tool.execute(
       {
         action: 'propose',
@@ -671,7 +672,7 @@ describe('memory_candidates tool', () => {
 
   it('requires text for propose', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     const errors = tool.validate?.({ action: 'propose' }) ?? [];
     expect(errors).toContain('text is required for propose');
   });
@@ -684,7 +685,7 @@ describe('memory_candidates tool', () => {
     service.resolveCandidate = resolveCandidate;
 
     const tools = createSageTools(service);
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     const result = await tool.execute(
       { action: 'resolve', candidate_id: 'cand_1', decision: 'delete', reason: 'noise' },
       {} as never,
@@ -697,7 +698,7 @@ describe('memory_candidates tool', () => {
 
   it('requires candidate_id and decision for resolve', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     expect(tool.validate?.({ action: 'resolve' }) ?? []).toContain(
       'candidate_id is required for resolve',
     );
@@ -708,14 +709,14 @@ describe('memory_candidates tool', () => {
 
   it('validation passes for accept with candidate_id', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     const errors = tool.validate?.({ action: 'accept', candidate_id: 'cand_1' }) ?? [];
     expect(errors).toHaveLength(0);
   });
 
   it('validation passes for list action', async () => {
     const tools = createSageTools(createMockService());
-    const tool = tools[7]!;
+    const tool = tools.find((t) => t.name === 'memory_candidates')!;
     const errors = tool.validate?.({ action: 'list' }) ?? [];
     expect(errors).toHaveLength(0);
   });
@@ -729,7 +730,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[8]!;
+    const tool = createSageTools(service).find((t) => t.name === 'remember')!;
     expect(tool.name).toBe('remember');
     await tool.execute(
       {
@@ -767,7 +768,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[8]!;
+    const tool = createSageTools(service).find((t) => t.name === 'remember')!;
     await tool.execute(
       { text: 'Always verify migration reversibility.' } as never,
       { meta: { agentRole: 'reviewer' } } as never,
@@ -789,7 +790,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[8]!;
+    const tool = createSageTools(service).find((t) => t.name === 'remember')!;
     await tool.execute(
       { text: 'General project note.' } as never,
       { meta: {} } as never,
@@ -811,7 +812,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[8]!;
+    const tool = createSageTools(service).find((t) => t.name === 'remember')!;
     await tool.execute(
       {
         text: 'Scoped memory.',
@@ -836,7 +837,7 @@ describe('remember tool (structured write)', () => {
     const service = createMockService();
     service.rememberSage = rememberSage;
 
-    const tool = createSageTools(service)[8]!;
+    const tool = createSageTools(service).find((t) => t.name === 'remember')!;
     await tool.execute(
       { text: 'General note from a subagent.', no_auto_audience: true } as never,
       { meta: { agentRole: 'reviewer', mode: 'teach' } } as never,
@@ -858,7 +859,7 @@ describe('forget tool', () => {
     const service = createMockService();
     service.forget = forget;
 
-    const tool = createSageTools(service)[9]!;
+    const tool = createSageTools(service).find((t) => t.name === 'forget')!;
     expect(tool.name).toBe('forget');
     const result = await tool.execute(
       { query: 'stale note' } as never,
@@ -879,7 +880,7 @@ describe('memory_update tool', () => {
     const service = createMockService();
     service.updateSage = updateSage;
 
-    const tool = createSageTools(service)[10]!;
+    const tool = createSageTools(service).find((t) => t.name === 'memory_update')!;
     expect(tool.name).toBe('memory_update');
     expect(tool.validate?.({ id: 'mem_1' } as never)).toContain(
       'at least one field to update is required',
@@ -900,7 +901,7 @@ describe('memory_delete tool', () => {
     const service = createMockService();
     service.deleteSage = deleteSage;
 
-    const tool = createSageTools(service)[11]!;
+    const tool = createSageTools(service).find((t) => t.name === 'memory_delete')!;
     expect(tool.name).toBe('memory_delete');
     const result = await tool.execute(
       { id: 'mem_1', reason: 'obsolete', force: true } as never,
@@ -913,10 +914,13 @@ describe('memory_delete tool', () => {
   });
 
   it('rejects deletion without force', async () => {
-    const tool = createSageTools(createMockService())[11]!;
+    const tool = createSageTools(createMockService()).find((t) => t.name === 'memory_delete')!;
     const errors = tool.validate?.({ id: 'mem_1', reason: 'test' } as never) ?? [];
     expect(errors).toContain(
       'force: true is required to delete any memory. This prevents accidental or autonomous deletions. Pass force: true to authorize; the override is audit-logged. For non-destructive review, use memory_candidates({ action: "propose" }) instead.',
     );
   });
 });
+
+
+

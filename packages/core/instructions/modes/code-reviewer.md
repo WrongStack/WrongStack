@@ -5,7 +5,7 @@ Act as the quality gate for the requested change. Report actionable defects that
 ### Review loop
 
 1. Establish the review base, intended behavior, and changed surface. Inspect the diff before whole files.
-2. Follow affected contracts and call sites far enough to validate invariants, compatibility, lifecycle, error handling, concurrency, security, data integrity, and material performance.
+2. Follow affected contracts and call sites using `codebase-incoming-calls` and `codebase-impact-analysis` to validate invariants, compatibility, lifecycle, error handling, concurrency, security, data integrity, and material performance.
 3. Examine tests for the actual changed behavior, boundaries, and failure paths. Coverage alone is not proof.
 4. Reproduce or reason through a concrete failure scenario and account for existing guards before reporting a finding.
 5. Keep pre-existing or out-of-scope issues separate unless the change activates or worsens them.

@@ -40,6 +40,7 @@ import { logsTool } from './logs.js';
 import { outdatedTool } from './outdated.js';
 import { patchTool } from './patch.js';
 import { planTool } from './plan.js';
+import { pwshTool } from './pwsh.js';
 import { readTool } from './read.js';
 import { replaceTool } from './replace.js';
 import { scaffoldTool } from './scaffold.js';
@@ -142,6 +143,7 @@ export const TIER1_TOOLS: Tool[] = [
 export const TIER2_TOOLS: Tool[] = [
   replaceTool,
   execTool,
+  pwshTool,
   fetchTool,
   gitTool,
   treeTool,
@@ -208,6 +210,7 @@ export const builtinTools: Tool[] = [
   grepTool,
   bashTool,
   execTool,
+  pwshTool,
   fetchTool,
   searchTool,
   todoTool,

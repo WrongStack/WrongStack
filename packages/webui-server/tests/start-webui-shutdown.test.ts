@@ -51,6 +51,8 @@ describe('setupWebuiShutdown', () => {
     const disposeIndexing = vi.fn();
     const runSageSessionHygiene = vi.fn().mockRejectedValue(new Error('sage failed'));
     const disposeMemory = vi.fn().mockRejectedValue(new Error('memory failed'));
+    const closeVectorMemory = vi.fn();
+    const disposeMemoryOk = vi.fn().mockResolvedValue(undefined);
     const primary = {};
     const companion = {};
     const secondary = {};
@@ -80,6 +82,7 @@ describe('setupWebuiShutdown', () => {
       clearEternalSubscription,
       codebaseIndexing: { dispose: disposeIndexing },
       memoryStore: { dispose: disposeMemory },
+      vectorMemoryStore: { close: closeVectorMemory },
       globalConfigPath: 'D:/home/.wrongstack/config.json',
     });
 
@@ -112,9 +115,53 @@ describe('setupWebuiShutdown', () => {
     );
     expect(logger.warn).toHaveBeenCalledWith('sage session hygiene failed: sage failed');
     expect(logger.warn).toHaveBeenCalledWith('sage connection disposal failed: memory failed');
+    // Vector memory store is wired: shutdown closes the SQLite handle
+    // after the SAGE disposal. Must run BEFORE unregisterInstance.
+    expect(closeVectorMemory).toHaveBeenCalledTimes(1);
     expect(mocks.unregisterInstance).toHaveBeenCalledWith(
       process.pid,
       expect.stringMatching(/[\\/]\.wrongstack$/),
     );
+  });
+
+  it('does not throw when no vector memory store was constructed (disabled / read-only FS)', async () => {
+    let registered: { onShutdown: () => Promise<void> } | undefined;
+    mocks.registerShutdown.mockImplementation((options: typeof registered) => {
+      registered = options;
+      return vi.fn();
+    });
+
+    setupWebuiShutdown({
+      session: { append: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) },
+      tokenCounter: { total: vi.fn(() => ({ input: 0, output: 0 })) },
+      clients: new Map(),
+      httpServer: {} as never,
+      companionServer: null,
+      wssPrimary: {} as never,
+      wssSecondary: null,
+      stopEmptySessionCleanup: { dispose: vi.fn().mockResolvedValue(undefined) },
+      getKanbanSupervisorDispose: () => null,
+      todosCheckpoint: { detach: vi.fn().mockResolvedValue(undefined) },
+      stopHeapWatchdog: vi.fn().mockResolvedValue(undefined),
+      getCredentialWatcherClose: () => undefined,
+      disposeRealtimeHandlers: vi.fn(),
+      governanceHandle: undefined,
+      logger: { warn: vi.fn() },
+      brainMonitor: { stop: vi.fn() },
+      agentServices: { brainLedger: undefined, runSageSessionHygiene: () => Promise.resolve() },
+      mcpRegistry: { stopAll: vi.fn().mockResolvedValue(undefined) },
+      sessionIdentity: { stop: vi.fn().mockResolvedValue(undefined) },
+      eventArming: { getDispose: () => undefined },
+      getEternalSubscription: () => null,
+      clearEternalSubscription: vi.fn(),
+      codebaseIndexing: { dispose: vi.fn() },
+      memoryStore: { dispose: () => Promise.resolve() },
+      // vectorMemoryStore: undefined — must be tolerated without throwing.
+      vectorMemoryStore: undefined,
+      globalConfigPath: 'D:/home/.wrongstack/config.json',
+    });
+
+    await expect(registered?.onShutdown()).resolves.toBeUndefined();
+    expect(mocks.unregisterInstance).toHaveBeenCalled();
   });
 });

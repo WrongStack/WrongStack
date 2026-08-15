@@ -7,12 +7,23 @@
  * matching the existing `packages/tools/src/codebase-index/vector-search.ts`
  * pattern. The store is deliberately separate from SAGE's SQLite database
  * so the two stores cannot contend on the same file lock.
+ *
+ * Persistence layers:
+ *  - SQLite WAL — handles intra-process concurrency, crash recovery.
+ *  - `withFileLock` (core/utils) — wraps mutating ops so two processes
+ *    pointing at the same `.db` cannot interleave a read-modify-write.
+ *  - Provider-level `embedding_cache` table — same text never re-runs the
+ *    ONNX forward pass; keyed by (content_hash, provider_id, dimensions)
+ *    so a model swap invalidates only the old provider rows.
+ *  - UNIQUE index on `entries.content_hash` — defense-in-depth against any
+ *    race that bypasses the pre-check; `remember()` is now idempotent.
  */
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { HashingEmbeddingProvider, cosineSimilarity } from '@wrongstack/sage';
+import { withFileLock } from '@wrongstack/core/utils';
 
 import {
   VECTOR_DIMENSIONS_KEY,
@@ -20,6 +31,8 @@ import {
   decodeVector,
   encodeVector,
   initVectorSchema,
+  lookupEmbeddingCache,
+  upsertEmbeddingCache,
 } from './schema.js';
 import type {
   SageSyncReport,
@@ -36,6 +49,10 @@ import type {
 
 const DEFAULT_DIRECTORY = '.wrongstack/vector-memory';
 const DEFAULT_FILENAME = 'vector-memory.db';
+/** Default file-lock acquire timeout. 5s is enough for embedding + insert. */
+const DEFAULT_LOCK_TIMEOUT_MS = 5_000;
+/** Maximum entries to evict in a single LRU sweep. */
+const CACHE_EVICT_BATCH = 256;
 
 export class VectorMemoryStore {
   private readonly db: DatabaseSync;
@@ -77,6 +94,20 @@ export class VectorMemoryStore {
     return this.rootDir;
   }
 
+  /**
+   * Absolute path of the SQLite database file. Hosts use this to take a
+   * file-level lock that covers all mutating operations (see
+   * `withFileLock(this.dbPath + '.lock', …)`).
+   */
+  get databasePath(): string {
+    return this.dbPath;
+  }
+
+  /** The lockfile path used to serialize mutating operations. */
+  get lockPath(): string {
+    return `${this.dbPath}.lock`;
+  }
+
   get activeProviderId(): string {
     const row = this.db
       .prepare('SELECT value FROM schema_meta WHERE key = ?')
@@ -110,31 +141,135 @@ export class VectorMemoryStore {
     return createHash('sha256').update(text.normalize('NFKC').trim()).digest('hex');
   }
 
+  /**
+   * Look up a vector for `text` in the provider-level embedding cache.
+   * Cache hit returns the cached vector (no ONNX pass). Miss returns
+   * `undefined`.
+   */
+  private cachedVector(text: string, now: string): Float32Array | undefined {
+    return lookupEmbeddingCache(
+      this.db,
+      VectorMemoryStore.contentHash(text),
+      this.provider.id,
+      this.provider.dimensions,
+      now,
+    );
+  }
+
+  /** Persist `vec` for `text` to the embedding cache. */
+  private cacheVector(text: string, vec: Float32Array, now: string): void {
+    upsertEmbeddingCache(this.db, {
+      contentHash: VectorMemoryStore.contentHash(text),
+      providerId: this.provider.id,
+      dimensions: vec.length,
+      vector: encodeVector(vec),
+      text,
+      now,
+    });
+  }
+
+  /**
+   * Embed `text`, hitting the provider-level cache first. Cache miss falls
+   * through to the configured provider and writes the result back. Returns
+   * `undefined` when the provider fails — the caller can persist the entry
+   * without a vector (fail-open).
+   */
+  private async embedWithCache(text: string): Promise<Float32Array | undefined> {
+    const now = new Date().toISOString();
+    const cached = this.cachedVector(text, now);
+    if (cached) return cached;
+    try {
+      const result = await this.provider.embed([text]);
+      const vec = result[0];
+      if (vec) this.cacheVector(text, vec, now);
+      return vec;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Look up an existing entry by `content_hash`. Returns `undefined` when
+   * the entry is not present. Used by `remember()` to make writes idempotent
+   * and by `syncFromSage()` to skip already-indexed SAGE memories.
+   */
+  findByContentHash(contentHash: string): VectorEntryWithVector | undefined {
+    this.assertOpen();
+    const row = this.db
+      .prepare('SELECT * FROM entries WHERE content_hash = ? LIMIT 1')
+      .get(contentHash) as Record<string, unknown> | undefined;
+    if (!row) return undefined;
+    const vectorRow = this.db
+      .prepare('SELECT * FROM vectors WHERE entry_id = ?')
+      .get(row.id as string) as
+      | { provider_id: string; dimensions: number; vector: Buffer | Uint8Array }
+      | undefined;
+    return this.rowToEntry(row, vectorRow);
+  }
+
+  /**
+   * Look up the entry mirroring a given SAGE memory id (i.e. the entry
+   * whose `metadata.sageId` equals `sageId`). Returns `undefined` when
+   * no such entry exists. Used by the event-driven mirror to delete
+   * vector entries on SAGE delete events (the emitter knows the SAGE
+   * id, not the vector entry id).
+   *
+   * Index lookup is `json_extract(metadata, '$.sageId')` — the metadata
+   * column is the JSON blob `syncFromSage` writes, so this avoids a
+   * full table scan.
+   */
+  findBySageId(sageId: string): VectorEntryWithVector | undefined {
+    this.assertOpen();
+    const row = this.db
+      .prepare(
+        `SELECT * FROM entries
+          WHERE json_extract(metadata, '$.sageId') = ?
+          ORDER BY updated_at DESC
+          LIMIT 1`,
+      )
+      .get(sageId) as Record<string, unknown> | undefined;
+    if (!row) return undefined;
+    const vectorRow = this.db
+      .prepare('SELECT * FROM vectors WHERE entry_id = ?')
+      .get(row.id as string) as
+      | { provider_id: string; dimensions: number; vector: Buffer | Uint8Array }
+      | undefined;
+    return this.rowToEntry(row, vectorRow);
+  }
+
+  /**
+   * Persist a new entry. Idempotent: if an entry with the same
+   * `content_hash` already exists, that entry is returned unchanged
+   * instead of inserting a duplicate. Mutating ops are wrapped in
+   * `withFileLock` so two processes cannot race the dedup check.
+   */
   async remember(input: VectorEntryInput): Promise<VectorEntryWithVector> {
     this.assertOpen();
     if (!input.text || input.text.trim().length === 0) {
       throw new Error('VectorMemoryStore.remember: text must be non-empty');
     }
+    return withFileLock(this.lockPath, () => this.rememberUnlocked(input), {
+      timeoutMs: DEFAULT_LOCK_TIMEOUT_MS,
+    });
+  }
+
+  private async rememberUnlocked(input: VectorEntryInput): Promise<VectorEntryWithVector> {
     const now = new Date().toISOString();
-    const id = randomUUID();
     const contentHash = VectorMemoryStore.contentHash(input.text);
+
+    // Idempotent path: dedup on content_hash. The UNIQUE index on
+    // entries.content_hash is the second line of defense.
+    const existing = this.findByContentHash(contentHash);
+    if (existing) return existing;
+
     const metadata = input.metadata ?? {};
     const tags = input.tags ?? [];
     const scope: VectorScope = input.scope ?? 'project';
     const kind: VectorKind = input.kind ?? 'note';
+    const id = randomUUID();
 
-    let vector: Float32Array | undefined;
-    let providerId: string | undefined;
-    try {
-      const result = await this.provider.embed([input.text]);
-      vector = result[0];
-      providerId = this.provider.id;
-    } catch {
-      // Fail-open: store the entry without a vector so writes don't
-      // disappear when the embedding backend is unavailable.
-      providerId = undefined;
-      vector = undefined;
-    }
+    const vector = await this.embedWithCache(input.text);
+    const providerId = vector ? this.provider.id : undefined;
 
     this.db.exec('BEGIN');
     try {
@@ -206,33 +341,36 @@ export class VectorMemoryStore {
     return this.rowToEntry(row, vectorRow);
   }
 
-  forget(id: string): boolean {
+  /** Hard-delete an entry by id. Wrapped in `withFileLock` for cross-process safety. */
+  async forget(id: string): Promise<boolean> {
     this.assertOpen();
-    this.db.exec('BEGIN');
-    try {
-      const info = this.db.prepare('DELETE FROM entries WHERE id = ?').run(id);
-      this.db.exec('COMMIT');
-      return info.changes > 0;
-    } catch (e) {
-      this.db.exec('ROLLBACK');
-      throw e;
-    }
+    return withFileLock(
+      this.lockPath,
+      async () => {
+        this.db.exec('BEGIN');
+        try {
+          const info = this.db.prepare('DELETE FROM entries WHERE id = ?').run(id);
+          this.db.exec('COMMIT');
+          return info.changes > 0;
+        } catch (e) {
+          this.db.exec('ROLLBACK');
+          throw e;
+        }
+      },
+      { timeoutMs: DEFAULT_LOCK_TIMEOUT_MS },
+    );
   }
 
   async search(query: string, opts: VectorSearchOptions = {}): Promise<VectorSearchHit[]> {
     this.assertOpen();
     const limit = opts.limit ?? 10;
     const threshold = opts.threshold ?? 0;
+    const includeVectors = opts.includeVectors === true;
     if (typeof query !== 'string' || query.trim().length === 0) return [];
 
-    let queryVec: Float32Array;
-    try {
-      const result = await this.provider.embed([query]);
-      if (!result[0]) return [];
-      queryVec = result[0];
-    } catch {
-      return [];
-    }
+    // Embed the query through the same provider-level cache as writes —
+    // repeated identical queries skip the ONNX pass entirely.
+    const queryVec = await this.embedWithCache(query);
     if (!queryVec || queryVec.length === 0) return [];
 
     const providerId = this.provider.id;
@@ -268,7 +406,9 @@ export class VectorMemoryStore {
       const score = Math.max(0, Math.min(1, raw));
       if (score < threshold) continue;
       const entry = this.rowToEntry(row) as VectorEntry;
-      scored.push({ entry, score, providerId });
+      const hit: VectorSearchHit = { entry, score, providerId };
+      if (includeVectors) hit.vector = vec;
+      scored.push(hit);
     }
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, limit);
@@ -295,41 +435,54 @@ export class VectorMemoryStore {
 
   async reindexAll(): Promise<{ processed: number; errors: number }> {
     this.assertOpen();
-    const rows = this.db.prepare('SELECT id, text FROM entries').all() as Array<
-      Record<string, unknown>
-    >;
-    let processed = 0;
-    let errors = 0;
-    for (const row of rows) {
-      try {
-        const result = await this.provider.embed([row.text as string]);
-        const v = result[0];
-        if (!v) {
-          errors++;
-          continue;
+    return withFileLock(
+      this.lockPath,
+      async () => {
+        const rows = this.db.prepare('SELECT id, text FROM entries').all() as Array<
+          Record<string, unknown>
+        >;
+        let processed = 0;
+        let errors = 0;
+        for (const row of rows) {
+          try {
+            // Bypass the cache during reindex — the goal is to refresh
+            // the per-entry vector, even if the cached text-vector is
+            // already valid for the same content_hash.
+            const result = await this.provider.embed([row.text as string]);
+            const v = result[0];
+            if (!v) {
+              errors++;
+              continue;
+            }
+            const now = new Date().toISOString();
+            this.db
+              .prepare(
+                `INSERT INTO vectors (entry_id, provider_id, dimensions, vector, created_at)
+                 VALUES (?, ?, ?, ?, ?)
+                 ON CONFLICT(entry_id, provider_id) DO UPDATE SET
+                   vector = excluded.vector,
+                   dimensions = excluded.dimensions,
+                   created_at = excluded.created_at`,
+              )
+              .run(
+                row.id as string,
+                this.provider.id,
+                v.length,
+                encodeVector(v),
+                now,
+              );
+            // Also refresh the embedding cache so subsequent searches
+            // for the same text skip the ONNX pass.
+            this.cacheVector(row.text as string, v, now);
+            processed++;
+          } catch {
+            errors++;
+          }
         }
-        this.db
-          .prepare(
-            `INSERT INTO vectors (entry_id, provider_id, dimensions, vector, created_at)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT(entry_id, provider_id) DO UPDATE SET
-               vector = excluded.vector,
-               dimensions = excluded.dimensions,
-               created_at = excluded.created_at`,
-          )
-          .run(
-            row.id as string,
-            this.provider.id,
-            v.length,
-            encodeVector(v),
-            new Date().toISOString(),
-          );
-        processed++;
-      } catch {
-        errors++;
-      }
-    }
-    return { processed, errors };
+        return { processed, errors };
+      },
+      { timeoutMs: 60_000 },
+    );
   }
 
   stats(): VectorStoreStats {
@@ -349,6 +502,76 @@ export class VectorMemoryStore {
       modelId: this.provider.id,
       dimensions: this.provider.dimensions,
     };
+  }
+
+  /**
+   * Embedding-cache diagnostics — entries, hit/miss counters, oldest entry.
+   * Useful for the WebUI's vector-memory panel and for diagnosing the
+   * "why is search slow?" question.
+   */
+  cacheStats(): {
+    entries: number;
+    providers: number;
+    totalUseCount: number;
+    oldestLastUsedAt: string | null;
+  } {
+    this.assertOpen();
+    const entries = (this.db.prepare('SELECT COUNT(*) AS n FROM embedding_cache').get() as {
+      n: number;
+    }).n;
+    const providers = (
+      this.db
+        .prepare('SELECT COUNT(DISTINCT provider_id) AS n FROM embedding_cache')
+        .get() as { n: number }
+    ).n;
+    const totalUseCount = (
+      this.db.prepare('SELECT COALESCE(SUM(use_count), 0) AS n FROM embedding_cache').get() as {
+        n: number;
+      }
+    ).n;
+    const oldest = this.db
+      .prepare('SELECT MIN(last_used_at) AS t FROM embedding_cache')
+      .get() as { t: string | null } | undefined;
+    return {
+      entries,
+      providers,
+      totalUseCount,
+      oldestLastUsedAt: oldest?.t ?? null,
+    };
+  }
+
+  /**
+   * LRU-evict the embedding cache down to `keepMostRecent` rows. The
+   * `embedding_cache` table is independent of `entries`, so a sweep here
+   * only removes cached vectors — never stored entries. Called by hosts
+   * that want to bound cache growth on long-lived processes.
+   */
+  async evictCache(keepMostRecent: number): Promise<{ removed: number }> {
+    this.assertOpen();
+    if (keepMostRecent < 0) {
+      throw new Error('evictCache: keepMostRecent must be >= 0');
+    }
+    return withFileLock(
+      this.lockPath,
+      async () => {
+        const total = (this.db
+          .prepare('SELECT COUNT(*) AS n FROM embedding_cache')
+          .get() as { n: number }).n;
+        if (total <= keepMostRecent) return { removed: 0 };
+        const toRemove = total - keepMostRecent;
+        const stmt = this.db.prepare(
+          `DELETE FROM embedding_cache
+            WHERE content_hash IN (
+              SELECT content_hash FROM embedding_cache
+               ORDER BY last_used_at ASC
+               LIMIT ?
+            )`,
+        );
+        const info = stmt.run(Math.min(toRemove, CACHE_EVICT_BATCH));
+        return { removed: Number(info.changes) };
+      },
+      { timeoutMs: DEFAULT_LOCK_TIMEOUT_MS },
+    );
   }
 
   close(): void {
@@ -388,7 +611,11 @@ export class VectorMemoryStore {
 
   async syncFromSage(sage: SageSyncSource): Promise<SageSyncReport> {
     this.assertOpen();
-    const memories = await sage.listActiveMemories({ limit: 5000 });
+    // No upper bound: the cursor-walking `SageSyncSource` terminates on
+    // `nextCursor: null` (and has its own defensive progress guard). The
+    // historical `limit: 5000` silently truncated large projects; the
+    // caller's source is now authoritative.
+    const memories = await sage.listActiveMemories({ limit: Number.POSITIVE_INFINITY });
     let indexed = 0;
     let skipped = 0;
     let failed = 0;
@@ -396,14 +623,13 @@ export class VectorMemoryStore {
 
     for (const memory of memories) {
       try {
-        const existing = this.db
-          .prepare('SELECT id FROM entries WHERE content_hash = ? LIMIT 1')
-          .get(VectorMemoryStore.contentHash(memory.text)) as { id: string } | undefined;
+        const hash = VectorMemoryStore.contentHash(memory.text);
+        const existing = this.findByContentHash(hash);
         if (existing) {
           skipped++;
           continue;
         }
-        await this.remember({
+        await this.rememberUnlocked({
           text: memory.text,
           summary: memory.summary ?? undefined,
           metadata: { source: 'sage', sageId: memory.id, ...(memory.metadata ?? {}) },

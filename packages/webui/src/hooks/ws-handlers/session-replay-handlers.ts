@@ -355,6 +355,8 @@ export function handleSessionStart(msg: WSServerMessage) {
     const serverLastInput = (payload as { lastInputTokens?: number }).lastInputTokens;
     if (typeof serverLastInput === 'number' && serverLastInput > 0) {
       useSessionStore.setState({ lastInputTokens: serverLastInput });
+    } else if (usage && typeof usage.input === 'number' && usage.input > 0) {
+      useSessionStore.setState({ lastInputTokens: usage.input });
     }
     if (isReset && !payload.needsSetup) {
       if (!isRoutePinnedView()) {

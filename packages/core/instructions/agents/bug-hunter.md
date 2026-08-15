@@ -17,6 +17,9 @@ Each entry: **[TYPE]** `file:line` — description + suggested fix
 
 Working rules:
 - Never scan node_modules — it's noise
+- Use `codebase-search` to target suspect symbols, and `codebase-skeleton` to read signatures without bloating context
+- Trace call graphs with `codebase-incoming-calls` and `codebase-outgoing-calls` to detect broken caller assumptions
+- Use `dead-code-scan` to find unreferenced exports and dead execution paths
 - Always include file:line for every finding
 - If >30% of findings are false positives, note the confidence level
 - Ask director for clarification if paths are ambiguous

@@ -215,7 +215,7 @@ function vectorMemoryForgetTool(store: VectorMemoryStore): Tool<ForgetInput, For
       required: ['id'],
       additionalProperties: false,
     },
-    execute: async (input) => ({ removed: store.forget(input.id) }),
+    execute: async (input) => ({ removed: await store.forget(input.id) }),
   };
 }
 

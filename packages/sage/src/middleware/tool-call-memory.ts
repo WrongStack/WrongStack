@@ -102,6 +102,25 @@ export interface SageRetrieverLike {
       includeAllSessions?: boolean | undefined;
     },
   ): Promise<Sage[]>;
+  /**
+   * Rich variant of `searchSage` returning per-channel scores. Optional
+   * on the structural retriever — only ports that can produce the
+   * augmented breakdown (in-process SqliteMemoryPort, the wrapped
+   * vector-augmented port) implement it. The explainer tools call this
+   * when present and fall back to `searchSage` otherwise.
+   */
+  searchSageWithBreakdown?(
+    query: string,
+    opts?: {
+      limit?: number;
+      includeAudienceScoped?: boolean;
+      requireAllTerms?: boolean;
+      sessionId?: string | undefined;
+      includeAllSessions?: boolean | undefined;
+    },
+  ): Promise<
+    import('../retrieval/vector-augment.js').VectorAugmentHit[]
+  >;
   findRelatedSage?(
     memoryIds: string[],
     opts?: {

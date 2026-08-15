@@ -89,6 +89,7 @@ export function createSageTools(memory: SageServiceLike): Tool[] {
     memoryForFileTool(memory),
     memoryForPathTool(memory),
     memorySearchTool(memory),
+    memorySearchExplainTool(memory),
     memoryGraphTool(memory),
     memoryGatherBatchTool(memory),
     memoryVerifyTool(memory),
@@ -704,6 +705,97 @@ function memorySearchTool(
         // — not even one written moments earlier by this same session.
         sessionId: callerSessionId(ctx),
       });
+    },
+  };
+}
+
+/**
+ * Rich-variant tool: returns the same hits as `memory_search` but with a
+ * per-channel breakdown — which channels matched, the lexical / vector
+ * scores, the RRF final score, and a `source` attribution. Use this
+ * when the agent needs to answer "why was this memory returned?" and
+ * to choose between competing channels (e.g. trust the lexical match
+ * for an exact symbol, or trust the semantic match for a paraphrase).
+ *
+ * Falls back to plain `memory_search` results (with `vectorScore: null`
+ * and `source: 'lexical'`) when the underlying port doesn't expose
+ * `searchSageWithBreakdown` — keeps the tool usable on remote IPC
+ * ports that don't ship the rich variant.
+ */
+function memorySearchExplainTool(
+  memory: SageServiceLike,
+): Tool<
+  { query: string; limit?: number; include_stale?: boolean },
+  Array<{
+    memory: Sage;
+    vectorScore: number | null;
+    lexicalScore: number | null;
+    finalScore: number;
+    source: 'lexical' | 'vector' | 'both';
+  }>
+> {
+  return {
+    name: 'memory_search_explain',
+    category: 'Inspect',
+    description:
+      'Like `memory_search` but each result carries a per-channel score ' +
+      'breakdown — lexical score, vector score, RRF final score, and a ' +
+      '`source` attribution (`lexical` | `vector` | `both`). Use when the ' +
+      'agent needs to weigh channels (e.g. trust a paraphrased semantic ' +
+      'hit vs an exact lexical hit) or to surface WHY a result is in ' +
+      'the list. Falls back to lexical-only hits when the underlying port ' +
+      'does not expose the rich variant.',
+    inputSchema: objectSchema(
+      {
+        query: stringSchema('Search text, symbol, tag, command, or path.'),
+        limit: numberSchema(1, 100),
+        include_stale: { type: 'boolean' },
+      },
+      ['query'],
+    ),
+    permission: 'auto',
+    mutating: false,
+    riskTier: 'safe',
+    capabilities: ['memory.read'],
+    icon: 'search',
+    async execute(input, ctx, opts) {
+      opts.signal.throwIfAborted();
+      const sessionId = callerSessionId(ctx);
+      const includeStatuses: Sage['status'][] = input.include_stale
+        ? ['active', 'stale']
+        : ['active'];
+      // Prefer the rich variant when the port exposes it.
+      if (memory.searchSageWithBreakdown) {
+        const hits = await memory.searchSageWithBreakdown(input.query, {
+          limit: input.limit ?? 20,
+          includeStatuses,
+          sessionId,
+        });
+        return hits.map((h) => ({
+          memory: h.memory,
+          vectorScore: h.vectorScore,
+          lexicalScore: h.lexicalScore,
+          finalScore: h.finalScore,
+          source: h.source,
+        }));
+      }
+      // Fallback: synthesize a lexical-only breakdown so consumers can
+      // branch on `source` and `vectorScore` uniformly. The position
+      // score is the same `1 - index / (n - 1)` heuristic the wrapper
+      // uses, so the per-result scores stay consistent.
+      const rows = await memory.searchSage(input.query, {
+        limit: input.limit ?? 20,
+        includeStatuses: includeStatuses as Sage['status'][],
+        sessionId,
+      });
+      const total = rows.length;
+      return rows.map((memory, index) => ({
+        memory,
+        vectorScore: null,
+        lexicalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+        finalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+        source: 'lexical' as const,
+      }));
     },
   };
 }

@@ -21,3 +21,6 @@ Working rules:
 - Make write paths idempotent or transactional where correctness demands it
 - Don't swallow errors — handle, propagate, or log with context
 - Follow the codebase's existing service patterns and dependency direction
+- Prefer index-first discovery: use `codebase-search` and `codebase-skeleton` before `grep`/`read`
+- Before modifying service signatures or models, run `codebase-impact-analysis` and `codebase-incoming-calls`
+- Verify changes with `codebase-targeted-test` and `codebase-invariant-check` before wider testing

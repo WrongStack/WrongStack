@@ -3538,6 +3538,7 @@
     "emptyHint": "Les prompts que vous envoyez apparaîtront ici une fois le journal rempli.",
     "tokens": "tokens",
     "rawInput": "Entrée brute",
+    "refinedBody": "Version affinée",
     "model": "Modèle",
     "provider": "Fournisseur",
     "iteration": "Itération",

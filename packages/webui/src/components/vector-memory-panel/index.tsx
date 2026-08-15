@@ -29,6 +29,7 @@ export function VectorMemoryPanel({
   const [limit, setLimit] = useState(10);
   const [threshold, setThreshold] = useState<number | undefined>(undefined);
   const [hits, setHits] = useState<readonly VectorMemoryHit[]>([]);
+  const [similarity, setSimilarity] = useState<readonly (readonly number[])[] | undefined>();
   const [searchError, setSearchError] = useState<string | undefined>();
   const [searching, setSearching] = useState(false);
 
@@ -61,11 +62,14 @@ export function VectorMemoryPanel({
       const result = await searchVectorMemory(q, {
         limit,
         ...(threshold !== undefined ? { threshold } : {}),
+        similarity: true,
         baseUrl,
       });
       setHits(result.hits);
+      setSimilarity(result.similarity);
     } catch (err: unknown) {
       setHits([]);
+      setSimilarity(undefined);
       setSearchError(err instanceof Error ? err.message : String(err));
     } finally {
       setSearching(false);
@@ -127,6 +131,15 @@ export function VectorMemoryPanel({
         </dd>
         <dt>Providers</dt>
         <dd>{status.providers?.join(', ') ?? ''}</dd>
+        {status.cache ? (
+          <>
+            <dt>Embedding cache</dt>
+            <dd>
+              {status.cache.entries} entries · {status.cache.providers} provider
+              {status.cache.providers === 1 ? '' : 's'} · {status.cache.totalUseCount} hits
+            </dd>
+          </>
+        ) : null}
       </dl>
 
       <div className="vector-memory-panel__search">
@@ -201,6 +214,76 @@ export function VectorMemoryPanel({
           <li className="vector-memory-panel__no-hits">No results.</li>
         ) : null}
       </ol>
+
+      {similarity !== undefined && similarity.length > 1 ? (
+        <div className="vector-memory-panel__heatmap" data-testid="vector-memory-heatmap">
+          <h4>Result similarity</h4>
+          <p className="vector-memory-panel__heatmap-hint">
+            Pairwise cosine similarity between returned hits. Darker cells = more similar.
+            A bright diagonal with mostly dark off-diagonals means results form
+            a tight cluster; a noisy grid means the search returned mixed topics.
+          </p>
+          <div
+            className="vector-memory-panel__heatmap-grid"
+            style={{
+              gridTemplateColumns: `auto repeat(${similarity.length}, minmax(20px, 1fr))`,
+            }}
+            role="table"
+            aria-label="Pairwise cosine similarity between returned hits"
+          >
+            <div className="vector-memory-panel__heatmap-corner" />
+            {similarity.map((_, j) => (
+              <div key={`col-${j}`} className="vector-memory-panel__heatmap-col-label">
+                {j + 1}
+              </div>
+            ))}
+            {similarity.map((row, i) => (
+              <SimilarityRow key={`row-${i}`} row={row} index={i} />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+/** One row of the similarity heatmap. The diagonal is forced to 1.0. */
+function SimilarityRow({
+  row,
+  index,
+}: {
+  row: readonly number[];
+  index: number;
+}): ReactElement {
+  return (
+    <>
+      <div className="vector-memory-panel__heatmap-row-label">{index + 1}</div>
+      {row.map((score, j) => {
+        // Diagonal cell is always 1 — render a brighter accent.
+        const isDiagonal = index === j;
+        const clamped = Math.max(0, Math.min(1, score));
+        // Map [0,1] → grayscale with a faint blue tint on hot cells. We
+        // avoid an external color library: HSL via inline style.
+        const lightness = 95 - clamped * 60;
+        const saturation = isDiagonal ? 0 : 35;
+        const background = `hsl(220, ${saturation}%, ${lightness}%)`;
+        return (
+          <div
+            key={`cell-${index}-${j}`}
+            className={
+              isDiagonal
+                ? 'vector-memory-panel__heatmap-cell vector-memory-panel__heatmap-cell--diagonal'
+                : 'vector-memory-panel__heatmap-cell'
+            }
+            style={{ background }}
+            role="cell"
+            aria-label={`hit ${index + 1} vs hit ${j + 1}: ${clamped.toFixed(2)}`}
+            title={`hit ${index + 1} ↔ hit ${j + 1}: ${clamped.toFixed(3)}`}
+          >
+            {clamped >= 0.5 ? clamped.toFixed(2) : ''}
+          </div>
+        );
+      })}
+    </>
   );
 }

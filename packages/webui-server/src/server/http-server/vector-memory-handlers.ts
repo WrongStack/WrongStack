@@ -21,6 +21,12 @@ export interface VectorMemoryStatusResponse {
   entries?: number | undefined;
   vectors?: number | undefined;
   providers?: string[] | undefined;
+  cache?: {
+    entries: number;
+    providers: number;
+    totalUseCount: number;
+    oldestLastUsedAt: string | null;
+  } | undefined;
 }
 
 export interface VectorMemorySearchHit {
@@ -34,6 +40,14 @@ export interface VectorMemorySearchHit {
 export interface VectorMemorySearchResponse {
   hits: VectorMemorySearchHit[];
   count: number;
+  /**
+   * Pairwise cosine similarity matrix between returned hits, in hit order.
+   * Cell [i][j] is the similarity between hits[i] and hits[j]. Optional —
+   * the route only computes it when `?similarity=1` is set, to keep the
+   * default response cheap. Used by the WebUI's heatmap view to surface
+   * whether the top-K results form coherent clusters.
+   */
+  similarity?: number[][] | undefined;
 }
 
 /** Shape the store exposes. Kept narrow so we don't leak the full class. */
@@ -67,6 +81,15 @@ function snapshotVectorMemory(
   };
 }
 
+function snapshotVectorMemoryCache(store: VectorMemoryStore): {
+  entries: number;
+  providers: number;
+  totalUseCount: number;
+  oldestLastUsedAt: string | null;
+} {
+  return store.cacheStats();
+}
+
 /** Handle `GET /api/vector-memory/status`. */
 export async function handleVectorMemoryStatus(
   res: http.ServerResponse,
@@ -92,6 +115,7 @@ export async function handleVectorMemoryStatus(
       entries: snap.stats.entries,
       vectors: snap.stats.vectors,
       providers: snap.stats.providers,
+      cache: snapshotVectorMemoryCache(store),
     };
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
@@ -111,6 +135,7 @@ function parseSearchParams(url: URL): {
   query: string;
   limit: number;
   threshold: number | undefined;
+  similarity: boolean;
 } {
   const query = url.searchParams.get('q') ?? '';
   const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '10', 10);
@@ -120,7 +145,37 @@ function parseSearchParams(url: URL): {
     rawThreshold !== null && rawThreshold !== ''
       ? Math.max(0, Math.min(1, Number.parseFloat(rawThreshold)))
       : undefined;
-  return { query, limit, threshold: Number.isFinite(threshold) ? threshold : undefined };
+  const similarity = url.searchParams.get('similarity') === '1';
+  return { query, limit, threshold: Number.isFinite(threshold) ? threshold : undefined, similarity };
+}
+
+/**
+ * Compute the pairwise cosine-similarity matrix for the given hit vectors.
+ * Both inputs are expected to be `O(n·d)` where `n` is small (≤ 50 by
+ * route limit) and `d` is the embedding dimension. Returns an `n×n` matrix
+ * with the diagonal = 1.0. Caller is responsible for passing
+ * already-decoded `Float32Array`s from the store.
+ */
+function cosineMatrix(vectors: ReadonlyArray<Float32Array>): number[][] {
+  const n = vectors.length;
+  const out: number[][] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    out[i] = new Array<number>(n).fill(0);
+  }
+  for (let i = 0; i < n; i++) {
+    out[i]![i] = 1;
+    for (let j = i + 1; j < n; j++) {
+      const a = vectors[i]!;
+      const b = vectors[j]!;
+      let dot = 0;
+      const len = Math.min(a.length, b.length);
+      for (let k = 0; k < len; k++) dot += (a[k] ?? 0) * (b[k] ?? 0);
+      const score = Math.max(0, Math.min(1, dot));
+      out[i]![j] = score;
+      out[j]![i] = score;
+    }
+  }
+  return out;
 }
 
 /** Handle `GET /api/vector-memory/search?q=…&limit=…&threshold=…`. */
@@ -135,7 +190,7 @@ export async function handleVectorMemorySearch(
     res.end(JSON.stringify({ error: 'Vector memory not enabled in this host' }));
     return;
   }
-  const { query, limit, threshold } = parseSearchParams(url);
+  const { query, limit, threshold, similarity } = parseSearchParams(url);
   if (query.trim().length === 0) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Missing required query parameter `q`' }));
@@ -145,6 +200,7 @@ export async function handleVectorMemorySearch(
     const hits = await store.search(query, {
       limit,
       ...(threshold !== undefined ? { threshold } : {}),
+      includeVectors: similarity,
     });
     const body: VectorMemorySearchResponse = {
       hits: hits.map((h) => ({
@@ -156,6 +212,17 @@ export async function handleVectorMemorySearch(
       })),
       count: hits.length,
     };
+    // Optional pairwise-similarity matrix for the WebUI heatmap. Only
+    // computed when the client opts in via `?similarity=1`. O(n·d) cost
+    // is small (n ≤ 50) but skipped by default to keep the route lean.
+    if (similarity && hits.length > 1) {
+      const vecs = hits
+        .map((h) => h.vector)
+        .filter((v): v is Float32Array => v !== undefined);
+      if (vecs.length === hits.length) {
+        body.similarity = cosineMatrix(vecs);
+      }
+    }
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
   } catch (error) {
@@ -256,7 +323,7 @@ export async function handleVectorMemoryForget(
   const id = match ? strictDecodeParam(decodeSessionId(match[1]!), res) : null;
   if (id === null) return;
   try {
-    const removed = store.forget(id);
+    const removed = await store.forget(id);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ removed }));
   } catch (error) {

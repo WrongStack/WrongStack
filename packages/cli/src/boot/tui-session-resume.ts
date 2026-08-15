@@ -334,6 +334,9 @@ export async function resumeSession(
     // session's summary/cost chips inherit the old session's totals.
     tokenCounter.reset();
     tokenCounter.account(resumed.data.usage, targetModel, targetProviderId);
+    if (typeof resumed.data.usage?.input === 'number' && resumed.data.usage.input > 0) {
+      agent.ctx.lastRequestTokens = resumed.data.usage.input;
+    }
 
     // Build the context-window snapshot the TUI uses to refresh its
     // statusline chip and `/context` panel immediately after `/resume`,

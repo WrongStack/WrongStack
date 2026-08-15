@@ -228,7 +228,12 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       sessionScopedPath(sessionsDirectory(), next.id, '.tasks.json'),
     );
     ctx.tokenCounter.reset?.();
-    if (usage) ctx.tokenCounter.account(usage, currentConfig().model, ctx.context.provider.id);
+    if (usage) {
+      ctx.tokenCounter.account(usage, currentConfig().model, ctx.context.provider.id);
+      if (typeof usage.input === 'number' && usage.input > 0) {
+        ctx.context.lastRequestTokens = usage.input;
+      }
+    }
     ctx.setSessionStartedAt?.(Date.now());
     await ctx.onSessionSwapped?.(next.id);
   };

@@ -9,6 +9,13 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 
+export interface VectorMemoryCacheStats {
+  entries: number;
+  providers: number;
+  totalUseCount: number;
+  oldestLastUsedAt: string | null;
+}
+
 export interface VectorMemoryStatus {
   enabled: boolean;
   storePath?: string | undefined;
@@ -19,6 +26,8 @@ export interface VectorMemoryStatus {
   entries?: number | undefined;
   vectors?: number | undefined;
   providers?: string[] | undefined;
+  /** Provider-level embedding cache (same text → skip the ONNX forward pass). */
+  cache?: VectorMemoryCacheStats | undefined;
 }
 
 export interface VectorMemoryHit {
@@ -32,6 +41,13 @@ export interface VectorMemoryHit {
 export interface VectorMemorySearchResponse {
   hits: VectorMemoryHit[];
   count: number;
+  /**
+   * Pairwise cosine similarity matrix between hits (in hit order). Only
+   * populated when the client opts in via `similarity: true`. Used by the
+   * heatmap view to surface whether the top-K results form coherent
+   * clusters.
+   */
+  similarity?: number[][] | undefined;
 }
 
 /** Fetch the current vector-memory status from the webui-server. */
@@ -50,12 +66,13 @@ export async function fetchVectorMemoryStatus(
 /** Run a semantic search query against the vector-memory store. */
 export async function searchVectorMemory(
   query: string,
-  opts: { limit?: number; threshold?: number; baseUrl?: string } = {},
+  opts: { limit?: number; threshold?: number; similarity?: boolean; baseUrl?: string } = {},
 ): Promise<VectorMemorySearchResponse> {
   const params = new URLSearchParams();
   params.set('q', query);
   if (opts.limit !== undefined) params.set('limit', String(opts.limit));
   if (opts.threshold !== undefined) params.set('threshold', String(opts.threshold));
+  if (opts.similarity === true) params.set('similarity', '1');
   const response = await fetch(
     `${opts.baseUrl ?? ''}/api/vector-memory/search?${params.toString()}`,
     { credentials: 'include' },

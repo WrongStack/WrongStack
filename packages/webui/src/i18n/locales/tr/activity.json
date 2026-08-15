@@ -3538,6 +3538,7 @@
     "emptyHint": "Gönderdiğiniz promptlar, günlükte kayıt olduğunda burada görünecek.",
     "tokens": "token",
     "rawInput": "Ham girdi",
+    "refinedBody": "Rafine edilmiş kopya",
     "model": "Model",
     "provider": "Sağlayıcı",
     "iteration": "Yineleme",

@@ -3538,6 +3538,7 @@
     "emptyHint": "Los prompts que envíes aparecerán aquí cuando el registro tenga entradas.",
     "tokens": "tokens",
     "rawInput": "Entrada original",
+    "refinedBody": "Copia refinada",
     "model": "Modelo",
     "provider": "Proveedor",
     "iteration": "Iteración",

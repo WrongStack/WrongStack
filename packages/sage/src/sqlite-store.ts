@@ -54,6 +54,8 @@ import { retrieveSqliteSageForPath } from './sqlite-store-retrieve-path.js';
 import { initializeSqliteSageStore } from './sqlite-store-initialize.js';
 import { searchSqliteSage } from './sqlite-store-search-sage.js';
 import { executeUnifiedSearch } from './sqlite-store-search.js';
+import { augmentLexicalWithVectorRecall } from './retrieval/vector-augment.js';
+import type { VectorAugmentHit } from './retrieval/vector-augment.js';
 import { getSqliteSageStats } from './sqlite-store-stats.js';
 import { updateSqliteSage } from './sqlite-store-update.js';
 import { verifySqliteSage } from './sqlite-store-verify.js';
@@ -546,7 +548,70 @@ export class SqliteSageStore implements MemoryStore {
 
   async searchSage(query: string, opts?: SageSearchOptions): Promise<Sage[]> {
     await this.initialize();
-    return searchSqliteSage({ stmt: (sql) => this.stmt(sql) }, query, opts);
+    const lexical = searchSqliteSage({ stmt: (sql) => this.stmt(sql) }, query, opts);
+    if (!opts?.vectorRecall) return lexical;
+    // Fused semantic recall — the vector channel is fail-open by contract
+    // (any backend error falls through to the lexical list).
+    const fused = await augmentLexicalWithVectorRecall(query, lexical, {
+      vectorRecall: opts.vectorRecall,
+      ...(opts.vectorRecallWeight !== undefined
+        ? { vectorWeight: opts.vectorRecallWeight }
+        : {}),
+      ...(opts.vectorRecallMinScore !== undefined
+        ? { threshold: opts.vectorRecallMinScore }
+        : {}),
+      ...(opts.vectorRecallThreshold !== undefined
+        ? { vectorOnlyThreshold: opts.vectorRecallThreshold }
+        : {}),
+      ...(opts.limit !== undefined ? { limit: opts.limit } : {}),
+    });
+    return fused.map((hit) => hit.memory);
+  }
+
+  /**
+   * Rich variant of `searchSage` that returns the augmented hits
+   * (memory + per-channel scores + RRF final score + source attribution)
+   * rather than a flat `Sage[]`. Use this when the caller wants to
+   * surface the dual-channel breakdown to the user — e.g. the
+   * `memory_search_explain` tool, the WebUI memory manager, or any
+   * diagnostic that needs to answer "did this hit come from lexical,
+   * semantic, or both?".
+   *
+   * When no `vectorRecall` is wired the result collapses to
+   * `source: 'lexical'` hits with `vectorScore: null` — the same shape
+   * the fused path would have produced, so consumers don't need to
+   * branch.
+   */
+  async searchSageWithBreakdown(
+    query: string,
+    opts?: SageSearchOptions,
+  ): Promise<VectorAugmentHit[]> {
+    await this.initialize();
+    const lexical = searchSqliteSage({ stmt: (sql) => this.stmt(sql) }, query, opts);
+    if (!opts?.vectorRecall) {
+      // No semantic channel — return lexical hits as augmentation hits
+      // with `vectorScore: null` so consumers can render them uniformly.
+      return lexical.map((memory, index) => ({
+        memory,
+        vectorScore: null,
+        lexicalScore: lexical.length <= 1 ? 1 : 1 - index / (lexical.length - 1),
+        finalScore: lexical.length <= 1 ? 1 : 1 - index / (lexical.length - 1),
+        source: 'lexical' as const,
+      }));
+    }
+    return augmentLexicalWithVectorRecall(query, lexical, {
+      vectorRecall: opts.vectorRecall,
+      ...(opts.vectorRecallWeight !== undefined
+        ? { vectorWeight: opts.vectorRecallWeight }
+        : {}),
+      ...(opts.vectorRecallMinScore !== undefined
+        ? { threshold: opts.vectorRecallMinScore }
+        : {}),
+      ...(opts.vectorRecallThreshold !== undefined
+        ? { vectorOnlyThreshold: opts.vectorRecallThreshold }
+        : {}),
+      ...(opts.limit !== undefined ? { limit: opts.limit } : {}),
+    });
   }
 
   async retrieveForPath(paths: string[], opts?: SageForPathOptions): Promise<Sage[]> {

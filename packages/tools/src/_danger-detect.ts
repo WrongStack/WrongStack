@@ -89,6 +89,40 @@ const RULES: readonly DangerRule[] = [
     },
     reason: 'Remove-Item with -Recurse -Force',
   },
+  // ----- Windows PowerShell Disk & Volume destruction -----
+  {
+    id: 'powershell-disk-volume-destroy',
+    level: 'destructive',
+    test: (cmd, args) => {
+      if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
+      return args.some((a) =>
+        /^(?:Format-Volume|Clear-Disk|Initialize-Disk|Remove-Partition|Clear-Volume)(?:\s|$)/i.test(a),
+      );
+    },
+    reason: 'PowerShell disk/volume partition destruction',
+  },
+  // ----- Windows PowerShell System Restart / Shutdown -----
+  {
+    id: 'powershell-stop-restart-computer',
+    level: 'destructive',
+    test: (cmd, args) => {
+      if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
+      return args.some((a) => /^(?:Stop-Computer|Restart-Computer)(?:\s|$)/i.test(a));
+    },
+    reason: 'PowerShell system shutdown or restart',
+  },
+  // ----- Windows PowerShell ExecutionPolicy / Payload evasion -----
+  {
+    id: 'powershell-execution-policy-bypass',
+    level: 'caution',
+    test: (cmd, args) => {
+      if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
+      return args.some((a) =>
+        /Set-ExecutionPolicy\s+(?:Bypass|Unrestricted)|-(?:EncodedCommand|enc)\b/i.test(a),
+      );
+    },
+    reason: 'PowerShell execution policy bypass or encoded command',
+  },
   // ----- find -exec / -ok / -execdir -----
   {
     id: 'find-exec',

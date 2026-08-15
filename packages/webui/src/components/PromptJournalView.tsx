@@ -33,15 +33,18 @@ interface JournalFilters {
 }
 
 const DEFAULT_LIMIT = 200;
-const CATEGORY_ORDER = [
-  'raw_user',
-  'refined_user',
-  'system_prompt',
-  'autonomous_next_step',
-  'self_healing_retry',
-  'clarify_interaction',
-  'subagent_delegation',
-] as const;
+/**
+ * Categories the WebUI Prompt Journal surfaces. Per product scope, the page
+ * is intentionally narrowed to ONLY the manually-entered user prompt
+ * (`raw_user`) and its refined copy (`refined_user`, which carries the
+ * original-language text and preserves the raw input as `rawContent` for the
+ * English comparison). Every other category the recorder may write into the
+ * on-disk journal — system prompts, autonomous next steps, self-healing
+ * retries, clarify interactions, subagent delegations — is filtered out here
+ * so the page stays strictly a record of what the user actually submitted.
+ */
+const TRACKED_CATEGORIES: ReadonlySet<string> = new Set(['raw_user', 'refined_user']);
+const CATEGORY_ORDER = ['raw_user', 'refined_user'] as const;
 
 function categoryLabel(t: TFunction, category: string): string {
   return t(`activity:promptJournal.cat.${category}`, category);
@@ -83,7 +86,13 @@ export function PromptJournalView() {
     const onJournal = (msg: unknown) => {
       const payload = (msg as { payload: WSPromptsJournalPayload }).payload;
       setEnabled(payload.enabled);
-      setEntries(payload.entries ?? []);
+      // Narrow the journal to the manually-entered user prompts and their
+      // refined copies only; ignore every other category the recorder writes
+      // so the page is strictly a record of what the user submitted.
+      const entries = (payload.entries ?? []).filter((e) =>
+        TRACKED_CATEGORIES.has(e.category),
+      );
+      setEntries(entries);
       setError(payload.error ?? null);
       setLoading(false);
     };
@@ -270,13 +279,14 @@ function JournalEntryCard({
   const time = entry.timestamp.slice(11, 19);
   const meta = entry.metadata;
   const preview = entry.content.trim().slice(0, 240);
-  const hasDetail =
-    meta.model ||
-    meta.provider ||
-    meta.activeTools?.length ||
-    meta.contextFiles?.length ||
-    meta.decisionReason ||
-    (entry.rawContent && entry.rawContent !== entry.content);
+  // The page only tracks manually-entered prompts and their refined copies,
+  // so the expanded detail intentionally stops at the prompt text itself:
+  // the refined body is `entry.content`, and the English/raw counterpart is
+  // `entry.rawContent` whenever the refiner rewrote the original. No model,
+  // provider, iteration, duration, tool list, context file, or rationale —
+  // those are out of scope for this view.
+  const hasRefinedDiff =
+    entry.rawContent !== undefined && entry.rawContent !== entry.content;
 
   return (
     <li className="rounded-lg border border-border/70 bg-card/60">
@@ -314,10 +324,13 @@ function JournalEntryCard({
 
       {expanded && (
         <div className="border-t border-border/60 px-3 py-2 pl-9">
-          <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded bg-muted/50 p-2 text-xs text-foreground">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('activity:promptJournal.refinedBody')}
+          </div>
+          <pre className="mt-1 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded bg-muted/50 p-2 text-xs text-foreground">
             {entry.content}
           </pre>
-          {entry.rawContent && entry.rawContent !== entry.content && (
+          {hasRefinedDiff && (
             <div className="mt-2">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('activity:promptJournal.rawInput')}
@@ -326,79 +339,6 @@ function JournalEntryCard({
                 {entry.rawContent}
               </pre>
             </div>
-          )}
-          {hasDetail && (
-            <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-              {meta.model && (
-                <>
-                  <dt className="text-muted-foreground">{t('activity:promptJournal.model')}</dt>
-                  <dd className="font-mono">{meta.model}</dd>
-                </>
-              )}
-              {meta.provider && (
-                <>
-                  <dt className="text-muted-foreground">{t('activity:promptJournal.provider')}</dt>
-                  <dd className="font-mono">{meta.provider}</dd>
-                </>
-              )}
-              {meta.iterationIndex !== undefined && (
-                <>
-                  <dt className="text-muted-foreground">
-                    {t('activity:promptJournal.iteration')}
-                  </dt>
-                  <dd className="tabular">#{meta.iterationIndex}</dd>
-                </>
-              )}
-              <dt className="text-muted-foreground">{t('activity:promptJournal.stats')}</dt>
-              <dd className="tabular text-muted-foreground">
-                {meta.characterCount} {t('activity:promptJournal.chars')} · {meta.lineCount}{' '}
-                {t('activity:promptJournal.lines')}
-              </dd>
-              {meta.durationMs !== undefined && (
-                <>
-                  <dt className="text-muted-foreground">{t('activity:promptJournal.duration')}</dt>
-                  <dd className="tabular">{(meta.durationMs / 1000).toFixed(1)}s</dd>
-                </>
-              )}
-              {meta.activeTools && meta.activeTools.length > 0 && (
-                <>
-                  <dt className="text-muted-foreground">{t('activity:promptJournal.tools')}</dt>
-                  <dd className="flex flex-wrap gap-1">
-                    {meta.activeTools.map((tool) => (
-                      <code
-                        key={tool}
-                        className="rounded bg-muted px-1 py-0.5 text-[11px] text-muted-foreground"
-                      >
-                        {tool}
-                      </code>
-                    ))}
-                  </dd>
-                </>
-              )}
-              {meta.contextFiles && meta.contextFiles.length > 0 && (
-                <>
-                  <dt className="text-muted-foreground">{t('activity:promptJournal.files')}</dt>
-                  <dd className="flex flex-wrap gap-1">
-                    {meta.contextFiles.map((file) => (
-                      <code
-                        key={file}
-                        className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-muted-foreground"
-                      >
-                        {file}
-                      </code>
-                    ))}
-                  </dd>
-                </>
-              )}
-              {meta.decisionReason && (
-                <>
-                  <dt className="text-muted-foreground">
-                    {t('activity:promptJournal.rationale')}
-                  </dt>
-                  <dd className="sm:col-span-1">{meta.decisionReason}</dd>
-                </>
-              )}
-            </dl>
           )}
         </div>
       )}

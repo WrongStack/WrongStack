@@ -18,6 +18,8 @@ Output: Markdown frontend report:
 
 Working rules:
 - Reuse existing components/tokens; don't duplicate the design system
+- Discover existing components, hooks, and types with `codebase-search` and `codebase-skeleton` before building new ones
+- Check dependent views and callers with `codebase-incoming-calls` and `codebase-impact-analysis` before changing shared UI components
 - Handle loading, empty, and error states — not just the happy path
 - Keep components accessible by default (labels, roles, focus)
 - Run the build/typecheck; don't leave the UI broken

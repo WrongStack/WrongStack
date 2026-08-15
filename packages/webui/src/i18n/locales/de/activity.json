@@ -3538,6 +3538,7 @@
     "emptyHint": "Von dir gesendete Prompts erscheinen hier, sobald das Protokoll Einträge hat.",
     "tokens": "Tokens",
     "rawInput": "Roheingabe",
+    "refinedBody": "Verfeinerter Text",
     "model": "Modell",
     "provider": "Anbieter",
     "iteration": "Iteration",

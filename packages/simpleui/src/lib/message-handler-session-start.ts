@@ -156,19 +156,20 @@ export function handleSessionStartMessage(params: {
     setSessionStart(Date.now());
     setAttachedImages([]);
   }
-  setSessionMenuOpen?.(false);
-  const replayInput = replayUsage ? finiteNumber(replayUsage['input']) : 0;
+  const payloadLastInput = finiteNumber(payload['lastInputTokens']);
+  const replayInput = replayUsage ? finiteNumber(replayUsage['input']) : payloadLastInput;
+  const initialTokens = replayInput || payloadLastInput;
   setContext((current) => ({
     load: resetSessionState
       ? maxContext > 0
-        ? replayInput / maxContext
+        ? initialTokens / maxContext
         : 0
       : current.maxContext > 0
         ? current.load
         : maxContext > 0
-          ? replayInput / maxContext
+          ? initialTokens / maxContext
           : 0,
-    tokens: resetSessionState ? replayInput : current.tokens || replayInput,
+    tokens: resetSessionState ? initialTokens : current.tokens || initialTokens,
     maxContext: maxContext || current.maxContext,
     cache: resetSessionState ? null : current.cache,
   }));

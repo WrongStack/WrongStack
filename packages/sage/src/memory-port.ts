@@ -78,7 +78,9 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
         sessionId: options.sessionId,
         includeAllSessions: options.includeAllSessions,
       }),
-    searchSage: (query, options) => super.searchSage(query, options),
+    searchSage: (query: string, options: unknown) => super.searchSage(query, options as never),
+    searchSageWithBreakdown: (query: string, options: unknown) =>
+      super.searchSageWithBreakdown(query, options as never),
     findRelatedSage: (memoryIds, options) => super.findRelatedSage(memoryIds, options),
     recordInjection: (memoryIds, trigger, sessionId) =>
       super.recordInjection(memoryIds, trigger, sessionId),
@@ -107,7 +109,9 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     deleteSage: (id, reason, options) => super.deleteSage(id, reason, options),
     retrieveForPath: (options) =>
       super.retrieveForPath([options.path], { ...options, path: options.path }),
-    searchSage: (query, options) => super.searchSage(query, options),
+    searchSage: (query: string, options: unknown) => super.searchSage(query, options as never),
+    searchSageWithBreakdown: (query: string, options: unknown) =>
+      super.searchSageWithBreakdown(query, options as never),
     acceptCandidate: (candidateId) => super.acceptCandidate(candidateId),
     rejectCandidate: (candidateId, reason) => super.rejectCandidate(candidateId, reason),
     retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
@@ -149,7 +153,9 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     },
     retrieveForPath: (options) =>
       super.retrieveForPath([options.path], { ...options, path: options.path }),
-    searchSage: (query, options) => super.searchSage(query, options),
+    searchSage: (query: string, options: unknown) => super.searchSage(query, options as never),
+    searchSageWithBreakdown: (query: string, options: unknown) =>
+      super.searchSageWithBreakdown(query, options as never),
     retrieveForAudience: (context, limit, onTruncated, sessionId, includeAllSessions) =>
       super.retrieveForAudience(context, limit, onTruncated, sessionId, includeAllSessions),
     graphFor: (query, maxDepth, limit) => super.graphFor(query, maxDepth, limit),
@@ -325,3 +331,5 @@ export function createProjectSageMemoryPort(options: ProjectSageMemoryPortOption
 }
 
 export { ProjectSageMemoryPort, type ProjectSageMemoryPortOptions };
+
+

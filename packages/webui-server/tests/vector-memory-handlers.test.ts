@@ -46,11 +46,17 @@ function makeStore() {
       modelId: 'fake-model',
       dimensions: 8,
     })),
+    cacheStats: vi.fn(() => ({
+      entries: 5,
+      providers: 1,
+      totalUseCount: 12,
+      oldestLastUsedAt: '2026-08-15T20:00:00.000Z',
+    })),
     search: vi.fn(async () => [
       { entry: { id: 'e1', text: 'hello', summary: 'sum', tags: ['a'] }, score: 0.9 },
     ]),
     remember: vi.fn(async () => ({ id: 'new-1', vector: new Float32Array([1]), dimensions: 8 })),
-    forget: vi.fn(() => true),
+    forget: vi.fn(async () => true),
   };
 }
 
@@ -130,7 +136,11 @@ describe('handleVectorMemorySearch', () => {
       () => store as never,
     );
     expect(statusCode(res)).toBe(200);
-    expect(store.search).toHaveBeenCalledWith('hello', { limit: 50, threshold: 0.5 });
+    expect(store.search).toHaveBeenCalledWith('hello', {
+      limit: 50,
+      threshold: 0.5,
+      includeVectors: false,
+    });
     expect(lastBody(res)).toMatchObject({
       count: 1,
       hits: [{ id: 'e1', score: 0.9, text: 'hello', summary: 'sum', tags: ['a'] }],
@@ -144,6 +154,58 @@ describe('handleVectorMemorySearch', () => {
     await handleVectorMemorySearch(resAsServer(res), new URL('http://x/search?q=a'), () => store as never);
     expect(statusCode(res)).toBe(500);
     expect(lastBody(res)).toMatchObject({ error: 'Vector memory search failed' });
+  });
+
+  it('passes `includeVectors: true` when `?similarity=1` is set', async () => {
+    const res = makeRes();
+    const store = makeStore();
+    await handleVectorMemorySearch(
+      resAsServer(res),
+      new URL('http://x/search?q=hello&similarity=1'),
+      () => store as never,
+    );
+    expect(store.search).toHaveBeenCalledWith('hello', {
+      limit: 10,
+      includeVectors: true,
+    });
+  });
+
+  it('builds the pairwise similarity matrix when vectors are returned', async () => {
+    const res = makeRes();
+    const store = makeStore();
+    // Override the search mock to return two hits with distinct vectors.
+    // The orthogonal vectors → cosine = 0; identical → 1.0.
+    const v1 = new Float32Array([1, 0]);
+    const v2 = new Float32Array([0, 1]);
+    store.search.mockResolvedValue([
+      { entry: { id: 'e1', text: 'one', tags: [] }, score: 0.9, vector: v1 },
+      { entry: { id: 'e2', text: 'two', tags: [] }, score: 0.7, vector: v2 },
+    ]);
+    await handleVectorMemorySearch(
+      resAsServer(res),
+      new URL('http://x/search?q=x&similarity=1'),
+      () => store as never,
+    );
+    const body = lastBody(res) as { similarity: number[][] };
+    expect(body.similarity).toEqual([
+      [1, 0],
+      [0, 1],
+    ]);
+  });
+
+  it('omits the similarity matrix when fewer than two hits are returned', async () => {
+    const res = makeRes();
+    const store = makeStore();
+    store.search.mockResolvedValue([
+      { entry: { id: 'e1', text: 'one', tags: [] }, score: 0.9, vector: new Float32Array([1]) },
+    ]);
+    await handleVectorMemorySearch(
+      resAsServer(res),
+      new URL('http://x/search?q=x&similarity=1'),
+      () => store as never,
+    );
+    const body = lastBody(res) as { similarity?: number[][] };
+    expect(body.similarity).toBeUndefined();
   });
 });
 

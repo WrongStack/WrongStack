@@ -33,6 +33,11 @@ export function setupWebuiShutdown(options: {
   clearEternalSubscription: () => void;
   codebaseIndexing: any;
   memoryStore: any;
+  /** Vector memory store (mirrors CLI's teardown). `undefined` when the
+   *  standalone WebUI host failed to construct one (read-only FS, etc.). */
+  vectorMemoryStore:
+    | { close(): void }
+    | undefined;
   globalConfigPath: string;
 }): () => void {
   let unregister = (): void => {};
@@ -93,6 +98,10 @@ export function setupWebuiShutdown(options: {
         .catch((err: unknown) =>
           options.logger.warn(`sage connection disposal failed: ${toErrorMessage(err)}`),
         );
+      // Close the vector memory SQLite handle — keeps the WAL frame file
+      // consistent and mirrors the CLI's teardown contract. Safe when the
+      // store failed to construct (undefined).
+      options.vectorMemoryStore?.close();
       await unregisterInstance(process.pid, path.dirname(options.globalConfigPath));
     },
   });

@@ -179,6 +179,7 @@ export {
   type InstanceListOptions,
   listInstances,
 } from './ps-slash.js';
+export { pwshTool, PWSH_TOOL_DESCRIPTION, type PwshInput, type PwshOutput } from './pwsh.js';
 export { readTool } from './read.js';
 export { replaceTool } from './replace.js';
 export { scaffoldTool } from './scaffold.js';

@@ -3538,6 +3538,7 @@
     "emptyHint": "Os prompts que você enviar aparecerão aqui quando o diário tiver entradas.",
     "tokens": "tokens",
     "rawInput": "Entrada bruta",
+    "refinedBody": "Cópia refinada",
     "model": "Modelo",
     "provider": "Provedor",
     "iteration": "Iteração",

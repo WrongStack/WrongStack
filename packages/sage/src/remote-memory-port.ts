@@ -80,7 +80,28 @@ export class ProjectSageMemoryPort implements MemoryPort {
 
   private readonly retrievalCapability: RemoteSageRetrievalCapability = {
     retrieveForPath: (options) => this.call('retrieveForPath', { options }),
-    searchSage: (query, options) => this.call('searchSage', { query, options }),
+    searchSage: (query: string, options: unknown) =>
+      this.call('searchSage', { query, options } as never),
+    // The remote IPC returns the flat `Sage[]`. Wrap it as a
+    // breakdown-shaped list with `source: 'lexical'` so consumers that
+    // branch on the breakdown shape degrade cleanly (no vector score
+    // when the channel isn't wired across the IPC boundary).
+    searchSageWithBreakdown: async (query, options) => {
+      const rows = (await this.call('searchSage', {
+        query,
+        options,
+      } as never)) as unknown[];
+      return rows.map((memory: unknown, index: number) => {
+        const total = rows.length;
+        return {
+          memory: memory as never,
+          vectorScore: null,
+          lexicalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+          finalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+          source: 'lexical' as const,
+        };
+      });
+    },
     findRelatedSage: (memoryIds, options) =>
       this.call(
         'findRelatedSage',
@@ -104,7 +125,20 @@ export class ProjectSageMemoryPort implements MemoryPort {
     updateSage: (id, patch) => this.call('updateSage', { id, patch }),
     deleteSage: (id, reason, options) => this.call('deleteSage', { id, reason, options }),
     retrieveForPath: (options) => this.call('retrieveForPath', { options }),
-    searchSage: (query, options) => this.call('searchSage', { query, options }),
+    searchSage: (query, options) => this.call('searchSage', { query, options } as never),
+    searchSageWithBreakdown: async (query, options) => {
+      const rows = (await this.call('searchSage', { query, options } as never)) as unknown[];
+      return rows.map((memory: unknown, index: number) => {
+        const total = rows.length;
+        return {
+          memory: memory as never,
+          vectorScore: null,
+          lexicalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+          finalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+          source: 'lexical' as const,
+        };
+      });
+    },
     acceptCandidate: (candidateId) => this.call('acceptCandidate', { candidateId }),
     rejectCandidate: (candidateId, reason) =>
       this.call('rejectCandidate', { candidateId, reason }),
@@ -149,7 +183,20 @@ export class ProjectSageMemoryPort implements MemoryPort {
     },
     retrieveForPath: (options) =>
       this.call('retrieveForPath', { options: options as SageForPathOptions }),
-    searchSage: (query, options) => this.call('searchSage', { query, options }),
+    searchSage: (query, options) => this.call('searchSage', { query, options } as never),
+    searchSageWithBreakdown: async (query, options) => {
+      const rows = (await this.call('searchSage', { query, options } as never)) as unknown[];
+      return rows.map((memory: unknown, index: number) => {
+        const total = rows.length;
+        return {
+          memory: memory as never,
+          vectorScore: null,
+          lexicalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+          finalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+          source: 'lexical' as const,
+        };
+      });
+    },
     retrieveForAudience: (context, limit, _onTruncated, sessionId, includeAllSessions) =>
       this.call('retrieveForAudience', { context, limit, sessionId, includeAllSessions }),
     graphFor: (query, maxDepth, limit) => this.call('graphFor', { query, maxDepth, limit }),
@@ -341,3 +388,4 @@ export class ProjectSageMemoryPort implements MemoryPort {
     });
   }
 }
+

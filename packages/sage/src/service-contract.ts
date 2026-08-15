@@ -2,6 +2,7 @@ import type { MemoryStore } from '@wrongstack/core/types';
 import type {
   CandidateDecision,
   CreateCandidateInput,
+  SageSearchOptions,
   FindMemoriesForFileOptions,
   FindMemoriesForFileResponse,
   LegacyImportResult,
@@ -113,6 +114,15 @@ export interface SageSurface {
     options?: { force?: boolean; neverInject?: boolean },
   ): Promise<void>;
   retrieveForPath(options: SageForPathOptions): Promise<Sage[]>;
+  /**
+   * Rich variant of `searchSage` that returns the augmented hits with
+   * per-channel scores. Consumers that only need the SAGE list use
+   * `searchSage`; the WebUI / explainer tools / diagnostics use this.
+   */
+  searchSageWithBreakdown(
+    query: string,
+    options?: SageSearchOptions,
+  ): Promise<import('./retrieval/vector-augment.js').VectorAugmentHit[]>;
   searchSage(
     query: string,
     options?: {
@@ -196,6 +206,21 @@ export interface SageServiceLike extends MemoryStore {
       includeAllSessions?: boolean | undefined;
     },
   ): Promise<Sage[]>;
+  /**
+   * Rich search that returns per-channel scores. Optional on
+   * retrieval-style ports — the explainer tools / WebUI breakdown view
+   * reads this when present and falls back to plain `searchSage` when
+   * not.
+   */
+  searchSageWithBreakdown?(
+    query: string,
+    opts?: {
+      limit?: number;
+      includeStatuses?: Sage['status'][];
+      sessionId?: string | undefined;
+      includeAllSessions?: boolean | undefined;
+    },
+  ): Promise<import('./retrieval/vector-augment.js').VectorAugmentHit[]>;
   retrieveForAudience?(
     context: { role?: string; taskType?: string; mode?: string },
     limit?: number,

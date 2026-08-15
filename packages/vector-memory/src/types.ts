@@ -53,6 +53,13 @@ export interface VectorSearchOptions {
   kind?: VectorKind | undefined;
   /** Provider id override for the query embedding. Defaults to the store's provider. */
   providerId?: string | undefined;
+  /**
+   * When true, each returned hit also carries the decoded embedding
+   * vector. Off by default to keep the response small. Used by the
+   * webui-server's `/api/vector-memory/search?similarity=1` route to
+   * build the pairwise-similarity heatmap.
+   */
+  includeVectors?: boolean | undefined;
 }
 
 export interface VectorSearchHit {
@@ -60,6 +67,14 @@ export interface VectorSearchHit {
   /** Cosine similarity in [-1, 1]. The store clamps to [0, 1] before returning. */
   score: number;
   providerId: string;
+  /**
+   * Decoded embedding vector for the matched entry. Populated only when
+   * the caller passes `includeVectors: true` to `store.search()` — keeps
+   * the default response small. Useful for downstream consumers that
+   * need pairwise similarity (e.g. WebUI heatmap) without a second
+   * `get(id)` round-trip.
+   */
+  vector?: Float32Array | undefined;
 }
 
 export interface VectorStoreStats {

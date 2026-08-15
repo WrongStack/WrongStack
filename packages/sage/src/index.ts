@@ -31,6 +31,7 @@ export {
   LegacyMemoryPortAdapter,
   ProjectSageMemoryPort,
   type ProjectSageMemoryPortOptions,
+  SAGE_RETRIEVAL_CAPABILITY,
   SAGE_SERVICE_CAPABILITY,
   SAGE_SURFACE_CAPABILITY,
   type SageRetrievalCapability,
@@ -95,6 +96,12 @@ export {
   type ProposalFileResult,
 } from './shared/file-proposals.js';
 export { hybridRerankMemories } from './retrieval/hybrid-rerank.js';
+export {
+  augmentLexicalWithVectorRecall,
+  type VectorAugmentHit,
+  type VectorAugmentOptions,
+  type VectorRecallProvider,
+} from './retrieval/vector-augment.js';
 export {
   createSageTurnMiddleware,
   overlapCoefficient,

@@ -178,18 +178,24 @@ describe('PromptJournalView', () => {
     expect(screen.getByText('billing prompt')).toBeTruthy();
   });
 
-  it('renders badges and grouping for every newly-wired journal category', () => {
+  it('drops recorder-side categories and only surfaces manually-entered user prompts', () => {
     render(<PromptJournalView />);
     deliverJournal({
       enabled: true,
-      // The store returns chronological ascending; the page reverses to
-      // newest-first. Deliver in ascending order to respect that contract.
+      // Mix every category the recorder may write — only raw_user and
+      // refined_user should survive the WebUI filter.
       entries: [
         entry({
-          id: 'clarify',
-          category: 'clarify_interaction',
+          id: 'system',
+          category: 'system_prompt',
+          timestamp: '2026-08-14T08:00:00.000Z',
+          content: 'system prompt body',
+        }),
+        entry({
+          id: 'raw',
+          category: 'raw_user',
           timestamp: '2026-08-14T09:00:00.000Z',
-          content: 'Should the index be unique or composite?',
+          content: 'Add phone number to the user table',
         }),
         entry({
           id: 'auto',
@@ -205,39 +211,36 @@ describe('PromptJournalView', () => {
           metadata: { decisionReason: 'simulated provider recovery' },
         }),
         entry({
-          id: 'delegate',
-          category: 'subagent_delegation',
+          id: 'refined',
+          category: 'refined_user',
           timestamp: '2026-08-15T11:00:00.000Z',
-          content: 'Review the auth middleware for token leaks',
+          content: 'Add a phone-number column to the users table',
+          rawContent: 'Add phone number to the user table',
         }),
       ],
     });
 
-    // Each category label renders in the entry badge AND as a filter-select
-    // option, so presence means the badge is on screen — this also pins that
-    // the category filter is populated from the incoming entries.
-    for (const label of [
-      'Self-healing retry',
-      'Subagent delegation',
-      'Clarify interaction',
-      'Autonomous next step',
-    ]) {
-      expect(screen.getAllByText(label).length).toBeGreaterThanOrEqual(2);
-    }
+    // The two tracked categories render; everything else is filtered out
+    // before reaching the page, so its content should NOT appear in the DOM.
+    expect(screen.getByText('Add phone number to the user table')).toBeTruthy();
+    expect(screen.getByText('Add a phone-number column to the users table')).toBeTruthy();
+    expect(screen.queryByText('system prompt body')).toBeNull();
+    expect(screen.queryByText('Continue to the next iteration')).toBeNull();
+    expect(screen.queryByText('Recovered provider error via retry')).toBeNull();
 
-    // Grouping by day, newest first, with the per-day count.
-    const headings = screen.getAllByRole('heading', { level: 2 });
-    expect(headings.map((h) => h.textContent)).toEqual(['2026-08-152', '2026-08-142']);
+    // Expanding the refined entry reveals both the refined body and the raw
+    // counterpart — the page treats the raw content as the English version
+    // for cross-language tracking.
+    fireEvent.click(screen.getByText('Add a phone-number column to the users table'));
+    expect(screen.getByText('Refined copy')).toBeTruthy();
+    expect(screen.getByText('Raw input')).toBeTruthy();
 
-    // Entry contents render, and the self-healing entry shows its rationale.
-    expect(screen.getByText('Recovered provider error via retry')).toBeTruthy();
-    expect(screen.getByText('Review the auth middleware for token leaks')).toBeTruthy();
-    expect(screen.getByText('Should the index be unique or composite?')).toBeTruthy();
-    expect(screen.getByText('Continue to the next iteration')).toBeTruthy();
-
-    // The rationale lives in the expandable detail section — expand the
-    // self-healing entry card to pin it on screen.
-    fireEvent.click(screen.getByText('Recovered provider error via retry'));
-    expect(screen.getByText('simulated provider recovery')).toBeTruthy();
+    // The category filter dropdown is populated only from the entries that
+    // survived the filter, so it offers Raw user and Refined user — nothing
+    // else. (The page also has a Limit dropdown, so scope the assertion to
+    // the category select.)
+    const categorySelect = screen.getByLabelText('Category') as HTMLSelectElement;
+    const categoryOptions = Array.from(categorySelect.options).map((o) => o.textContent);
+    expect(categoryOptions).toEqual(['All', 'Raw user', 'Refined user']);
   });
 });

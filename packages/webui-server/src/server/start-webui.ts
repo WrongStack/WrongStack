@@ -23,6 +23,12 @@ import {
   wstackGlobalRoot,
 } from '@wrongstack/core/utils';
 import { ensureSessionShell } from '@wrongstack/tools';
+import {
+  TransformersEmbeddingProvider,
+  VectorMemoryStore,
+  startFirstBootSageSync,
+} from '@wrongstack/vector-memory';
+
 import { createAgentServices } from './backend-services.js';
 import { bootConfig, patchConfig } from './boot.js';
 import { createConnectionHandler } from './connection-handler.js';
@@ -171,6 +177,38 @@ export async function startWebUI(
   // We still start the HTTP/WS servers so the user can configure via the UI.
   const needsProvider = !config.provider || !config.model;
 
+  // Vector memory is an optional sibling to SAGE — embed locally via
+  // @huggingface/transformers, persist to its own SQLite file. Mirrors the
+  // production path in packages/cli/src/cli-main.ts so the standalone WebUI
+  // host exposes the same surface as `wstack --webui`. The model cache lives
+  // under `.wrongstack/cache/transformers-models` (outside the store's data
+  // directory) so a future store-side cleanup never sweeps cached model
+  // files. Constructor failures (read-only filesystem, unwritable project
+  // root, corrupt SQLite parent) fall back to `undefined` so the standalone
+  // WebUI still boots on the SAGE-only surface — the routes then report
+  // `enabled: false` instead of failing to start.
+  let vectorMemoryStore: VectorMemoryStore | undefined;
+  const vectorMemoryModelCacheDir = path.join(
+    projectRoot,
+    '.wrongstack',
+    'cache',
+    'transformers-models',
+  );
+  try {
+    vectorMemoryStore = new VectorMemoryStore({
+      provider: new TransformersEmbeddingProvider({
+        cacheDir: vectorMemoryModelCacheDir,
+      }),
+      projectRoot,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `vector memory store disabled: ${message} — standalone WebUI will run on the SAGE-only surface.`,
+    );
+    vectorMemoryStore = undefined;
+  }
+
   // ── Pre-context services (registries, stores, session, system prompt,
   // provider, context) — built in ./pre-context-services.ts (Phase 1f).
   // The factory returns all services + the initial values of the mutable
@@ -224,6 +262,22 @@ export async function startWebUI(
   let sessionStartedAt = preContext.sessionStartedAt;
   let modeId = preContext.modeId;
   const needsSetup = preContext.needsSetup;
+
+  // First boot per project: mirror the active SAGE corpus into the vector
+  // store so semantic search starts warm instead of empty. Fire-and-forget
+  // — the first run pays the ONNX model download, and boot must not block
+  // on it. Skips instantly once the sage-sync marker says complete.
+  // Mirrors the CLI host (cli-main.ts:133-139) so both surfaces expose
+  // the same warm-start semantics. Safe to skip when the store
+  // constructor failed (read-only FS, etc.) — the SAGE-only fallback
+  // already covers that path.
+  if (vectorMemoryStore) {
+    void startFirstBootSageSync({
+      store: vectorMemoryStore,
+      memoryStore,
+      logger,
+    });
+  }
 
   // Pref keys + snapshot + persistence live in ./pref-helpers.ts (Phase 1c).
   // Thin closures below keep the original signatures the route layer expects
@@ -380,6 +434,11 @@ export async function startWebUI(
       permissionPolicy,
     }),
     distDir: opts.distDir,
+    // Vector memory store — mirrors the CLI host. When `vectorMemoryStore`
+    // construction failed (read-only FS, etc.) we still pass the getter;
+    // it just resolves to `undefined` and the API router answers 503.
+    getVectorMemoryStore: () => vectorMemoryStore,
+    vectorMemoryModelCacheDir,
   });
 
   const wsResult = createWsServers(httpServer, ports, accessToken);
@@ -749,6 +808,7 @@ export async function startWebUI(
     },
     codebaseIndexing,
     memoryStore,
+    vectorMemoryStore,
     globalConfigPath,
   });
 }

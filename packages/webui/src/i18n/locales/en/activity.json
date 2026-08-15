@@ -3538,6 +3538,7 @@
     "emptyHint": "Prompts you send will appear here once the journal has entries.",
     "tokens": "tokens",
     "rawInput": "Raw input",
+    "refinedBody": "Refined copy",
     "model": "Model",
     "provider": "Provider",
     "iteration": "Iteration",

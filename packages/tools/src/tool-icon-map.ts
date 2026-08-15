@@ -66,6 +66,8 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   // Shell/command execution
   bash: 'terminal',
   exec: 'terminal',
+  pwsh: 'terminal',
+  powershell: 'terminal',
   run: 'terminal',
   command: 'terminal',
   shell: 'terminal',
