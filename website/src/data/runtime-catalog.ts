@@ -383,6 +383,14 @@ export const toolCatalog = [
     category: 'Discovery & index',
   },
   {
+    name: 'clarify',
+    summary:
+      'Ask a structured question only when an irreversible decision has mutually exclusive trade-offs.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Work & state',
+  },
+  {
     name: 'tool_use',
     summary: 'Directly execute any registered tool by its exact name, bypassing normal discovery.',
     permission: 'confirm',
@@ -417,6 +425,60 @@ export const toolCatalog = [
     permission: 'auto',
     mutating: false,
     category: 'Discovery & index',
+  },
+  {
+    name: 'codebase-skeleton',
+    summary:
+      'Extract compact AST outlines while preserving contracts and stripping implementation bodies.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
+    name: 'codebase-repo-map',
+    summary: 'Generate a reference-weighted repository map within a bounded token budget.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
+    name: 'codebase-ast-replace',
+    summary:
+      'Replace a symbol body or definition through AST parsing with compatibility-invariant checks.',
+    permission: 'confirm',
+    mutating: true,
+    category: 'Discovery & index',
+  },
+  {
+    name: 'codebase-invariant-check',
+    summary:
+      'Verify AST backward-compatibility invariants between original code and a candidate mutation.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
+    name: 'codebase-impact-analysis',
+    summary:
+      'Calculate the production and test blast radius before changing a function, class, or type.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Discovery & index',
+  },
+  {
+    name: 'codebase-targeted-test',
+    summary: 'Discover and run only the test suites that cover a changed symbol or source file.',
+    permission: 'confirm',
+    mutating: false,
+    category: 'Quality & language',
+  },
+  {
+    name: 'security-ast-scan',
+    summary:
+      'Scan source ASTs for security vulnerabilities and performance anti-patterns with ranked remediation.',
+    permission: 'auto',
+    mutating: false,
+    category: 'Quality & language',
   },
   {
     name: 'codebase-incoming-calls',

@@ -15,7 +15,7 @@ import type {
   RefineFailureDecision,
   RefineFailureModel,
 } from './components/refine-failure-panel.js';
-import { INLINE_TOKEN_SRC } from './input-tokens.js';
+import { ATTACHMENT_TOKEN_SRC } from './input-tokens.js';
 import { startPromptRefinement } from './prompt-refinement-start.js';
 import type { MutableCell } from './shared-types.js';
 import type { PromptRefinementCapabilities } from './tui-host-capabilities.js';
@@ -49,7 +49,7 @@ export async function refineSubmittedPrompt(
   let effectiveText = trimmed;
   const chips: string[] = [];
   let cleanText = trimmed;
-  const chipPattern = new RegExp(INLINE_TOKEN_SRC, 'g');
+  const chipPattern = new RegExp(ATTACHMENT_TOKEN_SRC, 'g');
   for (const chipMatch of trimmed.matchAll(chipPattern)) chips.push(chipMatch[0]);
   if (chips.length > 0) {
     cleanText = trimmed

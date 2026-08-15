@@ -3521,5 +3521,41 @@
   },
   "progressring": {
     "progress": "İlerleme"
+  },
+  "promptJournal": {
+    "title": "Prompt Günlüğü",
+    "subtitle": "Bu proje için kaydedilen her prompt, en yeniden eskiye.",
+    "refresh": "Yenile",
+    "statEntries": "{{count}} prompt",
+    "statTokens": "~{{count}} token (tahmini)",
+    "filterCategory": "Kategori",
+    "filterAll": "Tümü",
+    "filterSession": "Oturum",
+    "filterLimit": "Limit",
+    "loading": "Prompt günlüğü yükleniyor…",
+    "disabled": "Prompt günlüğü bu proje için kullanılamıyor.",
+    "emptyTitle": "Henüz prompt kaydedilmedi",
+    "emptyHint": "Gönderdiğiniz promptlar, günlükte kayıt olduğunda burada görünecek.",
+    "tokens": "token",
+    "rawInput": "Ham girdi",
+    "model": "Model",
+    "provider": "Sağlayıcı",
+    "iteration": "Yineleme",
+    "stats": "İstatistikler",
+    "chars": "karakter",
+    "lines": "satır",
+    "duration": "Süre",
+    "tools": "Araçlar",
+    "files": "Bağlam dosyaları",
+    "rationale": "Gerekçe",
+    "cat": {
+      "raw_user": "Ham kullanıcı",
+      "refined_user": "Rafine kullanıcı",
+      "system_prompt": "Sistem promptu",
+      "autonomous_next_step": "Otonom sonraki adım",
+      "self_healing_retry": "Kendi kendini onarma denemesi",
+      "clarify_interaction": "Netleştirme etkileşimi",
+      "subagent_delegation": "Alt ajan yetkilendirmesi"
+    }
   }
 }

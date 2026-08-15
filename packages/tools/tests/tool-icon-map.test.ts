@@ -37,6 +37,7 @@ describe('tool-icon-map', () => {
       expect(getToolIcon('codebase-index')).toBe('index');
       expect(getToolIcon('codebase-incoming-calls')).toBe('index');
       expect(getToolIcon('codebase-outgoing-calls')).toBe('index');
+      expect(getToolIcon('codebase-invariant-check')).toBe('index');
       expect(getToolIcon('dead-code-scan')).toBe('index');
       expect(getToolIcon('json')).toBe('json');
       expect(getToolIcon('diff')).toBe('diff');

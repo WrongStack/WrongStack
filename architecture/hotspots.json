@@ -230,6 +230,10 @@
       "lines": 862,
       "relativeImports": 9
     },
+    "packages/tools/src/codebase-index/writer-graph-reader.ts": {
+      "lines": 811,
+      "relativeImports": 5
+    },
     "packages/tools/src/codebase-index/writer.ts": {
       "lines": 888,
       "relativeImports": 18
@@ -291,7 +295,7 @@
       "relativeImports": 1
     },
     "packages/tui/src/submit-controller.ts": {
-      "lines": 843,
+      "lines": 870,
       "relativeImports": 13
     },
     "packages/tui/src/theme-presets.ts": {
@@ -375,7 +379,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 903,
+      "lines": 935,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {

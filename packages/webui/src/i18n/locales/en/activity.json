@@ -3521,5 +3521,41 @@
   },
   "progressring": {
     "progress": "Progress"
+  },
+  "promptJournal": {
+    "title": "Prompt Journal",
+    "subtitle": "Every prompt recorded for this project, newest first.",
+    "refresh": "Refresh",
+    "statEntries": "{{count}} prompts",
+    "statTokens": "~{{count}} tokens (est.)",
+    "filterCategory": "Category",
+    "filterAll": "All",
+    "filterSession": "Session",
+    "filterLimit": "Limit",
+    "loading": "Loading prompt journal…",
+    "disabled": "The prompt journal is not available for this project.",
+    "emptyTitle": "No prompts recorded yet",
+    "emptyHint": "Prompts you send will appear here once the journal has entries.",
+    "tokens": "tokens",
+    "rawInput": "Raw input",
+    "model": "Model",
+    "provider": "Provider",
+    "iteration": "Iteration",
+    "stats": "Stats",
+    "chars": "chars",
+    "lines": "lines",
+    "duration": "Duration",
+    "tools": "Tools",
+    "files": "Context files",
+    "rationale": "Rationale",
+    "cat": {
+      "raw_user": "Raw user",
+      "refined_user": "Refined user",
+      "system_prompt": "System prompt",
+      "autonomous_next_step": "Autonomous next step",
+      "self_healing_retry": "Self-healing retry",
+      "clarify_interaction": "Clarify interaction",
+      "subagent_delegation": "Subagent delegation"
+    }
   }
 }

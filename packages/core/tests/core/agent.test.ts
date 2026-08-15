@@ -112,7 +112,9 @@ describe('Agent', () => {
     cleanupDirs = [];
   });
   afterEach(async () => {
-    for (const d of cleanupDirs) await fs.rm(d, { recursive: true, force: true });
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
   });
 
   it('legacy contract: returns done on plain end_turn response', async () => {
@@ -720,7 +722,9 @@ describe('Agent', () => {
 describe('Agent — sizeSignals coverage', () => {
   const cleanupDirs: string[] = [];
   afterEach(async () => {
-    for (const d of cleanupDirs) await fs.rm(d, { recursive: true, force: true });
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
   });
 
   it('sizeSignals counts newlines for bash tool without trailing newline', async () => {
@@ -824,7 +828,9 @@ describe('Agent — sizeSignals coverage', () => {
 describe('Agent — streaming provider tool_use events', () => {
   const cleanupDirs: string[] = [];
   afterEach(async () => {
-    for (const d of cleanupDirs) await fs.rm(d, { recursive: true, force: true });
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
   });
 
   it('streaming provider emits tool_use_start and tool_use_stop', async () => {
@@ -854,7 +860,9 @@ describe('Agent — streaming provider tool_use events', () => {
 describe('Agent — iteration limit extension denial', () => {
   const cleanupDirs: string[] = [];
   afterEach(async () => {
-    for (const d of cleanupDirs) await fs.rm(d, { recursive: true, force: true });
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
   });
 
   it('honors iteration limit extension denial and stops at max', async () => {
@@ -888,7 +896,9 @@ describe('Agent — additional coverage', () => {
     cleanupDirs = [];
   });
   afterEach(async () => {
-    for (const d of cleanupDirs) await fs.rm(d, { recursive: true, force: true });
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
   });
 
   it('accepts ContentBlock[] input including image blocks', async () => {

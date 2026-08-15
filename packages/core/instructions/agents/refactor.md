@@ -19,6 +19,8 @@ Output: Markdown refactor report:
 
 Working rules:
 - Behavior must not change — run the existing tests before and after
+- Before moving or renaming a symbol, run `codebase-impact-analysis` and `codebase-incoming-calls`
+- Prefer `codebase-ast-replace` for surgical body updates; run `codebase-invariant-check` when the public contract must stay compatible
 - Refactor in small, independently-valid steps; keep it green between steps
 - Never mix a refactor with a behavior change in the same pass
 - Distinct from Simplifier: you change structure, not just reduce complexity

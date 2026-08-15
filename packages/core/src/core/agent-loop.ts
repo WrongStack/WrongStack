@@ -28,12 +28,56 @@ import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { requestLimitExtension } from './iteration-limit.js';
 import { injectPendingMailboxMessages, removeInjectedMailboxBlocks } from './mailbox-loop.js';
 import { clearPendingNextSteps } from './next-steps-slot.js';
+import { recordPromptJournalEntry } from '../prompts/prompt-journal.js';
 import { runProviderWithRetry } from './provider-runner.js';
 import { buildQueuedMessagesBlock, consumeQueuedMessagesUpdate } from './queued-messages.js';
 import { providerBoundToRequest } from './request-provider-binding.js';
 
 function toError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
+}
+
+/**
+ * Best-effort journal record for a recovered provider error (self-healing
+ * retry). Mirrors the CLI recorder's guard: only writes when the context has a
+ * project root, and failures are swallowed — journal I/O must never block the
+ * loop.
+ */
+function recordSelfHealingRetry(a: AgentInternals, err: unknown, reason: string): void {
+  const projectRoot = a.ctx.projectRoot;
+  if (!projectRoot) return;
+  void recordPromptJournalEntry({
+    projectRoot,
+    sessionId: resolveEventSessionId(a.ctx),
+    category: 'self_healing_retry',
+    content: toErrorMessage(err),
+    decisionReason: reason,
+    model: a.ctx.model,
+    provider: a.ctx.provider?.id,
+    activeTools: a.ctx.tools?.map((tool) => tool.name) ?? [],
+  }).catch(() => {});
+}
+
+/**
+ * Best-effort journal record for a text-marker autonomous continue
+ * (`[continue]` / `[next step]` / `[proceed]` emitted as final text without
+ * the `continue_to_next_iteration` tool call). Same guard as
+ * `recordSelfHealingRetry` — only writes when the context has a project root,
+ * and failures are swallowed so journal I/O never blocks the loop.
+ */
+function recordAutonomousContinue(a: AgentInternals, text: string): void {
+  const projectRoot = a.ctx.projectRoot;
+  if (!projectRoot) return;
+  void recordPromptJournalEntry({
+    projectRoot,
+    sessionId: resolveEventSessionId(a.ctx),
+    category: 'autonomous_next_step',
+    content: text,
+    decisionReason: 'text-marker autonomous continue',
+    model: a.ctx.model,
+    provider: a.ctx.provider?.id,
+    activeTools: a.ctx.tools?.map((tool) => tool.name) ?? [],
+  }).catch(() => {});
 }
 
 export function signalAbortReason(signal: AbortSignal): string {
@@ -398,6 +442,7 @@ export function createAgentLoopHandler(
               }
               if (extDecision.model) a.ctx.model = extDecision.model;
               a.logger.info('Extension requested retry; retrying turn');
+              recordSelfHealingRetry(a, err, 'extension-requested provider retry');
               continue;
             }
           }
@@ -428,6 +473,7 @@ export function createAgentLoopHandler(
             }
             if (recovered.model) a.ctx.model = recovered.model;
             a.logger.info(`Recovered provider error via ${recovered.reason}; retrying turn`);
+            recordSelfHealingRetry(a, err, recovered.reason);
             continue;
           }
           recoveryRetries = 0;
@@ -505,6 +551,7 @@ export function createAgentLoopHandler(
             continue;
           }
           if (autonomousContinue && responseResult.directive === 'continue') {
+            recordAutonomousContinue(a, finalText);
             await a.extensions.runAfterIteration(a.ctx, i);
             continue;
           }

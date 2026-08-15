@@ -17,6 +17,10 @@ describe('builtinTools', () => {
     }
   });
 
+  it('registers codebase-invariant-check in the agent catalog', () => {
+    expect(builtinTools.map((t) => t.name)).toContain('codebase-invariant-check');
+  });
+
   it('all tool names are unique', () => {
     const seen = new Set<string>();
     for (const t of builtinTools) {

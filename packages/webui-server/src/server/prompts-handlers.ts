@@ -16,6 +16,7 @@
  * input as an ordinary user turn.
  */
 
+import { getPromptJournalEntries, type PromptJournalFilter } from '@wrongstack/core/prompts';
 import type { PromptUsageStore } from '@wrongstack/core/storage';
 import type { PromptEntry, PromptLoader, PromptVariable } from '@wrongstack/core/types';
 import { errMessage, send } from './ws-utils.js';
@@ -274,6 +275,31 @@ export async function handlePromptsRecent(ws: WSLike, ctx: PromptsContext): Prom
     send(ws, { type: 'prompts.recent', payload: { slugs: recent.map((r) => r.slug) } });
   } catch (err) {
     send(ws, { type: 'prompts.recent', payload: { slugs: [], error: errMessage(err) } });
+  }
+}
+
+/** Read the project's hierarchical prompt journal (`<projectRoot>/.wrongstack/prompts/`). */
+export async function handlePromptsJournal(
+  ws: WSLike,
+  msg: unknown,
+  projectRoot: string,
+): Promise<void> {
+  if (!projectRoot) {
+    send(ws, { type: 'prompts.journal', payload: { enabled: false, entries: [] } });
+    return;
+  }
+  const payload = (msg as { payload?: { filter?: PromptJournalFilter } | undefined }).payload;
+  try {
+    const entries = await getPromptJournalEntries(projectRoot, {
+      ...(payload?.filter ?? {}),
+      limit: payload?.filter?.limit ?? 200,
+    });
+    send(ws, { type: 'prompts.journal', payload: { enabled: true, entries } });
+  } catch (err) {
+    send(ws, {
+      type: 'prompts.journal',
+      payload: { enabled: true, entries: [], error: errMessage(err) },
+    });
   }
 }
 

@@ -147,6 +147,24 @@ describe('codebase-incoming-calls tool', () => {
     expect(result.calls.length).toBeLessThanOrEqual(1);
   });
 
+  it('scopes by a project-relative file path', async () => {
+    await fs.writeFile(path.join(tmpDir, 'target.ts'), 'export function greet(): string { return "hi"; }');
+    await fs.writeFile(
+      path.join(tmpDir, 'caller.ts'),
+      `import { greet } from './target.js';\nfunction caller(): void { greet(); }`,
+    );
+    await codebaseIndexTool.execute({}, ctx, { signal: newSignal() });
+
+    const result = await codebaseIncomingCallsTool.execute(
+      { symbol: 'greet', file: 'target.ts' },
+      ctx,
+      { signal: newSignal() },
+    );
+
+    expect(result.note).toBeUndefined();
+    expect(result.total).toBeGreaterThanOrEqual(1);
+  });
+
   it('scopes by file when provided', async () => {
     // Same function name in two files, only one gets callers.
     await fs.writeFile(path.join(tmpDir, 'a.ts'), 'export function sharedName(): void { }');

@@ -409,6 +409,24 @@ describe('reducer', () => {
       expect(next.queue[0]).toMatchObject({ displayText: 'test task', id: 1 });
       expect(next.nextQueueId).toBe(2);
     });
+
+    it('preserves journalRaw provenance on the enqueued item', () => {
+      const state = { ...emptyState(), queue: [], nextQueueId: 1 };
+      const item = {
+        displayText: 'refined task',
+        blocks: [{ type: 'text' as const, text: 'refined task' }],
+        journalRaw: 'raw task',
+      };
+      const next = reducer(state, { type: 'enqueue', item });
+      expect(next.queue[0]).toMatchObject({
+        displayText: 'refined task',
+        id: 1,
+        journalRaw: 'raw task',
+      });
+      // The budget projection (what gets persisted) must carry journalRaw so
+      // rehydration restores provenance and the byte budget matches the write.
+      expect(next.queue).toHaveLength(1);
+    });
   });
 });
 

@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 282,
-      "typeOnly": 227,
-      "runtimeOrMixed": 72
+      "files": 286,
+      "typeOnly": 228,
+      "runtimeOrMixed": 75
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -44,9 +44,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/execution": {
-      "files": 59,
+      "files": 61,
       "typeOnly": 18,
-      "runtimeOrMixed": 57
+      "runtimeOrMixed": 59
     },
     "@wrongstack/core/extension": {
       "files": 6,
@@ -74,14 +74,14 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/infrastructure": {
-      "files": 38,
+      "files": 40,
       "typeOnly": 5,
-      "runtimeOrMixed": 37
+      "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 227,
+      "files": 229,
       "typeOnly": 122,
-      "runtimeOrMixed": 116
+      "runtimeOrMixed": 118
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -108,10 +108,15 @@
       "typeOnly": 16,
       "runtimeOrMixed": 21
     },
+    "@wrongstack/core/prompts": {
+      "files": 7,
+      "typeOnly": 0,
+      "runtimeOrMixed": 7
+    },
     "@wrongstack/core/registry": {
-      "files": 103,
+      "files": 105,
       "typeOnly": 52,
-      "runtimeOrMixed": 52
+      "runtimeOrMixed": 54
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -119,9 +124,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 128,
+      "files": 130,
       "typeOnly": 24,
-      "runtimeOrMixed": 107
+      "runtimeOrMixed": 109
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -134,9 +139,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 100,
+      "files": 102,
       "typeOnly": 30,
-      "runtimeOrMixed": 104
+      "runtimeOrMixed": 106
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -149,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 940,
-      "typeOnly": 867,
+      "files": 944,
+      "typeOnly": 871,
       "runtimeOrMixed": 234
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -495,12 +500,6 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
-      "file": "packages/cli/src/vibe-protocol-wiring.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/webui-server-options.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -574,6 +573,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/wiring/prompt-journal-recorder.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -714,6 +719,12 @@
       "file": "packages/cli/tests/non-web-zero-small.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -868,6 +879,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -1071,9 +1088,21 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/sdd/src/vibe-protocol-wiring.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/sdd/tests/start-sdd-run-kanban.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sdd/tests/vibe-protocol-wiring.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3357,6 +3386,12 @@
     },
     {
       "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/tests/provider-utility-tools.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3406,6 +3441,12 @@
     {
       "specifier": "@wrongstack/core/execution",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/execution",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4617,6 +4658,12 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/tests/redact-sample-real-shapes.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -4672,6 +4719,12 @@
     {
       "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4948,12 +5001,6 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/slash-commands/command-context.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/kernel",
-      "file": "packages/cli/src/vibe-protocol-wiring.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5277,6 +5324,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/replay-wiring.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5320,6 +5373,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5728,6 +5787,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/sdd/src/task-flow.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sdd/src/vibe-protocol-wiring.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -6542,6 +6607,48 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/cli/src/wiring/prompt-journal-recorder.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/tui/src/run-blocks-controller.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/tui/src/submit-controller.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/tui/tests/run-blocks-busy-guard.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/webui-server/src/server/prompts-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/prompts",
+      "file": "packages/webui-server/tests/prompts-handlers.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/acp-server-agent.ts",
       "typeOnly": 0,
@@ -6759,6 +6866,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/redact-sample-real-shapes.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6880,6 +6993,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7581,6 +7700,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/providers-models-discovery.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7606,6 +7731,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8259,6 +8390,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/replay-integration.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8308,6 +8445,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10059,12 +10202,6 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/cli/src/vibe-protocol-wiring.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/webui-server-options.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -10234,6 +10371,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/prompt-journal-recorder.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -10695,6 +10838,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/prompt-journal-recorder.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/provider-config-utils.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10882,6 +11031,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/vibe-agent-e2e.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12579,6 +12734,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/src/vibe-protocol-wiring.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/tests/coverage-completion.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12592,6 +12753,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/tests/start-sdd-run-kanban.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/tests/vibe-protocol-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

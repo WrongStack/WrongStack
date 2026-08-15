@@ -140,15 +140,21 @@ export type WriterSymbolGraphRow = {
 export function buildSymbolGraphNodes(
   symById: Map<number, WriterSymbolGraphRow>,
   relatedIds: Set<number>,
-  fileFilter: string,
+  localFiles: ReadonlySet<string> | string,
   packageOf: (file: string) => string,
 ): GraphNode[] {
+  const local = new Set(
+    [...(typeof localFiles === 'string' ? [localFiles] : localFiles)].map((file) =>
+      file.replace(/\\/g, '/'),
+    ),
+  );
+  const isLocal = (file: string): boolean => local.has(file.replace(/\\/g, '/'));
   return [...relatedIds]
     .map((id) => symById.get(id))
     .filter((symbol): symbol is WriterSymbolGraphRow => symbol !== undefined)
     .sort((a, b) => {
-      const aExternal = a.file === fileFilter ? 0 : 1;
-      const bExternal = b.file === fileFilter ? 0 : 1;
+      const aExternal = isLocal(a.file) ? 0 : 1;
+      const bExternal = isLocal(b.file) ? 0 : 1;
       return (
         aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id
       );
@@ -165,7 +171,7 @@ export function buildSymbolGraphNodes(
       line: s.line,
       signature: s.signature,
       scope: s.scope,
-      external: s.file !== fileFilter,
+      external: !isLocal(s.file),
     }));
 }
 

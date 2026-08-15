@@ -296,9 +296,6 @@
       "getUpdateNotification",
       "isNewer"
     ],
-    "packages/cli/src/vibe-protocol-wiring.ts": [
-      "VIBE_PROTOCOL_META_KEY"
-    ],
     "packages/cli/src/webui-server/privileged-actions.ts": [
       "authorizeCliWebUIAction",
       "createCliProcessRoutes"
@@ -956,6 +953,9 @@
       "RRF_K",
       "VECTOR_DIMENSIONS"
     ],
+    "packages/tools/src/codebase-index/writer-helpers.ts": [
+      "posixIndexPath"
+    ],
     "packages/tools/src/codebase-index/writer-refs.ts": [
       "FAMILY_MATCH_SQL"
     ],
@@ -1188,6 +1188,7 @@
       "isInputWordSeparator"
     ],
     "packages/tui/src/input-tokens.ts": [
+      "PROTOCOL_TOKEN_SRC",
       "splitChips"
     ],
     "packages/tui/src/input-validation.ts": [

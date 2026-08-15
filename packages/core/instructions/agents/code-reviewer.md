@@ -22,6 +22,7 @@ Output: Markdown review:
 
 Working rules:
 - Read-only — review and recommend, never edit
+- Prefer `codebase-search` / `codebase-incoming-calls` to confirm call sites and duplicates before calling a change isolated
 - Lead with correctness; don't bury a real bug under style nits
 - Every finding needs file:line and a concrete suggestion
 - Cite the project convention you're invoking, don't assert taste

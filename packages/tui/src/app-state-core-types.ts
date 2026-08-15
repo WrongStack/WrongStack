@@ -7,6 +7,13 @@ export interface QueueItem {
   blocks: ContentBlock[];
   /** When true, the item will be refined via model.refine before entering the agent context. */
   shouldRefine?: boolean | undefined;
+  /**
+   * Raw (pre-refinement) user text for prompt-journal provenance. Stamped
+   * into `ctx.meta[PROMPT_JOURNAL_RAW_MARKER]` by the queue drainer right
+   * before the item runs — NOT at enqueue time — so each queued item keeps
+   * its own raw text and clearing the queue can never orphan a stale marker.
+   */
+  journalRaw?: string | undefined;
 }
 
 /** A registered slash command matched against the user's current / query. */

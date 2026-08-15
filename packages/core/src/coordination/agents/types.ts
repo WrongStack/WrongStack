@@ -113,13 +113,51 @@ export const HEAVY_BUDGET: AgentBudgetTier = {
  * a planning agent should not hold `write`/`bash`, a reviewer should be
  * read-only. Spread + extend per-agent where a role needs one extra tool.
  */
+const INDEX_READ = [
+  'codebase-stats',
+  'codebase-search',
+  'codebase-skeleton',
+  'codebase-repo-map',
+  'codebase-incoming-calls',
+  'codebase-outgoing-calls',
+] as const;
+
 export const TOOLS = {
+  /** Index-backed code discovery. Spread onto code-facing presets, not browser. */
+  index: INDEX_READ,
   /** Pure read/inspect — safe for analysis and review agents. */
   read: ['read', 'grep', 'glob', 'search', 'tree', 'mailbox'],
   /** Read + structured inspection (logs, diffs, json, dependency audit). */
-  inspect: ['read', 'grep', 'glob', 'search', 'tree', 'json', 'diff', 'logs', 'audit', 'mailbox'],
+  inspect: [
+    'read',
+    'grep',
+    'glob',
+    'search',
+    'tree',
+    ...INDEX_READ,
+    'json',
+    'diff',
+    'logs',
+    'audit',
+    'mailbox',
+  ],
   /** Read + edit (no shell). For agents that write code/docs but don't run it. */
-  write: ['read', 'grep', 'glob', 'search', 'tree', 'write', 'edit', 'replace', 'patch', 'mailbox'],
+  write: [
+    'read',
+    'grep',
+    'glob',
+    'search',
+    'tree',
+    ...INDEX_READ,
+    'codebase-impact-analysis',
+    'codebase-ast-replace',
+    'codebase-invariant-check',
+    'write',
+    'edit',
+    'replace',
+    'patch',
+    'mailbox',
+  ],
   /** Full build loop: edit + run (lint/format/typecheck/test/bash). */
   build: [
     'read',
@@ -127,6 +165,11 @@ export const TOOLS = {
     'glob',
     'search',
     'tree',
+    ...INDEX_READ,
+    'codebase-impact-analysis',
+    'codebase-ast-replace',
+    'codebase-invariant-check',
+    'codebase-targeted-test',
     'diff',
     'write',
     'edit',
@@ -153,7 +196,18 @@ export const TOOLS = {
   /** Dependency management + CVE audit. */
   deps: ['read', 'grep', 'glob', 'install', 'outdated', 'audit', 'json', 'mailbox'],
   /** Documentation authoring. */
-  docs: ['read', 'grep', 'glob', 'search', 'tree', 'write', 'edit', 'document', 'mailbox'],
+  docs: [
+    'read',
+    'grep',
+    'glob',
+    'search',
+    'tree',
+    ...INDEX_READ,
+    'write',
+    'edit',
+    'document',
+    'mailbox',
+  ],
   /** Web research. */
   research: ['read', 'grep', 'glob', 'search', 'fetch', 'mailbox'],
 } as const satisfies Record<string, readonly string[]>;

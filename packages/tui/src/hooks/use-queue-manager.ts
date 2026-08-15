@@ -58,6 +58,7 @@ export function useQueueManager({
               displayText: item.displayText,
               blocks: item.blocks,
               ...(item.shouldRefine !== undefined ? { shouldRefine: item.shouldRefine } : {}),
+              ...(item.journalRaw !== undefined ? { journalRaw: item.journalRaw } : {}),
             },
           });
         }
@@ -84,14 +85,17 @@ export function useQueueManager({
         displayText,
         blocks,
         shouldRefine,
+        journalRaw,
       }: {
         displayText: string;
         blocks: ContentBlock[];
         shouldRefine?: boolean | undefined;
+        journalRaw?: string | undefined;
       }) => ({
         displayText,
         blocks,
         ...(shouldRefine !== undefined ? { shouldRefine } : {}),
+        ...(journalRaw !== undefined ? { journalRaw } : {}),
       }),
     );
     const persistence = persistState.current;

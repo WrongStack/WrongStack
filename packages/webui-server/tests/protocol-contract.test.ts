@@ -38,8 +38,8 @@ describe('surface protocol contract', () => {
   });
 
   it('keeps every exact registry entry executable through its directional decoder', () => {
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(233);
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(247);
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(234);
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(248);
     for (const type of CLIENT_MESSAGE_TYPES) {
       expect(decodeProtocolMessage({ type }, 'client')).toEqual({
         ok: true,
@@ -63,6 +63,7 @@ describe('surface protocol contract', () => {
       'prompts.created',
       'prompts.used',
       'prompts.recent',
+      'prompts.journal',
     ];
 
     for (const type of responseTypes) {

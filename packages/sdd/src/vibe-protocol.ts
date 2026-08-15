@@ -62,6 +62,17 @@ export interface VibeVerificationReport {
 }
 
 /**
+ * Policy sentences are not code artifacts. Only identifier-like exclusions
+ * (packages, files, symbols) are safe to substring-match in coder output.
+ */
+export function isIdentifierLikeExclusion(excluded: string): boolean {
+  const trimmed = excluded.trim();
+  if (trimmed.length < 2) return false;
+  if (/^['"`].+['"`]$/.test(trimmed)) return true;
+  return !/\s/.test(trimmed);
+}
+
+/**
  * 1. Spec-Synthesizer: Transforms unstructured, chaotic vibe prompt into a formal spec.
  */
 export function synthesizeVibeSpec(
@@ -184,8 +195,12 @@ export function auditVibeExecution(input: {
   }
 
   // Check 2: Spec Scope check (No prohibited items)
+  // Only identifier-like exclusions are substring-matched. Default policy
+  // phrases ("Unrelated UI refactors") are injected into the coder prompt, so
+  // echoing them would otherwise false-positive as scope bleed.
   let scopeClean = true;
   for (const excluded of spec.scopeBoundaries.excluded) {
+    if (!isIdentifierLikeExclusion(excluded)) continue;
     if (coderOutput.toLowerCase().includes(excluded.toLowerCase())) {
       scopeClean = false;
       checks.push({
@@ -206,12 +221,15 @@ export function auditVibeExecution(input: {
     });
   }
 
-  // Check 3: Acceptance criteria verification
+  // Check 3: Acceptance criteria are carried by the contract. This auditor
+  // is deterministic and does not execute the criteria; do not claim it did.
   checks.push({
     id: 'acceptance-criteria',
     name: 'Acceptance Criteria Alignment',
     passed: hasCoderOutput,
-    details: `All ${spec.acceptanceCriteria.length} acceptance criteria accounted for in spec contract`,
+    details: hasCoderOutput
+      ? `Coder produced output against a contract of ${spec.acceptanceCriteria.length} acceptance criteria (not independently executed)`
+      : 'No coder output to align with acceptance criteria',
   });
 
   const allPassed = checks.every((c) => c.passed);
@@ -244,7 +262,8 @@ export function formatVibeReport(
     '- **🧩 Sensible Defaults:**',
     ...spec.sensibleDefaults.map((d) => `  • ${d}`),
     '- **📋 Acceptance Criteria:**',
-    ...spec.acceptanceCriteria.map((ac) => `  - [x] ${ac}`),
+    ...spec.acceptanceCriteria.map((ac) => `  - [ ] ${ac}`),
+    '- _Auditor did not independently execute these criteria._',
     '',
     '---',
     '',

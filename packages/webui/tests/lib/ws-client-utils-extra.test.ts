@@ -18,7 +18,7 @@ import type { WSServerMessage } from '../../src/types';
 
 describe('isActiveSessionMessage', () => {
   it('returns true when message has no sessionId', () => {
-    const msg = { type: 'chat.message', payload: {} } as WSServerMessage;
+    const msg = { type: 'chat.message', payload: {} } as unknown as WSServerMessage;
     expect(isActiveSessionMessage(msg)).toBe(true);
   });
 
@@ -26,7 +26,7 @@ describe('isActiveSessionMessage', () => {
     const msg = {
       type: 'chat.message',
       payload: { sessionId: 'sess-1' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     expect(isActiveSessionMessage(msg)).toBe(true);
   });
 
@@ -39,7 +39,7 @@ describe('isActiveSessionMessage', () => {
     const msg = {
       type: 'chat.message',
       payload: { sessionId: 'sess-1' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     expect(isActiveSessionMessage(msg)).toBe(true);
   });
 
@@ -52,7 +52,7 @@ describe('isActiveSessionMessage', () => {
     const msg = {
       type: 'chat.message',
       payload: { sessionId: 'sess-other' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     expect(isActiveSessionMessage(msg)).toBe(false);
   });
 });
@@ -62,7 +62,7 @@ describe('safePayload', () => {
     const msg = {
       type: 'custom.event',
       payload: { text: 'hello', count: 42 },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload<{ text: string; count: number }>(
       msg,
       { text: 'string', count: 'number' },
@@ -76,7 +76,7 @@ describe('safePayload', () => {
     const msg = {
       type: 'custom.event',
       payload: { text: 'hello' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload<{ text: string; count: number }>(
       msg,
       { text: 'string', count: 'number' },
@@ -88,7 +88,7 @@ describe('safePayload', () => {
     const msg = {
       type: 'custom.event',
       payload: { text: 'hello', count: 'not-a-number' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload<{ text: string; count: number }>(
       msg,
       { text: 'string', count: 'number' },
@@ -97,7 +97,7 @@ describe('safePayload', () => {
   });
 
   it('returns null when payload is missing', () => {
-    const msg = { type: 'custom.event' } as WSServerMessage;
+    const msg = { type: 'custom.event' } as unknown as WSServerMessage;
     const result = safePayload<{ text: string }>(msg, { text: 'string' });
     expect(result).toBeNull();
   });
@@ -106,7 +106,7 @@ describe('safePayload', () => {
     const msg = {
       type: 'custom.event',
       payload: { text: 'hello', extra: 'optional-value' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload<{ text: string; extra?: string }>(
       msg,
       { text: 'string' },
@@ -120,7 +120,7 @@ describe('safePayload', () => {
     const msg = {
       type: 'custom.event',
       payload: { text: 'hello', extra: 42 },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload<{ text: string; extra?: string }>(
       msg,
       { text: 'string' },
@@ -133,7 +133,7 @@ describe('safePayload', () => {
     const msg = {
       type: 'custom.event',
       payload: { text: 'hello' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload<{ text: string }>(
       msg,
       { text: 'string' },
@@ -151,7 +151,7 @@ describe('safePayload', () => {
         meta: { key: 'val' },
         items: [1, 2, 3],
       },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload(
       msg,
       { flag: 'boolean', meta: 'object', items: 'array' },
@@ -163,7 +163,7 @@ describe('safePayload', () => {
     const msg = {
       type: 'custom.event',
       payload: { text: 'hello' },
-    } as WSServerMessage;
+    } as unknown as WSServerMessage;
     const result = safePayload(
       msg,
       { text: 'unknown_kind' as any },

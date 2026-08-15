@@ -5,7 +5,7 @@
 import type { ToolDetail } from './tool-detail-types';
 
 export const toolDetailsPart4: Record<string, ToolDetail> = {
-  'outdated': {
+  outdated: {
     longDescription:
       'Check for outdated dependencies in the project. Reports current, wanted (semver range), and latest versions available.',
     params: [
@@ -21,7 +21,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Hits the package registry over HTTP, so it is NOT purely local — flagged as mutating for the confirmation gate.',
     ],
   },
-  'logs': {
+  logs: {
     longDescription:
       'Read logs from files or Docker containers. Useful for debugging running applications.',
     params: [
@@ -47,7 +47,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       },
       {
         name: 'since',
-        type: '\'1h\' | \'6h\' | \'24h\' | \'all\'',
+        type: "'1h' | '6h' | '24h' | 'all'",
         description: 'Only show Docker logs since duration (ignored for files; "all" = no limit)',
       },
       {
@@ -61,13 +61,13 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Always use `filter` (regex) when possible to reduce noise and token usage.',
     ],
   },
-  'document': {
+  document: {
     longDescription:
       'DEPRECATED — read-only preview stub that lists undocumented symbols as `skipped` candidates. It never writes files and does not generate real docstrings. If the auto-doc plugin is enabled, use its `auto_doc` tool (with `dry_run: true` to preview) instead.',
     params: [
       {
         name: 'target',
-        type: '\'file\' | \'function\' | \'class\' | \'type\' | \'all\'',
+        type: "'file' | 'function' | 'class' | 'type' | 'all'",
         description: 'What to document',
       },
       {
@@ -82,7 +82,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       },
       {
         name: 'style',
-        type: '\'jsdoc\' | \'tsdoc\' | \'block\'',
+        type: "'jsdoc' | 'tsdoc' | 'block'",
         description: 'Documentation style (default: jsdoc)',
       },
       {
@@ -95,7 +95,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Deprecated: this tool only lists undocumented symbols with placeholder comments — it does not generate real JSDoc/TSDoc and writes nothing. When the auto-doc plugin is enabled, prefer its `auto_doc` tool (`dry_run: true` for previewing, without it for writing).',
     ],
   },
-  'scaffold': {
+  scaffold: {
     longDescription:
       'Generate new files and folder structures from built-in templates or custom definitions. This is the recommended way to bootstrap new packages, components, or modules instead of creating files one by one with `write`.',
     params: [
@@ -103,7 +103,8 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
         name: 'template',
         type: 'string',
         required: true,
-        description: 'Template name (npm-package, cli-tool, react-component) or path to template directory',
+        description:
+          'Template name (npm-package, cli-tool, react-component) or path to template directory',
       },
       {
         name: 'name',
@@ -133,14 +134,15 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Has the powerful `fs.write.outside-project` capability — review paths carefully.',
     ],
   },
-  'design': {
+  design: {
     longDescription:
       'Browse, load, customize, and enforce curated frontend/mobile UI design kits. Use BEFORE writing UI code to commit to one coherent, modern, responsive, dark/light, accessible design. Actions: "list" (menu), "use" (load+pin a kit for a stack), "foundations" (baseline), "set" (override kit colors/tokens), "materialize" (write the tokens to a real theme file — CSS @theme/OKLCH or native), "verify" (scan UI files for off-palette colors).',
     params: [
       {
         name: 'action',
-        type: '\'list\' | \'use\' | \'foundations\' | \'set\' | \'materialize\' | \'verify\'',
-        description: 'list = menu; use = load+pin a kit; foundations = baseline; set = override colors/tokens; materialize = write tokens to a theme file; verify = scan UI for off-palette colors. Default: list.',
+        type: "'list' | 'use' | 'foundations' | 'set' | 'materialize' | 'verify'",
+        description:
+          'list = menu; use = load+pin a kit; foundations = baseline; set = override colors/tokens; materialize = write tokens to a theme file; verify = scan UI for off-palette colors. Default: list.',
       },
       {
         name: 'kit',
@@ -149,35 +151,39 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       },
       {
         name: 'stack',
-        type: '\'web\' | \'react-native\' | \'flutter\' | \'swiftui\' | \'compose\'',
+        type: "'web' | 'react-native' | 'flutter' | 'swiftui' | 'compose'",
         description: 'Target stack — narrows guidance + materialize format. Default: web.',
       },
       {
         name: 'set',
         type: 'object',
-        description: 'Token overrides for "set"/"use": { "primary": "oklch(…)", "dark.bg": "#111" }. Bare key = both themes; "light."/"dark." prefix = that theme only. Empty value clears an override.',
+        description:
+          'Token overrides for "set"/"use": { "primary": "oklch(…)", "dark.bg": "#111" }. Bare key = both themes; "light."/"dark." prefix = that theme only. Empty value clears an override.',
       },
       {
         name: 'out',
         type: 'string',
-        description: 'Materialize output path (project-relative). Defaults to a per-stack convention.',
+        description:
+          'Materialize output path (project-relative). Defaults to a per-stack convention.',
       },
       {
         name: 'force',
         type: 'boolean',
-        description: 'Materialize: overwrite an existing file (default false — refuses to clobber).',
+        description:
+          'Materialize: overwrite an existing file (default false — refuses to clobber).',
       },
       {
         name: 'files',
         type: 'string[]',
-        description: 'Verify: explicit project-relative files to scan. Default: a bounded UI-file walk.',
+        description:
+          'Verify: explicit project-relative files to scan. Default: a bounded UI-file walk.',
       },
     ],
     notes: [
       'Flow: `design {action:"use", kit:"minimal-clarity", stack:"web"}` → optionally `design {action:"set", set:{primary:"oklch(62% 0.2 25)"}}` → `design {action:"materialize"}` to write tokens to disk → implement against them → `design {action:"verify"}`.',
     ],
   },
-  'tool_search': {
+  tool_search: {
     longDescription:
       'Search the catalog of available tools by name or description. Use this to discover which tool to use for a task. For the full schema and usage details of a specific tool, use `tool_help` instead.',
     params: [
@@ -193,7 +199,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       },
       {
         name: 'permission',
-        type: '\'auto\' | \'confirm\' | \'deny\'',
+        type: "'auto' | 'confirm' | 'deny'",
         description: 'Filter by required permission level',
       },
       {
@@ -213,7 +219,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'You can filter by `tags` (category), `permission`, or `mutating`.',
     ],
   },
-  'tool_use': {
+  tool_use: {
     longDescription:
       'Directly execute any registered tool by its exact name, bypassing normal discovery. This is a powerful meta-tool intended for cases where the agent has a clear plan and knows precisely which tool to invoke.',
     params: [
@@ -221,12 +227,13 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
         name: 'tool',
         type: 'string',
         required: true,
-        description: 'The exact registered name of the tool to invoke (e.g. "bash", "read", "codebase-search").',
+        description:
+          'The exact registered name of the tool to invoke (e.g. "bash", "read", "codebase-search").',
       },
       {
         name: 'input',
         type: 'object',
-        description: 'The input object matching the target tool\'s inputSchema.',
+        description: "The input object matching the target tool's inputSchema.",
       },
     ],
     notes: [
@@ -235,7 +242,7 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Very useful in batch-tool-use or when orchestrating complex workflows programmatically.',
     ],
   },
-  'batch_tool_use': {
+  batch_tool_use: {
     longDescription:
       'Execute a batch of tool calls either sequentially or in parallel. Returns structured results for every call.',
     params: [
@@ -262,19 +269,21 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       '`stop_on_error: true` makes it fail fast on the first error.',
     ],
   },
-  'tool_help': {
+  tool_help: {
     longDescription:
       'Get detailed help for a specific tool, including its full input schema and usage guidance. If you do not know which tool to use, search with `tool_search` first, then call this with the tool name.',
     params: [
       {
         name: 'tool',
         type: 'string',
-        description: 'Specific tool name to get detailed help for. Omit to get a list of all tools.',
+        description:
+          'Specific tool name to get detailed help for. Omit to get a list of all tools.',
       },
       {
         name: 'format',
-        type: '\'short\' | \'full\' | \'markdown\'',
-        description: 'Level of detail: "short" (summary), "full" (with full schema), "markdown" (human readable).',
+        type: "'short' | 'full' | 'markdown'",
+        description:
+          'Level of detail: "short" (summary), "full" (with full schema), "markdown" (human readable).',
       },
       {
         name: 'include_examples',
@@ -322,7 +331,8 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       {
         name: 'kind',
         type: 'string',
-        description: 'Filter by symbol kind: class, function, interface, method, const, let, var, property, type, enum',
+        description:
+          'Filter by symbol kind: class, function, interface, method, const, let, var, property, type, enum',
       },
       {
         name: 'lang',
@@ -332,7 +342,8 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       {
         name: 'lspKind',
         type: 'integer',
-        description: 'Filter by LSP SymbolKind number (e.g. 5=Class, 12=Function, 11=Interface, 10=Enum)',
+        description:
+          'Filter by LSP SymbolKind number (e.g. 5=Class, 12=Function, 11=Interface, 10=Enum)',
       },
       {
         name: 'file',
@@ -347,7 +358,8 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       {
         name: 'preferLsp',
         type: 'boolean',
-        description: 'Prefer live LSP results over the index. Index-only when the LSP plugin is not active. When the LSP plugin is active and this is true, results come from live workspaceSymbol queries.',
+        description:
+          'Prefer live LSP results over the index. Index-only when the LSP plugin is not active. When the LSP plugin is active and this is true, results come from live workspaceSymbol queries.',
       },
     ],
     notes: [
@@ -366,14 +378,15 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Helps avoid wasting tokens on searches against a stale index.',
     ],
   },
-  'set_working_dir': {
+  set_working_dir: {
     longDescription:
       'Change the current working directory for all subsequent file operations. The new directory must be inside the project root. Use this to navigate between subdirectories when working on files in different parts of the project.',
     params: [
       {
         name: 'path',
         type: 'string',
-        description: 'Directory to navigate to. Can be relative (to projectRoot) or absolute. If omitted, returns the current working directory without changing it.',
+        description:
+          'Directory to navigate to. Can be relative (to projectRoot) or absolute. If omitted, returns the current working directory without changing it.',
       },
     ],
     notes: [
@@ -397,7 +410,8 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       {
         name: 'entryPoints',
         type: 'string[]',
-        description: 'Additional entry-point file paths to seed the reachability scan. Auto-detected from package.json by default.',
+        description:
+          'Additional entry-point file paths to seed the reachability scan. Auto-detected from package.json by default.',
       },
     ],
     doNotUseWhen: [
@@ -411,5 +425,183 @@ export const toolDetailsPart4: Record<string, ToolDetail> = {
       'Read-only (permission: auto, mutating: false). Results are best-effort — dynamic imports, string-based require, and bare `export { X }` re-exports without a local function wrapper create no reference edge and may appear as false dead-code positives.',
       'Entry-point discovery handles root + workspace packages, including pnpm-workspace.yaml packages block and build-output/bin entries mapped back to source.',
     ],
+  },
+  clarify: {
+    longDescription:
+      'Ask the user to choose between structured options when an irreversible architecture, schema, API, or domain decision has genuinely incompatible trade-offs. Routine implementation choices remain autonomous.',
+    params: [
+      { name: 'question', type: 'string', required: true, description: 'The decision to clarify.' },
+      { name: 'context', type: 'string', description: 'Why the decision and trade-offs matter.' },
+      {
+        name: 'options',
+        type: 'string[]',
+        required: true,
+        description: 'Two or more mutually exclusive choices.',
+      },
+      {
+        name: 'recommendedOption',
+        type: 'string',
+        description: 'The assistant-recommended default choice.',
+      },
+      {
+        name: 'isMultiSelect',
+        type: 'boolean',
+        description: 'Allow more than one option to be selected.',
+      },
+      {
+        name: 'allowCustomResponse',
+        type: 'boolean',
+        description: 'Allow a write-in response in addition to the listed options.',
+      },
+    ],
+    notes: ['Use only for high-cost irreversible forks; adopt established defaults autonomously.'],
+  },
+  'codebase-skeleton': {
+    longDescription:
+      'Extract an AST-based outline of a file or directory, preserving imports, types, interfaces, documentation, and callable signatures while stripping implementation bodies.',
+    params: [
+      {
+        name: 'path',
+        type: 'string',
+        required: true,
+        description: 'File or directory to outline.',
+      },
+      {
+        name: 'includeDocs',
+        type: 'boolean',
+        description: 'Preserve JSDoc and docstrings (default: true).',
+      },
+      { name: 'collapseImports', type: 'boolean', description: 'Compress import-heavy headers.' },
+      {
+        name: 'exportsOnly',
+        type: 'boolean',
+        description: 'Include only exported or public declarations.',
+      },
+      {
+        name: 'maxFiles',
+        type: 'number',
+        description: 'Maximum directory files to include (default: 20, max: 50).',
+      },
+    ],
+    notes: [
+      'Prefer before reading large files in full when only contracts and structure are needed.',
+    ],
+  },
+  'codebase-repo-map': {
+    longDescription:
+      'Rank architecturally central symbols and render their signatures as a compact repository map constrained by a caller-selected token budget.',
+    params: [
+      {
+        name: 'maxTokens',
+        type: 'number',
+        description: 'Approximate output budget (default: 1200).',
+      },
+      {
+        name: 'focusFiles',
+        type: 'string[]',
+        description: 'Files whose symbols should be prioritized.',
+      },
+    ],
+    notes: ['Useful at the start of unfamiliar or repository-wide work.'],
+  },
+  'codebase-ast-replace': {
+    longDescription:
+      'Surgically replace a function, method, class, or type through AST parsing, avoiding text-context mismatches and checking compatibility invariants before writing.',
+    params: [
+      { name: 'file', type: 'string', required: true, description: 'Target source file.' },
+      { name: 'symbol', type: 'string', required: true, description: 'Declaration to replace.' },
+      {
+        name: 'newBody',
+        type: 'string',
+        required: true,
+        description: 'Replacement body or definition.',
+      },
+      {
+        name: 'target',
+        type: "'body' | 'full'",
+        description: 'Replace only the body or the full declaration.',
+      },
+      {
+        name: 'checkInvariants',
+        type: 'boolean',
+        description: 'Check AST compatibility invariants before writing (default: true).',
+      },
+      {
+        name: 'allowBreakingChanges',
+        type: 'boolean',
+        description: 'Explicitly bypass compatibility guards.',
+      },
+    ],
+    notes: ['Mutating and confirmation-gated.'],
+  },
+  'codebase-invariant-check': {
+    longDescription:
+      'Compare original source against a candidate mutation and report deterministic AST backward-compatibility violations such as removed exports, mandatory parameter additions, and breaking interface expansions.',
+    params: [
+      {
+        name: 'file',
+        type: 'string',
+        description: 'Existing source file to compare against the candidate.',
+      },
+      {
+        name: 'originalCode',
+        type: 'string',
+        description: 'Original source when not reading from a file.',
+      },
+      {
+        name: 'modifiedCode',
+        type: 'string',
+        required: true,
+        description: 'Candidate modified source to validate.',
+      },
+      {
+        name: 'lang',
+        type: 'string',
+        description: 'Language hint. Inferred from the file path when omitted.',
+      },
+    ],
+    notes: ['Read-only. Use before applying a breaking signature change.'],
+  },
+  'codebase-impact-analysis': {
+    longDescription:
+      'Inspect indexed callers and references to estimate the production and test blast radius of changing a function, class, method, or type.',
+    params: [
+      { name: 'symbol', type: 'string', required: true, description: 'Symbol to analyze.' },
+      {
+        name: 'file',
+        type: 'string',
+        description: 'Optional file used to disambiguate the symbol.',
+      },
+      {
+        name: 'transitive',
+        type: 'boolean',
+        description: 'Include transitive callers (default: true).',
+      },
+    ],
+    notes: ['Run before changing public signatures, then pair with codebase-targeted-test.'],
+  },
+  'codebase-targeted-test': {
+    longDescription:
+      'Use call-graph references and test-file conventions to identify and execute only the suites relevant to a changed symbol or source file.',
+    params: [
+      {
+        name: 'symbol',
+        type: 'string',
+        description: 'Changed symbol whose tests should be discovered.',
+      },
+      { name: 'file', type: 'string', description: 'Changed source file.' },
+      { name: 'testFiles', type: 'string[]', description: 'Explicit test-file override.' },
+    ],
+    notes: ['Execution is confirmation-gated even though it does not edit files.'],
+  },
+  'security-ast-scan': {
+    longDescription:
+      'Analyze a source file or code string for contract-based security and performance defects including injection, unsafe evaluation, hardcoded secrets, prototype pollution, ReDoS, and N+1 query loops.',
+    params: [
+      { name: 'file', type: 'string', description: 'Source file to scan.' },
+      { name: 'content', type: 'string', description: 'Code to scan without reading a file.' },
+      { name: 'rules', type: 'string[]', description: 'Optional rule-id filter.' },
+    ],
+    notes: ['Returns severity-ranked findings with line numbers and remediation guidance.'],
   },
 };

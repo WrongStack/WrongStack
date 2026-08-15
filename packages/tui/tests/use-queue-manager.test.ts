@@ -104,8 +104,16 @@ describe('useQueueManager', () => {
   it('rehydrates persisted queue on mount', async () => {
     const refs = buildHarness();
     const persisted = [
-      { displayText: 'msg1', blocks: [{ type: 'text' as const, text: 'hello' }] },
-      { displayText: 'msg2', blocks: [{ type: 'text' as const, text: 'world' }] },
+      {
+        displayText: 'msg1',
+        blocks: [{ type: 'text' as const, text: 'hello' }],
+        journalRaw: 'raw msg1',
+      },
+      {
+        displayText: 'msg2',
+        blocks: [{ type: 'text' as const, text: 'world' }],
+        journalRaw: 'raw msg2',
+      },
     ];
     refs.queueStore = makeQueueStore({ read: vi.fn(async () => persisted) });
     render(React.createElement(Harness, { refs }));
@@ -114,6 +122,20 @@ describe('useQueueManager', () => {
         expect.objectContaining({ type: 'enqueue' }),
       );
     });
+    // journalRaw survives rehydration so a refined prompt's provenance is
+    // not lost across a restart.
+    expect(refs.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'enqueue',
+        item: expect.objectContaining({ displayText: 'msg1', journalRaw: 'raw msg1' }),
+      }),
+    );
+    expect(refs.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'enqueue',
+        item: expect.objectContaining({ displayText: 'msg2', journalRaw: 'raw msg2' }),
+      }),
+    );
     expect(refs.dispatch).toHaveBeenCalledWith({
       type: 'addEntry',
       entry: { kind: 'info', text: 'Restored 2 queued messages from a previous run.' },
@@ -147,14 +169,20 @@ describe('useQueueManager', () => {
     refs.queueStore = store;
     render(React.createElement(Harness, { refs }));
     // Trigger a queue change by updating stateRef.current.queue
-    const queueItem = { displayText: 'test', blocks: [{ type: 'text' as const, text: 'hello' }] };
+    const queueItem = {
+      displayText: 'test',
+      blocks: [{ type: 'text' as const, text: 'hello' }],
+      journalRaw: 'raw test',
+    };
     refs.stateRef.current = { queue: [queueItem] } as unknown as State;
     // Re-render to trigger the persist effect
     render(React.createElement(Harness, { refs }));
     // Need re-render via act - the component re-renders on state change
     await vi.waitFor(() => {
       expect(store.write).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.objectContaining({ displayText: 'test' })]),
+        expect.arrayContaining([
+          expect.objectContaining({ displayText: 'test', journalRaw: 'raw test' }),
+        ]),
       );
     });
   });

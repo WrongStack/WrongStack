@@ -16,6 +16,12 @@ export interface PersistedQueueItem {
   blocks: ContentBlock[];
   /** When true, the item will be refined via model.refine before entering the agent context. */
   shouldRefine?: boolean | undefined;
+  /**
+   * Raw (pre-refinement) user text for prompt-journal provenance. Carried on
+   * the item so the TUI drainer can stamp `PROMPT_JOURNAL_RAW_MARKER` per-item
+   * right before that item runs; survives restart rehydration.
+   */
+  journalRaw?: string | undefined;
 }
 
 /** Hard memory/disk budgets shared by QueueStore and the TUI reducer. */

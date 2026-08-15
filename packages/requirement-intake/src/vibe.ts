@@ -9,6 +9,7 @@
  * the state is preserved across iterative refining and updates.
  */
 
+/** Case-insensitive detector. Not global — `RegExp#test` would skip matches via `lastIndex`. */
 export const VIBE_TAG_REGEX = /\[VIBE\]/i;
 
 export type VibeProtocolStage = 'synthesizer' | 'coder' | 'auditor' | 'passed';
@@ -43,7 +44,7 @@ export function hasVibeTag(text: string | undefined | null): boolean {
  * preserving all other content and trimming extraneous whitespace.
  */
 export function stripVibeTag(text: string): string {
-  return text.replace(VIBE_TAG_REGEX, '').replace(/[ \t]{2,}/g, ' ').trim();
+  return text.replace(/\[VIBE\]/gi, '').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 /**

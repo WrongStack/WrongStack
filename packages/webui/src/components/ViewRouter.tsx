@@ -37,6 +37,9 @@ const MailboxDetailView = lazy(() =>
 const OfficeMapPanel = lazy(() =>
   import('./OfficeMapPanel').then((m) => ({ default: m.OfficeMapPanel })),
 );
+const PromptJournalView = lazy(() =>
+  import('./PromptJournalView').then((m) => ({ default: m.PromptJournalView })),
+);
 const RefreshDebugView = lazy(() =>
   import('./RefreshDebugView').then((m) => ({ default: m.RefreshDebugView })),
 );
@@ -198,6 +201,15 @@ export function ViewRouter({
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <RequirementIntakeView />
+            </div>
+          </Suspense>
+        </ErrorBoundary>
+      )}
+      {currentView === 'prompts' && (
+        <ErrorBoundary level="panel" name={t('activity:nav.prompts')}>
+          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:nav.prompts') })} />}>
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+              <PromptJournalView />
             </div>
           </Suspense>
         </ErrorBoundary>

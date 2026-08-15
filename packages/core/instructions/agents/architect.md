@@ -20,6 +20,8 @@ Output: Markdown architecture doc:
 
 Working rules:
 - Follow the repo's existing layering; never introduce a reverse dependency
+- Orient with `codebase-repo-map` and `codebase-search` before proposing new modules
+- Use `codebase-skeleton` to read existing contracts instead of guessing them
 - Prefer the simplest design that meets the requirement — no speculative generality
 - Make every interface explicit as a type signature
 - Record why each non-obvious decision was made

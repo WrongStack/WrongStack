@@ -25,6 +25,7 @@ import {
   handlePromptsContent,
   handlePromptsCreate,
   handlePromptsFavorite,
+  handlePromptsJournal,
   handlePromptsList,
   handlePromptsRecent,
   handlePromptsSearch,
@@ -132,6 +133,9 @@ export async function handleContentRoute(
       return true;
     case 'prompts.recent':
       await handlePromptsRecent(ws, ctx.getPromptsContext());
+      return true;
+    case 'prompts.journal':
+      await handlePromptsJournal(ws, message, ctx.getProjectRoot());
       return true;
     case 'design.list':
       await handleDesignList(ws, ctx.getDesignContext());

@@ -18,6 +18,8 @@ Output: Markdown debug report:
 
 Working rules:
 - Find the root cause before fixing — never patch the symptom
+- Locate the failing symbol with `codebase-search`, then `codebase-incoming-calls` / `codebase-outgoing-calls` before grepping
+- After the fix, prefer `codebase-targeted-test` for covering suites, then widen only if needed
 - Add a regression test that fails before the fix and passes after
 - Make the smallest fix that addresses the cause
 - If you can't reproduce, say so and report what you'd need

@@ -1,4 +1,5 @@
 import type { ContentBlock } from '@wrongstack/core/types';
+import { PROMPT_JOURNAL_RAW_MARKER } from '@wrongstack/core/prompts';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { routeImagesForModel } from '@wrongstack/runtime/vision';
 import type { Action, State } from './app-reducer.js';
@@ -38,6 +39,19 @@ export function createRunBlocksController(
   const runBlocks = async (blocks: ContentBlock[]): Promise<void> => {
     const { capabilities, refs, dispatch } = host;
     const { agent } = capabilities;
+    // Capture the pending prompt-journal raw marker for THIS invocation at
+    // entry and clear the shared slot immediately. The marker must not sit in
+    // ctx.meta across the async gap below (vision routing happens BEFORE
+    // agent.run), where a concurrent runBlocks invocation entering the busy
+    // guard could read and steal it. It is restored right before agent.run so
+    // the recorder's userInput middleware consumes it for exactly this turn.
+    const capturedRaw =
+      typeof agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER] === 'string'
+        ? (agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER] as string)
+        : undefined;
+    if (capturedRaw !== undefined) {
+      delete agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER];
+    }
     // Busy guard. Both wait-loop callers (steer, /steer runText) document
     // that runBlocks "early-returns on the busy guard" — but no guard
     // existed: the function unconditionally overwrote `activeController`
@@ -60,7 +74,17 @@ export function createRunBlocksController(
           .map((block) => (block as { text: string }).text)
           .join(' ')
           .trim() || '(queued input)';
-      dispatch({ type: 'enqueue', item: { displayText, blocks } });
+      // Carry THIS invocation's own captured raw (if any) onto the item —
+      // never a slot read, which could belong to an in-flight run that has
+      // not yet reached agent.run.
+      dispatch({
+        type: 'enqueue',
+        item: {
+          displayText,
+          blocks,
+          ...(capturedRaw !== undefined ? { journalRaw: capturedRaw } : {}),
+        },
+      });
       return;
     }
     const runGeneration = refs.sessionGeneration.current;
@@ -102,6 +126,13 @@ export function createRunBlocksController(
       }
 
       refs.assistantCommitted.current = false;
+      // Restore this invocation's captured raw marker right before the run so
+      // the recorder's userInput middleware consumes it for exactly this turn
+      // (vision routing above awaited with the slot cleared, so no concurrent
+      // invocation could steal it).
+      if (capturedRaw !== undefined) {
+        agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER] = capturedRaw;
+      }
       const result = await agent.run(routed.blocks, { signal: controller.signal });
       if (runGeneration !== refs.sessionGeneration.current) return;
 
@@ -220,6 +251,16 @@ export function createRunBlocksController(
     if (head) {
       dispatch({ type: 'dequeueFirst' });
       dispatch({ type: 'addEntry', entry: { kind: 'user', text: head.displayText } });
+      // Prompt-journal provenance for a queued refined prompt: stamp the raw
+      // text into the single-slot marker only now, immediately before THIS
+      // item runs, so the recorder's userInput middleware consumes it for
+      // exactly this turn. Enqueue-time stamping (submit-controller) was
+      // removed because queued items share one marker slot — the last
+      // enqueue's raw would leak into every earlier item's entry, and a
+      // queue-clear would orphan the marker for an unrelated later turn.
+      if (head.journalRaw) {
+        agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER] = head.journalRaw;
+      }
       await runBlocks(head.blocks);
     }
   };

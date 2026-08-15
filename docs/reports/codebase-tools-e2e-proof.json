@@ -1,0 +1,441 @@
+{
+  "generatedAt": "2026-08-15T10:46:48.910Z",
+  "fixtureRoot": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e",
+  "passed": 14,
+  "failed": 0,
+  "builtinCodebaseTools": [
+    "codebase-ast-replace",
+    "codebase-invariant-check",
+    "codebase-stats",
+    "codebase-search",
+    "codebase-skeleton",
+    "codebase-repo-map",
+    "codebase-impact-analysis",
+    "codebase-targeted-test",
+    "codebase-incoming-calls",
+    "codebase-outgoing-calls",
+    "codebase-index"
+  ],
+  "proofs": [
+    {
+      "tool": "codebase-index",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "filesIndexed": 4,
+        "symbolsIndexed": 8,
+        "langStats": {
+          "json": 4,
+          "ts": 4
+        },
+        "durationMs": 337,
+        "errors": []
+      }
+    },
+    {
+      "tool": "codebase-stats",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "totalSymbols": 8,
+        "totalFiles": 4,
+        "byLang": {
+          "json": 4,
+          "ts": 4
+        },
+        "byKind": {
+          "function": 4,
+          "object": 1,
+          "property": 3
+        },
+        "indexPath": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\.codebase-index",
+        "statsAvailable": true
+      }
+    },
+    {
+      "tool": "codebase-search",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "total": 3,
+        "names": [
+          "add",
+          "total",
+          "runBatch"
+        ],
+        "hit": {
+          "id": 5,
+          "lang": "ts",
+          "kind": "function",
+          "name": "add",
+          "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+          "line": 2,
+          "col": 16,
+          "signature": "/** Add two numbers. */ export function add(a: number, b: number): number { return a + b; }",
+          "docComment": "Add two numbers.",
+          "score": 0.7117447038100937,
+          "snippet": "add add /** Ad…"
+        }
+      }
+    },
+    {
+      "tool": "codebase-incoming-calls",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "total": 2,
+        "callerNames": [
+          "runBatch",
+          "runBatch"
+        ],
+        "sites": [
+          {
+            "name": "runBatch",
+            "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\caller.ts",
+            "line": 1,
+            "callType": "import"
+          },
+          {
+            "name": "runBatch",
+            "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\caller.ts",
+            "line": 4,
+            "callType": "call"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "codebase-outgoing-calls",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "total": 4,
+        "calleeNames": [
+          "add",
+          "total",
+          "add",
+          "total"
+        ],
+        "sites": [
+          {
+            "name": "add",
+            "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+            "line": 1,
+            "callType": "import"
+          },
+          {
+            "name": "total",
+            "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+            "line": 1,
+            "callType": "import"
+          },
+          {
+            "name": "add",
+            "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+            "line": 4,
+            "callType": "call"
+          },
+          {
+            "name": "total",
+            "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+            "line": 4,
+            "callType": "call"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "codebase-impact-analysis",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "status": "ok",
+        "riskLevel": "low",
+        "summary": "Blast Radius for 'add': LOW RISK (1 call sites in 1 prod files, 0 test suites).",
+        "totalCallSites": 1,
+        "affectedProductionFiles": [
+          "src/caller.ts"
+        ],
+        "affectedTestFiles": [],
+        "recommendedActionPlan": [
+          "Update 1 call site(s) across 1 production file(s): src/caller.ts",
+          "No existing test files directly cover 'add'. Consider adding a test suite."
+        ]
+      }
+    },
+    {
+      "tool": "codebase-skeleton",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "isDir": false,
+        "stats": {
+          "originalLines": 13,
+          "skeletonLines": 7,
+          "tokenSavingsPercent": 8.9,
+          "symbolCount": 3
+        },
+        "skeletonPreview": "/** Add two numbers. */\nexport function add(a: number, b: number): number { /* L2-L4 */ }\n\nexport function multiply(a: number, b: number): number { /* L6-L8 */ }\n\nexport function total(xs: number[]): number { /* L10-L12 */ }\n"
+      }
+    },
+    {
+      "tool": "codebase-repo-map",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "status": "ok",
+        "filesCount": 4,
+        "totalFilesScanned": 4,
+        "estimatedTokens": 143,
+        "rankedFiles": [
+          "package.json",
+          "src/calc.ts",
+          "src/caller.ts",
+          "tests/calc.test.ts"
+        ],
+        "mapPreview": "package.json (json):\n  {\n    \"name\": \"fixture\",\n    \"type\": \"module\",\n    \"private\": true\n  }\n\nsrc/calc.ts (ts):\n  /** Add two numbers. */\n  export function add(a: number, b: number): number { /* L2-L4 */ }\n\n  export function multiply(a: number, b: number): number { /* L6-L8 */ }\n\n  export function total(xs: number[]): number { /* L10-L12 */ }\n\nsrc/caller.ts (ts):\n  // ... [1 import statements col"
+      }
+    },
+    {
+      "tool": "codebase-invariant-check",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "valid": false,
+        "violations": [
+          {
+            "ruleId": "INV-002",
+            "symbolName": "add",
+            "lang": "ts",
+            "severity": "CRITICAL",
+            "message": "Function 'add' had new mandatory parameter ('c') added. For backward compatibility, make it optional (e.g. '?', default value '= value', or '*args/**kwargs').",
+            "details": {
+              "addedParameter": "c"
+            }
+          }
+        ],
+        "summary": "AST Invariants FAILED with 1 violation(s):\n - [INV-002] add: Function 'add' had new mandatory parameter ('c') added. For backward compatibility, make it optional (e.g. '?', default value '= value', or '*args/**kwargs').",
+        "note": "Implemented and executable, but NOT registered in builtinTools / agent catalog."
+      }
+    },
+    {
+      "tool": "codebase-ast-replace",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "status": "ok",
+        "file": "src/calc.ts",
+        "symbol": "multiply",
+        "originalRange": {
+          "startLine": 6,
+          "endLine": 8
+        },
+        "newRange": {
+          "startLine": 6,
+          "endLine": 8
+        },
+        "afterSnippet": [
+          "export function multiply(a: number, b: number): number {",
+          "  return a * b * 1;",
+          "}",
+          "",
+          "export function total(xs: number[]): number {",
+          "  return xs.reduce(add, 0);",
+          "}"
+        ]
+      }
+    },
+    {
+      "tool": "codebase-targeted-test",
+      "registeredInBuiltin": true,
+      "ok": true,
+      "evidence": {
+        "status": "passed",
+        "discoveredSuites": [
+          "tests/calc.test.ts"
+        ],
+        "testsRun": 1,
+        "passed": 1,
+        "failed": 0,
+        "durationMs": 2981,
+        "outputPreview": " RUN  v4.1.10 C:/Users/ersin/AppData/Local/Temp/wstack-cb-e2e-f9A15e\n\n ✓ tests/calc.test.ts (1 test) 2ms\n\n Test Files  1 passed (1)\n      Tests  1 passed (1)\n   Start at  13:46:48\n   Duration  182ms (transform 20ms, setup 0ms, import 32ms, tests 2ms, environment 0ms)",
+        "ranTests": true
+      }
+    },
+    {
+      "tool": "codebase-lsp-search",
+      "registeredInBuiltin": false,
+      "ok": true,
+      "evidence": {
+        "preview": "3 results for \"add\" (index:3 lsp:0):\n  [index] function add src/calc.ts:2 score=0.71\n      add add /** Ad…\n  [index] function total src/calc.ts:10 score=0.39\n      …duce(add, 0); …\n  [index] function runBatch src/caller.ts:3 score=0.39\n      …turn add(1, to…",
+        "note": "Plugin tool. Index path exercised with empty LSP registry."
+      }
+    },
+    {
+      "tool": "codebase-reindex (slash)",
+      "registeredInBuiltin": false,
+      "ok": true,
+      "evidence": {
+        "name": "codebase-reindex",
+        "aliases": [
+          "reindex"
+        ],
+        "writes": [
+          "Reindexing codebase index…\n"
+        ],
+        "message": "✓ codebase index updated — 8 symbols · 4 files · 58ms"
+      }
+    },
+    {
+      "tool": "MCP codebase_* host",
+      "registeredInBuiltin": false,
+      "ok": true,
+      "evidence": {
+        "listed": [
+          "codebase_search",
+          "codebase_stats",
+          "codebase_package_graph",
+          "codebase_file_graph",
+          "codebase_symbol_graph",
+          "codebase_index"
+        ],
+        "searchError": false,
+        "searchPreview": {
+          "results": [
+            {
+              "id": 7,
+              "lang": "ts",
+              "kind": "function",
+              "name": "total",
+              "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+              "line": 10,
+              "col": 16,
+              "signature": "export function total(xs: number[]): number { return xs.reduce(add, 0); }",
+              "docComment": "",
+              "score": 1.3930262106441629,
+              "snippet": "total total ex…"
+            },
+            {
+              "id": 8,
+              "lang": "ts",
+              "kind": "function",
+              "name": "runBatch",
+              "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\caller.ts",
+              "line": 3,
+              "col": 16,
+              "signature": "export function runBatch(): number { return add(1, total([2, 3])); }",
+              "docComment": "",
+              "score": 0.8222110370270624,
+              "snippet": "…(1, total([2, …"
+            }
+          ],
+          "total": 2,
+          "query": "total"
+        },
+        "statsPreview": {
+          "totalSymbols": 8
+        },
+        "packageGraph": {
+          "keys": [
+            "nodes",
+            "edges"
+          ],
+          "nodeCount": 1,
+          "edgeCount": 0,
+          "sampleNodes": [
+            {
+              "id": "pkg:fixture",
+              "label": "fixture",
+              "kind": "package",
+              "package": "fixture",
+              "symbolCount": 8,
+              "fileCount": 4
+            }
+          ]
+        },
+        "fileGraph": {
+          "keys": [
+            "nodes",
+            "edges"
+          ],
+          "nodeCount": 2,
+          "edgeCount": 1,
+          "sampleNodes": [
+            {
+              "id": "file:C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+              "label": "calc.ts",
+              "kind": "file",
+              "package": "fixture",
+              "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+              "symbolCount": 3,
+              "lang": "ts",
+              "external": false
+            },
+            {
+              "id": "file:C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\caller.ts",
+              "label": "caller.ts",
+              "kind": "file",
+              "package": "fixture",
+              "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\caller.ts",
+              "symbolCount": 1,
+              "lang": "ts",
+              "external": false
+            }
+          ]
+        },
+        "symbolGraph": {
+          "keys": [
+            "nodes",
+            "edges"
+          ],
+          "nodeCount": 4,
+          "edgeCount": 2,
+          "sampleNodes": [
+            {
+              "id": "sym:5",
+              "label": "add",
+              "kind": "symbol",
+              "symbolId": 5,
+              "symbolKind": "function",
+              "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+              "package": "fixture",
+              "lang": "ts",
+              "line": 2,
+              "signature": "/** Add two numbers. */ export function add(a: number, b: number): number { return a + b; }",
+              "scope": "",
+              "external": true
+            },
+            {
+              "id": "sym:6",
+              "label": "multiply",
+              "kind": "symbol",
+              "symbolId": 6,
+              "symbolKind": "function",
+              "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+              "package": "fixture",
+              "lang": "ts",
+              "line": 6,
+              "signature": "export function multiply(a: number, b: number): number { return a * b; }",
+              "scope": "",
+              "external": true
+            },
+            {
+              "id": "sym:7",
+              "label": "total",
+              "kind": "symbol",
+              "symbolId": 7,
+              "symbolKind": "function",
+              "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-e2e-f9A15e\\src\\calc.ts",
+              "package": "fixture",
+              "lang": "ts",
+              "line": 10,
+              "signature": "export function total(xs: number[]): number { return xs.reduce(add, 0); }",
+              "scope": "",
+              "external": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

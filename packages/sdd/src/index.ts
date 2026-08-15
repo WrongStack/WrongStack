@@ -214,6 +214,7 @@ export {
   buildCoderContract,
   auditVibeExecution,
   formatVibeReport,
+  isIdentifierLikeExclusion,
   type VibeScopeBoundaries,
   type VibeSpecSynthesizerResult,
   type VibeCoderContract,
@@ -221,3 +222,4 @@ export {
   type VibeAuditVerdict,
   type VibeVerificationReport,
 } from './vibe-protocol.js';
+export { installVibeProtocol, VIBE_PROTOCOL_META_KEY } from './vibe-protocol-wiring.js';

@@ -18,6 +18,8 @@ Output: Markdown change report:
 
 Working rules:
 - Don't add features, refactors, or abstractions beyond the task
+- Locate existing helpers with `codebase-search` before writing a new one
+- After a focused change, prefer `codebase-targeted-test` over a full suite
 - Match the surrounding code style; don't reformat unrelated lines
 - Always run the relevant checks before reporting done
 - If the spec is ambiguous, implement the most conservative interpretation and note it

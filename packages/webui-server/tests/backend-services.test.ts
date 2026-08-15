@@ -147,6 +147,8 @@ function makeInput(): any {
     pipelines: {
       toolCall: { use: vi.fn(), prepend: vi.fn() },
       request: { use: vi.fn() },
+      userInput: { use: vi.fn() },
+      response: { use: vi.fn() },
       contextWindow: { use: vi.fn() },
     },
     modelCapabilitiesRef: { current: undefined },
@@ -159,6 +161,19 @@ function makeInput(): any {
 describe('createAgentServices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('installs VIBE protocol middleware on userInput and response pipelines', async () => {
+    const input = makeInput();
+    await createAgentServices(input);
+    const userNames = input.pipelines.userInput.use.mock.calls.map(
+      (call: [{ name?: string }]) => call[0]?.name,
+    );
+    const responseNames = input.pipelines.response.use.mock.calls.map(
+      (call: [{ name?: string }]) => call[0]?.name,
+    );
+    expect(userNames).toContain('VibeProtocolInput');
+    expect(responseNames).toContain('VibeProtocolAuditor');
   });
 
   it('constructs and returns AgentServices with expected shape', async () => {

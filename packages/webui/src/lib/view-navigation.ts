@@ -19,7 +19,8 @@ export type MainView =
   | 'codemap'
   | 'techstack'
   | 'chronicle'
-  | 'intake';
+  | 'intake'
+  | 'prompts';
 
 export type AppView =
   | PanelMainView

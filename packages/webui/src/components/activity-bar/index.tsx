@@ -19,6 +19,7 @@ import {
   Network,
   Palette,
   Rocket,
+  ScrollText,
   Settings as SettingsIcon,
   Sparkles,
   Wand2,
@@ -95,6 +96,7 @@ const VIEWS: ViewDef[] = [
   { id: 'codemap', icon: <Network size={16} />, label: 'CodeMap' },
   { id: 'techstack', icon: <Boxes size={16} />, label: 'TechStack' },
   { id: 'chronicle', icon: <ChartNoAxesCombined size={16} />, label: 'Chronicle' },
+  { id: 'prompts', icon: <ScrollText size={16} />, label: 'Prompt Journal' },
   { id: 'intake', icon: <ClipboardList size={16} />, label: 'Requirements' },
   { id: 'memory', icon: <BrainCircuit size={16} />, label: 'Memory' },
 ];

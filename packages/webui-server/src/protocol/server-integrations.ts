@@ -55,6 +55,7 @@ export const SERVER_EXTENSION_MESSAGE_TYPES = [
   'prompts.content',
   'prompts.created',
   'prompts.favorite',
+  'prompts.journal',
   'prompts.list',
   'prompts.recent',
   'prompts.search',

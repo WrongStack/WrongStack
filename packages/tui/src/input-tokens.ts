@@ -1,12 +1,19 @@
 /**
- * Inline attachment chip token grammar, shared by the editable input for chip
- * rendering and whole-token cursor deletion. Kept in sync with the
- * AttachmentStore placeholder regex in @wrongstack/core. Two shapes:
+ * Inline chip token grammar, shared by the editable input for chip rendering
+ * and whole-token cursor deletion. Attachment shapes stay in sync with the
+ * AttachmentStore placeholder regex in @wrongstack/core:
  *   - seq-keyed  `[pasted|image|file #N …]`  (a cosmetic suffix after the seq,
  *     e.g. `, 123 lines`, is tolerated; legacy `[file #N]` is included)
  *   - path-keyed `[file:<path>]`
+ * `[VIBE]` is a protocol chip: it renders and deletes as a token, but it is
+ * not an attachment and must stay in the prompt sent to the refiner/agent.
  */
-export const INLINE_TOKEN_SRC = '\\[(?:pasted|image|file) #\\d+[^\\]]*\\]|\\[file:[^\\]]+\\]|\\[VIBE\\]';
+/** Attachment placeholders only. Protocol tags must not be stripped as chips. */
+export const ATTACHMENT_TOKEN_SRC =
+  '\\[(?:pasted|image|file) #\\d+[^\\]]*\\]|\\[file:[^\\]]+\\]';
+/** Protocol trigger rendered as a chip but kept in the prompt text. */
+export const PROTOCOL_TOKEN_SRC = '\\[VIBE\\]';
+export const INLINE_TOKEN_SRC = `${ATTACHMENT_TOKEN_SRC}|${PROTOCOL_TOKEN_SRC}`;
 
 const AT_END = new RegExp(`(?:${INLINE_TOKEN_SRC})$`, 'i');
 const AT_START = new RegExp(`^(?:${INLINE_TOKEN_SRC})`, 'i');

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.307.0",
+  "packageVersion": "0.307.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1033,6 +1033,19 @@
       ]
     },
     {
+      "subpath": "./prompts",
+      "target": {
+        "types": "./dist/prompts/index.d.ts",
+        "import": "./dist/prompts/index.js"
+      },
+      "source": "packages/core/src/prompts/index.ts",
+      "declarations": [
+        "export { PromptManifestStore } from './prompt-manifest-store.js';",
+        "export { ensureGitignore, getPromptJournalEntries, PROMPT_JOURNAL_RAW_MARKER, recordPromptJournalEntry, type PromptCategory, type PromptJournalEntry, type PromptJournalFilter, type RecordPromptOptions, } from './prompt-journal.js';",
+        "export { type JsonFetcher, PromptInstaller, type PromptInstallerOptions, type PromptPullResult, } from './prompt-installer.js';"
+      ]
+    },
+    {
       "subpath": "./chronicle",
       "target": {
         "types": "./dist/chronicle/index.d.ts",
@@ -1143,14 +1156,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 159,
-      "sourceLines": 44869
+      "sourceLines": 44923
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 44,
-      "sourceLines": 11286
+      "sourceLines": 11333
     },
     {
       "directory": "defaults",
@@ -1262,7 +1275,7 @@
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
-      "sourceLines": 569
+      "sourceLines": 602
     },
     {
       "directory": "registry",
@@ -1304,7 +1317,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 87,
-      "sourceLines": 18673
+      "sourceLines": 18679
     },
     {
       "directory": "tasking",
@@ -1325,7 +1338,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10923
+      "sourceLines": 10924
     },
     {
       "directory": "utils",

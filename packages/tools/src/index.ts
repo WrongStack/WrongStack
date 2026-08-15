@@ -57,6 +57,7 @@ export {
   codebaseImpactAnalysisTool,
   codebaseIndexStats,
   codebaseIndexTool,
+  codebaseInvariantCheckTool,
   codebaseRepoMapTool,
   codebaseSearchTool,
   codebaseSkeletonTool,

@@ -105,4 +105,56 @@ describe('Hierarchical Prompt Journal & Trace Logger', () => {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('keeps slash-containing session ids filename-safe while preserving them in entries', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-slash-'));
+    const today = new Date().toISOString().slice(0, 10);
+    const month = today.slice(0, 7);
+    const sessionId = '2026-08-14/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
+    const leaf = 'sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
+
+    try {
+      await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId,
+        category: 'raw_user',
+        content: 'slash session entry',
+      });
+
+      const promptsBase = path.join(tempDir, '.wrongstack', 'prompts');
+      const dayDir = path.join(promptsBase, month, today);
+
+      // Files land as session-<leaf> — the slash must NOT create a nested dir.
+      const jsonlExists = await fs
+        .stat(path.join(dayDir, `session-${leaf}.jsonl`))
+        .then(() => true)
+        .catch(() => false);
+      const mdExists = await fs
+        .stat(path.join(dayDir, `session-${leaf}.md`))
+        .then(() => true)
+        .catch(() => false);
+      expect(jsonlExists).toBe(true);
+      expect(mdExists).toBe(true);
+
+      // No nested `session-<date>/` subdirectory was created.
+      const nested = await fs
+        .stat(path.join(dayDir, 'session-2026-08-14'))
+        .then(() => true)
+        .catch(() => false);
+      expect(nested).toBe(false);
+
+      // The reader resolves the full (slash-containing) session id...
+      const byId = await getPromptJournalEntries(tempDir, { sessionId });
+      expect(byId).toHaveLength(1);
+      expect(byId[0]?.sessionId).toBe(sessionId);
+      expect(byId[0]?.content).toBe('slash session entry');
+
+      // ...and its leaf form, since both sides are normalized.
+      const byLeaf = await getPromptJournalEntries(tempDir, { sessionId: leaf });
+      expect(byLeaf).toHaveLength(1);
+      expect(byLeaf[0]?.sessionId).toBe(sessionId);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });

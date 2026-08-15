@@ -58,6 +58,7 @@ describe('Lifecycle MCP Background Initialization', () => {
         userInput: { use: vi.fn() },
         response: { use: vi.fn() },
         executeTurn: { use: vi.fn() },
+        toolCall: { use: vi.fn() },
       },
       logger: {
         info: vi.fn(),

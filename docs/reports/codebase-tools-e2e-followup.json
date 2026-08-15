@@ -1,0 +1,159 @@
+{
+  "impactNoFile": {
+    "status": "ok",
+    "totalCallSites": 1,
+    "files": [
+      "src/caller.ts"
+    ],
+    "summary": "Blast Radius for 'add': LOW RISK (1 call sites in 1 prod files, 0 test suites)."
+  },
+  "impactRelativeFile": {
+    "status": "ok",
+    "totalCallSites": 1,
+    "summary": "Blast Radius for 'add': LOW RISK (1 call sites in 1 prod files, 0 test suites)."
+  },
+  "impactAbsoluteFile": {
+    "status": "ok",
+    "totalCallSites": 1,
+    "files": [
+      "src/caller.ts"
+    ],
+    "summary": "Blast Radius for 'add': LOW RISK (1 call sites in 1 prod files, 0 test suites)."
+  },
+  "incomingRelative": {
+    "total": 2
+  },
+  "incomingAbsolute": {
+    "total": 2
+  },
+  "fileGraphPackageSrc": {
+    "nodeCount": 2,
+    "edgeCount": 1,
+    "sample": [
+      {
+        "id": "file:C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\calc.ts",
+        "label": "calc.ts",
+        "kind": "file",
+        "package": "fixture",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\calc.ts",
+        "symbolCount": 1,
+        "lang": "ts",
+        "external": false
+      },
+      {
+        "id": "file:C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\caller.ts",
+        "label": "caller.ts",
+        "kind": "file",
+        "package": "fixture",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\caller.ts",
+        "symbolCount": 1,
+        "lang": "ts",
+        "external": false
+      }
+    ]
+  },
+  "fileGraphPackageFixture": {
+    "nodeCount": 3,
+    "edgeCount": 1,
+    "sample": [
+      {
+        "id": "file:C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\package.json",
+        "label": "package.json",
+        "kind": "file",
+        "package": "fixture",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\package.json",
+        "symbolCount": 1,
+        "lang": "json",
+        "external": false
+      },
+      {
+        "id": "file:C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\calc.ts",
+        "label": "calc.ts",
+        "kind": "file",
+        "package": "fixture",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\calc.ts",
+        "symbolCount": 1,
+        "lang": "ts",
+        "external": false
+      },
+      {
+        "id": "file:C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\caller.ts",
+        "label": "caller.ts",
+        "kind": "file",
+        "package": "fixture",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\caller.ts",
+        "symbolCount": 1,
+        "lang": "ts",
+        "external": false
+      }
+    ]
+  },
+  "symbolGraphRelative": {
+    "nodeCount": 2,
+    "edgeCount": 1,
+    "sample": [
+      {
+        "id": "sym:2",
+        "label": "add",
+        "kind": "symbol",
+        "symbolId": 2,
+        "symbolKind": "function",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\calc.ts",
+        "package": "fixture",
+        "lang": "ts",
+        "line": 1,
+        "signature": "export function add(a: number, b: number): number { return a + b; }",
+        "scope": "",
+        "external": true
+      },
+      {
+        "id": "sym:3",
+        "label": "runBatch",
+        "kind": "symbol",
+        "symbolId": 3,
+        "symbolKind": "function",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\caller.ts",
+        "package": "fixture",
+        "lang": "ts",
+        "line": 2,
+        "signature": "export function runBatch(): number { return add(1, 2); }",
+        "scope": "",
+        "external": true
+      }
+    ]
+  },
+  "symbolGraphAbsolute": {
+    "nodeCount": 2,
+    "edgeCount": 1,
+    "sample": [
+      {
+        "id": "sym:2",
+        "label": "add",
+        "kind": "symbol",
+        "symbolId": 2,
+        "symbolKind": "function",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\calc.ts",
+        "package": "fixture",
+        "lang": "ts",
+        "line": 1,
+        "signature": "export function add(a: number, b: number): number { return a + b; }",
+        "scope": "",
+        "external": false
+      },
+      {
+        "id": "sym:3",
+        "label": "runBatch",
+        "kind": "symbol",
+        "symbolId": 3,
+        "symbolKind": "function",
+        "file": "C:\\Users\\ersin\\AppData\\Local\\Temp\\wstack-cb-follow-J8wkTi\\src\\caller.ts",
+        "package": "fixture",
+        "lang": "ts",
+        "line": 2,
+        "signature": "export function runBatch(): number { return add(1, 2); }",
+        "scope": "",
+        "external": true
+      }
+    ]
+  }
+}

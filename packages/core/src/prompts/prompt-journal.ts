@@ -104,6 +104,16 @@ export interface PromptJournalIndex {
 }
 
 /**
+ * `ctx.meta` key the TUI's submit path stamps with the raw (pre-refinement)
+ * user prompt text when the refiner rewrote the prompt. The CLI's
+ * prompt-journal recorder consumes the marker to label the turn
+ * `refined_user` (with `rawContent` preserved) instead of `raw_user`.
+ *
+ * Shared here so the two sides (TUI stamp, CLI consumer) cannot drift.
+ */
+export const PROMPT_JOURNAL_RAW_MARKER = 'promptJournal.raw';
+
+/**
  * Ensures `<projectRoot>/.gitignore` contains `.wrongstack/` to keep all
  * prompt logs, telemetry, and indexes out of version control.
  */
@@ -126,6 +136,21 @@ export async function ensureGitignore(projectRoot: string): Promise<void> {
   } catch {
     // Non-fatal if gitignore cannot be written
   }
+}
+
+/**
+ * Filename-safe form of a session id for journal files and links.
+ *
+ * Real session ids are `YYYY-MM-DD/sess_<ULID>` — the date prefix is a
+ * subdirectory in the session store, but the prompt journal already nests
+ * files under `YYYY-MM/YYYY-MM-DD/`, so a second slash would create a nested
+ * path that is never created (ENOENT on append). The leaf (`sess_<ULID>`)
+ * is unique and keeps the file inside the day dir. `entry.sessionId` is
+ * stored verbatim; only file names and markdown links use this form.
+ */
+function sessionFileId(sessionId: string): string {
+  const leaf = sessionId.split(/[\\/]/u).pop();
+  return leaf && leaf.trim().length > 0 ? leaf : 'general';
 }
 
 /**
@@ -179,12 +204,12 @@ export async function recordPromptJournalEntry(
     await fs.mkdir(dayDir, { recursive: true });
     await ensureGitignore(opts.projectRoot);
 
-    // 1. Session JSONL file: YYYY-MM/YYYY-MM-DD/session-<id>.jsonl
-    const sessionJsonlFile = path.join(dayDir, `session-${sessionId}.jsonl`);
+    // 1. Session JSONL file: YYYY-MM/YYYY-MM-DD/session-<leaf>.jsonl
+    const sessionJsonlFile = path.join(dayDir, `session-${sessionFileId(sessionId)}.jsonl`);
     await fs.appendFile(sessionJsonlFile, JSON.stringify(entry) + '\n', 'utf8');
 
-    // 2. Session Markdown file: YYYY-MM/YYYY-MM-DD/session-<id>.md
-    const sessionMdFile = path.join(dayDir, `session-${sessionId}.md`);
+    // 2. Session Markdown file: YYYY-MM/YYYY-MM-DD/session-<leaf>.md
+    const sessionMdFile = path.join(dayDir, `session-${sessionFileId(sessionId)}.md`);
     const mdSection = formatEntryMarkdown(entry);
     await fs.appendFile(sessionMdFile, mdSection, 'utf8');
 
@@ -252,7 +277,7 @@ async function updateDailySummary(
     const time = entry.timestamp.slice(11, 19);
     const model = entry.metadata.model ?? '-';
     const reason = entry.metadata.decisionReason ? entry.metadata.decisionReason.slice(0, 40) : '-';
-    const row = `| ${time} | [\`${entry.id}\`](session-${entry.sessionId}.md) | \`${entry.sessionId}\` | \`${entry.category}\` | ${model} | ~${entry.metadata.tokenEstimate} | ${reason} |\n`;
+    const row = `| ${time} | [\`${entry.id}\`](session-${sessionFileId(entry.sessionId)}.md) | \`${entry.sessionId}\` | \`${entry.category}\` | ${model} | ~${entry.metadata.tokenEstimate} | ${reason} |\n`;
 
     await fs.writeFile(summaryFile, content + row, 'utf8');
   } catch {
@@ -325,7 +350,7 @@ async function updateRootCatalog(
       for (const [d, dObj] of Object.entries(mObj.days).sort().reverse()) {
         for (const [sId, sData] of Object.entries(dObj.sessions)) {
           const dailyLink = `[daily-summary.md](./${m}/${d}/daily-summary.md)`;
-          const sessionLink = `[session-${sId}.md](./${m}/${d}/session-${sId}.md)`;
+          const sessionLink = `[session-${sessionFileId(sId)}.md](./${m}/${d}/session-${sessionFileId(sId)}.md)`;
           md += `| **${d}** | \`${sId}\` | ${sData.promptCount} | ~${sData.tokenEstimate.toLocaleString()} | ${dailyLink} | ${sessionLink} |\n`;
         }
       }
@@ -369,7 +394,7 @@ export async function getPromptJournalEntries(
         for (const jsonlFile of jsonlFiles) {
           const sessionMatch = jsonlFile.match(/^session-(.+)\.jsonl$/);
           const sId = sessionMatch ? sessionMatch[1] : undefined;
-          if (filter.sessionId && sId !== filter.sessionId) continue;
+          if (filter.sessionId && sId !== sessionFileId(filter.sessionId)) continue;
 
           const filePath = path.join(dayDir, jsonlFile);
           const content = await fs.readFile(filePath, 'utf8');
@@ -379,7 +404,14 @@ export async function getPromptJournalEntries(
             if (!line.trim()) continue;
             try {
               const entry = JSON.parse(line) as PromptJournalEntry;
-              if (filter.sessionId && entry.sessionId !== filter.sessionId) continue;
+              // Normalize both sides so a full `YYYY-MM-DD/sess_<ulid>` filter
+              // and its leaf form resolve the same entries.
+              if (
+                filter.sessionId &&
+                sessionFileId(entry.sessionId) !== sessionFileId(filter.sessionId)
+              ) {
+                continue;
+              }
               if (filter.category && entry.category !== filter.category) continue;
               if (filter.since && entry.timestamp < filter.since) continue;
               results.push(entry);

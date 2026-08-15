@@ -62,6 +62,7 @@ import {
   ObservableBrainArbiter as ObservableBrainArbiterCtor,
 } from '@wrongstack/core/coordination';
 import { installDesignStudioMiddleware } from '@wrongstack/core/design';
+import { installVibeProtocol } from '@wrongstack/sdd';
 import {
   AutoCompactionMiddleware as AutoCompactionMiddlewareCtor,
   createBrainRuntime,
@@ -225,6 +226,10 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   pipelines.toolCall.prepend(collabPause);
   // Design Studio — per-turn UI-intent detection + kit-menu injection.
   installDesignStudioMiddleware({ pipelines, ctx: context });
+  // VIBE protocol — synthesize/coder input contract + final-response audit.
+  // Same middleware the CLI/TUI lifecycle installs, so standalone WebUI
+  // honors `[VIBE]` the same way as `wstack --webui`.
+  installVibeProtocol(pipelines);
   // Shared CLI/WebUI wiring: tool-call inject, opt-in turn inject, domain terms,
   // context monitor, session-end commit extractor, and throttled hygiene teardown.
   const runSageSessionHygiene = setupSage({

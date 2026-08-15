@@ -12,6 +12,11 @@ import {
   type WriterFileGraphSymbolRow,
   type WriterSymbolGraphRow,
 } from './writer-graph-helpers.js';
+import {
+  indexedFileMatchArgs,
+  indexedFileMatchSql,
+  matchesIndexedPackageFilter,
+} from './writer-helpers.js';
 import { mapWriterRefRow, type WriterRefRow } from './writer-ref-mapper.js';
 
 type Statement = ReturnType<DatabaseSync['prepare']>;
@@ -97,16 +102,30 @@ function mapCallSiteRow(row: CallSiteRow): CallSite {
  * Resolve a symbol name (optionally scoped by file) to matching symbol IDs.
  * When `file` is omitted, all symbols with that name across the project match.
  */
+function resolveIndexedFiles(stmt: PrepareStatement, file: string): string[] {
+  const rows = stmt(
+    `SELECT DISTINCT file FROM symbols WHERE ${indexedFileMatchSql('file')} ORDER BY length(file), file`,
+  ).all(...indexedFileMatchArgs(file)) as Array<{ file: string }>;
+  return rows.map((row) => row.file);
+}
+
 function resolveSymbolIds(
   stmt: PrepareStatement,
   symbolName: string,
   file: string | undefined,
 ): number[] {
-  const baseSql = file
-    ? `SELECT id FROM symbols WHERE name = ? AND file = ? ORDER BY id`
-    : `SELECT id FROM symbols WHERE name = ? ORDER BY id`;
-  const args = file ? [symbolName, file] : [symbolName];
-  const rows = stmt(baseSql).all(...args) as Array<{ id: number }>;
+  if (!file) {
+    const rows = stmt('SELECT id FROM symbols WHERE name = ? ORDER BY id').all(symbolName) as Array<{
+      id: number;
+    }>;
+    return rows.map((r) => r.id);
+  }
+  const indexedFiles = resolveIndexedFiles(stmt, file);
+  if (indexedFiles.length === 0) return [];
+  const placeholders = indexedFiles.map(() => '?').join(',');
+  const rows = stmt(
+    `SELECT id FROM symbols WHERE name = ? AND file IN (${placeholders}) ORDER BY id`,
+  ).all(symbolName, ...indexedFiles) as Array<{ id: number }>;
   return rows.map((r) => r.id);
 }
 
@@ -630,7 +649,7 @@ export function getFileGraphWithStatement(
   // getting it wrong would paint an imported Go file as TypeScript.
   const langOf = (file: string): SymbolLang => detectLang(file) ?? 'other';
   const pkgFilePaths = allFiles
-    .filter((f) => packageOf(f.file) === packageFilter)
+    .filter((f) => matchesIndexedPackageFilter(f.file, packageOf(f.file), packageFilter))
     .map((f) => f.file);
   const localFiles = new Set(pkgFilePaths);
   if (localFiles.size === 0) return { nodes: [], edges: [] };
@@ -726,9 +745,13 @@ export function getSymbolGraphWithStatement(
   stmt: PrepareStatement,
   fileFilter: string,
 ): CodeMapGraph {
+  const indexedFiles = resolveIndexedFiles(stmt, fileFilter);
+  if (indexedFiles.length === 0) return { nodes: [], edges: [] };
+  const filePlaceholders = indexedFiles.map(() => '?').join(',');
+
   const syms = stmt(
-    'SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE file = ? ORDER BY line, id',
-  ).all(fileFilter) as WriterSymbolGraphRow[];
+    `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE file IN (${filePlaceholders}) ORDER BY line, id`,
+  ).all(...indexedFiles) as WriterSymbolGraphRow[];
 
   if (syms.length === 0) return { nodes: [], edges: [] };
 
@@ -741,16 +764,16 @@ export function getSymbolGraphWithStatement(
          SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
          FROM refs r
          JOIN symbols s ON s.id = r.from_id
-         WHERE s.file = ?
+         WHERE s.file IN (${filePlaceholders})
          UNION
          SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
          FROM refs r
          JOIN symbols s ON s.id = r.to_id
-         WHERE s.file = ?
+         WHERE s.file IN (${filePlaceholders})
        )
        WHERE to_id IS NOT NULL
        GROUP BY from_id, to_id, call_type`,
-  ).all(fileFilter, fileFilter) as {
+  ).all(...indexedFiles, ...indexedFiles) as {
     from_id: number;
     to_id: number;
     call_type: string;
@@ -777,6 +800,11 @@ export function getSymbolGraphWithStatement(
     for (const s of extras) symById.set(s.id, s);
   }
 
-  const nodes = buildSymbolGraphNodes(symById, relatedIds, fileFilter, readPackageLabeller(stmt));
+  const nodes = buildSymbolGraphNodes(
+    symById,
+    relatedIds,
+    new Set(syms.map((symbol) => symbol.file)),
+    readPackageLabeller(stmt),
+  );
   return { nodes, edges };
 }

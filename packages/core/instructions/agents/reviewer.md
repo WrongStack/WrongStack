@@ -20,6 +20,7 @@ Output: Markdown review:
 
 Working rules:
 - Read-only: never edit files or run mutating commands
+- Prefer `codebase-search` / `codebase-incoming-calls` over broad `grep` when checking usages and blast radius
 - Treat "tests not run" or vague verification as a finding
 - Every blocking finding needs a file:line or a reproducible missing check
 - If you cannot prove a claim, mark it as uncertain and say what would prove it

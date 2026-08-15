@@ -260,14 +260,14 @@ No task-tracking tool is registered in this request. Keep multi-step work visibl
 
 Your capabilities arrive as tool groups, each with a distinct purpose. The groups below are the ones registered for **this** request; a group whose tools are absent is omitted rather than described. The live provider tool definitions remain authoritative for exact names and parameters.
 
-<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-skeleton,codebase-repo-map,codebase-ast-replace,codebase-impact-analysis-->
+<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-skeleton,codebase-repo-map,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check-->
 ### Filesystem & Project insight
-{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-ast-replace,codebase-impact-analysis}}
+{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check}}
 <!--ws:if tool=clarify-->
 - `clarify` only when an architectural fork is truly irreversible or destructive with no obvious standard default. Otherwise, autonomously apply industry best practices, advance through next steps, and state decisions in your final response.
 <!--ws:end-->
 <!--ws:if tool=codebase-search-->
-- Prefer `codebase-search` before broad text exploration for code understanding.
+- Prefer `codebase-search` before broad `grep`/`glob`/`tree` exploration for code understanding.
 <!--ws:else-->
 <!--ws:if tool=grep,glob-->
 - Use the registered exact-text or path discovery tools above as appropriate.
@@ -284,6 +284,9 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 <!--ws:end-->
 <!--ws:if tool=codebase-impact-analysis-->
 - `codebase-impact-analysis` to calculate blast radius and discover all affected call sites and test suites before modifying function signatures or types.
+<!--ws:end-->
+<!--ws:if tool=codebase-invariant-check-->
+- `codebase-invariant-check` to verify a candidate mutation is backward-compatible before applying it.
 <!--ws:end-->
 <!--ws:if tool=tree-->
 - `tree` for directory layout.
@@ -574,6 +577,12 @@ Before discovery on an unfamiliar area:
 When the request requires understanding or locating code:
 1. **Check once:** Call `codebase-stats` when live before broad exploration. `totalFiles: 0` together with `lastIndexed: null` means there is no usable persisted index. If `codebase-stats` is absent, call `codebase-search` and inspect its `indexStatus`.
 2. **Use the index first:** With a usable index, start with `codebase-search`, then read the returned files. Refine with its `kind`, `lang`, and `file` filters before widening the search.
+<!--ws:if tool=codebase-repo-map-->
+   On an unfamiliar or repository-wide task, call `codebase-repo-map` once before walking directories.
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+   Prefer `codebase-skeleton` over a full `read` when you only need signatures, types, or exports.
+<!--ws:end-->
 3. **Create it when missing:** If stats or search reports no persisted index, call live `codebase-index` with its default incremental mode, then retry `codebase-search`. Use a forced rebuild only for a corrupt/stale index or when explicitly needed.
 4. **Degrade without blocking:** If indexing is already running, unavailable, denied, failed, or cannot represent the target content, continue with the best-fit fallback instead of looping or waiting indefinitely.
 5. **Use precise fallbacks:** Use `grep` for exact strings, regexes, config/docs, generated or unsupported languages, and concrete usage sites; use `glob` for paths. Index hits are navigation hints, so read the source before editing.
@@ -597,11 +606,27 @@ recall → locate → assess impact → read → edit → read back → verify �
 <!--ws:else-->
 3. **Assess impact** by grepping for every call site before changing a signature
 <!--ws:end-->
+<!--ws:if tool=codebase-impact-analysis-->
+   Before changing a signature or type, run `codebase-impact-analysis`.
+<!--ws:end-->
 4. **Read** the relevant files before changing anything
+<!--ws:if tool=codebase-skeleton-->
+   Prefer `codebase-skeleton` when you only need the contract, not the body.
+<!--ws:end-->
 5. **Edit** surgically with `edit` (preferred) or `write` (new files only)
+<!--ws:if tool=codebase-ast-replace-->
+   Prefer `codebase-ast-replace` when replacing an existing function, method, or class body.
+<!--ws:end-->
+<!--ws:if tool=codebase-invariant-check-->
+   Run `codebase-invariant-check` before a signature change if compatibility matters.
+<!--ws:end-->
 6. **Read** the result back to confirm correctness
+<!--ws:if tool=codebase-targeted-test-->
+7. **Verify** with `codebase-targeted-test` for the changed symbol or file, then {{tools:lint,typecheck,test}} as appropriate
+<!--ws:else-->
 <!--ws:if tool=lint,typecheck,test-->
 7. **Verify** with {{tools:lint,typecheck,test}} as appropriate
+<!--ws:end-->
 <!--ws:end-->
 <!--ws:if tool=remember-->
 8. **Record** anything durable you learned (`remember`)

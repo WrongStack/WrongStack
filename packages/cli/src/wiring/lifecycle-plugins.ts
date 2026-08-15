@@ -51,6 +51,7 @@ import { registerMcpObservability } from './metrics.js';
 import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
 import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
+import { createPromptJournalRecorder, createPromptJournalToolCallRecorder } from './prompt-journal-recorder.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -180,7 +181,20 @@ export async function setupLifecycleAndPlugins(
   // Install the dispatch points even under --no-hooks: ordinary entries are
   // filtered by HookRunner, while policy hooks may be registered later by a
   // plugin and still need a live UserPromptSubmit interception point.
+  // The prompt-journal recorder must run BEFORE the hook middleware: a
+  // blocking hook short-circuits the chain, so a recorder registered after it
+  // would never consume the raw marker (stale misclassification on the next
+  // turn) and an allowed hook's additionalContext would leak into the journal
+  // as submitted user input. Recording first journals exactly what the user
+  // submitted, and always consumes the marker.
+  pipelines.userInput.use(createPromptJournalRecorder());
   pipelines.userInput.use(createUserPromptSubmitMiddleware(hookRunner));
+
+  // The toolCall recorder captures the agent-driven journal categories
+  // (clarify_interaction, subagent_delegation, autonomous_next_step) from the
+  // tools that produce them. Every executed tool call flows through this
+  // pipeline, so a single middleware covers all three emission points.
+  pipelines.toolCall?.use(createPromptJournalToolCallRecorder());
 
   // Hot-reload configured hooks, preserving the --no-hooks policy filter.
   configStore.watch((next: Config, prev: Config) => {

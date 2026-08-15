@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { PROMPT_JOURNAL_RAW_MARKER } from '@wrongstack/core/prompts';
 import { createRunBlocksController, type RunBlocksRefs } from '../src/run-blocks-controller.js';
 
 /**
@@ -12,7 +13,7 @@ import { createRunBlocksController, type RunBlocksRefs } from '../src/run-blocks
  * flips back to 'idle' — keeps working.
  */
 
-type QueueItem = { displayText: string; blocks: unknown[] };
+type QueueItem = { displayText: string; blocks: unknown[]; journalRaw?: string | undefined };
 
 function makeRefs(queue: QueueItem[] = []): RunBlocksRefs {
   return {
@@ -44,7 +45,11 @@ function makeHost(refs: RunBlocksRefs) {
     capabilities: {
       agent: {
         run,
-        ctx: { provider: { id: 'p', capabilities: { vision: false } }, model: 'm' },
+        ctx: {
+          provider: { id: 'p', capabilities: { vision: false } },
+          model: 'm',
+          meta: {} as Record<string, unknown>,
+        },
       },
       visionAdapters: [],
     },
@@ -97,5 +102,48 @@ describe('runBlocks busy guard', () => {
 
     expect(run).toHaveBeenCalledTimes(2);
     expect(dispatch).toHaveBeenCalledWith({ type: 'dequeueFirst' });
+  });
+
+  it('stamps the drained item journalRaw into ctx.meta right before that item runs', async () => {
+    const refs = makeRefs([
+      { displayText: 'refined queued', blocks: textBlocks('refined queued'), journalRaw: 'raw original' },
+    ]);
+    const { host, run } = makeHost(refs);
+    const agent = (host as { capabilities: { agent: { ctx: { meta: Record<string, unknown> } } } })
+      .capabilities.agent;
+
+    const runBlocks = createRunBlocksController(host);
+    await runBlocks(textBlocks('first'));
+
+    // The drain stamped the head's journalRaw before running it, so the
+    // recorder's userInput middleware consumes it for exactly that turn. The
+    // mock agent.run does not run the recorder, so the marker is still set.
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER]).toBe('raw original');
+  });
+
+  it('carries a pending journal marker onto the re-enqueued item instead of orphaning it', async () => {
+    const refs = makeRefs();
+    const { host, dispatch } = makeHost(refs);
+    const agent = (host as { capabilities: { agent: { ctx: { meta: Record<string, unknown> } } } })
+      .capabilities.agent;
+    agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER] = 'raw original';
+    const inFlight = new AbortController();
+    refs.activeController.current = inFlight;
+
+    const runBlocks = createRunBlocksController(host);
+    await runBlocks(textBlocks('second request'));
+
+    // Entry-capture moved the marker onto the item; the slot is cleared so an
+    // unrelated later turn cannot consume it.
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'enqueue',
+      item: {
+        displayText: 'second request',
+        blocks: textBlocks('second request'),
+        journalRaw: 'raw original',
+      },
+    });
+    expect(agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER]).toBeUndefined();
   });
 });

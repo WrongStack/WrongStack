@@ -5,6 +5,7 @@ import {
   setBtwNote,
 } from '@wrongstack/core/agent';
 import type { Director } from '@wrongstack/core/coordination';
+import { PROMPT_JOURNAL_RAW_MARKER } from '@wrongstack/core/prompts';
 import type { AttachmentStore, ContentBlock } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { todoTool } from '@wrongstack/tools/todo';
@@ -691,6 +692,18 @@ export function createSubmitController(host: SubmitControllerHost) {
       effectiveText = continueResolved.text;
     }
 
+    // Journal provenance: when the refiner rewrote the prompt, remember the raw
+    // typed text so the CLI prompt-journal recorder (via the core-owned
+    // PROMPT_JOURNAL_RAW_MARKER) labels this turn `refined_user` with
+    // `rawContent` preserved. The stamp is applied ONLY on paths that reach
+    // agent.run (steer / queue / idle runBlocks) — exits that return without
+    // running the pipeline (btw, cancel, continue edit/cancel) must not leave
+    // a marker that a later, unrelated submission would wrongly consume.
+    const refinedRaw = effectiveText !== trimmed && trimmed ? trimmed : undefined;
+    const stampJournalMarker = (): void => {
+      if (refinedRaw) agent.ctx.meta[PROMPT_JOURNAL_RAW_MARKER] = refinedRaw;
+    };
+
     // ── SDD Context Injection ──────────────────────────────────────────
     // When an SDD session is active, prepend the session context so the
     // model knows it's in a spec-building conversation. The context getter
@@ -799,6 +812,7 @@ export function createSubmitController(host: SubmitControllerHost) {
             await new Promise((r) => setTimeout(r, 25));
           }
           try {
+            stampJournalMarker();
             await runBlocks(steerBlocks);
           } finally {
             clearDraft();
@@ -815,12 +829,24 @@ export function createSubmitController(host: SubmitControllerHost) {
         return;
       }
 
-      // 'queue': enqueue for the drainer.
+      // 'queue': enqueue for the drainer. The raw (pre-refinement) text rides
+      // on the item itself (journalRaw) — NOT stamped into the single-slot
+      // ctx.meta marker here — so the drainer can stamp it per-item right
+      // before that item runs. Enqueue-time stamping would let one queued
+      // refined prompt's raw leak into the next item's entry (they share one
+      // marker slot) and would orphan the marker if the queue is cleared.
       dispatch({
         type: 'addEntry',
         entry: { kind: 'user', text: displayText, queued: true, pasteContent },
       });
-      dispatch({ type: 'enqueue', item: { displayText, blocks } });
+      dispatch({
+        type: 'enqueue',
+        item: {
+          displayText,
+          blocks,
+          ...(refinedRaw ? { journalRaw: refinedRaw } : {}),
+        },
+      });
       return;
     }
 
@@ -836,6 +862,7 @@ export function createSubmitController(host: SubmitControllerHost) {
       switchAutonomy?.('off');
     }
 
+    stampJournalMarker();
     await runBlocks(blocks);
   };
   return submit;

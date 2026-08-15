@@ -415,6 +415,18 @@ export type WSClientMessageCore =
   | { type: 'prompts.used'; payload: { slug: string } }
   | { type: 'prompts.recent' }
   | {
+      type: 'prompts.journal';
+      payload?: {
+        filter?: {
+          sessionId?: string | undefined;
+          category?: string | undefined;
+          date?: string | undefined;
+          month?: string | undefined;
+          limit?: number | undefined;
+        } | undefined;
+      };
+    }
+  | {
       type: 'prompts.create';
       payload: {
         title: string;

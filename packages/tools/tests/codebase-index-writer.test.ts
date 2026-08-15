@@ -12,6 +12,11 @@ import {
   codebaseIndexDirOverride,
   resolveIndexDir,
 } from '../src/codebase-index/writer.js';
+import {
+  indexedFileMatchArgs,
+  matchesIndexedPackageFilter,
+  posixIndexPath,
+} from '../src/codebase-index/writer-helpers.js';
 
 let store: IndexStore;
 let tmpDir: string;
@@ -37,6 +42,27 @@ beforeEach(async () => {
 afterEach(async () => {
   store.close();
   await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
+describe('indexed file filter matching', () => {
+  it('normalizes slashes and builds a suffix LIKE pattern', () => {
+    expect(posixIndexPath('.\\src\\calc.ts')).toBe('src/calc.ts');
+    const [, posix, like] = indexedFileMatchArgs('src/calc.ts');
+    expect(posix).toBe('src/calc.ts');
+    expect(like).toBe('%/src/calc.ts');
+  });
+
+  it('treats a path fragment as a package filter', () => {
+    expect(
+      matchesIndexedPackageFilter(
+        'C:\\proj\\src\\calc.ts',
+        'fixture',
+        'src',
+      ),
+    ).toBe(true);
+    expect(matchesIndexedPackageFilter('C:\\proj\\src\\calc.ts', 'fixture', 'fixture')).toBe(true);
+    expect(matchesIndexedPackageFilter('C:\\proj\\src\\calc.ts', 'fixture', 'other')).toBe(false);
+  });
 });
 
 describe('IndexStore search filters', () => {
@@ -353,6 +379,17 @@ describe('IndexStore CodeMap graphs', () => {
         }),
       ]),
     );
+  });
+
+  it('resolves a project-relative file filter for the symbol graph', () => {
+    const graph = store.getSymbolGraph('packages/core/src/agent.ts');
+    expect(graph.nodes.some((node) => node.label === 'readFile' && node.external)).toBe(true);
+    expect(graph.nodes.some((node) => node.file === coreFile && node.external === false)).toBe(true);
+  });
+
+  it('accepts a path fragment for the file graph', () => {
+    const graph = store.getFileGraph('packages/core');
+    expect(graph.nodes.find((node) => node.file === coreFile)?.external).toBe(false);
   });
 
   it('materializes cross-file symbol neighbours with declaration metadata', () => {

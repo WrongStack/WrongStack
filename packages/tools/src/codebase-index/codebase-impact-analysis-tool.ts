@@ -43,6 +43,8 @@ export interface ImpactAnalysisOutput {
   affectedTestFiles: string[];
   callSites: ImpactCallSite[];
   recommendedActionPlan: string[];
+  /** False when the symbol could not be resolved in the index. */
+  symbolFound?: boolean;
   error?: string | undefined;
 }
 
@@ -93,6 +95,9 @@ export const codebaseImpactAnalysisTool: Tool<ImpactAnalysisInput, ImpactAnalysi
       const transitive = input.transitive ?? true;
 
       let rawSites: CallSite[] = [];
+      let symbolFound = true;
+      let indexUnavailable = false;
+      let indexError: string | undefined;
       try {
         const serviced = await incomingCallsService({
           projectRoot,
@@ -103,8 +108,54 @@ export const codebaseImpactAnalysisTool: Tool<ImpactAnalysisInput, ImpactAnalysi
           transitive,
         });
         rawSites = serviced.calls;
-      } catch {
-        // Fall back gracefully when index is cold/not yet built
+        symbolFound = serviced.symbolFound;
+      } catch (err) {
+        // Fall back gracefully when index is cold/not yet built — but keep the
+        // actual error so the remediation message distinguishes a missing
+        // build from an endpoint-invalid or watchdog-timeout rejection.
+        symbolFound = false;
+        indexUnavailable = true;
+        indexError = toErrorMessage(err);
+      }
+
+      if (indexUnavailable) {
+        // An index outage is an operational failure, NOT "symbol not found":
+        // callers that gate on `status` must see error so they retry after
+        // rebuilding the index instead of concluding the symbol is missing.
+        const detail = indexError ? ` (${indexError})` : '';
+        const reason = `Index query failed for '${input.symbol}'. Run codebase-index, then retry.${detail}`;
+        return {
+          status: 'error',
+          symbol: input.symbol,
+          riskLevel: 'low',
+          summary: reason,
+          totalCallSites: 0,
+          affectedProductionFiles: [],
+          affectedTestFiles: [],
+          callSites: [],
+          recommendedActionPlan: [reason],
+          symbolFound: false,
+          error: reason,
+        };
+      }
+
+      if (!symbolFound) {
+        const reason =
+          `Symbol '${input.symbol}' was not found in the index` +
+          (input.file ? ` for file filter '${input.file}'` : '') +
+          '. Use codebase-search to verify the name.';
+        return {
+          status: 'ok',
+          symbol: input.symbol,
+          riskLevel: 'low',
+          summary: reason,
+          totalCallSites: 0,
+          affectedProductionFiles: [],
+          affectedTestFiles: [],
+          callSites: [],
+          recommendedActionPlan: [reason],
+          symbolFound: false,
+        };
       }
 
       const prodFilesSet = new Set<string>();
@@ -172,6 +223,7 @@ export const codebaseImpactAnalysisTool: Tool<ImpactAnalysisInput, ImpactAnalysi
         affectedTestFiles: testFiles,
         callSites,
         recommendedActionPlan,
+        symbolFound: true,
       };
     } catch (err) {
       return {
@@ -184,6 +236,7 @@ export const codebaseImpactAnalysisTool: Tool<ImpactAnalysisInput, ImpactAnalysi
         affectedTestFiles: [],
         callSites: [],
         recommendedActionPlan: [],
+        symbolFound: false,
         error: toErrorMessage(err),
       };
     }

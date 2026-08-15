@@ -188,10 +188,11 @@ export function reduceComposer(state: State, action: ComposerAction): State {
       const item: QueueItem = { ...action.item, id: state.nextQueueId };
       const candidate = [...state.queue, item];
       const persisted: PersistedQueueItem[] = candidate.map(
-        ({ displayText, blocks, shouldRefine }) => ({
+        ({ displayText, blocks, shouldRefine, journalRaw }) => ({
           displayText,
           blocks,
           ...(shouldRefine !== undefined ? { shouldRefine } : {}),
+          ...(journalRaw !== undefined ? { journalRaw } : {}),
         }),
       );
       // Reject the newest item when the shared queue budget is exhausted.

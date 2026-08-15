@@ -395,6 +395,7 @@ export {
   handlePromptsContent,
   handlePromptsCreate,
   handlePromptsFavorite,
+  handlePromptsJournal,
   handlePromptsList,
   handlePromptsRecent,
   handlePromptsSearch,

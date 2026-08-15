@@ -8,6 +8,7 @@ export { PromptManifestStore } from './prompt-manifest-store.js';
 export {
   ensureGitignore,
   getPromptJournalEntries,
+  PROMPT_JOURNAL_RAW_MARKER,
   recordPromptJournalEntry,
   type PromptCategory,
   type PromptJournalEntry,

@@ -61,6 +61,22 @@ describe('VIBE Three-Stage Verification Protocol — SDD Engine', () => {
       expect(audit.summary).toContain('Auditor approved');
     });
 
+    it('does not reject when the coder echoes default policy exclusion phrases', () => {
+      const spec = synthesizeVibeSpec(chaoticPrompt);
+      const audit = auditVibeExecution({
+        rawPrompt: chaoticPrompt,
+        spec,
+        coderOutput: [
+          'Implemented cart increment for non-admin users.',
+          'I did not introduce Unrelated UI refactors.',
+          'I did not add Unrequested third-party dependency additions.',
+        ].join('\n'),
+      });
+
+      expect(audit.verdict).toBe('PASS');
+      expect(audit.checks.some((c) => c.id === 'scope-bleed')).toBe(false);
+    });
+
     it('rejects (REJECT) when coder output is empty or violates scope boundaries', () => {
       const spec = synthesizeVibeSpec(chaoticPrompt);
       spec.scopeBoundaries.excluded.push('unwanted-library');

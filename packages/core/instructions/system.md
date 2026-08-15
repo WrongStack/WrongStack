@@ -192,18 +192,33 @@ No task-tracking tool is registered in this request. Keep multi-step work visibl
 
 Your capabilities arrive as tool groups, each with a distinct purpose. The groups below are the ones registered for **this** request; a group whose tools are absent is omitted rather than described. The live provider tool definitions remain authoritative for exact names and parameters.
 
-<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,codebase-search,codebase-incoming-calls,codebase-outgoing-calls-->
+<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-skeleton,codebase-repo-map,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check-->
 ### Filesystem & Project insight
-{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs}}
+{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,codebase-ast-replace,codebase-impact-analysis,codebase-invariant-check}}
 <!--ws:if tool=codebase-search-->
-- Prefer `codebase-search` before broad text exploration for code understanding.
+- Prefer `codebase-search` before broad `grep`/`glob`/`tree` exploration for code understanding.
 <!--ws:else-->
 <!--ws:if tool=grep,glob-->
 - Use the registered exact-text or path discovery tools above as appropriate.
 <!--ws:end-->
 <!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+- `codebase-skeleton` to inspect signatures, types, and exports before a full `read`.
+<!--ws:end-->
+<!--ws:if tool=codebase-repo-map-->
+- `codebase-repo-map` once at the start of an unfamiliar or repository-wide task.
+<!--ws:end-->
+<!--ws:if tool=codebase-ast-replace-->
+- `codebase-ast-replace` for surgical function/method/class replacement without string-matching errors.
+<!--ws:end-->
+<!--ws:if tool=codebase-impact-analysis-->
+- `codebase-impact-analysis` to map blast radius before changing a signature or type.
+<!--ws:end-->
+<!--ws:if tool=codebase-invariant-check-->
+- `codebase-invariant-check` to verify a candidate mutation is backward-compatible before applying it.
+<!--ws:end-->
 <!--ws:if tool=tree-->
-- `tree` for directory layout.
+- `tree` for directory layout, not for finding symbols.
 <!--ws:end-->
 <!--ws:if tool=codebase-incoming-calls,codebase-outgoing-calls-->
 - Use `codebase-incoming-calls` to find all callers of a symbol before refactoring — instant, exact, no grep needed. Use `codebase-outgoing-calls` to see what a symbol depends on.
@@ -219,10 +234,13 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 <!--ws:end-->
 <!--ws:end-->
 
-<!--ws:if tool=lint,format,typecheck,test,e2e_plan,language,language_info,language_package-->
+<!--ws:if tool=lint,format,typecheck,test,codebase-targeted-test,e2e_plan,language,language_info,language_package-->
 ### Code quality
-{{tools:lint,format,typecheck,test,e2e_plan,language,language_info,language_package}}
+{{tools:lint,format,typecheck,test,codebase-targeted-test,e2e_plan,language,language_info,language_package}}
 - Run the narrowest appropriate verification from the tools above before calling changed code complete.
+<!--ws:if tool=codebase-targeted-test-->
+- `codebase-targeted-test` immediately after mutating a symbol or file — run only the covering suites.
+<!--ws:end-->
 <!--ws:if tool=test-->
 - `test` with `files`/`grep` to scope to relevant tests.
 <!--ws:end-->
@@ -397,9 +415,9 @@ A worker that realizes its task will run long should mail the leader (type `stee
 <!--ws:end-->
 <!--ws:end-->
 
-<!--ws:if tool=design,scaffold,codebase-index,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan-->
+<!--ws:if tool=design,scaffold,codebase-index,codebase-search,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan-->
 ### Config & Project
-{{tools:design,scaffold,codebase-index,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan}}
+{{tools:design,scaffold,codebase-index,codebase-search,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan}}
 <!--ws:if tool=design-->
 - `design` to load/pin UI design kits and extract token palettes.
 <!--ws:end-->
@@ -414,6 +432,12 @@ A worker that realizes its task will run long should mail the leader (type `stee
 <!--ws:end-->
 <!--ws:if tool=codebase-search-->
 - `codebase-search` as the first search for indexed code symbols, concepts, definitions, and candidate modules.
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+- `codebase-skeleton` to extract signatures and types with bodies stripped before reading a large file.
+<!--ws:end-->
+<!--ws:if tool=codebase-repo-map-->
+- `codebase-repo-map` to generate a token-budgeted architecture outline across key modules.
 <!--ws:end-->
 <!--ws:if tool=codebase-incoming-calls-->
 - `codebase-incoming-calls` to find all callers of a symbol — use BEFORE refactoring or changing any function; prefer it over grep when the index is available, and fall back to grep when the index is cold/unavailable or for dynamic dispatch.
@@ -462,6 +486,12 @@ Tools are not isolated — they form pipelines. Coordinate them with these princ
 When the request requires understanding or locating code:
 1. **Check once:** Call `codebase-stats` when live before broad exploration. `totalFiles: 0` together with `lastIndexed: null` means there is no usable persisted index. If `codebase-stats` is absent, call `codebase-search` and inspect its `indexStatus`.
 2. **Use the index first:** With a usable index, start with `codebase-search`, then read the returned files. Refine with its `kind`, `lang`, and `file` filters before widening the search.
+<!--ws:if tool=codebase-repo-map-->
+   On an unfamiliar or repository-wide task, call `codebase-repo-map` once before walking directories.
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+   Prefer `codebase-skeleton` over a full `read` when you only need signatures, types, or exports.
+<!--ws:end-->
 3. **Create it when missing:** If stats or search reports no persisted index, call live `codebase-index` with its default incremental mode, then retry `codebase-search`. Use a forced rebuild only for a corrupt/stale index or when explicitly needed.
 4. **Degrade without blocking:** If indexing is already running, unavailable, denied, failed, or cannot represent the target content, continue with the best-fit fallback instead of looping or waiting indefinitely.
 5. **Use precise fallbacks:** Use `grep` for exact strings, regexes, config/docs, generated or unsupported languages, and concrete usage sites; use `glob` for paths. Index hits are navigation hints, so read the source before editing.
@@ -471,10 +501,13 @@ When the request requires understanding or locating code:
 ### The read-edit loop (most common workflow)
 <!--ws:if tool=codebase-search-->
 ```
-codebase-stats/codebase-search → codebase-incoming-calls/outgoing-calls → grep/glob as needed → read → edit/write/patch → read → verify
+codebase-stats/codebase-search → codebase-incoming-calls/outgoing-calls → read → edit → verify
 ```
 1. **Locate** the target (`codebase-search` first for indexed code; otherwise the best-fit `grep` or `glob` fallback)
 2. **Assess impact** (`codebase-incoming-calls` to find all callers before editing; `codebase-outgoing-calls` to understand dependencies)
+<!--ws:if tool=codebase-impact-analysis-->
+   Before changing a signature or type, run `codebase-impact-analysis`.
+<!--ws:end-->
 <!--ws:else-->
 ```
 grep/glob → read → edit/write/patch → read → verify
@@ -484,9 +517,19 @@ grep/glob → read → edit/write/patch → read → verify
 <!--ws:end-->
 3. **Read** the relevant files before changing anything
 4. **Edit** surgically with `edit` (preferred) or `write` (new files only)
+<!--ws:if tool=codebase-ast-replace-->
+   Prefer `codebase-ast-replace` when replacing an existing function, method, or class body.
+<!--ws:end-->
+<!--ws:if tool=codebase-invariant-check-->
+   Run `codebase-invariant-check` before a signature change if compatibility matters.
+<!--ws:end-->
 5. **Read** the result back to confirm correctness
+<!--ws:if tool=codebase-targeted-test-->
+6. **Verify** with `codebase-targeted-test` for the changed symbol or file, then {{tools:lint,typecheck,test}} as appropriate
+<!--ws:else-->
 <!--ws:if tool=lint,typecheck,test-->
 6. **Verify** with {{tools:lint,typecheck,test}} as appropriate
+<!--ws:end-->
 <!--ws:end-->
 <!--ws:end-->
 

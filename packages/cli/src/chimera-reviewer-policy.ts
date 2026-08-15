@@ -280,8 +280,12 @@ export const CHIMERA_REVIEW_READ_ONLY_TOOLS = Object.freeze([
   'grep',
   'glob',
   'tree',
-  'codebase-search',
   'codebase-stats',
+  'codebase-search',
+  'codebase-skeleton',
+  'codebase-repo-map',
+  'codebase-incoming-calls',
+  'codebase-outgoing-calls',
 ] as const);
 
 export function applyChimeraReviewerReadOnlyPolicy(config: SubagentConfig): SubagentConfig {

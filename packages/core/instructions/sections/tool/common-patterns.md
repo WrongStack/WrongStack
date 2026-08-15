@@ -6,6 +6,9 @@
 <!--ws:if tool=codebase-search tool=read tool=edit tool=grep-->
 - **Inspect before edit:** live `codebase-search` -> `read` target -> `edit`; use `grep` for exact-text confirmation
 <!--ws:end-->
+<!--ws:if tool=codebase-search tool=grep-->
+- **Index before grep:** prefer live `codebase-search` for symbols and concepts; reserve `grep` for exact strings, regexes, and non-indexed content
+<!--ws:end-->
 <!--ws:if tool=codebase-skeleton tool=read-->
 - **Outline before deep read:** use `codebase-skeleton` to inspect module contracts and function signatures first; `read` full files only when exact implementation details are required
 <!--ws:end-->
@@ -20,6 +23,12 @@
 <!--ws:end-->
 <!--ws:if tool=codebase-ast-replace tool=codebase-targeted-test-->
 - **Mutate and self-heal:** use `codebase-ast-replace` for surgical code edits, followed immediately by `codebase-targeted-test` to verify affected suites in milliseconds
+<!--ws:end-->
+<!--ws:if tool=codebase-invariant-check tool=codebase-ast-replace-->
+- **Invariants before a breaking signature change:** run `codebase-invariant-check` on the candidate; apply `codebase-ast-replace` only when valid or when breaking is intentional
+<!--ws:end-->
+<!--ws:if tool=codebase-incoming-calls tool=codebase-outgoing-calls-->
+- **Call graph before refactor:** `codebase-incoming-calls` for callers, `codebase-outgoing-calls` for dependencies; do not start with `grep`
 <!--ws:end-->
 <!--ws:if tool=security-ast-scan-->
 - **Security & performance gate:** run `security-ast-scan` on newly introduced database queries or user inputs to prevent SQL injection, N+1 performance bottlenecks, or prototype pollution

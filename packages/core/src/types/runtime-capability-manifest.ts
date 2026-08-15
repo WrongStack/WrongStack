@@ -59,6 +59,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
       'codebase-skeleton',
       'codebase-repo-map',
       'codebase-impact-analysis',
+      'codebase-invariant-check',
       'dead-code-scan',
       'diff',
       'json',

@@ -84,6 +84,7 @@ const coreEntries = entryMap([
   'src/hq/protocol.ts',
   'src/skills/index.ts',
   'src/tasking/index.ts',
+  'src/prompts/index.ts',
   'src/worktree/index.ts',
   'src/goal/index.ts',
   'src/hooks/index.ts',

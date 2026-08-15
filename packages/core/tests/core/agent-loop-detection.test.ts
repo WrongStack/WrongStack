@@ -119,7 +119,9 @@ describe('agent-loop fingerprint detector', () => {
     cleanupDirs = [];
   });
   afterEach(async () => {
-    for (const d of cleanupDirs) await fs.rm(d, { recursive: true, force: true });
+    for (const d of cleanupDirs) {
+      await fs.rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
   });
 
   // ── The k2p7 loop patterns the safety valve must catch ─────────────

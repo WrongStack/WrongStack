@@ -111,10 +111,13 @@ Use `codebase-stats` once before broad code discovery when available.
 Use `clarify` only on irreversible forks; otherwise autonomously adopt industry best practices and keep moving.
 <!--ws:end-->
 <!--ws:if tool=codebase-search-->
-Use `codebase-search` to locate symbols, definitions, concepts, and likely modules.
+Prefer `codebase-search` before `grep`, `glob`, or `tree` for symbols and concepts. Use `grep` only for exact text or regex.
 <!--ws:end-->
 <!--ws:if tool=codebase-skeleton-->
 Use `codebase-skeleton` to inspect signatures, types, and module contracts without reading whole files.
+<!--ws:end-->
+<!--ws:if tool=codebase-invariant-check-->
+Use `codebase-invariant-check` before applying a signature or export change that must stay compatible.
 <!--ws:end-->
 <!--ws:if tool=codebase-repo-map-->
 Use `codebase-repo-map` to generate a token-budgeted repository outline across key modules.

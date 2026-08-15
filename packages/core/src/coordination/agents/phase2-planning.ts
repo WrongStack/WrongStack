@@ -1,7 +1,7 @@
 import { type AgentDefinition, HEAVY_BUDGET, LIGHT_BUDGET, TOOLS } from './types.js';
 import { agentPrompt } from './agent-prompts.js';
 
-const PLAN_TOOLS = [...TOOLS.read, 'plan', 'todo'];
+const PLAN_TOOLS = [...TOOLS.read, ...TOOLS.index, 'plan', 'todo'];
 
 /** Phase 2 · Planning — turn intent into requirements, plans, and architecture. */
 export const PLANNING_AGENTS: AgentDefinition[] = [

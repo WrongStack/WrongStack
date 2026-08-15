@@ -32,6 +32,17 @@ describe('VIBE Protocol — Requirement Intake', () => {
       expect(stripVibeTag('[VIBE] butona basınca sepet artsın')).toBe('butona basınca sepet artsın');
       expect(stripVibeTag('lütfen bunu   [VIBE]   yap')).toBe('lütfen bunu yap');
     });
+
+    it('removes every occurrence, not only the first tag', () => {
+      expect(stripVibeTag('[VIBE] önce [vibe] sonra [VIBE]')).toBe('önce sonra');
+    });
+
+    it('does not leave hasVibeTag sticky across repeated calls', () => {
+      expect(hasVibeTag('[VIBE] bir')).toBe(true);
+      expect(hasVibeTag('[VIBE] iki')).toBe(true);
+      expect(hasVibeTag('normal')).toBe(false);
+      expect(hasVibeTag('[vibe] üç')).toBe(true);
+    });
   });
 
   describe('deriveVibeState & Refinement-Preservation', () => {

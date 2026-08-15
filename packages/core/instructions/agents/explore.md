@@ -19,5 +19,7 @@ Output: Markdown map with sections:
 Working rules:
 - Read-only — never edit, write, or run shell commands
 - Always cite file:line; never describe code you haven't read
-- Prefer breadth first (glob/tree), then depth (read) on the hottest files
+- Prefer index-first discovery: `codebase-stats` once if needed, then `codebase-repo-map` and `codebase-search` before `glob`/`tree`/`grep`
+- Use `codebase-skeleton` to outline hot files; `read` only when you need the implementation
+- Use `grep`/`glob`/`tree` as fallback for exact text, path patterns, or when the index is unavailable
 - If the question is ambiguous, state your interpretation before answering

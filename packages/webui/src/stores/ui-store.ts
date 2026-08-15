@@ -71,6 +71,7 @@ const VIEWS = [
   'chronicle',
   'intake',
   'deadcode',
+  'prompts',
 ] as const;
 type View = (typeof VIEWS)[number];
 

@@ -3,10 +3,16 @@
  * (`packages/webui/src/server/prompts-handlers.ts`), which back BOTH the
  * standalone WebUI server and the CLI's `--webui` embedded server.
  *
- * Each test drives a handler with a stub PromptsContext (a fake PromptLoader +
- * a capturing `send`) — no real I/O, no socket.
+ * Most tests drive a handler with a stub PromptsContext (a fake PromptLoader +
+ * a capturing `send`) — no real socket. `handlePromptsJournal` reads the
+ * on-disk hierarchical prompt journal, so its tests create a temp project
+ * root and seed entries through the core `recordPromptJournalEntry` helper.
  */
 
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { recordPromptJournalEntry } from '@wrongstack/core/prompts';
 import type { PromptEntry, PromptLoader } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
@@ -14,6 +20,7 @@ import {
   handlePromptsContent,
   handlePromptsCreate,
   handlePromptsFavorite,
+  handlePromptsJournal,
   handlePromptsList,
   handlePromptsSearch,
   handlePromptsUsed,
@@ -180,6 +187,86 @@ describe('handlePromptsRecent', () => {
     const { ws, messages } = openWs();
     await handlePromptsRecent(ws, { promptLoader: fakeLoader([]) });
     expect(payloadOf(messages, 'prompts.recent')).toMatchObject({ slugs: [] });
+  });
+});
+
+describe('handlePromptsJournal', () => {
+  it('reports disabled when no project root is wired', async () => {
+    const { ws, messages } = openWs();
+    await handlePromptsJournal(ws, {}, '');
+    expect(payloadOf(messages, 'prompts.journal')).toMatchObject({
+      enabled: false,
+      entries: [],
+    });
+  });
+
+  it('returns recorded journal entries for the project root', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-handler-'));
+    try {
+      await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess_auth',
+        category: 'raw_user',
+        content: 'Add phone number to the user table',
+        model: 'gemini-2.5-pro',
+      });
+      await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess_billing',
+        category: 'autonomous_next_step',
+        content: 'Run codebase-targeted-test for the stripe webhook handler.',
+        activeTools: ['codebase-targeted-test'],
+      });
+
+      const { ws, messages } = openWs();
+      await handlePromptsJournal(ws, {}, tempDir);
+
+      const p = payloadOf(messages, 'prompts.journal')!;
+      expect(p['enabled']).toBe(true);
+      expect(p).not.toHaveProperty('error');
+      const entries = p['entries'] as { sessionId: string; category: string; timestamp: string }[];
+      expect(entries).toHaveLength(2);
+      expect(entries.map((e) => e.sessionId).sort()).toEqual(['sess_auth', 'sess_billing']);
+      expect(entries.map((e) => e.category).sort()).toEqual([
+        'autonomous_next_step',
+        'raw_user',
+      ]);
+      // getPromptJournalEntries sorts chronologically (ascending); the two
+      // records were written sequentially so timestamps must be ordered.
+      const timestamps = entries.map((e) => e.timestamp);
+      expect([...timestamps].sort()).toEqual(timestamps);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('applies a session filter from the request payload', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-handler-filter-'));
+    try {
+      await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess_a',
+        category: 'raw_user',
+        content: 'entry A',
+      });
+      await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess_b',
+        category: 'raw_user',
+        content: 'entry B',
+      });
+
+      const { ws, messages } = openWs();
+      await handlePromptsJournal(ws, { payload: { filter: { sessionId: 'sess_b' } } }, tempDir);
+
+      const p = payloadOf(messages, 'prompts.journal')!;
+      expect(p).not.toHaveProperty('error');
+      const entries = p['entries'] as { sessionId: string }[];
+      expect(entries).toHaveLength(1);
+      expect(entries[0]?.sessionId).toBe('sess_b');
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 });
 

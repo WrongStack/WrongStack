@@ -63,4 +63,57 @@ describe('refineSubmittedPrompt model-specific reasoning', () => {
       expect.any(Object),
     );
   });
+
+  it('keeps [VIBE] in the refiner input instead of stripping it as an attachment chip', async () => {
+    const text = '[VIBE] increment the cart when the button is clicked';
+    const complete = vi.fn(async (request: Request) => {
+      const userText = request.messages
+        .flatMap((message) =>
+          typeof message.content === 'string'
+            ? [message.content]
+            : Array.isArray(message.content)
+              ? message.content
+                  .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+                  .map((block) => block.text)
+              : [],
+        )
+        .join('\n');
+      expect(userText).toContain('[VIBE]');
+      return {
+        content: [{ type: 'text' as const, text: `${text}\n---\n${text}` }],
+        stopReason: 'end_turn' as const,
+        usage: { input: 1, output: 1 },
+        model: request.model,
+      };
+    });
+    const live = provider('openai-codex', complete);
+
+    const result = await refineSubmittedPrompt(
+      {
+        capabilities: {
+          agent: {
+            ctx: { provider: live, model: 'gpt-5.6-sol', messages: [] },
+          } as never,
+        },
+        status: 'idle',
+        enabled: { current: true },
+        original: { current: '' },
+        abortController: { current: null },
+        cancelled: { current: false },
+        preRefineSeconds: 0,
+        dispatch: vi.fn(),
+        clearDraft: vi.fn(),
+        setDraft: vi.fn(),
+        setStartedAt: vi.fn(),
+        setDuration: vi.fn(),
+        setProviderId: vi.fn(),
+        setModel: vi.fn(),
+      },
+      text,
+      { steering: false, continuationResolved: false },
+    );
+
+    expect(result).toEqual({ kind: 'send', effectiveText: text });
+    expect(complete).toHaveBeenCalled();
+  });
 });

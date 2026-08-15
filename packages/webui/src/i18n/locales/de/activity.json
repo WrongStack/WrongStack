@@ -3521,5 +3521,41 @@
   },
   "progressring": {
     "progress": "Fortschritt"
+  },
+  "promptJournal": {
+    "title": "Prompt-Protokoll",
+    "subtitle": "Jeder für dieses Projekt aufgezeichnete Prompt, neueste zuerst.",
+    "refresh": "Aktualisieren",
+    "statEntries": "{{count}} Prompts",
+    "statTokens": "~{{count}} Tokens (geschätzt)",
+    "filterCategory": "Kategorie",
+    "filterAll": "Alle",
+    "filterSession": "Sitzung",
+    "filterLimit": "Limit",
+    "loading": "Prompt-Protokoll wird geladen…",
+    "disabled": "Das Prompt-Protokoll ist für dieses Projekt nicht verfügbar.",
+    "emptyTitle": "Noch keine Prompts aufgezeichnet",
+    "emptyHint": "Von dir gesendete Prompts erscheinen hier, sobald das Protokoll Einträge hat.",
+    "tokens": "Tokens",
+    "rawInput": "Roheingabe",
+    "model": "Modell",
+    "provider": "Anbieter",
+    "iteration": "Iteration",
+    "stats": "Statistik",
+    "chars": "Zeichen",
+    "lines": "Zeilen",
+    "duration": "Dauer",
+    "tools": "Tools",
+    "files": "Kontextdateien",
+    "rationale": "Begründung",
+    "cat": {
+      "raw_user": "Roher Benutzer",
+      "refined_user": "Verfeinerter Benutzer",
+      "system_prompt": "System-Prompt",
+      "autonomous_next_step": "Autonomer nächster Schritt",
+      "self_healing_retry": "Selbstheilungs-Wiederholung",
+      "clarify_interaction": "Klärungs-Interaktion",
+      "subagent_delegation": "Subagenten-Delegation"
+    }
   }
 }

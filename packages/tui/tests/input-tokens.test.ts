@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ATTACHMENT_TOKEN_SRC,
   deleteTokenBackward,
   inputIndexAtRowCol,
   layoutInputRows,
+  PROTOCOL_TOKEN_SRC,
   splitChips,
   tokenLengthForward,
   tokenSpanAt,
@@ -95,6 +97,15 @@ describe('splitChips', () => {
 
   it('returns an empty array for empty input', () => {
     expect(splitChips('')).toEqual([]);
+  });
+
+  it('treats [VIBE] as a chip for editing without classifying it as an attachment', () => {
+    expect(splitChips('[VIBE] butona basınca sepet artsın')).toEqual([
+      { text: '[VIBE]', chip: true },
+      { text: ' butona basınca sepet artsın', chip: false },
+    ]);
+    expect(new RegExp(ATTACHMENT_TOKEN_SRC).test('[VIBE] sepet')).toBe(false);
+    expect(new RegExp(PROTOCOL_TOKEN_SRC, 'i').test('[vibe] sepet')).toBe(true);
   });
 });
 

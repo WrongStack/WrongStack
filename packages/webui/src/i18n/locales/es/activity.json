@@ -3521,5 +3521,41 @@
   },
   "progressring": {
     "progress": "Progreso"
+  },
+  "promptJournal": {
+    "title": "Registro de prompts",
+    "subtitle": "Cada prompt registrado para este proyecto, los más recientes primero.",
+    "refresh": "Actualizar",
+    "statEntries": "{{count}} prompts",
+    "statTokens": "~{{count}} tokens (aprox.)",
+    "filterCategory": "Categoría",
+    "filterAll": "Todas",
+    "filterSession": "Sesión",
+    "filterLimit": "Límite",
+    "loading": "Cargando el registro de prompts…",
+    "disabled": "El registro de prompts no está disponible para este proyecto.",
+    "emptyTitle": "Aún no hay prompts registrados",
+    "emptyHint": "Los prompts que envíes aparecerán aquí cuando el registro tenga entradas.",
+    "tokens": "tokens",
+    "rawInput": "Entrada original",
+    "model": "Modelo",
+    "provider": "Proveedor",
+    "iteration": "Iteración",
+    "stats": "Estadísticas",
+    "chars": "caracteres",
+    "lines": "líneas",
+    "duration": "Duración",
+    "tools": "Herramientas",
+    "files": "Archivos de contexto",
+    "rationale": "Justificación",
+    "cat": {
+      "raw_user": "Usuario original",
+      "refined_user": "Usuario refinado",
+      "system_prompt": "Prompt del sistema",
+      "autonomous_next_step": "Siguiente paso autónomo",
+      "self_healing_retry": "Reintento de autocuración",
+      "clarify_interaction": "Interacción de aclaración",
+      "subagent_delegation": "Delegación a subagente"
+    }
   }
 }

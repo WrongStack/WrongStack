@@ -896,7 +896,39 @@ export type WSServerMessage =
   | {
       type: 'terminal.exit';
       payload: { id: string; exitCode: number; signal?: number | undefined };
-    };
+    }
+  | { type: 'prompts.journal'; payload: WSPromptsJournalPayload };
 
 // Helper to broadcast to all clients
 export type BroadcastFn = (msg: WSServerMessage) => void;
+
+/** One entry from the hierarchical prompt journal (mirrors core `PromptJournalEntry`). */
+export interface WSPromptJournalEntry {
+  id: string;
+  timestamp: string;
+  sessionId: string;
+  projectRoot: string;
+  role: 'user' | 'system' | 'assistant' | 'tool';
+  category: string;
+  content: string;
+  rawContent?: string | undefined;
+  metadata: {
+    model?: string | undefined;
+    provider?: string | undefined;
+    iterationIndex?: number | undefined;
+    tokenEstimate: number;
+    characterCount: number;
+    lineCount: number;
+    activeTools?: string[] | undefined;
+    contextFiles?: string[] | undefined;
+    durationMs?: number | undefined;
+    decisionReason?: string | undefined;
+    tags?: string[] | undefined;
+  };
+}
+
+export interface WSPromptsJournalPayload {
+  enabled: boolean;
+  entries: WSPromptJournalEntry[];
+  error?: string | undefined;
+}

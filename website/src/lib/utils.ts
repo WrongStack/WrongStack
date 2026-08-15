@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.307.0',
+  version: '0.307.1',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -77,7 +77,7 @@ export const skills = [
   },
 ] as const;
 
-/** The 61 built-in tools from packages/tools/src/builtin.ts, grouped. */
+/** The 68 built-in tools from packages/tools/src/builtin.ts, grouped. */
 export const toolGroups = [
   {
     label: 'Browser & E2E',
@@ -106,10 +106,23 @@ export const toolGroups = [
     tools: ['read', 'write', 'edit', 'replace', 'glob', 'grep', 'patch', 'diff', 'tree', 'json'],
   },
   { label: 'Shell, Git & web', tools: ['bash', 'exec', 'git', 'fetch', 'search'] },
-  { label: 'Work & state', tools: ['todo', 'plan', 'kanban', 'task', 'set_working_dir'] },
+  {
+    label: 'Work & state',
+    tools: ['todo', 'plan', 'kanban', 'task', 'clarify', 'set_working_dir'],
+  },
   {
     label: 'Quality & language',
-    tools: ['lint', 'format', 'typecheck', 'test', 'language_info', 'language', 'language_package'],
+    tools: [
+      'lint',
+      'format',
+      'typecheck',
+      'test',
+      'codebase-targeted-test',
+      'security-ast-scan',
+      'language_info',
+      'language',
+      'language_package',
+    ],
   },
   { label: 'Dependencies', tools: ['install', 'audit', 'outdated', 'logs'] },
   { label: 'Generation', tools: ['document', 'scaffold', 'design'] },
@@ -122,6 +135,11 @@ export const toolGroups = [
       'tool_help',
       'codebase-index',
       'codebase-search',
+      'codebase-skeleton',
+      'codebase-repo-map',
+      'codebase-ast-replace',
+      'codebase-invariant-check',
+      'codebase-impact-analysis',
       'codebase-incoming-calls',
       'codebase-outgoing-calls',
       'codebase-stats',
