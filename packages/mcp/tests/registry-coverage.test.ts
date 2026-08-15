@@ -318,7 +318,7 @@ describe('MCPRegistry coverage', () => {
   });
 
   it('records capability discovery failures', async () => {
-    const { registry, log } = fixture();
+    const { log } = fixture();
     const slot = makeSlot('catalog');
     const client = {
       getServerMetadata: () => ({
