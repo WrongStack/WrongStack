@@ -196,7 +196,7 @@ describe('mergeCustomModelDefs', () => {
 describe('mergeModelsPayload', () => {
   it('clones base providers', () => {
     const base = {
-      openai: { id: 'openai', name: 'OpenAI', models: { 'gpt-4': { name: 'GPT-4' } } },
+      openai: { id: 'openai', name: 'OpenAI', models: { 'gpt-4': { id: 'gpt-4', name: 'GPT-4' } } },
     };
     const overlay = {};
     const result = mergeModelsPayload(base, overlay);
@@ -207,7 +207,7 @@ describe('mergeModelsPayload', () => {
   it('adds overlay-only providers', () => {
     const base = {};
     const overlay = {
-      anthropic: { id: 'anthropic', name: 'Anthropic', models: { 'claude': { name: 'Claude' } } },
+      anthropic: { id: 'anthropic', name: 'Anthropic', models: { 'claude': { id: 'claude', name: 'Claude' } } },
     };
     const result = mergeModelsPayload(base, overlay);
     expect(result.anthropic?.name).toBe('Anthropic');
@@ -222,14 +222,14 @@ describe('mergeModelsPayload', () => {
 
   it('overlay undefined scalars do not clobber base', () => {
     const base = { p: { id: 'p', name: 'Base', models: {} } };
-    const overlay = { p: { id: 'p', models: {} } };
+    const overlay = { p: { id: 'p', models: {} } } as never;
     const result = mergeModelsPayload(base, overlay);
     expect(result.p?.name).toBe('Base');
   });
 
   it('merges model maps by id', () => {
-    const base = { p: { id: 'p', name: 'P', models: { 'm1': { name: 'M1' } } } };
-    const overlay = { p: { id: 'p', models: { 'm2': { name: 'M2' } } } };
+    const base = { p: { id: 'p', name: 'P', models: { 'm1': { id: 'm1', name: 'M1' } } } };
+    const overlay = { p: { id: 'p', name: 'Overlay', models: { 'm2': { id: 'm2', name: 'M2' } } } };
     const result = mergeModelsPayload(base, overlay);
     expect(Object.keys(result.p?.models ?? {}).sort()).toEqual(['m1', 'm2']);
   });
@@ -238,14 +238,14 @@ describe('mergeModelsPayload', () => {
     const base = {
       p: {
         id: 'p', name: 'P', models: {
-          'm': { name: 'M', limit: { context: 8000, output: 4096 }, cost: { input: 0.01 } },
+          'm': { id: 'm', name: 'M', limit: { context: 8000, output: 4096 }, cost: { input: 0.01 } },
         },
       },
     };
     const overlay = {
       p: {
-        id: 'p', models: {
-          'm': { limit: { context: 128000 }, cost: { output: 0.03 } },
+        id: 'p', name: 'Overlay', models: {
+          'm': { id: 'm', name: 'M', limit: { context: 128000 }, cost: { output: 0.03 } },
         },
       },
     };
@@ -256,8 +256,8 @@ describe('mergeModelsPayload', () => {
   });
 
   it('does not mutate inputs', () => {
-    const base = { p: { id: 'p', name: 'Base', models: { m: { name: 'M', limit: { context: 100 } } } } };
-    const overlay = { p: { id: 'p', models: { m: { limit: { context: 200 } } } } };
+    const base = { p: { id: 'p', name: 'Base', models: { m: { id: 'm', name: 'M', limit: { context: 100 } } } } };
+    const overlay = { p: { id: 'p', name: 'Overlay', models: { m: { id: 'm', name: 'M', limit: { context: 200 } } } } };
     mergeModelsPayload(base, overlay);
     expect(base.p?.models?.['m']?.limit?.context).toBe(100);
   });

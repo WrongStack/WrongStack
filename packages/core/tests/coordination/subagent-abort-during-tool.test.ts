@@ -137,6 +137,8 @@ describe('subagent abort during tool execution (D5/T3)', () => {
           });
           events.emit('provider.response', {
             ctx,
+
+            model: 'test-model',
             usage: { input: 1, output: 1 },
             stopReason: 'end_turn',
           });

@@ -56,6 +56,8 @@ function makeHeartbeatAgent(opts: {
         events.emit('tool.executed', { name: 'work', id: `t${i}`, durationMs: 1, ok: true });
         events.emit('provider.response', {
           ctx,
+
+          model: 'test-model',
           usage: { input: 1, output: 1 },
           stopReason: 'end_turn',
         });
@@ -194,6 +196,8 @@ describe('IC3: denied pre-empt — deadline fires at 100% (idle timeout)', () =>
           events.emit('tool.executed', { name: 'work', id: 't0', durationMs: 1, ok: true });
           events.emit('provider.response', {
             ctx,
+
+            model: 'test-model',
             usage: { input: 1, output: 1 },
             stopReason: 'end_turn',
           });
@@ -301,6 +305,8 @@ describe('IC5: idle timeout fires independently of wall-clock negotiation', () =
           events.emit('tool.executed', { name: 'work', id: 't0', durationMs: 1, ok: true });
           events.emit('provider.response', {
             ctx,
+
+            model: 'test-model',
             usage: { input: 1, output: 1 },
             stopReason: 'end_turn',
           });

@@ -73,6 +73,7 @@ describe('wireMetricsToEvents', () => {
     wireMetricsToEvents(bus, sink);
     bus.emit('provider.response', {
       ctx: {} as never,
+      model: 'test-model',
       usage: usage(10, 20, 5, 3),
       stopReason: 'end_turn',
     });
@@ -91,6 +92,7 @@ describe('wireMetricsToEvents', () => {
     wireMetricsToEvents(bus, sink);
     bus.emit('provider.response', {
       ctx: {} as never,
+      model: 'test-model',
       usage: usage(10, 20, 0, 0),
       stopReason: 'end_turn',
     });

@@ -40,6 +40,8 @@ function makeGatedAgent(gate: { promise: Promise<void> }, finalText: string) {
       events.emit('iteration.started', { ctx, index: 0 });
       events.emit('provider.response', {
         ctx,
+
+        model: 'test-model',
         usage: { input: 1, output: 1 },
         stopReason: 'end_turn',
       });

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { ToolAuditLog } from '../../src/storage/tool-audit-log.js';
+import type { EventBus } from '../../src/kernel/events.js';
 
 // vi.mock is hoisted above imports.  The factory uses vi.importActual to lazily
 // get the real module, avoiding TDZ issues.  The returned plain object replaces
@@ -31,8 +32,8 @@ vi.mock('node:fs/promises', async () => {
       await real.writeFile(k, data, 'utf8');
     }),
     open: real.open,
-    close: real.close,
-    fsync: real.fsync,
+    close: (real as Record<string, unknown>).close as (handle: unknown) => Promise<void>,
+    fsync: (real as Record<string, unknown>).fsync as (handle: unknown) => Promise<void>,
     rename: real.rename,
     access: real.access,
     unlink: real.unlink,
@@ -343,7 +344,7 @@ describe('ToolAuditLog', () => {
       isError: false,
     });
     // Now make readFile fail for this session's file.
-    fsp.readFile.mockImplementation(async (p: string | Buffer | URL) => {
+    vi.mocked(fsp.readFile).mockImplementation(async (p: unknown) => {
       if (String(p).endsWith('s1.audit.jsonl')) {
         throw Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' });
       }
@@ -361,7 +362,7 @@ describe('ToolAuditLog', () => {
         error: expect.stringContaining('EACCES'),
       }));
     } finally {
-      fsp.readFile.mockReset();
+      vi.mocked(fsp.readFile).mockReset();
     }
   });
 
@@ -388,7 +389,7 @@ describe('ToolAuditLog', () => {
   it('emits storage.error when record() encounters a write failure', async () => {
     const events: EventBus = { emit: vi.fn() } as never;
     const loggedLog = new ToolAuditLog({ dir, events });
-    fsp.appendFile.mockRejectedValueOnce(
+    vi.mocked(fsp.appendFile).mockRejectedValueOnce(
       Object.assign(new Error('ENOSPC no space left'), { code: 'ENOSPC' }),
     );
     try {
@@ -409,7 +410,7 @@ describe('ToolAuditLog', () => {
         error: expect.stringContaining('ENOSPC'),
       }));
     } finally {
-      fsp.writeFile.mockReset();
+      vi.mocked(fsp.writeFile).mockReset();
     }
   });
 });

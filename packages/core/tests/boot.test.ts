@@ -246,7 +246,7 @@ describe('flagsToConfigPatch — all branches', () => {
 
 describe('bootConfig identity + sync', () => {
   it('skipIdentityValidation keeps provider/model unset on "no provider configured"', async () => {
-    loaderMock.mockImplementationOnce(function (this: never) {
+    loaderMock.mockImplementationOnce(function (this: any) {
       this.load = vi.fn()
         .mockRejectedValueOnce(new Error('no provider configured'))
         .mockResolvedValueOnce({ version: 1, log: { level: 'info' } });
@@ -258,7 +258,7 @@ describe('bootConfig identity + sync', () => {
   });
 
   it('rethrows non-identity errors', async () => {
-    loaderMock.mockImplementationOnce(function (this: never) {
+    loaderMock.mockImplementationOnce(function (this: any) {
       this.load = vi.fn().mockRejectedValue(new Error('disk on fire'));
       this.loadSyncConfig = vi.fn().mockResolvedValue(null);
     });
@@ -266,7 +266,7 @@ describe('bootConfig identity + sync', () => {
   });
 
   it('merges a loaded sync config', async () => {
-    loaderMock.mockImplementationOnce(function (this: never) {
+    loaderMock.mockImplementationOnce(function (this: any) {
       this.load = vi.fn().mockResolvedValue({ version: 1, provider: 'anthropic', model: 'x', log: { level: 'info' } });
       this.loadSyncConfig = vi.fn().mockResolvedValue({ category: 'memory', repoUrl: 'gh://x' });
     });
@@ -275,7 +275,7 @@ describe('bootConfig identity + sync', () => {
   });
 
   it('loadSyncConfig=false skips the sync merge', async () => {
-    loaderMock.mockImplementationOnce(function (this: never) {
+    loaderMock.mockImplementationOnce(function (this: any) {
       this.load = vi.fn().mockResolvedValue({ version: 1, provider: 'anthropic', model: 'x', log: { level: 'info' } });
       this.loadSyncConfig = vi.fn().mockResolvedValue({ category: 'memory' });
     });

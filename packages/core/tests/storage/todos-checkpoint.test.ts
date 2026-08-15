@@ -268,7 +268,7 @@ describe('todos-checkpoint', () => {
       todos: [],
     }));
     try {
-      fs.readFile.mockRejectedValueOnce(
+      vi.mocked(fs.readFile).mockRejectedValueOnce(
         Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }),
       );
       const result = await loadTodosCheckpoint(file, events, 'trace-load', 'sess-load');
@@ -282,7 +282,7 @@ describe('todos-checkpoint', () => {
         error: expect.stringContaining('EACCES'),
       }));
     } finally {
-      fs.readFile.mockReset();
+      vi.mocked(fs.readFile).mockReset();
       await fs.rm(dir, { recursive: true, force: true });
     }
   });
@@ -314,7 +314,7 @@ describe('todos-checkpoint', () => {
     const file = path.join(dir, 'io-error.todos.json');
     const events: EventBus = { emit: vi.fn() } as never;
     try {
-      fs.writeFile.mockRejectedValueOnce(
+      vi.mocked(fs.writeFile).mockRejectedValueOnce(
         Object.assign(new Error('ENOSPC no space left'), { code: 'ENOSPC' }),
       );
       await saveTodosCheckpoint(
@@ -333,7 +333,7 @@ describe('todos-checkpoint', () => {
         error: expect.stringContaining('ENOSPC'),
       }));
     } finally {
-      fs.writeFile.mockReset();
+      vi.mocked(fs.writeFile).mockReset();
       await fs.rm(dir, { recursive: true, force: true });
     }
   });

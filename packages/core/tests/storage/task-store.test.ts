@@ -265,7 +265,7 @@ describe('task-store', () => {
     // First ensure the file exists (so the error is a read error, not ENOENT)
     await fsp.writeFile(fp, JSON.stringify({ version: 1, sessionId: 'sess', updatedAt: new Date().toISOString(), tasks: [] }), 'utf8');
     try {
-      fsp.readFile.mockRejectedValueOnce(
+      vi.mocked(fsp.readFile).mockRejectedValueOnce(
         Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }),
       );
       const result = await loadTasks(fp, events);
@@ -277,7 +277,7 @@ describe('task-store', () => {
         error: expect.stringContaining('EACCES'),
       }));
     } finally {
-      fsp.readFile.mockReset();
+      vi.mocked(fsp.readFile).mockReset();
       await fsp.rm(dir, { recursive: true, force: true });
     }
   });
@@ -304,7 +304,7 @@ describe('task-store', () => {
     const fp = path.join(dir, 'io-error.tasks.json');
     const events: EventBus = { emit: vi.fn() } as never;
     try {
-      fsp.writeFile.mockRejectedValueOnce(
+      vi.mocked(fsp.writeFile).mockRejectedValueOnce(
         Object.assign(new Error('ENOSPC no space left'), { code: 'ENOSPC' }),
       );
       await saveTasks(fp, { ...emptyTaskFile('sess'), tasks: [makeTask()] }, events);
@@ -315,7 +315,7 @@ describe('task-store', () => {
         error: expect.stringContaining('ENOSPC'),
       }));
     } finally {
-      fsp.writeFile.mockReset();
+      vi.mocked(fsp.writeFile).mockReset();
       await fsp.rm(dir, { recursive: true, force: true });
     }
   });

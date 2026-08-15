@@ -43,6 +43,8 @@ function makeGatedAgent(
       events.emit('tool.executed', { name: 'gated', id: 't0', durationMs: 0, ok: true });
       events.emit('provider.response', {
         ctx,
+
+        model: 'test-model',
         usage: { input: 1, output: 1 },
         stopReason: 'end_turn',
       });
@@ -185,6 +187,8 @@ describe('coordinator races + invariants (D2)', () => {
             });
             events.emit('provider.response', {
               ctx,
+
+              model: 'test-model',
               usage: { input: 1, output: 1 },
               stopReason: 'end_turn',
             });
@@ -238,6 +242,8 @@ describe('coordinator races + invariants (D2)', () => {
           events.emit('iteration.started', { ctx, index: 0 });
           events.emit('provider.response', {
             ctx,
+
+            model: 'test-model',
             usage: { input: 1, output: 1 },
             stopReason: 'end_turn',
           });

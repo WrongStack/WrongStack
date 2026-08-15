@@ -35,7 +35,7 @@ function makeDirector(extra: Partial<DirectorOpts> = {}, customRunner?: Runner):
     customRunner ??
       (async (task: TaskSpec, ctx: SubagentRunContext): Promise<SubagentRunOutcome> => {
         const bus = buses.get(ctx.subagentId);
-        bus?.emit('provider.response', { ctx: null as never, usage: { input: 100, output: 20 }, stopReason: 'end_turn' });
+        bus?.emit('provider.response', { ctx: null as never, model: 'test-model', usage: { input: 100, output: 20 }, stopReason: 'end_turn' });
         return { result: `done:${task.description}`, iterations: 1, toolCalls: 1 };
       }),
   );

@@ -51,6 +51,7 @@ describe('createDelegateTool', () => {
         bus.emit('tool.executed', { id: 'mock', name: 'mock', durationMs: 5, ok: true });
         bus.emit('provider.response', {
           ctx: null as never,
+          model: 'test-model',
           usage: { input: 100, output: 50 },
           stopReason: 'end_turn',
         });

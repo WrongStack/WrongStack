@@ -70,7 +70,7 @@ function makeStubAgent(opts: {
             timestamp: '2026-07-18T12:00:00.000Z',
           });
         }
-        events.emit('provider.response', { ctx, usage, stopReason: 'end_turn' });
+        events.emit('provider.response', { ctx, usage, stopReason: 'end_turn', model: 'test-model' });
         events.emit('iteration.completed', { ctx, index: i });
         if (opts.durationMs) {
           await new Promise<void>((r) => setTimeout(r, opts.durationMs));

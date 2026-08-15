@@ -68,6 +68,8 @@ describe('subagent budget edges (D3)', () => {
           });
           events.emit('provider.response', {
             ctx,
+
+            model: 'test-model',
             usage: { input: 1, output: 1 },
             stopReason: 'end_turn',
           });
@@ -128,6 +130,8 @@ describe('subagent budget edges (D3)', () => {
           });
           events.emit('provider.response', {
             ctx,
+
+            model: 'test-model',
             usage: { input: 1, output: 1 },
             stopReason: 'end_turn',
           });
