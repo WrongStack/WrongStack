@@ -65,20 +65,23 @@ allowBuilds:
   # The script only downloads binaries published by microsoft/node-pty;
   # it does not execute arbitrary remote code.
   node-pty: true
-  # onnxruntime-node: optionalDependency of @huggingface/transformers
-  # (pulled in by @wrongstack/vector-memory). Its postinstall
-  # (`node ./script/install`) downloads a prebuilt N-API-matching native
-  # binary from the package's own npm release artifacts (Microsoft's
-  # onnxruntime distribution, no third-party hosts); it does not compile
-  # or execute arbitrary remote code. Reviewed 2026-08-16 — same
-  # prebuild-download pattern as node-pty above. Without the approval,
-  # pnpm 11 fails `install` hard (ERR_PNPM_IGNORED_BUILDS), which broke
-  # every CI run since the vector-memory chain landed.
+  # onnxruntime-node: REGULAR dependency of @huggingface/transformers
+  # (pulled in by @wrongstack/vector-memory; not optional). Its postinstall
+  # (`node ./script/install`) downloads only files NOT bundled in the npm
+  # package: per script/install-metadata.js the requirements manifest is
+  # non-empty ONLY for linux/x64 (CUDA EP binaries), fetched from
+  # Microsoft's official NuGet feed (api.nuget.org — packages
+  # Microsoft.ML.OnnxRuntime.Gpu.Linux, same publisher as this package).
+  # win32 and darwin manifests are empty — no download on Windows/macOS.
+  # Reviewed 2026-08-16 against the 1.24.3 install scripts. Without the
+  # approval, pnpm 11 fails `install` hard (ERR_PNPM_IGNORED_BUILDS), which
+  # broke every CI run since the vector-memory chain landed.
   onnxruntime-node: true
-  # protobufjs: transitive dependency of @huggingface/transformers
-  # (vector-memory). Its postinstall (`node scripts/postinstall`) is a
-  # benign Node-version detection no-op that logs a deprecation hint on
-  # old Node; it downloads and executes nothing. Reviewed 2026-08-16.
+  # protobufjs: regular dependency of onnxruntime-web, which is a regular
+  # dependency of @huggingface/transformers (@wrongstack/vector-memory).
+  # Its postinstall (`node scripts/postinstall`) is a Node-version
+  # detection no-op that logs a deprecation hint on old Node; it downloads
+  # and executes nothing. Reviewed 2026-08-16.
   protobufjs: true
   # sharp: optionalDependency of @huggingface/transformers (pulled in by
   # @wrongstack/vector-memory). Sharp's postinstall downloads a prebuilt
