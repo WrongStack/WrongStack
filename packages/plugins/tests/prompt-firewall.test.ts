@@ -672,3 +672,120 @@ describe('issue #362 residuals: guarded scan + response budget', () => {
     expect(expired.tripped.size).toBeGreaterThan(1);
   });
 });
+
+describe('issue #371: windowed pattern scanning', () => {
+  // Probe helpers live in the #362 describe; redefine locally (same inline
+  // stub shape) — withReDoSGuard is module-imported above.
+  const probe = vi.mocked(withReDoSGuard);
+  const inlineProbe = (re: RegExp, input: string) => {
+    re.lastIndex = 0;
+    return Promise.resolve({ timedOut: false, match: re.exec(input) });
+  };
+  const STRIDE = 100_000 - 4_096; // accept-region stride (probe geometry)
+  const markers = (s: string) => (s.match(/\[REDACTED:[a-z0-9-]+\]/g) ?? []).length;
+  // Built at runtime like GH_TOKEN above so no credential-shaped literal
+  // appears in this file's source (the scheme and userinfo are split so
+  // even tool-output scrubbers have nothing contiguous to rewrite).
+  const mongoUri = ['mongodb', '://u:', 'p'.repeat(8), '@h.example.net/db'].join('');
+
+  /** Build filler text with parts spliced at absolute offsets. */
+  const build = (parts: Array<{ at: number; s: string }>, total: number): string => {
+    let text = '';
+    for (const p of parts.toSorted((a, b) => a.at - b.at)) {
+      text += 'x'.repeat(Math.max(0, p.at - text.length)) + p.s;
+    }
+    return text.length < total ? text + 'x'.repeat(total - text.length) : text;
+  };
+
+  it('a credential straddling the accept-region seam is found exactly once per instance', async () => {
+    probe.mockImplementation(inlineProbe);
+    // Token A (with a separator so the boundary lookbehind accepts it)
+    // starts 3 chars before the seam and ENDS past it — window 0 accepts
+    // it, window 1's overlapping slice must not re-count it. Token B sits
+    // fully inside window 1's region — window 0's slice contains it but
+    // must not accept it.
+    const text = build(
+      [
+        { at: STRIDE - 4, s: ` ${GH_TOKEN}` },
+        { at: STRIDE + 16, s: ` ${GH_TOKEN}` },
+      ],
+      300_000,
+    );
+    const { detections } = await detectSecretsGuarded(text, []);
+    expect(detections).toEqual([{ kind: 'github-token', count: 2 }]); // not 3, not 1
+
+    const out = redactSecrets(text, []);
+    expect(markers(out.text)).toBe(2);
+    expect(out.redactions).toBe(2);
+    expect(out.text).not.toContain(GH_TOKEN);
+  });
+
+  it('a multi-part credential (mongodb URI) straddling the seam is still redacted', async () => {
+    probe.mockImplementation(inlineProbe);
+    // mongodb URIs need user:pass@host — a multi-part shape that cannot
+    // complete unless the whole URI is inside one window. Straddling the
+    // accept seam, containment (64 KB tail) must keep it whole.
+    const text = build([{ at: STRIDE - 20, s: mongoUri }], 300_000);
+    const { detections } = await detectSecretsGuarded(text, []);
+    expect(detections.length).toBe(1);
+    expect(detections[0]!.count).toBe(1);
+
+    const out = redactSecrets(text, []);
+    expect(out.redactions).toBe(1);
+    expect(out.text).not.toContain('p'.repeat(8));
+  });
+
+  it('lookbehinds see TRUE context at the seam, not a synthetic string start', async () => {
+    probe.mockImplementation(inlineProbe);
+    // 'x' immediately before a token at the exact seam start: the boundary
+    // lookbehind (?<![A-Za-z0-9]) must REJECT it. A window sliced exactly
+    // at its accept boundary would see string-start and wrongly match.
+    const rejected = build([{ at: STRIDE - 1, s: `x${GH_TOKEN}` }], 300_000);
+    const { detections } = await detectSecretsGuarded(rejected, []);
+    expect(detections).toEqual([]);
+
+    // One char earlier with a space separator: correctly found.
+    const accepted = build([{ at: STRIDE - 1, s: ` ${GH_TOKEN}` }], 300_000);
+    const ok = await detectSecretsGuarded(accepted, []);
+    expect(ok.detections).toEqual([{ kind: 'github-token', count: 1 }]);
+  });
+
+  it('a prefix-run monster touching its slice end is recovered by bounded growth', async () => {
+    probe.mockImplementation(inlineProbe);
+    // 170 KB openai-shaped run: the windowed match is cut at the slice end
+    // (165 536), so growMatch re-measures on doubling slices (100 K → 200 K)
+    // and must recover the FULL run — redacted wholly, exactly once.
+    const run = ` sk-${'A'.repeat(170_000)}`; // ' ' so the lookbehind accepts 'sk-'
+    const text = build([{ at: STRIDE + 100, s: run }], 300_000);
+    const detections = detectSecrets(text, []);
+    expect(detections.length).toBe(1);
+    expect(detections[0]!.count).toBe(1);
+
+    const out = redactSecrets(text, []);
+    expect(markers(out.text)).toBe(1);
+    expect(out.text).not.toContain('A'.repeat(100)); // whole run gone, not a stub
+  });
+
+  it('structural bound: no synchronous regex input exceeds SCAN_WINDOW_LIMIT', async () => {
+    probe.mockImplementation(inlineProbe);
+    // Patch RegExp.prototype.exec and record every subject length across a
+    // multi-window guarded pass — the #371 invariant itself. (Growth slices
+    // are separately bounded by the doubling cap; none fire on this input.)
+    const { SCAN_WINDOW_LIMIT } = await import('../src/prompt-firewall');
+    const origExec = RegExp.prototype.exec;
+    let maxInput = 0;
+    RegExp.prototype.exec = function patched(this: RegExp, str: string | undefined) {
+      if (typeof str === 'string' && str.length > maxInput) maxInput = str.length;
+      return origExec.call(this, str as never);
+    } as typeof RegExp.prototype.exec;
+    try {
+      const text = build([{ at: 590_000, s: ` ${GH_TOKEN}` }], 600_000); // 6+ windows
+      const { detections } = await detectSecretsGuarded(text, []);
+      expect(detections).toEqual([{ kind: 'github-token', count: 1 }]);
+    } finally {
+      RegExp.prototype.exec = origExec;
+    }
+    expect(maxInput).toBeGreaterThan(0); // the patch actually observed execs
+    expect(maxInput).toBeLessThanOrEqual(SCAN_WINDOW_LIMIT);
+  });
+});

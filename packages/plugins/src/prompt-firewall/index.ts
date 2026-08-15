@@ -178,6 +178,164 @@ function createScanDeadline(): ScanDeadline {
   return { deadline: performance.now() + SCAN_PASS_BUDGET_MS, tripped: new Set<string>() };
 }
 
+// ---------------------------------------------------------------------------
+// Windowed scanning (issue #371): no synchronous regex receives full
+// unbounded input.
+//
+// The scan-pass budget (#370) fires only BETWEEN exec calls, so a single
+// catastrophic exec on the full leaf could still block the loop. The scan
+// now runs over bounded windows — same stride geometry as the probe — with
+// three seam-safety rules:
+//
+//  1. Accept-region partition. Window i accepts only matches STARTING in
+//     [i*stride, i*stride + stride) (final window: to end of text). Fresh
+//     regions partition every position, so each match is found exactly
+//     once regardless of window overlap — no double counts, no gaps.
+//  2. True-context prefix. Each window's slice starts `GUARD_PROBE_OVERLAP`
+//     before its accept region, so lookbehinds (`(?<![A-Za-z0-9])`, the
+//     json-key `(?<="…")`, telegram's `bot` lookbehind) and the
+//     private-key `(?:^|\n)` anchor are evaluated against the REAL
+//     preceding characters, not against a synthetic string start.
+//  3. Guaranteed containment + bounded growth. The slice extends
+//     SCAN_WINDOW_TAIL beyond the accept region, so every bounded pattern
+//     (max match ~11 KB: postgres URIs, PEM blocks) is fully contained in
+//     its accepting window. A match that still touches its slice end while
+//     text continues is re-measured by `growMatch` on a dedicated slice
+//     that doubles up to SCAN_MAX_GROWTH windows — every exec input stays
+//     ≤ SCAN_WINDOW_LIMIT * growth, never the full text.
+// ---------------------------------------------------------------------------
+
+/** Accept-region stride: window i accepts matches starting here. */
+const SCAN_WINDOW_STRIDE = GUARD_PROBE_LENGTH - GUARD_PROBE_OVERLAP;
+
+/**
+ * Extra slice headroom past the accept region so bounded-shape patterns
+ * (PEM blocks ~3 KB, postgres URIs ~11 KB) are fully contained in their
+ * accepting window instead of truncated at its seam.
+ */
+const SCAN_WINDOW_TAIL = 65_536;
+
+/**
+ * Hard bound on any single synchronous regex input in a scan pass. The
+ * structural guarantee of #371: even a growth-loop re-measure never hands
+ * a regex the full unbounded leaf.
+ */
+export const SCAN_WINDOW_LIMIT = GUARD_PROBE_LENGTH + SCAN_WINDOW_TAIL;
+
+/** Growth-loop cap (in probe windows) for monster matches. */
+const SCAN_MAX_GROWTH = 16;
+
+/** One regex match with absolute offsets into the scanned text. */
+interface WindowedMatch {
+  start: number;
+  end: number;
+  matched: string;
+}
+
+/**
+ * Re-measure a match that touched its window's slice end while text
+ * continued: it may be truncated. Runs the pattern on a dedicated slice
+ * starting at the match's own start (bounded, doubling), and returns the
+ * full match once it ends strictly inside a slice or reaches end of text.
+ * Returns null when the growth cap is hit or the pattern cannot match
+ * from that start — the caller keeps the windowed (possibly truncated)
+ * match, consistent with fail-open.
+ */
+function growMatch(
+  re: RegExp,
+  p: SecretPattern,
+  text: string,
+  absStart: number,
+  deadline: ScanDeadline | undefined,
+): WindowedMatch | null {
+  let size = GUARD_PROBE_LENGTH;
+  for (let grown = 0; grown < SCAN_MAX_GROWTH; grown++) {
+    if (deadline && performance.now() > deadline.deadline) {
+      deadline.tripped.add(p.kind);
+      return null;
+    }
+    const extEnd = Math.min(text.length, absStart + size);
+    const ext = text.slice(absStart, extEnd);
+    re.lastIndex = 0;
+    const em = re.exec(ext);
+    if (!em || em.index !== 0 || em[0].length === 0) return null;
+    const end = absStart + em[0].length;
+    if (end < extEnd || extEnd === text.length) {
+      return { start: absStart, end, matched: em[0] };
+    }
+    size *= 2; // still touching the slice end with text remaining — grow
+  }
+  return null; // cap exceeded: keep the truncated windowed match (documented)
+}
+
+/**
+ * Yield every match of `p` over `text`, one accepting window at a time.
+ * Zero-width matches are skipped before yielding (a future pattern without
+ * a length floor must not emit spurious markers). A deadline trip ends the
+ * walk early and records the kind as tripped — callers keep their
+ * fail-open semantics.
+ */
+function* execWindowed(
+  p: SecretPattern,
+  text: string,
+  deadline: ScanDeadline | undefined,
+): Generator<WindowedMatch, void, undefined> {
+  const re = new RegExp(p.re.source, p.re.flags);
+  let acceptLo = 0;
+  // High-water mark (chimera finding): a GROWN match can extend past a
+  // later window's accept region, so a match starting inside an
+  // already-yielded span is nested — emitting it again would double-mark
+  // in redaction and re-emit content in cleartext via the tail slice.
+  // Starts are ordered (disjoint accept regions), so start < highWater
+  // means fully nested: skip.
+  let highWater = 0;
+  for (let window = 0; acceptLo < text.length; window++) {
+    const sliceStart = window === 0 ? 0 : acceptLo - GUARD_PROBE_OVERLAP;
+    const sliceEnd = Math.min(text.length, sliceStart + SCAN_WINDOW_LIMIT);
+    const slice = text.slice(sliceStart, sliceEnd);
+    // Accept regions are ALWAYS disjoint: [acceptLo, min(acceptLo+stride,
+    // text.length)). Deriving acceptHi from sliceEnd (e.g. widening to the
+    // text end when this window's slice reaches it) is wrong — with a
+    // 165 536-char slice and a 95 904 stride, several trailing windows'
+    // slices reach text end simultaneously and their regions would overlap,
+    // double-accepting matches caught by the regression suite (#371).
+    const acceptHi = Math.min(acceptLo + SCAN_WINDOW_STRIDE, text.length);
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null = re.exec(slice);
+    while (m !== null) {
+      if (deadline && performance.now() > deadline.deadline) {
+        deadline.tripped.add(p.kind);
+        return;
+      }
+      const matched = m[0];
+      if (matched.length === 0) {
+        re.lastIndex += 1; // impossible for PATTERNS; keeps the loop safe
+        m = re.exec(slice);
+        continue;
+      }
+      const absStart = sliceStart + m.index;
+      const absEnd = absStart + matched.length;
+      if (absStart >= acceptLo && absStart < acceptHi) {
+        let final = { start: absStart, end: absEnd, matched };
+        if (absEnd === sliceEnd && sliceEnd < text.length) {
+          // Touched the slice end with text remaining — possibly truncated.
+          // growMatch runs the SAME regex (shared lastIndex): after it, the
+          // generator must resume the slice scan from the match end, not
+          // from growMatch's stale extended-slice position.
+          final = growMatch(re, p, text, absStart, deadline) ?? final;
+          re.lastIndex = m.index + final.matched.length;
+        }
+        if (final.start >= highWater) {
+          highWater = Math.max(highWater, final.end);
+          yield final;
+        } // else: nested in an already-yielded match — already covered
+      }
+      m = re.exec(slice);
+    }
+    acceptLo += SCAN_WINDOW_STRIDE;
+  }
+}
+
 /** Shared match core: count per-kind hits in `text`. */
 function countMatches(
   p: SecretPattern,
@@ -186,36 +344,23 @@ function countMatches(
   counts: Map<string, number>,
   deadline?: ScanDeadline,
 ): void {
-  // Cumulative budget check before starting a pattern whose predecessors
-  // already consumed the pass (issue #370).
+  // Pre-exec gate (#370): an expired pass pays no regex work at all.
   if (deadline && performance.now() > deadline.deadline) {
     deadline.tripped.add(p.kind);
     return;
   }
-  p.re.lastIndex = 0;
-  let m: RegExpExecArray | null = p.re.exec(text);
-  while (m !== null) {
-    if (deadline && performance.now() > deadline.deadline) {
-      deadline.tripped.add(p.kind);
-      return;
-    }
-    const matched = m[0];
-    if (!allow.some((a) => a.test(matched))) {
+  for (const m of execWindowed(p, text, deadline)) {
+    if (!allow.some((a) => a.test(m.matched))) {
       counts.set(p.kind, (counts.get(p.kind) ?? 0) + 1);
     }
-    m = p.re.exec(text);
   }
 }
 
 /**
  * Shared redaction core: replace hits of one pattern with `[REDACTED:<kind>]`.
  *
- * Implemented as an exec loop (not String.replace) so a ScanDeadline can
- * bound the pass between matches (issue #370) — String.replace is atomic
- * and cannot be interrupted. Every pattern in PATTERNS requires a
- * multi-character match (`{12,}`/`{36,}`-style quantifiers), so zero-width
- * matches cannot occur; the zero-width guard below keeps the loop safe by
- * construction anyway. On trip, the unprocessed tail is returned as-is
+ * Windowed since #371 — no synchronous regex sees the full leaf. On a
+ * deadline trip mid-walk the unprocessed tail is returned as-is
  * (fail-open, surfaced by the caller).
  */
 function replacePattern(
@@ -225,45 +370,23 @@ function replacePattern(
   redactions: { n: number },
   deadline?: ScanDeadline,
 ): string {
-  const re = new RegExp(p.re.source, p.re.flags);
-  let out = '';
-  let copied = 0;
-  // Pre-exec gate (chimera finding): an expired pass must not pay even one
-  // regex scan per pattern per leaf — a pattern that would NOT match never
-  // enters the loop below, so a loop-only check would leave its cost
-  // unbounded and its kind unrecorded. Gate first, mark tripped, skip.
   if (deadline && performance.now() > deadline.deadline) {
     deadline.tripped.add(p.kind);
     return text;
   }
-  re.lastIndex = 0;
-  let m: RegExpExecArray | null = re.exec(text);
-  while (m !== null) {
-    if (deadline && performance.now() > deadline.deadline) {
-      deadline.tripped.add(p.kind);
-      return out + text.slice(copied);
-    }
-    const matched = m[0];
-    if (matched.length === 0) {
-      // Zero-width safety (chimera finding): skip BEFORE emitting anything.
-      // Impossible for PATTERNS today (all require multi-char matches), but
-      // a future pattern without a length floor must not emit a spurious
-      // [REDACTED:] marker for an empty match — advance and continue.
-      re.lastIndex += 1;
-      m = re.exec(text);
-      continue;
-    }
-    out += text.slice(copied, m.index);
-    if (allow.some((a) => a.test(matched))) {
-      out += matched;
+  let out = '';
+  let copied = 0;
+  for (const m of execWindowed(p, text, deadline)) {
+    out += text.slice(copied, m.start);
+    if (allow.some((a) => a.test(m.matched))) {
+      out += m.matched;
     } else {
       redactions.n += 1;
       out += `[REDACTED:${p.kind}]`;
     }
-    copied = m.index + matched.length;
-    m = re.exec(text);
+    copied = m.end;
   }
-  return out + text.slice(copied);
+  return out + text.slice(copied); // natural end or deadline trip — same tail
 }
 
 /** Detect secret matches in text. Returns per-kind counts (no values). */
