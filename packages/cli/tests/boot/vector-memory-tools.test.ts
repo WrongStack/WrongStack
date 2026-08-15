@@ -16,7 +16,8 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ToolRegistry } from '@wrongstack/core/registry';
-import type { Context, Tool } from '@wrongstack/core/types';
+import type { Context } from '@wrongstack/core/agent';
+import type { Tool } from '@wrongstack/core/types';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
 import {
   VectorMemoryStore,

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const depGuardPlugin = (await import('../src/dep-guard')).default;
-const { parseInstallCommands, editDistance, typosquatOf } = await import('../src/dep-guard');
+const depGuardPlugin = (await import('../src/dep-guard/index.js')).default;
+const { parseInstallCommands, editDistance, typosquatOf } = await import('../src/dep-guard/index.js');
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -32,7 +32,7 @@ function makeApi(
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
     registerHook: vi.fn(() => vi.fn()),
-    llm: overrides.llm,
+    ...(overrides.llm ? { llm: overrides.llm } : {}),
   };
 }
 
@@ -266,7 +266,9 @@ describe('dep-guard plugin', () => {
     const api = makeApi();
     depGuardPlugin.setup(api as never);
     depGuardPlugin.teardown!(api as never);
-    const health = (await depGuardPlugin.health!()) as { counters: Record<string, number> };
+    const health = (await depGuardPlugin.health!()) as unknown as {
+      counters: Record<string, number>;
+    };
     expect(health.counters['installsSeen']).toBe(0);
     expect(api.log.info).toHaveBeenCalledWith('dep-guard: teardown complete', expect.any(Object));
   });

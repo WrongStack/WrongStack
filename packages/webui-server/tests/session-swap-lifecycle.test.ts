@@ -437,7 +437,7 @@ function makeHarness(input: {
     onBeforeSessionTodosReplaced: (sessionId, targetDir) =>
       onBeforeSessionTodosReplaced?.(sessionId, targetDir),
     onSessionSwapped,
-    canSwapSessions: input.canSwapSessions,
+    ...(input.canSwapSessions ? { canSwapSessions: input.canSwapSessions } : {}),
     abortActiveRun: input.abortActiveRun,
     sessionStartPayload: async () => ({
       sessionId: current.id,
