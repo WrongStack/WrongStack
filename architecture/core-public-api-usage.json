@@ -154,9 +154,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 956,
-      "typeOnly": 882,
-      "runtimeOrMixed": 236
+      "files": 957,
+      "typeOnly": 883,
+      "runtimeOrMixed": 237
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -14314,7 +14314,13 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/http-server/api-router.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/http-server/vector-memory-handlers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
