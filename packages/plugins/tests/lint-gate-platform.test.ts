@@ -87,7 +87,11 @@ async function installFakeLinter(
     'utf-8',
   );
   await fs.writeFile(entry, '#!/usr/bin/env node\n', 'utf-8');
-  return entry;
+  // The plugin's resolver returns realpath-resolved entries; on macOS
+  // os.tmpdir() (/var/folders/...) is a symlink to /private/var/...,
+  // so the expected value must be realpath-resolved too or every
+  // equality assertion diverges on darwin (plugin-guards macos-latest).
+  return fs.realpath(entry);
 }
 
 describe('lint-gate local linter resolution', () => {
