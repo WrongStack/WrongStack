@@ -62,8 +62,7 @@ function createChangeNode(graph: KnowledgeGraph, id: string, overrides: Partial<
     satisfiesGoals: [],
     ...overrides,
   };
-  // @ts-expect-error we're manually seeding the graph
-  graph.get = (graphId: string) => graphId === id ? node : undefined;
+  graph.get = (graphId: string) => (graphId === id ? node : undefined);
   return node;
 }
 

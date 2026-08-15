@@ -3,7 +3,8 @@ import { repairToolUseAdjacency } from '../../src/utils/message-invariants.js';
 import { parseIncomingImages, buildUserContentBlocks, IncomingImageError, MAX_INCOMING_IMAGES } from '../../src/utils/incoming-images.js';
 import { mergeCustomModelDefs } from '../../src/utils/merge-custom-models.js';
 import { mergeModelsPayload } from '../../src/utils/merge-models-payload.js';
-import type { Message, ContentBlock } from '../../src/types/messages.js';
+import type { ContentBlock } from '../../src/types/blocks.js';
+import type { Message } from '../../src/types/messages.js';
 
 // ── message-invariants ──────────────────────────────────────────────────
 

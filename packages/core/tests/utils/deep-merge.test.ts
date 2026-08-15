@@ -243,7 +243,6 @@ describe('deepMerge — prototype pollution protection', () => {
     const patch = { __proto__: { polluted: true }, b: 2 };
     const result = deepMerge(base, patch);
     expect(result).toEqual({ a: 1, b: 2 });
-    // @ts-expect-error testing proto-pollution guard
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 

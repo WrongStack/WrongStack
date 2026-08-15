@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   makeDesignVerifyToolCallMiddleware,
   setActiveKit,
-} from '../../src/execution/design-detect';
+} from '../../src/execution/design-detect.js';
 
 let root: string;
 beforeAll(async () => {

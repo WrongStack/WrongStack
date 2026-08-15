@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { materializeTokens } from '../../src/execution/design-materialize';
-import type { DesignKitTokens } from '../../src/types/design-kit';
+import { materializeTokens } from '../../src/execution/design-materialize.js';
+import type { DesignKitTokens } from '../../src/types/design-kit.js';
 
 const tokens: DesignKitTokens = {
   light: {

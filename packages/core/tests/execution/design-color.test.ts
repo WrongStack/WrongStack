@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colorToHex, isColorToken, oklchToHex, parseOklch } from '../../src/execution/design-color';
+import { colorToHex, isColorToken, oklchToHex, parseOklch } from '../../src/execution/design-color.js';
 
 describe('design-color — OKLCH conversion', () => {
   it('parses oklch components (percent + bare + alpha)', () => {

@@ -23,8 +23,9 @@ import type {
 } from '../../src/types/provider.js';
 import type { Tool, Permission } from '../../src/types/tool.js';
 import type { Context } from '../../src/core/context.js';
-import type { Usage } from '../../src/types/messages.js';
-import type { ContentBlock, Message } from '../../src/types/messages.js';
+import type { Usage } from '../../src/types/provider.js';
+import type { ContentBlock } from '../../src/types/blocks.js';
+import type { Message } from '../../src/types/messages.js';
 
 // ── EventBus ─────────────────────────────────────────────────────────────
 

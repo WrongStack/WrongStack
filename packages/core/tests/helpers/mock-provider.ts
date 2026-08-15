@@ -1,6 +1,6 @@
+import type { ContentBlock } from '../../src/types/blocks.js';
 import type {
   Capabilities,
-  ContentBlock,
   Provider,
   Request,
   Response,

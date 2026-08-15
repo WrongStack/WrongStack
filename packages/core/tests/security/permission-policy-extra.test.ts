@@ -3,7 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js';
-import type { Context, Tool } from '../../src/types/index.js';
+import type { Context } from '../../src/core/context.js';
+import type { Tool } from '../../src/types/index.js';
 
 function tool(
   name: string,

@@ -8,7 +8,8 @@ import {
   TRUST_POLICY_SCHEMA_VERSION,
   validateTrustPolicy,
 } from '../../src/security/permission-policy-schema.js';
-import type { Context, Tool } from '../../src/types/index.js';
+import type { Context } from '../../src/core/context.js';
+import type { Tool } from '../../src/types/index.js';
 
 function readTool(): Tool {
   return {

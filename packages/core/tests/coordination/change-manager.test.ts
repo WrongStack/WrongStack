@@ -195,7 +195,6 @@ describe('ChangeManager', () => {
     it('throws for non-proposed change', async () => {
       const proposal = sampleChangeProposal();
       const node = await manager.propose(proposal);
-      // @ts-expect-error testing invalid state
       await graph.update(node.id, { status: 'approved' });
 
       await expect(manager.submitForReview(node.id)).rejects.toThrow(
