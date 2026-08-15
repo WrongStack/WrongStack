@@ -7,7 +7,7 @@
       "relativeImports": 19
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 879,
+      "lines": 941,
       "relativeImports": 32
     },
     "packages/cli/src/goal-host.ts": {
@@ -166,6 +166,10 @@
       "lines": 946,
       "relativeImports": 1
     },
+    "packages/plugins/src/prompt-firewall/index.ts": {
+      "lines": 933,
+      "relativeImports": 2
+    },
     "packages/plugins/src/secret-scanner/index.ts": {
       "lines": 913,
       "relativeImports": 2
@@ -179,16 +183,16 @@
       "relativeImports": 3
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 985,
-      "relativeImports": 41
+      "lines": 1050,
+      "relativeImports": 43
     },
     "packages/sage/src/tools/memory-tools.ts": {
-      "lines": 879,
+      "lines": 971,
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
-      "lines": 939,
-      "relativeImports": 0
+      "lines": 968,
+      "relativeImports": 1
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
       "lines": 909,
@@ -379,7 +383,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 935,
+      "lines": 937,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -417,6 +421,10 @@
     "packages/webui-server/src/server/provider-handlers.ts": {
       "lines": 820,
       "relativeImports": 6
+    },
+    "packages/webui-server/src/server/start-webui.ts": {
+      "lines": 815,
+      "relativeImports": 23
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
       "lines": 949,
