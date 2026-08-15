@@ -51,6 +51,7 @@ import {
 import { decodeSessionId, strictDecodeParam } from './security-helpers.js';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import {
+  handleMemorySearch,
   handleVectorMemoryForget,
   handleVectorMemorySearch,
   handleVectorMemoryStatus,
@@ -79,6 +80,13 @@ export interface ApiRouterDeps {
   getVectorMemoryStore?: (() => VectorMemoryStore | undefined) | undefined;
   /** Model cache directory for the vector memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
+  /**
+   * Optional SAGE memory store. When provided, the
+   * `GET /api/memory/search?q=…&explain=1` route becomes active. Same
+   * strict opt-in contract as the vector memory store — non-CLI hosts
+   * that don't wire a memory store stay on their existing surface.
+   */
+  getMemoryStore?: (() => import('@wrongstack/core/types').MemoryPort | undefined) | undefined;
 }
 
 export async function handleApiRoutes(
@@ -575,6 +583,21 @@ export async function handleApiRoutes(
       return true;
     }
     await handleVectorMemoryStore(res, req, () => deps.getVectorMemoryStore?.());
+    return true;
+  }
+
+  // SAGE memory search — opt-in, like the vector memory routes. When
+  // `?explain=1` is set the response carries a per-channel score
+  // breakdown (lexical / vector / RRF final / `source`); without the
+  // flag the route degrades to a position-derived lexical-only score
+  // and the response shape stays compatible.
+  if (url.pathname === '/api/memory/search' && req.method === 'GET') {
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
+    await handleMemorySearch(res, url, () => deps.getMemoryStore?.());
     return true;
   }
 

@@ -100,6 +100,7 @@ import type {
   WSMemorySageListPage,
   WSMemorySageRecover,
   WSMemorySageRemember,
+  WSMemorySageSearchBreakdown,
   WSMemorySageUpdate,
 } from './sage.js';
 import type {
@@ -191,6 +192,7 @@ export type WSServerMessage =
   | WSMemorySageListCandidates
   | WSMemorySageGet
   | WSMemorySageGraph
+  | WSMemorySageSearchBreakdown
   | WSMemorySageUpdate
   | WSMemorySageRemember
   | WSMemorySageDelete

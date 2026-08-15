@@ -23,6 +23,7 @@ import {
   handleSageListPage,
   handleSageRecover,
   handleSageRemember,
+  handleSageSearchBreakdown,
   handleSageUpdate,
 } from '../src/server/memory-handlers.js';
 
@@ -639,6 +640,70 @@ describe('memory-handlers', () => {
       const options = findMemoriesForFile.mock.calls[0]?.[1] as Record<string, unknown>;
       expect(options).not.toHaveProperty('includeSuperseded');
       expect(options).not.toHaveProperty('includeDeleted');
+    });
+  });
+
+  describe('handleSageSearchBreakdown', () => {
+    it('sends error when SAGE is not available', async () => {
+      const ws = mockWs();
+      mockGetSageSurface.mockReturnValue(null);
+      await handleSageSearchBreakdown(ws, msg({ query: 'pool' }), {} as any);
+      const sent = JSON.parse(ws.send.mock.calls[0]![0] as string);
+      expect(sent.payload.error).toContain('SAGE');
+    });
+
+    it('sends 400-style error when the query is empty', async () => {
+      const ws = mockWs();
+      mockGetSageSurface.mockReturnValue(makeSage());
+      await handleSageSearchBreakdown(ws, msg({ query: '' }), {} as any);
+      const sent = JSON.parse(ws.send.mock.calls[0]![0] as string);
+      expect(sent.payload.error).toContain('Missing');
+    });
+
+    it('uses searchSageWithBreakdown when the surface implements it', async () => {
+      const ws = mockWs();
+      const searchSageWithBreakdown = vi.fn(async () => [
+        {
+          memory: { id: 'a', kind: 'fact', status: 'active', text: 'mem a', tags: [] },
+          lexicalScore: 0.9,
+          vectorScore: 0.7,
+          finalScore: 0.8,
+          source: 'both',
+        },
+      ]);
+      mockGetSageSurface.mockReturnValue(makeSage({ searchSageWithBreakdown }));
+      await handleSageSearchBreakdown(ws, msg({ query: 'pool', limit: 5 }), {} as any);
+      expect(searchSageWithBreakdown).toHaveBeenCalledWith('pool', {
+        limit: 5,
+        includeStatuses: ['active'],
+      });
+      const sent = JSON.parse(ws.send.mock.calls[0]![0] as string);
+      expect(sent.payload.source).toBe('breakdown');
+      expect(sent.payload.hits).toHaveLength(1);
+      expect(sent.payload.hits[0].source).toBe('both');
+    });
+
+    it('falls back to lexical-only synthesis when the rich variant is missing', async () => {
+      const ws = mockWs();
+      const searchSage = vi.fn(async () => [
+        { id: 'x', kind: 'fact', status: 'active', text: 'mem x', tags: [] },
+        { id: 'y', kind: 'note', status: 'active', text: 'mem y', tags: [] },
+      ]);
+      mockGetSageSurface.mockReturnValue(makeSage({ searchSage }));
+      await handleSageSearchBreakdown(
+        ws,
+        msg({ query: 'pool', limit: 5, includeStale: true }),
+        {} as any,
+      );
+      expect(searchSage).toHaveBeenCalledWith('pool', {
+        limit: 5,
+        includeStatuses: ['active', 'stale'],
+      });
+      const sent = JSON.parse(ws.send.mock.calls[0]![0] as string);
+      expect(sent.payload.source).toBe('lexical');
+      expect(sent.payload.hits).toHaveLength(2);
+      expect(sent.payload.hits[0].source).toBe('lexical');
+      expect(sent.payload.hits[0].vectorScore).toBeNull();
     });
   });
 });

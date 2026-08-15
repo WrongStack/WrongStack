@@ -31,6 +31,7 @@ export const CLIENT_KNOWLEDGE_MESSAGE_TYPES = [
   'memory.sage.listPage',
   'memory.sage.recover',
   'memory.sage.remember',
+  'memory.sage.searchBreakdown',
   'memory.sage.update',
 ] as const;
 

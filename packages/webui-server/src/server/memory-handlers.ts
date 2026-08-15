@@ -13,7 +13,7 @@
  */
 
 import type { MemoryPort } from '@wrongstack/core/types';
-import { getSageSurface } from '@wrongstack/sage';
+import { getSageSurface, type SageStatus } from '@wrongstack/sage';
 import type { WebSocket } from 'ws';
 import { errMessage, send } from './ws-utils.js';
 
@@ -194,6 +194,74 @@ export async function handleSageListPage(
     });
   } catch (err) {
     send(ws, { type: 'memory.sage.listPage', payload: { error: errMessage(err) } });
+  }
+}
+
+/**
+ * Run a search and return the per-channel score breakdown
+ * (lexical / vector / final + `source` attribution). Used by the
+ * WebUI's Memory panel so the operator can see WHY a memory is in
+ * the result list.
+ *
+ * Request:  { type: 'memory.sage.searchBreakdown', payload: { query, limit?, includeStale? } }
+ * Response: { type: 'memory.sage.searchBreakdown', payload: { hits, source } }
+ *
+ * `source` is one of:
+ *  - `breakdown`: the underlying surface returned a `VectorAugmentHit[]`
+ *    with both lexical and vector scores populated per hit.
+ *  - `lexical`: the surface only has the flat `searchSage` — we wrap
+ *    the results with a position-derived score and `source: 'lexical'`.
+ *
+ * Clients branch on `source` to decide whether to render the dual
+ * score panel or a single lexical column.
+ */
+export async function handleSageSearchBreakdown(
+  ws: WebSocket,
+  msg: unknown,
+  memoryStore: MemoryPort,
+): Promise<void> {
+  const Sage = getSageSurface(memoryStore);
+  if (!Sage) {
+    send(ws, {
+      type: 'memory.sage.searchBreakdown',
+      payload: { error: requiresSage('memory.sage.searchBreakdown') },
+    });
+    return;
+  }
+  try {
+    const payload = (msg as { payload?: Record<string, unknown> }).payload ?? {};
+    const query = typeof payload['query'] === 'string' ? (payload['query'] as string) : '';
+    if (query.trim().length === 0) {
+      send(ws, {
+        type: 'memory.sage.searchBreakdown',
+        payload: { error: 'Missing required field `query`' },
+      });
+      return;
+    }
+    const limit = typeof payload['limit'] === 'number' ? payload['limit'] : 20;
+    const includeStale = payload['includeStale'] === true;
+    const includeStatuses: SageStatus[] = includeStale ? ['active', 'stale'] : ['active'];
+    const options = { limit, includeStatuses };
+    if (typeof Sage.searchSageWithBreakdown === 'function') {
+      const hits = await Sage.searchSageWithBreakdown(query, options);
+      send(ws, { type: 'memory.sage.searchBreakdown', payload: { hits, source: 'breakdown' } });
+      return;
+    }
+    // Fallback: synthesize a lexical-only breakdown so the WebUI can
+    // render a uniform card even when the rich variant isn't
+    // available on the underlying surface.
+    const rows = await Sage.searchSage(query, options);
+    const total = rows.length;
+    const hits = rows.map((memory, index) => ({
+      memory,
+      vectorScore: null,
+      lexicalScore: total <= 1 ? 1 : 1 - index / Math.max(1, total - 1),
+      finalScore: total <= 1 ? 1 : 1 - index / Math.max(1, total - 1),
+      source: 'lexical' as const,
+    }));
+    send(ws, { type: 'memory.sage.searchBreakdown', payload: { hits, source: 'lexical' } });
+  } catch (err) {
+    send(ws, { type: 'memory.sage.searchBreakdown', payload: { error: errMessage(err) } });
   }
 }
 

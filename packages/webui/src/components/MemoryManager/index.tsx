@@ -11,6 +11,7 @@ import { MemoryDrawerToolbar } from './MemoryDrawerToolbar';
 import { MemoryEditor } from './MemoryEditor';
 import { MemoryFilters } from './MemoryFilters';
 import { MemoryList } from './MemoryList';
+import { MemorySearchBreakdown } from './MemorySearchBreakdown';
 import { MemoryManagerEmpty } from './MemoryManagerEmpty';
 import { MemoryManagerHeader } from './MemoryManagerHeader';
 import { MemoryManagerStatsBar } from './MemoryManagerStatsBar';
@@ -204,6 +205,17 @@ export function MemoryManager() {
                 onOpenCreate={state.openCreate}
                 onClearFilters={state.clearFilters}
               />
+              {state.searchQuery.trim().length > 0 && (
+                <MemorySearchBreakdown
+                  query={state.searchQuery.trim()}
+                  channel={state.searchBreakdown.channel}
+                  hits={state.searchBreakdown.hits}
+                  loading={state.searchBreakdown.loading}
+                  error={state.searchBreakdown.error}
+                  onOpenMemory={state.openMemory}
+                  onClear={state.clearSearchBreakdown}
+                />
+              )}
               {state.hasMore ? (
                 <div className="shrink-0 border-t border-border/60 p-2">
                   <Button

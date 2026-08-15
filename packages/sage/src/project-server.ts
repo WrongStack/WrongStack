@@ -404,6 +404,18 @@ async function dispatch(
       const args = rawArgs as SageServerOperations['searchSage']['args'];
       return store.searchSage(args.query, args.options);
     }
+    case 'searchSageWithBreakdown': {
+      const args = rawArgs as SageServerOperations['searchSageWithBreakdown']['args'];
+      // The rich variant is optional on the surface — only the
+      // vector-augmented in-process port implements it. When the
+      // daemon is talking to a non-augmented store, throw a
+      // recognizable error so the client can fall back to
+      // `searchSage` (which always works).
+      if (typeof store.searchSageWithBreakdown !== 'function') {
+        throw new Error('searchSageWithBreakdown is not available on this store');
+      }
+      return store.searchSageWithBreakdown(args.query, args.options);
+    }
     case 'unifiedSearch': {
       const args = rawArgs as SageServerOperations['unifiedSearch']['args'];
       return store.unifiedSearchService(args.query, args.options);

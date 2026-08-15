@@ -12,6 +12,7 @@ import type * as http from 'node:http';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  handleMemorySearch,
   handleVectorMemoryForget,
   handleVectorMemorySearch,
   handleVectorMemoryStatus,
@@ -316,5 +317,137 @@ describe('handleVectorMemoryForget', () => {
     );
     expect(statusCode(res)).toBe(500);
     expect(lastBody(res)).toMatchObject({ error: 'Vector memory forget failed' });
+  });
+});
+
+describe('handleMemorySearch', () => {
+  function makeMemoryPort(
+    overrides: { search?: (q: string, o: { limit: number }) => Promise<unknown[]> } & {
+      searchWithBreakdown?: (q: string, o: { limit: number }) => Promise<unknown[]>;
+    } = {},
+  ): unknown {
+    return {
+      getCapability: vi.fn((capability: { id?: string }) => {
+        if (capability.id === 'wrongstack.memory.surface.v1') {
+          return {
+            searchSage: overrides.search ?? vi.fn(async () => []),
+            ...(overrides.searchWithBreakdown
+              ? { searchSageWithBreakdown: overrides.searchWithBreakdown }
+              : {}),
+          };
+        }
+        return undefined;
+      }),
+    };
+  }
+
+  it('returns 400 when q is missing', async () => {
+    const res = makeRes();
+    const port = makeMemoryPort();
+    await handleMemorySearch(
+      resAsServer(res),
+      new URL('http://x/api/memory/search'),
+      () => port as never,
+    );
+    expect(statusCode(res)).toBe(400);
+    expect(lastBody(res)).toMatchObject({ error: 'Missing required query parameter `q`' });
+  });
+
+  it('returns 503 when no store is wired', async () => {
+    const res = makeRes();
+    await handleMemorySearch(
+      resAsServer(res),
+      new URL('http://x/api/memory/search?q=hello'),
+      () => undefined,
+    );
+    expect(statusCode(res)).toBe(503);
+  });
+
+  it('returns 503 when the store has no SAGE surface', async () => {
+    const res = makeRes();
+    const port = { getCapability: () => undefined };
+    await handleMemorySearch(
+      resAsServer(res),
+      new URL('http://x/api/memory/search?q=hello'),
+      () => port as never,
+    );
+    expect(statusCode(res)).toBe(503);
+  });
+
+  it('returns lexical-only hits when explain=1 is not set', async () => {
+    const res = makeRes();
+    const search = vi.fn(async () => [
+      {
+        id: 'm1',
+        text: 'memory a',
+        kind: 'fact',
+        status: 'active',
+        tags: ['t1'],
+      },
+      {
+        id: 'm2',
+        text: 'memory b',
+        kind: 'note',
+        status: 'active',
+        tags: [],
+      },
+    ]);
+    const port = makeMemoryPort({ search });
+    await handleMemorySearch(
+      resAsServer(res),
+      new URL('http://x/api/memory/search?q=hello&limit=10'),
+      () => port as never,
+    );
+    expect(statusCode(res)).toBe(200);
+    const body = lastBody(res) as { channel: string; hits: Array<{ source: string }> };
+    expect(body.channel).toBe('lexical');
+    expect(body.hits).toHaveLength(2);
+    expect(body.hits[0]!.source).toBe('lexical');
+    expect(body.hits[1]!.source).toBe('lexical');
+  });
+
+  it('returns breakdown hits when explain=1 and the rich variant is wired', async () => {
+    const res = makeRes();
+    const searchWithBreakdown = vi.fn(async () => [
+      {
+        memory: { id: 'a', text: 'mem a', kind: 'fact', status: 'active', tags: [] },
+        lexicalScore: 0.91,
+        vectorScore: 0.78,
+        finalScore: 0.84,
+        source: 'both',
+      },
+      {
+        memory: { id: 'b', text: 'mem b', kind: 'note', status: 'active', tags: [] },
+        lexicalScore: null,
+        vectorScore: 0.55,
+        finalScore: 0.55,
+        source: 'vector',
+      },
+    ]);
+    const port = makeMemoryPort({ searchWithBreakdown });
+    await handleMemorySearch(
+      resAsServer(res),
+      new URL('http://x/api/memory/search?q=hello&explain=1&limit=10'),
+      () => port as never,
+    );
+    expect(statusCode(res)).toBe(200);
+    const body = lastBody(res) as {
+      channel: string;
+      hits: Array<{ id: string; source: string; lexicalScore: number | null; vectorScore: number | null }>;
+    };
+    expect(body.channel).toBe('breakdown');
+    expect(body.hits).toHaveLength(2);
+    expect(body.hits[0]).toMatchObject({
+      id: 'a',
+      source: 'both',
+      lexicalScore: 0.91,
+      vectorScore: 0.78,
+    });
+    expect(body.hits[1]).toMatchObject({
+      id: 'b',
+      source: 'vector',
+      lexicalScore: null,
+      vectorScore: 0.55,
+    });
   });
 });

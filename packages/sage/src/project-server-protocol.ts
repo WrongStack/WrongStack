@@ -31,6 +31,7 @@ import type {
   SessionConsolidationResult,
   UpdateSageInput,
 } from './types.js';
+import type { VectorAugmentHit } from './retrieval/vector-augment.js';
 
 export const SAGE_PROJECT_SERVER_PROTOCOL_VERSION = 1;
 
@@ -157,6 +158,23 @@ export interface SageServerOperations {
     // gates that automatic injection depends on.
     args: { query: string; options?: SageSearchOptions | undefined };
     result: Sage[];
+  };
+  /**
+   * Rich variant of `searchSage` that returns per-channel score
+   * breakdowns (lexical / vector / RRF final, with a `source`
+   * attribution). Used by the WebUI's memory panel to surface WHY
+   * a memory was returned — same shape as the `memory_search_explain`
+   * tool, but reachable over IPC.
+   *
+   * Optional on the protocol level: clients should fall back to
+   * `searchSage` when the daemon returns a not-implemented error.
+   * The shape is identical to `VectorAugmentHit` so the consumer can
+   * branch on `source` / `vectorScore` uniformly with the in-process
+   * variant.
+   */
+  searchSageWithBreakdown: {
+    args: { query: string; options?: SageSearchOptions | undefined };
+    result: VectorAugmentHit[];
   };
   unifiedSearch: {
     args: { query: SearchQuery; options?: SearchOptions | undefined };

@@ -82,25 +82,40 @@ export class ProjectSageMemoryPort implements MemoryPort {
     retrieveForPath: (options) => this.call('retrieveForPath', { options }),
     searchSage: (query: string, options: unknown) =>
       this.call('searchSage', { query, options } as never),
-    // The remote IPC returns the flat `Sage[]`. Wrap it as a
-    // breakdown-shaped list with `source: 'lexical'` so consumers that
-    // branch on the breakdown shape degrade cleanly (no vector score
-    // when the channel isn't wired across the IPC boundary).
+    // The remote IPC prefers the rich variant when the daemon
+    // implements it. Servers that don't ship `searchSageWithBreakdown`
+    // (e.g. legacy / non-augmented backends) throw a recognizable
+    // "not available" error — we catch it and fall back to the flat
+    // `searchSage` shape, wrapping the results as lexical-only
+    // breakdown entries so consumers can branch on `source` and
+    // `vectorScore` uniformly.
     searchSageWithBreakdown: async (query, options) => {
-      const rows = (await this.call('searchSage', {
-        query,
-        options,
-      } as never)) as unknown[];
-      return rows.map((memory: unknown, index: number) => {
-        const total = rows.length;
-        return {
-          memory: memory as never,
-          vectorScore: null,
-          lexicalScore: total <= 1 ? 1 : 1 - index / (total - 1),
-          finalScore: total <= 1 ? 1 : 1 - index / (total - 1),
-          source: 'lexical' as const,
-        };
-      });
+      try {
+        const rows = (await this.call('searchSageWithBreakdown', {
+          query,
+          options,
+        } as never)) as unknown[];
+        return rows as never;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!/not available/i.test(message)) {
+          throw err;
+        }
+        const rows = (await this.call('searchSage', {
+          query,
+          options,
+        } as never)) as unknown[];
+        return rows.map((memory: unknown, index: number) => {
+          const total = rows.length;
+          return {
+            memory: memory as never,
+            vectorScore: null,
+            lexicalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+            finalScore: total <= 1 ? 1 : 1 - index / (total - 1),
+            source: 'lexical' as const,
+          };
+        });
+      }
     },
     findRelatedSage: (memoryIds, options) =>
       this.call(

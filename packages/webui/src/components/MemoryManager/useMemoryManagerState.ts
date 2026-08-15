@@ -21,6 +21,7 @@ export function useMemoryManagerState() {
     getSageGraph,
     recoverSage,
     resolveMemoryCandidate,
+    searchSageBreakdown,
   } = useWebSocket();
   const wsConnected = useConfigStore((state) => state.wsConnected);
 
@@ -42,6 +43,19 @@ export function useMemoryManagerState() {
   const [baselineDraft, setBaselineDraft] = useState<MemoryDraft>(emptyDraft);
   const [busyAction, setBusyAction] = useState<'create' | 'update' | 'delete' | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  /**
+   * Per-channel score breakdown for the active search query. Populated
+   * by `searchSageBreakdown` whenever the user types a query into the
+   * memory search box. The MemoryManager renders this as a row of
+   * cards above the regular list — the operator sees which channel
+   * matched and how much each one contributed.
+   */
+  const [searchBreakdown, setSearchBreakdown] = useState<{
+    hits: import('@/types/sage').WSSearchBreakdownHit[];
+    channel: 'breakdown' | 'lexical' | undefined;
+    loading: boolean;
+    error: string | null;
+  }>({ hits: [], channel: undefined, loading: false, error: null });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | SageStatus>('all');
   const [kindFilter, setKindFilter] = useState('all');
@@ -58,6 +72,8 @@ export function useMemoryManagerState() {
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
 
   const hasLoadedRef = useRef(false);
+  const searchBreakdownGenerationRef = useRef(0);
+  const searchBreakdownCleanupRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
   const listGenerationRef = useRef(0);
   const mutationGenerationRef = useRef(0);
@@ -193,8 +209,64 @@ export function useMemoryManagerState() {
       mutationGenerationRef.current += 1;
       listCleanupRef.current?.();
       mutationCleanupRef.current?.();
+      searchBreakdownCleanupRef.current?.();
     };
   }, [loadMemories]);
+
+  // Trigger the per-channel search breakdown when the user types a
+  // query. The hook races the response against a generation counter
+  // so an in-flight request from a previous query never clobbers a
+  // newer one. Empty query → reset to the empty state.
+  useEffect(() => {
+    const query = searchQuery.trim();
+    searchBreakdownCleanupRef.current?.();
+    if (query.length === 0) {
+      setSearchBreakdown({ hits: [], channel: undefined, loading: false, error: null });
+      return;
+    }
+    const generation = ++searchBreakdownGenerationRef.current;
+    setSearchBreakdown((prev) => ({ ...prev, loading: true, error: null }));
+    let off = () => {};
+    const cleanup = () => {
+      if (searchBreakdownCleanupRef.current === cleanup) {
+        searchBreakdownCleanupRef.current = null;
+      }
+      off();
+    };
+    searchBreakdownCleanupRef.current = cleanup;
+    off = client.on(
+      'memory.sage.searchBreakdown',
+      (message: {
+        payload: {
+          hits?: import('@/types/sage').WSSearchBreakdownHit[];
+          source?: 'breakdown' | 'lexical';
+          error?: string;
+        };
+      }) => {
+        if (generation !== searchBreakdownGenerationRef.current || !mountedRef.current) {
+          cleanup();
+          return;
+        }
+        cleanup();
+        if (message.payload.error) {
+          setSearchBreakdown({
+            hits: [],
+            channel: undefined,
+            loading: false,
+            error: message.payload.error,
+          });
+          return;
+        }
+        setSearchBreakdown({
+          hits: message.payload.hits ?? [],
+          channel: message.payload.source,
+          loading: false,
+          error: null,
+        });
+      },
+    );
+    searchSageBreakdown({ query, limit: 20 });
+  }, [searchQuery, client, searchSageBreakdown]);
 
   useEffect(() => {
     setGraphEdges([]);
@@ -584,6 +656,12 @@ export function useMemoryManagerState() {
     setDeletingId,
     searchQuery,
     setSearchQuery,
+    searchBreakdown,
+    clearSearchBreakdown: () => {
+      searchBreakdownGenerationRef.current += 1;
+      searchBreakdownCleanupRef.current?.();
+      setSearchBreakdown({ hits: [], channel: undefined, loading: false, error: null });
+    },
     statusFilter,
     setStatusFilter,
     kindFilter,

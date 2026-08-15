@@ -106,6 +106,36 @@ export interface WSMemorySageGraph {
   };
 }
 
+/**
+ * One hit in the breakdown-shaped search response. `vectorScore` is
+ * null when the result only came from the lexical channel (no
+ * semantic contribution); `lexicalScore` is null when only the
+ * vector channel found it. `finalScore` is the RRF-style combined
+ * score the WebUI should sort by default. `source` is a hint for
+ * the renderer (color-coding).
+ */
+export interface WSSearchBreakdownHit {
+  memory: SageEntry;
+  vectorScore: number | null;
+  lexicalScore: number | null;
+  finalScore: number;
+  source: 'lexical' | 'vector' | 'both';
+}
+
+export interface WSMemorySageSearchBreakdown {
+  type: 'memory.sage.searchBreakdown';
+  payload: {
+    hits?: WSSearchBreakdownHit[] | undefined;
+    /**
+     * `breakdown` when the rich variant was used; `lexical` when the
+     * fallback synthesized the score. Lets the UI decide whether to
+     * render a dual-column score card or a single lexical column.
+     */
+    source?: 'breakdown' | 'lexical' | undefined;
+    error?: string | undefined;
+  };
+}
+
 export interface WSMemorySageUpdate {
   type: 'memory.sage.update';
   payload: {

@@ -13,6 +13,7 @@ import {
   handleSageListPage,
   handleSageRecover,
   handleSageRemember,
+  handleSageSearchBreakdown,
   handleSageUpdate,
 } from './memory-handlers.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
@@ -89,6 +90,9 @@ export async function handleMemoryRoute(
       return true;
     case 'memory.sage.forFile':
       await handleSageForFile(ws, message, store);
+      return true;
+    case 'memory.sage.searchBreakdown':
+      await handleSageSearchBreakdown(ws, message, store);
       return true;
     default:
       return false;

@@ -390,6 +390,14 @@ export type WSClientMessageCore =
       payload: WSMemorySageForFileRequest;
     }
   | {
+      type: 'memory.sage.searchBreakdown';
+      payload: {
+        query: string;
+        limit?: number | undefined;
+        includeStale?: boolean | undefined;
+      };
+    }
+  | {
       type: 'memory.sage.remember';
       payload: {
         text: string;

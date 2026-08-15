@@ -27,6 +27,15 @@ export interface WsClientActionMethods {
     params?: { includeResolved?: boolean },
     options?: WSSendOptions,
   ): void;
+  /**
+   * Search SAGE memory and return the per-channel score breakdown
+   * (lexical / vector / RRF final / source attribution). Used by the
+   * Memory panel to surface WHY a memory matched.
+   */
+  searchSageBreakdown(
+    params: { query: string; limit?: number; includeStale?: boolean },
+    options?: WSSendOptions,
+  ): void;
   getSage(id: string, options?: WSSendOptions): void;
   getSageGraph(
     query: string,
@@ -171,6 +180,24 @@ const actionMethods = {
   ) {
     this.send(
       { type: 'memory.sage.listCandidates', payload: { ...params } },
+      options,
+    );
+  },
+
+  searchSageBreakdown(
+    this: WsClientActionHost,
+    params: { query: string; limit?: number; includeStale?: boolean },
+    options?: WSSendOptions,
+  ) {
+    this.send(
+      {
+        type: 'memory.sage.searchBreakdown',
+        payload: {
+          query: params.query,
+          ...(params.limit !== undefined ? { limit: params.limit } : {}),
+          ...(params.includeStale !== undefined ? { includeStale: params.includeStale } : {}),
+        },
+      },
       options,
     );
   },
