@@ -38,6 +38,7 @@
  *
  * @public
  */
+import { performance } from 'node:perf_hooks';
 import type { Plugin, PluginAPI } from '@wrongstack/core/types';
 import { cloneCredentialPatterns } from '../runtime/credential-patterns.js';
 import { withReDoSGuard } from '../runtime/redos-guard.js';
@@ -151,16 +152,53 @@ const GUARD_PROBE_LENGTH = 100_000;
  */
 const GUARD_PROBE_OVERLAP = 4_096;
 
+/**
+ * Cumulative wall-clock budget for one full scan pass (issue #370).
+ * Mirrors secret-scanner's RE_DOS_TIMEOUT_MS model: the probe licenses a
+ * pattern per window, but the scan itself (exec-to-exhaustion /
+ * replace-all across every leaf) also runs under a deadline. Once the
+ * deadline passes, further pattern work for that pass is skipped, the
+ * tripped kinds join the skip set, and the pass fails open loudly —
+ * consistent with the probe-timeout semantics.
+ */
+const SCAN_PASS_BUDGET_MS = 250;
+
+/**
+ * Mutable deadline shared across one scan pass. `tripped` collects the
+ * kinds that blew the budget mid-pass; the caller merges them into the
+ * visible skip surface (status + counters + warn log).
+ */
+interface ScanDeadline {
+  deadline: number;
+  tripped: Set<string>;
+}
+
+/** Create a fresh deadline for one scan pass (performance.now-based). */
+function createScanDeadline(): ScanDeadline {
+  return { deadline: performance.now() + SCAN_PASS_BUDGET_MS, tripped: new Set<string>() };
+}
+
 /** Shared match core: count per-kind hits in `text`. */
 function countMatches(
   p: SecretPattern,
   text: string,
   allow: RegExp[],
   counts: Map<string, number>,
+  deadline?: ScanDeadline,
 ): void {
+  // Cumulative budget check before starting a pattern whose predecessors
+  // already consumed the pass (issue #370).
+  if (deadline && performance.now() > deadline.deadline) {
+    deadline.tripped.add(p.kind);
+    return;
+  }
   p.re.lastIndex = 0;
   let m: RegExpExecArray | null = p.re.exec(text);
   while (m !== null) {
+    if (deadline && performance.now() > deadline.deadline) {
+      deadline.tripped.add(p.kind);
+      return;
+    }
     const matched = m[0];
     if (!allow.some((a) => a.test(matched))) {
       counts.set(p.kind, (counts.get(p.kind) ?? 0) + 1);
@@ -169,18 +207,63 @@ function countMatches(
   }
 }
 
-/** Shared redaction core: replace hits of one pattern with `[REDACTED:<kind>]`. */
+/**
+ * Shared redaction core: replace hits of one pattern with `[REDACTED:<kind>]`.
+ *
+ * Implemented as an exec loop (not String.replace) so a ScanDeadline can
+ * bound the pass between matches (issue #370) — String.replace is atomic
+ * and cannot be interrupted. Every pattern in PATTERNS requires a
+ * multi-character match (`{12,}`/`{36,}`-style quantifiers), so zero-width
+ * matches cannot occur; the zero-width guard below keeps the loop safe by
+ * construction anyway. On trip, the unprocessed tail is returned as-is
+ * (fail-open, surfaced by the caller).
+ */
 function replacePattern(
   p: SecretPattern,
   text: string,
   allow: RegExp[],
   redactions: { n: number },
+  deadline?: ScanDeadline,
 ): string {
-  return text.replace(new RegExp(p.re.source, p.re.flags), (match) => {
-    if (allow.some((a) => a.test(match))) return match;
-    redactions.n += 1;
-    return `[REDACTED:${p.kind}]`;
-  });
+  const re = new RegExp(p.re.source, p.re.flags);
+  let out = '';
+  let copied = 0;
+  // Pre-exec gate (chimera finding): an expired pass must not pay even one
+  // regex scan per pattern per leaf — a pattern that would NOT match never
+  // enters the loop below, so a loop-only check would leave its cost
+  // unbounded and its kind unrecorded. Gate first, mark tripped, skip.
+  if (deadline && performance.now() > deadline.deadline) {
+    deadline.tripped.add(p.kind);
+    return text;
+  }
+  re.lastIndex = 0;
+  let m: RegExpExecArray | null = re.exec(text);
+  while (m !== null) {
+    if (deadline && performance.now() > deadline.deadline) {
+      deadline.tripped.add(p.kind);
+      return out + text.slice(copied);
+    }
+    const matched = m[0];
+    if (matched.length === 0) {
+      // Zero-width safety (chimera finding): skip BEFORE emitting anything.
+      // Impossible for PATTERNS today (all require multi-char matches), but
+      // a future pattern without a length floor must not emit a spurious
+      // [REDACTED:] marker for an empty match — advance and continue.
+      re.lastIndex += 1;
+      m = re.exec(text);
+      continue;
+    }
+    out += text.slice(copied, m.index);
+    if (allow.some((a) => a.test(matched))) {
+      out += matched;
+    } else {
+      redactions.n += 1;
+      out += `[REDACTED:${p.kind}]`;
+    }
+    copied = m.index + matched.length;
+    m = re.exec(text);
+  }
+  return out + text.slice(copied);
 }
 
 /** Detect secret matches in text. Returns per-kind counts (no values). */
@@ -191,10 +274,14 @@ export function detectSecrets(text: string, allow: RegExp[]): Detection[] {
 }
 
 /** Redact secret matches in text, replacing each with `[REDACTED:<kind>]`. */
-export function redactSecrets(text: string, allow: RegExp[]): { text: string; redactions: number } {
+export function redactSecrets(
+  text: string,
+  allow: RegExp[],
+  deadline?: ScanDeadline,
+): { text: string; redactions: number } {
   const redactions = { n: 0 };
   let out = text;
-  for (const p of PATTERNS) out = replacePattern(p, out, allow, redactions);
+  for (const p of PATTERNS) out = replacePattern(p, out, allow, redactions, deadline);
   return { text: out, redactions: redactions.n };
 }
 
@@ -248,13 +335,18 @@ export async function detectSecretsGuarded(
   allow: RegExp[],
 ): Promise<{ detections: Detection[]; skipped: ScanSkip[] }> {
   const timedOut = await probeTimedOutPatterns(text);
+  // Cumulative scan-pass budget (issue #370): the count loop itself runs
+  // under a deadline, not just the probe's single exec. Tripped kinds join
+  // the probe's skip set — same fail-open surfacing either way.
+  const deadline = createScanDeadline();
   const counts = new Map<string, number>();
   for (const p of PATTERNS) {
-    if (!timedOut.has(p.kind)) countMatches(p, text, allow, counts);
+    if (!timedOut.has(p.kind)) countMatches(p, text, allow, counts, deadline);
   }
+  const allSkipped = new Set([...timedOut, ...deadline.tripped]);
   return {
     detections: [...counts.entries()].map(([kind, count]) => ({ kind, count })),
-    skipped: [...timedOut].sort().map((kind) => ({ kind, reason: 'redos-timeout' as const })),
+    skipped: [...allSkipped].sort().map((kind) => ({ kind, reason: 'redos-timeout' as const })),
   };
 }
 
@@ -266,11 +358,12 @@ export function redactSecretsGuarded(
   text: string,
   allow: RegExp[],
   skip: ReadonlySet<string>,
+  deadline?: ScanDeadline,
 ): { text: string; redactions: number } {
   const redactions = { n: 0 };
   let out = text;
   for (const p of PATTERNS) {
-    if (!skip.has(p.kind)) out = replacePattern(p, out, allow, redactions);
+    if (!skip.has(p.kind)) out = replacePattern(p, out, allow, redactions, deadline);
   }
   return { text: out, redactions: redactions.n };
 }
@@ -315,6 +408,7 @@ function redactDeep(
   counter: { n: number },
   skip?: ReadonlySet<string>,
   budget?: ScanBudget,
+  deadline?: ScanDeadline,
 ): unknown {
   if (typeof value === 'string') {
     if (budget) {
@@ -330,16 +424,17 @@ function redactDeep(
       budget.remaining -= value.length;
     }
     const { text, redactions } = skip
-      ? redactSecretsGuarded(value, allow, skip)
-      : redactSecrets(value, allow);
+      ? redactSecretsGuarded(value, allow, skip, deadline)
+      : redactSecrets(value, allow, deadline);
     counter.n += redactions;
     return text;
   }
-  if (Array.isArray(value)) return value.map((v) => redactDeep(v, allow, counter, skip, budget));
+  if (Array.isArray(value))
+    return value.map((v) => redactDeep(v, allow, counter, skip, budget, deadline));
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = redactDeep(v, allow, counter, skip, budget);
+      out[k] = redactDeep(v, allow, counter, skip, budget, deadline);
     }
     return out;
   }
@@ -420,6 +515,22 @@ const state: PromptFirewallState = {
   lastDetection: null,
   extensionUnregister: null,
 };
+
+/**
+ * Surface kinds that crossed the cumulative scan-pass budget mid-pass
+ * (issue #370): merge into the visible skip surface with the same
+ * counter/log treatment as probe timeouts. One call per tripped walk.
+ */
+function surfaceScanTrips(api: PluginAPI, tripped: ReadonlySet<string>): void {
+  for (const kind of tripped) {
+    if (!state.skippedPatterns.includes(kind)) state.skippedPatterns.push(kind);
+  }
+  state.timeoutCount += 1;
+  api.metrics.counter('redos_skips', 1);
+  api.log.warn('prompt-firewall: scan-pass budget exceeded — patterns skipped mid-pass (issue #370)', {
+    skipped: [...tripped],
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Plugin
@@ -557,9 +668,11 @@ const plugin: Plugin = {
             }
             if (cfg.mode === 'redact') {
               const counter = { n: 0 };
-              const redactedReq = redactDeep(req, cfg.allow, counter, skipSet) as Record<string, unknown>;
+              const deadline = createScanDeadline();
+              const redactedReq = redactDeep(req, cfg.allow, counter, skipSet, undefined, deadline) as Record<string, unknown>;
               state.requestRedactions += counter.n;
               api.metrics.counter('request_redactions', counter.n);
+              if (deadline.tripped.size > 0) surfaceScanTrips(api, deadline.tripped);
               const response = await inner(_ctx, redactedReq);
               return cfg.scanResponse ? redactResponse(response, cfg.allow, skipSet) : response;
             }
@@ -585,7 +698,9 @@ const plugin: Plugin = {
       const content = (response as { content?: unknown }).content;
       if (content === undefined) return response;
       const budget: ScanBudget = { remaining: RESPONSE_SCAN_BUDGET, truncated: false };
-      const redacted = redactDeep(content, allow, counter, skip, budget);
+      const deadline = createScanDeadline();
+      const redacted = redactDeep(content, allow, counter, skip, budget, deadline);
+      if (deadline.tripped.size > 0) surfaceScanTrips(api, deadline.tripped);
       // Only a real skip (budget.truncated) latches the flag — an exact-fit
       // walk that legitimately drives `remaining` to 0 is not truncation.
       if (budget.truncated) {

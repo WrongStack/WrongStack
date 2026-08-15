@@ -567,4 +567,108 @@ describe('issue #362 residuals: guarded scan + response budget', () => {
     // complete.
     expect(probe.mock.calls.length).toBe(1 + distinctKinds);
   });
+
+  // ---- issue #370: cumulative scan-pass budget ----
+  // The probe licenses ONE exec per (pattern, window); these pin that the
+  // count/replace loops themselves are bounded by a per-pass deadline.
+
+  it('scan-pass budget: a kind crossing the deadline mid-pass is skipped and surfaced (fail-open)', async () => {
+    // Deterministic trip via a MONOTONIC fake clock: every call advances
+    // 1 s, so any deadline (created +250 ms ahead) is crossed by the very
+    // next check. (A constant-offset clock freezes the deadline 250 ms
+    // ahead forever and never trips — the trip must come from the scan
+    // loop itself, which is exactly #370's gap: the probe only licenses
+    // one exec.)
+    const perf = await import('node:perf_hooks');
+    let t = 0;
+    const spy = vi.spyOn(perf.performance, 'now').mockImplementation(() => (t += 1000));
+    try {
+      const api = setup({ enabled: true, mode: 'redact' });
+      const inner = vi.fn().mockResolvedValue(resp('ok'));
+      await api._wrap!(null, req(`use ${GH_TOKEN} now`), inner);
+
+      // Fail-open (same contract as a probe timeout): the request passes
+      // with the token — but the mid-pass skip is loud, not silent.
+      expect(JSON.stringify(inner.mock.calls[0]![1])).toContain(GH_TOKEN);
+      expect(api.log.warn).toHaveBeenCalledWith(
+        'prompt-firewall: ReDoS budget exceeded, patterns skipped',
+        expect.objectContaining({ skipped: expect.arrayContaining(['github-token']) }),
+      );
+      expect(api.metrics.counter).toHaveBeenCalledWith('redos_skips', 1);
+      const status = await api._tools.prompt_firewall_status!.execute({});
+      const distinctKinds = new Set(status.patterns as string[]).size;
+      expect((status.counters as { timeoutCount: number }).timeoutCount).toBe(1);
+      // Every distinct kind tripped (constant-exhausted clock).
+      expect(new Set(status.skippedPatterns as string[]).size).toBe(distinctKinds);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('scan-pass budget: response-walk trip surfaces via the #370 mid-pass warning', async () => {
+    // Clean clock through detect + request redaction; the provider call
+    // flips the clock past the budget, so the RESPONSE walk trips and
+    // surfaceScanTrips fires with its own warn message.
+    const perf = await import('node:perf_hooks');
+    const realNow = perf.performance.now.bind(perf.performance);
+    let exhaust = false;
+    let t = 0;
+    const spy = vi.spyOn(perf.performance, 'now').mockImplementation(() => {
+      // Real clock while exhaust is off (detect + request redaction stay
+      // fast and untripped); once the provider flips it, the clock turns
+      // monotonic so the response walk's own deadline is crossed.
+      if (!exhaust) return realNow();
+      t += 1000;
+      return t;
+    });
+    try {
+      const api = setup({ enabled: true, mode: 'redact' });
+      const inner = vi.fn(async () => {
+        exhaust = true; // trip the clock before the response walk
+        return resp(`echo ${GH_TOKEN}`);
+      });
+      const out = (await api._wrap!(null, req('clean'), inner)) as {
+        content: Array<{ text: string }>;
+      };
+      // Fail-open: response text unredacted, trip surfaced loudly.
+      expect(out.content[0]!.text).toContain(GH_TOKEN);
+      expect(api.log.warn).toHaveBeenCalledWith(
+        'prompt-firewall: scan-pass budget exceeded — patterns skipped mid-pass (issue #370)',
+        expect.objectContaining({ skipped: expect.arrayContaining(['github-token']) }),
+      );
+      const status = await api._tools.prompt_firewall_status!.execute({});
+      expect((status.counters as { timeoutCount: number }).timeoutCount).toBe(1);
+      expect(status.skippedPatterns).toEqual(expect.arrayContaining(['github-token']));
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('scan-pass budget: unexpired deadline leaves redaction byte-identical; expired trips fail-open', async () => {
+    const { redactSecrets } = await import('../src/prompt-firewall');
+    const text = `token ${GH_TOKEN} and ${GH_TOKEN} again`;
+    type Deadline = Parameters<typeof redactSecrets>[2];
+    const fresh = { deadline: Number.POSITIVE_INFINITY, tripped: new Set<string>() } as Deadline;
+    const expired = { deadline: -1, tripped: new Set<string>() } as Deadline;
+
+    // Budget is a safety rail, not a semantics change: with time remaining,
+    // the exec-loop rewrite must match the unbudgeted output exactly.
+    const unbudgeted = redactSecrets(text, []);
+    const budgeted = redactSecrets(text, [], fresh);
+    expect(budgeted).toEqual(unbudgeted);
+    expect(budgeted.text).not.toContain(GH_TOKEN);
+    expect(budgeted.redactions).toBe(2);
+
+    // Expired deadline: every pattern is skipped up front, text unchanged,
+    // and the kind is recorded as tripped (fail-open, surfaced by caller).
+    const tripped = redactSecrets(text, [], expired);
+    expect(tripped.text).toBe(text);
+    expect(tripped.redactions).toBe(0);
+    expect(expired.tripped.has('github-token')).toBe(true);
+    // No-match kinds are recorded too: they never enter the match loop, so
+    // only the pre-exec gate can mark them (chimera finding — the text has
+    // no AWS key, yet the kind must still be tripped with zero work done).
+    expect(expired.tripped.has('aws-access-key')).toBe(true);
+    expect(expired.tripped.size).toBeGreaterThan(1);
+  });
 });
