@@ -168,6 +168,10 @@
       "types": "./dist/injection-shield.d.ts",
       "import": "./dist/injection-shield.js"
     },
+    "./prompt-firewall": {
+      "types": "./dist/prompt-firewall.d.ts",
+      "import": "./dist/prompt-firewall.js"
+    },
     "./llm-cache": {
       "types": "./dist/llm-cache.d.ts",
       "import": "./dist/llm-cache.js"
@@ -179,10 +183,6 @@
     "./pr-drafter": {
       "types": "./dist/pr-drafter.d.ts",
       "import": "./dist/pr-drafter.js"
-    },
-    "./prompt-firewall": {
-      "types": "./dist/prompt-firewall.d.ts",
-      "import": "./dist/prompt-firewall.js"
     },
     "./auto-escalate": {
       "types": "./dist/auto-escalate.d.ts",

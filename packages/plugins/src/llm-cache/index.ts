@@ -232,6 +232,12 @@ const plugin: Plugin = {
     'Caches identical provider requests and short-circuits the provider call on a hit (wrapProviderRunner). Opt-in; deterministic-only by default.',
   apiVersion: '^0.1.10',
   capabilities: { tools: true },
+  // Wrap-stack contract (issue #362): ExtensionRegistry composes wrappers
+  // first-registered = outermost, and both dependsOn and optionalDeps load
+  // dependencies first. Declaring prompt-firewall here guarantees the
+  // firewall wraps OUTSIDE this cache even if the manifest order changes —
+  // otherwise a cache hit short-circuits `inner` and bypasses redaction.
+  optionalDeps: ['prompt-firewall'],
   defaultConfig: { ...DEFAULTS },
   configSchema: {
     type: 'object',

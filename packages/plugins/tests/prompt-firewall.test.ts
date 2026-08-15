@@ -180,11 +180,81 @@ describe('prompt-firewall plugin', () => {
     expect(KIND_ALIASES.openai_key).toBe('openai-key');
   });
 
-  it('loads after llm-cache in the official export order (outer wrap)', async () => {
-    const generated = await import('../src/generated-plugin-exports.js');
-    const keys = Object.keys(generated);
-    expect(keys.indexOf('llmCachePlugin')).toBeGreaterThanOrEqual(0);
-    expect(keys.indexOf('promptFirewallPlugin')).toBeGreaterThan(keys.indexOf('llmCachePlugin'));
+  it('is listed before llm-cache in the official manifest (outer wrap, issue #362)', async () => {
+    // ExtensionRegistry composes wrapProviderRunner first-registered =
+    // outermost. The manifest order (and llm-cache's optionalDeps on this
+    // plugin) must keep the firewall OUTSIDE the cache so a cache hit can
+    // never short-circuit redaction.
+    const { OFFICIAL_PLUGIN_MANIFEST } = await import('../src/manifest/index.js');
+    const names = OFFICIAL_PLUGIN_MANIFEST.map((e: { name: string }) => e.name);
+    expect(names.indexOf('prompt-firewall')).toBeGreaterThanOrEqual(0);
+    expect(names.indexOf('llm-cache')).toBeGreaterThan(names.indexOf('prompt-firewall'));
+
+    const { default: llmCachePlugin } = await import('../src/llm-cache/index.js');
+    expect(llmCachePlugin.optionalDeps).toContain('prompt-firewall');
+  });
+
+  it('composed stack redacts before llm-cache keys and caches (issue #362 regression)', async () => {
+    // Mirror the real composition: ExtensionRegistry with the firewall
+    // extension registered BEFORE the llm-cache extension (registration
+    // order guaranteed by the manifest + optionalDeps pin above).
+    const { ExtensionRegistry } = await import('../../core/src/extension/registry.js');
+    const llmCache = (await import('../src/llm-cache/index.js')).default;
+    const firewallApi = setup({ enabled: true, mode: 'redact' });
+    const cacheApi = (() => {
+      const tools: Record<string, Tool> = {};
+      const api: MockApi = {
+        tools: { register: (t: Tool) => { tools[t.name] = t; } },
+        config: { extensions: { 'llm-cache': { enabled: true } } },
+        log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
+        extensions: {
+          register: vi.fn((ext: { wrapProviderRunner?: WrapFn }) => {
+            (api as { _wrap?: WrapFn })._wrap = ext.wrapProviderRunner;
+            return vi.fn();
+          }),
+        },
+        emitCustom: vi.fn(),
+        _tools: tools,
+      };
+      llmCache.setup(api as never);
+      return api;
+    })();
+
+    const registry = new ExtensionRegistry();
+    for (const [name, api] of [
+      ['prompt-firewall', firewallApi],
+      ['llm-cache', cacheApi],
+    ] as const) {
+      registry.register({
+        name,
+        wrapProviderRunner: (api as { _wrap?: WrapFn })._wrap as never,
+      } as never);
+    }
+
+    const provider = vi.fn().mockImplementation((_ctx: unknown, r: unknown) => {
+      const text = JSON.stringify(r);
+      if (text.includes(GH_TOKEN)) throw new Error('raw secret reached the provider');
+      return Promise.resolve(resp('ok'));
+    });
+    const composed = registry.wrapProviderRunner(provider as never);
+
+    // First call: firewall redacts, cache misses and stores the redacted copy.
+    const withSecret = req(`use ${GH_TOKEN} now`);
+    await composed({} as never, withSecret as never);
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(provider.mock.calls[0]![1])).not.toContain(GH_TOKEN);
+
+    // Second call — the attack: same raw secret, but now a cache HIT would
+    // short-circuit `inner` entirely. The firewall must still see the raw
+    // request first; the provider must never receive the secret.
+    await composed({} as never, withSecret as never);
+    expect(provider).toHaveBeenCalledTimes(1); // served from cache
+    const secondStatus = await firewallApi._tools.prompt_firewall_status!.execute({});
+    expect((secondStatus.counters as { invocations: number }).invocations).toBe(2);
+    expect(
+      (secondStatus.counters as { requestsWithSecrets: number }).requestsWithSecrets,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it('setup twice unregisters the first wrap (H1 reload)', () => {

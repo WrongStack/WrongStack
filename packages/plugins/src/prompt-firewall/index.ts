@@ -266,6 +266,11 @@ const plugin: Plugin = {
     'Scans the provider wire for credential leaks before context reaches the LLM API (wrapProviderRunner); redact/warn/block. Opt-in; redact by default.',
   apiVersion: '^0.1.10',
   capabilities: { tools: true },
+  // Wrap-stack contract (issue #362): ExtensionRegistry composes wrappers
+  // first-registered = outermost. The manifest lists this plugin before
+  // llm-cache, and llm-cache declares this plugin in optionalDeps, so the
+  // firewall is the outer wrap: every request is scanned/redacted before
+  // llm-cache can fingerprint or cache it.
   defaultConfig: { enabled: false, mode: 'redact', scanResponse: true, allow: [] },
   configSchema: {
     type: 'object',
@@ -338,10 +343,13 @@ const plugin: Plugin = {
           const req = (request ?? {}) as Record<string, unknown>;
           state.invocations += 1;
 
-          // Wrap-stack contract (issue #362): this wrap is registered AFTER
-          // llm-cache in generated-plugin-exports, so it is the *outer* wrap.
-          // Cache therefore only keys/stores already-redacted requests; a
-          // cache hit cannot smuggle a pre-firewall credential.
+          // Wrap-stack contract (issue #362): the manifest lists this plugin
+          // before llm-cache and llm-cache declares this plugin in
+          // optionalDeps, so ExtensionRegistry (first-registered = outermost)
+          // makes the firewall the OUTER wrap. Every request is
+          // scanned/redacted first; llm-cache only sees — and only caches —
+          // already-redacted requests, so a cache hit cannot replay a
+          // pre-firewall credential.
           const requestText = collectText(req);
           for (const extra of EXTRA_PATTERNS) {
             const guarded = await withReDoSGuard(extra.re, requestText, 250, {

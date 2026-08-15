@@ -273,6 +273,14 @@ export const OFFICIAL_PLUGIN_AUDIT_ENTRIES = [
     canDisable: true,
   },
   {
+    name: 'prompt-firewall',
+    risk: 'high',
+    summary:
+      'Scans the provider wire for credential leaks before context reaches the LLM API (wrapProviderRunner); redact/warn/block. Opt-in; redact by default.',
+    defaultState: 'inactive',
+    canDisable: true,
+  },
+  {
     name: 'llm-cache',
     risk: 'medium',
     summary:
@@ -293,14 +301,6 @@ export const OFFICIAL_PLUGIN_AUDIT_ENTRIES = [
     risk: 'low',
     summary:
       'Collects session work (commits, edited files, diff) and drafts a pull-request description',
-    defaultState: 'inactive',
-    canDisable: true,
-  },
-  {
-    name: 'prompt-firewall',
-    risk: 'high',
-    summary:
-      'Scans the provider wire for credential leaks before context reaches the LLM API (wrapProviderRunner); redact/warn/block. Opt-in; redact by default.',
     defaultState: 'inactive',
     canDisable: true,
   },

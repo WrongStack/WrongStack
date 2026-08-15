@@ -14,6 +14,7 @@
  * - Windows equivalents: taskkill, tskill
  * - PowerShell Stop-Process / kill alias: Stop-Process -Name node, kill -Id 12345
  * - WMIC process termination: wmic process where "name='node.exe'" delete
+ *   or wmic process where "ProcessId=1234" delete
  * - Script-based kill (script is named kill*.sh, kill*.ps1, kill*.bat)
  *
  * Security contract: every "Handles" bullet must map to both a detector
@@ -308,6 +309,23 @@ export function parseKillCommand(command: string): KillCommand | null {
       };
     }
 
+    // ── WMIC process where "ProcessId=1234" delete ─────────────────────
+    // Issue #360: the name= branch above misses PID-targeted wmic deletes;
+    // extract the ProcessId so it flows through the same protected-PID check
+    // (isKillProtected -> registry.shouldBlockKill) as taskkill /PID.
+    const wmicPidMatch = normalized.match(
+      /^wmic\s+process\s+where\s+['"]?processid\s*=\s*['"]?(\d+)/i,
+    );
+    if (wmicPidMatch?.[1]) {
+      return {
+        pid: parseInt(wmicPidMatch[1], 10),
+        signal: 'FORCE',
+        isGroupKill: false,
+        isAllKill: false,
+        originalCommand: command,
+      };
+    }
+
     // ── Scripts named kill*.ps1, kill*.bat, kill*.cmd, kill*.sh ──────
     // Blocked conservatively — we can't inspect script contents. Uses
     // SCRIPT_KILL_RE which ends with (?:\s|$) so zero-arg scripts match.
@@ -472,7 +490,11 @@ export async function isKillProtected(kill: KillCommand): Promise<boolean> {
 
   // Single process kill - check if the target PID is protected
   if (kill.pid !== undefined) {
-    return registry.shouldBlockKill(kill.pid);
+    if (await registry.shouldBlockKill(kill.pid)) return true;
+    // Parity with exec-kill-guard: block self/parent even when the
+    // persistent registry has no live entry for them.
+    if (kill.pid === process.pid || kill.pid === process.ppid) return true;
+    return false;
   }
 
   return false;

@@ -113,6 +113,30 @@ describe('parseKillCommand', () => {
     expect(result).not.toBeNull();
   });
 
+  // ── wmic (Windows) ──────────────────────────────────────────────────
+
+  it('parses wmic process where "name=..." delete', () => {
+    if (!isWin) return; // wmic is Windows-only
+    const result = parseKillCommand('wmic process where "name=\'node.exe\'" delete');
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('node.exe');
+  });
+
+  it('parses wmic process where "ProcessId=N" delete (issue #360)', () => {
+    if (!isWin) return; // wmic is Windows-only
+    const result = parseKillCommand('wmic process where "ProcessId=1234" delete');
+    expect(result).not.toBeNull();
+    expect(result!.pid).toBe(1234);
+    expect(result!.signal).toBe('FORCE');
+  });
+
+  it('parses unquoted wmic ProcessId form (issue #360)', () => {
+    if (!isWin) return; // wmic is Windows-only
+    const result = parseKillCommand('wmic process where ProcessId=1234 delete');
+    expect(result).not.toBeNull();
+    expect(result!.pid).toBe(1234);
+  });
+
   // ── non-kill commands ──────────────────────────────────────────────────
 
   it('returns null for non-kill commands', () => {

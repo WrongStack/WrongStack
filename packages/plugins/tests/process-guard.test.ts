@@ -53,6 +53,17 @@ describe('issue #360 kill-defense regression matrix', () => {
     expect(parseKillCommand('taskkill /F /PID 12345')).toMatchObject({ pid: 12345 });
     expect(parseKillCommand('Stop-Process -Id 12345 -Force')).toMatchObject({ pid: 12345 });
     expect(parseKillCommand('wmic process where "name=\'node.exe\'" delete')).toBeTruthy();
+    expect(parseKillCommand('wmic process where "ProcessId=12345" delete')).toMatchObject({
+      pid: 12345,
+    });
+  });
+
+  it.runIf(isWin)('bash-path wmic ProcessId delete of own PID is blocked (issue #360)', async () => {
+    const { checkAndBlockKillCommand } = await import('../../tools/src/bash-kill-guard.js');
+    const result = await checkAndBlockKillCommand(
+      `wmic process where "ProcessId=${process.pid}" delete`,
+    );
+    expect(result.blocked).toBe(true);
   });
 
   it.runIf(!isWin)('bash-kill-guard parses POSIX kill', async () => {

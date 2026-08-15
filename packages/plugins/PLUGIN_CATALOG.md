@@ -39,10 +39,10 @@
 | notify-hub | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/notify-hub` | POSTs session events (stop, tool errors, budget thresholds) and ad-hoc notify_send messages to a configurable webhook |
 | changelog-writer | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/changelog-writer` | Collects session work (commits, edits, manual notes) and writes Keep-a-Changelog entries under [Unreleased] on demand |
 | injection-shield | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/injection-shield` | Scans tool output (fetched pages, files) for prompt-injection patterns and warns the model that content is data, not instructions |
+| prompt-firewall | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/prompt-firewall` | Scans the provider wire for credential leaks before context reaches the LLM API (wrapProviderRunner); redact/warn/block. Opt-in; redact by default. |
 | llm-cache | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/llm-cache` | Caches identical provider requests and short-circuits the provider call on a hit (wrapProviderRunner). Opt-in; deterministic-only by default. |
 | model-router | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/model-router` | Routes each provider call to a different model by declarative size/tool rules (wrapProviderRunner). Opt-in; dry-run by default; routes within the active provider only. |
 | pr-drafter | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/pr-drafter` | Collects session work (commits, edited files, diff) and drafts a pull-request description |
-| prompt-firewall | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/prompt-firewall` | Scans the provider wire for credential leaks before context reaches the LLM API (wrapProviderRunner); redact/warn/block. Opt-in; redact by default. |
 | auto-escalate | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/auto-escalate` | On retryable provider errors, retries the turn with the next model in an escalation ladder (onError). Opt-in; defers to default recovery otherwise. |
 | test-coverage-gate | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/test-coverage-gate` | PostToolUse hook that detects test coverage regressions after source-file edits |
 | type-gate | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/type-gate` | PostToolUse hook that runs TypeScript type-checking after every write or edit to a source file |
