@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.308.0] — 2026-08-15
+
+### Added
+
+- **Vector Memory adds local semantic recall alongside SAGE.** A dedicated `@wrongstack/vector-memory` package provides local ONNX embeddings, SQLite-backed storage, lifecycle wiring, runtime tools, and WebUI/SimpleUI panels without replacing the existing lexical memory path.
+- **Prompt journal evidence is now inspectable and recoverable.** Runtime prompt captures can be exported through the WebUI, while bounded persistence and recovery keep useful prompt history available across session failures.
+
+### Changed
+
+- **Vibe Protocol orchestration and codebase proof are wired through the runtime.** The SDD, CLI, tool registry, and instruction surfaces now share the implementation path, with checked-in proof artifacts and targeted tests covering the integration.
+- **All root, package, app, and website release surfaces are aligned to `0.308.0`.** The website metadata, JSON-LD, README highlights, and release changelog now match the published workspace manifests.
+
+### Security
+
+- **Plugin execution boundaries received another hardening pass.** Runtime sandboxing, ReDoS guards, path targeting, prompt-firewall handling, and security-sensitive plugin tests now cover more hostile inputs and failure paths.
+- **The install-script allowlist explicitly documents `sharp`.** It is reviewed as the optional `@huggingface/transformers` image backend used by Vector Memory and remains covered by the lockfile freshness guard.
+
 ## [0.307.0] — 2026-08-15
 
 ### Added

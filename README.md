@@ -52,34 +52,25 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.307.0
+### What's new in 0.308.0
 
-- **The WebUI file manager is now a real project workspace.** Create, delete,
-  rename, and move files; receive live tree updates; search fuzzily; sort by
-  size; and see Git decorations without leaving the browser.
-- **Editing is faster without taxing startup.** Open tabs survive refresh,
-  Monaco loads only when a file is opened, and SimpleUI adds syntax highlighting,
-  Tab indentation, and Ctrl/Cmd+S save.
-- **Fallback routing is observable before it is needed.** `/fallback doctor`
-  diagnoses chain and credential health, `/fallback test` simulates rotation,
-  and `/fallback gate` controls the hand-off countdown.
-- **SDD plans can be revised safely.** The guided flow can rewind spec,
-  implementation, and task-review phases, invalidates stale downstream work,
-  and keeps its generated graph aligned with Kanban execution.
-- **TechStack reports policy risk.** License obligations, cross-workspace version
-  drift, cached findings, and compliant SPDX 2.3 package fields now sit beside
-  dependency inventory.
-- **Autonomous execution fails closed more consistently.** Goal phases stop on
-  terminal failures by default, empty plans are rejected, delegate telemetry
-  reflects successful spawns, and context-overflow recovery avoids wasted probes.
-- **Trust boundaries are tighter.** Telegram input is fenced as untrusted data,
-  shell writes to WrongStack state files remain destructive under YOLO, WebUI
-  path launches validate canonical targets, and MCP tool whitelists fail closed.
-- **Long-lived sessions do less idle work and retain fresher context.** Live
-  broadcasts are deduplicated, prompt caches include every rendered input, and
-  Chronicle migration metrics are idempotent and failure-safe.
+- **Vector Memory adds local semantic recall alongside SAGE.** Local ONNX
+  embeddings, a dedicated SQLite store, lifecycle wiring, runtime tools, and
+  WebUI/SimpleUI panels form one integrated path without replacing lexical memory.
+- **Prompt journal evidence is inspectable and recoverable.** Captures can be
+  exported through the WebUI, while bounded persistence keeps useful prompt
+  history available across session failures.
+- **Vibe Protocol orchestration is wired end to end.** SDD, CLI, tool-registry,
+  instruction, code-proof, and targeted-test surfaces now share the same runtime
+  implementation path.
+- **Plugin boundaries are harder to abuse.** Runtime sandboxing, ReDoS guards,
+  path targeting, prompt-firewall handling, and security-focused regression tests
+  cover more hostile inputs and failure paths.
+- **Release and supply-chain metadata are aligned.** Every workspace manifest,
+  website metadata surface, and the reviewed `sharp` install-script rationale now
+  report or support the `0.308.0` release line.
 
-See the complete [0.307.0 release notes](CHANGELOG.md).
+See the complete [0.308.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -88,7 +79,7 @@ See the complete [0.307.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.307.0](#whats-new-in-03070)
+- [What's new in 0.308.0](#whats-new-in-03080)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

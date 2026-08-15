@@ -77,7 +77,7 @@ export const skills = [
   },
 ] as const;
 
-/** The 68 built-in tools from packages/tools/src/builtin.ts, grouped. */
+/** The 69 built-in tools from packages/tools/src/builtin.ts, grouped. */
 export const toolGroups = [
   {
     label: 'Browser & E2E',
@@ -339,9 +339,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.307.0',
+    version: '0.308.0',
     date: '2026-08-15',
     latest: true,
+    tagline: 'Local vector recall, inspectable prompt evidence, and hardened plugin boundaries',
+    highlights: [
+      'Vector Memory adds local ONNX embeddings, dedicated SQLite storage, lifecycle wiring, runtime tools, and WebUI/SimpleUI panels alongside SAGE lexical recall',
+      'Prompt journal captures can be exported through the WebUI and recovered from bounded persistent history after session failures',
+      'Vibe Protocol orchestration is wired across SDD, CLI, tool registration, runtime instructions, checked-in proof artifacts, and targeted tests',
+      'Plugin runtime sandboxing, ReDoS guards, path targeting, prompt-firewall handling, and security regressions cover more hostile inputs and failure paths',
+      'All workspace manifests and public website metadata align to 0.308.0, with sharp explicitly reviewed in the install-script allowlist for the optional local embedding dependency',
+    ],
+  },
+  {
+    version: '0.307.0',
+    date: '2026-08-15',
     tagline: 'A complete file workspace, diagnosable fallback, and resilient autonomous sessions',
     highlights: [
       'The WebUI file manager adds create, delete, rename, and move operations, live tree refresh, fuzzy search, Git decorations, size sorting, persistent tabs, guarded reads, and lazy-loaded Monaco editing',
