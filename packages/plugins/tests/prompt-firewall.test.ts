@@ -516,4 +516,55 @@ describe('issue #362 residuals: guarded scan + response budget', () => {
     const status = await api._tools.prompt_firewall_status!.execute({});
     expect(status.skippedPatterns).toEqual(['github-token']);
   });
+
+  it('teardown resets the #362 residual state (chimera finding 4)', async () => {
+    probe.mockImplementation((re: RegExp, input: string) =>
+      re.source.includes('ghp_')
+        ? Promise.resolve({ timedOut: true, match: null })
+        : inlineProbe(re, input),
+    );
+    const api = setup({ enabled: true, mode: 'redact' });
+    const inner = vi.fn().mockResolvedValue(resp('ok'));
+    await api._wrap!(null, req(`use ${GH_TOKEN} now`), inner);
+    let status = await api._tools.prompt_firewall_status!.execute({});
+    expect((status.counters as { timeoutCount: number }).timeoutCount).toBe(1);
+    expect(status.skippedPatterns).toEqual(['github-token']);
+
+    promptFirewallPlugin.teardown!(api as never);
+    // The `final` snapshot must include timeoutCount so the reload log
+    // doesn't silently drop the residual counters.
+    expect(api.log.info).toHaveBeenCalledWith(
+      'prompt-firewall: teardown complete',
+      expect.objectContaining({
+        final: expect.objectContaining({ timeoutCount: 1 }),
+      }),
+    );
+
+    // A fresh setup after teardown starts from zeroed residual state —
+    // module-scope state must not leak across reloads.
+    const api2 = setup({ enabled: true, mode: 'redact' });
+    status = await api2._tools.prompt_firewall_status!.execute({});
+    expect((status.counters as { timeoutCount: number }).timeoutCount).toBe(0);
+    expect(status.skippedPatterns).toEqual([]);
+    expect(status.responseTruncated).toBe(false);
+  });
+
+  it('stops probing windows once every pattern is already skipped (chimera finding 3)', async () => {
+    // Every probe times out, so after the first window the skip set is
+    // complete and remaining windows must not be probed at all.
+    probe.mockImplementation(() => Promise.resolve({ timedOut: true, match: null }));
+    const api = setup({ enabled: true, mode: 'redact' });
+    const status = await api._tools.prompt_firewall_status!.execute({});
+    // Several patterns share a kind via KIND_ALIASES — the per-kind skip
+    // set saturates at the DISTINCT kind count, which is what the probe's
+    // early-exit must compare against.
+    const distinctKinds = new Set(status.patterns as string[]).size;
+
+    const long = 'x'.repeat(250_000); // spans 3+ windows
+    await detectSecretsGuarded(long, []);
+    // Exactly one combined probe + one probe per distinct kind in that
+    // single window — no further window probes after the skip set is
+    // complete.
+    expect(probe.mock.calls.length).toBe(1 + distinctKinds);
+  });
 });

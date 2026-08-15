@@ -198,6 +198,11 @@ export function redactSecrets(text: string, allow: RegExp[]): { text: string; re
   return { text: out, redactions: redactions.n };
 }
 
+// Distinct kinds — several patterns can share a kind via KIND_ALIASES, so
+// the probe's early-exit must compare against unique kinds, not pattern
+// count (a shared kind means the skip set can never reach PATTERNS.length).
+const DISTINCT_PATTERN_KINDS = new Set(PATTERNS.map((p) => p.kind)).size;
+
 /**
  * Guarded probe: which patterns cannot complete within `PATTERN_BUDGET_MS`.
  * The ENTIRE input is probed in overlapping windows (issue #362: probing
@@ -225,6 +230,9 @@ async function probeTimedOutPatterns(text: string): Promise<Set<string>> {
 
   const stride = GUARD_PROBE_LENGTH - GUARD_PROBE_OVERLAP;
   for (let offset = 0; offset < text.length; offset += stride) {
+    // Early exit: once every distinct kind has blown its budget somewhere,
+    // later windows cannot add anything — the skip set is already complete.
+    if (timedOut.size >= DISTINCT_PATTERN_KINDS) break;
     await probeWindow(offset);
   }
   return timedOut;
@@ -653,12 +661,16 @@ const plugin: Plugin = {
       requestRedactions: state.requestRedactions,
       responseRedactions: state.responseRedactions,
       blocked: state.blocked,
+      timeoutCount: state.timeoutCount,
     };
     state.invocations = 0;
     state.requestsWithSecrets = 0;
     state.requestRedactions = 0;
     state.responseRedactions = 0;
     state.blocked = 0;
+    state.timeoutCount = 0;
+    state.skippedPatterns = [];
+    state.responseTruncated = false;
     state.byKind.clear();
     state.lastDetection = null;
     api.log.info('prompt-firewall: teardown complete', { final });
