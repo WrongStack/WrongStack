@@ -11,9 +11,9 @@ vi.mock('../src/runtime/redos-guard.js', () => ({
   }),
 }));
 
-const promptFirewallPlugin = (await import('../src/prompt-firewall')).default;
+const promptFirewallPlugin = (await import('../src/prompt-firewall/index.js')).default;
 const { detectSecrets, readConfig, redactSecrets, KIND_ALIASES } = await import(
-  '../src/prompt-firewall'
+  '../src/prompt-firewall/index.js'
 );
 const { withReDoSGuard } = await import('../src/runtime/redos-guard.js');
 
@@ -59,7 +59,7 @@ function setup(cfg: Record<string, unknown> = {}): MockApi {
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
     extensions: {
       register: vi.fn((ext: { wrapProviderRunner?: WrapFn }) => {
-        api._wrap = ext.wrapProviderRunner;
+        if (ext.wrapProviderRunner) api._wrap = ext.wrapProviderRunner;
         return vi.fn();
       }),
     },
@@ -222,7 +222,8 @@ describe('prompt-firewall plugin', () => {
         metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
         extensions: {
           register: vi.fn((ext: { wrapProviderRunner?: WrapFn }) => {
-            (api as { _wrap?: WrapFn })._wrap = ext.wrapProviderRunner;
+            if (ext.wrapProviderRunner)
+              (api as { _wrap?: WrapFn })._wrap = ext.wrapProviderRunner;
             return vi.fn();
           }),
         },
@@ -343,7 +344,9 @@ describe('prompt-firewall plugin', () => {
   it('teardown clears state and logs', async () => {
     const api = setup({ enabled: true, mode: 'warn' });
     promptFirewallPlugin.teardown!(api as never);
-    const health = (await promptFirewallPlugin.health!()) as { counters: Record<string, number> };
+    const health = (await promptFirewallPlugin.health!()) as unknown as {
+      counters: Record<string, number>;
+    };
     expect(health.counters.requestsWithSecrets).toBe(0);
     expect(api.log.info).toHaveBeenCalledWith(
       'prompt-firewall: teardown complete',
@@ -385,7 +388,7 @@ describe('default mode end-to-end', () => {
   });
 });
 
-const { detectSecretsGuarded } = await import('../src/prompt-firewall');
+const { detectSecretsGuarded } = await import('../src/prompt-firewall/index.js');
 
 describe('issue #362 residuals: guarded scan + response budget', () => {
   const probe = vi.mocked(withReDoSGuard);
@@ -645,11 +648,11 @@ describe('issue #362 residuals: guarded scan + response budget', () => {
   });
 
   it('scan-pass budget: unexpired deadline leaves redaction byte-identical; expired trips fail-open', async () => {
-    const { redactSecrets } = await import('../src/prompt-firewall');
+    const { redactSecrets } = await import('../src/prompt-firewall/index.js');
     const text = `token ${GH_TOKEN} and ${GH_TOKEN} again`;
-    type Deadline = Parameters<typeof redactSecrets>[2];
-    const fresh = { deadline: Number.POSITIVE_INFINITY, tripped: new Set<string>() } as Deadline;
-    const expired = { deadline: -1, tripped: new Set<string>() } as Deadline;
+    type Deadline = NonNullable<Parameters<typeof redactSecrets>[2]>;
+    const fresh: Deadline = { deadline: Number.POSITIVE_INFINITY, tripped: new Set<string>() };
+    const expired: Deadline = { deadline: -1, tripped: new Set<string>() };
 
     // Budget is a safety rail, not a semantics change: with time remaining,
     // the exec-loop rewrite must match the unbudgeted output exactly.
@@ -771,7 +774,7 @@ describe('issue #371: windowed pattern scanning', () => {
     // Patch RegExp.prototype.exec and record every subject length across a
     // multi-window guarded pass — the #371 invariant itself. (Growth slices
     // are separately bounded by the doubling cap; none fire on this input.)
-    const { SCAN_WINDOW_LIMIT } = await import('../src/prompt-firewall');
+    const { SCAN_WINDOW_LIMIT } = await import('../src/prompt-firewall/index.js');
     const origExec = RegExp.prototype.exec;
     let maxInput = 0;
     RegExp.prototype.exec = function patched(this: RegExp, str: string | undefined) {
