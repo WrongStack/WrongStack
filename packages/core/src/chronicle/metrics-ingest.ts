@@ -51,54 +51,57 @@ export class ChronicleMetricsIngester {
       } catch {
         // No SQLite journal yet — legacy JSONL partitions only.
       }
-      const migrated = source !== null && this.legacyJsonlConsumed(source);
-      const boundary =
-        migrated && source !== null ? this.loadJsonlBoundary(source) : null;
-      const rebuilt = migrated && this.needsSqliteRebuild(offsets);
-      if (rebuilt && source !== null) {
-        // One-time repair: the projection may hold pre-migration JSONL counts
-        // that the SQLite fold would double. Wipe and re-derive from the SQLite
-        // journal; families the import quarantined are re-folded from JSONL.
-        this.rebuildFromSqliteJournal(source, result);
-      }
-      // A pre-boundary-feature migration has no boundary row at all — skip the
-      // partitions to preserve the no-double-count guarantee. A boundary row
-      // that is empty means every family was quarantined: fold them from JSONL.
-      if (!migrated || boundary !== null) {
-        for (const file of files) {
-          const key = normalizeKey(path.relative(this.directory, file));
-          let base: number;
-          if (!migrated) {
-            base = offsets.get(key) ?? 0;
-          } else if (boundary !== null && boundary.has(key)) {
-            // Migrated file: bytes up to its import boundary are in SQLite —
-            // fold only post-migration appends (the jsonl-store fallback).
-            base = Math.max(offsets.get(key) ?? 0, boundary.get(key)!);
-          } else {
-            // Quarantined or post-migration file — its events live only in
-            // JSONL. After a rebuild the aggregates were wiped, so re-fold
-            // from the start; otherwise continue from the recorded offset.
-            base = rebuilt ? 0 : (offsets.get(key) ?? 0);
-          }
-          const ingested = await this.ingestFile(file, key, base, result);
-          if (ingested) result.sourceFiles++;
+      try {
+        const migrated = source !== null && this.legacyJsonlConsumed(source);
+        const boundary =
+          migrated && source !== null ? this.loadJsonlBoundary(source) : null;
+        const rebuilt = migrated && this.needsSqliteRebuild(offsets);
+        if (rebuilt && source !== null) {
+          // One-time repair: the projection may hold pre-migration JSONL counts
+          // that the SQLite fold would double. Wipe and re-derive from the
+          // SQLite journal; families the import quarantined are re-folded from
+          // JSONL.
+          this.rebuildFromSqliteJournal(source, result);
         }
-      }
-      this.pruneOffsets(files);
-      if (source !== null) {
-        try {
-          if (!rebuilt) {
-            this.ingestSqliteJournal(source, offsets, result, false);
-            // A fresh post-migration db has no pre-migration legacy progress,
-            // so the marker would otherwise never be written — and a later
-            // jsonl-store fallback offset would be misread as pre-migration
-            // progress, triggering a destructive rebuild that drops the
-            // fallback event (the pre-wipe in-memory offset skips it).
-            if (migrated) this.ensureRebuildMarker();
+        // A pre-boundary-feature migration has no boundary row at all — skip
+        // the partitions to preserve the no-double-count guarantee. A boundary
+        // row that is empty means every family was quarantined: fold them from
+        // JSONL.
+        if (!migrated || boundary !== null) {
+          for (const file of files) {
+            const key = normalizeKey(path.relative(this.directory, file));
+            let base: number;
+            if (!migrated) {
+              base = offsets.get(key) ?? 0;
+            } else if (boundary !== null && boundary.has(key)) {
+              // Migrated file: bytes up to its import boundary are in SQLite —
+              // fold only post-migration appends (the jsonl-store fallback).
+              base = Math.max(offsets.get(key) ?? 0, boundary.get(key)!);
+            } else {
+              // Quarantined or post-migration file — its events live only in
+              // JSONL. After a rebuild the aggregates were wiped, so re-fold
+              // from the start; otherwise continue from the recorded offset.
+              base = rebuilt ? 0 : (offsets.get(key) ?? 0);
+            }
+            const ingested = await this.ingestFile(file, key, base, result);
+            if (ingested) result.sourceFiles++;
           }
-        } finally {
-          source.close();
         }
+        this.pruneOffsets(files);
+        if (source !== null && !rebuilt) {
+          this.ingestSqliteJournal(source, offsets, result, false);
+          // A fresh post-migration db has no pre-migration legacy progress,
+          // so the marker would otherwise never be written — and a later
+          // jsonl-store fallback offset would be misread as pre-migration
+          // progress, triggering a destructive rebuild that drops the
+          // fallback event (the pre-wipe in-memory offset skips it).
+          if (migrated) this.ensureRebuildMarker();
+        }
+      } finally {
+        // One close on every path — including fold/prune/rebuild failures —
+        // so a throw never leaks the read-only journal handle (Windows cannot
+        // remove the journal while it is still open).
+        if (source !== null) source.close();
       }
     });
     return result;

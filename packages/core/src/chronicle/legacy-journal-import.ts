@@ -104,6 +104,11 @@ export async function importLegacyChronicleJournal(
     const day = dayOfFamily(familyBase);
     const basePath = path.join(directory, `${familyBase}.jsonl`);
     let familyEvents = 0;
+    // Per-family boundary: only partitions whose family COMMITS belong in the
+    // shared map. A quarantined family rolls back, so recording its files here
+    // would make the metrics ingester treat them as already-migrated and skip
+    // them — events counted nowhere (not in SQLite, not in the fold).
+    const familyBoundary: Record<string, number> = {};
 
     // Resume rather than restart. Families commit one at a time, so a run cut
     // short — the daemon restarted, the machine rebooted — leaves whole days
@@ -131,7 +136,7 @@ export async function importLegacyChronicleJournal(
           // Per-file boundary: the metrics ingester folds only post-migration
           // appends beyond each partition's own import-time size. A family-wide
           // total would over-skip the active rotation after a rotation.
-          boundary[path.relative(directory, partition).replaceAll('\\', '/')] =
+          familyBoundary[path.relative(directory, partition).replaceAll('\\', '/')] =
             (await fs.stat(partition)).size;
           for await (const event of streamEntriesStrict(partition)) {
             if (event.sequence !== expectedSequence) {
@@ -172,6 +177,8 @@ export async function importLegacyChronicleJournal(
       continue;
     }
 
+    // The family committed — its files are now migrated and can join the map.
+    Object.assign(boundary, familyBoundary);
     if (familyEvents > 0) importedFamilies += 1;
     importedEvents += familyEvents;
     // Persist as the family commits: a crash after this family (resume) keeps

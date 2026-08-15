@@ -23,6 +23,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ChronicleJournal } from '../../src/chronicle/journal.js';
 import { importLegacyChronicleJournal } from '../../src/chronicle/legacy-journal-import.js';
+import { ChronicleMetricsStore } from '../../src/chronicle/metrics-store.js';
 import {
   CHRONICLE_SQLITE_FILE,
   ChronicleSqliteJournal,
@@ -156,6 +157,41 @@ describe('importLegacyChronicleJournal', () => {
     expect(result.quarantined[0]).toMatchObject({ day: '2026-03-02', sequence: 2 });
     expect(await journal.verify()).toMatchObject({ ok: true, entries: 2 });
     expect(tuesday).toHaveLength(2);
+    journal.close();
+  });
+
+  it('keeps a quarantined family out of the import boundary so its events still fold into metrics', async () => {
+    const writeDay = async (day: string, count: number): Promise<void> => {
+      const legacy = new ChronicleJournal({ filePath: path.join(dir, `${day}.events.jsonl`) });
+      for (let index = 0; index < count; index++) {
+        await legacy.append(
+          input({
+            occurredAt: `${day}T10:00:00.000Z`,
+            attributes: {
+              provider: 'provider-a',
+              model: 'model-x',
+              usage: { input: 10, output: 20 },
+            },
+          }),
+        );
+      }
+      await legacy.flush();
+    };
+    await writeDay('2026-03-02', 3);
+    await writeDay('2026-03-03', 2);
+    await tamperMiddleLine('2026-03-02');
+
+    const journal = new ChronicleSqliteJournal({ directory: dir });
+    const result = await importLegacyChronicleJournal(journal, dir);
+    expect(result.quarantined[0]).toMatchObject({ day: '2026-03-02' });
+
+    // The broken family never reached SQLite (rolled back), so its events must
+    // still reach the projection via the JSONL fold. If its files had leaked
+    // into the import boundary, the ingester would treat them as
+    // already-migrated and skip them: healthy 2 (SQLite) + broken 3 (JSONL).
+    const metrics = ChronicleMetricsStore.open(dir);
+    expect((await metrics.refresh()).ingestedEvents).toBe(5);
+    metrics.close();
     journal.close();
   });
 
