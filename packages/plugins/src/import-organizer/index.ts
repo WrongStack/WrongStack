@@ -49,7 +49,13 @@ import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { basename, isAbsolute } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { releaseHandle, resolveExecInvocation, resolveNodeBin, withinProject } from '../runtime/index.js';
+import {
+  clearLocalBinCache,
+  releaseHandle,
+  resolveExecInvocation,
+  resolveNodeBin,
+  withinProject,
+} from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Sandbox + command allowlist. import-organizer already uses spawn() with
@@ -624,6 +630,9 @@ const plugin: Plugin = {
   },
 
   teardown(api) {
+    // Mirror format-on-save: release the local-bin memo cache so a reload
+    // re-resolves a changed toolchain (issue #367).
+    clearLocalBinCache();
     if (state.hookUnregister) {
       try {
         state.hookUnregister();

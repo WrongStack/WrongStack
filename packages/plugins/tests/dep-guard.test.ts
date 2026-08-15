@@ -93,6 +93,9 @@ describe('parseInstallCommands', () => {
     expect(parseInstallCommands('pip install foo>=1.0')[0]?.packages).toEqual([
       { name: 'foo', version: '>=1.0' },
     ]);
+    expect(parseInstallCommands('pip install foo~=1.0')[0]?.packages).toEqual([
+      { name: 'foo', version: '~=1.0' },
+    ]);
     expect(parseInstallCommands('pip install "foo[bar]>=1.0"')[0]?.packages).toEqual([
       { name: 'foo[bar]', version: '>=1.0' },
     ]);
