@@ -100,6 +100,13 @@ describe('lint-gate local linter resolution', () => {
 
   beforeEach(async () => {
     projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lint-gate-platform-'));
+    // Canonicalize the root once: the resolver echoes its input cwd form
+    // plus the platform's realpath semantics (macOS symlinks /var to
+    // /private/var; Windows 8.3 short names are NOT expanded by Node's
+    // resolver but ARE by fs.realpath — so canonicalizing the root, not
+    // the entry, keeps fixture paths and resolver output identical on
+    // all three CI platforms).
+    projectRoot = await fs.realpath(projectRoot);
     await fs.writeFile(path.join(projectRoot, 'package.json'), '{"private":true}', 'utf-8');
     execFileMock.mockReset();
   });
