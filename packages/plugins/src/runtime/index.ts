@@ -48,6 +48,21 @@ import { resolveExecInvocation, type ExecInvocation } from './local-bin.js';
 export { BoundedMap, BoundedSet, type BoundedMapOptions } from './bounded-map.js';
 export { UNSERIALIZABLE, safeJsonStringify } from './safe-json.js';
 export { releaseHandle, releaseHandles, type Unregister } from './handles.js';
+export {
+  withReDoSGuard,
+  guardedMatcher,
+  type ReDoSResult,
+  type ReDoSOptions,
+} from './redos-guard.js';
+export {
+  safePath,
+  isInsideProject,
+  type SafePathOptions,
+} from './sandbox.js';
+export {
+  createH1State,
+  type H1State,
+} from './h1-state.js';
 
 export {
   clearLocalBinCache,
@@ -331,6 +346,12 @@ export function runRunnerCommand(
     }
     let timedOut = false;
     let spawnErrored = false;
+    // Wall-clock start for timeout disambiguation. execFile kills the
+    // child with SIGTERM in three distinct cases (built-in timeout,
+    // maxBuffer overflow, external signal); only the timeout case
+    // elapses >= timeoutMs. Captured here so both the callback's
+    // err-shape analysis and the exit handler can gate on it.
+    const start = Date.now();
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
     let stdoutBytes = 0;
@@ -372,6 +393,15 @@ export function runRunnerCommand(
         timeout: options.timeoutMs,
         signal: options.signal,
         maxBuffer: MAX_BUFFER_BYTES,
+        // execFile defaults `encoding` to 'utf8', which makes the
+        // stdout/stderr `data` events emit *strings*. The chunk arrays
+        // below are typed Buffer[] and every consumer runs them through
+        // Buffer.concat(...).toString('utf8'), which throws
+        // ERR_INVALID_ARG_TYPE on any non-empty string output. Pin the
+        // streams to buffers so the declared contract holds (regression:
+        // runRunnerCommand crashed on any child that actually wrote
+        // output; only the maxBuffer fixture exercised this path).
+        encoding: 'buffer',
         windowsHide: true,
         shell: false,
         ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
@@ -406,12 +436,52 @@ export function runRunnerCommand(
             stdout?: Buffer | string;
             stderr?: Buffer | string;
             code?: number | string;
+            killed?: boolean;
+            signal?: string;
           };
+          // execFile kills the child via SIGTERM in three distinct
+          // cases — its built-in `timeout` option, maxBuffer overflow
+          // (stderr/exec_buffer exceeded the 16 MiB cap), and an
+          // external SIGTERM from the parent process. All three
+          // produce an err shape with `killed: true` and
+          // `signal: 'SIGTERM'`. The `signal === 'SIGTERM'` shape is
+          // not enough on its own: only the elapsed-time + maxBuffer
+          // disambiguation distinguishes the three. The 'exit'
+          // event handler may set timedOut=true, but the callback
+          // often fires first or concurrently, so the flag is
+          // unreliable here — we derive the timeout answer from the
+          // err shape directly. This is the structural fix for the
+          // confirmed `timedOut` bug at line 347 (see
+          // mem_01KXXKN8WYPCB6C2FJN61H823M).
+          if (
+            (anyErr.killed === true || anyErr.signal === 'SIGTERM') &&
+            // maxBuffer overflow must NOT be misreported as a timeout
+            // — it's a real failure (the child wrote too much) and
+            // downstream callers (type-gate/index.ts:227) return
+            // null on timedOut=true, which would silently swallow
+            // maxBuffer overflow into a confusing empty-output
+            // result. Skip the timeout resolve when the err shape
+            // names maxBuffer explicitly.
+            !/maxBuffer length exceeded/i.test(anyErr.message ?? '') &&
+            // And only count it as a timeout if the wall clock has
+            // actually elapsed past the budget. External SIGTERMs and
+            // races against the exit handler don't satisfy this.
+            Date.now() - start >= options.timeoutMs
+          ) {
+            resolvePromise({
+              code: null,
+              stdout: Buffer.concat(stdoutChunks).toString('utf-8'),
+              stderr: Buffer.concat(stderrChunks).toString('utf-8'),
+              timedOut: true,
+              spawnError: false,
+            });
+            return;
+          }
           const code = typeof anyErr.code === 'number' ? anyErr.code : 1;
           resolvePromise({
             code,
-            stdout: Buffer.concat(stdoutChunks).toString('utf8'),
-            stderr: Buffer.concat(stderrChunks).toString('utf8'),
+            stdout: Buffer.concat(stdoutChunks).toString('utf-8'),
+            stderr: Buffer.concat(stderrChunks).toString('utf-8'),
             timedOut: false,
             spawnError: false,
           });
@@ -431,7 +501,13 @@ export function runRunnerCommand(
     // Set timedOut so the callback's dead-code branch becomes live
     // and reports timedOut: true to the caller.
     child.on('exit', (_code, signal) => {
-      if (signal !== null) {
+      // Only a genuine timeout kill sets the flag. maxBuffer overflow
+      // and external SIGTERMs also produce a non-null signal, but both
+      // happen well before timeoutMs elapses. Gating on elapsed time
+      // keeps the callback's err-shape analysis (maxBuffer exclusion in
+      // the err branch) authoritative instead of pre-empted by this
+      // handler — otherwise maxBuffer kills resolve as timedOut:true.
+      if (signal !== null && Date.now() - start >= options.timeoutMs) {
         timedOut = true;
       }
     });

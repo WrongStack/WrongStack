@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { bindSystemPromptBuilder } from '../boot/system-prompt-builder.js';
 import { registerBuiltinTools } from '../boot/tool-registry.js';
 import { createDomainGlossaryAdapter } from './domain-glossary.js';
@@ -20,6 +21,13 @@ export async function setupCliPromptAndTools(params: {
   wpaths: any;
   projectRoot: string;
   events: any;
+  /**
+   * Optional vector memory store. When provided, the four
+   * `vector_memory_*` tools are registered alongside the SAGE tools so
+   * agents get both lexical and semantic retrieval paths in one surface.
+   * Omit (or pass `undefined`) to keep the CLI on the SAGE-only surface.
+   */
+  vectorMemoryStore?: VectorMemoryStore | undefined;
 }): Promise<{ toolRegistry: ToolRegistry }> {
   const {
     container,
@@ -35,6 +43,7 @@ export async function setupCliPromptAndTools(params: {
     wpaths,
     projectRoot,
     events,
+    vectorMemoryStore,
   } = params;
 
   bindSystemPromptBuilder({
@@ -71,6 +80,7 @@ export async function setupCliPromptAndTools(params: {
     compactor: container.resolve(TOKENS.Compactor),
     config,
     memoryStore,
+    vectorMemoryStore,
     events,
     wpaths,
   });

@@ -42,6 +42,7 @@ import type {
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 import type { ReadlineInputReader } from './input-reader.js';
 import type { LiveSettingsInput } from './live-settings-input.js';
@@ -159,6 +160,12 @@ export interface SessionDeps {
   queueStore: QueueStore;
   sessionStore?: SessionStore | undefined;
   memoryStore?: MemoryPort | undefined;
+  /** Optional vector-memory store (additional to SAGE). When omitted, the
+   *  embedded WebUI's `/api/vector-memory/*` routes default to disabled. */
+  vectorMemoryStore?: VectorMemoryStore | undefined;
+  /** Model cache directory for the vector-memory provider (shared with the
+   *  CLI's on-disk transformers cache so a future cleanup never sweeps it). */
+  vectorMemoryModelCacheDir?: string | undefined;
   modeStore?: ModeStore | undefined;
   mcpRegistry: MCPRegistry;
   mailbox: RemoteMailbox;

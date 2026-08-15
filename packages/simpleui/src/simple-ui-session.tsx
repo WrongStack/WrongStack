@@ -663,6 +663,9 @@ export function SimpleUiSession() {
         case 'open-memory':
           window.dispatchEvent(new Event('simpleui:open-memory-drawer'));
           return;
+        case 'open-vector-memory':
+          window.dispatchEvent(new Event('simpleui:open-vector-memory-panel'));
+          return;
         case 'open-files':
           window.dispatchEvent(new Event('simpleui:open-file-explorer'));
           return;

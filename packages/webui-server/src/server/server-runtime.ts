@@ -419,6 +419,16 @@ export function startHttpServer(opts: {
   /** Optional pre-built intake service (tests/embeds). Defaults to a fresh
    *  per-project service backed by `projectRequirementIntakes`. */
   intakeService?: import('@wrongstack/requirement-intake').RequirementIntakeService | undefined;
+  /**
+   * Optional vector-memory store. When provided, the four
+   * `/api/vector-memory/{status,search,store,store/:id}` endpoints become
+   * active. When omitted, the routes respond with `{ enabled: false }` or
+   * 503 — a non-CLI webui-server host stays on its existing surface with
+   * zero behavior change.
+   */
+  getVectorMemoryStore?: (() => import('@wrongstack/vector-memory').VectorMemoryStore | undefined) | undefined;
+  /** Model cache directory for the vector-memory provider. */
+  vectorMemoryModelCacheDir?: string | undefined;
 }): import('node:http').Server {
   const intakeService =
     opts.intakeService ??
@@ -438,6 +448,10 @@ export function startHttpServer(opts: {
     executePackageOperation: opts.executePackageOperation,
     projectRoot: opts.projectRoot,
     intakeService,
+    ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
+    ...(opts.vectorMemoryModelCacheDir
+      ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }
+      : {}),
   });
   return httpServer;
 }

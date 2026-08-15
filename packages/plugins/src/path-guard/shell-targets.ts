@@ -354,7 +354,7 @@ export function commandRecursivelyDeletes(command: string): boolean {
     return true;
   }
   const destructive =
-    /(?:^|[;&|\r\n]\s*|\{\s*|\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(rm|rmdir|del)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
+    /(?:^|[;&|\r\n]\s*|\{\s*|\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(rm|rmdir|del|rd|Remove-Item)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
   let match: RegExpExecArray | null = destructive.exec(stripped);
   while (match !== null) {
     const tool = match[1]?.toLowerCase();
@@ -368,6 +368,8 @@ export function commandRecursivelyDeletes(command: string): boolean {
       if (token === '--') break;
       if (tool === 'rm') {
         if (token === '--recursive' || /^-[^-]*[rR]/.test(token)) recursive = true;
+      } else if (tool === 'remove-item') {
+        if (/^-Recurse$/i.test(token) || /^-r$/i.test(token)) recursive = true;
       } else if (/^\/[a-z]*s[a-z]*$/i.test(token)) {
         recursive = true;
       }
@@ -668,7 +670,7 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
   }
 
   const destructive =
-    /(?:^|[;&|\r\n]\s*|\{\s*|(?<![$(])\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|unlink|truncate|shred|mv)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
+    /(?:^|[;&|\r\n]\s*|\{\s*|(?<![$(])\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|rd|Remove-Item|unlink|truncate|shred|mv)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
   let m: RegExpExecArray | null = destructive.exec(normalizedCommand);
   while (m !== null) {
     if (!tokenIsQuoted(m, m[1] ?? '')) targets.push(...shellArgs(m[2] ?? ''));

@@ -30,6 +30,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { parseInstallCommands } from '../dep-guard/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -127,27 +128,10 @@ function extractLicenseStrings(pkg: unknown): string[] {
 // Install-command parsing
 // ---------------------------------------------------------------------------
 
-const INSTALL_RE = /(?:^|[;&|]\s*)(npm|pnpm|yarn|bun)\s+(?:install|i|add)\s+([^;&|]+)/gi;
-
-function parsePackageNames(command: string): string[] {
-  const names: string[] = [];
-  INSTALL_RE.lastIndex = 0;
-  for (const m of command.matchAll(INSTALL_RE)) {
-    const argString = m[2] ?? '';
-    for (const token of argString.split(/\s+/)) {
-      if (!token || token.startsWith('-')) continue;
-      // Skip local paths / URLs / archives.
-      if (/^(\.|\/|file:|git\+|https?:)/i.test(token) || token.endsWith('.tgz')) continue;
-      const cleaned = token.replace(/^['"]|['"]$/g, '');
-      if (!cleaned) continue;
-      // npm-style version suffix: name@ver (careful with @scope/name@ver).
-      let name = cleaned;
-      const at = cleaned.lastIndexOf('@');
-      if (at > 0) name = cleaned.slice(0, at);
-      if (name) names.push(name);
-    }
-  }
-  return [...new Set(names)];
+export function parsePackageNames(command: string): string[] {
+  return [
+    ...new Set(parseInstallCommands(command).flatMap((entry) => entry.packages.map((pkg) => pkg.name))),
+  ];
 }
 
 // ---------------------------------------------------------------------------

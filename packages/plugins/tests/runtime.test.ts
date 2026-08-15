@@ -168,6 +168,76 @@ describe('runtime helper', () => {
       expect(resolveRunnerCommand(open, 'tsc --noEmit')).toBeNull();
     });
   });
+
+  describe('runRunnerCommand timeout (regression for mem_01KXXKN8WYPCB6C2FJN61H823M)', () => {
+    // Regression fixture for the confirmed bug:
+    //   `const timedOut = false` (never reassigned) at runtime/index.ts
+    //   broke RunResult.timedOut for every subprocess-spawning plugin.
+    // After the fix, a deliberately slow child process must produce
+    // `timedOut: true` and `code: null` — not the generic error shape
+    // with `timedOut: false` the bug produced.
+    it('reports timedOut:true and code:null when execFile kills the child via its built-in timeout', async () => {
+      const { runRunnerCommand } = await import('../src/runtime/index.js');
+      // argv-form, no shell: a pure-Node expression that takes 10s to
+      // resolve. execFile's `timeout: 200` will SIGTERM the child well
+      // before then. The fix at runtime/index.ts:436-467 detects
+      // killed/SIGTERM + elapsed-time and short-circuits to the
+      // timeout-shaped resolve.
+      const result = await runRunnerCommand(['node', '-e', 'setTimeout(()=>{},10000)'], {
+        cwd: process.cwd(),
+        timeoutMs: 200,
+      });
+      expect(result.timedOut).toBe(true);
+      expect(result.code).toBeNull();
+      expect(result.spawnError).toBe(false);
+    }, 5_000);
+
+    // Companion regression for the same defect class: maxBuffer
+    // overflow (stderr/exec_buffer exceeded the 16 MiB cap) also
+    // produces an err shape with `killed: true` + `signal: 'SIGTERM'`
+    // in Node — same as a real timeout kill. The chimera-corrected
+    // fix at runtime/index.ts:436-467 gates the timeout-shaped
+    // resolve on three conditions, including a `maxBuffer length
+    // exceeded` exclusion; without that gate, a maxBuffer overflow
+    // would be silently misreported as `timedOut: true`, and
+    // downstream callers (type-gate/index.ts:227) return null on
+    // timedOut=true — swallowing the real failure into an
+    // empty-output result. This test pins the exclusion.
+    //
+    // We write >16 MiB to stdout in argv-form (no shell). execFile's
+    // default maxBuffer is 16 MiB, so the child is killed with the
+    // maxBuffer error. The fix must NOT resolve this as a timeout.
+    it('does NOT report timedOut:true when execFile kills the child for maxBuffer overflow', async () => {
+      const { runRunnerCommand } = await import('../src/runtime/index.js');
+      // Write 17 MiB (17*1024*1024 bytes) to stdout. The runtime
+      // helper's MAX_BUFFER_BYTES is 16 MiB; exceeding it triggers
+      // execFile to kill the child and pass an err with the
+      // `maxBuffer length exceeded` message. The fix must exclude
+      // this case from the timeout-shaped resolve.
+      const SIZE = 17 * 1024 * 1024;
+      const result = await runRunnerCommand(
+        [
+          'node',
+          '-e',
+          // Use process.stdout.write in a tight loop to avoid the
+          // overhead of building a single 17 MiB string literal.
+          `process.stdout.write('x'.repeat(${SIZE}))`,
+        ],
+        {
+          cwd: process.cwd(),
+          timeoutMs: 60_000, // generous; we want maxBuffer to fire, not the timer
+        },
+      );
+      expect(result.timedOut).toBe(false);
+      // maxBuffer overflow is NOT a spawn failure — the child spawned
+      // and ran, it just wrote too much output. Truthful shape: a real
+      // non-null code (1), spawnError false, timedOut false. Only the
+      // timedOut flag matters to downstream callers (type-gate returns
+      // null on timedOut=true), but the shape should not lie either.
+      expect(result.spawnError).toBe(false);
+      expect(result.code).not.toBeNull();
+    }, 30_000);
+  });
 });
 
 describe('runtime descriptor on plugin manifests', () => {

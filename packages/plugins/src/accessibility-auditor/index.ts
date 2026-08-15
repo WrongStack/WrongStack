@@ -49,6 +49,11 @@ export interface A11yFinding {
   rule: A11yRule;
   severity: 'error' | 'warning';
   message: string;
+  /**
+   * Optional scan limitation. Cross-file labels (e.g. `<Label>` in a
+   * sibling component) are invisible to this single-file regex walk.
+   */
+  note?: string;
 }
 
 interface AccessibilityAuditorState {
@@ -132,17 +137,45 @@ const INPUT_BUTTON = /<input\b[^>]*\btype\s*=\s*["'](submit|button|reset)["'][^>
 const ATTR_ID = /\bid\s*=\s*["']([^"']+)["']/gi;
 const ATTR_ALT = /\balt\s*=/i;
 const ATTR_ARIA_LABEL = /\b(?:aria-label|aria-labelledby)\s*=/i;
+const ATTR_ARIA_DESCRIBEDBY = /\baria-describedby\s*=/i;
 const ATTR_TITLE = /\btitle\s*=/i;
 const ATTR_PLACEHOLDER = /\bplaceholder\s*=/i;
 const ATTR_VALUE = /\bvalue\s*=/i;
+const ATTR_ROLE_DECORATIVE = /\brole\s*=\s*["'](?:presentation|none)["']/i;
+const SINGLE_FILE_LABEL_NOTE =
+  'Single-file heuristic: a label declared in a sibling component file is not visible to this scan.';
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function hasMeaningfulAlt(tag: string): boolean {
   const m = ATTR_ALT.exec(tag);
   ATTR_ALT.lastIndex = 0;
   if (!m) return false;
-  // alt="" is valid for decorative images, but this heuristic treats it as
-  // a warning so the author confirms intent.
   const valMatch = tag.match(/\balt\s*=\s*["']?([^"'\s>]*)["']?/i);
-  return valMatch ? valMatch[1]!.trim().length > 0 : false;
+  const alt = valMatch ? valMatch[1]!.trim() : '';
+  if (alt.length > 0) return true;
+  // Decorative images: empty alt plus an explicit role hint is enough.
+  return ATTR_ROLE_DECORATIVE.test(tag);
+}
+
+function hasFieldsetLegendLabel(tag: string, content: string): boolean {
+  const labelledBy = tag.match(/\baria-labelledby\s*=\s*["']([^"']+)["']/i);
+  if (labelledBy?.[1]) {
+    for (const id of labelledBy[1].split(/\s+/).filter(Boolean)) {
+      const idRe = new RegExp(`\\bid\\s*=\\s*["']${escapeRegExp(id)}["']`, 'i');
+      if (idRe.test(content)) return true;
+    }
+  }
+  const typeMatch = tag.match(/\btype\s*=\s*["']?([^"'\s>]*)["']?/i);
+  const type = typeMatch ? typeMatch[1]!.toLowerCase() : 'text';
+  if (type === 'checkbox' || type === 'radio') {
+    return /<fieldset\b[\s\S]*?<legend\b[\s\S]*?<\/legend>[\s\S]*?<input\b[\s\S]*?<\/fieldset>/i.test(
+      content,
+    );
+  }
+  return false;
 }
 
 async function auditFile(filePath: string, projectRoot: string): Promise<A11yFinding[]> {
@@ -157,13 +190,20 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
   const lines = content.split(/\r?\n/);
   const idsByValue = new Map<string, number[]>();
 
-  function add(line: number, rule: A11yRule, severity: 'error' | 'warning', message: string) {
+  function add(
+    line: number,
+    rule: A11yRule,
+    severity: 'error' | 'warning',
+    message: string,
+    note?: string,
+  ) {
     findings.push({
       file: relative(projectRoot, filePath),
       line,
       rule,
       severity,
       message,
+      ...(note ? { note } : {}),
     });
   }
 
@@ -202,19 +242,39 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
       }
 
       const hasAriaLabel = ATTR_ARIA_LABEL.test(tag);
+      const hasDescribedBy = ATTR_ARIA_DESCRIBEDBY.test(tag);
       const hasTitle = ATTR_TITLE.test(tag);
       const idMatchLocal = tag.match(/\bid\s*=\s*["']([^"']+)["']/i);
       const id = idMatchLocal ? idMatchLocal[1] : null;
 
       let hasLabelFor = false;
       if (id) {
-        const labelForRe = new RegExp(`<label\\b[^>]*\\bfor\\s*=\\s*["']${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'i');
+        const labelForRe = new RegExp(
+          `<label\\b[^>]*\\bfor\\s*=\\s*["']${escapeRegExp(id)}["']`,
+          'i',
+        );
         hasLabelFor = labelForRe.test(content);
       }
       const wrappedInLabel = /<label\b[\s\S]*?<input\b[\s\S]*?<\/label>/i.test(content);
+      const hasLegend = hasFieldsetLegendLabel(tag, content);
+      const hasPrimaryLabel = hasAriaLabel || hasTitle || hasLabelFor || wrappedInLabel || hasLegend;
 
-      if (!hasAriaLabel && !hasTitle && !hasLabelFor && !wrappedInLabel) {
-        add(lineNo, 'missing-input-label', 'error', `<input type="${type}"> is missing an associated label`);
+      // aria-describedby is supplementary, not a primary name.
+      if (!hasPrimaryLabel && hasDescribedBy) {
+        add(
+          lineNo,
+          'low-contrast-placeholder',
+          'warning',
+          `<input type="${type}"> uses aria-describedby as a description (supplementary, not a primary label)`,
+        );
+      } else if (!hasPrimaryLabel) {
+        add(
+          lineNo,
+          'missing-input-label',
+          'error',
+          `<input type="${type}"> is missing an associated label`,
+          SINGLE_FILE_LABEL_NOTE,
+        );
       }
 
       // Placeholder used as a label proxy is a common low-contrast / usability issue.
@@ -297,15 +357,34 @@ async function auditPath(
   };
 }
 
-function formatSummary(result: { path: string; findings: A11yFinding[]; fileCount: number }): string {
+function truncationWarning(result: {
+  fileCount: number;
+  scannedFiles?: number;
+  truncated?: boolean;
+}): string {
+  if (!result.truncated) return '';
+  const unexamined = Math.max(0, result.fileCount - (result.scannedFiles ?? result.fileCount));
+  return `partial scan — ${unexamined} files not examined`;
+}
+
+function formatSummary(result: {
+  path: string;
+  findings: A11yFinding[];
+  fileCount: number;
+  scannedFiles?: number;
+  truncated?: boolean;
+}): string {
+  const trunc = truncationWarning(result);
   if (result.findings.length === 0) {
-    return `\n✅ accessibility-auditor: no issues found in ${result.path} (${result.fileCount} file${result.fileCount === 1 ? '' : 's'}).`;
+    const clean = `\n✅ accessibility-auditor: no issues found in ${result.path} (${result.fileCount} file${result.fileCount === 1 ? '' : 's'}).`;
+    return trunc ? `${clean}\n⚠️ ${trunc}` : clean;
   }
   const lines = result.findings.map((f) => `  - ${f.file}:${f.line} — ${f.message} (${f.rule})`);
   return (
     `\n⚠️ accessibility-auditor: ${result.findings.length} issue(s) in ${result.path} (${result.fileCount} file${result.fileCount === 1 ? '' : 's'}):\n` +
     lines.join('\n') +
-    '\nConsider adding missing labels/alt text or resolving duplicate ids.'
+    '\nConsider adding missing labels/alt text or resolving duplicate ids.' +
+    (trunc ? `\n⚠️ ${trunc}` : '')
   );
 }
 
@@ -398,10 +477,10 @@ const plugin: Plugin = {
         when: new Date().toISOString(),
       };
 
-      if (result.findings.length === 0) return;
+      if (result.findings.length === 0 && !result.truncated) return;
 
       const summary = formatSummary(result);
-      if (cfg.severity === 'block') {
+      if (cfg.severity === 'block' && result.findings.length > 0) {
         return { decision: 'block' as const, reason: summary };
       }
       return { additionalContext: summary };
@@ -448,6 +527,7 @@ const plugin: Plugin = {
           when: new Date().toISOString(),
         };
 
+        const warning = truncationWarning(result);
         return {
           ok: true,
           path: result.path,
@@ -458,6 +538,9 @@ const plugin: Plugin = {
           truncated: result.truncated,
           findingCount: result.findings.length,
           findings: result.findings,
+          ...(warning
+            ? { additionalContext: `⚠️ ${warning}`, warning }
+            : {}),
         };
       },
     });

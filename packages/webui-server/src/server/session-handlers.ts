@@ -265,6 +265,11 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             return;
           }
         } else {
+          try {
+            ctx.abortActiveRun?.(clearedSessionId);
+          } catch {
+            // Aborting is best-effort
+          }
           ctx.context.state.replaceMessages([]);
           ctx.context.state.replaceTodos([]);
           resetContextAccounting();

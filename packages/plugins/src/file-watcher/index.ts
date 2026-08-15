@@ -8,32 +8,16 @@
  */
 
 import { watch as fsWatch } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { join } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
 // ---------------------------------------------------------------------------
 // Sandbox: reject paths that resolve outside the current working directory.
-// file-watcher opens native fs.FSWatcher handles on arbitrary paths and,
-// when autoIndex is on, escalates to codebase-index which then *reads*
-// those files. A tool caller (or prompt-injected LLM) could ask to watch
-// `$HOME`, /etc, C:\Windows, etc. and then have the watcher stream every
-// event into LLM context. Also harden indexProjectRoot the same way —
-// it's user-supplied and routes full-project reads.
-//
-// Performance: cache process.cwd() per call to avoid redundant syscalls.
+// Canonical implementation lives in runtime/ (shared with path-guard).
 // ---------------------------------------------------------------------------
-function withinProject(p: string): boolean {
-  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
-  const root = process.cwd();
-  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  if (rel === '' || rel === '.') return true;
-  if (rel.startsWith('..')) return false;
-  if (isAbsolute(rel)) return false;
-  return true;
-}
 
 interface WatchHandle {
   id: string;

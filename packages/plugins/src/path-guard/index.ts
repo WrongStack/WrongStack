@@ -12,11 +12,12 @@ import {
   isDirectoryAmbiguousPath,
   isRootPathScope,
   isUnresolvedPathScope,
-  matchesAny,
+  matchesAnyGuarded,
   relativeToInvocationCwd,
   resolveTargetPath,
   targetFullyAllowed,
   targetIntersectsPatterns,
+  targetIntersectsPatternsGuarded,
   type WriteTarget,
 } from './glob.js';
 import {
@@ -35,9 +36,24 @@ import {
   pathsFromToolInput,
   writesToDisk,
 } from './tool-targets.js';
+import { realpathSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { withinProject } from '../runtime/index.js';
 
 export { compilePathGlob } from './glob.js';
 export { destructiveTargets } from './shell-targets.js';
+
+/** True when `path` is a project-local symlink whose real target escaped. */
+export function isSymlinkEscape(path: string, cwd?: string): boolean {
+  if (!withinProject(path)) return false;
+  try {
+    const abs = resolve(cwd ?? process.cwd(), path);
+    const real = realpathSync(abs);
+    return !withinProject(real);
+  } catch {
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Per-host state
@@ -47,12 +63,20 @@ interface PathGuardState {
   invocations: number;
   blocks: number;
   warns: number;
+  redosTimeouts: number;
   lastBlock: { path: string; tool: string; when: string } | null;
   hookUnregister: (() => void) | null;
 }
 
 function createState(): PathGuardState {
-  return { invocations: 0, blocks: 0, warns: 0, lastBlock: null, hookUnregister: null };
+  return {
+    invocations: 0,
+    blocks: 0,
+    warns: 0,
+    redosTimeouts: 0,
+    lastBlock: null,
+    hookUnregister: null,
+  };
 }
 
 const states = new WeakMap<PluginAPI, PathGuardState>();
@@ -186,7 +210,12 @@ const plugin: Plugin = {
       };
     };
 
-    const hook = (input: {
+    const bumpRedos = () => {
+      state.redosTimeouts += 1;
+      api.metrics.counter('redos_timeouts');
+    };
+
+    const hook = async (input: {
       toolName?: string | undefined;
       toolInput?: unknown;
       toolCapabilities?: readonly string[] | undefined;
@@ -219,30 +248,41 @@ const plugin: Plugin = {
         const effectiveCwd = effectiveToolCwd(ti['cwd'], input.cwd);
         const recursivelyDeletes = commandRecursivelyDeletes(commandForInspection);
         const deletesImplicitScope = commandDeletesImplicitScope(commandForInspection);
-        for (const path of shellTargets) {
-          const target: WriteTarget = {
-            path: relativeToInvocationCwd(resolveTargetPath(path, effectiveCwd), input.cwd),
-            kind:
-              (isRootPathScope(path) && deletesImplicitScope) ||
-              isUnresolvedPathScope(path) ||
-              (recursivelyDeletes &&
-                (isDirectoryAmbiguousPath(path) ||
-                  hasConfiguredProtectedDescendant(path, cfg.protect)))
-                ? 'deletion-scope'
-                : 'file',
-          };
-          if (targetFullyAllowed(target, cfg.allow, allowRes)) continue;
-          const protectedShellTarget =
-            targetIntersectsPatterns(target, cfg.protect, protectRes) ||
-            matchesAny(`${target.path.replace(/\/$/, '')}/.path-guard-probe`, protectRes);
-          if (protectedShellTarget) {
-            return verdict(
-              target.path,
-              toolName,
-              'destructive shell command',
-              target.kind !== 'file',
-            );
-          }
+        // Parallel guarded checks: sequential `await` per shell target would
+        // stack worker spin-up and blow the 5-second PreToolUse deadline on
+        // bulk commands (chimera, index.ts:280). Promise.all keeps wall-clock
+        // at O(1 worker) for benign commands; attacker timeouts still fail
+        // closed per target.
+        const shellHits = await Promise.all(
+          shellTargets.map(async (path) => {
+            const target: WriteTarget = {
+              path: relativeToInvocationCwd(resolveTargetPath(path, effectiveCwd), input.cwd),
+              kind:
+                (isRootPathScope(path) && deletesImplicitScope) ||
+                isUnresolvedPathScope(path) ||
+                (recursivelyDeletes &&
+                  (isDirectoryAmbiguousPath(path) ||
+                    hasConfiguredProtectedDescendant(path, cfg.protect)))
+                  ? 'deletion-scope'
+                  : 'file',
+            };
+            if (targetFullyAllowed(target, cfg.allow, allowRes)) return null;
+            const protectedShellTarget =
+              (await targetIntersectsPatternsGuarded(target, cfg.protect, protectRes, { onTimeout: bumpRedos })) ||
+              (await matchesAnyGuarded(`${target.path.replace(/\/$/, '')}/.path-guard-probe`, protectRes, {
+                onTimeout: bumpRedos,
+              }));
+            return protectedShellTarget ? target : null;
+          }),
+        );
+        const firstProtected = shellHits.find((t): t is WriteTarget => t !== null);
+        if (firstProtected) {
+          return verdict(
+            firstProtected.path,
+            toolName,
+            'destructive shell command',
+            firstProtected.kind !== 'file',
+          );
         }
 
         const writes = writesToDisk({ ...input, toolInput: ti });
@@ -262,11 +302,28 @@ const plugin: Plugin = {
 
       if (!writesToDisk({ ...input, toolInput: ti }) || isReadOnlyInvocation(toolName, ti)) return;
       const targets = pathsFromToolInput(ti, toolName, input.cwd);
-      for (const target of targets) {
-        if (targetFullyAllowed(target, cfg.allow, allowRes)) continue;
-        if (targetIntersectsPatterns(target, cfg.protect, protectRes)) {
-          return verdict(target.path, toolName, operationLabel(toolName), target.kind !== 'file');
-        }
+      // Parallel guarded checks (same rationale as the shell branch above):
+      // sequential awaits would stack worker spin-up on bulk writes and blow
+      // the PreToolUse deadline. First-hit-in-original-order is preserved.
+      const writeHits = await Promise.all(
+        targets.map(async (target) => {
+          if (target.kind === 'file' && isSymlinkEscape(target.path, input.cwd)) return target;
+          if (targetFullyAllowed(target, cfg.allow, allowRes)) return null;
+          // Concrete write targets use the sync matcher. The worker-thread
+          // guard is for hostile path *inputs* against user globs (shell
+          // branch above). Sync matching keeps patch/write basenames like
+          // `.env` deterministic (issue #365).
+          return targetIntersectsPatterns(target, cfg.protect, protectRes) ? target : null;
+        }),
+      );
+      const firstProtectedWrite = writeHits.find((t): t is WriteTarget => t !== null);
+      if (firstProtectedWrite) {
+        return verdict(
+          firstProtectedWrite.path,
+          toolName,
+          operationLabel(toolName),
+          firstProtectedWrite.kind !== 'file',
+        );
       }
       return;
     };
@@ -297,6 +354,7 @@ const plugin: Plugin = {
             invocations: state.invocations,
             blocks: state.blocks,
             warns: state.warns,
+            redosTimeouts: state.redosTimeouts,
           },
           lastBlock: state.lastBlock,
         };
@@ -322,10 +380,16 @@ const plugin: Plugin = {
       }
       state.hookUnregister = null;
     }
-    const final = { invocations: state.invocations, blocks: state.blocks, warns: state.warns };
+    const final = {
+      invocations: state.invocations,
+      blocks: state.blocks,
+      warns: state.warns,
+      redosTimeouts: state.redosTimeouts,
+    };
     state.invocations = 0;
     state.blocks = 0;
     state.warns = 0;
+    state.redosTimeouts = 0;
     state.lastBlock = null;
     states.delete(api);
     api.log.info('path-guard: teardown complete', { final });
@@ -343,6 +407,7 @@ const plugin: Plugin = {
         invocations: state.invocations,
         blocks: state.blocks,
         warns: state.warns,
+        redosTimeouts: state.redosTimeouts,
       },
     };
   },

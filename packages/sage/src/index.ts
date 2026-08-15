@@ -20,6 +20,8 @@ export {
   HashingEmbeddingProvider,
   type HashingEmbeddingProviderOptions,
 } from './embeddings/hashing.js';
+export { cosineSimilarity } from './embeddings/provider.js';
+export type { EmbeddingProvider } from './embeddings/provider.js';
 export {
   createProjectSageMemoryPort,
   createSqliteMemoryPort,

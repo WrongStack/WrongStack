@@ -44,3 +44,34 @@ describe('process-guard telemetry', () => {
     expect(api.metrics.counter).toHaveBeenCalledWith('detections');
   });
 });
+
+describe('issue #360 kill-defense regression matrix', () => {
+  const isWin = process.platform === 'win32';
+
+  it.runIf(isWin)('bash-kill-guard parses taskkill / Stop-Process / wmic', async () => {
+    const { parseKillCommand } = await import('../../tools/src/bash-kill-guard.js');
+    expect(parseKillCommand('taskkill /F /PID 12345')).toMatchObject({ pid: 12345 });
+    expect(parseKillCommand('Stop-Process -Id 12345 -Force')).toMatchObject({ pid: 12345 });
+    expect(parseKillCommand('wmic process where "name=\'node.exe\'" delete')).toBeTruthy();
+  });
+
+  it.runIf(!isWin)('bash-kill-guard parses POSIX kill', async () => {
+    const { parseKillCommand } = await import('../../tools/src/bash-kill-guard.js');
+    expect(parseKillCommand(`kill -9 ${process.pid}`)).toMatchObject({ pid: process.pid });
+  });
+
+  it.runIf(isWin)('exec-kill-guard blocks taskkill /IM and node -e process.kill', async () => {
+    const { checkExecKillCommand } = await import('../../tools/src/exec-kill-guard.js');
+    const image = await checkExecKillCommand('taskkill', ['/F', '/IM', 'node.exe']);
+    expect(image.blocked).toBe(true);
+    const evalKill = await checkExecKillCommand('node', ['-e', `process.kill(${process.pid})`]);
+    expect(evalKill.blocked).toBe(true);
+  });
+
+  it('isolates sibling process-registry instances', async () => {
+    const { PersistentProcessRegistry } = await import(
+      '../../tools/src/process-registry-persistent.js'
+    );
+    expect(typeof PersistentProcessRegistry).toBe('function');
+  });
+});

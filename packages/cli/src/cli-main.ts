@@ -35,6 +35,10 @@ import {
 import { setupProviderRuntime } from './wiring/provider-runtime-setup.js';
 import { setupProviderStatus } from './wiring/provider-status.js';
 import {
+  TransformersEmbeddingProvider,
+  VectorMemoryStore,
+} from '@wrongstack/vector-memory';
+import {
   adoptResumedProvider,
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
@@ -91,6 +95,36 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
 
   const memoryStore = container.resolve(TOKENS.MemoryStore);
   await memoryStore.initialize();
+
+  // Vector memory is an additional, optional sibling to SAGE — embed
+  // locally via @huggingface/transformers, persist to its own SQLite
+  // file. The model cache lives under `.wrongstack/cache/transformers-models`
+  // (outside the store's data directory) so a future store-side cleanup
+  // never sweeps cached model files. Constructor failures (read-only
+  // filesystem, unwritable project root, corrupt SQLite parent) fall
+  // back to `undefined` so the CLI still boots on the SAGE-only surface.
+  let vectorMemoryStore: VectorMemoryStore | undefined;
+  const vectorMemoryModelCacheDir = path.join(
+    projectRoot,
+    '.wrongstack',
+    'cache',
+    'transformers-models',
+  );
+  try {
+    vectorMemoryStore = new VectorMemoryStore({
+      provider: new TransformersEmbeddingProvider({
+        cacheDir: vectorMemoryModelCacheDir,
+      }),
+      projectRoot,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `vector memory store disabled: ${message} — CLI will run with the SAGE-only surface.`,
+    );
+    vectorMemoryStore = undefined;
+  }
+
   const skillLoader = container.resolve(TOKENS.SkillLoader);
   const promptLoader = container.resolve(TOKENS.PromptLoader);
   const sessionRef: { current: import('@wrongstack/core/types').SessionWriter | undefined } = {
@@ -114,6 +148,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     wpaths,
     projectRoot,
     events,
+    vectorMemoryStore,
   });
 
   const stdinInteractive = process.stdin.isTTY;
@@ -143,6 +178,20 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   const tuiOwnsScreen = flags.tui === true && flags['no-tui'] !== true;
   const teardownHandlers: Array<() => void> = [];
   const evOn = createTeardownEventRegistrar(events, teardownHandlers);
+  // Close the vector memory SQLite handle on shutdown — keeps the WAL
+  // frame file consistent and mirrors the SAGE dispose contract.
+  if (vectorMemoryStore) {
+    const store = vectorMemoryStore;
+    teardownHandlers.push(() => {
+      try {
+        store.close();
+      } catch (error) {
+        logger.debug?.(
+          `vector memory close failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    });
+  }
 
   const eventWiring = wireEventWiring({
     evOn,
@@ -755,6 +804,8 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     sessResult,
     sessionStore,
     memoryStore,
+    vectorMemoryStore,
+    vectorMemoryModelCacheDir,
     modeStore,
     needsSetup,
     statusTracker,

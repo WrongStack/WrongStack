@@ -3,6 +3,74 @@ export interface WriteTarget {
   kind: 'file' | 'scope' | 'deletion-scope';
 }
 
+// ---------------------------------------------------------------------------
+// ReDoS guard for glob matching (audit T-02 / issue #365)
+// ---------------------------------------------------------------------------
+// compilePathGlob is a pure synchronous compiler (kept sync — the 247-test
+// surface and scope-overlap helpers depend on it). The ReDoS surface is the
+// *execution* of the compiled regex against tool-supplied paths: a hostile
+// path matched against a pathological protect glob can stall the agent loop
+// synchronously. `matchesAnyGuarded` runs each match inside the
+// worker-thread watchdog from runtime/redos-guard.ts and terminates on
+// budget. Fail-closed: a timed-out match is treated as a HIT so a hostile
+// path can never bypass the guard by making the check hang.
+import { withReDoSGuard } from '../runtime/redos-guard.js';
+
+/** Default wall-clock budget per glob match (ms). Must clear worker spin-up (~20ms). */
+export const GLOB_REDOS_BUDGET_MS = 250;
+
+export interface GuardedMatchOptions {
+  /** Invoked when a match times out — wired to the plugin's redosTimeouts counter. */
+  onTimeout?: (info: { regex: RegExp; input: string; budgetMs: number; elapsedMs: number }) => void;
+  /** Per-regex wall-clock budget. Default GLOB_REDOS_BUDGET_MS. */
+  budgetMs?: number;
+}
+
+/**
+ * Async, ReDoS-guarded equivalent of `matchesAny`. Each pattern is executed
+ * inside a worker thread and terminated when the budget elapses. Returns
+ * true on the first match; a timeout also returns true (fail-closed). Use
+ * this for PROTECT matching against untrusted paths; keep allow-list
+ * matching synchronous (a timeout there must NOT look like an exemption).
+ */
+/**
+ * Batch all patterns into ONE worker invocation via a top-level alternation.
+ * For glob-compiled sources (each alternative keeps its own anchors and the
+ * shared i flag), "does any pattern match" is preserved exactly. This
+ * collapses worker spin-up from O(patterns) to O(1) — without it, 9 default
+ * protect patterns × ~20 ms spin-up × N targets blows the 5-second
+ * PreToolUse deadline on bulk writes (chimera, index.ts:282).
+ */
+function mergeGuardedRegex(patterns: RegExp[]): RegExp {
+  // Always build a fresh RegExp: returning a caller-supplied pattern object
+  // would alias it into the worker call and any later lastIndex mutation.
+  const flags = new Set<string>();
+  for (const p of patterns) {
+    for (const f of p.flags) {
+      if (f !== 'g' && f !== 'y') flags.add(f); // drop stateful flags
+    }
+  }
+  const uniqueFlags = [...flags].join('');
+  return new RegExp(patterns.map((p) => p.source).join('|'), uniqueFlags);
+}
+
+export async function matchesAnyGuarded(
+  path: string,
+  patterns: RegExp[],
+  options: GuardedMatchOptions = {},
+): Promise<boolean> {
+  const normalized = normalizePath(path);
+  if (patterns.length === 0) return false;
+  const result = await withReDoSGuard(
+    mergeGuardedRegex(patterns),
+    normalized,
+    options.budgetMs ?? GLOB_REDOS_BUDGET_MS,
+    options.onTimeout ? { onTimeout: options.onTimeout } : {},
+  );
+  if (result.timedOut) return true; // fail-closed: treat as protected
+  return result.match !== null;
+}
+
 /**
  * Compile a glob pattern to a RegExp. Supports `**` (any depth),
  * `*` (within one segment), and `?` (single char). Matching is done
@@ -188,12 +256,7 @@ export function scopesMayOverlap(left: string, right: string): boolean {
   );
 }
 
-export function targetIntersectsPatterns(
-  target: WriteTarget,
-  patternTexts: string[],
-  patterns: RegExp[],
-): boolean {
-  if (matchesAny(target.path, patterns)) return true;
+export function targetIntersectsScope(target: WriteTarget, patternTexts: string[]): boolean {
   if (target.kind === 'file') return false;
   const normalized = normalizePath(target.path).replace(/\/$/, '');
   if (!isUnresolvedPathScope(normalized)) {
@@ -204,6 +267,32 @@ export function targetIntersectsPatterns(
     );
   }
   return patternTexts.some((pattern) => scopesMayOverlap(normalized, normalizePath(pattern)));
+}
+
+export function targetIntersectsPatterns(
+  target: WriteTarget,
+  patternTexts: string[],
+  patterns: RegExp[],
+): boolean {
+  if (matchesAny(target.path, patterns)) return true;
+  return targetIntersectsScope(target, patternTexts);
+}
+
+/**
+ * ReDoS-guarded variant of `targetIntersectsPatterns` (issue #365 / audit
+ * T-02): the direct path match runs through `matchesAnyGuarded` (worker
+ * watchdog, fail-closed on timeout); scope-overlap logic stays synchronous
+ * because it matches against constructed candidate paths, not the raw
+ * hostile input.
+ */
+export async function targetIntersectsPatternsGuarded(
+  target: WriteTarget,
+  patternTexts: string[],
+  patterns: RegExp[],
+  options: GuardedMatchOptions = {},
+): Promise<boolean> {
+  if (await matchesAnyGuarded(target.path, patterns, options)) return true;
+  return targetIntersectsScope(target, patternTexts);
 }
 
 export function targetFullyAllowed(

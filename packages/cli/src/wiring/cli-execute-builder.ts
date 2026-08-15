@@ -33,6 +33,8 @@ export async function runCliExecution(params: {
   sessResult: any;
   sessionStore: any;
   memoryStore: any;
+  vectorMemoryStore: any;
+  vectorMemoryModelCacheDir: any;
   modeStore: any;
   needsSetup: any;
   statusTracker: any;

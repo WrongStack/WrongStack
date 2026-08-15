@@ -49,6 +49,13 @@ import {
   handleApiSessions,
 } from './api-handlers.js';
 import { decodeSessionId, strictDecodeParam } from './security-helpers.js';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
+import {
+  handleVectorMemoryForget,
+  handleVectorMemorySearch,
+  handleVectorMemoryStatus,
+  handleVectorMemoryStore,
+} from './vector-memory-handlers.js';
 
 export interface ApiRouterDeps {
   globalRoot?: string | undefined;
@@ -62,6 +69,16 @@ export interface ApiRouterDeps {
     | (() => { provider: import('@wrongstack/core/types').Provider; model: string } | undefined)
     | undefined;
   executePackageOperation?: import('../techstack-handlers.js').TechStackHandlerDeps['executePackageOperation'];
+  /**
+   * Optional vector memory store. When provided, the four
+   * `GET /api/vector-memory/status|search` and `POST /api/vector-memory/store`
+   * / `DELETE /api/vector-memory/store/:id` routes become active.
+   * Defaults to undefined so non-CLI webui-server hosts (e.g. a headless
+   * fleet dashboard) are unaffected.
+   */
+  getVectorMemoryStore?: (() => VectorMemoryStore | undefined) | undefined;
+  /** Model cache directory for the vector memory provider. */
+  vectorMemoryModelCacheDir?: string | undefined;
 }
 
 export async function handleApiRoutes(
@@ -498,6 +515,66 @@ export async function handleApiRoutes(
       },
       req,
     );
+    return true;
+  }
+
+  const vectorForgetMatch = /^\/api\/vector-memory\/store\/([^/]+)$/.exec(url.pathname);
+  if (vectorForgetMatch && req.method === 'DELETE') {
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
+    await handleVectorMemoryForget(
+      res,
+      url,
+      () => deps.getVectorMemoryStore?.(),
+    );
+    return true;
+  }
+
+  // Vector memory — opt-in surface. The four dispatcher branches
+  // (status / search / store / forget) are wired here. When no
+  // `getVectorMemoryStore` dependency is provided, the handlers
+  // themselves respond with `enabled: false` (status) or 503 (others),
+  // so a non-CLI webui-server host stays on its existing surface with
+  // zero behavior change.
+  if (url.pathname === '/api/vector-memory/status' && req.method === 'GET') {
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
+    await handleVectorMemoryStatus(
+      res,
+      () => deps.getVectorMemoryStore?.(),
+      {
+        ...(deps.projectRoot ? { projectRoot: deps.projectRoot } : {}),
+        ...(deps.vectorMemoryModelCacheDir
+          ? { modelCacheDir: deps.vectorMemoryModelCacheDir }
+          : {}),
+      },
+    );
+    return true;
+  }
+
+  if (url.pathname === '/api/vector-memory/search' && req.method === 'GET') {
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
+    await handleVectorMemorySearch(res, url, () => deps.getVectorMemoryStore?.());
+    return true;
+  }
+
+  if (url.pathname === '/api/vector-memory/store' && req.method === 'POST') {
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
+    await handleVectorMemoryStore(res, req, () => deps.getVectorMemoryStore?.());
     return true;
   }
 

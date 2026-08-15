@@ -153,7 +153,7 @@ function isInside(parent: string, candidate: string): boolean {
  * Using `node <entry>` avoids npx, shell configuration, and Windows `.cmd`
  * shims while still respecting Node's normal project-local package lookup.
  */
-function resolveLocalLinter(name: 'biome' | 'eslint', cwd: string): ResolvedLinter | null {
+export function resolveLocalLinter(name: 'biome' | 'eslint', cwd: string): ResolvedLinter | null {
   try {
     const packageName = LINTER_PACKAGES[name];
     const requireFromProject = createRequire(resolve(cwd, 'package.json'));
@@ -259,9 +259,10 @@ async function lintContent(
   // Create a temp directory and write the content with the same extension
   // as the target file so the linter applies the right rules.
   const ext = filePath.includes('.') ? filePath.slice(filePath.lastIndexOf('.')) : '.ts';
-  const tmpDir = await mkdtemp(join(tmpdir(), 'lint-gate-'));
-  const tmpFile = join(tmpDir, `input${ext}`);
+  let tmpDir: string | undefined;
   try {
+    tmpDir = await mkdtemp(join(tmpdir(), 'lint-gate-'));
+    const tmpFile = join(tmpDir, `input${ext}`);
     await writeFile(tmpFile, content, 'utf-8');
     const fullArgs = [...linter.args, tmpFile];
     const result = await runCommand(linter.cmd, fullArgs, timeoutMs, cwd, signal);
@@ -273,7 +274,7 @@ async function lintContent(
     if (signal.aborted) throw signal.reason;
     return null;
   } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+    if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
   }
 }
 
@@ -297,9 +298,10 @@ async function lintAndFix(
   signal: AbortSignal,
 ): Promise<string> {
   const ext = filePath.includes('.') ? filePath.slice(filePath.lastIndexOf('.')) : '.ts';
-  const tmpDir = await mkdtemp(join(tmpdir(), 'lint-gate-fix-'));
-  const tmpFile = join(tmpDir, `input${ext}`);
+  let tmpDir: string | undefined;
   try {
+    tmpDir = await mkdtemp(join(tmpdir(), 'lint-gate-fix-'));
+    const tmpFile = join(tmpDir, `input${ext}`);
     await writeFile(tmpFile, content, 'utf-8');
     // Build the fix command: biome uses `check --write`, eslint uses `--fix`.
     const fixArgs =
@@ -314,7 +316,7 @@ async function lintAndFix(
     if (signal.aborted) throw signal.reason;
     return content; // any error → return original
   } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+    if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
   }
 }
 
@@ -665,9 +667,9 @@ const plugin: Plugin = {
       name: 'lint-gate',
       stage: 'mutate',
       timeoutMs: Math.max(1_000, cfg.timeoutMs + 1_000),
-      // Formatter/linter availability must not create approval or denial
-      // loops in YOLO mode. Explicit lint findings still block in block mode.
-      failurePolicy: 'open',
+      // Fail closed: a linter crash or timeout must not let unlinted
+      // content through in block mode (issue #363).
+      failurePolicy: 'closed',
     });
 
     // --- lint_gate_status tool ---

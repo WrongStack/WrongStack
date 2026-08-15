@@ -394,3 +394,88 @@ describe('config parsing', () => {
     expect(result.extensions).toEqual(['.ts', '.tsx', '.js', '.jsx']);
   });
 });
+
+describe('issue #368 complexity + classification fixtures', () => {
+  it('counts a?.b ?? c as 1 (nullish only; optional chaining is not a branch)', async () => {
+    setFilesystem({ '/project/src/nullish.ts': 'export const v = a?.b ?? c;\n' });
+    const api = makeApi();
+    plugin.setup(api as never);
+    const measure = getTool(api, 'measure_code_metrics');
+    const result = (await measure({ path: 'src/nullish.ts' })) as {
+      files: Array<{ complexity: number }>;
+    };
+    expect(result.files[0]!.complexity).toBe(1);
+  });
+
+  it('counts ||= and ??= as one decision each', async () => {
+    setFilesystem({ '/project/src/assign.ts': 'x ||= y;\nz ??= w;\n' });
+    const api = makeApi();
+    plugin.setup(api as never);
+    const measure = getTool(api, 'measure_code_metrics');
+    const result = (await measure({ path: 'src/assign.ts' })) as {
+      files: Array<{ complexity: number }>;
+    };
+    expect(result.files[0]!.complexity).toBe(2);
+  });
+
+  it('counts a 5-level nested ternary as 5', async () => {
+    setFilesystem({
+      '/project/src/jsx.ts':
+        'export const C = () => (a ? b ? c ? d ? e ? 1 : 0 : 0 : 0 : 0 : 0);\n',
+    });
+    const api = makeApi();
+    plugin.setup(api as never);
+    const measure = getTool(api, 'measure_code_metrics');
+    const result = (await measure({ path: 'src/jsx.ts' })) as {
+      files: Array<{ complexity: number }>;
+    };
+    expect(result.files[0]!.complexity).toBe(5);
+  });
+
+  it('classifies // TODO as a comment line, not code', async () => {
+    setFilesystem({ '/project/src/todo.ts': '// TODO: handle error\n' });
+    const api = makeApi();
+    plugin.setup(api as never);
+    const measure = getTool(api, 'measure_code_metrics');
+    const result = (await measure({ path: 'src/todo.ts' })) as {
+      files: Array<{ codeLines: number; commentLines: number }>;
+    };
+    expect(result.files[0]!.commentLines).toBe(1);
+    expect(result.files[0]!.codeLines).toBe(0);
+  });
+
+  it('does not classify a shebang as code', async () => {
+    setFilesystem({ '/project/src/cli.ts': '#! /usr/bin/env node\n' });
+    const api = makeApi();
+    plugin.setup(api as never);
+    const measure = getTool(api, 'measure_code_metrics');
+    const result = (await measure({ path: 'src/cli.ts' })) as {
+      files: Array<{ codeLines: number; commentLines: number; lines: number }>;
+    };
+    expect(result.files[0]!.lines).toBe(2);
+    expect(result.files[0]!.codeLines).toBe(0);
+    expect(result.files[0]!.commentLines).toBe(0);
+  });
+
+  it('returns zeros for a 0-line file without throwing', async () => {
+    setFilesystem({ '/project/src/empty.ts': '' });
+    const api = makeApi();
+    plugin.setup(api as never);
+    const measure = getTool(api, 'measure_code_metrics');
+    const result = (await measure({ path: 'src/empty.ts' })) as {
+      ok: boolean;
+      files: Array<{ lines: number; codeLines: number; complexity: number }>;
+    };
+    expect(result.ok).toBe(true);
+    expect(result.files[0]).toMatchObject({ lines: 0, codeLines: 0, complexity: 0 });
+  });
+
+  it('exposes the complexity formula on metrics_status', async () => {
+    const api = makeApi();
+    plugin.setup(api as never);
+    const status = getTool(api, 'metrics_status');
+    const result = (await status({})) as { complexityFormula: string };
+    expect(result.complexityFormula).toContain('optional chaining');
+    expect(result.complexityFormula).toContain('??=');
+  });
+});

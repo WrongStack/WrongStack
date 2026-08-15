@@ -203,6 +203,7 @@ interface SecretScannerState {
   redactCount: number;
   allowCount: number;
   leakCount: number;
+  timeoutCount: number;
   lastBlock: null | { toolName: string; matchedTypes: string[]; when: string };
   lastLeak: null | { toolName: string; matchedTypes: string[]; when: string };
   hookUnregister: null | (() => void);
@@ -216,6 +217,7 @@ function createState(): SecretScannerState {
     allowCount: 0,
     /** PostToolUse: secrets detected in tool output. */
     leakCount: 0,
+    timeoutCount: 0,
     /** Most recent PreToolUse block — surfaced by `secret_scanner_status`. */
     lastBlock: null as null | {
       toolName: string;
@@ -526,7 +528,20 @@ function buildHook(
     const { state } = runtime;
     if (!cfg.enabled) return;
     const toolName = input.toolName ?? 'unknown';
-    const matched = scanInput(input.toolInput);
+    let matched: string[] | null;
+    try {
+      matched = scanInput(input.toolInput);
+    } catch (err) {
+      if (String(err).includes('ReDoS')) {
+        state.timeoutCount += 1;
+        return {
+          decision: 'block',
+          reason:
+            'secret-scanner: ReDoS timeout — regex scan exceeded the wall-clock budget. Fail-closed: treated as a block.',
+        };
+      }
+      throw err;
+    }
     if (!matched) return;
     // We have at least one match. Branch on mode.
     const summary = matched.join(', ');
@@ -790,6 +805,7 @@ const plugin: Plugin = {
             redact: state.redactCount,
             allow: state.allowCount,
             leak: state.leakCount,
+            timeoutCount: state.timeoutCount,
           },
           lastBlock: state.lastBlock,
           lastLeak: state.lastLeak,

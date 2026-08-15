@@ -8,6 +8,7 @@ export type CommandPaletteAction =
   | 'open-tasks'
   | 'open-plan'
   | 'open-memory'
+  | 'open-vector-memory'
   | 'open-files'
   | 'open-prompts'
   | 'open-brain'
@@ -104,6 +105,12 @@ const BASE_ITEMS: Array<Omit<CommandPaletteItem, 'disabled'>> = [
     title: 'Search memory',
     section: 'Knowledge',
     keywords: ['sage', 'knowledge', 'memories'],
+  },
+  {
+    id: 'open-vector-memory',
+    title: 'Search vector memory',
+    section: 'Knowledge',
+    keywords: ['semantic', 'embedding', 'similarity', 'transformers'],
   },
   {
     id: 'open-files',

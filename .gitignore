@@ -214,4 +214,5 @@ AGENTS.md
 .wrongstack/agents/**/skills/affinity.json
 .wrongstack/agents/**/quarantine.md
 
+.wrongstack/prompts/
 .zcode/

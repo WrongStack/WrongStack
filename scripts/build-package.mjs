@@ -218,6 +218,7 @@ const profiles = {
     external: [],
   },
   '@wrongstack/persistence': standard(),
+  '@wrongstack/vector-memory': standard(['@wrongstack/core', '@wrongstack/sage']),
   '@wrongstack/governance': {
     entries: {
       index: 'src/index.ts',

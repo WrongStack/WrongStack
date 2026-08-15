@@ -79,6 +79,57 @@ describe('parseInstallCommands', () => {
     const parsed = parseInstallCommands('cd app && npm i left-pad && npm test');
     expect(parsed.flatMap((p) => p.packages).map((p) => p.name)).toEqual(['left-pad']);
   });
+
+  it('parses caret / scoped / pip / cargo / bun edge cases (issue #364)', () => {
+    expect(parseInstallCommands('pnpm add foo@^1.2.3')[0]?.packages).toEqual([
+      { name: 'foo', version: '^1.2.3' },
+    ]);
+    expect(parseInstallCommands('pnpm add @types/node')[0]?.packages).toEqual([
+      { name: '@types/node', version: null },
+    ]);
+    expect(parseInstallCommands('pnpm add @types/node@^20.0.0')[0]?.packages).toEqual([
+      { name: '@types/node', version: '^20.0.0' },
+    ]);
+    expect(parseInstallCommands('pip install foo>=1.0')[0]?.packages).toEqual([
+      { name: 'foo', version: '>=1.0' },
+    ]);
+    expect(parseInstallCommands('pip install "foo[bar]>=1.0"')[0]?.packages).toEqual([
+      { name: 'foo[bar]', version: '>=1.0' },
+    ]);
+    expect(parseInstallCommands('cargo add foo@^1.0')[0]?.packages).toEqual([
+      { name: 'foo', version: '^1.0' },
+    ]);
+    expect(parseInstallCommands('bun add foo')[0]?.packages).toEqual([
+      { name: 'foo', version: null },
+    ]);
+    expect(parseInstallCommands('bun add foo@latest')[0]?.packages).toEqual([
+      { name: 'foo', version: 'latest' },
+    ]);
+    expect(parseInstallCommands('npm install').flatMap((p) => p.packages)).toEqual([]);
+  });
+});
+
+describe('cross-plugin install parse parity (issue #364)', () => {
+  it('license-audit-gate and dep-guard extract the same package names', async () => {
+    const { parsePackageNames } = await import('../src/license-audit-gate/index.js');
+    const { isInstallCommand } = await import('../src/dependency-vulnerability-gate/index.js');
+    const commands = [
+      'pnpm add foo@^1.2.3 @types/node@^20.0.0',
+      'bun add foo@latest',
+      'pip install foo>=1.0',
+      'cargo add foo@^1.0',
+      'npm install',
+    ];
+    for (const command of commands) {
+      const fromDep = parseInstallCommands(command)
+        .flatMap((e) => e.packages.map((p) => p.name))
+        .sort();
+      expect(parsePackageNames(command).sort()).toEqual(fromDep);
+      expect(isInstallCommand({ toolName: 'bash', toolInput: { command } })).toBe(
+        parseInstallCommands(command).length > 0,
+      );
+    }
+  });
 });
 
 describe('typosquat detection', () => {

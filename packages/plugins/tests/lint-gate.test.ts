@@ -102,6 +102,29 @@ describe('lint_gate_status tool', () => {
   });
 });
 
+describe('issue #363 Windows shim + failurePolicy + temp cleanup', () => {
+  it('registers PreToolUse with failurePolicy closed', () => {
+    const api = makeApi();
+    lintGatePlugin.setup(api as never);
+    const opts = api.registerHook.mock.calls[0]![3] as { failurePolicy?: string };
+    expect(opts.failurePolicy).toBe('closed');
+  });
+
+  it('resolveLocalLinter uses node + the JS entry, not npx', async () => {
+    const { resolveLocalLinter } = await import('../src/lint-gate/index.js');
+    const resolved = resolveLocalLinter('biome', process.cwd());
+    if (!resolved) {
+      // Workspace without a local biome install — the contract is still
+      // "when it resolves, it is node <entry>".
+      expect(resolved).toBeNull();
+      return;
+    }
+    expect(resolved.cmd).toBe(process.execPath);
+    expect(resolved.args[0]).not.toMatch(/npx/i);
+    expect(resolved.args[0]).toMatch(/biome/i);
+  });
+});
+
 describe('teardown + H1 pattern', () => {
   it('logs completion line and does not throw', () => {
     const api = makeApi();

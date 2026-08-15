@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const promptFirewallPlugin = (await import('../src/prompt-firewall')).default;
-const { detectSecrets, readConfig, redactSecrets } = await import('../src/prompt-firewall');
+const { detectSecrets, readConfig, redactSecrets, KIND_ALIASES } = await import(
+  '../src/prompt-firewall'
+);
 
 interface Tool {
   name: string;
@@ -134,14 +136,72 @@ describe('prompt-firewall plugin', () => {
   it('redact mode strips secrets from the outgoing request', async () => {
     const api = setup({ enabled: true, mode: 'redact' });
     const inner = vi.fn().mockResolvedValue(resp('clean'));
-    await api._wrap!(null, req(`use ${GH_TOKEN} now`), inner);
+    const original = req(`use ${GH_TOKEN} now`);
+    await api._wrap!(null, original, inner);
     const sent = JSON.stringify(inner.mock.calls[0]![1]);
     expect(sent).not.toContain(GH_TOKEN);
     expect(sent).toContain('[REDACTED:github-token]');
+    expect(JSON.stringify(original)).toContain(GH_TOKEN);
     const status = await api._tools.prompt_firewall_status!.execute({});
     expect(
       (status.counters as { requestRedactions: number }).requestRedactions,
     ).toBeGreaterThanOrEqual(1);
+  });
+
+  it('redact mode clones AKIA keys and leaves the original request untouched', async () => {
+    const api = setup({ enabled: true, mode: 'redact' });
+    const inner = vi.fn().mockResolvedValue(resp('ok'));
+    const original = req(`key ${AWS_KEY}`);
+    await api._wrap!(null, original, inner);
+    const sent = inner.mock.calls[0]![1] as typeof original;
+    expect(JSON.stringify(sent)).toContain('[REDACTED:aws-access-key]');
+    expect(JSON.stringify(original)).toContain(AWS_KEY);
+    expect(sent).not.toBe(original);
+  });
+
+  it('lets PEM certificate and base64 padding fixtures through unchanged', async () => {
+    const pem =
+      '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAKHHHexample\n-----END CERTIFICATE-----';
+    const b64 = 'SGVsbG8gV29ybGQhISE=';
+    const api = setup({ enabled: true, mode: 'redact' });
+    const inner = vi.fn().mockResolvedValue(resp('ok'));
+    const original = req(`cert=${pem}\npadding=${b64}`);
+    await api._wrap!(null, original, inner);
+    expect(inner).toHaveBeenCalled();
+    const sent = JSON.stringify(inner.mock.calls[0]![1]);
+    expect(sent).toContain('BEGIN CERTIFICATE');
+    expect(sent).toContain(b64);
+  });
+
+  it('pins KIND_ALIASES legacy spellings (issue #362)', () => {
+    expect(KIND_ALIASES.aws_access_key).toBe('aws-access-key');
+    expect(KIND_ALIASES.private_key).toBe('private-key-block');
+    expect(KIND_ALIASES.github_pat).toBe('github-token');
+    expect(KIND_ALIASES.openai_key).toBe('openai-key');
+  });
+
+  it('loads after llm-cache in the official export order (outer wrap)', async () => {
+    const generated = await import('../src/generated-plugin-exports.js');
+    const keys = Object.keys(generated);
+    expect(keys.indexOf('llmCachePlugin')).toBeGreaterThanOrEqual(0);
+    expect(keys.indexOf('promptFirewallPlugin')).toBeGreaterThan(keys.indexOf('llmCachePlugin'));
+  });
+
+  it('setup twice unregisters the first wrap (H1 reload)', () => {
+    const unregister = vi.fn();
+    const tools: Record<string, Tool> = {};
+    const api: MockApi = {
+      tools: { register: (t: Tool) => { tools[t.name] = t; } },
+      config: { extensions: { 'prompt-firewall': { enabled: true } } },
+      log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
+      extensions: { register: vi.fn(() => unregister) },
+      emitCustom: vi.fn(),
+      _tools: tools,
+    };
+    promptFirewallPlugin.setup(api as never);
+    promptFirewallPlugin.setup(api as never);
+    expect(unregister).toHaveBeenCalledTimes(1);
   });
 
   const postgresQueryPassword =

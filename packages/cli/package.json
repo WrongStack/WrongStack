@@ -66,6 +66,7 @@
     "@wrongstack/telegram": "workspace:*",
     "@wrongstack/tools": "workspace:*",
     "@wrongstack/tui": "workspace:*",
+    "@wrongstack/vector-memory": "workspace:*",
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-hq": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",

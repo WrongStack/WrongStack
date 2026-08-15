@@ -239,6 +239,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     apiToken: wsToken,
     requireToken,
     deferListen: surface === 'simpleui',
+    ...(opts.getVectorMemoryStore
+      ? { getVectorMemoryStore: opts.getVectorMemoryStore }
+      : {}),
+    ...(opts.vectorMemoryModelCacheDir
+      ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }
+      : {}),
   });
 
   const wss = httpServer

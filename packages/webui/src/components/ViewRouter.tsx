@@ -65,6 +65,9 @@ const TechStackView = lazy(() =>
 const DeadCodeScanPanel = lazy(() =>
   import('./DeadCodeScanPanel/DeadCodeScanPanel').then((m) => ({ default: m.DeadCodeScanPanel })),
 );
+const VectorMemoryPanel = lazy(() =>
+  import('./vector-memory-panel').then((m) => ({ default: m.VectorMemoryPanel })),
+);
 
 /**
  * Main view router — switches the main content area based on `currentView`.
@@ -117,6 +120,10 @@ export function ViewRouter({
           <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.sageMemory') })} />}>
             <SageTabs />
           </Suspense>
+          {/* Vector memory — additional, alongside SAGE. Strictly opt-in:
+              when the webui-server host doesn't wire a vector store the
+              panel renders a "disabled" placeholder. */}
+          <VectorMemoryPanel />
         </ErrorBoundary>
       )}
       {currentView === 'roster' && (

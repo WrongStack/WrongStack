@@ -10,6 +10,7 @@ import type { CommandPaletteAction } from './lib/command-palette-model.js';
 import type { SimpleSocket } from './lib/ws.js';
 import { MemoryDrawer } from './memory-drawer.js';
 import { PromptLibrary } from './prompt-library.js';
+import { VectorMemoryPanel } from './vector-memory-panel.js';
 import { ServerOutageOverlay } from './server-outage-overlay.js';
 import { SessionHealthPanel } from './session-health-panel.js';
 import { SettingsPanel } from './settings-panel.js';
@@ -117,6 +118,7 @@ export function SessionModals(props: SessionModalsProps) {
       <FileExplorer socketRef={socketRef} />
       <PromptLibrary onRecall={onRecallPrompt} />
       <BrainPanel socketRef={socketRef} />
+      <VectorMemoryPanel />
       <SessionHealthPanel
         context={context}
         messages={messages}

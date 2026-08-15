@@ -93,6 +93,16 @@ export interface StaticServeOptions {
    * routes correctly answer 503.
    */
   intakeService?: CreateHttpServerOptions['intakeService'];
+  /**
+   * Optional vector-memory store. When provided, the four
+   * `/api/vector-memory/{status,search,store,store/:id}` endpoints become
+   * active. When omitted, the routes respond with `{ enabled: false }` or
+   * 503 — a non-CLI webui-server host stays on its existing surface with
+   * zero behavior change.
+   */
+  getVectorMemoryStore?: CreateHttpServerOptions['getVectorMemoryStore'];
+  /** Model cache directory for the vector-memory provider. */
+  vectorMemoryModelCacheDir?: string | undefined;
 }
 
 /**
@@ -307,6 +317,10 @@ export async function startStaticServe(
     requireToken: opts.requireToken,
     allowedHostnames: opts.allowedHostnames,
     intakeService,
+    ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
+    ...(opts.vectorMemoryModelCacheDir
+      ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }
+      : {}),
   });
 
   if (!opts.deferListen) {

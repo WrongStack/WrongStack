@@ -162,6 +162,26 @@ describe('standalone WebUI session swap lifecycle', () => {
     expect(abortOrder).toBeLessThan(closeOrder);
   });
 
+  it('aborts the in-flight run on session.new even when canSwapSessions is false', async () => {
+    const old = writer('2026-07-12/sess_static');
+    const abortActiveRun = vi.fn();
+    const harness = makeHarness({
+      root,
+      sessionsDir,
+      current: old,
+      canSwapSessions: () => false,
+      abortActiveRun,
+    });
+
+    await harness.routes.newSession(harness.ws, {
+      type: 'session.new',
+      payload: { sessionId: old.id },
+    });
+
+    expect(abortActiveRun).toHaveBeenCalledWith(old.id);
+    expect(harness.context.state.replaceMessages).toHaveBeenCalledWith([]);
+  });
+
   it('discards a fresh writer when its ownership claim fails', async () => {
     const old = writer('2026-07-12/sess_old');
     const next = writer('2026-07-12/sess_new');
@@ -340,7 +360,8 @@ function makeHarness(input: {
   resumed?: ReturnType<typeof writer> | undefined;
   resumedMessages?: unknown[] | undefined;
   resumedUsage?: Record<string, number> | undefined;
-  abortActiveRun?: (() => void) | undefined;
+  canSwapSessions?: (() => boolean) | undefined;
+  abortActiveRun?: ((sessionId?: string) => void) | undefined;
   claimSession?: ((sessionId: string) => Promise<() => Promise<void>>) | undefined;
   onBeforeSessionTodosReplaced?:
     | ((sessionId: string, sessionsDir: string) => void | Promise<void>)
@@ -416,6 +437,7 @@ function makeHarness(input: {
     onBeforeSessionTodosReplaced: (sessionId, targetDir) =>
       onBeforeSessionTodosReplaced?.(sessionId, targetDir),
     onSessionSwapped,
+    canSwapSessions: input.canSwapSessions,
     abortActiveRun: input.abortActiveRun,
     sessionStartPayload: async () => ({
       sessionId: current.id,

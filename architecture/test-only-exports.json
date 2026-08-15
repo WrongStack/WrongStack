@@ -702,8 +702,10 @@
       "validateYaml"
     ],
     "packages/plugins/src/dep-guard/index.ts": [
-      "parseInstallCommands",
       "typosquatOf"
+    ],
+    "packages/plugins/src/dependency-vulnerability-gate/index.ts": [
+      "isInstallCommand"
     ],
     "packages/plugins/src/duplicate-code-detector/index.ts": [
       "hashFingerprint",
@@ -728,6 +730,12 @@
       "scanForInjection",
       "stripInvisible"
     ],
+    "packages/plugins/src/license-audit-gate/index.ts": [
+      "parsePackageNames"
+    ],
+    "packages/plugins/src/lint-gate/index.ts": [
+      "resolveLocalLinter"
+    ],
     "packages/plugins/src/llm-cache/index.ts": [
       "fingerprintRequest",
       "isDeterministic"
@@ -736,11 +744,15 @@
       "pickRule",
       "requestCharSize"
     ],
+    "packages/plugins/src/path-guard/index.ts": [
+      "isSymlinkEscape"
+    ],
     "packages/plugins/src/plugin-audit-catalog/index.ts": [
       "HOST_PLUGIN_AUDIT_ENTRIES"
     ],
     "packages/plugins/src/prompt-firewall/index.ts": [
-      "detectSecrets"
+      "detectSecrets",
+      "KIND_ALIASES"
     ],
     "packages/plugins/src/runtime/credential-patterns.ts": [
       "CREDENTIAL_PATTERNS"

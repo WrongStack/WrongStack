@@ -72,7 +72,8 @@
     "@wrongstack/core": "workspace:*",
     "@wrongstack/governance": "workspace:*",
     "@wrongstack/sage": "workspace:*",
-    "@wrongstack/tools": "workspace:*"
+    "@wrongstack/tools": "workspace:*",
+    "@wrongstack/vector-memory": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

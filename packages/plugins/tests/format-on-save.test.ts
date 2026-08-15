@@ -293,6 +293,62 @@ describe('teardown + H1 pattern', () => {
   });
 });
 
+describe('issue #366 status counters + silent skip', () => {
+  it('does not emit additionalContext when formatting is a no-op', async () => {
+    mockStat.mockResolvedValue({ size: 100 });
+    const api = makeApi();
+    await formatOnSavePlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = await hook({
+      toolName: 'write',
+      toolInput: { path: 'src/clean.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('exposes bytesBefore/bytesAfter/durationMs on format_on_save_status', async () => {
+    let size = 100;
+    mockStat.mockImplementation(async () => ({ size: (size += 10) }));
+    const api = makeApi();
+    await formatOnSavePlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = await hook({
+      toolName: 'write',
+      toolInput: { path: 'src/dirty.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result?.additionalContext).toMatch(/bytes/);
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { bytesBefore: number; bytesAfter: number; durationMs: number };
+      lastResult: { durationMs: number };
+    };
+    expect(status.counters.bytesBefore).toBeGreaterThan(0);
+    expect(status.counters.bytesAfter).toBeGreaterThan(status.counters.bytesBefore);
+    expect(status.counters.durationMs).toBeGreaterThanOrEqual(0);
+    expect(status.lastResult.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('records errorCount when the formatter times out', async () => {
+    mockExecFile.mockImplementationOnce((_c, _a, _o, cb) => {
+      const err = Object.assign(new Error('killed'), { killed: true });
+      cb(err);
+      return {};
+    });
+    const api = makeApi({ extensions: { 'format-on-save': { timeoutMs: 10 } } });
+    await formatOnSavePlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = await hook({
+      toolName: 'write',
+      toolInput: { path: 'src/slow.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+    const status = (await getStatusTool(api).execute({})) as { counters: { errors: number } };
+    expect(status.counters.errors).toBeGreaterThan(0);
+  });
+});
+
 describe('cross-plugin coordination with import-organizer', () => {
   // The plugin registers an `import-organizer:done` listener and
   // remembers the path so a follow-up PostToolUse on the same file

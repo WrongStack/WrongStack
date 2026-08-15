@@ -137,41 +137,81 @@ function countFunctions(content: string): number {
   return count;
 }
 
+/**
+ * Heuristic cyclomatic-complexity formula (per file, not per function):
+ *   control keywords (if | else if | for | while | switch | catch)
+ *   + short-circuit / nullish operators (&& || ??)
+ *   + assignment-or operators (||= &&= ??=)
+ *   + ternary `?`
+ * Optional chaining (`?.`) is not a decision point — `a?.b ?? c` adds 1.
+ */
+export const COMPLEXITY_FORMULA =
+  'control(if|else if|for|while|switch|catch) + (&& || ?? ||= &&= ??=) + ternary ?; optional chaining ?. is not counted';
+
 function countComplexity(content: string): number {
   const controlRe = /\b(if|else\s+if|for|while|switch|catch)\b/g;
-  const operatorRe = /[?&|]/g;
   let complexity = 0;
 
   controlRe.lastIndex = 0;
   for (const _match of content.matchAll(controlRe)) complexity++;
 
-  // Count ternary ? and && / || operators as decision points.
-  operatorRe.lastIndex = 0;
-  for (const match of content.matchAll(operatorRe)) {
-    const ch = match[0];
-    if (ch === '?') {
+  for (let i = 0; i < content.length; i++) {
+    const c = content[i]!;
+    const n1 = content[i + 1];
+    const n2 = content[i + 2];
+    if (c === '?' && n1 === '?' && n2 === '=') {
       complexity++;
-    } else {
-      // Only count when two identical operators form && or ||.
-      const next = content[match.index + 1];
-      if (next === ch) complexity++;
+      i += 2;
+      continue;
     }
+    if ((c === '|' && n1 === '|' && n2 === '=') || (c === '&' && n1 === '&' && n2 === '=')) {
+      complexity++;
+      i += 2;
+      continue;
+    }
+    if ((c === '?' && n1 === '?') || (c === '|' && n1 === '|') || (c === '&' && n1 === '&')) {
+      complexity++;
+      i += 1;
+      continue;
+    }
+    if (c === '?' && n1 === '.') {
+      i += 1;
+      continue;
+    }
+    if (c === '?') complexity++;
   }
 
   return complexity;
 }
 
 function analyzeFile(filePath: string, content: string): FileMetrics {
+  if (content.length === 0) {
+    return {
+      file: relativePath(filePath),
+      lines: 0,
+      codeLines: 0,
+      commentLines: 0,
+      blankLines: 0,
+      functionCount: 0,
+      complexity: 0,
+    };
+  }
+
   const lines = content.split(/\r?\n/);
   let codeLines = 0;
   let commentLines = 0;
   let blankLines = 0;
   let inBlockComment = false;
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!.trim();
     if (line.length === 0) {
       blankLines++;
+      continue;
+    }
+
+    // Shebang is neither source nor a comment; do not inflate codeLines.
+    if (i === 0 && line.startsWith('#!')) {
       continue;
     }
 
@@ -376,6 +416,7 @@ const plugin: Plugin = {
             hookInvocations: state.hookInvocationCount,
             errors: state.errorCount,
           },
+          complexityFormula: COMPLEXITY_FORMULA,
         };
       },
     });

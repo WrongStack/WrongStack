@@ -30,6 +30,7 @@ import type {
 } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import type { TerminalRenderer } from '../renderer.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import { terminalLink, terminalText } from '../terminal-format.js';
@@ -72,6 +73,16 @@ export interface WebUIDispatchContext {
   subscribeEternalIteration: ((fn: (entry: JournalEntry) => void) => () => void) | undefined;
   sessionStore: SessionStore | undefined;
   memoryStore: MemoryPort | undefined;
+  /**
+   * Optional vector-memory store. When provided, the four
+   * `/api/vector-memory/{status,search,store,store/:id}` endpoints become
+   * active on the embedded WebUI server. When omitted, the routes respond
+   * with `{ enabled: false }` or 503 — the embedded WebUI stays on its
+   * existing surface with zero behavior change.
+   */
+  getVectorMemoryStore?: (() => VectorMemoryStore | undefined) | undefined;
+  /** Model cache directory for the vector-memory provider. */
+  vectorMemoryModelCacheDir?: string | undefined;
   skillLoader: SkillLoader | undefined;
   promptLoader: import('@wrongstack/core/types').PromptLoader | undefined;
   modeStore: ModeStore | undefined;
@@ -163,6 +174,8 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     subscribeEternalIteration,
     sessionStore,
     memoryStore,
+    getVectorMemoryStore,
+    vectorMemoryModelCacheDir,
     skillLoader,
     promptLoader,
     modeStore,
@@ -357,6 +370,8 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     sddSubagentFactory,
     updateInfo: ctx.updateInfo,
     onKanbanDispatch,
+    getVectorMemoryStore,
+    vectorMemoryModelCacheDir,
     // Print the "open this" banner only once the server is actually
     // listening, using the RESOLVED port. Requested ports auto-advance past
     // busy ports inside runWebUI, so a banner printed up-front lies whenever

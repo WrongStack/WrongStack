@@ -151,10 +151,15 @@ export function parseInstallCommands(command: string): ParsedInstall[] {
       // pip-style: name==ver / name>=ver.
       let name = cleaned;
       let version: string | null = null;
-      const pipMatch = /^([A-Za-z0-9_.-]+)\s*(?:==|>=|<=|~=|!=|>|<)\s*(.+)$/.exec(cleaned);
+      const pipMatch =
+        /^([A-Za-z0-9_.-]+(?:\[[^\]]+\])?)\s*(==|>=|<=|~=|!=|>|<)\s*(.+)$/.exec(cleaned);
       if (pipMatch?.[1]) {
         name = pipMatch[1];
-        version = pipMatch[2] ?? null;
+        const op = pipMatch[2] ?? '';
+        const ver = (pipMatch[3] ?? '').trim();
+        // `==` is the historical pip pin spelling; keep the bare version.
+        // Range operators stay attached so `>=1.0` is distinguishable from `1.0`.
+        version = op === '==' || op === '' ? ver || null : `${op}${ver}`;
       } else {
         const at = cleaned.lastIndexOf('@');
         if (at > 0) {

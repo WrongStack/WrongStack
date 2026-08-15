@@ -4,7 +4,9 @@ import type { Tool, ToolResultBlock } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pathGuardPlugin = (await import('../src/path-guard/index.js')).default;
-const { compilePathGlob, destructiveTargets } = await import('../src/path-guard/index.js');
+const { compilePathGlob, destructiveTargets, isSymlinkEscape } = await import(
+  '../src/path-guard/index.js'
+);
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -34,10 +36,10 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
 
 type HookResult = { decision?: string; reason?: string; additionalContext?: string } | undefined;
 
-function getHook(api: MockApi): (input: unknown) => HookResult {
+function getHook(api: MockApi): (input: unknown) => Promise<HookResult> {
   const call = api.registerHook.mock.calls[0];
   if (!call) throw new Error('hook not registered');
-  return (call as unknown[])[2] as (input: unknown) => HookResult;
+  return (call as unknown[])[2] as (input: unknown) => Promise<HookResult>;
 }
 
 beforeEach(() => {
@@ -45,14 +47,14 @@ beforeEach(() => {
 });
 
 describe('compilePathGlob', () => {
-  it('matches basenames at any depth', () => {
+  it('matches basenames at any depth', async () => {
     const re = compilePathGlob('.env');
     expect(re.test('.env')).toBe(true);
     expect(re.test('sub/dir/.env')).toBe(true);
     expect(re.test('.envrc')).toBe(false);
   });
 
-  it('supports * within a segment and ** across whole segments', () => {
+  it('supports * within a segment and ** across whole segments', async () => {
     expect(compilePathGlob('.env.*').test('.env.local')).toBe(true);
     expect(compilePathGlob('**/migrations/**').test('db/migrations/001.sql')).toBe(true);
     expect(compilePathGlob('**/migrations/**').test('migrations')).toBe(true);
@@ -66,7 +68,7 @@ describe('compilePathGlob', () => {
 });
 
 describe('destructiveTargets', () => {
-  it('extracts rm and redirect targets', () => {
+  it('extracts rm and redirect targets', async () => {
     expect(destructiveTargets('rm -rf pnpm-lock.yaml')).toContain('pnpm-lock.yaml');
     expect(destructiveTargets('echo hi > .env')).toContain('.env');
     expect(destructiveTargets('mv .env .env.bak')).toEqual(
@@ -74,7 +76,7 @@ describe('destructiveTargets', () => {
     );
   });
 
-  it('extracts common shell writer and wrapper targets', () => {
+  it('extracts common shell writer and wrapper targets', async () => {
     expect(destructiveTargets('echo x | tee -a .env')).toContain('.env');
     expect(destructiveTargets('git clean -fd')).toContain('.');
     expect(destructiveTargets('find . -delete')).toContain('.');
@@ -94,7 +96,7 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('xargs -r rm .env')).toContain('.env');
   });
 
-  it('preserves parentheses in destructive path operands', () => {
+  it('preserves parentheses in destructive path operands', async () => {
     expect(destructiveTargets('rm -rf "$(pwd)/.env"')).toContain('$(pwd)/.env');
     expect(destructiveTargets('(cd workspace && rm .env)')).toContain('.env');
     expect(destructiveTargets('rm "file (1).env"')).toContain('file (1).env');
@@ -104,7 +106,7 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets(String.raw`rm config\ \(prod\).env`)).toContain('config (prod).env');
   });
 
-  it('preserves Windows path separators inside double quotes', () => {
+  it('preserves Windows path separators inside double quotes', async () => {
     expect(destructiveTargets(String.raw`rm -rf "D:\repo\.git"`)).toContain(
       String.raw`D:\repo\.git`,
     );
@@ -114,7 +116,7 @@ describe('destructiveTargets', () => {
     );
   });
 
-  it('extracts command and process substitutions but ignores arithmetic expansions', () => {
+  it('extracts command and process substitutions but ignores arithmetic expansions', async () => {
     expect(destructiveTargets('echo hi > >(rm .env)')).toContain('.env');
     expect(destructiveTargets('cat < <(rm .env)')).toContain('.env');
     expect(destructiveTargets('echo $((rm .env))')).toHaveLength(0);
@@ -132,16 +134,16 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('echo "\\`rm .env\\`"')).toHaveLength(0);
   });
 
-  it('bounds deeply nested command substitution inspection with an unresolved scope', () => {
+  it('bounds deeply nested command substitution inspection with an unresolved scope', async () => {
     const nested = `${'echo $('.repeat(100)}rm .env${')'.repeat(100)}`;
     expect(destructiveTargets(nested)).toContain('**');
   });
 
-  it('terminates safely on deeply nested unclosed substitutions', () => {
+  it('terminates safely on deeply nested unclosed substitutions', async () => {
     expect(destructiveTargets('$('.repeat(2_000))).toHaveLength(0);
   });
 
-  it('extracts noclobber overrides and destructive raw Git targets', () => {
+  it('extracts noclobber overrides and destructive raw Git targets', async () => {
     expect(destructiveTargets('echo secret >| .env')).toContain('.env');
     expect(destructiveTargets('sudo --user=root rm .env')).toContain('.env');
     expect(destructiveTargets('sudo --user root rm .env')).toContain('.env');
@@ -213,7 +215,7 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('git reset --keep')).toContain('.');
   });
 
-  it('detects destructive payloads inside env split-string commands', () => {
+  it('detects destructive payloads inside env split-string commands', async () => {
     expect(destructiveTargets("env -S 'rm .env'")).toContain('.env');
     expect(destructiveTargets('env -S "rm -rf .git"')).toContain('.git');
     expect(destructiveTargets('env -S "rm -rf \'.git\'"')).toContain('.git');
@@ -230,11 +232,11 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets(String.raw`env -C safe\;dir -S 'rm .env'`)).toContain('.env');
   });
 
-  it('does not unwrap env split-string text beyond a shell separator', () => {
+  it('does not unwrap env split-string text beyond a shell separator', async () => {
     expect(destructiveTargets("env FOO=1 ; echo -S 'rm -rf /'")).toHaveLength(0);
   });
 
-  it('does not let `env -S` hide compound destructive commands', () => {
+  it('does not let `env -S` hide compound destructive commands', async () => {
     expect(destructiveTargets('rm -rf .git && env -S "echo hi"')).toContain('.git');
     expect(destructiveTargets('git clean -fdx && env -S "echo hi"')).toContain('.');
     expect(destructiveTargets('env -S "echo hi" && rm -rf .env')).toContain('.env');
@@ -251,13 +253,13 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets("env -S 'echo safe'")).toHaveLength(0);
   });
 
-  it('ignores Git-looking text inside quoted shell arguments', () => {
+  it('ignores Git-looking text inside quoted shell arguments', async () => {
     expect(destructiveTargets('echo "a; git clean -fdx"')).toHaveLength(0);
     expect(destructiveTargets('echo "line1\ngit clean -fdx"')).toHaveLength(0);
     expect(destructiveTargets('echo "x; git reset --hard"; cp notes.txt .')).toEqual(['.']);
   });
 
-  it('ignores non-mutating raw Git forms', () => {
+  it('ignores non-mutating raw Git forms', async () => {
     expect(destructiveTargets('git log -- rm .env')).toHaveLength(0);
     expect(destructiveTargets('git config rm .env')).toHaveLength(0);
     expect(destructiveTargets('git status clean')).toHaveLength(0);
@@ -275,7 +277,7 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('git clean -nd')).toHaveLength(0);
   });
 
-  it('classifies recursive Git directory operands as scopes', () => {
+  it('classifies recursive Git directory operands as scopes', async () => {
     expect(destructiveTargets('git rm -r src')).toContain('src/**');
     expect(destructiveTargets('git clean -fd src/')).toContain('src/**');
     expect(destructiveTargets('git restore src/')).toContain('src/**');
@@ -283,7 +285,7 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('git restore --source=HEAD~1 src/')).toEqual(['src/**']);
   });
 
-  it('does not mistake git clean redirects or exclude values for deletion roots', () => {
+  it('does not mistake git clean redirects or exclude values for deletion roots', async () => {
     expect(destructiveTargets('git clean -fdx > /dev/null')).toEqual(['.']);
     expect(destructiveTargets('git clean -fdx 2>/dev/null')).toEqual(['.']);
     expect(destructiveTargets('git clean -fdx >> clean.log')).toEqual(
@@ -296,18 +298,18 @@ describe('destructiveTargets', () => {
 
   it.each(['/bin/cat <<EOF\nrm .env\nEOF', 'sudo /bin/cat <<EOF\nrm .env\nEOF'])(
     'ignores destructive syntax in path-qualified or wrapped cat heredoc data: %s',
-    (command) => {
+    async (command) => {
       expect(destructiveTargets(command)).toHaveLength(0);
     },
   );
 
-  it('does not treat assignment-like of= arguments on benign commands as dd outputs', () => {
+  it('does not treat assignment-like of= arguments on benign commands as dd outputs', async () => {
     expect(destructiveTargets('echo see of=.env')).toHaveLength(0);
     expect(destructiveTargets('ls of=.env')).toHaveLength(0);
     expect(destructiveTargets("grep 'x' of=.env")).toHaveLength(0);
   });
 
-  it('unwraps env launchers and honors copy target-directory options', () => {
+  it('unwraps env launchers and honors copy target-directory options', async () => {
     expect(destructiveTargets('env rm .env')).toContain('.env');
     expect(destructiveTargets('env FOO=bar rm ".env local"')).toContain('.env local');
     expect(destructiveTargets('cp -t .git source')).toContain('.git');
@@ -315,7 +317,7 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('install --target-directory=.git source')).toContain('.git');
   });
 
-  it('strips env/sudo option-bearing launchers so deletion is not hidden', () => {
+  it('strips env/sudo option-bearing launchers so deletion is not hidden', async () => {
     expect(destructiveTargets('env -i rm .env')).toContain('.env');
     expect(destructiveTargets('env -i rm -rf db')).toContain('db');
     expect(destructiveTargets('env -uFOO rm .env')).toContain('.env');
@@ -349,14 +351,14 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('env -C/tmp;rm .env')).toContain('.env');
   });
 
-  it('distinguishes file-form combined redirects from descriptor operations', () => {
+  it('distinguishes file-form combined redirects from descriptor operations', async () => {
     expect(destructiveTargets('echo secret >& .env')).toContain('.env');
     expect(destructiveTargets('echo secret >&.env')).toContain('.env');
     expect(destructiveTargets('command 2>&1')).toHaveLength(0);
     expect(destructiveTargets('command >&-')).toHaveLength(0);
   });
 
-  it('ignores non-destructive commands, quoted operators, fd copies, and /dev/null', () => {
+  it('ignores non-destructive commands, quoted operators, fd copies, and /dev/null', async () => {
     expect(destructiveTargets('cat .env')).toHaveLength(0);
     expect(destructiveTargets('echo "note: > .env"')).toHaveLength(0);
     expect(destructiveTargets('command 2>&1')).toHaveLength(0);
@@ -370,25 +372,25 @@ describe('destructiveTargets', () => {
     'echo "note | tee .env"',
     'echo "note; sed -i s/x/y/ .env"',
     'echo "note: printf .env | xargs rm"',
-  ])('ignores destructive-looking syntax inside quoted text: %s', (command) => {
+  ])('ignores destructive-looking syntax inside quoted text: %s', async (command) => {
     expect(destructiveTargets(command)).toHaveLength(0);
   });
 
-  it('preserves spaces in quoted redirect targets', () => {
+  it('preserves spaces in quoted redirect targets', async () => {
     expect(destructiveTargets('echo hi > "my dir/.env"')).toContain('my dir/.env');
   });
 
-  it('keeps opposite quote characters literal while locating redirects', () => {
+  it('keeps opposite quote characters literal while locating redirects', async () => {
     expect(destructiveTargets('echo "it\'s" > .env')).toContain('.env');
     expect(destructiveTargets("echo 'say \"hi' > .env")).toContain('.env');
   });
 
-  it('treats newlines as command boundaries for destructive writers', () => {
+  it('treats newlines as command boundaries for destructive writers', async () => {
     expect(destructiveTargets('echo ok\nrm .env')).toContain('.env');
     expect(destructiveTargets('echo ok\r\ncp source .env')).toContain('.env');
   });
 
-  it('does not treat a backslash as escaping a POSIX single quote', () => {
+  it('does not treat a backslash as escaping a POSIX single quote', async () => {
     expect(destructiveTargets("echo 'foo\\' ; rm .env")).toContain('.env');
   });
 
@@ -411,25 +413,25 @@ EOF`,
     ],
   ])(
     'ignores redirect-looking text inside non-executing heredoc bodies: %s',
-    (command, expected) => {
+    async (command, expected) => {
       expect(destructiveTargets(command)).toEqual(expected);
     },
   );
 
-  it('does not treat a data heredoc feeding process substitution as executing its body', () => {
+  it('does not treat a data heredoc feeding process substitution as executing its body', async () => {
     expect(destructiveTargets("cat <<'EOF' > >(grep x)\nrm .env\nEOF")).toHaveLength(0);
   });
 
   it.each(['env sh', 'sudo sh'])(
     'inspects heredoc bodies executed by launcher-wrapped process substitutions: %s',
-    (processCommand) => {
+    async (processCommand) => {
       expect(destructiveTargets(`cat <<'EOF' > >(${processCommand})\nrm .env\nEOF`)).toContain(
         '.env',
       );
     },
   );
 
-  it('inspects executable heredoc consumers but keeps quoted data heredocs inert', () => {
+  it('inspects executable heredoc consumers but keeps quoted data heredocs inert', async () => {
     expect(destructiveTargets('cat <<EOF\n$(rm .env)\nEOF')).toContain('.env');
     expect(destructiveTargets('cat <<EOF\n$(\nrm .env\n)\nEOF')).toContain('.env');
     expect(destructiveTargets('cat <<EOF\n`\nrm .env\n`\nEOF')).toContain('.env');
@@ -448,7 +450,7 @@ EOF`,
     "cat <<'EOF' > fix.sh\nrm .env\nEOF\nchmod +x fix.sh\n./fix.sh",
     "cat <<'EOF' >> fix.sh\nrm .env\nEOF\nbash ./fix.sh",
     "cat <<'EOF' >| scripts/fix.sh\nrm .env\nEOF\n./scripts/./fix.sh",
-  ])('inspects a generated heredoc script through equivalent path spellings: %s', (command) => {
+  ])('inspects a generated heredoc script through equivalent path spellings: %s', async (command) => {
     expect(destructiveTargets(command)).toContain('.env');
   });
 
@@ -456,17 +458,17 @@ EOF`,
     "printf x | tee /tmp/out | sh <<'EOF'\nrm .env\nEOF",
     "sh -c true | cat <<'EOF'\nrm .env\nEOF",
     "sh -c true | tee /tmp/out <<'EOF'\nrm .env\nEOF",
-  ])('classifies the command immediately owning a heredoc: %s', (command) => {
+  ])('classifies the command immediately owning a heredoc: %s', async (command) => {
     const targets = destructiveTargets(command);
     if (command.includes('sh <<')) expect(targets).toContain('.env');
     else expect(targets).not.toContain('.env');
   });
 
-  it('does not mistake a here-string for a heredoc', () => {
+  it('does not mistake a here-string for a heredoc', async () => {
     expect(destructiveTargets('cat <<< "x"\nrm .env')).toContain('.env');
   });
 
-  it('applies tab-only terminator stripping for <<- heredocs', () => {
+  it('applies tab-only terminator stripping for <<- heredocs', async () => {
     expect(
       destructiveTargets("cat <<-'EOF'\nliteral > .env\n\tEOF\necho safe > notes.txt"),
     ).toEqual(['notes.txt']);
@@ -474,7 +476,7 @@ EOF`,
 });
 
 describe('path-guard plugin', () => {
-  it('keeps hook ownership isolated across concurrent plugin hosts', () => {
+  it('keeps hook ownership isolated across concurrent plugin hosts', async () => {
     const first = makeApi();
     const second = makeApi();
     const unregisterFirst = vi.fn();
@@ -559,7 +561,7 @@ describe('path-guard plugin', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it('registers a status tool and a PreToolUse hook for every tool', () => {
+  it('registers a status tool and a PreToolUse hook for every tool', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(1);
@@ -573,24 +575,24 @@ describe('path-guard plugin', () => {
     expect(matcher).toBe('*');
   });
 
-  it('blocks writes to a default-protected lockfile', () => {
+  it('blocks writes to a default-protected lockfile', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = hook({ toolName: 'write', toolInput: { path: 'pnpm-lock.yaml' } });
+    const result = await hook({ toolName: 'write', toolInput: { path: 'pnpm-lock.yaml' } });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('pnpm-lock.yaml');
   });
 
-  it('blocks edits to .env at any depth', () => {
+  it('blocks edits to .env at any depth', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = hook({ toolName: 'edit', toolInput: { file_path: 'apps/web/.env' } });
+    const result = await hook({ toolName: 'edit', toolInput: { file_path: 'apps/web/.env' } });
     expect(result?.decision).toBe('block');
   });
 
-  it('blocks destructive command substitutions at the hook level', () => {
+  it('blocks destructive command substitutions at the hook level', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
@@ -600,52 +602,52 @@ describe('path-guard plugin', () => {
       'echo "`rm .env`"',
       'cat <<EOF\n$(rm .env)\nEOF',
     ]) {
-      const result = hook({ toolName: 'bash', toolInput: { command } });
+      const result = await hook({ toolName: 'bash', toolInput: { command } });
       expect(result?.decision).toBe('block');
       expect(result?.reason).toContain('.env');
     }
   });
 
-  it('fails closed when command substitution inspection reaches its depth cap', () => {
+  it('fails closed when command substitution inspection reaches its depth cap', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
     const command = `${'echo $('.repeat(100)}rm .env${')'.repeat(100)}`;
-    const result = hook({ toolName: 'bash', toolInput: { command } });
+    const result = await hook({ toolName: 'bash', toolInput: { command } });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('write scope "**"');
   });
 
-  it('allows destructive-looking data in non-executing heredocs at the hook level', () => {
+  it('allows destructive-looking data in non-executing heredocs at the hook level', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
     expect(
-      hook({
+      await hook({
         toolName: 'bash',
         toolInput: { command: 'cat <<EOF\nrm -rf .env\nEOF > README.md' },
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      await hook({
         toolName: 'bash',
         toolInput: { command: '/bin/cat <<EOF\nrm .env\nEOF' },
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      await hook({
         toolName: 'bash',
         toolInput: { command: "cat <<'EOF'\n$(rm .env)\nEOF" },
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      await hook({
         toolName: 'bash',
         toolInput: { command: 'cat <<EOF\ngit reset --hard\nEOF\ncp notes.txt .' },
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      await hook({
         toolName: 'bash',
         toolInput: { command: 'echo "git reset --hard"; cp notes.txt .' },
       }),
@@ -654,10 +656,10 @@ describe('path-guard plugin', () => {
 
   it.each(["bash <<'EOF'\necho hi > .env\nEOF", 'cat <<EOF\n$(echo hi > .env)\nEOF'])(
     'blocks redirect writes executed from heredoc content: %s',
-    (command) => {
+    async (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+      const result = await getHook(api)({ toolName: 'bash', toolInput: { command } });
       expect(result?.decision).toBe('block');
       expect(result?.reason).toContain('.env');
     },
@@ -665,17 +667,17 @@ describe('path-guard plugin', () => {
 
   it.each(['find . -delete', 'find db -delete', 'find db -exec rm -rf {} +'])(
     'blocks recursive find deletion scopes: %s',
-    (command) => {
+    async (command) => {
       const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
       pathGuardPlugin.setup(api as never);
-      expect(getHook(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+      expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     },
   );
 
-  it('blocks destructive commands in process substitutions', () => {
+  it('blocks destructive commands in process substitutions', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({
+    const result = await getHook(api)({
       toolName: 'bash',
       toolInput: { command: 'echo hi > >(rm .env)' },
     });
@@ -683,10 +685,10 @@ describe('path-guard plugin', () => {
     expect(result?.reason).toContain('.env');
   });
 
-  it('blocks an executing heredoc owner after an earlier tee pipeline stage', () => {
+  it('blocks an executing heredoc owner after an earlier tee pipeline stage', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({
+    const result = await getHook(api)({
       toolName: 'bash',
       toolInput: { command: "printf x | tee /tmp/out | sh <<'EOF'\nrm .env\nEOF" },
     });
@@ -694,10 +696,10 @@ describe('path-guard plugin', () => {
     expect(result?.reason).toContain('.env');
   });
 
-  it('blocks protected suffixes after command substitutions in destructive operands', () => {
+  it('blocks protected suffixes after command substitutions in destructive operands', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({
+    const result = await getHook(api)({
       toolName: 'bash',
       toolInput: { command: 'rm -rf "$(pwd)/.env"' },
     });
@@ -705,10 +707,10 @@ describe('path-guard plugin', () => {
     expect(result?.reason).toContain('$(pwd)/.env');
   });
 
-  it('blocks quoted Windows-style protected paths', () => {
+  it('blocks quoted Windows-style protected paths', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({
+    const result = await getHook(api)({
       toolName: 'bash',
       toolInput: { command: String.raw`rm -rf "D:\repo\.git"` },
       cwd: String.raw`D:\repo`,
@@ -717,7 +719,7 @@ describe('path-guard plugin', () => {
     expect(result?.reason).toContain('.git');
   });
 
-  it('guards raw Git operations that can rewrite the working tree', () => {
+  it('guards raw Git operations that can rewrite the working tree', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
@@ -730,24 +732,22 @@ describe('path-guard plugin', () => {
       'git stash apply',
       'git checkout .',
     ]) {
-      expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+      expect((await hook({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     }
-    expect(hook({ toolName: 'bash', toolInput: { command: 'git stash list' } })).toBeUndefined();
-    expect(hook({ toolName: 'bash', toolInput: { command: 'git stash show' } })).toBeUndefined();
-    expect(hook({ toolName: 'bash', toolInput: { command: 'git reset --hard' } })?.decision).toBe(
+    expect(await hook({ toolName: 'bash', toolInput: { command: 'git stash list' } })).toBeUndefined();
+    expect(await hook({ toolName: 'bash', toolInput: { command: 'git stash show' } })).toBeUndefined();
+    expect((await hook({ toolName: 'bash', toolInput: { command: 'git reset --hard' } }))?.decision).toBe(
       'block',
     );
     expect(
-      hook({ toolName: 'bash', toolInput: { command: 'git --attr-source HEAD clean -fdx' } })
-        ?.decision,
+      (await hook({ toolName: 'bash', toolInput: { command: 'git --attr-source HEAD clean -fdx' } }))?.decision,
     ).toBe('block');
     expect(
-      hook({ toolName: 'bash', toolInput: { command: 'git --attr-source=HEAD reset --hard' } })
-        ?.decision,
+      (await hook({ toolName: 'bash', toolInput: { command: 'git --attr-source=HEAD reset --hard' } }))?.decision,
     ).toBe('block');
   });
 
-  it('blocks destructive commands hidden behind env split-string launchers', () => {
+  it('blocks destructive commands hidden behind env split-string launchers', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
@@ -758,33 +758,33 @@ describe('path-guard plugin', () => {
       `env -S "echo don't" ; rm .env`,
       `env -S 'echo "hi' ; rm .env`,
     ]) {
-      expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+      expect((await hook({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     }
   });
 
-  it('blocks destructive bash on protected paths, allows reads', () => {
+  it('blocks destructive bash on protected paths, allows reads', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    expect(hook({ toolName: 'bash', toolInput: { command: 'rm -f .env' } })?.decision).toBe(
+    expect((await hook({ toolName: 'bash', toolInput: { command: 'rm -f .env' } }))?.decision).toBe(
       'block',
     );
-    expect(hook({ toolName: 'bash', toolInput: { command: 'rm -rf .git' } })?.decision).toBe(
+    expect((await hook({ toolName: 'bash', toolInput: { command: 'rm -rf .git' } }))?.decision).toBe(
       'block',
     );
     expect(
-      hook({ toolName: 'bash', toolInput: { command: 'echo secret >& .env' } })?.decision,
+      (await hook({ toolName: 'bash', toolInput: { command: 'echo secret >& .env' } }))?.decision,
     ).toBe('block');
-    expect(hook({ toolName: 'bash', toolInput: { command: 'cat .env' } })).toBeUndefined();
+    expect(await hook({ toolName: 'bash', toolInput: { command: 'cat .env' } })).toBeUndefined();
   });
 
-  it('classifies shell commands once without inventing a working-directory target', () => {
+  it('classifies shell commands once without inventing a working-directory target', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
     expect(
-      hook({
+      await hook({
         toolName: 'exec',
         toolInput: { command: 'cat .env' },
         toolCapabilities: ['shell.restricted', 'fs.write'],
@@ -792,32 +792,32 @@ describe('path-guard plugin', () => {
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      (await hook({
         toolName: 'exec',
         toolInput: { command: 'rm -f .env' },
         toolCapabilities: ['shell.restricted', 'fs.write'],
         toolMutating: true,
-      })?.decision,
+      }))?.decision,
     ).toBe('block');
     expect(
-      hook({
+      (await hook({
         toolName: 'exec',
         toolInput: { command: 'rm', args: ['-f', '.env'] },
         toolCapabilities: ['shell.restricted'],
         toolMutating: true,
-      })?.decision,
+      }))?.decision,
     ).toBe('block');
     expect(
-      hook({
+      (await hook({
         toolName: 'exec',
         toolInput: { command: 'rm', args: ['-rf', '.'] },
         toolCapabilities: ['shell.restricted'],
         toolMutating: true,
-      })?.decision,
+      }))?.decision,
     ).toBe('block');
   });
 
-  it('rebases relative destructive shell targets against the effective cwd', () => {
+  it('rebases relative destructive shell targets against the effective cwd', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
@@ -828,13 +828,13 @@ describe('path-guard plugin', () => {
       { toolInput: { command: 'rm migrations/001.sql', cwd: 'db' } },
       { toolInput: { command: 'rm migrations/001.sql' }, cwd: 'db' },
     ]) {
-      const result = hook({ toolName: 'bash', ...input });
+      const result = await hook({ toolName: 'bash', ...input });
       expect(result?.decision).toBe('block');
       expect(result?.reason).toContain('db/migrations/001.sql');
     }
   });
 
-  it('blocks Git targets rebased through global working-tree options', () => {
+  it('blocks Git targets rebased through global working-tree options', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['sub/secrets/**'] } },
     });
@@ -842,17 +842,17 @@ describe('path-guard plugin', () => {
     const hook = getHook(api);
 
     for (const command of ['git -C sub rm secrets/key', 'git -Csub rm secrets/key']) {
-      expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+      expect((await hook({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     }
     expect(
-      hook({
+      (await hook({
         toolName: 'bash',
         toolInput: { command: 'git --work-tree=sub restore secrets/key' },
-      })?.decision,
+      }))?.decision,
     ).toBe('block');
   });
 
-  it('blocks file-sourced Git pathspecs within the effective working tree', () => {
+  it('blocks file-sourced Git pathspecs within the effective working tree', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['sub/secrets/**'] } },
     });
@@ -863,17 +863,17 @@ describe('path-guard plugin', () => {
       'git -C sub rm --pathspec-from-file=paths.txt',
       'git --work-tree=sub restore --pathspec-from-file paths.txt',
     ]) {
-      expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+      expect((await hook({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     }
   });
 
-  it('blocks destructive shell commands targeting protected directory roots', () => {
+  it('blocks destructive shell commands targeting protected directory roots', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
     for (const command of ['rm -rf .', 'rm -rf .git', 'rm -rf migrations', 'rm -f .env*']) {
-      expect(hook({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+      expect((await hook({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     }
   });
 
@@ -882,38 +882,42 @@ describe('path-guard plugin', () => {
     { protect: ['**/migrations/**'], command: 'rm -rf db' },
     { protect: ['src/generated/**'], command: 'rm -rf src' },
     { protect: ['cache.v1/.env'], command: 'rm -rf cache.v1' },
-  ])('blocks deleting an ancestor of a protected subtree: %j', ({ protect, command }) => {
+  ])('blocks deleting an ancestor of a protected subtree: %j', async ({ protect, command }) => {
     const api = makeApi({ extensions: { 'path-guard': { protect } } });
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+    const result = await getHook(api)({ toolName: 'bash', toolInput: { command } });
     expect(result?.decision).toBe('block');
   });
 
   it.each([
     'rm -f -r db',
     'rm -r -f db',
+    'rm -fr db',
+    'rm -R db',
     'rm --recursive --force db',
     'rm --force --recursive db',
+    'rd /s /q db',
+    'Remove-Item -Recurse -Force db',
     'del /q /s db',
     'del /s /q db',
-  ])('blocks recursive deletion with separate or reordered options: %s', (command) => {
+  ])('blocks recursive deletion with separate or reordered options: %s', async (command) => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+    const result = await getHook(api)({ toolName: 'bash', toolInput: { command } });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('write scope "db"');
   });
 
   it.each(['rm -f db -rf', 'rm db --recursive', 'del db /s'])(
     'blocks recursive flags after the first operand: %s',
-    (command) => {
+    async (command) => {
       const api = makeApi({
         extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
       });
       pathGuardPlugin.setup(api as never);
-      const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+      const result = await getHook(api)({ toolName: 'bash', toolInput: { command } });
       expect(result?.decision).toBe('block');
       expect(result?.reason).toContain('write scope "db"');
     },
@@ -921,28 +925,28 @@ describe('path-guard plugin', () => {
 
   it.each(['rm -f . -rf', 'del . /s'])(
     'blocks recursive deletion of the working tree when flags follow the operand: %s',
-    (command) => {
+    async (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+      const result = await getHook(api)({ toolName: 'bash', toolInput: { command } });
       expect(result?.decision).toBe('block');
       expect(result?.reason).toContain('write scope "."');
     },
   );
 
-  it('does not treat recursion-like operands after an option terminator as flags', () => {
+  it('does not treat recursion-like operands after an option terminator as flags', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = getHook(api)({
+    const result = await getHook(api)({
       toolName: 'bash',
       toolInput: { command: 'rm db -- --recursive' },
     });
     expect(result).toBeUndefined();
   });
 
-  it('applies allow globs normally to concrete destructive-shell targets', () => {
+  it('applies allow globs normally to concrete destructive-shell targets', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['.env*'], allow: ['**/.env'] },
@@ -951,13 +955,13 @@ describe('path-guard plugin', () => {
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    expect(hook({ toolName: 'bash', toolInput: { command: 'rm .env' } })).toBeUndefined();
-    expect(hook({ toolName: 'bash', toolInput: { command: 'rm .env.local' } })?.decision).toBe(
+    expect(await hook({ toolName: 'bash', toolInput: { command: 'rm .env' } })).toBeUndefined();
+    expect((await hook({ toolName: 'bash', toolInput: { command: 'rm .env.local' } }))?.decision).toBe(
       'block',
     );
   });
 
-  it('allows destructive shell commands on unprotected concrete paths under defaults', () => {
+  it('allows destructive shell commands on unprotected concrete paths under defaults', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
@@ -969,7 +973,7 @@ describe('path-guard plugin', () => {
       'mv a b',
       'echo x > notes.txt',
     ]) {
-      expect(hook({ toolName: 'bash', toolInput: { command } })).toBeUndefined();
+      expect(await hook({ toolName: 'bash', toolInput: { command } })).toBeUndefined();
     }
   });
 
@@ -980,18 +984,18 @@ describe('path-guard plugin', () => {
     'env -u FOO;rm .env',
     'env -uFOO;rm .env',
     'env -C/tmp;rm .env',
-  ])('blocks destructive commands glued to launcher option values: %s', (command) => {
+  ])('blocks destructive commands glued to launcher option values: %s', async (command) => {
     const api = makeApi({ extensions: { 'path-guard': { protect: ['db/**', '.env'] } } });
     pathGuardPlugin.setup(api as never);
-    expect(getHook(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+    expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
   });
 
   it.each(['env --unknown rm .env', 'env -a', 'env --argv0'])(
     'fails closed for unknown or malformed env launcher options: %s',
-    (command) => {
+    async (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = getHook(api)({ toolName: 'bash', toolInput: { command } });
+      const result = await getHook(api)({ toolName: 'bash', toolInput: { command } });
       expect(result?.decision).toBe('block');
       expect(result?.reason).toContain('write scope "**"');
     },
@@ -999,10 +1003,10 @@ describe('path-guard plugin', () => {
 
   it.each(['cp src .', 'mv x .'])(
     'does not widen a literal root destination into a deletion scope: %s',
-    (command) => {
+    async (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      expect(getHook(api)({ toolName: 'bash', toolInput: { command } })).toBeUndefined();
+      expect(await getHook(api)({ toolName: 'bash', toolInput: { command } })).toBeUndefined();
     },
   );
 
@@ -1018,44 +1022,44 @@ describe('path-guard plugin', () => {
     'env --argv0 NAME rm -rf db',
     'env rm -rf db',
     '/usr/bin/env rm -rf db',
-  ])('blocks recursive deletion through launcher wrappers: %s', (command) => {
+  ])('blocks recursive deletion through launcher wrappers: %s', async (command) => {
     const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
     pathGuardPlugin.setup(api as never);
-    expect(getHook(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+    expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
   });
 
-  it('allows concrete files but blocks directory writer scopes that may contain defaults', () => {
+  it('allows concrete files but blocks directory writer scopes that may contain defaults', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    expect(hook({ toolName: 'write', toolInput: { path: 'src/index.ts' } })).toBeUndefined();
+    expect(await hook({ toolName: 'write', toolInput: { path: 'src/index.ts' } })).toBeUndefined();
     expect(
-      hook({
+      (await hook({
         toolName: 'format',
         toolInput: { files: 'src', check: false },
         toolCapabilities: ['fs.write'],
-      })?.decision,
+      }))?.decision,
     ).toBe('block');
     expect(
-      hook({
+      (await hook({
         toolName: 'scaffold',
         toolInput: { template: 'npm-package', cwd: 'packages/example', name: 'example' },
         toolCapabilities: ['fs.write'],
-      })?.decision,
+      }))?.decision,
     ).toBe('block');
   });
 
-  it('warn mode injects context instead of blocking', () => {
+  it('warn mode injects context instead of blocking', async () => {
     const api = makeApi({ extensions: { 'path-guard': { mode: 'warn' } } });
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    const result = hook({ toolName: 'write', toolInput: { path: '.env' } });
+    const result = await hook({ toolName: 'write', toolInput: { path: '.env' } });
     expect(result?.decision).toBe('allow');
     expect(result?.additionalContext).toContain('path-guard');
   });
 
-  it('allow globs override protect for scalar and single-item list targets', () => {
+  it('allow globs override protect for scalar and single-item list targets', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['**/migrations/**'], allow: ['**/migrations/dev/**'] },
@@ -1064,20 +1068,20 @@ describe('path-guard plugin', () => {
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
     expect(
-      hook({ toolName: 'write', toolInput: { path: 'db/migrations/001.sql' } })?.decision,
+      (await hook({ toolName: 'write', toolInput: { path: 'db/migrations/001.sql' } }))?.decision,
     ).toBe('block');
     expect(
-      hook({ toolName: 'write', toolInput: { path: 'db/migrations/dev/001.sql' } }),
+      await hook({ toolName: 'write', toolInput: { path: 'db/migrations/dev/001.sql' } }),
     ).toBeUndefined();
     expect(
-      hook({ toolName: 'format', toolInput: { files: ['db/migrations/dev/001.sql'] } }),
+      await hook({ toolName: 'format', toolInput: { files: ['db/migrations/dev/001.sql'] } }),
     ).toBeUndefined();
     expect(
-      hook({ toolName: 'format', toolInput: { files: 'db/migrations/dev/001.sql' } }),
+      await hook({ toolName: 'format', toolInput: { files: 'db/migrations/dev/001.sql' } }),
     ).toBeUndefined();
   });
 
-  it('canonicalizes traversal before applying allow and protect globs', () => {
+  it('canonicalizes traversal before applying allow and protect globs', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['.env'], allow: ['safe/**'] },
@@ -1086,23 +1090,23 @@ describe('path-guard plugin', () => {
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
 
-    const result = hook({ toolName: 'write', toolInput: { path: 'safe/../.env' } });
+    const result = await hook({ toolName: 'write', toolInput: { path: 'safe/../.env' } });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('.env');
   });
 
-  it('enabled:false disables the guard', () => {
+  it('enabled:false disables the guard', async () => {
     const api = makeApi({ extensions: { 'path-guard': { enabled: false } } });
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    expect(hook({ toolName: 'write', toolInput: { path: '.env' } })).toBeUndefined();
+    expect(await hook({ toolName: 'write', toolInput: { path: '.env' } })).toBeUndefined();
   });
 
   it('teardown zeros counters and logs', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = getHook(api);
-    hook({ toolName: 'write', toolInput: { path: '.env' } });
+    await hook({ toolName: 'write', toolInput: { path: '.env' } });
     pathGuardPlugin.teardown!(api as never);
     const health = (await pathGuardPlugin.health!()) as unknown as {
       counters: Record<string, number>;
@@ -1118,16 +1122,15 @@ describe('path-guard plugin', () => {
  */
 describe('path-guard covers any tool that declares a write', () => {
   function hookOf(api: ReturnType<typeof makeApi>) {
-    return api.registerHook.mock.calls[0]![2] as (input: Record<string, unknown>) => {
-      decision?: string;
-      reason?: string;
-    } | void;
+    return api.registerHook.mock.calls[0]![2] as (
+      input: Record<string, unknown>,
+    ) => Promise<{ decision?: string; reason?: string } | void>;
   }
 
-  it('blocks a tool it has never heard of when it declares fs.write', () => {
+  it('blocks a tool it has never heard of when it declares fs.write', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'patch',
       toolInput: { path: 'pnpm-lock.yaml' },
       toolCapabilities: ['fs.write'],
@@ -1138,10 +1141,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('patch');
   });
 
-  it('falls back to the mutating flag when no capability is declared', () => {
+  it('falls back to the mutating flag when no capability is declared', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'render_template',
       toolInput: { output_path: '.env' },
       toolCapabilities: [],
@@ -1150,10 +1153,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('does not let mutating:true override declared non-filesystem capabilities', () => {
+  it('does not let mutating:true override declared non-filesystem capabilities', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'config_writer',
       toolInput: { path: '.env' },
       toolCapabilities: ['config.mutate'],
@@ -1162,10 +1165,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('treats an empty capability list as undeclared for legacy writers', () => {
+  it('treats an empty capability list as undeclared for legacy writers', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'write',
       toolInput: { path: '.env' },
       toolCapabilities: [],
@@ -1173,10 +1176,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('blocks every protected target in array-valued fields', () => {
+  it('blocks every protected target in array-valued fields', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'bulk_writer',
       toolInput: { files: ['src/index.ts', 'apps/web/.env'] },
       toolCapabilities: ['fs.write'],
@@ -1185,20 +1188,20 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('apps/web/.env');
   });
 
-  it('treats a single concrete list path consistently with multi-item lists', () => {
+  it('treats a single concrete list path consistently with multi-item lists', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = hookOf(api);
 
     expect(
-      hook({
+      await hook({
         toolName: 'format',
         toolInput: { files: 'src/index.ts', check: false },
         toolCapabilities: ['fs.write'],
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      await hook({
         toolName: 'format',
         toolInput: { files: ['src/index.ts', 'src/other.ts'], check: false },
         toolCapabilities: ['fs.write'],
@@ -1206,10 +1209,10 @@ describe('path-guard covers any tool that declares a write', () => {
     ).toBeUndefined();
   });
 
-  it('trims array-valued targets before matching protected paths', () => {
+  it('trims array-valued targets before matching protected paths', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: ['src/index.ts', ' .env '], check: false },
       toolCapabilities: ['fs.write'],
@@ -1218,12 +1221,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('.env');
   });
 
-  it('treats an array-valued directory operand as a scope', () => {
+  it('treats an array-valued directory operand as a scope', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/secrets/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: ['src'], check: false },
       toolCapabilities: ['fs.write'],
@@ -1232,13 +1235,13 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "src" may include a protected path');
   });
 
-  it('splits comma-delimited target lists before matching regardless of order', () => {
+  it('splits comma-delimited target lists before matching regardless of order', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = hookOf(api);
 
     for (const files of ['src/index.ts, apps/web/.env', 'apps/web/.env, src/index.ts']) {
-      const result = hook({
+      const result = await hook({
         toolName: 'format',
         toolInput: { files, check: false },
         toolCapabilities: ['fs.write'],
@@ -1248,12 +1251,12 @@ describe('path-guard covers any tool that declares a write', () => {
     }
   });
 
-  it('preserves commas in scalar path fields', () => {
+  it('preserves commas in scalar path fields', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['reports/a,b.txt'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'write',
       toolInput: { path: 'reports/a,b.txt' },
       toolCapabilities: ['fs.write'],
@@ -1264,12 +1267,12 @@ describe('path-guard covers any tool that declares a write', () => {
   it.each([
     ['path', '**/*.yaml'],
     ['target', 'db/**'],
-  ])('classifies glob-valued scalar %s fields as write scopes', (field, value) => {
+  ])('classifies glob-valued scalar %s fields as write scopes', async (field, value) => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/config.yaml'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'bulk_writer',
       toolInput: { [field]: value },
       toolCapabilities: ['fs.write'],
@@ -1277,12 +1280,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('does not treat a concrete file target as its descendant directory scope', () => {
+  it('does not treat a concrete file target as its descendant directory scope', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/generated/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'write',
       toolInput: { path: 'src' },
       toolCapabilities: ['fs.write'],
@@ -1290,14 +1293,14 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('does not let a sibling allow subtree exempt a broader protected scope', () => {
+  it('does not let a sibling allow subtree exempt a broader protected scope', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['src/secret/**'], allow: ['src/allowed/**'] },
       },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src', check: false },
       toolCapabilities: ['fs.write'],
@@ -1305,14 +1308,14 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('does not let a wildcard allow prefix exempt a broader protected scope', () => {
+  it('does not let a wildcard allow prefix exempt a broader protected scope', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['src/secrets/**'], allow: ['src/*/generated/**'] },
       },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src/**', check: false },
       toolCapabilities: ['fs.write'],
@@ -1320,14 +1323,14 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('does not treat a glob regex match against literal writer-glob text as a scope exemption', () => {
+  it('does not treat a glob regex match against literal writer-glob text as a scope exemption', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['src/secrets/**'], allow: ['src/*'] },
       },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src/**', check: false },
       toolCapabilities: ['fs.write'],
@@ -1335,12 +1338,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('blocks a pathless filesystem writer at its working-directory scope', () => {
+  it('blocks a pathless filesystem writer at its working-directory scope', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/secrets/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       cwd: 'src',
       toolInput: { check: false },
@@ -1350,12 +1353,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "src" may include a protected path');
   });
 
-  it('rebases the production absolute cwd to the repository-root scope', () => {
+  it('rebases the production absolute cwd to the repository-root scope', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/secrets/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       cwd: 'D:\\repo',
       toolInput: { check: false },
@@ -1365,12 +1368,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
-  it('rebases relative writer targets under an absolute hook cwd', () => {
+  it('rebases relative writer targets under an absolute hook cwd', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/generated/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       cwd: 'D:\\repo',
       toolInput: { files: 'src', check: false },
@@ -1382,10 +1385,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each([{ packages: 'example' }, { packages: 'example', global: true }])(
     'fails closed for a real package install with unknown ecosystem outputs: %j',
-    (toolInput) => {
+    async (toolInput) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName: 'install',
         cwd: 'D:\\repo',
         toolInput,
@@ -1397,10 +1400,10 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('fails closed for a package install dry run because delegated ecosystems may ignore it', () => {
+  it('fails closed for a package install dry run because delegated ecosystems may ignore it', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'install',
       cwd: 'D:\\repo',
       toolInput: { packages: 'example', dry_run: true },
@@ -1411,10 +1414,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
-  it('does not let a package installer command string bypass its implicit write scope', () => {
+  it('does not let a package installer command string bypass its implicit write scope', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'package_exec',
       cwd: 'D:\\repo',
       toolInput: { command: 'echo safe', packages: 'example' },
@@ -1425,10 +1428,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
-  it('does not let a legacy install command string bypass its implicit write scope', () => {
+  it('does not let a legacy install command string bypass its implicit write scope', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'install',
       cwd: 'D:\\repo',
       toolInput: { command: 'echo safe', packages: 'example' },
@@ -1441,10 +1444,10 @@ describe('path-guard covers any tool that declares a write', () => {
   it.each([
     { toolInput: { subagentId: 'worker-1' } },
     { toolInput: { path: '.env', subagentId: 'worker-1' } },
-  ])('does not classify a non-filesystem mutator as a disk writer: %j', ({ toolInput }) => {
+  ])('does not classify a non-filesystem mutator as a disk writer: %j', async ({ toolInput }) => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'terminate_subagent',
       cwd: 'D:\\repo',
       toolInput,
@@ -1456,10 +1459,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['mcp__filesystem__edit_file', 'mcp__filesystem__appendFile', 'mcp__filesystem__mkdir'])(
     'blocks filesystem MCP writer %s even when upstream mutating inference misses it',
-    (toolName) => {
+    async (toolName) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName,
         toolInput: { path: '.env' },
         toolCapabilities: ['mcp.proxy'],
@@ -1469,12 +1472,12 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('blocks structured directory deletion above a protected subtree', () => {
+  it('blocks structured directory deletion above a protected subtree', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'mcp__filesystem__remove_directory',
       toolInput: { path: 'db' },
       toolCapabilities: ['mcp.proxy'],
@@ -1484,12 +1487,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "db"');
   });
 
-  it('blocks a structured directory move whose source contains a protected subtree', () => {
+  it('blocks a structured directory move whose source contains a protected subtree', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'mcp__filesystem__move_directory',
       toolInput: { source: 'db', destination: 'archive' },
       toolCapabilities: ['mcp.proxy'],
@@ -1499,10 +1502,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "db"');
   });
 
-  it('does not classify a filesystem MCP reader as a writer merely because it has a path', () => {
+  it('does not classify a filesystem MCP reader as a writer merely because it has a path', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'mcp__filesystem__read_file',
       toolInput: { path: '.env' },
       toolCapabilities: ['mcp.proxy'],
@@ -1511,10 +1514,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('blocks output aliases such as out', () => {
+  it('blocks output aliases such as out', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'design',
       toolInput: { action: 'materialize', out: '.env' },
       toolCapabilities: ['fs.write'],
@@ -1522,12 +1525,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('derives a scaffold destination from cwd and name', () => {
+  it('derives a scaffold destination from cwd and name', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['**/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'scaffold',
       toolInput: { template: 'npm-package', cwd: 'db/migrations', name: 'release' },
       toolCapabilities: ['fs.write'],
@@ -1536,12 +1539,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('db/migrations');
   });
 
-  it('blocks a scaffold scope whose fixed files can land in a protected directory', () => {
+  it('blocks a scaffold scope whose fixed files can land in a protected directory', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/package.json'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'scaffold',
       toolInput: { template: 'npm-package', cwd: 'db/migrations', name: 'release' },
       toolCapabilities: ['fs.write'],
@@ -1550,12 +1553,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('db/migrations');
   });
 
-  it('blocks a directory writer scope containing wildcard-protected descendants', () => {
+  it('blocks a directory writer scope containing wildcard-protected descendants', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/generated/*.ts'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src', check: false },
       toolCapabilities: ['fs.write'],
@@ -1564,12 +1567,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('src');
   });
 
-  it('blocks a directory writer scope when the protected glob starts in that directory', () => {
+  it('blocks a directory writer scope when the protected glob starts in that directory', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/*.ts'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src', check: false },
       toolCapabilities: ['fs.write'],
@@ -1580,10 +1583,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['.env*', 'pnpm-lock.yaml', '**/migrations/**'])(
     'blocks a concrete directory scope that may contain %s',
-    (protect) => {
+    async (protect) => {
       const api = makeApi({ extensions: { 'path-guard': { protect: [protect] } } });
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName: 'format',
         cwd: 'D:/work/repo',
         toolInput: { files: 'src', check: false },
@@ -1594,14 +1597,14 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('allows scaffolding into a concretely exempted directory scope', () => {
+  it('allows scaffolding into a concretely exempted directory scope', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['**/migrations/**'], allow: ['**/migrations/dev/**'] },
       },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'scaffold',
       toolInput: { template: 'npm-package', cwd: 'db/migrations/dev', name: 'release' },
       toolCapabilities: ['fs.write'],
@@ -1609,12 +1612,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('uses hook cwd when scaffold omits its cwd input', () => {
+  it('uses hook cwd when scaffold omits its cwd input', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/package.json'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'scaffold',
       cwd: 'db/migrations',
       toolInput: { template: 'npm-package', name: 'release' },
@@ -1627,12 +1630,12 @@ describe('path-guard covers any tool that declares a write', () => {
   it.each([
     { cwdInput: { cwd: 'db' }, hookCwd: undefined },
     { cwdInput: {}, hookCwd: 'db' },
-  ])('rebases relative list targets against the effective cwd: %j', ({ cwdInput, hookCwd }) => {
+  ])('rebases relative list targets against the effective cwd: %j', async ({ cwdInput, hookCwd }) => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       cwd: hookCwd,
       toolInput: { ...cwdInput, files: ['migrations'], check: false },
@@ -1642,12 +1645,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('db/migrations');
   });
 
-  it('rebases relative scalar targets against the effective cwd', () => {
+  it('rebases relative scalar targets against the effective cwd', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/001.sql'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'write',
       cwd: 'db',
       toolInput: { path: 'migrations/001.sql' },
@@ -1657,12 +1660,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('db/migrations/001.sql');
   });
 
-  it('blocks unresolved glob write scopes whose literal prefix overlaps protection', () => {
+  it('blocks unresolved glob write scopes whose literal prefix overlaps protection', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'replace',
       toolInput: {
         pattern: 'old',
@@ -1676,12 +1679,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "db/**/*.sql" may include a protected path');
   });
 
-  it('allows unresolved glob write scopes whose literal prefix cannot reach protection', () => {
+  it('allows unresolved glob write scopes whose literal prefix cannot reach protection', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src/**/*.ts', check: false },
       toolCapabilities: ['fs.write'],
@@ -1689,12 +1692,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('allows prefixed write globs that cannot match a protected basename', () => {
+  it('allows prefixed write globs that cannot match a protected basename', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['.env*'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src/**/*.ts', check: false },
       toolCapabilities: ['fs.write'],
@@ -1702,12 +1705,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('conservatively blocks write scopes against protected basenames at any depth', () => {
+  it('conservatively blocks write scopes against protected basenames at any depth', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['pnpm-lock.yaml'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'packages/**/*.yaml', check: false },
       toolCapabilities: ['fs.write'],
@@ -1715,10 +1718,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('blocks a repository-wide glob against default basename and descendant protection', () => {
+  it('blocks a repository-wide glob against default basename and descendant protection', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: '**/*', check: false },
       toolCapabilities: ['fs.write'],
@@ -1727,12 +1730,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "**/*" may include a protected path');
   });
 
-  it('blocks repository-root list scopes containing protected descendants', () => {
+  it('blocks repository-root list scopes containing protected descendants', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['.git/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: '.', check: false },
       toolCapabilities: ['fs.write'],
@@ -1741,14 +1744,14 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
-  it('does not treat a matching static allow prefix as glob containment', () => {
+  it('does not treat a matching static allow prefix as glob containment', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['src/secret/**'], allow: ['src/*.ts'] },
       },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src', check: false },
       toolCapabilities: ['fs.write'],
@@ -1756,12 +1759,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('blocks write scopes with partial-segment wildcards that can reach protection', () => {
+  it('blocks write scopes with partial-segment wildcards that can reach protection', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/foobar/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src/foo*', check: false },
       toolCapabilities: ['fs.write'],
@@ -1769,12 +1772,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('compares writer and protected scope prefixes case-insensitively', () => {
+  it('compares writer and protected scope prefixes case-insensitively', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['src/secrets/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'SRC/**', check: false },
       toolCapabilities: ['fs.write'],
@@ -1784,12 +1787,12 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['.env*', 'src/.env*', 'src/foo*.env'])(
     'blocks dotted partial-segment write scopes that can reach protected paths: %s',
-    (files) => {
+    async (files) => {
       const api = makeApi({
         extensions: { 'path-guard': { protect: ['.env'] } },
       });
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName: 'format',
         toolInput: { files, check: false },
         toolCapabilities: ['fs.write'],
@@ -1798,12 +1801,12 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('blocks partial-segment directory scopes that can contain a protected basename', () => {
+  it('blocks partial-segment directory scopes that can contain a protected basename', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['.env*'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src/foo*', check: false },
       toolCapabilities: ['fs.write'],
@@ -1811,12 +1814,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('blocks prefixed write globs that can reach an unrooted protected scope', () => {
+  it('blocks prefixed write globs that can reach an unrooted protected scope', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['**/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'replace',
       toolInput: {
         pattern: 'old',
@@ -1829,7 +1832,7 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('allows an unresolved glob write scope explicitly exempted by allow', () => {
+  it('allows an unresolved glob write scope explicitly exempted by allow', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['**/migrations/**'], allow: ['generated/**/*.sql'] },
@@ -1837,7 +1840,7 @@ describe('path-guard covers any tool that declares a write', () => {
     });
     pathGuardPlugin.setup(api as never);
     expect(
-      hookOf(api)({
+      await hookOf(api)({
         toolName: 'replace',
         toolInput: {
           pattern: 'old',
@@ -1850,7 +1853,7 @@ describe('path-guard covers any tool that declares a write', () => {
     ).toBeUndefined();
   });
 
-  it('allows a narrower write scope contained by an allow subtree', () => {
+  it('allows a narrower write scope contained by an allow subtree', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['**/migrations/**'], allow: ['generated/**'] },
@@ -1858,7 +1861,7 @@ describe('path-guard covers any tool that declares a write', () => {
     });
     pathGuardPlugin.setup(api as never);
     expect(
-      hookOf(api)({
+      await hookOf(api)({
         toolName: 'replace',
         toolInput: {
           pattern: 'old',
@@ -1871,14 +1874,14 @@ describe('path-guard covers any tool that declares a write', () => {
     ).toBeUndefined();
   });
 
-  it('does not let an allow subtree exempt a wider partial-segment writer scope', () => {
+  it('does not let an allow subtree exempt a wider partial-segment writer scope', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['src/safeevil/**'], allow: ['src/safe/**'] },
       },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'format',
       toolInput: { files: 'src/safe*', check: false },
       toolCapabilities: ['fs.write'],
@@ -1886,7 +1889,7 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('allows an identical leading-wildcard write scope explicitly exempted by allow', () => {
+  it('allows an identical leading-wildcard write scope explicitly exempted by allow', async () => {
     const api = makeApi({
       extensions: {
         'path-guard': { protect: ['**/migrations/**'], allow: ['**/*.sql'] },
@@ -1894,7 +1897,7 @@ describe('path-guard covers any tool that declares a write', () => {
     });
     pathGuardPlugin.setup(api as never);
     expect(
-      hookOf(api)({
+      await hookOf(api)({
         toolName: 'replace',
         toolInput: {
           pattern: 'old',
@@ -1907,12 +1910,12 @@ describe('path-guard covers any tool that declares a write', () => {
     ).toBeUndefined();
   });
 
-  it('blocks protected patch targets relative to the hook cwd when directory is omitted', () => {
+  it('blocks protected patch targets relative to the hook cwd when directory is omitted', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/001.sql'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'patch',
       cwd: 'db',
       toolInput: {
@@ -1924,12 +1927,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('db/migrations/001.sql');
   });
 
-  it('blocks protected targets parsed from a unified diff relative to directory', () => {
+  it('blocks protected targets parsed from a unified diff relative to directory', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['**/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'patch',
       toolInput: {
         directory: 'db',
@@ -1941,10 +1944,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('db/migrations/001.sql');
   });
 
-  it('parses unquoted patch paths with spaces through the tab separator', () => {
+  it('parses unquoted patch paths with spaces through the tab separator', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'patch',
       toolInput: {
         patch:
@@ -1956,10 +1959,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('my dir/.env');
   });
 
-  it('parses GNU space-delimited patch timestamps without truncating path spaces', () => {
+  it('parses GNU space-delimited patch timestamps without truncating path spaces', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'patch',
       toolInput: {
         patch:
@@ -1971,10 +1974,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('my dir/.env');
   });
 
-  it('ignores header-like hunk body text that is not a file header pair', () => {
+  it('ignores header-like hunk body text that is not a file header pair', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'patch',
       toolInput: {
         patch:
@@ -1985,12 +1988,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('blocks a dotted directory source for a directory-oriented move tool', () => {
+  it('blocks a dotted directory source for a directory-oriented move tool', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['cache.v1/.env'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'filesystem_move_directory',
       toolInput: { source: 'cache.v1', destination: 'archive/cache.v1' },
       toolCapabilities: ['fs.write'],
@@ -2004,10 +2007,10 @@ describe('path-guard covers any tool that declares a write', () => {
     { source: '*.env', protect: ['.env'], expectedScope: '*.env' },
   ])(
     'blocks an MCP move_file source scope that overlaps protected paths: $source',
-    ({ source, protect, expectedScope }) => {
+    async ({ source, protect, expectedScope }) => {
       const api = makeApi({ extensions: { 'path-guard': { protect } } });
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName: 'mcp__filesystem__move_file',
         toolInput: { source, destination: 'archive' },
         toolCapabilities: ['mcp.proxy'],
@@ -2018,10 +2021,10 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('blocks the protected source of move and rename tools', () => {
+  it('blocks the protected source of move and rename tools', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'file_rename',
       toolInput: { from: '.env', destination: 'backup.env' },
       toolCapabilities: ['fs.write'],
@@ -2033,12 +2036,12 @@ describe('path-guard covers any tool that declares a write', () => {
   it.each([
     { cwdInput: { cwd: 'db' }, hookCwd: undefined },
     { cwdInput: {}, hookCwd: 'db' },
-  ])('rebases protected move sources against the effective cwd: %j', ({ cwdInput, hookCwd }) => {
+  ])('rebases protected move sources against the effective cwd: %j', async ({ cwdInput, hookCwd }) => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'file_rename',
       cwd: hookCwd,
       toolInput: { ...cwdInput, from: 'migrations/001.sql', destination: 'archive/001.sql' },
@@ -2048,10 +2051,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('db/migrations/001.sql');
   });
 
-  it('recognizes camelCase move and rename tool names', () => {
+  it('recognizes camelCase move and rename tool names', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'fileRename',
       toolInput: { from: '.env', destination: 'backup.env' },
       toolCapabilities: ['fs.write'],
@@ -2059,10 +2062,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('checks explicit write targets even when a benign command field is present', () => {
+  it('checks explicit write targets even when a benign command field is present', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'command_writer',
       toolInput: { command: 'echo safe', output_path: '.env' },
       toolCapabilities: ['fs.write'],
@@ -2070,10 +2073,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.decision).toBe('block');
   });
 
-  it('checks structured write targets after an unprotected destructive shell target', () => {
+  it('checks structured write targets after an unprotected destructive shell target', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'command_writer',
       toolInput: { command: 'rm notes.txt', output_path: '.env' },
       toolCapabilities: ['shell.exec', 'fs.write'],
@@ -2085,10 +2088,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['bash', 'exec', 'shell'])(
     'keeps the legacy %s shell guard active despite incomplete capability metadata',
-    (toolName) => {
+    async (toolName) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName,
         toolInput: { command: 'rm .env' },
         toolCapabilities: ['process.spawn'],
@@ -2100,10 +2103,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['mcp_terminal', 'run_command'])(
     'blocks destructive commands from capability-declared %s runners',
-    (toolName) => {
+    async (toolName) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName,
         toolInput: { command: 'rm .env' },
         toolCapabilities: ['shell.restricted'],
@@ -2113,10 +2116,10 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('blocks destructive commands from mutating wrappers with non-shell capabilities', () => {
+  it('blocks destructive commands from mutating wrappers with non-shell capabilities', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'mcp.proxy',
       toolInput: { command: 'rm -f .env' },
       toolCapabilities: ['mcp.proxy'],
@@ -2126,10 +2129,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('.env');
   });
 
-  it('does not parse structured git subcommands as shell strings but guards their unknown write scope', () => {
+  it('does not parse structured git subcommands as shell strings but guards their unknown write scope', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'git',
       toolInput: { command: 'rm .env' },
       toolCapabilities: ['fs.write', 'shell.restricted'],
@@ -2139,12 +2142,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
-  it('continues from shell parsing into path inspection for dual-capability writers', () => {
+  it('continues from shell parsing into path inspection for dual-capability writers', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = hookOf(api);
     expect(
-      hook({
+      await hook({
         toolName: 'command_writer',
         toolInput: { command: 'rm src/safe.txt' },
         toolCapabilities: ['shell.restricted', 'fs.write'],
@@ -2152,7 +2155,7 @@ describe('path-guard covers any tool that declares a write', () => {
       }),
     ).toBeUndefined();
 
-    const result = hook({
+    const result = await hook({
       toolName: 'command_writer',
       toolInput: { command: 'rm src/safe.txt', output_path: '.env' },
       toolCapabilities: ['shell.restricted', 'fs.write'],
@@ -2162,10 +2165,10 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('.env');
   });
 
-  it('does not parse command-shaped data from a non-shell tool', () => {
+  it('does not parse command-shaped data from a non-shell tool', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'command_reader',
       toolInput: { command: 'rm .env' },
       toolCapabilities: ['fs.read'],
@@ -2174,7 +2177,7 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('blocks mutating git worktree paths using either supported field spelling', () => {
+  it('blocks mutating git worktree paths using either supported field spelling', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['protected-worktrees/**'] } },
     });
@@ -2185,7 +2188,7 @@ describe('path-guard covers any tool that declares a write', () => {
       { command: 'worktree', worktreeAction: 'add', worktreePath: 'protected-worktrees/new' },
       { command: 'worktree', worktreeAction: 'remove', worktree_path: 'protected-worktrees/old' },
     ]) {
-      const result = hook({
+      const result = await hook({
         toolName: 'git',
         toolInput,
         toolCapabilities: ['fs.write', 'shell.restricted'],
@@ -2196,10 +2199,10 @@ describe('path-guard covers any tool that declares a write', () => {
     }
   });
 
-  it('allows git commit pathspecs that name protected working-tree files', () => {
+  it('allows git commit pathspecs that name protected working-tree files', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'git',
       toolInput: { command: 'commit', files: ['.env'] },
       toolCapabilities: ['fs.write', 'shell.restricted'],
@@ -2210,10 +2213,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['checkout', 'reset', 'stash'])(
     'blocks git %s when its pathspec names a protected working-tree file',
-    (command) => {
+    async (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName: 'git',
         toolInput: { command, files: '.env' },
         toolCapabilities: ['fs.write', 'shell.restricted'],
@@ -2226,10 +2229,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['src/index.ts', ['src/index.ts']])(
     'allows an unprotected git pathspec regardless of files serialization: %j',
-    (files) => {
+    async (files) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName: 'git',
         toolInput: { command: 'checkout', files },
         toolCapabilities: ['fs.write', 'shell.restricted'],
@@ -2239,10 +2242,10 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('guards git branch checkout as a working-tree write scope', () => {
+  it('guards git branch checkout as a working-tree write scope', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'git',
       toolInput: { command: 'checkout', branch: 'feature/path-guard' },
       toolCapabilities: ['fs.write', 'shell.restricted'],
@@ -2254,10 +2257,10 @@ describe('path-guard covers any tool that declares a write', () => {
 
   it.each(['checkout', 'reset', 'stash', 'pull', 'clean'])(
     'blocks files-less git %s because it can rewrite the repository root',
-    (command) => {
+    async (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      const result = hookOf(api)({
+      const result = await hookOf(api)({
         toolName: 'git',
         cwd: 'D:/work/repo',
         toolInput: { command },
@@ -2269,10 +2272,10 @@ describe('path-guard covers any tool that declares a write', () => {
     },
   );
 
-  it('allows a benign shell command with production-shape metadata and an absolute cwd', () => {
+  it('allows a benign shell command with production-shape metadata and an absolute cwd', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'bash',
       cwd: 'D:/work/repo',
       toolInput: { command: 'echo safe' },
@@ -2282,12 +2285,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('guards the cwd scope for mutating actions without a recognized target', () => {
+  it('guards the cwd scope for mutating actions without a recognized target', async () => {
     const api = makeApi({
       extensions: { 'path-guard': { protect: ['protected-worktrees/**'] } },
     });
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'git',
       toolInput: {
         command: 'worktree',
@@ -2301,13 +2304,13 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result?.reason).toContain('write scope "." may include a protected path');
   });
 
-  it('allows read-only actions of tools whose descriptor is broadly mutating', () => {
+  it('allows read-only actions of tools whose descriptor is broadly mutating', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     const hook = hookOf(api);
 
     expect(
-      hook({
+      await hook({
         toolName: 'git',
         toolInput: { command: 'status', files: '.env' },
         toolCapabilities: ['fs.write'],
@@ -2315,7 +2318,7 @@ describe('path-guard covers any tool that declares a write', () => {
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      await hook({
         toolName: 'design',
         toolInput: { action: 'verify', files: ['.env'] },
         toolCapabilities: ['fs.write'],
@@ -2323,7 +2326,7 @@ describe('path-guard covers any tool that declares a write', () => {
       }),
     ).toBeUndefined();
     expect(
-      hook({
+      await hook({
         toolName: 'format',
         toolInput: { check: true, files: '.env' },
         toolCapabilities: ['fs.write'],
@@ -2332,10 +2335,10 @@ describe('path-guard covers any tool that declares a write', () => {
     ).toBeUndefined();
   });
 
-  it('does not guard a tool explicitly declared read-only', () => {
+  it('does not guard a tool explicitly declared read-only', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'custom_reader',
       toolInput: { path: '.env' },
       toolCapabilities: ['fs.read'],
@@ -2344,12 +2347,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('says nothing about a read-only tool that names a protected path', () => {
+  it('says nothing about a read-only tool that names a protected path', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
     // Reading `.env` is secret-scanner's and injection-shield's business.
     // Blocking it here would make the plugin unusable.
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'read',
       toolInput: { path: '.env' },
       toolCapabilities: ['fs.read'],
@@ -2357,30 +2360,32 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(result).toBeUndefined();
   });
 
-  it('still guards built-in writers on a host that declares nothing', () => {
+  it('still guards built-in writers on a host that declares nothing', async () => {
     // A security plugin with failurePolicy: 'closed' must not become a no-op
     // against a host older than the capability fields.
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    expect(hookOf(api)({ toolName: 'write', toolInput: { path: '.env.local' } })?.decision).toBe(
+    expect((await hookOf(api)({ toolName: 'write', toolInput: { path: '.env.local' } }))?.decision).toBe(
       'block',
     );
     expect(
-      hookOf(api)({
-        toolName: 'patch',
-        toolInput: { patch: '--- a/.env\n+++ b/.env\n@@ -1 +1 @@\n-old\n+new\n' },
-      })?.decision,
+      (
+        await hookOf(api)({
+          toolName: 'patch',
+          toolInput: { patch: '--- a/.env\n+++ b/.env\n@@ -1 +1 @@\n-old\n+new\n' },
+        })
+      )?.decision,
     ).toBe('block');
     expect(
-      hookOf(api)({ toolName: 'design', toolInput: { action: 'materialize', out: '.env' } })
+      (await hookOf(api)({ toolName: 'design', toolInput: { action: 'materialize', out: '.env' } }))
         ?.decision,
     ).toBe('block');
   });
 
-  it('guards the cwd scope for an unfamiliar writer target shape', () => {
+  it('guards the cwd scope for an unfamiliar writer target shape', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'odd_writer',
       toolInput: { whereverItGoes: 'pnpm-lock.yaml' },
       toolCapabilities: ['fs.write'],
@@ -2401,29 +2406,62 @@ describe('path-guard covers any tool that declares a write', () => {
     'git checkout -- src',
     'git checkout -- .env',
     'cat <<EOF > fix.sh\nrm .env\nEOF\nbash fix.sh',
-  ])('blocks protected paths through shell parser hardening: %s', (command) => {
+  ])('blocks protected paths through shell parser hardening: %s', async (command) => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    expect(hookOf(api)({ toolName: 'bash', toolInput: { command } })?.decision).toBe('block');
+    expect((await hookOf(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
   });
 
   it.each(['git rm --cached .env', 'git restore --staged .env', 'git clean -nd'])(
     'allows non-working-tree Git operations: %s',
-    (command) => {
+    async (command) => {
       const api = makeApi();
       pathGuardPlugin.setup(api as never);
-      expect(hookOf(api)({ toolName: 'bash', toolInput: { command } })).toBeUndefined();
+      expect(await hookOf(api)({ toolName: 'bash', toolInput: { command } })).toBeUndefined();
     },
   );
 
-  it('guards metadata-less built-in installs on legacy hosts', () => {
+  it('guards metadata-less built-in installs on legacy hosts', async () => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    const result = hookOf(api)({
+    const result = await hookOf(api)({
       toolName: 'install',
       toolInput: { packages: 'example' },
     });
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('write scope "." may include a protected path');
+  });
+
+  it('detects a project-local symlink whose realpath escaped (issue #365)', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'path-guard-symlink-'));
+    const original = process.cwd();
+    try {
+      process.chdir(dir);
+      const outside = path.join(os.tmpdir(), `path-guard-outside-${Date.now()}`);
+      fs.writeFileSync(outside, 'secret', 'utf8');
+      try {
+        fs.symlinkSync(outside, path.join(dir, 'innocent.txt'));
+      } catch {
+        return; // platform cannot create symlinks without elevation
+      }
+      expect(isSymlinkEscape('innocent.txt')).toBe(true);
+    } finally {
+      process.chdir(original);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('setup() twice unregisters the first hook (H1 reload, issue #365)', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const api = makeApi();
+    api.registerHook.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    pathGuardPlugin.setup(api as never);
+    pathGuardPlugin.setup(api as never);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).not.toHaveBeenCalled();
   });
 });

@@ -79,6 +79,7 @@ const state = {
     changed: boolean;
     bytesBefore: number;
     bytesAfter: number;
+    durationMs: number;
     when: string;
   },
 };
@@ -180,6 +181,7 @@ interface FormatResult {
   changed: boolean;
   bytesBefore: number;
   bytesAfter: number;
+  durationMs: number;
 }
 
 /**
@@ -303,6 +305,7 @@ async function formatFile(filePath: string, timeoutMs: number): Promise<FormatRe
   const formatter = resolveFormatter();
   if (!formatter) return null;
 
+  const started = Date.now();
   let bytesBefore: number;
   try {
     bytesBefore = (await stat(filePath)).size;
@@ -361,8 +364,9 @@ async function formatFile(filePath: string, timeoutMs: number): Promise<FormatRe
     return null;
   }
 
+  const durationMs = Date.now() - started;
   if (bytesAfter !== bytesBefore) {
-    return { changed: true, bytesBefore, bytesAfter };
+    return { changed: true, bytesBefore, bytesAfter, durationMs };
   }
 
   // Same size — compare content hashes. One extra read beats one extra
@@ -370,9 +374,9 @@ async function formatFile(filePath: string, timeoutMs: number): Promise<FormatRe
   // inferring it from an exit code.
   const hashAfter = await sha256File(filePath);
   if (hashBefore === null || hashAfter === null) {
-    return { changed: false, bytesBefore, bytesAfter };
+    return { changed: false, bytesBefore, bytesAfter, durationMs };
   }
-  return { changed: hashBefore !== hashAfter, bytesBefore, bytesAfter };
+  return { changed: hashBefore !== hashAfter, bytesBefore, bytesAfter, durationMs };
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +501,7 @@ const plugin: Plugin = {
         changed: result.changed,
         bytesBefore: result.bytesBefore,
         bytesAfter: result.bytesAfter,
+        durationMs: result.durationMs,
         when: new Date().toISOString(),
       };
 
@@ -570,6 +575,9 @@ const plugin: Plugin = {
             clean: state.cleanCount,
             errors: state.errorCount,
             coveredSkips: state.coveredSkipCount,
+            bytesBefore: state.lastResult?.bytesBefore ?? 0,
+            bytesAfter: state.lastResult?.bytesAfter ?? 0,
+            durationMs: state.lastResult?.durationMs ?? 0,
           },
           lastResult: state.lastResult,
         };

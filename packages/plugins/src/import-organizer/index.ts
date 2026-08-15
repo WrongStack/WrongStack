@@ -118,10 +118,30 @@ function resolveLocalToolCommand(tokens: readonly string[]): { cmd: string; args
   return { cmd: local.cmd, args: local.args };
 }
 
-function resolveAllowedCommand(command: string): { cmd: string; args: string[] } | null {
+export function resolveAllowedCommand(command: string): { cmd: string; args: string[] } | null {
   const tokens = command.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return null;
   const head = tokens[0]!;
+  // Package runners (`npx some-other-package`) only pass when the resolved
+  // tool token is a known linter. First-token allowlist of `npx` alone
+  // would otherwise let an arbitrary package through.
+  if (PACKAGE_RUNNERS.has(head)) {
+    let i = 1;
+    while (
+      i < tokens.length &&
+      (tokens[i] === 'exec' || tokens[i] === 'dlx' || tokens[i] === 'run')
+    ) {
+      i++;
+    }
+    const toolToken = tokens[i];
+    if (!toolToken || !(toolToken in LOCAL_BIN_PACKAGES)) return null;
+  }
+  if (head === 'node') {
+    const target = tokens[1];
+    if (!target) return null;
+    const base = basename(target);
+    if (!(base in LOCAL_BIN_PACKAGES) && !ALLOWED_FIRST_TOKENS.has(base)) return null;
+  }
   // Prefer the project-local binary: no package runner, no shell, no shim.
   // Defense-in-depth: only enter the local-resolution path when the first
   // token already passes the sandbox allowlist — the local path must never
@@ -532,6 +552,14 @@ const plugin: Plugin = {
         bytesAfter: result.bytesAfter,
         when: new Date().toISOString(),
       };
+
+      if (/\boxlint\b/.test(result.command)) {
+        return {
+          additionalContext:
+            `\n📦 import-organizer: oxlint has no import-organize support — ran ` +
+            `'${result.command}' as a no-op for import sorting on '${filePath}'.`,
+        };
+      }
 
       if (result.changed) {
         state.organizedCount += 1;

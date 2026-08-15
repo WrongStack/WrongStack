@@ -16,6 +16,7 @@ import {
   searchMemoryTool,
 } from '@wrongstack/tools/memory';
 import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
+import { createVectorMemoryTools, type VectorMemoryStore } from '@wrongstack/vector-memory';
 
 const DIRECT_LAZY_GATEWAYS = ['tool_search', 'tool_use', 'tool_help'] as const;
 
@@ -30,6 +31,19 @@ export interface CanonicalHostToolRegistrationOptions {
         store?: MemoryPort | null | undefined;
       }
     | undefined;
+  /**
+   * Optional vector memory store. When provided, the four
+   * `vector_memory_*` tools (remember/search/stats/forget) are registered
+   * alongside the SAGE tools under the `vector-memory` namespace. When
+   * omitted the registry stays unchanged from the SAGE-only surface.
+   *
+   * The vector store is independent of SAGE — its own SQLite file under
+   * `.wrongstack/vector-memory/`. Failures during search (e.g. the
+   * transformers.js backend is unavailable) are swallowed at the store
+   * layer and return empty results, so registration is safe even when
+   * the embedding model is not yet cached.
+   */
+  vectorMemory?: { store: VectorMemoryStore } | undefined;
   /**
    * Opt-in `nextsteps` tool (`tools.nextsteps.enabled`). Off unless the host
    * explicitly enables it, so the default surface is unchanged and the leader
@@ -91,6 +105,16 @@ export function registerCanonicalHostTools(
       );
       memoryBackend = 'legacy';
     }
+  }
+
+  // Vector memory is a sibling surface, not a replacement for SAGE —
+  // register it independently so callers get both lexical (SAGE) and
+  // semantic (transformers.js) retrieval paths side-by-side.
+  if (options.vectorMemory?.store) {
+    options.registry.registerAllOrThrow(
+      createVectorMemoryTools(options.vectorMemory.store),
+      'vector-memory',
+    );
   }
 
   if (options.nextSteps?.enabled) options.registry.register(nextStepsTool);

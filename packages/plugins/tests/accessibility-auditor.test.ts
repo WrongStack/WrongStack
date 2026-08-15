@@ -231,6 +231,85 @@ describe('accessibility-auditor plugin', () => {
     expect(result).toBeUndefined();
   });
 
+  it('treats aria-describedby-only inputs as supplementary, not labeled (issue #369)', async () => {
+    writeFixture('Described.tsx', '<input type="text" aria-describedby="desc-id" />\n');
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string }>;
+    };
+    expect(result.findings.some((f) => f.rule === 'missing-input-label')).toBe(false);
+    expect(result.findings.some((f) => f.rule === 'low-contrast-placeholder')).toBe(true);
+  });
+
+  it('does not flag decorative img alt="" with role=presentation', async () => {
+    writeFixture('Deco.tsx', '<img alt="" role="presentation" src="/dot.png" />\n');
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string }>;
+    };
+    expect(result.findings.some((f) => f.rule === 'missing-alt')).toBe(false);
+  });
+
+  it('notes the single-file limitation when a sibling label file is invisible', async () => {
+    writeFixture('Input.tsx', '<input type="email" />\n');
+    writeFixture('Label.tsx', '<label htmlFor="email">Email</label>\n');
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({
+      path: resolve(FIXTURE_DIR, 'Input.tsx'),
+    })) as { findings: Array<{ rule: string; note?: string }> };
+    const missing = result.findings.find((f) => f.rule === 'missing-input-label');
+    expect(missing?.note).toMatch(/sibling/i);
+  });
+
+  it('recognizes checkbox + fieldset/legend via aria-labelledby', async () => {
+    writeFixture(
+      'Group.tsx',
+      '<fieldset><legend id="group-id">Opts</legend><input type="checkbox" aria-labelledby="group-id" /></fieldset>\n',
+    );
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string }>;
+    };
+    expect(result.findings.some((f) => f.rule === 'missing-input-label')).toBe(false);
+  });
+
+  it('does not flag a button with aria-label and a single-character glyph', async () => {
+    writeFixture('Close.tsx', '<button aria-label="Close">×</button>\n');
+    const api = makeApi();
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: FIXTURE_DIR })) as {
+      findings: Array<{ rule: string }>;
+    };
+    expect(result.findings.some((f) => f.rule === 'missing-button-text')).toBe(false);
+  });
+
+  it('emits a partial-scan warning when maxFindings stops a directory walk', async () => {
+    const dir = resolve(FIXTURE_DIR, 'many');
+    mkdirSync(dir, { recursive: true });
+    for (let i = 0; i < 12; i++) {
+      writeFileSync(resolve(dir, `f${i}.tsx`), `<img src="/${i}.png" />\n`, 'utf-8');
+    }
+    const api = makeApi({
+      extensions: { 'accessibility-auditor': { enabled: true, maxFindings: 5 } },
+    });
+    accessibilityAuditorPlugin.setup(api as never);
+    const result = (await getTool(api, 'a11y_audit')({ path: dir })) as {
+      truncated: boolean;
+      fileCount: number;
+      scannedFiles: number;
+      additionalContext?: string;
+    };
+    expect(result.truncated).toBe(true);
+    expect(result.fileCount).toBe(12);
+    expect(result.scannedFiles).toBeLessThan(12);
+    expect(result.additionalContext).toMatch(/partial scan/i);
+    expect(result.additionalContext).toMatch(/files not examined/i);
+  });
+
   it('enabled:false disables tools', async () => {
     const api = makeApi({ extensions: { 'accessibility-auditor': { enabled: false } } });
     accessibilityAuditorPlugin.setup(api as never);

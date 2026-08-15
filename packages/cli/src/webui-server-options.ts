@@ -13,6 +13,7 @@ import type {
   SkillLoader,
 } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import type { WebuiSessionChildOptions } from './boot/webui-session-child.js';
 
 /**
@@ -198,6 +199,16 @@ export interface CliWebUIOptions {
     | undefined;
   /** Memory store — enables the Memory panel + chat `/memory` (memory.list) and the structured memory.sage.* operations. */
   memoryStore?: MemoryPort | undefined;
+  /**
+   * Optional vector-memory store. When provided, the four
+   * `/api/vector-memory/{status,search,store,store/:id}` endpoints become
+   * active. When omitted, the routes respond with `{ enabled: false }` or
+   * 503 — a non-CLI webui-server host stays on its existing surface with
+   * zero behavior change.
+   */
+  getVectorMemoryStore?: (() => VectorMemoryStore | undefined) | undefined;
+  /** Model cache directory for the vector-memory provider. */
+  vectorMemoryModelCacheDir?: string | undefined;
   /** Skill loader — enables the SkillsPanel (skills.list). */
   skillLoader?: SkillLoader | undefined;
   /** Prompt loader — enables the prompt library (prompts.list/search/content/favorite/create). */

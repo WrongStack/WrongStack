@@ -40,6 +40,7 @@
  */
 import type { Plugin, PluginAPI } from '@wrongstack/core/types';
 import { cloneCredentialPatterns } from '../runtime/credential-patterns.js';
+import { withReDoSGuard } from '../runtime/redos-guard.js';
 
 // ---------------------------------------------------------------------------
 // Secret patterns — high-confidence only, to keep false positives low.
@@ -56,7 +57,7 @@ interface SecretPattern {
  * in logs, metrics and the status tool. Anything not listed here is
  * reported under its canonical id.
  */
-const KIND_ALIASES: Readonly<Record<string, string>> = {
+export const KIND_ALIASES: Readonly<Record<string, string>> = {
   aws_access_key: 'aws-access-key',
   private_key: 'private-key-block',
   github_pat: 'github-token',
@@ -236,6 +237,7 @@ interface PromptFirewallState {
   requestRedactions: number;
   responseRedactions: number;
   blocked: number;
+  timeoutCount: number;
   byKind: Map<string, number>;
   lastDetection: { where: string; kinds: string[]; when: string } | null;
   extensionUnregister: null | (() => void);
@@ -247,6 +249,7 @@ const state: PromptFirewallState = {
   requestRedactions: 0,
   responseRedactions: 0,
   blocked: 0,
+  timeoutCount: 0,
   byKind: new Map(),
   lastDetection: null,
   extensionUnregister: null,
@@ -302,6 +305,7 @@ const plugin: Plugin = {
     state.requestRedactions = 0;
     state.responseRedactions = 0;
     state.blocked = 0;
+    state.timeoutCount = 0;
     state.byKind.clear();
     state.lastDetection = null;
     if (state.extensionUnregister) {
@@ -334,7 +338,21 @@ const plugin: Plugin = {
           const req = (request ?? {}) as Record<string, unknown>;
           state.invocations += 1;
 
-          const detections = detectSecrets(collectText(req), cfg.allow);
+          // Wrap-stack contract (issue #362): this wrap is registered AFTER
+          // llm-cache in generated-plugin-exports, so it is the *outer* wrap.
+          // Cache therefore only keys/stores already-redacted requests; a
+          // cache hit cannot smuggle a pre-firewall credential.
+          const requestText = collectText(req);
+          for (const extra of EXTRA_PATTERNS) {
+            const guarded = await withReDoSGuard(extra.re, requestText, 250, {
+              onTimeout: () => {
+                state.timeoutCount += 1;
+              },
+            });
+            if (guarded.timedOut) break;
+          }
+
+          const detections = detectSecrets(requestText, cfg.allow);
           if (detections.length > 0) {
             state.requestsWithSecrets += 1;
             for (const d of detections) {
@@ -412,6 +430,7 @@ const plugin: Plugin = {
             requestRedactions: state.requestRedactions,
             responseRedactions: state.responseRedactions,
             blocked: state.blocked,
+            timeoutCount: state.timeoutCount,
           },
           byKind: Object.fromEntries(state.byKind),
           lastDetection: state.lastDetection,

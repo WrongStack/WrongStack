@@ -79,9 +79,9 @@
       "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 229,
+      "files": 230,
       "typeOnly": 122,
-      "runtimeOrMixed": 118
+      "runtimeOrMixed": 119
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -114,9 +114,9 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/registry": {
-      "files": 105,
+      "files": 107,
       "typeOnly": 52,
-      "runtimeOrMixed": 54
+      "runtimeOrMixed": 56
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 130,
+      "files": 131,
       "typeOnly": 24,
-      "runtimeOrMixed": 109
+      "runtimeOrMixed": 110
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 944,
-      "typeOnly": 871,
+      "files": 947,
+      "typeOnly": 874,
       "runtimeOrMixed": 234
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -5216,6 +5216,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/boot/vector-memory-boot-teardown.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/brain-decision-log.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6836,6 +6842,18 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/boot/vector-memory-boot-teardown.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/tests/boot/vector-memory-tools.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/tests/fleet-shadow-pass.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7929,6 +7947,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/http-server/api-router.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/http-server/vector-memory-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10569,6 +10593,18 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/boot/system-prompt.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/boot/vector-memory-boot-teardown.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/boot/vector-memory-tools.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -14049,6 +14085,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/use-token-counter-refresh.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/vector-memory/src/tools.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

@@ -463,6 +463,26 @@ describe('secret_scanner_test tool', () => {
     expect(result.matched).toContain('github_pat');
   });
 
+  it('does not match PEM certificates or bare base64 padding (issue #361)', async () => {
+    const api = makeApi();
+    secretScannerPlugin.setup(api as any);
+    const tool = getRegisteredTool(api, 'secret_scanner_test');
+    const pem = '-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJAKHHHexample\n-----END CERTIFICATE-----';
+    const b64 = 'SGVsbG8gV29ybGQhISE=';
+    const result = (await tool.execute({ text: `${pem}\n${b64}` })) as { matched: string[] };
+    expect(result.matched).toEqual([]);
+  });
+
+  it('shares the same pattern ids as prompt-firewall (no table drift)', async () => {
+    const { cloneCredentialPatterns } = await import('../src/runtime/credential-patterns.js');
+    const { KIND_ALIASES } = await import('../src/prompt-firewall/index.js');
+    const shared = cloneCredentialPatterns().map((p) => KIND_ALIASES[p.type] ?? p.type).sort();
+    expect(shared).toContain('aws-access-key');
+    expect(shared).toContain('github-token');
+    const canonical = cloneCredentialPatterns().map((p) => p.type);
+    expect(new Set(canonical).size).toBe(canonical.length);
+  });
+
   it('detects a private key block', async () => {
     const api = makeApi();
     secretScannerPlugin.setup(api as any);

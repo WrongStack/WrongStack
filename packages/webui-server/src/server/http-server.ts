@@ -151,6 +151,17 @@ export interface CreateHttpServerOptions {
    * respond 503.
    */
   intakeService?: import('@wrongstack/requirement-intake').RequirementIntakeService | undefined;
+  /**
+   * Optional vector-memory store. When provided, the four
+   * `/api/vector-memory/{status,search,store,store/:id}` endpoints become
+   * active and return live data. When omitted, the route responds with
+   * `{ enabled: false }` (status) or 503 (search/store/forget), so a
+   * non-CLI webui-server host stays on its existing surface with zero
+   * behavior change.
+   */
+  getVectorMemoryStore?: (() => import('@wrongstack/vector-memory').VectorMemoryStore | undefined) | undefined;
+  /** Model cache directory for the vector-memory provider. */
+  vectorMemoryModelCacheDir?: string | undefined;
 }
 
 /**

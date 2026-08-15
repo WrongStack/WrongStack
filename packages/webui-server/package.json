@@ -54,6 +54,7 @@
     "@wrongstack/sage": "workspace:*",
     "@wrongstack/techstack": "workspace:*",
     "@wrongstack/tools": "workspace:*",
+    "@wrongstack/vector-memory": "workspace:*",
     "ws": "^8.21.3"
   },
   "devDependencies": {

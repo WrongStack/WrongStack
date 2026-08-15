@@ -137,6 +137,21 @@
       "fingerprint": "31cfbc566a723022"
     },
     {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "65e68dd2f29dd5a7"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "6f414424311cc3a8"
+    },
+    {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "d7463963b9764391"
+    },
+    {
       "file": "packages/plugins/tests/runtime-local-bin.test.ts",
       "kind": "runIf",
       "fingerprint": "08467b893da83899"
@@ -330,6 +345,21 @@
       "file": "packages/tui/tests/working-dir-chip.test.ts",
       "kind": "skipIf",
       "fingerprint": "64d5454ccdda1aab"
+    },
+    {
+      "file": "packages/vector-memory/tests/integration.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "4ae929409f76117b"
+    },
+    {
+      "file": "packages/vector-memory/tests/integration.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "cb9602d14c74b1c5"
+    },
+    {
+      "file": "packages/vector-memory/tests/integration.test.ts",
+      "kind": "skip",
+      "fingerprint": "d848b77740397b34"
     }
   ]
 }

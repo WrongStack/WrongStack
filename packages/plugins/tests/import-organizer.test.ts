@@ -698,3 +698,67 @@ describe('import-organizer plugin', () => {
     });
   });
 });
+
+describe('issue #367 allowlist + oxlint + timeout', () => {
+  let issueTmp: string;
+  let originalCwd: string;
+  beforeEach(async () => {
+    originalCwd = process.cwd();
+    issueTmp = await fs.mkdtemp(path.join(os.tmpdir(), 'import-org-issue-'));
+    process.chdir(issueTmp);
+  });
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    await fs.rm(issueTmp, { recursive: true, force: true });
+  });
+
+  it('rejects npx some-other-package and accepts node ./node_modules/.bin/biome', async () => {
+    const { resolveAllowedCommand } = await import('../src/import-organizer/index.js');
+    expect(resolveAllowedCommand('npx some-other-package')).toBeNull();
+    const accepted = resolveAllowedCommand('node ./node_modules/.bin/biome');
+    expect(accepted?.cmd).toBe('node');
+    expect(accepted?.args[0]).toMatch(/biome/);
+  });
+
+  it('surfaces that oxlint has no import-organize support', async () => {
+    const api = createMockAPI();
+    api.config.extensions = { 'import-organizer': { command: 'oxlint --fix' } };
+    importOrganizerPlugin.setup(api as never);
+    const hook = (api.registerHook.mock.calls[0] as unknown[])[2] as (input: unknown) => Promise<{
+      additionalContext?: string;
+    } | void>;
+    const filePath = path.join(issueTmp, 'ox.ts');
+    await fs.writeFile(filePath, 'import z from "zod";\n', 'utf8');
+    mockSpawnOk('');
+    const result = await hook({
+      toolName: 'write',
+      toolInput: { path: filePath, content: '' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result?.additionalContext).toMatch(/oxlint has no import-organize support/i);
+  });
+
+  it('kills a hanging linter and increments errorCount', async () => {
+    const api = createMockAPI();
+    api.config.extensions = { 'import-organizer': { timeoutMs: 30 } };
+    importOrganizerPlugin.setup(api as never);
+    const hook = (api.registerHook.mock.calls[0] as unknown[])[2] as (input: unknown) => Promise<unknown>;
+    const filePath = path.join(issueTmp, 'hang.ts');
+    await fs.writeFile(filePath, 'const x = 1;\n', 'utf8');
+    const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter };
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    vi.mocked(spawn).mockImplementationOnce(() => child as never);
+    const result = await hook({
+      toolName: 'write',
+      toolInput: { path: filePath, content: '' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+    const statusTool = api.tools.register.mock.calls.find(
+      ([t]: unknown[]) => (t as { name: string }).name === 'import_organizer_status',
+    )?.[0] as { execute: () => Promise<{ counters: { errors: number } }> };
+    const status = await statusTool.execute();
+    expect(status.counters.errors).toBeGreaterThan(0);
+  });
+});

@@ -20,6 +20,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import { configureChildEnvGitIdentity } from '@wrongstack/core/utils';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
 import { configureDangerBypass, configureExecPolicy } from '@wrongstack/tools';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { configureGoalPolicy } from '../goal-host.js';
 
 interface RegisterBuiltinToolsDeps {
@@ -47,6 +48,13 @@ interface RegisterBuiltinToolsDeps {
       | undefined;
   };
   memoryStore: MemoryPort | null | undefined;
+  /**
+   * Optional vector memory store. When provided, the four
+   * `vector_memory_*` tools are registered alongside the SAGE tools so
+   * agents get both lexical and semantic retrieval paths in one surface.
+   * Omit (or pass `undefined`) to keep the CLI on the SAGE-only surface.
+   */
+  vectorMemoryStore?: VectorMemoryStore | undefined;
   events: EventBus;
   wpaths: Pick<WstackPaths, 'projectDir'>;
 }
@@ -59,6 +67,7 @@ export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
     tier,
     contextTool: createContextManagerTool({ compactor: deps.compactor as never }),
     memory: { enabled: deps.config.features.memory, store: deps.memoryStore },
+    vectorMemory: deps.vectorMemoryStore ? { store: deps.vectorMemoryStore } : undefined,
     nextSteps: { enabled: deps.config.tools?.nextsteps?.enabled === true },
     coordinationTools: [
       makeMailboxTool({ projectDir: deps.wpaths.projectDir, events: deps.events }),

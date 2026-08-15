@@ -29,6 +29,16 @@ overrides:
   # requested size is 0 (GHSA-2v37-7h3g-55p8). Pulled in transitively by
   # postcss (Vite/Vitest). Patched in 3.3.18.
   nanoid@<3.3.18: ^3.3.18
+  # adm-zip <0.6.0: crafted ZIP file triggers a 4GB memory allocation
+  # (GHSA-xcpc-8h2w-3j85). Pulled in transitively by
+  # @huggingface/transformers > onnxruntime-node (vector-memory).
+  # Patched in 0.6.0.
+  adm-zip: "^0.6.0"
+  # sharp <0.35.0: inherited libvips vulnerabilities CVE-2026-33327,
+  # CVE-2026-33328, CVE-2026-35590, CVE-2026-35591 (GHSA-f88m-g3jw-g9cj).
+  # Optional dependency of @huggingface/transformers (vector-memory).
+  # Patched in 0.35.0.
+  sharp: "^0.35.0"
 peerDependencyRules:
   # TypeScript 7 was released before i18next/react-i18next widened their peer
   # ranges. WrongStack's WebUI passes its TS7 typecheck; allow this known lag.
@@ -55,11 +65,21 @@ allowBuilds:
   # The script only downloads binaries published by microsoft/node-pty;
   # it does not execute arbitrary remote code.
   node-pty: true
+  # sharp: optionalDependency of @huggingface/transformers (pulled in by
+  # @wrongstack/vector-memory). Sharp's postinstall downloads a prebuilt
+  # native libvips binary for the current platform from npm; it does not
+  # execute arbitrary remote code beyond the package's own published
+  # release artifacts. Reviewed 2026-08-15 — the binary is fetched from
+  # sharp's own `@img/sharp-linux-x64` / `@img/sharp-darwin-arm64` etc.
+  # subpackages on the public npm registry (no third-party hosts), and
+  # the binary URL is pinned by version in sharp's package.json.
+  sharp: true
 onlyBuiltDependencies:
   - "@biomejs/biome"
   - electron
   - esbuild
   - node-pty
+  - sharp
 # Install cooldown: refuse versions published less than 24h ago. This is the
 # single most effective defence against a compromised-maintainer / npm account
 # takeover, where a malicious version is published and yanked within hours.
