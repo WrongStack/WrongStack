@@ -65,6 +65,21 @@ allowBuilds:
   # The script only downloads binaries published by microsoft/node-pty;
   # it does not execute arbitrary remote code.
   node-pty: true
+  # onnxruntime-node: optionalDependency of @huggingface/transformers
+  # (pulled in by @wrongstack/vector-memory). Its postinstall
+  # (`node ./script/install`) downloads a prebuilt N-API-matching native
+  # binary from the package's own npm release artifacts (Microsoft's
+  # onnxruntime distribution, no third-party hosts); it does not compile
+  # or execute arbitrary remote code. Reviewed 2026-08-16 — same
+  # prebuild-download pattern as node-pty above. Without the approval,
+  # pnpm 11 fails `install` hard (ERR_PNPM_IGNORED_BUILDS), which broke
+  # every CI run since the vector-memory chain landed.
+  onnxruntime-node: true
+  # protobufjs: transitive dependency of @huggingface/transformers
+  # (vector-memory). Its postinstall (`node scripts/postinstall`) is a
+  # benign Node-version detection no-op that logs a deprecation hint on
+  # old Node; it downloads and executes nothing. Reviewed 2026-08-16.
+  protobufjs: true
   # sharp: optionalDependency of @huggingface/transformers (pulled in by
   # @wrongstack/vector-memory). Sharp's postinstall downloads a prebuilt
   # native libvips binary for the current platform from npm; it does not
@@ -79,6 +94,8 @@ onlyBuiltDependencies:
   - electron
   - esbuild
   - node-pty
+  - onnxruntime-node
+  - protobufjs
   - sharp
 # Install cooldown: refuse versions published less than 24h ago. This is the
 # single most effective defence against a compromised-maintainer / npm account
