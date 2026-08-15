@@ -109,11 +109,7 @@ describe('MultiAgentHost shadow pass shutdown race', () => {
     // crash the process. Before the guard this rejected with
     // FleetSpawnBudgetError (which, as an unhandled microtask rejection,
     // tore the process down).
-    await expect(
-      (host as unknown as { runShadowPass(reason: string): Promise<void> }).runShadowPass(
-        'post-workComplete heartbeat',
-      ),
-    ).resolves.toBeUndefined();
+    await expect(host.runShadowPass('post-workComplete heartbeat')).resolves.toBeUndefined();
 
     await host.stopAll();
   });
@@ -130,11 +126,7 @@ describe('MultiAgentHost shadow pass shutdown race', () => {
     const spawnSpy = vi.spyOn(director, 'spawn');
     director.workComplete();
 
-    await expect(
-      (host as unknown as { runShadowPass(reason: string): Promise<void> }).runShadowPass(
-        'should be skipped',
-      ),
-    ).resolves.toBeUndefined();
+    await expect(host.runShadowPass('should be skipped')).resolves.toBeUndefined();
 
     expect(spawnSpy).not.toHaveBeenCalled();
 

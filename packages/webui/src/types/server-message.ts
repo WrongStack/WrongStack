@@ -265,6 +265,23 @@ export type WSServerMessage =
       payload: { filePath: string; content: string; error?: string | undefined };
     }
   | {
+      type: 'files.skeleton_result';
+      payload: {
+        filePath: string;
+        lang?: string | undefined;
+        skeleton: string;
+        stats?:
+          | {
+              originalLines: number;
+              skeletonLines: number;
+              tokenSavingsPercent: number;
+              symbolCount: number;
+            }
+          | undefined;
+        error?: string | undefined;
+      };
+    }
+  | {
       type: 'files.written';
       payload: { filePath: string; success: boolean; error?: string | undefined };
     }

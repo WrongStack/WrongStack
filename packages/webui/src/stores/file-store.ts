@@ -38,12 +38,16 @@ export interface FileStoreState {
   treeLoading: boolean;
   /** Last error message, if any. */
   error: string | null;
+  /** Target line to jump to in the active editor. */
+  targetLine: { line: number; col?: number | undefined } | null;
 
   // Actions
   setTree: (root: string, tree: TreeNode[]) => void;
   openFile: (filePath: string, content: string) => void;
   closeFile: (filePath: string) => void;
   setActiveFile: (filePath: string | null) => void;
+  jumpToLine: (line: number, col?: number) => void;
+  clearTargetLine: () => void;
   updateContent: (filePath: string, content: string) => void;
   /** Mark a file as saved (synced with disk). */
   markSaved: (filePath: string) => void;
@@ -134,11 +138,14 @@ export const useFileStore = create<FileStoreState>()(
       activeFilePath: null,
       treeLoading: false,
       error: null,
+      targetLine: null,
       projectIdentity: '',
       hydratingPaths: new Set<string>(),
 
-      setTree: (root, tree) =>
-        set({ projectRoot: root, tree, treeLoading: false, error: null }),
+      setTree: (root, tree) => set({ projectRoot: root, tree, treeLoading: false, error: null }),
+
+      jumpToLine: (line, col) => set({ targetLine: { line, col } }),
+      clearTargetLine: () => set({ targetLine: null }),
 
       openFile: (filePath, content) => {
         const state = get();

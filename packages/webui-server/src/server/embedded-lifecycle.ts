@@ -146,9 +146,14 @@ export interface AnnounceWebuiReadyParams {
 export function announceWebuiReady(p: AnnounceWebuiReadyParams): void {
   const log = p.log ?? ((m: string) => console.log(m));
   const launch = p.openBrowserFn ?? openBrowser;
-  // Include the auth token in the URL so the frontend can exchange it for an
-  // HttpOnly cookie. Wildcard binds are printed as a local browser URL because
-  // http://0.0.0.0 is not navigable.
+  // The browser-launch URL carries the one-time bootstrap token so the
+  // frontend can exchange it for an HttpOnly cookie. The separately rendered
+  // display URL must stay token-free because banners are captured in logs.
+  const displayUrl = buildWebUIAccessUrl({
+    host: p.host,
+    port: p.httpPort,
+    publicUrl: p.publicUrl,
+  });
   const openUrl = buildWebUIAccessUrl({
     host: p.host,
     port: p.httpPort,
@@ -159,15 +164,17 @@ export function announceWebuiReady(p: AnnounceWebuiReadyParams): void {
     const extraUrls = formatExternalAccessUrls({
       bindHost: p.host,
       port: p.httpPort,
-      token: p.wsToken,
       publicUrl: p.publicUrl,
     });
     const extraBlock =
       extraUrls.length > 0
-        ? `\n  Also reachable on external interfaces:\n${extraUrls.join('\n')}\n`
+        ? `\n  Protected endpoints on external interfaces:\n${extraUrls.join('\n')}\n`
         : '';
+    const authHint = p.wsToken
+      ? ' (authentication required; use automatic browser launch or a separately provisioned WEBUI_TOKEN)'
+      : '';
     log(
-      `\n  ▸ ${p.surface === 'webui' ? 'WebUI' : 'SimpleUI'} ready — open \x1b[1m${openUrl}\x1b[0m in your browser` +
+      `\n  ▸ ${p.surface === 'webui' ? 'WebUI' : 'SimpleUI'} ready at \x1b[1m${displayUrl}\x1b[0m${authHint}` +
         `    (same agent as this terminal)\n${extraBlock}`,
     );
     if (p.open) launch(openUrl);

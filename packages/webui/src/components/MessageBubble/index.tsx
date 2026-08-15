@@ -56,6 +56,7 @@ export const MessageBubble = memo(function MessageBubble({
   void message.role;
 
   const truncateAfter = useChatStore((s) => s.truncateAfter);
+  const updateMessage = useChatStore((s) => s.updateMessage);
   const addMessage = useChatStore((s) => s.addMessage);
   const setLoading = useChatStore((s) => s.setLoading);
   const isLoading = useChatStore((s) => s.isLoading);
@@ -95,6 +96,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   /** Auto-submit callback for YOLO+auto mode countdown completion */
   const handleAutoSubmit = (text: string) => {
+    if (useChatStore.getState().isLoading) return;
     if (!canAutoSubmit()) {
       // Cap already hit — show a one-time warning and stop.
       if (!capWarned) {
@@ -132,6 +134,7 @@ export const MessageBubble = memo(function MessageBubble({
   /** Batch-submit callback for multi-select: joins selected step texts and
    *  sends as a single user message, bypassing the refine/enhance panel. */
   const handleBatchSubmit = (texts: string[]) => {
+    if (useChatStore.getState().isLoading) return;
     const combined = texts.join('\n');
     const client = getWSClient(wsUrl);
     if (!client.isConnected) {
@@ -183,6 +186,19 @@ export const MessageBubble = memo(function MessageBubble({
         : [],
     );
 
+  const retryUserMessage = () => {
+    const client = getWSClient(wsUrl);
+    if (!client.isConnected) {
+      toast.error(t('common:status.notConnectedRetry'));
+      return;
+    }
+    const atts = resendableAttachments(message);
+    truncateAfter(message.id);
+    updateMessage(message.id, { status: undefined });
+    setLoading(true);
+    client.sendMessage(message.content, atts.length > 0 ? toWireImages(atts) : undefined);
+  };
+
   const regenerate = () => {
     const all = useChatStore.getState().messages;
     const idx = all.findIndex((m) => m.id === message.id);
@@ -203,13 +219,7 @@ export const MessageBubble = memo(function MessageBubble({
     const userMsg = expectDefined(all[userIdx]);
     const atts = resendableAttachments(userMsg);
     truncateAfter(userMsg.id);
-    addMessage({
-      role: 'user',
-      content: userMsg.content,
-      ...(atts.length > 0
-        ? { attachments: atts.map((a) => ({ ...a, kind: 'image' as const })) }
-        : {}),
-    });
+    updateMessage(userMsg.id, { status: undefined });
     setLoading(true);
     client.sendMessage(userMsg.content, atts.length > 0 ? toWireImages(atts) : undefined);
   };
@@ -235,9 +245,9 @@ export const MessageBubble = memo(function MessageBubble({
     }
     const atts = resendableAttachments(message);
     truncateAfter(message.id);
-    addMessage({
-      role: 'user',
+    updateMessage(message.id, {
       content: next,
+      status: undefined,
       ...(atts.length > 0
         ? { attachments: atts.map((a) => ({ ...a, kind: 'image' as const })) }
         : {}),
@@ -522,7 +532,7 @@ export const MessageBubble = memo(function MessageBubble({
             trigger "a run is already in progress" by clicking a suggestion
             mid-run. The <nextsteps> XML is still stripped from content at
             finalize time regardless of this gate. */}
-        {isLatestAssistant && nextSteps.length > 0 && (
+        {isLatestAssistant && !isLoading && nextSteps.length > 0 && (
           <NextStepsBar
             steps={nextSteps}
             yoloMode={yolo}
@@ -647,16 +657,31 @@ export const MessageBubble = memo(function MessageBubble({
               </span>
             </button>
           )}
-          {isUser && !editing && !isLoading && message.content && (
-            <button
-              type="button"
-              onClick={startEdit}
-              title={t('activity:message.editTitle')}
-              className="opacity-50 hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-            >
-              <Pencil className="h-3 w-3" />
-              <span>{t('activity:message.editLabel')}</span>
-            </button>
+          {isUser && !editing && !isLoading && (
+            <>
+              {message.status === 'failed' && (
+                <button
+                  type="button"
+                  onClick={retryUserMessage}
+                  title={t('activity:message.retryLabel', 'Retry')}
+                  className="opacity-75 hover:opacity-100 transition-opacity text-xs text-destructive hover:text-destructive/80 inline-flex items-center gap-1 font-medium"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  <span>{t('activity:message.retryLabel', 'Retry')}</span>
+                </button>
+              )}
+              {message.content && (
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  title={t('activity:message.editTitle')}
+                  className="opacity-50 hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                >
+                  <Pencil className="h-3 w-3" />
+                  <span>{t('activity:message.editLabel')}</span>
+                </button>
+              )}
+            </>
           )}
           {message.role === 'assistant' && message.content && !message.streaming && (
             <button
@@ -676,7 +701,7 @@ export const MessageBubble = memo(function MessageBubble({
               </span>
             </button>
           )}
-          {isLatestAssistant && message.content && !message.streaming && (
+          {(isLatestAssistant || message.isError) && message.content && !message.streaming && !isLoading && (
             <button
               type="button"
               onClick={regenerate}

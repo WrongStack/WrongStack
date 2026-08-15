@@ -11,6 +11,7 @@ import type { Context } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { checkSyntax } from './_syntax-check.js';
 import { safeResolveReal, sha256hex, truncateDiffPayload } from './_util.js';
+import { enqueueReindex } from './codebase-index/background-indexer.js';
 
 /** Byte budget for the returned unified diff — matches `maxOutputBytes`. */
 const MAX_DIFF_BYTES = 262_144;
@@ -165,6 +166,12 @@ async function finishWrite(
   // partial.)
   signal?.throwIfAborted();
   await atomicWrite(prepared.absPath, content);
+
+  try {
+    enqueueReindex({ projectRoot: ctx.projectRoot, files: [prepared.absPath] });
+  } catch {
+    // Non-fatal background reindex
+  }
 
   const rawDiff = prepared.existed
     ? unifiedDiff(prepared.prev, content, { fromFile: input.path, toFile: input.path })

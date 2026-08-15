@@ -83,13 +83,12 @@ export function getExternalAddresses(
  * Format the extra access-URL lines for a wildcard bind.
  *
  * Returns a list of indented, ready-to-print lines showing the external
- * IPs and their full access URLs (including token). Returns an empty
- * array for non-wildcard binds or when no external addresses are found.
+ * IPs and their access URLs. Authentication tokens are deliberately excluded
+ * because these lines are written to terminal and session logs.
  */
 export function formatExternalAccessUrls(opts: {
   bindHost: string;
   port: number;
-  token?: string | undefined;
   publicUrl?: string | undefined;
   getInterfaces?: () => NodeJS.Dict<os.NetworkInterfaceInfo[]>;
 }): string[] {
@@ -104,11 +103,7 @@ export function formatExternalAccessUrls(opts: {
     if (seen.has(host)) continue;
     seen.add(host);
     const label = addr.tailscale ? 'Tailscale' : addr.interface;
-    const proto = 'http';
-    let url = `${proto}://${host}:${opts.port}`;
-    if (opts.token) {
-      url += `/?token=${encodeURIComponent(opts.token)}`;
-    }
+    const url = `http://${host}:${opts.port}`;
     lines.push(`    ▸ ${label}: ${url}`);
   }
   return lines;

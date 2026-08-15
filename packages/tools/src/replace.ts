@@ -16,6 +16,7 @@ import {
 } from '@wrongstack/core/utils';
 import { compileUserRegex } from './_regex.js';
 import { isBinaryBuffer, safeResolveReal, sha256hex, truncateDiffPayload } from './_util.js';
+import { enqueueReindex } from './codebase-index/background-indexer.js';
 
 /** Byte budget for the combined per-file diff payload — matches `maxOutputBytes`. */
 const MAX_DIFF_BYTES = 262_144;
@@ -256,6 +257,17 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
         replacements: matches.length,
         diff,
       });
+    }
+
+    if (!dryRun && results.length > 0) {
+      try {
+        enqueueReindex({
+          projectRoot: ctx.projectRoot,
+          files: results.map((r) => r.path),
+        });
+      } catch {
+        // Non-fatal background reindex
+      }
     }
 
     const overBudget = diffsOmitted > 0 || diffsTruncated > 0;

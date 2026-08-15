@@ -54,11 +54,33 @@ export {
   indexCircuitBreaker,
   resetIndexCircuitBreaker,
 } from './circuit-breaker.js';
-export { codebaseIndexTool } from './codebase-index-tool.js';
+export { codebaseAstReplaceTool } from './codebase-ast-replace-tool.js';
+export {
+  replaceSymbolInFile,
+  type MutateSymbolOptions,
+  type MutateSymbolResult,
+} from './ast-symbol-mutator.js';
+export { codebaseImpactAnalysisTool } from './codebase-impact-analysis-tool.js';
 export { codebaseIncomingCallsTool } from './codebase-incoming-calls-tool.js';
+export { codebaseIndexTool } from './codebase-index-tool.js';
 export { codebaseOutgoingCallsTool } from './codebase-outgoing-calls-tool.js';
+export { codebaseRepoMapTool } from './codebase-repo-map-tool.js';
 export { codebaseSearchTool } from './codebase-search-tool.js';
+export { codebaseSkeletonTool } from './codebase-skeleton-tool.js';
 export { codebaseStatsTool } from './codebase-stats-tool.js';
+export { codebaseTargetedTestTool } from './codebase-targeted-test-tool.js';
+export {
+  generateRepoMap,
+  type RepoMapOptions,
+  type RepoMapResult,
+} from './repo-map.js';
+export {
+  extractDirectorySkeleton,
+  extractFileSkeleton,
+  type FileSkeletonResult,
+  type SkeletonOptions,
+  type SkeletonSymbolRange,
+} from './skeleton-extractor.js';
 export { deadCodeScanTool, runDeadCodeScan } from './dead-code-scan.js';
 export type {
   DeadCodeScanInput,

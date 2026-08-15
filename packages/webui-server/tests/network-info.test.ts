@@ -104,18 +104,17 @@ describe('network-info', () => {
   });
 
   describe('formatExternalAccessUrls', () => {
-    it('returns URLs for wildcard IPv4 bind', () => {
+    it('returns token-free URLs for wildcard IPv4 bind', () => {
       const lines = formatExternalAccessUrls({
         bindHost: '0.0.0.0',
         port: 3456,
-        token: 'secret',
         getInterfaces,
       });
       expect(lines.length).toBeGreaterThan(0);
       const tsLine = lines.find((l) => l.includes('Tailscale'));
       expect(tsLine).toBeDefined();
       expect(tsLine).toContain('http://100.64.0.42:3456');
-      expect(tsLine).toContain('token=secret');
+      expect(tsLine).not.toContain('token');
     });
 
     it('returns URLs for wildcard IPv6 bind', () => {
@@ -159,19 +158,7 @@ describe('network-info', () => {
       expect(v6Line).not.toMatch(/http:\/\/fd7a.*:/); // no bare http://fd7a:
     });
 
-    it('includes token in URL when provided', () => {
-      const lines = formatExternalAccessUrls({
-        bindHost: '0.0.0.0',
-        port: 3456,
-        token: 'abc123==',
-        getInterfaces,
-      });
-      for (const line of lines) {
-        expect(line).toContain('token=abc123%3D%3D');
-      }
-    });
-
-    it('omits token when not provided', () => {
+    it('never includes authentication material in rendered URLs', () => {
       const lines = formatExternalAccessUrls({
         bindHost: '0.0.0.0',
         port: 3456,

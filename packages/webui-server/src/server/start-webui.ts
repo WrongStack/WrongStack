@@ -455,16 +455,17 @@ export async function startWebUI(
   // HTTP server via {server: httpServer}, so a single listen() binds both the
   // HTTP frontend and the WS upgrade handler on the same port.
   httpServer.listen(httpPort, wsHost, () => {
-    const tokenQuery = accessToken ? `/?token=${encodeURIComponent(accessToken)}` : '';
-    console.log(`[WebUI] HTTP server running on http://${wsHost}:${httpPort}${tokenQuery}`);
+    const authHint = requireToken
+      ? ' (authentication required; configure WEBUI_TOKEN out of band)'
+      : '';
+    console.log(`[WebUI] HTTP server listening on http://${wsHost}:${httpPort}${authHint}`);
     const extraUrls = formatExternalAccessUrls({
       bindHost: wsHost,
       port: httpPort,
-      token: accessToken,
       publicUrl,
     });
     if (extraUrls.length > 0) {
-      console.log('[WebUI] Accessible on external interfaces:\n' + extraUrls.join('\n'));
+      console.log('[WebUI] Protected endpoints on external interfaces:\n' + extraUrls.join('\n'));
     }
   });
 

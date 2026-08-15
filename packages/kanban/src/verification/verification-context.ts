@@ -19,7 +19,7 @@
  * token. Package managers, shells, interpreters, compilers, and git are absent
  * because each can execute arbitrary code even without a shell operator.
  */
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -37,7 +37,6 @@ import {
   normalizeBaseCommand,
   parseCommandArguments,
   SHELL_OPERATOR_RE,
-  terminateProcessTree,
   validateCommand,
 } from './command-security.js';
 import {
@@ -506,6 +505,54 @@ export class VerificationContext {
     }
   }
 
+  /** Best-effort process-tree termination for children spawned by this context. */
+  private terminateProcessTree(child: ChildProcess, detachedProcessGroup: boolean): void {
+    const pid = child.pid;
+    if (typeof pid === 'number' && process.platform === 'win32') {
+      try {
+        const killer = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
+          stdio: 'ignore',
+          windowsHide: true,
+        });
+        const forceKillChild = (): void => {
+          try {
+            child.kill('SIGKILL');
+          } catch {
+            // The process already exited.
+          }
+        };
+        killer.once('error', forceKillChild);
+        killer.once('close', (code) => {
+          if (code !== 0) forceKillChild();
+        });
+        killer.unref();
+        return;
+      } catch {
+        // Fall through to direct termination.
+      }
+    }
+    try {
+      if (typeof pid === 'number' && detachedProcessGroup) {
+        process.kill(-pid, 'SIGKILL');
+      } else {
+        child.kill('SIGKILL');
+      }
+    } catch {
+      try {
+        child.kill('SIGKILL');
+      } catch (error) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'verification_process_termination_failed',
+            message: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
+    }
+  }
+
   private async runGitCommand(
     args: string[],
     timeoutMs = 30_000,
@@ -533,7 +580,7 @@ export class VerificationContext {
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
-        terminateProcessTree(child, detachedProcessGroup);
+        this.terminateProcessTree(child, detachedProcessGroup);
         reject(new Error(`git ${args.join(' ')} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
 
@@ -600,7 +647,7 @@ export class VerificationContext {
 
       timer = setTimeout(() => {
         timedOut = true;
-        terminateProcessTree(child, detachedProcessGroup);
+        this.terminateProcessTree(child, detachedProcessGroup);
         finish(-1, `\n--- timed out after ${opts.timeoutMs}ms ---`);
       }, opts.timeoutMs);
 

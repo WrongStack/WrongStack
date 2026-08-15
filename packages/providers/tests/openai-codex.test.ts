@@ -124,10 +124,10 @@ describe('OpenAICodexProvider live context limit', () => {
 
     await expect(
       provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
-    ).resolves.toEqual({ maxContext: 272_000, source: 'provider' });
+    ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
     await expect(
       provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
-    ).resolves.toEqual({ maxContext: 272_000, source: 'provider' });
+    ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
 
     expect(calls[0]?.url).toContain('/codex/models?client_version=wrongstack');
     expect(new Headers(calls[1]?.headers).get('if-none-match')).toBe('"ctx-v1"');
@@ -153,11 +153,11 @@ describe('OpenAICodexProvider live context limit', () => {
     const signal = new AbortController().signal;
 
     await expect(provider.refreshContextLimit('fractional', { signal })).resolves.toEqual({
-      maxContext: 272_000,
+      maxContext: 255_616,
       source: 'provider',
     });
     await expect(provider.refreshContextLimit('fallback', { signal })).resolves.toEqual({
-      maxContext: 128_000,
+      maxContext: 111_616,
       source: 'provider',
     });
     await expect(provider.refreshContextLimit('string-limit', { signal })).resolves.toBeUndefined();
@@ -184,14 +184,53 @@ describe('OpenAICodexProvider live context limit', () => {
 
     await provider.refreshContextLimit('gpt-5.6-sol', { signal });
     await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
-      maxContext: 272_000,
+      maxContext: 255_616,
       source: 'provider',
     });
     await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
-      maxContext: 272_000,
+      maxContext: 255_616,
       source: 'provider',
     });
     expect(requestNo).toBe(2);
+  });
+
+  it('adopts the send ceiling, not the raw total window, on a throttled drop', async () => {
+    // A throttled route publishes the TOTAL window (272000) while the backend
+    // enforces sends around `context_window - max_output_tokens` (~258K).
+    // The probe must return the discounted send ceiling so preflight
+    // compaction triggers before the backend rejects the request.
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({ models: [{ slug: 'gpt-5.6-sol', context_window: 272_000 }] }),
+        { status: 200 },
+      )) as typeof fetch;
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl,
+    });
+    const signal = new AbortController().signal;
+
+    await expect(provider.refreshContextLimit('gpt-5.6-sol', { signal })).resolves.toEqual({
+      maxContext: 255_616, // 272_000 - 16_384 (Codex output budget)
+      source: 'provider',
+    });
+  });
+
+  it('caps the output reserve at half of a small window so tiny routes stay usable', async () => {
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ models: [{ slug: 'tiny', context_window: 20_000 }] }), {
+        status: 200,
+      })) as typeof fetch;
+    const provider = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_99'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl,
+    });
+    const signal = new AbortController().signal;
+
+    await expect(provider.refreshContextLimit('tiny', { signal })).resolves.toEqual({
+      maxContext: 10_000, // min(16_384, 20_000 / 2) reserve
+      source: 'provider',
+    });
   });
 });
 
@@ -371,6 +410,45 @@ describe('OpenAICodexProvider stream parsing', () => {
         message: 'Maximum context length exceeded',
         requestId: 'resp_status_details',
         raw: expect.stringContaining('status_details'),
+      }),
+    });
+  });
+
+  it('classifies the throttled-drop agent-run failure as context_overflow (413, non-retryable)', async () => {
+    // The ChatGPT backend surfaces a subscription throttled-drop as an agent
+    // run failure with the Codex CLI's own wrapper prefix. The envelope must
+    // still classify as context_overflow so the recovery path compacts and
+    // retries instead of treating it as a terminal client/server error.
+    const sse = [
+      `data: ${JSON.stringify({
+        type: 'response.failed',
+        response: {
+          id: 'resp_agent_run',
+          status: 'failed',
+          error: {
+            code: 'agent_run_failed',
+            message:
+              'Failed [error]: AGENT_RUN_FAILED: Your input exceeds the context window of this model. Please adjust your input and try again.',
+          },
+        },
+      })}`,
+      '',
+    ].join('\n');
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('a'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: (async () =>
+        new Response(sseBody(sse), { status: 200 })) as never as typeof fetch,
+    });
+
+    await expect(
+      p.complete(baseReq, { signal: new AbortController().signal }),
+    ).rejects.toMatchObject({
+      status: 413,
+      kind: 'context_overflow',
+      retryable: false,
+      body: expect.objectContaining({
+        message: expect.stringContaining('exceeds the context window of this model'),
+        requestId: 'resp_agent_run',
       }),
     });
   });

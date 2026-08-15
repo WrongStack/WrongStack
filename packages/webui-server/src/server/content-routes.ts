@@ -17,6 +17,7 @@ import {
   handleFilesMove,
   handleFilesRead,
   handleFilesRename,
+  handleFilesSkeleton,
   handleFilesTree,
   handleFilesWrite,
 } from './file-handlers.js';
@@ -66,6 +67,9 @@ export async function handleContentRoute(
       return true;
     case 'files.read':
       await handleFilesRead(ws, message, ctx.getProjectRoot());
+      return true;
+    case 'files.skeleton':
+      await handleFilesSkeleton(ws, message, ctx.getProjectRoot());
       return true;
     case 'files.write':
       await handleFilesWrite(ws, message, ctx.getProjectRoot(), {

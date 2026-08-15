@@ -1006,3 +1006,12 @@ export {
   type WorktreeRunResult,
   type WorktreeStatus,
 } from './worktree/index.js';
+export {
+  ensureGitignore,
+  getPromptJournalEntries,
+  recordPromptJournalEntry,
+  type PromptCategory,
+  type PromptJournalEntry,
+  type PromptJournalFilter,
+  type RecordPromptOptions,
+} from './prompts/index.js';

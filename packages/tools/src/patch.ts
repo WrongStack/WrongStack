@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
 import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import { resolveRealInsideRoot, safeResolveReal, sha256hex } from './_util.js';
+import { enqueueReindex } from './codebase-index/background-indexer.js';
 
 interface PatchInput {
   patch: string;
@@ -198,6 +199,14 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
             before,
             after,
           });
+        }
+
+        if (touched.length > 0) {
+          try {
+            enqueueReindex({ projectRoot: ctx.projectRoot, files: touched });
+          } catch {
+            // Non-fatal background reindex
+          }
         }
       }
 

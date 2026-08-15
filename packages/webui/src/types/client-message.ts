@@ -489,6 +489,20 @@ export type WSClientMessageCore =
     }
   | { type: 'files.tree'; payload: { path?: string | undefined } | Record<string, never> }
   | { type: 'files.read'; payload: { filePath: string } }
+  | {
+      type: 'files.skeleton';
+      payload: {
+        filePath: string;
+        content?: string | undefined;
+        options?:
+          | {
+              includeDocs?: boolean | undefined;
+              collapseImports?: boolean | undefined;
+              exportsOnly?: boolean | undefined;
+            }
+          | undefined;
+      };
+    }
   | { type: 'files.write'; payload: { filePath: string; content: string } }
   | { type: 'files.create'; payload: { filePath: string; type: 'file' | 'directory' } }
   | { type: 'files.delete'; payload: { filePath: string; recursive?: boolean | undefined } }

@@ -175,8 +175,9 @@ describe('announceWebuiReady', () => {
     expect(opened).toEqual([]);
   });
 
-  it('includes the auth token in the URL when wsToken is provided', () => {
+  it('keeps the auth token out of logs while passing it to the browser opener', () => {
     const server = fakeServer();
+    const logs: string[] = [];
     const opened: string[] = [];
     announceWebuiReady({
       server,
@@ -185,11 +186,16 @@ describe('announceWebuiReady', () => {
       httpPort: 3456,
       open: true,
       wsToken: 'abc123',
-      log: () => {},
+      log: (message) => logs.push(message),
       openBrowserFn: (u) => opened.push(u),
     });
     server.fire();
     expect(opened).toEqual(['http://127.0.0.1:3456?token=abc123']);
+    expect(logs.join('\n')).toContain('ready at');
+    expect(logs.join('\n')).toContain('authentication required');
+    expect(logs.join('\n')).toContain('http://127.0.0.1:3456');
+    expect(logs.join('\n')).not.toContain('abc123');
+    expect(logs.join('\n')).not.toContain('token=');
   });
 
   it('URL-encodes the auth token', () => {

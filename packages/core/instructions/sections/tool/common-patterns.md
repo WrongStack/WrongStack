@@ -1,7 +1,28 @@
 ## Common patterns
 
+<!--ws:if tool=clarify-->
+- **Autonomous default over interrupt:** adopt standard best practices and drive through next steps autonomously; reserve `clarify` only for irreversible or destructive forks
+<!--ws:end-->
 <!--ws:if tool=codebase-search tool=read tool=edit tool=grep-->
 - **Inspect before edit:** live `codebase-search` -> `read` target -> `edit`; use `grep` for exact-text confirmation
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton tool=read-->
+- **Outline before deep read:** use `codebase-skeleton` to inspect module contracts and function signatures first; `read` full files only when exact implementation details are required
+<!--ws:end-->
+<!--ws:if tool=codebase-repo-map tool=codebase-skeleton-->
+- **Map before navigate:** use `codebase-repo-map` at the start of complex tasks to orient across key project modules and architecture within a small token budget
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton tool=codebase-ast-replace-->
+- **Outline then surgical mutate:** use `codebase-skeleton` to find symbols and line ranges, then `codebase-ast-replace` to update implementations without string-matching errors
+<!--ws:end-->
+<!--ws:if tool=codebase-impact-analysis tool=codebase-ast-replace-->
+- **Blast radius before refactor:** use `codebase-impact-analysis` to map all call sites and test suites before modifying a signature, then update callers systematically
+<!--ws:end-->
+<!--ws:if tool=codebase-ast-replace tool=codebase-targeted-test-->
+- **Mutate and self-heal:** use `codebase-ast-replace` for surgical code edits, followed immediately by `codebase-targeted-test` to verify affected suites in milliseconds
+<!--ws:end-->
+<!--ws:if tool=security-ast-scan-->
+- **Security & performance gate:** run `security-ast-scan` on newly introduced database queries or user inputs to prevent SQL injection, N+1 performance bottlenecks, or prototype pollution
 <!--ws:end-->
 <!--ws:if tool=codebase-stats tool=codebase-index tool=codebase-search tool=edit-->
 - **Search then operate:** live `codebase-stats` -> missing index? live `codebase-index` -> `codebase-search` -> identify targets -> iterative `edit`

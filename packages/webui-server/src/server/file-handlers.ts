@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import type { WebSocket } from 'ws';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
+import { enqueueReindex, extractFileSkeleton, type SkeletonOptions } from '@wrongstack/tools';
 import { SKIP_DIRS, isHiddenEntry, rankFiles } from './file-picker.js';
 import { isPathInside, resolveWorkingDirInsideProject } from './path-containment.js';
 import { send, errMessage } from './ws-utils.js';
@@ -352,6 +353,72 @@ export async function handleFilesRead(
   }
 }
 
+interface FilesSkeletonPayload {
+  filePath: string;
+  content?: string | undefined;
+  options?: SkeletonOptions | undefined;
+}
+
+/**
+ * Extract an AST-based skeleton for a file.
+ * Responds with `{ type: 'files.skeleton_result', payload: { filePath, lang, skeleton, stats } }`.
+ */
+export async function handleFilesSkeleton(
+  ws: WebSocket,
+  msg: unknown,
+  projectRoot: string,
+): Promise<void> {
+  let filePath: string;
+  let content: string | undefined;
+  let options: SkeletonOptions | undefined;
+  try {
+    const payload = validatedPayload<FilesSkeletonPayload>(msg, 'files.skeleton');
+    filePath = payload.filePath;
+    content = payload.content;
+    options = payload.options;
+  } catch {
+    send(ws, {
+      type: 'files.skeleton_result',
+      payload: { filePath: '', skeleton: '', error: 'Malformed request' },
+    });
+    return;
+  }
+
+  let realResolved: string;
+  try {
+    realResolved = await resolveFileInsideProject(projectRoot, filePath);
+  } catch {
+    send(ws, {
+      type: 'files.skeleton_result',
+      payload: { filePath, skeleton: '', error: 'Forbidden' },
+    });
+    return;
+  }
+
+  try {
+    const fileContent = content !== undefined ? content : await fs.readFile(realResolved, 'utf8');
+    const result = await extractFileSkeleton({
+      file: realResolved,
+      content: fileContent,
+      options: options ?? {},
+    });
+    send(ws, {
+      type: 'files.skeleton_result',
+      payload: {
+        filePath,
+        lang: result.lang,
+        skeleton: result.skeleton,
+        stats: result.stats,
+      },
+    });
+  } catch (err) {
+    send(ws, {
+      type: 'files.skeleton_result',
+      payload: { filePath, skeleton: '', error: errMessage(err) },
+    });
+  }
+}
+
 /**
  * Write file content back to disk (atomic write via tmp + rename).
  *
@@ -389,6 +456,11 @@ export async function handleFilesWrite(
   try {
     await atomicWrite(realResolved, content);
     send(ws, { type: 'files.written', payload: { filePath, success: true } });
+    try {
+      enqueueReindex({ projectRoot, files: [realResolved] });
+    } catch {
+      // Non-fatal background reindex
+    }
     if (opts.onWritten) {
       void Promise.resolve(opts.onWritten(realResolved)).catch(() => undefined);
     }

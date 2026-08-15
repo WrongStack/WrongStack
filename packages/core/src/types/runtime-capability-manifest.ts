@@ -56,6 +56,9 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
       'codebase-incoming-calls',
       'codebase-outgoing-calls',
       'codebase-index',
+      'codebase-skeleton',
+      'codebase-repo-map',
+      'codebase-impact-analysis',
       'dead-code-scan',
       'diff',
       'json',
@@ -66,7 +69,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'filesystem.write',
     pack: 'development',
     exposure: 'direct',
-    tools: ['write', 'edit', 'replace', 'patch'],
+    tools: ['write', 'edit', 'replace', 'patch', 'codebase-ast-replace'],
   },
   {
     id: 'execution.shell',
@@ -78,7 +81,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'verification.run',
     pack: 'development',
     exposure: 'direct',
-    tools: ['lint', 'format', 'typecheck', 'test', 'e2e_plan'],
+    tools: ['lint', 'format', 'typecheck', 'test', 'e2e_plan', 'codebase-targeted-test'],
   },
   {
     id: 'version-control.manage',
@@ -215,7 +218,13 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'quality.analyze',
     pack: 'development',
     exposure: 'on-demand',
-    tools: ['dead_code_scan', 'detect_duplicate_code', 'secret_scanner_test', 'error_lens_history'],
+    tools: [
+      'dead_code_scan',
+      'detect_duplicate_code',
+      'secret_scanner_test',
+      'error_lens_history',
+      'security-ast-scan',
+    ],
   },
   {
     id: 'release.manage',
@@ -233,7 +242,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'tools.discover',
     pack: 'admin',
     exposure: 'direct',
-    tools: ['tool_search', 'tool_use', 'tool_help', 'batch_tool_use'],
+    tools: ['tool_search', 'tool_use', 'tool_help', 'batch_tool_use', 'clarify'],
   },
   {
     id: 'runtime.admin',

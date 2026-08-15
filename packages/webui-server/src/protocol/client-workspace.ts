@@ -5,6 +5,7 @@ export const CLIENT_WORKSPACE_MESSAGE_TYPES = [
   'files.move',
   'files.read',
   'files.rename',
+  'files.skeleton',
   'files.tree',
   'files.write',
   'git.changes',

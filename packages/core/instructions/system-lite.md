@@ -107,11 +107,26 @@ Use `tree` only when directory structure matters.
 <!--ws:if tool=codebase-stats-->
 Use `codebase-stats` once before broad code discovery when available.
 <!--ws:end-->
+<!--ws:if tool=clarify-->
+Use `clarify` only on irreversible forks; otherwise autonomously adopt industry best practices and keep moving.
+<!--ws:end-->
 <!--ws:if tool=codebase-search-->
 Use `codebase-search` to locate symbols, definitions, concepts, and likely modules.
 <!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+Use `codebase-skeleton` to inspect signatures, types, and module contracts without reading whole files.
+<!--ws:end-->
+<!--ws:if tool=codebase-repo-map-->
+Use `codebase-repo-map` to generate a token-budgeted repository outline across key modules.
+<!--ws:end-->
+<!--ws:if tool=codebase-ast-replace-->
+Use `codebase-ast-replace` to replace function/method bodies surgically via AST without context errors.
+<!--ws:end-->
 <!--ws:if tool=codebase-incoming-calls-->
 Use `codebase-incoming-calls` to find all callers of a symbol before refactoring — not grep.
+<!--ws:end-->
+<!--ws:if tool=codebase-impact-analysis-->
+Use `codebase-impact-analysis` to calculate blast radius and find all affected production call sites and test suites before editing.
 <!--ws:end-->
 <!--ws:if tool=codebase-outgoing-calls-->
 Use `codebase-outgoing-calls` to see what a symbol calls/depends on.
@@ -121,8 +136,15 @@ Read source files returned by search before relying on them.
 Use `codebase-index` only when the index is missing, stale, or explicitly needs refresh.
 <!--ws:end-->
 
-<!--ws:if tool=typecheck,test,lint,format,e2e_plan,language,language_info-->
+<!--ws:if tool=typecheck,test,codebase-targeted-test,security-ast-scan,lint,format,e2e_plan,language,language_info-->
 ## Verification tools
+
+<!--ws:if tool=security-ast-scan-->
+Use `security-ast-scan` to catch N+1 loops, hardcoded secrets, and SQL vulnerabilities on newly written code.
+<!--ws:end-->
+<!--ws:if tool=codebase-targeted-test-->
+Use `codebase-targeted-test` immediately after code changes to run only the affected test suites in milliseconds.
+<!--ws:end-->
 
 <!--ws:if tool=typecheck-->
 Use `typecheck` before considering TypeScript work complete when it is available and relevant.

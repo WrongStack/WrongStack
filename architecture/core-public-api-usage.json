@@ -149,8 +149,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 928,
-      "typeOnly": 855,
+      "files": 937,
+      "typeOnly": 864,
       "runtimeOrMixed": 234
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 519,
-      "typeOnly": 58,
-      "runtimeOrMixed": 487
+      "files": 528,
+      "typeOnly": 59,
+      "runtimeOrMixed": 495
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -12783,6 +12783,24 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/clarify.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-ast-replace-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-impact-analysis-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/codebase-index/codebase-incoming-calls-tool.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12801,13 +12819,31 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-repo-map-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/codebase-index/codebase-search-tool.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-skeleton-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/codebase-index/codebase-stats-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/codebase-index/codebase-targeted-test-tool.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13017,6 +13053,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/src/security-ast-scan-tool.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/session-kanban-graph.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13120,6 +13162,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/tests/builtin-executor-smoke.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/tests/codebase-skeleton-tool.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13636,6 +13684,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/memory-slash.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/memory-split-modules.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16233,6 +16287,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/zero-statement-cli-modules.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/codebase-index-mcp/src/cli.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16815,6 +16875,30 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/clarify.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/ast-symbol-mutator.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-ast-replace-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-impact-analysis-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/codebase-incoming-calls-tool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -16827,7 +16911,25 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-repo-map-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/codebase-search-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-skeleton-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-targeted-test-tool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -16992,6 +17094,12 @@
       "file": "packages/tools/src/search.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/security-ast-scan-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

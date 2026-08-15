@@ -4,13 +4,19 @@ import { bashTool } from './bash.js';
 import { batchToolUseTool } from './batch-tool-use.js';
 import { browserTools } from './browser/tools.js';
 import {
+  codebaseAstReplaceTool,
+  codebaseImpactAnalysisTool,
   codebaseIncomingCallsTool,
   codebaseIndexTool,
   codebaseOutgoingCallsTool,
+  codebaseRepoMapTool,
   codebaseSearchTool,
+  codebaseSkeletonTool,
   codebaseStatsTool,
+  codebaseTargetedTestTool,
   deadCodeScanTool,
 } from './codebase-index/index.js';
+import { clarifyTool } from './clarify.js';
 import { designTool } from './design.js';
 import { diffTool } from './diff.js';
 import { documentTool } from './document.js';
@@ -37,6 +43,7 @@ import { readTool } from './read.js';
 import { replaceTool } from './replace.js';
 import { scaffoldTool } from './scaffold.js';
 import { searchTool } from './search.js';
+import { securityAstScanTool } from './security-ast-scan-tool.js';
 import { setWorkingDirTool } from './set-working-dir.js';
 import { taskTool } from './task.js';
 import { testTool } from './test.js';
@@ -100,8 +107,15 @@ export const TIER1_TOOLS: Tool[] = [
   readTool,
   writeTool,
   editTool,
+  clarifyTool,
+  codebaseAstReplaceTool,
   codebaseStatsTool,
   codebaseSearchTool,
+  codebaseSkeletonTool,
+  codebaseRepoMapTool,
+  codebaseImpactAnalysisTool,
+  codebaseTargetedTestTool,
+  securityAstScanTool,
   codebaseIncomingCallsTool,
   codebaseOutgoingCallsTool,
   codebaseIndexTool,
@@ -146,13 +160,13 @@ export const TIER2_TOOLS: Tool[] = [
 ];
 
 /**
- * Tier 3 tool set — specialized/optional tools for specific workflows.
- * Adds 10 tools: deadCodeScan, outdated, logs, document, scaffold,
- * toolSearch, toolUse, batchToolUse, toolHelp, setWorkingDir.
+ * Tier 3 tool set — specialized, administrative, and exploratory tools.
+ * Adds 12 tools: outdated, logs, document, scaffold, dead-code-scan,
+ * tool-search, tool-use, batch-tool-use, tool-help, set-working-dir.
  *
- * These tools are rarely used in typical development (once-per-session,
- * debugging, or one-time generation) and can be safely omitted in any
- * token-saving tier to save ~800 tokens per prompt.
+ * These tools are situational (e.g. documentation generation, scaffolding,
+ * log tailing, dependency audits). Omitting them in standard tier saves
+ * tokens while keeping all core capabilities available.
  */
 export const TIER3_TOOLS: Tool[] = [
   outdatedTool,
@@ -173,8 +187,15 @@ export const builtinTools: Tool[] = [
   readTool,
   writeTool,
   editTool,
+  clarifyTool,
+  codebaseAstReplaceTool,
   codebaseStatsTool,
   codebaseSearchTool,
+  codebaseSkeletonTool,
+  codebaseRepoMapTool,
+  codebaseImpactAnalysisTool,
+  codebaseTargetedTestTool,
+  securityAstScanTool,
   codebaseIncomingCallsTool,
   codebaseOutgoingCallsTool,
   codebaseIndexTool,

@@ -122,6 +122,7 @@ export {
   handleFilesMove,
   handleFilesRead,
   handleFilesRename,
+  handleFilesSkeleton,
   handleFilesTree,
   handleFilesWrite,
 } from './file-handlers.js';

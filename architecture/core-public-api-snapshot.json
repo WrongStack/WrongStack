@@ -113,6 +113,7 @@
         "export { detectEcosystem as detectPackageEcosystem, getFullPackageLog, getManifestPackages, getPackageAuthor, getPackagesByAgent, type PackageAuthorEntry, type PackageAuthorLog, type PackageAuthorTrackerOptions, recordPackageAction, updatePackageOutdatedStatus, } from './coordination/package-author-tracker.js';",
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type ResolvedPluginConfig, type ResolvePluginConfigInput, redactPluginConfig, resolvePluginConfig, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './plugin/config.js';",
         "export { encryptedPrefixForVersion, noOpVault, parseEncryptedVersion, } from './types/secret-vault.js';",
+        "export { ensureGitignore, getPromptJournalEntries, recordPromptJournalEntry, type PromptCategory, type PromptJournalEntry, type PromptJournalFilter, type RecordPromptOptions, } from './prompts/index.js';",
         "export { evaluateModelCalendar, logicalCalendarTarget, type ModelBlackoutRule, type ModelCalendarDecision, } from './core/model-availability-calendar.js';",
         "export { evaluateToolKanbanBoundary, type ToolKanbanBoundaryEvaluation, } from './security/kanban-boundary.js';",
         "export { executeFindingCommand, type FindingCommandContext, transitionReport, } from './plugins/review-finding-commands.js';",
@@ -1260,8 +1261,8 @@
       "directory": "prompts",
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
-      "sourceFiles": 3,
-      "sourceLines": 154
+      "sourceFiles": 4,
+      "sourceLines": 569
     },
     {
       "directory": "registry",
@@ -1324,7 +1325,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10914
+      "sourceLines": 10923
     },
     {
       "directory": "utils",

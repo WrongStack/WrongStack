@@ -61,6 +61,29 @@ const DEFAULT_CODEX_BASE = CODEX_BASE_URL;
 const CODEX_MODELS_CLIENT_VERSION = 'wrongstack';
 const CODEX_MODELS_FAILURE_COOLDOWN_MS = 5_000;
 const CODEX_MODELS_TIMEOUT_MS = 3_000;
+/**
+ * Output-token budget the ChatGPT Codex backend reserves inside the catalog's
+ * `context_window`. The official Codex client budgets requests the same way
+ * (`context_window - max_output_tokens`, default 16K) because the catalog
+ * value is the TOTAL window (input + output), not the input ceiling. Adopting
+ * the raw window as the send ceiling leaves a band where preflight passes but
+ * the backend rejects with "Your input exceeds the context window of this
+ * model" — the throttled-drop failure mode (e.g. catalog 272000 while the
+ * route enforces around 255K-260K of input).
+ */
+const CODEX_SEND_OUTPUT_RESERVE_TOKENS = 16_384;
+
+/**
+ * Derive the effective SEND ceiling from a catalog window. `context_window`
+ * (and the `max_context_window` fallback) is the model's total context;
+ * subtracting the transport's output budget yields the input budget preflight
+ * compaction must target. Never discounts more than half of a small window so
+ * genuinely tiny routes stay usable.
+ */
+function codexSendCeiling(window: number): number {
+  const reserve = Math.min(CODEX_SEND_OUTPUT_RESERVE_TOKENS, Math.floor(window / 2));
+  return Math.max(1, window - reserve);
+}
 
 interface CodexModelMetadata {
   slug?: unknown;
@@ -234,9 +257,15 @@ export class OpenAICodexProvider extends WireAdapter {
   /**
    * Re-check the ChatGPT Codex model catalog at request boundaries. The
    * official Codex client uses the same authenticated `/models` endpoint; its
-   * `context_window` is the provider's effective send ceiling (which can be
-   * lower than the public API model catalog). A conditional GET runs before
-   * every request so a changed ETag is observed before the provider call.
+   * `context_window` can drop far below the public API catalog when a
+   * subscription is throttled (e.g. 272000 for gpt-5.6-sol while the public
+   * model advertises 1M). The catalog value is the TOTAL window, so the
+   * returned `maxContext` is the derived SEND ceiling — `context_window`
+   * minus the transport's output budget (see {@link codexSendCeiling}) —
+   * making preflight compaction trigger before the backend rejects with
+   * "Your input exceeds the context window of this model". A conditional GET
+   * runs before every request so a changed ETag is observed before the
+   * provider call.
    */
   async refreshContextLimit(
     model: string,
@@ -288,7 +317,7 @@ export class OpenAICodexProvider extends WireAdapter {
         const limit =
           positiveContextLimit(entry.context_window) ??
           positiveContextLimit(entry.max_context_window);
-        if (limit) next.set(entry.slug, limit);
+        if (limit) next.set(entry.slug, codexSendCeiling(limit));
       }
       if (next.size === 0) {
         this.contextLimitsRetryAfter = Date.now() + CODEX_MODELS_FAILURE_COOLDOWN_MS;

@@ -45,16 +45,37 @@ export type {
   ProjectIndexServerHealth,
 } from './codebase-index/index.js';
 export {
+  clarifyTool,
+  type ClarifyQuestionInput,
+  type ClarifyOutput,
+} from './clarify.js';
+export {
   CircuitOpenError,
   cancelPendingReindexes,
   checkCodebaseIndexServerHealth,
+  codebaseAstReplaceTool,
+  codebaseImpactAnalysisTool,
   codebaseIndexStats,
   codebaseIndexTool,
+  codebaseRepoMapTool,
   codebaseSearchTool,
+  codebaseSkeletonTool,
   codebaseStatsTool,
+  codebaseTargetedTestTool,
   deadCodeScanTool,
   enqueueReindex,
   ensureCodebaseIndexServer,
+  extractDirectorySkeleton,
+  extractFileSkeleton,
+  generateRepoMap,
+  replaceSymbolInFile,
+  type FileSkeletonResult,
+  type MutateSymbolOptions,
+  type MutateSymbolResult,
+  type RepoMapOptions,
+  type RepoMapResult,
+  type SkeletonOptions,
+  type SkeletonSymbolRange,
   fileGraphService,
   getIndexState,
   IndexCircuitBreaker,
@@ -161,6 +182,13 @@ export { readTool } from './read.js';
 export { replaceTool } from './replace.js';
 export { scaffoldTool } from './scaffold.js';
 export { searchTool } from './search.js';
+export {
+  analyzeSecurityAndPerformance,
+  securityAstScanTool,
+  type SecurityFinding,
+  type SecurityScanInput,
+  type SecurityScanOutput,
+} from './security-ast-scan-tool.js';
 export {
   applySessionKanbanBoardToTodos,
   applySessionKanbanTaskToSource,

@@ -11,6 +11,7 @@ export const SERVER_WORKSPACE_MESSAGE_TYPES = [
   'files.moved',
   'files.read',
   'files.renamed',
+  'files.skeleton_result',
   'files.tree',
   'files.tree.changed',
   'files.written',

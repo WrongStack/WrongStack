@@ -260,15 +260,30 @@ No task-tracking tool is registered in this request. Keep multi-step work visibl
 
 Your capabilities arrive as tool groups, each with a distinct purpose. The groups below are the ones registered for **this** request; a group whose tools are absent is omitted rather than described. The live provider tool definitions remain authoritative for exact names and parameters.
 
-<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,codebase-search,codebase-incoming-calls,codebase-outgoing-calls-->
+<!--ws:if tool=read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-skeleton,codebase-repo-map,codebase-ast-replace,codebase-impact-analysis-->
 ### Filesystem & Project insight
-{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs}}
+{{tools:read,edit,write,patch,replace,glob,grep,tree,diff,json,logs,clarify,codebase-ast-replace,codebase-impact-analysis}}
+<!--ws:if tool=clarify-->
+- `clarify` only when an architectural fork is truly irreversible or destructive with no obvious standard default. Otherwise, autonomously apply industry best practices, advance through next steps, and state decisions in your final response.
+<!--ws:end-->
 <!--ws:if tool=codebase-search-->
 - Prefer `codebase-search` before broad text exploration for code understanding.
 <!--ws:else-->
 <!--ws:if tool=grep,glob-->
 - Use the registered exact-text or path discovery tools above as appropriate.
 <!--ws:end-->
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+- `codebase-skeleton` to extract AST signatures and types with stripped bodies for fast module understanding (~70-90% token reduction).
+<!--ws:end-->
+<!--ws:if tool=codebase-repo-map-->
+- `codebase-repo-map` to generate a token-budgeted, architecture-wide repository map with key exports and signatures.
+<!--ws:end-->
+<!--ws:if tool=codebase-ast-replace-->
+- `codebase-ast-replace` for surgical AST-based replacement of functions, methods, or classes without string matching or whitespace errors.
+<!--ws:end-->
+<!--ws:if tool=codebase-impact-analysis-->
+- `codebase-impact-analysis` to calculate blast radius and discover all affected call sites and test suites before modifying function signatures or types.
 <!--ws:end-->
 <!--ws:if tool=tree-->
 - `tree` for directory layout.
@@ -287,10 +302,16 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 <!--ws:end-->
 <!--ws:end-->
 
-<!--ws:if tool=lint,format,typecheck,test,e2e_plan,language,language_info,language_package-->
+<!--ws:if tool=lint,format,typecheck,test,codebase-targeted-test,security-ast-scan,e2e_plan,language,language_info,language_package-->
 ### Code quality
-{{tools:lint,format,typecheck,test,e2e_plan,language,language_info,language_package}}
+{{tools:lint,format,typecheck,test,codebase-targeted-test,security-ast-scan,e2e_plan,language,language_info,language_package}}
 - Run the narrowest appropriate verification from the tools above before calling changed code complete.
+<!--ws:if tool=security-ast-scan-->
+- `security-ast-scan` to detect contract-based security and performance flaws (N+1 database queries, SQL injection, hardcoded secrets, prototype pollution, ReDoS, unsafe eval) on new or edited code.
+<!--ws:end-->
+<!--ws:if tool=codebase-targeted-test-->
+- `codebase-targeted-test` to automatically find and run only the test suites covering modified symbols/files in milliseconds.
+<!--ws:end-->
 <!--ws:if tool=test-->
 - `test` with `files`/`grep` to scope to relevant tests.
 <!--ws:end-->
@@ -471,9 +492,9 @@ A worker that realizes its task will run long should mail the leader (type `stee
 <!--ws:end-->
 <!--ws:end-->
 
-<!--ws:if tool=design,scaffold,codebase-index,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan-->
+<!--ws:if tool=design,scaffold,codebase-index,codebase-search,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan-->
 ### Config & Project
-{{tools:design,scaffold,codebase-index,codebase-search,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan}}
+{{tools:design,scaffold,codebase-index,codebase-search,codebase-skeleton,codebase-repo-map,codebase-incoming-calls,codebase-outgoing-calls,codebase-stats,e2e_plan}}
 <!--ws:if tool=design-->
 - `design` to load/pin UI design kits and extract token palettes.
 <!--ws:end-->
@@ -488,6 +509,12 @@ A worker that realizes its task will run long should mail the leader (type `stee
 <!--ws:end-->
 <!--ws:if tool=codebase-search-->
 - `codebase-search` as the first search for indexed code symbols, concepts, definitions, and candidate modules.
+<!--ws:end-->
+<!--ws:if tool=codebase-skeleton-->
+- `codebase-skeleton` to extract AST signatures and types with stripped bodies for efficient module understanding without burning context.
+<!--ws:end-->
+<!--ws:if tool=codebase-repo-map-->
+- `codebase-repo-map` to generate a token-budgeted, architecture-wide repository map with key exports and signatures.
 <!--ws:end-->
 <!--ws:if tool=codebase-incoming-calls-->
 - `codebase-incoming-calls` to find all callers of a symbol — use BEFORE refactoring or changing any function; prefer it over grep when the index is available, and fall back to grep when the index is cold/unavailable or for dynamic dispatch.

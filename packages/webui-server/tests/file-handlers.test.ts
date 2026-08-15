@@ -11,6 +11,7 @@ import {
   handleFilesMove,
   handleFilesRead,
   handleFilesRename,
+  handleFilesSkeleton,
   handleFilesTree,
   handleFilesWrite,
 } from '@wrongstack/webui-server';
@@ -915,6 +916,72 @@ describe('file handlers integration', () => {
       };
       expect(response.payload.success).toBe(false);
       expect(response.payload.error).toMatch(/project root/i);
+    });
+  });
+
+  describe('handleFilesSkeleton', () => {
+    it('extracts skeleton from disk file', async () => {
+      const code = `
+export interface Config {
+  port: number;
+}
+
+export function startServer(cfg: Config): void {
+  const msg = "Server on port " + cfg.port;
+  console.log(msg);
+}
+`;
+      fsSync.writeFileSync(path.join(tempDir, 'server.ts'), code, 'utf8');
+      const ws = createMockWs();
+
+      await handleFilesSkeleton(
+        ws,
+        {
+          type: 'files.skeleton',
+          payload: { filePath: 'server.ts' },
+        },
+        tempDir,
+      );
+
+      expect(ws.sent.length).toBe(1);
+      const res = ws.sent[0] as {
+        type: string;
+        payload: {
+          filePath: string;
+          lang: string;
+          skeleton: string;
+          stats: { originalLines: number; skeletonLines: number; tokenSavingsPercent: number };
+          error?: string;
+        };
+      };
+
+      expect(res.type).toBe('files.skeleton_result');
+      expect(res.payload.filePath).toBe('server.ts');
+      expect(res.payload.lang).toBe('ts');
+      expect(res.payload.skeleton).toContain('export interface Config');
+      expect(res.payload.skeleton).toContain('export function startServer(cfg: Config): void { /* L6-L9 */ }');
+      expect(res.payload.skeleton).not.toContain('const msg =');
+      expect(res.payload.stats.tokenSavingsPercent).toBeGreaterThan(0);
+    });
+
+    it('handles malformed or non-existent requests safely', async () => {
+      const ws = createMockWs();
+      await handleFilesSkeleton(
+        ws,
+        {
+          type: 'files.skeleton',
+          payload: { filePath: 'nonexistent.ts' },
+        },
+        tempDir,
+      );
+
+      expect(ws.sent.length).toBe(1);
+      const res = ws.sent[0] as {
+        type: string;
+        payload: { filePath: string; error?: string };
+      };
+      expect(res.type).toBe('files.skeleton_result');
+      expect(res.payload.error).toBeDefined();
     });
   });
 });

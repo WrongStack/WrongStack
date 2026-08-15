@@ -19,6 +19,7 @@ import {
 } from './_edit-match.js';
 import { checkSyntax } from './_syntax-check.js';
 import { safeResolveReal, sha256hex, truncateDiffPayload } from './_util.js';
+import { enqueueReindex } from './codebase-index/background-indexer.js';
 
 /** Byte budget for the returned unified diff — matches `maxOutputBytes`. */
 const MAX_DIFF_BYTES = 262_144;
@@ -307,6 +308,13 @@ export const editTool: Tool<EditInput, EditOutput> = {
     // is all-or-nothing — the file is old or new, never partial.)
     opts?.signal?.throwIfAborted();
     await atomicWrite(absPath, newFile, { mode: updated.mode & 0o777 });
+
+    try {
+      enqueueReindex({ projectRoot: ctx.projectRoot, files: [absPath] });
+    } catch {
+      // Non-fatal background reindex
+    }
+
     const written = await fs.stat(absPath);
     // Record mtime + content hash so a later edit detects external
     // modification, but tag as 'write' so the permission policy's

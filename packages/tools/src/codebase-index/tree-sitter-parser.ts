@@ -249,3 +249,43 @@ export async function __smokeRootType(opts: {
     parser.delete();
   }
 }
+
+/**
+ * Parse source code using Tree-Sitter and return the AST and parser.
+ * Caller MUST call `tree.delete()` and `parser.delete()` in a finally block.
+ */
+export async function parseTreeSitterAst(opts: {
+  content: string;
+  lang: SymbolLang;
+}): Promise<{
+  tree: import('web-tree-sitter').Tree;
+  parser: import('web-tree-sitter').Parser;
+} | null> {
+  const grammar =
+    resolveGrammarName(opts.lang) ??
+    (opts.lang === 'go'
+      ? 'go'
+      : opts.lang === 'py'
+        ? 'python'
+        : opts.lang === 'rs'
+          ? 'rust'
+          : undefined);
+  if (!grammar) return null;
+
+  try {
+    const { Parser, Language, init } = await getRuntime();
+    await init();
+    const wasmPath = path.join(WASM_DIR, grammar, `tree-sitter-${grammar}.wasm`);
+    const languageObj = await Language.load(wasmPath);
+    const parser = new Parser();
+    parser.setLanguage(languageObj);
+    const tree = parser.parse(opts.content);
+    if (!tree) {
+      parser.delete();
+      return null;
+    }
+    return { tree, parser };
+  } catch {
+    return null;
+  }
+}

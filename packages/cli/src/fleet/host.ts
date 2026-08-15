@@ -168,6 +168,11 @@ export class MultiAgentHost {
     return this.director;
   }
 
+  /** Run one shadow review pass immediately. */
+  async runShadowPass(reason: string): Promise<void> {
+    return this.shadowManager.runShadowPass(reason);
+  }
+
   private async ensureCoordinator(_config: Config): Promise<void> {
     await this.buildDirector();
   }

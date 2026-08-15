@@ -164,6 +164,18 @@ export function CodeEditor() {
     monaco.editor.setTheme(resolved);
   }, [appTheme]);
 
+  const targetLine = useFileStore((state) => state.targetLine);
+  const clearTargetLine = useFileStore((state) => state.clearTargetLine);
+
+  useEffect(() => {
+    if (targetLine && editorRef.current) {
+      editorRef.current.revealLineInCenter(targetLine.line);
+      editorRef.current.setPosition({ lineNumber: targetLine.line, column: targetLine.col ?? 1 });
+      editorRef.current.focus();
+      clearTargetLine();
+    }
+  }, [targetLine, clearTargetLine]);
+
   useEffect(() => {
     const disposables = COMPLETION_LANGUAGES.map((registeredLanguage) =>
       monaco.languages.registerCompletionItemProvider(registeredLanguage, {

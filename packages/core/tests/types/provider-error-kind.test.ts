@@ -232,6 +232,18 @@ describe('isContextOverflowShaped', () => {
     expect(isContextOverflowShaped(err)).toBe(true); // but shape is detected
   });
 
+  it('is true for the Codex agent-run overflow phrasing under a mislabeled kind', () => {
+    const err = new ProviderError(
+      'Failed [error]: AGENT_RUN_FAILED: Your input exceeds the context window of this model. Please adjust your input and try again.',
+      400,
+      false,
+      'openai-codex',
+      { kind: 'invalid_request' },
+    );
+    expect(err.kind).toBe('invalid_request');
+    expect(isContextOverflowShaped(err)).toBe(true);
+  });
+
   it('is true for a bare 413 regardless of message', () => {
     const err = new ProviderError('Request Entity Too Large', 413, false, 'proxy', {
       kind: 'invalid_request',

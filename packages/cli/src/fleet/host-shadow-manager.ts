@@ -165,14 +165,14 @@ export class HostShadowManager {
   }
 
   requestShadowPass(reason: string): void {
+    queueMicrotask(() => {
+      void this.runShadowPass(reason);
+    });
+  }
+
+  async runShadowPass(reason: string): Promise<void> {
     const director = this.ctx.getDirector();
     if (!director) return;
-    if (this.shadowObservedWorkDepth > 0) {
-      this.shadowQueuedProblem = this.shadowQueuedProblem
-        ? `${this.shadowQueuedProblem}; ${reason}`
-        : reason;
-      return;
-    }
     if (
       this.shadowPassInFlight ||
       (this.shadowAgentId && this.isActiveSubagent(this.shadowAgentId))
@@ -184,12 +184,6 @@ export class HostShadowManager {
     }
 
     this.shadowPassInFlight = true;
-    queueMicrotask(() => {
-      void this.runShadowPass(reason);
-    });
-  }
-
-  private async runShadowPass(reason: string): Promise<void> {
     return runHostShadowPass(
       {
         getDirector: () => this.ctx.getDirector(),

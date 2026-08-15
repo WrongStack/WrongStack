@@ -48,6 +48,20 @@ describe('DefaultErrorHandler.classify', () => {
     expect(eh.classify(err)).toEqual({ kind: 'context_overflow', retryable: false });
   });
 
+  it('classifies the Codex agent-run overflow phrasing as context_overflow', () => {
+    // The ChatGPT backend surfaces a subscription throttled-drop with the
+    // Codex CLI's own agent wrapper prefix and a follow-up instruction. The
+    // classifier must still land on context_overflow (not client), so the
+    // recovery path compacts and retries.
+    const err = new ProviderError('openai-codex HTTP 400', 400, false, 'openai-codex', {
+      body: {
+        message:
+          'Failed [error]: AGENT_RUN_FAILED: Your input exceeds the context window of this model. Please adjust your input and try again.',
+      },
+    });
+    expect(eh.classify(err)).toEqual({ kind: 'context_overflow', retryable: false });
+  });
+
   it('classifies generic 4xx as client (not retryable)', () => {
     expect(eh.classify(provErr('bad', 404))).toEqual({
       kind: 'client',
