@@ -37,8 +37,12 @@ import { setupProviderStatus } from './wiring/provider-status.js';
 import {
   TransformersEmbeddingProvider,
   VectorMemoryStore,
+  wrapMemoryPortWithVectorRecall,
 } from '@wrongstack/vector-memory';
-import { startFirstBootSageSync } from './boot/vector-memory-sage-sync.js';
+import {
+  startFirstBootSageSync,
+  subscribeVectorMemoryToSage,
+} from '@wrongstack/vector-memory';
 import {
   adoptResumedProvider,
   registerProviderUtilityTools,
@@ -94,8 +98,13 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     current: modelCapabilities,
   };
 
-  const memoryStore = container.resolve(TOKENS.MemoryStore);
+  let memoryStore = container.resolve(TOKENS.MemoryStore);
   await memoryStore.initialize();
+
+  // Disposer chain — collected up front so the vector-memory wiring
+  // below can register its teardown (event-mirror dispose, store close)
+  // alongside the rest. Run in LIFO order on shutdown.
+  const teardownHandlers: Array<() => void> = [];
 
   // Vector memory is an additional, optional sibling to SAGE — embed
   // locally via @huggingface/transformers, persist to its own SQLite
@@ -136,6 +145,46 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       memoryStore,
       logger,
     });
+    // Wire the vector store into SAGE's `searchSage` so every retrieval
+    // call fuses lexical + semantic recall transparently. The wrapper
+    // preserves the underlying port's identity (so DI consumers that
+    // cached the original reference keep working) but routes the read-
+    // side capability methods through the vector-augmented path. The
+    // surface capability (memory manager UI, hygiene) is also wrapped
+    // so explicit operator searches get the same boost.
+    memoryStore = wrapMemoryPortWithVectorRecall(memoryStore, {
+      store: vectorMemoryStore,
+      weight: 0.3,
+    });
+    // Live event mirror: every SAGE write that follows is auto-vectorized
+    // without an operator running a re-sync. The first-boot marker plus
+    // this listener together cover the full corpus — past + future —
+    // without any background polling.
+    const mirrorHandle = subscribeVectorMemoryToSage({
+      store: vectorMemoryStore,
+      memoryStore,
+      logger,
+    });
+    teardownHandlers.push(() => mirrorHandle.dispose());
+
+    // Operator flag: `--vector-sync` forces a full re-sync regardless of
+    // the existing `complete` marker. Use after a model change, schema
+    // migration, or when the operator wants to backfill new metadata.
+    // Runs synchronously here (not fire-and-forget) so the operator sees
+    // the indexed/skipped/failed counts in the boot log.
+    if (flags['vector-sync'] === true) {
+      const forced = await startFirstBootSageSync({
+        store: vectorMemoryStore,
+        memoryStore,
+        logger,
+        force: true,
+      });
+      logger.info(
+        forced.synced
+          ? `vector-memory forced re-sync complete (${forced.marker?.indexed ?? 0} new)`
+          : `vector-memory forced re-sync skipped: ${forced.reason}`,
+      );
+    }
   }
 
   const skillLoader = container.resolve(TOKENS.SkillLoader);
@@ -189,7 +238,6 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   });
 
   const tuiOwnsScreen = flags.tui === true && flags['no-tui'] !== true;
-  const teardownHandlers: Array<() => void> = [];
   const evOn = createTeardownEventRegistrar(events, teardownHandlers);
   // Close the vector memory SQLite handle on shutdown — keeps the WAL
   // frame file consistent and mirrors the SAGE dispose contract.
@@ -651,6 +699,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     renderer,
     events,
     memoryStore,
+    vectorMemoryStore,
     context,
     cwd,
     projectRoot,

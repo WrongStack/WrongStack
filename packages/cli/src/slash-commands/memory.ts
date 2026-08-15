@@ -15,12 +15,16 @@ import {
   formatHygiene,
   formatLegacyEntries,
   formatLegacyImport,
+  formatMemoryDiagnostics,
   formatSageMemories,
   formatSageShow,
   formatSageStats,
+  formatSearchRace,
   formatVerification,
   requiresSage,
+  type MemoryDiagnostics,
 } from './memory-formatters.js';
+import { runSearchRace } from '@wrongstack/vector-memory';
 import { runGatherCommand, runPathMemory } from './memory-gather.js';
 import { runStats } from './memory-stats.js';
 import { runTriageCommand } from './memory-triage.js';
@@ -30,7 +34,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
     name: 'memory',
     category: 'Inspect',
     description:
-      'Inspect or edit persistent memory: /memory [show|search|file|path|for-file|graph|gather|remember|update|delete|forget|hygiene|verify|candidates|triage|audit|import-legacy|clear|compact|compact-log|stats|audience]',
+      'Inspect or edit persistent memory: /memory [show|search|race|file|path|for-file|graph|gather|remember|update|delete|forget|hygiene|verify|candidates|triage|audit|import-legacy|clear|compact|compact-log|stats|audience|diagnostics]',
     async run(args) {
       const store = opts.memoryStore;
       if (!store) return { message: 'No memory store configured.' };
@@ -249,6 +253,41 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
             ),
           };
         }
+        case 'race': {
+          // Two-channel race: lexical (SAGE) vs semantic (vector store).
+          // Makes the value of running BOTH stores side-by-side visible —
+          // the operator sees the overlap and the channel-specific
+          // misses in a single render. Falls back to a plain lexical
+          // search when the vector store isn't wired.
+          if (!restJoined) return { message: 'Usage: /memory race <query>' };
+          if (!Sage) {
+            return {
+              message:
+                '`/memory race` requires the SAGE surface. Run the search with `/memory search <query>` instead.',
+            };
+          }
+          const vectorStore = (opts as { vectorMemoryStore?: unknown })
+            .vectorMemoryStore as
+            | Parameters<typeof runSearchRace>[2]
+            | undefined;
+          if (!vectorStore) {
+            const entries = await Sage.searchSage(restJoined, { limit: 20 });
+            return {
+              message:
+                `Vector memory is not wired in this host — only the lexical channel is available.\n\n` +
+                formatSageMemories(entries, `Search: ${restJoined}`),
+            };
+          }
+          try {
+            const lexical = await Sage.searchSage(restJoined, { limit: 20 });
+            const race = await runSearchRace(restJoined, lexical, vectorStore, { limit: 20 });
+            return { message: formatSearchRace(race) };
+          } catch (err) {
+            return {
+              message: `Race failed: ${err instanceof Error ? err.message : String(err)}`,
+            };
+          }
+        }
         case 'graph': {
           if (!Sage?.graphFor) return requiresSage('graph');
           if (!restJoined) return { message: 'Usage: /memory graph <memory-id|path|query>' };
@@ -405,6 +444,101 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
           if (!Sage) return requiresSage('audience');
           return runAudienceMemory(Sage, rest);
         }
+        case 'diagnostics': {
+          if (!Sage) {
+            return {
+              message:
+                'Memory diagnostics require the SAGE surface (this memory store does not expose it).',
+            };
+          }
+          // Two-system health check — surfaces coverage, drift, and
+          // mirror state across the SAGE + vector memory pair. The
+          // host supplies the vector store through the slash command
+          // context (added when the vector store is wired at boot).
+          const vectorStore = (opts as { vectorMemoryStore?: unknown })
+            .vectorMemoryStore as
+            | {
+                stats: () => {
+                  entries: number;
+                  vectors: number;
+                  providers: string[];
+                  modelId: string;
+                  dimensions: number;
+                };
+                cacheStats: () => {
+                  entries: number;
+                  providers: number;
+                  totalUseCount: number;
+                  oldestLastUsedAt: string | null;
+                };
+                directory: string;
+                databasePath: string;
+                list: (opts: { limit: number }) => Array<{ metadata: Record<string, unknown> }>;
+              }
+            | undefined;
+          // Pull the data we need: SAGE stats + count, vector stats +
+          // cache + drift count. Each call is best-effort; failures
+          // surface in the printed message rather than throwing the
+          // slash command.
+          let sageStats: import('@wrongstack/sage').SageStats;
+          let sageTotal = 0;
+          try {
+            [sageStats, sageTotal] = await Promise.all([
+              Sage.stats(),
+              Sage.listSagePage({ limit: 1 }).then(
+                (page) => page.total ?? page.memories.length,
+              ),
+            ]);
+          } catch (err) {
+            return {
+              message: `Memory diagnostics failed: ${err instanceof Error ? err.message : String(err)}`,
+            };
+          }
+          let vectorDiag: MemoryDiagnostics['vector'];
+          if (vectorStore) {
+            try {
+              const stats = vectorStore.stats();
+              const cache = vectorStore.cacheStats();
+              const vectorRows = vectorStore.list({ limit: 5000 });
+              let mirroredInSage = 0;
+              let standalone = 0;
+              for (const row of vectorRows) {
+                const sageId =
+                  (row.metadata as { sageId?: unknown } | undefined)?.sageId;
+                if (typeof sageId === 'string' && sageId.length > 0) {
+                  mirroredInSage++;
+                } else {
+                  standalone++;
+                }
+              }
+              vectorDiag = {
+                entries: stats.entries,
+                vectors: stats.vectors,
+                providers: stats.providers,
+                modelId: stats.modelId,
+                dimensions: stats.dimensions,
+                cacheEntries: cache.entries,
+                cacheProviders: cache.providers,
+                totalUseCount: cache.totalUseCount,
+                oldestLastUsedAt: cache.oldestLastUsedAt,
+                storePath: vectorStore.directory,
+                mirroredInSage,
+                standalone,
+              };
+            } catch (err) {
+              return {
+                message: `Memory diagnostics (vector side) failed: ${err instanceof Error ? err.message : String(err)}`,
+              };
+            }
+          }
+          return {
+            message: formatMemoryDiagnostics({
+              sageStats,
+              sageTotal,
+              vector: vectorDiag,
+            }),
+          };
+        }
         default:
           return {
             message: unknownSubcommand(
@@ -412,6 +546,7 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
               [
                 'show',
                 'search',
+                'race',
                 'file',
                 'path',
                 'for-file',

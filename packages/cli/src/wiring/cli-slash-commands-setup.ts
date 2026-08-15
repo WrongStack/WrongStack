@@ -21,6 +21,13 @@ export function setupCliSlashCommands(params: {
   renderer: any;
   events: any;
   memoryStore: any;
+  /**
+   * Vector memory store (semantic recall channel). When supplied, the
+   * `/memory diagnostics` and `/memory race` slash commands can
+   * surface cross-system health and the lexical vs semantic channel
+   * comparison.
+   */
+  vectorMemoryStore?: any;
   context: any;
   cwd: string;
   projectRoot: string;
@@ -99,6 +106,7 @@ export function setupCliSlashCommands(params: {
     renderer,
     events,
     memoryStore,
+    vectorMemoryStore,
     context,
     cwd,
     projectRoot,
@@ -176,6 +184,7 @@ export function setupCliSlashCommands(params: {
     renderer,
     events,
     memoryStore,
+    vectorMemoryStore,
     context,
     cwd,
     projectRoot,

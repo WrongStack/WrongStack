@@ -19,6 +19,8 @@ vi.mock('../src/slash-commands/memory-formatters.js', () => {
     formatLegacyEntries: vi.fn(() => 'LEGACY'),
     formatLegacyImport: vi.fn(() => 'LEGACY IMPORT'),
     formatForFileResponse: vi.fn(() => 'FOR FILE'),
+    formatSearchRace: vi.fn(() => 'RACE'),
+    formatMemoryDiagnostics: vi.fn(() => 'DIAGNOSTICS'),
     requiresSage: requiresSageMock,
   };
 });
@@ -92,6 +94,7 @@ function makeSageStub(extra: Record<string, unknown> = {}) {
     findMemoriesForFile: vi.fn(async () => ({ primary: [], symbol: [], related: [] })),
     acceptCandidate: vi.fn(async () => null),
     rejectCandidate: vi.fn(async () => null),
+    searchSage: vi.fn(async () => []),
     ...extra,
   };
 }
@@ -239,6 +242,69 @@ describe('memory slash command', () => {
       const cmd = buildMemoryCommand(makeCtx());
       const result = await cmd.run('search');
       expect(runMessage(result)).toContain('Usage');
+    });
+  });
+
+  describe('race', () => {
+    it('returns usage when no query', async () => {
+      mockGetSageSurface.mockReturnValue(makeSageStub());
+      const cmd = buildMemoryCommand(makeCtx());
+      const result = await cmd.run('race');
+      expect(runMessage(result)).toContain('Usage');
+    });
+
+    it('falls back to lexical-only when no vector store is wired', async () => {
+      mockGetSageSurface.mockReturnValue(makeSageStub());
+      const cmd = buildMemoryCommand(makeCtx());
+      const result = await cmd.run('race connection pool');
+      expect(runMessage(result)).toContain('lexical channel');
+    });
+
+    it('runs the dual-channel race when both stores are wired', async () => {
+      mockGetSageSurface.mockReturnValue(
+        makeSageStub({
+          searchSage: vi.fn(async () => [
+            { id: 'a', kind: 'fact', status: 'active', text: 'overlap hit', tags: [] },
+          ]),
+        }),
+      );
+      const vectorStore = {
+        search: vi.fn(async () => [
+          {
+            entry: { id: 'vec-1', text: 'vector hit', metadata: { sageId: 'a' } },
+            score: 0.91,
+          },
+        ]),
+      };
+      const ctx = makeCtx();
+      (ctx as { vectorMemoryStore?: unknown }).vectorMemoryStore = vectorStore;
+      const cmd = buildMemoryCommand(ctx);
+      const result = await cmd.run('race pool');
+      expect(runMessage(result)).toBe('RACE'); // mocked formatter
+      expect(vectorStore.search).toHaveBeenCalledWith('pool', { limit: 20 });
+    });
+
+    it('keeps the race usable when the vector store throws (fail-open)', async () => {
+      mockGetSageSurface.mockReturnValue(
+        makeSageStub({
+          searchSage: vi.fn(async () => [
+            { id: 'a', kind: 'fact', status: 'active', text: 'still works', tags: [] },
+          ]),
+        }),
+      );
+      const vectorStore = {
+        search: vi.fn(async () => {
+          throw new Error('provider unavailable');
+        }),
+      };
+      const ctx = makeCtx();
+      (ctx as { vectorMemoryStore?: unknown }).vectorMemoryStore = vectorStore;
+      const cmd = buildMemoryCommand(ctx);
+      // The race swallows vector-side failures (lexical side stays
+      // usable) — the operator gets the channel-comparison output
+      // even when the embedding model is offline.
+      const result = await cmd.run('race pool');
+      expect(runMessage(result)).toBe('RACE');
     });
   });
 

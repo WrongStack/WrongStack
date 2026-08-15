@@ -11,6 +11,7 @@ import type {
   SageKind,
   SageStats,
 } from '@wrongstack/sage';
+import type { SearchRaceResult } from '@wrongstack/vector-memory';
 
 function previewText(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
@@ -143,6 +144,88 @@ export function formatLegacyImport(result: LegacyImportResult): string {
   return `Legacy import complete: ${result.imported} imported, ${result.skipped} skipped from ${result.files} file(s).`;
 }
 
+/** Pre-collected diagnostic data for `formatMemoryDiagnostics`. */
+export interface MemoryDiagnostics {
+  sageStats: SageStats;
+  /** Total SAGE entries (active + non-active) in the corpus. */
+  sageTotal: number;
+  vector:
+    | {
+        entries: number;
+        vectors: number;
+        providers: string[];
+        modelId: string;
+        dimensions: number;
+        cacheEntries: number;
+        cacheProviders: number;
+        totalUseCount: number;
+        oldestLastUsedAt: string | null;
+        storePath: string;
+        /** Vector entries whose `metadata.sageId` resolves in SAGE. */
+        mirroredInSage: number;
+        /** Vector entries without a `metadata.sageId` (standalone). */
+        standalone: number;
+      }
+    | undefined;
+}
+
+/**
+ * Two-system health snapshot — covers SAGE stats, vector memory
+ * stats, and the cross-system coverage (how many SAGE memories have a
+ * vector mirror). Surfaces the value of running both stores side by
+ * side: the operator sees drift (vector entries without a SAGE id),
+ * the embedding cache hit ratio, and the active provider / dimension.
+ */
+export function formatMemoryDiagnostics(diag: MemoryDiagnostics): string {
+  const lines: string[] = ['🩺 Memory diagnostics', ''];
+
+  // SAGE side
+  const byStatus = Object.entries(diag.sageStats.byStatus)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' ');
+  const byKind = Object.entries(diag.sageStats.byKind)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' ');
+  lines.push('SAGE (lexical):');
+  lines.push(`  total entries:  ${diag.sageTotal}`);
+  lines.push(`  by status:      ${byStatus || '∅'}`);
+  lines.push(`  by kind:        ${byKind || '∅'}`);
+  if (diag.sageStats.injections !== undefined) {
+    lines.push(`  injections:     ${diag.sageStats.injections}`);
+  }
+  if (diag.sageStats.uses !== undefined) {
+    lines.push(`  uses:           ${diag.sageStats.uses}`);
+  }
+  lines.push('');
+
+  // Vector side
+  if (!diag.vector) {
+    lines.push('Vector memory: disabled — running on the SAGE-only surface.');
+  } else {
+    const v = diag.vector;
+    lines.push('Vector (semantic):');
+    lines.push(`  entries:        ${v.entries}`);
+    lines.push(`  with vectors:   ${v.vectors}`);
+    lines.push(`  providers:      ${v.providers.join(', ') || '∅'}`);
+    lines.push(`  model:          ${v.modelId} (${v.dimensions}-dim)`);
+    lines.push(`  cache:          ${v.cacheEntries} rows · ${v.cacheProviders} provider(s) · ${v.totalUseCount} hits`);
+    if (v.oldestLastUsedAt) {
+      lines.push(`  cache oldest:   ${v.oldestLastUsedAt}`);
+    }
+    lines.push(`  store path:     ${v.storePath}`);
+    lines.push('');
+    lines.push('Cross-system coverage:');
+    lines.push(`  vector ↔ SAGE:  ${v.mirroredInSage} mirrored`);
+    if (v.standalone > 0) {
+      lines.push(`  standalone:     ${v.standalone} vector-only entries (no SAGE id — lexical recall misses these)`);
+    }
+    if (v.mirroredInSage === 0 && diag.sageTotal > 0) {
+      lines.push('  💡 Run `wrongstack --vector-sync` to backfill the vector mirror.');
+    }
+  }
+  return lines.join('\n');
+}
+
 export function formatSageStats(
   stats: SageStats,
   scopedCount?: number,
@@ -225,5 +308,68 @@ export function formatSageShow(stats: SageStats, memories: Sage[]): string {
   lines.push('');
   lines.push(`*${memories.length} entr${memories.length === 1 ? 'y' : 'ies'}*`);
 
+  return lines.join('\n');
+}
+
+/**
+ * Human-readable rendering of a `SearchRaceResult` — the channel
+ * comparison that makes the dual system's value visible. The output
+ * groups memories into three buckets: **both** (lexical + vector
+ * agreement), **lexical only** (rare-token matches the embedding
+ * model would under-rank), and **vector only** (semantic recall the
+ * FTS index would have missed). The summary metrics above the lists
+ * make the "what would I have missed?" question answerable in one
+ * glance.
+ */
+export function formatSearchRace(race: SearchRaceResult): string {
+  const lines: string[] = [];
+  const pct = (value: number): string => `${Math.round(value * 100)}%`;
+  lines.push(`## 🏁 Search race — "${race.query}"`);
+  lines.push('');
+  lines.push(
+    `lexical: ${race.metrics.lexicalCount} · vector: ${race.metrics.vectorCount} · ` +
+      `overlap: ${race.metrics.overlapCount} · agreement: ${pct(race.metrics.agreementRatio)}`,
+  );
+  if (race.metrics.lexicalOnlyRatio > 0) {
+    lines.push(
+      `  ↳ lexical-only: ${pct(race.metrics.lexicalOnlyRatio)} of lexical recall is invisible to vector.`,
+    );
+  }
+  if (race.metrics.vectorOnlyRatio > 0) {
+    lines.push(
+      `  ↳ vector-only: ${pct(race.metrics.vectorOnlyRatio)} of vector recall is invisible to lexical.`,
+    );
+  }
+  lines.push('');
+  if (race.overlap.length > 0) {
+    lines.push('### ✅ Both channels');
+    for (const row of race.overlap) {
+      lines.push(
+        `- \`${row.id.slice(0, 12)}…\` L=${pct(row.lexicalScore)} V=${pct(row.vectorScore)}  ${row.preview}`,
+      );
+    }
+    lines.push('');
+  }
+  if (race.lexicalOnly.length > 0) {
+    lines.push('### 🅰️ Lexical only (vector missed)');
+    for (const row of race.lexicalOnly) {
+      lines.push(
+        `- \`${row.id.slice(0, 12)}…\` L=${pct(row.lexicalScore ?? 0)}  ${row.preview}`,
+      );
+    }
+    lines.push('');
+  }
+  if (race.vectorOnly.length > 0) {
+    lines.push('### 🅱️ Vector only (lexical missed)');
+    for (const row of race.vectorOnly) {
+      lines.push(
+        `- \`${row.id.slice(0, 12)}…\` V=${pct(row.vectorScore ?? 0)}  ${row.preview}`,
+      );
+    }
+    lines.push('');
+  }
+  if (race.overlap.length === 0 && race.lexicalOnly.length === 0 && race.vectorOnly.length === 0) {
+    lines.push('_No memories matched either channel for this query._');
+  }
   return lines.join('\n');
 }

@@ -14,6 +14,7 @@ import type {
   TokenCounter,
 } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 
 /** Host capabilities supplied to command adapters. */
 export interface SlashCommandContext {
@@ -38,6 +39,13 @@ export interface SlashCommandContext {
   /** App-level EventBus — used by GoalRunner to emit phase/graph events to the TUI. */
   events: EventBus;
   memoryStore?: MemoryPort | undefined;
+  /**
+   * Optional vector memory store. Wired when the host has enabled the
+   * dual-channel system; slash commands like `/memory diagnostics`
+   * and `/memory race` use it to surface cross-system health and
+   * run lexical vs semantic channel comparisons.
+   */
+  vectorMemoryStore?: VectorMemoryStore | undefined;
   context?: Context | undefined;
   /** Working directory for the current session. */
   cwd: string;

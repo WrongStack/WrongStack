@@ -8,6 +8,7 @@
 |---|---|
 | `/memory [show|list]` | Show active memory through the compatibility view |
 | `/memory search <query>` | Search text, tags, paths, symbols, and command anchors |
+| `/memory race <query>` | Run the same query through both lexical (SAGE) and semantic (vector) channels; surface the overlap, lexical-only, and vector-only buckets. Makes the value of running both stores side-by-side visible. Falls back to lexical-only when the vector store is not wired. |
 | `/memory file <path>` | Show memory attached directly to a file |
 | `/memory path <path>` | Include attached ancestor-directory memory |
 | `/memory graph <id|path|query>` | Traverse memory/file/symbol/command relationships |
@@ -21,6 +22,7 @@
 | `/memory audit` | Show recent mutation and automated-decision records |
 | `/memory import-legacy` | Import legacy project/user `memory.md` files idempotently |
 | `/memory stats` | Show status, kind, and graph-edge totals |
+| `/memory diagnostics` | Two-system health snapshot — SAGE stats, vector memory stats, embedding cache, and cross-system coverage (mirrored vs standalone entries). Suggests `--vector-sync` when the mirror is empty. |
 | `/memory compact` | Ask the active LLM to curate legacy-compatible project entries |
 | `/memory clear --force` | Intentionally delete every non-permanent entry; blocked without `--force` and confirmation |
 | `/memory audience list [--role <r>] [--task-type <t>] [--mode <m>]` | View role-scoped memories, optionally filtered by role/task/mode |

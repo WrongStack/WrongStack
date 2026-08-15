@@ -19,7 +19,7 @@ const options = { signal: new AbortController().signal } as never;
 describe('memory tool completion coverage', () => {
   it('validates and executes memory updates', async () => {
     const memory = service();
-    const tool = createSageTools(memory)[10]!;
+    const tool = createSageTools(memory).find((t) => t.name === 'memory_update')!;
     expect(tool.validate?.({ id: '' } as never)).toEqual(['id is required']);
     expect(tool.validate?.({ id: 'memory' } as never)).toEqual([
       'at least one field to update is required',
@@ -31,7 +31,7 @@ describe('memory tool completion coverage', () => {
 
   it('validates deletion and forwards both never-inject shapes', async () => {
     const memory = service();
-    const tool = createSageTools(memory)[11]!;
+    const tool = createSageTools(memory).find((t) => t.name === 'memory_delete')!;
     expect(tool.validate?.({ force: true } as never)).toEqual(['id is required']);
     expect(tool.validate?.({ id: 'memory' } as never)?.[0]).toContain('force: true is required');
     expect(tool.validate?.({ id: 'memory', force: true } as never)).toEqual([]);
@@ -47,7 +47,7 @@ describe('memory tool completion coverage', () => {
 
   it('rejects missing recovery targets and distinguishes writes from no-ops', async () => {
     const missing = service();
-    const missingTool = createSageTools(missing)[12]!;
+    const missingTool = createSageTools(missing).find((t) => t.name === 'memory_recover')!;
     await expect(missingTool.execute({ id: 'missing' }, {} as never, options)).rejects.toThrow(
       'not found',
     );
@@ -61,22 +61,28 @@ describe('memory tool completion coverage', () => {
       getSage: vi.fn(async () => ({ id: 'memory', status: 'deleted' })),
       recoverSage: vi.fn(async () => recovered),
     });
+    const recoverOnDeleted = createSageTools(deleted).find(
+      (t) => t.name === 'memory_recover',
+    )!;
     await expect(
-      createSageTools(deleted)[12]!.execute({ id: 'memory', reason: 'undo' }, {} as never, options),
+      recoverOnDeleted.execute({ id: 'memory', reason: 'undo' }, {} as never, options),
     ).resolves.toMatchObject({ recovered: true, id: 'memory', noop: false });
 
     const active = service({
       getSage: vi.fn(async () => ({ id: 'memory', status: 'active' })),
       recoverSage: vi.fn(async () => recovered),
     });
+    const recoverOnActive = createSageTools(active).find(
+      (t) => t.name === 'memory_recover',
+    )!;
     await expect(
-      createSageTools(active)[12]!.execute({ id: 'memory' }, {} as never, options),
+      recoverOnActive.execute({ id: 'memory' }, {} as never, options),
     ).resolves.toMatchObject({ noop: true });
   });
 
   it('previews and applies recoverable backfills with optional filters', async () => {
     const memory = service();
-    const tool = createSageTools(memory)[13]!;
+    const tool = createSageTools(memory).find((t) => t.name === 'memory_backfill_recoverable')!;
     await tool.execute({}, {} as never, options);
     expect(memory.backfillRecoverable).toHaveBeenLastCalledWith({ dryRun: true });
 
@@ -90,7 +96,7 @@ describe('memory tool completion coverage', () => {
 
   it('auto-scopes by mode, combines role and mode, and honors explicit opt-out', async () => {
     const memory = service();
-    const tool = createSageTools(memory)[8]!;
+    const tool = createSageTools(memory).find((t) => t.name === 'remember')!;
     await tool.execute({ text: 'mode scoped' }, { meta: { mode: 'review' } } as never, options);
     expect(memory.rememberSage).toHaveBeenLastCalledWith(
       expect.objectContaining({ audience: { modes: ['review'] } }),
@@ -117,3 +123,4 @@ describe('memory tool completion coverage', () => {
     );
   });
 });
+
