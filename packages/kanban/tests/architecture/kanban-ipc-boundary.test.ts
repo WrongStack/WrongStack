@@ -16,7 +16,12 @@ describe('Kanban IPC ownership boundary', () => {
         /\.(?:ts|tsx)$/.test(file) &&
         !file.includes(`${path.sep}tests${path.sep}`) &&
         !file.includes(`${path.sep}governance${path.sep}`) &&
-        !file.endsWith(`${path.sep}server${path.sep}sqlite-storage.ts`),
+        !file.endsWith(`${path.sep}server${path.sep}sqlite-storage.ts`) &&
+        // vector-memory keeps its own SQLite store, deliberately separate
+        // from SAGE's DB (see packages/vector-memory/src/store.ts header) so
+        // the two stores cannot contend on the same file lock. It is not
+        // kanban data and does not route through the kanban daemon.
+        !file.endsWith(`${path.sep}vector-memory${path.sep}src${path.sep}store.ts`),
     );
     const offenders = productionFiles
       .filter((file) => /\bnew\s+DatabaseSync\s*\(/.test(fs.readFileSync(file, 'utf8')))

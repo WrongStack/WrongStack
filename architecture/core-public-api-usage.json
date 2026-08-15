@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 286,
-      "typeOnly": 228,
+      "files": 288,
+      "typeOnly": 230,
       "runtimeOrMixed": 75
     },
     "@wrongstack/core/agent-catalog": {
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 230,
+      "files": 229,
       "typeOnly": 122,
-      "runtimeOrMixed": 119
+      "runtimeOrMixed": 118
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -665,6 +665,18 @@
       "file": "packages/cli/tests/acp-server-agent.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/boot/vector-memory-boot-teardown.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/boot/vector-memory-tools.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -5211,12 +5223,6 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/boot/container-wiring.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/kernel",
-      "file": "packages/cli/tests/boot/vector-memory-boot-teardown.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
