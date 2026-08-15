@@ -119,35 +119,152 @@ export interface Detection {
   count: number;
 }
 
+/**
+ * A pattern excluded from a scan pass. `redos-timeout` = the pattern blew
+ * its wall-clock budget on the guarded probe and was skipped (fail-open
+ * with a visible counter — this surface trades blocking for availability;
+ * `secret-scanner` is the fail-closed tool-side gate).
+ */
+export interface ScanSkip {
+  kind: string;
+  reason: 'redos-timeout';
+}
+
+/**
+ * Per-pattern wall-clock budget for the guarded probe pass (issue #362
+ * residual). Matches secret-scanner's per-exec scale; a clean pattern
+ * finishes in well under a millisecond on typical request text.
+ */
+const PATTERN_BUDGET_MS = 250;
+
+/**
+ * Probe window size. The probe decides "can this regex run without
+ * exploding" per window; 100 KB keeps each worker round-trip bounded
+ * while the windowed walk (with overlap) still covers the entire input.
+ */
+const GUARD_PROBE_LENGTH = 100_000;
+
+/**
+ * Overlap between probe windows so a credential-shaped (or pathological)
+ * run straddling a boundary is still exercised. Matches secret-scanner's
+ * window overlap.
+ */
+const GUARD_PROBE_OVERLAP = 4_096;
+
+/** Shared match core: count per-kind hits in `text`. */
+function countMatches(
+  p: SecretPattern,
+  text: string,
+  allow: RegExp[],
+  counts: Map<string, number>,
+): void {
+  p.re.lastIndex = 0;
+  let m: RegExpExecArray | null = p.re.exec(text);
+  while (m !== null) {
+    const matched = m[0];
+    if (!allow.some((a) => a.test(matched))) {
+      counts.set(p.kind, (counts.get(p.kind) ?? 0) + 1);
+    }
+    m = p.re.exec(text);
+  }
+}
+
+/** Shared redaction core: replace hits of one pattern with `[REDACTED:<kind>]`. */
+function replacePattern(
+  p: SecretPattern,
+  text: string,
+  allow: RegExp[],
+  redactions: { n: number },
+): string {
+  return text.replace(new RegExp(p.re.source, p.re.flags), (match) => {
+    if (allow.some((a) => a.test(match))) return match;
+    redactions.n += 1;
+    return `[REDACTED:${p.kind}]`;
+  });
+}
+
 /** Detect secret matches in text. Returns per-kind counts (no values). */
 export function detectSecrets(text: string, allow: RegExp[]): Detection[] {
   const counts = new Map<string, number>();
-  for (const p of PATTERNS) {
-    p.re.lastIndex = 0;
-    let m: RegExpExecArray | null = p.re.exec(text);
-    while (m !== null) {
-      const matched = m[0];
-      if (!allow.some((a) => a.test(matched))) {
-        counts.set(p.kind, (counts.get(p.kind) ?? 0) + 1);
-      }
-      m = p.re.exec(text);
-    }
-  }
+  for (const p of PATTERNS) countMatches(p, text, allow, counts);
   return [...counts.entries()].map(([kind, count]) => ({ kind, count }));
 }
 
 /** Redact secret matches in text, replacing each with `[REDACTED:<kind>]`. */
 export function redactSecrets(text: string, allow: RegExp[]): { text: string; redactions: number } {
+  const redactions = { n: 0 };
   let out = text;
-  let redactions = 0;
-  for (const p of PATTERNS) {
-    out = out.replace(new RegExp(p.re.source, p.re.flags), (match) => {
-      if (allow.some((a) => a.test(match))) return match;
-      redactions += 1;
-      return `[REDACTED:${p.kind}]`;
+  for (const p of PATTERNS) out = replacePattern(p, out, allow, redactions);
+  return { text: out, redactions: redactions.n };
+}
+
+/**
+ * Guarded probe: which patterns cannot complete within `PATTERN_BUDGET_MS`.
+ * The ENTIRE input is probed in overlapping windows (issue #362: probing
+ * only a prefix would let late-input pathology through) — one
+ * combined-alternation worker per window in the common clean case; the
+ * per-pattern fallback runs only for windows where the combined regex
+ * trips, to identify the offender(s) for the skip set.
+ */
+async function probeTimedOutPatterns(text: string): Promise<Set<string>> {
+  const timedOut = new Set<string>();
+  if (text.length === 0) return timedOut;
+
+  const probeWindow = (offset: number): Promise<void> => {
+    const window = text.slice(offset, offset + GUARD_PROBE_LENGTH);
+    const combined = new RegExp(PATTERNS.map((p) => `(${p.re.source})`).join('|'), 'gi');
+    return withReDoSGuard(combined, window, PATTERN_BUDGET_MS).then(async (combinedResult) => {
+      if (!combinedResult.timedOut) return;
+      for (const p of PATTERNS) {
+        if (timedOut.has(p.kind)) continue;
+        const result = await withReDoSGuard(p.re, window, PATTERN_BUDGET_MS);
+        if (result.timedOut) timedOut.add(p.kind);
+      }
     });
+  };
+
+  const stride = GUARD_PROBE_LENGTH - GUARD_PROBE_OVERLAP;
+  for (let offset = 0; offset < text.length; offset += stride) {
+    await probeWindow(offset);
   }
-  return { text: out, redactions };
+  return timedOut;
+}
+
+/**
+ * Detect secret matches, skipping patterns that blow the ReDoS budget on
+ * the guarded probe. The skip set is returned so callers can surface it
+ * (status counters / logs) instead of silently trusting the result.
+ */
+export async function detectSecretsGuarded(
+  text: string,
+  allow: RegExp[],
+): Promise<{ detections: Detection[]; skipped: ScanSkip[] }> {
+  const timedOut = await probeTimedOutPatterns(text);
+  const counts = new Map<string, number>();
+  for (const p of PATTERNS) {
+    if (!timedOut.has(p.kind)) countMatches(p, text, allow, counts);
+  }
+  return {
+    detections: [...counts.entries()].map(([kind, count]) => ({ kind, count })),
+    skipped: [...timedOut].sort().map((kind) => ({ kind, reason: 'redos-timeout' as const })),
+  };
+}
+
+/**
+ * Redact secret matches, skipping the given timed-out patterns (reuse the
+ * set from `detectSecretsGuarded` so a request pays the probe once).
+ */
+export function redactSecretsGuarded(
+  text: string,
+  allow: RegExp[],
+  skip: ReadonlySet<string>,
+): { text: string; redactions: number } {
+  const redactions = { n: 0 };
+  let out = text;
+  for (const p of PATTERNS) {
+    if (!skip.has(p.kind)) out = replacePattern(p, out, allow, redactions);
+  }
+  return { text: out, redactions: redactions.n };
 }
 
 // ---------------------------------------------------------------------------
@@ -168,18 +285,53 @@ function collectText(request: Record<string, unknown>): string {
   return parts.join('\n');
 }
 
+/**
+ * Hard ceiling on total characters redacted in one response-side walk
+ * (issue #362 residual). Provider responses with function-calling traces
+ * can be megabytes; past this budget the walk stops and the truncation is
+ * surfaced (status + log + counter) instead of stalling the provider loop.
+ */
+const RESPONSE_SCAN_BUDGET = 1_000_000;
+
+/** Mutable char budget shared across one redaction walk. */
+interface ScanBudget {
+  remaining: number;
+  /** True only when a leaf was actually skipped for exceeding the budget. */
+  truncated: boolean;
+}
+
 /** Deep-clone `value`, redacting every string leaf. Returns [clone, count]. */
-function redactDeep(value: unknown, allow: RegExp[], counter: { n: number }): unknown {
+function redactDeep(
+  value: unknown,
+  allow: RegExp[],
+  counter: { n: number },
+  skip?: ReadonlySet<string>,
+  budget?: ScanBudget,
+): unknown {
   if (typeof value === 'string') {
-    const { text, redactions } = redactSecrets(value, allow);
+    if (budget) {
+      // A leaf larger than the remaining budget is skipped whole — scanning
+      // it would unbind the walk (chimera review finding), and slicing
+      // mid-leaf could half-redact a credential. The caller surfaces the
+      // truncation; the unscanned tail is returned as-is.
+      if (value.length > budget.remaining) {
+        budget.remaining = 0;
+        budget.truncated = true;
+        return value;
+      }
+      budget.remaining -= value.length;
+    }
+    const { text, redactions } = skip
+      ? redactSecretsGuarded(value, allow, skip)
+      : redactSecrets(value, allow);
     counter.n += redactions;
     return text;
   }
-  if (Array.isArray(value)) return value.map((v) => redactDeep(v, allow, counter));
+  if (Array.isArray(value)) return value.map((v) => redactDeep(v, allow, counter, skip, budget));
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = redactDeep(v, allow, counter);
+      out[k] = redactDeep(v, allow, counter, skip, budget);
     }
     return out;
   }
@@ -238,6 +390,10 @@ interface PromptFirewallState {
   responseRedactions: number;
   blocked: number;
   timeoutCount: number;
+  /** Patterns skipped on the last request scan because they blew the ReDoS budget (issue #362). */
+  skippedPatterns: string[];
+  /** True once a response-side walk has ever exhausted RESPONSE_SCAN_BUDGET (issue #362). */
+  responseTruncated: boolean;
   byKind: Map<string, number>;
   lastDetection: { where: string; kinds: string[]; when: string } | null;
   extensionUnregister: null | (() => void);
@@ -250,6 +406,8 @@ const state: PromptFirewallState = {
   responseRedactions: 0,
   blocked: 0,
   timeoutCount: 0,
+  skippedPatterns: [],
+  responseTruncated: false,
   byKind: new Map(),
   lastDetection: null,
   extensionUnregister: null,
@@ -311,6 +469,8 @@ const plugin: Plugin = {
     state.responseRedactions = 0;
     state.blocked = 0;
     state.timeoutCount = 0;
+    state.skippedPatterns = [];
+    state.responseTruncated = false;
     state.byKind.clear();
     state.lastDetection = null;
     if (state.extensionUnregister) {
@@ -351,16 +511,24 @@ const plugin: Plugin = {
           // already-redacted requests, so a cache hit cannot replay a
           // pre-firewall credential.
           const requestText = collectText(req);
-          for (const extra of EXTRA_PATTERNS) {
-            const guarded = await withReDoSGuard(extra.re, requestText, 250, {
-              onTimeout: () => {
-                state.timeoutCount += 1;
-              },
-            });
-            if (guarded.timedOut) break;
-          }
 
-          const detections = detectSecrets(requestText, cfg.allow);
+          // Guarded detection (issue #362 residual): patterns that blow the
+          // ReDoS budget are skipped, counted, and logged — the guarded
+          // result now GATES the detection/redaction pass instead of being
+          // discarded.
+          const { detections, skipped } = await detectSecretsGuarded(requestText, cfg.allow);
+          // Always refresh from THIS request's result — a stale skip set
+          // from a previous timed-out request would silently skip patterns
+          // forever (chimera review finding).
+          state.skippedPatterns = skipped.map((s) => s.kind);
+          if (skipped.length > 0) {
+            state.timeoutCount += 1;
+            api.log.warn('prompt-firewall: ReDoS budget exceeded, patterns skipped', {
+              skipped: state.skippedPatterns,
+            });
+            api.metrics.counter('redos_skips', 1);
+          }
+          const skipSet = new Set(state.skippedPatterns);
           if (detections.length > 0) {
             state.requestsWithSecrets += 1;
             for (const d of detections) {
@@ -381,17 +549,17 @@ const plugin: Plugin = {
             }
             if (cfg.mode === 'redact') {
               const counter = { n: 0 };
-              const redactedReq = redactDeep(req, cfg.allow, counter) as Record<string, unknown>;
+              const redactedReq = redactDeep(req, cfg.allow, counter, skipSet) as Record<string, unknown>;
               state.requestRedactions += counter.n;
               api.metrics.counter('request_redactions', counter.n);
               const response = await inner(_ctx, redactedReq);
-              return cfg.scanResponse ? redactResponse(response, cfg.allow) : response;
+              return cfg.scanResponse ? redactResponse(response, cfg.allow, skipSet) : response;
             }
           }
 
           const response = await inner(_ctx, request);
           if (cfg.mode === 'redact' && cfg.scanResponse) {
-            return redactResponse(response, cfg.allow);
+            return redactResponse(response, cfg.allow, skipSet);
           }
           return response;
         },
@@ -399,12 +567,26 @@ const plugin: Plugin = {
     }
 
     // Redact secrets echoed back in the provider response's content.
-    function redactResponse(response: unknown, allow: RegExp[]): unknown {
+    // Bounded by RESPONSE_SCAN_BUDGET (issue #362 residual) so a huge
+    // function-calling trace cannot unbind the walk, and by the request-side
+    // skip set so a pattern that blew its ReDoS budget is never run
+    // unguarded on response text either (chimera review finding).
+    function redactResponse(response: unknown, allow: RegExp[], skip?: ReadonlySet<string>): unknown {
       if (!response || typeof response !== 'object') return response;
       const counter = { n: 0 };
       const content = (response as { content?: unknown }).content;
       if (content === undefined) return response;
-      const redacted = redactDeep(content, allow, counter);
+      const budget: ScanBudget = { remaining: RESPONSE_SCAN_BUDGET, truncated: false };
+      const redacted = redactDeep(content, allow, counter, skip, budget);
+      // Only a real skip (budget.truncated) latches the flag — an exact-fit
+      // walk that legitimately drives `remaining` to 0 is not truncation.
+      if (budget.truncated) {
+        state.responseTruncated = true;
+        api.log.warn(
+          'prompt-firewall: response scan budget exhausted — part of the response was returned unredacted',
+        );
+        api.metrics.counter('response_scan_truncated', 1);
+      }
       if (counter.n > 0) {
         state.responseRedactions += counter.n;
         api.metrics.counter('response_redactions', counter.n);
@@ -432,6 +614,8 @@ const plugin: Plugin = {
           mode: cfg.mode,
           scanResponse: cfg.scanResponse,
           patterns: PATTERNS.map((p) => p.kind),
+          skippedPatterns: state.skippedPatterns,
+          responseTruncated: state.responseTruncated,
           counters: {
             invocations: state.invocations,
             requestsWithSecrets: state.requestsWithSecrets,

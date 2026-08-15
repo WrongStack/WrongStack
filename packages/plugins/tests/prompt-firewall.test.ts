@@ -1,9 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Fully inline stub — never spawns a real worker thread (chimera review:
+// wrapping the real implementation made every probe pay a worker spin,
+// which is slow and flaky on Windows eval workers). Tests override with
+// mockImplementation for timeout paths; every path stays inline.
+vi.mock('../src/runtime/redos-guard.js', () => ({
+  withReDoSGuard: vi.fn(async (re: RegExp, input: string) => {
+    re.lastIndex = 0;
+    return { timedOut: false, match: re.exec(input) };
+  }),
+}));
+
 const promptFirewallPlugin = (await import('../src/prompt-firewall')).default;
 const { detectSecrets, readConfig, redactSecrets, KIND_ALIASES } = await import(
   '../src/prompt-firewall'
 );
+const { withReDoSGuard } = await import('../src/runtime/redos-guard.js');
 
 interface Tool {
   name: string;
@@ -370,5 +382,138 @@ describe('default mode end-to-end', () => {
     const sent = JSON.stringify(inner.mock.calls[0]![1]);
     expect(sent).not.toContain(GH_TOKEN);
     expect(sent).toContain('[REDACTED:github-token]');
+  });
+});
+
+const { detectSecretsGuarded } = await import('../src/prompt-firewall');
+
+describe('issue #362 residuals: guarded scan + response budget', () => {
+  const probe = vi.mocked(withReDoSGuard);
+  const inlineProbe = (re: RegExp, input: string) => {
+    re.lastIndex = 0;
+    return Promise.resolve({ timedOut: false, match: re.exec(input) });
+  };
+
+  beforeEach(() => {
+    probe.mockImplementation(inlineProbe);
+  });
+
+  it('a timed-out pattern is skipped, counted, and the request passes fail-open', async () => {
+    // The github-token pattern blows its budget; everything else scans.
+    probe.mockImplementation((re: RegExp, input: string) =>
+      re.source.includes('ghp_')
+        ? Promise.resolve({ timedOut: true, match: null })
+        : inlineProbe(re, input),
+    );
+    const api = setup({ enabled: true, mode: 'redact' });
+    const inner = vi.fn().mockResolvedValue(resp('ok'));
+    await api._wrap!(null, req(`use ${GH_TOKEN} now`), inner);
+
+    // Fail-open contract: the request still goes out with the token
+    // (secret-scanner is the fail-closed gate; this surface trades
+    // blocking for availability) — but the skip is loud, not silent.
+    expect(JSON.stringify(inner.mock.calls[0]![1])).toContain(GH_TOKEN);
+    expect(api.log.warn).toHaveBeenCalledWith(
+      'prompt-firewall: ReDoS budget exceeded, patterns skipped',
+      { skipped: ['github-token'] },
+    );
+    expect(api.metrics.counter).toHaveBeenCalledWith('redos_skips', 1);
+    const status = await api._tools.prompt_firewall_status!.execute({});
+    expect((status.counters as { timeoutCount: number }).timeoutCount).toBe(1);
+    expect(status.skippedPatterns).toEqual(['github-token']);
+    expect(status.responseTruncated).toBe(false);
+  });
+
+  it('the skip set is refreshed per request — no stale skips after a clean probe', async () => {
+    let githubTimesOut = true;
+    probe.mockImplementation((re: RegExp, input: string) =>
+      re.source.includes('ghp_') && githubTimesOut
+        ? Promise.resolve({ timedOut: true, match: null })
+        : inlineProbe(re, input),
+    );
+    const api = setup({ enabled: true, mode: 'redact' });
+    const inner = vi.fn().mockResolvedValue(resp('ok'));
+
+    await api._wrap!(null, req(`use ${GH_TOKEN} now`), inner);
+    let status = await api._tools.prompt_firewall_status!.execute({});
+    expect(status.skippedPatterns).toEqual(['github-token']);
+
+    githubTimesOut = false;
+    await api._wrap!(null, req(`use ${GH_TOKEN} now`), inner);
+    status = await api._tools.prompt_firewall_status!.execute({});
+    expect(status.skippedPatterns).toEqual([]); // refreshed, not sticky
+    expect((status.counters as { timeoutCount: number }).timeoutCount).toBe(1);
+    expect((status.counters as { requestRedactions: number }).requestRedactions).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(inner.mock.calls[1]![1])).not.toContain(GH_TOKEN);
+  });
+
+  it('probes the ENTIRE input in bounded windows, not just a prefix', async () => {
+    const long = `${'x'.repeat(249_900)} ${GH_TOKEN}`; // ~250 KB, secret at the end
+    const { detections } = await detectSecretsGuarded(long, []);
+    expect(detections.map((d) => d.kind)).toContain('github-token');
+    // Overlapping windows of ≤ GUARD_PROBE_LENGTH covering the whole input.
+    // Source of truth is the spy's own call log (chimera review: a
+    // separately maintained array can go empty and pass vacuously).
+    const inputs = probe.mock.calls.map((call) => String(call[1]));
+    expect(inputs.length).toBeGreaterThan(1);
+    for (const chunk of inputs) expect(chunk.length).toBeLessThanOrEqual(100_000);
+    const covered = inputs.reduce((n, c) => n + c.length, 0);
+    expect(covered).toBeGreaterThanOrEqual(long.length);
+  });
+
+  it('an oversized response leaf is skipped whole and the truncation is surfaced', async () => {
+    const api = setup({ enabled: true, mode: 'redact' });
+    const huge = 'x'.repeat(1_000_001) + GH_TOKEN; // leaf > RESPONSE_SCAN_BUDGET
+    const inner = vi.fn().mockResolvedValue(resp(huge));
+    const out = (await api._wrap!(null, req('clean'), inner)) as {
+      content: Array<{ text: string }>;
+    };
+    // Bounded fail-open: the leaf is returned unscanned, but loudly.
+    expect(out.content[0]!.text).toContain(GH_TOKEN);
+    expect(api.metrics.counter).toHaveBeenCalledWith('response_scan_truncated', 1);
+    expect(api.log.warn).toHaveBeenCalledWith(
+      'prompt-firewall: response scan budget exhausted — part of the response was returned unredacted',
+    );
+    const status = await api._tools.prompt_firewall_status!.execute({});
+    expect(status.responseTruncated).toBe(true);
+  });
+
+  it('an exactly-budget response is fully scanned and does NOT latch responseTruncated', async () => {
+    const api = setup({ enabled: true, mode: 'redact' });
+    // Single-leaf content of exactly RESPONSE_SCAN_BUDGET chars with a
+    // secret at the end: the walk legitimately drives remaining to 0 —
+    // that is not truncation. (The default resp() adds a `type: 'text'`
+    // sibling leaf that would consume budget first, so build the content
+    // directly.)
+    const exact = `${'x'.repeat(1_000_000 - GH_TOKEN.length - 1)} ${GH_TOKEN}`;
+    const inner = vi.fn().mockResolvedValue({ content: [{ text: exact }] });
+    const out = (await api._wrap!(null, req('clean'), inner)) as {
+      content: Array<{ text: string }>;
+    };
+    expect(out.content[0]!.text).not.toContain(GH_TOKEN);
+    expect(out.content[0]!.text).toContain('[REDACTED:github-token]');
+    const status = await api._tools.prompt_firewall_status!.execute({});
+    expect(status.responseTruncated).toBe(false);
+    expect((status.counters as { responseRedactions: number }).responseRedactions).toBeGreaterThanOrEqual(1);
+  });
+
+  it('a pattern timed out on the request side is also skipped on response redaction', async () => {
+    // Chimera review finding: redactResponse must receive the skip set —
+    // otherwise a pattern that blew its budget on the request runs
+    // unguarded over response text.
+    probe.mockImplementation((re: RegExp, input: string) =>
+      re.source.includes('ghp_')
+        ? Promise.resolve({ timedOut: true, match: null })
+        : inlineProbe(re, input),
+    );
+    const api = setup({ enabled: true, mode: 'redact' });
+    const inner = vi.fn().mockResolvedValue(resp(`echo ${GH_TOKEN}`));
+    const out = (await api._wrap!(null, req('clean'), inner)) as {
+      content: Array<{ text: string }>;
+    };
+    // Fail-open contract on the response side too: skipped, not run.
+    expect(out.content[0]!.text).toContain(GH_TOKEN);
+    const status = await api._tools.prompt_firewall_status!.execute({});
+    expect(status.skippedPatterns).toEqual(['github-token']);
   });
 });
