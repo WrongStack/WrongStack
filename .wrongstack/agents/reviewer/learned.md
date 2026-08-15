@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*
+*Last capture: 2026-08-15T19:35:10.244Z · 8 entries*
