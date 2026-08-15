@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.307.0] — 2026-08-15
+
+### Added
+
+- **The WebUI file manager is now a complete project workspace.** Files and folders can be created, deleted, renamed, and moved through the shared protocol; the tree refreshes from a live project watcher, supports bounded fuzzy search and size sorting, and shows Git decorations. Open tabs survive refresh as path-only stubs, reads reject binary or oversized files, and errors stay inline without destroying the surrounding tree. Monaco remains off the initial bundle until an editor is opened, while SimpleUI gains syntax highlighting, Tab indentation, and keyboard save. (`bb257a2f1`, `d6170dfe0`, `793480c17`)
+- **Fallback routing can be diagnosed before an outage.** `/fallback doctor` reports effective depth, provider diversity, credential gaps, and unhealthy chains; `/fallback test [errorKind]` simulates the exact rotation order; and `/fallback gate` makes the hand-off countdown configurable or immediate. (`46179cf05`)
+- **The SDD flow supports deliberate revision instead of one-way progression.** Spec, implementation, and task-review phases can be rewound safely, requirement changes invalidate stale downstream artifacts, the WebUI exposes interview progress and quick replies, and the generated task graph remains tied to the active SDD/Kanban lifecycle. (`b7547ea6a`)
+- **TechStack analysis now reports policy risk as well as versions.** Dependency enrichment classifies license obligations, detects cross-workspace version misalignment, persists bounded finding caches, and produces SPDX 2.3 package records with the required declaration and supplier fields. (`b7547ea6a`, `067edefa2`)
+- **Seven code-intelligence operations are first-class runtime capabilities.** Clarification, repository skeletons and maps, AST replacement, impact analysis, targeted tests, and AST security scans are now present in the capability manifest and system instructions with their intended usage patterns. (`66eee39ac`)
+
+### Changed
+
+- **Goal and delegate orchestration now fails closed and reports real lifecycle state.** Goal phases default to `stopOnFailure`, empty task plans are rejected, delegate-started telemetry is emitted only after a successful spawn, the launch preface no longer overwrites `TaskSpec.description`, and context-overflow recovery can defer the primary probe instead of spending work on a request that cannot fit. (`9e44e5f55`, `dd4a863ca`)
+- **Idle live surfaces do substantially less repeated work.** Session/HQ snapshots, worktree, collaboration, and goal broadcasts use change fingerprints; SDD polling checks a cheap updated-at index before loading a board; and a bounded keep-alive still prevents healthy sessions from aging out of HQ. (`b1f850c01`)
+- **Prompt and environment caches follow every input that changes rendered instructions.** Project overlay fingerprints, host/subagent audience, model context size, date rollover, mode, project root, and the instruction-directory override now invalidate the relevant cache instead of serving stale prompt layers. Capture windows are LRU-bounded for long-lived daemons. (`93b8fcec2`, `d57b74069`, `ba7719d14`, `360cedad1`, `861581f82`, `3e730afca`)
+
+### Security
+
+- **External Telegram text is fenced as untrusted evidence.** The mailbox bridge scrubs credentials, neutralizes embedded delimiters, and wraps inbound bodies so remote text cannot masquerade as agent instructions. (`f6a93201c`)
+- **YOLO shell approval no longer bypasses the protected state-root boundary.** Redirection, `tee`, `cp`, and `mv` writes targeting trust, auth, local config, or key files are classified as destructive even when issued through a shell. (`7da73ef78`)
+- **WebUI file launches validate the canonical target.** The project root and requested path are resolved before containment and metacharacter checks, including symlink targets, and the watcher is non-persistent so it cannot keep an otherwise idle server alive. (`a7fda02c2`, `4dfa2b90c`)
+- **`wstack mcp serve --tools` can no longer silently widen exposure.** Both space-separated and equals forms preserve the requested whitelist, while a missing list fails with usage guidance instead of falling back to the default tool set. (`d3949984d`)
+
+### Fixed
+
+- **Session and provider recovery preserve usable state across failures.** Fallback diagnostics share the runtime chain semantics, session truncation and replay retain lifecycle markers, resumed writers finalize in the correct order, and review evidence accepts recoverable JSON fences without promoting disk-failed findings. (`46179cf05`, `85977b7e3`)
+- **Mailbox unread counts respect session affinity.** Messages stamped for another session no longer inflate a leader's unread total when the same message would be rejected on read. (`8ff99d881`)
+- **Failed WebUI sends mark the initiating bubble.** The request id now travels through `run.result`, so an error updates the stable user message rather than leaving it looking successfully submitted. (`dc16d5813`)
+- **Chronicle migration metrics are idempotent and failure-safe.** Legacy JSONL partitions fold only at the recorded import boundary, pre-import aggregates rebuild once when needed, malformed events roll back within savepoints, quarantined families remain inspectable, and journal handles close on every refresh path. (`cd8f326db`, `c09d39e74`, `02c51cad8`)
+
 ## [0.306.4] — 2026-08-13
 
 Aligned the release surfaces — root and per-package manifests, both apps, the website

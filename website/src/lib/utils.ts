@@ -321,9 +321,24 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.307.0',
+    date: '2026-08-15',
+    latest: true,
+    tagline: 'A complete file workspace, diagnosable fallback, and resilient autonomous sessions',
+    highlights: [
+      'The WebUI file manager adds create, delete, rename, and move operations, live tree refresh, fuzzy search, Git decorations, size sorting, persistent tabs, guarded reads, and lazy-loaded Monaco editing',
+      'SimpleUI editing gains syntax highlighting, Tab indentation, and keyboard save without taking on the Monaco startup cost',
+      '/fallback doctor diagnoses chain and credential health, /fallback test simulates rotation, and /fallback gate controls the hand-off countdown',
+      'The SDD flow can rewind review phases safely, invalidates stale downstream artifacts, and keeps its generated task graph aligned with Kanban execution',
+      'TechStack classifies license risk, detects cross-workspace version drift, caches findings, and emits complete SPDX 2.3 package records',
+      'Goal and delegate orchestration fail closed on terminal errors and empty plans while preserving task descriptions and accurate spawn telemetry',
+      'Telegram fencing, protected state-root shell checks, canonical WebUI path validation, and fail-closed MCP tool whitelists tighten external and local trust boundaries',
+      'Deduplicated live broadcasts, input-complete prompt caches, session recovery fixes, and idempotent Chronicle migration reduce idle work and stale or duplicated state',
+    ],
+  },
+  {
     version: '0.306.4',
     date: '2026-08-13',
-    latest: true,
     tagline: 'Parked verification failures and implementation cost discipline',
     highlights: [
       'Kanban completion refusals are counted and park a card after two unfixable attempts by default, preserving the verifier reason and allowing downstream work to proceed honestly',

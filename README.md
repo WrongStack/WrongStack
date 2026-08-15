@@ -52,29 +52,34 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.306.4
+### What's new in 0.307.0
 
-- **Kanban verification failures no longer wedge managed boards.** Refusals are
-  counted on the card and, after two unfixable attempts by default, the card is
-  parked with the verifier's own reason so downstream work can proceed honestly.
-- **Actionable gate feedback does not waste the refusal budget.** Missing
-  transition actions and exceeded WIP limits still report the exact corrective
-  input without consuming a verification attempt.
-- **Dependencies distinguish parked blockers from ordinary in-flight work.** A
-  waiting card now explains that its blocker is parked and will not clear itself
-  instead of repeating a generic “not completed yet” message.
-- **Agents minimize implementation cost before adding code.** The new cost
-  ladder checks deletion, necessity, existing repository patterns, language and
-  platform capabilities, installed dependencies, and one-line solutions before
-  authoring the smallest implementation that works.
-- **Reuse claims require evidence.** Agents must name the existing file, symbol,
-  or package they intend to reuse rather than relying on recollection, while the
-  ladder is explicitly forbidden from reducing user-requested scope.
-- **Release surfaces re-anchored to 0.306.4.** Root and per-package manifests,
-  both apps, the website META.version, JSON-LD softwareVersion/dateModified,
-  the website changelog, and this README now point at the same release line.
+- **The WebUI file manager is now a real project workspace.** Create, delete,
+  rename, and move files; receive live tree updates; search fuzzily; sort by
+  size; and see Git decorations without leaving the browser.
+- **Editing is faster without taxing startup.** Open tabs survive refresh,
+  Monaco loads only when a file is opened, and SimpleUI adds syntax highlighting,
+  Tab indentation, and Ctrl/Cmd+S save.
+- **Fallback routing is observable before it is needed.** `/fallback doctor`
+  diagnoses chain and credential health, `/fallback test` simulates rotation,
+  and `/fallback gate` controls the hand-off countdown.
+- **SDD plans can be revised safely.** The guided flow can rewind spec,
+  implementation, and task-review phases, invalidates stale downstream work,
+  and keeps its generated graph aligned with Kanban execution.
+- **TechStack reports policy risk.** License obligations, cross-workspace version
+  drift, cached findings, and compliant SPDX 2.3 package fields now sit beside
+  dependency inventory.
+- **Autonomous execution fails closed more consistently.** Goal phases stop on
+  terminal failures by default, empty plans are rejected, delegate telemetry
+  reflects successful spawns, and context-overflow recovery avoids wasted probes.
+- **Trust boundaries are tighter.** Telegram input is fenced as untrusted data,
+  shell writes to WrongStack state files remain destructive under YOLO, WebUI
+  path launches validate canonical targets, and MCP tool whitelists fail closed.
+- **Long-lived sessions do less idle work and retain fresher context.** Live
+  broadcasts are deduplicated, prompt caches include every rendered input, and
+  Chronicle migration metrics are idempotent and failure-safe.
 
-See the complete [0.306.4 release notes](CHANGELOG.md).
+See the complete [0.307.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -83,7 +88,7 @@ See the complete [0.306.4 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.306.4](#whats-new-in-03064)
+- [What's new in 0.307.0](#whats-new-in-03070)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
