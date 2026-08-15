@@ -12,7 +12,7 @@
  *   );
  */
 
-import { isFinalTurnStopReason, projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
+import { isFinalTurnStopReason, type projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
 import {
   projectChatMessage,
   projectFleetMessage,

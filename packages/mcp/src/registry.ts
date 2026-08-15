@@ -8,7 +8,7 @@ import type {
   MCPAuthorizationStartResult,
   MCPAuthorizationStatus,
 } from './authorization-manager.js';
-import { type ConnectionState, MCPClient, type MCPTool } from './client.js';
+import type { ConnectionState, MCPClient, MCPTool } from './client.js';
 import { MCP_CONSTANTS } from './constants.js';
 import {
   type MCPInsertionPolicy,

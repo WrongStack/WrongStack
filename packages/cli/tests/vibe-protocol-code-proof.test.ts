@@ -42,6 +42,10 @@ class CaptureProvider implements Provider {
     return next;
   }
   async *stream(): AsyncIterable<never> {
+    // This provider is never streamed in these tests; the yield keeps the
+    // generator syntax honest (lint/correctness/useYield) instead of a
+    // plain throw, which cannot appear in a generator without a yield.
+    yield* [] as never[];
     throw new Error('no stream');
   }
 }

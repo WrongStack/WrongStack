@@ -65,8 +65,8 @@ describe('safePath', () => {
   });
 
   it('rejects a path that escapes via parent traversal', () => {
-    const escape = join(projectRoot, '..', 'outside', 'outside.txt');
-    expect(safePath(escape, { projectRoot })).toBeNull();
+    const escapePath = join(projectRoot, '..', 'outside', 'outside.txt');
+    expect(safePath(escapePath, { projectRoot })).toBeNull();
   });
 
   it('returns the lexical path when followSymlinks is false and the target does not exist', () => {

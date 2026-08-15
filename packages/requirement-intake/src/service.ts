@@ -39,9 +39,9 @@ import {
   toProposals,
   validateLlmSuggestionOutput,
 } from './suggestions.js';
-import {
-  type RequirementIntakeStore,
-  type StoreUpdateOptions,
+import type {
+  RequirementIntakeStore,
+  StoreUpdateOptions,
 } from './store.js';
 import type {
   AddAnswerInput,
