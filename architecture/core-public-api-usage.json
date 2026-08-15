@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 947,
-      "typeOnly": 874,
+      "files": 949,
+      "typeOnly": 876,
       "runtimeOrMixed": 234
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -9290,6 +9290,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/boot/vector-memory-sage-sync.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/brain-menu/panel-service.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10605,6 +10611,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/boot/vector-memory-boot-teardown.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/boot/vector-memory-sage-sync.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

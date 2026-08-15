@@ -38,6 +38,7 @@ import {
   TransformersEmbeddingProvider,
   VectorMemoryStore,
 } from '@wrongstack/vector-memory';
+import { startFirstBootSageSync } from './boot/vector-memory-sage-sync.js';
 import {
   adoptResumedProvider,
   registerProviderUtilityTools,
@@ -123,6 +124,18 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
       `vector memory store disabled: ${message} — CLI will run with the SAGE-only surface.`,
     );
     vectorMemoryStore = undefined;
+  }
+
+  // First boot per project: mirror the active SAGE corpus into the vector
+  // store so semantic search starts warm instead of empty. Fire-and-forget
+  // — the first run pays the ONNX model download, and boot must not block
+  // on it. Skips instantly once the sage-sync marker says complete.
+  if (vectorMemoryStore) {
+    void startFirstBootSageSync({
+      store: vectorMemoryStore,
+      memoryStore,
+      logger,
+    });
   }
 
   const skillLoader = container.resolve(TOKENS.SkillLoader);

@@ -40,6 +40,7 @@ const DEFAULT_FILENAME = 'vector-memory.db';
 export class VectorMemoryStore {
   private readonly db: DatabaseSync;
   private readonly dbPath: string;
+  private readonly rootDir: string;
   private readonly provider;
   private closed = false;
 
@@ -59,10 +60,21 @@ export class VectorMemoryStore {
       throw new Error('Vector memory directory must stay inside the project root.');
     }
     fs.mkdirSync(rootDir, { recursive: true });
+    this.rootDir = rootDir;
     this.dbPath = path.join(rootDir, filename);
     this.db = new DatabaseSync(this.dbPath);
     initVectorSchema(this.db);
     this.recordActiveProvider();
+  }
+
+  /**
+   * Absolute path of the store's data directory (the resolved
+   * `opts.directory`, default `.wrongstack/vector-memory`). Hosts use this
+   * to place sidecar state (e.g. the first-boot SAGE sync marker) next to
+   * the db instead of re-deriving the path and drifting from it.
+   */
+  get directory(): string {
+    return this.rootDir;
   }
 
   get activeProviderId(): string {

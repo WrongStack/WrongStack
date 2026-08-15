@@ -21,6 +21,10 @@ export {
   fallbackHashingProvider,
   type SageSyncSource,
 } from './store.js';
+export {
+  createSageSurfaceSyncSource,
+  type SageSurfaceSyncOptions,
+} from './sage-sync-source.js';
 export { createVectorMemoryTools } from './tools.js';
 export type {
   SageSyncReport,
