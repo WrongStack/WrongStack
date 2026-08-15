@@ -55,7 +55,7 @@ export interface VectorMemorySnapshot {
  * is computed on each request — vector memory is small and the cost
  * of a single `SELECT COUNT(*)` is negligible.
  */
-export function snapshotVectorMemory(
+function snapshotVectorMemory(
   store: VectorMemoryStore,
   opts: { projectRoot?: string; modelCacheDir?: string } = {},
 ): VectorMemorySnapshot {

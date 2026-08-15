@@ -16,7 +16,6 @@ import {
   handleVectorMemorySearch,
   handleVectorMemoryStatus,
   handleVectorMemoryStore,
-  snapshotVectorMemory,
 } from '../src/server/http-server/vector-memory-handlers.js';
 
 type MockRes = { writeHead: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> };
@@ -70,25 +69,6 @@ function makeReq(): {
     finish: () => emitter.emit('end'),
   };
 }
-
-describe('snapshotVectorMemory', () => {
-  it('returns the store snapshot with optional paths', () => {
-    const store = makeStore();
-    const snap = snapshotVectorMemory(store as never, {
-      projectRoot: '/proj',
-      modelCacheDir: '/cache',
-    });
-    expect(snap.storePath).toBe('/proj');
-    expect(snap.modelCacheDir).toBe('/cache');
-    expect(snap.stats).toEqual({
-      entries: 2,
-      vectors: 2,
-      providers: ['fake'],
-      modelId: 'fake-model',
-      dimensions: 8,
-    });
-  });
-});
 
 describe('handleVectorMemoryStatus', () => {
   it('responds enabled:false when no store is wired', async () => {
