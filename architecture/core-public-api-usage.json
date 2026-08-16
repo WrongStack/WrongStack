@@ -79,9 +79,9 @@
       "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 232,
+      "files": 233,
       "typeOnly": 123,
-      "runtimeOrMixed": 120
+      "runtimeOrMixed": 121
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -5391,6 +5391,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/webui-server-baseline.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/webui-server-deferred-advance.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

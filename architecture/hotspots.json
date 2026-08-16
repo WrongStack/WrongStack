@@ -123,7 +123,7 @@
       "relativeImports": 10
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 817,
+      "lines": 821,
       "relativeImports": 38
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
@@ -375,7 +375,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 996,
+      "lines": 1038,
       "relativeImports": 10
     },
     "packages/webui/src/stores/viz-store.ts": {
@@ -423,8 +423,8 @@
       "relativeImports": 6
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 815,
-      "relativeImports": 23
+      "lines": 843,
+      "relativeImports": 24
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
       "lines": 949,
