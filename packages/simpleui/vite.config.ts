@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { getVitestMaxWorkers } from '../../vitest.workers';
@@ -67,7 +68,12 @@ export default defineConfig({
     alias: [
       {
         find: /^shiki$/,
-        replacement: new URL('./src/lib/shiki-shim.ts', import.meta.url).pathname.slice(1),
+        // fileURLToPath yields a native ABSOLUTE path on every platform
+        // (D:\… on Windows, /home/… on Linux). The previous
+        // `.pathname.slice(1)` hack stripped the leading slash to appease
+        // Windows, but produced a RELATIVE path on POSIX ("home/runner/…"),
+        // which rolldown could not load and failed the CI build.
+        replacement: fileURLToPath(new URL('./src/lib/shiki-shim.ts', import.meta.url)),
       },
     ],
   },
