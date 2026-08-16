@@ -713,17 +713,6 @@ function extractCandidatesFromCommitSection(section: string): ExtractedTerm[] {
 }
 
 /**
- * Format a term memory's `text` field. Splitting on the em-dash lets
- * the persistence layer find an existing term record without an exact
- * text match — `extractExisting(text.split(' — ')[0])` recovers the
- * canonical term from either side of the dash.
- */
-function composeMemoryText(term: ExtractedTerm): string {
-  if (!term.definition) return term.term;
-  return `${term.term} — ${term.definition.slice(0, 200)}`;
-}
-
-/**
  * Returns true when the term text hits the {@link COMMON_WORD_STOPLIST}.
  * Match is case-insensitive and ignores whitespace.
  */
