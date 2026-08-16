@@ -175,7 +175,7 @@ describeIfSqlite('event mirror handles memory.update correctly', () => {
 
     // Recover with a new (different) text. The recover path internally
     // calls rememberSage-like logic, so `memory.recovered` fires.
-    await surface.recoverSage(created.id, 'rollback');
+    await surface.recoverSage?.(created.id, 'rollback');
     await waitForMirror(created.id, true);
     const recovered = vectorStore.findBySageId(created.id);
     expect(recovered).toBeDefined();

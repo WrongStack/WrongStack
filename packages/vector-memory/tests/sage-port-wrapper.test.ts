@@ -15,6 +15,7 @@ import type { MemoryPort } from '@wrongstack/core/types';
 import {
   SAGE_RETRIEVAL_CAPABILITY,
   SAGE_SURFACE_CAPABILITY,
+  type Sage,
   type SageRetrievalCapability,
   type SageSurface,
 } from '@wrongstack/sage';
@@ -82,7 +83,9 @@ describe('wrapMemoryPortWithVectorRecall', () => {
   });
 
   it('wraps the retrieval searchSage to inject the vector recall', async () => {
-    const searchSage = vi.fn(async () => []);
+    const searchSage = vi.fn(
+      async (_query: string, _opts?: Record<string, unknown>) => [] as Sage[],
+    );
     const port = makeFakePort({
       retrieval: { searchSage, retrieveForPath: async () => [] } as unknown as SageRetrievalCapability,
     });
@@ -105,7 +108,9 @@ describe('wrapMemoryPortWithVectorRecall', () => {
   });
 
   it('wraps the surface searchSage to inject the vector recall', async () => {
-    const searchSage = vi.fn(async () => []);
+    const searchSage = vi.fn(
+      async (_query: string, _opts?: Record<string, unknown>) => [] as Sage[],
+    );
     const port = makeFakePort({
       surface: { searchSage } as unknown as SageSurface,
     });
@@ -126,7 +131,9 @@ describe('wrapMemoryPortWithVectorRecall', () => {
   });
 
   it("honors a caller's explicit `vectorRecall` over the wrapper", async () => {
-    const searchSage = vi.fn(async () => []);
+    const searchSage = vi.fn(
+      async (_query: string, _opts?: Record<string, unknown>) => [] as Sage[],
+    );
     const port = makeFakePort({
       retrieval: { searchSage } as unknown as SageRetrievalCapability,
     });

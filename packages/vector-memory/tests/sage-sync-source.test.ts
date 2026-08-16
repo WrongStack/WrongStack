@@ -14,8 +14,8 @@ import { createSageSurfaceSyncSource } from '../src/sage-sync-source.js';
 
 function fakeSurface(
   pages: Array<{ memories: unknown[]; nextCursor: string | null }>,
-): SageSurface & { calls: unknown[][] } {
-  const calls: unknown[][] = [];
+): SageSurface & { calls: unknown[] } {
+  const calls: unknown[] = [];
   let i = 0;
   const surface = {
     listSagePage: async (options: unknown) => {
@@ -24,7 +24,7 @@ function fakeSurface(
       i++;
       return page;
     },
-  } as unknown as SageSurface & { calls: unknown[][] };
+  } as unknown as SageSurface & { calls: unknown[] };
   surface.calls = calls;
   return surface;
 }

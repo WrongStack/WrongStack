@@ -24,6 +24,7 @@ import type { SageSurface } from '@wrongstack/sage';
 import { SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
 import { VectorMemoryStore } from '@wrongstack/vector-memory';
 
+import type { VectorMemoryStoreOptions } from '@wrongstack/vector-memory';
 import { FakeEmbeddingProvider } from './fake-vector-embedding-provider.js';
 import {
   SAGE_SYNC_MARKER_FILENAME,
@@ -65,7 +66,7 @@ function fakeSagePort(rows: Array<{ id: string; text: string }>): MemoryPort {
     // never reached by the sync path.
   } as unknown as SageSurface;
   return {
-    getCapability: (capability) =>
+    getCapability: (capability: { id: string }) =>
       capability.id === SAGE_SURFACE_CAPABILITY.id ? (surface as never) : undefined,
   } as unknown as MemoryPort;
 }
@@ -125,7 +126,10 @@ describe('first-boot sage sync', () => {
         markerFile(),
         JSON.stringify({ phase: 'complete', completedAt: new Date().toISOString() }),
       );
-      expect(decideWhetherToSync(store, 600_000)).toEqual({ run: false, reason: 'already-complete' });
+      expect(decideWhetherToSync(store, 600_000)).toEqual({
+        run: false,
+        reason: 'already-complete',
+      });
     });
 
     it('own pid → take over (second call in-process)', () => {
@@ -183,7 +187,10 @@ describe('first-boot sage sync', () => {
         markerFile(),
         JSON.stringify({ phase: 'running', startedAt: new Date().toISOString() }),
       );
-      expect(decideWhetherToSync(store, 600_000)).toEqual({ run: false, reason: 'running-unknown-pid' });
+      expect(decideWhetherToSync(store, 600_000)).toEqual({
+        run: false,
+        reason: 'running-unknown-pid',
+      });
       fs.writeFileSync(
         markerFile(),
         JSON.stringify({
@@ -191,7 +198,10 @@ describe('first-boot sage sync', () => {
           startedAt: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
         }),
       );
-      expect(decideWhetherToSync(store, 600_000)).toEqual({ run: true, reason: 'running-marker-stale' });
+      expect(decideWhetherToSync(store, 600_000)).toEqual({
+        run: true,
+        reason: 'running-marker-stale',
+      });
     });
   });
 
@@ -246,9 +256,9 @@ describe('first-boot sage sync', () => {
       });
       expect(result.synced).toBe(false);
       expect(result.reason).toBe('provider-unavailable');
-      expect(
-        fs.existsSync(path.join(probeFailsStore.directory, SAGE_SYNC_MARKER_FILENAME)),
-      ).toBe(false);
+      expect(fs.existsSync(path.join(probeFailsStore.directory, SAGE_SYNC_MARKER_FILENAME))).toBe(
+        false,
+      );
       expect(probeFailsStore.stats().entries).toBe(0);
     } finally {
       probeFailsStore.close();
@@ -299,7 +309,7 @@ describe('first-boot sage sync', () => {
           if (texts.some((t) => t.includes('poison'))) throw new Error('poisoned text');
           return new FakeEmbeddingProvider({ dimensions: 32 }).embed(texts);
         },
-      },
+      } as VectorMemoryStoreOptions['provider'],
       projectRoot,
     });
     try {
@@ -335,7 +345,7 @@ describe('first-boot sage sync', () => {
         async embed() {
           throw new Error('provider down');
         },
-      },
+      } as VectorMemoryStoreOptions['provider'],
       projectRoot,
     });
     try {
@@ -345,9 +355,9 @@ describe('first-boot sage sync', () => {
       });
       expect(result.synced).toBe(false);
       expect(result.reason).toBe('provider-unavailable');
-      expect(
-        fs.existsSync(path.join(unavailableStore.directory, SAGE_SYNC_MARKER_FILENAME)),
-      ).toBe(false);
+      expect(fs.existsSync(path.join(unavailableStore.directory, SAGE_SYNC_MARKER_FILENAME))).toBe(
+        false,
+      );
       expect(unavailableStore.stats().entries).toBe(0);
     } finally {
       unavailableStore.close();

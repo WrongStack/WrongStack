@@ -1,10 +1,7 @@
-import * as os from 'node:os';
 import type { ToolStreamEvent } from '@wrongstack/core/types';
 import { describe, expect, it } from 'vitest';
 import { pwshTool } from '../src/pwsh.js';
 import { mkSandbox, newSignal } from './fixtures.js';
-
-const isWin = os.platform() === 'win32';
 
 describe('pwshTool', () => {
   it('has correct metadata and prompt description', () => {
@@ -19,11 +16,9 @@ describe('pwshTool', () => {
   it('runs a simple PowerShell command and captures output', async () => {
     const sb = await mkSandbox();
     try {
-      const out = await pwshTool.execute(
-        { command: 'Write-Output "hello-from-pwsh"' },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await pwshTool.execute({ command: 'Write-Output "hello-from-pwsh"' }, sb.ctx, {
+        signal: newSignal(),
+      });
       expect(out.exit_code).toBe(0);
       expect(out.output.trim()).toContain('hello-from-pwsh');
       expect(out.timed_out).toBe(false);
@@ -35,11 +30,7 @@ describe('pwshTool', () => {
   it('handles exit codes properly', async () => {
     const sb = await mkSandbox();
     try {
-      const out = await pwshTool.execute(
-        { command: 'exit 42' },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await pwshTool.execute({ command: 'exit 42' }, sb.ctx, { signal: newSignal() });
       expect(out.exit_code).toBe(42);
       expect(out.output).toContain('[exit code: 42]');
     } finally {
@@ -72,7 +63,9 @@ describe('pwshTool', () => {
       }
       const finals = events.filter((e) => e.type === 'final');
       expect(finals).toHaveLength(1);
-      expect(finals[0].type === 'final' && finals[0].output.output).toContain('stream-test');
+      const finalEvent = finals[0];
+      if (finalEvent?.type !== 'final') throw new Error('expected a final stream event');
+      expect((finalEvent.output as { output: string }).output).toContain('stream-test');
     } finally {
       await sb.cleanup();
     }
@@ -87,11 +80,9 @@ describe('pwshTool', () => {
     const sideEffects: unknown[] = [];
     sb.ctx.recordSideEffect = (effect) => sideEffects.push(effect);
     try {
-      await pwshTool.execute(
-        { command: 'Write-Output "side-effect-test"' },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      await pwshTool.execute({ command: 'Write-Output "side-effect-test"' }, sb.ctx, {
+        signal: newSignal(),
+      });
       expect(sideEffects).toHaveLength(1);
       expect(sideEffects[0]).toMatchObject({ toolName: 'pwsh', risk: 'shell' });
     } finally {
@@ -102,11 +93,9 @@ describe('pwshTool', () => {
   it('diagnoses bashisms when a command fails with POSIX syntax', async () => {
     const sb = await mkSandbox();
     try {
-      const out = await pwshTool.execute(
-        { command: 'export FOO=bar; exit 1' },
-        sb.ctx,
-        { signal: newSignal() },
-      );
+      const out = await pwshTool.execute({ command: 'export FOO=bar; exit 1' }, sb.ctx, {
+        signal: newSignal(),
+      });
       expect(out.output).toContain('[wrongstack]');
       expect(out.output).toContain('$env:NAME');
     } finally {

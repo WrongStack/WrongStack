@@ -117,13 +117,16 @@ describe('fuseWithVectorMemory', () => {
 
   it('is fail-open when the vector backend throws', async () => {
     const lexical = [fakeSage('a', 'apple')];
-    const broken = {
+    // SageFusionOptions has no `vectorRecall` channel — the throwing backend
+    // must ride the `store` option so the failure actually exercises the
+    // fail-open catch instead of being silently ignored.
+    const brokenStore = {
       search: async () => {
         throw new Error('vector backend down');
       },
-    };
+    } as unknown as VectorMemoryStore;
     const result = await fuseWithVectorMemory('apple', lexical, {
-      vectorRecall: broken,
+      store: brokenStore,
     });
     expect(result.map((r) => r.memory.id)).toEqual(['a']);
   });

@@ -54,7 +54,11 @@ function makeStore() {
       oldestLastUsedAt: '2026-08-15T20:00:00.000Z',
     })),
     search: vi.fn(async () => [
-      { entry: { id: 'e1', text: 'hello', summary: 'sum', tags: ['a'] }, score: 0.9 },
+      {
+        entry: { id: 'e1', text: 'hello', summary: 'sum', tags: ['a'] },
+        score: 0.9,
+        vector: undefined as Float32Array | undefined,
+      },
     ]),
     remember: vi.fn(async () => ({ id: 'new-1', vector: new Float32Array([1]), dimensions: 8 })),
     forget: vi.fn(async () => true),
@@ -116,14 +120,22 @@ describe('handleVectorMemoryStatus', () => {
 describe('handleVectorMemorySearch', () => {
   it('returns 503 when no store is wired', async () => {
     const res = makeRes();
-    await handleVectorMemorySearch(resAsServer(res), new URL('http://x/search?q=a'), () => undefined);
+    await handleVectorMemorySearch(
+      resAsServer(res),
+      new URL('http://x/search?q=a'),
+      () => undefined,
+    );
     expect(statusCode(res)).toBe(503);
   });
 
   it('returns 400 for a missing query', async () => {
     const res = makeRes();
     const store = makeStore();
-    await handleVectorMemorySearch(resAsServer(res), new URL('http://x/search'), () => store as never);
+    await handleVectorMemorySearch(
+      resAsServer(res),
+      new URL('http://x/search'),
+      () => store as never,
+    );
     expect(statusCode(res)).toBe(400);
     expect(store.search).not.toHaveBeenCalled();
   });
@@ -152,7 +164,11 @@ describe('handleVectorMemorySearch', () => {
     const res = makeRes();
     const store = makeStore();
     store.search.mockRejectedValue(new Error('search failed'));
-    await handleVectorMemorySearch(resAsServer(res), new URL('http://x/search?q=a'), () => store as never);
+    await handleVectorMemorySearch(
+      resAsServer(res),
+      new URL('http://x/search?q=a'),
+      () => store as never,
+    );
     expect(statusCode(res)).toBe(500);
     expect(lastBody(res)).toMatchObject({ error: 'Vector memory search failed' });
   });
@@ -179,8 +195,8 @@ describe('handleVectorMemorySearch', () => {
     const v1 = new Float32Array([1, 0]);
     const v2 = new Float32Array([0, 1]);
     store.search.mockResolvedValue([
-      { entry: { id: 'e1', text: 'one', tags: [] }, score: 0.9, vector: v1 },
-      { entry: { id: 'e2', text: 'two', tags: [] }, score: 0.7, vector: v2 },
+      { entry: { id: 'e1', text: 'one', summary: '', tags: [] }, score: 0.9, vector: v1 },
+      { entry: { id: 'e2', text: 'two', summary: '', tags: [] }, score: 0.7, vector: v2 },
     ]);
     await handleVectorMemorySearch(
       resAsServer(res),
@@ -198,7 +214,11 @@ describe('handleVectorMemorySearch', () => {
     const res = makeRes();
     const store = makeStore();
     store.search.mockResolvedValue([
-      { entry: { id: 'e1', text: 'one', tags: [] }, score: 0.9, vector: new Float32Array([1]) },
+      {
+        entry: { id: 'e1', text: 'one', summary: '', tags: [] },
+        score: 0.9,
+        vector: new Float32Array([1]),
+      },
     ]);
     await handleVectorMemorySearch(
       resAsServer(res),
@@ -433,7 +453,12 @@ describe('handleMemorySearch', () => {
     expect(statusCode(res)).toBe(200);
     const body = lastBody(res) as {
       channel: string;
-      hits: Array<{ id: string; source: string; lexicalScore: number | null; vectorScore: number | null }>;
+      hits: Array<{
+        id: string;
+        source: string;
+        lexicalScore: number | null;
+        vectorScore: number | null;
+      }>;
     };
     expect(body.channel).toBe('breakdown');
     expect(body.hits).toHaveLength(2);

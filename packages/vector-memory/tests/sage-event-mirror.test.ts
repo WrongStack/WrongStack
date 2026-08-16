@@ -113,7 +113,7 @@ describeIfSqlite('subscribeVectorMemoryToSage', () => {
     }
     expect(vectorStore.findBySageId(created.id)).toBeUndefined();
 
-    await surface.recoverSage(created.id, 'rollback');
+    await surface.recoverSage?.(created.id, 'rollback');
     for (let i = 0; i < 50; i++) {
       if (vectorStore.findBySageId(created.id)) break;
       await new Promise((r) => setTimeout(r, 10));

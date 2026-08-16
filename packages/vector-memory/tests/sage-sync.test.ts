@@ -20,9 +20,12 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { MemoryPort } from '@wrongstack/core/types';
-import type { SageSurface } from '@wrongstack/sage';
+import type { EmbeddingProvider, SageSurface } from '@wrongstack/sage';
 import { SAGE_SURFACE_CAPABILITY } from '@wrongstack/sage';
-import { VectorMemoryStore } from '@wrongstack/vector-memory';
+// src-side import: sage-sync.ts types `store` against src/store.js, so a
+// dist-side import creates two nominally-incompatible VectorMemoryStore
+// identities (TS2322/TS2345 x17).
+import { VectorMemoryStore } from '../src/store.js';
 
 import { FakeEmbeddingProvider } from './fake-provider.js';
 import {
@@ -65,7 +68,7 @@ function fakeSagePort(rows: Array<{ id: string; text: string }>): MemoryPort {
     // never reached by the sync path.
   } as unknown as SageSurface;
   return {
-    getCapability: (capability) =>
+    getCapability: (capability: { id: string }) =>
       capability.id === SAGE_SURFACE_CAPABILITY.id ? (surface as never) : undefined,
   } as unknown as MemoryPort;
 }
@@ -76,8 +79,12 @@ function fakeSagePort(rows: Array<{ id: string; text: string }>): MemoryPort {
  * so a test can place the probe outside the failure window and make
  * remember() fail open mid-sync, exactly the real-world "provider died
  * after boot" scenario the completion invariant guards.
+ *
+ * `isAvailable` is deliberately NOT part of sage's EmbeddingProvider
+ * contract; sage-sync.ts consumes it structurally (duck-typed via
+ * storeProvider), so the fixture declares the extension explicitly.
  */
-class FlakyEmbeddingProvider {
+class FlakyEmbeddingProvider implements EmbeddingProvider {
   readonly id = 'flaky-v1';
   readonly dimensions = 32;
   private calls = 0;
@@ -288,20 +295,22 @@ describe('first-boot sage sync', () => {
     // The provider embeds the probe fine but throws for poisoned texts —
     // forever. remember() fails open, reindexAll() cannot fix it either, so
     // the sync must refuse to write `complete` (retry next boot).
-    const poisonedStore = new VectorMemoryStore({
-      provider: {
-        id: 'poisoned-v1',
-        dimensions: 32,
-        async isAvailable() {
-          return true;
-        },
-        async embed(texts: string[]) {
-          if (texts.some((t) => t.includes('poison'))) throw new Error('poisoned text');
-          return new FakeEmbeddingProvider({ dimensions: 32 }).embed(texts);
-        },
+    //
+    // `isAvailable` is not part of the EmbeddingProvider contract — the
+    // sync duck-types it via storeProvider — so the fixture declares the
+    // extension explicitly instead of relying on excess-property inference.
+    const poisoned: EmbeddingProvider & { isAvailable(): Promise<boolean> } = {
+      id: 'poisoned-v1',
+      dimensions: 32,
+      async isAvailable() {
+        return true;
       },
-      projectRoot,
-    });
+      async embed(texts: string[]) {
+        if (texts.some((t) => t.includes('poison'))) throw new Error('poisoned text');
+        return new FakeEmbeddingProvider({ dimensions: 32 }).embed(texts);
+      },
+    };
+    const poisonedStore = new VectorMemoryStore({ provider: poisoned, projectRoot });
     try {
       const result = await startFirstBootSageSync({
         store: poisonedStore,
@@ -325,19 +334,19 @@ describe('first-boot sage sync', () => {
   });
 
   it('defers when the embedding provider reports unavailable (fail-open guard)', async () => {
-    const unavailableStore = new VectorMemoryStore({
-      provider: {
-        id: 'unavailable-v1',
-        dimensions: 8,
-        async isAvailable() {
-          return false;
-        },
-        async embed() {
-          throw new Error('provider down');
-        },
+    // Same isAvailable-extension pattern as above: declared explicitly
+    // because the contract type does not include it.
+    const unavailable: EmbeddingProvider & { isAvailable(): Promise<boolean> } = {
+      id: 'unavailable-v1',
+      dimensions: 8,
+      async isAvailable() {
+        return false;
       },
-      projectRoot,
-    });
+      async embed() {
+        throw new Error('provider down');
+      },
+    };
+    const unavailableStore = new VectorMemoryStore({ provider: unavailable, projectRoot });
     try {
       const result = await startFirstBootSageSync({
         store: unavailableStore,

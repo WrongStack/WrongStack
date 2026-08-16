@@ -16,12 +16,14 @@ import { setupWebuiShutdown } from '../src/server/start-webui-shutdown.js';
 
 describe('setupWebuiShutdown', () => {
   it('registers and runs the complete standalone cleanup lifecycle', async () => {
-    let registered: {
-      flushSession: () => Promise<void>;
-      onPreShutdown: () => Promise<void>;
-      onShutdown: () => Promise<void>;
-      servers: unknown[];
-    } | undefined;
+    let registered:
+      | {
+          flushSession: () => Promise<void>;
+          onPreShutdown: () => Promise<void>;
+          onShutdown: () => Promise<void>;
+          servers: unknown[];
+        }
+      | undefined;
     const unregister = vi.fn();
     mocks.registerShutdown.mockImplementation((options: typeof registered) => {
       registered = options;
@@ -52,7 +54,6 @@ describe('setupWebuiShutdown', () => {
     const runSageSessionHygiene = vi.fn().mockRejectedValue(new Error('sage failed'));
     const disposeMemory = vi.fn().mockRejectedValue(new Error('memory failed'));
     const closeVectorMemory = vi.fn();
-    const disposeMemoryOk = vi.fn().mockResolvedValue(undefined);
     const primary = {};
     const companion = {};
     const secondary = {};
@@ -131,8 +132,12 @@ describe('setupWebuiShutdown', () => {
       return vi.fn();
     });
 
+    const disposeMemoryOk = vi.fn().mockResolvedValue(undefined);
     setupWebuiShutdown({
-      session: { append: vi.fn().mockResolvedValue(undefined), close: vi.fn().mockResolvedValue(undefined) },
+      session: {
+        append: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn().mockResolvedValue(undefined),
+      },
       tokenCounter: { total: vi.fn(() => ({ input: 0, output: 0 })) },
       clients: new Map(),
       httpServer: {} as never,
@@ -155,13 +160,14 @@ describe('setupWebuiShutdown', () => {
       getEternalSubscription: () => null,
       clearEternalSubscription: vi.fn(),
       codebaseIndexing: { dispose: vi.fn() },
-      memoryStore: { dispose: () => Promise.resolve() },
+      memoryStore: { dispose: disposeMemoryOk },
       // vectorMemoryStore: undefined — must be tolerated without throwing.
       vectorMemoryStore: undefined,
       globalConfigPath: 'D:/home/.wrongstack/config.json',
     });
 
     await expect(registered?.onShutdown()).resolves.toBeUndefined();
+    expect(disposeMemoryOk).toHaveBeenCalledTimes(1);
     expect(mocks.unregisterInstance).toHaveBeenCalled();
   });
 });

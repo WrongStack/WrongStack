@@ -100,6 +100,10 @@ export interface SageRetrieverLike {
       requireAllTerms?: boolean;
       sessionId?: string | undefined;
       includeAllSessions?: boolean | undefined;
+      vectorRecall?: import('../retrieval/vector-augment.js').VectorRecallProvider | undefined;
+      vectorRecallWeight?: number | undefined;
+      vectorRecallThreshold?: number | undefined;
+      vectorRecallMinScore?: number | undefined;
     },
   ): Promise<Sage[]>;
   /**
@@ -117,6 +121,10 @@ export interface SageRetrieverLike {
       requireAllTerms?: boolean;
       sessionId?: string | undefined;
       includeAllSessions?: boolean | undefined;
+      vectorRecall?: import('../retrieval/vector-augment.js').VectorRecallProvider | undefined;
+      vectorRecallWeight?: number | undefined;
+      vectorRecallThreshold?: number | undefined;
+      vectorRecallMinScore?: number | undefined;
     },
   ): Promise<
     import('../retrieval/vector-augment.js').VectorAugmentHit[]

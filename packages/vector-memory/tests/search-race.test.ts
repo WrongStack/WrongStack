@@ -140,7 +140,7 @@ describeIfSqlite('runSearchRace', () => {
 
   it('treats vector-side failures as an empty channel without throwing', async () => {
     const surface = getSageSurface(sagePort)!;
-    const created = await surface.rememberSage({ text: 'normal memory', anchors: [] });
+    await surface.rememberSage({ text: 'normal memory', anchors: [] });
 
     // Build a broken store whose `.search()` throws — the race must
     // swallow the failure and return lexical-only results.

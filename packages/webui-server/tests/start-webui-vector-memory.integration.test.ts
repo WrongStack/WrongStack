@@ -33,11 +33,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { HashingEmbeddingProvider } from '@wrongstack/sage';
 import { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { createHttpServer } from '../src/server/http-server.js';
-import {
-  createWsServers,
-  resolvePorts,
-  type ResolvedPorts,
-} from '../src/server/server-runtime.js';
+import { createWsServers, type ResolvedPorts } from '../src/server/server-runtime.js';
 
 interface VectorMemoryStatus {
   enabled: boolean;
@@ -137,14 +133,11 @@ describe('WebUI server → vector-memory wiring', () => {
     const httpServer = createHttpServer({
       host: ports.wsHost,
       port: ports.httpPort,
-      wsToken: 'integration-token',
+      apiToken: 'integration-token',
       publicWsUrl: undefined,
-      publicUrl: undefined,
       requireToken: false,
       globalRoot: projectRoot,
-      globalConfigPath: path.join(projectRoot, '.wrongstack', 'config.json'),
       projectRoot,
-      openBrowser: false,
       watcherMetrics: {
         fileChangesDetected: 0,
         filesProcessed: 0,
@@ -158,12 +151,17 @@ describe('WebUI server → vector-memory wiring', () => {
       onFleetPing: () => undefined,
       onTechStackEvent: () => undefined,
       getLlm: () => undefined,
-      executePackageOperation: () => undefined,
+      executePackageOperation: async () => undefined,
       distDir,
       // The wiring under test — start-webui.ts threads these exact
       // two options into createHttpServer via startHttpServer.
       getVectorMemoryStore: () => store,
-      vectorMemoryModelCacheDir: path.join(projectRoot, '.wrongstack', 'cache', 'transformers-models'),
+      vectorMemoryModelCacheDir: path.join(
+        projectRoot,
+        '.wrongstack',
+        'cache',
+        'transformers-models',
+      ),
     });
     const { wssPrimary } = createWsServers(httpServer, ports, 'integration-token');
     cleanups.push(() => closeWebSocketServer(wssPrimary));
@@ -199,14 +197,11 @@ describe('WebUI server → vector-memory wiring', () => {
     const httpServer = createHttpServer({
       host: ports.wsHost,
       port: ports.httpPort,
-      wsToken: 'integration-token',
+      apiToken: 'integration-token',
       publicWsUrl: undefined,
-      publicUrl: undefined,
       requireToken: false,
       globalRoot: projectRoot,
-      globalConfigPath: path.join(projectRoot, '.wrongstack', 'config.json'),
       projectRoot,
-      openBrowser: false,
       watcherMetrics: {
         fileChangesDetected: 0,
         filesProcessed: 0,
@@ -220,7 +215,7 @@ describe('WebUI server → vector-memory wiring', () => {
       onFleetPing: () => undefined,
       onTechStackEvent: () => undefined,
       getLlm: () => undefined,
-      executePackageOperation: () => undefined,
+      executePackageOperation: async () => undefined,
       distDir,
       // Simulates the read-only-FS fallback path in start-webui.ts.
       getVectorMemoryStore: () => undefined,
@@ -244,15 +239,12 @@ describe('WebUI server → vector-memory wiring', () => {
   // fires) — without the marker, every subsequent boot would re-run the
   // ONNX probe instead of skipping to `already-complete`.
   it('writes the complete marker under <projectRoot>/.wrongstack/vector-memory/', async () => {
-    const {
-      SAGE_SYNC_MARKER_FILENAME,
-      startFirstBootSageSync,
-    } = await import('@wrongstack/vector-memory');
+    const { SAGE_SYNC_MARKER_FILENAME, startFirstBootSageSync } = await import(
+      '@wrongstack/vector-memory'
+    );
     const { HashingEmbeddingProvider, SAGE_SURFACE_CAPABILITY } = await import('@wrongstack/sage');
 
-    const projectRoot = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'webui-vm-sync-marker-'),
-    );
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'webui-vm-sync-marker-'));
     cleanups.push(() => fs.rm(projectRoot, { recursive: true, force: true }));
 
     const realStore = new VectorMemoryStore({
@@ -342,10 +334,7 @@ describe('start-webui.ts source-text wiring', () => {
     // where one of them is moved to a different call.
     const startHttpServerIdx = source.indexOf('startHttpServer({');
     expect(startHttpServerIdx).toBeGreaterThan(-1);
-    const callWindow = source.slice(
-      startHttpServerIdx,
-      startHttpServerIdx + 2_000,
-    );
+    const callWindow = source.slice(startHttpServerIdx, startHttpServerIdx + 2_000);
     expect(callWindow).toContain('getVectorMemoryStore');
     expect(callWindow).toContain('vectorMemoryModelCacheDir');
     // The call must end with `});` (or the closing brace of the call)
@@ -390,26 +379,23 @@ describe('start-webui.ts source-text sync wiring', () => {
  * just enough to let `startFirstBootSageSync` walk its completion
  * invariant without dragging in the full core/container machinery.
  */
-function makeEmptySageMemoryStore(
-  surfaceCapability: { id: string },
-): import('@wrongstack/core/types').MemoryPort {
+function makeEmptySageMemoryStore(surfaceCapability: {
+  id: string;
+}): import('@wrongstack/core/types').MemoryPort {
   // `createSageSurfaceSyncSource` calls `listSagePage` (see
   // packages/vector-memory/src/sage-sync-source.ts:52), not
   // `listActiveMemories`. The shape mirrors what `SqliteMemoryPort`
   // exposes on the SAGE surface capability.
   const surface = {
-    async listSagePage(_opts: {
-      statuses?: string[];
-      limit?: number;
-      cursor?: string;
-    }) {
+    async listSagePage(_opts: { statuses?: string[]; limit?: number; cursor?: string }) {
       return { memories: [], nextCursor: undefined };
     },
   };
   return {
     initialize: async () => undefined,
     health: async () => ({ ok: true }),
-    getCapability: (cap: { id: string }) => (cap === surfaceCapability || cap.id === surfaceCapability.id ? surface : undefined),
+    getCapability: (cap: { id: string }) =>
+      cap === surfaceCapability || cap.id === surfaceCapability.id ? surface : undefined,
     withTraceId: () => makeEmptySageMemoryStore(surfaceCapability),
     dispose: async () => undefined,
   } as unknown as import('@wrongstack/core/types').MemoryPort;
