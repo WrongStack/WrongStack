@@ -12,6 +12,25 @@ import type { StatuslineItem as StatuslineItemSource } from './components/status
 export const SIDEBAR_MISSION_ROWS = 8;
 
 /**
+ * Minimum inner-content width (cols) at which a routed F-panel sidebar twin
+ * renders its `⟦ … ⟧` status pill on the title row's right edge. Below this
+ * threshold the pill is bumped to a second status row so the title (and the
+ * right-side state) can both fit without truncation. Centralized here so the
+ * workspace/task sidebar twins and the SidebarPanelFrame don't drift.
+ */
+export const PILL_MIN_INNER_WIDTH = 22;
+
+/**
+ * Minimum inner-content width (cols) at which a routed F-panel sidebar twin
+ * starts rendering per-row "metric" columns (latency, diff, elapsed, agent
+ * count, relative time). Below this threshold the row keeps its identity
+ * label only; the secondary metric is dropped to preserve the title.
+ * Centralized so the F twins in `sidebar-panels-workspace.tsx` and
+ * `sidebar-panels-task.tsx` stop hand-rolling the literal `24`.
+ */
+export const METRIC_MIN_BODY_WIDTH = 24;
+
+/**
  * Maximum outer height of the /settings picker, including its border. Small
  * terminals still use their smaller available-height budget; large terminals
  * stop growing here instead of allowing the picker to fill the screen.

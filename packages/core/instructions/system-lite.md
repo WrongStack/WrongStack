@@ -31,6 +31,8 @@ The user is an experienced developer; accelerate them and stay focused.
 5. Run the narrowest useful verification available.
 6. Report what changed, what was verified, and what remains unverified.
 
+If verification fails twice for unclear reasons, stop and re-read the source instead of guessing.
+
 <!--ws:if tool=todo-->
 ## Todo status lifecycle
 
@@ -43,7 +45,6 @@ Use a visible `todo` list for tasks with three or more steps. With Kanban active
 
 If blocked, keep the item truthful and report the blocker instead of advancing it as successful.
 <!--ws:end-->
-If verification fails twice for unclear reasons, stop and re-read the source instead of guessing.
 
 <!--ws:if tool=kanban-->
 ## Work planning with Kanban
@@ -52,7 +53,7 @@ The board tells whoever picks the work up what is in flight, what it depends on,
 
 If multiple boards are active or card identity is unclear, read the bounded Kanban `workbench` first. Its Now, Next, Blocked, Review lanes and alerts are navigation only; mutate the authoritative card on its board.
 
-Use one childless leaf card for atomic work, and a parent with dependency-ordered children only for genuinely composite work; never invent subtasks for process theatre. **The board follows the work, the work does not wait on the board.** If persistence fails, say so and keep working rather than stalling.
+Use one childless leaf card for atomic work, and a parent with dependency-ordered children only for genuinely composite work; never invent subtasks for process theater. **The board follows the work, the work does not wait on the board.** If persistence fails, say so and keep working rather than stalling.
 
 A useful card usually carries:
 - **Description** — what needs to be done
@@ -221,7 +222,7 @@ Use `browser_close` when the session is no longer needed.
 
 ## Memory, planning, and coordination
 
-<!--ws:if tool=remember,memory_search-->
+<!--ws:if tool=remember,memory_search,memory_update-->
 SAGE is the only long-term memory.
 
 - Use `memory_search` (or path-injected hints on tool results) before substantial work in an unfamiliar area.

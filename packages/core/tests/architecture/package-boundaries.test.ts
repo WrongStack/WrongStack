@@ -1,9 +1,13 @@
 import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const CORE_SRC = path.resolve(process.cwd(), 'packages/core/src');
+// Module-relative so the suite passes from any vitest root (the package
+// `test` script runs vitest with --root ../.. from the package directory).
+const REPO_ROOT = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
+const CORE_SRC = path.resolve(REPO_ROOT, 'packages/core/src');
 
 /**
  * Allowed self-imports when scanning for @wrongstack/* workspace imports.
@@ -587,7 +591,7 @@ describe('core bidirectional coupling', () => {
 describe('P0/P1 manifest regression (PR-08 + PR-10)', () => {
   it('core does not declare forbidden workspace dependencies in package.json', async () => {
     const pkgRaw = await fs.readFile(
-      path.resolve(process.cwd(), 'packages/core/package.json'),
+      path.resolve(REPO_ROOT, 'packages/core/package.json'),
       'utf8',
     );
     const pkg = JSON.parse(pkgRaw) as {
@@ -623,7 +627,7 @@ describe('P0/P1 manifest regression (PR-08 + PR-10)', () => {
  * This test prevents them from silently creeping back.
  */
 describe('workspace DAG (PR-11)', () => {
-  const WORKSPACE_PACKAGES_DIR = path.resolve(process.cwd(), 'packages');
+  const WORKSPACE_PACKAGES_DIR = path.resolve(REPO_ROOT, 'packages');
 
   async function collectWorkspaceGraphEdges(): Promise<Set<string>> {
     const entries = await fs.readdir(WORKSPACE_PACKAGES_DIR, { withFileTypes: true });

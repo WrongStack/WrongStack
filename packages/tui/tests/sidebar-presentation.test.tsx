@@ -54,7 +54,12 @@ describe('right sidebar presentation', () => {
 
     expect(frame).toContain('MODEL CORE');
     expect(frame).toContain('anthropic/claude-sonnet');
-    expect(frame).toContain('080% CONTEXT LOAD');
+    // The 10-char inline bar takes priority over the full 'CONTEXT LOAD'
+    // label — on a 28-col body the bar + short 'CTX LOAD' label fits but
+    // the full label doesn't. The bar uses 8 filled `0`s + 1 transition
+    // `o` + 1 empty `.` for an 80% reading.
+    expect(frame).toContain('080% CTX LOAD');
+    expect(frame).toContain('[00000000o.]');
     expect(frame).toContain('SYS');
     expect(frame).toContain('TLS');
     expect(frame).toContain('HST');
@@ -76,7 +81,11 @@ describe('right sidebar presentation', () => {
     const frame = lastFrame() ?? '';
 
     expect(frame).toContain('MODEL CORE');
-    expect(frame).toContain('100% CTX LOAD');
+    // On a 16-col body there's no room for a 10-char bar (12 with
+    // brackets) + any label, so both the bar and the label drop. Only
+    // the percentage survives on its own line.
+    expect(frame).toContain('100%');
+    expect(frame).not.toContain('CTX LOAD');
     for (const line of frame.split('\n')) {
       expect(displayWidth(line), line).toBeLessThanOrEqual(16);
     }
@@ -94,9 +103,13 @@ describe('right sidebar presentation', () => {
       />,
     );
     const frame = lastFrame() ?? '';
+    // Collapse whitespace so the assertion is robust against soft-wrap
+    // (e.g. on the narrowest rails, "SIGNAL MATRIX" might span two lines
+    // while still being a contiguous "SIGNAL MATRIX" in the joined frame).
+    const flat = frame.replace(/\s+/g, ' ');
 
     expect(frame).toContain('CONNECTIONS');
-    expect(frame).toContain('SIGNAL MATRIX');
+    expect(flat).toContain('SIGNAL MATRIX');
     expect(frame).toContain('link 01');
     expect(frame).toContain('link 03');
     for (const line of frame.split('\n')) {

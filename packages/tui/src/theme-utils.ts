@@ -71,7 +71,10 @@ export function resolveSyntaxPalette(palette: Theme): SyntaxPalette {
   return out;
 }
 
-export function softColorWithTheme(color: string | undefined, currentTheme: Theme): string | undefined {
+export function softColorWithTheme(
+  color: string | undefined,
+  currentTheme: Theme,
+): string | undefined {
   if (!color) return color;
   if (color.startsWith(SYNTAX_PREFIX)) {
     const role = color.slice(SYNTAX_PREFIX.length) as SyntaxRole;
@@ -83,6 +86,32 @@ export function softColorWithTheme(color: string | undefined, currentTheme: Them
     if (typeof resolved === 'string') return resolved;
   }
   return (pastel as Record<string, string>)[color] ?? color;
+}
+
+/**
+ * Mix two hex colors in linear-light sRGB. `weight` is the fraction of
+ * `colorA` (0..1) — at 0 the result is `colorB`, at 1 it is `colorA`. Used
+ * by the sidebar's card tints to derive per-card "raised" surfaces from
+ * the theme's accent + surface tokens, so each panel feels color-coded
+ * without bloating the theme with extra named tokens.
+ */
+export function mixHexColors(colorA: string, colorB: string, weight: number): string {
+  const a = parseHexColor(colorA);
+  const b = parseHexColor(colorB);
+  if (!a || !b) return colorA;
+  const t = Math.max(0, Math.min(1, weight));
+  const r = Math.round(a[0] * t + b[0] * (1 - t));
+  const g = Math.round(a[1] * t + b[1] * (1 - t));
+  const bl = Math.round(a[2] * t + b[2] * (1 - t));
+  return `#${[r, g, bl].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Parse a `#rrggbb` color into [r, g, b] bytes, or `null` on bad input. */
+function parseHexColor(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = Number.parseInt(m[1]!, 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
 export function detectSupportsBackground(

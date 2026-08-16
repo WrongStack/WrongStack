@@ -11,6 +11,8 @@ export interface UiGlyphs {
   info: string;
   idle: string;
   running: string;
+  /** Paused — a process / phase / mission that is alive but not advancing. */
+  pause: string;
   pending: string;
   folder: string;
   workingDirectory: string;
@@ -152,6 +154,7 @@ const UNICODE: UiGlyphs = Object.freeze({
   info: 'i',
   idle: '●',
   running: '▶',
+  pause: '⏸',
   pending: '○',
   folder: '▣',
   workingDirectory: '⌁',
@@ -319,6 +322,7 @@ const ASCII: UiGlyphs = Object.freeze({
   info: 'i',
   idle: 'o',
   running: '>',
+  pause: '||',
   pending: '.',
   folder: 'd',
   workingDirectory: '/',

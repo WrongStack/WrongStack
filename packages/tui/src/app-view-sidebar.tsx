@@ -1,5 +1,7 @@
 import type React from 'react';
+import { effectiveAgentSwarmPanelMode } from './app-ui-state.js';
 import type { AppViewProps } from './app-view-contract.js';
+import type { usePlanPanelData } from './components/plan-panel.js';
 import { RightSidebar } from './components/sidebar.js';
 import { SidebarContent } from './components/sidebar-content.js';
 import {
@@ -17,16 +19,14 @@ import {
   TodosPanelSidebar,
   WorktreePanelSidebar,
 } from './components/sidebar-panels.js';
-import { Text } from './ink.js';
-import { theme } from './theme.js';
-import { effectiveAgentSwarmPanelMode } from './app-ui-state.js';
-import type { PanelId } from './ui-contracts.js';
 import type {
   useSidebarConnections,
   useSidebarKanban,
   useSidebarProcessList,
 } from './hooks/use-sidebar-panel-data.js';
-import type { usePlanPanelData } from './components/plan-panel.js';
+import { Text } from './ink.js';
+import { theme } from './theme.js';
+import type { PanelId } from './ui-contracts.js';
 
 export interface AppViewSidebarProps {
   host: AppViewProps['host'];
@@ -55,24 +55,41 @@ export function AppViewSidebar({
 }: AppViewSidebarProps): React.ReactElement | null {
   const { agent } = host;
   const { state, activity, environment, statusbar, liveTodos, liveSettings } = runtime;
-  const {
-    processMemory,
-    cpuPercent,
-    cpuHistory,
-    rssHistory,
-    heapHistory,
-    totalMem,
-  } = activity;
+  const { processMemory, cpuPercent, cpuHistory, rssHistory, heapHistory, totalMem } = activity;
   const { liveModel, liveProvider } = environment;
 
   if (sidebarWidth <= 0) return null;
 
+  // `effectiveSidebarRoutes` mirrors `sidebarSlotVisible` exactly: it is the
+  // set of F-key panels that are routed to the sidebar AND win a slot under
+  // SIDEBAR_PANEL_LIMIT this render. `SidebarContent` reads it to skip the
+  // persistent AGENT SWARM / MISSIONS / SESSIONS cards when their F twin is
+  // already mounted above — otherwise the user would see the same data
+  // rendered twice (once as a routed twin, once as a persistent card).
+  // Computed as a single Set here so the call sites stay declarative and
+  // the gating logic lives in one place.
+  const effectiveSidebarRoutes = new Set<PanelId>(
+    (
+      [
+        'projectPicker',
+        'fleet',
+        'agents',
+        'worktree',
+        'plan',
+        'todos',
+        'queue',
+        'processList',
+        'goal',
+        'sessions',
+        'coordinator',
+        'kanban',
+        'connections',
+      ] as const
+    ).filter((id) => sidebarSlotVisible(id)),
+  );
+
   return (
-    <RightSidebar
-      width={sidebarWidth}
-      maxHeight={runtime.termRows}
-      focused={state.sidebarFocused}
-    >
+    <RightSidebar width={sidebarWidth} maxHeight={runtime.termRows} focused={state.sidebarFocused}>
       {/* Per-panel sidebar variants: render only when the panel is
       open AND routed to 'sidebar' AND wins a slot under
       SIDEBAR_PANEL_LIMIT (allocated above). Render order mirrors
@@ -92,8 +109,7 @@ export function AppViewSidebar({
         <FleetPanelSidebar
           entries={statusbar.entriesWithLeader}
           runningCount={
-            Object.values(statusbar.entriesWithLeader).filter((e) => e.status === 'running')
-              .length
+            Object.values(statusbar.entriesWithLeader).filter((e) => e.status === 'running').length
           }
           width={sidebarContentWidth}
         />
@@ -156,13 +172,10 @@ export function AppViewSidebar({
           activePhases={state.goalRun?.runningPhaseIds.length ?? 0}
           completedPhases={
             state.goalRun
-              ? Object.values(state.goalRun.phases).filter((p) => p.status === 'completed')
-                  .length
+              ? Object.values(state.goalRun.phases).filter((p) => p.status === 'completed').length
               : 0
           }
-          phaseNames={
-            state.goalRun ? Object.values(state.goalRun.phases).map((p) => p.name) : []
-          }
+          phaseNames={state.goalRun ? Object.values(state.goalRun.phases).map((p) => p.name) : []}
           elapsedMs={state.goalRun?.elapsedMs ?? 0}
           width={sidebarContentWidth}
         />
@@ -176,10 +189,7 @@ export function AppViewSidebar({
         />
       ) : null}
       {sidebarSlotVisible('connections') ? (
-        <ConnectionsPanelSidebar
-          connections={sidebarConnectionsData}
-          width={sidebarContentWidth}
-        />
+        <ConnectionsPanelSidebar connections={sidebarConnectionsData} width={sidebarContentWidth} />
       ) : null}
       {hiddenSidebarPanelCount > 0 ? (
         <Text color={theme.textMuted}>+{hiddenSidebarPanelCount} more</Text>
@@ -207,6 +217,7 @@ export function AppViewSidebar({
         rssHistory={rssHistory}
         heapHistory={heapHistory}
         totalMem={totalMem}
+        effectiveSidebarRoutes={effectiveSidebarRoutes}
       />
     </RightSidebar>
   );

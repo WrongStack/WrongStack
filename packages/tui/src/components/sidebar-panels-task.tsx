@@ -5,16 +5,13 @@ import type { QueueItem } from '../app-state-core-types.js';
 import { Box, Text } from '../ink.js';
 import { displayWidth } from '../terminal-width.js';
 import { theme } from '../theme.js';
+import { METRIC_MIN_BODY_WIDTH, PILL_MIN_INNER_WIDTH } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
 import type { LiveSessionEntry } from './sessions-panel.js';
 import { isCurrentSession } from './sidebar-content.js';
+import { SidebarPanelFrame, SidebarSectionHeader, trunc } from './sidebar-panel-frame.js';
 import {
-  SidebarPanelCard,
-  SidebarPanelFrame,
-  SidebarSectionHeader,
-  trunc,
-} from './sidebar-panel-frame.js';
-import {
+  EmptyState,
   fmtRelative,
   liveSessionColor,
   liveSessionGlyph,
@@ -39,6 +36,12 @@ export function PlanPanelSidebar({
   width,
 }: PlanPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const total = openCount + inProgressCount + doneCount;
   const ratio = total > 0 ? doneCount / total : 0;
   const ordered = [
@@ -56,12 +59,15 @@ export function PlanPanelSidebar({
       title="PLAN"
       width={width}
       kicker={title ? trunc(title, 20) : undefined}
-      pillLabel={inner >= 22 ? `${Math.round(ratio * 100)}%` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${Math.round(ratio * 100)}%` : undefined}
       pillColor={ratio === 1 && total > 0 ? theme.success : theme.accent}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
-            <Text color={theme.warn}>◐{inProgressCount}</Text>
+            <Text color={theme.warn}>
+              {glyphs.bulletHalf}
+              {inProgressCount}
+            </Text>
             <Text color={theme.textMuted}> </Text>
             <Text color={theme.success}>
               {glyphs.success}
@@ -73,61 +79,61 @@ export function PlanPanelSidebar({
       }
       footer="F5 details"
     >
-      <SidebarPanelCard innerWidth={inner}>
-        <SidebarSectionHeader
-          glyph={glyphs.plan}
-          label="PROGRESS"
-          color={theme.accent}
-          badge={`${Math.round(ratio * 100)}%`}
-          badgeColor={ratio === 1 && total > 0 ? theme.success : theme.accent}
-          innerWidth={inner}
-          pill
-        />
-        <Box marginTop={1}>
-          <Text color={ratio === 1 && total > 0 ? theme.success : theme.accent}>
-            {glyphs.barFull.repeat(Math.round(ratio * inner))}
-          </Text>
-          <Text color={theme.borderSubtle}>
-            {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round(ratio * inner)))}
-          </Text>
-        </Box>
-      </SidebarPanelCard>
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        <SidebarSectionHeader
-          glyph={glyphs.task}
-          label="STEPS"
-          color={theme.textMuted}
-          badge={`${doneCount}/${total}`}
-          innerWidth={inner}
-          pill
-        />
-        {ordered.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no plan items</Text>
-        ) : (
-          ordered.map((item) => {
-            const icon =
-              item.status === 'done' ? glyphs.success : item.status === 'in_progress' ? '◐' : '○';
-            const color =
-              item.status === 'done'
-                ? theme.success
-                : item.status === 'in_progress'
-                  ? theme.warn
-                  : theme.textMuted;
-            return (
-              <SidebarWorklistRow
-                key={item.id}
-                icon={icon}
-                iconColor={color}
-                label={item.title}
-                labelColor={item.status === 'done' ? theme.textMuted : theme.textPrimary}
-                innerWidth={inner}
-                dim={item.status === 'done'}
-                strikethrough={item.status === 'done'}
-              />
-            );
-          })
-        )}
-      </SidebarPanelCard>
+      <SidebarSectionHeader
+        glyph={glyphs.plan}
+        label="PROGRESS"
+        color={theme.accent}
+        badge={`${Math.round(ratio * 100)}%`}
+        badgeColor={ratio === 1 && total > 0 ? theme.success : theme.accent}
+        innerWidth={bodyWidth}
+        pill
+      />
+      <Box marginTop={1}>
+        <Text color={ratio === 1 && total > 0 ? theme.success : theme.accent}>
+          {glyphs.barFull.repeat(Math.round(ratio * inner))}
+        </Text>
+        <Text color={theme.borderSubtle}>
+          {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round(ratio * inner)))}
+        </Text>
+      </Box>
+      <SidebarSectionHeader
+        glyph={glyphs.task}
+        label="STEPS"
+        color={theme.textMuted}
+        badge={`${doneCount}/${total}`}
+        innerWidth={bodyWidth}
+        pill
+      />
+      {ordered.length === 0 ? (
+        <EmptyState message="no plan items" innerWidth={bodyWidth} />
+      ) : (
+        ordered.map((item) => {
+          const icon =
+            item.status === 'done'
+              ? glyphs.success
+              : item.status === 'in_progress'
+                ? glyphs.bulletHalf
+                : glyphs.bulletOpen;
+          const color =
+            item.status === 'done'
+              ? theme.success
+              : item.status === 'in_progress'
+                ? theme.warn
+                : theme.textMuted;
+          return (
+            <SidebarWorklistRow
+              key={item.id}
+              icon={icon}
+              iconColor={color}
+              label={item.title}
+              labelColor={item.status === 'done' ? theme.textMuted : theme.textPrimary}
+              innerWidth={bodyWidth}
+              dim={item.status === 'done'}
+              strikethrough={item.status === 'done'}
+            />
+          );
+        })
+      )}
     </SidebarPanelFrame>
   );
 }
@@ -139,6 +145,12 @@ export interface TodosPanelSidebarProps {
 
 export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const ordered = [...todos]
     .sort((a, b) => {
       const rank = (t: TodoItem) =>
@@ -154,10 +166,10 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
       title="TODOS"
       width={width}
       kicker="mission queue"
-      pillLabel={inner >= 22 ? `${done}/${todos.length}` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${done}/${todos.length}` : undefined}
       pillColor={done === todos.length && todos.length > 0 ? theme.success : theme.accent}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
             <Text color={theme.success}>{done}</Text>
             <Text color={theme.textMuted}>/{todos.length}</Text>
@@ -166,36 +178,38 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
       }
       footer="F6 details"
     >
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        {ordered.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no todos</Text>
-        ) : (
-          ordered.map((t) => {
-            const icon =
-              t.status === 'completed' ? glyphs.success : t.status === 'in_progress' ? '●' : '○';
-            const color =
-              t.status === 'completed'
-                ? theme.success
-                : t.status === 'in_progress'
-                  ? theme.accent
-                  : theme.textMuted;
-            const base = t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
-            const label = t.blockedBy?.[0] ? `${base} — waiting on ${t.blockedBy[0]}` : base;
-            return (
-              <SidebarWorklistRow
-                key={t.id}
-                icon={icon}
-                iconColor={color}
-                label={label}
-                labelColor={t.status === 'completed' ? theme.textMuted : theme.textPrimary}
-                innerWidth={inner}
-                dim={t.status === 'completed'}
-                strikethrough={t.status === 'completed'}
-              />
-            );
-          })
-        )}
-      </SidebarPanelCard>
+      {ordered.length === 0 ? (
+        <EmptyState message="no todos" innerWidth={bodyWidth} />
+      ) : (
+        ordered.map((t) => {
+          const icon =
+            t.status === 'completed'
+              ? glyphs.success
+              : t.status === 'in_progress'
+                ? glyphs.running
+                : glyphs.pending;
+          const color =
+            t.status === 'completed'
+              ? theme.success
+              : t.status === 'in_progress'
+                ? theme.accent
+                : theme.textMuted;
+          const base = t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
+          const label = t.blockedBy?.[0] ? `${base} — waiting on ${t.blockedBy[0]}` : base;
+          return (
+            <SidebarWorklistRow
+              key={t.id}
+              icon={icon}
+              iconColor={color}
+              label={label}
+              labelColor={t.status === 'completed' ? theme.textMuted : theme.textPrimary}
+              innerWidth={bodyWidth}
+              dim={t.status === 'completed'}
+              strikethrough={t.status === 'completed'}
+            />
+          );
+        })
+      )}
     </SidebarPanelFrame>
   );
 }
@@ -207,6 +221,12 @@ export interface QueuePanelSidebarProps {
 
 export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   return (
     <SidebarPanelFrame
       accent={theme.accent}
@@ -214,10 +234,10 @@ export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): Rea
       title="QUEUE"
       width={width}
       kicker="queued prompts"
-      pillLabel={inner >= 22 ? `${items.length}` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${items.length}` : undefined}
       pillColor={items.length > 0 ? theme.warn : theme.textMuted}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text color={items.length > 0 ? theme.warn : theme.textMuted} bold>
             {items.length}
           </Text>
@@ -225,24 +245,22 @@ export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): Rea
       }
       footer="F7 details"
     >
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        {items.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} queue is empty</Text>
-        ) : (
-          items
-            .slice(0, 10)
-            .map((item, i) => (
-              <SidebarWorklistRow
-                key={item.id ?? i}
-                icon={`${i + 1}.`}
-                iconColor={theme.textMuted}
-                label={item.displayText}
-                labelColor={theme.textPrimary}
-                innerWidth={inner}
-              />
-            ))
-        )}
-      </SidebarPanelCard>
+      {items.length === 0 ? (
+        <EmptyState message="queue is empty" innerWidth={bodyWidth} />
+      ) : (
+        items
+          .slice(0, 10)
+          .map((item, i) => (
+            <SidebarWorklistRow
+              key={item.id ?? i}
+              icon={`${i + 1}.`}
+              iconColor={theme.textMuted}
+              label={item.displayText}
+              labelColor={theme.textPrimary}
+              innerWidth={bodyWidth}
+            />
+          ))
+      )}
     </SidebarPanelFrame>
   );
 }
@@ -261,6 +279,12 @@ export function ProcessListPanelSidebar({
   width,
 }: ProcessListPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   return (
     <SidebarPanelFrame
       accent={theme.monitor.fleet}
@@ -268,10 +292,10 @@ export function ProcessListPanelSidebar({
       title="PROCESSES"
       width={width}
       kicker="running"
-      pillLabel={inner >= 22 ? `${activeCount}/${totalCount}` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${activeCount}/${totalCount}` : undefined}
       pillColor={activeCount > 0 ? theme.success : theme.textMuted}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
             <Text color={theme.success}>{activeCount}</Text>
             <Text color={theme.textMuted}>/{totalCount}</Text>
@@ -280,34 +304,42 @@ export function ProcessListPanelSidebar({
       }
       footer="F8 details"
     >
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        {processes.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no processes</Text>
-        ) : (
-          processes.slice(0, 10).map((p, i) => {
-            const showPid = inner >= 24;
-            const pidLabel = String(p.pid);
-            return (
-              <Box key={`${p.pid}-${i}`} flexDirection="row">
-                <Text color={theme.success}>{glyphs.running}</Text>
-                <Text color={theme.textPrimary}> </Text>
-                <Text wrap="truncate">
-                  {trunc(
-                    p.name,
-                    Math.max(4, inner - 2 - (showPid ? displayWidth(pidLabel) + 1 : 0)),
-                  )}
-                </Text>
-                {showPid ? (
-                  <>
-                    <Box flexGrow={1} />
-                    <Text color={theme.textMuted}>{pidLabel}</Text>
-                  </>
-                ) : null}
-              </Box>
-            );
-          })
-        )}
-      </SidebarPanelCard>
+      {processes.length === 0 ? (
+        <EmptyState message="no processes" innerWidth={bodyWidth} />
+      ) : (
+        processes.slice(0, 10).map((p, i) => {
+          // Vary the status glyph by `p.status` so a glance at the row
+          // answers "is this process healthy?" without reading the name.
+          // `running` → ▶ (success), `idle`/`stopped` → ● (muted),
+          // `failed`/anything-else → × (error).
+          const status = (p.status ?? '').toLowerCase();
+          const statusVisual =
+            status === 'running'
+              ? { glyph: glyphs.running, color: theme.success }
+              : status === 'idle' || status === 'stopped' || status === 'paused'
+                ? { glyph: glyphs.idle, color: theme.textMuted }
+                : status === 'failed'
+                  ? { glyph: glyphs.failure, color: theme.error }
+                  : { glyph: glyphs.running, color: theme.success };
+          const showPid = inner >= METRIC_MIN_BODY_WIDTH;
+          const pidLabel = String(p.pid);
+          return (
+            <Box key={`${p.pid}-${i}`} flexDirection="row">
+              <Text color={statusVisual.color}>{statusVisual.glyph}</Text>
+              <Text color={theme.textPrimary}> </Text>
+              <Text wrap="truncate">
+                {trunc(p.name, Math.max(4, inner - 2 - (showPid ? displayWidth(pidLabel) + 1 : 0)))}
+              </Text>
+              {showPid ? (
+                <>
+                  <Box flexGrow={1} />
+                  <Text color={theme.textMuted}>{pidLabel}</Text>
+                </>
+              ) : null}
+            </Box>
+          );
+        })
+      )}
     </SidebarPanelFrame>
   );
 }
@@ -324,15 +356,25 @@ export function GoalPanelSidebar({
   width,
 }: GoalPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const displayGoal = goal ? goal.refinedGoal || goal.goal : '';
-  const stateIcon =
-    goal?.goalState === 'active'
-      ? '🔄'
-      : goal?.goalState === 'paused'
-        ? '⏸'
-        : goal?.goalState === 'completed'
-          ? '✅'
-          : '⏹';
+  // Goal state glyph — use the shared `glyphs.*` language instead of emoji
+  // so the panel reads the same as the rest of the rail. `glyphs.pause`
+  // (⏸) replaces the hand-rolled `⏸` and `glyphs.idle` (●) replaces `⏹`.
+  const stateVisual = goal
+    ? goal.goalState === 'active'
+      ? { glyph: glyphs.running, color: theme.warn }
+      : goal.goalState === 'paused'
+        ? { glyph: glyphs.pause, color: theme.textMuted }
+        : goal.goalState === 'completed'
+          ? { glyph: glyphs.success, color: theme.success }
+          : { glyph: glyphs.idle, color: theme.textMuted }
+    : { glyph: glyphs.idle, color: theme.textMuted };
   const progress = Math.min(
     100,
     Math.max(0, typeof goal?.progress === 'number' ? goal.progress : 0),
@@ -346,62 +388,62 @@ export function GoalPanelSidebar({
       title="GOAL"
       width={width}
       kicker="mission control"
-      pillLabel={inner >= 22 && goal ? `${stateIcon} ${goal.goalState.toUpperCase()}` : undefined}
+      pillLabel={
+        inner >= PILL_MIN_INNER_WIDTH && goal
+          ? `${stateVisual.glyph} ${goal.goalState.toUpperCase()}`
+          : undefined
+      }
       pillColor={coordinatorRunning ? theme.success : theme.textMuted}
       right={
-        inner < 22 && goal ? (
+        inner < PILL_MIN_INNER_WIDTH && goal ? (
           <Text color={coordinatorRunning ? theme.success : theme.textMuted} bold>
-            {stateIcon} {goal.goalState.toUpperCase()}
+            {stateVisual.glyph} {goal.goalState.toUpperCase()}
           </Text>
         ) : null
       }
       footer="F9 details"
     >
       {!goal ? (
-        <SidebarPanelCard innerWidth={inner}>
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no mission set</Text>
-        </SidebarPanelCard>
+        <EmptyState message="no mission set" innerWidth={bodyWidth} />
       ) : (
         <>
-          <SidebarPanelCard innerWidth={inner}>
-            <SidebarSectionHeader
-              glyph={glyphs.goal}
-              label="MISSION"
-              color={theme.brand}
-              innerWidth={inner}
-            />
-            <Text color={theme.textPrimary} bold wrap="truncate">
-              {trunc(displayGoal, inner - 2)}
+          <SidebarSectionHeader
+            glyph={glyphs.goal}
+            label="MISSION"
+            color={theme.brand}
+            innerWidth={bodyWidth}
+          />
+          <Text color={theme.textPrimary} bold wrap="truncate">
+            {trunc(displayGoal, inner - 2)}
+          </Text>
+          <SidebarSectionHeader
+            glyph={glyphs.success}
+            label="PROGRESS"
+            color={theme.success}
+            badge={`${Math.round(progress)}%`}
+            innerWidth={bodyWidth}
+            pill
+          />
+          <Box marginTop={1}>
+            <Text color={theme.success}>
+              {glyphs.barFull.repeat(Math.round((progress / 100) * inner))}
             </Text>
-          </SidebarPanelCard>
-          <SidebarPanelCard innerWidth={inner}>
-            <SidebarSectionHeader
-              glyph={glyphs.success}
-              label="PROGRESS"
-              color={theme.success}
-              badge={`${Math.round(progress)}%`}
-              innerWidth={inner}
-              pill
-            />
-            <Box marginTop={1}>
-              <Text color={theme.success}>
-                {glyphs.barFull.repeat(Math.round((progress / 100) * inner))}
-              </Text>
-              <Text color={theme.borderSubtle}>
-                {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round((progress / 100) * inner)))}
-              </Text>
-            </Box>
-          </SidebarPanelCard>
-          <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-            <SidebarSectionHeader
-              glyph={glyphs.task}
-              label="DELIVERABLES"
-              color={theme.warn}
-              badge={`${doneCount}/${deliverables.length}`}
-              innerWidth={inner}
-              pill
-            />
-            {deliverables.slice(0, 6).map((d, i) => {
+            <Text color={theme.borderSubtle}>
+              {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round((progress / 100) * inner)))}
+            </Text>
+          </Box>
+          <SidebarSectionHeader
+            glyph={glyphs.task}
+            label="DELIVERABLES"
+            color={theme.warn}
+            badge={`${doneCount}/${deliverables.length}`}
+            innerWidth={bodyWidth}
+            pill
+          />
+          {deliverables.length === 0 ? (
+            <EmptyState message="no deliverables" innerWidth={bodyWidth} />
+          ) : (
+            deliverables.slice(0, 6).map((d, i) => {
               const done = /^\[[x✓]\]|✅|\(done\)/i.test(d);
               return (
                 <SidebarWorklistRow
@@ -410,13 +452,13 @@ export function GoalPanelSidebar({
                   iconColor={done ? theme.success : theme.textMuted}
                   label={d.replace(/^\[[ x✓]\]\s*/, '')}
                   labelColor={done ? theme.textMuted : theme.textSecondary}
-                  innerWidth={inner}
+                  innerWidth={bodyWidth}
                   dim={done}
                   strikethrough={done}
                 />
               );
-            })}
-          </SidebarPanelCard>
+            })
+          )}
         </>
       )}
     </SidebarPanelFrame>
@@ -439,6 +481,12 @@ export function SessionsPanelSidebar({
   width,
 }: SessionsPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const nowRef = now ?? Date.now();
   const live = liveSessions?.slice(0, 3) ?? [];
   const resume = resumeSessions?.slice(0, 3) ?? [];
@@ -450,30 +498,30 @@ export function SessionsPanelSidebar({
       title="SESSIONS"
       width={width}
       kicker="live + resume"
-      pillLabel={inner >= 22 ? `${total}` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${total}` : undefined}
       pillColor={total > 0 ? theme.success : theme.textMuted}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text color={total > 0 ? theme.success : theme.textMuted}>{total}</Text>
         ) : undefined
       }
       footer="F10 details"
     >
       {live.length > 0 ? (
-        <SidebarPanelCard innerWidth={inner}>
+        <>
           <SidebarSectionHeader
             glyph={glyphs.peers}
             label="LIVE"
             color={theme.success}
             badge={`${live.length}`}
-            innerWidth={inner}
+            innerWidth={bodyWidth}
             pill
           />
           {live.map((s) => {
             const isCurrent = isCurrentSession(s.sessionId, currentSessionId);
-            const icon = isCurrent ? '●' : liveSessionGlyph(s.status);
+            const icon = isCurrent ? glyphs.bullet : liveSessionGlyph(s.status);
             const color = liveSessionColor(s.status);
-            const showAgentCount = inner >= 24;
+            const showAgentCount = inner >= METRIC_MIN_BODY_WIDTH;
             return (
               <Box key={s.sessionId} flexDirection="row">
                 <Text color={color}>{icon}</Text>
@@ -490,20 +538,20 @@ export function SessionsPanelSidebar({
               </Box>
             );
           })}
-        </SidebarPanelCard>
+        </>
       ) : null}
       {resume.length > 0 ? (
-        <SidebarPanelCard innerWidth={inner} marginBottom={0}>
+        <>
           <SidebarSectionHeader
             glyph={glyphs.save}
             label="RESUME"
             color={theme.textMuted}
             badge={`${resume.length}`}
-            innerWidth={inner}
+            innerWidth={bodyWidth}
             pill
           />
           {resume.map((rs) => {
-            const showRelativeTime = inner >= 24;
+            const showRelativeTime = inner >= METRIC_MIN_BODY_WIDTH;
             const rel = showRelativeTime
               ? fmtRelative(rs.lastActivityAt ?? rs.endedAt, nowRef)
               : '';
@@ -548,13 +596,9 @@ export function SessionsPanelSidebar({
               </Box>
             );
           })}
-        </SidebarPanelCard>
+        </>
       ) : null}
-      {total === 0 ? (
-        <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no sessions</Text>
-        </SidebarPanelCard>
-      ) : null}
+      {total === 0 ? <EmptyState message="no sessions" innerWidth={bodyWidth} /> : null}
     </SidebarPanelFrame>
   );
 }
@@ -573,6 +617,12 @@ export function KanbanPanelSidebar({
   width,
 }: KanbanPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   return (
     <SidebarPanelFrame
       accent={theme.accent}
@@ -580,10 +630,10 @@ export function KanbanPanelSidebar({
       title="KANBAN"
       width={width}
       kicker="board"
-      pillLabel={inner >= 22 ? `${totalActive} active` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${totalActive} active` : undefined}
       pillColor={totalActive > 0 ? theme.warn : theme.textMuted}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
             <Text color={theme.success}>
               {glyphs.success}
@@ -595,48 +645,53 @@ export function KanbanPanelSidebar({
       }
       footer="F12 details"
     >
-      <SidebarPanelCard innerWidth={inner}>
-        <SidebarSectionHeader
-          glyph={glyphs.fleet}
-          label="COLUMNS"
-          color={theme.accent}
-          innerWidth={inner}
-        />
-        {columns.slice(0, 5).map((c, i) => (
-          <Box key={i} flexDirection="row">
-            <Text color={theme.textSecondary} wrap="truncate">
-              {trunc(c.name, inner - 6)}
-            </Text>
-            <Box flexGrow={1} />
-            <Text color={theme.textMuted}>{c.count}</Text>
-          </Box>
-        ))}
-      </SidebarPanelCard>
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        <SidebarSectionHeader
-          glyph={glyphs.running}
-          label="ACTIVE"
-          color={theme.warn}
-          innerWidth={inner}
-          pill
-        />
-        {activeCardTitles.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no active cards</Text>
-        ) : (
-          activeCardTitles
-            .slice(0, 6)
-            .map((title, i) => (
-              <SidebarWorklistRow
-                key={i}
-                icon="●"
-                iconColor={theme.warn}
-                label={title}
-                labelColor={theme.textPrimary}
-                innerWidth={inner}
-              />
-            ))
-        )}
-      </SidebarPanelCard>
+      <SidebarSectionHeader
+        glyph={glyphs.fleet}
+        label="COLUMNS"
+        color={theme.accent}
+        innerWidth={bodyWidth}
+      />
+      {columns.slice(0, 5).map((c, i) => (
+        <Box key={i} flexDirection="row">
+          <Text color={theme.textSecondary} wrap="truncate">
+            {trunc(c.name, inner - 6)}
+          </Text>
+          <Box flexGrow={1} />
+          <Text color={theme.textMuted}>{c.count}</Text>
+        </Box>
+      ))}
+      <SidebarSectionHeader
+        glyph={glyphs.running}
+        label="ACTIVE"
+        color={theme.warn}
+        innerWidth={bodyWidth}
+        pill
+      />
+      {activeCardTitles.length === 0 ? (
+        <EmptyState message="no active cards" innerWidth={bodyWidth} />
+      ) : (
+        // Vary the ACTIVE row icon by position: oldest entry (index 0) gets
+        // `glyphs.pending` (○) so the user can tell at a glance which card
+        // has been blocking the longest; subsequent entries get
+        // `glyphs.warning` (!) so a glance down the rail reads as "newest
+        // warning". The 1-based index also lives in the icon slot so a
+        // long title can be told apart from its peers.
+        activeCardTitles.slice(0, 6).map((title, i) => {
+          const icon = i === 0 ? glyphs.pending : glyphs.warning;
+          const iconColor = i === 0 ? theme.textMuted : theme.warn;
+          const label = i === 0 ? title : `${i + 1}. ${title}`;
+          return (
+            <SidebarWorklistRow
+              key={i}
+              icon={icon}
+              iconColor={iconColor}
+              label={label}
+              labelColor={theme.textPrimary}
+              innerWidth={bodyWidth}
+            />
+          );
+        })
+      )}
     </SidebarPanelFrame>
   );
 }

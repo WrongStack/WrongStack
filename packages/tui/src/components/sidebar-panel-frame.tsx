@@ -11,28 +11,34 @@
 // The frame has natural height and may be followed by the persistent
 // `SidebarContent`; the outer shell clips their combined stack.
 //
-// Modernization notes (v2):
-//   * The old single-row `● ICON TITLE ╾` is replaced with a two-line banner
-//     that opens with a corner-bracketed "shelf" then prints the title in
-//     bold caps with a kicker subtitle on a second line. The right side
-//     hosts a "status pill" (⟦ live n ⟧) in the accent color so the user can
-//     read the panel's state at a glance.
-//   * Section headers now have a stronger icon "node" + dotted leader, and
-//     optional right-aligned pill. Sub-cards (SidebarPanelCard) support a
-//     vertical accent rail that mirrors the panel's accent color, so a
-//     glance down the rail reads as a "status stripe" rather than a wall
-//     of un-differentiated boxes.
-//   * Stat rows, dividers, and pills are extracted into small reusable
-//     helpers (SidebarStatusPill, SidebarStatRow, SidebarDivider) so the
-//     routed panels can compose them without re-implementing the spacing
-//     every time.
+// Modernization notes (v3):
+//   * The chrome (corners + sides + body chrome) is now the shared
+//     `Card` iskelet from `./sidebar-card.tsx`, so the routed F twins
+//     and the persistent cards render the same family of frame. The
+//     `SidebarPanelFrame` wrapper composes the title row, status row,
+//     optional kicker, body, and footer on top of that shared `Card`.
+//   * The `SidebarPanelCard` export is preserved as an alias for the
+//     shared `Card` (with `capped` defaulted) so existing test fixtures
+//     and direct callers (e.g. `card-frame-integrity.test.tsx`) keep
+//     working without changes.
+//   * Title chrome by rail width:
+//       wide  (>=18) → `╭─ ICON TITLE ── ... ── ⟦pill⟧ ╮`
+//       mid   (>=10) → `▎ ICON TITLE ── ... ──⟦pill⟧`
+//       narrow(<10)  → `▎ICON TITLE···⟦pill⟧` (pill is truncated; if there
+//                      really is no room, the pill is dropped and the
+//                      full title is preserved).
+//     The pill is the panel's "live state" signal — when there is no room
+//     for both, the title is preserved and the pill is rendered (or the
+//     status is bumped to a second line) rather than truncating the title.
 
-import type React from 'react';
+import type { ReactNode } from 'react';
+import React from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
 import { displayWidth, truncateDisplay } from '../terminal-width.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
+import { Card, type CardProps } from './sidebar-card.js';
 
 export interface SidebarPanelFrameProps {
   /** Accent color for the rail, title, and separator. */
@@ -62,8 +68,15 @@ export interface SidebarPanelFrameProps {
   pillColor?: string | undefined;
   /** Footer content (key hints, footer note). Renders under the body. */
   footer?: React.ReactNode | undefined;
-  /** Body content. The outer RightSidebar owns viewport clipping. */
-  children?: React.ReactNode | undefined;
+  /**
+   * Body content. Pass a function to receive the Card's *body content width*
+   * (the inset width after the Card's optional `│` sides and body padding,
+   * not the outer card width). This mirrors the `Card` render prop and lets
+   * `SidebarSectionHeader` / `SidebarStatRow` / `SidebarWorklistRow` size
+   * their dotted leaders and metric columns to the actual available width
+   * instead of over-shooting into the Card's side bars.
+   */
+  children?: React.ReactNode | ((bodyWidth: number) => React.ReactNode) | undefined;
 }
 
 /**
@@ -132,6 +145,12 @@ export function SidebarStatRow({
   const gap = 1;
   // 2-cell minimum dot leader keeps the row from collapsing at narrow widths.
   const fill = Math.max(0, innerWidth - leftW - displayWidth(value) - railW - gap);
+  // Note: we deliberately do NOT set `width={innerWidth}` on the Box here.
+  // The Card's per-row wrapper already constrains the middle slot to
+  // `innerWidth - 2` (the space between the two `│` bars). If we re-set
+  // the full innerWidth, the Box would overflow the middle slot by 2
+  // columns and visually cover the right `│` bar. Letting Yoga size the
+  // Box to its content keeps it inside the middle slot.
   return (
     <Box flexDirection="row" width={innerWidth}>
       {accent ? (
@@ -139,9 +158,11 @@ export function SidebarStatRow({
           {glyphs.railMid}
         </Text>
       ) : null}
-      <Text color={theme.textMuted}>{left}</Text>
+      <Text color={theme.textMuted} wrap="truncate">
+        {left}
+      </Text>
       <Text color={theme.borderSubtle}>{glyphs.dividerDot.repeat(Math.max(2, fill))}</Text>
-      <Text color={valueMuted ? theme.textMuted : color} bold={!valueMuted}>
+      <Text color={valueMuted ? theme.textMuted : color} bold={!valueMuted} wrap="truncate">
         {value}
       </Text>
     </Box>
@@ -259,69 +280,38 @@ export function SidebarSectionHeader({
   );
 }
 
-/** A raised content band sized for a narrow rail. Section headers provide the
- * accent, while the lifted surface groups related data without spending any
- * horizontal columns on nested chrome.
- *
- * Modernized (v2):
- *   * Subtle top + bottom hairline that visually "caps" the card, so
- *     adjacent cards read as stacked plates rather than glued together.
- *   * Optional `accent` rail that paints the top + bottom hairlines in
- *     the panel's accent color so the panel's "state" reads at a glance.
- *   * The body itself keeps the existing raised-surface treatment
- *     (theme.surfaceRaised) when the terminal supports background colors. */
-export function SidebarPanelCard({
-  innerWidth,
-  marginBottom = 1,
-  accent,
-  capped = true,
-  children,
-}: {
-  innerWidth: number;
-  marginBottom?: number | undefined;
-  /** When set, paints the top + bottom cap in the panel's accent color. */
-  accent?: string | undefined;
-  /** Draw a top + bottom hairline around the card body. */
-  capped?: boolean | undefined;
-  children: React.ReactNode;
-}): React.ReactElement {
-  return (
-    <Box
-      flexDirection="column"
-      width={innerWidth}
-      marginBottom={marginBottom}
-      {...(theme.supportsBackground ? { backgroundColor: theme.surfaceRaised } : {})}
-    >
-      {capped ? (
-        <Box width={innerWidth}>
-          <Text color={accent ?? theme.borderSubtle}>
-            {glyphs.dividerDash.repeat(Math.max(0, innerWidth))}
-          </Text>
-        </Box>
-      ) : null}
-      {children}
-      {capped ? (
-        <Box width={innerWidth}>
-          <Text color={accent ?? theme.borderSubtle}>
-            {glyphs.dividerDash.repeat(Math.max(0, innerWidth))}
-          </Text>
-        </Box>
-      ) : null}
-    </Box>
-  );
+/**
+ * A thin wrapper around the shared `Card` iskelet from
+ * `./sidebar-card.tsx`. Preserved as a public export so existing test
+ * fixtures and direct callers (e.g. `card-frame-integrity.test.tsx`) keep
+ * working without changes. The new shared `Card` carries an extra `capped`
+ * flag (defaulting to `true` for the legacy semantic of always drawing
+ * the top + bottom cap); routed F-twin callers that want a hairline
+ * divider instead of a corner frame should use the shared `Card` directly
+ * with `capped={false}`.
+ */
+export function SidebarPanelCard(props: CardProps): React.ReactElement {
+  return <Card {...props} />;
 }
 
 /**
  * SidebarPanelFrame — the standard chrome wrapper used by every sidebar
- * panel variant. It renders an accent-led title banner and telemetry strip
- * inside the existing RightSidebar shell, followed by a natural-height body
- * and optional footer. Avoiding a second border preserves scarce horizontal
- * space; the outer shell clips the combined routed-panel and persistent
- * -content stack.
+ * panel variant. It composes a title row + optional status row + optional
+ * kicker + body on top of the shared `Card` iskelet from
+ * `./sidebar-card.tsx` (the same family the persistent MODEL CORE /
+ * PROMPT CACHE / SYSTEM / AGENT SWARM / MISSIONS / SESSIONS cards use),
+ * followed by an optional footer rendered below the card. The outer
+ * RightSidebar still owns the border + padding + viewport clipping so
+ * the routed frame's corners sit flush with the persistent cards down
+ * the rail.
  *
- * v2: the title banner is now two lines (corner-bracketed shelf + bold caps
- * title with kicker), and the right-side state is wrapped in a capsuled
- * pill so the user can spot panel state at a glance.
+ * v3: the chrome is delegated to the shared `Card` so the routed F twins
+ * and the persistent cards read as one family at a glance. The previous
+ * hand-rolled "borderless" title chrome is gone — the Card corners are
+ * the only top/bottom rule. The `▎` rail at the title row's left edge is
+ * preserved as the panel's accent signal (matching the persistent cards'
+ * stage banner style), and the `│` sides from the Card body supply the
+ * "framed" look on rails wide enough to afford them.
  */
 export function SidebarPanelFrame({
   accent,
@@ -335,8 +325,8 @@ export function SidebarPanelFrame({
   footer,
   children,
 }: SidebarPanelFrameProps): React.ReactElement {
-  // RightSidebar already owns the rail border and padding. This routed frame is
-  // deliberately borderless so a 16-column slot keeps all 16 columns for data.
+  // RightSidebar already owns the rail border and padding. The routed frame
+  // is full-width and relies on the shared Card for its corners / sides.
   const innerWidth = Math.max(8, width);
   const showKicker = !!kicker && innerWidth >= 24;
   const pillTone = pillColor ?? accent;
@@ -346,83 +336,75 @@ export function SidebarPanelFrame({
     right
   );
 
-  // Title chrome by rail width:
-  //   wide  (>=24) → `╭─ ICON TITLE ── ... ── ⟦pill⟧ ╮`
-  //   mid   (>=18) → `▎ ICON TITLE ── ... ──⟦pill⟧`
-  //   narrow(<18)  → `▎ICON TITLE···⟦pill⟧` (pill is truncated; if there
-  //                  really is no room, the pill is dropped and the
-  //                  full title is preserved).
-  // The pill is the panel's "live state" signal — when there is no room
-  // for both, the title is preserved and the pill is rendered (or the
-  // status is bumped to a second line) rather than truncating the title.
-  const useCorners = innerWidth >= 18;
-  // Reserve columns for chrome: corners (2), pill (variable), title
-  // "ICON TITLE" up to innerWidth. We use a budget that prioritizes the
-  // title and only eats into the pill when forced.
-  const chrome = useCorners ? 2 : 0;
-  const titleBudget = Math.max(4, innerWidth - chrome);
   return (
     <Box flexDirection="column" width={width} flexShrink={0}>
-      {/* Signal-stage title: corner-bracketed shelf framing the panel. */}
-      <Box height={1} width={innerWidth}>
-        {useCorners ? (
-          <Text color={accent} bold>
-            {`${glyphs.cornerTL}${glyphs.dividerDash} `}
-          </Text>
-        ) : (
-          <Text color={accent} bold>
-            {glyphs.railHeavy}
-          </Text>
+      <Card innerWidth={innerWidth} accent={accent}>
+        {(bodyWidth) => (
+          <Box flexDirection="column" width={innerWidth}>
+            {/* Title row: rail glyph + icon + title (+ optional right pill).
+                Wide rails (>= 22) absorb the pill on the title row's right
+                edge so we don't waste a row; narrower rails bump the pill
+                to a second status row beneath the title. */}
+            <Box flexDirection="row" width={innerWidth}>
+              <Text color={accent} bold>
+                {glyphs.railHeavy}
+              </Text>
+              <Text> </Text>
+              <Text color={accent} bold wrap="truncate">
+                {icon}
+              </Text>
+              <Text> </Text>
+              <Text color={accent} bold wrap="truncate">
+                {trunc(
+                  title,
+                  Math.max(
+                    2,
+                    innerWidth -
+                      4 -
+                      (effectivePill && innerWidth >= 22
+                        ? displayWidth(getPillLabel(effectivePill)) + 2
+                        : 0),
+                  ),
+                )}
+              </Text>
+              {effectivePill && innerWidth >= 22 ? (
+                <>
+                  <Box flexGrow={1} />
+                  {effectivePill}
+                </>
+              ) : null}
+            </Box>
+            {/* Status row: pill (when not on title) + kicker (when wide). */}
+            {effectivePill && innerWidth < 22 ? (
+              <Box flexDirection="row" width={innerWidth}>
+                <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
+                <Text> </Text>
+                <Text wrap="truncate">{effectivePill}</Text>
+                <Box flexGrow={1} />
+                <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
+              </Box>
+            ) : null}
+            {showKicker ? (
+              <Box flexDirection="row" width={innerWidth}>
+                <Text color={theme.textMuted} dimColor wrap="truncate">
+                  {trunc(kicker ?? '', Math.max(1, innerWidth - 2))}
+                </Text>
+              </Box>
+            ) : null}
+            {/* Body: the panel's sectioned content (no nested cards). The
+                bodyWidth comes from the Card's render prop so section
+                headers, stat rows, and worklist rows size their dotted
+                leaders to the *inset* content width (after the Card's
+                optional `│` sides and body padding), not the outer
+                Card width. */}
+            <Box flexDirection="column" width={innerWidth}>
+              {typeof children === 'function' ? children(bodyWidth) : children}
+            </Box>
+          </Box>
         )}
-        <Text color={accent} bold wrap="truncate">
-          {trunc(`${icon} ${title}`, titleBudget)}
-        </Text>
-        <Box flexGrow={1} />
-        {useCorners ? (
-          <Text color={accent} bold>
-            {glyphs.cornerTR}
-          </Text>
-        ) : null}
-      </Box>
-      {/* Status row: pill (when supplied) + kicker (when wide). On wide
-          rails the pill sits on the title row's right edge instead so we
-          don't waste a row; the kicker takes that line. */}
-      {effectivePill && innerWidth >= 22 ? (
-        <Box height={1} width={innerWidth}>
-          <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
-          <Text> </Text>
-          <Text wrap="truncate">{effectivePill}</Text>
-          <Box flexGrow={1} />
-          <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
-        </Box>
-      ) : null}
-      {effectivePill && innerWidth < 22 ? (
-        <Box height={1} width={innerWidth}>
-          <Text color={theme.borderSubtle}>{glyphs.dividerDash}</Text>
-          <Text> </Text>
-          <Text wrap="truncate">{effectivePill}</Text>
-        </Box>
-      ) : null}
-      {showKicker ? (
-        <Box height={1} width={innerWidth}>
-          <Text color={theme.textMuted} dimColor wrap="truncate">
-            {trunc(kicker ?? '', Math.max(1, innerWidth - 2))}
-          </Text>
-        </Box>
-      ) : null}
-      <Box height={1} width={innerWidth}>
-        <Text color={accent} bold>
-          {glyphs.railHeavy}
-        </Text>
-        <Text color={theme.borderSubtle}>
-          {glyphs.dividerDash.repeat(Math.max(0, innerWidth - 1))}
-        </Text>
-      </Box>
-
-      <Box flexDirection="column">{children}</Box>
-
+      </Card>
       {footer ? (
-        <Box height={1} marginTop={1}>
+        <Box height={1} marginTop={1} width={innerWidth}>
           <Text color={theme.borderSubtle} wrap="truncate" dimColor>
             {`${glyphs.dividerDiamond} `}
             {footer}
@@ -431,6 +413,25 @@ export function SidebarPanelFrame({
       ) : null}
     </Box>
   );
+}
+
+/**
+ * Render the pill's inner label as a string for the title-row width budget.
+ * The `effectivePill` is either a `SidebarStatusPill` element OR a custom
+ * `right` node. We only need the label when the pill is the standard
+ * `SidebarStatusPill`, which is the common case; for custom `right` nodes
+ * we conservatively budget 0 cols (the title truncates to the available
+ * width without the pill eating into it).
+ */
+function getPillLabel(pill: ReactNode): string {
+  if (
+    React.isValidElement(pill) &&
+    (pill.type as { displayName?: string; name?: string })?.name === 'SidebarStatusPill'
+  ) {
+    const props = pill.props as { label?: string };
+    return props.label ?? '';
+  }
+  return '';
 }
 
 /**

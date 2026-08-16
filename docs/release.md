@@ -6,14 +6,21 @@ Step-by-step guide for publishing a WrongStack release.
 
 ## Pre-release
 
+- [ ] If source changes made committed projections stale, refresh them first with `pnpm release:prepare` and review the diff before committing. It regenerates, in order:
+  - the provider catalog (`providers:catalog:write`)
+  - the plugin manifest projections (`plugins:manifest:write`)
+  - Core API snapshots, hotspot and test-only-export baselines, and `docs/reports` architecture evidence (`check:architecture:sync` + `report:architecture`)
+  - the test-skip budget (`test-skips:sync` — review required; every skip declaration change is a policy decision)
 - [ ] Run the repository release gate: `pnpm release:check`
   - `pnpm audit --audit-level=moderate`
-  - dependency-ordered `pnpm build`
+  - dependency-ordered `pnpm build`, then `pnpm check:dist-hidden`
+  - `pnpm providers:catalog:check` and `pnpm plugins:manifest:check` (each rebuilds its own package first)
   - `node scripts/check-package-contracts.mjs`
-  - `pnpm check:node-pty`
-  - `pnpm lint:i18n`
-  - `pnpm typecheck`
-  - `pnpm test`
+  - `pnpm write:build-manifest` → `pnpm check:build-manifest`
+  - `pnpm check:architecture`, `pnpm check:test-inventory`, `pnpm check:test-skips`
+  - `pnpm check:node-pty`, `pnpm check:rulebook`, `pnpm lint:i18n`
+  - `pnpm typecheck:only` (the workspace build from the top of the gate is reused; no rebuild) and `pnpm check:test-types`
+  - `pnpm test:coverage`
 - [ ] Run the exact publish dry-run script: `pnpm release:dry`
 - [ ] Run `pnpm lint` separately if the release policy requires the full Biome lint; it is not currently part of `release:check`.
 

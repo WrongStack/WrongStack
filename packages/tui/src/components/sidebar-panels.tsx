@@ -1,4 +1,5 @@
 export {
+  EmptyState,
   fleetStatusVisual,
   fmtRelative,
   fmtShortDuration,
@@ -6,35 +7,33 @@ export {
   liveSessionGlyph,
   SidebarWorklistRow,
 } from './sidebar-panels-shared.js';
-
 export {
-  type AgentsPanelSidebarProps,
-  AgentsPanelSidebar,
-  type ConnectionsPanelSidebarProps,
-  ConnectionsPanelSidebar,
-  type CoordinatorPanelSidebarProps,
-  CoordinatorPanelSidebar,
-  type FleetPanelSidebarProps,
-  FleetPanelSidebar,
-  type ProjectPickerSidebarProps,
-  ProjectPickerSidebar,
-  type WorktreePanelSidebarProps,
-  WorktreePanelSidebar,
-} from './sidebar-panels-workspace.js';
-
-export {
-  type GoalPanelSidebarProps,
   GoalPanelSidebar,
-  type KanbanPanelSidebarProps,
+  type GoalPanelSidebarProps,
   KanbanPanelSidebar,
-  type PlanPanelSidebarProps,
+  type KanbanPanelSidebarProps,
   PlanPanelSidebar,
-  type ProcessListPanelSidebarProps,
+  type PlanPanelSidebarProps,
   ProcessListPanelSidebar,
-  type QueuePanelSidebarProps,
+  type ProcessListPanelSidebarProps,
   QueuePanelSidebar,
-  type SessionsPanelSidebarProps,
+  type QueuePanelSidebarProps,
   SessionsPanelSidebar,
-  type TodosPanelSidebarProps,
+  type SessionsPanelSidebarProps,
   TodosPanelSidebar,
+  type TodosPanelSidebarProps,
 } from './sidebar-panels-task.js';
+export {
+  AgentsPanelSidebar,
+  type AgentsPanelSidebarProps,
+  ConnectionsPanelSidebar,
+  type ConnectionsPanelSidebarProps,
+  CoordinatorPanelSidebar,
+  type CoordinatorPanelSidebarProps,
+  FleetPanelSidebar,
+  type FleetPanelSidebarProps,
+  ProjectPickerSidebar,
+  type ProjectPickerSidebarProps,
+  WorktreePanelSidebar,
+  type WorktreePanelSidebarProps,
+} from './sidebar-panels-workspace.js';

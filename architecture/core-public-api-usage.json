@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 287,
-      "typeOnly": 230,
+      "files": 290,
+      "typeOnly": 233,
       "runtimeOrMixed": 74
     },
     "@wrongstack/core/agent-catalog": {
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 232,
+      "files": 233,
       "typeOnly": 123,
-      "runtimeOrMixed": 120
+      "runtimeOrMixed": 121
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -1628,6 +1628,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/tests/debug-dump.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/tests/entry-next-steps.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1647,6 +1653,18 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/tests/helpers/app-journey-harness.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/tests/sidebar-cache-frame.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/tests/sidebar-card-unification.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5391,6 +5409,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/webui-server-baseline.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/webui-server-deferred-advance.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

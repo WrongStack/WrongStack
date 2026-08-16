@@ -534,7 +534,14 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
       const body = JSON.parse(JSON.stringify(validAction)) as Record<string, unknown>;
       row.mutate(body);
       const res = await postAction(mailId, body, auth());
-      expect(res.status, 'authenticated identity supplies readerId').toBe(200);
+      // Body in the message: the handler has four fast non-200 exits (401/403
+      // auth, 404 project-resolution, 404 unknown mailId, 500 daemon IPC) and
+      // this test flakes only under full-suite load, where the body is the only
+      // evidence that survives.
+      expect(
+        res.status,
+        `authenticated identity supplies readerId; body=${JSON.stringify(res.json)}`,
+      ).toBe(200);
     } finally {
       await cleanup();
     }

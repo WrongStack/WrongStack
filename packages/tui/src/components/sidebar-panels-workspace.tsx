@@ -3,16 +3,16 @@ import type { FleetEntry } from '../app-state.js';
 import { Box, Text } from '../ink.js';
 import { displayWidth } from '../terminal-width.js';
 import { theme } from '../theme.js';
-import type { WorktreeRow } from '../ui-contracts.js';
+import { METRIC_MIN_BODY_WIDTH, PILL_MIN_INNER_WIDTH, type WorktreeRow } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
 import type { ProjectPickerItem } from './project-picker.js';
 import {
-  SidebarPanelCard,
   SidebarPanelFrame,
   SidebarSectionHeader,
+  SidebarStatRow,
   trunc,
 } from './sidebar-panel-frame.js';
-import { fleetStatusVisual, fmtShortDuration } from './sidebar-panels-shared.js';
+import { EmptyState, fleetStatusVisual, fmtShortDuration } from './sidebar-panels-shared.js';
 
 export interface ProjectPickerSidebarProps {
   items: readonly ProjectPickerItem[];
@@ -32,6 +32,12 @@ export function ProjectPickerSidebar({
   width,
 }: ProjectPickerSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const projectCount = items.filter((item) => item.kind === 'project').length;
   const selectableCount = items.filter((item) => item.key !== '__divider__').length;
   const start = Math.max(0, Math.min(selected - 2, Math.max(0, items.length - 5)));
@@ -43,82 +49,82 @@ export function ProjectPickerSidebar({
       title="PROJECT"
       width={width}
       kicker={filter ? trunc(filter, 20) : 'switcher'}
-      pillLabel={inner >= 22 ? `${projectCount} projects` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${projectCount} projects` : undefined}
       pillColor={projectCount > 0 ? theme.brand : theme.textMuted}
-      right={inner < 22 ? <Text color={theme.textMuted}>{projectCount} projects</Text> : undefined}
+      right={
+        inner < PILL_MIN_INNER_WIDTH ? (
+          <Text color={theme.textMuted}>{projectCount} projects</Text>
+        ) : undefined
+      }
     >
-      <SidebarPanelCard innerWidth={inner}>
-        <SidebarSectionHeader
-          glyph={glyphs.folder}
-          label="CURRENT"
-          color={theme.brand}
-          badge={`${selectableCount} choices`}
-          innerWidth={inner}
-          pill
-        />
-        {currentProject ? (
-          <Text color={theme.textPrimary} bold wrap="truncate">
-            {trunc(currentProject, inner - 2)}
-          </Text>
-        ) : (
-          <Text color={theme.textMuted}>—</Text>
-        )}
-      </SidebarPanelCard>
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        <SidebarSectionHeader
-          glyph={glyphs.folder}
-          label="CHOICES"
-          color={theme.textMuted}
-          badge={start > 0 || start + visible.length < items.length ? '↑↓' : undefined}
-          innerWidth={inner}
-          pill
-        />
-        {visible.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no matching projects</Text>
-        ) : (
-          visible.map((item, offset) => {
-            const index = start + offset;
-            const isSelected = index === selected;
-            if (item.key === '__divider__') {
-              return (
-                <Text key={`${item.key}-${index}`} color={theme.textMuted}>
-                  {'─'.repeat(inner)}
-                </Text>
-              );
-            }
-            const icon = item.kind === 'project' ? glyphs.folder : glyphs.task;
-            const accent = item.kind === 'project' ? theme.brand : theme.warn;
+      <SidebarSectionHeader
+        glyph={glyphs.folder}
+        label="CURRENT"
+        color={theme.brand}
+        badge={`${selectableCount} choices`}
+        innerWidth={bodyWidth}
+        pill
+      />
+      {currentProject ? (
+        <Text color={theme.textPrimary} bold wrap="truncate">
+          {trunc(currentProject, inner - 2)}
+        </Text>
+      ) : (
+        <Text color={theme.textMuted}>—</Text>
+      )}
+      <SidebarSectionHeader
+        glyph={glyphs.folder}
+        label="CHOICES"
+        color={theme.textMuted}
+        badge={start > 0 || start + visible.length < items.length ? '↑↓' : undefined}
+        innerWidth={bodyWidth}
+        pill
+      />
+      {visible.length === 0 ? (
+        <EmptyState message="no matching projects" innerWidth={bodyWidth} />
+      ) : (
+        visible.map((item, offset) => {
+          const index = start + offset;
+          const isSelected = index === selected;
+          if (item.key === '__divider__') {
             return (
-              <Box key={item.key} flexDirection="column">
-                <Box flexDirection="row">
-                  <Text color={isSelected ? accent : theme.textMuted}>
-                    {isSelected ? glyphs.railMid : ' '}
-                  </Text>
-                  <Text color={accent}> {icon} </Text>
-                  <Text
-                    color={isSelected ? theme.textPrimary : theme.textSecondary}
-                    bold={isSelected}
-                    wrap="truncate"
-                  >
-                    {trunc(item.label, Math.max(4, inner - 6))}
-                  </Text>
-                </Box>
-                {item.subtitle ? (
-                  <Text color={theme.textMuted}>
-                    {' '}
-                    {glyphs.treeLast} {trunc(item.subtitle, Math.max(4, inner - 4))}
-                  </Text>
-                ) : null}
-              </Box>
+              <Text key={`${item.key}-${index}`} color={theme.textMuted}>
+                {'─'.repeat(inner)}
+              </Text>
             );
-          })
-        )}
-        {hint ? (
-          <Text color={theme.warn}>
-            {glyphs.warning} {trunc(hint, inner - 2)}
-          </Text>
-        ) : null}
-      </SidebarPanelCard>
+          }
+          const icon = item.kind === 'project' ? glyphs.folder : glyphs.task;
+          const accent = item.kind === 'project' ? theme.brand : theme.warn;
+          return (
+            <Box key={item.key} flexDirection="column">
+              <Box flexDirection="row">
+                <Text color={isSelected ? accent : theme.textMuted}>
+                  {isSelected ? glyphs.railMid : ' '}
+                </Text>
+                <Text color={accent}> {icon} </Text>
+                <Text
+                  color={isSelected ? theme.textPrimary : theme.textSecondary}
+                  bold={isSelected}
+                  wrap="truncate"
+                >
+                  {trunc(item.label, Math.max(4, inner - 6))}
+                </Text>
+              </Box>
+              {item.subtitle ? (
+                <Text color={theme.textMuted}>
+                  {' '}
+                  {glyphs.treeLast} {trunc(item.subtitle, Math.max(4, inner - 4))}
+                </Text>
+              ) : null}
+            </Box>
+          );
+        })
+      )}
+      {hint ? (
+        <Text color={theme.warn}>
+          {glyphs.warning} {trunc(hint, inner - 2)}
+        </Text>
+      ) : null}
     </SidebarPanelFrame>
   );
 }
@@ -135,6 +141,12 @@ export function FleetPanelSidebar({
   width,
 }: FleetPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const all = Object.values(entries);
   const leader = all.find((e) => e.id === 'leader');
   const subagents = all.filter((e) => e !== leader && e.status === 'running');
@@ -146,35 +158,39 @@ export function FleetPanelSidebar({
       title="AGENT SWARM"
       width={width}
       kicker="fleet"
-      pillLabel={inner >= 22 ? (runningCount > 0 ? `${runningCount} LIVE` : 'IDLE') : undefined}
+      pillLabel={
+        inner >= PILL_MIN_INNER_WIDTH
+          ? runningCount > 0
+            ? `${runningCount} LIVE`
+            : 'IDLE'
+          : undefined
+      }
       pillColor={runningCount > 0 ? theme.success : theme.textMuted}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text color={runningCount > 0 ? theme.success : theme.textMuted} bold>
             {runningCount > 0 ? `${runningCount} LIVE` : 'IDLE'}
           </Text>
         ) : undefined
       }
     >
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        {rows.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no active agents</Text>
-        ) : (
-          rows.map((e) => {
-            const v = fleetStatusVisual(e.status);
-            const name = trunc(e.name || e.id, inner - 8);
-            return (
-              <Box key={e.id} flexDirection="row">
-                <Text color={v.color}>{v.glyph}</Text>
-                <Text color={e.status === 'running' ? theme.textPrimary : theme.textSecondary}>
-                  {' '}
-                  {name}
-                </Text>
-              </Box>
-            );
-          })
-        )}
-      </SidebarPanelCard>
+      {rows.length === 0 ? (
+        <EmptyState message="no active agents" innerWidth={bodyWidth} />
+      ) : (
+        rows.map((e) => {
+          const v = fleetStatusVisual(e.status);
+          const name = trunc(e.name || e.id, inner - 8);
+          return (
+            <Box key={e.id} flexDirection="row">
+              <Text color={v.color}>{v.glyph}</Text>
+              <Text color={e.status === 'running' ? theme.textPrimary : theme.textSecondary}>
+                {' '}
+                {name}
+              </Text>
+            </Box>
+          );
+        })
+      )}
     </SidebarPanelFrame>
   );
 }
@@ -193,6 +209,12 @@ export function AgentsPanelSidebar({
   width,
 }: AgentsPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const all = Object.values(entries);
   const running = all.filter((e) => e.status === 'running');
   const done = all.filter((e) => e.status === 'success');
@@ -207,7 +229,7 @@ export function AgentsPanelSidebar({
       width={width}
       kicker="live ops"
       pillLabel={
-        inner >= 22
+        inner >= PILL_MIN_INNER_WIDTH
           ? `${running.length}${done.length > 0 ? ` ${glyphs.success}${done.length}` : ''}${
               failed.length > 0 ? ` !${failed.length}` : ''
             }`
@@ -217,7 +239,7 @@ export function AgentsPanelSidebar({
         failed.length > 0 ? theme.error : running.length > 0 ? theme.success : theme.textMuted
       }
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
             <Text color={theme.warn}>{running.length}</Text>
             <Text color={theme.textMuted}> </Text>
@@ -233,63 +255,59 @@ export function AgentsPanelSidebar({
       }
       footer={`F3 details ${glyphs.dividerDiamond} $${totalCost.toFixed(4)}`}
     >
-      <SidebarPanelCard innerWidth={inner} marginBottom={1}>
-        {hotAgent ? (
-          <>
-            <SidebarSectionHeader
-              glyph={glyphs.warning}
-              label="HOTTEST"
-              color={theme.warn}
-              innerWidth={inner}
-            />
-            <Text color={theme.textPrimary} wrap="truncate" bold>
-              {trunc(hotAgent.name || hotAgent.id, inner - 4)}
-            </Text>
-            <Text color={theme.textMuted} wrap="truncate">
-              {trunc(
-                `ctx ${Math.round((hotAgent.ctxPct ?? 0) * 100)}% ${glyphs.dividerDiamond} ${hotAgent.currentTool?.name ?? 'idle'}`,
-                inner,
-              )}
-            </Text>
-          </>
-        ) : (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no live agents</Text>
-        )}
-      </SidebarPanelCard>
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        <SidebarSectionHeader
-          glyph={glyphs.fleet}
-          label="RUNNING"
-          color={theme.monitor.agents}
-          badge={`${running.length}`}
-          badgeColor={theme.success}
-          innerWidth={inner}
-          pill
-        />
-        {live.map((e) => {
-          const v = fleetStatusVisual(e.status);
-          const elapsed = nowTick - e.startedAt;
-          const showElapsed = inner >= 24;
-          const elapsedLabel = showElapsed ? fmtShortDuration(elapsed) : '';
-          const name = trunc(
-            e.name || e.id,
-            Math.max(4, inner - 2 - (showElapsed ? displayWidth(elapsedLabel) + 1 : 0)),
-          );
-          return (
-            <Box key={e.id} flexDirection="row">
-              <Text color={v.color}>{v.glyph}</Text>
-              <Text color={theme.textPrimary}> </Text>
-              <Text wrap="truncate">{name}</Text>
-              {showElapsed ? (
-                <>
-                  <Box flexGrow={1} />
-                  <Text color={theme.textMuted}>{elapsedLabel}</Text>
-                </>
-              ) : null}
-            </Box>
-          );
-        })}
-      </SidebarPanelCard>
+      {hotAgent ? (
+        <>
+          <SidebarSectionHeader
+            glyph={glyphs.warning}
+            label="HOTTEST"
+            color={theme.warn}
+            innerWidth={bodyWidth}
+          />
+          <Text color={theme.textPrimary} wrap="truncate" bold>
+            {trunc(hotAgent.name || hotAgent.id, inner - 4)}
+          </Text>
+          <Text color={theme.textMuted} wrap="truncate">
+            {trunc(
+              `ctx ${Math.round((hotAgent.ctxPct ?? 0) * 100)}% ${glyphs.dividerDiamond} ${hotAgent.currentTool?.name ?? 'idle'}`,
+              inner,
+            )}
+          </Text>
+        </>
+      ) : (
+        <EmptyState message="no live agents" innerWidth={bodyWidth} />
+      )}
+      <SidebarSectionHeader
+        glyph={glyphs.fleet}
+        label="RUNNING"
+        color={theme.monitor.agents}
+        badge={`${running.length}`}
+        badgeColor={theme.success}
+        innerWidth={bodyWidth}
+        pill
+      />
+      {live.map((e) => {
+        const v = fleetStatusVisual(e.status);
+        const elapsed = nowTick - e.startedAt;
+        const showElapsed = inner >= METRIC_MIN_BODY_WIDTH;
+        const elapsedLabel = showElapsed ? fmtShortDuration(elapsed) : '';
+        const name = trunc(
+          e.name || e.id,
+          Math.max(4, inner - 2 - (showElapsed ? displayWidth(elapsedLabel) + 1 : 0)),
+        );
+        return (
+          <Box key={e.id} flexDirection="row">
+            <Text color={v.color}>{v.glyph}</Text>
+            <Text color={theme.textPrimary}> </Text>
+            <Text wrap="truncate">{name}</Text>
+            {showElapsed ? (
+              <>
+                <Box flexGrow={1} />
+                <Text color={theme.textMuted}>{elapsedLabel}</Text>
+              </>
+            ) : null}
+          </Box>
+        );
+      })}
     </SidebarPanelFrame>
   );
 }
@@ -323,6 +341,12 @@ export function WorktreePanelSidebar({
   width,
 }: WorktreePanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const list = Object.values(worktrees);
   const active = list.filter(
     (w) => w.status === 'active' || w.status === 'committing' || w.status === 'merging',
@@ -337,13 +361,13 @@ export function WorktreePanelSidebar({
       width={width}
       kicker="isolation"
       pillLabel={
-        inner >= 22
+        inner >= PILL_MIN_INNER_WIDTH
           ? `${active} act ${glyphs.success}${merged}${failed > 0 ? ` !${failed}` : ''}`
           : undefined
       }
       pillColor={failed > 0 ? theme.error : active > 0 ? theme.warn : theme.textMuted}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
             <Text color={theme.warn}>A{active}</Text>
             <Text color={theme.textMuted}> </Text>
@@ -359,36 +383,34 @@ export function WorktreePanelSidebar({
       }
       footer="F4 details"
     >
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        {list.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no worktrees</Text>
-        ) : (
-          list.slice(0, 10).map((w) => {
-            const v = worktreeStatusVisual(w.status);
-            const diff = `+${w.insertions}/-${w.deletions}`;
-            const showDiff = inner >= 24;
-            const rowChrome = displayWidth(v.glyph) + 1;
-            const diffWidth = showDiff ? displayWidth(diff) + 1 : 0;
-            const branch = trunc(
-              w.branch.replace(/^wstack\/ap\//, ''),
-              Math.max(4, inner - rowChrome - diffWidth),
-            );
-            return (
-              <Box key={w.branch} flexDirection="row">
-                <Text color={v.color}>{v.glyph}</Text>
-                <Text color={theme.textPrimary}> </Text>
-                <Text wrap="truncate">{branch}</Text>
-                {showDiff ? (
-                  <>
-                    <Box flexGrow={1} />
-                    <Text color={theme.textMuted}>{diff}</Text>
-                  </>
-                ) : null}
-              </Box>
-            );
-          })
-        )}
-      </SidebarPanelCard>
+      {list.length === 0 ? (
+        <EmptyState message="no worktrees" innerWidth={bodyWidth} />
+      ) : (
+        list.slice(0, 10).map((w) => {
+          const v = worktreeStatusVisual(w.status);
+          const diff = `+${w.insertions}/-${w.deletions}`;
+          const showDiff = inner >= METRIC_MIN_BODY_WIDTH;
+          const rowChrome = displayWidth(v.glyph) + 1;
+          const diffWidth = showDiff ? displayWidth(diff) + 1 : 0;
+          const branch = trunc(
+            w.branch.replace(/^wstack\/ap\//, ''),
+            Math.max(4, inner - rowChrome - diffWidth),
+          );
+          return (
+            <Box key={w.branch} flexDirection="row">
+              <Text color={v.color}>{v.glyph}</Text>
+              <Text color={theme.textPrimary}> </Text>
+              <Text wrap="truncate">{branch}</Text>
+              {showDiff ? (
+                <>
+                  <Box flexGrow={1} />
+                  <Text color={theme.textMuted}>{diff}</Text>
+                </>
+              ) : null}
+            </Box>
+          );
+        })
+      )}
     </SidebarPanelFrame>
   );
 }
@@ -411,6 +433,12 @@ export function CoordinatorPanelSidebar({
   width,
 }: CoordinatorPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   return (
     <SidebarPanelFrame
       accent={theme.brand}
@@ -418,45 +446,50 @@ export function CoordinatorPanelSidebar({
       title="COORDINATOR"
       width={width}
       kicker="autonomous"
-      pillLabel={inner >= 22 ? (running ? '● RUNNING' : '○ IDLE') : undefined}
+      pillLabel={
+        inner >= PILL_MIN_INNER_WIDTH
+          ? running
+            ? `${glyphs.running} RUNNING`
+            : `${glyphs.idle} IDLE`
+          : undefined
+      }
       pillColor={running ? theme.success : theme.textMuted}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text color={running ? theme.success : theme.textMuted} bold>
-            {running ? '● RUNNING' : '○ IDLE'}
+            {running ? `${glyphs.running} RUNNING` : `${glyphs.idle} IDLE`}
           </Text>
         ) : undefined
       }
       footer="F11 details"
     >
-      <SidebarPanelCard innerWidth={inner}>
-        <SidebarSectionHeader
-          glyph={glyphs.running}
-          label="PHASES"
-          color={theme.brand}
-          badge={`${activePhases}/${activePhases + completedPhases}`}
-          innerWidth={inner}
-          pill
-        />
-        {phaseNames.length === 0 ? (
-          <Text color={theme.textMuted}>{glyphs.dividerDot} no active phases</Text>
-        ) : (
-          phaseNames.slice(0, 5).map((name, i) => (
-            <Box key={i} flexDirection="row">
-              <Text color={theme.accent}>●</Text>
-              <Text color={theme.textPrimary} wrap="truncate">
-                {' '}
-                {trunc(name, inner - 4)}
-              </Text>
-            </Box>
-          ))
-        )}
-      </SidebarPanelCard>
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        <Text color={theme.textMuted}>
-          {glyphs.dividerDot} elapsed {fmtShortDuration(elapsedMs)}
-        </Text>
-      </SidebarPanelCard>
+      <SidebarSectionHeader
+        glyph={glyphs.running}
+        label="PHASES"
+        color={theme.brand}
+        badge={`${activePhases}/${activePhases + completedPhases}`}
+        innerWidth={bodyWidth}
+        pill
+      />
+      {phaseNames.length === 0 ? (
+        <EmptyState message="no active phases" innerWidth={bodyWidth} />
+      ) : (
+        phaseNames.slice(0, 5).map((name, i) => (
+          <Box key={i} flexDirection="row">
+            <Text color={theme.accent}>{glyphs.running}</Text>
+            <Text color={theme.textPrimary} wrap="truncate">
+              {' '}
+              {trunc(name, inner - 4)}
+            </Text>
+          </Box>
+        ))
+      )}
+      <SidebarStatRow
+        label={`${glyphs.dividerDot} elapsed`}
+        value={fmtShortDuration(elapsedMs)}
+        color={theme.textMuted}
+        innerWidth={bodyWidth}
+      />
     </SidebarPanelFrame>
   );
 }
@@ -475,6 +508,12 @@ export function ConnectionsPanelSidebar({
   width,
 }: ConnectionsPanelSidebarProps): React.ReactElement {
   const inner = Math.max(8, width);
+  // Card body content width — the Card adds 2 cols for `│` sides and 2 cols
+  // for body padding on rails wide enough to afford the chrome (inner >= 18).
+  // The SectionHeader / StatRow / WorklistRow dotted leaders size to this
+  // inset width so they fill the available content area without overshooting
+  // the right `│` bar.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const okCount = connections.filter((c) => c.status === 'ok').length;
   const warnCount = connections.filter((c) => c.status === 'warn').length;
   const downCount = connections.filter((c) => c.status === 'down').length;
@@ -486,7 +525,7 @@ export function ConnectionsPanelSidebar({
       width={width}
       kicker="service health"
       pillLabel={
-        inner >= 22
+        inner >= PILL_MIN_INNER_WIDTH
           ? `${glyphs.success}${okCount}${
               warnCount > 0 ? ` ${glyphs.warning}${warnCount}` : ''
             }${downCount > 0 ? ` ${glyphs.failure}${downCount}` : ''}`
@@ -494,7 +533,7 @@ export function ConnectionsPanelSidebar({
       }
       pillColor={downCount > 0 ? theme.error : warnCount > 0 ? theme.warn : theme.success}
       right={
-        inner < 22 ? (
+        inner < PILL_MIN_INNER_WIDTH ? (
           <Text>
             <Text color={theme.success}>
               {glyphs.success}
@@ -523,98 +562,85 @@ export function ConnectionsPanelSidebar({
       }
       footer="Ctrl+N details"
     >
-      <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        <Box width={inner} overflowX="hidden">
-          <Text color={theme.accent} bold wrap="truncate">
-            ╭
-          </Text>
-          <Text color={okCount > 0 ? theme.success : theme.textMuted} wrap="truncate">
-            {'━'.repeat(Math.max(1, Math.floor((inner - 2) / 2)))}
-          </Text>
-          <Text
-            color={warnCount > 0 || downCount > 0 ? theme.warn : theme.accent}
-            bold
-            wrap="truncate"
-          >
-            ◆
-          </Text>
-          <Text color={okCount > 0 ? theme.success : theme.textMuted} wrap="truncate">
-            {'━'.repeat(Math.max(0, inner - Math.floor((inner - 2) / 2) - 3))}
-          </Text>
-          <Text color={theme.accent} bold wrap="truncate">
-            ╮
-          </Text>
-        </Box>
-        <Box width={inner} overflowX="hidden">
-          {inner >= 24 ? (
-            <Text color={theme.accent} wrap="truncate">
-              ╰─
-            </Text>
-          ) : null}
-          <Text color={theme.textMuted} wrap="truncate">
-            {inner >= 24 ? ' SIGNAL MATRIX ' : 'SIGNAL MATRIX'}
-          </Text>
-          <Box flexGrow={1} />
-          {inner >= 24 ? (
-            <Text color={theme.accent} wrap="truncate">
-              ─╯
-            </Text>
-          ) : null}
-        </Box>
-        {connections.length === 0 ? (
-          <Text color={theme.textMuted}>◇ scanning for links…</Text>
-        ) : (
-          connections.slice(0, 10).map((c, i) => {
-            const icon =
-              c.status === 'ok'
-                ? glyphs.success
-                : c.status === 'warn'
-                  ? glyphs.warning
-                  : c.status === 'down'
-                    ? glyphs.failure
-                    : '?';
-            const color =
-              c.status === 'ok'
-                ? theme.success
-                : c.status === 'warn'
-                  ? theme.warn
-                  : c.status === 'down'
-                    ? theme.error
-                    : theme.textMuted;
-            const showLatency = inner >= 24;
-            const lat = showLatency && c.latencyMs != null ? `${c.latencyMs}ms` : '';
-            const lane = c.status === 'ok' ? '━━' : c.status === 'warn' ? '┅┅' : '··';
-            const rowChrome = displayWidth(icon) + displayWidth(lane);
-            return (
-              <Box key={`${c.name}-${i}`} flexDirection="column">
-                <Box flexDirection="row" width={inner}>
-                  <Text color={color}>
-                    {icon}
-                    {lane}
-                  </Text>
-                  <Text color={theme.textPrimary} bold={c.status === 'ok'} wrap="truncate">
-                    {trunc(
-                      c.name,
-                      Math.max(3, inner - rowChrome - (lat ? displayWidth(lat) + 1 : 0)),
-                    )}
-                  </Text>
-                  {lat ? (
-                    <>
-                      <Box flexGrow={1} />
-                      <Text color={color}>{lat}</Text>
-                    </>
-                  ) : null}
-                </Box>
-                <Text color={color} dimColor>
-                  {'  '}
-                  {'⌁'.repeat(Math.max(1, Math.min(inner - 2, 3 + (i % 4))))}
-                  <Text color={theme.textMuted}> link {String(i + 1).padStart(2, '0')}</Text>
+      {/* SIGNAL MATRIX header band — uses the same `barFull`/`barEmpty`
+          pattern as PlanPanelSidebar, GoalPanelSidebar, and the persistent
+          PROMPT CACHE / MISSIONS cards (no more hand-rolled `╭━◆━╮`).
+          The bar is sized to the rail's body width so the row reads as a
+          single visual unit regardless of width. */}
+      <Text color={theme.accent} bold wrap="truncate">
+        {glyphs.dividerDiamond} SIGNAL MATRIX {okCount}/{connections.length || 0}
+      </Text>
+      <Box flexDirection="row" width={inner}>
+        <Text color={okCount > 0 ? theme.success : theme.borderSubtle}>
+          {glyphs.barFull.repeat(
+            Math.round((okCount / Math.max(1, connections.length || 1)) * Math.max(4, inner - 4)),
+          )}
+        </Text>
+        <Text color={theme.borderSubtle}>
+          {glyphs.barEmpty.repeat(
+            Math.max(
+              0,
+              Math.max(4, inner - 4) -
+                Math.round(
+                  (okCount / Math.max(1, connections.length || 1)) * Math.max(4, inner - 4),
+                ),
+            ),
+          )}
+        </Text>
+      </Box>
+      {connections.length === 0 ? (
+        <EmptyState message="scanning for links…" innerWidth={bodyWidth} variant="scanning" />
+      ) : (
+        connections.slice(0, 10).map((c, i) => {
+          const icon =
+            c.status === 'ok'
+              ? glyphs.success
+              : c.status === 'warn'
+                ? glyphs.warning
+                : c.status === 'down'
+                  ? glyphs.failure
+                  : '?';
+          const color =
+            c.status === 'ok'
+              ? theme.success
+              : c.status === 'warn'
+                ? theme.warn
+                : c.status === 'down'
+                  ? theme.error
+                  : theme.textMuted;
+          const showLatency = inner >= METRIC_MIN_BODY_WIDTH;
+          const lat = showLatency && c.latencyMs != null ? `${c.latencyMs}ms` : '';
+          const lane = c.status === 'ok' ? '━━' : c.status === 'warn' ? '┅┅' : '··';
+          const rowChrome = displayWidth(icon) + displayWidth(lane);
+          return (
+            <Box key={`${c.name}-${i}`} flexDirection="column">
+              <Box flexDirection="row" width={inner}>
+                <Text color={color}>
+                  {icon}
+                  {lane}
                 </Text>
+                <Text color={theme.textPrimary} bold={c.status === 'ok'} wrap="truncate">
+                  {trunc(
+                    c.name,
+                    Math.max(3, inner - rowChrome - (lat ? displayWidth(lat) + 1 : 0)),
+                  )}
+                </Text>
+                {lat ? (
+                  <>
+                    <Box flexGrow={1} />
+                    <Text color={color}>{lat}</Text>
+                  </>
+                ) : null}
               </Box>
-            );
-          })
-        )}
-      </SidebarPanelCard>
+              <Text color={color} dimColor>
+                {'  '}
+                {glyphs.workingDirectory.repeat(Math.max(1, Math.min(inner - 2, 3 + (i % 4))))}
+                <Text color={theme.textMuted}> link {String(i + 1).padStart(2, '0')}</Text>
+              </Text>
+            </Box>
+          );
+        })
+      )}
     </SidebarPanelFrame>
   );
 }

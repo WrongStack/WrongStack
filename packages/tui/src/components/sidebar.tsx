@@ -29,7 +29,7 @@
 import type React from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
-import { theme } from '../theme.js';
+import { sidebarCardSurface, theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 
 /** Terminal widths below this hide the sidebar entirely. */
@@ -110,36 +110,17 @@ function SidebarRibbon({
   width: number;
   focused: boolean;
 }): React.ReactElement {
-  // Inside the frame we lose 2 cols to left+right borders, then 2 more to the
-  // internal padding. The ribbon renders BEFORE the frame so it should match
-  // the frame's outer width exactly (no chrome subtracted).
-  const title = 'SIDE RAIL';
+  // The "SIDE RAIL" title was redundant — every card already names itself
+  // (MODEL CORE, PROMPT CACHE, SYSTEM, …), so the rail itself doesn't need
+  // a label. Keep just a single focused/unfocused pulse dot so the user
+  // can see the rail is "live" without consuming a row of chrome.
   const dot = focused ? glyphs.pulseHigh : glyphs.pulseMid;
-  const dotColor = focused ? theme.success : theme.textMuted;
-  // Line 1: `● SIDE RAIL · mission control ───────`
-  const line1Left = `${dot} ${title} ${glyphs.dividerDiamond} mission control`;
-  const line1LeftW = line1Left.length;
-  const line1Fill = Math.max(0, width - line1LeftW);
-  // Line 2: a hairline ruler with a kink on the right (subtle "shelf" the
-  // panel content rests on). We split into two halves so the kink is centered.
-  const half = Math.max(0, Math.floor((width - 1) / 2));
+  const dotColor = focused ? theme.success : theme.accent;
   return (
-    <Box flexDirection="column" width={width} flexShrink={0}>
-      <Box width={width}>
-        <Text color={dotColor} bold>
-          {line1Left}
-        </Text>
-        <Text color={theme.borderActive}>{glyphs.dividerDash.repeat(line1Fill)}</Text>
-      </Box>
-      <Box width={width}>
-        <Text color={theme.borderSubtle}>{glyphs.dividerDash.repeat(half)}</Text>
-        <Text color={theme.borderActive} bold>
-          {glyphs.dividerDiamond}
-        </Text>
-        <Text color={theme.borderSubtle}>
-          {glyphs.dividerDash.repeat(Math.max(0, width - half - 1))}
-        </Text>
-      </Box>
+    <Box width={width} flexShrink={0}>
+      <Text color={dotColor} bold>
+        {dot}
+      </Text>
     </Box>
   );
 }
@@ -155,7 +136,9 @@ function SidebarFooter({
   if (!focused) {
     return (
       <Box width={width} flexShrink={0}>
-        <Text color={theme.borderSubtle}>{glyphs.dividerDash.repeat(Math.max(0, width))}</Text>
+        <Text color={theme.accent} bold>
+          {glyphs.dividerDash.repeat(Math.max(0, width))}
+        </Text>
       </Box>
     );
   }
@@ -163,8 +146,12 @@ function SidebarFooter({
   const fill = Math.max(0, width - hint.length);
   return (
     <Box width={width} flexShrink={0}>
-      <Text color={theme.borderSubtle}>{glyphs.dividerDash.repeat(fill)}</Text>
-      <Text color={theme.borderActive}>{hint}</Text>
+      <Text color={theme.accent} bold>
+        {glyphs.dividerDash.repeat(Math.max(0, fill))}
+      </Text>
+      <Text color={theme.accent} bold>
+        {hint}
+      </Text>
     </Box>
   );
 }
@@ -194,14 +181,13 @@ export function RightSidebar({
         height={innerHeight}
         overflowY="hidden"
         flexShrink={0}
-        borderStyle={focused ? 'double' : 'round'}
-        borderColor={focused ? theme.borderActive : theme.borderSubtle}
         paddingX={1}
+        {...(theme.supportsBackground ? { backgroundColor: sidebarCardSurface() } : {})}
       >
         {children ?? (
           <Box flexDirection="row" justifyContent="space-between">
             <Text color={theme.textMuted} wrap="truncate">
-              {glyphs.cornerTL} SIDEBAR
+              SIDEBAR
             </Text>
             {focused ? (
               <Text color={theme.borderActive} bold>

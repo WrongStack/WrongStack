@@ -27,9 +27,12 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const ROOT = path.resolve(process.cwd());
+// Module-relative so the suite passes from any vitest root (the package
+// `test` script runs vitest with --root ../.. from the package directory).
+const ROOT = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
 
 interface DaemonSpec {
   readonly name: string;

@@ -63,6 +63,47 @@ export function fmtShortDuration(ms: number): string {
   return `${m}m${s.toString().padStart(2, '0')}s`;
 }
 
+/**
+ * Shared "empty state" row used by every routed F-twin sidebar panel and the
+ * persistent cards. Replaces the patchwork of `◇ scanning for links…`,
+ * `{glyphs.dividerDot} no X`, etc. with one consistent look:
+ *
+ *     · no sessions
+ *
+ * The leading `·` (dividerDot) is the muted accent, the message is in
+ * `theme.textMuted`, and the row honors the rail's body width. Callers
+ * only supply the noun (and an optional active-verb form for "scanning"
+ * style progress states). Keep the language lower-case to read as a
+ * quiet signal rather than a banner.
+ */
+export function EmptyState({
+  message,
+  innerWidth,
+  variant = 'idle',
+}: {
+  message: string;
+  innerWidth: number;
+  /** `idle` is the standard "no X" / "no data yet" hint. `scanning` is
+   *  for live-discovery states (e.g. probing connections) where the dot
+   *  pulses in the accent color so a glance down the rail reads as
+   *  "actively working". */
+  variant?: 'idle' | 'scanning' | undefined;
+}): React.ReactElement {
+  // We deliberately leave `innerWidth` out of the rendered output (the
+  // Box shrinks to its content) so the parent Card's per-row wrapper
+  // can paint its `│` sides without the EmptyState fighting for the
+  // right edge. Callers that need a hard width can wrap in a Box.
+  void innerWidth;
+  return (
+    <Box>
+      <Text color={variant === 'scanning' ? theme.accent : theme.textMuted}>
+        {glyphs.dividerDot}
+      </Text>
+      <Text color={theme.textMuted}> {message}</Text>
+    </Box>
+  );
+}
+
 export function SidebarWorklistRow({
   icon,
   iconColor,

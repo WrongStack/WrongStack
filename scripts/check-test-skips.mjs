@@ -43,6 +43,9 @@ console.log(`Test skip budget: ${declarations.length} declarations (${byKind})`)
 if (errors.length > 0) {
   console.error('Test skip budget FAILED');
   for (const error of errors) console.error(`- ${error}`);
+  console.error(
+    'Every skip declaration change requires an explicit budget review. After review, refresh with: pnpm test-skips:sync (also part of pnpm release:prepare)',
+  );
   process.exit(1);
 }
 console.log('PASS — no test skip declaration was added, changed, or left stale without review.');

@@ -890,6 +890,21 @@
       "deriveCoverage",
       "mapEcosystem"
     ],
+    "packages/techstack/src/policy/resolver.ts": [
+      "findRuleMatches",
+      "matchesSelector",
+      "parseRange",
+      "RangeParseError",
+      "resolveDependencies",
+      "resolveDependency",
+      "satisfiesRange"
+    ],
+    "packages/techstack/src/policy/rulebook.ts": [
+      "asIsoDateTime",
+      "asVersionRange",
+      "loadRulebook",
+      "validateRulebook"
+    ],
     "packages/techstack/src/registry/client.ts": [
       "parseNpmPackument"
     ],
@@ -1118,6 +1133,9 @@
     ],
     "packages/tui/src/components/sidebar-content.tsx": [
       "contextSpectrum"
+    ],
+    "packages/tui/src/components/sidebar-panel-frame.tsx": [
+      "SidebarPanelCard"
     ],
     "packages/tui/src/components/sidebar.tsx": [
       "SIDEBAR_FRACTION",
