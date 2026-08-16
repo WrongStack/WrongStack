@@ -803,6 +803,10 @@ export class DefaultSessionStore implements SessionStore {
       sessionPath: (sid, ext) => this.sessionPath(sid, ext),
     });
     this.clearLoadCache(canonical);
+    // loadInternal() caches under the id it was called with, so a session
+    // previously loaded via an alias would keep a raw-keyed entry after a
+    // canonical-only clear. Delete both keys; Map.delete no-ops on a miss.
+    if (id !== canonical) this.clearLoadCache(id);
   }
 
   private async summarize(id: string, mtime: string): Promise<SessionSummary> {

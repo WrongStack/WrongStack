@@ -87,6 +87,13 @@ const CHAT_ECHO_SUPPRESSION_TTL_MS = 30_000;
  */
 const CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE = 32;
 
+/**
+ * Cadence of the lazy echo-suppression sweep (see ensureEchoSweep). Chosen
+ * at 2x the TTL granularity: stale timestamps are released within one
+ * sweep interval of expiry without a per-push clock read.
+ */
+const CHAT_ECHO_SUPPRESSION_SWEEP_MS = 15_000;
+
 // C-2 fix (Phase 1.4): the auth token is delivered via the HttpOnly
 // cookie set by `/ws-auth` (preferred) OR via the `?token=…` query param
 // (non-browser fallback). The legacy in-sessionStorage path has been
@@ -153,6 +160,7 @@ class WrongStackWebSocketClientBase {
   private statusListeners = new Set<(s: WsStatus) => void>();
   private currentStatus: WsStatus = { state: 'connecting' };
   private suppressedChatEchoes = new Map<string, number[]>();
+  private echoSweepTimer: ReturnType<typeof setInterval> | null = null;
   private protocolCapabilities = new Set<string>();
   private protocolVersion: number | null = null;
 
@@ -648,6 +656,7 @@ class WrongStackWebSocketClientBase {
         // grow unboundedly. See CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE.
         while (pending.length > CHAT_ECHO_SUPPRESSION_MAX_PER_TYPE) pending.shift();
         this.suppressedChatEchoes.set(responseType, pending);
+        this.ensureEchoSweep();
       }
     }
     if (
@@ -713,6 +722,33 @@ class WrongStackWebSocketClientBase {
     pending.shift();
     if (pending.length === 0) this.suppressedChatEchoes.delete(responseType);
     return true;
+  }
+
+  /**
+   * Lazy periodic sweep for `suppressedChatEchoes`. TTL trimming otherwise
+   * runs only on consume — a response type that is suppressed but never
+   * consumed (chat view unmounted, user on another screen) retains up to
+   * MAX_PER_TYPE stale timestamps indefinitely. The sweep bounds retention
+   * to TTL + one sweep interval and self-stops when the map empties, so no
+   * timer runs for clients that never suppress. RAM-leak audit 2026-08-11
+   * Finding 4 / fix 2026-08-16.
+   */
+  private ensureEchoSweep(): void {
+    if (this.echoSweepTimer) return;
+    this.echoSweepTimer = setInterval(() => {
+      this.sweepSuppressedChatEchoes(Date.now());
+    }, CHAT_ECHO_SUPPRESSION_SWEEP_MS);
+  }
+
+  private sweepSuppressedChatEchoes(now: number): void {
+    for (const [responseType, pending] of this.suppressedChatEchoes) {
+      while (pending.length > 0 && pending[0]! <= now) pending.shift();
+      if (pending.length === 0) this.suppressedChatEchoes.delete(responseType);
+    }
+    if (this.suppressedChatEchoes.size === 0 && this.echoSweepTimer) {
+      clearInterval(this.echoSweepTimer);
+      this.echoSweepTimer = null;
+    }
   }
 
   /**
@@ -936,6 +972,12 @@ class WrongStackWebSocketClientBase {
     // teardown release everything unconditionally so a long-lived tab that
     // reconnects many times doesn't drag prompts from earlier sessions.
     this.pendingConfirms.clear();
+    // Stop the echo-suppression sweep and drop any stale timestamps.
+    if (this.echoSweepTimer) {
+      clearInterval(this.echoSweepTimer);
+      this.echoSweepTimer = null;
+    }
+    this.suppressedChatEchoes.clear();
     this.ws?.close();
     this.ws = null;
     // C-2 fix: no client-side token storage to clear — the token lives

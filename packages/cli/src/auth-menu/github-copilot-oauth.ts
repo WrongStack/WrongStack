@@ -52,15 +52,19 @@ interface DeviceCode {
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) return reject(new DOMException('Aborted', 'AbortError'));
-    const t = setTimeout(resolve, ms);
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(t);
-        reject(new DOMException('Aborted', 'AbortError'));
-      },
-      { once: true },
-    );
+    const t = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort(): void {
+      clearTimeout(t);
+      reject(new DOMException('Aborted', 'AbortError'));
+    }
+    // `{ once: true }` fires only on abort; the timeout path removes the
+    // listener explicitly so the device-flow poll loop's reused signal does
+    // not accumulate one listener-closure per sleep call. Mirrors the
+    // token-throttle sleep() detach. RAM-leak audit 2026-08-16, LOW.
+    signal.addEventListener('abort', onAbort, { once: true });
   });
 }
 

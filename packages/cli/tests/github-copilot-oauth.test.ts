@@ -229,4 +229,116 @@ describe('pollForGitHubToken', () => {
     };
     expect(pe.source).toBe('github-copilot-device-code-response');
   });
+
+  it('sleep() removes its abort listener on the timeout path — no accumulation across poll iterations', async () => {
+    // RAM-leak audit 2026-08-16, LOW: the device-flow poll loop reuses ONE
+    // AbortSignal across iterations, so a sleep() that registers an abort
+    // listener without detaching it on the timeout path accumulates one
+    // listener-closure per poll. The fix (token-throttle pattern) removes
+    // the listener when the timer fires. Regression contract: exactly one
+    // 'abort' add and one 'abort' remove per completed sleep.
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          calls += 1;
+          return new Response(
+            JSON.stringify(
+              calls < 3 ? { error: 'authorization_pending' } : { access_token: 'gho_T' },
+            ),
+            { status: 200 },
+          );
+        }),
+      );
+      const controller = new AbortController();
+      const signal = controller.signal;
+      const addSpy = vi.spyOn(signal, 'addEventListener');
+      const removeSpy = vi.spyOn(signal, 'removeEventListener');
+
+      const pollPromise = pollForGitHubToken(
+        {
+          device_code: 'dc',
+          user_code: 'x',
+          verification_uri: 'https://github.com/login/device',
+          interval: 5,
+          expires_in: 60,
+        },
+        signal,
+      );
+      // Three poll iterations: two pending, third returns the token. Each
+      // iteration completes exactly one sleep() timeout.
+      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(5_000);
+      const token = await pollPromise;
+
+      expect(token).toBe('gho_T');
+      const abortAdds = addSpy.mock.calls.filter((c) => c[0] === 'abort').length;
+      const abortRemoves = removeSpy.mock.calls.filter((c) => c[0] === 'abort').length;
+      expect(abortAdds).toBe(3); // one sleep per poll iteration
+      expect(abortRemoves).toBe(3); // pre-fix this was 0 — the leak
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('sleep() abort-listener hygiene (RAM-leak audit 2026-08-16)', () => {
+  it('removes each abort listener on the timeout path so the reused poll signal does not accumulate them', async () => {
+    // The device-flow poll loop reuses ONE AbortSignal across iterations;
+    // before the fix, every completed sleep() left its { once: true } abort
+    // listener attached until the flow-scoped controller was GC'd. Assert
+    // add/remove symmetry on the timeout path by spying on the EventTarget
+    // prototype and filtering to this signal's 'abort' registrations.
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls++;
+        return new Response(
+          JSON.stringify(calls < 4 ? { error: 'authorization_pending' } : { access_token: 'gho_T' }),
+          { status: 200 },
+        );
+      }),
+    );
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const addSpy = vi.spyOn(EventTarget.prototype, 'addEventListener');
+    const removeSpy = vi.spyOn(EventTarget.prototype, 'removeEventListener');
+    try {
+      const token = await pollForGitHubToken(
+        {
+          device_code: 'dc',
+          user_code: 'x',
+          verification_uri: 'https://github.com/login/device',
+          interval: 1,
+          expires_in: 60,
+        },
+        signal,
+      );
+      expect(token).toBe('gho_T');
+      expect(calls).toBe(4); // 4 poll iterations (3 pending + 1 token) -> 4 completed sleep() calls
+
+      const added: unknown[] = [];
+      const removed: unknown[] = [];
+      addSpy.mock.calls.forEach((args, i) => {
+        if (args[0] === 'abort' && addSpy.mock.contexts[i] === signal) added.push(args[1]);
+      });
+      removeSpy.mock.calls.forEach((args, i) => {
+        if (args[0] === 'abort' && removeSpy.mock.contexts[i] === signal) removed.push(args[1]);
+      });
+
+      expect(added.length).toBe(4);
+      // One-to-one comparison (chimera review): a containment-only check
+      // would pass even if the SAME callback were removed repeatedly while
+      // other listeners stayed attached. The poll loop is strictly
+      // sequential (add → timeout-remove per sleep), so order matches.
+      expect(removed).toEqual(added);
+    } finally {
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
+  });
 });
