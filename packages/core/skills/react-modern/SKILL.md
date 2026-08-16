@@ -210,15 +210,15 @@ const inputRef = useRef<HTMLInputElement>(null);
 ## Out of scope
 
 - **Don't default to Client Components.** Server Components are the default in React 19+. Mark `'use client'` only for interactive code; the boundary carries a serialization cost.
-- **Don't use `useEffect` for data fetching.** Use Server Components or `use(promise)`. The `useEffect` + `fetch` + `setState` dance is the pattern React 19 replaced.
-- **Don't use `forwardRef` in new code.** `ref` is a regular prop in React 19. `forwardRef` is the old way; the new way is `function Button({ ref, ...props })`.
+- **Don't reach for `useEffect` when fetching data.** Use Server Components or `use(promise)`. The `useEffect` + fetch + `setState` dance is the pattern React 19 replaced.
+- **Don't reach for `forwardRef` in new code.** `ref` is a regular prop in React 19. `forwardRef` is the old way; the new way is `function Button({ ref, ...props })`.
 - **Don't use default exports for components.** Named exports only. Default exports hinder refactoring and tree-shaking; named exports are the convention.
 - **Don't use class components in new code.** Function components + hooks. Class components are deprecated in modern React.
-- **Don't use `useEffect` to sync props to state.** It causes an extra render and stale data. Lift state or use a controlled component.
-- **Don't use `useMemo` for trivial calculations.** `useMemo(() => count * 2, [count])` is more expensive than the multiplication. Measure before memoizing.
-- **Don't use `useCallback` when deps change every render.** `useCallback(fn, [obj])` where `obj` is fresh each render provides no stability. Use it for child deps that actually benefit.
+- **`useEffect` is the wrong tool for syncing props to state.** It causes an extra render and stale data. Lift state or use a controlled component.
+- **`useMemo` is overkill for trivial calculations.** `useMemo(() => count * 2, [count])` is more expensive than the multiplication. Measure before memoizing.
+- **Don't reach for `useCallback` when deps change every render.** `useCallback(fn, [obj])` where `obj` is fresh each render provides no stability. Reach for it only when child deps actually benefit.
 - **Don't mix Server/Client boundaries carelessly.** Serialization errors at the boundary are some of the hardest to debug. Keep the boundary clean.
-- **Don't use `use` outside component render.** It's a render-only hook.
+- **Don't call React's `use()` outside component render.** It's a render-only hook.
 
 ## Before returning
 

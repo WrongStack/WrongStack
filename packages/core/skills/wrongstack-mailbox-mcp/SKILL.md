@@ -74,7 +74,7 @@ contain identifiers and metadata, not the authoritative message snapshot.
 
 - **Don't read or edit Mailbox files directly.** No `_mailbox.sqlite`, no legacy JSONL, no bridge locks, no token files. MCP is the only boundary; bypassing it through any of those channels breaks trust and audit.
 - **Don't impersonate another actor.** The server fixes sender, receipt, deletion, registration, and heartbeat identity to `--actor`. Tool arguments cannot override that. Use the actor id you were given, honestly.
-- **Don't use `steer` for routine direction.** Steer is for changed direction mid-task. For normal coordination, use `ask`, `assign`, or `result`.
+- **Don't reach for `steer` on routine direction.** Steer is for changed direction mid-task. For normal coordination, `ask`, `assign`, or `result` are the right types.
 - **Don't broadcast when direct addressing is correct.** Broadcast reaches every relevant agent; most messages don't.
 - **Don't run admin operations to bypass routing, identity, or authorization errors.** If a call is denied for one of those reasons, the call is wrong. Re-read state, ask, or stop. Admin paths are for explicitly authorized administration, not workarounds.
 - **Don't skip `register_self`.** Without registration, the runtime can't reconcile heartbeats or surface the agent in the workbench.

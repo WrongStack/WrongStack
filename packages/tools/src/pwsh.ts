@@ -89,7 +89,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
   riskTier: 'destructive',
   icon: 'terminal',
   subjectKey: 'command',
-  capabilities: ['shell.arbitrary', 'shell.pwsh'],
+  capabilities: ['shell.arbitrary'],
   timeoutMs: 610_000,
   maxOutputBytes: MAX_OUTPUT,
   estimatedDurationMs: 30_000,

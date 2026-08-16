@@ -239,7 +239,7 @@ console.log(name!.toUpperCase());
 
 - **Don't use `as any` or double assertions to silence errors.** Validate or narrow values at trust boundaries. A cast that hides a real type error is a bug surfaced later in runtime.
 - **Don't use `!` non-null assertion.** `name!.toUpperCase()` silences the type checker without explanation. Use a narrow check or an assertion function.
-- **Don't use `Function` or `Object` types.** They're too broad; `any`-shaped in disguise. Be specific.
+- **`Function` and `Object` types are too broad.** They're `any`-shaped in disguise. Be specific.
 - **Don't return `Promise<any>`.** `Promise<unknown>` or a generic. `Promise<any>` loses the type information the caller needs.
 - **Don't omit return types on exported functions.** Without an explicit return type, exported functions hide errors and let callers assume any shape. Annotate public APIs.
 - **Don't use optional chaining chains to dodge narrowing.** `a?.b?.c?.d` is "I don't know what `a` is" with a costume. Verify with `if (a)` first.

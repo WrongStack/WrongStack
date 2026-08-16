@@ -358,7 +358,7 @@ For the H1 pattern, extend `tests/plugin-teardown.test.ts` with a
 - [ ] `health()` returns `{ ok, message, invocationCount, lastRun? }`
 - [ ] Tool names are unique `snake_case`; no collision with built-ins
 - [ ] Config read from `api.config.extensions['<plugin-name>']`, validated by `configSchema`
-- [ ] Hooks use `registerHook` with the correct event/matcher; `HookOutcome` shape honored
+- [ ] Hooks are registered via `api.registerHook(...)` with the correct event/matcher; `HookOutcome` shape honored
 - [ ] `src/index.ts` re-exports the plugin; `package.json` adds the subpath export
 - [ ] `packages/cli/src/wiring/plugins.ts` adds the built-in factory
 - [ ] Tests: `<name>.test.ts` + `<name>-exec.test.ts` + `plugin-teardown.test.ts` block

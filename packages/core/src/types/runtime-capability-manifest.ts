@@ -76,7 +76,7 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'execution.shell',
     pack: 'development',
     exposure: 'direct',
-    tools: ['bash', 'exec', 'language', 'language_info', 'language_package'],
+    tools: ['bash', 'exec', 'pwsh', 'language', 'language_info', 'language_package'],
   },
   {
     id: 'verification.run',

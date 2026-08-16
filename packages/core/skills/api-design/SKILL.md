@@ -136,7 +136,7 @@ Body: { "status": "paused" }
 
 ## Out of scope
 
-- **Don't design MCP tool surfaces here.** MCP servers expose tools, not REST endpoints. For tool registration, plugin contract, and tool description, use `plugin-author` instead.
+- **Don't design MCP tool surfaces here.** MCP servers expose tools, not REST endpoints. For tool registration, plugin contract, and tool description, see the `plugin-author` skill instead.
 - **Don't design WrongStack session management as a public API.** Sessions are created and managed through the CLI's internal tool wrappers, not a public REST surface. This skill is for the HTTP APIs WrongStack exposes outward.
 - **Don't ship inconsistent error shapes.** Every error uses `{ "error": { "code", "message", "details?" } }`. Variations break automation that depends on the shape.
 - **Don't put secrets in URLs.** `?apiKey=…` is a leak. Headers — `Authorization` and `X-API-Key` — are the only auth channels.

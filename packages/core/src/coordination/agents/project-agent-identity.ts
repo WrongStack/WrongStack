@@ -265,7 +265,12 @@ export function buildProjectContextualizedPrompt(
       const freshEntries =
         meta === undefined
           ? []
-          : rawEntries.filter((entry) => entry.capturedAt > meta.consolidatedAt);
+          // `>=` not `>`: the raw buffer is reset at consolidation time, so
+          // every entry left in it was captured afterwards in write order —
+          // but on millisecond-resolution clocks (Linux) the ISO stamps can
+          // tie, and a strict `>` would misread a genuinely fresh capture as
+          // already consolidated.
+          : rawEntries.filter((entry) => entry.capturedAt >= meta.consolidatedAt);
       const stale =
         meta === undefined ||
         freshEntries.length > 0 ||

@@ -133,7 +133,7 @@ filled in as it becomes known.
 - **Don't create a card for trivial work.** A quick read, a one-line fix, or a question does not need a card. Resume the existing card for the same request instead of creating a duplicate.
 - **Don't claim a task is done in chat without a board mutation.** Chat-only completion is fake progress. Persist via `kanban` actions; the board is the shared record.
 - **Don't skip lifecycle stages on a managed board.** Managed cards move exactly one stage at a time. The guard rejects jumps; trying to bypass it is a bug.
-- **Don't work an unclaimed card.** Another agent may be working it. Call `claim_task` first, or let the Director's queue claim for you.
+- **Don't work an unclaimed card.** Another agent may be working it. Take `claim_task` first (via `kanban`), or let the Director's queue claim for you.
 - **Don't lose the lease.** Heartbeat before the lease expires. An expired lease is recovered by the supervisor and the card returns to the queue.
 - **Don't fence-less write.** Pass `expectedLeaseId` on every `mark_assignment` and `heartbeat_assignment`. If your lease was recovered, an unfenced write corrupts the successor's state.
 - **Don't invent children for a leaf card.** Atomic work is one childless leaf. Recursive decomposition to satisfy process is process for process's sake.

@@ -65,11 +65,11 @@ describe('canonical host tool registration', () => {
       registry.exposeToProvider(name);
     }
 
-    // 69 built-ins + context + 4 legacy-memory + 4 coordination + 4 host
-    // gateways stay executable, but only the bounded 56-schema surface is sent
+    // 70 built-ins + context + 4 legacy-memory + 4 coordination + 4 host
+    // gateways stay executable, but only the bounded 57-schema surface is sent
     // directly to the provider.
-    expect(registry.list()).toHaveLength(82);
-    expect(registry.listForProvider()).toHaveLength(56);
+    expect(registry.list()).toHaveLength(83);
+    expect(registry.listForProvider()).toHaveLength(57);
     expect(registry.get('browser_open')).toBeDefined();
     expect(registry.listForProvider().map((tool) => tool.name)).not.toContain('browser_open');
   });

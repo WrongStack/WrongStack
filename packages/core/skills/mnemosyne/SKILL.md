@@ -102,7 +102,7 @@ memory_candidates({
 })
 ```
 
-Never call `memory_delete`, never set `status: "deleted"`, and never set
+Never trigger `memory_delete`, never set `status: "deleted"`, and never set
 `status: "archived"` as part of an autonomous Mnemosyne cycle. The user owns
 the later `memory_candidates({ action: "resolve", ... })` decision.
 

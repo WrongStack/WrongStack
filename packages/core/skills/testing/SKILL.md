@@ -172,7 +172,7 @@ coverageThreshold: {
 - **Don't lower the coverage gate to make tests pass.** New code carries its own ≥70% coverage; existing coverage never decreases. A passing test suite with sinking coverage is regression, not progress.
 - **Don't write async tests without a timeout.** `test(..., { timeout: 5000 })` is mandatory. A hang in CI is a worse failure than a flapping test.
 - **Don't mock `node:fs` and forget cleanup.** `vi.restoreAllMocks()` and `vi.useRealTimers()` in `afterEach` are mandatory. Mocks leaking across tests are how unit tests go red in a clean checkout.
-- **Don't use `setTimeout` for timeouts in tests.** `AbortSignal.timeout()` is the WrongStack convention. `setTimeout` returns a timer, not a signal, and bypasses the abort plumbing.
+- **`setTimeout` is the wrong timeout primitive in tests.** `AbortSignal.timeout()` is the WrongStack convention. A timer, not a signal, bypasses the abort plumbing.
 - **Don't import from `dist/`.** Subpath exports are the entry point. `dist/` is build output; tests against it depend on the build having been run.
 - **Don't report a coverage percentage from a partial run.** Coverage is the full suite, not a subset. A 90% on 60% of the files is not 90%.
 

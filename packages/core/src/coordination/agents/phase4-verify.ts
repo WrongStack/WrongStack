@@ -225,7 +225,7 @@ export const VERIFY_AGENTS: AgentDefinition[] = [
       id: 'bug-hunter',
       name: 'Bug Hunter',
       role: 'bug-hunter',
-      tools: [...TOOLS.inspect],
+      tools: [...TOOLS.inspect, 'dead-code-scan'],
       prompt: agentPrompt('bug-hunter'),
     },
     budget: HEAVY_BUDGET,

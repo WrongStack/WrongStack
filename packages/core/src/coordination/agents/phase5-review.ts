@@ -37,7 +37,7 @@ export const REVIEW_AGENTS: AgentDefinition[] = [
       id: 'code-reviewer',
       name: 'Code Reviewer',
       role: 'code-reviewer',
-      tools: [...TOOLS.inspect, 'git'],
+      tools: [...TOOLS.inspect, 'git', 'codebase-impact-analysis', 'codebase-invariant-check'],
       prompt: agentPrompt('code-reviewer'),
     },
     budget: MEDIUM_BUDGET,

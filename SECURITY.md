@@ -312,7 +312,7 @@ audits and explicitly accepted as non-blocking:
   - The old denylist checks remain as defense-in-depth but are no longer the primary control.
 
 - **Install-script allowlist maintenance**:
-  - `pnpm-workspace.yaml` currently allows lifecycle builds for `@biomejs/biome`, `electron`, `esbuild`, `node-pty`, and `sharp`. Any addition requires security review; the native/runtime download rationale is documented beside each entry. `sharp` is an optional dependency of `@huggingface/transformers` (pulled in by `@wrongstack/vector-memory`); its postinstall fetches prebuilt libvips binaries from sharp's own `@img/*` subpackages on the public npm registry (no third-party hosts).
+  - `pnpm-workspace.yaml` currently allows lifecycle builds for `@biomejs/biome`, `electron`, `esbuild`, `node-pty`, `onnxruntime-node`, `protobufjs`, and `sharp`. Any addition requires security review; the native/runtime download rationale is documented beside each entry. `sharp` is an optional dependency of `@huggingface/transformers` (pulled in by `@wrongstack/vector-memory`); its postinstall fetches prebuilt libvips binaries from sharp's own `@img/*` subpackages on the public npm registry (no third-party hosts). `onnxruntime-node` (regular dependency of `@huggingface/transformers`) downloads only non-bundled platform files, and only for linux/x64 (CUDA EP binaries from Microsoft's official `api.nuget.org` feed — win32/darwin manifests are empty). `protobufjs` (via `onnxruntime-web`) has a version-detection no-op postinstall that downloads nothing. Without these approvals pnpm 11 fails `install` hard (`ERR_PNPM_IGNORED_BUILDS`), which silently disabled every CI gate until 2026-08-16.
   - Removal matters as much as addition. `better-sqlite3` was listed here and in both `pnpm-workspace.yaml` blocks while being absent from the lockfile entirely (the codebase uses `node:sqlite`), so its install scripts were pre-authorised to run the moment it reappeared through any transitive path — spending the review gate in advance. `packages/core/tests/architecture/build-allowlist-freshness.test.ts` now fails when any allowlist entry names a package that is not in the lockfile, and when this list drifts from `onlyBuiltDependencies`.
 
 Added by the **August 2026** `security-check` audit:
@@ -324,7 +324,7 @@ Added by the **August 2026** `security-check` audit:
     pattern (WS-014) and splits build from deploy; `release.yml` does not.
   - **Accepted** because the compensating controls are strong and specific: the `npm-publish`
     environment requires reviewer approval, the checkout is pinned to the SHA `verify` validated
-    (WS-089), `persist-credentials: false`, all actions are SHA-pinned, and only four packages may
+    (WS-089), `persist-credentials: false`, all actions are SHA-pinned, and only seven packages may
     run install lifecycle scripts.
   - The split is viable when someone wants it: `pnpm pack` resolves `workspace:*` to concrete
     versions (verified 2026-08-04), so a `build` job can emit tarballs for a minimal `publish` job
