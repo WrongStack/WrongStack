@@ -1,9 +1,12 @@
 import { Check, Copy, ListChecks, LoaderCircle } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { MarkdownHooks as ReactMarkdown } from 'react-markdown';
-import rehypePrettyCode from 'rehype-pretty-code';
-import remarkGfm from 'remark-gfm';
 import { FileEditEntry } from './file-edit-entry.js';
+import {
+  markdownComponents,
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from './lib/markdown-config.js';
 import { projectAssistantMessage } from './lib/message-projection.js';
 import type { ChatMessage, FileEditMeta } from './types.js';
 
@@ -34,11 +37,6 @@ interface MessageItemProps {
   onCopyMessage: (id: string, text: string) => void;
   onSelectNextStep: (messageId: string, text: string) => void;
   consumedNextSteps: Set<string>;
-}
-
-/** Shiki theme name for syntax-highlighted code blocks. */
-function codeTheme(theme: 'dark' | 'light'): string {
-  return theme === 'light' ? 'github-light' : 'github-dark-dimmed';
 }
 
 const MessageItem = memo(function MessageItem({
@@ -112,15 +110,9 @@ const MessageItem = memo(function MessageItem({
         )}
         {projection.text && !message.streaming && (
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[[rehypePrettyCode, { theme: codeTheme(theme), keepBackground: false }]]}
-            components={{
-              a: ({ children, ...props }) => (
-                <a {...props} target="_blank" rel="noreferrer">
-                  {children}
-                </a>
-              ),
-            }}
+            remarkPlugins={markdownRemarkPlugins}
+            rehypePlugins={markdownRehypePlugins(theme)}
+            components={markdownComponents}
             fallback={null}
           >
             {projection.text}

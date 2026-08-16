@@ -10,13 +10,27 @@
 //   - Otherwise the width is 25% of terminal columns, clamped to
 //     [SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH].
 //
-// The component is intentionally a shell right now — its children are a
-// placeholder. Callers pass `children` when they have real content.
+// Visual treatment:
+//   The shell is the only border in the rail — routed panels and content
+//   cards spend the saved columns on data. To make the rail feel "designed"
+//   we layer:
+//     1. An accent-ribbon title strip at the top (drawn ABOVE the frame, so
+//        it always reads as a branded rail and never collides with panels
+//        whose own section headers use box-drawing glyphs).
+//     2. A double border when focused (single when not), with a subtle
+//        accent dot pulsing at the top-left to read as "live" telemetry.
+//     3. A footer hairline + focus hint so the rail never feels amputated
+//        at the bottom of a narrow terminal.
+//
+//   These are pure visual upgrades — the component contract (width, height,
+//   children passthrough) is unchanged so existing routed panels and
+//   SidebarContent keep working without modification.
 
 import type React from 'react';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
+import { glyphs } from '../ui-glyphs.js';
 
 /** Terminal widths below this hide the sidebar entirely. */
 export const SIDEBAR_MIN_TERMINAL = 64;
@@ -76,36 +90,128 @@ export interface RightSidebarProps {
   children?: React.ReactNode | undefined;
 }
 
-export function RightSidebar({ width, maxHeight, focused = false, children }: RightSidebarProps): React.ReactElement | null {
+/**
+ * Build the rail's top accent ribbon — a two-line banner that sits above the
+ * bordered shell. The ribbon is composed as:
+ *
+ *   <pulse> SIDE RAIL · mission control ───────────
+ *   ╰── content area begins here ────────────────╯
+ *
+ * The width-1 subtraction matches the bordered shell's own width so the
+ * ribbon, frame and panels stay column-aligned down the rail. The ribbon is
+ * drawn OUTSIDE the bordered Box so the frame stays border-only — panels
+ * below can use box-drawing characters in their own headers without any
+ * glyph collision.
+ */
+function SidebarRibbon({
+  width,
+  focused,
+}: {
+  width: number;
+  focused: boolean;
+}): React.ReactElement {
+  // Inside the frame we lose 2 cols to left+right borders, then 2 more to the
+  // internal padding. The ribbon renders BEFORE the frame so it should match
+  // the frame's outer width exactly (no chrome subtracted).
+  const title = 'SIDE RAIL';
+  const dot = focused ? glyphs.pulseHigh : glyphs.pulseMid;
+  const dotColor = focused ? theme.success : theme.textMuted;
+  // Line 1: `● SIDE RAIL · mission control ───────`
+  const line1Left = `${dot} ${title} ${glyphs.dividerDiamond} mission control`;
+  const line1LeftW = line1Left.length;
+  const line1Fill = Math.max(0, width - line1LeftW);
+  // Line 2: a hairline ruler with a kink on the right (subtle "shelf" the
+  // panel content rests on). We split into two halves so the kink is centered.
+  const half = Math.max(0, Math.floor((width - 1) / 2));
+  return (
+    <Box flexDirection="column" width={width} flexShrink={0}>
+      <Box width={width}>
+        <Text color={dotColor} bold>
+          {line1Left}
+        </Text>
+        <Text color={theme.borderActive}>{glyphs.dividerDash.repeat(line1Fill)}</Text>
+      </Box>
+      <Box width={width}>
+        <Text color={theme.borderSubtle}>{glyphs.dividerDash.repeat(half)}</Text>
+        <Text color={theme.borderActive} bold>
+          {glyphs.dividerDiamond}
+        </Text>
+        <Text color={theme.borderSubtle}>
+          {glyphs.dividerDash.repeat(Math.max(0, width - half - 1))}
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+/** Hairline + key hint that anchors the bottom of the rail on focus. */
+function SidebarFooter({
+  width,
+  focused,
+}: {
+  width: number;
+  focused: boolean;
+}): React.ReactElement {
+  if (!focused) {
+    return (
+      <Box width={width} flexShrink={0}>
+        <Text color={theme.borderSubtle}>{glyphs.dividerDash.repeat(Math.max(0, width))}</Text>
+      </Box>
+    );
+  }
+  const hint = '↑↓ scroll · Shift+Tab exits';
+  const fill = Math.max(0, width - hint.length);
+  return (
+    <Box width={width} flexShrink={0}>
+      <Text color={theme.borderSubtle}>{glyphs.dividerDash.repeat(fill)}</Text>
+      <Text color={theme.borderActive}>{hint}</Text>
+    </Box>
+  );
+}
+
+export function RightSidebar({
+  width,
+  maxHeight,
+  focused = false,
+  children,
+}: RightSidebarProps): React.ReactElement | null {
   const { columns: termCols } = useTerminalSize({ fallbackColumns: 80 });
   const resolvedWidth = width ?? computeSidebarWidth(termCols);
 
   // Hide entirely on narrow terminals.
   if (resolvedWidth === 0) return null;
 
+  // Subtract the rail chrome (ribbon = 2 rows, footer = 1 row) from the
+  // requested max height so the inner bordered shell + its contents fit.
+  const innerHeight = maxHeight === undefined ? undefined : Math.max(0, maxHeight - 3);
+
   return (
-    <Box
-      flexDirection="column"
-      width={resolvedWidth}
-      height={maxHeight}
-      overflowY="hidden"
-      flexShrink={0}
-      borderStyle={focused ? 'double' : 'round'}
-      borderColor={focused ? theme.borderActive : theme.borderSubtle}
-      paddingX={1}
-    >
-      {children ?? (
-        <Box flexDirection="row" justifyContent="space-between">
-          <Text color={theme.textMuted} wrap="truncate">
-            ◧ SIDEBAR
-          </Text>
-          {focused ? (
-            <Text color={theme.borderActive} bold>
-              [FOCUS]
+    <Box flexDirection="column" flexShrink={0}>
+      <SidebarRibbon width={resolvedWidth} focused={focused} />
+      <Box
+        flexDirection="column"
+        width={resolvedWidth}
+        height={innerHeight}
+        overflowY="hidden"
+        flexShrink={0}
+        borderStyle={focused ? 'double' : 'round'}
+        borderColor={focused ? theme.borderActive : theme.borderSubtle}
+        paddingX={1}
+      >
+        {children ?? (
+          <Box flexDirection="row" justifyContent="space-between">
+            <Text color={theme.textMuted} wrap="truncate">
+              {glyphs.cornerTL} SIDEBAR
             </Text>
-          ) : null}
-        </Box>
-      )}
+            {focused ? (
+              <Text color={theme.borderActive} bold>
+                [FOCUS]
+              </Text>
+            ) : null}
+          </Box>
+        )}
+      </Box>
+      <SidebarFooter width={resolvedWidth} focused={focused} />
     </Box>
   );
 }

@@ -16,6 +16,7 @@ const ISOLATED_COLOR_SURFACES = new Set([
   'components/KanbanWorkbench.tsx', // Kanban status badge highlights.
   'components/SetupScreen/ProviderKeyCard.tsx', // QR encoder requires explicit dark/light colors.
   'components/TerminalPanel.tsx', // xterm owns a complete terminal ANSI palette.
+  'components/vector-memory-panel/index.tsx', // Data-viz heatmap: similarity scores map to an inline grayscale+blue-tint HSL ramp independent of the theme.
   'components/monaco-theme.ts', // Monaco owns a complete editor/syntax palette.
   'hooks/ws-handlers/misc-handlers.ts', // Serializes graph colors received by a separate renderer.
   'lib/favicon.ts', // Generates a self-contained SVG favicon data URL.

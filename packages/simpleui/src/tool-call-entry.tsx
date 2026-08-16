@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronRight, Clock, FileEdit, LoaderCircle, X } from 'lucide-react';
+import { Brain, Check, ChevronDown, ChevronRight, Clock, FileEdit, LoaderCircle, X } from 'lucide-react';
 import { memo, useState } from 'react';
 import { splitSageBlock } from './lib/sage-block.js';
 import { extractFileEditMeta } from './lib/timeline-model.js';
@@ -149,7 +149,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({
         {/* Compact SAGE chip always visible when inject happened (TUI parity). */}
         {!expanded && memoryLines.length > 0 && (
           <div className="timeline-tool-sage-chip" title={memoryLines.join('\n')}>
-            🧠 {memoryLines.length} SAGE
+            <Brain size={10} aria-hidden="true" /> {memoryLines.length} SAGE
             {(() => {
               const first = memoryLines[0] ?? '';
               const m = /<memory id="[^"]+">([^<]*)<\/memory>/.exec(first);
@@ -176,7 +176,7 @@ export const ToolCallEntry = memo(function ToolCallEntry({
             {memoryLines.length > 0 && (
               <section className="timeline-tool-memory">
                 <span>
-                  🧠 SAGE MEMORY · {memoryLines.length}{' '}
+                  <Brain size={10} aria-hidden="true" /> SAGE MEMORY · {memoryLines.length}{' '}
                   {memoryLines.length === 1 ? 'memory' : 'memories'}
                 </span>
                 <pre>{memoryLines.join('\n')}</pre>

@@ -6,11 +6,11 @@
  * webui-server host doesn't wire a vector store), the panel renders a
  * disabled placeholder.
  */
-import { Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Search, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-
-const OPEN_EVENT = 'simpleui:open-vector-memory-panel';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { onSimplePanel } from './lib/panel-events.js';
 
 export interface VectorMemoryStatus {
   enabled: boolean;
@@ -82,20 +82,32 @@ export function VectorMemoryPanel({
   const [hits, setHits] = useState<readonly VectorMemoryHit[]>([]);
   const [searchError, setSearchError] = useState<string | undefined>();
   const [searching, setSearching] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
     const onClose = () => setOpen(false);
-    window.addEventListener(OPEN_EVENT, onOpen);
+    const unsubOpen = onSimplePanel('open-vector-memory-panel', onOpen);
+    const unsubClose = onSimplePanel('close-vector-memory-panel', onClose);
+    return () => {
+      unsubOpen();
+      unsubClose();
+    };
+  }, []);
+
+  // Escape closes the panel only while it is open — a globally-bound handler
+  // would swallow Escape for every other surface while the panel is closed.
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
     document.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener(OPEN_EVENT, onOpen);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, []);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -141,11 +153,33 @@ export function VectorMemoryPanel({
   if (!open) return null;
 
   return (
-    <div className="vector-memory-panel">
-      <button type="button" onClick={() => setOpen(false)} aria-label="Close">
-        ×
-      </button>
-      <h3>Vector Memory</h3>
+    <>
+      <button
+        type="button"
+        className="settings-overlay"
+        tabIndex={-1}
+        aria-label="Close vector memory panel"
+        onClick={() => setOpen(false)}
+      />
+      <div
+        className="vector-memory-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Vector memory"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
+        <div className="vector-memory-panel__head">
+          <h3>Vector Memory</h3>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close vector memory panel"
+            ref={closeRef}
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        </div>
       {statusError !== undefined ? (
         <p className="vector-memory-panel__error">Status unavailable: {statusError}</p>
       ) : status === undefined ? (
@@ -259,6 +293,7 @@ export function VectorMemoryPanel({
           </ol>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }

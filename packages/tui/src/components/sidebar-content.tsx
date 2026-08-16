@@ -32,6 +32,12 @@ import { SIDEBAR_MISSION_ROWS } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
 import type { LiveSessionEntry } from './sessions-panel.js';
 import {
+  SidebarDivider,
+  SidebarSectionHeader,
+  SidebarStatRow,
+  SidebarStatusPill,
+} from './sidebar-panel-frame.js';
+import {
   blockMeter,
   contextBarColor,
   dialGlyph,
@@ -212,56 +218,30 @@ function fmtRelative(iso: string | undefined): string {
 }
 
 /**
- * A section header: colored glyph + bold uppercase label, a dotted leader
- * filling the remaining width, and an optional right-aligned badge. Always
- * renders exactly one row of exactly `innerWidth` columns — the badge is
- * dropped gracefully when there is no room (narrow terminals).
+ * (Replaced by `SidebarSectionHeader` in `./sidebar-panel-frame.tsx`.)
+ * Kept here as a doc-comment so anyone hunting for "the sidebar's section
+ * header" lands on the right file. The local `SectionHeader` symbol was
+ * promoted to the shared `sidebar-panel-frame.tsx` so routed panels and
+ * persistent content cards use the same capsuled-pill component.
  */
-function SectionHeader({
-  glyph,
-  label,
-  color,
-  badge,
-  badgeColor,
-  innerWidth,
-}: {
-  glyph: string;
-  label: string;
-  color: string;
-  badge?: string | undefined;
-  badgeColor?: string | undefined;
-  innerWidth: number;
-}): React.ReactElement {
-  const left = `${glyph} ${label}`;
-  const leftW = displayWidth(left);
-  const badgeW = badge ? displayWidth(badge) + 1 : 0;
-  const fitsBadge = !!badge && innerWidth - leftW - badgeW >= 0;
-  const fillCount = Math.max(0, innerWidth - leftW - (fitsBadge ? badgeW : 0));
-  return (
-    <Box>
-      <Text color={color} bold>
-        {left}
-      </Text>
-      <Text color={theme.borderSubtle}>{'╌'.repeat(fillCount)}</Text>
-      {fitsBadge ? (
-        <Text color={badgeColor ?? color} bold>
-          {' '}
-          {badge}
-        </Text>
-      ) : null}
-    </Box>
-  );
-}
 
-/** A raised "card" wrapper. On truecolor terminals it gets a subtle lifted
- *  surface so sections read as stacked panels; otherwise it is a plain box. */
+/**
+ * A raised "card" wrapper for the persistent sidebar content. On truecolor
+ * terminals it gets a subtle lifted surface so sections read as stacked
+ * panels; otherwise it is a plain box. The top + bottom hairlines are
+ * drawn in `accent` so a glance down the rail tells the user which cards
+ * are "alerting" or "active" without reading the body.
+ */
 function Card({
   innerWidth,
   marginBottom = 1,
+  accent,
   children,
 }: {
   innerWidth: number;
   marginBottom?: number | undefined;
+  /** Optional accent color for the top/bottom cap hairlines. */
+  accent?: string | undefined;
   children: React.ReactNode;
 }): React.ReactElement {
   return (
@@ -271,7 +251,9 @@ function Card({
       marginBottom={marginBottom}
       {...(theme.supportsBackground ? { backgroundColor: theme.surfaceRaised } : {})}
     >
+      <SidebarDivider innerWidth={innerWidth} color={accent ?? theme.borderSubtle} />
       {children}
+      <SidebarDivider innerWidth={innerWidth} color={accent ?? theme.borderSubtle} />
     </Box>
   );
 }
@@ -541,43 +523,62 @@ export function SidebarContent({
           {...(theme.supportsBackground ? { backgroundColor: theme.surfaceRaised } : {})}
         >
           <Text color={theme.borderActive} bold>
-            ⌨ FOCUS
+            {glyphs.pillLeft} FOCUS {glyphs.pillRight}
           </Text>
           <Text color={theme.textMuted}>↑↓ scroll · Shift+Tab exits</Text>
         </Box>
       ) : null}
 
       {/* ── Model + context hero: the statusbar identity, elevated into a stage. ── */}
-      <Card innerWidth={innerWidth}>
+      <Card innerWidth={innerWidth} accent={ctxColor}>
+        {/* Stage banner: opening brackets + MODEL CORE + dotted rule.
+           The corner brackets cost 4 cols total, so on narrow rails we
+           trim the trailing dash to keep the title readable. */}
         <Box width={innerWidth}>
           <Text color={theme.accent} bold>
-            ╼╼
+            {`${glyphs.cornerTL}${glyphs.dividerDash} `}
           </Text>
           <Text color={theme.brand} bold>
-            {' '}
-            MODEL CORE{' '}
+            {glyphs.star4} MODEL CORE
           </Text>
-          <Text color={theme.accent} bold>
-            {'╾'.repeat(Math.max(0, innerWidth - 14))}
-          </Text>
+          {innerWidth >= 22 ? (
+            <>
+              <Box flexGrow={1} />
+              <Text color={theme.accent} bold>
+                {` ${glyphs.dividerDash}${glyphs.cornerTR}`}
+              </Text>
+            </>
+          ) : (
+            <Text color={theme.accent} bold>
+              {glyphs.cornerTR}
+            </Text>
+          )}
         </Box>
         {modelIdentity ? (
-          <Box flexDirection="column">
+          <Box flexDirection="column" marginTop={1}>
             <Text color={theme.textMuted} wrap="truncate">
               {provider
-                ? `◈ ${trunc(provider.toUpperCase(), Math.max(1, innerWidth - 2))}`
-                : '◈ ACTIVE'}
+                ? `${glyphs.diamondOpen} ${trunc(provider.toUpperCase(), Math.max(1, innerWidth - 2))}`
+                : `${glyphs.diamondOpen} ACTIVE`}
             </Text>
             <Text color={theme.textPrimary} bold wrap="truncate">
               {trunc(modelIdentity, innerWidth)}
             </Text>
           </Box>
         ) : null}
-        <Box width={innerWidth}>
+        <Box width={innerWidth} marginTop={1}>
           <Text color={ctxColor} bold>
             {contextWindow ? `${String(ctxPct).padStart(3, '0')}%` : ' — '}
           </Text>
           <Text color={theme.textMuted}>{innerWidth >= 18 ? ' CONTEXT LOAD' : ' CTX LOAD'}</Text>
+          <Box flexGrow={1} />
+          {contextWindow && innerWidth >= 22 ? (
+            <SidebarStatusPill
+              label={ctxRatio > 0.85 ? 'HIGH' : ctxRatio > 0.5 ? 'WARM' : 'OK'}
+              color={ctxColor}
+              outlined
+            />
+          ) : null}
         </Box>
         {contextWindow ? (
           <>
@@ -594,8 +595,8 @@ export function SidebarContent({
             </Box>
             {cacheCoverageTokens > 0 && contextWindow.max > 0 ? (
               <Text color={theme.success} wrap="truncate">
-                ┊ cache covers {fmtTok(cacheCoverageTokens)} / {fmtTok(contextWindow.max)} (
-                {cacheCoveragePct}%)
+                {glyphs.railMid} cache covers {fmtTok(cacheCoverageTokens)} /{' '}
+                {fmtTok(contextWindow.max)} ({cacheCoveragePct}%)
               </Text>
             ) : null}
             <Text color={theme.textMuted} wrap="truncate">
@@ -605,38 +606,40 @@ export function SidebarContent({
               if (segment.shortLabel === 'FREE' && segment.tokens <= 0) return null;
               const pct = Math.round((segment.tokens / Math.max(1, contextWindow.max)) * 100);
               return (
-                <Box key={segment.shortLabel} width={innerWidth}>
-                  <Text color={segment.color}>
-                    {segment.glyph} {segment.shortLabel}
-                  </Text>
-                  <Box flexGrow={1} />
-                  <Text color={theme.textSecondary}>{fmtTok(segment.tokens)}</Text>
-                  <Text color={theme.textMuted}> {pct}%</Text>
-                </Box>
+                <SidebarStatRow
+                  key={segment.shortLabel}
+                  label={`${segment.glyph} ${segment.shortLabel}`}
+                  value={`${fmtTok(segment.tokens)} ${pct}%`}
+                  color={segment.color}
+                  innerWidth={innerWidth}
+                  valueMuted
+                />
               );
             })}
           </>
         ) : (
-          <Text color={theme.textMuted}>awaiting context telemetry</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} awaiting context telemetry</Text>
         )}
       </Card>
 
       {/* ── Prompt cache card: hit ratio + coverage ── */}
-      <Card innerWidth={innerWidth}>
-        <SectionHeader
+      <Card innerWidth={innerWidth} accent={hasCacheActivity ? theme.success : undefined}>
+        <SidebarSectionHeader
           glyph={glyphs.context}
           label="PROMPT CACHE"
-          color={theme.success}
-          badge={hasCacheActivity ? `${cacheHitPct}%` : '—'}
+          color={hasCacheActivity ? theme.success : theme.textMuted}
+          badge={hasCacheActivity ? `${cacheHitPct}%` : 'IDLE'}
           badgeColor={hasCacheActivity ? theme.success : theme.textMuted}
           innerWidth={innerWidth}
+          pill
+          badgeMuted={!hasCacheActivity}
         />
-        <Box flexDirection="row" width={innerWidth}>
-          <Text color={theme.textSecondary} bold>
+        <Box flexDirection="row" width={innerWidth} marginTop={1}>
+          <Text color={hasCacheActivity ? theme.success : theme.textMuted} bold>
             {hasCacheActivity ? `${cacheHitPct}%` : 'no cache yet'}
           </Text>
           <Text color={theme.textMuted}>
-            {hasCacheActivity ? ' cache-hit' : ' — first prompt writes a prefix'}
+            {hasCacheActivity ? ' cache-hit' : ` ${glyphs.dividerDot} first prompt writes a prefix`}
           </Text>
         </Box>
         {hasCacheActivity ? (
@@ -644,10 +647,12 @@ export function SidebarContent({
             {/* Token-bar mini-meter for the cache hit ratio. */}
             <Box flexDirection="row" width={innerWidth}>
               <Text color={theme.success}>
-                {'█'.repeat(Math.round((cacheHitPct / 100) * Math.max(4, innerWidth - 4)))}
+                {glyphs.barFull.repeat(
+                  Math.round((cacheHitPct / 100) * Math.max(4, innerWidth - 4)),
+                )}
               </Text>
               <Text color={theme.borderSubtle}>
-                {'░'.repeat(
+                {glyphs.barEmpty.repeat(
                   Math.max(
                     0,
                     Math.max(4, innerWidth - 4) -
@@ -656,36 +661,44 @@ export function SidebarContent({
                 )}
               </Text>
             </Box>
-            <Box flexDirection="row" width={innerWidth}>
-              <Text color={theme.textMuted}>read </Text>
-              <Text color={theme.textPrimary}>{fmtTok(cs.readTokens)}</Text>
-              <Box flexGrow={1} />
-              <Text color={theme.textMuted}>write </Text>
-              <Text color={theme.textSecondary}>{fmtTok(cs.writeTokens)}</Text>
-            </Box>
+            <SidebarStatRow
+              label="read"
+              value={fmtTok(cs.readTokens)}
+              color={theme.textPrimary}
+              accent={theme.success}
+              innerWidth={innerWidth}
+            />
+            <SidebarStatRow
+              label="write"
+              value={fmtTok(cs.writeTokens)}
+              color={theme.textSecondary}
+              accent={theme.warn}
+              innerWidth={innerWidth}
+            />
           </>
         ) : null}
         {cacheCoverageTokens > 0 && contextWindow ? (
-          <Box flexDirection="row" width={innerWidth}>
-            <Text color={theme.success}>coverage </Text>
-            <Text color={theme.textPrimary}>
-              {fmtTok(cacheCoverageTokens)} / {fmtTok(contextWindow.max)}
-            </Text>
-            <Text color={theme.textMuted}> ({cacheCoveragePct}% of window)</Text>
-          </Box>
+          <SidebarStatRow
+            label="coverage"
+            value={`${fmtTok(cacheCoverageTokens)}/${fmtTok(contextWindow.max)} ${cacheCoveragePct}%`}
+            color={theme.success}
+            accent={theme.success}
+            innerWidth={innerWidth}
+          />
         ) : null}
       </Card>
 
       {/* ── System vitals: CPU, RAM, heap — relocated from the statusline ── */}
       {processMemory || cpuPercent != null ? (
         <Card innerWidth={innerWidth}>
-          <SectionHeader
+          <SidebarSectionHeader
             glyph={glyphs.cpu}
             label="SYSTEM"
             color={theme.textSecondary}
             badge={cpuPercent != null ? `${cpuPercent.toFixed(0)}%` : undefined}
             badgeColor={cpuPercent != null ? contextBarColor(cpuPercent / 100) : undefined}
             innerWidth={innerWidth}
+            pill
           />
           {cpuPercent != null ? (
             <DialRow
@@ -725,17 +738,24 @@ export function SidebarContent({
 
       {/* ── Agent Swarm: one gated, raised surface for summary + rows ── */}
       {showSwarmSection ? (
-        <Card innerWidth={innerWidth}>
-          <SectionHeader
+        <Card
+          innerWidth={innerWidth}
+          accent={running > 0 ? theme.monitor.fleet : theme.borderSubtle}
+        >
+          <SidebarSectionHeader
             glyph={glyphs.fleet}
             label="AGENT SWARM"
             color={theme.monitor.fleet}
             badge={running > 0 ? `${running} LIVE` : 'IDLE'}
             badgeColor={running > 0 ? theme.success : theme.textMuted}
             innerWidth={innerWidth}
+            pill
+            badgeMuted={running === 0}
           />
-          <Box>
-            <Text color={running > 0 ? theme.success : theme.textMuted}>▎</Text>
+          <Box marginTop={1}>
+            <Text color={running > 0 ? theme.success : theme.textMuted}>
+              {running > 0 ? glyphs.pulseHigh : glyphs.pulseLow}
+            </Text>
             <Text color={running > 0 ? theme.textSecondary : theme.textMuted} wrap="truncate">
               {running > 0 ? ` ${running} active node${running > 1 ? 's' : ''}` : ' all nodes idle'}
             </Text>
@@ -745,7 +765,7 @@ export function SidebarContent({
             const isRunning = entry.status === 'running';
             const isLeader = entry.id === 'leader' || entry.name === 'Leader Agent';
             const isLast = idx === shownAgents.length - 1;
-            const treePrefix = isLeader ? '👑 ' : isLast ? '└─ ' : '├─ ';
+            const treePrefix = isLeader ? '♛ ' : isLast ? glyphs.treeLast : glyphs.treeBranch;
             const name = trunc(entry.name || entry.id, innerWidth - (isLeader ? 8 : 10));
             const ctxPctAgent = entry.ctxPct != null ? `${Math.round(entry.ctxPct * 100)}%` : '';
             const statusLabel =
@@ -761,7 +781,7 @@ export function SidebarContent({
               <Box key={entry.id} flexDirection="column">
                 {/* Line 1: accent rail + tree node + identity + context telemetry. */}
                 <Box flexDirection="row">
-                  <Text color={color}>▎</Text>
+                  <Text color={color}>{glyphs.railMid}</Text>
                   <Text color={theme.borderSubtle}>{treePrefix}</Text>
                   <Text color={color}>{icon} </Text>
                   <Text
@@ -778,46 +798,52 @@ export function SidebarContent({
                 </Box>
                 {/* Line 2: status + current tool, aligned beneath node identity. */}
                 <Box flexDirection="row">
-                  <Text color={color}>▎</Text>
+                  <Text color={color}>{glyphs.railMid}</Text>
                   <Text color={theme.borderSubtle}>
-                    {isLeader ? '   ' : isLast ? '   ' : '│  '}
+                    {isLeader ? '   ' : isLast ? '   ' : `${glyphs.treeThrough} `}
                   </Text>
                   <Text color={theme.textMuted} wrap="truncate">
                     {statusLabel}
-                    {tool ? ` · ${tool}` : ''}
+                    {tool ? ` ${glyphs.dividerDiamond} ${tool}` : ''}
                   </Text>
                 </Box>
               </Box>
             );
           })}
           {hiddenAgentCount > 0 ? (
-            <Text color={theme.textMuted}>▎ +{hiddenAgentCount} more</Text>
+            <Text color={theme.textMuted}>
+              {glyphs.railMid} {glyphs.dividerDot} +{hiddenAgentCount} more
+            </Text>
           ) : null}
         </Card>
       ) : null}
 
       {/* ── Mission Queue card (longer board than the bottom panel) ── */}
       {mission.total > 0 ? (
-        <Card innerWidth={innerWidth}>
-          <SectionHeader
+        <Card
+          innerWidth={innerWidth}
+          accent={mission.done === mission.total ? theme.success : theme.warn}
+        >
+          <SidebarSectionHeader
             glyph={glyphs.queue}
             label="MISSIONS"
             color={theme.warn}
             badge={`${mission.done}/${mission.total}`}
             badgeColor={mission.done === mission.total ? theme.success : theme.warn}
             innerWidth={innerWidth}
+            pill
           />
-          {/* Progress matrix bar */}
+          {/* Progress matrix bar — filled + rail + percent tail. */}
           <Box width={innerWidth} marginBottom={1}>
             <Text color={theme.success}>
-              {'█'.repeat(
+              {glyphs.barFull.repeat(
                 Math.round(
                   (mission.done / Math.max(1, mission.total)) * Math.max(4, innerWidth - 8),
                 ),
               )}
             </Text>
             <Text color={theme.borderSubtle}>
-              {'░'.repeat(
+              {glyphs.barEmpty.repeat(
                 Math.max(
                   0,
                   Math.max(4, innerWidth - 8) -
@@ -862,7 +888,7 @@ export function SidebarContent({
           })}
           {mission.overflow > 0 ? (
             <Text color={theme.textMuted} dimColor>
-              {'  '}+{mission.overflow} more
+              {glyphs.dividerDot} +{mission.overflow} more
             </Text>
           ) : null}
         </Card>
@@ -870,19 +896,20 @@ export function SidebarContent({
 
       {/* ── Sessions card ── */}
       {(liveSessions?.length ?? 0) > 0 || (resumeSessions?.length ?? 0) > 0 ? (
-        <Card innerWidth={innerWidth} marginBottom={0}>
-          <SectionHeader
+        <Card innerWidth={innerWidth} marginBottom={0} accent={theme.success}>
+          <SidebarSectionHeader
             glyph={glyphs.sessions}
             label="SESSIONS"
             color={theme.success}
             badge={String((liveSessions?.length ?? 0) + (resumeSessions?.length ?? 0))}
             badgeColor={theme.textSecondary}
             innerWidth={innerWidth}
+            pill
           />
 
           {/* Live sessions (F10) */}
           {liveSessions && liveSessions.length > 0 ? (
-            <Box flexDirection="column">
+            <Box flexDirection="column" marginTop={1}>
               {liveSessions.slice(0, 3).map((s) => {
                 const isCurrent = isCurrentSession(s.sessionId, currentSessionId);
                 const icon = isCurrent ? '●' : liveSessionIcon(s.status);
@@ -917,7 +944,7 @@ export function SidebarContent({
                 return (
                   <Box key={rs.id} flexDirection="row">
                     <Text color={badge ? badge.color : theme.textMuted}>
-                      {badge ? badge.label : '·'}{' '}
+                      {badge ? badge.label : glyphs.dividerDot}{' '}
                     </Text>
                     <Text
                       color={isCurrent ? theme.accent : theme.textSecondary}
@@ -960,28 +987,27 @@ export function SidebarContent({
         }
         if (liveTools.length === 0) return null;
         return (
-          <Card innerWidth={innerWidth} marginBottom={0}>
-            <SectionHeader
+          <Card innerWidth={innerWidth} marginBottom={0} accent={theme.accent}>
+            <SidebarSectionHeader
               glyph={glyphs.tools}
               label="TOOL TICKER"
               color={theme.accent}
-              badge={liveTools.some((t) => t.status === 'RUNNING') ? '● STREAM' : 'OFFLINE'}
+              badge={liveTools.some((t) => t.status === 'RUNNING') ? 'STREAM' : 'IDLE'}
               badgeColor={
                 liveTools.some((t) => t.status === 'RUNNING') ? theme.success : theme.textMuted
               }
               innerWidth={innerWidth}
+              pill
             />
             {liveTools.slice(0, 3).map((item, i) => (
-              <Box key={`ticker-${i}`} flexDirection="row" width={innerWidth}>
-                <Text color={theme.accent}>⚡ </Text>
-                <Text color={theme.textSecondary} wrap="truncate">
-                  {trunc(item.name, Math.max(6, innerWidth - item.status.length - 4))}
-                </Text>
-                <Box flexGrow={1} />
-                <Text color={item.color} bold>
-                  {item.status}
-                </Text>
-              </Box>
+              <SidebarStatRow
+                key={`ticker-${i}`}
+                label={`${glyphs.zap} ${item.name}`}
+                value={item.status}
+                color={item.color}
+                accent={item.color}
+                innerWidth={Math.max(8, innerWidth - 0)}
+              />
             ))}
           </Card>
         );

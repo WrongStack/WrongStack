@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { planModelSwitch } from '../lib/model-switch.js';
+import { visibleModelGroups } from '../lib/model-catalog-view.js';
 import type { SimpleSocket } from '../lib/ws.js';
 import type { ModelDescriptor, SessionInfo } from '../types.js';
 
@@ -30,6 +31,8 @@ export interface UseModelCatalogResult {
   setPendingModelSwitch: React.Dispatch<React.SetStateAction<PendingModelSwitch | null>>;
   selectModel: (provider: string, model: string) => void;
   confirmModelSwitch: () => void;
+  /** Dismiss the pending smaller-context warning without switching. */
+  cancelModelSwitch: () => void;
   requestProviderModels: (providerId: string) => void;
 }
 
@@ -58,10 +61,11 @@ export function useModelCatalog(options: UseModelCatalogOptions): UseModelCatalo
   const [providerLabels, setProviderLabels] = useState<Record<string, string>>({});
   const [pendingModelSwitch, setPendingModelSwitch] = useState<PendingModelSwitch | null>(null);
 
-  const groupedModels = useMemo(
-    () => Object.entries(models).filter(([, entries]) => entries.length > 0),
-    [models],
-  );
+  // Chat-capable + de-duplicated view of the raw catalog (see
+  // model-catalog-view): a real install lists 1000+ entries including
+  // embeddings, image generators and safety classifiers that can never serve
+  // a chat turn, and catalog merges can append a provider list twice.
+  const groupedModels = useMemo(() => visibleModelGroups(models), [models]);
 
   const selectedModel = session ? `${session.provider}\t${session.model}` : '';
 
@@ -103,6 +107,8 @@ export function useModelCatalog(options: UseModelCatalogOptions): UseModelCatalo
     });
   }, [socketRef]);
 
+  const cancelModelSwitch = useCallback(() => setPendingModelSwitch(null), []);
+
   const requestProviderModels = useCallback(
     (providerId: string) => {
       if (requestedModelsRef.current.has(providerId)) return;
@@ -143,6 +149,7 @@ export function useModelCatalog(options: UseModelCatalogOptions): UseModelCatalo
     setPendingModelSwitch,
     selectModel,
     confirmModelSwitch,
+    cancelModelSwitch,
     requestProviderModels,
   };
 }

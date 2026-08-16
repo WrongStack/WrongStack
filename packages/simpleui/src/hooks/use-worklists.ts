@@ -1,5 +1,6 @@
 import type { RefObject } from 'react';
 import { useCallback, useState } from 'react';
+import { dispatchOpenWorkspacePanel } from '../lib/panel-events.js';
 import {
   createWorklistStore,
   type PlanStatus,
@@ -83,7 +84,7 @@ export function useWorklists(options: UseWorklistsOptions): UseWorklistsResult {
   );
 
   const openWorkspacePanel = useCallback((view: 'tools' | WorklistView) => {
-    window.dispatchEvent(new CustomEvent('simpleui:open-workspace-panel', { detail: { view } }));
+    dispatchOpenWorkspacePanel(view);
   }, []);
 
   const updateTodoStatus = useCallback(

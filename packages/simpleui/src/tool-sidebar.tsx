@@ -28,6 +28,7 @@ import type {
   WorklistStore,
   WorklistView,
 } from './lib/worklist-store.js';
+import { onOpenWorkspacePanel } from './lib/panel-events.js';
 import type { ToolCallInfo } from './types.js';
 
 const LazyWorklistSidebar = lazy(() =>
@@ -130,20 +131,9 @@ export function ToolSidebar({
   );
 
   useEffect(() => {
-    const onOpen = (event: Event) => {
-      const view = (event as CustomEvent<{ view?: SidebarView }>).detail?.view;
-      if (
-        view === 'tools' ||
-        view === 'flow' ||
-        view === 'todos' ||
-        view === 'tasks' ||
-        view === 'plan'
-      ) {
-        openView(view);
-      }
-    };
-    window.addEventListener('simpleui:open-workspace-panel', onOpen);
-    return () => window.removeEventListener('simpleui:open-workspace-panel', onOpen);
+    return onOpenWorkspacePanel((view) => {
+      openView(view);
+    });
   }, [openView]);
 
   useEffect(() => {

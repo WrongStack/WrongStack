@@ -60,6 +60,17 @@ function injectWsUrlPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), injectWsUrlPlugin()],
+  // `rehype-pretty-code` imports `getSingletonHighlighter` from the `shiki`
+  // root, which would bundle all ~340 languages / ~100 themes (~10MB). The
+  // shim re-exports `shiki/core` and serves the curated highlighter instead.
+  resolve: {
+    alias: [
+      {
+        find: /^shiki$/,
+        replacement: new URL('./src/lib/shiki-shim.ts', import.meta.url).pathname.slice(1),
+      },
+    ],
+  },
   test: {
     maxWorkers: getVitestMaxWorkers(),
   },

@@ -1,5 +1,8 @@
 import { AlertTriangle, Brain, Shield, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { onSimplePanel } from './lib/panel-events.js';
+import { type SocketRequestHandle, socketRequest } from './lib/socket-request.js';
 import type { SimpleSocket } from './lib/ws.js';
 
 interface BrainLogEntry {
@@ -30,11 +33,13 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
   const [thinking, setThinking] = useState(false);
   const [answer, setAnswer] = useState<BrainAnswer | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
-  // Settle fn of the in-flight brain.status request so a repeat load (or an
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, open);
+  // Handle of the in-flight brain.status request so a repeat load (or an
   // unmount) cancels the previous subscription and its 3s timeout.
-  const pendingStatusRef = useRef<(() => void) | null>(null);
+  const pendingStatusRef = useRef<SocketRequestHandle | null>(null);
 
-  useEffect(() => () => pendingStatusRef.current?.(), []);
+  useEffect(() => () => pendingStatusRef.current?.cancel(), []);
 
   useEffect(() => {
     if (!open) return;
@@ -66,31 +71,24 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
   const loadStatus = useCallback(() => {
     const socket = socketRef.current;
     if (!socket) return;
-    pendingStatusRef.current?.();
-    let settled = false;
-    let unsub: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      unsub?.();
-      if (pendingStatusRef.current === finish) pendingStatusRef.current = null;
-    };
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'brain.status') return;
-      const p = msg.payload as Record<string, unknown> | undefined;
+    pendingStatusRef.current?.cancel();
+    const handle = socketRequest({
+      socket,
+      sendType: 'brain.status',
+      payload: {},
+      expectType: 'brain.status',
+      timeoutMs: 3000,
+    });
+    pendingStatusRef.current = handle;
+    void handle.promise.then((p) => {
+      if (pendingStatusRef.current !== handle) return;
+      pendingStatusRef.current = null;
       if (!p) return;
       setStatus({
         maxAutoRisk: String(p.maxAutoRisk ?? 'medium'),
         log: Array.isArray(p.log) ? p.log as BrainLogEntry[] : [],
       });
-      finish();
-    };
-    unsub = socket.onMessage(handler);
-    pendingStatusRef.current = finish;
-    socket.send('brain.status');
-    timer = setTimeout(() => finish(), 3000);
+    });
   }, [socketRef]);
 
   useEffect(() => {
@@ -98,8 +96,7 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
       setOpen(true);
       loadStatus();
     };
-    window.addEventListener('simpleui:open-brain-panel', onOpen);
-    return () => window.removeEventListener('simpleui:open-brain-panel', onOpen);
+    return onSimplePanel('open-brain-panel', onOpen);
   }, [loadStatus]);
 
   const askBrain = () => {
@@ -125,7 +122,14 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
   return (
     <>
       <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
-      <aside className="brain-panel" role="dialog" aria-modal="true" aria-label="Brain">
+      <aside
+        className="brain-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Brain"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="brain-panel-head">
           <span><Brain size={13} aria-hidden="true" /> BRAIN</span>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}><X size={14} /></button>

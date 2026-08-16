@@ -32,16 +32,17 @@ const pending: PendingModelSwitch = {
 
 beforeEach(() => {
   document.body.replaceChildren();
+  localStorage.clear();
 });
 
 afterEach(() => {
   for (const root of roots.splice(0)) act(() => root.unmount());
 });
 
-function select(container: HTMLElement): HTMLSelectElement {
-  const el = container.querySelector('.model-select');
-  if (!el) throw new Error('.model-select not found');
-  return el as HTMLSelectElement;
+function trigger(container: HTMLElement): HTMLButtonElement {
+  const el = container.querySelector('.model-select-trigger');
+  if (!el) throw new Error('.model-select-trigger not found');
+  return el as HTMLButtonElement;
 }
 
 function render(props: Partial<Parameters<typeof ModelSwitcher>[0]> = {}): HTMLElement {
@@ -66,59 +67,122 @@ function render(props: Partial<Parameters<typeof ModelSwitcher>[0]> = {}): HTMLE
   return container;
 }
 
-describe('ModelSwitcher — select rendering', () => {
-  it('renders one optgroup per provider with its models as options', () => {
-    const container = render();
-    const groups = container.querySelectorAll('optgroup');
-    expect(groups).toHaveLength(1);
-    expect(groups[0]?.getAttribute('label')).toBe('OpenAI');
+function openPicker(container: HTMLElement): HTMLElement {
+  act(() => trigger(container).dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  const picker = container.querySelector('.model-picker');
+  if (!picker) throw new Error('.model-picker not found after opening');
+  return picker as HTMLElement;
+}
 
-    const options = container.querySelectorAll('optgroup option');
-    expect(options).toHaveLength(3);
-    expect(options[0]?.textContent).toContain('GPT-4o');
-    expect(options[0]?.textContent).toContain('128K');
+describe('ModelSwitcher — trigger', () => {
+  it('renders the selected model name on the trigger button', () => {
+    const container = render();
+    expect(trigger(container).textContent).toContain('GPT-4o');
+    expect(trigger(container).getAttribute('aria-haspopup')).toBe('dialog');
   });
 
-  it('shows a vision emoji for vision-capable models', () => {
-    const container = render();
-    const options = container.querySelectorAll('optgroup option');
-    const visionOption = Array.from(options).find((o) => o.textContent?.includes('Vision'));
-    expect(visionOption?.textContent).toContain('👁');
-  });
-
-  it('disables the select when disabled=true', () => {
+  it('disables the trigger when disabled=true', () => {
     const container = render({ disabled: true });
-    expect(select(container).disabled).toBe(true);
+    expect(trigger(container).disabled).toBe(true);
   });
 
   it('shows Loading models… when groupedModels is empty', () => {
     const container = render({ groupedModels: [] });
-    const placeholder = select(container).querySelector('option');
-    expect(placeholder?.textContent).toBe('Loading models…');
+    expect(trigger(container).textContent).toContain('Loading models…');
   });
 });
 
-describe('ModelSwitcher — option values', () => {
-  it('uses provider\\tmodel as the option value for onChange splitting', () => {
-    const onSelectModel = vi.fn();
-    const container = render({ onSelectModel });
-    const sel = select(container);
-    act(() => {
-      sel.value = 'openai\tgpt-4o-mini';
-      sel.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    expect(onSelectModel).toHaveBeenCalledWith('openai', 'gpt-4o-mini');
+describe('ModelSwitcher — picker', () => {
+  it('renders one option per model with provider label and context window', () => {
+    const container = render();
+    const picker = openPicker(container);
+    const options = picker.querySelectorAll('.model-picker-item');
+    expect(options).toHaveLength(3);
+    expect(options[0]?.textContent).toContain('GPT-4o');
+    expect(options[0]?.textContent).toContain('128K');
+    expect(options[0]?.textContent).toContain('OpenAI');
   });
 
-  it('ignores a value without a tab separator', () => {
+  it('marks the selected model with aria-selected', () => {
+    const container = render();
+    const picker = openPicker(container);
+    const options = picker.querySelectorAll('.model-picker-item');
+    expect(options[0]?.getAttribute('aria-selected')).toBe('true');
+    expect(options[1]?.getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('shows a vision indicator for vision-capable models', () => {
+    const container = render();
+    const picker = openPicker(container);
+    const vision = picker.querySelector('.model-picker-vision');
+    expect(vision?.getAttribute('aria-label')).toBe('Vision capable');
+  });
+
+  it('filters options by the search query', () => {
+    const container = render();
+    const picker = openPicker(container);
+    const input = picker.querySelector<HTMLInputElement>('.model-picker-search input');
+    if (!input) throw new Error('search input not found');
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    act(() => {
+      setValue?.call(input, 'mini');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const options = picker.querySelectorAll('.model-picker-item');
+    expect(options).toHaveLength(1);
+    expect(options[0]?.textContent).toContain('GPT-4o mini');
+  });
+
+  it('selects a model on click and reports provider + model id', () => {
     const onSelectModel = vi.fn();
     const container = render({ onSelectModel });
-    const sel = select(container);
+    const picker = openPicker(container);
+    const second = picker.querySelectorAll('.model-picker-item')[1];
+    act(() => second?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(onSelectModel).toHaveBeenCalledWith('openai', 'gpt-4o-mini');
+    expect(container.querySelector('.model-picker')).toBeNull();
+    expect(localStorage.getItem('wrongstack.simpleui.models.recent')).toContain('gpt-4o-mini');
+  });
+
+  it('selects the highlighted model on Enter and closes on Escape', () => {
+    const onSelectModel = vi.fn();
+    const container = render({ onSelectModel });
+    const picker = openPicker(container);
+    const input = picker.querySelector<HTMLInputElement>('.model-picker-search input');
+    if (!input) throw new Error('search input not found');
     act(() => {
-      sel.value = 'no-tab-here';
-      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+      );
     });
-    expect(onSelectModel).not.toHaveBeenCalled();
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(onSelectModel).toHaveBeenCalledWith('openai', 'gpt-4o-mini');
+
+    const reopened = openPicker(container);
+    const reopenedInput = reopened.querySelector<HTMLInputElement>(
+      '.model-picker-search input',
+    );
+    act(() => {
+      reopenedInput?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      );
+    });
+    expect(container.querySelector('.model-picker')).toBeNull();
+  });
+
+  it('caps the unfiltered list and hints about the total', () => {
+    const many: ModelDescriptor[] = Array.from({ length: 120 }, (_, i) => ({
+      id: `model-${i}`,
+      name: `Model ${i}`,
+      contextWindow: 100_000,
+    }));
+    const container = render({ groupedModels: [['openai', many]] });
+    const picker = openPicker(container);
+    expect(picker.querySelectorAll('.model-picker-item').length).toBeLessThanOrEqual(80);
+    const more = picker.querySelector('.model-picker-more');
+    expect(more?.textContent).toContain('120');
   });
 });
 

@@ -41,6 +41,106 @@ export interface UiGlyphs {
   segmentStart: string;
   segmentTransition: string;
   segmentEnd: string;
+  // ── Sidebar ornament set ────────────────────────────────────────────
+  // A purpose-built glyph vocabulary for the right-rail cards: capsuled
+  // status pills, modern dividers, accent corner brackets, micro spark
+  // cells, and a four-step progress ladder. These are the atoms the
+  // upgraded SidebarPanelFrame and SidebarContent compose into the
+  // dense, "mission-control" feel.
+  pillLeft: string;
+  pillRight: string;
+  pillDot: string;
+  railHeavy: string;
+  railMid: string;
+  railLight: string;
+  cornerTL: string;
+  cornerTR: string;
+  cornerBL: string;
+  cornerBR: string;
+  edgeT: string;
+  edgeB: string;
+  dividerDot: string;
+  dividerDash: string;
+  dividerWave: string;
+  dividerDiamond: string;
+  meterFull: string;
+  meter7: string;
+  meter5: string;
+  meter3: string;
+  meterEmpty: string;
+  meterLight: string;
+  ladder: string;
+  ladderFull: string;
+  ladderStep: string;
+  arrowRight: string;
+  arrowDoubleRight: string;
+  arrowUp: string;
+  arrowDown: string;
+  pulseHigh: string;
+  pulseMid: string;
+  pulseLow: string;
+  diamond: string;
+  diamondOpen: string;
+  triangleUp: string;
+  triangleDown: string;
+  triangleRight: string;
+  barFull: string;
+  barEmpty: string;
+  barFade: string;
+  blockStack: string;
+  block: string;
+  spike: string;
+  star4: string;
+  star8: string;
+  ring: string;
+  dot: string;
+  target: string;
+  hash: string;
+  at: string;
+  link: string;
+  lock: string;
+  unlock: string;
+  bell: string;
+  zap: string;
+  filter: string;
+  search: string;
+  tag: string;
+  flame: string;
+  sparkle: string;
+  pin: string;
+  bookmark: string;
+  flag: string;
+  shield: string;
+  check: string;
+  cross: string;
+  bullet: string;
+  bulletOpen: string;
+  bulletSquare: string;
+  bulletHalf: string;
+  bulletQuarter: string;
+  bulletThreeQuarter: string;
+  sparkHi: string;
+  sparkMid: string;
+  sparkLo: string;
+  sparkEmpty: string;
+  segmentStartLine: string;
+  segmentTransitionLine: string;
+  segmentEndLine: string;
+  cell0: string;
+  cell1: string;
+  cell2: string;
+  cell3: string;
+  cell4: string;
+  cell5: string;
+  cell6: string;
+  cell7: string;
+  cell8: string;
+  cellFull: string;
+  cellEmpty: string;
+  indent: string;
+  treeLast: string;
+  treeBranch: string;
+  treeThrough: string;
 }
 
 const UNICODE: UiGlyphs = Object.freeze({
@@ -82,6 +182,101 @@ const UNICODE: UiGlyphs = Object.freeze({
   segmentStart: '◖',
   segmentTransition: '▶',
   segmentEnd: '◗',
+  // ── Sidebar ornaments (unicode) ──
+  pillLeft: '⟦',
+  pillRight: '⟧',
+  pillDot: '·',
+  railHeavy: '▌',
+  railMid: '▎',
+  railLight: '▏',
+  cornerTL: '╭',
+  cornerTR: '╮',
+  cornerBL: '╰',
+  cornerBR: '╯',
+  edgeT: '┬',
+  edgeB: '┴',
+  dividerDot: '·',
+  dividerDash: '─',
+  dividerWave: '〰',
+  dividerDiamond: '◆',
+  meterFull: '█',
+  meter7: '▉',
+  meter5: '▌',
+  meter3: '▎',
+  meterEmpty: '░',
+  meterLight: '·',
+  ladder: '▰',
+  ladderFull: '▰',
+  ladderStep: '▱',
+  arrowRight: '▸',
+  arrowDoubleRight: '▹',
+  arrowUp: '△',
+  arrowDown: '▽',
+  pulseHigh: '●',
+  pulseMid: '◉',
+  pulseLow: '○',
+  diamond: '◆',
+  diamondOpen: '◇',
+  triangleUp: '▲',
+  triangleDown: '▼',
+  triangleRight: '▶',
+  barFull: '█',
+  barEmpty: '░',
+  barFade: '▒',
+  blockStack: '▤',
+  block: '▮',
+  spike: '✦',
+  star4: '✦',
+  star8: '✸',
+  ring: '◯',
+  dot: '·',
+  target: '◎',
+  hash: '#',
+  at: '@',
+  link: '⌘',
+  lock: '⚿',
+  unlock: '⚷',
+  bell: '◔',
+  zap: '⚡',
+  filter: '⌕',
+  search: '⌕',
+  tag: '◧',
+  flame: '✷',
+  sparkle: '✦',
+  pin: '⎗',
+  bookmark: '⎘',
+  flag: '⚑',
+  shield: '⛨',
+  check: '✓',
+  cross: '×',
+  bullet: '●',
+  bulletOpen: '○',
+  bulletSquare: '▪',
+  bulletHalf: '◐',
+  bulletQuarter: '◓',
+  bulletThreeQuarter: '◶',
+  sparkHi: '◆',
+  sparkMid: '◇',
+  sparkLo: '○',
+  sparkEmpty: '·',
+  segmentStartLine: '◖',
+  segmentTransitionLine: '◀',
+  segmentEndLine: '◗',
+  cell0: '▁',
+  cell1: '▂',
+  cell2: '▃',
+  cell3: '▄',
+  cell4: '▅',
+  cell5: '▆',
+  cell6: '▇',
+  cell7: '█',
+  cell8: '█',
+  cellFull: '█',
+  cellEmpty: '░',
+  indent: '  ',
+  treeLast: '└─',
+  treeBranch: '├─',
+  treeThrough: '│ ',
 });
 
 // Optional Nerd Font profile. WrongStack never assumes this font is present;
@@ -154,6 +349,101 @@ const ASCII: UiGlyphs = Object.freeze({
   segmentStart: '[',
   segmentTransition: '>',
   segmentEnd: ']',
+  // ── Sidebar ornaments (ASCII) ──
+  pillLeft: '[',
+  pillRight: ']',
+  pillDot: '.',
+  railHeavy: '|',
+  railMid: '|',
+  railLight: '|',
+  cornerTL: '+',
+  cornerTR: '+',
+  cornerBL: '+',
+  cornerBR: '+',
+  edgeT: '+',
+  edgeB: '+',
+  dividerDot: '.',
+  dividerDash: '-',
+  dividerWave: '~',
+  dividerDiamond: '*',
+  meterFull: '#',
+  meter7: '#',
+  meter5: '#',
+  meter3: '=',
+  meterEmpty: '.',
+  meterLight: '.',
+  ladder: '#',
+  ladderFull: '#',
+  ladderStep: '=',
+  arrowRight: '>',
+  arrowDoubleRight: '>>',
+  arrowUp: '^',
+  arrowDown: 'v',
+  pulseHigh: '@',
+  pulseMid: 'o',
+  pulseLow: '.',
+  diamond: '*',
+  diamondOpen: 'o',
+  triangleUp: '^',
+  triangleDown: 'v',
+  triangleRight: '>',
+  barFull: '#',
+  barEmpty: '.',
+  barFade: '=',
+  blockStack: '#',
+  block: '#',
+  spike: '*',
+  star4: '*',
+  star8: '*',
+  ring: 'o',
+  dot: '.',
+  target: '@',
+  hash: '#',
+  at: '@',
+  link: '$',
+  lock: 'L',
+  unlock: 'l',
+  bell: '!',
+  zap: '!',
+  filter: 'F',
+  search: '?',
+  tag: 'T',
+  flame: 'F',
+  sparkle: '*',
+  pin: 'P',
+  bookmark: 'B',
+  flag: 'F',
+  shield: 'S',
+  check: '+',
+  cross: 'x',
+  bullet: 'o',
+  bulletOpen: '.',
+  bulletSquare: '#',
+  bulletHalf: 'o',
+  bulletQuarter: 'o',
+  bulletThreeQuarter: 'o',
+  sparkHi: '#',
+  sparkMid: '*',
+  sparkLo: 'o',
+  sparkEmpty: '.',
+  segmentStartLine: '[',
+  segmentTransitionLine: '<',
+  segmentEndLine: ']',
+  cell0: '_',
+  cell1: '.',
+  cell2: ',',
+  cell3: '-',
+  cell4: '=',
+  cell5: '+',
+  cell6: '*',
+  cell7: '#',
+  cell8: '#',
+  cellFull: '#',
+  cellEmpty: '_',
+  indent: '  ',
+  treeLast: '`-',
+  treeBranch: '|-',
+  treeThrough: '| ',
 });
 
 export function resolveIconStyle(env: NodeJS.ProcessEnv = process.env): IconStyle {

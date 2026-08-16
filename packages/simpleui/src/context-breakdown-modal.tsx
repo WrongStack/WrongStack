@@ -1,5 +1,7 @@
 import { BarChart3, MessageSquare, Minimize2, RefreshCw, Wrench, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { type SocketRequestHandle, socketRequest } from './lib/socket-request.js';
 import { compactTokens, formatUptime } from './lib/session-helpers.js';
 import type { SimpleSocket } from './lib/ws.js';
 import type { ContextInfo } from './types.js';
@@ -134,6 +136,8 @@ export function ContextBreakdownModal({
   const [refreshGen, setRefreshGen] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef, open);
 
   // Tick the UPTIME summary card while the modal is open.
   useEffect(() => {
@@ -143,13 +147,10 @@ export function ContextBreakdownModal({
   }, [open]);
 
   // Fetch debug data when the modal opens or refresh is requested. The reply
-  // shares the `context.debug` type with the request, so the subscription
-  // filters on that type and settles on the first reply (5s timeout).
+  // shares the `context.debug` type with the request; the correlated request
+  // helper settles on the first reply (5s timeout) and cancels on unmount.
   useEffect(() => {
     if (!open) return;
-    let cancelled = false;
-    let unsub: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
     setError(null);
     setData(null);
@@ -161,19 +162,27 @@ export function ContextBreakdownModal({
     }
     const payload: Record<string, unknown> = {};
     if (sessionId) payload['sessionId'] = sessionId;
+    let handle: SocketRequestHandle;
     try {
-      socket.send('context.debug', payload);
+      handle = socketRequest({
+        socket,
+        sendType: 'context.debug',
+        payload,
+        expectType: 'context.debug',
+        timeoutMs: 5000,
+      });
     } catch {
       setLoading(false);
       setError('Could not request context data');
       return;
     }
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (cancelled || msg.type !== 'context.debug') return;
-      cancelled = true;
-      clearTimeout(timer);
-      unsub?.();
-      const parsed = parseContextDebugPayload(msg.payload);
+    void handle.promise.then((reply) => {
+      if (!reply) {
+        setLoading(false);
+        setError('No response from server');
+        return;
+      }
+      const parsed = parseContextDebugPayload(reply);
       if (!parsed) {
         setLoading(false);
         setError('Unexpected response from server');
@@ -181,20 +190,8 @@ export function ContextBreakdownModal({
       }
       setData(parsed);
       setLoading(false);
-    };
-    unsub = socket.onMessage(handler);
-    timer = setTimeout(() => {
-      if (cancelled) return;
-      cancelled = true;
-      unsub?.();
-      setLoading(false);
-      setError('No response from server');
-    }, 5000);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      unsub?.();
-    };
+    });
+    return () => handle.cancel();
   }, [open, socketRef, sessionId, refreshGen]);
 
   // Focus the close button and bind Escape while open.
@@ -229,7 +226,14 @@ export function ContextBreakdownModal({
         aria-label="Close context breakdown"
         onClick={onClose}
       />
-      <div className="ctx-breakdown-modal" role="dialog" aria-modal="true" aria-label="Context breakdown">
+      <div
+        className="ctx-breakdown-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Context breakdown"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="ctx-breakdown-head">
           <span className="ctx-breakdown-title">
             <BarChart3 size={13} aria-hidden="true" /> CONTEXT

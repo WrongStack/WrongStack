@@ -26,6 +26,7 @@ function baseProps(overrides: Partial<SessionTopbarProps> = {}): SessionTopbarPr
       pendingModelSwitch: null,
       selectModel: vi.fn(),
       confirmModelSwitch: vi.fn(),
+      cancelModelSwitch: vi.fn(),
     },
     contextTokens: 42000,
     contextMaxContext: 200000,

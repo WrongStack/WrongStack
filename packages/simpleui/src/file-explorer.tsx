@@ -11,6 +11,9 @@ import {
   X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { onSimplePanel } from './lib/panel-events.js';
+import { type SocketRequestHandle, socketRequest } from './lib/socket-request.js';
 import type { SimpleSocket } from './lib/ws.js';
 
 const SELECTED_FILE_STORAGE_KEY = 'wrongstack-simpleui-file-manager-selected-file';
@@ -180,19 +183,21 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
-  // Settle fns of the in-flight tree/content/save requests. A new request (or
-  // an unmount) cancels the previous one's subscription and 8s timeout so a
-  // stale timer can't later fire setState against fresh or unmounted state.
-  const pendingTreeRef = useRef<(() => void) | null>(null);
-  const pendingContentRef = useRef<(() => void) | null>(null);
-  const pendingSaveRef = useRef<(() => void) | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, open);
+  // In-flight tree/content/save requests. A new request (or an unmount)
+  // cancels the previous one so a stale timer can't later fire setState
+  // against fresh or unmounted state.
+  const pendingTreeRef = useRef<SocketRequestHandle | null>(null);
+  const pendingContentRef = useRef<SocketRequestHandle | null>(null);
+  const pendingSaveRef = useRef<SocketRequestHandle | null>(null);
   const savedBadgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
     () => () => {
-      pendingTreeRef.current?.();
-      pendingContentRef.current?.();
-      pendingSaveRef.current?.();
+      pendingTreeRef.current?.cancel();
+      pendingContentRef.current?.cancel();
+      pendingSaveRef.current?.cancel();
       if (savedBadgeTimerRef.current) clearTimeout(savedBadgeTimerRef.current);
     },
     [],
@@ -221,35 +226,21 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     const socket = socketRef.current;
     if (!socket) { setLoading(false); return; }
 
-    pendingTreeRef.current?.();
-    let settled = false;
-    let unsub: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      unsub?.();
-      if (pendingTreeRef.current === finish) pendingTreeRef.current = null;
-    };
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'files.tree') return;
-      if (pendingTreeRef.current !== finish) return;
-      const payload = msg.payload as Record<string, unknown> | undefined;
-      if (Array.isArray(payload?.['tree'])) {
+    pendingTreeRef.current?.cancel();
+    const handle = socketRequest({ socket, sendType: 'files.tree', payload: {}, expectType: 'files.tree' });
+    pendingTreeRef.current = handle;
+    void handle.promise.then((payload) => {
+      if (pendingTreeRef.current !== handle) return;
+      pendingTreeRef.current = null;
+      setLoading(false);
+      if (!payload) return; // timed out — empty tree renders the failure note
+      if (Array.isArray(payload['tree'])) {
         setTree(payload['tree'] as FileNode[]);
       } else {
         setError('Failed to load file tree.');
       }
-      setLoading(false);
-      finish();
-    };
-
-    unsub = socket.onMessage(handler);
-    pendingTreeRef.current = finish;
-    socket.send('files.tree', {});
-    timer = setTimeout(() => { setLoading(false); finish(); }, 8000);
-  }, [socketRef, loading]);
+    });
+  }, [socketRef]);
 
   const loadFileContent = useCallback((filePath: string) => {
     setContentLoading(true);
@@ -262,41 +253,32 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     const socket = socketRef.current;
     if (!socket) { setContentLoading(false); return; }
 
-    pendingContentRef.current?.();
-    let settled = false;
-    let unsub: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      unsub?.();
-      if (pendingContentRef.current === finish) pendingContentRef.current = null;
-    };
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'files.read') return;
-      if (pendingContentRef.current !== finish) return;
-      const payload = msg.payload as Record<string, unknown> | undefined;
-      const returnedPath = typeof payload?.['filePath'] === 'string' ? payload['filePath'] : '';
-      // Only accept the response for the file we requested
-      if (returnedPath !== filePath) return;
-
-      if (typeof payload?.['content'] === 'string') {
+    pendingContentRef.current?.cancel();
+    const handle = socketRequest({
+      socket,
+      sendType: 'files.read',
+      payload: { filePath },
+      expectType: 'files.read',
+      accept: (frame) => {
+        const returned = frame.payload as { filePath?: unknown } | undefined;
+        return returned?.filePath === filePath;
+      },
+    });
+    pendingContentRef.current = handle;
+    void handle.promise.then((payload) => {
+      if (pendingContentRef.current !== handle) return;
+      pendingContentRef.current = null;
+      setContentLoading(false);
+      if (!payload) return; // timed out — null content renders the failure note
+      if (typeof payload['content'] === 'string') {
         setFileContent(payload['content']);
         setEditedContent(null);
       } else {
         setFileContent(null);
-        setError(payload?.['error'] ? String(payload['error']) : 'Failed to read file.');
+        setError(payload['error'] ? String(payload['error']) : 'Failed to read file.');
       }
-      setContentLoading(false);
-      finish();
-    };
-
-    unsub = socket.onMessage(handler);
-    pendingContentRef.current = finish;
-    socket.send('files.read', { filePath });
-    timer = setTimeout(() => { setContentLoading(false); finish(); }, 8000);
-  }, [socketRef, contentLoading]);
+    });
+  }, [socketRef]);
 
   const handleSelectFile = useCallback((path: string) => {
     setSelectedPath(path);
@@ -317,25 +299,27 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
       clearTimeout(savedBadgeTimerRef.current);
       savedBadgeTimerRef.current = null;
     }
-    pendingSaveRef.current?.();
-    let settled = false;
-    let unsub: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      unsub?.();
-      if (pendingSaveRef.current === finish) pendingSaveRef.current = null;
-    };
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'files.written') return;
-      if (pendingSaveRef.current !== finish) return;
-      const payload = msg.payload as Record<string, unknown> | undefined;
-      const returnedPath = typeof payload?.['filePath'] === 'string' ? payload['filePath'] : '';
-      if (returnedPath !== selectedPath) return;
-
-      if (payload?.['success']) {
+    pendingSaveRef.current?.cancel();
+    const handle = socketRequest({
+      socket,
+      sendType: 'files.write',
+      payload: { filePath: selectedPath, content: editedContent },
+      expectType: 'files.written',
+      accept: (frame) => {
+        const returned = frame.payload as { filePath?: unknown } | undefined;
+        return returned?.filePath === selectedPath;
+      },
+    });
+    pendingSaveRef.current = handle;
+    void handle.promise.then((payload) => {
+      if (pendingSaveRef.current !== handle) return;
+      pendingSaveRef.current = null;
+      setSaving(false);
+      if (!payload) {
+        setError('Failed to save file (timed out).');
+        return;
+      }
+      if (payload['success']) {
         setFileContent(editedContent);
         setEditedContent(null);
         setIsEditing(false);
@@ -345,17 +329,10 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
           savedBadgeTimerRef.current = null;
         }, 2000);
       } else {
-        setError(payload?.['error'] ? String(payload['error']) : 'Failed to save file.');
+        setError(payload['error'] ? String(payload['error']) : 'Failed to save file.');
       }
-      setSaving(false);
-      finish();
-    };
-
-    unsub = socket.onMessage(handler);
-    pendingSaveRef.current = finish;
-    socket.send('files.write', { filePath: selectedPath, content: editedContent });
-    timer = setTimeout(() => { setSaving(false); finish(); }, 8000);
-  }, [selectedPath, editedContent, socketRef, saving]);
+    });
+  }, [selectedPath, editedContent, socketRef]);
 
   const handleTreeReload = useCallback(() => {
     setTree(null);
@@ -373,8 +350,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
 
   useEffect(() => {
     const onOpen = () => openExplorer();
-    window.addEventListener('simpleui:open-file-explorer', onOpen);
-    return () => window.removeEventListener('simpleui:open-file-explorer', onOpen);
+    return onSimplePanel('open-file-explorer', onOpen);
   }, [openExplorer]);
 
   // ── Tab key handling — insert 2 spaces instead of changing focus ──
@@ -433,50 +409,60 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
 
   // ── Syntax highlighting overlay ─────────────────────────────────────
   // Lightweight token-based highlighter — wraps keywords, strings, comments,
-  // and numbers in <span> tags with CSS classes. Not a full parser, but
-  // enough to make code readable behind the transparent textarea.
+  // and numbers in <span> elements with CSS classes. Not a full parser, but
+  // enough to make code readable behind the transparent textarea. Returns
+  // React nodes so the raw file text is escaped by React itself — no HTML
+  // string is ever injected into the document.
+  const CODE_EXTENSIONS = new Set([
+    'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json', 'css', 'scss',
+    'html', 'xml', 'svg', 'py', 'rs', 'go', 'rb', 'java', 'c', 'cpp',
+    'h', 'sh', 'bash', 'yml', 'yaml', 'sql', 'md', 'graphql',
+  ]);
+
+  const TOKEN_PATTERN =
+    /(\/\/[^\n]*|#[^\n]*)|("[^"\n]*"|'[^'\n]*'|`[^`]*`)|(\b\d+\.?\d*\b)|(\b(?:const|let|var|function|return|if|else|for|while|switch|case|break|continue|class|extends|implements|import|export|from|default|async|await|new|try|catch|finally|throw|typeof|instanceof|in|of|void|delete|yield|interface|type|enum|public|private|protected|static|readonly|abstract|namespace|declare|module|def|elif|fn|struct|impl|pub|use|match|package|func|val|nil)\b)/g;
+
   function highlightContent(text: string): React.ReactNode {
     if (!text) return null;
     const ext = selectedPath?.split('.').pop()?.toLowerCase() ?? '';
-    const isCode = [
-      'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json', 'css', 'scss',
-      'html', 'xml', 'svg', 'py', 'rs', 'go', 'rb', 'java', 'c', 'cpp',
-      'h', 'sh', 'bash', 'yml', 'yaml', 'sql', 'md', 'graphql',
-    ].includes(ext);
-    if (!isCode) return text;
+    if (!CODE_EXTENSIONS.has(ext)) return text;
 
-    const escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    const tokenRegex =
-      /(\/\/[^\n]*|#[^\n]*)|(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|"[^"\n]*"|'[^'\n]*'|`[^`]*`)|(\b\d+\.?\d*\b)|(\b(?:const|let|var|function|return|if|else|for|while|switch|case|break|continue|class|extends|implements|import|export|from|default|async|await|new|try|catch|finally|throw|typeof|instanceof|in|of|void|delete|yield|interface|type|enum|public|private|protected|static|readonly|abstract|namespace|declare|module|def|elif|fn|struct|impl|pub|use|match|package|func|val|nil)\b)/g;
-
-    const highlighted = escaped.replace(
-      tokenRegex,
-      (match, comment, str, num, kw) => {
-        if (comment) return `<span class="hl-comment">${comment}</span>`;
-        if (str) return `<span class="hl-string">${str}</span>`;
-        if (num) return `<span class="hl-number">${num}</span>`;
-        if (kw) return `<span class="hl-keyword">${kw}</span>`;
-        return match;
-      },
-    );
-
-    return highlighted
-      .split('\n')
-      .map((line, i) => (
-        <React.Fragment key={i}>
-          <span dangerouslySetInnerHTML={{ __html: line }} />
-          {i < text.split('\n').length - 1 && '\n'}
-        </React.Fragment>
-      ));
+    const pattern = new RegExp(TOKEN_PATTERN.source, 'g');
+    const nodes: React.ReactNode[] = [];
+    let last = 0;
+    let key = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > last) nodes.push(text.slice(last, match.index));
+      const className = match[1]
+        ? 'hl-comment'
+        : match[2]
+          ? 'hl-string'
+          : match[3]
+            ? 'hl-number'
+            : 'hl-keyword';
+      nodes.push(
+        <span key={`hl-${key++}`} className={className}>
+          {match[0]}
+        </span>,
+      );
+      last = match.index + match[0].length;
+    }
+    if (last < text.length) nodes.push(text.slice(last));
+    return nodes;
   }
 
   return (
     <>
       <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
-      <aside className="file-explorer file-manager" role="dialog" aria-modal="true" aria-label="File manager">
+      <aside
+        className="file-explorer file-manager"
+        role="dialog"
+        aria-modal="true"
+        aria-label="File manager"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="file-explorer-head">
           <span><Folder size={13} aria-hidden="true" /> FILES</span>
           <div className="file-explorer-head-actions">

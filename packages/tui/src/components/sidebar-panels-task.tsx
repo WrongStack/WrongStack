@@ -46,6 +46,9 @@ export function PlanPanelSidebar({
     ...items.filter((i) => i.status === 'open').slice(0, 4),
     ...items.filter((i) => i.status === 'done').slice(0, 2),
   ];
+  // The header pill summarizes the panel's state in one place. On wide rails
+  // (innerWidth >= 22) it sits on the title row's right edge; on narrower
+  // rails the right side falls back to a status row beneath the title.
   return (
     <SidebarPanelFrame
       accent={theme.accent}
@@ -53,16 +56,20 @@ export function PlanPanelSidebar({
       title="PLAN"
       width={width}
       kicker={title ? trunc(title, 20) : undefined}
+      pillLabel={inner >= 22 ? `${Math.round(ratio * 100)}%` : undefined}
+      pillColor={ratio === 1 && total > 0 ? theme.success : theme.accent}
       right={
-        <Text>
-          <Text color={theme.warn}>◐{inProgressCount}</Text>
-          <Text color={theme.textMuted}> </Text>
-          <Text color={theme.success}>
-            {glyphs.success}
-            {doneCount}
+        inner < 22 ? (
+          <Text>
+            <Text color={theme.warn}>◐{inProgressCount}</Text>
+            <Text color={theme.textMuted}> </Text>
+            <Text color={theme.success}>
+              {glyphs.success}
+              {doneCount}
+            </Text>
+            <Text color={theme.textMuted}> {total}</Text>
           </Text>
-          <Text color={theme.textMuted}> {total}</Text>
-        </Text>
+        ) : undefined
       }
       footer="F5 details"
     >
@@ -74,13 +81,14 @@ export function PlanPanelSidebar({
           badge={`${Math.round(ratio * 100)}%`}
           badgeColor={ratio === 1 && total > 0 ? theme.success : theme.accent}
           innerWidth={inner}
+          pill
         />
-        <Box>
+        <Box marginTop={1}>
           <Text color={ratio === 1 && total > 0 ? theme.success : theme.accent}>
-            {'█'.repeat(Math.round(ratio * inner))}
+            {glyphs.barFull.repeat(Math.round(ratio * inner))}
           </Text>
           <Text color={theme.borderSubtle}>
-            {'░'.repeat(Math.max(0, inner - Math.round(ratio * inner)))}
+            {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round(ratio * inner)))}
           </Text>
         </Box>
       </SidebarPanelCard>
@@ -91,9 +99,10 @@ export function PlanPanelSidebar({
           color={theme.textMuted}
           badge={`${doneCount}/${total}`}
           innerWidth={inner}
+          pill
         />
         {ordered.length === 0 ? (
-          <Text color={theme.textMuted}>no plan items</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no plan items</Text>
         ) : (
           ordered.map((item) => {
             const icon =
@@ -145,17 +154,21 @@ export function TodosPanelSidebar({ todos, width }: TodosPanelSidebarProps): Rea
       title="TODOS"
       width={width}
       kicker="mission queue"
+      pillLabel={inner >= 22 ? `${done}/${todos.length}` : undefined}
+      pillColor={done === todos.length && todos.length > 0 ? theme.success : theme.accent}
       right={
-        <Text>
-          <Text color={theme.success}>{done}</Text>
-          <Text color={theme.textMuted}>/{todos.length}</Text>
-        </Text>
+        inner < 22 ? (
+          <Text>
+            <Text color={theme.success}>{done}</Text>
+            <Text color={theme.textMuted}>/{todos.length}</Text>
+          </Text>
+        ) : undefined
       }
       footer="F6 details"
     >
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
         {ordered.length === 0 ? (
-          <Text color={theme.textMuted}>no todos</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no todos</Text>
         ) : (
           ordered.map((t) => {
             const icon =
@@ -201,16 +214,20 @@ export function QueuePanelSidebar({ items, width }: QueuePanelSidebarProps): Rea
       title="QUEUE"
       width={width}
       kicker="queued prompts"
+      pillLabel={inner >= 22 ? `${items.length}` : undefined}
+      pillColor={items.length > 0 ? theme.warn : theme.textMuted}
       right={
-        <Text color={items.length > 0 ? theme.warn : theme.textMuted} bold>
-          {items.length}
-        </Text>
+        inner < 22 ? (
+          <Text color={items.length > 0 ? theme.warn : theme.textMuted} bold>
+            {items.length}
+          </Text>
+        ) : undefined
       }
       footer="F7 details"
     >
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
         {items.length === 0 ? (
-          <Text color={theme.textMuted}>queue is empty</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} queue is empty</Text>
         ) : (
           items
             .slice(0, 10)
@@ -251,17 +268,21 @@ export function ProcessListPanelSidebar({
       title="PROCESSES"
       width={width}
       kicker="running"
+      pillLabel={inner >= 22 ? `${activeCount}/${totalCount}` : undefined}
+      pillColor={activeCount > 0 ? theme.success : theme.textMuted}
       right={
-        <Text>
-          <Text color={theme.success}>{activeCount}</Text>
-          <Text color={theme.textMuted}>/{totalCount}</Text>
-        </Text>
+        inner < 22 ? (
+          <Text>
+            <Text color={theme.success}>{activeCount}</Text>
+            <Text color={theme.textMuted}>/{totalCount}</Text>
+          </Text>
+        ) : undefined
       }
       footer="F8 details"
     >
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
         {processes.length === 0 ? (
-          <Text color={theme.textMuted}>no processes</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no processes</Text>
         ) : (
           processes.slice(0, 10).map((p, i) => {
             const showPid = inner >= 24;
@@ -325,8 +346,10 @@ export function GoalPanelSidebar({
       title="GOAL"
       width={width}
       kicker="mission control"
+      pillLabel={inner >= 22 && goal ? `${stateIcon} ${goal.goalState.toUpperCase()}` : undefined}
+      pillColor={coordinatorRunning ? theme.success : theme.textMuted}
       right={
-        goal ? (
+        inner < 22 && goal ? (
           <Text color={coordinatorRunning ? theme.success : theme.textMuted} bold>
             {stateIcon} {goal.goalState.toUpperCase()}
           </Text>
@@ -336,7 +359,7 @@ export function GoalPanelSidebar({
     >
       {!goal ? (
         <SidebarPanelCard innerWidth={inner}>
-          <Text color={theme.textMuted}>no mission set</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no mission set</Text>
         </SidebarPanelCard>
       ) : (
         <>
@@ -358,11 +381,14 @@ export function GoalPanelSidebar({
               color={theme.success}
               badge={`${Math.round(progress)}%`}
               innerWidth={inner}
+              pill
             />
-            <Box>
-              <Text color={theme.success}>{'█'.repeat(Math.round((progress / 100) * inner))}</Text>
+            <Box marginTop={1}>
+              <Text color={theme.success}>
+                {glyphs.barFull.repeat(Math.round((progress / 100) * inner))}
+              </Text>
               <Text color={theme.borderSubtle}>
-                {'░'.repeat(Math.max(0, inner - Math.round((progress / 100) * inner)))}
+                {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round((progress / 100) * inner)))}
               </Text>
             </Box>
           </SidebarPanelCard>
@@ -373,6 +399,7 @@ export function GoalPanelSidebar({
               color={theme.warn}
               badge={`${doneCount}/${deliverables.length}`}
               innerWidth={inner}
+              pill
             />
             {deliverables.slice(0, 6).map((d, i) => {
               const done = /^\[[x✓]\]|✅|\(done\)/i.test(d);
@@ -423,7 +450,13 @@ export function SessionsPanelSidebar({
       title="SESSIONS"
       width={width}
       kicker="live + resume"
-      right={<Text color={total > 0 ? theme.success : theme.textMuted}>{total}</Text>}
+      pillLabel={inner >= 22 ? `${total}` : undefined}
+      pillColor={total > 0 ? theme.success : theme.textMuted}
+      right={
+        inner < 22 ? (
+          <Text color={total > 0 ? theme.success : theme.textMuted}>{total}</Text>
+        ) : undefined
+      }
       footer="F10 details"
     >
       {live.length > 0 ? (
@@ -434,6 +467,7 @@ export function SessionsPanelSidebar({
             color={theme.success}
             badge={`${live.length}`}
             innerWidth={inner}
+            pill
           />
           {live.map((s) => {
             const isCurrent = isCurrentSession(s.sessionId, currentSessionId);
@@ -466,10 +500,13 @@ export function SessionsPanelSidebar({
             color={theme.textMuted}
             badge={`${resume.length}`}
             innerWidth={inner}
+            pill
           />
           {resume.map((rs) => {
             const showRelativeTime = inner >= 24;
-            const rel = showRelativeTime ? fmtRelative(rs.lastActivityAt ?? rs.endedAt, nowRef) : '';
+            const rel = showRelativeTime
+              ? fmtRelative(rs.lastActivityAt ?? rs.endedAt, nowRef)
+              : '';
             const title = trunc(
               rs.title || rs.lastUserMessage || rs.id,
               Math.max(4, inner - 2 - (showRelativeTime ? displayWidth(rel) + 1 : 0)),
@@ -515,7 +552,7 @@ export function SessionsPanelSidebar({
       ) : null}
       {total === 0 ? (
         <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-          <Text color={theme.textMuted}>no sessions</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no sessions</Text>
         </SidebarPanelCard>
       ) : null}
     </SidebarPanelFrame>
@@ -543,14 +580,18 @@ export function KanbanPanelSidebar({
       title="KANBAN"
       width={width}
       kicker="board"
+      pillLabel={inner >= 22 ? `${totalActive} active` : undefined}
+      pillColor={totalActive > 0 ? theme.warn : theme.textMuted}
       right={
-        <Text>
-          <Text color={theme.success}>
-            {glyphs.success}
-            {columns.find((c) => c.name === 'done')?.count ?? 0}
+        inner < 22 ? (
+          <Text>
+            <Text color={theme.success}>
+              {glyphs.success}
+              {columns.find((c) => c.name === 'done')?.count ?? 0}
+            </Text>
+            <Text color={theme.textMuted}> {totalActive}</Text>
           </Text>
-          <Text color={theme.textMuted}> {totalActive}</Text>
-        </Text>
+        ) : undefined
       }
       footer="F12 details"
     >
@@ -577,9 +618,10 @@ export function KanbanPanelSidebar({
           label="ACTIVE"
           color={theme.warn}
           innerWidth={inner}
+          pill
         />
         {activeCardTitles.length === 0 ? (
-          <Text color={theme.textMuted}>no active cards</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no active cards</Text>
         ) : (
           activeCardTitles
             .slice(0, 6)

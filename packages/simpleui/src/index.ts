@@ -30,3 +30,15 @@ export { projectStatusNotice } from './lib/status-notice.js';
 
 // Error boundary — isolated render crash handling
 export { ErrorBoundary } from './error-boundary.js';
+
+// Correlated socket requests — request/reply over the shared WebSocket
+export type { ServerFrame, SocketRequestConfig, SocketRequestHandle } from './lib/socket-request.js';
+export { socketRequest } from './lib/socket-request.js';
+
+// Versioned localStorage persistence with quota reporting
+export type { PersistedStorage, PersistedWriteFailureReason, PersistedWriteFailureListener } from './lib/persisted.js';
+export { onPersistedWriteFailure, readPersisted, removePersisted, writePersisted } from './lib/persisted.js';
+
+// Typed panel open/close events
+export type { SimplePanelEvent, WorkspacePanelView } from './lib/panel-events.js';
+export { dispatchOpenWorkspacePanel, dispatchSimplePanel, onOpenWorkspacePanel, onSimplePanel } from './lib/panel-events.js';

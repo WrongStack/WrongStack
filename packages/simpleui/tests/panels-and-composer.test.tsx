@@ -55,13 +55,13 @@ afterEach(() => {
 });
 
 describe('SimpleUI socket-backed panels', () => {
-  it('loads brain status and submits a question', () => {
+  it('loads brain status and submits a question', async () => {
     const { socket, handlers } = socketHarness();
     const container = mount(<BrainPanel socketRef={{ current: socket } as never} />);
     act(() => (container.querySelector('.brain-panel-trigger') as HTMLButtonElement).click());
-    expect(socket.send).toHaveBeenCalledWith('brain.status');
+    expect(socket.send).toHaveBeenCalledWith('brain.status', {});
 
-    act(() => {
+    await act(async () => {
       for (const handler of handlers) {
         handler({
           type: 'brain.status',
@@ -80,7 +80,7 @@ describe('SimpleUI socket-backed panels', () => {
     act(() => (container.querySelector('.brain-panel-ask button') as HTMLButtonElement).click());
     expect(socket.send).toHaveBeenCalledWith('brain.ask', { question: 'Should we proceed?' });
 
-    act(() => {
+    await act(async () => {
       for (const handler of handlers) {
         handler({
           type: 'brain.answer',
@@ -91,7 +91,7 @@ describe('SimpleUI socket-backed panels', () => {
     expect(container.textContent).toContain('Yes, guarded.');
   });
 
-  it('searches memory by path and renders nested memory matches', () => {
+  it('searches memory by path and renders nested memory matches', async () => {
     const { socket, handlers } = socketHarness();
     const container = mount(<MemoryDrawer socketRef={{ current: socket } as never} />);
     act(() => (container.querySelector('.memory-drawer-trigger') as HTMLButtonElement).click());
@@ -105,7 +105,7 @@ describe('SimpleUI socket-backed panels', () => {
       limit: 20,
     });
 
-    act(() => {
+    await act(async () => {
       handlers.at(-1)?.({
         type: 'memory.sage.forFile',
         payload: {
@@ -130,7 +130,7 @@ describe('SimpleUI socket-backed panels', () => {
     expect(container.textContent).toContain('src/app.ts');
   });
 
-  it('loads current content when a changed file has no inline diff', () => {
+  it('loads current content when a changed file has no inline diff', async () => {
     const { socket, handlers } = socketHarness();
     const onClose = vi.fn();
     const container = mount(
@@ -143,7 +143,7 @@ describe('SimpleUI socket-backed panels', () => {
     expect(socket.send).toHaveBeenCalledWith('files.read', { filePath: 'src/app.ts' });
     expect(container.textContent).toContain('Loading file content');
 
-    act(() =>
+    await act(async () =>
       handlers.at(-1)?.({
         type: 'files.read',
         payload: { filePath: 'src/app.ts', content: 'export const ready = true;' },

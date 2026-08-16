@@ -1,9 +1,12 @@
 import { Bot, Brain, CircleDot, Info, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { memo } from 'react';
 import { MarkdownHooks as ReactMarkdown } from 'react-markdown';
-import rehypePrettyCode from 'rehype-pretty-code';
-import remarkGfm from 'remark-gfm';
 import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
+import {
+  markdownComponents,
+  markdownRehypePlugins,
+  markdownRemarkPlugins,
+} from './lib/markdown-config.js';
 import type { AgentTranscriptEntry } from './types.js';
 
 interface AgentChatPaneProps {
@@ -41,11 +44,6 @@ function formatTime(value: string): string {
   return new Date(parsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-/** Shiki theme name for syntax-highlighted code blocks. */
-function codeTheme(theme: 'dark' | 'light'): string {
-  return theme === 'light' ? 'github-light' : 'github-dark-dimmed';
-}
-
 interface AgentTranscriptEntryItemProps {
   entry: AgentTranscriptEntry;
   theme?: 'dark' | 'light' | undefined;
@@ -67,17 +65,9 @@ const AgentTranscriptEntryItem = memo(function AgentTranscriptEntryItem({
       <div className="agent-entry-body">
         {entry.kind === 'text' ? (
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[
-              [rehypePrettyCode, { theme: codeTheme(theme), keepBackground: false }],
-            ]}
-            components={{
-              a: ({ children, ...props }) => (
-                <a {...props} target="_blank" rel="noreferrer">
-                  {children}
-                </a>
-              ),
-            }}
+            remarkPlugins={markdownRemarkPlugins}
+            rehypePlugins={markdownRehypePlugins(theme)}
+            components={markdownComponents}
             fallback={null}
           >
             {stripNextStepsBlock(entry.content)}

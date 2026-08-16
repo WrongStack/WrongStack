@@ -10,7 +10,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { isUnreadIncomingMailboxMessage, type MailboxStore } from './lib/mailbox-store.js';
 
 type SimpleUIMailboxAction = 'mark-read' | 'acknowledge' | 'reopen' | 'soft-delete';
@@ -38,6 +38,14 @@ export function MailboxSidebar({ store, onRefresh, onSend, onAction }: MailboxSi
   const [to, setTo] = useState('leader');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  // Relative time labels ("2m", "1h") are computed against Date.now() at
+  // render time; without a periodic tick they would freeze at whatever the
+  // last unrelated render captured. 30s keeps them honest without busy work.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick((tick) => tick + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
   const unread = snapshot.messages.filter(isUnreadIncomingMailboxMessage).length;
   const online = snapshot.agents.filter((agent) => agent.online);
   // Derive "online" from real server traffic — the WebUI server does not

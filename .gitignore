@@ -216,3 +216,7 @@ AGENTS.md
 
 .wrongstack/prompts/
 .zcode/
+# SimpleUI local test/build debris
+packages/simpleui/vitest*.txt
+packages/simpleui/vitest.log
+reports/simpleui-improvement-report.md

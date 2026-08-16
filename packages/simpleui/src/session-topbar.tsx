@@ -25,6 +25,7 @@ export interface SessionTopbarModelCatalog {
   pendingModelSwitch: PendingModelSwitch | null;
   selectModel: (provider: string, model: string) => void;
   confirmModelSwitch: () => void;
+  cancelModelSwitch: () => void;
 }
 
 export interface SessionTopbarProps {
@@ -102,6 +103,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
     pendingModelSwitch,
     selectModel,
     confirmModelSwitch,
+    cancelModelSwitch,
   } = models;
 
   return (
@@ -134,9 +136,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
         pendingModelSwitch={pendingModelSwitch}
         onSelectModel={selectModel}
         onConfirmSwitch={confirmModelSwitch}
-        onCancelSwitch={() => {
-          /* handled inside useModelCatalog via Escape effect */
-        }}
+        onCancelSwitch={cancelModelSwitch}
       />
 
       <div className="topbar-right">
@@ -175,7 +175,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
         </button>
         <button
           type="button"
-          className="theme-toggle"
+          className="topbar-icon-btn"
           onClick={onOpenCommandPalette}
           aria-label="Open command palette"
           aria-expanded={commandPaletteOpen}
@@ -185,7 +185,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
         </button>
         <button
           type="button"
-          className="theme-toggle"
+          className="topbar-icon-btn"
           onClick={onToggleTheme}
           aria-label={`Use ${theme === 'dark' ? 'light' : 'dark'} theme`}
           title={`Use ${theme === 'dark' ? 'light' : 'dark'} theme`}
@@ -194,7 +194,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
         </button>
         <button
           type="button"
-          className="theme-toggle"
+          className="topbar-icon-btn"
           onClick={onToggleMailbox}
           aria-label="Open email panel"
           aria-expanded={mailboxOpen}
@@ -213,7 +213,7 @@ export function SessionTopbar(props: SessionTopbarProps) {
         </button>
         <button
           type="button"
-          className="theme-toggle"
+          className="topbar-icon-btn"
           onClick={onOpenSettings}
           aria-label="Open settings"
           aria-expanded={settingsOpen}

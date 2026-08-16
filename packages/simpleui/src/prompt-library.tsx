@@ -1,5 +1,8 @@
-import { Bookmark, Plus, Trash2, X } from 'lucide-react';
+import { Bookmark, Plus, Trash2, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { onSimplePanel } from './lib/panel-events.js';
+import { readPersisted, writePersisted } from './lib/persisted.js';
 
 interface SavedPrompt {
   id: string;
@@ -9,20 +12,27 @@ interface SavedPrompt {
 }
 
 const STORAGE_KEY = 'wrongstack.simpleui.prompts';
+const STORAGE_VERSION = 1;
 
-function loadPrompts(): SavedPrompt[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) && arr.every((x) => x && typeof x.id === 'string' && typeof x.text === 'string')
-      ? arr
-      : [];
-  } catch { return []; }
+function isValidPrompt(value: unknown): value is SavedPrompt {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as SavedPrompt).id === 'string' &&
+    typeof (value as SavedPrompt).text === 'string'
+  );
 }
 
-function savePrompts(prompts: SavedPrompt[]): void {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prompts)); } catch { /* storage full */ }
+function loadPrompts(): SavedPrompt[] {
+  const stored = readPersisted<SavedPrompt[]>(STORAGE_KEY, {
+    version: STORAGE_VERSION,
+    validate: (value) => (Array.isArray(value) && value.every(isValidPrompt) ? value : null),
+  });
+  return stored ?? [];
+}
+
+function savePrompts(prompts: SavedPrompt[]): boolean {
+  return writePersisted(STORAGE_KEY, STORAGE_VERSION, prompts);
 }
 
 interface PromptLibraryProps {
@@ -34,7 +44,10 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
   const [prompts, setPrompts] = useState<SavedPrompt[]>(loadPrompts);
   const [newText, setNewText] = useState('');
   const [newLabel, setNewLabel] = useState('');
+  const [storageWarning, setStorageWarning] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -46,8 +59,7 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
-    window.addEventListener('simpleui:open-prompt-library', onOpen);
-    return () => window.removeEventListener('simpleui:open-prompt-library', onOpen);
+    return onSimplePanel('open-prompt-library', onOpen);
   }, []);
 
   const add = () => {
@@ -60,7 +72,7 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
     };
     const updated = [p, ...prompts];
     setPrompts(updated);
-    savePrompts(updated);
+    setStorageWarning(!savePrompts(updated));
     setNewText('');
     setNewLabel('');
   };
@@ -68,7 +80,7 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
   const remove = (id: string) => {
     const updated = prompts.filter((p) => p.id !== id);
     setPrompts(updated);
-    savePrompts(updated);
+    setStorageWarning(!savePrompts(updated));
   };
 
   if (!open) {
@@ -85,7 +97,14 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
   return (
     <>
       <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
-      <aside className="prompt-library" role="dialog" aria-modal="true" aria-label="Prompt library">
+      <aside
+        className="prompt-library"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Prompt library"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="prompt-library-head">
           <span><Bookmark size={13} aria-hidden="true" /> PROMPTS</span>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}><X size={14} /></button>
@@ -96,6 +115,12 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
           <button type="button" onClick={add} disabled={!newText.trim()}>
             <Plus size={12} aria-hidden="true" /> Save
           </button>
+          {storageWarning && (
+            <p className="prompt-library-storage-warning" role="alert">
+              <TriangleAlert size={12} aria-hidden="true" /> Could not save — browser storage is
+              full or blocked.
+            </p>
+          )}
         </div>
         <div className="prompt-library-list">
           {prompts.length === 0 && <p className="prompt-library-empty">No saved prompts yet.</p>}

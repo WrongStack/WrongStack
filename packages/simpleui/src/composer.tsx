@@ -5,6 +5,7 @@ import {
   ListPlus,
   Send,
   ShieldAlert,
+  Waves,
   Split,
   X,
 } from 'lucide-react';
@@ -218,22 +219,8 @@ export function Composer({
           </fieldset>
         )}
         {/\[VIBE\]/i.test(draft) && (
-          <div
-            className="vibe-mode-pill"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '11px',
-              padding: '3px 8px',
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
-              color: '#38bdf8',
-              borderRadius: '4px',
-              marginBottom: '6px',
-            }}
-          >
-            <span>🌊</span>
+          <div className="vibe-mode-pill" role="status">
+            <Waves size={12} aria-hidden="true" />
             <span><strong>VIBE Protocol:</strong> Three-Stage Verification (Spec → Coder → Auditor)</span>
           </div>
         )}

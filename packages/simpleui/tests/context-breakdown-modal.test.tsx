@@ -154,10 +154,10 @@ describe('ContextBreakdownModal', () => {
     expect(socket.send).toHaveBeenCalledWith('context.debug', { sessionId: 'sess-1' });
   });
 
-  it('renders the breakdown sections from the response', () => {
+  it('renders the breakdown sections from the response', async () => {
     const { socket, emit } = fakeSocket();
     const { host } = renderModal({ socket });
-    act(() => emit('context.debug', breakdownPayload));
+    await act(async () => emit('context.debug', breakdownPayload));
     const dialog = host.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
     expect(dialog?.textContent).toContain('ALLOCATION');
@@ -169,13 +169,13 @@ describe('ContextBreakdownModal', () => {
     expect(dialog?.textContent).toContain('Hello there');
   });
 
-  it('shows the session uptime in the summary when a start time is provided', () => {
+  it('shows the session uptime in the summary when a start time is provided', async () => {
     const { socket, emit } = fakeSocket();
     const { host } = renderModal({
       socket,
       sessionStart: Date.now() - 60_000,
     });
-    act(() => emit('context.debug', breakdownPayload));
+    await act(async () => emit('context.debug', breakdownPayload));
     const dialog = host.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
     expect(dialog?.textContent).toContain('UPTIME');
@@ -184,10 +184,10 @@ describe('ContextBreakdownModal', () => {
     expect(dialog?.textContent).toContain('1m 0s');
   });
 
-  it('omits the tool section when no tools are registered', () => {
+  it('omits the tool section when no tools are registered', async () => {
     const { socket, emit } = fakeSocket();
     const { host } = renderModal({ socket });
-    act(() =>
+    await act(async () =>
       emit('context.debug', {
         ...breakdownPayload,
         tools: { total: 0, count: 0, breakdown: [] },
@@ -197,28 +197,28 @@ describe('ContextBreakdownModal', () => {
     expect(host.textContent).toContain('MESSAGE BREAKDOWN');
   });
 
-  it('shows an error when the response is malformed', () => {
+  it('shows an error when the response is malformed', async () => {
     const { socket, emit } = fakeSocket();
     const { host } = renderModal({ socket });
-    act(() => emit('context.debug', { total: 1 }));
+    await act(async () => emit('context.debug', { total: 1 }));
     const alert = host.querySelector('[role="alert"]');
     expect(alert?.textContent).toContain('Unexpected response');
   });
 
-  it('shows an error when the server does not reply within 5s', () => {
+  it('shows an error when the server does not reply within 5s', async () => {
     vi.useFakeTimers();
     const { host } = renderModal({ socket: fakeSocket().socket });
-    act(() => {
-      vi.advanceTimersByTime(5000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
     });
     const alert = host.querySelector('[role="alert"]');
     expect(alert?.textContent).toContain('No response from server');
   });
 
-  it('re-sends context.debug when refresh is clicked', () => {
+  it('re-sends context.debug when refresh is clicked', async () => {
     const { socket, emit } = fakeSocket();
     const { host } = renderModal({ socket });
-    act(() => emit('context.debug', breakdownPayload));
+    await act(async () => emit('context.debug', breakdownPayload));
     act(() => click(host.querySelector('button[aria-label="Refresh"]') as Element));
     expect(socket.send).toHaveBeenCalledTimes(2);
     expect(socket.send).toHaveBeenLastCalledWith('context.debug', { sessionId: 'sess-1' });

@@ -180,6 +180,15 @@ export function AppearanceSettingsTab() {
           value={localPrefs.groupToolCalls}
           onChange={() => syncPref('groupToolCalls', !localPrefs.groupToolCalls)}
         />
+        {/* G3: autoCollapseInput — persisted in `LocalPrefs` (v15 add), migrated,
+            but no UI surface existed. Reuses `settings:general.autoCollapseInput*`
+            keys shipped in all 7 locale files in this patch. */}
+        <PreferenceToggle
+          label={t('settings:general.autoCollapseInputLabel')}
+          hint={t('settings:general.autoCollapseInputHint')}
+          value={localPrefs.autoCollapseInput}
+          onChange={() => syncPref('autoCollapseInput', !localPrefs.autoCollapseInput)}
+        />
       </div>
     </div>
   );

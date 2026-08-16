@@ -1,5 +1,7 @@
 import { Activity, ChevronRight, Clock, Cpu, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { onSimplePanel } from './lib/panel-events.js';
 import { formatUptime } from './lib/session-helpers.js';
 import type { ChatMessage, ContextInfo } from './types.js';
 
@@ -20,6 +22,8 @@ export function SessionHealthPanel({
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -32,8 +36,7 @@ export function SessionHealthPanel({
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
-    window.addEventListener('simpleui:open-session-health', onOpen);
-    return () => window.removeEventListener('simpleui:open-session-health', onOpen);
+    return onSimplePanel('open-session-health', onOpen);
   }, []);
 
   const ctxPct = context.maxContext > 0 ? Math.round((context.tokens / context.maxContext) * 100) : 0;
@@ -71,7 +74,14 @@ export function SessionHealthPanel({
   return (
     <>
       <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
-      <aside className="health-panel" role="dialog" aria-modal="true" aria-label="Session health">
+      <aside
+        className="health-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Session health"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="health-panel-head">
           <span><Activity size={13} aria-hidden="true" /> HEALTH</span>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}><X size={14} /></button>

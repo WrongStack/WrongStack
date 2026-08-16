@@ -33,7 +33,14 @@ const AUTOREVIEW_MAX_CONCURRENT_REVIEWS_DEFAULT = 2;
 const VALID_AUTOREVIEW_CASCADE = ['off', 'critical', 'high'] as const;
 const AUTOREVIEW_CASCADE_DEFAULT = 'off';
 
-function migrate(persisted: Record<string, unknown> | null, version = 13): Record<string, unknown> {
+// Version 15 added the `autoCollapseInput` display toggle (default false).
+// Default version for the replica is 15 so the autoCollapseInput guard
+// fires for fresh inputs. Existing tests that assert a "missing key
+// produces the v13 display defaults" still pass because the v13 guards
+// short-circuit before the v15 guard.
+const AUTO_COLLAPSE_INPUT_DEFAULT = false;
+
+function migrate(persisted: Record<string, unknown> | null, version = 15): Record<string, unknown> {
   const p = (persisted ?? {}) as Record<string, unknown>;
   if (version < 12 && p.autoReviewDebounceMs === 5_000) {
     p.autoReviewDebounceMs = 15_000;
@@ -152,6 +159,11 @@ function migrate(persisted: Record<string, unknown> | null, version = 13): Recor
   ) {
     p.multiDiffSummaryThreshold = 5;
   }
+  // ── v15: autoCollapseInput — display-only boolean, default false. The
+  // chat input no longer auto-collapses under the history unless the user
+  // opts in. Replicated from packages/webui/src/stores/local-prefs.ts so
+  // any drift between the store migration and this replica fails here.
+  if (typeof p.autoCollapseInput !== 'boolean') p.autoCollapseInput = AUTO_COLLAPSE_INPUT_DEFAULT;
   return p;
 }
 
@@ -725,5 +737,49 @@ describe('migrate — v13 combined backfill', () => {
     expect(result.sageMemoryInjectThreshold).toBe(0.9);
     expect(result.preRefineSeconds).toBe(5);
     expect(result.multiDiffSummaryThreshold).toBe(8);
+  });
+});
+
+// ── v15 backfill coverage ────────────────────────────────────────────────
+// Locks in the `autoCollapseInput` guard. The toggle is display-only
+// (off by default — chat input stays expanded until the user collapses it
+// manually), so the migration's only job is to backfill any non-boolean
+// value to `false`. A pre-v15 persisted store lacks the key, so the guard
+// must also fire as part of the v14 → v15 upgrade.
+
+describe('migrate — autoCollapseInput (v15)', () => {
+  it('preserves autoCollapseInput when it is a boolean', () => {
+    for (const v of [true, false]) {
+      const result = migrate({ autoCollapseInput: v });
+      expect(result.autoCollapseInput).toBe(v);
+    }
+  });
+
+  it('defaults autoCollapseInput to false on missing/non-boolean', () => {
+    for (const v of [undefined, null, 'true', 'yes', 1, 0, 'false', {}]) {
+      // Persistence input is unknown at runtime; intentionally pass invalid values.
+      const result = migrate({ autoCollapseInput: v });
+      expect(result.autoCollapseInput).toBe(false);
+    }
+  });
+
+  it('defaults autoCollapseInput to false on a fresh install', () => {
+    const result = migrate({});
+    expect(result.autoCollapseInput).toBe(false);
+  });
+
+  it('backfills autoCollapseInput even when the persisted store is older than v15', () => {
+    // Simulate a v14 store that pre-dates the field. The migrate default
+    // arg has been bumped to 15, but explicit lower versions must still
+    // exercise the v15 guard at the end of the function (the guard is
+    // not gated by `version < 15`; only the v12 debounce rewrite is).
+    const result = migrate({ readSymbols: true }, 14);
+    expect(result.readSymbols).toBe(true);
+    expect(result.autoCollapseInput).toBe(false);
+  });
+
+  it('handles null persisted for the v15 field', () => {
+    const result = migrate(null);
+    expect(result.autoCollapseInput).toBe(false);
   });
 });

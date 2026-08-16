@@ -54,6 +54,7 @@ describe('ChimeraSettingsPanel — typed contract', () => {
       'chimeraProvider',
       'chimeraModel',
       'chimeraMaxFiles',
+      'chimeraAutoFix',
       'autoReviewEnabled',
       'autoReviewProvider',
       'autoReviewModel',
@@ -62,6 +63,7 @@ describe('ChimeraSettingsPanel — typed contract', () => {
       'autoReviewDebounceMs',
       'autoReviewMaxFilesPerBatch',
       'autoReviewMaxConcurrentReviews',
+      'autoReviewCascadeOn',
     ];
     for (const k of required) {
       expect(
@@ -71,10 +73,31 @@ describe('ChimeraSettingsPanel — typed contract', () => {
     }
   });
 
-  it('does not expose automatic fix or cascade controls', () => {
-    render(<ChimeraSettingsPanel syncPref={vi.fn()} />);
-    expect(screen.queryByText('Auto-fix mode')).toBeNull();
-    expect(screen.queryByText('Cascade on')).toBeNull();
+  it('exposes the automatic fix and cascade controls (G1/G2 from settings audit)', () => {
+    const syncPref = vi.fn();
+    render(<ChimeraSettingsPanel syncPref={syncPref} />);
+    // Both labels come from settings.json (settings:features.chimeraAutoFixLabel
+    // / settings:features.autoReviewCascadeOnLabel) — the real i18n resolver is
+    // initialised at module-import time, so we can query the rendered English
+    // copy without i18n mocks.
+    expect(screen.getByText('Auto-fix mode')).toBeTruthy();
+    expect(screen.getByText('Cascade on')).toBeTruthy();
+  });
+
+  it('emits chimeraAutoFix via syncPref when the select changes', () => {
+    const syncPref = vi.fn();
+    render(<ChimeraSettingsPanel syncPref={syncPref} />);
+    const fixSelect = screen.getByLabelText('Auto-fix mode') as HTMLSelectElement;
+    fireEvent.change(fixSelect, { target: { value: 'auto' } });
+    expect(syncPref).toHaveBeenCalledWith('chimeraAutoFix', 'auto');
+  });
+
+  it('emits autoReviewCascadeOn via syncPref when the select changes', () => {
+    const syncPref = vi.fn();
+    render(<ChimeraSettingsPanel syncPref={syncPref} />);
+    const cascadeSelect = screen.getByLabelText('Cascade on') as HTMLSelectElement;
+    fireEvent.change(cascadeSelect, { target: { value: 'critical' } });
+    expect(syncPref).toHaveBeenCalledWith('autoReviewCascadeOn', 'critical');
   });
 });
 

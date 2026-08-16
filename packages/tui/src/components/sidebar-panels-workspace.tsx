@@ -43,7 +43,9 @@ export function ProjectPickerSidebar({
       title="PROJECT"
       width={width}
       kicker={filter ? trunc(filter, 20) : 'switcher'}
-      right={<Text color={theme.textMuted}>{projectCount} projects</Text>}
+      pillLabel={inner >= 22 ? `${projectCount} projects` : undefined}
+      pillColor={projectCount > 0 ? theme.brand : theme.textMuted}
+      right={inner < 22 ? <Text color={theme.textMuted}>{projectCount} projects</Text> : undefined}
     >
       <SidebarPanelCard innerWidth={inner}>
         <SidebarSectionHeader
@@ -52,6 +54,7 @@ export function ProjectPickerSidebar({
           color={theme.brand}
           badge={`${selectableCount} choices`}
           innerWidth={inner}
+          pill
         />
         {currentProject ? (
           <Text color={theme.textPrimary} bold wrap="truncate">
@@ -68,9 +71,10 @@ export function ProjectPickerSidebar({
           color={theme.textMuted}
           badge={start > 0 || start + visible.length < items.length ? '↑↓' : undefined}
           innerWidth={inner}
+          pill
         />
         {visible.length === 0 ? (
-          <Text color={theme.textMuted}>no matching projects</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no matching projects</Text>
         ) : (
           visible.map((item, offset) => {
             const index = start + offset;
@@ -88,7 +92,7 @@ export function ProjectPickerSidebar({
               <Box key={item.key} flexDirection="column">
                 <Box flexDirection="row">
                   <Text color={isSelected ? accent : theme.textMuted}>
-                    {isSelected ? '▎' : ' '}
+                    {isSelected ? glyphs.railMid : ' '}
                   </Text>
                   <Text color={accent}> {icon} </Text>
                   <Text
@@ -102,7 +106,7 @@ export function ProjectPickerSidebar({
                 {item.subtitle ? (
                   <Text color={theme.textMuted}>
                     {' '}
-                    └ {trunc(item.subtitle, Math.max(4, inner - 4))}
+                    {glyphs.treeLast} {trunc(item.subtitle, Math.max(4, inner - 4))}
                   </Text>
                 ) : null}
               </Box>
@@ -142,15 +146,19 @@ export function FleetPanelSidebar({
       title="AGENT SWARM"
       width={width}
       kicker="fleet"
+      pillLabel={inner >= 22 ? (runningCount > 0 ? `${runningCount} LIVE` : 'IDLE') : undefined}
+      pillColor={runningCount > 0 ? theme.success : theme.textMuted}
       right={
-        <Text color={runningCount > 0 ? theme.success : theme.textMuted} bold>
-          {runningCount > 0 ? `${runningCount} LIVE` : 'IDLE'}
-        </Text>
+        inner < 22 ? (
+          <Text color={runningCount > 0 ? theme.success : theme.textMuted} bold>
+            {runningCount > 0 ? `${runningCount} LIVE` : 'IDLE'}
+          </Text>
+        ) : undefined
       }
     >
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
         {rows.length === 0 ? (
-          <Text color={theme.textMuted}>no active agents</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no active agents</Text>
         ) : (
           rows.map((e) => {
             const v = fleetStatusVisual(e.status);
@@ -198,20 +206,32 @@ export function AgentsPanelSidebar({
       title="AGENTS"
       width={width}
       kicker="live ops"
-      right={
-        <Text>
-          <Text color={theme.warn}>{running.length}</Text>
-          <Text color={theme.textMuted}> </Text>
-          <Text color={theme.success}>{done.length}</Text>
-          {failed.length > 0 ? (
-            <>
-              <Text color={theme.textMuted}> </Text>
-              <Text color={theme.error}>{failed.length}</Text>
-            </>
-          ) : null}
-        </Text>
+      pillLabel={
+        inner >= 22
+          ? `${running.length}${done.length > 0 ? ` ${glyphs.success}${done.length}` : ''}${
+              failed.length > 0 ? ` !${failed.length}` : ''
+            }`
+          : undefined
       }
-      footer={`F3 details · $${totalCost.toFixed(4)}`}
+      pillColor={
+        failed.length > 0 ? theme.error : running.length > 0 ? theme.success : theme.textMuted
+      }
+      right={
+        inner < 22 ? (
+          <Text>
+            <Text color={theme.warn}>{running.length}</Text>
+            <Text color={theme.textMuted}> </Text>
+            <Text color={theme.success}>{done.length}</Text>
+            {failed.length > 0 ? (
+              <>
+                <Text color={theme.textMuted}> </Text>
+                <Text color={theme.error}>{failed.length}</Text>
+              </>
+            ) : null}
+          </Text>
+        ) : undefined
+      }
+      footer={`F3 details ${glyphs.dividerDiamond} $${totalCost.toFixed(4)}`}
     >
       <SidebarPanelCard innerWidth={inner} marginBottom={1}>
         {hotAgent ? (
@@ -227,13 +247,13 @@ export function AgentsPanelSidebar({
             </Text>
             <Text color={theme.textMuted} wrap="truncate">
               {trunc(
-                `ctx ${Math.round((hotAgent.ctxPct ?? 0) * 100)}% · ${hotAgent.currentTool?.name ?? 'idle'}`,
+                `ctx ${Math.round((hotAgent.ctxPct ?? 0) * 100)}% ${glyphs.dividerDiamond} ${hotAgent.currentTool?.name ?? 'idle'}`,
                 inner,
               )}
             </Text>
           </>
         ) : (
-          <Text color={theme.textMuted}>no live agents</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no live agents</Text>
         )}
       </SidebarPanelCard>
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
@@ -244,6 +264,7 @@ export function AgentsPanelSidebar({
           badge={`${running.length}`}
           badgeColor={theme.success}
           innerWidth={inner}
+          pill
         />
         {live.map((e) => {
           const v = fleetStatusVisual(e.status);
@@ -315,24 +336,32 @@ export function WorktreePanelSidebar({
       title="WORKTREES"
       width={width}
       kicker="isolation"
+      pillLabel={
+        inner >= 22
+          ? `${active} act ${glyphs.success}${merged}${failed > 0 ? ` !${failed}` : ''}`
+          : undefined
+      }
+      pillColor={failed > 0 ? theme.error : active > 0 ? theme.warn : theme.textMuted}
       right={
-        <Text>
-          <Text color={theme.warn}>A{active}</Text>
-          <Text color={theme.textMuted}> </Text>
-          <Text color={theme.success}>D{merged}</Text>
-          {failed > 0 ? (
-            <>
-              <Text color={theme.textMuted}> </Text>
-              <Text color={theme.error}>!{failed}</Text>
-            </>
-          ) : null}
-        </Text>
+        inner < 22 ? (
+          <Text>
+            <Text color={theme.warn}>A{active}</Text>
+            <Text color={theme.textMuted}> </Text>
+            <Text color={theme.success}>D{merged}</Text>
+            {failed > 0 ? (
+              <>
+                <Text color={theme.textMuted}> </Text>
+                <Text color={theme.error}>!{failed}</Text>
+              </>
+            ) : null}
+          </Text>
+        ) : undefined
       }
       footer="F4 details"
     >
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
         {list.length === 0 ? (
-          <Text color={theme.textMuted}>no worktrees</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no worktrees</Text>
         ) : (
           list.slice(0, 10).map((w) => {
             const v = worktreeStatusVisual(w.status);
@@ -389,10 +418,14 @@ export function CoordinatorPanelSidebar({
       title="COORDINATOR"
       width={width}
       kicker="autonomous"
+      pillLabel={inner >= 22 ? (running ? '● RUNNING' : '○ IDLE') : undefined}
+      pillColor={running ? theme.success : theme.textMuted}
       right={
-        <Text color={running ? theme.success : theme.textMuted} bold>
-          {running ? '● RUNNING' : '○ IDLE'}
-        </Text>
+        inner < 22 ? (
+          <Text color={running ? theme.success : theme.textMuted} bold>
+            {running ? '● RUNNING' : '○ IDLE'}
+          </Text>
+        ) : undefined
       }
       footer="F11 details"
     >
@@ -403,9 +436,10 @@ export function CoordinatorPanelSidebar({
           color={theme.brand}
           badge={`${activePhases}/${activePhases + completedPhases}`}
           innerWidth={inner}
+          pill
         />
         {phaseNames.length === 0 ? (
-          <Text color={theme.textMuted}>no active phases</Text>
+          <Text color={theme.textMuted}>{glyphs.dividerDot} no active phases</Text>
         ) : (
           phaseNames.slice(0, 5).map((name, i) => (
             <Box key={i} flexDirection="row">
@@ -419,7 +453,9 @@ export function CoordinatorPanelSidebar({
         )}
       </SidebarPanelCard>
       <SidebarPanelCard innerWidth={inner} marginBottom={0}>
-        <Text color={theme.textMuted}>elapsed {fmtShortDuration(elapsedMs)}</Text>
+        <Text color={theme.textMuted}>
+          {glyphs.dividerDot} elapsed {fmtShortDuration(elapsedMs)}
+        </Text>
       </SidebarPanelCard>
     </SidebarPanelFrame>
   );
@@ -449,31 +485,41 @@ export function ConnectionsPanelSidebar({
       title="CONNECTIONS"
       width={width}
       kicker="service health"
+      pillLabel={
+        inner >= 22
+          ? `${glyphs.success}${okCount}${
+              warnCount > 0 ? ` ${glyphs.warning}${warnCount}` : ''
+            }${downCount > 0 ? ` ${glyphs.failure}${downCount}` : ''}`
+          : undefined
+      }
+      pillColor={downCount > 0 ? theme.error : warnCount > 0 ? theme.warn : theme.success}
       right={
-        <Text>
-          <Text color={theme.success}>
-            {glyphs.success}
-            {okCount}
+        inner < 22 ? (
+          <Text>
+            <Text color={theme.success}>
+              {glyphs.success}
+              {okCount}
+            </Text>
+            {warnCount > 0 ? (
+              <>
+                <Text color={theme.textMuted}> </Text>
+                <Text color={theme.warn}>
+                  {glyphs.warning}
+                  {warnCount}
+                </Text>
+              </>
+            ) : null}
+            {downCount > 0 ? (
+              <>
+                <Text color={theme.textMuted}> </Text>
+                <Text color={theme.error}>
+                  {glyphs.failure}
+                  {downCount}
+                </Text>
+              </>
+            ) : null}
           </Text>
-          {warnCount > 0 ? (
-            <>
-              <Text color={theme.textMuted}> </Text>
-              <Text color={theme.warn}>
-                {glyphs.warning}
-                {warnCount}
-              </Text>
-            </>
-          ) : null}
-          {downCount > 0 ? (
-            <>
-              <Text color={theme.textMuted}> </Text>
-              <Text color={theme.error}>
-                {glyphs.failure}
-                {downCount}
-              </Text>
-            </>
-          ) : null}
-        </Text>
+        ) : undefined
       }
       footer="Ctrl+N details"
     >

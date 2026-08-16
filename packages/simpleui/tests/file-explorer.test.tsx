@@ -77,10 +77,13 @@ afterEach(() => {
 });
 
 describe('FileExplorer', () => {
-  it('opens with the file list and directory tree collapsed', () => {
+  it('opens with the file list and directory tree collapsed', async () => {
     const container = renderExplorer(new FakeSocket());
 
     click(container.querySelector('[aria-label="Open file manager"]'));
+    // socketRequest resolves through a promise; flush microtasks so the
+    // synchronous FakeSocket reply reaches component state.
+    await act(async () => {});
 
     expect(
       container.querySelector('.file-manager-split')?.classList.contains('file-list-collapsed'),
@@ -93,11 +96,12 @@ describe('FileExplorer', () => {
     expect(container.textContent).not.toContain('app.ts');
   });
 
-  it('persists the selected file and restores it when the manager is mounted again', () => {
+  it('persists the selected file and restores it when the manager is mounted again', async () => {
     const firstSocket = new FakeSocket();
     const first = renderExplorer(firstSocket);
 
     click(first.querySelector('[aria-label="Open file manager"]'));
+    await act(async () => {});
     click(first.querySelector('[aria-label="Expand file list"]'));
     click(
       Array.from(first.querySelectorAll('.file-tree-node')).find((node) =>
@@ -110,6 +114,7 @@ describe('FileExplorer', () => {
       ) ?? null,
     );
 
+    await act(async () => {});
     expect(localStorage.getItem(STORAGE_KEY)).toBe('src/app.ts');
     expect(first.textContent).toContain('content:src/app.ts');
 
@@ -119,6 +124,7 @@ describe('FileExplorer', () => {
     const secondSocket = new FakeSocket();
     const second = renderExplorer(secondSocket);
     click(second.querySelector('[aria-label="Open file manager"]'));
+    await act(async () => {});
 
     expect(
       second.querySelector('.file-manager-split')?.classList.contains('file-list-collapsed'),

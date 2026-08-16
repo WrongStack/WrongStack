@@ -854,6 +854,9 @@
       "IDLE_AGENT_TTL_MS",
       "isActiveStatus"
     ],
+    "packages/simpleui/src/lib/model-catalog-view.ts": [
+      "isLikelyNonChatModel"
+    ],
     "packages/simpleui/src/lib/model-switch.ts": [
       "findModelContextWindow"
     ],

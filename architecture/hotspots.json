@@ -211,8 +211,8 @@
       "relativeImports": 22
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 970,
-      "relativeImports": 46
+      "lines": 1007,
+      "relativeImports": 48
     },
     "packages/telegram/src/bot.ts": {
       "lines": 836,
@@ -287,8 +287,8 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-content.tsx": {
-      "lines": 992,
-      "relativeImports": 10
+      "lines": 1018,
+      "relativeImports": 11
     },
     "packages/tui/src/input-validation.ts": {
       "lines": 996,

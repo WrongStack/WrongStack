@@ -1,5 +1,8 @@
 import { Brain, FileText, Hash, Link2, Search, Tag, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { onSimplePanel } from './lib/panel-events.js';
+import { type SocketRequestHandle, socketRequest } from './lib/socket-request.js';
 import type { SimpleSocket } from './lib/ws.js';
 
 interface MemoryEntry {
@@ -21,8 +24,9 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const unsubRef = useRef<(() => void) | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, open);
+  const pendingSearchRef = useRef<SocketRequestHandle | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -36,16 +40,12 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
-    window.addEventListener('simpleui:open-memory-drawer', onOpen);
-    return () => window.removeEventListener('simpleui:open-memory-drawer', onOpen);
+    return onSimplePanel('open-memory-drawer', onOpen);
   }, []);
 
-  // Cleanup pending search on unmount (prevents setState on unmounted component)
+  // Cancel a pending search on unmount (prevents setState on unmounted component)
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-      if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
-    };
+    return () => pendingSearchRef.current?.cancel();
   }, []);
 
   const search = () => {
@@ -55,28 +55,35 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
     const socket = socketRef.current;
     if (!socket) { setLoading(false); return; }
 
-    // Clear any previous pending timeout and unsubscribe
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-    if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
-
-    // Register a one-shot handler for the response
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (msg.type !== 'memory.sage.forFile') return;
-      // Unsubscribe immediately after receiving the response
-      if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-
-      const envelope = msg.payload as Record<string, unknown> | undefined;
-      if (envelope?.['error']) {
+    pendingSearchRef.current?.cancel();
+    const handle = socketRequest({
+      socket,
+      sendType: 'memory.sage.forFile',
+      // The request field is `filePath` — sending `path` made the server
+      // reject every search with "filePath is required".
+      payload: { filePath: path.trim(), limit: 20 },
+      expectType: 'memory.sage.forFile',
+      timeoutMs: 5000,
+    });
+    pendingSearchRef.current = handle;
+    void handle.promise.then((envelope) => {
+      if (pendingSearchRef.current !== handle) return;
+      pendingSearchRef.current = null;
+      setLoading(false);
+      if (!envelope) {
+        setError('Memory search timed out.');
+        setResults([]);
+        return;
+      }
+      if (envelope['error']) {
         setError(String(envelope['error']));
         setResults([]);
-        setLoading(false);
         return;
       }
       // Server sends three buckets (primaryMatches / symbolMatches / relatedMatches),
       // each containing MemoryForFileMatch objects with a nested `memory` property,
       // under `payload.response`.
-      const payload = envelope?.['response'] as Record<string, unknown> | undefined;
+      const payload = envelope['response'] as Record<string, unknown> | undefined;
       const primary = Array.isArray(payload?.['primaryMatches'])
         ? (payload!['primaryMatches'] as Record<string, unknown>[])
         : [];
@@ -92,19 +99,7 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
         new Map(rawMemories.filter((m) => m && m.id).map((m) => [m.id, m])).values(),
       );
       setResults(uniqueMemories);
-      setLoading(false);
-    };
-
-    unsubRef.current = socket.onMessage(handler);
-    // The request field is `filePath` — sending `path` made the server
-    // reject every search with "filePath is required".
-    socket.send('memory.sage.forFile', { filePath: path.trim(), limit: 20 });
-    // Unsubscribe after 5s max (safety net)
-    timeoutRef.current = setTimeout(() => {
-      if (unsubRef.current) { unsubRef.current(); unsubRef.current = null; }
-      setLoading(false);
-      timeoutRef.current = null;
-    }, 5000);
+    });
   };
 
   if (!open) {
@@ -124,7 +119,14 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
   return (
     <>
       <button type="button" className="settings-overlay" tabIndex={-1} onClick={() => setOpen(false)} />
-      <aside className="memory-drawer" role="dialog" aria-modal="true" aria-label="Memory search">
+      <aside
+        className="memory-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Memory search"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="memory-drawer-head">
           <span><Brain size={13} aria-hidden="true" /> MEMORY</span>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" ref={closeRef}>

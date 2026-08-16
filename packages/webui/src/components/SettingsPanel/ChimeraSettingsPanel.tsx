@@ -163,6 +163,22 @@ export function ChimeraSettingsPanel({
           step={1}
           onChange={(v) => syncPref('chimeraMaxFiles', v)}
         />
+
+        {/* G1: chimeraAutoFix — exists in `LocalPrefs` and is migrated, but was
+            never surfaced. The enum is 'off' | 'ask' | 'auto'. Reuses the
+            `settings:features.chimeraAutoFix*` keys that already ship in all 7
+            locale files (en/tr/de/es/fr/it/pt-BR). */}
+        <PreferenceSelect
+          label={t('settings:features.chimeraAutoFixLabel')}
+          hint={t('settings:features.chimeraAutoFixHint')}
+          value={localPrefs.chimeraAutoFix}
+          options={[
+            { value: 'off', label: t('settings:features.chimeraAutoFixOff') },
+            { value: 'ask', label: t('settings:features.chimeraAutoFixAsk') },
+            { value: 'auto', label: t('settings:features.chimeraAutoFixAuto') },
+          ]}
+          onChange={(v) => syncPref('chimeraAutoFix', v)}
+        />
       </section>
 
       {/* ─── Auto-review (mid-session) ───────────────────────────────── */}
@@ -311,6 +327,20 @@ export function ChimeraSettingsPanel({
           max={10}
           step={1}
           onChange={(v) => syncPref('autoReviewMaxConcurrentReviews', v)}
+        />
+
+        {/* G2: autoReviewCascadeOn — exists in `LocalPrefs` and is migrated,
+            but was never surfaced. Enum is 'off' | 'high' | 'critical'. */}
+        <PreferenceSelect
+          label={t('settings:features.autoReviewCascadeOnLabel')}
+          hint={t('settings:features.autoReviewCascadeOnHint')}
+          value={localPrefs.autoReviewCascadeOn}
+          options={[
+            { value: 'off', label: t('settings:features.autoReviewCascadeOnOff') },
+            { value: 'high', label: t('settings:features.autoReviewCascadeOnHigh') },
+            { value: 'critical', label: t('settings:features.autoReviewCascadeOnCritical') },
+          ]}
+          onChange={(v) => syncPref('autoReviewCascadeOn', v)}
         />
       </section>
 

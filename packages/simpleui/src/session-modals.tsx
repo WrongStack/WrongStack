@@ -7,6 +7,7 @@ import { FallbackModal, type FallbackPendingProjection } from './fallback-modal.
 import { FileDiffPanel } from './file-diff-panel.js';
 import { FileExplorer } from './file-explorer.js';
 import type { CommandPaletteAction } from './lib/command-palette-model.js';
+import type { OutageKind } from './lib/server-health.js';
 import type { SimpleSocket } from './lib/ws.js';
 import { MemoryDrawer } from './memory-drawer.js';
 import { PromptLibrary } from './prompt-library.js';
@@ -55,7 +56,7 @@ export interface SessionModalsProps {
   diffFiles: FileEditMeta[] | null;
   onCloseDiffFiles: () => void;
   outageDismissed: boolean;
-  outage: any;
+  outage: OutageKind;
   onDismissOutage: () => void;
   sessionId: string | null;
 }

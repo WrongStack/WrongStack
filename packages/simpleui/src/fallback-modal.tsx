@@ -5,7 +5,9 @@
  * and lets the user manually pick or wait for auto-switch. Always renders
  * on top regardless of what panel is active.
  */
+import { TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
 import type { ServerMessage } from './types.js';
 
 export interface FallbackCandidate {
@@ -39,10 +41,18 @@ export interface FallbackModalProps {
 }
 
 export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) {
-  const [remaining, setRemaining] = useState(0);
+  // Initialize from the first pending info: starting at 0 would make the
+  // auto-resolve effect fire on the mount commit (before the reset effect's
+  // setState lands), instantly auto-picking a candidate and never showing
+  // the countdown.
+  const [remaining, setRemaining] = useState(() =>
+    info ? Math.max(1, info.autoSwitchSeconds) : 0,
+  );
   const [selected, setSelected] = useState(0);
   const resolvedRef = useRef(false);
   const selectedRef = useRef(0);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef, true);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -109,10 +119,17 @@ export function FallbackModal({ info, socketRef, onClose }: FallbackModalProps) 
   const fromLabel = `${info.from.providerId}/${info.from.model}`;
 
   return (
-    <div className="fallback-modal-overlay" role="dialog" aria-modal="true">
+    <div
+      className="fallback-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Model fallback"
+      ref={dialogRef}
+      tabIndex={-1}
+    >
       <div className="fallback-modal">
         <div className="fallback-modal-header">
-          <span className="fallback-modal-title">⚠ MODEL FALLBACK</span>
+          <span className="fallback-modal-title"><TriangleAlert size={13} aria-hidden="true" /> MODEL FALLBACK</span>
           <span className="fallback-modal-countdown">{remaining}s</span>
         </div>
         <p className="fallback-modal-from">

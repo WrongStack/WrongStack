@@ -21,6 +21,8 @@ const websocket = {
     sends.push({ type: 'memory.sage.listPage', payload: params }),
   getSageGraph: (query: string, params: unknown) =>
     sends.push({ type: 'memory.sage.graph', payload: { query, ...(params as object) } }),
+  searchSageBreakdown: (params: unknown) =>
+    sends.push({ type: 'memory.sage.searchBreakdown', payload: params }),
   rememberSage: (payload: unknown) => sends.push({ type: 'memory.sage.remember', payload }),
   updateSage: (id: string, patch: unknown) =>
     sends.push({ type: 'memory.sage.update', payload: { id, ...(patch as object) } }),

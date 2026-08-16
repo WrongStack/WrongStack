@@ -1,5 +1,6 @@
 import { Check, ChevronDown, History, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
 import { relativeSessionTime, sessionDisplayName } from './lib/session-model.js';
 import type { SessionInfo, SimpleSessionSummary } from './types.js';
 
@@ -19,6 +20,8 @@ export function SessionSwitcher(props: SessionSwitcherProps): React.JSX.Element 
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const refreshedRef = useRef(false);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, open);
 
   const currentSummary = useMemo(() => sessions.find((item) => item.isCurrent), [sessions]);
   const currentName = sessionDisplayName(currentSummary, session?.id ?? undefined);
@@ -70,7 +73,13 @@ export function SessionSwitcher(props: SessionSwitcherProps): React.JSX.Element 
         <ChevronDown size={11} aria-hidden="true" />
       </button>
       {open && (
-        <section className="session-menu" role="dialog" aria-label="Recent sessions">
+        <section
+          className="session-menu"
+          role="dialog"
+          aria-label="Recent sessions"
+          ref={dialogRef}
+          tabIndex={-1}
+        >
           <div className="session-menu-heading">
             <span>RECENT SESSIONS</span>
             <button type="button" disabled={running} onClick={handleCreate}>

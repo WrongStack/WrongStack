@@ -1,5 +1,6 @@
 import { Search, Settings, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
 import { AUTONOMY_MODES, type AutonomyMode, type SimplePrefs } from './lib/prefs-model.js';
 import { PALETTES, type PaletteId } from './lib/palettes.js';
 import { groupCatalog, matchesQuery } from './lib/settings-catalog.js';
@@ -99,6 +100,7 @@ export function SettingsPanel({
   isAtDefaults,
 }: SettingsPanelProps) {
   const panelRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(panelRef, true);
   // Inline confirmation state for the Reset-to-defaults button. Two-step
   // confirm (button → confirm row) avoids accidentally wiping every pref
   // when the user clicks while reaching for another control.
@@ -208,6 +210,7 @@ export function SettingsPanel({
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
+        tabIndex={-1}
       >
         <header className="settings-head">
           <span>

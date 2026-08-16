@@ -30,8 +30,15 @@ import { retainSimpleChatMessages } from './lib/chat-model.js';
 import { playChime } from './lib/chime.js';
 import { copyText } from './lib/clipboard.js';
 import type { CommandPaletteAction } from './lib/command-palette-model.js';
-import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
+import {
+  clearComposerDraft,
+  pruneStaleComposerDrafts,
+  readComposerDraft,
+  writeComposerDraft,
+} from './lib/composer-draft.js';
+import { onPersistedWriteFailure } from './lib/persisted.js';
 import { removeFileMention } from './lib/file-mention.js';
+import { dispatchSimplePanel } from './lib/panel-events.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
@@ -358,6 +365,7 @@ export function SimpleUiSession() {
     pendingModelSwitch,
     selectModel,
     confirmModelSwitch,
+    cancelModelSwitch,
     requestProviderModels,
   } = useModelCatalog({
     session,
@@ -549,6 +557,25 @@ export function SimpleUiSession() {
     return () => clearTimeout(timer);
   }, [draft, fileRefs, session?.id]);
 
+  // Draft/prompts persistence is best-effort, but a quota-exhausted browser
+  // must not silently swallow user data — surface it once per failure.
+  useEffect(
+    () =>
+      onPersistedWriteFailure(() => {
+        setNotice({
+          id: messageId('notice'),
+          text: 'Could not save to browser storage — it may be full or blocked',
+          tone: 'error',
+        });
+      }),
+    [],
+  );
+
+  // Drafts for abandoned sessions would otherwise accumulate forever.
+  useEffect(() => {
+    pruneStaleComposerDrafts();
+  }, []);
+
   const load = Math.max(0, Math.min(1, context.load));
   // Filter out thinking blocks when the user has disabled model reasoning display.
   const displayMessages = useMemo(
@@ -572,13 +599,16 @@ export function SimpleUiSession() {
     };
   }, [toolCalls]);
 
-  const selectNextStep = (messageId: string, text: string) => {
+  // Stable identities matter: these handlers are passed into every memo'd
+  // MessageItem, so a fresh closure per render would re-render the whole
+  // transcript on every streaming flush.
+  const selectNextStep = useCallback((messageId: string, text: string) => {
     setDraft(text);
     setConsumedNextSteps((prev) => (prev.has(messageId) ? prev : new Set(prev).add(messageId)));
     requestAnimationFrame(() => textareaRef.current?.focus());
-  };
+  }, []);
 
-  const copyAssistantMessage = async (id: string, text: string) => {
+  const copyAssistantMessage = useCallback(async (id: string, text: string) => {
     if (await copyText(text)) {
       setCopiedMessageId(id);
       return;
@@ -588,7 +618,7 @@ export function SimpleUiSession() {
       text: 'Could not copy response',
       tone: 'error',
     });
-  };
+  }, []);
 
   const selectFile = (path: string) => {
     if (!fileMention) return;
@@ -661,22 +691,22 @@ export function SimpleUiSession() {
           openWorkspacePanel('plan');
           return;
         case 'open-memory':
-          window.dispatchEvent(new Event('simpleui:open-memory-drawer'));
+          dispatchSimplePanel('open-memory-drawer');
           return;
         case 'open-vector-memory':
-          window.dispatchEvent(new Event('simpleui:open-vector-memory-panel'));
+          dispatchSimplePanel('open-vector-memory-panel');
           return;
         case 'open-files':
-          window.dispatchEvent(new Event('simpleui:open-file-explorer'));
+          dispatchSimplePanel('open-file-explorer');
           return;
         case 'open-prompts':
-          window.dispatchEvent(new Event('simpleui:open-prompt-library'));
+          dispatchSimplePanel('open-prompt-library');
           return;
         case 'open-brain':
-          window.dispatchEvent(new Event('simpleui:open-brain-panel'));
+          dispatchSimplePanel('open-brain-panel');
           return;
         case 'open-health':
-          window.dispatchEvent(new Event('simpleui:open-session-health'));
+          dispatchSimplePanel('open-session-health');
           return;
         case 'open-context-breakdown':
           setContextBreakdownOpen(true);
@@ -707,7 +737,8 @@ export function SimpleUiSession() {
 
   return (
     <div className="app-shell">
-      <SessionTopbar
+      <ErrorBoundary section="topbar">
+        <SessionTopbar
         session={session}
         sessions={sessions}
         running={running}
@@ -718,6 +749,7 @@ export function SimpleUiSession() {
           pendingModelSwitch,
           selectModel,
           confirmModelSwitch,
+          cancelModelSwitch,
         }}
         contextTokens={context.tokens}
         contextMaxContext={context.maxContext}
@@ -754,6 +786,7 @@ export function SimpleUiSession() {
         }}
         onOpenSettings={() => setSettingsOpen(true)}
       />
+      </ErrorBoundary>
 
       <UpdateBanner
         appVersion={updateInfo.appVersion}
@@ -829,33 +862,37 @@ export function SimpleUiSession() {
           ))}
       </ErrorBoundary>
 
-      <ToolSidebar
-        agentId={activeAgentId}
-        agentName={activeAgent?.name ?? activeAgentId}
-        calls={selectedToolCalls}
-        worklists={worklists}
-        requestWorklist={requestWorklist}
-        onTodoStatusChange={updateTodoStatus}
-        onTaskStatusChange={updateTaskStatus}
-        onPlanStatusChange={updatePlanStatus}
-      />
+      <ErrorBoundary section="workspace">
+        <ToolSidebar
+          agentId={activeAgentId}
+          agentName={activeAgent?.name ?? activeAgentId}
+          calls={selectedToolCalls}
+          worklists={worklists}
+          requestWorklist={requestWorklist}
+          onTodoStatusChange={updateTodoStatus}
+          onTaskStatusChange={updateTaskStatus}
+          onPlanStatusChange={updatePlanStatus}
+        />
 
-      <FileChangesButton
-        fileCount={fileEditSummary.fileCount}
-        totalAdded={fileEditSummary.totalAdded}
-        totalRemoved={fileEditSummary.totalRemoved}
-        files={fileEditSummary.files}
-        onOpenDiff={(files) => setDiffFiles(files)}
-      />
+        <FileChangesButton
+          fileCount={fileEditSummary.fileCount}
+          totalAdded={fileEditSummary.totalAdded}
+          totalRemoved={fileEditSummary.totalRemoved}
+          files={fileEditSummary.files}
+          onOpenDiff={(files) => setDiffFiles(files)}
+        />
+      </ErrorBoundary>
 
-      <SessionMailboxDrawer
-        open={mailboxOpen}
-        onClose={() => setMailboxOpen(false)}
-        store={mailboxStore}
-        onRefresh={refreshMailbox}
-        onSend={sendMailboxMessage}
-        onAction={handleMailboxAction}
-      />
+      <ErrorBoundary section="mailbox">
+        <SessionMailboxDrawer
+          open={mailboxOpen}
+          onClose={() => setMailboxOpen(false)}
+          store={mailboxStore}
+          onRefresh={refreshMailbox}
+          onSend={sendMailboxMessage}
+          onAction={handleMailboxAction}
+        />
+      </ErrorBoundary>
 
       <SessionModals
         socketRef={socketRef}

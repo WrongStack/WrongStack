@@ -1,5 +1,7 @@
 import { FileText, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
+import { type SocketRequestHandle, socketRequest } from './lib/socket-request.js';
 import type { FileEditMeta, ServerMessage } from './types.js';
 import type { SimpleSocket } from './lib/ws.js';
 
@@ -33,9 +35,11 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
   const [loadedContent, setLoadedContent] = useState<string | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
-  // Holds the settle fn of the in-flight content load so a new load (or an
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, true);
+  // Holds the handle of the in-flight content load so a new load (or an
   // unmount) can cancel the previous request's subscription and timeout.
-  const pendingLoadRef = useRef<(() => void) | null>(null);
+  const pendingLoadRef = useRef<SocketRequestHandle | null>(null);
   const activeFile = files[activeIndex];
   const parsed = activeFile?.diff ? diffLines(activeFile.diff) : [];
   const hasDiff = !!activeFile?.diff;
@@ -45,39 +49,29 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
     if (!socketRef?.current) return;
     // Cancel any in-flight load first: otherwise its stale 8s timeout would
     // later fire setContentLoading(false) and clobber this request's state.
-    pendingLoadRef.current?.();
+    pendingLoadRef.current?.cancel();
     setContentLoading(true);
     setLoadedContent(null);
 
-    const socket = socketRef.current;
-    let settled = false;
-    let unsub: (() => void) | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      unsub?.();
-      if (pendingLoadRef.current === finish) pendingLoadRef.current = null;
-    };
-    const handler = (msg: ServerMessage) => {
-      if (msg.type !== 'files.read') return;
-      const payload = msg.payload;
-      const returnedPath = typeof payload?.['filePath'] === 'string' ? payload['filePath'] : '';
-      if (returnedPath !== filePath) return;
-      if (typeof payload?.['content'] === 'string') {
+    const handle = socketRequest({
+      socket: socketRef.current,
+      sendType: 'files.read',
+      payload: { filePath },
+      expectType: 'files.read',
+      accept: (frame) => {
+        const returned = frame.payload as { filePath?: unknown } | undefined;
+        return returned?.filePath === filePath;
+      },
+    });
+    pendingLoadRef.current = handle;
+    void handle.promise.then((payload) => {
+      if (pendingLoadRef.current !== handle) return;
+      pendingLoadRef.current = null;
+      setContentLoading(false);
+      if (payload && typeof payload['content'] === 'string') {
         setLoadedContent(payload['content']);
       }
-      setContentLoading(false);
-      // Stop listening as soon as this file's response lands, instead of
-      // leaving the handler subscribed for the full timeout window.
-      finish();
-    };
-
-    unsub = socket.onMessage(handler);
-    pendingLoadRef.current = finish;
-    socket.send('files.read', { filePath });
-    timer = setTimeout(() => { setContentLoading(false); finish(); }, 8000);
+    });
   }, [socketRef]);
 
   // Sync active index when the parent passes a new initialIndex after mount.
@@ -87,7 +81,7 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
 
   // Cancel any in-flight load on unmount so its timeout can't fire against a
   // dead component.
-  useEffect(() => () => pendingLoadRef.current?.(), []);
+  useEffect(() => () => pendingLoadRef.current?.cancel(), []);
 
   // Reset and load on file change
   useEffect(() => {
@@ -119,7 +113,14 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
         tabIndex={-1}
         onClick={onClose}
       />
-      <aside className="diff-panel" role="dialog" aria-modal="true" aria-label="File diff">
+      <aside
+        className="diff-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="File diff"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="diff-head">
           <span>
             <FileText size={13} aria-hidden="true" /> FILE DIFF

@@ -1,4 +1,6 @@
 import { WifiOff } from 'lucide-react';
+import { useRef } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
 import type { OutageKind } from './lib/server-health.js';
 
 export interface ServerOutageOverlayProps {
@@ -15,10 +17,18 @@ export interface ServerOutageOverlayProps {
  * OFF dot in the top bar communicates neither.
  */
 export function ServerOutageOverlay({ outage, onDismiss }: ServerOutageOverlayProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(dialogRef, outage !== 'none');
   if (outage === 'none') return null;
   const host = window.location.host;
   return (
-    <div className="outage-overlay" role="alertdialog" aria-labelledby="outage-title">
+    <div
+      className="outage-overlay"
+      role="alertdialog"
+      aria-labelledby="outage-title"
+      ref={dialogRef}
+      tabIndex={-1}
+    >
       <div className="outage-card">
         <div className="outage-icon">
           <WifiOff size={28} aria-hidden="true" />

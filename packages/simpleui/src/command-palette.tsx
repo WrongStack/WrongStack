@@ -1,5 +1,6 @@
 import { Command, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusTrap } from './hooks/use-focus-trap.js';
 import {
   type CommandPaletteAction,
   type CommandPaletteContext,
@@ -18,6 +19,8 @@ export function CommandPalette({ open, context, onClose, onRun }: CommandPalette
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(dialogRef, open);
 
   const items = useMemo(() => commandPaletteItems(context), [context]);
   const visibleItems = useMemo(() => filterCommandPaletteItems(items, query), [items, query]);
@@ -70,7 +73,14 @@ export function CommandPalette({ open, context, onClose, onRun }: CommandPalette
   return (
     <>
       <button type="button" className="command-palette-overlay" tabIndex={-1} onClick={onClose} />
-      <section className="command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+      <section
+        className="command-palette"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <header className="command-palette-head">
           <span>
             <Command size={14} aria-hidden="true" /> COMMANDS
