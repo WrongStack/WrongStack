@@ -190,6 +190,7 @@ AGENTS.md
 
 .temp_files/
 .worktrees/
+.mimosa/
 
 .coverage*.*
 !.wrongstack/project.json
@@ -220,3 +221,4 @@ AGENTS.md
 packages/simpleui/vitest*.txt
 packages/simpleui/vitest.log
 reports/simpleui-improvement-report.md
+
