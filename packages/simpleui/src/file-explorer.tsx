@@ -10,7 +10,8 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusTrap } from './hooks/use-focus-trap.js';
 import { onSimplePanel } from './lib/panel-events.js';
 import { type SocketRequestHandle, socketRequest } from './lib/socket-request.js';
