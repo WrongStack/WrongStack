@@ -8,7 +8,7 @@ description: |
   Triggers: user says "research", "current version", "is this still true",
   "latest", "what's new in", "breaking changes", "find current",
   "web research", "search the web", "look up".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [web.research]
 required-tools: [context_manager, delegate, fetch, search]
 optional-capabilities: [runtime.admin]
@@ -334,6 +334,33 @@ Agent: search("TypeScript null check best practices") // NO
 6. INJECT     — context_manager add_note with structured findings
 7. CITE       — In your response, cite sources for every factual claim
 ```
+
+## Out of scope
+
+- **Don't claim a version, deprecation, or API surface from training memory.** Verify against a live source. The cutoff is wrong; the registry is right.
+- **Don't research-loop.** 2–3 searches + 1–2 fetches per topic. If the answer isn't there after that, surface the ambiguity, don't keep searching.
+- **Don't re-research what you've already injected.** Once a finding is in `context_manager` notes, future turns see it. Re-searching the same topic is a context-bloat failure.
+- **Don't fetch URLs you guessed.** Search first, fetch the result. `fetch("https://react.dev/blog/2025/03/15/...")` is a 404 waiting to happen.
+- **Don't inject raw search results.** Inject a structured summary, not a JSON dump of `search(...)`. Future turns need to parse, not re-read.
+- **Don't cite a single source as fact.** Two-source minimum for a claim; one-source is tentative. Tertiary sources (Reddit, SO, LLM-generated content) need corroboration.
+- **Don't accept a Medium post as ground truth.** Source tiers matter: primary (official docs, GitHub, registries) is fact; secondary is "according to"; tertiary needs corroboration.
+- **Don't research during tactical work.** "Fix the null deref" doesn't need web search. Research mode is for analysis and discussion phases, not bug fixes.
+- **Don't skip the null-result note.** A "no current changes found" note prevents the next turn from re-researching the same topic. Always include it.
+- **Don't spend $0.50 on a version check.** Cost awareness: a quick lookup is 1 search + 1 fetch ≈ 2000 tokens. Landscape surveys justify $2.00; version checks don't.
+
+## Before returning
+
+- [ ] Every claim cites a source URL; domain minimum, date when visible
+- [ ] Two-source minimum for important claims; single-source labeled tentative
+- [ ] Tertiary sources corroborated before citing
+- [ ] Recency checked: version claims ≤ 6 months old; ecosystem trends from current year
+- [ ] Findings injected via `context_manager` `add_note` with structured summary
+- [ ] Null-result note included when no current changes found
+- [ ] Search→fetch→validate→inject→cite workflow followed
+- [ ] Stop rule honored: 2–3 searches + 1–2 fetches per topic; no loops
+- [ ] Cost aligned with answer value; no $0.50 version checks
+- [ ] No research done for tactical work that doesn't need it
+- [ ] `<nextsteps>` lists any open follow-up research or pending validation
 
 ## Skills in scope
 

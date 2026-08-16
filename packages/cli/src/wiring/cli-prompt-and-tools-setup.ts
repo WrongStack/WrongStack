@@ -72,7 +72,7 @@ export async function setupCliPromptAndTools(params: {
     systemPromptBuilderToken: TOKENS.SystemPromptBuilder,
   });
 
-  await refreshDomainTermsMirror({ projectRoot, memoryStore });
+  await refreshDomainTermsMirror({ projectRoot });
 
   const toolRegistry = new ToolRegistry();
   registerBuiltinTools({

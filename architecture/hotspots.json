@@ -179,8 +179,8 @@
       "relativeImports": 1
     },
     "packages/sage/src/domain-term-extractor.ts": {
-      "lines": 997,
-      "relativeImports": 3
+      "lines": 884,
+      "relativeImports": 1
     },
     "packages/sage/src/sqlite-store.ts": {
       "lines": 1050,

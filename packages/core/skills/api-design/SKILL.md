@@ -4,7 +4,7 @@ description: |
   Use this skill when designing, reviewing, or refactoring REST APIs in WrongStack.
   Triggers: user says "API", "endpoint", "REST", "request", "response", "JSON",
   "HTTP", "status code", "pagination", "query params", "request body".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [filesystem.read]
 required-tools: []
 optional-capabilities: [filesystem.write, verification.run]
@@ -133,6 +133,31 @@ Body: { "status": "paused" }
 - **WrongStack CLI**: Most API calls go through the CLI's internal tool wrappers, not raw HTTP.
 - **Session management**: Sessions are created/managed via the CLI, not a public REST API.
 - **MCP tools**: MCP servers expose tools, not REST endpoints — this skill is for any HTTP APIs WrongStack exposes.
+
+## Out of scope
+
+- **Don't design MCP tool surfaces here.** MCP servers expose tools, not REST endpoints. For tool registration, plugin contract, and tool description, use `plugin-author` instead.
+- **Don't design WrongStack session management as a public API.** Sessions are created and managed through the CLI's internal tool wrappers, not a public REST surface. This skill is for the HTTP APIs WrongStack exposes outward.
+- **Don't ship inconsistent error shapes.** Every error uses `{ "error": { "code", "message", "details?" } }`. Variations break automation that depends on the shape.
+- **Don't put secrets in URLs.** `?apiKey=…` is a leak. Headers — `Authorization` and `X-API-Key` — are the only auth channels.
+- **Don't use offset pagination for large datasets.** Cursor-based only. Offset pagination breaks on insert/delete; gaps and duplicates follow.
+- **Don't return 200 for errors.** The status code is the contract; `200` with an error body lies about the outcome. Use the right code.
+- **Don't use singular nouns for collections.** `/sessions` not `/session`. The resource is the set; the item is `/sessions/:id`.
+- **Don't ship breaking changes without a `/v1/` prefix.** Versioning is a contract with the consumer; renames are breaking.
+- **Don't accept client-side validation as a substitute.** Validate on the server, return `400` with field-level errors. The client is an untrusted input source.
+
+## Before returning
+
+- [ ] Conventional HTTP status codes used; no `200` for errors
+- [ ] Error shape consistent: `{ "error": { "code", "message", "details? } }`
+- [ ] Plural nouns for resources; `/v1/` prefix for breaking-change endpoints
+- [ ] Cursor-based pagination for large datasets, not offset
+- [ ] Auth in headers (`Authorization: Bearer`, `X-API-Key`); no secrets in URLs
+- [ ] Server-side validation with `400` + field-level errors
+- [ ] Idempotency rules followed: `POST` creates, `PUT` replaces
+- [ ] `sdd` spec opened for non-trivial endpoints before coding
+- [ ] `security-scanner` run on the implementation
+- [ ] `<nextsteps>` mirrors the open follow-ups in priority order
 
 ## Skills in scope
 

@@ -6,7 +6,7 @@ description: |
   code change during a session.
   Triggers: user says "auto review", "otomatik review", "auto code review",
   "her değişiklikte review", "/auto-review".
-version: 2.0.0
+version: 2.1.0
 required-capabilities: [version-control.manage]
 required-tools: [git]
 optional-capabilities: [fleet.delegate, verification.run]
@@ -105,6 +105,26 @@ wake the leader, spawn a fix agent, or trigger a re-review. Legacy `cascadeOn`
 and `maxCascadeDepth` config values are compatibility-only and resolve to the
 passive policy. The user can inspect the mailbox and explicitly ask the leader
 to act later.
+
+## Out of scope
+
+- **Don't enable auto-review without `--director`.** The subagent pipeline requires Director mode; without it, review events silently skip. Verify the director is on before flipping the plugin.
+- **Don't start the plugin while a session is mid-flight without a clear contract.** Auto-review dispatches reviewers at trailing-quiet windows; the user has to know it's running.
+- **Don't read untracked files.** `??` files are never reviewed. If a reviewer needs a file, the workflow must have it staged or tracked first.
+- **Don't manually trigger a fix from a report.** Auto-review is passive — the report goes to the mailbox and notifies UIs. A follow-up fix is a separate user-initiated turn.
+- **Don't re-route the report to mailbox peers or the leader.** Runtime handles persistence and notification. Manual mailbox traffic from auto-review is double-handling.
+- **Don't tune `maxFilesPerBatch` above 15** without measuring cost. Larger batches cut parallelism gains and inflate single-review latency.
+- **Don't set the debounce below 5s.** Too-aggressive debounce starts reviews while the user is still mid-edit; they hit a reviewer they didn't ask for.
+
+## Before reporting
+
+- [ ] `--director` mode is on (auto-review requires it)
+- [ ] `enabled: true` is set in `config.extensions['wstack-auto-review']`
+- [ ] `git` is available in the session working directory
+- [ ] Only git-tracked files are reviewed; untracked files skipped
+- [ ] Reports go to the mailbox + `chimera.report_available` notification, not to peer mail
+- [ ] No mutating follow-up spawned from the report (passive completion)
+- [ ] Debounce and `maxFilesPerBatch` tuned for the workload, not at default
 
 ## Skills in scope
 

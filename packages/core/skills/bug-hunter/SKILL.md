@@ -280,6 +280,14 @@ sizing and briefing rules before dispatching.
 
 ---
 
+## Out of scope
+
+- **Don't fix the bugs you find in default mode.** Standalone scans produce a report only. Apply fixes only when the user explicitly asks, or when the runtime dispatches you as a cascade agent behind chimera.
+- **Don't review code quality, design, or style.** Wrong file, wrong skill. Quality and design are `chimera`'s read-only lane; style is the linter's job. Hand off to `chimera` for read-only quality review, or to `refactor-planner` for multi-file restructuring.
+- **Don't run dependency audits or scan `node_modules`.** Supply chain and lockfile scanning are `security-scanner`'s lane. Hand off cleanly.
+- **Don't write tests for the bugs you find.** Test authoring is `testing`'s lane. State the failing test that would catch the bug; don't write it.
+- **Don't start a `multi-agent` fan-out on your own.** The leader decides when fan-out is the right tool. Report the size of the target; let the leader dispatch.
+
 ## Skills in scope
 
 - `security-scanner` — for hardcoded secrets and injection vectors

@@ -15,7 +15,7 @@ description: |
   "make it look better", "clean up the layout", "it looks generic", "match our
   brand", "add dark mode". Trigger even when the user never says the word
   "design" — if the output has pixels, this skill runs first.
-version: 2.0.0
+version: 2.1.0
 required-capabilities: [filesystem.read, filesystem.write, documentation.author]
 required-tools: [design]
 optional-capabilities: [browser.interact]
@@ -291,6 +291,16 @@ made and re-litigating them wastes everyone's time.
 
 ---
 
+## Out of scope
+
+- **Don't ship unstyled framework defaults.** Default Tailwind, default shadcn, stock Bootstrap, or "I'll pick colors as I go" all produce forgettable UI with no source of truth. The Design Studio engine is the path; skipping it is a fail.
+- **Don't write UI before committing a kit.** Picking a kit is the first step. Code that exists before a kit has been committed is exactly the code that needs restyling, not patching.
+- **Don't hand-tune individual tokens to fix one-off screens.** Knobs (`radius`, `density`, `font`, `motion`) rescale the whole system coherently. A hand-edited radius leaves five scale steps untouched; the result reads as sloppy.
+- **Don't use framework palette colors directly.** `bg-blue-500`, `text-gray-700`, `dark:bg-slate-900` are not part of the kit and break dark mode. Use the semantic tokens the materialized file exposes.
+- **Don't override foundations.** Accessibility, responsiveness, reduced motion, and WCAG 2.2 AA are the floor. No kit or user override lowers them.
+- **Don't restyle shadcn primitives per-usage.** They inherit the kit once the theme file is imported. Restyle at the token level, not per screen.
+- **Don't deliver a UI without light + dark + every interactive state.** Default, hover, `:focus-visible`, active, disabled, loading, empty, error. A happy-path-only screen is an unfinished screen.
+
 ## Before saying you're done
 
 - Kit committed with the correct `stack`, and named to the user.
@@ -300,3 +310,11 @@ made and re-litigating them wastes everyone's time.
 - Interactive states and empty/loading/error states present.
 - Keyboard path works; focus rings visible.
 - `design {action:"verify"}` clean.
+
+## Skills in scope
+
+- `react-modern` — for React 19+ component patterns that consume the tokens
+- `typescript-strict` — for typing theme constants, `lightTheme` / `darkTheme` exports
+- `plugin-author` — when shipping a tool that emits design-system output
+- `output-standards` — for the `<nextsteps>` shape in design audit / verify reports
+- `sdd` — for spec-driven design system work that crosses packages

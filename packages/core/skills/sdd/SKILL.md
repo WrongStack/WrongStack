@@ -129,6 +129,24 @@ Stage shown in real-time. Pause stops after current iteration completes.
 - **Spec without acceptance criteria** — how do you know when it's done?
 - **Skipping /sdd for urgent tasks** — the spec is what makes "urgent" possible
 
+## Out of scope
+
+- **Don't start coding before the spec exists.** You'll rewrite the code anyway — the spec is what makes the rewrite possible. SDD comes first or the spec is fiction.
+- **Don't accept a spec without acceptance criteria.** "Done" must be a checkable state. Without criteria, the task has no formal end and the verifier has nothing to run.
+- **Don't write vague requirements.** "Improve auth" is not a requirement; "Users authenticate via OAuth2 with PKCE, sessions expire after 24h" is. If a requirement can't be tested, it's not a requirement.
+- **Don't skip `/sdd` because the task is urgent.** Urgency without a spec produces urgency-shaped rework. The spec is what makes "urgent" possible to ship correctly.
+- **Don't start a multi-file refactor from SDD.** When the spec reveals a refactor, delegate to `refactor-planner` for the phased plan. SDD defines the goal; refactor-planner sequences the work.
+- **Don't execute the task graph yourself unless the user asks.** SDD produces the plan and task graph; an executor (the leader, a subagent, or the user) picks it up.
+
+## Before returning
+
+- [ ] Spec has explicit acceptance criteria the verifier can run as commands
+- [ ] Every requirement is specific enough to be tested, not "improve X"
+- [ ] Tasks have dependencies; no orphan tasks at the leaves
+- [ ] Spec template matches the work type (feature/bugfix/refactor/infra/integration/cli-command)
+- [ ] Multi-file refactors are routed to `refactor-planner`, not absorbed into SDD tasks
+- [ ] Critical path called out; bottlenecks named; parallel groups identified
+
 ## Skills in scope
 
 - `refactor-planner` — when the spec reveals a multi-file refactor

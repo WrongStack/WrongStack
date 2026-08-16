@@ -4,7 +4,7 @@ description: |
   Use this skill when writing, reviewing, or improving tests in WrongStack.
   Triggers: user says "test", "unit test", "integration test", "e2e", "mock",
   "vitest", "coverage", "assert", "expect", "test strategy", "write tests".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [filesystem.read, verification.run]
 required-tools: []
 optional-capabilities: [execution.shell]
@@ -164,6 +164,30 @@ coverageThreshold: {
 - **AbortSignal**: Any test involving timeouts must use `AbortSignal.timeout()` not `setTimeout`.
 - **pnpm workspaces**: Run `pnpm test` in the package root, or `pnpm -r test` for all packages.
 - **Vitest config**: Each package has its own `vitest.config.ts`.
+
+## Out of scope
+
+- **Don't test internal modules.** Test the public API surface. Mocking `../src/internal/helper` couples the test to implementation; the moment the helper moves, the test breaks for the wrong reason.
+- **Don't commit test-only deps to `dependencies`.** Devs install `devDependencies`. Test-only deps in `dependencies` bloat the production install and can leak into runtime code.
+- **Don't lower the coverage gate to make tests pass.** New code carries its own ≥70% coverage; existing coverage never decreases. A passing test suite with sinking coverage is regression, not progress.
+- **Don't write async tests without a timeout.** `test(..., { timeout: 5000 })` is mandatory. A hang in CI is a worse failure than a flapping test.
+- **Don't mock `node:fs` and forget cleanup.** `vi.restoreAllMocks()` and `vi.useRealTimers()` in `afterEach` are mandatory. Mocks leaking across tests are how unit tests go red in a clean checkout.
+- **Don't use `setTimeout` for timeouts in tests.** `AbortSignal.timeout()` is the WrongStack convention. `setTimeout` returns a timer, not a signal, and bypasses the abort plumbing.
+- **Don't import from `dist/`.** Subpath exports are the entry point. `dist/` is build output; tests against it depend on the build having been run.
+- **Don't report a coverage percentage from a partial run.** Coverage is the full suite, not a subset. A 90% on 60% of the files is not 90%.
+
+## Before returning
+
+- [ ] Tests co-located: `src/foo.ts` → `tests/foo.test.ts` in the same package
+- [ ] Public API only; no internal-module mocks
+- [ ] Async tests carry an explicit timeout (`{ timeout: 5000 }` or appropriate)
+- [ ] `vi.restoreAllMocks()` and `vi.useRealTimers()` in `afterEach`
+- [ ] `AbortSignal.timeout()` used for timeouts, not `setTimeout`
+- [ ] No new `dependencies` entries for test-only packages
+- [ ] Coverage gate met: new code ≥70%, existing coverage not reduced
+- [ ] Coverage from full suite, not partial run
+- [ ] Failing tests pair with the code under test, not staged in a separate commit
+- [ ] `<nextsteps>` mirrors the open test gaps in priority order
 
 ## Skills in scope
 

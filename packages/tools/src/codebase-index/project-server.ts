@@ -743,7 +743,7 @@ async function writeMetadata(): Promise<void> {
   // and grants the owner alone.
   await restrictFilePermissions(metadataPath, {
     label: 'codebase-index-metadata',
-    warn: (message) => process.stderr.write(`${message}\n`),
+    warn: (message: string) => process.stderr.write(`${message}\n`),
   });
 }
 

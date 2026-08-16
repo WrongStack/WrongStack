@@ -4,7 +4,7 @@ description: |
   Use this skill when designing, critiquing, or fixing system prompts,
   tool descriptions, skill definitions, or LLM instruction text in WrongStack.
   Triggers: user mentions "prompt", "system instruction", "skill description", "tool hint", "usage hint", "system prompt".
-version: 1.1.0
+version: 1.2.0
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 ---
@@ -130,6 +130,32 @@ See `skill-creator` skill for the format. Key points:
 - First sentence = trigger condition
 - Include concrete code examples in "Do" and "Don't" sections
 - End with "Skills in scope" so agents know to delegate
+
+## Out of scope
+
+- **Don't ship filler in prompts.** "Please be helpful", "Sure, I'd be happy to", "You are a helpful AI" — every filler line costs tokens and adds no signal. Strip it.
+- **Don't write vague trigger sentences.** "This skill is about Docker" matches nothing. "Use this skill when deploying Docker containers to a production cluster" matches.
+- **Don't describe a tool by what it does alone.** Tool descriptions need when to use, key parameters, and what it returns. "Search files" is incomplete; "Search file contents with regex. Pattern is regex. Use output_mode to select…" is the bar.
+- **Don't put volatile content before static content.** Cache-friendly prompts put identity, tools, and instructions first; session state and recent errors last. Reversing the order costs tokens per turn.
+- **Don't write a long preamble before the question.** The model reads the preamble, then the question. Put the question first.
+- **Don't use ambiguous pronouns.** "Do it again" — which tool, which file? Name the specific thing.
+- **Don't claim trigger keywords cover a domain they don't.** Trigger keywords must be specific. Generic phrases like "improve" or "help with" match too much and the loader can't disambiguate.
+- **Don't re-invent the agent's identity.** WrongStack's system prompt already establishes who the agent is. Don't repeat it; layer domain-specific instruction on top.
+- **Don't design prompts the way you'd write a doc.** Prompts are instruction; docs are reference. Reference material goes in skill `references/`, not in the trigger-matching body.
+
+## Before returning
+
+- [ ] No filler ("Please be helpful", "Sure, I'd be happy to", "You are a helpful AI")
+- [ ] Skill description's first sentence is a concrete trigger; trigger keywords follow
+- [ ] Tool descriptions cover when to use, key parameters, what it returns
+- [ ] Static content first; volatile content last
+- [ ] No long preamble before the actual question
+- [ ] No ambiguous pronouns; specific things named
+- [ ] Trigger keywords specific enough to disambiguate
+- [ ] Skill body under ~500 lines; deep material in `references/`
+- [ ] Concrete `Do` / `Don't` examples, not abstract principles
+- [ ] `Skill in scope` lists the hand-off targets with a reason for each
+- [ ] `<nextsteps>` mirrors open follow-up prompt-tuning tasks in priority order
 
 ## Skills in scope
 

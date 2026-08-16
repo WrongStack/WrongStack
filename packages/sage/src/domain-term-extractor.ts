@@ -2,33 +2,59 @@
  * SAGE-based automatic domain-glossary engine.
  *
  * Detects project-specific terminology from agent<->user conversations and
- * from git commits, persists each term as a regular `Sage` memory (kind
- * `'fact'`, tags `['domain-term', 'glossary', 'project-jargon']`), keeps a
- * `<projectRoot>/.wrongstack/domain-terms.md` mirror for human readability,
- * and produces a compact `[Project Jargon Dictionary]` block that hosts can
- * splice into the agent system prompt.
+ * from git commits, and keeps a `<projectRoot>/.wrongstack/domain-terms.md`
+ * mirror for human readability.
+ *
+ * Memory persistence is intentionally disabled
+ * --------------------------------------------
+ * The extractor used to persist each term as a regular `Sage` memory with
+ * `tags: ['domain-term', 'glossary', 'project-jargon']`. That tagging
+ * polluted the SAGE corpus with entries that were indistinguishable from
+ * genuine project facts in search and triage. Persisting is now a
+ * no-op: `persistVia` returns a `skipped` report for every term, and the
+ * file mirror is regenerated from the in-memory `ExtractedTerm[]` of
+ * the current pass rather than from SAGE state.
+ *
+ * What still runs:
+ *
+ *   - `extractFromConversation` / `extractFromCommits` — heuristic
+ *     detection of project jargon from text.
+ *   - `writeDomainTermsFile(projectRoot, terms)` — writes the
+ *     `.wrongstack/domain-terms.md` mirror from the in-memory terms.
+ *   - `persistViaAndMirror` — chains the no-op `persistVia` with the
+ *     file mirror write so call sites that previously persisted
+ *     terms and refreshed the mirror keep the same control flow.
+ *
+ * The lookup tags `domain-term` / `glossary` / `project-jargon` are
+ * preserved as exported constants (see {@link DOMAIN_TERM_LOOKUP_TAG})
+ * so the one-off `/memory purge-domain-terms` migration can still
+ * identify and remove any historical entries that were tagged before
+ * this change. New entries are never written.
+ *
+ * The system prompt glossary (`renderDomainGlossary` in
+ * `packages/core/src/core/system-prompt-glossary.ts`) will now return
+ * an empty string by construction, because no live SAGE memory will
+ * carry the `domain-term` tag once the migration runs. The function
+ * itself is left intact — hosts that still wire it continue to
+ * receive a clean empty result, not a runtime error.
  *
  * Architectural rules respected here:
  *
  *   1. In-process consumers reach SAGE through `ProjectSageMemoryPort`
- *      (direct IPC over the per-project socket). The MCP layer is reserved
- *      for external consumers. See {@link
- *      ../../docs/direct-icp-usage.md} for the contract.
- *   2. The extractor is pure with respect to the SAGE schema: nothing here
- *      needs a new `SageKind`, a new IPC op, or a new persistence path.
- *      Terms flow through `searchSage` / `rememberSage` like any other
- *      memory, so hygiene, anchors, audiences, and the existing
- *      retrieval/triage pipeline keep working unchanged.
- *   3. The file mirror (`.wrongstack/domain-terms.md`) is **derived state**.
- *      SAGE is the source of truth; the file is regenerated from it on
- *      every persist. Deleting the file does not lose data.
- *   4. The glossary block in the system prompt is bounded by a max-entries
- *      cap (default 24) and a per-entry char cap (default 96 chars). The
- *      prompt goal is precision over recall: a 6-line dictionary the model
- *      actually reads beats a 200-term dump it ignores.
+ *      (direct IPC over the per-project socket). The MCP layer is
+ *      reserved for external consumers. See
+ *      `../../docs/direct-icp-usage.md` for the contract.
+ *   2. The file mirror (`.wrongstack/domain-terms.md`) is **derived
+ *      state** regenerated from in-memory terms on every extraction
+ *      pass. Deleting the file does not lose data — the next
+ *      extraction overwrites it.
+ *   3. The mirror is bounded by the per-call cap and a per-entry char
+ *      cap (default 96 chars). The prompt goal is precision over
+ *      recall: a 6-line dictionary the model actually reads beats a
+ *      200-term dump it ignores.
  *
  * Heuristic detection rules (deliberately conservative — false positives
- * pollute the system prompt):
+ * pollute the mirror):
  *
  *   - **PascalCase / camelCase identifiers** (e.g. `SddBoardProjector`,
  *     `TaskGraph`) — must contain at least 4 characters and start with an
@@ -58,15 +84,22 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { MemoryPort } from '@wrongstack/core/types';
-import { getSageService, getSageSurface } from './memory-port.js';
-import type { Sage } from './types.js';
 
 const execFileAsync = promisify(execFile);
 
-/** Tag every persisted glossary memory with. The first tag is the lookup key. */
+/**
+ * Historical lookup tag. The extractor no longer writes memories with
+ * this tag, but the constant is kept exported so the
+ * `/memory purge-domain-terms` migration and any external tooling
+ * (debugging, search filters) can still reference the canonical
+ * tag name.
+ */
 export const DOMAIN_TERM_LOOKUP_TAG = 'domain-term';
-const GLOSSARY_LOOKUP_TAG = 'glossary';
-const PROJECT_JARGON_TAG = 'project-jargon';
+/** Companion tag from the old `['domain-term', 'glossary', 'project-jargon']`
+ *  trio. Kept exported for the same reason as {@link DOMAIN_TERM_LOOKUP_TAG}. */
+export const GLOSSARY_LOOKUP_TAG = 'glossary';
+/** Companion tag from the old trio. Kept exported for the same reason. */
+export const PROJECT_JARGON_TAG = 'project-jargon';
 
 /** Mirrored human-readable file under `<projectRoot>/.wrongstack/`. */
 export const DOMAIN_TERMS_FILENAME = 'domain-terms.md';
@@ -315,21 +348,24 @@ export interface PersistViaAndMirrorReport {
 }
 
 /**
- * Detect, persist, and render the project's domain glossary.
+ * Detect and render the project's domain glossary.
  *
  * The class is intentionally stateless — every method consumes
- * already-gathered inputs and talks to a `MemoryPort` only via the
- * typed capability helpers (`getSageService`, `getSageSurface`). A
- * caller can therefore construct a single extractor at boot and call
- * it from many turns.
+ * already-gathered inputs. The extractor used to round-trip terms
+ * through SAGE; persistence is now disabled, so the only durable
+ * artefact is the `<projectRoot>/.wrongstack/domain-terms.md` mirror
+ * regenerated from in-memory `ExtractedTerm[]` on every pass. A
+ * caller can therefore construct a single extractor at boot and
+ * call it from many turns without leaking state.
  */
 export class SageDomainTermExtractor {
   /**
    * Detect candidate terms from a recent conversation.
    *
    * The result is *candidate* data: callers should pass it through
-   * {@link persistVia} (or the legacy `MemoryStore`-only path) before
-   * relying on it. Detection never deletes or alters project state.
+   * {@link persistViaAndMirror} (or {@link writeDomainTermsFile}
+   * directly) to refresh the on-disk mirror. Detection never deletes
+   * or alters project state.
    */
   extractFromConversation(opts: ExtractFromConversationOptions): ExtractedTerm[] {
     const minConfidence = opts.minConfidence ?? 0.55;
@@ -354,7 +390,10 @@ export class SageDomainTermExtractor {
    * subjects + at most the first 80 lines of each commit's diff.
    *
    * Returns `[]` if the project is not a git repo or `git` is not on
-   * PATH — never throws.
+   * PATH — never throws. Like {@link extractFromConversation}, the
+   * result is *candidate* data: pass it to
+   * {@link persistViaAndMirror} (or {@link writeDomainTermsFile}
+   * directly) to refresh the on-disk mirror.
    */
   async extractFromCommits(opts: ExtractFromCommitsOptions): Promise<ExtractedTerm[]> {
     const minConfidence = opts.minConfidence ?? 0.45;
@@ -411,135 +450,80 @@ export class SageDomainTermExtractor {
   }
 
   /**
-   * Persist terms through the supplied `MemoryPort`. The port MUST be
-   * a SAGE port — the method goes through `getSageService` / `getSageSurface`
-   * and falls back to the legacy `MemoryStore` shape only when those
-   * capabilities are absent (no-op). In-process callers always have a
-   * SAGE port here, so the fallback is a no-op (the design contract).
+   * Persist terms through the supplied `MemoryPort`. The port is
+   * intentionally ignored — the extractor no longer writes to SAGE.
+   *
+   * The method remains on the public API so that existing call sites
+   * (turn middleware, session-end commit extractor, tests, embedders)
+   * keep their control flow: they call `persistVia` / `persistViaAndMirror`
+   * and get back a meaningful `PersistReport` without having to know
+   * that persistence is disabled. Every term is reported as `skipped`
+   * with the same reason so the report shape stays stable for tests
+   * and dashboards.
+   *
+   * The `options` argument is accepted for source compatibility only;
+   * `minConfidence`, `overwriteExisting`, and `sourceRefs` are no longer
+   * consulted.
    */
   async persistVia(
-    port: MemoryPort,
+    _port: MemoryPort,
     terms: ReadonlyArray<ExtractedTerm>,
-    options: PersistOptions = {},
+    _options: PersistOptions = {},
   ): Promise<PersistReport> {
-    const minConfidence = options.minConfidence ?? 0.55;
-    const overwriteExisting = options.overwriteExisting ?? false;
-    const sourceRefs = options.sourceRefs ?? [];
-
-    // Use the SAGE surface if available. Plain `MemoryStore`-shaped
-    // ports (none in production) are skipped: the architectural rule
-    // requires in-process consumers to use `ProjectSageMemoryPort`.
-    const surface = getSageSurface(port);
-    if (!surface) {
-      return {
-        added: 0,
-        updated: 0,
-        skipped: terms.length,
-        outcomes: terms.map((t) => ({
-          term: t.term,
-          action: 'skipped',
-          reason: 'MemoryPort has no SAGE surface capability; pass a ProjectSageMemoryPort.',
-        })),
-      };
-    }
-
-    const outcomes: PersistOutcome[] = [];
-    let added = 0;
-    let updated = 0;
-    let skipped = 0;
-
-    // Pre-fetch the existing term memories so duplicate detection
-    // does NOT require a full scan per term.
-    const existing = await listExistingTermMemories(surface);
-    const existingByName = new Map(
-      existing.map((mem) => [normalizeTerm(mem.text.split(' — ')[0] ?? mem.text), mem]),
-    );
-
-    for (const term of terms) {
-      if (term.confidence < minConfidence) {
-        outcomes.push({ term: term.term, action: 'skipped', reason: 'below minConfidence' });
-        skipped++;
-        continue;
-      }
-
-      const lookupKey = normalizeTerm(term.term);
-      const match = existingByName.get(lookupKey);
-      const persistedText = composeMemoryText(term);
-
-      if (!match) {
-        const saved = await surface.rememberSage({
-          text: persistedText,
-          kind: 'fact',
-          scope: 'project',
-          tags: [DOMAIN_TERM_LOOKUP_TAG, GLOSSARY_LOOKUP_TAG, PROJECT_JARGON_TAG],
-          confidence: term.confidence,
-          importance: Math.max(0.5, term.confidence),
-          anchors: [],
-          sources: sourceRefs.length > 0 ? sourceRefs : [{ type: 'user' }],
-        });
-        added++;
-        outcomes.push({ term: term.term, action: 'added', memoryId: saved.id });
-        continue;
-      }
-
-      // Already exists. Compare canonicalised texts.
-      const sameText = persistedText.trim() === match.text.trim();
-      if (sameText && !overwriteExisting) {
-        outcomes.push({ term: term.term, action: 'skipped', reason: 'already present' });
-        skipped++;
-        continue;
-      }
-
-      const patched = await surface.updateSage(match.id, {
-        text: persistedText,
-        tags: [...new Set([...match.tags, GLOSSARY_LOOKUP_TAG, PROJECT_JARGON_TAG])],
-        kind: 'fact',
-        confidence: Math.max(term.confidence, match.confidence),
-        importance: Math.max(0.5, Math.max(term.confidence, match.importance)),
-      });
-      updated++;
-      outcomes.push({ term: term.term, action: 'updated', memoryId: patched.id });
-    }
-
-    return { added, updated, skipped, outcomes };
+    return {
+      added: 0,
+      updated: 0,
+      skipped: terms.length,
+      outcomes: terms.map((t) => ({
+        term: t.term,
+        action: 'skipped' as const,
+        reason: 'memory persistence disabled (domain-term tagging removed)',
+      })),
+    };
   }
 
   /**
    * Render the glossary file under `<projectRoot>/.wrongstack/`. The
-   * file is regenerated from the existing SAGE memories; no separate
-   * state is held.
+   * file is regenerated from the supplied in-memory `ExtractedTerm[]`;
+   * no SAGE lookup is performed, so the mirror is always a faithful
+   * snapshot of the caller's terms.
    *
-   * Returns the absolute path of the written file.
+   * Returns the absolute path of the written file. When `terms` is
+   * empty, the file is written with the standard "no terms detected"
+   * placeholder so the path always exists for downstream readers.
    */
-  async writeDomainTermsFile(projectRoot: string, port: MemoryPort): Promise<string> {
-    const terms = await fetchActiveTermsForGlossary(port);
-    const filePath = await renderDomainTermsMarkdown(projectRoot, terms);
-    return filePath;
+  async writeDomainTermsFile(
+    projectRoot: string,
+    terms: ReadonlyArray<ExtractedTerm>,
+  ): Promise<string> {
+    return renderDomainTermsMarkdown(projectRoot, terms);
   }
 
   /**
    * Persist terms and, when `projectRoot` is provided, refresh the
    * human-readable mirror file at `<projectRoot>/.wrongstack/domain-terms.md`.
    *
-   * The mirror is **derived state** (see module-level rule #3): SAGE
-   * is the source of truth, the file is regenerated atomically on
-   * every persist. Hosts that want a guaranteed fresh mirror after a
-   * batched extraction pipeline should call this rather than
-   * `persistVia` followed by `writeDomainTermsFile` separately — it
-   * avoids the "persist succeeded but mirror write failed" window.
+   * The mirror is **derived state** (see module-level rule #2): it
+   * is regenerated atomically on every extraction pass from the
+   * in-memory terms, independent of SAGE. Hosts that want a
+   * guaranteed fresh mirror after a batched extraction pipeline
+   * should call this rather than `persistVia` followed by
+   * `writeDomainTermsFile` separately — it avoids the "extract
+   * ran but mirror write was skipped" window.
    *
    * Behaviour:
-   *   - Always returns the underlying `PersistReport` (added/updated/skipped).
-   *   - When `projectRoot` is `undefined`, performs the persist only
-   *     and returns the report unchanged. `mirrorPath` is `null`.
+   *   - Always returns the underlying `PersistReport`
+   *     (added/updated/skipped). With persistence disabled, every
+   *     term is reported as `skipped` with the canonical reason.
+   *   - When `projectRoot` is `undefined`, performs the no-op
+   *     persist only and returns the report unchanged.
+   *     `mirrorPath` is `null`.
    *   - When `projectRoot` is provided, calls `writeDomainTermsFile`
-   *     after the persist succeeds. If the mirror write throws, the
-   *     error is **swallowed** and `mirrorPath` is `null` — the
-   *     authoritative SAGE state is already correct, and the host can
-   *     retry the mirror on a later persist. The original exception
-   *     is re-thrown only when the underlying persist itself failed.
+   *     with the in-memory `terms`. If the mirror write throws, the
+   *     error is **swallowed** and `mirrorPath` is `null` — the host
+   *     can retry the mirror on a later extraction pass.
    *
-   * Never throws on a working SAGE port for mirror IO errors.
+   * Never throws on a working filesystem for mirror IO errors.
    */
   async persistViaAndMirror(
     port: MemoryPort,
@@ -551,11 +535,12 @@ export class SageDomainTermExtractor {
       return { report, mirrorPath: null };
     }
     try {
-      const mirrorPath = await this.writeDomainTermsFile(options.projectRoot, port);
+      const mirrorPath = await this.writeDomainTermsFile(options.projectRoot, terms);
       return { report, mirrorPath };
     } catch {
-      // Mirror is derived state; SAGE persist already succeeded.
-      // Surface the path as null so callers can detect and retry.
+      // Mirror is derived state; the next extraction pass will
+      // overwrite the file. Surface the path as null so callers can
+      // detect and retry.
       return { report, mirrorPath: null };
     }
   }
@@ -849,121 +834,19 @@ export function normalizeTerm(term: string): string {
 }
 
 /**
- * Active glossary memories, sorted by confidence desc then most
- * recent first. Filters by tag and `status === 'active'`.
- */
-async function fetchActiveTermsForGlossary(port: MemoryPort, limit = 64): Promise<ExtractedTerm[]> {
-  const surface = getSageSurface(port) ?? getSageService(port);
-  if (!surface) return [];
-
-  // `searchSage` returns Sage records; we filter by the
-  // `domain-term` tag and shape each result into an `ExtractedTerm`
-  // for rendering. The `safeSearchTagged` helper accepts the structural
-  // `SageSurface` shape so we coerce via `unknown` first.
-  const hits = await safeSearchTagged(
-    surface as unknown as SageSurface & Record<string, unknown>,
-    limit * 4,
-  );
-
-  return hits
-    .filter((m) => m.tags.includes(DOMAIN_TERM_LOOKUP_TAG))
-    .filter((m) => m.status === 'active' || m.status === 'stale')
-    // Sort by confidence desc, then most recent first — MUST match the
-    // sort in renderDomainGlossary (packages/core/src/core/system-prompt-glossary.ts)
-    // so the mirror file and the prompt block present terms in the same order.
-    // Use confidence (not importance): importance is a LWW high-water mark
-    // that only goes up, so it would make the ranking stale across sessions.
-    .sort((a, b) => {
-      if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-      return b.updatedAt.localeCompare(a.updatedAt);
-    })
-    .slice(0, limit)
-    .map((m) => parsePersistedTerm(m));
-}
-
-/**
- * Try several search shapes from the surface/service interfaces so
- * the extractor works whether the host passed the canonical SAGE
- * surface, the legacy facade, or a custom store. Never throws.
- */
-async function safeSearchTagged(
-  surface: SageSurface & Record<string, unknown>,
-  limit: number,
-): Promise<Sage[]> {
-  for (const shape of ['searchSage', 'unifiedSearchService', 'search'] as const) {
-    const fn = surface[shape] as unknown;
-    if (typeof fn !== 'function') continue;
-    try {
-      const result = await (fn as (q: string, opts: unknown) => Promise<unknown>)(
-        DOMAIN_TERM_LOOKUP_TAG,
-        {
-          limit,
-          tags: [DOMAIN_TERM_LOOKUP_TAG],
-          requireAllTerms: true,
-        },
-      );
-      if (Array.isArray(result)) return result as Sage[];
-      // `unifiedSearchService` returns `{ hits }`.
-      const hits = (result as { hits?: Sage[] }).hits;
-      if (Array.isArray(hits)) return hits;
-    } catch {
-      // try the next shape
-    }
-  }
-  return [];
-}
-
-/**
- * Recover an `ExtractedTerm` from a persisted `Sage` memory's `text`
- * field (`Term — definition` or just `Term`).
- */
-function parsePersistedTerm(memory: Sage): ExtractedTerm {
-  const [termPart, ...rest] = memory.text.split(' — ');
-  const definition = rest.length > 0 ? rest.join(' — ').trim() : '';
-  return {
-    term: (termPart ?? memory.text).trim(),
-    definition,
-    confidence: memory.confidence,
-    mentionCount: 1,
-    evidence: [],
-    sources: ['file'],
-  };
-}
-
-interface SageSurface {
-  searchSage?: (query: string, opts?: { limit?: number; tags?: string[] }) => Promise<Sage[]>;
-  unifiedSearchService?: (
-    q: string,
-    opts?: { limit?: number; tags?: string[] },
-  ) => Promise<{ hits?: Sage[]; totalCandidates?: number }>;
-  search?: (q: string, scope?: string, limit?: number) => Promise<Sage[]>;
-}
-
-/**
- * List existing domain-term memories for duplicate detection. Uses
- * `searchSage` directly; if the surface is missing, returns [].
- */
-async function listExistingTermMemories(surface: SageSurface): Promise<Sage[]> {
-  if (typeof surface.searchSage === 'function') {
-    try {
-      const hits = await surface.searchSage(DOMAIN_TERM_LOOKUP_TAG, {
-        limit: 256,
-      });
-      return hits;
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-/**
- * Render the `<projectRoot>/.wrongstack/domain-terms.md` file and
- * return its absolute path. Caller is responsible for IO errors.
+ * Render the `<projectRoot>/.wrongstack/domain-terms.md` file from
+ * the supplied in-memory `ExtractedTerm[]` and return its absolute
+ * path. The caller is responsible for IO error handling
+ * (`persistViaAndMirror` swallows it so the extraction pass is
+ * not aborted by a transient filesystem failure).
+ *
+ * Sort: confidence desc, then term asc (deterministic, not driven
+ * by persisted timestamps since the mirror is regenerated from
+ * in-memory state on every call).
  */
 async function renderDomainTermsMarkdown(
   projectRoot: string,
-  terms: ExtractedTerm[],
+  terms: ReadonlyArray<ExtractedTerm>,
 ): Promise<string> {
   const dir = path.join(projectRoot, '.wrongstack');
   await fs.mkdir(dir, { recursive: true });
@@ -971,20 +854,24 @@ async function renderDomainTermsMarkdown(
   const lines: string[] = [
     '# Project Domain Glossary',
     '',
-    '> Maintained automatically by SageDomainTermExtractor.',
-    '> Source-of-truth: SAGE memories tagged `domain-term` + `glossary`.',
+    '> Maintained automatically by SageDomainTermExtractor (in-memory pass).',
+    '> SAGE persistence is disabled; the mirror is the only persisted view.',
     '> Do not edit by hand: re-run the extractor to regenerate.',
     '',
     `Last regenerated: ${new Date().toISOString()}`,
     '',
   ];
-  if (terms.length === 0) {
+  const sorted = [...terms].sort((a, b) => {
+    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+    return a.term.localeCompare(b.term);
+  });
+  if (sorted.length === 0) {
     lines.push('_No project-specific terms detected yet._');
     lines.push('');
   } else {
     lines.push('| Term | Definition | Confidence |');
     lines.push('| --- | --- | --- |');
-    for (const t of terms) {
+    for (const t of sorted) {
       const safeTerm = t.term.replace(/\|/g, '\\|');
       const safeDef = (t.definition || '_pending_').replace(/\|/g, '\\|');
       lines.push(`| \`${safeTerm}\` | ${safeDef} | ${t.confidence.toFixed(2)} |`);

@@ -351,6 +351,18 @@ session that dies halfway — and they let you synthesize as you go.
 
 ---
 
+## Out of scope
+
+- **Don't fan out a single atomic task.** One task is one agent. Subagent overhead exceeds the benefit below ~5 tool calls per subtask.
+- **Don't fan out work that needs shared mutable state.** Subagents share nothing — no memory, no session state, no variable scope. If two subtasks would read or write the same thing, they don't fan out.
+- **Don't fan out work with sequential dependencies.** Worker 2 needing worker 1's output means either chain it inside one agent, or use the fleet pattern with explicit hand-off. One-shot fan-out fails on dependencies.
+- **Don't write briefs by reference.** "Audit the file we discussed" — the worker has no idea. Include exact scope, the specific question, definition of done, return format, and boundaries.
+- **Don't dispatch workers one turn at a time.** Serialized fan-out throws away the only thing parallelism was for. Fire the whole batch in one turn.
+- **Don't ignore `budget_exhausted`.** Partial results are still results. Re-split and retry; never silently absorb a failure into a clean-looking report.
+- **Don't present partial coverage as complete.** A 7-of-10 fleet is a partial audit. Naming the missing three is the only way the user keeps trusting the report.
+- **Don't pick a role that doesn't match the task.** A `bug-hunter` writing docs or a `refactor-planner` running a security audit produces confident output shaped by the wrong priorities — worse than no output.
+- **Don't fan out "because the context is too big".** With 200K–1M windows, work that used to need splitting now fits. Fan out for wall-clock time and genuinely independent attention, not for size.
+
 ## Skills in scope
 
 - `bug-hunter` — parallel file audits

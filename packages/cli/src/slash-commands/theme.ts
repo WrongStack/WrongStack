@@ -76,6 +76,7 @@ const THEME_META: Record<ThemePresetId, { name: string; desc: string }> = {
   },
   aura: { name: 'Aura Dark', desc: 'Vivid purple and spring green on near-black violet' },
   'dark-plus': { name: 'VS Code Dark+', desc: "VS Code's default — familiar blue/orange/teal" },
+  monochrome: { name: 'Monochrome', desc: 'Pure grayscale — no hue, only luminance' },
 };
 
 const THEME_OPTIONS: ThemeOption[] = THEME_PRESET_IDS.map((id) => ({ id, ...THEME_META[id] }));

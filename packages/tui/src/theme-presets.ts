@@ -813,6 +813,30 @@ export const themePresets: Record<ThemeName, Theme> = Object.freeze({
       commentOnWash: '#9fc98b',
     },
   }),
+  monochrome: Object.freeze({
+    ...baseTheme,
+    textPrimary: '#e6e6e6',
+    textSecondary: '#bcbcbc',
+    textMuted: '#6e6e6e',
+    brandPrimary: '#c0c0c0',
+    brandAccent: '#a8a8a8',
+    accent: '#cccccc',
+    user: '#dcdcdc',
+    assistant: '#c8c8c8',
+    tool: '#b8b8b8',
+    success: '#a8a8a8',
+    warn: '#b8b8b8',
+    error: '#888888',
+    borderDefault: '#5a5a5a',
+    borderSubtle: '#3a3a3a',
+    borderActive: '#e0e0e0',
+    brand: '#d0d0d0',
+    surface: '#0e0e0e',
+    surfaceRaised: '#1a1a1a',
+    diffAddBg: '#1c1c1c',
+    diffDelBg: '#262626',
+    monitor: { fleet: '#cccccc', agents: '#d0d0d0', worktree: '#a8a8a8', phase: '#bcbcbc' },
+  }),
 });
 
 export const THEME_OPTIONS: readonly ThemePickerOption[] = [
@@ -982,6 +1006,11 @@ export const THEME_OPTIONS: readonly ThemePickerOption[] = [
     id: 'dark-plus',
     name: 'VS Code Dark+',
     description: "Visual Studio Code's default — familiar blue/orange/teal",
+  },
+  {
+    id: 'monochrome',
+    name: 'Monochrome',
+    description: 'Pure grayscale — no hue, only luminance',
   },
 ];
 

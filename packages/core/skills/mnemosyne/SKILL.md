@@ -4,7 +4,7 @@ description: |
   Use when curating WrongStack SAGE memory: run deterministic hygiene and
   anchor verification first, then review contradictions, drift, and noise;
   file destructive outcomes as review proposals instead of deleting directly.
-version: 1.1.0
+version: 1.2.0
 required-capabilities: [memory.manage, memory.curate]
 required-tools: [cron_cancel, cron_schedule, mail_send, mailbox, memory_candidates, memory_delete, memory_hygiene, memory_search, memory_update, memory_verify, skill]
 ---
@@ -148,6 +148,29 @@ tools are absent, run on demand instead.
 - A failed batch does not invalidate successful deterministic results.
 - Never advertise commands, config keys, background services, or tools that
   are not present in the live runtime.
+
+## Out of scope
+
+- **Don't delete or archive memories autonomously.** `memory_delete` and `status: "deleted"` / `"archived"` are not part of an autonomous Mnemosyne cycle. File `memory_candidates` proposals and let the user resolve.
+- **Don't re-author untouched memories to bump timestamps.** A memory that passes review stays as it is. Bumping timestamps corrupts recency signals and churns the store.
+- **Don't skip the deterministic pass.** Hygiene, anchor verification, and supersede/stale marking are run before any LLM analysis. The LLM is a bounded second pass over deterministic results, not a replacement.
+- **Don't infer absence from a missing search result.** A search miss is not proof a memory doesn't exist. Report what was searched; let deterministic checks carry the absence claim.
+- **Don't claim a successful broadcast or scheduled cycle that didn't run.** If the mailbox or cron tools are absent, say so. Never invent a successful delivery or a scheduled job.
+- **Don't describe cron as a persistent daemon.** Cron jobs belong to the live runtime; they must be inspected and cancelled through the cron tools. The skill is session-scoped.
+- **Don't bypass store protections with `force`.** Permanent and high-importance memories receive extra scrutiny. Bypassing protections is a bug, not a feature.
+- **Don't use it as a generic memory CRUD layer.** Mnemosyne is the curation workflow. Direct memory creation/update without going through the workflow is the wrong lane.
+
+## Before returning
+
+- [ ] `memory_hygiene({ verify: true })` ran first; counts captured
+- [ ] Non-zero `deleted` or `archived` counters treated as a bug and reported
+- [ ] Bounded semantic review searched related memories, not whole store
+- [ ] Direct updates only for non-terminal corrections (text, classification, confidence, `stale`, supersede/contradict links)
+- [ ] Deletion or archival recommendations filed as `memory_candidates` proposals, not applied
+- [ ] Every proposal includes a supported `reason`
+- [ ] Report contains trigger, counts, safe corrections, proposals, errors
+- [ ] Broadcast only when mailbox tools are registered and coordination is active
+- [ ] No claim of scheduled cycle or broadcast that didn't actually run
 
 ## Skills in Scope
 

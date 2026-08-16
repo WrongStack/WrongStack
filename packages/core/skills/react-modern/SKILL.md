@@ -4,7 +4,7 @@ description: |
   Use this skill when writing or reviewing React 19+ code in WrongStack.
   Triggers: user mentions "React", "component", "useState", "useEffect",
   "Server Component", "Client Component", "Suspense", "useTransition", "use hook".
-version: 1.1.0
+version: 1.2.0
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run]
@@ -206,6 +206,34 @@ const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => { ... };
 // ✅ useRef with nullable initial
 const inputRef = useRef<HTMLInputElement>(null);
 ```
+
+## Out of scope
+
+- **Don't default to Client Components.** Server Components are the default in React 19+. Mark `'use client'` only for interactive code; the boundary carries a serialization cost.
+- **Don't use `useEffect` for data fetching.** Use Server Components or `use(promise)`. The `useEffect` + `fetch` + `setState` dance is the pattern React 19 replaced.
+- **Don't use `forwardRef` in new code.** `ref` is a regular prop in React 19. `forwardRef` is the old way; the new way is `function Button({ ref, ...props })`.
+- **Don't use default exports for components.** Named exports only. Default exports hinder refactoring and tree-shaking; named exports are the convention.
+- **Don't use class components in new code.** Function components + hooks. Class components are deprecated in modern React.
+- **Don't use `useEffect` to sync props to state.** It causes an extra render and stale data. Lift state or use a controlled component.
+- **Don't use `useMemo` for trivial calculations.** `useMemo(() => count * 2, [count])` is more expensive than the multiplication. Measure before memoizing.
+- **Don't use `useCallback` when deps change every render.** `useCallback(fn, [obj])` where `obj` is fresh each render provides no stability. Use it for child deps that actually benefit.
+- **Don't mix Server/Client boundaries carelessly.** Serialization errors at the boundary are some of the hardest to debug. Keep the boundary clean.
+- **Don't use `use` outside component render.** It's a render-only hook.
+
+## Before returning
+
+- [ ] Server Components by default; `'use client'` only for interactive code
+- [ ] No `useEffect` for data fetching; Server Components or `use(promise)` instead
+- [ ] No `forwardRef` in new code; `ref` is a regular prop
+- [ ] Named exports for components; no default exports
+- [ ] No class components in new code; function components + hooks only
+- [ ] Event handlers carry explicit types (`React.MouseEvent<HTMLButtonElement>`)
+- [ ] `useState` for local state; `useReducer` for state machines
+- [ ] `useTransition` for non-urgent updates; `useDeferredValue` for expensive search
+- [ ] `useMemo` / `useCallback` only where profiling showed a need
+- [ ] `useEffect` reserved for side effects (subscriptions, manual DOM, focus); not for derived state or data fetching
+- [ ] Props interface explicit; no `any` or `Function`
+- [ ] `<nextsteps>` mirrors any open follow-up (boundary cleanup, hook refactor, prop typing)
 
 ## Skills in scope
 

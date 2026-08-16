@@ -212,7 +212,6 @@ describe('formerly zero-statement CLI modules', () => {
     expect(mocks.bindSystemPromptBuilder).toHaveBeenCalledOnce();
     expect(mocks.refreshDomainTermsMirror).toHaveBeenCalledWith({
       projectRoot: 'D:/repo',
-      memoryStore: {},
     });
     expect(mocks.registerBuiltinTools).toHaveBeenCalledOnce();
   });

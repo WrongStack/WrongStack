@@ -246,6 +246,15 @@ files you were never shown is worse than an honest gap.
 
 ---
 
+## Out of scope
+
+- **Don't mutate files.** This skill is strictly read-only. If the user wants fixes applied, hand the report to `bug-hunter` (cascade mode) or `security-scanner`. Never edit, write, format, rename, or delete.
+- **Don't review code style, formatting, naming, or lint findings.** Those are the linter's job and add noise without value. Quality and behavioral findings only.
+- **Don't re-litigate decisions the session already discussed.** If the session chose a tradeoff, the choice is final for this review. Cite "session discussed" in the fix line and move on.
+- **Don't expand scope to files outside the provided list.** The file list is the boundary. Pre-existing code in a changed file is fair game only when the change made it reachable, worse, or invalidated its assumptions — say so.
+- **Don't send mailbox messages to peers, the user, or broadcast.** Runtime handles persistence and notification. Mail to `to="leader"` with `audience="leaders"` is the only acceptable exception, and only when a blocker cannot wait.
+- **Don't trigger a re-review loop, fix agent, or mutating follow-up.** The report is terminal. Legacy `autoFix`/`cascadeOn`/`maxCascadeDepth` do not authorize a leader turn.
+
 ## Skills in scope
 
 - `bug-hunter` — for systematic bug detection patterns

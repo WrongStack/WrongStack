@@ -1,6 +1,7 @@
 ---
 name: wrongstack-mailbox-mcp
 description: Coordinate with WrongStack agents through the project-scoped Mailbox MCP server. Use when an external coding agent needs to inspect unread or incomplete messages, query conversation history, discover online agents, send direct/reply/broadcast/steer messages, acknowledge outcomes, maintain its presence, soft-delete or restore messages, watch for changes, or perform explicitly authorized Mailbox administration without reading Mailbox files or SQLite directly.
+version: 1.0.0
 required-capabilities: [mcp.dynamic]
 required-tools: [mcp_use]
 ---
@@ -69,6 +70,32 @@ contain identifiers and metadata, not the authoritative message snapshot.
 - `mailbox_admin` provides clear, purge, compaction, and credential issue/verify/revoke/rotate/list
   operations. It requires `--admin`, which implies writable mode.
 
-Before `clear_all`, purge, credential revocation/rotation, or another broad administrative action,
-confirm that it is explicitly requested and re-read relevant state. Never use an admin operation to
-work around a routing, identity, or authorization error.
+## Out of scope
+
+- **Don't read or edit Mailbox files directly.** No `_mailbox.sqlite`, no legacy JSONL, no bridge locks, no token files. MCP is the only boundary; bypassing it through any of those channels breaks trust and audit.
+- **Don't impersonate another actor.** The server fixes sender, receipt, deletion, registration, and heartbeat identity to `--actor`. Tool arguments cannot override that. Use the actor id you were given, honestly.
+- **Don't use `steer` for routine direction.** Steer is for changed direction mid-task. For normal coordination, use `ask`, `assign`, or `result`.
+- **Don't broadcast when direct addressing is correct.** Broadcast reaches every relevant agent; most messages don't.
+- **Don't run admin operations to bypass routing, identity, or authorization errors.** If a call is denied for one of those reasons, the call is wrong. Re-read state, ask, or stop. Admin paths are for explicitly authorized administration, not workarounds.
+- **Don't skip `register_self`.** Without registration, the runtime can't reconcile heartbeats or surface the agent in the workbench.
+- **Don't treat `mailbox_watch` events as authoritative.** Watch is a wake-up hint, not a snapshot. After every event, reconcile through `mailbox_read`.
+
+## Before returning
+
+- [ ] MCP server reached via `mcp_use`; never opened Mailbox files directly
+- [ ] Actor id stable and honest; no impersonation of `hq@...` or other agents
+- [ ] `register_self` called with stable name and role before any other traffic
+- [ ] `mailbox_read` with `unreadBy` + `incompleteOnly` used to find actionable work
+- [ ] `online_agents` checked before time-sensitive direct sends
+- [ ] `send` carries an explicit recipient and the right message type
+- [ ] `replyTo` set on threaded replies; no orphan context
+- [ ] `ack` / `ack_many` called with truthful `outcome` after work
+- [ ] `heartbeat_self` running during long work; `deregister_self` on clean shutdown
+- [ ] Admin operations (`clear_all`, purge, credential issue/revoke) only when explicitly requested
+
+## Skills in scope
+
+- `mailbox-bridge` — for the WrongStack-internal HTTP façade this MCP server mirrors
+- `wrongstack-mailbox` — for the external-facing counterpart used by Claude Code / Aider / scripts
+- `security-scanner` — for confirming the MCP server's authn/authz surface matches project security conventions
+- `output-standards` — for the `<nextsteps>` shape when reporting mailbox activity to the user

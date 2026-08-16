@@ -4,7 +4,7 @@ description: |
   Use this skill when validating package versions, checking for outdated dependencies,
   or evaluating third-party libraries in WrongStack. Triggers: user says "dependency",
   "package version", "outdated", "npm audit", "deprecated package", "tech stack".
-version: 1.2.0
+version: 1.3.0
 required-capabilities: [dependencies.manage]
 required-tools: []
 optional-capabilities: [web.research]
@@ -111,6 +111,30 @@ When APPROVED:
 1. Add <package>@<version> to the project auto="true"
 </nextsteps>
 ```
+
+## Out of scope
+
+- **Don't trust version numbers from the model.** Training data is stale. The registry is the truth; fetch the latest version from the registry, not from memory.
+- **Don't recursively analyze transitive dependencies.** This skill is single-shot. 1–2 iterations: detect → search registry → verify → report. Deep dependency analysis is a different workflow.
+- **Don't greenlight prehistoric technology.** Anything superseded ≥5 years ago is rejected by default. Use the per-ecosystem built-in preference map.
+- **Don't add a third-party package when the standard library covers it.** Prefer built-in. Every modern runtime ships an obsoleting API; check the built-in map before greenlighting any dependency.
+- **Don't accept a dead package.** A package with no release in >2 years and unresolved critical issues is dead; suggest a maintained replacement. "Deprecated" / "yanked" / "archived" are the dead signals, not opinions.
+- **Don't pick a random ecosystem.** Detect from project files first; ask when multiple markers exist; default to JavaScript only when `package.json` is present and nothing else is.
+- **Don't deep-dive CVEs.** Known-CVE work is `security-scanner`'s lane. This skill validates existence, version, and deprecation — not vulnerability surface.
+- **Don't approve without a registry URL.** The reader needs to verify; cite the registry endpoint that was actually fetched.
+
+## Before returning
+
+- [ ] Ecosystem detected (explicit or via project file scan)
+- [ ] Registry endpoint fetched; package existence verified
+- [ ] Latest version pulled from the registry, not from training memory
+- [ ] Dead-package signals checked (`deprecated`, yanked, archived)
+- [ ] Prehistoric-tech check ran against the per-ecosystem preference map
+- [ ] Built-in vs. third-party preference map consulted
+- [ ] Status is APPROVED / REJECTED / NEEDS_INVESTIGATION with one-sentence verdict
+- [ ] On REJECTED, modern alternative named with a migration step
+- [ ] Registry URL cited so the reader can verify
+- [ ] No transitive dependency recursion; single-shot budget honored
 
 ## Skills in scope
 

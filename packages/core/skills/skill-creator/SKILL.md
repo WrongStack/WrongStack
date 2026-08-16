@@ -3,7 +3,7 @@ name: skill-creator
 description: |
   Use this skill when the user wants to create a new AI skill in WrongStack.
   Triggers: user says "create a skill", "new skill", "add a skill", "skill definition".
-version: 1.2.0
+version: 1.3.0
 required-capabilities: [filesystem.write, runtime.admin]
 required-tools: [bash, skill]
 ---
@@ -161,6 +161,30 @@ Before writing the file, verify:
 - [ ] Description has a clear trigger sentence
 - [ ] Content is actionable (rules, patterns, not just prose)
 - [ ] File will be placed in `.wrongstack/skills/`
+
+## Out of scope
+
+- **Don't write skills without running `/skill-gen validate <name>` first.** A name that collides with an existing skill or breaks the kebab-case rule is a wall hit after the file is written. Validate first, always.
+- **Don't ship a skill with a vague description.** "This skill is about Docker" matches nothing. First sentence = trigger; rest = `Triggers: user says "..."` listing concrete keywords.
+- **Don't name skills in PascalCase or with underscores.** `MySkill` and `my_skill` are wrong; only `my-skill` (kebab-case) loads. The loader rejects the others.
+- **Don't place project skills outside `.wrongstack/skills/<name>/`.** Bundled, user-profile, and foreign paths are for other owners. User-created skills always go in the project directory.
+- **Don't write prose-only skills.** Rules, patterns, anti-patterns, code examples — the content has to be actionable. Prose without a checkable rule does not constrain the model.
+- **Don't skip "Skills in scope".** Without the hand-off list, the model doesn't know where to delegate adjacent questions. The list is what makes the skill part of a system.
+- **Don't forget to bump the version on structural change.** New section, scope change, rule change → major or minor bump. Patch only for wording.
+- **Don't move work into the skill that belongs in `/skill-gen`.** The sub-commands are the deterministic layer: validation, scaffolding, from-prompt conversion. The wizard is for the parts they can't do.
+
+## Before returning
+
+- [ ] Name is kebab-case; `/skill-gen validate <name>` passed
+- [ ] Name doesn't collide with bundled, project, or user-profile skills
+- [ ] First sentence of `description` is a concrete trigger; trigger keywords follow
+- [ ] File path is `.wrongstack/skills/<name>/SKILL.md` for project skills
+- [ ] Content is actionable: rules, patterns, anti-patterns, code examples
+- [ ] "Out of scope" lists what the skill is NOT for and where to hand off
+- [ ] "Before returning" gives the model a mechanical completion check
+- [ ] "Skills in scope" names the hand-off targets and the reason for each
+- [ ] Version bumped appropriately; change recorded in CHANGELOG.md
+- [ ] `/skill-gen validate <name>` re-run after writing; loads cleanly
 
 ## Skills in scope
 

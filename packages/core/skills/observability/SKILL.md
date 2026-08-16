@@ -5,7 +5,7 @@ description: |
   or when setting up observability for a new feature. Triggers: user says
   "log", "trace", "metrics", "observability", "instrument", "structured logging",
   "opentelemetry", "log level", "debug", "monitoring".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [code.inspect]
@@ -128,6 +128,30 @@ Every log should include:
 - **Log output**: All logs go to stdout as JSON — CI captures them, not file logs.
 - **Redaction**: Use `redactKeys()` helper — never log `Authorization`, `token`, `apiKey`, `secret`.
 - **Tool tracing**: Each tool wrapper should emit a structured log on start and end.
+
+## Out of scope
+
+- **Don't log secrets, tokens, or PII.** Redact at the boundary. A single `Authorization` header in a log line is a credential leak; redact `token`, `apiKey`, `secret`, `Authorization` keys before they reach the stream.
+- **Don't use plain text logs.** JSON to stdout is the contract. `console.log('User logged in')` is unsearchable and breaks log aggregators.
+- **Don't emit logs without a `traceId`.** Correlation across tools is the whole point. A log without a trace is an event with no story.
+- **Don't use DEBUG level in production.** DEBUG is dev-only. Production logs are `INFO`, `WARN`, `ERROR`; DEBUG in prod is noise that hides real signals.
+- **Don't log and ignore.** Every log entry should answer: what happened, what context, what was the outcome. A `console.log('done')` after a side effect is process for process's sake.
+- **Don't write to file logs from app code.** CI captures stdout. File logs bypass the pipeline and become unsearchable tribal knowledge.
+- **Don't skip trace spans on tool calls.** Every tool wrapper should open a span on start and end it on completion, with timing. Without spans, latency questions are unanswerable.
+- **Don't conflate counters and gauges.** Counters increment (`tool.executions`); gauges track current state (`session.iterations`). Mixing them produces nonsense dashboards.
+- **Don't include exception objects in span attributes.** `span.recordException(err)` is the OpenTelemetry path; serialization into a JSON log is its own discipline.
+
+## Before returning
+
+- [ ] All logs are JSON to stdout, never plain text or file logs
+- [ ] Every entry has `level`, `traceId`, `event`, `timestamp`, `outcome`
+- [ ] No secrets, tokens, `Authorization`, `apiKey`, or PII in any log line
+- [ ] DEBUG level only in dev; production uses `INFO` / `WARN` / `ERROR`
+- [ ] Tool wrappers emit structured start + end events with `duration_ms`
+- [ ] OpenTelemetry spans opened on tool entry, closed on exit with status
+- [ ] Counters vs. gauges respected; histograms used for latency
+- [ ] Redaction centralized at the serialization boundary, not per call site
+- [ ] Log volume and pattern sanity-checked against `audit-log` skill's metrics
 
 ## Skills in scope
 

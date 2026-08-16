@@ -8,7 +8,7 @@ description: |
   mailbox", "send to WrongStack", "wrongstack mail", "broadcast to the
   fleet", "tell the wrongstack agents", "is anyone online in
   wrongstack", or "register me with wrongstack".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: []
 required-tools: [mailbox]
 optional-capabilities: [mcp.dynamic, web.research]
@@ -737,6 +737,34 @@ If no WrongStack surface is running yet, the user starts one —
 mailbox serve` standalone all work. The first one to come up for a
 given project starts the bridge; subsequent surfaces join it via the
 per-project lock.
+
+## Out of scope
+
+- **Don't open Mailbox files directly.** No `_mailbox.sqlite`, no legacy JSONL, no bridge locks, no token files. The bridge and `mb()` / `mbWithBootstrap()` are the only paths; bypassing them breaks trust and audit.
+- **Don't impersonate `hq@...` or another agent.** Use a stable, honest `agentId` for your own identity. The bridge does not enforce sender identity; impersonation is on you, and it's the kind of thing that gets the bridge shut down.
+- **Don't hardcode the token.** Read it from `.mailbox.token`, `.mailbox-bridge.lock`, or accept it from the user. Re-read after a 401. Tokens rotate on every fresh bridge start.
+- **Don't let requests hang.** `AbortSignal.timeout(10_000)` is mandatory. The mailbox is local; 10 s is generous, and a hung bridge will wedge the agent.
+- **Don't poll faster than 1 Hz.** The bridge enforces 120 req/min/token. Polling at sub-second rates hits the limit and looks like a flooding attempt.
+- **Don't use SSE events as authoritative.** `GET /mailbox/events` is a wake-up hint, not a snapshot. After every event, reconcile through `/mailbox/query` or `/mailbox/check`.
+- **Don't broadcast without thinking.** `to: "*"` reaches every online agent. One broadcast per task, with a clear subject. The WebUI marks broadcasts with a different color and humans notice noise.
+- **Don't ack in a loop when `ack-many` fits.** If you have more than one unread message, use `/mailbox/ack-many` — one request, one lock, one rewrite.
+- **Don't skip `register_self`.** Without registration, the WebUI can't show you as online, and heartbeats are unreconciled.
+- **Don't randomize your `agentId`.** Read receipts and history break if your id changes every poll. Pick a stable convention and reuse it.
+- **Don't promise features the bridge doesn't expose.** The bridge is mailbox only. For the full WrongStack tool surface, use `wstack mcp serve`; for SMTP/IMAP, push back — WrongStack's mailbox is internal.
+
+## Before returning
+
+- [ ] No Mailbox files opened or edited directly; bridge and `mb()` only
+- [ ] Stable, honest `agentId`; no impersonation of `hq@...` or other agents
+- [ ] Token read from `.mailbox.token` or `.mailbox-bridge.lock`, not hardcoded
+- [ ] `mbWithBootstrap()` used for discovery when env vars aren't set
+- [ ] All requests carry `AbortSignal.timeout(10_000)`
+- [ ] `register_self` called with stable name and role before any traffic
+- [ ] Heartbeat every 30 s; `deregister_self` on clean shutdown
+- [ ] SSE preferred for real-time; polling ≥ 1 Hz, ≤ 5–10 s
+- [ ] `ack-many` used when more than one message needs acknowledgement
+- [ ] Broadcast only with clear subject, at most once per task
+- [ ] Bridge health (`/healthz`) probed before relying on routes
 
 ## Skills in scope
 

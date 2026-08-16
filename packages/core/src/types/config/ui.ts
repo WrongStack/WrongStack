@@ -48,6 +48,7 @@ export const THEME_PRESET_IDS = [
   'vitesse-dark',
   'aura',
   'dark-plus',
+  'monochrome',
 ] as const;
 
 export type ThemePresetId = (typeof THEME_PRESET_IDS)[number];

@@ -4,7 +4,7 @@ description: |
   Use this skill when writing or reviewing TypeScript code with strict mode
   in WrongStack. Triggers: user mentions "TypeScript", "strict", "type error",
   "type safety", "narrowing", "branded type", "discriminated union", "noUncheckedIndexedAccess".
-version: 1.1.0
+version: 1.2.0
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run]
@@ -234,6 +234,35 @@ const len: number = str?.length ?? 0;
 // ❌ Bad — assumes not null
 console.log(name!.toUpperCase());
 ```
+
+## Out of scope
+
+- **Don't use `as any` or double assertions to silence errors.** Validate or narrow values at trust boundaries. A cast that hides a real type error is a bug surfaced later in runtime.
+- **Don't use `!` non-null assertion.** `name!.toUpperCase()` silences the type checker without explanation. Use a narrow check or an assertion function.
+- **Don't use `Function` or `Object` types.** They're too broad; `any`-shaped in disguise. Be specific.
+- **Don't return `Promise<any>`.** `Promise<unknown>` or a generic. `Promise<any>` loses the type information the caller needs.
+- **Don't omit return types on exported functions.** Without an explicit return type, exported functions hide errors and let callers assume any shape. Annotate public APIs.
+- **Don't use optional chaining chains to dodge narrowing.** `a?.b?.c?.d` is "I don't know what `a` is" with a costume. Verify with `if (a)` first.
+- **Don't loosen `noUncheckedIndexedAccess` to make tests pass.** It is the safety net. Once it's off, array access silently returns `T` instead of `T | undefined` and `undefined` slips through.
+- **Don't mix `enum` and union types.** Pick one per project. `enum` is the legacy form; const-asserted string unions are the modern form.
+- **Don't write code that compiles under `strict: false`.** WrongStack runs with `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`, and `exactOptionalPropertyTypes`. Code that only compiles under relaxed flags is the kind of debt this skill exists to prevent.
+- **Don't accept `unknown` without narrowing at the use site.** `unknown` is the safe top type; leaving it un-narrowed is a typed-any escape hatch.
+
+## Before returning
+
+- [ ] No `as any` or double assertions; validation/narrowing at boundaries
+- [ ] No `!` non-null assertion; narrow checks or assertion functions instead
+- [ ] No `Function` or `Object`; specific function/object types used
+- [ ] No `Promise<any>`; `Promise<unknown>` or generic
+- [ ] Exported functions carry explicit return types
+- [ ] `noUncheckedIndexedAccess` honored; `T | undefined` handled at every index access
+- [ ] `exactOptionalPropertyTypes` honored; `prop?: T` and `prop: T | undefined` distinguished
+- [ ] Discriminated unions used over optional fields where state is finite
+- [ ] `assertNever` in `default:` of exhaustive switches
+- [ ] Branded types for invariant strings (`UserId`, `SessionId`)
+- [ ] `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`, `exactOptionalPropertyTypes` in `tsconfig.json`
+- [ ] `pnpm run typecheck` passes before merge
+- [ ] `<nextsteps>` mirrors open follow-ups (cast removals, narrowing gaps, tsconfig tightening)
 
 ## Skills in scope
 

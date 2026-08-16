@@ -421,7 +421,7 @@ Both hosts install the **same** stack and the **same** throttled full-option hyg
 |---|---|---|
 | `createSageToolCallMiddleware` | `toolCall` | **ON** (`inject.toolResults !== false`) |
 | `createSageTurnMiddleware` | `request` | **OFF** (`inject.turnContext === true`) |
-| `createSageDomainTermExtractorMiddleware` | `request` | ON when a port is present |
+| `createSageDomainTermExtractorMiddleware` | `request` | ON when a port is present — **memory persistence disabled**; refreshes `.wrongstack/domain-terms.md` from in-memory terms only |
 | `createSageContextMonitorMiddleware` | `request` | ON — emits `memory.context_snapshot` |
 | `createSageOutcomeCaptureMiddleware` | `toolCall` | **OFF** unless `Sage.capture.*` |
 | `createSagePathRemapMiddleware` | `toolCall` | **ON** (always when setup runs) |

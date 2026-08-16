@@ -4,7 +4,7 @@ description: |
   Use this skill when defining or enforcing output formatting standards for agent
   responses in WrongStack. Triggers: user says "next steps format", "output standard",
   "response format", "final message format", "standardize next steps".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: []
 required-tools: []
 ---
@@ -155,6 +155,33 @@ When a **subagent** completes its task, it MUST:
 - **Don't write declarations of intent** — "we should refactor X" is not a prompt; "refactor core/config.ts" is
 - **Don't assign manual work to the user** — "manually check if X is correct yourself" is not a valid next prompt; when tools permit it, use an agent-directed prompt such as "Use the browser tools to verify X and fix any issue you find"
 - **Don't include `<nextsteps>` in subagent output** — subagents report findings, leaders produce next steps
+
+## Out of scope
+
+- **Don't include `<nextsteps>` in subagent output.** Subagents report findings; the leader produces the unified tag. A subagent that emits `<nextsteps>` is stepping on the leader's lane.
+- **Don't emit parseable-looking prose instead of the tag.** "Next steps:", "Suggested next:", "Let me know if you want..." all look like the tag to the parser and break the `/next` workflow.
+- **Don't put human-only actions in `<nextsteps>`.** "Open DevTools yourself", "manually check the browser console" — those are informational, not agent prompts. They go outside the tag as plain text.
+- **Don't put markdown inside the tag.** Plain text only, one item per line. `**bold**`, code spans, headings — all break the parser.
+- **Don't use dashes or asterisks inside the tag.** Numbered items only: `1.`, `2.`, `3.`. Dash and asterisk bullets are wrong and silently fail the parser.
+- **Don't put `auto="true"` on items 2+.** Only item 1 may carry the marker. The marker on later items is parsed-and-discarded.
+- **Don't write vague prompts.** "Fix bugs" is not a prompt; "fix auth/session.ts:42 and add a regression test" is. The selected text is submitted verbatim — vague prompts are vague runs.
+- **Don't exceed 5 items without reason.** If the list is over 5, it's probably not a single task. Split it or hand off.
+- **Don't emit `<nextsteps>` while `ctx.todos` has open items.** The in-flight todo list isn't done; new prompt options race the todo loop. Finish the list first, re-arm the tag on the turn where the last todo flips to `completed`.
+- **Don't address the user inside the tag.** Items are agent-directed prompt inputs. Imperative wording is valid when it tells the agent what to do.
+
+## Before returning
+
+- [ ] Only the leader emits `<nextsteps>`; subagents return findings only
+- [ ] Tag is well-formed: `<nextsteps>...</nextsteps>`, no attributes on the tags
+- [ ] Plain text only inside the tag; no markdown, dashes, or asterisks
+- [ ] Numbered items `1.`, `2.`, `3.`; one prompt per line
+- [ ] At most one `auto="true"`, and only on item 1
+- [ ] Items are agent-directed prompts, not human-only actions
+- [ ] Items are specific enough to submit verbatim (file:line + concrete action)
+- [ ] At most 5 items unless a single task genuinely requires more
+- [ ] Tag omitted if `ctx.todos` still has pending or in_progress items
+- [ ] Leader output synthesized from subagent findings, deduplicated and re-prioritized
+- [ ] Human-only actions sit outside the tag as plain text, not inside it
 
 ## Skills in scope
 

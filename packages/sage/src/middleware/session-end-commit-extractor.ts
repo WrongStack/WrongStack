@@ -10,9 +10,17 @@
  * user chat but consistently show up in commit subjects and diff
  * files. The turn-level `createSageDomainTermExtractorMiddleware`
  * catches the chat-side vocabulary; this subscriber catches the
- * commit-side vocabulary at session boundary so the `[Project Jargon
- * Dictionary]` block stays fresh even for users who never talk about
- * their modules in conversation.
+ * commit-side vocabulary at session boundary so the
+ * `.wrongstack/domain-terms.md` mirror stays fresh even for users
+ * who never talk about their modules in conversation.
+ *
+ * Memory persistence is now disabled
+ * ----------------------------------
+ * The extractor no longer writes per-term SAGE memories, so the
+ * session-end pass also no longer performs LWW dedup against existing
+ * `domain-term`-tagged entries. The pass still runs through
+ * `persistViaAndMirror` so the on-disk mirror is regenerated from the
+ * commit-derived `ExtractedTerm[]` on every session close.
  *
  * Architectural rule
  * ------------------
@@ -25,17 +33,6 @@
  * their own runtime setup so the rule that **Jargon Dictionary
  * updates are derived state, not session-bound** holds across every
  * host surface.
- *
- * LWW merge
- * ---------
- * The extractor goes through `SageDomainTermExtractor.persistVia`,
- * which already implements LWW drop-in merging against existing
- * `domain-term`-tagged SAGE entries via canonical-text normalisation
- * (see `domain-term-extractor.ts` `listExistingTermMemories`). New
- * commits that re-introduce a known term raise its
- * confidence/importance via `Math.max`, the inverse-winning direction
- * (lowest-oldest loses). This keeps the dictionary stable across
- * sessions and across team members contributing to the same repo.
  *
  * Event lifecycle and the `waitUntil` contract
  * --------------------------------------------
@@ -66,12 +63,13 @@ import { SageDomainTermExtractor } from '../domain-term-extractor.js';
 
 export interface SubscribeSessionEndCommitExtractorOptions {
   /**
-   * Resolved SAGE `MemoryPort`. Non-SAGE ports cause `persistVia` to
-   * no-op silently (matches the rest of the extractor surface), so
-   * callers do not need to gate on `getSageSurface` themselves. When
-   * omitted (e.g. legacy `MemoryStore` adapters) the subscription is
-   * a no-op — `session.ended` is still observed, the extractor simply
-   * skips persist.
+   * Resolved SAGE `MemoryPort`. With persistence disabled the port
+   * is no longer used for write-back; it is kept on the option shape
+   * so existing call sites (and the SAGE-only architectural rule
+   * that this subscriber runs only when a SAGE port is present)
+   * keep working unchanged. When omitted the subscription is a
+   * pure no-op — `session.ended` is still observed but the commit
+   * scan is skipped.
    */
   memory?: MemoryPort | undefined;
   /**
@@ -148,12 +146,13 @@ async function extractFromProjectCommits(
     limit: options.limit ?? 8,
   });
   if (terms.length === 0) return;
-  // `persistViaAndMirror` writes through `persistVia` (LWW dedup) AND
-  // regenerates `<projectRoot>/.wrongstack/domain-terms.md`. The mirror
-  // is derived state; refreshing it here keeps the on-disk view
-  // aligned with SAGE on every session close without an extra call.
+  // `persistViaAndMirror` is a no-op for memory writes (see
+  // `domain-term-extractor.ts`) and regenerates
+  // `<projectRoot>/.wrongstack/domain-terms.md` from the in-memory
+  // terms. Refreshing the mirror here keeps the on-disk view aligned
+  // with the latest commit-derived vocabulary on every session close
+  // without an extra write call.
   await extractor.persistViaAndMirror(options.memory, terms, {
     projectRoot: options.projectRoot,
-    sourceRefs: [{ type: 'command', command: 'git log' }],
   });
 }

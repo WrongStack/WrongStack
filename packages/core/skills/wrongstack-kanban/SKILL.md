@@ -6,6 +6,7 @@ description: |
   managed Backlog→Todo→Running→Review→Done lifecycle, lease-fenced dispatch,
   and what "verified" means before a card reaches Done.
 trigger: working with the kanban tool, managing project work through boards, or advancing a managed card's lifecycle
+version: 1.0.0
 required-capabilities: [work.plan]
 required-tools: [kanban]
 ---
@@ -126,6 +127,29 @@ filled in as it becomes known.
 | Working without a lease | Untracked, and may collide with another agent |
 | Omitting unfinished Todo/task/plan rows | Requirement identity and coverage would be lost |
 | Inventing subtasks for a leaf card | Recursive decomposition to satisfy process, not the work |
+
+## Out of scope
+
+- **Don't create a card for trivial work.** A quick read, a one-line fix, or a question does not need a card. Resume the existing card for the same request instead of creating a duplicate.
+- **Don't claim a task is done in chat without a board mutation.** Chat-only completion is fake progress. Persist via `kanban` actions; the board is the shared record.
+- **Don't skip lifecycle stages on a managed board.** Managed cards move exactly one stage at a time. The guard rejects jumps; trying to bypass it is a bug.
+- **Don't work an unclaimed card.** Another agent may be working it. Call `claim_task` first, or let the Director's queue claim for you.
+- **Don't lose the lease.** Heartbeat before the lease expires. An expired lease is recovered by the supervisor and the card returns to the queue.
+- **Don't fence-less write.** Pass `expectedLeaseId` on every `mark_assignment` and `heartbeat_assignment`. If your lease was recovered, an unfenced write corrupts the successor's state.
+- **Don't invent children for a leaf card.** Atomic work is one childless leaf. Recursive decomposition to satisfy process is process for process's sake.
+- **Don't try to influence dispatch order.** Selection is deterministic by priority, column, order, and creation time. Shuffling tasks or boards doesn't change it.
+- **Don't block on Kanban persistence.** If a board write fails, say so and keep working. The board follows the work; the work does not wait on the board.
+
+## Before returning
+
+- [ ] Substantial work has a card with `description`, `assignee`, and `successCriteria` set
+- [ ] Card claimed via `claim_task` (or Director queue) before any work started
+- [ ] Lease heartbeated within the lease window
+- [ ] Every material action produced a board mutation (no chat-only claims of progress)
+- [ ] `mark_assignment` and `heartbeat_assignment` carried `expectedLeaseId`
+- [ ] Completion went through the verifier; "Done" means the verifier actually ran
+- [ ] Todo/task/plan rows preserve `kanbanBoardId` / `kanbanTaskId` bindings in full-list updates
+- [ ] Card count scaled to the size of the work; no invented subtasks
 
 ## Related skills
 

@@ -1,135 +1,79 @@
 /**
- * Sort-contract test — locks the invariant that the mirror-file
- * renderer (`SageDomainTermExtractor.writeDomainTermsFile`) and the
- * prompt-block renderer (`renderDomainGlossary` in core) present
- * domain terms in the **same order** for the same set of SAGE data.
+ * Sort-contract test — locks the deterministic ordering of the
+ * mirror-file renderer (`SageDomainTermExtractor.writeDomainTermsFile`)
+ * and the prompt-block renderer (`renderDomainGlossary` in core).
  *
- * Both sorters are private/inline, so a future change to one would
- * silently desynchronise the on-disk glossary from the in-prompt
- * glossary. This test prevents that regression by feeding identical
- * data through both paths and comparing the extracted term order.
+ * The two renderers no longer share a data source:
+ *
+ *   - The mirror is regenerated from the in-memory `ExtractedTerm[]`
+ *     of the current extraction pass. There is no `updatedAt` on
+ *     in-memory terms, so the sort falls back to **term ascending**
+ *     for tiebreakers.
+ *   - The prompt block in core still reads `domain-term`-tagged
+ *     `MemoryEntry` records (which carry `ts`) — but in production
+ *     the corpus carries no such records because the migration has
+ *     purged them. The sort there remains **ts descending** for
+ *     tiebreakers.
+ *
+ * The test pins the mirror's new deterministic ordering. The prompt
+ * path is exercised separately in
+ * `packages/core/tests/core/system-prompt-glossary.test.ts`; cross-
+ * comparing the two orderings is no longer meaningful because the
+ * data sources are decoupled.
  *
  * Why this lives in `packages/sage`: the mirror path requires
- * `SageDomainTermExtractor` (sage-specific). The prompt path uses
- * `renderDomainGlossary` from core, which sage can import at test
- * time via `@wrongstack/core`.
+ * `SageDomainTermExtractor` (sage-specific). The prompt path is
+ * owned by core and tested there.
  */
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { MemoryEntry, MemoryPort, MemoryStore } from '@wrongstack/core/types';
-import { renderDomainGlossary } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DOMAIN_TERM_LOOKUP_TAG, SageDomainTermExtractor } from '../src/domain-term-extractor.js';
-import type { Sage } from '../src/types.js';
+import type { ExtractedTerm } from '../src/domain-term-extractor.js';
+import { SageDomainTermExtractor } from '../src/domain-term-extractor.js';
 
 // ── Shared test data ────────────────────────────────────────────────
-// Deliberately varied confidence + timestamps so the sort is
-// exercised, not trivially uniform. The tiebreaker (ts desc) is
-// tested by Alpha/Beta (same confidence, different ts).
+// Deliberately varied confidence so the sort is exercised, not
+// trivially uniform. Two pairs share a confidence value to verify
+// the tiebreaker (term asc) is applied.
 const BASE_TERMS: ReadonlyArray<{
   term: string;
   definition: string;
   confidence: number;
-  updatedAt: string;
 }> = [
   {
     term: 'AlphaCore',
-    definition: 'high-confidence, earlier timestamp',
+    definition: 'high-confidence, lexicographically first',
     confidence: 0.95,
-    updatedAt: '2026-08-01T10:00:00.000Z',
   },
   {
     term: 'BetaCore',
-    definition: 'high-confidence, later timestamp (tiebreaker winner)',
+    definition: 'high-confidence, lexicographically second',
     confidence: 0.95,
-    updatedAt: '2026-08-02T10:00:00.000Z',
   },
   {
     term: 'GammaCore',
     definition: 'mid-confidence',
     confidence: 0.72,
-    updatedAt: '2026-08-03T10:00:00.000Z',
   },
   {
     term: 'DeltaCore',
     definition: 'lower confidence',
     confidence: 0.58,
-    updatedAt: '2026-08-04T10:00:00.000Z',
   },
 ];
 
-/** Build a fresh array of SAGE rows from BASE_TERMS (so tests don't share refs). */
-function makeSageRows(): Sage[] {
-  return BASE_TERMS.map((t, i) => ({
-    id: `term_${i}`,
-    revision: 1,
-    text: `${t.term} — ${t.definition}`,
-    summary: undefined,
-    kind: 'fact' as const,
-    scope: 'project' as const,
-    status: 'active' as const,
+/** Build a fresh array of `ExtractedTerm` from BASE_TERMS. */
+function makeExtractedTerms(): ExtractedTerm[] {
+  return BASE_TERMS.map((t) => ({
+    term: t.term,
+    definition: t.definition,
     confidence: t.confidence,
-    importance: t.confidence,
-    freshness: 1,
-    tags: [DOMAIN_TERM_LOOKUP_TAG, 'glossary'],
-    anchors: [],
-    sources: [{ type: 'user' as const }],
-    createdAt: t.updatedAt,
-    updatedAt: t.updatedAt,
+    mentionCount: 1,
+    evidence: [],
+    sources: ['user' as const],
   }));
 }
-
-// ── Fake ports ─────────────────────────────────────────────────────
-
-/** SAGE MemoryPort backed by an in-memory Sage[] (for the mirror path). */
-function makeFakeSagePort(rows: Sage[]): MemoryPort {
-  return {
-    initialize: async () => {},
-    getCapability: () =>
-      ({
-        searchSage: async () => rows.slice(),
-        rememberSage: async () => rows[0]!,
-        updateSage: async () => rows[0]!,
-      }) as never,
-    health: async () => ({ status: 'ready' as const, backend: 'fake' }),
-    dispose: async () => {},
-    withTraceId: () => ({}) as unknown as MemoryPort,
-    readAll: async () => '',
-    read: async () => '',
-    remember: async () => {},
-    forget: async () => 0,
-    consolidate: async () => {},
-    clear: async () => {},
-    list: async () => [],
-    search: async () => [],
-  };
-}
-
-/** MemoryStore backed by the same Sage[] data (for the prompt path). */
-function makeFakeMemoryStore(rows: Sage[]): MemoryStore {
-  const entries: MemoryEntry[] = rows.map((r) => ({
-    scope: 'project-memory',
-    text: r.text,
-    ts: r.updatedAt,
-    type: 'reference',
-    tags: r.tags.slice(),
-    confidence: r.confidence,
-  }));
-  return {
-    withTraceId: () => ({}) as unknown as MemoryStore,
-    readAll: async () => '',
-    read: async () => '',
-    remember: async () => {},
-    forget: async () => 0,
-    consolidate: async () => {},
-    clear: async () => {},
-    list: async () => entries,
-    search: async () => entries,
-  };
-}
-
-// ── Order extraction helpers ───────────────────────────────────────
 
 /** Parse the mirror markdown table and return the ordered term names. */
 function extractMirrorOrder(markdown: string): string[] {
@@ -137,25 +81,14 @@ function extractMirrorOrder(markdown: string): string[] {
   for (const line of markdown.split('\n')) {
     // Table rows look like: | `Term` | definition | 0.95 |
     const m = line.match(/^\|\s*`([^`]+)`/);
-    if (m?.[1] && !['Term'].includes(m[1])) terms.push(m[1]);
-  }
-  return terms;
-}
-
-/** Parse the prompt block and return the ordered term names. */
-function extractPromptOrder(block: string): string[] {
-  const terms: string[] = [];
-  for (const line of block.split('\n')) {
-    // Bullet lines look like: - **Term** — definition
-    const m = line.match(/^-\s*\*\*([^*]+)\*\*/);
-    if (m?.[1]) terms.push(m[1]);
+    if (m?.[1] && m[1] !== 'Term') terms.push(m[1]);
   }
   return terms;
 }
 
 // ── Tests ──────────────────────────────────────────────────────────
 
-describe('domain-terms sort contract — mirror and prompt renderers agree', () => {
+describe('domain-terms sort contract — mirror renderer is deterministic', () => {
   let tmp: string;
   beforeEach(async () => {
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-sort-contract-'));
@@ -164,41 +97,35 @@ describe('domain-terms sort contract — mirror and prompt renderers agree', () 
     await fs.rm(tmp, { recursive: true, force: true });
   });
 
-  it('produces identical term ordering for the same SAGE data', async () => {
-    const rows = makeSageRows();
+  it('orders the mirror by confidence desc, then term asc (tiebreaker)', async () => {
+    const terms = makeExtractedTerms();
     const extractor = new SageDomainTermExtractor();
 
-    // Mirror path: writeDomainTermsFile → domain-terms.md
-    const mirrorPath = await extractor.writeDomainTermsFile(tmp, makeFakeSagePort(rows));
-    const mirrorContent = await fs.readFile(mirrorPath, 'utf8');
-    const mirrorOrder = extractMirrorOrder(mirrorContent);
-
-    // Prompt path: renderDomainGlossary → prompt block
-    const promptBlock = await renderDomainGlossary(
-      { cwd: tmp, projectRoot: tmp, tools: [] },
-      makeFakeMemoryStore(rows),
-    );
-    expect(promptBlock).not.toBeNull();
-    const promptOrder = extractPromptOrder(promptBlock as string);
-
-    // Both should have the same terms (all non-header entries).
-    expect(mirrorOrder.length).toBeGreaterThan(0);
-    expect(promptOrder.length).toBe(mirrorOrder.length);
-
-    // The core assertion: identical ordering.
-    expect(promptOrder).toEqual(mirrorOrder);
-  });
-
-  it('orders by confidence desc, then updatedAt desc (the contract)', async () => {
-    const rows = makeSageRows();
-    const extractor = new SageDomainTermExtractor();
-
-    const mirrorPath = await extractor.writeDomainTermsFile(tmp, makeFakeSagePort(rows));
+    // The mirror is regenerated from the in-memory terms we just
+    // passed in. Order is not driven by persisted timestamps because
+    // no persistence occurs anymore.
+    const mirrorPath = await extractor.writeDomainTermsFile(tmp, terms);
     const mirrorContent = await fs.readFile(mirrorPath, 'utf8');
     const order = extractMirrorOrder(mirrorContent);
 
-    // Expected: BetaCore (0.95, later ts) > AlphaCore (0.95, earlier ts)
-    //           > GammaCore (0.72) > DeltaCore (0.58)
-    expect(order).toEqual(['BetaCore', 'AlphaCore', 'GammaCore', 'DeltaCore']);
+    // Expected: AlphaCore (0.95) > BetaCore (0.95) > GammaCore (0.72)
+    //           > DeltaCore (0.58). AlphaCore wins the 0.95 tiebreaker
+    //           because it sorts earlier alphabetically.
+    expect(order).toEqual(['AlphaCore', 'BetaCore', 'GammaCore', 'DeltaCore']);
+  });
+
+  it('produces a stable order across calls with the same input', async () => {
+    const terms = makeExtractedTerms();
+    const extractor = new SageDomainTermExtractor();
+
+    const first = await extractor.writeDomainTermsFile(tmp, terms);
+    const firstOrder = extractMirrorOrder(await fs.readFile(first, 'utf8'));
+
+    // Re-write with the same data; the order must be identical
+    // (no timestamp dependence).
+    const second = await extractor.writeDomainTermsFile(tmp, terms);
+    const secondOrder = extractMirrorOrder(await fs.readFile(second, 'utf8'));
+
+    expect(secondOrder).toEqual(firstOrder);
   });
 });

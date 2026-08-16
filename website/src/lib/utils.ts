@@ -77,7 +77,7 @@ export const skills = [
   },
 ] as const;
 
-/** The 69 built-in tools from packages/tools/src/builtin.ts, grouped. */
+/** The 70 built-in tools from packages/tools/src/builtin.ts, grouped. */
 export const toolGroups = [
   {
     label: 'Browser & E2E',
@@ -105,7 +105,7 @@ export const toolGroups = [
     label: 'Files & search',
     tools: ['read', 'write', 'edit', 'replace', 'glob', 'grep', 'patch', 'diff', 'tree', 'json'],
   },
-  { label: 'Shell, Git & web', tools: ['bash', 'exec', 'git', 'fetch', 'search'] },
+  { label: 'Shell, Git & web', tools: ['bash', 'exec', 'pwsh', 'git', 'fetch', 'search'] },
   {
     label: 'Work & state',
     tools: ['todo', 'plan', 'kanban', 'task', 'clarify', 'set_working_dir'],

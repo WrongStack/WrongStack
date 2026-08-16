@@ -4,7 +4,7 @@ description: |
   Use this skill when proposing, reviewing, or troubleshooting git commits,
   branches, pull requests, or merge strategies in a WrongStack project session.
   Triggers: user mentions "commit", "branch", "PR", "merge", "rebase", "stash", "diff".
-version: 1.2.0
+version: 1.3.0
 required-capabilities: [version-control.manage]
 required-tools: [test]
 ---
@@ -153,6 +153,31 @@ git rebase main && git merge --ff-only feature
 
 Open a PR at GitHub linking to issue #123 with the commit message describing the fix.
 ```
+
+## Out of scope
+
+- **Don't force-push shared branches.** `--force-with-lease` on your own branch is the cap; shared branches get a PR + merge, never a force.
+- **Don't commit lockfile changes with logic changes.** Separate commits, separate rollbacks. A lockfile muddied with a feature commit is impossible to bisect.
+- **Don't make "Update stuff" mega-commits.** One concern per commit. 15 packages in one commit is process for process's sake.
+- **Don't branch from branches.** Always branch from `main` or a stable release tag. Branching from a feature branch is git history debt.
+- **Don't write a "what" commit message.** "fix: fixed bug" tells the reader nothing. Subject ≤ 72 chars, imperative mood, body explains why.
+- **Don't `git reset --hard` with uncommitted work.** Stash first. A hard reset that loses work is the kind of incident a `git-flow` skill exists to prevent.
+- **Don't amend a pushed commit.** It rewrites shared history. Open a follow-up commit or revert.
+- **Don't leave WIP commits on `main`.** Use `git stash` or a feature branch, not a commit message like "WIP".
+- **Don't skip self-review.** Self-review the diff before requesting review. Sending a diff the author hasn't read wastes the reviewer's time.
+
+## Before returning
+
+- [ ] Branch is from `main` or a stable release tag, not from another feature branch
+- [ ] One concern per commit; lockfile changes isolated
+- [ ] Subject ≤ 72 chars, imperative, no trailing period; body explains why
+- [ ] Issue reference included (`Fix #123` or `Closes GH-456`)
+- [ ] Self-review done before requesting review
+- [ ] No `git push --force` to shared branches; `--force-with-lease` only on own branch
+- [ ] Branch deleted after merge (unless shared or releasing)
+- [ ] PR title follows commit format; body links the issue and lists changed files
+- [ ] No `WIP` or "Update stuff" commits in the history
+- [ ] `<nextsteps>` mirrors the recommended commit/PR actions
 
 ## Skills in scope
 

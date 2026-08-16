@@ -4,7 +4,7 @@ description: |
   Use this skill when analyzing WrongStack session logs, event streams, or
   system traces to surface patterns, anomalies, or operational insights.
   Triggers: user says "audit", "session analysis", "log analysis", "usage patterns".
-version: 1.2.0
+version: 1.3.0
 required-capabilities: [filesystem.read, code.inspect]
 required-tools: [bash, exec, grep, read]
 ---
@@ -169,6 +169,27 @@ Investigate iterations 14–20 in the session log for the bash command timeout p
 - **Don't skip error context** — the raw error message is the source of truth
 - **Don't ignore cost trends** — growing costs indicate context bloat
 - **Don't ignore repeated failures** — same tool failing 5x = real issue
+
+## Out of scope
+
+- **Don't summarize sessions you didn't parse.** Cite the data: iteration, tool name, error message. Reports without counts and citations are guesses.
+- **Don't mix sessions without labeling.** Either analyze one session at a time, or aggregate with clear per-session breakdown. Combined-with-no-labels is fake coverage.
+- **Don't treat repeated failures as noise.** Same tool failing 5+ times is a real issue, not background. Report the concentration.
+- **Don't ignore cost trends.** A spike from $0.04/iter to $0.11/iter means context growth, not a model change. Cost trend is a leading indicator.
+- **Don't claim a cost cause you didn't verify.** "Probably the model is more expensive" is not analysis. State the iteration, the token count, the file reads, and the cause the data supports.
+- **Don't run live session mutations.** This skill is read-only over the JSONL stream. No state changes to sessions, no live editing of logs.
+- **Don't bypass session boundaries.** Each session's events stand on their own; cross-session analysis is a separate scope, not a free hand to mix.
+
+## Before returning
+
+- [ ] Parsed from the source JSONL, not from summaries or memory
+- [ ] One session analyzed at a time, or aggregate with explicit per-session labels
+- [ ] Every claim cites the data: iteration number, tool name, error message, cost figure
+- [ ] Repeated failures (same tool, 5+ times) called out, not folded into noise
+- [ ] Cost trend reported in context of iteration count, not in isolation
+- [ ] No session log mutated; read-only held
+- [ ] Summary counts match the findings listed; nothing padded
+- [ ] Anomalies named with a probable cause the data supports
 
 ## Skills in scope
 

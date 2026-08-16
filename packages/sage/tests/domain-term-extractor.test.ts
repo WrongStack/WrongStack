@@ -259,10 +259,20 @@ describe('SageDomainTermExtractor — detection', () => {
   });
 });
 
-describe('SageDomainTermExtractor — persistence', () => {
+describe('SageDomainTermExtractor — persistence (disabled)', () => {
+  // Domain-term persistence was removed because the `domain-term` tag
+  // polluted the SAGE corpus with auto-generated entries that were
+  // indistinguishable from genuine project facts. The extractor now
+  // only writes the in-memory `ExtractedTerm[]` to the
+  // `.wrongstack/domain-terms.md` mirror; `persistVia` is a stable
+  // no-op that returns a `skipped` outcome for every term so the
+  // existing call sites and report shape are preserved.
+
+  const PERSIST_DISABLED_REASON =
+    'memory persistence disabled (domain-term tagging removed)';
   const ex = new SageDomainTermExtractor();
 
-  it('persists new terms with kind=fact and the domain-term tag trio', async () => {
+  it('returns a skipped report for every term and never touches SAGE', async () => {
     const { surface, store } = makeFakeSurface();
     const report = await ex.persistVia(makeFakePort(surface), [
       {
@@ -273,20 +283,30 @@ describe('SageDomainTermExtractor — persistence', () => {
         evidence: [],
         sources: ['user'],
       },
+      {
+        term: 'TaskGraph',
+        definition: 'DAG of pending tasks',
+        confidence: 0.6,
+        mentionCount: 1,
+        evidence: [],
+        sources: ['agent'],
+      },
     ]);
-    expect(report.added).toBe(1);
+    expect(report.added).toBe(0);
     expect(report.updated).toBe(0);
-    expect(report.skipped).toBe(0);
-    const rows = store();
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.tags).toEqual(
-      expect.arrayContaining([DOMAIN_TERM_LOOKUP_TAG, 'glossary', 'project-jargon']),
-    );
-    expect(rows[0]?.text).toContain('SddBoardProjector');
-    expect(rows[0]?.text).toContain('runtime projection');
+    expect(report.skipped).toBe(2);
+    expect(report.outcomes).toHaveLength(2);
+    for (const outcome of report.outcomes) {
+      expect(outcome.action).toBe('skipped');
+      expect(outcome.reason).toBe(PERSIST_DISABLED_REASON);
+      expect(outcome.memoryId).toBeUndefined();
+    }
+    // Critical: the surface must be untouched. No `rememberSage` /
+    // `updateSage` should be called by `persistVia`.
+    expect(store()).toHaveLength(0);
   });
 
-  it('skips persistence when below minConfidence', async () => {
+  it('ignores minConfidence — every term is still reported as skipped', async () => {
     const { surface, store } = makeFakeSurface();
     const report = await ex.persistVia(
       makeFakePort(surface),
@@ -294,44 +314,23 @@ describe('SageDomainTermExtractor — persistence', () => {
         {
           term: 'NoisyTerm',
           definition: '',
-          confidence: 0.2,
+          confidence: 0.1,
           mentionCount: 1,
           evidence: [],
           sources: ['user'],
         },
       ],
-      { minConfidence: 0.5 },
+      { minConfidence: 0.9 },
     );
-    expect(report.added).toBe(0);
-    expect(report.skipped).toBe(1);
-    expect(store()).toHaveLength(0);
-  });
-
-  it('dedupes against existing term memory and skips when identical', async () => {
-    const existing = makeFakeSage(
-      'mem_existing',
-      'SddBoardProjector — runtime projection of the kanban board',
-      0.8,
-    );
-    const { surface, store } = makeFakeSurface([existing]);
-    const report = await ex.persistVia(makeFakePort(surface), [
-      {
-        term: 'SddBoardProjector',
-        definition: 'runtime projection of the kanban board',
-        confidence: 0.85,
-        mentionCount: 1,
-        evidence: [],
-        sources: ['user'],
-      },
-    ]);
     expect(report.added).toBe(0);
     expect(report.updated).toBe(0);
     expect(report.skipped).toBe(1);
-    expect(store()).toHaveLength(1);
+    expect(report.outcomes[0]?.reason).toBe(PERSIST_DISABLED_REASON);
+    expect(store()).toHaveLength(0);
   });
 
-  it('updates existing term memory when overwriteExisting=true', async () => {
-    const existing = makeFakeSage('mem_existing', 'SddBoardProjector — old definition', 0.6);
+  it('ignores overwriteExisting — the store is still untouched', async () => {
+    const existing = makeFakeSage('mem_existing', 'SddBoardProjector — old', 0.6);
     const { surface, store } = makeFakeSurface([existing]);
     const report = await ex.persistVia(
       makeFakePort(surface),
@@ -339,7 +338,7 @@ describe('SageDomainTermExtractor — persistence', () => {
         {
           term: 'SddBoardProjector',
           definition: 'runtime projection of the kanban board',
-          confidence: 0.8,
+          confidence: 0.9,
           mentionCount: 1,
           evidence: [],
           sources: ['user'],
@@ -347,12 +346,27 @@ describe('SageDomainTermExtractor — persistence', () => {
       ],
       { overwriteExisting: true },
     );
-    expect(report.updated).toBe(1);
-    expect(store()[0]?.text).toContain('runtime projection');
-    expect(store()[0]?.confidence).toBeGreaterThanOrEqual(0.8);
+    expect(report.added).toBe(0);
+    expect(report.updated).toBe(0);
+    expect(report.skipped).toBe(1);
+    // The pre-existing memory is still present, untouched, with its
+    // original text — the migration command is the only path that
+    // should remove it.
+    expect(store()).toHaveLength(1);
+    expect(store()[0]?.text).toBe('SddBoardProjector — old');
   });
 
-  it('skips cleanly when the MemoryPort lacks the SAGE surface capability', async () => {
+  it('returns an empty-skipped report when called with no terms', async () => {
+    const { surface, store } = makeFakeSurface();
+    const report = await ex.persistVia(makeFakePort(surface), []);
+    expect(report.added).toBe(0);
+    expect(report.updated).toBe(0);
+    expect(report.skipped).toBe(0);
+    expect(report.outcomes).toEqual([]);
+    expect(store()).toHaveLength(0);
+  });
+
+  it('does not consult the MemoryPort shape — even a no-capability port is fine', async () => {
     const port: MemoryPort = {
       initialize: async () => {},
       getCapability: () => undefined,
@@ -380,38 +394,44 @@ describe('SageDomainTermExtractor — persistence', () => {
     ]);
     expect(report.added).toBe(0);
     expect(report.skipped).toBe(1);
+    expect(report.outcomes[0]?.reason).toBe(PERSIST_DISABLED_REASON);
   });
 });
 
 describe('SageDomainTermExtractor — markdown file mirror', () => {
-  it('writes <projectRoot>/.wrongstack/domain-terms.md derived from SAGE', async () => {
+  it('writes <projectRoot>/.wrongstack/domain-terms.md from the supplied in-memory terms', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-domain-'));
     try {
-      const terms = makeFakeSage(
-        'mem_1',
-        'SddBoardProjector — runtime projection of the kanban board',
-        0.8,
-      );
-      const { surface } = makeFakeSurface([terms]);
       const ex = new SageDomainTermExtractor();
-      const filePath = await ex.writeDomainTermsFile(projectRoot, makeFakePort(surface));
+      const filePath = await ex.writeDomainTermsFile(projectRoot, [
+        {
+          term: 'SddBoardProjector',
+          definition: 'runtime projection of the kanban board',
+          confidence: 0.8,
+          mentionCount: 1,
+          evidence: [],
+          sources: ['user'],
+        },
+      ]);
       expect(filePath).toBe(path.join(projectRoot, '.wrongstack', DOMAIN_TERMS_FILENAME));
       const contents = await fs.readFile(filePath, 'utf8');
       expect(contents).toContain('# Project Domain Glossary');
       expect(contents).toContain('SddBoardProjector');
       expect(contents).toContain('runtime projection of the kanban board');
       expect(contents).toContain('| Term | Definition | Confidence |');
+      // No reference to SAGE persistence in the regenerated prose —
+      // the mirror is the only persisted view now.
+      expect(contents).toContain('SAGE persistence is disabled');
     } finally {
       await fs.rm(projectRoot, { recursive: true, force: true });
     }
   });
 
-  it('writes an empty-table body when there are no terms yet', async () => {
+  it('writes the empty-placeholder body when there are no terms', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-domain-'));
     try {
-      const { surface } = makeFakeSurface([]);
       const ex = new SageDomainTermExtractor();
-      const filePath = await ex.writeDomainTermsFile(projectRoot, makeFakePort(surface));
+      const filePath = await ex.writeDomainTermsFile(projectRoot, []);
       const contents = await fs.readFile(filePath, 'utf8');
       expect(contents).toContain('_No project-specific terms detected yet._');
     } finally {
@@ -419,7 +439,7 @@ describe('SageDomainTermExtractor — markdown file mirror', () => {
     }
   });
 
-  it('persistViaAndMirror persists first, then writes the mirror file', async () => {
+  it('persistViaAndMirror reports all terms as skipped and writes the mirror from in-memory terms', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-domain-'));
     try {
       const { surface, store } = makeFakeSurface([]);
@@ -438,9 +458,12 @@ describe('SageDomainTermExtractor — markdown file mirror', () => {
         ],
         { projectRoot },
       );
-      // Persist happened.
-      expect(result.report.added).toBe(1);
-      expect(store()).toHaveLength(1);
+      // Persistence is disabled — the surface must be untouched.
+      expect(result.report.added).toBe(0);
+      expect(result.report.updated).toBe(0);
+      expect(result.report.skipped).toBe(1);
+      expect(result.report.outcomes[0]?.action).toBe('skipped');
+      expect(store()).toHaveLength(0);
       // Mirror was written, points at the canonical path, and includes the term.
       expect(result.mirrorPath).toBe(path.join(projectRoot, '.wrongstack', DOMAIN_TERMS_FILENAME));
       const contents = await fs.readFile(result.mirrorPath as string, 'utf8');
@@ -451,18 +474,12 @@ describe('SageDomainTermExtractor — markdown file mirror', () => {
     }
   });
 
-  it('persistViaAndMirror refreshes the mirror even when nothing is added', async () => {
-    // When the corpus already has the term, persistVia returns
-    // skipped-but-no-mutation; the mirror must still be regenerated
-    // so SAGE and the file never drift.
+  it('persistViaAndMirror still writes the mirror even when every term is skipped', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-domain-'));
     try {
-      const existing = makeFakeSage(
-        'mem_existing',
-        'MailboxBridge — IPC bridge between agents',
-        0.8,
-      );
-      const { surface } = makeFakeSurface([existing]);
+      const { surface, store } = makeFakeSurface([
+        makeFakeSage('mem_existing', 'MailboxBridge — IPC bridge between agents', 0.8),
+      ]);
       const ex = new SageDomainTermExtractor();
       const result = await ex.persistViaAndMirror(
         makeFakePort(surface),
@@ -480,6 +497,9 @@ describe('SageDomainTermExtractor — markdown file mirror', () => {
       );
       expect(result.report.added).toBe(0);
       expect(result.report.skipped).toBe(1);
+      // Pre-existing memory stays untouched — the migration command
+      // is the only path that removes it.
+      expect(store()).toHaveLength(1);
       expect(result.mirrorPath).toBe(path.join(projectRoot, '.wrongstack', DOMAIN_TERMS_FILENAME));
       const contents = await fs.readFile(result.mirrorPath as string, 'utf8');
       expect(contents).toContain('MailboxBridge');
@@ -501,9 +521,10 @@ describe('SageDomainTermExtractor — markdown file mirror', () => {
         sources: ['user'],
       },
     ]);
-    expect(result.report.added).toBe(1);
+    expect(result.report.added).toBe(0);
+    expect(result.report.skipped).toBe(1);
     expect(result.mirrorPath).toBeNull();
-    expect(store()).toHaveLength(1);
+    expect(store()).toHaveLength(0);
   });
 });
 

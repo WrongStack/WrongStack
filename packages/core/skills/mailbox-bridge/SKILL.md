@@ -8,7 +8,7 @@ description: |
   bridge". Starts a loopback HTTP façade over the same GlobalMailbox that
   WrongStack-internal agents already share, so any agent with curl or
   fetch can read, send, and acknowledge messages.
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [execution.shell]
 required-tools: []
 optional-capabilities: [web.research]
@@ -341,6 +341,30 @@ is 15 s.
 - The HTTP server has no request logging at the access-log level. If
   audit trails of which external agent called which route are needed,
   the agent itself should log them client-side.
+
+## Out of scope
+
+- **Don't expose the bridge on `0.0.0.0` without a trusted reverse proxy.** Loopback binding makes "reach" require shell access on the host. LAN exposure without re-authentication and rate-limiting at the proxy is a trust leak.
+- **Don't log the bearer token.** The structured `mailbox_serve_started` event includes bind URL, port, project dir, and token path — never the token itself. Logging it once is a permanent compromise.
+- **Don't treat the bearer as identity-bound.** Every caller uses the same project token. The bridge does not separately authorize `steer`/control messages or prevent impersonation; the caller can claim any `from`, `type`, or `readerId`. Add an identity-aware trusted proxy before exposing beyond mutually trusted local clients.
+- **Don't expose the filesystem, shell, or non-mailbox tools through the bridge.** It is the mailbox surface only. If a caller needs more, they need a different bridge.
+- **Don't start the bridge for an external agent that already speaks MCP natively.** Use `wstack mcp serve` to expose WrongStack's full tool registry including the mailbox tool. Two bridges for the same purpose is operational debt.
+- **Don't run as a long-lived daemon for the caller.** The bridge is short-lived; spawn it for the duration of the caller's session and let it exit. `mbWithBootstrap()` is the pattern.
+- **Don't hardcode a token into prompts or committed code.** Read it from `.mailbox.token` or accept it from the environment; re-read after a 401.
+- **Don't send `control` messages through the bridge.** Control is a runtime-only surface; the bridge doesn't expose it, and the only legitimate override is `steer` via the `mailbox_manage` route, not through the bridge.
+
+## Before returning
+
+- [ ] `wstack mailbox serve` (or `mbWithBootstrap`) used; no parallel implementation
+- [ ] Bind address is `127.0.0.1` unless behind a reverse proxy that re-authenticates
+- [ ] Bearer token read from `.mailbox.token` or env, not hardcoded
+- [ ] Token not present in any log line, event, or error message
+- [ ] Body cap of 256 KB enforced; rate limit of 120/min/token enforced
+- [ ] `/healthz` reachable; no auth or rate limit on the health probe
+- [ ] Pair with `wrongstack-mailbox` skill for external-agent usage
+- [ ] Graceful shutdown handles SIGINT/SIGTERM, flushes the cache, unlinks the token
+- [ ] Mailbox health watchdog wired if running unattended
+- [ ] No `control` messages; `steer` only via the canonical `mailbox_manage` route
 
 ## Skills in scope
 

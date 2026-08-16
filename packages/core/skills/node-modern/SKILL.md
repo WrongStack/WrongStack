@@ -4,7 +4,7 @@ description: |
   Use this skill when writing, reviewing, or refactoring Node.js >= 22
   TypeScript code in WrongStack. Triggers: ESM imports, fetch usage, AbortSignal,
   node: protocol, Web Streams, or any async patterns.
-version: 1.1.0
+version: 1.2.0
 required-capabilities: [filesystem.read, filesystem.write]
 required-tools: []
 optional-capabilities: [verification.run]
@@ -184,6 +184,33 @@ while (true) {
   }
 }
 ```
+
+## Out of scope
+
+- **Don't use `require()`.** ESM only. `import { x } from './y.js'` with the `.js` extension, even in TS source.
+- **Don't use axios, node-fetch, or got.** Native `fetch` is sufficient. Third-party HTTP clients are an obsolete layer.
+- **Don't call `fetch` without `AbortSignal.timeout()`.** Every long-running operation needs a timeout. A request that hangs forever is a CI failure waiting to happen.
+- **Don't use `__dirname` directly in ESM.** ESM doesn't have it. `path.dirname(fileURLToPath(import.meta.url))` is the replacement.
+- **Don't mix callback `fs` with `await`.** Callback APIs don't return promises. Use `fs.promises.*` for `await`able access.
+- **Don't swallow `AbortError` silently.** An `AbortError` means a timeout or abort — it is signal, not success. Log it or handle it explicitly.
+- **Don't trust `process.cwd()` blindly.** It may not match the user's cwd. Accept `cwd` as a parameter and default sensibly.
+- **Don't use `setTimeout` for cancellable delays in new code.** `setTimeout(handler, ms, { signal })` (Node 22+) is the cancellable form.
+- **Don't write non-atomic file updates.** Use the write-temp + rename pattern. A crash mid-write leaves the file in an indeterminate state otherwise.
+- **Don't enable axios or got for "familiarity".** Node 22+ ships everything you need.
+
+## Before returning
+
+- [ ] ESM only; no `require()`, no `module.exports`
+- [ ] All relative imports use the `.js` extension
+- [ ] Built-in modules imported via the `node:` protocol (`node:fs/promises`, `node:http`, `node:path`)
+- [ ] `fetch` carries `AbortSignal.timeout()` for any operation that can wait
+- [ ] `__dirname` replaced with `path.dirname(fileURLToPath(import.meta.url))`
+- [ ] `fs.promises.*` for awaited file access; no callback `fs`
+- [ ] `AbortError` caught and handled explicitly, not swallowed
+- [ ] `cwd` accepted as parameter; `process.cwd()` is not a default
+- [ ] File writes atomic: `writeFile(tmp)` + `rename(tmp, target)`
+- [ ] `Promise.allSettled` for parallel tasks where partial failure is acceptable
+- [ ] `<nextsteps>` mirrors any open follow-up (timeout wiring, ESM migration, abort handling)
 
 ## Skills in scope
 

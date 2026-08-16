@@ -306,6 +306,16 @@ parallelizes.
 
 ---
 
+## Out of scope
+
+- **Don't start refactoring while planning.** A half-done refactor with no graph behind it is the failure this skill exists to prevent. Plan first, hand the plan to the executing agent phase by phase.
+- **Don't write code or apply edits.** This skill produces a plan, not a diff. If the user wants the refactor done, the executing agent picks it up; this skill's deliverable is the phased plan.
+- **Don't skip the dependency graph.** Ordering without a graph is guessing. Imports are the truth; build the graph from `import` statements, not from directory layout or someone's mental model.
+- **Don't ignore cycles.** A cycle means no valid ordering. List cycles explicitly, schedule their breaking first. A plan over a cycle is fiction.
+- **Don't refactor modules under 50% coverage blind.** Phase 1 of any such module is characterization tests, not the refactor itself. The safety argument is "behavior preserved" — without tests, there is no safety net.
+- **Don't over-phase.** Tasks under 1h merge with related tasks. A 12-phase plan for a 3-day refactor is process for process's sake.
+- **Don't write exit criteria that aren't checkable.** "Code is cleaner" is not an exit criterion. `pnpm test passes` is. If a phase has no checkable exit, it never formally ends.
+
 ## Skills in scope
 
 - `bug-hunter` — for finding bugs exposed by the refactor

@@ -194,6 +194,14 @@ export const toolCatalog = [
     category: 'Shell, Git & web',
   },
   {
+    name: 'pwsh',
+    summary:
+      'Execute a PowerShell command (`pwsh -Command`) in a fresh process on Windows and return its stdout/stderr.',
+    permission: 'confirm',
+    mutating: true,
+    category: 'Shell, Git & web',
+  },
+  {
     name: 'fetch',
     summary: 'Fetch a URL and return its content.',
     permission: 'auto',

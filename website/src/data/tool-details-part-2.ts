@@ -327,6 +327,64 @@ export const toolDetailsPart2: Record<string, ToolDetail> = {
       '`cwd` is validated to stay inside the project.',
     ],
   },
+  'pwsh': {
+    longDescription:
+      'Execute a PowerShell command (`pwsh -Command`) in a fresh process on Windows and return its stdout/stderr. Stateless per call: pass `workdir` instead of using `cd`.',
+    params: [
+      {
+        name: 'command',
+        type: 'string',
+        required: true,
+        description: 'The exact PowerShell command or script block to run.',
+      },
+      {
+        name: 'workdir',
+        type: 'string',
+        description:
+          'Absolute or project-relative path to the working directory for this command. Defaults to session working directory.',
+      },
+      {
+        name: 'timeout_ms',
+        type: 'integer',
+        description:
+          'Optional timeout for this specific command in milliseconds (default 300000, max 600000).',
+      },
+      {
+        name: 'run_in_background',
+        type: 'boolean',
+        description:
+          'If true, launch the process in the background and return the job ID / PID immediately.',
+      },
+      {
+        name: 'background',
+        type: 'boolean',
+        description: 'Alias for run_in_background.',
+      },
+      {
+        name: 'sandbox_permissions',
+        type: 'string',
+        description:
+          'Escalation mode if retrying a sandbox-denied command (e.g., workspace-write).',
+      },
+      {
+        name: 'justification',
+        type: 'string',
+        description:
+          'One-sentence justification when retrying a denied command with sandbox_permissions.',
+      },
+    ],
+    doNotUseWhen: [
+      'the command is an allowlisted single binary (node, git, pnpm, tsc) needing no shell expansion or pipelines.',
+    ],
+    useInstead: ['exec'],
+    notes: [
+      'Stateless: No cwd, variables, or functions persist between calls. Use `workdir` to set the directory.',
+      'Paths & Environs: Use native Windows paths (`C:\\...`) and read env vars via `$env:NAME` (and `$env:DSH_*`).',
+      'Sandboxing: Under read-only sandbox, pwsh runs in `ConstrainedLanguage` mode. Workspace-write runs in `FullLanguage`.',
+      'Background: Set `run_in_background: true` for long-running processes (returns job id; manage via job_output/job_kill).',
+      'Output is capped at 32 KiB.',
+    ],
+  },
   'fetch': {
     longDescription:
       'Fetch a URL and return its content. HTML pages are automatically converted to clean markdown. This tool has strong SSRF protections (private IPs, localhost, and cloud metadata endpoints are blocked by default).',

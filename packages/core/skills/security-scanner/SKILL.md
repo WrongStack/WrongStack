@@ -4,7 +4,7 @@ description: |
   Use this skill when scanning code or configuration for security vulnerabilities
   in WrongStack. Triggers: user says "security", "vulnerability", "CVE", "secret",
   "injection", "XSS", "SQL injection", "audit security", "supply chain".
-version: 1.2.0
+version: 1.3.0
 required-capabilities: [filesystem.read, code.inspect]
 required-tools: []
 optional-capabilities: [dependencies.manage]
@@ -166,6 +166,30 @@ element.textContent = userInput;
 3. Fix the missing rate limiting in src/api/routes.ts
 </nextsteps>
 ```
+
+## Out of scope
+
+- **Don't echo a full secret in the report.** Redact. A `ghp_…36 chars` is enough for the reader to find and rotate it. The unredacted value in a report is itself a leak.
+- **Don't flag a `file:line` you haven't read.** Generic patterns cause false positives; verify the line is real before reporting. No "looks like a secret" findings.
+- **Don't flag test fixtures as leaked secrets.** Mock credentials in `tests/` and `__fixtures__` are expected. Skip them; flag leaks in production code.
+- **Don't scan `node_modules`.** Use `npm audit` / `pnpm audit` for supply chain. Grepping `node_modules` is a noise machine.
+- **Don't report without remediation.** "Found X" without "do Y" is a finding the user has to research themselves. Always include the fix.
+- **Don't claim CRITICAL without proof of exploitability.** Severity ladders are real. A pattern hit is a lead, not a warrant. State the input that triggers the bug and the consequence.
+- **Don't bypass dependency audit.** Supply chain is an attack vector; skipping `npm audit` / lockfile review is skipping the scanner.
+- **Don't disable TLS or relax auth configs as a "config option" without flagging CRITICAL.** TLS disabled in production is a CRITICAL, not a config note.
+
+## Before returning
+
+- [ ] Every `file:line` opened and confirmed; no flag from a regex guess
+- [ ] Secrets redacted in the report (prefix + char count, never the value)
+- [ ] Test fixtures skipped for secrets; flagged only for leak/unawaited patterns
+- [ ] `node_modules` not scanned; supply chain via `npm audit` / lockfile review
+- [ ] Every finding carries a remediation; "found X" without "do Y" not shipped
+- [ ] Severity passes the ladder; CRITICAL reserved for proven exploitability
+- [ ] Dependency audit included; CVE/version drift covered
+- [ ] TLS / HTTP / CORS / rate-limit configuration checked and reported
+- [ ] False-positive rate called out with a cause when it exceeds 30%
+- [ ] Summary counts match the findings listed; `<nextsteps>` mirrors them in severity order
 
 ## Skills in scope
 

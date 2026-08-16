@@ -117,10 +117,14 @@ describe('subscribeSessionEndCommitExtractor', () => {
       expect.objectContaining({ projectRoot: '/tmp/repo' }),
     );
     expect(spy.persistViaAndMirror).toHaveBeenCalledTimes(1);
+    // Domain-term persistence was removed: the third argument is
+    // now `{ projectRoot }` only — no `sourceRefs`, because there is
+    // no memory write to attribute the source to. The mirror refresh
+    // is still driven from the in-memory terms of the current pass.
     expect(spy.persistViaAndMirror).toHaveBeenCalledWith(
       memoryPort,
       expect.arrayContaining([expect.objectContaining({ term: 'Mailbox Bridge' })]),
-      expect.objectContaining({ sourceRefs: [{ type: 'command', command: 'git log' }] }),
+      expect.objectContaining({ projectRoot: '/tmp/repo' }),
     );
 
     unsubscribe();

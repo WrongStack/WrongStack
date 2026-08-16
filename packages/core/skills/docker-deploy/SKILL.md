@@ -5,7 +5,7 @@ description: |
   with Docker. Triggers: user says "docker", "container", "dockerfile",
   "image", "docker-compose", "deploy", "containerize", "registry",
   "multi-stage", "distroless".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [filesystem.read, filesystem.write, execution.shell]
 required-tools: []
 ---
@@ -148,6 +148,31 @@ trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL wrongstack:$
 - **pnpm workspaces**: Build from repo root with `pnpm build` before `docker build`; WrongStack's build runner topologically orders workspace dependencies.
 - **Session storage**: Sessions are stored at `WRONGSTACK_SESSION_ROOT` — mount a volume for persistence.
 - **Config**: Config is at `WRONGSTACK_CONFIG_DIR` — mount for config persistence across restarts.
+
+## Out of scope
+
+- **Don't run as root in the container.** A non-root user is mandatory. A container compromise that lands root on the host is the failure this rule exists to prevent.
+- **Don't use `node:latest` or unversioned base images.** Pin to `node:22-alpine` (or current). Reproducibility starts at the base.
+- **Don't bake secrets into the image.** Pass via environment variables at runtime. A `RUN echo $API_KEY > /app/config.key` is a permanent secret in the image layer.
+- **Don't skip the `.dockerignore`.** Without it, `node_modules`, `dist`, `.git`, and `*.test.ts` end up in the image — bigger, slower, more attack surface.
+- **Don't tag production images `latest`.** Tag with the git SHA. `latest` is a moving target; production needs a specific commit.
+- **Don't ship without a `HEALTHCHECK`.** Orchestrators need a probe; an image without one can't be load-balanced cleanly.
+- **Don't skip image scanning.** `trivy image` or `docker scout` before push. Critical vulnerabilities are blocking.
+- **Don't mix build and runtime stages.** Multi-stage is the rule: build with dev deps, runtime with production deps only. A 1GB image is a build hygiene failure.
+- **Don't deploy without persistent volume mounts.** Sessions at `WRONGSTACK_SESSION_ROOT` and config at `WRONGSTACK_CONFIG_DIR` need volumes; container restarts lose data otherwise.
+
+## Before returning
+
+- [ ] Multi-stage build; runtime stage is production-deps only
+- [ ] Base image pinned to a specific tag (`node:22-alpine`, not `latest`)
+- [ ] Non-root user; `USER wrongstack` set before `ENTRYPOINT`
+- [ ] Secrets via env at runtime, not baked into the image
+- [ ] `.dockerignore` excludes `node_modules`, `dist`, `.git`, `*.test.ts`
+- [ ] Image tagged with git SHA, not `latest`
+- [ ] `HEALTHCHECK` directive points to the CLI's self-check command
+- [ ] `trivy image` or `docker scout` run before push; critical vulns blocked
+- [ ] Volumes mounted for `WRONGSTACK_SESSION_ROOT` and `WRONGSTACK_CONFIG_DIR`
+- [ ] Build runs from repo root with `pnpm build` before `docker build` (workspace order)
 
 ## Skills in scope
 

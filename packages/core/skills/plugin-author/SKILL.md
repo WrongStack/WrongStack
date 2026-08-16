@@ -7,7 +7,7 @@ description: |
   data, and the entry-point registration steps (package.json and index.ts).
   Triggers: user says "new plugin", "add a plugin", "plugin teardown", "plugin
   health", "register a tool", "PluginAPI extension".
-version: 1.0.0
+version: 1.1.0
 required-capabilities: [filesystem.read, filesystem.write, execution.shell]
 required-tools: [bash, cron_cancel, cron_list, cron_schedule, edit, fetch, git, git_autocommit, json, read, search, secret_scanner_test, semver_bump, semver_changelog, semver_current, todo, watch_list, watch_start, watch_stop, write]
 optional-capabilities: [verification.run]
@@ -335,6 +335,36 @@ For the H1 pattern, extend `tests/plugin-teardown.test.ts` with a
 7. **Write tests**: `<name>.test.ts` (unit) + extend `plugin-teardown.test.ts`
 8. **Run verification**: `pnpm --filter @wrongstack/plugins test` + `pnpm --filter @wrongstack/plugins typecheck` + `pnpm --filter @wrongstack/plugins build`
 9. **Update `src/index.ts` doc comment** — bump the plugin count
+
+## Out of scope
+
+- **Don't put state in the `setup()` closure.** State must live at module scope; the Plugin interface does not thread state from `setup()` to `teardown()`. Closure state leaks on reload.
+- **Don't ship a plugin without `teardown()` and `health()`.** Even stateless plugins add both. The H1 audit pattern is the floor; `/diag plugins` exposes the gap.
+- **Don't make `setup()` non-idempotent.** Calling `setup()` twice must leave a clean slate. Hot-reload must not accumulate state.
+- **Don't delete on-disk state in `teardown()`.** File-based plugins leave the file in place. Only in-memory counters and resource handles (timers, watchers) are cleaned.
+- **Don't collide with built-in tool names.** `read`, `write`, `bash`, `edit`, `fetch`, `search`, `json`, `todo`, `git` are reserved. Pick unique names; `api.tools.register()` enforces uniqueness.
+- **Don't bump `apiVersion` for additive changes.** New optional fields on `PluginAPI` don't break the contract. Bump only when the surface breaks.
+- **Don't read config from `config.plugins`.** Config options go under `config.extensions['<plugin-name>']`. The loader's `buildPluginOptions` merges both, but the convention is `extensions`.
+- **Don't block `setup()` with async hydration.** Use `void (async () => { ... })()` for fire-and-forget. The first call should fall through to fallback if the async hasn't completed.
+- **Don't skip the test files.** `tests/<name>.test.ts` (unit) and `tests/<name>-exec.test.ts` (integration) are required. Plugins without tests rot fast.
+- **Don't lower-case-skip the model and config keys.** Case-insensitive lookup is the convention; `model.toLowerCase()` everywhere.
+
+## Before returning
+
+- [ ] `name`, `version`, `apiVersion: '^0.1.x'` (current), description, capabilities set
+- [ ] Module-scope state, never in `setup()` closure
+- [ ] `setup()` idempotent: clears state before re-initializing
+- [ ] `teardown()` releases every resource acquired in `setup()`, never deletes on-disk state
+- [ ] `health()` returns `{ ok, message, invocationCount, lastRun? }`
+- [ ] Tool names are unique `snake_case`; no collision with built-ins
+- [ ] Config read from `api.config.extensions['<plugin-name>']`, validated by `configSchema`
+- [ ] Hooks use `registerHook` with the correct event/matcher; `HookOutcome` shape honored
+- [ ] `src/index.ts` re-exports the plugin; `package.json` adds the subpath export
+- [ ] `packages/cli/src/wiring/plugins.ts` adds the built-in factory
+- [ ] Tests: `<name>.test.ts` + `<name>-exec.test.ts` + `plugin-teardown.test.ts` block
+- [ ] Verification: `pnpm --filter @wrongstack/plugins test && typecheck && build` all pass
+- [ ] `src/index.ts` doc comment updated with the new plugin count
+- [ ] `<nextsteps>` lists each open follow-up (config, hooks, tests, build)
 
 ## Skills in scope
 
