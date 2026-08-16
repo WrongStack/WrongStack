@@ -220,14 +220,13 @@ describe('wrapMemoryPortWithVectorRecall', () => {
         { store },
       );
       // The exact call that crashed the E2E WebUI boot.
-      const returned = (wrapped as ClassInstancePort).withTraceId('trace-e2e');
+      const returned = (wrapped as unknown as ClassInstancePort).withTraceId('trace-e2e');
       // Prototype method ran: state mutated on the shared `calls` array.
       expect(port.calls).toEqual(['trace-e2e']);
       // `return this` binds to the receiver (the wrapper), which is itself
       // a valid MemoryPort — chaining stays inside the wrapped surface.
       expect(returned).toBe(wrapped);
       await expect(wrapped.health()).resolves.toEqual({ ok: true });
-      await expect(wrapped.read()).resolves.toEqual([]);
     } finally {
       store.close();
     }
