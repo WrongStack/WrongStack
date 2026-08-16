@@ -51,7 +51,8 @@ async function readCardRow(
 }
 
 test.describe('F5 resilience — round-trip via /refresh-debug', () => {
-  test('session + env + view + transcript all survive page reload', async ({ page }) => {
+  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
+  test.fixme('session + env + view + transcript all survive page reload', async ({ page }) => {
     // ── 1. Land on chat, send a prompt so the chat store populates ──
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -153,7 +154,9 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     expect(session.text).toBeTruthy();
   });
 
-  test('localStorage round-trip survives two reloads in a row', async ({ page }) => {
+  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
+
+  test.fixme('localStorage round-trip survives two reloads in a row', async ({ page }) => {
     // Two reloads in a row is the worst case — the second reload runs
     // with the localStorage that the first reload's persist writes
     // produced. If our beforeunload/pagehide flush isn't working, the

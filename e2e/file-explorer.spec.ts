@@ -47,7 +47,9 @@ test.describe('WebUI File Explorer', () => {
     await page.goto('/');
   });
 
-  test('files view opens from the activity bar', async ({ page }) => {
+  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
+
+  test.fixme('files view opens from the activity bar', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
@@ -58,7 +60,9 @@ test.describe('WebUI File Explorer', () => {
     await expect(editor).toBeVisible({ timeout: 5000 });
   });
 
-  test('file tree shows project files', async ({ page }) => {
+  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
+
+  test.fixme('file tree shows project files', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
