@@ -152,6 +152,11 @@
       "fingerprint": "d7463963b9764391"
     },
     {
+      "file": "packages/plugins/tests/process-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "eb16519bc22de47d"
+    },
+    {
       "file": "packages/plugins/tests/runtime-local-bin.test.ts",
       "kind": "runIf",
       "fingerprint": "08467b893da83899"
@@ -360,6 +365,66 @@
       "file": "packages/vector-memory/tests/integration.test.ts",
       "kind": "skip",
       "fingerprint": "d848b77740397b34"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-augment-integration.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "a6048a5a7c31f4c2"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-augment-integration.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "61080b26fc6085db"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-augment-integration.test.ts",
+      "kind": "skip",
+      "fingerprint": "21406c79b555b6fc"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror-updates.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "228666240d768cdf"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror-updates.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "7866a1e0e4215d80"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror-updates.test.ts",
+      "kind": "skip",
+      "fingerprint": "5b5afd9456a381cc"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "ebfe563bb5ef4b0c"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "c794ec541c3bd5d6"
+    },
+    {
+      "file": "packages/vector-memory/tests/sage-event-mirror.test.ts",
+      "kind": "skip",
+      "fingerprint": "e2835886ee46c52c"
+    },
+    {
+      "file": "packages/vector-memory/tests/search-race.test.ts",
+      "kind": "conditional-skip",
+      "fingerprint": "c1da7b5bfb907ea9"
+    },
+    {
+      "file": "packages/vector-memory/tests/search-race.test.ts",
+      "kind": "conditional-suite-alias",
+      "fingerprint": "cec0ca5ecc4f1e05"
+    },
+    {
+      "file": "packages/vector-memory/tests/search-race.test.ts",
+      "kind": "skip",
+      "fingerprint": "39bbb4246f5caff0"
     }
   ]
 }
