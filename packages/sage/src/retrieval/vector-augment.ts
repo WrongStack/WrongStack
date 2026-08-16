@@ -14,7 +14,7 @@
  * and the function falls back to the lexical list, preserving the existing
  * retrieval contract.
  */
-import type { Sage } from '../types.js';
+import type { Sage, VectorRecallProvider } from '../types.js';
 
 const DEFAULT_RRF_K = 60;
 /** Default vector weight. Mirrors `hybridRerankMemories` baseline. */
@@ -28,19 +28,11 @@ const DEFAULT_VECTOR_FETCH = 50;
  * function uses to map hits back to SAGE memory ids. The interface stays
  * structural so any backend (vector-memory, a remote embedding API, a
  * test fake) plugs in without subclassing.
+ *
+ * Declared in `../types.js` (next to `SageSearchOptions.vectorRecall`,
+ * which references it) — re-exported here for the historical import path.
  */
-export interface VectorRecallProvider {
-  search(query: string, opts: { limit: number; threshold?: number }): Promise<
-    Array<{
-      id: string;
-      score: number;
-      text: string;
-      summary?: string | undefined;
-      tags: string[];
-      metadata?: Record<string, unknown> | undefined;
-    }>
-  >;
-}
+export type { VectorRecallProvider } from '../types.js';
 
 export interface VectorAugmentOptions {
   /** Semantic-recall backend. When omitted, the lexical list passes through unchanged. */

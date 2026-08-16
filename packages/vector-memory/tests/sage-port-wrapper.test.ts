@@ -167,4 +167,69 @@ describe('wrapMemoryPortWithVectorRecall', () => {
       store.close();
     }
   });
+
+  // E2E regression (run 31933976336): the wrapper was built via a plain
+  // spread, which copies only own enumerable properties. Real ports are
+  // class instances whose methods live on the prototype — the spread
+  // silently dropped them and boot crashed on the first direct call
+  // (`memoryStore.withTraceId is not a function`). Object-literal fakes
+  // cannot catch this; only a class-instance port can.
+  it('preserves prototype methods of a class-instance port (E2E boot crash)', async () => {
+    class ClassInstancePort {
+      readonly calls: string[] = [];
+      async initialize() {}
+      async dispose() {}
+      async health() {
+        return { ok: true };
+      }
+      withTraceId(traceId: string) {
+        this.calls.push(traceId);
+        return this;
+      }
+      getCapability<T>(_cap: { id: string }): T | undefined {
+        return undefined;
+      }
+      async read() {
+        return [];
+      }
+      async remember() {
+        return 1;
+      }
+      async forget() {
+        return 0;
+      }
+      async consolidate() {}
+      async clear() {
+        return 0;
+      }
+      async list() {
+        return [];
+      }
+      async search() {
+        return [];
+      }
+    }
+    const port = new ClassInstancePort();
+    const store = new VectorMemoryStore({
+      provider: new FakeEmbeddingProvider({ dimensions: 32 }),
+      projectRoot: 'D:/tmp/wrap-test-5',
+    } as VectorMemoryStoreOptions);
+    try {
+      const wrapped = wrapMemoryPortWithVectorRecall(
+        port as unknown as MemoryPort,
+        { store },
+      );
+      // The exact call that crashed the E2E WebUI boot.
+      const returned = (wrapped as ClassInstancePort).withTraceId('trace-e2e');
+      // Prototype method ran: state mutated on the shared `calls` array.
+      expect(port.calls).toEqual(['trace-e2e']);
+      // `return this` binds to the receiver (the wrapper), which is itself
+      // a valid MemoryPort — chaining stays inside the wrapped surface.
+      expect(returned).toBe(wrapped);
+      await expect(wrapped.health()).resolves.toEqual({ ok: true });
+      await expect(wrapped.read()).resolves.toEqual([]);
+    } finally {
+      store.close();
+    }
+  });
 });

@@ -704,6 +704,31 @@ export interface UpdateSageInput {
   force?: boolean | undefined;
 }
 
+/**
+ * A semantic-recall provider. `search` returns the top-k semantic matches
+ * for `query`, each carrying a `metadata.sageId` field that the fusion
+ * function uses to map hits back to SAGE memory ids. The interface stays
+ * structural so any backend (vector-memory, a remote embedding API, a
+ * test fake) plugs in without subclassing.
+ *
+ * Declared here — not in `retrieval/vector-augment.ts` — because
+ * `SageSearchOptions.vectorRecall` references it; declaring it next to the
+ * consumer that imports `Sage` back would form a type-level module cycle
+ * (ARCH: vector-augment ↔ types).
+ */
+export interface VectorRecallProvider {
+  search(query: string, opts: { limit: number; threshold?: number }): Promise<
+    Array<{
+      id: string;
+      score: number;
+      text: string;
+      summary?: string | undefined;
+      tags: string[];
+      metadata?: Record<string, unknown> | undefined;
+    }>
+  >;
+}
+
 export interface SageSearchOptions {
   scope?: SageScope | undefined;
   legacyScope?: MemoryScope | undefined;
@@ -748,7 +773,7 @@ export interface SageSearchOptions {
    * wrapped in a thin adapter that returns `{id, score, text, summary,
    * tags, metadata}` from `store.search()`.
    */
-  vectorRecall?: import('./retrieval/vector-augment.js').VectorRecallProvider | undefined;
+  vectorRecall?: VectorRecallProvider | undefined;
   /**
    * Weight of the vector channel when fusing with lexical. 0 = pure
    * lexical order, 1 = pure vector order. Default 0.3 (mirrors

@@ -128,9 +128,19 @@ export function wrapMemoryPortWithVectorRecall(
       )) as unknown as F;
   };
 
-  return {
-    ...port,
-    getCapability: <T,>(capability: { id: string; readonly __memoryCapabilityType?: ((value: T) => T) | undefined }): T | undefined => {
+  // Build the wrapper on the port's prototype chain, NOT via a plain
+  // spread. `{ ...port }` copies only own enumerable properties: for a
+  // class-instance port, `withTraceId` / `dispose` / `health` / `read` /
+  // `remember` live on the prototype and a spread silently drops them —
+  // the first direct method call after wrapping (e.g. boot's
+  // `memoryStore.withTraceId(traceId)`) then crashes. Test fakes built
+  // as object literals hide this; the E2E boot path exposed it
+  // (memoryStore.withTraceId is not a function).
+  const wrapped = Object.create(
+    Object.getPrototypeOf(port),
+    Object.getOwnPropertyDescriptors(port),
+  ) as MemoryPort;
+  wrapped.getCapability = <T,>(capability: { id: string; readonly __memoryCapabilityType?: ((value: T) => T) | undefined }): T | undefined => {
       if (capability.id === SAGE_RETRIEVAL_CAPABILITY.id) {
         const original = port.getCapability<SageRetrievalCapability>(capability as never);
         if (!original) return undefined;
@@ -166,6 +176,6 @@ export function wrapMemoryPortWithVectorRecall(
         } as unknown as T;
       }
       return port.getCapability<T>(capability as never);
-    },
-  };
+    };
+  return wrapped;
 }
