@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import { createHttpServer } from '../src/server/http-server.js';
+import { listenWithRetry } from '../src/server/port-utils.js';
 import {
   createWsServers,
   resolvePorts,
@@ -123,13 +124,16 @@ describe('standalone WebUI shared port', () => {
       publicWsUrl: options.publicWsUrl,
     };
     const { wssPrimary } = createWsServers(httpServer, ports, TOKEN);
-    await listen(httpServer, options.port);
+    // Bind with EADDRINUSE retry: the findFreePort probe above closed its
+    // throwaway listener, and on a busy host another process can take the
+    // port in that TOCTOU gap. A raw listen() then fails the whole startup
+    // with an unhandled error — advance past it instead (shared-port flake,
+    // 2026-08-16).
+    const boundPort = await listenWithRetry(httpServer, HOST, options.port);
     cleanup.push(() => closeWebSocketServer(wssPrimary));
     cleanup.push(() => closeHttpServer(httpServer));
 
-    const address = httpServer.address();
-    if (!address || typeof address === 'string') throw new Error('HTTP server has no TCP address');
-    return { port: address.port, origin: `http://${HOST}:${address.port}` };
+    return { port: boundPort, origin: `http://${HOST}:${boundPort}` };
   }
 
   it('serves HTTP and accepts a WebSocket upgrade on the same ephemeral port', async () => {

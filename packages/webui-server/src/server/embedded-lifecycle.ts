@@ -126,7 +126,7 @@ export interface AnnounceWebuiReadyParams {
   /** Surface kind — 'webui' or 'simpleui'. */
   surface: SurfaceKind;
   /** The HTTP server (StaticServeHandle.server). */
-  server: { on: (event: 'listening', cb: () => void) => void };
+  server: { on: (event: 'listening', cb: () => void) => void; listening?: boolean };
   host: string;
   /** Port serving both HTTP and WebSocket. */
   httpPort: number;
@@ -160,7 +160,7 @@ export function announceWebuiReady(p: AnnounceWebuiReadyParams): void {
     token: p.wsToken,
     publicUrl: p.publicUrl,
   });
-  p.server.on('listening', () => {
+  const announce = (): void => {
     const extraUrls = formatExternalAccessUrls({
       bindHost: p.host,
       port: p.httpPort,
@@ -178,7 +178,15 @@ export function announceWebuiReady(p: AnnounceWebuiReadyParams): void {
         `    (same agent as this terminal)\n${extraBlock}`,
     );
     if (p.open) launch(openUrl);
-  });
+  };
+  // Hosts that await the bind before announcing (listenWithRetry /
+  // startDeferredHttpListen) reach here with 'listening' already fired —
+  // subscribing then would never run the banner or launch the browser.
+  if (p.server.listening) {
+    announce();
+    return;
+  }
+  p.server.on('listening', announce);
 }
 
 // ── Graceful shutdown (SIGINT/SIGTERM) ───────────────────────────────

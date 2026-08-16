@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import type { Server } from 'node:http';
 import { type CreateHttpServerOptions, createHttpServer } from './http-server.js';
 import { createProjectIntakeService } from './intake-service.js';
+import { listenWithRetry } from './port-utils.js';
 
 /**
  * PR 6 of Issue #30 (webui-server 8-PR refactor):
@@ -82,6 +83,12 @@ export interface StaticServeOptions {
    * listening and the WebSocketServer being attached.
    */
   deferListen?: boolean | undefined;
+  /**
+   * Fail-fast port binding (no auto-advance on EADDRINUSE). Mirrors
+   * `WEBUI_STRICT_PORT` semantics for hosts that resolved the port without
+   * probing.
+   */
+  strictPort?: boolean | undefined;
   /** Package-resolution/build seams supplied by the owning host. */
   ensureDistDeps?: EnsureDistDeps | undefined;
   /**
@@ -324,17 +331,17 @@ export async function startStaticServe(
   });
 
   if (!opts.deferListen) {
-    server.listen(opts.httpPort, opts.host);
+    // Bind-time EADDRINUSE safety net: `findFreePort` probes with a
+    // throwaway listener that closes, so a competitor can still take the
+    // port between probe and bind (TOCTOU). Advance past it (bounded)
+    // instead of crashing; strict hosts pass `strictPort` for fail-fast.
+    const boundPort = await listenWithRetry(server, opts.host, opts.httpPort, {
+      maxTries: opts.strictPort ? 1 : 10,
+    });
+    return { server, port: boundPort };
   }
-  // `createHttpServer` returns the bound port via
-  // `server.address()` after `listen` resolves. We return
-  // the requested port instead because the existing
-  // call sites pass the requested port straight into
-  // the open-browser URL — the runWebUI body has no
-  // use for the bound-port value today. If a future
-  // caller needs the actual bound port, this function
-  // is the place to expose it (e.g. via a `listening`
-  // event).
+  // Deferred hosts bind later (after attaching the WebSocketServer) and
+  // reconcile the bound port themselves; report the requested port here.
   return { server, port: opts.httpPort };
 }
 

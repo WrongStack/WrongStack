@@ -1,4 +1,5 @@
 import * as http from 'node:http';
+import { listenWithRetry } from '@wrongstack/webui-server';
 
 interface ListenLogger {
   warn(event: string, fields: Record<string, unknown>): void;
@@ -10,18 +11,24 @@ export async function startDeferredHttpListen(args: {
   host: string;
   httpPort: number;
   logger: ListenLogger;
-}): Promise<void> {
-  const { server, host, httpPort, logger } = args;
-  await new Promise<void>((resolveListen, rejectListen) => {
-    server.listen(httpPort, host, () => resolveListen());
-    server.once('error', rejectListen);
+  /** Fail-fast bind (no auto-advance on EADDRINUSE). Mirrors WEBUI_STRICT_PORT. */
+  strictPort?: boolean;
+}): Promise<number> {
+  const { server, host, httpPort, logger, strictPort } = args;
+  // Bind-time EADDRINUSE safety net: the pre-bind probe (findFreePort)
+  // closes its throwaway listener, so a competitor can still land between
+  // probe and this bind. Advance past it (bounded) instead of crashing;
+  // strict hosts fail fast with a clean rejection.
+  const boundPort = await listenWithRetry(server, host, httpPort, {
+    maxTries: strictPort ? 1 : 10,
   });
   server.on('error', (err: Error) => {
     logger.error('http_server_error', {
       message: err.message,
-      port: httpPort,
+      port: boundPort,
     });
   });
+  return boundPort;
 }
 
 export async function startIpv6LoopbackProxy(args: {

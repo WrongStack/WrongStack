@@ -31,6 +31,7 @@ import {
   type EmbeddedProviderContext,
   envFlag,
   findFreePort,
+  isStrictPort,
   type PendingConfirm,
   resolveAuthToken,
   sendSerialized,
@@ -88,14 +89,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const surface = opts.surface ?? 'webui';
   const surfaceDefaults = surface === 'simpleui' ? { http: 3466 } : { http: 3456 };
   const requestedHttpPort = opts.httpPort ?? opts.port ?? surfaceDefaults.http;
-  const strictPort =
-    opts.strictPort ??
-    (process.env['WEBUI_STRICT_PORT'] === '1' || process.env['WEBUI_STRICT_PORT'] === 'true');
+  const strictPort = opts.strictPort ?? isStrictPort();
   let httpPort = requestedHttpPort;
   if (!strictPort) {
     httpPort = await findFreePort(host, requestedHttpPort);
   }
-  const wsPort = httpPort;
+  let wsPort = httpPort;
   const globalRoot = opts.globalConfigPath
     ? path.dirname(opts.globalConfigPath)
     : wstackGlobalRoot();
@@ -206,7 +205,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
     })
     .filter((value): value is string => Boolean(value));
-  const accessUrl = buildWebUIAccessUrl({
+  let accessUrl = buildWebUIAccessUrl({
     host,
     port: httpPort,
     token: wsToken,
@@ -239,6 +238,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     apiToken: wsToken,
     requireToken,
     deferListen: surface === 'simpleui',
+    strictPort,
     ...(opts.getVectorMemoryStore
       ? { getVectorMemoryStore: opts.getVectorMemoryStore }
       : {}),
@@ -251,13 +251,25 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     ? new WebSocketServer({ server: httpServer.server, maxPayload: 20 * 1024 * 1024 })
     : new WebSocketServer({ port: httpPort, host, maxPayload: 20 * 1024 * 1024 });
 
-  if (httpServer && surface === 'simpleui') {
-    await startDeferredHttpListen({
-      server: httpServer.server,
-      host,
-      httpPort,
-      logger: consoleLogger,
-    });
+  if (httpServer) {
+    const boundPort =
+      surface === 'simpleui'
+        ? await startDeferredHttpListen({
+            server: httpServer.server,
+            host,
+            httpPort,
+            logger: consoleLogger,
+            strictPort,
+          })
+        : httpServer.port;
+    if (boundPort !== httpPort) {
+      // The bind advanced past a TOCTOU competitor — every downstream
+      // consumer (access URL, WS bridge, instance registry, ready banner)
+      // must carry the actually-bound port.
+      httpPort = boundPort;
+      wsPort = boundPort;
+      accessUrl = buildWebUIAccessUrl({ host, port: httpPort, token: wsToken, publicUrl });
+    }
   }
 
   let ipv6LoopbackServer: HttpServer | null = null;

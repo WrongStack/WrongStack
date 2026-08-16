@@ -22,7 +22,7 @@ import { createHttpServer } from './http-server.js';
 import { createProjectIntakeService } from './intake-service.js';
 import { registerShutdownHandlers } from './lifecycle.js';
 import { resolveProviderModelMetadata } from './model-catalog.js';
-import { findFreePort } from './port-utils.js';
+import { findFreePort, isStrictPort } from './port-utils.js';
 import { type FileWatcherMetrics, setupEvents } from './setup-events.js';
 import type { ConnectedClient } from './types.js';
 import { getCostRates } from './usage-cost.js';
@@ -70,8 +70,7 @@ export async function resolvePorts(opts: {
   const publicWsUrl = opts.publicWsUrl ?? process.env['WEBUI_PUBLIC_WS_URL'];
   const requireToken = opts.requireToken ?? envFlag('WEBUI_REQUIRE_TOKEN');
 
-  const strictPort =
-    process.env['WEBUI_STRICT_PORT'] === '1' || process.env['WEBUI_STRICT_PORT'] === 'true';
+  const strictPort = isStrictPort();
   let httpPort = requestedHttpPort;
   if (!strictPort) {
     httpPort = await findFreePort(wsHost, requestedHttpPort);

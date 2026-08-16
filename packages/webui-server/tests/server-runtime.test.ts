@@ -6,7 +6,12 @@ vi.mock('ws', () => {
 });
 
 vi.mock('../src/server/ws-auth.js', () => ({ verifyClient: vi.fn(() => true) }));
-vi.mock('../src/server/port-utils.js', () => ({ findFreePort: vi.fn(async (_host: string, port: number) => port) }));
+vi.mock('../src/server/port-utils.js', () => ({
+  findFreePort: vi.fn(async (_host: string, port: number) => port),
+  // server-runtime now routes the strict-port check through this helper;
+  // default false keeps the mocked findFreePort path active as before.
+  isStrictPort: vi.fn(() => false),
+}));
 vi.mock('../src/server/http-server.js', () => ({ createHttpServer: vi.fn(() => ({ on: vi.fn(), listen: vi.fn(), close: vi.fn() })) }));
 vi.mock('../src/server/lifecycle.js', () => ({
   registerShutdownHandlers: vi.fn(() => () => undefined),

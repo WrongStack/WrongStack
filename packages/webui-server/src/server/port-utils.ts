@@ -9,9 +9,9 @@
  *   starts at 3456, SimpleUI at 3466. Set `WEBUI_STRICT_PORT=1` to disable.
  * - **TOCTOU window.** The probe in `findFreePort` binds a throwaway
  *   `net.Server` then closes it, so there is a tiny race between "found free"
- *   and "real server binds". For local multi-instance use that race is
- *   negligible; if it ever loses, the real bind fails loudly with EADDRINUSE
- *   exactly as before.
+ *   and "real server binds". When that race is lost the real bind fails with
+ *   EADDRINUSE; `listenWithRetry` is the safety net — it advances past the
+ *   competitor (bounded) instead of crashing or hanging.
  * - **Instance registry.** Every live process records itself in
  *   `~/.wrongstack/webui-instances.json` with its PID, surface, port, and
  *   project root. A crashed instance is pruned on the next registry read
@@ -37,9 +37,22 @@ export const SURFACE_DEFAULT_PORTS = {
 
 export type SurfaceKind = keyof typeof SURFACE_DEFAULT_PORTS;
 
+/** Highest valid TCP port number. Single ceiling for every boundary check. */
+const MAX_TCP_PORT = 65535;
+
 /** Human-readable label for surfaces. */
 export function surfaceLabel(surface: SurfaceKind): string {
   return surface === 'webui' ? 'WebUI' : 'SimpleUI';
+}
+
+/**
+ * True when `WEBUI_STRICT_PORT` requests fail-fast port binding (no
+ * auto-advance). Single source of truth for both `resolvePorts` (probe-time)
+ * and `startWebUI`'s bind-time retry — the two must not drift apart.
+ */
+export function isStrictPort(): boolean {
+  const value = process.env['WEBUI_STRICT_PORT'];
+  return value === '1' || value === 'true';
 }
 
 /**
@@ -53,16 +66,26 @@ export function getSurfaceDefaultPorts(surface: SurfaceKind): {
 
 /** Resolve true when `port` can be bound on `host`, false on EADDRINUSE/EACCES. */
 export function isPortFree(host: string, port: number): Promise<boolean> {
+  return probePort(host, port).then((err) => err === null);
+}
+
+/**
+ * Throwaway-listener probe that preserves the errno. Resolves null when
+ * `port` is bindable on `host`; otherwise resolves the bind error with its
+ * real `code` (EADDRINUSE, EACCES, EADDRNOTAVAIL, RangeError, …) so
+ * callers can distinguish retryable contention from fail-fast errors.
+ */
+function probePort(host: string, port: number): Promise<NodeJS.ErrnoException | null> {
   return new Promise((resolve) => {
     const srv = net.createServer();
-    srv.once('error', () => resolve(false));
+    srv.once('error', (err: NodeJS.ErrnoException) => resolve(err));
     srv.once('listening', () => {
-      srv.close(() => resolve(true));
+      srv.close(() => resolve(null));
     });
     try {
       srv.listen(port, host);
-    } catch {
-      resolve(false);
+    } catch (err) {
+      resolve(err as NodeJS.ErrnoException);
     }
   });
 }
@@ -89,7 +112,7 @@ export async function findFreePort(
   for (let i = 0; i < maxTries; i++) {
     // Stay inside the valid TCP range; wrap into the high ephemeral band if a
     // pathological startPort pushes us past the ceiling.
-    if (port > 65535) port = 1024 + (port % 50000);
+    if (port > MAX_TCP_PORT) port = 1024 + (port % 50000);
     if (!exclude.has(port) && (await isPortFree(host, port))) {
       return port;
     }
@@ -98,5 +121,85 @@ export async function findFreePort(
   throw new ToolValidationError({
     message: `No free port found near ${startPort} on ${host} after ${maxTries} attempts.`,
     field: 'port',
+  });
+}
+
+export interface ListenWithRetryOptions {
+  /** Bind attempts before giving up on EADDRINUSE. Default 10. */
+  maxTries?: number | undefined;
+}
+
+/**
+ * Listen `server` on `host` starting at `port`, advancing one port on each
+ * EADDRINUSE — the bind-time safety net for the `findFreePort` TOCTOU window
+ * (probe closes, competitor binds, real listen loses the race). Any other
+ * error (EACCES, EAFNOSUPPORT, …) rejects immediately; EADDRINUSE past the
+ * final attempt rejects with the last error. Resolves with the port the
+ * server actually bound, which exceeds the request when a retry advanced.
+ */
+export function listenWithRetry(
+  server: net.Server,
+  host: string,
+  port: number,
+  opts: ListenWithRetryOptions = {},
+): Promise<number> {
+  const maxTries = opts.maxTries ?? 10;
+  return new Promise<number>((resolve, reject) => {
+    // Windows can deliver EADDRINUSE as a synchronous throw from a deferred
+    // listen() tick (node:net setupListenHandle ← processTicksAndRejections)
+    // that escapes BOTH a try/catch around listen() and the 'error' emitter
+    // — observed with a long-held holder on 127.0.0.1. Never hand the real
+    // server an occupied port: probe first with the same throwaway-listener
+    // technique findFreePort uses, and advance only on a genuine EADDRINUSE;
+    // any other errno rejects with the real error. The event handlers below
+    // remain as the backstop for the (far narrower) probe→bind race.
+    // Unifying rule: candidates at or above MAX_TCP_PORT never advance
+    // (there is no next port), so a failed bind there rejects with the real
+    // error — whether detected by the probe or the backstop handlers.
+    const canAdvance = (candidate: number): boolean => candidate < MAX_TCP_PORT;
+    const probeable = (candidate: number): boolean =>
+      Number.isInteger(candidate) && candidate >= 0 && candidate <= MAX_TCP_PORT;
+    const attempt = (candidate: number, remaining: number): void => {
+      void (async () => {
+        if (probeable(candidate)) {
+          const probeErr = await probePort(host, candidate);
+          if (probeErr !== null) {
+            // Advance only on genuine contention; every other errno
+            // (EACCES, EADDRNOTAVAIL, …) rejects fail-fast with the
+            // real error — advancing would be silent misdiagnosis.
+            if (probeErr.code === 'EADDRINUSE' && remaining > 1 && canAdvance(candidate)) {
+              attempt(candidate + 1, remaining - 1);
+              return;
+            }
+            reject(probeErr);
+            return;
+          }
+        }
+        const onError = (err: NodeJS.ErrnoException): void => {
+          server.off('listening', onListening);
+          server.off('error', onError);
+          if (err.code === 'EADDRINUSE' && remaining > 1 && canAdvance(candidate)) {
+            attempt(candidate + 1, remaining - 1);
+            return;
+          }
+          reject(err);
+        };
+        const onListening = (): void => {
+          server.off('error', onError);
+          const address = server.address();
+          resolve(address && typeof address === 'object' ? address.port : candidate);
+        };
+        server.once('error', onError);
+        server.once('listening', onListening);
+        try {
+          server.listen(candidate, host);
+        } catch (err) {
+          // Sync throws (e.g. RangeError for out-of-range ports) still route
+          // through the same error path so non-EADDRINUSE rejects cleanly.
+          onError(err as NodeJS.ErrnoException);
+        }
+      })();
+    };
+    attempt(port, maxTries);
   });
 }

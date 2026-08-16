@@ -25,9 +25,21 @@ import {
 class FakeServer extends EventEmitter {
   listenCalls: Array<[number, string]> = [];
   closed = false;
+  /** When set, address() reports this bound port (e.g. after a retry advance). */
+  boundPort: number | null = null;
   listen(port: number, host: string): this {
     this.listenCalls.push([port, host]);
+    // listenWithRetry resolves on the server's 'listening' event, not the
+    // listen() callback — emit it asynchronously like a real socket bind.
+    setImmediate(() => this.emit('listening'));
     return this;
+  }
+  // listenWithRetry's onListening reads server.address() for the bound
+  // port; null makes it fall back to the candidate (requested) port.
+  address(): { port: number; family: string; address: string } | null {
+    return this.boundPort === null
+      ? null
+      : { port: this.boundPort, family: 'IPv4', address: '127.0.0.1' };
   }
   close(): this {
     this.closed = true;
@@ -104,6 +116,27 @@ describe('startStaticServe', () => {
     // Returns the requested http port (see function doc).
     expect(handle.port).toBe(3456);
     expect(handle.server).toBe(fake);
+  });
+
+  it('propagates the actually-bound port when the bind advances past a busy port', async () => {
+    const fake = new FakeServer();
+    // Simulate the TOCTOU race the safety net exists for: 3456 was
+    // requested, a competitor holds it, and the OS really binds 3457.
+    fake.boundPort = 3457;
+    const createServer = vi.fn(() => fake as never as Server);
+
+    const handle = (await startStaticServe(baseOpts, {
+      resolveDist: () => '/resolved/dist',
+      createServer,
+    })) as StaticServeHandle;
+
+    expect(handle).not.toBeNull();
+    // The requested port was attempted on the right host…
+    expect(fake.listenCalls).toEqual([[3456, '127.0.0.1']]);
+    // …but the handle must expose the port the socket actually bound —
+    // access URLs, the instance registry, and the ready banner all
+    // consume handle.port downstream.
+    expect(handle.port).toBe(3457);
   });
 
   it('threads an explicit frontend directory through the resolver', async () => {

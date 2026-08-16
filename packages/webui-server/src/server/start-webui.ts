@@ -64,6 +64,7 @@ import {
   resolvePorts,
   startHttpServer,
 } from './server-runtime.js';
+import { isStrictPort, listenWithRetry } from './port-utils.js';
 import { scheduleOwnerlessEmptySessionCleanup } from './session-cleanup-scheduler.js';
 import { toSessionHistoryEntries } from './session-history.js';
 import type { FileWatcherMetrics } from './setup-events.js';
@@ -95,7 +96,10 @@ export async function startWebUI(
   ensureSessionShell();
 
   const ports = await resolvePorts(opts);
-  const { wsHost, httpPort, publicUrl, publicWsUrl, requireToken } = ports;
+  // `let`: the bind below may advance past an EADDRINUSE (findFreePort's
+  // TOCTOU window) and every downstream consumer must see the bound port.
+  const { wsHost, publicUrl, publicWsUrl, requireToken } = ports;
+  let httpPort = ports.httpPort;
 
   console.log('[WebUI] Starting backend services...');
 
@@ -513,7 +517,31 @@ export async function startWebUI(
   // Start the shared HTTP+WebSocket server. The WS server is attached to this
   // HTTP server via {server: httpServer}, so a single listen() binds both the
   // HTTP frontend and the WS upgrade handler on the same port.
-  httpServer.listen(httpPort, wsHost, () => {
+  // listenWithRetry closes the findFreePort TOCTOU window: the probe's
+  // throwaway listener closed before this real bind, and a competitor may
+  // have taken the port in that gap. Non-strict mode advances past
+  // EADDRINUSE (bounded); strict mode (maxTries: 1) keeps the fail-fast
+  // contract but rejects cleanly instead of crashing the process with an
+  // unhandled 'error' event. Shared-port flake 2026-08-16.
+  const strictPort = isStrictPort();
+  const boundPort = await listenWithRetry(httpServer, wsHost, httpPort, {
+    maxTries: strictPort ? 1 : 10,
+  });
+  if (boundPort !== httpPort) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'webui.port_reassigned',
+        protocol: 'HTTP',
+        requested: httpPort,
+        assigned: boundPort,
+        reason: 'bind-time EADDRINUSE retry',
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    httpPort = boundPort;
+  }
+  {
     const authHint = requireToken
       ? ' (authentication required; configure WEBUI_TOKEN out of band)'
       : '';
@@ -526,9 +554,9 @@ export async function startWebUI(
     if (extraUrls.length > 0) {
       console.log('[WebUI] Protected endpoints on external interfaces:\n' + extraUrls.join('\n'));
     }
-  });
+  }
 
-  const companionServer = setupCompanionServer(httpServer, wsHost, httpPort);
+  const companionServer = await setupCompanionServer(httpServer, wsHost, httpPort);
 
   // ── Project manifest helpers ──────────────────────────────────────────
 

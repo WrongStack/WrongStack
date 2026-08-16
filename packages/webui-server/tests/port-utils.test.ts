@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 // We'll test with a real net.Server since mocking it is fragile
 // The module is simple enough that real port-binding tests are more reliable
 
-import { isPortFree, findFreePort } from '../src/server/port-utils.js';
+import { isPortFree, findFreePort, listenWithRetry } from '../src/server/port-utils.js';
 
 describe('port-utils', () => {
   // Use a high port range to avoid conflicts
@@ -103,6 +103,102 @@ describe('port-utils', () => {
         expect(port).toBe(occupyPort + 1);
       } finally {
         await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+  });
+
+  describe('listenWithRetry (bind-time EADDRINUSE safety net)', () => {
+    it('advances past an occupied port and resolves the port actually bound', async () => {
+      const net = await import('node:net');
+      const blocker = net.createServer();
+      const blockedPort = BASE_PORT + 60;
+      await new Promise<void>((resolve, reject) => {
+        blocker.listen(blockedPort, '127.0.0.1', (err?: Error) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      const server = net.createServer();
+      try {
+        const bound = await listenWithRetry(server, '127.0.0.1', blockedPort, { maxTries: 3 });
+        expect(bound).toBe(blockedPort + 1);
+        expect(server.listening).toBe(true);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+        await new Promise<void>((resolve) => blocker.close(() => resolve()));
+      }
+    });
+
+    it('rejects with the last EADDRINUSE once attempts are exhausted', async () => {
+      const net = await import('node:net');
+      const blocker = net.createServer();
+      const blockedPort = BASE_PORT + 70;
+      await new Promise<void>((resolve, reject) => {
+        blocker.listen(blockedPort, '127.0.0.1', (err?: Error) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      const server = net.createServer();
+      try {
+        await expect(
+          listenWithRetry(server, '127.0.0.1', blockedPort, { maxTries: 1 }),
+        ).rejects.toMatchObject({ code: 'EADDRINUSE' });
+      } finally {
+        await new Promise<void>((resolve) => blocker.close(() => resolve()));
+      }
+    });
+
+    it('rejects immediately without advancing on a non-EADDRINUSE error', async () => {
+      const net = await import('node:net');
+      // An out-of-range port makes listen() throw synchronously (RangeError);
+      // the promise executor converts the throw into a rejection, and the
+      // retry loop must NOT treat it as a retryable EADDRINUSE.
+      const server = net.createServer();
+      await expect(
+        listenWithRetry(server, '127.0.0.1', 70_000, { maxTries: 5 }),
+      ).rejects.toThrow(/Port/i);
+      expect(server.listening).toBe(false);
+    });
+
+    it('propagates a probe-detected non-EADDRINUSE errno instead of advancing', async () => {
+      const net = await import('node:net');
+      // 192.0.2.0/24 is TEST-NET-1 — never assigned to a local interface —
+      // so the probe fails with EADDRNOTAVAIL on every platform. The retry
+      // loop must reject with the REAL errno (fail-fast), never treat it as
+      // contention and advance to another port on the same dead address.
+      const server = net.createServer();
+      await expect(
+        listenWithRetry(server, '192.0.2.123', BASE_PORT + 90, { maxTries: 5 }),
+      ).rejects.toMatchObject({ code: 'EADDRNOTAVAIL' });
+      expect(server.listening).toBe(false);
+    });
+
+    it('rejects with the last EADDRINUSE after N consecutive occupied ports', async () => {
+      const net = await import('node:net');
+      const base = BASE_PORT + 80;
+      const blockers = [0, 1, 2].map(() => net.createServer());
+      for (const [i, blocker] of blockers.entries()) {
+        await new Promise<void>((resolve, reject) => {
+          blocker.listen(base + i, '127.0.0.1', (err?: Error) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
+
+      const server = net.createServer();
+      try {
+        await expect(
+          listenWithRetry(server, '127.0.0.1', base, { maxTries: 3 }),
+        ).rejects.toMatchObject({ code: 'EADDRINUSE' });
+        expect(server.listening).toBe(false);
+      } finally {
+        await Promise.all(
+          blockers.map((b) => new Promise<void>((resolve) => b.close(() => resolve()))),
+        );
       }
     });
   });

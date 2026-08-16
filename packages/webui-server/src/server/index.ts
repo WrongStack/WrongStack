@@ -268,6 +268,8 @@ export {
   findFreePort,
   getSurfaceDefaultPorts,
   isPortFree,
+  isStrictPort,
+  listenWithRetry,
   SURFACE_DEFAULT_PORTS,
   type SurfaceKind,
   surfaceLabel,

@@ -1,4 +1,5 @@
 import * as http from 'node:http';
+import { listenWithRetry } from './port-utils.js';
 
 /**
  * Dual-stack / IPv6 companion listener.
@@ -13,11 +14,18 @@ import * as http from 'node:http';
  * fallback for systems where `::` does not accept IPv4-mapped
  * connections (net.ipv6.bindv6only=1, some Windows configs).
  */
-export function setupCompanionServer(
+export async function setupCompanionServer(
   httpServer: http.Server,
   wsHost: string | undefined,
+  /**
+   * The port the PRIMARY server actually bound — not the originally
+   * requested port. The companion must mirror it exactly: advertised URLs
+   * point at the primary's port, so a companion bound elsewhere would be
+   * unreachable dead weight. A single bind attempt; EADDRINUSE here means
+   * the mirror is impossible, so the companion degrades to null.
+   */
   httpPort: number,
-): http.Server | null {
+): Promise<http.Server | null> {
   const companion =
     wsHost === '127.0.0.1'
       ? '::1'
@@ -42,13 +50,11 @@ export function setupCompanionServer(
     httpServer.emit('upgrade', req, socket, head),
   );
   companionServer.on('error', (err: NodeJS.ErrnoException) => {
-    // Throwing from an EventEmitter handler becomes an `uncaughtException`
-    // and kills the process. This listener is explicitly best-effort — the
-    // primary is already bound and serving by now — so an unexpected errno
-    // must not take the whole WebUI down after the "server running" banner
-    // has already printed.
-    const expected =
-      err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL' || err.code === 'EADDRINUSE';
+    // Late runtime errors only — bind-time failures are handled by the
+    // awaited listenWithRetry below. Throwing from an EventEmitter handler
+    // becomes an `uncaughtException` and kills the process; this listener
+    // is best-effort because the primary is already bound and serving.
+    const expected = err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL';
     if (!expected) {
       console.warn(
         `[WebUI] companion listener on ${companionLabel} failed (${err.code ?? 'unknown'}): ` +
@@ -56,8 +62,20 @@ export function setupCompanionServer(
       );
     }
   });
-  companionServer.listen(httpPort, companion, () => {
-    console.log(`[WebUI] HTTP server running on http://${companionLabel}:${httpPort}`);
-  });
+  // The companion never advances ports (it must mirror the primary's bound
+  // port — see the param doc), so this is a single attempt: EADDRINUSE and
+  // any other bind error reject, are warned once, and downgrade to "no
+  // companion" instead of crashing or binding an unreachable port.
+  try {
+    await listenWithRetry(companionServer, companion, httpPort, { maxTries: 1 });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code ?? 'unknown';
+    console.warn(
+      `[WebUI] companion listener on ${companionLabel} not started (${code}): ` +
+        `${(err as Error)?.message ?? err}. The primary address is unaffected.`,
+    );
+    return null;
+  }
+  console.log(`[WebUI] HTTP server running on http://${companionLabel}:${httpPort}`);
   return companionServer;
 }

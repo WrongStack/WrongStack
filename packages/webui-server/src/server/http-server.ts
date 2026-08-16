@@ -293,12 +293,15 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
         distDir,
         url,
         opts,
-        port,
+        // Live port from the socket: the bind may have advanced past an
+        // EADDRINUSE (listenWithRetry) after this server was constructed,
+        // and the CSP must advertise the port actually serving this request.
+        res.socket?.localPort ?? port,
         shouldSetAuthCookie,
       );
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        await handleSpaFallback(res, distDir, opts, port);
+        await handleSpaFallback(res, distDir, opts, res.socket?.localPort ?? port);
       } else {
         console.error({ url: req.url, err });
         res.writeHead(500);
