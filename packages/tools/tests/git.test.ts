@@ -5,10 +5,14 @@ import { projectSlug } from '@wrongstack/core/utils';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const makeCtx = (cwd = '/fake') =>
   ({ cwd, tools: [], projectRoot: cwd }) as unknown as Parameters<typeof gitTool.execute>[1];
 const makeOpts = () => ({ signal: new AbortController().signal });
+// Module-relative so the live-execution block finds a real git working tree
+// regardless of the vitest root (package `--root ../..` script included).
+const repoRoot = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 
 describe('gitTool', () => {
   it('has correct metadata', () => {
@@ -194,9 +198,9 @@ describe('buildArgs (via execute in non-git dir)', () => {
 });
 
 describe('gitTool live execution (uses the test repo itself)', () => {
-  // We're running inside the WrongStack repo, so process.cwd() resolves to a
+  // We're running inside the WrongStack repo, so repoRoot resolves to a
   // real git working tree — exercises runGit end-to-end.
-  const ctx = makeCtx(process.cwd());
+  const ctx = makeCtx(repoRoot);
 
   it('executes `git status` and returns exit code 0', async () => {
     const result = await gitTool.execute({ command: 'status' }, ctx, makeOpts());
@@ -434,7 +438,7 @@ describe('gitTool findGitDir bounds via real fs', () => {
 describe('gitTool buildArgs edge cases', () => {
   it('buildArgs handles files as array', async () => {
     // Array files are split and trimmed (lines 137-139)
-    const ctx = makeCtx(process.cwd());
+    const ctx = makeCtx(repoRoot);
     const result = await gitTool.execute(
       { command: 'status', files: ['a.ts', 'b.ts'] },
       ctx,

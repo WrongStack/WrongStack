@@ -36,6 +36,7 @@
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run --root ../.. packages/providers/tests",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {

@@ -30,6 +30,7 @@
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {

@@ -24,9 +24,13 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const ENTRY = path.join(process.cwd(), 'packages', 'cli', 'dist', 'index.js');
+// Repo root resolved from this file (packages/cli/tests/architecture/) so the
+// suite passes from the repo root AND from the package cwd.
+const repositoryRoot = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
+const ENTRY = path.join(repositoryRoot, 'packages', 'cli', 'dist', 'index.js');
 
 /**
  * Packages that must never be reachable by a static import from the entry.
@@ -97,7 +101,7 @@ describe('CLI boot graph boundary', () => {
     // chunk files and every `await import()` above collapses back into the
     // entry — the first assertion would then be the only thing standing, and
     // it would fail for a confusing reason. Assert the cause directly.
-    const dist = path.join(process.cwd(), 'packages', 'cli', 'dist');
+    const dist = path.join(repositoryRoot, 'packages', 'cli', 'dist');
     const names = await fs.readdir(dist);
     expect(names.some((name) => /^chunk-.*\.js$/u.test(name))).toBe(true);
   });
@@ -105,7 +109,7 @@ describe('CLI boot graph boundary', () => {
   it('keeps the shebang on the entry only', async () => {
     // esbuild applies `banner` to every output; a shebang is only meaningful on
     // the executable entry. build-package.mjs strips it from the rest.
-    const dist = path.join(process.cwd(), 'packages', 'cli', 'dist');
+    const dist = path.join(repositoryRoot, 'packages', 'cli', 'dist');
     const names = (await fs.readdir(dist)).filter((n) => n.endsWith('.js'));
     const withShebang: string[] = [];
     for (const name of names) {

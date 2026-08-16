@@ -27,9 +27,13 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const PACKAGES = path.join(process.cwd(), 'packages');
+// Repo root resolved from this file (packages/cli/tests/architecture/) so the
+// suite passes from the repo root AND from the package cwd.
+const repositoryRoot = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
+const PACKAGES = path.join(repositoryRoot, 'packages');
 
 /** Every file that constructs a ToolExecutor, as `<package>/<path>`. */
 const HOSTS = [

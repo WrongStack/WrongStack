@@ -18,9 +18,17 @@
 import type { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const DIST = path.join(process.cwd(), 'packages', 'tools', 'dist');
+// Module-relative so the suite passes from any vitest root (the package
+// `test` script runs vitest with --root ../.. from this directory).
+const DIST = path.join(
+  path.resolve(fileURLToPath(new URL('../../../..', import.meta.url))),
+  'packages',
+  'tools',
+  'dist',
+);
 const TS_PACKAGE = '@typescript/typescript6';
 
 /**

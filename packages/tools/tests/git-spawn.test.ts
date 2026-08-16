@@ -1,4 +1,6 @@
 import { EventEmitter } from 'node:events';
+import { fileURLToPath } from 'node:url';
+import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Drive buildArgs for every git subcommand (incl. push/pull/reset/worktree)
@@ -30,9 +32,11 @@ vi.mock('node:child_process', async (orig) => {
 
 import { gitTool } from '../src/git.js';
 
-// process.cwd() is the repo root, so findGitDir resolves a real .git without
-// the mock ever executing git.
-const ctx = () => ({ cwd: process.cwd(), tools: [], projectRoot: process.cwd() }) as any;
+// The repo root resolves from the module URL so this suite passes with any
+// vitest root (--root ../.. package script or repo-root invocation alike):
+// findGitDir needs a real .git without the mock ever executing git.
+const repoRoot = path.resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+const ctx = () => ({ cwd: repoRoot, tools: [], projectRoot: repoRoot }) as any;
 const opts = () => ({ signal: new AbortController().signal });
 const run = (input: Record<string, unknown>) => gitTool.execute(input as never, ctx(), opts());
 
