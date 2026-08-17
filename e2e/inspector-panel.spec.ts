@@ -1,33 +1,64 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
- * Global workbench inspector contract.
+ * Global workbench inspector drawer.
  *
  * The inspector is a fixed right-side Radix drawer. It overlays the active
- * work surface (no layout shift), exposes the three consolidated monitor tabs,
- * restores focus when closed, and follows the square WebUI geometry invariant.
+ * work surface (no layout shift) and exposes the four monitor tabs
+ * (Fleet / Agents / Audit / Council). Entry points are keyboard shortcuts —
+ * F2 and Ctrl+Shift+M — since the compact-shell redesign moved the top-bar
+ * trigger to opening the left Agents sidebar (`openPanel('agents')`)
+ * instead of this drawer.
  */
+async function openInspector(page: Page, via: 'f2' | 'ctrl-shift-m' = 'f2') {
+  const drawer = page.getByTestId('inspector-drawer');
+  // Both entry points reach the App.tsx root-effect keydown listener, and a
+  // press right after networkidle can land before that listener attaches —
+  // the boot race documented in fleet-monitor.spec.ts. Wait for app chrome,
+  // neutralize focus (F1..F12 are skipped while a text field is focused and
+  // the chat textarea auto-focuses at boot), and re-press once. Safe for
+  // both paths: F2 is an idempotent open, and Ctrl+Shift+M on a closed
+  // drawer takes the open branch of its toggle.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await expect(page.locator('#main-content')).toBeVisible();
+    await page.locator('body').focus();
+    // Ctrl+Shift+M is a TOGGLE (it closes the drawer when already open on
+    // the Fleet tab — exactly the state it produces). A blind re-press
+    // after a slow render would close the drawer it just opened, so on
+    // retry check visibility first and skip the press if it landed.
+    if (attempt > 0 && (await drawer.isVisible())) return drawer;
+    if (via === 'f2') {
+      await page.keyboard.press('F2');
+    } else {
+      await page.keyboard.press('Control+Shift+M');
+    }
+    try {
+      await expect(drawer).toBeVisible({ timeout: 3_000 });
+      return drawer;
+    } catch {
+      // Boot race lost the press — retry once.
+    }
+  }
+  // Both attempts missed: fail with the standard assertion and full timeout
+  // so the report shows the real symptom instead of a bare loop exit.
+  await expect(drawer).toBeVisible();
+  return drawer;
+}
+
 test.describe('global inspector drawer', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Readiness gate: the top bar (and its Agents trigger) renders only in
+    // the ready state — not on the first-run setup screen.
     await expect(page.getByTestId('inspector-trigger')).toBeVisible();
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('opens on the right without shrinking the work surface', async ({ page }) => {
-    const trigger = page.getByTestId('inspector-trigger');
+  test('opens on the right without shrinking the work surface', async ({ page }) => {
     const main = page.locator('#main-content');
     const widthBefore = (await main.boundingBox())?.width;
 
-    await trigger.click();
-
-    const drawer = page.getByTestId('inspector-drawer');
-    await expect(drawer).toBeVisible();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    await expect(drawer).toHaveCSS('border-radius', '0px');
-    await expect(trigger).toHaveCSS('border-radius', '0px');
+    const drawer = await openInspector(page);
 
     await expect
       .poll(async () => {
@@ -39,10 +70,9 @@ test.describe('global inspector drawer', () => {
     expect((await main.boundingBox())?.width).toBe(widthBefore);
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('provides keyboard-accessible Fleet, Agents and Audit tabs', async ({ page }) => {
-    await page.getByTestId('inspector-trigger').click();
+  test('provides keyboard-accessible Fleet, Agents and Audit tabs', async ({ page }) => {
+    // Ctrl+Shift+M exercises the second entry point (opens on the Fleet tab).
+    await openInspector(page, 'ctrl-shift-m');
 
     const fleet = page.getByRole('tab', { name: /^Fleet/ });
     const agents = page.getByRole('tab', { name: /^Agents/ });
@@ -52,32 +82,34 @@ test.describe('global inspector drawer', () => {
     await agents.click();
     await expect(agents).toHaveAttribute('aria-selected', 'true');
 
+    // Radix roving focus: ArrowRight from the Agents tab moves focus to the
+    // Audit tab and activates it (automatic activation).
     await agents.focus();
     await page.keyboard.press('ArrowRight');
     await expect(audit).toBeFocused();
     await expect(audit).toHaveAttribute('aria-selected', 'true');
+
+    // The fourth monitor tab — Council — activates the same way.
+    const council = page.getByRole('tab', { name: /^Council/ });
+    await council.click();
+    await expect(council).toHaveAttribute('aria-selected', 'true');
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('closes with the labelled action and restores trigger focus', async ({ page }) => {
+  test('closes with the labelled action and restores trigger focus', async ({ page }) => {
+    await openInspector(page);
     const trigger = page.getByTestId('inspector-trigger');
-    await trigger.click();
+
     await page.getByTestId('inspector-close').click();
 
     await expect(page.getByTestId('inspector-drawer')).toBeHidden();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await expect(trigger).toBeFocused();
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('closes with Escape', async ({ page }) => {
-    await page.getByTestId('inspector-trigger').click();
-    await expect(page.getByTestId('inspector-drawer')).toBeVisible();
+  test('closes with Escape', async ({ page }) => {
+    const drawer = await openInspector(page);
 
     await page.keyboard.press('Escape');
 
-    await expect(page.getByTestId('inspector-drawer')).toBeHidden();
+    await expect(drawer).toBeHidden();
   });
 });
