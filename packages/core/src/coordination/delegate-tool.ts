@@ -9,6 +9,11 @@ import { toErrorMessage } from '../utils/error.js';
 import { safeParse } from '../utils/safe-json.js';
 import type { Director } from './director.js';
 import { applyRosterBudget, FLEET_ROSTER_BUDGETS } from './fleet.js';
+import {
+  composeBoundedTaskDescription,
+  parseTaskBoundary,
+  taskBoundarySchemaProperties,
+} from './task-boundary.js';
 
 /**
  * Opaque host interface so this factory doesn't have to depend on the
@@ -104,8 +109,10 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
     properties: {
       task: {
         type: 'string',
-        description: 'What the subagent should do — natural language, complete sentence(s).',
+        description:
+          'The objective — what the subagent should do, natural language, complete sentence(s). Pair it with the required `scope` and `outOfScope` boundary fields.',
       },
+      ...taskBoundarySchemaProperties,
       role: {
         type: 'string',
         description:
@@ -169,7 +176,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           'Max fresh-worker continuations after budget exhaustion. Default 1. Each gets the prior partial report.',
       },
     },
-    required: ['task'],
+    required: ['task', 'scope', 'outOfScope'],
   };
 
   return {
@@ -177,7 +184,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
     description:
       "Hand a piece of work to a subagent and block until it returns. This call is synchronous: the leader's iteration pauses for the full duration of the subagent's run. (Multiple `delegate` calls fired in the same assistant turn still parallelize through the provider's parallel-tool-call surface, but each one eats wall-clock time — so for fan-out you actually control, reach for the async path below.) Use `delegate` when your next step genuinely needs the subagent's verdict — a review, a fact-check, a sign-off. Has own context, own LLM call, auto-extending budget, and a partial-completion handoff path (maxHandoffs, default 1). Workers cannot recursively spawn.\n\n**Do NOT use `delegate` for long-running work.** While `delegate` is in flight, the leader is fully blocked — it cannot act on other tools, read mail, or react to the user. If the work might run for tens of minutes or hours (multi-file refactor, monorepo audit, long-running build/test, sweeping migration), the blocking call wastes the leader's time. Use the async tool family instead: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then `await_tasks` to retrieve results later. The leader keeps doing other work while the worker churns, and a worker that realizes its task will run long can mail the leader (type `steer` or `ask` via `mail_send`) saying *\"my task is going to run long, please spawn a subagent instead\"* so the leader re-dispatches asynchronously instead of waiting.\n\n**Do NOT use `delegate` for fan-out you control.** Multiple sequential `delegate` calls each block the leader, wasting wall-clock time. For independent investigations you want to run in parallel — security scan + bug hunt + perf review on the same PR — use the async tool family: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then the `await_tasks` tool with `{mode: 'any'}` to fold the first useful result into the next decision while the rest keep churning. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable.",
     usageHint:
-      'Set `task` to a complete instruction. Pick `role` from roster or pass `name` for free-form. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable (minutes, not hours). For long-running work or fan-out you control, use `spawn_subagent` + `assign_task` + `await_tasks` instead. Raise `maxHandoffs` (default 1, cap 8) for multi-day or multi-refactor tasks; pass larger `timeoutMs`/`maxIterations`/`maxToolCalls` only when needed.',
+      'Set `task` to the objective, then make the edges explicit: `scope` (what the work covers) and `outOfScope` (at least one concrete non-goal) are REQUIRED — the call is rejected without them, and the worker treats the rendered boundary block as a hard contract. Pick `role` from roster or pass `name` for free-form. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable (minutes, not hours). For long-running work or fan-out you control, use `spawn_subagent` + `assign_task` + `await_tasks` instead. Raise `maxHandoffs` (default 1, cap 8) for multi-day or multi-refactor tasks; pass larger `timeoutMs`/`maxIterations`/`maxToolCalls` only when needed.',
     permission: 'auto',
     mutating: false,
     managesOwnTimeout: true,
@@ -191,6 +198,8 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
       const abortSignal = execOpts?.signal;
       const i = (input ?? {}) as {
         task?: string | undefined;
+        scope?: unknown;
+        outOfScope?: unknown;
         role?: string | undefined;
         name?: string | undefined;
         provider?: string | undefined;
@@ -217,6 +226,18 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         };
       }
 
+      // Hard boundary gate: a delegate without explicit edges produces a
+      // worker that guesses its own scope. Reject before any spawn cost is
+      // incurred, with an error that teaches the fix in one retry.
+      const boundary = parseTaskBoundary(i);
+      if (!boundary.ok) {
+        return {
+          ok: false,
+          error: `delegate rejected — task boundary incomplete: ${boundary.error}`,
+          hint: boundary.hint,
+        };
+      }
+
       // Human-friendly label for the subagent — surfaced in the
       // delegate.* events so UIs say "Delegating → bug-hunter" rather
       // than echoing an opaque generated id.
@@ -234,11 +255,12 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
       // long-running work and must not stop with a partial checkpoint
       // before they actually finish.
       //
-      // IMPORTANT: do NOT prepend this preface to `i.task` before passing
-      // it to `dir.assign({ description })`. `TaskSpec.description` is the
-      // canonical brief delivered to the runner; tests and downstream
-      // consumers (e.g. `buildHandoffTask` -> `Original task:`) rely on
-      // it being exactly what the leader passed. Inject the preface into
+      // IMPORTANT: do NOT prepend this preface to the task brief before
+      // passing it to `dir.assign({ description })`. `TaskSpec.description`
+      // is the canonical brief delivered to the runner; tests and downstream
+      // consumers (e.g. `buildHandoffTask` -> `Original task:`) rely on it
+      // staying the leader's brief (objective + boundary block, composed
+      // below) rather than growing runtime guidance. Inject the preface into
       // the subagent prompt layer instead via `systemPromptOverride`,
       // which composes last and wins on conflict (see
       // director-prompts.ts:111-114) without rewriting the description.
@@ -339,7 +361,14 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         const dir = director;
         const maxHandoffs = Math.min(8, Math.max(0, Math.floor(i.maxHandoffs ?? 1)));
         const handoffs: DelegateHandoff[] = [];
-        let delegatedTask = i.task;
+        // The leader's full brief is the objective plus its explicit
+        // boundary block. Composing the boundary into `TaskSpec.description`
+        // (rather than injecting it through prompt layers) means every
+        // consumer of the canonical brief — runner input, session
+        // transcripts, roll-ups, and the handoff continuations below —
+        // carries the edges without extra plumbing.
+        const baseBrief = composeBoundedTaskDescription(i.task, boundary.boundary);
+        let delegatedTask = baseBrief;
         let handoffCount = 0;
 
         for (;;) {
@@ -397,11 +426,12 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
               subagentId,
             });
           }
-          // `delegatedTask` is the original leader brief on the first
-          // attempt and the `buildHandoffTask` continuation text on later
-          // attempts. Both preserve the verbatim original task inside
-          // their bodies, so `TaskSpec.description` stays faithful to
-          // the leader's brief throughout the delegate loop.
+          // `delegatedTask` is the original leader brief (objective +
+          // boundary block) on the first attempt and the
+          // `buildHandoffTask` continuation text on later attempts. Both
+          // preserve the verbatim original brief inside their bodies, so
+          // `TaskSpec.description` stays faithful to the leader's brief
+          // throughout the delegate loop.
           const description = delegatedTask;
           const taskId = await dir.assign({
             id: randomUUID(),
@@ -524,7 +554,9 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
               remainingWork: continuation.remainingWork,
             });
             handoffCount += 1;
-            delegatedTask = buildHandoffTask(i.task, continuation, handoffCount, maxHandoffs);
+            // Pass the bounded brief (not the raw objective) so the fresh
+            // worker inherits the original scope/non-goals verbatim.
+            delegatedTask = buildHandoffTask(baseBrief, continuation, handoffCount, maxHandoffs);
             continue;
           }
 

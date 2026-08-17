@@ -938,6 +938,8 @@ export {
   isContextWindowModeId,
   isContextWindowModeSelectionId,
   isDeprecatedContextWindowModeId,
+  LARGE_WINDOW_DEEP_MODE_THRESHOLD,
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   listContextWindowModes,
   normalizeContextWindowModeId,
   resolveContextWindowPolicy,

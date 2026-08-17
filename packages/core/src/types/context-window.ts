@@ -54,6 +54,25 @@ export interface ContextWindowConfigLike {
 
 export const DEFAULT_CONTEXT_WINDOW_MODE_ID: ContextWindowModeId = 'balanced';
 
+/**
+ * Windows at or above this size default to the `deep` policy instead of
+ * `balanced`: 1M-class windows exist to be filled, and balanced's hard line
+ * (0.85) would compact at ~890K of a 1.05M window, stranding the tail. Deep
+ * holds compaction until 0.96 and keeps a wider verbatim tail. An explicit
+ * `frugal`/`deep` choice, custom modes, and per-field threshold overrides are
+ * always respected as-is; only the balanced default is swapped.
+ */
+export const LARGE_WINDOW_DEEP_MODE_THRESHOLD = 1_000_000;
+
+/**
+ * Meta key the mode-switch surfaces (`/context mode`, WebUI `context.mode.switch`,
+ * `/context thresholds`) set after the user deliberately picks a policy for the
+ * session. Window-change flows re-resolve the default policy against the new
+ * window (so a 1M↔200K model switch keeps the policy scaled to the window) but
+ * must leave a user-pinned choice alone.
+ */
+export const CONTEXT_WINDOW_MODE_PINNED_META_KEY = 'contextWindowModePinned';
+
 export const DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES: Readonly<
   Record<DeprecatedContextWindowModeId, ContextWindowModeId>
 > = Object.freeze({
@@ -65,7 +84,7 @@ export const CONTEXT_WINDOW_MODES: readonly ContextWindowMode[] = Object.freeze(
     id: 'balanced',
     name: 'Balanced',
     description:
-      'Default rolling compaction: recent work stays verbatim, old tool output is trimmed.',
+      'Default rolling compaction: recent work stays verbatim, old tool output is trimmed. Windows of 1M+ tokens default to Deep.',
     thresholds: { warn: 0.55, soft: 0.7, hard: 0.85 },
     aggressiveOn: 'soft',
     preserveK: 8,
@@ -128,11 +147,21 @@ export function isContextWindowModeId(id: string): id is ContextWindowModeId {
 export function resolveContextWindowPolicy(
   config: ContextWindowConfigLike = {},
   overrideMode?: string | null | undefined,
+  maxContext?: number | undefined,
 ): ContextWindowPolicy {
   const requested = overrideMode ?? config.mode ?? DEFAULT_CONTEXT_WINDOW_MODE_ID;
-  const mode =
-    getContextWindowMode(requested) ??
-    expectDefined(getContextWindowMode(DEFAULT_CONTEXT_WINDOW_MODE_ID));
+  const normalized = normalizeContextWindowModeId(requested) ?? DEFAULT_CONTEXT_WINDOW_MODE_ID;
+  // Big-window default: see {@link LARGE_WINDOW_DEEP_MODE_THRESHOLD}. The swap
+  // applies only when the mode resolved to the balanced default; a deliberate
+  // frugal/deep choice is kept verbatim, and explicit per-field overrides
+  // still win on top of whichever base mode was selected.
+  const baseId =
+    normalized === DEFAULT_CONTEXT_WINDOW_MODE_ID &&
+    typeof maxContext === 'number' &&
+    maxContext >= LARGE_WINDOW_DEEP_MODE_THRESHOLD
+      ? 'deep'
+      : normalized;
+  const mode = expectDefined(getContextWindowMode(baseId));
 
   return {
     ...mode,

@@ -48,7 +48,7 @@ For controlled fan-out, use `spawn_subagent` → `assign_task` →
 
 ## Dispatch contract
 
-Every assigned task should state:
+Every assigned task must state:
 
 - the objective and why it matters;
 - exact scope and non-goals;
@@ -57,6 +57,14 @@ Every assigned task should state:
 - expected result format and completion criteria;
 - the narrowest required verification;
 - known dependencies, risks, and assumptions.
+
+The assignment tools enforce the boundary: `delegate` and `assign_task` reject
+any call without an explicit `scope` (what the work covers) and at least one
+concrete `outOfScope` non-goal (what the worker must not do). Treat a
+rejection as a design checkpoint, not paperwork — if you cannot name what is
+out of scope, the task is not decomposed enough yet. The boundary is rendered
+into the worker's brief as a hard contract and survives into handoff
+continuations, so write it once, precisely.
 
 Match role and model to the work: use economical workers for bounded discovery
 and capable workers for ambiguous implementation or synthesis. Provider

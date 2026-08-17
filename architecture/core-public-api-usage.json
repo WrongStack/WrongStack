@@ -156,7 +156,7 @@
     "@wrongstack/core/types": {
       "files": 957,
       "typeOnly": 883,
-      "runtimeOrMixed": 237
+      "runtimeOrMixed": 238
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -10438,7 +10438,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/types",

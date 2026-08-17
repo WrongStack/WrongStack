@@ -149,7 +149,11 @@ export async function setupCompaction(params: {
     providerId: config.provider ?? provider.id,
     modelId: config.model ?? context.model,
   });
-  const initialPolicy = resolveContextWindowPolicy(config.context);
+  const initialPolicy = resolveContextWindowPolicy(
+    config.context,
+    undefined,
+    effectiveMaxContext,
+  );
   context.meta ??= {};
   context.meta['contextWindowMode'] = initialPolicy.id;
   context.meta['contextWindowPolicy'] = initialPolicy;

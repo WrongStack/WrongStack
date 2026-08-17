@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import type { Context, SystemBlockSource } from '@wrongstack/core/agent';
 import type { Config, ContextWindowPolicy, SlashCommand } from '@wrongstack/core/types';
 import {
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   formatContextWindowModeList,
   getContextWindowMode,
   resolveContextWindowPolicy,
@@ -132,6 +133,9 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
         const policy = { ...base, thresholds: { warn, soft, hard } };
         ctx.meta['contextWindowMode'] = policy.id;
         ctx.meta['contextWindowPolicy'] = policy;
+        // The user tuned thresholds for this session — later window changes
+        // (model switch) must not overwrite them.
+        ctx.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] = true;
         if (persist) {
           const error = await persistContextConfig(opts, {
             warnThreshold: warn,
@@ -156,9 +160,12 @@ export function buildContextCommand(opts: SlashCommandContext): SlashCommand {
           opts.renderer.write(`${color.red(msg)}\n`);
           return { message: msg };
         }
-        const policy = resolveContextWindowPolicy({}, mode.id);
+        const policy = resolveContextWindowPolicy({}, mode.id, readEffectiveLimit(ctx, opts));
         ctx.meta['contextWindowMode'] = policy.id;
         ctx.meta['contextWindowPolicy'] = policy;
+        // The user picked this mode for the session — later window changes
+        // (model switch) must not overwrite it.
+        ctx.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] = true;
         const msg = [
           `${color.green('Context mode set:')} ${policy.id} (${policy.name})`,
           `  thresholds: warn ${pct(policy.thresholds.warn)}, soft ${pct(policy.thresholds.soft)}, hard ${pct(policy.thresholds.hard)}`,

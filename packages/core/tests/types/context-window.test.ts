@@ -10,6 +10,44 @@ import {
   resolveContextWindowPolicy,
 } from '../../src/types/context-window.js';
 
+describe('big-window default: balanced swaps to deep on ≥1M windows', () => {
+  it('defaults to deep on a 1M-class window', () => {
+    const policy = resolveContextWindowPolicy({}, undefined, 1_050_000);
+    expect(policy.id).toBe('deep');
+    expect(policy.thresholds).toEqual({ warn: 0.72, soft: 0.86, hard: 0.96 });
+    expect(policy.preserveK).toBe(18);
+    expect(policy.eliseThreshold).toBe(5000);
+    expect(policy.targetLoad).toBe(0.82);
+  });
+
+  it('swaps an explicit balanced selection on a big window (1M windows exist to be filled)', () => {
+    expect(resolveContextWindowPolicy({ mode: 'balanced' }, undefined, 1_000_000).id).toBe('deep');
+    expect(resolveContextWindowPolicy({}, 'balanced', 1_000_000).id).toBe('deep');
+  });
+
+  it('keeps balanced below the threshold and when the window is unknown', () => {
+    expect(resolveContextWindowPolicy({}, undefined, 999_999).id).toBe('balanced');
+    expect(resolveContextWindowPolicy({}, undefined, 0).id).toBe('balanced');
+    expect(resolveContextWindowPolicy().id).toBe('balanced');
+  });
+
+  it('never overrides a deliberate frugal/deep selection', () => {
+    expect(resolveContextWindowPolicy({ mode: 'frugal' }, undefined, 1_050_000).id).toBe('frugal');
+    expect(resolveContextWindowPolicy({ mode: 'deep' }, undefined, 400_000).id).toBe('deep');
+    expect(resolveContextWindowPolicy({}, 'frugal', 1_050_000).id).toBe('frugal');
+  });
+
+  it('still applies per-field overrides on the deep base', () => {
+    const policy = resolveContextWindowPolicy({ hardThreshold: 0.9 }, undefined, 1_050_000);
+    expect(policy.id).toBe('deep');
+    expect(policy.thresholds).toEqual({ warn: 0.72, soft: 0.86, hard: 0.9 });
+  });
+
+  it('normalizes archival to balanced, then swaps on a big window', () => {
+    expect(resolveContextWindowPolicy({ mode: 'archival' }, undefined, 1_050_000).id).toBe('deep');
+  });
+});
+
 describe('context window modes', () => {
   it('lists only active built-in modes', () => {
     expect(listContextWindowModes().map((m) => m.id)).toEqual(['balanced', 'frugal', 'deep']);

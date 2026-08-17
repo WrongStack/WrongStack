@@ -53,7 +53,7 @@
         "export { BrainCircuitBreaker, type BrainCircuitOptions, type BrainCircuitSnapshot, type BrainCircuitState, } from './execution/brain-circuit.js';",
         "export { BrainDecisionLedger, type BrainDecisionLedgerOptions, type BrainLedgerEntry, brainDecisionKey, createLedgerGuardBrainArbiter, type LedgerGuardBrainArbiterOptions, } from './coordination/brain-ledger.js';",
         "export { CHIMERA_REVIEW_PROMPT, createChimeraPlugin, resolveChimeraConfig, } from './plugins/chimera-plugin.js';",
-        "export { CONTEXT_WINDOW_MODES, type ContextWindowAggressiveOn, type ContextWindowConfigLike, type ContextWindowMode, type ContextWindowModeId, type ContextWindowModeSelectionId, type ContextWindowPolicy, type ContextWindowThresholds, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, type DeprecatedContextWindowModeId, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './types/context-window.js';",
+        "export { CONTEXT_WINDOW_MODES, type ContextWindowAggressiveOn, type ContextWindowConfigLike, type ContextWindowMode, type ContextWindowModeId, type ContextWindowModeSelectionId, type ContextWindowPolicy, type ContextWindowThresholds, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, type DeprecatedContextWindowModeId, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, LARGE_WINDOW_DEEP_MODE_THRESHOLD, CONTEXT_WINDOW_MODE_PINNED_META_KEY, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './types/context-window.js';",
         "export { COUNCIL_REFUSAL_OPTION_ID, CouncilOrchestrator, type CouncilOrchestratorOptions, DEFAULT_COUNCIL_MAX_CONCURRENCY, MAX_COUNCIL_CONCURRENCY, } from './execution/council-orchestrator.js';",
         "export { COUNCIL_REFUSE_OPTION_ID, type CouncilBrainOptions, type CouncilVoter, createCouncilBrainArbiter, } from './execution/council-brain.js';",
         "export { COUNCIL_TOOL_NAME, type CouncilToolInput, type CreateCouncilToolOptions, createCouncilTool, MAX_COUNCIL_CONTEXT_CHARS, MAX_COUNCIL_QUESTION_CHARS, MAX_COUNCIL_TOOL_OPTIONS, } from './tools/council-tool.js';",
@@ -289,7 +289,7 @@
         "export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, ParseError, PluginError, SddError, SessionError, ToolError, ToolValidationError, toWrongStackError, WrongStackError, } from './errors.js';",
         "export { BUILTIN_PROMPT_CATEGORIES, isBuiltinCategory, PROMPT_CATEGORY_LABELS } from './prompt.js';",
         "export { CHAT_MARKER_SOURCES, isSystemInjectedMessage, projectSessionMarkers, SESSION_MARKER_EVENT_TYPES, SYSTEM_INJECTION_PREFIXES, sessionEventToMarker, } from './session-markers.js';",
-        "export { CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './context-window.js';",
+        "export { CONTEXT_WINDOW_MODES, CONTEXT_WINDOW_MODE_PINNED_META_KEY, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, LARGE_WINDOW_DEEP_MODE_THRESHOLD, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './context-window.js';",
         "export { DEFAULT_AUTONOMY_CONFIG, DEFAULT_CIRCUIT_BREAKER_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_SESSION_LOGGING_CONFIG, DEFAULT_SESSION_PRUNE_DAYS, DEFAULT_TOOLS_CONFIG, } from './default-config.js';",
         "export { DEFAULT_MODES } from './mode.js';",
         "export { DEFAULT_SPEC_TEMPLATE } from './spec.js';",
@@ -649,6 +649,7 @@
         "export { authorizeMailboxBearerToken, authorizePersistedMailboxCredential, createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS, MAILBOX_HTTP_MAX_AGE_CEILING_MS, MAILBOX_HTTP_MAX_BODY_BYTES, MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE, MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS, type MailboxHttpAccessDecision, MailboxHttpRateLimiter, type MailboxHttpRouter, type MailboxHttpRouterOptions, } from './mailbox-http-router.js';",
         "export { buildDownAlert, buildRecoveryAlert, type DownAlertInput, MAILBOX_HEALTH_DEFAULT_FAILURE_THRESHOLD, MAILBOX_HEALTH_DEFAULT_FROM, MAILBOX_HEALTH_DEFAULT_INTERVAL_MS, MAILBOX_HEALTH_DEFAULT_TIMEOUT_MS, type MailboxHealthEvent, MailboxHealthWatchdog, type MailboxHealthWatchdogOptions, type RecoveryAlertInput, validateWatchdogOptions, type WatchdogConfig, } from './mailbox-health.js';",
         "export { collabInjectMiddleware, collabPauseMiddleware, } from '../middleware/collab-pause.js';",
+        "export { composeBoundedTaskDescription, type TaskBoundary, parseTaskBoundary, renderTaskBoundaryBlock, taskBoundarySchemaProperties, } from './task-boundary.js';",
         "export { composeDirectorPrompt, composeSubagentPrompt, DEFAULT_DIRECTOR_PREAMBLE, DEFAULT_SUBAGENT_BASELINE, type DirectorPromptParts, rosterSummaryFromConfigs, type SubagentPromptParts, } from './director-prompts.js';",
         "export { createMailboxHooks, type MailboxHooksOptions, } from './mailbox-hooks.js';",
         "export { createMessage, InMemoryAgentBridge, InMemoryBridgeTransport, } from './agent-bridge.js';",
@@ -1155,8 +1156,8 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 159,
-      "sourceLines": 44928
+      "sourceFiles": 160,
+      "sourceLines": 45146
     },
     {
       "directory": "core",
@@ -1338,7 +1339,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10925
+      "sourceLines": 10956
     },
     {
       "directory": "utils",

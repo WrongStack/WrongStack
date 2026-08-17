@@ -470,7 +470,11 @@ export async function createPreContextServices(
     model: config.model,
   });
   context.meta['promptOnlineAgents'] = onlineAgents;
-  const initialContextPolicy = resolveContextWindowPolicy(config.context);
+  const initialContextPolicy = resolveContextWindowPolicy(
+    config.context,
+    undefined,
+    provider.capabilities?.maxContext,
+  );
   context.meta['contextWindowMode'] = initialContextPolicy.id;
   context.meta['contextWindowPolicy'] = initialContextPolicy;
   context.state.setMeta(

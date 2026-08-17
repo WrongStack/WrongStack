@@ -44,10 +44,13 @@ export interface ResolveMaxContextInput {
  * Priority chain (first hit wins):
  *  1. providers.<id>.capabilities.maxContext    — explicit per-provider override.
  *     Provider-SCOPED, so it can't silently pin unrelated providers.
- *  2. sibling catalog for OAuth families        — anthropic-oauth/openai-codex/
- *     github-copilot share their models with a canonical models.dev provider
- *     (anthropic/openai) but aren't themselves listed, so resolve the real
- *     per-model window there (e.g. Opus 4.8 → 1M, gpt-5.5 → 1.05M)
+ *  2. own catalog entry, else sibling, for OAuth families — when the family is
+ *     itself published under its own id (openai-codex ships via the curated
+ *     overlay), that entry is authoritative. Otherwise
+ *     anthropic-oauth/openai-codex/github-copilot share their models with a
+ *     canonical models.dev provider (anthropic/openai) but aren't themselves
+ *     listed, so resolve the real per-model window there
+ *     (e.g. Opus 4.8 → 1M, gpt-5.5 → 1.05M)
  *  3. models.dev catalog (capabilitiesFor → getModel) — the published per-model
  *     window, keyed by provider (e.g. 1M for an OpenRouter model)
  *  4. config.context.effectiveMaxContext        — global FALLBACK for models whose
@@ -106,15 +109,47 @@ export async function resolveRuntimeMaxContextDetailed(
   const providerOverride = positiveNumber(readConfiguredMaxContext(providerConfig));
   if (providerOverride) return { maxContext: providerOverride, branch: 'provider-override' };
 
+  // Resolve alias → catalog id so registry lookups hit the real provider. The
+  // launch id (input.providerId) may be a user alias whose `type` points at the
+  // catalog provider (mirrors `wstack models <provider>`).
+  const catalogId =
+    providerConfig?.type && providerConfig.type !== input.providerId
+      ? providerConfig.type
+      : input.providerId;
+
   // OAuth/subscription families (Sign in with Claude/ChatGPT/Copilot) aren't in
   // the models.dev catalog under their own id, but they serve the SAME models as
-  // a canonical catalog provider. Resolve the real per-model window there. The
-  // configured baseUrl is an auth/proxy endpoint (api.anthropic.com, a Copilot
-  // proxy, …), not a context-shrinking gateway, so we bypass the divergence
-  // guard that the generic catalog path applies below.
+  // a canonical catalog provider. When the family IS published under its own id
+  // (openai-codex ships via the curated overlay), that entry is authoritative —
+  // check it before the sibling so a stale sibling listing (e.g. models.dev
+  // `openai` still showing a smaller window for a model the overlay declares
+  // 1M) can't cap it. Only an unpublished own id falls through to the sibling.
+  // The configured baseUrl is an auth/proxy endpoint (api.anthropic.com, a
+  // Copilot proxy, …), not a context-shrinking gateway, so we bypass the
+  // divergence guard that the generic catalog path applies below.
   const sibling = providerConfig?.family ? SIBLING_CATALOG[providerConfig.family] : undefined;
   if (sibling && input.modelsRegistry) {
     const mergedModels = mergeCustomModelDefs(providerConfig?.customModels, input.config.models);
+
+    // Own entry first. The getModel() gate distinguishes "published under the
+    // own id" from a miss — capabilitiesFor alone would return the family
+    // default for an unpublished model and mislabel it as a catalog fact.
+    const ownModel = await input.modelsRegistry
+      .getModel(catalogId, input.modelId)
+      .catch(() => undefined);
+    if (ownModel) {
+      const ownCaps = await capabilitiesFor(
+        input.modelsRegistry,
+        catalogId,
+        input.modelId,
+        mergedModels,
+      ).catch(() => undefined);
+      const ownMax =
+        positiveNumber(ownCaps?.maxContext) ??
+        positiveNumber(ownModel.capabilities.maxContext);
+      if (ownMax) return { maxContext: ownMax, branch: 'catalog-capabilities' };
+    }
+
     const caps = await capabilitiesFor(
       input.modelsRegistry,
       sibling,
@@ -130,14 +165,6 @@ export async function resolveRuntimeMaxContextDetailed(
     const directMax = positiveNumber(directModel?.capabilities.maxContext);
     if (directMax) return { maxContext: directMax, branch: 'sibling-direct-model' };
   }
-
-  // Resolve alias → catalog id so registry lookups hit the real provider. The
-  // launch id (input.providerId) may be a user alias whose `type` points at the
-  // catalog provider (mirrors `wstack models <provider>`).
-  const catalogId =
-    providerConfig?.type && providerConfig.type !== input.providerId
-      ? providerConfig.type
-      : input.providerId;
 
   // Hoisted to function scope so the final family-default return can report
   // whether a diverging proxy/gateway baseUrl (a silent-shrink cause) is why

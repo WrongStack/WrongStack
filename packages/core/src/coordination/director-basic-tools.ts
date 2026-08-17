@@ -4,6 +4,11 @@ import type { TaskSpec } from '../types/multi-agent.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
 import { toErrorMessage } from '../utils/error.js';
 import type * as Host from './director-host-contracts.js';
+import {
+  composeBoundedTaskDescription,
+  parseTaskBoundary,
+  taskBoundarySchemaProperties,
+} from './task-boundary.js';
 
 export function makeAssignTool(director: Pick<Host.DirectorAssignmentPort, 'assign'>): Tool {
   const inputSchema: JSONSchema = {
@@ -13,8 +18,10 @@ export function makeAssignTool(director: Pick<Host.DirectorAssignmentPort, 'assi
       description: {
         type: 'string',
         minLength: 1,
-        description: 'The task in natural language — what you want this subagent to do.',
+        description:
+          'The objective in natural language — what you want this subagent to do. Pair it with the required `scope` and `outOfScope` boundary fields.',
       },
+      ...taskBoundarySchemaProperties,
       maxToolCalls: {
         type: 'number',
         minimum: 1,
@@ -22,12 +29,12 @@ export function makeAssignTool(director: Pick<Host.DirectorAssignmentPort, 'assi
       },
       timeoutMs: { type: 'number', minimum: 1, description: 'Optional per-task timeout in ms.' },
     },
-    required: ['subagentId', 'description'],
+    required: ['subagentId', 'description', 'scope', 'outOfScope'],
   };
   return {
     name: 'assign_task',
     description:
-      'Queue a task on a previously spawned subagent. NON-BLOCKING: returns a `taskId` IMMEDIATELY — the subagent processes the task on its next iteration with its own LLM budget. The `taskId` is the durable handle for retrieving the result later via `await_tasks`, `roll_up`, or `ask_result`. Many `assign_task` calls can be in flight in parallel against the same or different subagents. This is the primary tool for fan-out work; do NOT use `delegate` to spawn multiple investigations sequentially.',
+      'Queue a task on a previously spawned subagent. NON-BLOCKING: returns a `taskId` IMMEDIATELY — the subagent processes the task on its next iteration with its own LLM budget. The `taskId` is the durable handle for retrieving the result later via `await_tasks`, `roll_up`, or `ask_result`. Every assignment MUST carry an explicit boundary: `scope` (what the work covers) and `outOfScope` (at least one concrete non-goal) — the call is rejected without them, and the worker treats the rendered boundary block as a hard contract. Many `assign_task` calls can be in flight in parallel against the same or different subagents. This is the primary tool for fan-out work; do NOT use `delegate` to spawn multiple investigations sequentially.',
     permission: 'auto',
     mutating: false,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
@@ -36,12 +43,26 @@ export function makeAssignTool(director: Pick<Host.DirectorAssignmentPort, 'assi
       const i = input as {
         subagentId: string;
         description: string;
+        scope?: unknown;
+        outOfScope?: unknown;
         maxToolCalls?: number | undefined;
         timeoutMs?: number | undefined;
       };
+      // Hard boundary gate, identical to `delegate`: an assignment without
+      // explicit edges lets the worker guess its own scope, and the drift
+      // only surfaces at review time. Reject with a teaching error so the
+      // leader retries with the boundary stated.
+      const boundary = parseTaskBoundary(i);
+      if (!boundary.ok) {
+        return {
+          ok: false,
+          error: `assign_task rejected — task boundary incomplete: ${boundary.error}`,
+          hint: boundary.hint,
+        };
+      }
       const task: TaskSpec = {
         id: randomUUID(),
-        description: i.description,
+        description: composeBoundedTaskDescription(i.description, boundary.boundary),
         subagentId: i.subagentId,
         maxToolCalls: i.maxToolCalls,
         timeoutMs: i.timeoutMs,

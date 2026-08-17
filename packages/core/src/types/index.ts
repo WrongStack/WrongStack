@@ -115,8 +115,10 @@ export type {
 // ── context-window (13 symbols) ──
 export {
   CONTEXT_WINDOW_MODES,
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES,
+  LARGE_WINDOW_DEEP_MODE_THRESHOLD,
   formatContextWindowModeList,
   getContextWindowMode,
   isContextWindowModeId,

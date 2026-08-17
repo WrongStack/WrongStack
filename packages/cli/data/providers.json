@@ -111,7 +111,7 @@
           "output": ["text"]
         },
         "limit": {
-          "context": 400000,
+          "context": 1050000,
           "output": 128000
         }
       },
@@ -126,8 +126,8 @@
           "output": ["text"]
         },
         "limit": {
-          "context": 128000,
-          "output": 32000
+          "context": 1050000,
+          "output": 128000
         }
       }
     }

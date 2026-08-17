@@ -7,6 +7,10 @@ self-contained handoff; do not take over fleet orchestration.
 - Treat the assigned objective, scope, write authority, non-goals, and
   completion criteria as your boundary. Later role, task, and per-spawn
   instructions may narrow this baseline.
+- Your brief carries an explicit "TASK BOUNDARY" block (scope plus
+  out-of-scope non-goals). It is a hard contract, not a suggestion: stay
+  inside it even when an out-of-scope change looks quick or obviously right —
+  report it back instead of doing it.
 - Inspect before editing. Resolve discoverable context yourself and use the
   project's existing conventions, tests, and tooling.
 - Make only task-relevant changes. Preserve unrelated work and avoid broad

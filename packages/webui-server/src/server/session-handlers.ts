@@ -16,7 +16,12 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { loadTodosCheckpoint } from '@wrongstack/core/storage';
 import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
-import { DEFAULT_CONTEXT_WINDOW_MODE_ID, resolveContextWindowPolicy } from '@wrongstack/core/types';
+import {
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
+  DEFAULT_CONTEXT_WINDOW_MODE_ID,
+  isContextWindowModeId,
+  resolveContextWindowPolicy,
+} from '@wrongstack/core/types';
 import { repairToolUseAdjacency, sessionScopedPath } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { buildReplayPayload } from '../protocol/index.js';
@@ -471,8 +476,12 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         return;
       }
       const { id } = parsed.value;
-      let policy = resolveContextWindowPolicy({}, id);
-      if (policy.id !== id) {
+      let policy = resolveContextWindowPolicy({}, id, readSessionWindowTokens(ctx.context));
+      // A built-in id always resolves (a ≥1M window swaps the balanced default
+      // to Deep); only a NON-built-in id that failed to resolve can be a custom
+      // mode — without the guard, that swap would make "balanced" read as
+      // unknown on a 1M session.
+      if (!isContextWindowModeId(id) && policy.id !== id) {
         const customModes = (await modeStore())
           .list()
           .filter((m) => (m as { custom?: boolean }).custom === true);
@@ -485,6 +494,9 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }
       ctx.context.meta['contextWindowMode'] = policy.id;
       ctx.context.meta['contextWindowPolicy'] = policy;
+      // The user picked this policy for the session — later window changes
+      // (model switch) must not overwrite it.
+      ctx.context.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] = true;
       result(ws, true, `Context mode switched to ${policy.id}`);
       broadcastToAll({
         type: 'context.mode.changed',
@@ -550,11 +562,14 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }
       const { id } = parsed.value;
       if (String(ctx.context.meta['contextWindowMode'] ?? '') === id) {
-        ctx.context.meta['contextWindowMode'] = DEFAULT_CONTEXT_WINDOW_MODE_ID;
-        ctx.context.meta['contextWindowPolicy'] = resolveContextWindowPolicy(
+        const policy = resolveContextWindowPolicy(
           {},
           DEFAULT_CONTEXT_WINDOW_MODE_ID,
+          readSessionWindowTokens(ctx.context),
         );
+        ctx.context.meta['contextWindowMode'] = policy.id;
+        ctx.context.meta['contextWindowPolicy'] = policy;
+        delete ctx.context.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY];
       }
       const store = await modeStore();
       const operation = store.remove(id);
@@ -776,4 +791,16 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }
     },
   };
+}
+
+/**
+ * Live session window for policy resolution: the effective limit (probe /
+ * model-switch wiring writes it) first, the provider capability as fallback,
+ * 0 when unknown.
+ */
+function readSessionWindowTokens(context: Context): number {
+  const meta = context.meta?.['effectiveMaxContext'];
+  if (typeof meta === 'number' && Number.isFinite(meta) && meta > 0) return meta;
+  const cap = context.provider?.capabilities?.maxContext;
+  return typeof cap === 'number' && Number.isFinite(cap) && cap > 0 ? cap : 0;
 }

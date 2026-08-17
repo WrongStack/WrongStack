@@ -25,6 +25,10 @@ import type {
   SkillLoader,
 } from '@wrongstack/core/types';
 import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import {
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
+  resolveContextWindowPolicy,
+} from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import {
   createVaultBackedMcpAuthorizationProviderFactory,
@@ -269,6 +273,18 @@ export async function setupLifecycleAndPlugins(
       context.meta['effectiveMaxContext'] = effectiveMaxContextRef.current;
       autoCompactor?.setMaxContext(effectiveMaxContextRef.current);
       autoCompactor?.setEnabled(config.context.autoCompact !== false);
+      // Window changed (model switch): re-resolve the default policy so it
+      // stays scaled to the window (≥1M defaults to Deep, smaller back to
+      // Balanced). A policy the user pinned for this session is left alone.
+      if (context.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] !== true) {
+        const policy = resolveContextWindowPolicy(
+          config.context,
+          undefined,
+          effectiveMaxContextRef.current,
+        );
+        context.meta['contextWindowMode'] = policy.id;
+        context.meta['contextWindowPolicy'] = policy;
+      }
     } else {
       delete context.meta['effectiveMaxContext'];
       autoCompactor?.setEnabled(false);

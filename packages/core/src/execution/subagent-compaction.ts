@@ -34,7 +34,7 @@ export function installSubagentAutoCompaction(
   const maxContext = ctx.provider?.capabilities?.maxContext ?? 0;
   if (!(maxContext > 0)) return undefined;
 
-  const policy = resolveContextWindowPolicy(contextConfig ?? {});
+  const policy = resolveContextWindowPolicy(contextConfig ?? {}, undefined, maxContext);
   ctx.meta ??= {};
   // Publish the policy so the compactor (preserveK/eliseThreshold) and the
   // middleware's policyProvider + emergency-trim preserveK all read it.

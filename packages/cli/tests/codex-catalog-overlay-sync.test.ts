@@ -57,10 +57,14 @@ describe('openai-codex overlay ↔ core floor parity', () => {
     }
   });
 
-  it('declares the published GPT-5.6 context and output limits', () => {
+  it('declares the 1M context and 128k output limits for EVERY codex model', () => {
+    // The whole Codex lineup (sol/terra/luna, 5.5, 5.4, mini, spark) is treated
+    // as 1M-windowed — mirroring the published 1M-context configuration for
+    // these models. The live /codex/models probe remains the runtime guard that
+    // caps sessions to the window the backend actually enforces.
     const models = OVERLAY['openai-codex']?.models ?? {};
-    for (const id of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
-      expect(models[id]?.limit, id).toEqual({ context: 1_050_000, output: 128_000 });
+    for (const [id, model] of Object.entries(models)) {
+      expect(model.limit, id).toEqual({ context: 1_050_000, output: 128_000 });
     }
   });
 

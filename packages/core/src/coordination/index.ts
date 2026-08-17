@@ -550,6 +550,16 @@ export {
   startTechStackConsumer,
   type TechStackConsumerOptions,
 } from './techstack-mailbox-consumer.js';
+// Hard boundary contract enforced by `delegate` and `assign_task`: every
+// assignment must carry an explicit scope plus concrete out-of-scope
+// non-goals, composed into the canonical task brief.
+export {
+  composeBoundedTaskDescription,
+  type TaskBoundary,
+  parseTaskBoundary,
+  renderTaskBoundaryBlock,
+  taskBoundarySchemaProperties,
+} from './task-boundary.js';
 export {
   type FleetWorktreePolicy,
   resolveSubagentWorktreeDecision,

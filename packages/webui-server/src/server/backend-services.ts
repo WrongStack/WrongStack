@@ -74,6 +74,7 @@ import { TOKENS } from '@wrongstack/core/kernel';
 import { type AnnotationsStore, SessionMemoryConsolidator } from '@wrongstack/core/storage';
 import {
   type Config,
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   DEFAULT_TOOLS_CONFIG,
   type ProviderConfig,
   resolveContextWindowPolicy,
@@ -264,29 +265,34 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     llmSelector: config.context?.llmSelector,
   });
 
-  const initialContextPolicy = resolveContextWindowPolicy(config.context);
+  // Per-model catalog facts FIRST — mirrors the CLI's resolveRuntimeMaxContext
+  // chain. `config.context.effectiveMaxContext` is a single model-agnostic
+  // number; consulting it before the catalog pins every model to one window
+  // (a stale 128k there collapsed 1M-window models across the whole config).
+  // It stays as the fallback for models nothing published a window for.
+  let effectiveMaxContext = 0;
+  try {
+    const m = await resolveProviderModelMetadata(
+      modelsRegistry,
+      config.provider,
+      context.model,
+      config.providers?.[config.provider],
+    );
+    effectiveMaxContext = m?.capabilities?.maxContext ?? 0;
+  } catch {
+    // best-effort: fall through to the configured value / provider capability
+  }
+  if (!effectiveMaxContext) effectiveMaxContext = config.context?.effectiveMaxContext ?? 0;
+  if (!effectiveMaxContext) effectiveMaxContext = provider.capabilities.maxContext;
+
+  const initialContextPolicy = resolveContextWindowPolicy(
+    config.context,
+    undefined,
+    effectiveMaxContext,
+  );
   // Auto-compaction
   let autoCompactor: AutoCompactionMiddleware | undefined;
   if (config.context?.autoCompact !== false) {
-    // Per-model catalog facts FIRST — mirrors the CLI's resolveRuntimeMaxContext
-    // chain. `config.context.effectiveMaxContext` is a single model-agnostic
-    // number; consulting it before the catalog pins every model to one window
-    // (a stale 128k there collapsed 1M-window models across the whole config).
-    // It stays as the fallback for models nothing published a window for.
-    let effectiveMaxContext = 0;
-    try {
-      const m = await resolveProviderModelMetadata(
-        modelsRegistry,
-        config.provider,
-        context.model,
-        config.providers?.[config.provider],
-      );
-      effectiveMaxContext = m?.capabilities?.maxContext ?? 0;
-    } catch {
-      // best-effort: fall through to the configured value / provider capability
-    }
-    if (!effectiveMaxContext) effectiveMaxContext = config.context?.effectiveMaxContext ?? 0;
-    if (!effectiveMaxContext) effectiveMaxContext = provider.capabilities.maxContext;
     autoCompactor = new AutoCompactionMiddlewareCtor(
       compactor,
       effectiveMaxContext,
@@ -355,6 +361,18 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       context.meta['effectiveMaxContext'] = newMaxContext;
       autoCompactor?.setMaxContext(newMaxContext);
       autoCompactor?.setEnabled(config.context?.autoCompact !== false);
+      // Window changed (model switch): re-resolve the default policy so it
+      // stays scaled to the window (≥1M defaults to Deep, smaller back to
+      // Balanced). A policy the user pinned for this session is left alone.
+      if (context.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] !== true) {
+        const policy = resolveContextWindowPolicy(
+          currentConfig.context ?? {},
+          undefined,
+          newMaxContext,
+        );
+        context.meta['contextWindowMode'] = policy.id;
+        context.meta['contextWindowPolicy'] = policy;
+      }
     } else {
       delete context.meta['effectiveMaxContext'];
       autoCompactor?.setEnabled(false);

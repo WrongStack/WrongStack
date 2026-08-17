@@ -39,6 +39,37 @@ function fakeRegistry(): ModelsRegistry {
 
 const provider = { capabilities: { maxContext: 200_000 } } as never as Provider;
 
+/**
+ * Registry where the OAuth family IS published under its own id — the shape of
+ * openai-codex once the curated overlay (packages/cli/data/providers.json) is
+ * merged into the registry. The own entry must outrank the sibling even when
+ * the sibling lists a SMALLER window for the same model (models.dev `openai`
+ * lagging the overlay's 1M declarations).
+ */
+function overlayRegistry(): ModelsRegistry {
+  const catalog: Record<string, Record<string, number>> = {
+    'openai-codex': { 'gpt-5.4-mini': 1_050_000 },
+    openai: { 'gpt-5.4-mini': 400_000 },
+  };
+  return {
+    async getProvider(id: string) {
+      const models = catalog[id];
+      if (!models) return undefined;
+      return {
+        family: id,
+        models: Object.entries(models).map(([mid, context]) => ({ id: mid, limit: { context } })),
+      };
+    },
+    async getModel(providerId: string, modelId: string) {
+      const max = catalog[providerId]?.[modelId];
+      if (!max) return undefined;
+      return {
+        capabilities: { maxContext: max, tools: true, vision: true, reasoning: false },
+      };
+    },
+  } as never as ModelsRegistry;
+}
+
 describe('resolveRuntimeMaxContext — OAuth sibling-catalog resolution', () => {
   it('resolves Opus 4.8 via anthropic-oauth to the real 1M window (not the 200k family default)', async () => {
     const max = await resolveRuntimeMaxContext({
@@ -77,6 +108,27 @@ describe('resolveRuntimeMaxContext — OAuth sibling-catalog resolution', () => 
       modelId: 'gpt-5.5',
     });
     expect(max).toBe(1_050_000);
+  });
+
+  it('prefers the own published entry over the sibling catalog (overlay 1M beats a stale sibling 400k)', async () => {
+    const result = await resolveRuntimeMaxContextDetailed({
+      modelsRegistry: overlayRegistry(),
+      config: {
+        provider: 'openai-codex',
+        model: 'gpt-5.4-mini',
+        providers: {
+          'openai-codex': {
+            type: 'openai-codex',
+            family: 'openai-codex',
+            models: ['gpt-5.4-mini'],
+          },
+        },
+      },
+      provider,
+      providerId: 'openai-codex',
+      modelId: 'gpt-5.4-mini',
+    });
+    expect(result).toEqual({ maxContext: 1_050_000, branch: 'catalog-capabilities' });
   });
 
   it('resolves github-copilot gpt-4o via the openai catalog, ignoring the proxy baseUrl', async () => {

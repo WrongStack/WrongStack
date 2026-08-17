@@ -189,11 +189,63 @@ describe('makeSpawnTool', () => {
 describe('task/ask tools', () => {
   it('assign_task creates a task', async () => {
     const res = await makeAssignTool(asDir()).execute(
-      { subagentId: 's1', description: 'do it' },
+      {
+        subagentId: 's1',
+        description: 'do it',
+        scope: 'Fix the flaky login test in packages/core/tests/login.test.ts.',
+        outOfScope: ['Do not touch unrelated tests', 'No dependency changes'],
+      },
       {} as never,
       {} as never,
     );
     expect(res).toMatchObject({ taskId: 'task-1', subagentId: 's1' });
+    // The boundary is composed into the canonical brief the worker receives.
+    const spec = (director.assign as ReturnType<typeof vi.fn>).mock.calls[0]![0] as {
+      description: string;
+    };
+    expect(spec.description).toContain('do it');
+    expect(spec.description).toContain('TASK BOUNDARY');
+    expect(spec.description).toContain('Scope (what this task covers):');
+    expect(spec.description).toContain('- Do not touch unrelated tests');
+  });
+
+  it('assign_task requires an explicit scope', async () => {
+    const res = (await makeAssignTool(asDir()).execute(
+      { subagentId: 's1', description: 'do it', outOfScope: ['No edits'] },
+      {} as never,
+      {} as never,
+    )) as { ok?: boolean; error?: string; hint?: string };
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/boundary incomplete[\s\S]*scope/);
+    expect(res.hint).toBeTruthy();
+    expect(director.assign).not.toHaveBeenCalled();
+  });
+
+  it('assign_task rejects placeholder outOfScope entries', async () => {
+    const res = (await makeAssignTool(asDir()).execute(
+      {
+        subagentId: 's1',
+        description: 'do it',
+        scope: 'Fix the flaky login test in packages/core/tests/login.test.ts.',
+        outOfScope: ['none', 'n/a'],
+      },
+      {} as never,
+      {} as never,
+    )) as { ok?: boolean; error?: string };
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/placeholder/);
+    expect(director.assign).not.toHaveBeenCalled();
+  });
+
+  it('assign_task schema makes the boundary fields required', () => {
+    const schema = makeAssignTool(asDir()).inputSchema as {
+      required?: string[];
+      properties?: Record<string, { type?: string }>;
+    };
+    expect(schema.required).toEqual(
+      expect.arrayContaining(['subagentId', 'description', 'scope', 'outOfScope']),
+    );
+    expect(schema.properties?.['outOfScope']?.type).toBe('array');
   });
 
   it('await_tasks returns results (default all-mode unchanged)', async () => {

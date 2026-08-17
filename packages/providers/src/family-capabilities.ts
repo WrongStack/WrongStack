@@ -114,7 +114,10 @@ export const CAPABILITIES_BY_FAMILY: Record<WireFamily, Capabilities> = {
     systemPrompt: true,
     jsonMode: false,
     reasoning: true,
-    maxContext: 272_000,
+    // Every published Codex model is 1M-windowed (keep in step with the
+    // openai-codex block in packages/cli/data/providers.json); the live
+    // /codex/models probe caps sessions to the window the backend enforces.
+    maxContext: 1_050_000,
     cacheControl: 'auto',
     topK: false,
     frequencyPenalty: false,
