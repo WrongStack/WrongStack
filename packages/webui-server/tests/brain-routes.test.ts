@@ -1,8 +1,12 @@
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { WebSocket } from 'ws';
 import { describe, expect, it, vi } from 'vitest';
-import { handleBrainRoute, type BrainRouteHandlers } from '@wrongstack/webui-server';
-import type { WSClientMessage } from '@wrongstack/webui-server';
+import {
+  handleBrainRoute,
+  type BrainRouteHandlers,
+  type WSClientMessage,
+  type WSServerMessage,
+} from '@wrongstack/webui-server';
 import { handleBrainAsk, type BrainHandlerContext } from '../src/server/brain-handlers.js';
 
 function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
@@ -67,7 +71,8 @@ describe('handleBrainAsk payload shape', () => {
       decide: vi.fn(async () => decision),
     } as never as BrainArbiter;
     return {
-      send: (target, message) => target.send(JSON.stringify(message)),
+      send: (target: WebSocket, message: WSServerMessage) =>
+        target.send(JSON.stringify(message)),
       brainSettings: undefined,
       getBrainLog: undefined,
       resolveArbiter: () => arbiter,

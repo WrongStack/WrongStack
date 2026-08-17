@@ -33,7 +33,7 @@ describe('isActiveSessionMessage', () => {
   it('returns true when sessionId matches the active session', async () => {
     const { useSessionStore } = await import('../../src/stores/session-store');
     useSessionStore.setState({
-      session: { id: 'sess-1', label: 'Test', startTime: Date.now() },
+      session: { id: 'sess-1', startedAt: Date.now(), provider: 'test', model: 'test-model' },
     });
 
     const msg = {
@@ -46,7 +46,7 @@ describe('isActiveSessionMessage', () => {
   it('returns false when sessionId does not match', async () => {
     const { useSessionStore } = await import('../../src/stores/session-store');
     useSessionStore.setState({
-      session: { id: 'sess-active', label: 'Active', startTime: Date.now() },
+      session: { id: 'sess-active', startedAt: Date.now(), provider: 'test', model: 'test-model' },
     });
 
     const msg = {
@@ -63,7 +63,7 @@ describe('isActiveSessionMessage', () => {
   it('returns false when sessionId is present but empty', async () => {
     const { useSessionStore } = await import('../../src/stores/session-store');
     useSessionStore.setState({
-      session: { id: 'sess-active', label: 'Active', startTime: Date.now() },
+      session: { id: 'sess-active', startedAt: Date.now(), provider: 'test', model: 'test-model' },
     });
 
     const msg = {
