@@ -19,8 +19,8 @@
       "runtimeOrMixed": 8
     },
     "@wrongstack/core/coordination": {
-      "files": 180,
-      "typeOnly": 77,
+      "files": 181,
+      "typeOnly": 78,
       "runtimeOrMixed": 153
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -3143,6 +3143,12 @@
       "file": "packages/webui-server/src/server/start-webui.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/tests/brain-routes.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",

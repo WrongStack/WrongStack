@@ -207,9 +207,19 @@ export async function handleBrainAsk(
       risk: 'medium',
       fallback: 'ask_human',
     });
+    const answerSessionId = ctx.getSessionId?.();
     ctx.send(ws, {
       type: 'brain.answer',
-      payload: { sessionId: ctx.getSessionId?.(), question: q, decision },
+      // Omit sessionId when there is no session: this is a direct reply to
+      // the asker, not a broadcast, but the client's session gate
+      // (isActiveSessionMessage) is fail-closed on a present-but-empty
+      // sessionId — stamping '' would hide the answer from its own asker
+      // in an embedded host with an unbound agent context.
+      payload: {
+        ...(answerSessionId ? { sessionId: answerSessionId } : {}),
+        question: q,
+        decision,
+      },
     });
   } catch (err) {
     sendResult(ctx, ws, false, `Brain consultation failed: ${toErrorMessage(err)}`);

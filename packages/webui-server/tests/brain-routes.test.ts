@@ -1,7 +1,9 @@
+import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { WebSocket } from 'ws';
 import { describe, expect, it, vi } from 'vitest';
 import { handleBrainRoute, type BrainRouteHandlers } from '@wrongstack/webui-server';
 import type { WSClientMessage } from '@wrongstack/webui-server';
+import { handleBrainAsk, type BrainHandlerContext } from '../src/server/brain-handlers.js';
 
 function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
   return { readyState: 1, send: vi.fn() } as never as WebSocket & { send: ReturnType<typeof vi.fn> };
@@ -55,5 +57,50 @@ describe('handleBrainRoute', () => {
 
     expect(h.ask).toHaveBeenCalledWith(ws, msg);
     expect(sentMessages(ws)).toEqual([]);
+  });
+});
+
+describe('handleBrainAsk payload shape', () => {
+  function makeCtx(getSessionId: () => string | undefined): BrainHandlerContext {
+    const decision = { type: 'proceed', text: 'ok' };
+    const arbiter = {
+      decide: vi.fn(async () => decision),
+    } as never as BrainArbiter;
+    return {
+      send: (target, message) => target.send(JSON.stringify(message)),
+      brainSettings: undefined,
+      getBrainLog: undefined,
+      resolveArbiter: () => arbiter,
+      getSessionId,
+    } as never as BrainHandlerContext;
+  }
+
+  function findBrainAnswer(ws: { send: ReturnType<typeof vi.fn> }):
+    | { payload?: Record<string, unknown> }
+    | undefined {
+    return sentMessages(ws).find(
+      (message) => (message as { type?: string }).type === 'brain.answer',
+    ) as { payload?: Record<string, unknown> } | undefined;
+  }
+
+  // Key-omission must be pinned by key presence, not value: toEqual cannot
+  // distinguish an absent sessionId from one explicitly set to '' — and ''
+  // is precisely the regression being guarded against (the client's
+  // isActiveSessionMessage gate is fail-closed on present-but-empty).
+  it('omits the sessionId key when getSessionId returns empty', async () => {
+    const ws = mockWs();
+    await handleBrainAsk(makeCtx(() => ''), ws, 'What next?');
+    const answer = findBrainAnswer(ws);
+    expect(answer).toBeDefined();
+    expect(Object.prototype.hasOwnProperty.call(answer?.payload, 'sessionId')).toBe(false);
+  });
+
+  it('stamps sessionId when a session is bound', async () => {
+    const ws = mockWs();
+    await handleBrainAsk(makeCtx(() => 'sess-1'), ws, 'What next?');
+    const answer = findBrainAnswer(ws);
+    expect(answer).toBeDefined();
+    expect(Object.prototype.hasOwnProperty.call(answer?.payload, 'sessionId')).toBe(true);
+    expect(answer?.payload?.['sessionId']).toBe('sess-1');
   });
 });
