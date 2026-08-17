@@ -86,7 +86,7 @@ describe('createPromptJournalRecorder', () => {
       expect(result).toBe(payload);
       expect(next).toHaveBeenCalledWith(payload);
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 
@@ -116,7 +116,7 @@ describe('createPromptJournalRecorder', () => {
       expect(raw?.metadata.provider).toBe('google');
       expect(raw?.metadata.activeTools).toEqual(['read', 'edit', 'bash']);
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 
@@ -142,7 +142,7 @@ describe('createPromptJournalRecorder', () => {
       // The marker is consumed so a later turn is not mislabeled.
       expect(payload.ctx.meta).not.toHaveProperty(PROMPT_JOURNAL_RAW_MARKER);
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 
@@ -171,7 +171,7 @@ describe('createPromptJournalRecorder', () => {
       expect(system[0]?.sessionId).toBe('sess_sys');
       expect(entries.filter((e) => e.category === 'raw_user')).toHaveLength(2);
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 
@@ -185,7 +185,7 @@ describe('createPromptJournalRecorder', () => {
       const files = await fs.readdir(tempDir);
       expect(files).toEqual([]);
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 });
@@ -235,7 +235,7 @@ describe('createPromptJournalToolCallRecorder', () => {
       expect(entry?.metadata.decisionReason).toBe('index performance trade-off');
       expect(entry?.metadata.activeTools).toEqual(['read', 'write']);
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 
@@ -260,7 +260,7 @@ describe('createPromptJournalToolCallRecorder', () => {
       expect(entry?.metadata.decisionReason).toBe('delegated to bug-hunter');
       expect(entry?.sessionId).toBe('sess-1');
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 
@@ -282,7 +282,7 @@ describe('createPromptJournalToolCallRecorder', () => {
       expect(entry).toBeDefined();
       expect(entry?.content).toContain('continue to the next iteration');
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 
@@ -300,7 +300,7 @@ describe('createPromptJournalToolCallRecorder', () => {
       );
       expect(entries).toEqual([]);
     } finally {
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await fs.rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   });
 });
