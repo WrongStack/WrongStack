@@ -18,7 +18,7 @@ import type {
   WSCollabPauseReleased,
   WSCollabState,
 } from './collab.js';
-import type { ConnectionsHealthReport, ServiceActionResult } from './connections.js';
+import type { AutoHealStatusEvent, ConnectionsHealthReport, ServiceActionResult } from './connections.js';
 import type {
   WSAgentStatusChanged,
   WSAgentTimelineMessage,
@@ -221,6 +221,7 @@ export type WSServerMessage =
   | { type: 'connections.health_result'; payload: ConnectionsHealthReport }
   | { type: 'connections.health_error'; payload: { message: string } }
   | { type: 'connections.service_action_result'; payload: ServiceActionResult }
+  | { type: 'connections.auto_heal_status'; payload: AutoHealStatusEvent }
   | { type: 'chronicle.status_result'; payload: ChronicleStatus }
   | { type: 'chronicle.query_result'; payload: ChronicleQueryResult }
   | {

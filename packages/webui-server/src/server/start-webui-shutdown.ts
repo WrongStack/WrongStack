@@ -15,7 +15,7 @@ export function setupWebuiShutdown(options: {
   wssPrimary: WebSocketServer;
   wssSecondary?: WebSocketServer | null | undefined;
   stopEmptySessionCleanup: { dispose: () => Promise<void> };
-  getKanbanSupervisorDispose: () => (() => void) | null;
+  getKanbanSupervisorDispose: () => (() => void | Promise<void>) | null;
   todosCheckpoint: { detach: () => Promise<void> };
   stopHeapWatchdog: () => Promise<void>;
   getCredentialWatcherClose: () => (() => void) | undefined;
@@ -60,7 +60,7 @@ export function setupWebuiShutdown(options: {
     onPreShutdown: async () => {
       await options.stopEmptySessionCleanup.dispose();
       const disposeKanban = options.getKanbanSupervisorDispose();
-      disposeKanban?.();
+      await disposeKanban?.();
     },
     onShutdown: async () => {
       unregister();

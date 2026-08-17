@@ -1,7 +1,8 @@
 import { EventEmitter } from 'node:events';
 import type { Server } from 'node:http';
+import * as net from 'node:net';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   resolveDistDir,
   type StaticServeHandle,
@@ -70,12 +71,45 @@ describe('resolveDistDir', () => {
   });
 });
 
+/**
+ * Bind port 0 on `host`, read the OS-assigned port, then release it — a
+ * reserve-and-release cycle that yields a port the OS just confirmed free.
+ *
+ * The suite cannot hard-code 3456: `listenWithRetry` probes the port with a
+ * REAL throwaway socket before calling the mocked `listen`, so when a live
+ * WebUI (or any other listener) holds the default port on a dev machine, the
+ * probe sees EADDRINUSE and advances one port up — the fake's `listenCalls`
+ * then disagree with the hard-coded assertion. A verified-free ephemeral
+ * port keeps the real probe in the tested path (which is the point of these
+ * wiring tests) while removing the dependency on machine state.
+ */
+async function reserveFreePort(host: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.once('error', reject);
+    srv.listen(0, host, () => {
+      const address = srv.address();
+      const port = address && typeof address === 'object' ? address.port : null;
+      srv.close(() => {
+        if (port === null) reject(new Error('no port assigned by listen(0)'));
+        else resolve(port);
+      });
+    });
+  });
+}
+
 describe('startStaticServe', () => {
   const baseOpts = {
     host: '127.0.0.1',
-    httpPort: 3456,
+    // Replaced in beforeAll with a verified-free port; every port assertion
+    // in this suite reads it dynamically.
+    httpPort: 0,
     globalRoot: '/tmp/.wrongstack',
   };
+
+  beforeAll(async () => {
+    baseOpts.httpPort = await reserveFreePort(baseOpts.host);
+  });
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -106,23 +140,24 @@ describe('startStaticServe', () => {
     expect(createServer).toHaveBeenCalledWith(
       expect.objectContaining({
         host: '127.0.0.1',
-        port: 3456,
+        port: baseOpts.httpPort,
         distDir: '/resolved/dist',
         globalRoot: '/tmp/.wrongstack',
       }),
     );
     // Binds the *http* port, not the ws port.
-    expect(fake.listenCalls).toEqual([[3456, '127.0.0.1']]);
+    expect(fake.listenCalls).toEqual([[baseOpts.httpPort, '127.0.0.1']]);
     // Returns the requested http port (see function doc).
-    expect(handle.port).toBe(3456);
+    expect(handle.port).toBe(baseOpts.httpPort);
     expect(handle.server).toBe(fake);
   });
 
   it('propagates the actually-bound port when the bind advances past a busy port', async () => {
     const fake = new FakeServer();
-    // Simulate the TOCTOU race the safety net exists for: 3456 was
-    // requested, a competitor holds it, and the OS really binds 3457.
-    fake.boundPort = 3457;
+    // Simulate the TOCTOU race the safety net exists for: the requested
+    // port was probed free, a competitor takes it in the window, and the
+    // OS really binds one port higher.
+    fake.boundPort = baseOpts.httpPort + 1;
     const createServer = vi.fn(() => fake as never as Server);
 
     const handle = (await startStaticServe(baseOpts, {
@@ -132,11 +167,11 @@ describe('startStaticServe', () => {
 
     expect(handle).not.toBeNull();
     // The requested port was attempted on the right host…
-    expect(fake.listenCalls).toEqual([[3456, '127.0.0.1']]);
+    expect(fake.listenCalls).toEqual([[baseOpts.httpPort, '127.0.0.1']]);
     // …but the handle must expose the port the socket actually bound —
     // access URLs, the instance registry, and the ready banner all
     // consume handle.port downstream.
-    expect(handle.port).toBe(3457);
+    expect(handle.port).toBe(baseOpts.httpPort + 1);
   });
 
   it('threads an explicit frontend directory through the resolver', async () => {
@@ -171,7 +206,7 @@ describe('startStaticServe', () => {
     expect(createServer).toHaveBeenCalledWith(
       expect.objectContaining({
         host: '127.0.0.1',
-        port: 3456,
+        port: baseOpts.httpPort,
         distDir: '/resolved/dist',
         globalRoot: '/tmp/.wrongstack',
         apiToken: 'test-token-123',
@@ -199,7 +234,7 @@ describe('startStaticServe', () => {
     expect(createServer).toHaveBeenCalledWith(
       expect.objectContaining({
         host: '127.0.0.1',
-        port: 3456,
+        port: baseOpts.httpPort,
         distDir: '/resolved/dist',
         globalRoot: '/tmp/.wrongstack',
         publicWsUrl: 'wss://wrongstack-ws.example.com',

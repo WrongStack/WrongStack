@@ -76,7 +76,8 @@
       }
     },
     "serviceActionRestart": "Yeniden başlat {{label}}",
-    "webuiTransport": "WebUI taşıması"
+    "webuiTransport": "WebUI taşıması",
+    "serviceAutoRestarting": "Otomatik yeniden başlatılıyor…"
   },
   "provider": {
     "subscriptionHeading": "Abonelik girişi",

@@ -36,6 +36,7 @@ export const SERVER_WORKSPACE_MESSAGE_TYPES = [
 export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'auth.oauth.status',
   'codebase.index.server.shutdown_result',
+  'connections.auto_heal_status',
   'connections.health_error',
   'connections.health_result',
   'connections.service_action_result',

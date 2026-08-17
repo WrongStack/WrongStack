@@ -14,7 +14,7 @@ import {
   TriangleAlert,
   Wifi,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,6 @@ import { useConfigStore } from '@/stores';
 import type {
   ConnectionHealthService,
   ConnectionsHealthReport,
-  ServiceActionResult,
   WSServerMessage,
 } from '@/types';
 import { Button } from '../ui/button';
@@ -38,8 +37,16 @@ export function ConnectionsHealthSection() {
   const [error, setError] = useState<string | null>(null);
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
   const [actionFeedback, setActionFeedback] = useState<
-    Record<string, { success: boolean; message: string } | null>
+    Record<string, { success: boolean; message: string; tone?: 'success' | 'destructive' | 'neutral' } | null>
   >({});
+  const [autoHealing, setAutoHealing] = useState<Set<string>>(new Set());
+  // Per-service feedback timers, cleared on unmount — a `client.on` handler's
+  // return value is the unsubscribe, not a cleanup, so timers created inside
+  // handlers must be tracked explicitly. Keyed by serviceId so a newer event
+  // for the same service cancels the previous 5s clear instead of racing it.
+  // ReturnType<typeof setTimeout> is realm-agnostic (browser number vs Node
+  // Timeout), which matters because vitest's jsdom project swaps globals.
+  const feedbackTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const refresh = useCallback(() => {
     if (!wsConnected || !client) {
@@ -57,6 +64,30 @@ export function ConnectionsHealthSection() {
     client.send({ type: 'connections.health' });
   }, [client, t, wsConnected]);
 
+  // Stable indirection: the subscription effect below must not tear down and
+  // re-register every WS handler when `wsConnected` or the locale flips —
+  // `refresh` self-guards both conditions internally.
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
+  // Connection-state trigger: the stable-subscription effect above no longer
+  // re-runs on `wsConnected` flips, so without this the panel would keep the
+  // stale state until the next 15s tick — a stale healthy report after a
+  // disconnect, and a stale "disconnected" error (with an empty service list)
+  // after a reconnect. `refresh` self-guards both conditions internally.
+  useEffect(() => {
+    refreshRef.current();
+  }, [wsConnected]);
+
+  const clearFeedbackTimer = (serviceId: string): void => {
+    const timers = feedbackTimersRef.current;
+    const prior = timers.get(serviceId);
+    if (prior !== undefined) {
+      clearTimeout(prior);
+      timers.delete(serviceId);
+    }
+  };
+
   const handleServiceAction = useCallback(
     (serviceId: string, action: 'shutdown' | 'restart') => {
       if (!client || !wsConnected) return;
@@ -69,52 +100,130 @@ export function ConnectionsHealthSection() {
 
   useEffect(() => {
     if (!client) return;
-    const offResult = client.on('connections.health_result', (message: WSServerMessage) => {
+    const offResult = client.on('connections.health_result', (message) => {
       if (message.type !== 'connections.health_result') return;
-      setReport(message.payload);
+      const report = message.payload;
+      setReport(report);
       setLoading(false);
       setError(null);
+      // Self-heal the auto-restarting badge: if the terminal auto-heal event
+      // was missed (dropped frame, reconnect), a fresh report showing the
+      // service actually serving again is the ground truth — a stuck badge
+      // would otherwise persist for the lifetime of the panel.
+      // Only healthy/degraded clear it: `offline` is what the collector
+      // reports for codebase-index/sage/mailbox while their daemon is DOWN
+      // MID-RESTART, so trusting it would clear the badge and re-enable the
+      // manual restart button while the auto-healer is still working
+      // (manual restart could then race the heal). A concluded-but-failed
+      // heal is cleared by its own terminal auto_heal_status event.
+      setAutoHealing((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Set(prev);
+        for (const service of report.services) {
+          if (
+            next.has(service.id) &&
+            (service.status === 'healthy' || service.status === 'degraded')
+          ) {
+            next.delete(service.id);
+          }
+        }
+        return next;
+      });
     });
     const offError = client.on('connections.health_error', (message: WSServerMessage) => {
       if (message.type !== 'connections.health_error') return;
       setLoading(false);
       setError(message.payload.message);
     });
-    const offActionResult = client.on(
-      'connections.service_action_result',
-      (message: WSServerMessage) => {
-        if (message.type !== 'connections.service_action_result') return;
-        const result = message.payload as ServiceActionResult;
-        setPendingActions((prev) => {
-          const next = new Set(prev);
-          next.delete(result.serviceId ?? '');
-          return next;
-        });
-        setActionFeedback((prev) => ({
-          ...prev,
-          [result.serviceId ?? '']: { success: result.success, message: result.message },
-        }));
-        // Auto-clear feedback after 5s
-        const timer = window.setTimeout(() => {
-          setActionFeedback((prev) => ({
-            ...prev,
-            [result.serviceId ?? '']: null,
-          }));
-        }, 5_000);
-        // Auto-refresh health after action
-        void refresh();
-        return () => window.clearTimeout(timer);
-      },
-    );
-    refresh();
-    const timer = window.setInterval(refresh, REFRESH_INTERVAL_MS);
+    const offActionResult = client.on('connections.service_action_result', (message) => {
+      if (message.type !== 'connections.service_action_result') return;
+      const result = message.payload;
+      // Guard the phantom '' key: a malformed result with no serviceId must
+      // not write a stray feedback row that no ServiceCard ever renders.
+      const serviceId = result.serviceId;
+      if (!serviceId) return;
+      setPendingActions((prev) => {
+        const next = new Set(prev);
+        next.delete(serviceId);
+        return next;
+      });
+      setActionFeedback((prev) => ({
+        ...prev,
+        [serviceId]: { success: result.success, message: result.message },
+      }));
+      // Auto-clear feedback after 5s. Keyed per service and cancels any
+      // prior clear so a newer event for the same service is never wiped
+      // early by an older timer.
+      clearFeedbackTimer(serviceId);
+      feedbackTimersRef.current.set(
+        serviceId,
+        setTimeout(() => {
+          setActionFeedback((prev) => ({ ...prev, [serviceId]: null }));
+          feedbackTimersRef.current.delete(serviceId);
+        }, 5_000),
+      );
+      // Auto-refresh health after action
+      void refreshRef.current();
+    });
+    const offAutoHealStatus = client.on('connections.auto_heal_status', (message) => {
+      if (message.type !== 'connections.auto_heal_status') return;
+      const event = message.payload;
+      const serviceId = event.serviceId;
+      if (!serviceId) return;
+      if (event.phase === 'restarting') {
+        // A new attempt supersedes any prior terminal feedback: cancel its
+        // pending clear and drop the row, or the stale timer would wipe the
+        // feedback while this heal is still running.
+        clearFeedbackTimer(serviceId);
+        setActionFeedback((prev) => ({ ...prev, [serviceId]: null }));
+        // Show the "auto-restarting…" badge while the daemon is being healed.
+        setAutoHealing((prev) => new Set(prev).add(serviceId));
+        return;
+      }
+      // Terminal phase — clear the badge, surface the outcome, refresh health.
+      setAutoHealing((prev) => {
+        const next = new Set(prev);
+        next.delete(serviceId);
+        return next;
+      });
+      setActionFeedback((prev) => ({
+        ...prev,
+        [serviceId]: {
+          success: event.phase === 'restarted',
+          // A policy refusal is not a failure of the daemon — render neutral.
+          tone: event.phase === 'refused' ? 'neutral' : undefined,
+          message: event.message,
+        },
+      }));
+      clearFeedbackTimer(serviceId);
+      feedbackTimersRef.current.set(
+        serviceId,
+        setTimeout(() => {
+          setActionFeedback((prev) => ({ ...prev, [serviceId]: null }));
+          feedbackTimersRef.current.delete(serviceId);
+        }, 5_000),
+      );
+      void refreshRef.current();
+    });
+    refreshRef.current();
+    const timer = setInterval(() => refreshRef.current(), REFRESH_INTERVAL_MS);
     return () => {
-      window.clearInterval(timer);
+      clearInterval(timer);
+      for (const t of feedbackTimersRef.current.values()) clearTimeout(t);
+      feedbackTimersRef.current.clear();
+      // Reset in-flight state tied to THIS client: when the effect tears down
+      // on a client replacement, a stale `autoHealing` badge or `pendingActions`
+      // entry would otherwise strand forever (phantom badge, permanently
+      // disabled button) — the new connection carries no such knowledge.
+      // On unmount this is a harmless no-op.
+      setAutoHealing(new Set());
+      setPendingActions(new Set());
       offResult();
       offError();
       offActionResult();
+      offAutoHealStatus();
     };
-  }, [client, refresh]);
+  }, [client]);
 
   const services = useMemo<ConnectionHealthService[]>(() => {
     if (report) return report.services;
@@ -200,6 +309,7 @@ export function ConnectionsHealthSection() {
             service={service}
             onAction={handleServiceAction}
             actionPending={pendingActions.has(service.id)}
+            autoRestarting={autoHealing.has(service.id)}
             feedback={actionFeedback[service.id] ?? undefined}
           />
         ))}
@@ -213,12 +323,18 @@ function ServiceCard({
   service,
   onAction,
   actionPending,
+  autoRestarting,
   feedback,
 }: {
   service: ConnectionHealthService;
   onAction?: (serviceId: string, action: 'shutdown' | 'restart') => void;
   actionPending?: boolean;
-  feedback?: { success: boolean; message: string } | undefined;
+  autoRestarting?: boolean;
+  feedback?: {
+    success: boolean;
+    message: string;
+    tone?: 'success' | 'destructive' | 'neutral' | undefined;
+  } | undefined;
 }) {
   const { t } = useAppTranslation();
   const isWebui = service.id === 'webui';
@@ -301,7 +417,7 @@ function ServiceCard({
             <Button
               variant="outline"
               size="sm"
-              disabled={actionPending}
+              disabled={actionPending || autoRestarting}
               onClick={() => onAction(service.id, 'restart')}
               className="h-7 px-2 text-[10px]"
               title={
@@ -311,8 +427,24 @@ function ServiceCard({
                 }) as string
               }
             >
-              <RotateCcw className={cn('h-3 w-3', actionPending && 'animate-spin')} />
+              <RotateCcw
+                className={cn('h-3 w-3', (actionPending || autoRestarting) && 'animate-spin')}
+              />
             </Button>
+          )}
+          {autoRestarting && (
+            <span
+              className="flex shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary"
+              data-testid="auto-restarting-badge"
+              title={t('settings:connection.serviceAutoRestarting', {
+                defaultValue: 'Auto-restarting…',
+              })}
+            >
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              {t('settings:connection.serviceAutoRestarting', {
+                defaultValue: 'Auto-restarting…',
+              })}
+            </span>
           )}
           <StatusBadge status={service.status} />
         </div>
@@ -322,9 +454,11 @@ function ServiceCard({
         <div
           className={cn(
             'mt-2 rounded px-2 py-1 text-[10px]',
-            feedback.success
-              ? 'border border-success/30 bg-success/10 text-success'
-              : 'border border-destructive/30 bg-destructive/10 text-destructive',
+            feedback.tone === 'neutral'
+              ? 'border border-border bg-muted text-muted-foreground'
+              : feedback.success
+                ? 'border border-success/30 bg-success/10 text-success'
+                : 'border border-destructive/30 bg-destructive/10 text-destructive',
           )}
         >
           {feedback.message}

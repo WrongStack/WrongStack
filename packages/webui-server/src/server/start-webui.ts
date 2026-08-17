@@ -739,7 +739,7 @@ export async function startWebUI(
     logger,
   });
 
-  let kanbanSupervisorDispose: (() => void) | null = null;
+  let kanbanSupervisorDispose: (() => void | Promise<void>) | null = null;
   const handleMessage = createMessageDispatcher({
     state,
     deps,

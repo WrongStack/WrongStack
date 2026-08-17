@@ -41,3 +41,20 @@ export interface ServiceActionResult {
   success: boolean;
   message: string;
 }
+
+/** Server→client auto-heal visibility event (`connections.auto_heal_status`). */
+export type AutoHealStatusPhase =
+  | 'restarting'
+  | 'restarted'
+  | 'failed'
+  | 'escalated'
+  | 'refused';
+
+export interface AutoHealStatusEvent {
+  serviceId: ConnectionHealthService['id'] | null;
+  phase: AutoHealStatusPhase;
+  message: string;
+  at: number;
+  /** 1-based attempt number within the current failure streak. */
+  attempt: number;
+}

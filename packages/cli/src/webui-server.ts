@@ -435,6 +435,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   let signalShutdown: (() => void) | undefined;
   const shutdown = (): void => signalShutdown?.();
+  let embeddedAutoHealDispose: (() => void | Promise<void>) | null = null;
   const handleMessage = createEmbeddedMessageRouter({
     trustBoundary,
     opts,
@@ -444,6 +445,11 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     sessionPayload,
     currentSessionId,
     shutdown,
+    // Auto-heal watchdog disposer — `disposeResources` awaits it (bounded) so
+    // an in-flight daemon restart drains before the host exits.
+    onDispose: (dispose) => {
+      embeddedAutoHealDispose = dispose;
+    },
     providerCtx: wsHandlerCtx,
     brainCtx: routeContexts.brainCtx,
     introspectionCtx: routeContexts.introspectionCtx,
@@ -540,6 +546,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
     signalShutdown = createWebuiShutdown({
       abortInFlight: () => {
+        // First teardown step: stop the auto-heal watchdog's interval NOW so
+        // no new daemon restart begins while the shutdown sequence runs its
+        // child-kill sweep. dispose() stops the timer synchronously on its
+        // first line and is idempotent — disposeResources still awaits it to
+        // drain any restart already in flight.
+        void embeddedAutoHealDispose?.();
         if (abortController) {
           abortController.abort();
           abortController = null;
@@ -570,7 +582,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           }
         }
       },
-      disposeResources: () => {
+      disposeResources: async () => {
         credentialWatcherClose?.();
         credentialWatcherClose = undefined;
         goalHandler.dispose();
@@ -580,6 +592,10 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         kanbanRunMirror?.dispose();
         kanbanSupervisor?.dispose();
         void stopKanbanSupervisorMemoryStats?.();
+        // Drain an in-flight auto-heal restart before the host exits
+        // (createWebuiShutdown awaits this, bounded by its dispose timeout).
+        await embeddedAutoHealDispose?.();
+        embeddedAutoHealDispose = null;
         unregisterWebuiClient();
       },
       closeClients: () => {

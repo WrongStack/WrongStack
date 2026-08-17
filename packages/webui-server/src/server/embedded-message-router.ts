@@ -21,6 +21,7 @@ import type { ClientTransportRouteHandlers } from './client-transport-routes.js'
 import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
 import type { CompletionRouteHandlers } from './completion-routes.js';
+import { createAutoHealer } from './connections/auto-healer.js';
 import {
   handleConnectionsHealthRoute,
   handleConnectionsServiceAction,
@@ -109,6 +110,14 @@ export interface EmbeddedMessageRouterDeps {
   sessionPayload: <T extends Record<string, unknown>>(payload: T) => T & { sessionId: string };
   currentSessionId: () => string;
   shutdown: () => void;
+  /**
+   * Caller-supplied register hook for long-lived disposables created inside
+   * the router (the auto-heal watchdog). The router hands its disposer to the
+   * caller once during construction; the caller is responsible for invoking
+   * it during its own shutdown — the router itself never invokes it. Mirrors
+   * `MessageDispatcherOptions.onDispose` in the standalone dispatcher.
+   */
+  onDispose?: ((disposer: () => void | Promise<void>) => void) | undefined;
   providerCtx: EmbeddedProviderContext;
   brainCtx: BrainHandlerContext;
   introspectionCtx: IntrospectionRouteContext;
@@ -144,6 +153,31 @@ export function createEmbeddedMessageRouter(
 ): EmbeddedMessageRouter {
   const { opts, send, sendResult } = deps;
   const projectRoot = () => opts.projectRoot ?? opts.agent.ctx.projectRoot ?? '';
+
+  // Opt-in server-side watchdog (env WRONGSTACK_AUTO_HEAL_SERVICES=1): reuses
+  // the exact restart path behind the RotateCcw button for services stuck in
+  // `error`. Disabled by default; `start()` is a no-op unless enabled. Mirrors
+  // the wiring in the standalone `message-dispatcher.ts`.
+  const autoHealer = createAutoHealer({
+    projectRoot,
+    indexDir: () =>
+      typeof opts.agent.ctx.meta['codebaseIndexDir'] === 'string'
+        ? opts.agent.ctx.meta['codebaseIndexDir']
+        : undefined,
+    trustBoundary: deps.trustBoundary,
+    logger: deps.logger,
+    onStatus: (event) =>
+      deps.providerCtx.broadcast({
+        type: 'connections.auto_heal_status',
+        payload: event,
+      }),
+  });
+  autoHealer.start();
+  if (deps.onDispose) {
+    deps.onDispose(async () => {
+      await autoHealer.dispose();
+    });
+  }
 
   const terminal = async (ws: WebSocket, message: WSClientMessage) => {
     await deps.terminalHandler.handleMessage(ws, message).catch((error) => {

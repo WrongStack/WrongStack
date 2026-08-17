@@ -76,7 +76,8 @@
       }
     },
     "serviceActionRestart": "Redémarrer {{label}}",
-    "webuiTransport": "Transport WebUI"
+    "webuiTransport": "Transport WebUI",
+    "serviceAutoRestarting": "Redémarrage automatique…"
   },
   "provider": {
     "savedProviderCount_one": "{{count}} fournisseur",

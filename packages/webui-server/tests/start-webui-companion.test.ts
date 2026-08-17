@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as net from 'node:net';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const { createServer } = vi.hoisted(() => ({
   createServer: vi.fn(),
@@ -33,7 +34,44 @@ class FakeServer extends EventEmitter {
   }
 }
 
+/**
+ * Bind port 0 on `host`, read the OS-assigned port, then release it — a
+ * reserve-and-release cycle that yields a port the OS just confirmed free
+ * on that exact address.
+ *
+ * The suite cannot hard-code 3456: `listenWithRetry` probes the COMPANION
+ * address with a REAL throwaway socket before calling the mocked `listen`,
+ * and the companion never advances ports (maxTries: 1 — it must mirror the
+ * primary's port). So when a live WebUI holds 3456 on the companion
+ * address, the probe sees EADDRINUSE, the bind rejects, and the companion
+ * degrades to null — the bind-success tests then fail. Each companion
+ * address under test (::1 and 0.0.0.0) gets its own verified-free port.
+ */
+async function reserveFreePort(host: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.once('error', reject);
+    srv.listen(0, host, () => {
+      const address = srv.address();
+      const port = address && typeof address === 'object' ? address.port : null;
+      srv.close(() => {
+        if (port === null) reject(new Error('no port assigned by listen(0)'));
+        else resolve(port);
+      });
+    });
+  });
+}
+
 describe('setupCompanionServer', () => {
+  // Verified-free per companion address (see reserveFreePort): v6 backs the
+  // ::1 companion (primary 127.0.0.1), v4 the 0.0.0.0 companion (primary ::).
+  const ports = { v6: 0, v4: 0 };
+
+  beforeAll(async () => {
+    ports.v6 = await reserveFreePort('::1');
+    ports.v4 = await reserveFreePort('0.0.0.0');
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
@@ -41,7 +79,7 @@ describe('setupCompanionServer', () => {
 
   it('returns null when the primary host has no companion mapping', async () => {
     await expect(
-      setupCompanionServer(new FakeServer() as never, '192.0.2.10', 3456),
+      setupCompanionServer(new FakeServer() as never, '192.0.2.10', ports.v6),
     ).resolves.toBeNull();
     expect(createServer).not.toHaveBeenCalled();
   });
@@ -53,7 +91,7 @@ describe('setupCompanionServer', () => {
     const primaryEmit = vi.spyOn(primary, 'emit');
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
-    const result = await setupCompanionServer(primary as never, '127.0.0.1', 3456);
+    const result = await setupCompanionServer(primary as never, '127.0.0.1', ports.v6);
     const request = {};
     const response = {};
     const socket = {};
@@ -63,10 +101,12 @@ describe('setupCompanionServer', () => {
 
     expect(result).toBe(companion);
     // listenWithRetry calls listen(port, host) — no callback argument.
-    expect(companion.listen).toHaveBeenCalledWith(3456, '::1');
+    expect(companion.listen).toHaveBeenCalledWith(ports.v6, '::1');
     expect(primaryEmit).toHaveBeenCalledWith('request', request, response);
     expect(primaryEmit).toHaveBeenCalledWith('upgrade', request, socket, head);
-    expect(console.log).toHaveBeenCalledWith('[WebUI] HTTP server running on http://[::1]:3456');
+    expect(console.log).toHaveBeenCalledWith(
+      `[WebUI] HTTP server running on http://[::1]:${ports.v6}`,
+    );
   });
 
   it('downgrades to null (never advancing ports) when the mirror bind hits EADDRINUSE', async () => {
@@ -78,7 +118,7 @@ describe('setupCompanionServer', () => {
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    const result = await setupCompanionServer(new FakeServer() as never, '127.0.0.1', 3456);
+    const result = await setupCompanionServer(new FakeServer() as never, '127.0.0.1', ports.v6);
 
     expect(result).toBeNull();
     // Exactly one bind attempt — the companion must mirror the primary's port.
@@ -93,7 +133,7 @@ describe('setupCompanionServer', () => {
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    const result = await setupCompanionServer(new FakeServer() as never, '::', 3456);
+    const result = await setupCompanionServer(new FakeServer() as never, '::', ports.v4);
 
     expect(result).toBeNull();
     expect(warn).toHaveBeenCalledWith(
@@ -107,7 +147,7 @@ describe('setupCompanionServer', () => {
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    await setupCompanionServer(new FakeServer() as never, '::', 3456);
+    await setupCompanionServer(new FakeServer() as never, '::', ports.v4);
     companion.emit('error', Object.assign(new Error('boom'), { code: 'EPERM' }));
 
     expect(console.warn).toHaveBeenCalledWith(

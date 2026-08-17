@@ -129,7 +129,8 @@
       }
     },
     "serviceActionRestart": "Restart {{label}}",
-    "webuiTransport": "WebUI transport"
+    "webuiTransport": "WebUI transport",
+    "serviceAutoRestarting": "Auto-restarting…"
   },
   "provider": {
     "subscriptionHeading": "Subscription login",

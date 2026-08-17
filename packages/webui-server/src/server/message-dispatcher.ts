@@ -25,6 +25,7 @@ import type { ClientTransportRouteHandlers } from './client-transport-routes.js'
 import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
 import type { CompletionRouteHandlers } from './completion-routes.js';
+import { createAutoHealer } from './connections/auto-healer.js';
 import {
   handleConnectionsHealthRoute,
   handleConnectionsServiceAction,
@@ -275,8 +276,29 @@ export function createMessageDispatcher(
       broadcast(state.getClients(), message),
     log: (message) => deps.logger.warn?.(`[KanbanSupervisor] ${message}`),
   });
+  // Opt-in server-side watchdog (env WRONGSTACK_AUTO_HEAL_SERVICES=1): reuses
+  // the exact restart path behind the RotateCcw button for services stuck in
+  // `error`. Disabled by default; `start()` is a no-op unless enabled.
+  const autoHealer = createAutoHealer({
+    projectRoot: () => state.getProjectRoot(),
+    indexDir: () =>
+      typeof deps.context.meta['codebaseIndexDir'] === 'string'
+        ? deps.context.meta['codebaseIndexDir']
+        : undefined,
+    trustBoundary: deps.trustBoundary,
+    logger: deps.logger,
+    onStatus: (event) =>
+      broadcast(state.getClients(), {
+        type: 'connections.auto_heal_status',
+        payload: event,
+      }),
+  });
+  autoHealer.start();
   if (opts.onDispose) {
-    const dispose = () => kanbanSupervisor.dispose();
+    const dispose = async () => {
+      kanbanSupervisor.dispose();
+      await autoHealer.dispose();
+    };
     opts.onDispose(dispose);
   }
   const kanbanContext = () => ({
