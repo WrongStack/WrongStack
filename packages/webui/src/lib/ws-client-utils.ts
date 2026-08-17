@@ -15,17 +15,19 @@ export type EventHandler<K extends WSServerMessage['type'] = WSServerMessage['ty
 
 /**
  * Returns true when a server message is intended for the currently-active
- * session. The server tags session-scoped messages with `payload.sessionId`;
- * messages without one (or when no session is active yet) are treated as
- * active so boot-time broadcasts aren't dropped.
+ * session. The server tags session-scoped messages with `payload.sessionId`.
  *
- * Previously this helper was duplicated in four ws-handlers files; the
- * copies had drifted in whitespace only but the divergence was a latent
- * bug source. Single source of truth lives here.
+ * Fail-closed semantics (the cross-session todo bleed fix): a message whose
+ * `sessionId` is present-but-EMPTY is rejected. The server stamps
+ * `sessionId: ''` when its context has no session (see sessionPayload), and
+ * that stamp must not silently widen into "every session". Messages with NO
+ * sessionId key at all, or when no session is active yet, still pass so
+ * boot-time and project-wide broadcasts are not dropped.
  */
 export function isActiveSessionMessage(msg: WSServerMessage): boolean {
   const sessionId = (msg.payload as { sessionId?: string | undefined } | undefined)?.sessionId;
   const activeId = useSessionStore.getState().session?.id;
+  if (sessionId === '') return false;
   return !sessionId || !activeId || sessionId === activeId;
 }
 

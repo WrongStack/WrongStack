@@ -133,10 +133,15 @@ export function broadcastTodoUpdate(context: Context, todos: readonly TodoItem[]
   }
   const projectDir = resolveWstackPaths({ projectRoot: context.projectRoot }).projectDir;
   const mailbox = getSharedProjectMailbox(projectDir);
+  // Session-targeted, not `to: '*'`: the update describes THIS session's todo
+  // list, so only agents inside this session should receive it. A project-wide
+  // fan-out let one session's board projection land in every other session's
+  // mailbox (cross-session todo bleed). `status` is a valid type for the
+  // multi-recipient `@session:` form (only assign/steer require one recipient).
   void mailbox
     .send({
       from: context.agentId,
-      to: '*',
+      to: `@session:${sessionId}`,
       type: 'status',
       subject: `Kanban todo list updated (${todos.length} item${todos.length === 1 ? '' : 's'})`,
       body: JSON.stringify({
@@ -227,6 +232,12 @@ export function applyManagedKanbanBoardToTodos(
   context: Context,
   board: KanbanBoard,
   suppressedTodoMirrors: WeakSet<Context>,
+  options: {
+    /** Extracts the owning session id from board tags (`session:<id>`). */
+    sessionOwnerFromTags?:
+      | ((tags: readonly string[] | undefined) => string | null)
+      | undefined;
+  } = {},
 ): TodoItem[] {
   const metaKanban = context.meta['kanban'];
   const metaBoardId =
@@ -236,6 +247,16 @@ export function applyManagedKanbanBoardToTodos(
   const activeBoardId =
     context.currentKanbanBoardId ?? (typeof metaBoardId === 'string' ? metaBoardId : undefined);
   if (!activeBoardId || board.id !== activeBoardId || board.lifecycle?.mode !== 'managed') {
+    return [...context.todos];
+  }
+
+  // Session-ownership guard: a board tagged as owned by ANOTHER session must
+  // not project into this session's todo list. Without this, a session bound
+  // to a foreign board (e.g. via the presence-scan rebind path) mirrored that
+  // board's tasks here — the cross-session todo bleed. Boards without a
+  // session tag are shared project boards and keep projecting as before.
+  const ownerSessionId = options.sessionOwnerFromTags?.(board.tags);
+  if (ownerSessionId && ownerSessionId !== (context.session?.id ?? '')) {
     return [...context.todos];
   }
 

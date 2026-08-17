@@ -55,6 +55,23 @@ describe('isActiveSessionMessage', () => {
     } as unknown as WSServerMessage;
     expect(isActiveSessionMessage(msg)).toBe(false);
   });
+
+  // Fail-closed on present-but-empty sessionId: the server stamps
+  // `sessionId: ''` when its context has no session (sessionPayload), and
+  // that stamp must not silently widen into "every session" — the receiving
+  // end of the cross-session todo bleed.
+  it('returns false when sessionId is present but empty', async () => {
+    const { useSessionStore } = await import('../../src/stores/session-store');
+    useSessionStore.setState({
+      session: { id: 'sess-active', label: 'Active', startTime: Date.now() },
+    });
+
+    const msg = {
+      type: 'kanban.todos.updated',
+      payload: { sessionId: '' },
+    } as unknown as WSServerMessage;
+    expect(isActiveSessionMessage(msg)).toBe(false);
+  });
 });
 
 describe('safePayload', () => {

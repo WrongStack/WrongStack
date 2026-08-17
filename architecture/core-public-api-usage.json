@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 290,
-      "typeOnly": 233,
+      "files": 291,
+      "typeOnly": 234,
       "runtimeOrMixed": 74
     },
     "@wrongstack/core/agent-catalog": {
@@ -19,8 +19,8 @@
       "runtimeOrMixed": 8
     },
     "@wrongstack/core/coordination": {
-      "files": 179,
-      "typeOnly": 76,
+      "files": 180,
+      "typeOnly": 77,
       "runtimeOrMixed": 153
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -1454,6 +1454,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/session-kanban-sync-guard.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/session-kanban.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -2877,6 +2883,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/tools/tests/session-kanban-mailbox.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tools/tests/session-kanban-sync-guard.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

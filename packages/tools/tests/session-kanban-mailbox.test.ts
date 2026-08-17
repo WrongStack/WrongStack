@@ -56,9 +56,16 @@ describe('session Kanban mailbox awareness', () => {
 
     expect(mailboxMocks.send).toHaveBeenCalledOnce();
     const sent = mailboxMocks.send.mock.calls[0]![0] as {
+      to?: string;
+      type?: string;
       body: string;
       ttlMs?: number;
     };
+    // Session-targeted, never `to: '*'` — a project-wide fan-out delivered
+    // this session's projection into every other session's mailbox (the
+    // cross-session todo bleed). `status` is legal for the `@session:` form.
+    expect(sent.to).toBe('@session:session-id');
+    expect(sent.type).toBe('status');
     expect(JSON.parse(sent.body)).toEqual({
       kind: 'kanban.todos.updated',
       sessionId: 'session-id',

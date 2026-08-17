@@ -822,7 +822,9 @@ export function applySessionKanbanBoardToTodos(context: Context, board: KanbanBo
 }
 
 export function applyManagedKanbanBoardToTodos(context: Context, board: KanbanBoard): TodoItem[] {
-  return applyManagedKanbanBoardToTodosSync(context, board, suppressedTodoMirrors);
+  return applyManagedKanbanBoardToTodosSync(context, board, suppressedTodoMirrors, {
+    sessionOwnerFromTags: sessionIdFromTags,
+  });
 }
 
 export function applySessionKanbanTaskToSource(
