@@ -383,7 +383,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 937,
+      "lines": 938,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {

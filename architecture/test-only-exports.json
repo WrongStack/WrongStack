@@ -1352,6 +1352,11 @@
     "packages/webui-server/src/server/connection-lifecycle.ts": [
       "RATE_LIMIT_EXEMPT_TYPES"
     ],
+    "packages/webui-server/src/server/connections/auto-healer.ts": [
+      "AUTO_HEAL_DEFAULT_COOLDOWN_MS",
+      "AUTO_HEAL_ENV_FLAG",
+      "isAutoHealEnabled"
+    ],
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"
     ],

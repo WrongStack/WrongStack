@@ -124,8 +124,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 131,
-      "typeOnly": 24,
+      "files": 133,
+      "typeOnly": 26,
       "runtimeOrMixed": 110
     },
     "@wrongstack/core/session-catalog": {
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 955,
-      "typeOnly": 881,
+      "files": 957,
+      "typeOnly": 883,
       "runtimeOrMixed": 237
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -7976,6 +7976,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/connections/auto-healer.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/connections/types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8087,6 +8093,12 @@
       "file": "packages/webui-server/src/server/ws-utils.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/tests/auto-healer.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -14246,6 +14258,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/connections/auto-healer.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/context-editor.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14607,6 +14625,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/worktree-ws-handler.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/auto-healer.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
