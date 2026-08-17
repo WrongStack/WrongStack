@@ -43,8 +43,8 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/delegate-tool.ts": {
-      "lines": 974,
-      "relativeImports": 8
+      "lines": 1006,
+      "relativeImports": 9
     },
     "packages/core/src/coordination/director-tools.ts": {
       "lines": 831,
@@ -111,7 +111,7 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1018,
+      "lines": 1020,
       "relativeImports": 154
     },
     "packages/core/src/security/secret-vault.ts": {
@@ -421,6 +421,10 @@
     "packages/webui-server/src/server/provider-handlers.ts": {
       "lines": 820,
       "relativeImports": 6
+    },
+    "packages/webui-server/src/server/session-handlers.ts": {
+      "lines": 807,
+      "relativeImports": 11
     },
     "packages/webui-server/src/server/start-webui.ts": {
       "lines": 843,
