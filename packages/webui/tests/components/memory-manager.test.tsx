@@ -30,6 +30,12 @@ const websocket = {
     sends.push({ type: 'memory.sage.delete', payload: { id, reason } }),
 };
 
+// Stub `agent-roster.list` (used by MemoryEditor on mount) so the editor
+// doesn't try to talk to a real backend during the test.
+vi.mock('@/lib/roster-ws', () => ({
+  sendRosterMessage: () => Promise.resolve({ roles: [] }),
+}));
+
 vi.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => websocket,
 }));
@@ -152,8 +158,9 @@ describe('MemoryManager', () => {
   it('creates a fully described memory with scope, scores, anchors, and relationships', async () => {
     await loadManager();
     fireEvent.click(screen.getByRole('button', { name: 'New memory' }));
+    const editor = await screen.findByRole('textbox', { name: 'Memory content' });
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Memory content' }), {
+    fireEvent.change(editor, {
       target: { value: 'Use stable IDs for every durable relationship.' },
     });
     fireEvent.change(screen.getByLabelText('Scope'), { target: { value: 'user' } });
@@ -182,7 +189,7 @@ describe('MemoryManager', () => {
   it('keeps the editor and draft visible when create fails', async () => {
     await loadManager();
     fireEvent.click(screen.getByRole('button', { name: 'New memory' }));
-    const editor = screen.getByRole('textbox', { name: 'Memory content' });
+    const editor = await screen.findByRole('textbox', { name: 'Memory content' });
     fireEvent.change(editor, { target: { value: 'A draft that must survive.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create memory' }));
 

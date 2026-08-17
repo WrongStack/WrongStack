@@ -163,7 +163,7 @@
       "relativeImports": 10
     },
     "packages/plugins/src/path-guard/shell-targets.ts": {
-      "lines": 946,
+      "lines": 1036,
       "relativeImports": 1
     },
     "packages/plugins/src/prompt-firewall/index.ts": {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.308.1",
+  "packageVersion": "0.308.2",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -739,7 +739,8 @@
       "subpath": "./storage",
       "target": {
         "types": "./dist/storage/index.d.ts",
-        "import": "./dist/storage/index.js"
+        "import": "./dist/storage/index.js",
+        "require": "./dist/storage/index.js"
       },
       "source": "packages/core/src/storage/index.ts",
       "declarations": [

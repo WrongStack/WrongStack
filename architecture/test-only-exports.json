@@ -220,6 +220,9 @@
     "packages/cli/src/slash-commands/memory-triage.ts": [
       "fileProposals"
     ],
+    "packages/cli/src/slash-commands/sdd-format.ts": [
+      "taskStatusIcon"
+    ],
     "packages/cli/src/slash-commands/session.ts": [
       "isSafeSessionKillPid"
     ],
@@ -1356,6 +1359,14 @@
       "AUTO_HEAL_DEFAULT_COOLDOWN_MS",
       "AUTO_HEAL_ENV_FLAG",
       "isAutoHealEnabled"
+    ],
+    "packages/webui-server/src/server/connections/service-actions.ts": [
+      "killChronicleServer",
+      "killCodebaseIndexServer",
+      "killKanbanServer",
+      "killMailboxServer",
+      "killSageServer",
+      "restartKanbanServer"
     ],
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"

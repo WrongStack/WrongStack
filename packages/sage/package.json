@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/sage",
-  "version": "0.308.1",
+  "version": "0.308.2",
   "license": "MIT",
   "description": "WrongStack SAGE: project-local SQLite memory, graph-ready anchors, retrieval, and hygiene primitives.",
   "repository": {
@@ -18,7 +18,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     },
     "./middleware/tool-call-memory.js": {
       "types": "./dist/middleware/tool-call-memory.d.ts",

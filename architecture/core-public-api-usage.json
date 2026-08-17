@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 291,
+      "files": 292,
       "typeOnly": 234,
-      "runtimeOrMixed": 74
+      "runtimeOrMixed": 75
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -14,14 +14,14 @@
       "runtimeOrMixed": 18
     },
     "@wrongstack/core/chronicle": {
-      "files": 9,
+      "files": 10,
       "typeOnly": 2,
-      "runtimeOrMixed": 8
+      "runtimeOrMixed": 9
     },
     "@wrongstack/core/coordination": {
-      "files": 181,
+      "files": 182,
       "typeOnly": 78,
-      "runtimeOrMixed": 153
+      "runtimeOrMixed": 154
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -54,9 +54,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/goal": {
-      "files": 21,
+      "files": 22,
       "typeOnly": 10,
-      "runtimeOrMixed": 21
+      "runtimeOrMixed": 22
     },
     "@wrongstack/core/hooks": {
       "files": 6,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 233,
+      "files": 235,
       "typeOnly": 123,
-      "runtimeOrMixed": 121
+      "runtimeOrMixed": 123
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 133,
+      "files": 134,
       "typeOnly": 26,
-      "runtimeOrMixed": 110
+      "runtimeOrMixed": 111
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 102,
+      "files": 103,
       "typeOnly": 30,
-      "runtimeOrMixed": 106
+      "runtimeOrMixed": 107
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 957,
-      "typeOnly": 883,
+      "files": 961,
+      "typeOnly": 887,
       "runtimeOrMixed": 238
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 530,
+      "files": 535,
       "typeOnly": 59,
-      "runtimeOrMixed": 497
+      "runtimeOrMixed": 502
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/worktree": {
-      "files": 11,
+      "files": 12,
       "typeOnly": 4,
-      "runtimeOrMixed": 8
+      "runtimeOrMixed": 9
     }
   },
   "usages": [
@@ -927,6 +927,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/wiring-pipeline.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/wiring-provider-runtime-setup.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -2113,6 +2119,12 @@
       "runtimeOrMixed": 0
     },
     {
+      "specifier": "@wrongstack/core/chronicle",
+      "file": "packages/webui-server/tests/service-actions.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/acp/src/integration/ensemble-runner.ts",
       "typeOnly": 0,
@@ -3176,6 +3188,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/tests/service-actions.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui/tests/helpers/mailbox-daemon.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3767,6 +3785,12 @@
       "file": "packages/cli/src/wiring/runtime-lifecycle-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/goal",
+      "file": "packages/cli/tests/goal-host.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/goal",
@@ -5330,6 +5354,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/goal-host.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/goal-host.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6201,6 +6231,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/tests/standalone-session-identity.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/tests/worktree-ws-handler.gaps.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7802,6 +7838,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/tests/providers-models.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/tests/telegram-pairing.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8553,6 +8595,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/vibe-protocol-code-proof.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/wiring-provider-runtime-setup.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10976,6 +11024,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/providers-models.gaps.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/redact-sample-real-shapes.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11007,6 +11061,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/runtime-picker-deps.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/sdd-format.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11163,6 +11223,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/wiring-plugins.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/wiring-provider-runtime-setup.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -14048,6 +14114,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/memory-slash-renderers.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/memory-slash.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -16550,9 +16622,21 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/project-slash.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/provider-status-wiring.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/providers-models.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -16574,7 +16658,25 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/sdd-subcommands-gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/session-live.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/session-stats.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/settings-mutations.gaps.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -18423,6 +18525,12 @@
     {
       "specifier": "@wrongstack/core/worktree",
       "file": "packages/webui-server/src/server/worktree-ws-handler.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/worktree",
+      "file": "packages/webui-server/tests/worktree-ws-handler.gaps.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     }
