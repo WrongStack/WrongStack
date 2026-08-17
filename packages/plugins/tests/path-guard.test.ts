@@ -96,6 +96,69 @@ describe('destructiveTargets', () => {
     expect(destructiveTargets('xargs -r rm .env')).toContain('.env');
   });
 
+  it('extracts writer targets inside command groups and subshells (boundary-bypass regression)', async () => {
+    for (const command of [
+      '{ cp src .env; }',
+      '( cp src .env )',
+      '{ install -m 644 x .env; }',
+      '{ dd if=src of=.env bs=4k; }',
+      '( dd if=src of=.env )',
+      '{ tee .env; }',
+      '( tee -a .env )',
+      '{ sed -i "s/a/b/" .env; }',
+      '( sed -i "s/a/b/" .env )',
+      '{ ln -sf source .env; }',
+    ]) {
+      expect(destructiveTargets(command), command).toContain('.env');
+    }
+  });
+
+  it('still ignores assignment-looking operands and quoted read filenames', async () => {
+    expect(destructiveTargets('echo of=.env')).toHaveLength(0);
+    expect(destructiveTargets('cat "of=.env local"')).toHaveLength(0);
+  });
+
+  it('keeps compact subshell destinations free of glued close-parens', async () => {
+    expect(destructiveTargets('(cp src .env)')).toContain('.env');
+    expect(destructiveTargets('(sudo cp src .env)')).toContain('.env');
+    expect(destructiveTargets('(install -m 644 x .env)')).toContain('.env');
+    expect(destructiveTargets('(dd if=src of=.env)')).toContain('.env');
+    expect(destructiveTargets('(dd if=src of=".env")')).toContain('.env');
+  });
+
+  it('preserves balanced parentheses in operand filenames', async () => {
+    expect(destructiveTargets('cp src notes(2)')).toContain('notes(2)');
+    expect(destructiveTargets("cp src 'notes(2)'")).toContain('notes(2)');
+    expect(destructiveTargets('(cp src "notes(2)")')).toContain('notes(2)');
+  });
+
+  it('treats escaped trailing parens as filename text, not subshell closers', async () => {
+    // The material property: the escaped `\)` must survive — stripping it
+    // truncated the target to `protected\`, which matches no glob. The two
+    // rules serialize differently by existing convention: cp's tokenizer
+    // unescapes to the real filename `protected)`, while dd keeps operand
+    // syntax literal (same convention as `$(pwd)/.env` targets).
+    expect(destructiveTargets('cp src protected\\)').at(-1)).toBe('protected)');
+    expect(destructiveTargets('dd if=src of=protected\\)').at(-1)).toBe('protected\\)');
+  });
+
+  it('extracts find deletion roots inside command groups and subshells (find-in-group regression)', async () => {
+    expect(destructiveTargets('{ find . -delete; }')).toContain('.');
+    expect(destructiveTargets('{ find db -delete; }')).toContain('db');
+    expect(destructiveTargets('( find . -delete )')).toContain('.');
+    expect(destructiveTargets('(find . -delete)')).toContain('.');
+  });
+
+  it('extracts writer targets after xargs value-taking options (xargs option bypass regression)', async () => {
+    expect(destructiveTargets('printf x | xargs -n 1 tee .env')).toContain('.env');
+    expect(destructiveTargets('xargs -I {} cp src {}')).toContain('{}');
+    expect(destructiveTargets('xargs --replace={} cp src {}')).toContain('{}');
+    // Flag-only options must keep working and must not swallow the writer
+    // as an option value.
+    expect(destructiveTargets('xargs -0 rm .env')).toContain('.env');
+    expect(destructiveTargets('xargs -r rm .env')).toContain('.env');
+  });
+
   it('preserves parentheses in destructive path operands', async () => {
     expect(destructiveTargets('rm -rf "$(pwd)/.env"')).toContain('$(pwd)/.env');
     expect(destructiveTargets('(cd workspace && rm .env)')).toContain('.env');
@@ -654,6 +717,51 @@ describe('path-guard plugin', () => {
     ).toBeUndefined();
   });
 
+  it('serializes argv assignment args so dd of= targets stay visible (argv bypass regression)', async () => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'dd', args: ['if=src', 'of=$HOME/.env'] },
+    });
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('.env');
+  });
+
+  it('does not block benign argv assignment data', async () => {
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const hook = getHook(api);
+    expect(
+      await hook({ toolName: 'bash', toolInput: { command: 'printf', args: ['of=.env'] } }),
+    ).toBeUndefined();
+  });
+
+  it('serializes argv assignment args for any writer tool, not only dd', async () => {
+    // The KEY="value" serialization is generic: any argv-form writer whose
+    // operands use assignment syntax must stay inspectable, and the
+    // JSON.stringify fallback still applies to non-assignment quoted args.
+    const api = makeApi();
+    pathGuardPlugin.setup(api as never);
+    const hook = getHook(api);
+    // Generic assignment serialization: env-style tool carrying an of= arg.
+    expect(
+      await hook({ toolName: 'bash', toolInput: { command: 'env', args: ['of=.env'] } }),
+    ).toBeUndefined();
+    // Fallback path: a quoted non-assignment arg stays JSON-quoted and is
+    // not misread as an assignment. Benign outcome = hook returns undefined.
+    expect(
+      await hook({ toolName: 'bash', toolInput: { command: 'cat', args: ['of=.env local'] } }),
+    ).toBeUndefined();
+    // rm via argv with a safe-charset protected path is still blocked.
+    const blocked = await hook({
+      toolName: 'bash',
+      toolInput: { command: 'rm', args: ['-rf', '.env'] },
+    });
+    expect(blocked?.decision).toBe('block');
+  });
+
   it.each(["bash <<'EOF'\necho hi > .env\nEOF", 'cat <<EOF\n$(echo hi > .env)\nEOF'])(
     'blocks redirect writes executed from heredoc content: %s',
     async (command) => {
@@ -665,7 +773,13 @@ describe('path-guard plugin', () => {
     },
   );
 
-  it.each(['find . -delete', 'find db -delete', 'find db -exec rm -rf {} +'])(
+  it.each([
+    'find . -delete',
+    'find db -delete',
+    'find db -exec rm -rf {} +',
+    '{ find . -delete; }',
+    'xargs -n 1 rm -rf db',
+  ])(
     'blocks recursive find deletion scopes: %s',
     async (command) => {
       const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });

@@ -344,17 +344,42 @@ export function stripLauncherAtBoundary(
   return `${command.slice(0, match.index)}${boundary}${after.slice(consumed).replace(/^\s+/, '')}`;
 }
 
+/**
+ * xargs option run: bridges any mix of flag tokens and VALUE-taking options
+ * (`-n 1`, `-I {}`, `--replace={}`) between `xargs` and the writer it
+ * launches. A flags-only run (`(?:\s+-[^\s]+)*`) cannot span a value-taking
+ * option, so `xargs -n 1 tee .env` reached the writer boundary unmatched and
+ * the writer was never inspected (probe-verified 2026-08-17, chimera
+ * review). Value-consuming options are enumerated explicitly so a flag-only
+ * `-0` never swallows the writer command as its value.
+ */
+const XARGS_OPTIONS = String.raw`(?:\s+(?:(?:-[InLsPjeE]|--(?:arg-file|replace|max-args|max-lines|max-chars|max-procs))\s+[^\s]+|-[^\s]+))*`;
+
+/**
+ * Command-start boundary shared by every destructive-writer rule. All writer
+ * rules (rm-family, cp|install, tee, dd, sed|ln, find) MUST use this same
+ * class: a rule that only knows `[;&|\r\n]` is blind to `{ group; }`,
+ * `( subshell )` and `xargs` continuations, which silently exempts that
+ * writer from the guard — probe-verified 2026-08-17, where `{ cp src .env; }`
+ * and `( dd if=src of=.env )` returned zero targets. The `(?<![$(])`
+ * lookbehind keeps `$(` / `((` substitution opens off this path; substitution
+ * bodies are inspected by the recursive destructiveTargetsAtDepth pass.
+ */
+const COMMAND_BOUNDARY = String.raw`(?:^|[;&|\r\n]\s*|\{\s*|(?<![$(])\(\s*|\bxargs${XARGS_OPTIONS}\s+)`;
+
 export function commandRecursivelyDeletes(command: string): boolean {
   const stripped = stripTransparentLaunchers(maskNonExecutingHeredocBodies(command));
   if (
-    /(?:^|[;&|\r\n]\s*|\$\(\s*|\(\s*|`\s*)find\b[^;&|)`]*(?:-delete\b|-exec(?:dir)?\s+(?:[^\s;&|]+[\\/])?(?:rm|rmdir)\b)/i.test(
+    /(?:^|[;&|\r\n]\s*|\{\s*|\$\(\s*|\(\s*|`\s*)find\b[^;&|)`]*(?:-delete\b|-exec(?:dir)?\s+(?:[^\s;&|]+[\\/])?(?:rm|rmdir)\b)/i.test(
       stripped,
     )
   ) {
     return true;
   }
-  const destructive =
-    /(?:^|[;&|\r\n]\s*|\{\s*|\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(rm|rmdir|del|rd|Remove-Item)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
+  const destructive = new RegExp(
+    String.raw`${COMMAND_BOUNDARY}(rm|rmdir|del|rd|Remove-Item)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)`,
+    'gi',
+  );
   let match: RegExpExecArray | null = destructive.exec(stripped);
   while (match !== null) {
     const tool = match[1]?.toLowerCase();
@@ -616,6 +641,42 @@ export function maskNonExecutingHeredocBodies(command: string): string {
   return lines.join('');
 }
 
+/**
+ * Strip trailing `)` characters that close an enclosing subshell rather than
+ * belonging to the operand text. In the compact form `(cp src .env)` the
+ * closer glues onto the capture (`src .env)`) and the destination tokenizes
+ * as `.env)` — which matches no protect glob, silently defeating the guard
+ * (chimera review 2026-08-17). A `)` that balances an earlier `(` inside the
+ * text is filename punctuation (`notes(2)`) and is preserved; parens inside
+ * quotes are ignored, so quoted operands ending in `)` survive too.
+ */
+function stripSubshellClosers(raw: string): string {
+  let result = raw.trimEnd();
+  while (result.endsWith(')')) {
+    // An escaped trailing `\)` is filename text, not a subshell closer —
+    // stripping it corrupted the reported target (`protected\)` became
+    // `protected\`, matching no protect glob). Same convention as
+    // executableCommandSubstitutions: escaped parens do not count.
+    if (quoteIsEscaped(result, result.length - 1)) break;
+    let quote: "'" | '"' | null = null;
+    let depth = 0;
+    for (let index = 0; index < result.length - 1; index += 1) {
+      const char = result[index];
+      if (isQuoteBoundary(result, index, quote)) {
+        quote = quote === char ? null : char === "'" ? "'" : '"';
+        continue;
+      }
+      if (quote !== null) continue;
+      if (char === '(' && !quoteIsEscaped(result, index)) depth += 1;
+      else if (char === ')' && !quoteIsEscaped(result, index)) depth -= 1;
+    }
+    // Keep the closer only when it balances an open paren in the operand.
+    if (depth > 0) break;
+    result = result.slice(0, -1).trimEnd();
+  }
+  return result;
+}
+
 export function destructiveTargets(command: string): string[] {
   return destructiveTargetsAtDepth(command, 0);
 }
@@ -669,22 +730,36 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
     targets.push(...destructiveTargetsAtDepth(executableBody, depth + 1));
   }
 
-  const destructive =
-    /(?:^|[;&|\r\n]\s*|\{\s*|(?<![$(])\(\s*|\bxargs(?:\s+-[^\s]+)*\s+)(?:sudo\s+)?(rm|rmdir|del|rd|Remove-Item|unlink|truncate|shred|mv)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)/gi;
+  const destructive = new RegExp(
+    String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(rm|rmdir|del|rd|Remove-Item|unlink|truncate|shred|mv)\s+((?:"[^"]*"|'[^']*'|\\.|\{[^}]*\}|\([^()]*\)|[^;&|\r\n}])+)`,
+    'gi',
+  );
   let m: RegExpExecArray | null = destructive.exec(normalizedCommand);
   while (m !== null) {
+    // No stripSubshellClosers needed here: shellArgs() already drops one
+    // trailing subshell closer and keeps it when escaped (`.env\)` stays
+    // literal filename text) — the same convention stripSubshellClosers
+    // enforces for the cp/install and dd paths.
     if (!tokenIsQuoted(m, m[1] ?? '')) targets.push(...shellArgs(m[2] ?? ''));
     m = destructive.exec(normalizedCommand);
   }
 
-  const copy = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(cp|install)\s+([^;&|\r\n]+)/gi;
+  const copy = new RegExp(
+    String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(cp|install)\s+([^;&|\r\n]+)`,
+    'gi',
+  );
   let c: RegExpExecArray | null = copy.exec(normalizedCommand);
   while (c !== null) {
     if (tokenIsQuoted(c, c[1] ?? '')) {
       c = copy.exec(normalizedCommand);
       continue;
     }
-    const tokens = shellTokens(c[2] ?? '');
+    // Strip subshell closers from the raw capture before tokenizing: in the
+    // compact form `(cp src .env)` the closer glues onto the destination
+    // token (`.env)`), which matches no protect glob. Done at the raw level
+    // (not per token) so balanced parens in filenames (`notes(2)`) and
+    // quoted operands survive.
+    const tokens = shellTokens(stripSubshellClosers(c[2] ?? ''));
     let destination: string | undefined;
     for (let index = 0; index < tokens.length; index += 1) {
       const token = tokens[index];
@@ -702,25 +777,38 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
     c = copy.exec(normalizedCommand);
   }
 
-  const tee = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(tee)\s+([^;&|\r\n]+)/gi;
+  const tee = new RegExp(
+    String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(tee)\s+([^;&|\r\n]+)`,
+    'gi',
+  );
   let t: RegExpExecArray | null = tee.exec(normalizedCommand);
   while (t !== null) {
     if (!tokenIsQuoted(t, t[1] ?? '')) targets.push(...shellArgs(t[2] ?? ''));
     t = tee.exec(normalizedCommand);
   }
 
-  const dd = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(dd)\s+([^;&|\r\n]+)/gi;
+  const dd = new RegExp(
+    String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(dd)\s+([^;&|\r\n]+)`,
+    'gi',
+  );
   let d: RegExpExecArray | null = dd.exec(normalizedCommand);
   while (d !== null) {
     if (!tokenIsQuoted(d, d[1] ?? '')) {
       const outputMatch = /(?:^|\s)of=("[^"]*"|'[^']*'|[^\s]+)/i.exec(d[2] ?? '');
-      const output = outputMatch?.[1]?.replace(/^['"]|['"]$/g, '');
+      // stripSubshellClosers runs before quote-stripping so a quoted operand
+      // ending in `)` (`of="notes(2)"`) is not mistaken for subshell punctuation.
+      const output = outputMatch?.[1]
+        ? stripSubshellClosers(outputMatch[1]).replace(/^['"]|['"]$/g, '')
+        : undefined;
       if (output) targets.push(output);
     }
     d = dd.exec(normalizedCommand);
   }
 
-  const overwrite = /(?:^|[;&|\r\n]\s*)(?:sudo\s+)?(sed|ln)\s+([^;&|\r\n]+)/gi;
+  const overwrite = new RegExp(
+    String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(sed|ln)\s+([^;&|\r\n]+)`,
+    'gi',
+  );
   let o: RegExpExecArray | null = overwrite.exec(normalizedCommand);
   while (o !== null) {
     const rawArgs = o[2] ?? '';
@@ -739,8 +827,10 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
     o = overwrite.exec(normalizedCommand);
   }
 
-  const xargsPipeline =
-    /\b(?:echo|printf)\s+([^|]+)\|\s*xargs(?:\s+-[^\s]+)*\s+(?:sudo\s+)?(?:rm|rmdir|del|unlink|truncate|shred)\b/gi;
+  const xargsPipeline = new RegExp(
+    String.raw`\b(?:echo|printf)\s+([^|]+)\|\s*xargs${XARGS_OPTIONS}\s+(?:sudo\s+)?(?:rm|rmdir|del|unlink|truncate|shred)\b`,
+    'gi',
+  );
   let x: RegExpExecArray | null = xargsPipeline.exec(normalizedCommand);
   while (x !== null) {
     if (!tokenIsQuoted(x, 'xargs')) targets.push(...shellArgs(x[1] ?? ''));
@@ -874,7 +964,7 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
   }
 
   const findDelete =
-    /(?:^|[;&|\r\n]\s*|\$\(\s*|\(\s*|`\s*)find\b([^;&|)`]*(?:\s-delete(?:\s|$)|\s-exec(?:dir)?\s+(?:[^\s;&|]+[\\/])?(?:rm|rmdir)\b)[^;&|)`]*)/gi;
+    /(?:^|[;&|\r\n]\s*|\{\s*|\$\(\s*|\(\s*|`\s*)find\b([^;&|)`]*(?:\s-delete(?:[\s;})]|$)|\s-exec(?:dir)?\s+(?:[^\s;&|]+[\\/])?(?:rm|rmdir)\b)[^;&|)`]*)/gi;
   let f: RegExpExecArray | null = findDelete.exec(normalizedCommand);
   while (f !== null) {
     const tokens = shellTokens(f[1] ?? '');

@@ -231,10 +231,26 @@ const plugin: Plugin = {
       const commandArgs = Array.isArray(ti['args'])
         ? ti['args'].filter((arg): arg is string => typeof arg === 'string')
         : [];
-      const commandForInspection = [
-        command,
-        ...commandArgs.map((arg) => (/^[\w./:@%+=,-]+$/.test(arg) ? arg : JSON.stringify(arg))),
-      ].join(' ');
+      // Serialize argv tokens for shell-rule inspection. Charset-safe tokens
+      // pass through verbatim and everything else is quoted — except
+      // assignment args (`KEY=value`), whose `KEY=` prefix must stay OUTSIDE
+      // the quotes: a fully-quoted token (`dd "of=$HOME/.env"`) hides the
+      // assignment from the `of=`-style matchers in destructiveTargets,
+      // which only recognize assignments at a token boundary. That was an
+      // argv-form write bypass (probe-verified 2026-08-17).
+      const serializeArgForInspection = (arg: string): string => {
+        if (/^[\w./:@%+=,-]+$/.test(arg)) return arg;
+        const assignment = /^([A-Za-z_]\w*)=(.+)$/.exec(arg);
+        const key = assignment?.[1];
+        const value = assignment?.[2];
+        if (key !== undefined && value !== undefined) {
+          return `${key}="${value.replaceAll('"', '')}"`;
+        }
+        return JSON.stringify(arg);
+      };
+      const commandForInspection = [command, ...commandArgs.map(serializeArgForInspection)].join(
+        ' ',
+      );
       if (
         command &&
         executesShell({
