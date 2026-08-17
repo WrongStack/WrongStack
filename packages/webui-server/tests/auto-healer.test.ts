@@ -354,6 +354,45 @@ describe('auto-healer', () => {
     expect(events.map((e) => e.phase)).toEqual(['refused', 'restarting', 'failed', 'restarting', 'failed', 'escalated']);
   });
 
+  it('never starts a restart when disposal begins mid-authorization', async () => {
+    // Authorization parks on a promise we control, so disposal can begin
+    // while the authorizeWebUIAction await is still pending.
+    let resolveAuth: (decision: { kind: 'allow'; reason: string }) => void = () => {};
+    const gate = new Promise<{ kind: 'allow'; reason: string }>((resolve) => {
+      resolveAuth = resolve;
+    });
+    const boundary = { evaluate: vi.fn(() => gate) } as unknown as TrustBoundary;
+    const collect = vi.fn(async () => report([service('kanban', 'error')]));
+    const execute = vi.fn(async () => okResult('kanban'));
+    const events: string[] = [];
+    const healer = createAutoHealer({
+      projectRoot: () => '/project',
+      indexDir: () => undefined,
+      trustBoundary: boundary,
+      collect,
+      execute,
+      enabled: true,
+      onStatus: (event) => events.push(event.phase),
+    });
+
+    const ticking = healer.tick();
+    // Flush microtasks until the tick is parked on the authorization gate.
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    // The tick really reached the authorization stage — the test cannot pass
+    // vacuously if the loop never got there.
+    expect(boundary.evaluate).toHaveBeenCalledOnce();
+
+    // Disposal begins while authorization is still pending...
+    await healer.dispose();
+    // ...then the authorization resolves as allowed.
+    resolveAuth({ kind: 'allow', reason: 'allowed' });
+    await ticking;
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+    expect(healer.getSnapshot().services['kanban']?.lastAttemptAt).toBeNull();
+  });
+
   it('onStatus throwing never breaks the heal loop', async () => {
     const collect = vi.fn(async () => report([service('kanban', 'error')]));
     const execute = vi.fn(async () => okResult('kanban'));

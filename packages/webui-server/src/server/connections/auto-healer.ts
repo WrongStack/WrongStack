@@ -236,6 +236,9 @@ export function createAutoHealer(options: AutoHealerOptions): AutoHealer {
             },
             options.logger,
           );
+          // Disposal can begin while the authorization await was pending;
+          // never start (or emit) a new restart once shutdown has begun.
+          if (disposed) break;
           if (!authorization.allowed) {
             state.lastAttemptAt = now;
             state.lastMessage = `refused by policy: ${authorization.reason}`;
