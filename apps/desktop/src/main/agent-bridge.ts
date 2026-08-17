@@ -162,7 +162,13 @@ export class DesktopAgentBridge extends EventEmitter {
     this.emitChanged(conversation);
     this.emitReconnectEvent(conversation, 'connecting');
 
-    return new Promise((resolve, reject) => {
+    // Store the in-flight connect promise so concurrent ensureConnected()
+    // calls dedup through the conversation.connectPromise read at L129-130.
+    // Without this, the dedup branch is dead and two parallel calls each
+    // construct a fresh WebSocket — the loser's close-handler guard
+    // (if (conversation.ws === ws)) means the superseded socket is never
+    // closed, leaking one OPEN socket per race until close().
+    const promise = new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
       conversation.ws = ws;
 
@@ -256,6 +262,8 @@ export class DesktopAgentBridge extends EventEmitter {
         }
       });
     });
+    conversation.connectPromise = promise;
+    return promise;
   }
 
   /**

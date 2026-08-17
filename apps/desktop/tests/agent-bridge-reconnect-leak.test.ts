@@ -121,4 +121,44 @@ describe('agent-bridge message listener cleanup', () => {
 
     bridge.closeAll();
   });
+
+  it('coalesces concurrent ensureConnected calls into a single WebSocket', async () => {
+    // Regression for H1: `conversation.connectPromise` was declared and
+    // cleared on settle but never assigned the in-flight connect() promise,
+    // so the dedup branch in `ensureConnected` was dead. Two parallel
+    // calls each constructed a fresh WebSocket; the loser's close-handler
+    // guard `if (conversation.ws === ws)` meant the superseded socket was
+    // never closed — one orphaned OPEN socket per race until close().
+    // The fix captures the in-flight promise and assigns it to
+    // `conversation.connectPromise`, so the second caller awaits the
+    // first and only one WebSocket reaches the server.
+    const bridge = new DesktopAgentBridge();
+    const url = `ws://127.0.0.1:${port}`;
+
+    await Promise.all([
+      bridge.ensureConnected('runtime-coalesce', url),
+      bridge.ensureConnected('runtime-coalesce', url),
+    ]);
+
+    // Allow the server-side `connection` event to register the accepted
+    // socket before we sample. Without this small wait the assertion
+    // races the server accept loop (the client-side promise resolves on
+    // `open`, the server-side `connection` handler fires shortly after).
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+
+    // With the fix: exactly one WebSocket constructed → wss.clients.size
+    // is 1. Without the fix: two parallel WebSockets → wss.clients.size
+    // is 2 and this assertion fails.
+    expect(wss.clients.size).toBe(1);
+
+    const conversation = (
+      bridge as unknown as {
+        conversations: Map<string, { ws: WebSocket | null }>;
+      }
+    ).conversations.get('runtime-coalesce');
+    expect(conversation).toBeDefined();
+    expect(conversation!.ws).not.toBeNull();
+
+    bridge.closeAll();
+  });
 });
