@@ -183,7 +183,8 @@
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "build:prompts": "node scripts/build-prompts.mjs",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run --root ../.. packages/core/tests",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
