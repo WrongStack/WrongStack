@@ -6,6 +6,30 @@ import { CronJobsMonitor, type CronListResult } from '../src/components/cron-job
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const NOW = new Date('2026-07-30T12:00:00.000Z').getTime();
 
+/**
+ * Sample frames until `predicate` holds (bounded). A single `flush()` is not
+ * sufficient: the observed content lands only after effect → fetch promise →
+ * setState → React/ink scheduler commit, and the commit is a macrotask that
+ * does not guarantee ordering against one `setImmediate`. On a contended CI
+ * runner the sample can beat the commit and read the initial frame — the
+ * exact failure of CI run 32137776491 ('cron offline' assertion saw the
+ * pre-commit 'No cron jobs' empty state). Polling the rendered frame until
+ * it settles removes the ordering assumption entirely.
+ */
+async function waitForFrame(
+  view: { lastFrame: () => string | undefined },
+  predicate: (frame: string) => boolean,
+  timeoutMs = 2000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const frame = view.lastFrame() ?? '';
+    if (predicate(frame)) return frame;
+    if (Date.now() > deadline) return frame;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
 function snapshot(): CronListResult {
   return {
     ok: true,
@@ -55,14 +79,11 @@ describe('CronJobsMonitor', () => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
     const getCronJobs = vi.fn().mockResolvedValue(snapshot());
     const view = render(React.createElement(CronJobsMonitor, { getCronJobs }));
-    await flush();
+    const frame = await waitForFrame(view, (f) => f.includes('CRON JOBS') && f.includes('fast-job'));
 
-    const frame = view.lastFrame() ?? '';
-    expect(frame).toContain('CRON JOBS');
     expect(frame).toContain('2 / 3 jobs');
     expect(frame).toContain('1 overdue');
     expect(frame).toContain('5 runs');
-    expect(frame).toContain('fast-job');
     expect(frame).toContain('500ms');
     expect(frame).toContain('overdue-job');
     expect(frame).toContain('2.0m');
@@ -83,8 +104,7 @@ describe('CronJobsMonitor', () => {
       error: 'cron offline',
     });
     const failed = render(React.createElement(CronJobsMonitor, { getCronJobs: failedResult }));
-    await flush();
-    expect(failed.lastFrame() ?? '').toContain('cron offline');
+    expect(await waitForFrame(failed, (f) => f.includes('cron offline'))).toContain('cron offline');
     failed.unmount();
 
     const rejected = render(
@@ -92,8 +112,9 @@ describe('CronJobsMonitor', () => {
         getCronJobs: vi.fn().mockRejectedValue(new Error('network down')),
       }),
     );
-    await flush();
-    expect(rejected.lastFrame() ?? '').toContain('network down');
+    expect(await waitForFrame(rejected, (f) => f.includes('network down'))).toContain(
+      'network down',
+    );
     rejected.unmount();
   });
 
@@ -108,9 +129,8 @@ describe('CronJobsMonitor', () => {
         }),
       }),
     );
-    await flush();
-    expect(view.lastFrame() ?? '').toContain('No cron jobs');
-    expect(view.lastFrame() ?? '').toContain('cron_schedule');
+    const frame = await waitForFrame(view, (f) => f.includes('No cron jobs'));
+    expect(frame).toContain('cron_schedule');
     view.unmount();
   });
 
@@ -122,10 +142,11 @@ describe('CronJobsMonitor', () => {
         onCancel,
       }),
     );
-    await flush();
+    await waitForFrame(view, (f) => f.includes('fast-job'));
     view.stdin.write('x');
-    await flush();
-    expect(view.lastFrame() ?? '').toContain('Cancel “fast-job”?');
+    expect(await waitForFrame(view, (f) => f.includes('Cancel “fast-job”?'))).toContain(
+      'Cancel “fast-job”?',
+    );
     expect(onCancel).not.toHaveBeenCalled();
 
     view.stdin.write('y');
