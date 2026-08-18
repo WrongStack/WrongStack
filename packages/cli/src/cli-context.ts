@@ -4,7 +4,7 @@
  * Consolidates the first ~150 lines of the monolithic main() function:
  *   - Pre-boot side effects (NODE_ENV, shell default)
  *   - Short-circuits (--help, --version, --desktop, --hq)
- *   - Interactive launch menu (TUI/REPL · WebUI · SimpleUI · HQ)
+ *   - Interactive launch menu (TUI/REPL · WebUI · SimpleUI · HQ · Desktop)
  *   - Boot() call + preflight
  *   - OAuth token persistence
  *   - Container wiring (EventBus, DI container)
@@ -75,7 +75,7 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
   if (desktopExit !== null) return desktopExit;
 
   // Interactive launch menu — asks the user to pick TUI/REPL · WebUI ·
-  // SimpleUI · HQ when no surface flag was given and stdin is a TTY.
+  // SimpleUI · HQ · Desktop when no surface flag was given and stdin is a TTY.
   // No-op when:
   //   - any surface flag is present (--webui/--simpleui/--hq/--desktop)
   //   - --no-menu is set, or --no-interactive/--skip already opt out
@@ -161,6 +161,10 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
       // that returned a numeric exit). In that case honour what
       // boot() decides with the augmented argv.
     }
+    if (menuResult.mode === 'desktop') {
+      const desktopAfterMenu = await handleDesktopShortCircuit(augmentedFlags, effectiveArgv);
+      if (desktopAfterMenu !== null) return desktopAfterMenu;
+    }
     // For webui/simpleui the boot() path already honours the
     // flags (--webui / --simpleui) and --port / --host via its
     // existing surface-detection in cli-context + boot.ts. Nothing
@@ -237,8 +241,10 @@ export async function initializeCli(argv: string[]): Promise<CliContext | number
   // Persist the user's last menu choice so the next boot can show
   // a one-line "Continue with these?" summary gate. Best-effort —
   // we swallow errors so a corrupt config file can't break the
-  // actual launch. Only webui/simpleui/hq choices are persisted;
-  // tui-repl is owned by the inner pre-launch prompts already.
+  // actual launch. Only surfaces that continue into boot() persist
+  // here (webui/simpleui). tui-repl is owned by the inner
+  // pre-launch prompts; hq/desktop return from their short-circuits
+  // before this point.
   if (menuResult !== null) {
     const persisted = toPersistedMenuChoice(menuResult);
     if (persisted) {

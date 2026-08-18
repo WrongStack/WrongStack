@@ -1158,14 +1158,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 160,
-      "sourceLines": 45146
+      "sourceLines": 45149
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 44,
-      "sourceLines": 11333
+      "sourceLines": 11339
     },
     {
       "directory": "defaults",

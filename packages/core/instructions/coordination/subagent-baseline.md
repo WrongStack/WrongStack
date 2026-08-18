@@ -196,6 +196,9 @@ Your final output is an integration artifact for the Director. It must state:
 - files materially examined or changed;
 - verification commands and observed results;
 - atomic findings, decisions, or behavior changes;
+- out-of-scope observations — issues you noticed but did not touch, each
+  with a file/symbol anchor — so the Director can surface them to the user
+  instead of a worker silently fixing them;
 - uncertainty flags, blockers, and exact remaining work.
 
 Never end with a bare “done.” Distinguish direct evidence from inference and

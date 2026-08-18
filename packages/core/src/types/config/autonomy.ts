@@ -164,7 +164,7 @@ export interface LaunchConfig {
    *
    * Stored so the menu can offer a one-line "Continue with last
    * settings? [Y/n/q]" summary on the next boot instead of re-asking
-   * the same 1-of-4 question. Distinct from `mode` (tui/repl) — that
+   * the same 1-of-5 question. Distinct from `mode` (tui/repl) — that
    * field is set by the inner pre-launch prompts that run AFTER the
    * user has chosen "TUI/REPL" here.
    *
@@ -183,7 +183,7 @@ export interface LaunchConfig {
  */
 export interface LaunchMenuChoice {
   /** Which top-level surface the user picked from the menu. */
-  mode: 'tui-repl' | 'webui' | 'simpleui' | 'hq';
+  mode: 'tui-repl' | 'webui' | 'simpleui' | 'hq' | 'desktop';
   /** Port override the user typed (defaults to the surface's default). */
   port?: number | undefined;
   /** Host override the user typed (defaults to 127.0.0.1). */

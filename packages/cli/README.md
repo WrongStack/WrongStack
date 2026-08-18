@@ -32,7 +32,7 @@ wstack resume <session-id>            # equivalent
 ### Launch menu
 
 When `wstack` is invoked on an interactive TTY with no surface flag, the CLI
-prints a four-option launch menu and waits for a numeric choice:
+prints a five-option launch menu and waits for a numeric choice:
 
 ```
   ✱ WrongStack launch mode
@@ -41,7 +41,8 @@ prints a four-option launch menu and waits for a numeric choice:
     2) WebUI       (browser-based project UI; port 3456)
     3) SimpleUI    (lightweight browser UI; port 3466)
     4) HQ          (project-independent HQ dashboard; port 3499)
-  [1-4, q to quit] (auto 1 in 8s)
+    5) Desktop     (Electron desktop shell; alias: --desktop)
+  [1-5, q to quit] (auto 1 in 8s)
 ```
 
 If you previously picked a mode, the menu shows a one-line summary and a

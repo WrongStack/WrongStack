@@ -472,7 +472,8 @@ export class CollabSession extends EventEmitter {
       .map((f) => `=== ${f.path} ===\n${f.content}`)
       .join('\n\n');
     return (
-      `You are BugHunter. Scan the following files for bugs and code smells.\n\n` +
+      `You are BugHunter. Scan the following files for bugs and code smells.\n` +
+      `This is an analysis role: do not edit the target files; report findings only.\n\n` +
       `Target files:\n${fileContents}\n\n` +
       `For each bug found, emit it using the fleet_emit tool immediately:\n` +
       `{ "type": "bug.found", "payload": { "finding": { "id": "<uuid>", "type": "<pattern>", ` +
@@ -491,7 +492,8 @@ export class CollabSession extends EventEmitter {
       .map((f) => `=== ${f.path} ===\n${f.content}`)
       .join('\n\n');
     return (
-      `You are RefactorPlanner. Plan refactorings for the following files.\n\n` +
+      `You are RefactorPlanner. Plan refactorings for the following files.\n` +
+      `This is an analysis role: do not edit the target files; emit the plan only.\n\n` +
       `Target files:\n${fileContents}\n\n` +
       `Read the BugHunter report at: ${bugHunterReportPath}\n\n` +
       `For each bug you can address, emit a refactor plan using fleet_emit:\n` +
@@ -512,7 +514,8 @@ export class CollabSession extends EventEmitter {
       .map((f) => `=== ${f.path} ===\n${f.content}`)
       .join('\n\n');
     return (
-      `You are Critic. Evaluate bug findings and refactor plans.\n\n` +
+      `You are Critic. Evaluate bug findings and refactor plans.\n` +
+      `This is an analysis role: do not edit the target files; emit evaluations only.\n\n` +
       `Target files:\n${fileContents}\n\n` +
       `Read the BugHunter report at: ${bugHunterReportPath}\n` +
       `Read the RefactorPlanner report at: ${refactorPlanPath}\n\n` +

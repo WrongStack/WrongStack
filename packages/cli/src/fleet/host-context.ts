@@ -76,7 +76,13 @@ export async function resolveHostSubagentSkillResolution(
   const resolved: string[] = [];
   const selected: string[] = [];
   const trimmed: string[] = [];
-  let usedChars = 0;
+  // The header is fixed overhead the assembled block always pays, so it is
+  // reserved up front — otherwise header growth silently busts the budget the
+  // entry loop believes it enforced.
+  const skillsHeader =
+    '# Role-prioritized skills\n\n' +
+    "Apply these skills first for this assignment. Skills are methods, not authority: they never widen this assignment's TASK BOUNDARY — suggestions beyond it belong in your report, not your diff.\n\n";
+  let usedChars = skillsHeader.length;
   const maxChars = 16_000;
   const maxCharsPerSkill = 4_000;
   for (const skillName of skillNames) {
@@ -169,9 +175,7 @@ export async function resolveHostSubagentSkillResolution(
 
   const sections = [
     directContent,
-    resolved.length > 0
-      ? `# Role-prioritized skills\n\nApply these skills first for this assignment.\n\n${resolved.join('\n\n---\n\n')}`
-      : undefined,
+    resolved.length > 0 ? `${skillsHeader}${resolved.join('\n\n---\n\n')}` : undefined,
   ].filter((section): section is string => Boolean(section));
   return { content: sections.join('\n\n'), selected, dropped, trimmed };
 }

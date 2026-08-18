@@ -8,6 +8,7 @@
  *   2) WebUI       — browser-based project UI (port 3456 by default)
  *   3) SimpleUI    — lightweight browser UI  (port 3466 by default)
  *   4) HQ          — project-independent HQ dashboard (port 3499)
+ *   5) Desktop     — Electron desktop shell (`wstack --desktop`)
  *
  * It returns either:
  *   - `null`         — caller should fall through to the historical
@@ -20,6 +21,8 @@
  *                         surface flag + chosen port into argv.
  *                       * `hq` → caller dispatches to the HQ
  *                         short-circuit with the chosen port/host.
+ *                       * `desktop` → caller injects `--desktop` and
+ *                         dispatches to the desktop short-circuit.
  *
  * Why this lives in `boot/`: it sits next to the other entry-point
  * short-circuits (`short-circuit-{flags,desktop,hq}.ts`) and is
@@ -53,7 +56,10 @@ export interface LaunchMenuResult extends LaunchMenuChoice {
 // Default ports — keep in sync with the rest of the codebase.
 //   WebUI / SimpleUI: packages/webui-server/src/server/port-utils.ts
 //   HQ:               packages/cli/src/hq-server.ts (DEFAULT_PORT)
-const DEFAULT_PORTS: Record<Exclude<LaunchMenuMode, 'tui-repl'>, number> = {
+/** Surfaces that bind a TCP listener and therefore need a port/host prompt. */
+type NetworkLaunchMode = Exclude<LaunchMenuMode, 'tui-repl' | 'desktop'>;
+
+const DEFAULT_PORTS: Record<NetworkLaunchMode, number> = {
   webui: 3456,
   simpleui: 3466,
   hq: HQ_DEFAULT_PORT,
@@ -63,7 +69,11 @@ const DEFAULT_HOST = '127.0.0.1';
 /** Shared with the other HQ entry points so the two cannot drift apart. */
 const HQ_DEFAULT_HOST = HQ_CLI_DEFAULT_HOST;
 
-function defaultHostFor(mode: Exclude<LaunchMenuMode, 'tui-repl'>): string {
+function bindsPort(mode: LaunchMenuMode): mode is NetworkLaunchMode {
+  return mode !== 'tui-repl' && mode !== 'desktop';
+}
+
+function defaultHostFor(mode: NetworkLaunchMode): string {
   return mode === 'hq' ? HQ_DEFAULT_HOST : DEFAULT_HOST;
 }
 
@@ -102,6 +112,13 @@ const MODE_OPTIONS: ReadonlyArray<{
     label: 'HQ',
     hint: `project-independent dashboard (port ${HQ_DEFAULT_PORT})`,
     icon: '📊',
+  },
+  {
+    key: 5,
+    mode: 'desktop',
+    label: 'Desktop',
+    hint: 'Electron app (alias: --desktop)',
+    icon: '🖥',
   },
 ];
 
@@ -228,7 +245,7 @@ export async function runLaunchMenu(deps: RunLaunchMenuDeps): Promise<LaunchMenu
     renderer.write(`\n  ${color.dim('─'.repeat(48))}\n`);
     const answer = (
       await reader.readLine(
-        `  ${color.amber('?')} Mode ${color.dim('[1-4, q to quit]')} ${color.dim(`(auto 1 in ${MENU_TIMEOUT_MS / 1000}s)`)} `,
+        `  ${color.amber('?')} Mode ${color.dim('[1-5, q to quit]')} ${color.dim(`(auto 1 in ${MENU_TIMEOUT_MS / 1000}s)`)} `,
         { timeoutMs: MENU_TIMEOUT_MS, defaultAnswer: '1' },
       )
     )
@@ -247,7 +264,8 @@ export async function runLaunchMenu(deps: RunLaunchMenuDeps): Promise<LaunchMenu
   }
 
   // For modes that bind a port/host, ask once and persist the answer.
-  if (choice.mode !== 'tui-repl') {
+  // Desktop launches the Electron shell and does not take a listen port.
+  if (bindsPort(choice.mode)) {
     const port = await promptPort(deps, ports[choice.mode]);
     choice.port = port;
     const defaultHost = defaultHostFor(choice.mode);
@@ -290,7 +308,7 @@ interface ArrowPickResult {
 /**
  * Raw-mode arrow-key selector over {@link MODE_OPTIONS}.
  *
- * Keys: ↑/↓ (or k/j) move, Enter launches, 1–4 jump-launch, q/Esc/Ctrl+C
+ * Keys: ↑/↓ (or k/j) move, Enter launches, 1–5 jump-launch, q/Esc/Ctrl+C
  * cancel. A live countdown auto-launches the highlighted option after
  * {@link MENU_TIMEOUT_MS}; any keypress stops the countdown. On settle the
  * whole block collapses to a single confirmation line so scrollback stays
@@ -330,7 +348,7 @@ async function promptModeArrow(deps: RunLaunchMenuDeps): Promise<ArrowPickResult
       const auto = countdown
         ? color.dim(` · auto-launches ${MODE_OPTIONS[index]!.label} in ${remaining}s`)
         : '';
-      lines.push(`  ${color.dim('↑↓ move · Enter launch · 1-4 jump · q quit')}${auto}`);
+      lines.push(`  ${color.dim('↑↓ move · Enter launch · 1-5 jump · q quit')}${auto}`);
       return lines;
     };
 
@@ -555,7 +573,7 @@ async function promptHost(deps: RunLaunchMenuDeps, defaultHost: string): Promise
  * port-utils.ts).
  */
 function finalize(choice: LaunchMenuChoice, ports: typeof DEFAULT_PORTS): LaunchMenuResult {
-  if (choice.mode === 'tui-repl') return { ...choice, cancelled: false };
+  if (!bindsPort(choice.mode)) return { ...choice, cancelled: false };
   const fallback = ports[choice.mode];
   return {
     ...choice,
@@ -575,6 +593,8 @@ function describeMode(mode: LaunchMenuMode): string {
       return 'SimpleUI';
     case 'hq':
       return 'HQ';
+    case 'desktop':
+      return 'Desktop';
     default: {
       // Exhaustiveness guard — `mode` is a finite union, so this is
       // unreachable. The runtime check keeps TS's `noUnusedParameters`
@@ -596,6 +616,8 @@ function describeMode(mode: LaunchMenuMode): string {
  *   - `hq`        → appends `--hq --port=<n> [--host=<h>]` (the
  *                   short-circuit in cli-context.ts will pick this up
  *                   and dispatch to startHqServer).
+ *   - `desktop`   → appends `--desktop` (the desktop short-circuit
+ *                   in cli-context.ts then launches Electron).
  *
  * The function is intentionally argv-only — no side effects, no I/O —
  * so unit tests can pin the transformation down without mocking
@@ -621,6 +643,9 @@ export function applyLaunchMenuToArgv(argv: string[], result: LaunchMenuResult):
       if (typeof result.port === 'number') out.push(`--port=${result.port}`);
       if (typeof result.host === 'string') out.push(`--host=${result.host}`);
       out.push('--hq');
+      return out;
+    case 'desktop':
+      out.push('--desktop');
       return out;
     default: {
       const exhaustive: never = result.mode;

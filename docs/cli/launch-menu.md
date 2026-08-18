@@ -1,6 +1,6 @@
 # Launch Menu
 
-The `wstack` CLI shows a four-option interactive launch menu when invoked
+The `wstack` CLI shows a five-option interactive launch menu when invoked
 on a TTY with no surface flag. This document explains the menu, its
 fallback rules, and how to opt out.
 
@@ -30,15 +30,18 @@ In every other case the menu is silently skipped and the historical
     2) WebUI       (browser-based project UI; port 3456)
     3) SimpleUI    (lightweight browser UI; port 3466)
     4) HQ          (project-independent HQ dashboard; port 3499)
-  [1-4, q to quit] (auto 1 in 8s)
+    5) Desktop     (Electron desktop shell; alias: --desktop)
+  [1-5, q to quit] (auto 1 in 8s)
 ```
 
-- A numeric answer (`1`–`4`) picks the surface.
+- A numeric answer (`1`–`5`) picks the surface.
 - `q` (or `quit`) cancels — the CLI exits with code 0.
 - Any other input (or a timeout) falls back to the first option
   (TUI/REPL).
 - For modes 2/3/4 the menu then prompts for an optional port (Enter
   uses the surface's documented default) and host.
+- Mode 5 launches Desktop the same way as `wstack --desktop` and
+  does not ask for a port or host.
 
 ### Default ports
 
@@ -91,8 +94,8 @@ it equals the surface default, so the source of truth stays in
 
 ## Why a menu at all?
 
-The CLI grew four parallel first-class surfaces (TUI/REPL, WebUI,
-SimpleUI, HQ) with separate launch flags. Users on a fresh install
+The CLI grew five parallel first-class surfaces (TUI/REPL, WebUI,
+SimpleUI, HQ, Desktop) with separate launch flags. Users on a fresh install
 often type plain `wstack` expecting *one* of them to start. The menu
 replaces the implicit `TUI/REPL if no flag is set` choice with an
 explicit one-liner, while preserving every existing escape hatch.

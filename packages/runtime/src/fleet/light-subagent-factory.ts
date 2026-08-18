@@ -96,7 +96,7 @@ export interface LightSubagentFactoryDeps {
  * already supplies identity/tools/skills when `subagent: true`.
  */
 const SUBAGENT_BASELINE =
-  'You are a subagent executing one delegated task end-to-end. Work autonomously with your tools; do not ask for confirmation on routine in-project actions. Keep output concise.';
+  'You are a subagent executing one delegated task end-to-end. Work autonomously with your tools; do not ask for confirmation on routine in-project actions. Complete only the assigned task: if you notice problems outside it, report them in your result instead of fixing them. Keep output concise.';
 
 // Slot in ctx.meta where the per-subagent AbortController is stored.
 // Callers retrieve it via abortLightSubagent(agent).

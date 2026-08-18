@@ -326,6 +326,7 @@ function buildKanbanAgentPrompt(
     task.labels?.length ? `Labels: ${task.labels.join(', ')}` : '',
     '',
     'Work the task end-to-end. Use the kanban tool, not direct file edits, to update this task.',
+    'Stay inside this task: its description and success criteria define the boundary. If you notice problems outside this task while working, do not fix them — note them in lastResult instead.',
     ...(leaseId ? [
       'LEASE CONTRACT:',
       `- Your leaseId is "${leaseId}". Include expectedLeaseId "${leaseId}" in every mark_assignment and heartbeat_assignment call.`,
@@ -334,7 +335,7 @@ function buildKanbanAgentPrompt(
       'On failure the host may call recover_stale; respect its decisions and do not duplicate work.',
     ] : []),
     `When you start or finish, call kanban with action "mark_assignment", boardId "${board.id}", taskId "${task.id}", and assignmentStatus "running", "completed", or "failed"${leaseId ? `, and expectedLeaseId "${leaseId}"` : ''}. Include lastResult or error when you finish. On managed lifecycle boards, mark_assignment(completed) will automatically advance your card from Running to Review — a separate verification step is required before the card reaches Done.`,
-    'When finished, report what changed, what you verified, and any remaining blockers.',
+    'When finished, report what changed, what you verified, any remaining blockers, and any issues you noticed outside this task\'s scope.',
   ]
     .filter(Boolean)
     .join('\n');
