@@ -83,6 +83,33 @@ export async function searchVectorMemory(
   return (await response.json()) as VectorMemorySearchResponse;
 }
 
+/** Collapse whitespace and truncate with an ellipsis — same preview contract
+ *  as the MemoryManager's `memoryPreview`, kept local so the panel stays
+ *  self-contained (no cross-feature import). */
+export function previewText(text: string, max = 170): string {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  return normalized.length > max ? `${normalized.slice(0, max - 1)}…` : normalized;
+}
+
+/** Forget (hard-remove) a single entry and its embedding from the
+ *  vector-memory store. Maps to `DELETE /api/vector-memory/store/:id`. */
+export async function forgetVectorMemory(
+  id: string,
+  opts: { baseUrl?: string } = {},
+): Promise<{ removed: boolean }> {
+  const response = await fetch(
+    `${opts.baseUrl ?? ''}/api/vector-memory/store/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      credentials: 'include',
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`forget failed: HTTP ${response.status}`);
+  }
+  return (await response.json()) as { removed: boolean };
+}
+
 /** Hook: track the live status, re-fetching on focus. */
 export function useVectorMemoryStatus(baseUrl = ''): {
   status: VectorMemoryStatus | undefined;

@@ -5,11 +5,15 @@
  * host doesn't wire a vector store — see `fetchVectorMemoryStatus()` which
  * returns `{ enabled: false }` in that case.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import { ChevronRight } from 'lucide-react';
 
+import { ForgetVectorMemoryDialog } from './ForgetVectorMemoryDialog.js';
 import {
   fetchVectorMemoryStatus,
+  forgetVectorMemory,
+  previewText,
   searchVectorMemory,
   type VectorMemoryHit,
   type VectorMemoryStatus,
@@ -32,18 +36,47 @@ export function VectorMemoryPanel({
   const [similarity, setSimilarity] = useState<readonly (readonly number[])[] | undefined>();
   const [searchError, setSearchError] = useState<string | undefined>();
   const [searching, setSearching] = useState(false);
+  // Inline-expand (master-detail) + Forget state for the hit list.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [forgetTarget, setForgetTarget] = useState<VectorMemoryHit | null>(null);
+  const [forgetBusy, setForgetBusy] = useState(false);
+  const [forgetError, setForgetError] = useState<string | undefined>();
+  // Bumped after a successful forget so the status strip (entry/vector
+  // counts) refetches without remounting the panel.
+  const [statusNonce, setStatusNonce] = useState(0);
+  // Bumped on every successful search. A forget completion compares the
+  // version it started against so it never patches a similarity matrix that
+  // belongs to a newer result set (index-aligned data + stale closure race).
+  const resultVersionRef = useRef(0);
+  // True once any status fetch has succeeded. A later failed refetch (e.g.
+  // after a forget bumped statusNonce) keeps the last good status instead of
+  // unmounting an enabled panel — counts just stay stale until next poll.
+  const statusLoadedRef = useRef(false);
+  // The host the current `status` belongs to. A baseUrl change must start
+  // from a clean slate: keeping the previous host's status would render its
+  // provider/paths/counts as if they belonged to the new host.
+  const statusBaseUrlRef = useRef(baseUrl);
 
   useEffect(() => {
     let cancelled = false;
+    if (statusBaseUrlRef.current !== baseUrl) {
+      statusBaseUrlRef.current = baseUrl;
+      statusLoadedRef.current = false;
+      setStatus(undefined);
+      setStatusError(undefined);
+    }
     fetchVectorMemoryStatus(baseUrl)
       .then((s) => {
         if (!cancelled) {
+          statusLoadedRef.current = true;
           setStatus(s);
           setStatusError(undefined);
         }
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
+        if (cancelled) return;
+        // Only tear the panel down before the first successful load.
+        if (!statusLoadedRef.current) {
           setStatus(undefined);
           setStatusError(err instanceof Error ? err.message : String(err));
         }
@@ -51,13 +84,17 @@ export function VectorMemoryPanel({
     return () => {
       cancelled = true;
     };
-  }, [baseUrl]);
+  }, [baseUrl, statusNonce]);
 
   const onSearch = async () => {
     const q = query.trim();
     if (q.length === 0) return;
     setSearching(true);
     setSearchError(undefined);
+    // New result set invalidates any expanded hit and stale confirm state.
+    setExpandedId(null);
+    setForgetTarget(null);
+    setForgetError(undefined);
     try {
       const result = await searchVectorMemory(q, {
         limit,
@@ -72,7 +109,57 @@ export function VectorMemoryPanel({
       setSimilarity(undefined);
       setSearchError(err instanceof Error ? err.message : String(err));
     } finally {
+      // Any search *completion* — success or failure — invalidates an
+      // in-flight forget's patch: success replaces the list, failure clears
+      // it, and patching either with pre-search indices would corrupt state.
+      resultVersionRef.current += 1;
       setSearching(false);
+    }
+  };
+
+  const onConfirmForget = async () => {
+    if (forgetTarget === null) return;
+    const id = forgetTarget.id;
+    const version = resultVersionRef.current;
+    // Pin the result-set snapshot this forget's index math belongs to. The
+    // version guard below is the correctness check; the snapshots make the
+    // patch self-contained (no closure reads past this line).
+    const hitSnapshot = hits;
+    const similaritySnapshot = similarity;
+    setForgetBusy(true);
+    setForgetError(undefined);
+    try {
+      const { removed } = await forgetVectorMemory(id, { baseUrl });
+      if (removed) {
+        // Patch the list/matrix only if no newer search landed while the
+        // DELETE was in flight — indices are aligned to the result set the
+        // forget started from, and applying them to a newer set would
+        // corrupt the similarity matrix.
+        if (resultVersionRef.current === version) {
+          const forgottenIndex = hitSnapshot.findIndex((h) => h.id === id);
+          setHits(hitSnapshot.filter((h) => h.id !== id));
+          if (similaritySnapshot !== undefined && forgottenIndex >= 0) {
+            setSimilarity(
+              similaritySnapshot
+                .filter((_, i) => i !== forgottenIndex)
+                .map((row) => row.filter((_, j) => j !== forgottenIndex)),
+            );
+          }
+          if (expandedId === id) setExpandedId(null);
+        }
+        // Dismiss only a confirm dialog that still targets the entry we
+        // forgot — if the user somehow queued a different hit meanwhile,
+        // its pending confirm must survive.
+        setForgetTarget((t) => (t?.id === id ? null : t));
+        // Entry/vector counts in the status strip are now stale.
+        setStatusNonce((n) => n + 1);
+      } else {
+        setForgetError('The store reported the entry was not removed.');
+      }
+    } catch (err: unknown) {
+      setForgetError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setForgetBusy(false);
     }
   };
 
@@ -190,26 +277,81 @@ export function VectorMemoryPanel({
       ) : null}
 
       <ol className="vector-memory-panel__hits">
-        {hits.map((h) => (
-          <li key={h.id} className="vector-memory-panel__hit">
-            <div className="vector-memory-panel__hit-header">
-              <span className="vector-memory-panel__hit-score">{h.score.toFixed(3)}</span>
-              {h.summary ? (
-                <span className="vector-memory-panel__hit-summary">{h.summary}</span>
-              ) : null}
-            </div>
-            <p className="vector-memory-panel__hit-text">{h.text}</p>
-            {h.tags.length > 0 ? (
-              <p className="vector-memory-panel__hit-tags">
-                {h.tags.map((t) => (
-                  <span key={t} className="vector-memory-panel__hit-tag">
-                    {t}
-                  </span>
-                ))}
+        {hits.map((h) => {
+          const expanded = expandedId === h.id;
+          return (
+            <li
+              key={h.id}
+              className={
+                expanded
+                  ? 'vector-memory-panel__hit vector-memory-panel__hit--expanded'
+                  : 'vector-memory-panel__hit'
+              }
+            >
+              <button
+                type="button"
+                className="vector-memory-panel__hit-toggle"
+                aria-expanded={expanded}
+                onClick={() => setExpandedId(expanded ? null : h.id)}
+              >
+                <ChevronRight
+                  aria-hidden="true"
+                  className={
+                    expanded
+                      ? 'vector-memory-panel__hit-chevron vector-memory-panel__hit-chevron--open'
+                      : 'vector-memory-panel__hit-chevron'
+                  }
+                />
+                <span className="vector-memory-panel__hit-score">{h.score.toFixed(3)}</span>
+                {h.summary ? (
+                  <span className="vector-memory-panel__hit-summary">{h.summary}</span>
+                ) : null}
+              </button>
+              <p className="vector-memory-panel__hit-text">
+                {expanded ? h.text : previewText(h.text)}
               </p>
-            ) : null}
-          </li>
-        ))}
+              {h.tags.length > 0 ? (
+                <p className="vector-memory-panel__hit-tags">
+                  {h.tags.map((t) => (
+                    <span key={t} className="vector-memory-panel__hit-tag">
+                      {t}
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+              {expanded ? (
+                <div className="vector-memory-panel__hit-detail">
+                  <dl className="vector-memory-panel__hit-fields">
+                    <dt>id</dt>
+                    <dd>
+                      <code>{h.id}</code>
+                    </dd>
+                    <dt>score</dt>
+                    <dd>{h.score.toFixed(3)}</dd>
+                    {h.summary ? (
+                      <>
+                        <dt>summary</dt>
+                        <dd>{h.summary}</dd>
+                      </>
+                    ) : null}
+                  </dl>
+                  <div className="vector-memory-panel__hit-actions">
+                    <button
+                      type="button"
+                      className="vector-memory-panel__forget"
+                      onClick={() => {
+                        setForgetError(undefined);
+                        setForgetTarget(h);
+                      }}
+                    >
+                      Forget
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
         {hits.length === 0 && searching === false && query.trim().length > 0 ? (
           <li className="vector-memory-panel__no-hits">No results.</li>
         ) : null}
@@ -243,6 +385,17 @@ export function VectorMemoryPanel({
           </div>
         </div>
       ) : null}
+
+      <ForgetVectorMemoryDialog
+        hit={forgetTarget}
+        busy={forgetBusy}
+        error={forgetError}
+        onCancel={() => setForgetTarget(null)}
+        onConfirm={() => void onConfirmForget()}
+        onOpenChange={(open) => {
+          if (!open && !forgetBusy) setForgetTarget(null);
+        }}
+      />
     </div>
   );
 }
