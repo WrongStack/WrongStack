@@ -163,8 +163,13 @@ describe('release scripts (WS-040)', () => {
     const releaseCheck = scripts()['release:check'];
     const architectureCheck = scripts()['check:architecture'];
     expect(releaseCheck).toBeDefined();
-    expect(releaseCheck).toContain('pnpm check:architecture');
-    expect(releaseCheck).not.toContain('check:architecture:sync');
+    // release:check delegates to the gate-matrix runner; the architecture
+    // gate is defined there. Assert the delegation AND that the runner
+    // wires the read-only variant — never the sync/--write maintenance one.
+    expect(releaseCheck).toContain('release-check-matrix');
+    const runner = readFileSync(join(repoRoot, 'scripts', 'release-check-matrix.mjs'), 'utf8');
+    expect(runner).toContain("'pnpm check:architecture'");
+    expect(runner).not.toContain('check:architecture:sync');
     expect(architectureCheck).toBeDefined();
     expect(architectureCheck).not.toContain('--write');
     expect(architectureCheck).not.toContain('--report-only');
