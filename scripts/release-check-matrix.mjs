@@ -7,8 +7,9 @@
  * gate aborted everything after it, so one broken gate blinded the release
  * to every later problem — fixing gate 3 meant discovering gate 9's failure
  * only after another full 20-minute re-run. This runner executes EVERY
- * gate (except those whose prerequisites failed), captures per-gate status,
- * duration, and full output, and reports one matrix with failure tails.
+ * gate (except those whose prerequisites failed), streams and records each
+ * gate's full output, captures per-gate status and duration, and reports one
+ * matrix with failure tails.
  *
  * Semantics
  * ---------
@@ -16,9 +17,10 @@
  * - A gate whose `prereq` failed is reported as SKIP (running it would be
  *   guaranteed-fail noise: most gates consume workspace `dist/` built by
  *   the `build` gate).
- * - Full stdout+stderr per gate lands in `.reports/release-check-matrix/
- *   <id>.log` (gitignored). The console report shows detected failure
- *   diagnostics plus the last `--tail N` lines (default 25) of each FAIL.
+ * - Full stdout+stderr is streamed live to the terminal and also lands in
+ *   `.reports/release-check-matrix/<id>.log` (gitignored). The final console
+ *   report repeats detected diagnostics plus the last `--tail N` lines
+ *   (default 25) of each FAIL.
  * - Exit codes: 0 = all gates PASS (or SKIP-with-reason); 1 = one or more
  *   FAIL; 2 = usage error.
  *
@@ -31,8 +33,8 @@
  * The runner deliberately does not parse or interpret gate output — it only
  * propagates exit codes. Gate semantics stay owned by each gate script.
  */
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { createWriteStream, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -193,6 +195,45 @@ function fail(msg) {
   process.exit(2);
 }
 
+/**
+ * Run a gate with a live terminal view while retaining the complete logfile.
+ * Keeping stdout and stderr as distinct pipes preserves their terminal
+ * destinations; both are tee'd into the same per-gate diagnostic log.
+ */
+async function runGate(command, logFile) {
+  const log = createWriteStream(logFile, { encoding: 'utf8' });
+  log.write(`$ ${command}\n`);
+
+  const child = spawn(command, {
+    shell: true,
+    env: { ...process.env },
+    stdio: ['inherit', 'pipe', 'pipe'],
+  });
+  let spawnError = null;
+
+  child.stdout.on('data', (chunk) => {
+    process.stdout.write(chunk);
+    log.write(chunk);
+  });
+  child.stderr.on('data', (chunk) => {
+    process.stderr.write(chunk);
+    log.write(chunk);
+  });
+
+  const { code, signal } = await new Promise((resolve) => {
+    child.once('error', (error) => {
+      spawnError = error;
+      const message = `release-check-matrix: failed to spawn ${command}: ${error.message}\n`;
+      process.stderr.write(message);
+      log.write(message);
+    });
+    child.once('close', (code, signal) => resolve({ code, signal }));
+  });
+  await new Promise((resolve) => log.end(resolve));
+
+  return { status: code, signal, error: spawnError };
+}
+
 const args = process.argv.slice(2);
 let tail = 25;
 let listOnly = false;
@@ -256,25 +297,23 @@ for (const gate of selected) {
   const logFile = path.join(LOG_DIR, `${gate.id}.log`);
   console.log(`[RUN ] ${gate.id} — ${gate.label}`);
   const t0 = Date.now();
-  // shell: true resolves pnpm.cmd / pnpm on Windows the same way a package.json
-  // script line would; output is captured (not streamed) so the matrix stays
-  // readable and each gate's full log lands in its file.
-  const r = spawnSync(gate.cmd, {
-    shell: true,
-    encoding: 'utf8',
-    env: { ...process.env },
-    maxBuffer: 256 * 1024 * 1024,
-  });
+  // shell: true inside runGate resolves pnpm.cmd / pnpm on Windows the same
+  // way a package.json script line would. Output is shown live and tee'd to
+  // the per-gate logfile without a fixed-size capture buffer.
+  const r = await runGate(gate.cmd, logFile);
   const ms = Date.now() - t0;
-  const output = `${r.stdout ?? ''}\n${r.stderr ?? ''}`;
-  writeFileSync(logFile, `$ ${gate.cmd}\n${output}`);
 
   const code = r.status;
   if (code === 0) {
     results.set(gate.id, { status: 'pass', ms });
     console.log(`[PASS] ${gate.id} (${(ms / 1000).toFixed(1)}s)`);
   } else {
-    const why = code === null ? 'spawn error / killed' : `exit ${code}`;
+    const why =
+      code === null
+        ? r.error
+          ? `spawn error: ${r.error.message}`
+          : `killed${r.signal ? ` by ${r.signal}` : ''}`
+        : `exit ${code}`;
     results.set(gate.id, { status: 'fail', ms, code, why });
     console.log(
       `[FAIL] ${gate.id} — ${why} (${(ms / 1000).toFixed(1)}s) → ${path.relative('.', logFile)}`,
