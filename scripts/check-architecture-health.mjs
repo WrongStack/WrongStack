@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import {
   buildArchitectureHealth,
   evaluateReportFreshness,
+  FRESHNESS_REPORT_FILES,
   loadArchitectureInputs,
   renderArchitectureHealthMarkdown,
 } from './lib/architecture-health.mjs';
@@ -115,7 +117,19 @@ const maintenanceMode =
   args.has('--print-hotspot-baseline') ||
   args.has('--write-hotspot-baseline');
 if (!maintenanceMode) {
-  const freshness = evaluateReportFreshness(repoRoot);
+  // History alone cannot prove freshness: a DELETED report file still has a
+  // git history (its deletion commit is the newest one), so the pair must
+  // exist on disk before any "fresh" verdict is trusted.
+  const pairMissing = FRESHNESS_REPORT_FILES.filter(
+    (file) => !existsSync(path.join(repoRoot, file)),
+  );
+  const freshness = pairMissing.length
+    ? {
+        status: 'stale',
+        reason: 'committed-evidence-missing',
+        detail: `Missing on disk: ${pairMissing.join(', ')}.`,
+      }
+    : evaluateReportFreshness(repoRoot);
   if (freshness.status === 'stale') {
     console.error(
       `❌ Stale architecture evidence: ${freshness.reason} — ${freshness.detail ?? ''}`,

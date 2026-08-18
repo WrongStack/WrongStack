@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -8,8 +9,10 @@ import {
   collectIdentifiers,
   collectModuleSpecifiers,
   collectRuntimeExports,
+  evaluateReportFreshness,
   findNonCommandSlashImports,
   findTestOnlyExports,
+  FRESHNESS_REPORT_FILES,
   globToRegExp,
   loadArchitectureInputs,
   parseTsConfigFiles,
@@ -739,5 +742,111 @@ describe('test-only export detection', () => {
     const nowWired = validateTestOnlyExportBaseline([], baseline);
     expect(nowWired.errors).toHaveLength(1);
     expect(nowWired.errors[0]).toContain('no longer test-only');
+  });
+});
+
+describe('report freshness gate', () => {
+  function git(cwd: string, ...args: string[]) {
+    execFileSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
+  }
+
+  /**
+   * Commit with an explicit committer/author timestamp: git's %cI has
+   * one-second resolution, and undated rapid commits here would collide
+   * into the same second, making stale scenarios read fresh.
+   */
+  function commitAt(cwd: string, dateIso: string, message: string) {
+    execFileSync('git', ['commit', '-qm', message], {
+      cwd,
+      encoding: 'utf8',
+      windowsHide: true,
+      env: { ...process.env, GIT_COMMITTER_DATE: dateIso, GIT_AUTHOR_DATE: dateIso },
+    });
+  }
+
+  async function initScratchRepo(tag: string): Promise<string> {
+    const dir = await mkdtemp(path.join(tmpdir(), `freshness-${tag}-`));
+    temporaryRoots.push(dir);
+    await mkdir(path.join(dir, 'packages/x'), { recursive: true });
+    await mkdir(path.join(dir, 'docs/reports'), { recursive: true });
+    git(dir, 'init', '-q');
+    git(dir, 'config', 'user.email', 't@t');
+    git(dir, 'config', 'user.name', 't');
+    await writeFile(path.join(dir, 'packages/x/a.ts'), 'export const a = 1;\n');
+    git(dir, 'add', '.');
+    commitAt(dir, '2026-01-01T00:00:00Z', 'source');
+    return dir;
+  }
+
+  async function commitReportPair(dir: string, stamp: string): Promise<void> {
+    for (const rel of FRESHNESS_REPORT_FILES) {
+      await writeFile(path.join(dir, rel), `${stamp}\n`);
+    }
+    git(dir, 'add', 'docs/reports');
+    commitAt(dir, '2026-01-01T00:00:01Z', `report ${stamp}`);
+  }
+
+  it('is fresh when the report pair is committed after the newest source commit', async () => {
+    const dir = await initScratchRepo('fresh');
+    await commitReportPair(dir, 'newer');
+    expect(evaluateReportFreshness(dir).status).toBe('fresh');
+  });
+
+  it('is stale when a source-only commit lands after the report pair', async () => {
+    const dir = await initScratchRepo('stale');
+    await commitReportPair(dir, 'first');
+    await writeFile(path.join(dir, 'packages/x/a.ts'), 'export const a = 2;\n');
+    git(dir, 'add', 'packages');
+    commitAt(dir, '2026-01-01T00:00:02Z', 'source-only');
+    const verdict = evaluateReportFreshness(dir);
+    expect(verdict.status).toBe('stale');
+    expect(verdict.reason).toBe('stale-committed-evidence');
+  });
+
+  it('is fresh when one commit touches both sources and the report pair (same-PR flow)', async () => {
+    const dir = await initScratchRepo('same-commit');
+    await commitReportPair(dir, 'first');
+    await writeFile(path.join(dir, 'packages/x/a.ts'), 'export const a = 3;\n');
+    await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[0]), '{"v":3}\n');
+    await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[1]), '# r3\n');
+    git(dir, 'add', '.');
+    commitAt(dir, '2026-01-01T00:00:02Z', 'source+report together');
+    expect(evaluateReportFreshness(dir).status).toBe('fresh');
+  });
+
+  it('stays stale on a partial regen that recommits only one report file', async () => {
+    const dir = await initScratchRepo('partial');
+    await commitReportPair(dir, 'first');
+    await writeFile(path.join(dir, 'packages/x/a.ts'), 'export const a = 4;\n');
+    git(dir, 'add', 'packages');
+    commitAt(dir, '2026-01-01T00:00:02Z', 'source-only');
+    await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[0]), '{"v":4}\n');
+    git(dir, 'add', FRESHNESS_REPORT_FILES[0]);
+    commitAt(dir, '2026-01-01T00:00:03Z', 'regen json only');
+    const verdict = evaluateReportFreshness(dir);
+    expect(verdict.status).toBe('stale');
+    // The .md never moved past the original pair commit → older-of-the-pair.
+    expect(verdict.reportCommitMs).toBe(Date.parse('2026-01-01T00:00:01Z'));
+  });
+
+  it('is stale when a report file exists on disk but has no commit history', async () => {
+    const dir = await initScratchRepo('never-committed');
+    // Files exist on disk but were never staged or committed: git log for
+    // them is empty, which maps to 0 (older than every source commit).
+    await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[0]), '{}\n');
+    await writeFile(path.join(dir, FRESHNESS_REPORT_FILES[1]), '# r\n');
+    const verdict = evaluateReportFreshness(dir);
+    expect(verdict.status).toBe('stale');
+    expect(verdict.reportCommitMs).toBe(0);
+  });
+
+  it('skips with a warning-shaped result when git history is unavailable', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'freshness-nogit-'));
+    temporaryRoots.push(dir);
+    await mkdir(path.join(dir, 'packages/x'), { recursive: true });
+    await mkdir(path.join(dir, 'docs/reports'), { recursive: true });
+    const verdict = evaluateReportFreshness(dir);
+    expect(verdict.status).toBe('skipped');
+    expect(verdict.reason).toBe('git-history-unavailable');
   });
 });

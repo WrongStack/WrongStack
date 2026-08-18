@@ -73,6 +73,8 @@ export interface ReportFreshnessResult {
   reportCommitMs?: number;
 }
 export function evaluateReportFreshness(repoRoot: string): ReportFreshnessResult;
+export const FRESHNESS_WATCHED_ROOTS: string[];
+export const FRESHNESS_REPORT_FILES: string[];
 export function loadArchitectureInputs(repoRoot: string): Promise<{
   registry: unknown;
   exceptions: unknown;

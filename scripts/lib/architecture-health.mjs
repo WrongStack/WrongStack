@@ -1059,9 +1059,9 @@ export const __architectureHealthTestInternals = {
 //     correctness gate, and release:check must not die on environment quirks.
 
 /** Roots whose newest commit marks the "sources changed" timestamp. */
-const FRESHNESS_WATCHED_ROOTS = ['architecture', 'packages', 'apps'];
+export const FRESHNESS_WATCHED_ROOTS = ['architecture', 'packages', 'apps'];
 
-const FRESHNESS_REPORT_FILES = [
+export const FRESHNESS_REPORT_FILES = [
   'docs/reports/architecture-health-current.json',
   'docs/reports/architecture-health-current.md',
 ];
@@ -1079,10 +1079,24 @@ function gitLogTimestamp(repoRoot, args) {
   }
 }
 
-/** Parse `git log -1 --format=%cI` output to epoch ms; undefined on failure. */
-function parseCommitIso(value) {
-  if (!value) return undefined;
-  const ms = Date.parse(value);
+/**
+ * Commit timestamp (epoch ms) for one git-log query.
+ *   git failure  → undefined (the caller treats the whole comparison as
+ *                  skipped — the repo is unusable, not the evidence stale)
+ *   empty output → 0: the pathspec has NO history. A report file that exists
+ *                  on disk but was never committed means there is no
+ *                  committed evidence; that reads as older-than-everything
+ *                  (stale), not as skip. A DELETED file still returns its
+ *                  deletion commit — the newest one — which is why the
+ *                  enforcing caller must also stat the report pair before
+ *                  trusting any "fresh" verdict from history alone.
+ *   bad date     → undefined (defensive; behaves like git failure)
+ */
+function commitTimestampMs(repoRoot, args) {
+  const out = gitLogTimestamp(repoRoot, args);
+  if (out === undefined) return undefined;
+  if (out === '') return 0;
+  const ms = Date.parse(out);
   return Number.isNaN(ms) ? undefined : ms;
 }
 
@@ -1092,14 +1106,13 @@ function parseCommitIso(value) {
  * paths on every git version this repo supports.
  */
 function newestWatchedCommitMs(repoRoot) {
-  const iso = gitLogTimestamp(repoRoot, [
+  return commitTimestampMs(repoRoot, [
     'log',
     '-1',
     '--format=%cI',
     '--',
     ...FRESHNESS_WATCHED_ROOTS,
   ]);
-  return parseCommitIso(iso);
 }
 
 /**
@@ -1107,14 +1120,17 @@ function newestWatchedCommitMs(repoRoot) {
  * commit timestamps. Each file is queried independently — a single git log
  * across both paths would return the newest commit touching either file, so
  * regenerating only the .json after a source change would read as fresh while
- * its stale .md companion ships as evidence. Either file lacking history
- * returns undefined → the caller treats the whole comparison as skipped.
+ * its stale .md companion ships as evidence. A file with NO git history maps
+ * to 0 (older than everything → stale), not skip: present-on-disk-but-never-
+ * committed is exactly the state that must force a commit. Git failure for
+ * either query still returns undefined → caller skips. A DELETED file returns
+ * its deletion commit (the newest one), so the enforcing caller must stat the
+ * pair on disk before trusting any "fresh" verdict from history alone.
  */
 function newestReportCommitMs(repoRoot) {
   let oldestMs;
   for (const file of FRESHNESS_REPORT_FILES) {
-    const iso = gitLogTimestamp(repoRoot, ['log', '-1', '--format=%cI', '--', file]);
-    const ms = parseCommitIso(iso);
+    const ms = commitTimestampMs(repoRoot, ['log', '-1', '--format=%cI', '--', file]);
     if (ms === undefined) return undefined;
     oldestMs = oldestMs === undefined ? ms : Math.min(oldestMs, ms);
   }
@@ -1128,8 +1144,10 @@ function newestReportCommitMs(repoRoot) {
  *   status:'fresh'  — the report pair is at least as new as the newest
  *                     watched-source commit (same-PR regeneration counts).
  *   status:'stale'  — a watched-source commit landed strictly after the last
- *                     report commit; `detail` explains, `reason` is stable.
- *   status:'skipped'— git history unavailable (no HEAD / no matching commits);
+ *                     report commit, OR a report file has no commit history
+ *                     (empty git log maps to 0 = older than everything).
+ *                     `detail` explains, `reason` is stable.
+ *   status:'skipped'— git itself is unusable (spawn failure / bad date);
  *                     callers warn rather than fail.
  */
 export function evaluateReportFreshness(repoRoot) {
