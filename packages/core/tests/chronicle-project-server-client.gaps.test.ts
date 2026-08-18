@@ -7,6 +7,7 @@ import {
   resolveChronicleDaemonAvailability,
   resolveChronicleProjectServerUrl,
 } from '../src/chronicle/project-server-client.js';
+import { chronicleProjectServerEndpoint } from '../src/chronicle/project-server-endpoint.js';
 
 // Windows fileURLToPath requires a drive letter — a bare /repo path throws
 // inside every candidate lookup and would read as missing-build.
@@ -70,8 +71,16 @@ describe('ChronicleProjectServerClient offline behavior', () => {
 
   it('derives the endpoint from the project dir', () => {
     const client = makeClient();
+    // The endpoint must be a deterministic function of the project dir.
+    // Compare against the derivation itself rather than a literal prefix:
+    // the POSIX socket prefix was deliberately shortened to `wsch-v<V>`
+    // (sun_path byte budget — see project-server-endpoint.ts), while the
+    // Windows pipe keeps the long `wrongstack-chronicle-v<V>` form, so a
+    // literal string can only ever be right on one platform.
+    expect(client.endpoint).toBe(
+      chronicleProjectServerEndpoint(path.join(os.tmpdir(), 'chronicle-gaps-project')),
+    );
     expect(client.endpoint.length).toBeGreaterThan(0);
-    expect(client.endpoint).toContain('chronicle');
   });
 
   it('reports shutdown as offline when no daemon is listening', async () => {
