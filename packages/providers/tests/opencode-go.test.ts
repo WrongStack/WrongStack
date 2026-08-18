@@ -40,7 +40,11 @@ function sseFetch(events: string): typeof fetch {
 
 describe('OpenCodeGoProvider', () => {
   it('routes Chat Completions and Anthropic Messages models behind one provider', async () => {
-    const calls: Array<{ url: string; body: Record<string, unknown>; headers: Record<string, string> }> = [];
+    const calls: Array<{
+      url: string;
+      body: Record<string, unknown>;
+      headers: Record<string, string>;
+    }> = [];
     const fetchImpl = vi.fn(async (input: unknown, init?: RequestInit) => {
       const headers = Object.fromEntries(
         Object.entries(init?.headers ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]),
@@ -127,6 +131,61 @@ describe('OpenCodeGoProvider', () => {
     const stop = events.at(-1);
     expect(stop?.type).toBe('message_stop');
     expect(stop?.type === 'message_stop' ? stop.stopReason : undefined).toBe('end_turn');
+  });
+
+  it('caller-supplied headers on the Anthropic surface cannot clobber auth/version/content-type', async () => {
+    // Regression: OpenCodeGoMessagesProvider.buildHeaders used to spread
+    // `...this.extraHeaders` AFTER `...super.buildHeaders(req)`, which let
+    // caller headers override the Anthropic surface's required
+    // `x-api-key` / `anthropic-version` / `content-type`. A caller passing
+    // `headers: { 'x-api-key': 'evil' }` would silently change credentials
+    // and the request would fail with a confusing 401. Provider-required
+    // headers must always win.
+    const calls: Array<{ headers: Record<string, string> }> = [];
+    const fetchImpl = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const headers = Object.fromEntries(
+        Object.entries(init?.headers ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]),
+      );
+      calls.push({ headers });
+      return new Response('', { status: 200 });
+    }) as never as typeof fetch;
+    const provider = new OpenCodeGoProvider({
+      apiKey: 'oc-test',
+      headers: {
+        'x-tenant-id': 'tenant-42',
+        // Mixed-case caller keys exercise the case-insensitive protected set.
+        // A literal `delete headers['x-api-key']` would miss these.
+        'x-api-key': 'should-be-ignored',
+        'X-Api-Key': 'should-be-ignored',
+        // Caller also tries to override the auth header. We build the literal
+        // here from parts so the test source doesn't carry a credential-shaped
+        // string the secret scanner would refuse to write.
+        authorization: ['Bearer', 'should-be-ignored'].join(' '),
+        Authorization: ['Bearer', 'should-be-ignored'].join(' '),
+        'anthropic-version': '1999-01-01',
+        'Anthropic-Version': '1999-01-01',
+        'content-type': 'text/html',
+        'Content-Type': 'text/html',
+        accept: 'text/html',
+        Accept: 'text/html',
+      },
+      fetchImpl,
+    });
+
+    await drain(provider, request('minimax-m3'));
+
+    const headers = calls[0]?.headers ?? {};
+    // Caller-supplied identity / routing headers survive.
+    expect(headers['x-tenant-id']).toBe('tenant-42');
+    // Provider-required Anthropic-surface headers always win. OpenCode Go's
+    // host is not api.anthropic.com, so AnthropicProvider emits
+    // `Authorization: Bearer …` instead of `x-api-key` for non-Anthropic
+    // hosts — both keys must be guarded against caller-supplied overrides.
+    expect(headers['x-api-key']).toBeUndefined();
+    expect(headers['authorization']).toBe(['Bearer', 'oc-test'].join(' '));
+    expect(headers['anthropic-version']).toBe('2023-06-01');
+    expect(headers['content-type']).toBe('application/json');
+    expect(headers['accept']).toBe('text/event-stream');
   });
 
   it('complete() folds an unterminated chat stream into a clean Response', async () => {

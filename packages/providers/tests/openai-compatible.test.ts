@@ -1,9 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { Tool } from '@wrongstack/core/types';
-import {
-  isCompatibilityQuirks,
-  OpenAICompatibleProvider,
-} from '../src/openai-compatible.js';
+import { describe, expect, it, vi } from 'vitest';
+import { isCompatibilityQuirks, OpenAICompatibleProvider } from '../src/openai-compatible.js';
 
 // ── isCompatibilityQuirks (type guard) ────────────────────────────
 
@@ -36,7 +33,7 @@ describe('isCompatibilityQuirks', () => {
     expect(isCompatibilityQuirks({ flattenContentToString: true })).toBe(true);
     expect(isCompatibilityQuirks({ preserveToolCallIds: false })).toBe(true);
     expect(isCompatibilityQuirks({ parallelToolsDisabled: true })).toBe(true);
-    expect(isCompatibilityQuirks({  })).toBe(true);
+    expect(isCompatibilityQuirks({})).toBe(true);
     expect(isCompatibilityQuirks({ stripThinkTags: false })).toBe(true);
   });
 
@@ -71,11 +68,13 @@ describe('isCompatibilityQuirks', () => {
   });
 
   it('accepts multiple valid keys at once', () => {
-    expect(isCompatibilityQuirks({
-      stripCacheControl: true,
-      emptyToolCallContent: 'null',
-      thinkingParam: 'always-on',
-    })).toBe(true);
+    expect(
+      isCompatibilityQuirks({
+        stripCacheControl: true,
+        emptyToolCallContent: 'null',
+        thinkingParam: 'always-on',
+      }),
+    ).toBe(true);
   });
 
   // ── maxTools ───────────────────────────────────────────────
@@ -154,6 +153,46 @@ describe('OpenAICompatibleProvider', () => {
     const [, init] = spy.mock.calls[0]!;
     expect((init!.headers as Record<string, string>)['x-custom']).toBe('1');
     expect((init!.headers as Record<string, string>)['authorization']).toMatch(/Bearer sk-x/);
+  });
+
+  it('buildHeaders filters caller-supplied auth/content-type/accept (case-insensitive)', async () => {
+    // Regression: OpenAICompatibleProvider.buildHeaders used to spread
+    // `...this.extraHeaders` AFTER `super.buildHeaders(req)`, so caller keys
+    // like `Authorization` / `Content-Type` / `Accept` would override auth
+    // and the SSE content-type. HTTP header names are case-insensitive, so
+    // the filter has to compare lowercased keys against the protected set —
+    // a literal `delete headers.authorization` would miss `Authorization`,
+    // `AUTHORIZATION`, etc.
+    const spy = mockFetchSpy();
+    const p = new OpenAICompatibleProvider({
+      id: 'groq',
+      apiKey: 'sk-x',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      headers: {
+        'x-tenant-id': 'tenant-42',
+        // Mixed-case caller keys exercise the case-insensitive protected set.
+        authorization: ['Bearer', 'should-be-ignored'].join(' '),
+        Authorization: ['Bearer', 'should-be-ignored'].join(' '),
+        'content-type': 'text/html',
+        'Content-Type': 'text/html',
+        accept: 'text/html',
+        Accept: 'text/html',
+      },
+      fetchImpl: spy as never as typeof fetch,
+    });
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 },
+      { signal: new AbortController().signal },
+    );
+    const [, init] = spy.mock.calls[0]!;
+    const headers = init!.headers as Record<string, string>;
+    // Caller identity / routing headers survive.
+    expect(headers['x-tenant-id']).toBe('tenant-42');
+    // Provider-required auth + content-type + accept always win, regardless
+    // of the case the caller used.
+    expect(headers['authorization']).toMatch(/Bearer sk-x/);
+    expect(headers['content-type']).toBe('application/json');
+    expect(headers['accept']).toBe('text/event-stream');
   });
 
   it('recovers input tokens from total_tokens when prompt_tokens is absent (MiniMax)', async () => {
@@ -255,7 +294,12 @@ describe('OpenAICompatibleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new OpenAICompatibleProvider({
       id: 'zai',
@@ -265,13 +309,23 @@ describe('OpenAICompatibleProvider', () => {
       fetchImpl: spy,
     });
     await p.complete(
-      { model: 'glm-5.2', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { enabled: true, effort: 'medium' } },
+      {
+        model: 'glm-5.2',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { enabled: true, effort: 'medium' },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['reasoning_effort']).toBe('high');
 
     await p.complete(
-      { model: 'glm-5.2', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { enabled: false } },
+      {
+        model: 'glm-5.2',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { enabled: false },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['thinking']).toEqual({ type: 'disabled' });
@@ -281,7 +335,12 @@ describe('OpenAICompatibleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new OpenAICompatibleProvider({
       id: 'moonshot',
@@ -291,7 +350,12 @@ describe('OpenAICompatibleProvider', () => {
       fetchImpl: spy,
     });
     await p.complete(
-      { model: 'kimi-k2.7-code', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { enabled: false } },
+      {
+        model: 'kimi-k2.7-code',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { enabled: false },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['thinking']).toBeUndefined();
@@ -301,7 +365,12 @@ describe('OpenAICompatibleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new OpenAICompatibleProvider({
       id: 'deepseek',
@@ -312,14 +381,24 @@ describe('OpenAICompatibleProvider', () => {
     // `max` is outside OpenAI's accepted set, so the base builder dropped it
     // entirely before this fix; it now collapses onto `high`.
     await p.complete(
-      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'max' } },
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { effort: 'max' },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['reasoning_effort']).toBe('high');
 
     // `minimal` collapses onto `low`.
     await p.complete(
-      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'minimal' } },
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { effort: 'minimal' },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['reasoning_effort']).toBe('low');
@@ -329,7 +408,12 @@ describe('OpenAICompatibleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     const p = new OpenAICompatibleProvider({
       id: 'deepseek',
@@ -339,14 +423,24 @@ describe('OpenAICompatibleProvider', () => {
     });
     // medium is in OpenAI's set — emitted verbatim by the base builder, not remapped.
     await p.complete(
-      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'medium' } },
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { effort: 'medium' },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['reasoning_effort']).toBe('medium');
 
     // An out-of-set effort with reasoning explicitly disabled is not injected.
     await p.complete(
-      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { enabled: false, effort: 'max' } },
+      {
+        model: 'm',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { enabled: false, effort: 'max' },
+      },
       { signal: new AbortController().signal },
     );
     expect(captured?.['reasoning_effort']).toBeUndefined();
@@ -373,7 +467,12 @@ describe('OpenAICompatibleProvider', () => {
     let captured: Record<string, unknown> | undefined;
     const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
-      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
     }) as never as typeof fetch;
     return { spy, getBody: () => captured ?? {} };
   }

@@ -17,8 +17,8 @@
  *   guaranteed-fail noise: most gates consume workspace `dist/` built by
  *   the `build` gate).
  * - Full stdout+stderr per gate lands in `.reports/release-check-matrix/
- *   <id>.log` (gitignored). The console report shows the last
- *   `--tail N` lines (default 25) of each FAIL.
+ *   <id>.log` (gitignored). The console report shows detected failure
+ *   diagnostics plus the last `--tail N` lines (default 25) of each FAIL.
  * - Exit codes: 0 = all gates PASS (or SKIP-with-reason); 1 = one or more
  *   FAIL; 2 = usage error.
  *
@@ -37,6 +37,61 @@ import path from 'node:path';
 import process from 'node:process';
 
 const LOG_DIR = path.resolve('.reports/release-check-matrix');
+const ANSI_ESCAPE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
+const FAILED_TESTS_HEADER = /Failed Tests? \d+/i;
+const FAILURE_SUMMARY = /^\s*(?:Test Files|Tests)\s+\d+\s+failed\b/i;
+const DIAGNOSTIC_LINE =
+  /(?:AssertionError:|TypeError:|ReferenceError:|SyntaxError:|Error:|\bFAIL\b|\bfatal:|coverage threshold|stale architecture evidence|new diagnostics?:|unparsed failures?:)/i;
+
+function stripAnsi(line) {
+  return line.replace(ANSI_ESCAPE, '');
+}
+
+/**
+ * Pull the actionable block out of noisy test output. Vitest writes its
+ * failure details to stderr while progress and summaries go to stdout;
+ * spawnSync exposes those as separate buffers, so a blind tail of the joined
+ * output can contain only later warnings. Keep matching deliberately generic
+ * enough for non-Vitest gates while preferring Vitest's explicit failure block.
+ */
+function failureDiagnosticLines(lines) {
+  const plain = lines.map(stripAnsi);
+  const selected = new Set();
+  const addRange = (from, to) => {
+    for (let i = Math.max(0, from); i <= Math.min(lines.length - 1, to); i++) selected.add(i);
+  };
+
+  const failedTestsIndex = plain.findIndex((line) => FAILED_TESTS_HEADER.test(line));
+  if (failedTestsIndex >= 0) {
+    let end = Math.min(lines.length - 1, failedTestsIndex + 60);
+    for (let i = failedTestsIndex + 1; i <= end; i++) {
+      if (/^\$\s/.test(plain[i]) || /^=== Coverage:/.test(plain[i])) {
+        end = i - 1;
+        break;
+      }
+    }
+    addRange(failedTestsIndex, end);
+  } else {
+    const anchors = [];
+    for (let i = 0; i < plain.length; i++) {
+      if (FAILURE_SUMMARY.test(plain[i]) || DIAGNOSTIC_LINE.test(plain[i])) anchors.push(i);
+    }
+    // The last diagnostics are normally the final cause rather than an
+    // expected error emitted by a negative-path test early in a long run.
+    for (const index of anchors.slice(-3)) addRange(index - 2, index + 5);
+  }
+
+  // Test summaries are valuable even when the detailed assertion is on the
+  // other captured stream.
+  for (let i = 0; i < plain.length; i++) {
+    if (FAILURE_SUMMARY.test(plain[i])) addRange(i, i + 3);
+  }
+
+  return [...selected]
+    .sort((a, b) => a - b)
+    .map((index) => lines[index])
+    .filter((line, index, excerpt) => line.length > 0 || excerpt[index - 1]?.length > 0);
+}
 
 /**
  * Gate order matches the historical release:check chain exactly (see git
@@ -152,7 +207,10 @@ for (let i = 0; i < args.length; i++) {
   } else if (a === '--only') {
     const raw = args[++i];
     if (!raw) fail('--only expects a comma-separated gate id list');
-    const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    const ids = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const known = new Set(GATES.map((g) => g.id));
     for (const id of ids) if (!known.has(id)) fail(`unknown gate id "${id}" (use --list)`);
     only = new Set(ids);
@@ -162,7 +220,9 @@ for (let i = 0; i < args.length; i++) {
 if (listOnly) {
   console.log('release:check gate matrix — plan');
   for (const g of GATES) {
-    console.log(`  ${g.id.padEnd(22)} ${g.prereq ? `[after ${g.prereq}] ` : '[standalone]   '} ${g.cmd}`);
+    console.log(
+      `  ${g.id.padEnd(22)} ${g.prereq ? `[after ${g.prereq}] ` : '[standalone]   '} ${g.cmd}`,
+    );
   }
   process.exit(0);
 }
@@ -172,7 +232,6 @@ const results = new Map(); // id -> { status, ms, code }
 mkdirSync(LOG_DIR, { recursive: true });
 
 console.log(`release:check gate matrix — running ${selected.length} gate(s)\n`);
-let anyFail = false;
 
 for (const gate of selected) {
   // Prereq handling: skip (with reason) when an earlier gate failed, or when
@@ -215,10 +274,11 @@ for (const gate of selected) {
     results.set(gate.id, { status: 'pass', ms });
     console.log(`[PASS] ${gate.id} (${(ms / 1000).toFixed(1)}s)`);
   } else {
-    anyFail = true;
     const why = code === null ? 'spawn error / killed' : `exit ${code}`;
     results.set(gate.id, { status: 'fail', ms, code, why });
-    console.log(`[FAIL] ${gate.id} — ${why} (${(ms / 1000).toFixed(1)}s) → ${path.relative('.', logFile)}`);
+    console.log(
+      `[FAIL] ${gate.id} — ${why} (${(ms / 1000).toFixed(1)}s) → ${path.relative('.', logFile)}`,
+    );
   }
 }
 
@@ -238,14 +298,17 @@ for (const g of selected) {
 
 const failed = selected.filter((g) => results.get(g.id)?.status === 'fail');
 if (failed.length > 0 && tail > 0) {
-  console.log(`\n── failure tails (last ${tail} lines each) ──`);
+  console.log('\n── failure diagnostics ──');
   for (const g of failed) {
-    // The gate's full output is already on disk in its log file — read the
-    // tail back from there rather than keeping every gate's buffer alive.
     const lines = readFileSync(path.join(LOG_DIR, `${g.id}.log`), 'utf8')
       .split(/\r?\n/)
       .filter((l) => l.length > 0);
     console.log(`\n▸ ${g.id}`);
+    const diagnostics = failureDiagnosticLines(lines);
+    if (diagnostics.length > 0) {
+      for (const l of diagnostics) console.log(`  ${l}`);
+      console.log(`  -- last ${tail} log lines --`);
+    }
     for (const l of lines.slice(-tail)) console.log(`  ${l}`);
   }
 }

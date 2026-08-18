@@ -1,16 +1,16 @@
 import type {
   Capabilities,
+  ProviderError,
   ReasoningEffort,
   Request,
   StreamEvent,
 } from '@wrongstack/core/types';
-import type { ProviderError } from '@wrongstack/core/types';
-import { capabilitiesForFamily } from './family-capabilities.js';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
+import { capabilitiesForFamily } from './family-capabilities.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 import { parseOpenAIResponsesStream } from './openai-codex.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { messagesToResponsesInput, toolsToResponses } from './tool-format/to-responses.js';
-import type { BuildBodyContext } from './model-output-limits.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 export interface OpenAIResponsesProviderOptions {
@@ -49,10 +49,23 @@ export class OpenAIResponsesProvider extends WireAdapter {
   }
 
   protected override buildHeaders(req: Request): Record<string, string> {
+    // Forward caller-supplied headers (proxy auth, tenant ids, routing keys),
+    // strip any caller keys whose lowercase form matches a protected OpenAI
+    // Responses header (`authorization`, `content-type`, `accept`) — HTTP
+    // header names are case-insensitive, so a literal spread order would let
+    // caller `Authorization` / `Content-Type` / `Accept` override the
+    // provider's. Then write the provider-controlled headers last so the
+    // provider's own `authorization: Bearer ${apiKey}` wins over any caller
+    // override.
+    const PROTECTED = new Set(['authorization', 'content-type', 'accept']);
+    const filtered: Record<string, string> = {};
+    for (const [key, value] of Object.entries(this.extraHeaders ?? {})) {
+      if (!PROTECTED.has(key.toLowerCase())) filtered[key] = value;
+    }
     return {
+      ...filtered,
       ...super.buildHeaders(req),
       authorization: `Bearer ${this.apiKey}`,
-      ...this.extraHeaders,
     };
   }
 

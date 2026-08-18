@@ -1,11 +1,11 @@
-import type { Request } from '@wrongstack/core/types';
-import type { Capabilities, ReasoningEffort } from '@wrongstack/core/types';
+import type { Capabilities, ReasoningEffort, Request } from '@wrongstack/core/types';
 import type { CompatibilityQuirks } from './compatibility-quirks.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
-import { applyOpenAICompatiblePolicy } from './openai-compatible-policy.js';
-import { OpenAIProvider } from './openai.js';
-import type { WireAdapterStreamOptions } from './wire-adapter.js';
 import type { BuildBodyContext } from './model-output-limits.js';
+import { OpenAIProvider } from './openai.js';
+import { applyOpenAICompatiblePolicy } from './openai-compatible-policy.js';
+import type { WireAdapterStreamOptions } from './wire-adapter.js';
+
 export type { CompatibilityQuirks } from './compatibility-quirks.js';
 
 const VALID_QUIRK_KEYS = new Set<keyof CompatibilityQuirks>([
@@ -113,10 +113,19 @@ export class OpenAICompatibleProvider extends OpenAIProvider {
   }
 
   protected override buildHeaders(req: Request): Record<string, string> {
-    return {
-      ...super.buildHeaders(req),
-      ...this.extraHeaders,
-    };
+    // Forward caller-supplied headers (proxy auth, tenant ids, routing keys),
+    // strip any caller keys whose lowercase form matches a protected OpenAI
+    // header (`authorization`, `content-type`, `accept`) — HTTP header names
+    // are case-insensitive, so a literal spread order would let caller
+    // `Authorization` / `Content-Type` / `Accept` override the provider's.
+    // Then spread `super.buildHeaders(req)` last so the provider's headers
+    // always win.
+    const PROTECTED = new Set(['authorization', 'content-type', 'accept']);
+    const filtered: Record<string, string> = {};
+    for (const [key, value] of Object.entries(this.extraHeaders ?? {})) {
+      if (!PROTECTED.has(key.toLowerCase())) filtered[key] = value;
+    }
+    return { ...filtered, ...super.buildHeaders(req) };
   }
 }
 
@@ -142,7 +151,9 @@ function applyThinkingParams(
   }
 }
 
-function mapZaiReasoningEffort(effort: NonNullable<Request['reasoning']>['effort']): string | undefined {
+function mapZaiReasoningEffort(
+  effort: NonNullable<Request['reasoning']>['effort'],
+): string | undefined {
   switch (effort) {
     case 'none':
     case 'minimal':

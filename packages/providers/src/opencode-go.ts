@@ -9,8 +9,8 @@ import type {
 } from '@wrongstack/core/types';
 import { AnthropicProvider } from './anthropic.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
-import { type OpenAICompatibleOptions, OpenAICompatibleProvider } from './openai-compatible.js';
 import type { BuildBodyContext } from './model-output-limits.js';
+import { type OpenAICompatibleOptions, OpenAICompatibleProvider } from './openai-compatible.js';
 
 const DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1';
 
@@ -85,25 +85,31 @@ export class OpenCodeGoProvider implements Provider {
       ...buildOpenCodeGoHeaders(stickySessionId),
       ...opts.headers,
     };
-    this.chat = new OpenCodeGoChatProvider({
-      id: this.id,
-      apiKey: opts.apiKey,
-      baseUrl,
-      headers: openCodeHeaders,
-      fetchImpl: opts.fetchImpl,
-      // OpenCode Go's Zen chat-completions surface closes successful streams
-      // without a `[DONE]` marker or a final `finish_reason` chunk. Tolerate
-      // the missing terminal marker so complete responses are not raised as
-      // retryable 599 truncation errors.
-      quirks: { tolerateMissingTerminalMarker: true },
-    }, this.models);
-    this.messages = new OpenCodeGoMessagesProvider({
-      id: this.id,
-      apiKey: opts.apiKey,
-      baseUrl,
-      headers: openCodeHeaders,
-      fetchImpl: opts.fetchImpl,
-    }, this.models);
+    this.chat = new OpenCodeGoChatProvider(
+      {
+        id: this.id,
+        apiKey: opts.apiKey,
+        baseUrl,
+        headers: openCodeHeaders,
+        fetchImpl: opts.fetchImpl,
+        // OpenCode Go's Zen chat-completions surface closes successful streams
+        // without a `[DONE]` marker or a final `finish_reason` chunk. Tolerate
+        // the missing terminal marker so complete responses are not raised as
+        // retryable 599 truncation errors.
+        quirks: { tolerateMissingTerminalMarker: true },
+      },
+      this.models,
+    );
+    this.messages = new OpenCodeGoMessagesProvider(
+      {
+        id: this.id,
+        apiKey: opts.apiKey,
+        baseUrl,
+        headers: openCodeHeaders,
+        fetchImpl: opts.fetchImpl,
+      },
+      this.models,
+    );
   }
 
   stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
@@ -177,10 +183,26 @@ class OpenCodeGoMessagesProvider extends AnthropicProvider {
   }
 
   protected override buildHeaders(req: Request): Record<string, string> {
-    return {
-      ...super.buildHeaders(req),
-      ...this.extraHeaders,
-    };
+    // Forward caller-supplied headers (proxy auth, tenant ids, routing keys),
+    // strip any caller keys whose lowercase form matches a protected Anthropic
+    // header (auth / version / content-type / accept) — HTTP header names are
+    // case-insensitive, so a literal `delete headers['x-api-key']` would miss
+    // caller keys like `X-Api-Key` or `x-API-key`. Then re-spread the
+    // provider's headers so the host-conditional choice — `x-api-key` for
+    // api.anthropic.com, `Authorization: Bearer …` otherwise — is the only
+    // one that reaches the wire.
+    const PROTECTED = new Set([
+      'x-api-key',
+      'authorization',
+      'anthropic-version',
+      'content-type',
+      'accept',
+    ]);
+    const filtered: Record<string, string> = {};
+    for (const [key, value] of Object.entries(this.extraHeaders ?? {})) {
+      if (!PROTECTED.has(key.toLowerCase())) filtered[key] = value;
+    }
+    return { ...filtered, ...super.buildHeaders(req) };
   }
 
   protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
@@ -188,8 +210,7 @@ class OpenCodeGoMessagesProvider extends AnthropicProvider {
     const model = this.models.get(req.model);
     const family = model?.family?.toLowerCase();
     const fixedMiniMaxReasoning =
-      family?.startsWith('minimax-m2') === true &&
-      model?.reasoningConfig?.default === 'always_on';
+      family?.startsWith('minimax-m2') === true && model?.reasoningConfig?.default === 'always_on';
     const qwenModel = family?.startsWith('qwen') === true;
 
     // M2.7/M2.5 expose fixed reasoning without a toggle or effort control.

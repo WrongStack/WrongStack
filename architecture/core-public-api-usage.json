@@ -155,8 +155,8 @@
     },
     "@wrongstack/core/types": {
       "files": 961,
-      "typeOnly": 887,
-      "runtimeOrMixed": 238
+      "typeOnly": 884,
+      "runtimeOrMixed": 239
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -12117,13 +12117,13 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/openai-compatible.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/openai-responses.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -12327,8 +12327,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/minimax.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

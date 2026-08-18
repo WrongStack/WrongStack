@@ -1,8 +1,9 @@
 /**
  * Coverage tests for openai-responses.ts (new file, 0% coverage).
  */
-import { describe, expect, it, vi } from 'vitest';
+
 import { ProviderError } from '@wrongstack/core/types';
+import { describe, expect, it, vi } from 'vitest';
 
 describe('OpenAIResponsesProvider', () => {
   it('constructs with basic options', async () => {
@@ -61,6 +62,40 @@ describe('OpenAIResponsesProvider', () => {
     const h = (p as any).buildHeaders({ model: 'gpt-4' });
     expect(h.authorization).toBe('Bearer sk-test');
     expect(h['X-Custom']).toBe('value');
+  });
+
+  it('buildHeaders filters caller-supplied auth/content-type/accept (case-insensitive)', async () => {
+    // Regression: OpenAIResponsesProvider.buildHeaders used to spread
+    // `...this.extraHeaders` AFTER the provider's `authorization: Bearer …`,
+    // so caller keys like `Authorization` / `Content-Type` / `Accept` would
+    // override auth and the SSE content-type. HTTP header names are
+    // case-insensitive, so the filter has to compare lowercased keys
+    // against the protected set — a literal `delete headers.authorization`
+    // would miss `Authorization`, `AUTHORIZATION`, etc.
+    const { OpenAIResponsesProvider } = await import('../src/openai-responses.js');
+    const p = new OpenAIResponsesProvider({
+      id: 't',
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.openai.com/v1',
+      headers: {
+        'x-tenant-id': 'tenant-42',
+        // Mixed-case caller keys exercise the case-insensitive protected set.
+        authorization: ['Bearer', 'should-be-ignored'].join(' '),
+        Authorization: ['Bearer', 'should-be-ignored'].join(' '),
+        'content-type': 'text/html',
+        'Content-Type': 'text/html',
+        accept: 'text/html',
+        Accept: 'text/html',
+      },
+    });
+    const h = (p as any).buildHeaders({ model: 'gpt-4' });
+    // Caller identity / routing headers survive.
+    expect(h['x-tenant-id']).toBe('tenant-42');
+    // Provider-required auth + content-type + accept always win, regardless
+    // of the case the caller used.
+    expect(h.authorization).toBe('Bearer sk-test');
+    expect(h['content-type']).toBe('application/json');
+    expect(h.accept).toBe('text/event-stream');
   });
 
   it('buildBody includes instructions when system is present', async () => {
@@ -200,7 +235,11 @@ describe('OpenAIResponsesProvider', () => {
       apiKey: 'k',
       baseUrl: 'https://api.openai.com/v1',
     });
-    const err = (p as any).translateError(401, 'unauthorized', new Headers({ 'content-type': 'text/plain' }));
+    const err = (p as any).translateError(
+      401,
+      'unauthorized',
+      new Headers({ 'content-type': 'text/plain' }),
+    );
     expect(err).toBeInstanceOf(ProviderError);
     expect(err.status).toBe(401);
     expect(err.recoverable).toBe(false);
@@ -213,7 +252,12 @@ describe('OpenAIResponsesProvider', () => {
       status: 200,
       json: async () => ({}),
       text: async () => '',
-      body: new ReadableStream({ start(ctrl) { ctrl.enqueue(new TextEncoder().encode('data: [DONE]\n\n')); ctrl.close(); } }),
+      body: new ReadableStream({
+        start(ctrl) {
+          ctrl.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+          ctrl.close();
+        },
+      }),
     } as never as Response);
     const p = new OpenAIResponsesProvider({
       id: 'custom-fetch',
