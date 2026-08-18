@@ -122,6 +122,11 @@ async function waitForServerOutput(
       const match = combined.match(re);
       if (match) {
         const announced = new URL(match[1]!);
+        // The banner URL carries `?token=` when auth is active. Export it
+        // so specs can authenticate (see e2e/vector-memory-panel.spec.ts —
+        // WEBUI_E2E_TOKEN). Purely additive: no spec is required to use it.
+        const bannerToken = announced.searchParams.get('token');
+        if (bannerToken) process.env.WEBUI_E2E_TOKEN = bannerToken;
         announced.search = '';
         return announced.origin;
       }
