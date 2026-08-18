@@ -217,6 +217,13 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
+          # Full history: this job runs `pnpm check:architecture`, whose
+          # evidence-freshness gate compares commit timestamps between watched
+          # roots (architecture/, packages/, apps/) and the committed report
+          # pair. In the default depth-1 checkout the gate cannot decide
+          # freshness (path-filtered history at the shallow boundary treats
+          # every path as newly added at HEAD) and skips with a warning.
+          fetch-depth: 0
           # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
           # scripts run in this job and would be able to read it (WS-042).
           persist-credentials: false
