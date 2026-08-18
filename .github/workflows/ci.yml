@@ -152,6 +152,63 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # -----------------------------------------------------------------
+  # Manifest & projection drift gate. These four checks exist in
+  # `pnpm release:check` but were release-only: a PR could merge
+  # CI-green and surface provider-catalog / plugin-projection / i18n /
+  # rulebook drift weeks later at release time. All four are fast
+  # snapshot-or-schema comparisons, so they run here at PR time.
+  # -----------------------------------------------------------------
+  manifests:
+    name: Manifest drift (catalog, projections, i18n, rulebook)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # Do not leave GITHUB_TOKEN in .git/config: workspace postinstall
+          # scripts run in this job and would be able to read it (WS-042).
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4 (resolved 2026-08-01)
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download verified build lineage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wrongstack-build-${{ github.sha }}
+          path: .
+
+      - name: Verify artifact lineage
+        run: pnpm check:build-manifest
+
+      # The catalog/projection scripts rebuild the package they project
+      # from (`pnpm --filter ... build` is part of the pnpm script), so
+      # no separate build step is needed — the downloaded lineage only
+      # has to satisfy cross-package type resolution for that rebuild.
+      - name: Provider catalog snapshot check
+        run: pnpm providers:catalog:check
+
+      - name: Plugin projection snapshot check
+        run: pnpm plugins:manifest:check
+
+      - name: i18n completeness check
+        run: pnpm lint:i18n
+
+      # The rulebook is optional and untracked by default; when absent
+      # this validates the checker itself runs, and it hard-fails
+      # (exit 5) for any PR that adds an invalid one.
+      - name: TechStack rulebook schema check
+        run: pnpm check:rulebook
+
   test:
     name: Test (Vitest + coverage ratchets)
     needs: build
@@ -537,7 +594,7 @@ jobs:
   # status check rather than listing every job individually.
   gate:
     name: CI Gate
-    needs: [lint, typecheck, build, test, e2e, tui-smoke, tui-heap-soak, audit]
+    needs: [lint, typecheck, build, manifests, test, e2e, tui-smoke, tui-heap-soak, audit]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     if: always()
@@ -549,6 +606,7 @@ jobs:
           echo "  lint:          ${{ needs.lint.result }}"
           echo "  typecheck:     ${{ needs.typecheck.result }}"
           echo "  build:         ${{ needs.build.result }}"
+          echo "  manifests:     ${{ needs.manifests.result }}"
           echo "  test:          ${{ needs.test.result }}"
           echo "  e2e:           ${{ needs.e2e.result }}"
           echo "  tui-smoke:     ${{ needs.tui-smoke.result }}"
