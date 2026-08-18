@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/vector-memory",
-  "version": "0.308.4",
+  "version": "0.308.5",
   "license": "MIT",
   "description": "WrongStack Vector Memory — an additional vector-search memory store powered by @huggingface/transformers (local ONNX embeddings), alongside the SAGE lexical memory system.",
   "repository": {
