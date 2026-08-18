@@ -57,8 +57,8 @@ describe('TaskDAG', () => {
       dag.addNode('high', 'High priority', [], { priority: 1 });
 
       const ready = dag.getReady();
-      expect(ready[0].id).toBe('high');
-      expect(ready[1].id).toBe('low');
+      expect(ready[0]!.id).toBe('high');
+      expect(ready[1]!.id).toBe('low');
     });
 
     it('supports tags option', () => {

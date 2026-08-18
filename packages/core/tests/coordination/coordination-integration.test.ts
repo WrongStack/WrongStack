@@ -323,7 +323,7 @@ describe('TaskDAG + KnowledgeGraph Integration', () => {
     // task-4 should still be blocked (waiting for task-3)
     const stillReady = dag.getReady();
     expect(stillReady.length).toBe(1);
-    expect(stillReady[0].id).toBe('task-3');
+    expect(stillReady[0]!.id).toBe('task-3');
 
     // Complete the last task
     dag.start('task-3', 'agent-3');
@@ -332,7 +332,7 @@ describe('TaskDAG + KnowledgeGraph Integration', () => {
     // Now task-4 should be ready
     const allReady = dag.getReady();
     expect(allReady.length).toBe(1);
-    expect(allReady[0].id).toBe('task-4');
+    expect(allReady[0]!.id).toBe('task-4');
   });
 });
 

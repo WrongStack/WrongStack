@@ -88,13 +88,13 @@ describe('AutonomousBrain', () => {
 
       const result = await brain.decide({
         id: 'req-1',
-        source: 'cadence',
+        source: 'system',
         question: 'Should we spawn an agent?',
         options: [
           { id: 'spawn:bug-hunter', label: 'Spawn bug-hunter', risk: 'low', recommended: true },
           { id: 'defer', label: 'Defer', risk: 'low', recommended: false },
         ],
-        context: {},
+        context: '',
         risk: 'low',
       });
 
@@ -111,12 +111,12 @@ describe('AutonomousBrain', () => {
 
       const result = await brain.decide({
         id: 'req-1',
-        source: 'cadence',
+        source: 'system',
         question: 'Should we spawn?',
         options: [
           { id: 'yes', label: 'Yes', risk: 'medium', recommended: true },
         ],
-        context: {},
+        context: '',
         risk: 'medium',
       });
 
@@ -131,12 +131,12 @@ describe('AutonomousBrain', () => {
 
       const result = await brain.decide({
         id: 'req-1',
-        source: 'cadence',
+        source: 'system',
         question: 'Should we spawn?',
         options: [
           { id: 'yes', label: 'Yes', risk: 'low', recommended: true },
         ],
-        context: {},
+        context: '',
         risk: 'low',
       });
 
@@ -150,10 +150,10 @@ describe('AutonomousBrain', () => {
 
       await brain.decide({
         id: 'req-1',
-        source: 'cadence',
+        source: 'system',
         question: 'Test',
         options: [{ id: 'yes', label: 'Yes', risk: 'low', recommended: true }],
-        context: {},
+        context: '',
         risk: 'low',
       });
 
@@ -175,7 +175,7 @@ describe('AutonomousBrain', () => {
 
       const result = await brain.decideAuto({
         id: 'auto-1',
-        source: 'cadence',
+        source: 'system',
         decisionType: 'retry_task',
         question: 'Should we retry this task?',
         context: {
@@ -200,7 +200,7 @@ describe('AutonomousBrain', () => {
 
       const result = await brain.decideAuto({
         id: 'auto-1',
-        source: 'cadence',
+        source: 'system',
         decisionType: 'approve_change',
         question: 'Should we approve this change?',
         context: {},
@@ -222,7 +222,7 @@ describe('AutonomousBrain', () => {
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet });
 
       const result = await brain.decideSpawn(
-        'cadence',
+        'system',
         'Fix the null pointer exception in auth/session.ts',
         [],
         { running: 1, idle: 2, total: 3, costSoFar: 0.10 },
@@ -243,7 +243,7 @@ describe('AutonomousBrain', () => {
         type: 'change',
         title: 'Add tests',
         description: 'Add unit tests',
-        files: [{ path: 'src/test.ts', action: 'add' }],
+        files: [{ path: 'src/test.ts', action: 'create' }],
         status: 'proposed',
         proposedBy: 'agent-1',
         proposedAt: new Date().toISOString(),
@@ -254,7 +254,7 @@ describe('AutonomousBrain', () => {
         satisfiesGoals: [],
       };
 
-      const result = await brain.decideApproval('cadence', change, []);
+      const result = await brain.decideApproval('system', change, []);
 
       expect(result.type).toBe('answer');
       expect(result.optionId).toBe('approve');
@@ -267,7 +267,7 @@ describe('AutonomousBrain', () => {
       const brain = new AutonomousBrain({ llmProvider: llm, graph, fleet });
 
       const result = await brain.decideEscalation(
-        'cadence',
+        'system',
         'task-1',
         'Timeout error',
         2,
@@ -284,7 +284,7 @@ describe('AutonomousBrain', () => {
       brain.recordOutcome('decision-id', 'failure');
 
       const result = await brain.decideEscalation(
-        'cadence',
+        'system',
         'task-1',
         'Timeout error',
         3,

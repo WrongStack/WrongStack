@@ -125,14 +125,14 @@ describe('SubagentBudget', () => {
   it('onThreshold getter returns _onThreshold', () => {
     const b = new SubagentBudget({ maxIterations: 10 });
     expect(b.onThreshold).toBeUndefined();
-    const handler = () => 'throw';
+    const handler = (): 'stop' => 'stop';
     b.onThreshold = handler;
     expect(b.onThreshold).toBe(handler);
   });
 
   it('onThreshold setter assigns _onThreshold', () => {
     const b = new SubagentBudget({ maxIterations: 10 });
-    const handler = () => 'throw';
+    const handler = (): 'stop' => 'stop';
     b.onThreshold = handler;
     // @ts-expect-error accessing private field for test verification
     expect(b._onThreshold).toBe(handler);

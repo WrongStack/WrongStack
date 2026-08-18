@@ -75,7 +75,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('SessionMemoryConsolidator early returns', () => {
   it('skips non-done sessions', async () => {
     const c = new SessionMemoryConsolidator({ memoryStore: store });
-    await c.afterRun(ctx(mkProvider('{}')), result({ status: 'error' }));
+    await c.afterRun(ctx(mkProvider('{}')), result({ status: 'failed' }));
     expect(store.list).not.toHaveBeenCalled();
   });
 

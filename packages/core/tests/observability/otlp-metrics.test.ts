@@ -56,8 +56,10 @@ describe('buildOtlpMetricsRequest', () => {
     const req = buildOtlpMetricsRequest(sink);
     const m = req.resourceMetrics[0]!.scopeMetrics[0]!.metrics[0]!;
     expect(m.name).toBe('tool_duration_ms');
-    expect(m.summary).toBeDefined();
-    const dp = m.summary!.dataPoints[0]!;
+    const summary = m.summary;
+    if (!summary) throw new Error('summary should be defined');
+    const dp = summary.dataPoints[0];
+    if (!dp) throw new Error('dataPoint should be defined');
     expect(dp.count).toBe('100');
     expect(dp.quantileValues).toHaveLength(3);
     expect(dp.quantileValues!.map((q) => q.quantile)).toEqual([0.5, 0.95, 0.99]);

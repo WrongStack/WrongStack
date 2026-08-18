@@ -314,7 +314,7 @@ describe('DefaultErrorHandler.recover — extra', () => {
       const strategyC: RecoveryStrategy = {
         label: 'C',
         async attempt() {
-          return { action: 'abort', reason: 'should not reach' };
+          return { action: 'fail', reason: 'should not reach' };
         },
       };
       const eh = new DefaultErrorHandler([strategyA, strategyB, strategyC]);

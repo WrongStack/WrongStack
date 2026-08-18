@@ -23,7 +23,7 @@ describe('inter-agent messaging (L2-E)', () => {
   it('A→B send delivers the payload to B', async () => {
     const { a, b } = pair();
     const received: BridgeMessage[] = [];
-    b.subscribe((m) => received.push(m));
+    b.subscribe((m) => { received.push(m); });
     await a.send(createMessage('task', 'A', { do: 'work' }, 'B'));
     expect(received).toHaveLength(1);
     expect((received[0]!.payload as { do: string }).do).toBe('work');
@@ -66,9 +66,9 @@ describe('inter-agent messaging (L2-E)', () => {
     const seenB: BridgeMessage[] = [];
     const seenC: BridgeMessage[] = [];
     const seenA: BridgeMessage[] = [];
-    a.subscribe((m) => seenA.push(m));
-    b.subscribe((m) => seenB.push(m));
-    c.subscribe((m) => seenC.push(m));
+    a.subscribe((m) => { seenA.push(m); });
+    b.subscribe((m) => { seenB.push(m); });
+    c.subscribe((m) => { seenC.push(m); });
 
     await a.broadcast(createMessage('progress', 'A', { pct: 50 }));
 

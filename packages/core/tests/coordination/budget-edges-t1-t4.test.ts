@@ -50,7 +50,7 @@ function makeStoppedProgressAgent(opts: {
     async run(_input: unknown, runOpts: { signal: AbortSignal }): Promise<RunResult> {
       const startedAt = Date.now();
       let i = 0;
-      events.emit('iteration.started', { ctx: undefined, index: 0 });
+      events.emit('iteration.started', { ctx: undefined as never, index: 0 });
       while (Date.now() - startedAt < progressMs) {
         if (runOpts.signal.aborted) return { status: 'aborted', iterations: i };
         events.emit('tool.started', { name: 'work', id: `t${i}` });
@@ -217,13 +217,15 @@ describe('T4: concurrent multi-kind exceeded reports correct kind to handler', (
     const negotiations: Array<{ kind: string; used: number; limit: number }> = [];
 
     const handler = (e: {
-      kind: string;
-      extend: (x: unknown) => void;
-      deny: () => void;
-    }) => {
+      kind: BudgetKind;
+      used: number;
+      limit: number;
+      requestDecision: () => Promise<BudgetThresholdDecision>;
+      extend?: (extra: Partial<BudgetLimits>) => void;
+      deny?: () => void;
+    }): void => {
       negotiations.push({ kind: e.kind, used: e.used, limit: e.limit });
-      e.deny();
-      return 'stop';
+      e.deny?.();
     };
 
     const budget = new SubagentBudget(

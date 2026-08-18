@@ -34,7 +34,7 @@ async function writeRawMessages(messages: Partial<MailboxMessage>[]): Promise<vo
   const defaults = {
     from: 'a',
     to: 'b',
-    type: 'info' as const,
+    type: 'note' as const,
     subject: 's',
     body: '',
     priority: 'normal' as const,
@@ -73,7 +73,7 @@ describe('SqliteMailbox TTL on send', () => {
   it('sets expiresAt from ttlMs', async () => {
     const before = Date.now();
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'info', subject: 's', body: 'hi',
+      from: 'a', to: 'b', type: 'note', subject: 's', body: 'hi',
       ttlMs: 60_000,
     });
     const after = Date.now();
@@ -86,14 +86,14 @@ describe('SqliteMailbox TTL on send', () => {
 
   it('omits expiresAt when ttlMs is not provided', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'info', subject: 's', body: 'hi',
+      from: 'a', to: 'b', type: 'note', subject: 's', body: 'hi',
     });
     expect(msg.expiresAt).toBeUndefined();
   });
 
   it('honors ttlMs of 0 as "expires immediately"', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'b', type: 'info', subject: 's', body: 'hi',
+      from: 'a', to: 'b', type: 'note', subject: 's', body: 'hi',
       ttlMs: 0,
     });
     expect(msg.expiresAt).toBeDefined();
@@ -459,7 +459,7 @@ describe('SqliteMailbox startAutoCompactTimer', () => {
 
 describe('SqliteMailbox softDelete / restore changed-flag', () => {
   it('softDelete is a no-op on an already-deleted message (no rewrite)', async () => {
-    const msg = await mb.send({ from: 'a', to: 'b', type: 'info', subject: 's', body: 'x' });
+    const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'x' });
     await mb.softDelete(msg.id, 'user1');
     const statAfterFirst = await fs.stat(mb.messagePath);
 
@@ -471,7 +471,7 @@ describe('SqliteMailbox softDelete / restore changed-flag', () => {
   });
 
   it('restore is a no-op on a non-deleted message (no rewrite)', async () => {
-    const msg = await mb.send({ from: 'a', to: 'b', type: 'info', subject: 's', body: 'x' });
+    const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'x' });
     const statBefore = await fs.stat(mb.messagePath);
 
     // Restore on a message that was never deleted.
@@ -482,7 +482,7 @@ describe('SqliteMailbox softDelete / restore changed-flag', () => {
   });
 
   it('softDelete then restore round-trips correctly', async () => {
-    const msg = await mb.send({ from: 'a', to: 'b', type: 'info', subject: 's', body: 'x' });
+    const msg = await mb.send({ from: 'a', to: 'b', type: 'note', subject: 's', body: 'x' });
 
     // Delete.
     const deleted = await mb.softDelete(msg.id, 'user1');
@@ -500,7 +500,7 @@ describe('SqliteMailbox softDelete / restore changed-flag', () => {
 
 describe('SqliteMailbox EventBus push notification', () => {
   it('emits mailbox.message_sent on send', async () => {
-    await mb.send({ from: 'a', to: 'b', type: 'info', subject: 'hello', body: 'world' });
+    await mb.send({ from: 'a', to: 'b', type: 'note', subject: 'hello', body: 'world' });
 
     expect(events.emitCustom).toHaveBeenCalledWith(
       'mailbox.message_sent',

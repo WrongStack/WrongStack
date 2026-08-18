@@ -1181,8 +1181,8 @@ describe('createDelegateTool', () => {
       let resolveAwait!: (r: unknown) => void;
       const d = fakeDirector({
         awaitTasks: () =>
-          new Promise((r) => {
-            resolveAwait = r;
+          new Promise<unknown[]>((r) => {
+            resolveAwait = r as (r: unknown) => void;
           }),
       });
       const tool = createDelegateTool({

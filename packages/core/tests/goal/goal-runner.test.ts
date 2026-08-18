@@ -205,7 +205,7 @@ describe('GoalRunner event handlers + lifecycle', () => {
       maxRetries: 0,
       maxVerifyAttempts: 0,
       onPhaseComplete, onPhaseFail, onTick,
-      resolveConflict: async () => ({ resolved: true, strategy: 'ours' }),
+      resolveConflict: async () => true,
     });
     const graph = await runner.start();
     const phaseId = Array.from(graph.phases.keys())[0]!;

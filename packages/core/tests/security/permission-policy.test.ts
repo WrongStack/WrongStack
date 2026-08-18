@@ -542,7 +542,7 @@ describe('DefaultPermissionPolicy explain()', () => {
     const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
     expect(trace.toolName).toBe('edit');
     expect(trace.steps.length).toBeGreaterThanOrEqual(5);
-    const last = trace.steps[trace.winnerIndex];
+    const last = trace.steps[trace.winnerIndex]!;
     expect(last.rule).toBe('mutating default confirm');
     expect(last.decision).toBe('confirm');
     expect(trace.decision.permission).toBe('confirm');
@@ -559,7 +559,7 @@ describe('DefaultPermissionPolicy explain()', () => {
     const yoloStep = trace.steps.find(s => s.rule === 'yolo');
     expect(yoloStep).toBeDefined();
     expect(yoloStep!.matched).toBe(true);
-    expect(trace.steps[trace.winnerIndex].rule).toBe('yolo');
+    expect(trace.steps[trace.winnerIndex]!.rule).toBe('yolo');
     expect(trace.decision.permission).toBe('auto');
     expect(trace.decision.source).toBe('yolo');
   });
@@ -680,7 +680,7 @@ describe('DefaultPermissionPolicy explain()', () => {
     const trace = await p.explain(tool('edit'), { path: 'src/a.ts' }, {} as Context);
     expect(trace.decision.permission).toBe('deny');
     expect(trace.decision.source).toBe('deny');
-    expect(trace.steps[0].rule).toBe('policy invalid');
+    expect(trace.steps[0]!.rule).toBe('policy invalid');
   });
 });
 });

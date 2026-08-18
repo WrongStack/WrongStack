@@ -120,10 +120,10 @@ describe('AgentMonitorService', () => {
 
     const sessions = monitor.getAllSessions();
     expect(sessions).toHaveLength(1);
-    expect(sessions[0].subagentId).toBe('bug-hunter-1');
-    expect(sessions[0].agentName).toBe('Bug Hunter');
-    expect(sessions[0].status).toBe('spawned');
-    expect(sessions[0].task).toBe('Find SQL injection bugs');
+    expect(sessions[0]!.subagentId).toBe('bug-hunter-1');
+    expect(sessions[0]!.agentName).toBe('Bug Hunter');
+    expect(sessions[0]!.status).toBe('spawned');
+    expect(sessions[0]!.task).toBe('Find SQL injection bugs');
   });
 
   it('trackSubagent is idempotent for the same id', () => {
@@ -132,7 +132,7 @@ describe('AgentMonitorService', () => {
     monitor.trackSubagent('agent-1', 'Agent One (dup)'); // second call ignored
 
     expect(monitor.getAllSessions()).toHaveLength(1);
-    expect(monitor.getAllSessions()[0].agentName).toBe('Agent One');
+    expect(monitor.getAllSessions()[0]!.agentName).toBe('Agent One');
   });
 
   it('trackSubagent emits an agent.status_changed event on spawn', () => {
@@ -145,8 +145,8 @@ describe('AgentMonitorService', () => {
     monitor.trackSubagent('a1', 'Agent 1', 'do something');
 
     expect(statusEvents).toHaveLength(1);
-    expect(statusEvents[0].subagentId).toBe('a1');
-    expect(statusEvents[0].status).toBe('spawned');
+    expect(statusEvents[0]!.subagentId).toBe('a1');
+    expect(statusEvents[0]!.status).toBe('spawned');
   });
 
   // ── Timeline entries via FleetBus ─────────────────────────────────
@@ -164,8 +164,8 @@ describe('AgentMonitorService', () => {
     const session = monitor.getSession('a1');
     expect(session).toBeDefined();
     expect(session!.transcript).toHaveLength(2); // spawn system entry + text entry
-    expect(session!.transcript[1].kind).toBe('text');
-    expect(session!.transcript[1].content).toBe('Hello world');
+    expect(session!.transcript[1]!.kind).toBe('text');
+    expect(session!.transcript[1]!.content).toBe('Hello world');
 
     // …but the timeline announcement fires once, when the segment CLOSES
     // (here: a tool boundary), with the complete content.
@@ -173,8 +173,8 @@ describe('AgentMonitorService', () => {
     fleetBus.emit(makeFleetEvent('a1', 'tool.started', { name: 'read', iteration: 0 }));
     const textEvents = timelineEntries.filter((e) => e.kind === 'text');
     expect(textEvents).toHaveLength(1);
-    expect(textEvents[0].content).toBe('Hello world');
-    expect(textEvents[0].subagentId).toBe('a1');
+    expect(textEvents[0]!.content).toBe('Hello world');
+    expect(textEvents[0]!.subagentId).toBe('a1');
   });
 
   it('coalesces consecutive same-iteration deltas into ONE transcript entry', async () => {
@@ -193,11 +193,11 @@ describe('AgentMonitorService', () => {
     const session = monitor.getSession('a1');
     const thinking = session!.transcript.filter((e) => e.kind === 'thinking');
     expect(thinking).toHaveLength(1);
-    expect(thinking[0].content).toBe('package structure and entry point');
+    expect(thinking[0]!.content).toBe('package structure and entry point');
     // Announced once, on close (the tool boundary), with the full content.
     const thinkingEvents = timelineEntries.filter((e) => e.kind === 'thinking');
     expect(thinkingEvents).toHaveLength(1);
-    expect(thinkingEvents[0].content).toBe('package structure and entry point');
+    expect(thinkingEvents[0]!.content).toBe('package structure and entry point');
 
     // JSONL: exactly one line for the whole segment (written on close).
     await waitForEvents(100);
@@ -254,11 +254,11 @@ describe('AgentMonitorService', () => {
     );
 
     expect(timelineEntries).toHaveLength(2);
-    expect(timelineEntries[0].kind).toBe('tool_use');
-    expect(timelineEntries[0].content).toContain('read');
-    expect(timelineEntries[1].kind).toBe('tool_result');
-    expect(timelineEntries[1].content).toContain('read');
-    expect(timelineEntries[1].content).toContain('42ms');
+    expect(timelineEntries[0]!.kind).toBe('tool_use');
+    expect(timelineEntries[0]!.content).toContain('read');
+    expect(timelineEntries[1]!.kind).toBe('tool_result');
+    expect(timelineEntries[1]!.content).toContain('read');
+    expect(timelineEntries[1]!.content).toContain('42ms');
   });
 
   it('ignores events from unknown subagents', () => {
@@ -286,7 +286,7 @@ describe('AgentMonitorService', () => {
     expect(session!.status).toBe('completed');
 
     expect(statusEvents).toHaveLength(2); // spawned + completed
-    expect(statusEvents[1].status).toBe('completed');
+    expect(statusEvents[1]!.status).toBe('completed');
   });
 
   it('getTranscript returns entries newest-first with limit', () => {
@@ -301,8 +301,8 @@ describe('AgentMonitorService', () => {
 
     const transcript = monitor.getTranscript('a1', 3);
     expect(transcript).toHaveLength(3); // limited
-    expect(transcript[0].content).toBe('msg 9'); // newest first
-    expect(transcript[2].content).toBe('msg 7');
+    expect(transcript[0]!.content).toBe('msg 9'); // newest first
+    expect(transcript[2]!.content).toBe('msg 7');
   });
 
   // ── Ring buffer cap ──────────────────────────────────────────────
@@ -440,7 +440,7 @@ describe('AgentMonitorService', () => {
 
     // First call = the closed text segment (full content), second = status.
     expect(onEntry).toHaveBeenCalledTimes(2);
-    const entry = onEntry.mock.calls[0][0] as AgentTimelineEntry;
+    const entry = onEntry.mock.calls[0]![0] as AgentTimelineEntry;
     expect(entry.content).toBe('cb test');
     expect(entry.kind).toBe('text');
     expect(entry.subagentId).toBe('a1');
@@ -502,7 +502,7 @@ describe('AgentMonitorService', () => {
     expect(session).toBeDefined();
     const textEntries = session!.transcript.filter((e) => e.kind === 'text');
     expect(textEntries).toHaveLength(1);
-    expect(textEntries[0].content).toBe('via setFleetBus');
+    expect(textEntries[0]!.content).toBe('via setFleetBus');
 
     mon.stop();
   });

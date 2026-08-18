@@ -396,7 +396,7 @@ describe('ChangeManager', () => {
       const forGoal1 = manager.getChangesForGoal('goal-1');
 
       expect(forGoal1).toHaveLength(1);
-      expect(forGoal1[0].satisfiesGoals).toContain('goal-1');
+      expect(forGoal1[0]!.satisfiesGoals).toContain('goal-1');
     });
   });
 
@@ -409,7 +409,7 @@ describe('ChangeManager', () => {
       // Verify graph.update was called
       expect(graph.update).toHaveBeenCalled();
       // Verify it was called with the node id
-      const call = (graph.update as ReturnType<typeof vi.fn>).mock.calls[0];
+      const call = (graph.update as ReturnType<typeof vi.fn>).mock.calls[0]!;
       expect(call[0]).toBe(node.id);
     });
 

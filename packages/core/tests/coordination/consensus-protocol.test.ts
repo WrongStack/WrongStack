@@ -213,7 +213,7 @@ describe('ConsensusProtocol', () => {
           ]),
         }),
       );
-      expect((graph.update as ReturnType<typeof vi.fn>).mock.calls[0][1].votes).toHaveLength(1);
+      expect((graph.update as ReturnType<typeof vi.fn>).mock.calls[0]![1]!.votes).toHaveLength(1);
     });
 
     it('calls graph.update when casting a vote', async () => {
@@ -228,7 +228,7 @@ describe('ConsensusProtocol', () => {
 
       // Verify graph.update was called with vote data
       expect(graph.update).toHaveBeenCalled();
-      const call = (graph.update as ReturnType<typeof vi.fn>).mock.calls[0];
+      const call = (graph.update as ReturnType<typeof vi.fn>).mock.calls[0]!;
       expect(call[0]).toBe('change-1');
       expect(call[1]).toHaveProperty('votes');
     });

@@ -134,7 +134,7 @@ describe('DefaultSystemPromptBuilder — H-area guidance section gating', () => 
 
     for (const section of sections) {
       for (const tier of tiers) {
-        const expected = expectedPresence[section.name][tier];
+        const expected = expectedPresence[section.name]![tier];
         it(`${section.name}: ${tier} → ${expected ? 'present' : 'absent'}`, async () => {
           const p = await promptAt(tier);
           if (expected) {

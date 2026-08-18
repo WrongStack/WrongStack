@@ -105,7 +105,7 @@ describe('goal coordination', () => {
     expect(result?.completed).toHaveLength(2);
     expect(result?.kanbanUpdatedTaskIds).toHaveLength(2);
     expect(decide).toHaveBeenCalledTimes(1);
-    expect(decide.mock.calls[0]?.[0].context).toContain('Progress: 100%');
+    expect(decide.mock.calls[0]?.[0]!.context).toContain('Progress: 100%');
 
     const persisted = await loadGoal(goalPath);
     expect(persisted?.goalState).toBe('completed');

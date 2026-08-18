@@ -318,7 +318,7 @@ describe('parseMailboxLines', () => {
     const body = messageLine({ id: 'm1' }) + '\n' + ackLine({ messageId: 'gone' }) + '\n';
     const messages = parseMailboxLines(body);
     expect(messages).toHaveLength(1);
-    expect(messages[0].readBy).toEqual({});
+    expect(messages[0]!.readBy).toEqual({});
   });
 
   it('segregates ack records even when they precede the message line', () => {
@@ -329,7 +329,7 @@ describe('parseMailboxLines', () => {
       '\n';
     const messages = parseMailboxLines(body);
     expect(messages).toHaveLength(1);
-    expect(messages[0].readBy).toEqual({ worker: '2026-07-12T02:00:00.000Z' });
+    expect(messages[0]!.readBy).toEqual({ worker: '2026-07-12T02:00:00.000Z' });
   });
 
   it('applies multiple acks to the same message cumulatively', () => {
@@ -342,7 +342,7 @@ describe('parseMailboxLines', () => {
       '\n';
 
     const messages = parseMailboxLines(body);
-    expect(messages[0].readBy).toEqual({
+    expect(messages[0]!.readBy).toEqual({
       a: '2026-07-12T01:00:00.000Z',
       b: '2026-07-12T02:00:00.000Z',
     });

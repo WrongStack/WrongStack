@@ -116,7 +116,7 @@ describe('decryptConfigSecrets', () => {
     const out = decryptConfigSecrets({ apiKey: 'enc:bad' }, vault);
     expect(out).toEqual({ apiKey: '' });
     expect(warn).toHaveBeenCalled();
-    expect(warn.mock.calls[0][0]).toMatch(/apiKey/);
+    expect(warn.mock.calls[0]![0]).toMatch(/apiKey/);
     warn.mockRestore();
   });
 

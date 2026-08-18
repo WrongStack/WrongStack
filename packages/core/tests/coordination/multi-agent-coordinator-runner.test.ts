@@ -374,9 +374,9 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
     await coord.assign({ id: 't2', description: 'second' });
     const results = await completions;
 
-    expect(results[0].status).toBe('failed');
-    expect(results[1].status).toBe('success');
-    expect(results[1].result).toBe('second-ok');
+    expect(results[0]!.status).toBe('failed');
+    expect(results[1]!.status).toBe('success');
+    expect(results[1]!.result).toBe('second-ok');
   });
 
   it('BudgetExceededError is exported and constructible', () => {

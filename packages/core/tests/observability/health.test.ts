@@ -51,8 +51,8 @@ describe('DefaultHealthRegistry', () => {
     );
     const result = await r.run();
     expect(result.status).toBe('unhealthy');
-    expect(result.checks[0].status).toBe('unhealthy');
-    expect(result.checks[0].detail).toBe('explode');
+    expect(result.checks[0]!.status).toBe('unhealthy');
+    expect(result.checks[0]!.detail).toBe('explode');
   });
 
   it('captures non-Error throws as unhealthy with string detail', async () => {
@@ -63,7 +63,7 @@ describe('DefaultHealthRegistry', () => {
       }),
     );
     const result = await r.run();
-    expect(result.checks[0].detail).toBe('oops');
+    expect(result.checks[0]!.detail).toBe('oops');
   });
 
   it('times out a slow check and marks it unhealthy', async () => {
@@ -79,7 +79,7 @@ describe('DefaultHealthRegistry', () => {
     );
     const result = await r.run();
     expect(result.status).toBe('unhealthy');
-    expect(result.checks[0].detail).toMatch(/timeout after 30ms/);
+    expect(result.checks[0]!.detail).toMatch(/timeout after 30ms/);
   });
 
   it('unregister removes a previously registered check', async () => {

@@ -257,7 +257,7 @@ describe('EternalAutonomyEngine', () => {
     await engine.runOneIteration(); // success #2 → cadence trip
     expect(compactor.compact).toHaveBeenCalledTimes(1);
     // Aggressive should be false on cadence trigger.
-    expect(compactor.compact.mock.calls[0][1]).toEqual({ aggressive: false });
+    expect(compactor.compact.mock.calls[0]![1]).toEqual({ aggressive: false });
 
     const after = await loadGoal(goalPath);
     const compactEntry = after?.journal.find((e) => e.task.startsWith('compaction'));
@@ -287,7 +287,7 @@ describe('EternalAutonomyEngine', () => {
 
     await engine.runOneIteration();
     expect(compactor.compact).toHaveBeenCalledTimes(1);
-    expect(compactor.compact.mock.calls[0][1]).toEqual({ aggressive: true });
+    expect(compactor.compact.mock.calls[0]![1]).toEqual({ aggressive: true });
   });
 
   it('does not compact when no compactor is wired', async () => {

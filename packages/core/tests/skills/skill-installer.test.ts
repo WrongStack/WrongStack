@@ -83,10 +83,10 @@ describe('SkillInstaller.install', () => {
     const inst = mkInstaller();
     const res = await inst.install('user/alpha@main');
     expect(res).toHaveLength(1);
-    expect(res[0].name).toBe('alpha');
-    expect(res[0].scope).toBe('project');
-    expect(res[0].source).toBe('github:user/alpha');
-    expect(res[0].ref).toBe('main');
+    expect(res[0]!.name).toBe('alpha');
+    expect(res[0]!.scope).toBe('project');
+    expect(res[0]!.source).toBe('github:user/alpha');
+    expect(res[0]!.ref).toBe('main');
     // File should exist at destination
     const installed = await fs.readFile(path.join(projectSkillsDir, 'alpha', 'SKILL.md'), 'utf8');
     expect(installed).toContain('name: alpha');
@@ -238,14 +238,14 @@ describe('SkillInstaller.update', () => {
     const inst = mkInstaller();
     const res = await inst.update('does-not-exist');
     expect(res.errors).toHaveLength(1);
-    expect(res.errors[0].error).toMatch(/Invalid reference/);
+    expect(res.errors[0]!.error).toMatch(/Invalid reference/);
   });
 
   it('reports "no installed skills found" when arg parses but matches no source', async () => {
     const inst = mkInstaller();
     const res = await inst.update('owner/repo@v1');
     expect(res.errors).toHaveLength(1);
-    expect(res.errors[0].error).toMatch(/No installed skills found/);
+    expect(res.errors[0]!.error).toMatch(/No installed skills found/);
   });
 
   it('updates an installed skill by name (re-install at the original ref)', async () => {
@@ -260,7 +260,7 @@ describe('SkillInstaller.update', () => {
     fetcherMocks.downloadGitHubTarball.mockResolvedValue({ tempDir: tmp2 });
     const res = await inst.update('upd');
     expect(res.updated).toHaveLength(1);
-    expect(res.updated[0].name).toBe('upd');
+    expect(res.updated[0]!.name).toBe('upd');
     expect(res.errors).toEqual([]);
   });
 
@@ -287,8 +287,8 @@ describe('SkillInstaller.update', () => {
     fetcherMocks.downloadGitHubTarball.mockRejectedValue(new Error('network down'));
     const res = await inst.update('broken');
     expect(res.errors).toHaveLength(1);
-    expect(res.errors[0].name).toBe('broken');
-    expect(res.errors[0].error).toContain('network down');
+    expect(res.errors[0]!.name).toBe('broken');
+    expect(res.errors[0]!.error).toContain('network down');
   });
 });
 

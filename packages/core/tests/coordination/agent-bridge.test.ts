@@ -191,11 +191,11 @@ describe('InMemoryAgentBridge', () => {
     const p1 = bridge.request(msg, 500);
     // Second concurrent request with the same id is a caller bug — reject loudly.
     await expect(bridge.request(msg, 500)).rejects.toThrow('collides');
-    // Resolve the first so we don't leak — send a response with the SAME id.
+    // Resolve the first so we don't leak — send a result with the SAME id.
     transport.send(
       {
         ...msg,
-        type: 'response' as const,
+        type: 'result' as const,
         from: 'coord1',
         to: 'agent1',
         payload: {},

@@ -66,7 +66,7 @@ describe('SessionAnalyzer', () => {
     ];
     const result = analyzer.query(events, { toolNames: ['bash'] });
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('bash');
+    expect(result[0]!.name).toBe('bash');
   });
 
   it('query filters by timeRange', () => {

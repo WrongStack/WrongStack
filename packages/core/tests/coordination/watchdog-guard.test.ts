@@ -51,7 +51,7 @@ function makeFrequentProgressAgent(opts: {
     async run(_input: unknown, runOpts: { signal: AbortSignal }): Promise<RunResult> {
       const startedAt = Date.now();
       let iteration = 0;
-      events.emit('iteration.started', { ctx: undefined, index: iteration });
+      events.emit('iteration.started', { ctx: undefined as never, index: iteration });
       while (Date.now() - startedAt < durationMs) {
         if (runOpts.signal.aborted) return { status: 'aborted', iterations: iteration };
         // Emit tool.started + tool.executed in rapid succession — this mirrors
@@ -83,7 +83,7 @@ function makeStalledAgent(opts: { durationMs: number; events: EventBus }): Agent
   return {
     async run(_input: unknown, runOpts: { signal: AbortSignal }): Promise<RunResult> {
       const startedAt = Date.now();
-      events.emit('iteration.started', { ctx: undefined, index: 0 });
+      events.emit('iteration.started', { ctx: undefined as never, index: 0 });
       while (Date.now() - startedAt < durationMs) {
         if (runOpts.signal.aborted) return { status: 'aborted', iterations: 0 };
         await new Promise((r) => setTimeout(r, 10));
@@ -112,14 +112,16 @@ describe('watchdogActive guard', () => {
 
     // Handler that records which kinds it sees.
     const handler = (e: {
-      kind: string;
-      extend: (x: unknown) => void;
-      deny: () => void;
-    }) => {
+      kind: BudgetKind;
+      used: number;
+      limit: number;
+      requestDecision: () => Promise<BudgetThresholdDecision>;
+      extend?: (extra: Partial<BudgetLimits>) => void;
+      deny?: () => void;
+    }): void => {
       if (e.kind === 'timeout') wallClockEvents.push(e.kind);
       if (e.kind === 'idle_timeout') idleEvents.push(e.kind);
-      e.deny();
-      return 'stop';
+      e.deny?.();
     };
 
     const budget = new SubagentBudget(
@@ -153,13 +155,15 @@ describe('watchdogActive guard', () => {
     const wallClockEvents: string[] = [];
 
     const handler = (e: {
-      kind: string;
-      extend: (x: unknown) => void;
-      deny: () => void;
-    }) => {
+      kind: BudgetKind;
+      used: number;
+      limit: number;
+      requestDecision: () => Promise<BudgetThresholdDecision>;
+      extend?: (extra: Partial<BudgetLimits>) => void;
+      deny?: () => void;
+    }): void => {
       if (e.kind === 'timeout') wallClockEvents.push(e.kind);
-      e.deny();
-      return 'stop';
+      e.deny?.();
     };
 
     const budget = new SubagentBudget({ timeoutMs: 50 }, 'auto');
@@ -288,7 +292,7 @@ describe('dual-path race: watchdog vs checkTimeout (T2)', () => {
         async run(_input: unknown, runOpts: { signal: AbortSignal }): Promise<RunResult> {
           const startedAt = Date.now();
           let i = 0;
-          events.emit('iteration.started', { ctx: undefined, index: 0 });
+          events.emit('iteration.started', { ctx: undefined as never, index: 0 });
           while (Date.now() - startedAt < 40) {
             if (runOpts.signal.aborted) return { status: 'aborted', iterations: i };
             events.emit('tool.progress', { name: 'work', id: `t${i}`, durationMs: 0, elapsedMs: Date.now() - startedAt });

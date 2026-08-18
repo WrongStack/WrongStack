@@ -147,7 +147,7 @@ describe('ToolExecutor — file event auto-emission', () => {
 
     // ctx.recordFileEvent was called once with the right shape
     expect(ctx.recordFileEvent).toHaveBeenCalledTimes(1);
-    const callArg = ctx.recordFileEvent.mock.calls[0][0];
+    const callArg = ctx.recordFileEvent.mock.calls[0]![0];
     expect(callArg.operation).toBe('read');
     expect(callArg.filePath).toBe('src/main.ts');
     expect(callArg.toolName).toBe('read');
@@ -190,7 +190,7 @@ describe('ToolExecutor — file event auto-emission', () => {
 
       expect(result.outputs[0]?.result.type).toBe('tool_result');
       expect(ctx.recordFileEvent).toHaveBeenCalledTimes(1);
-      const callArg = ctx.recordFileEvent.mock.calls[0][0];
+      const callArg = ctx.recordFileEvent.mock.calls[0]![0];
       expect(callArg.operation).toBe('create');
       expect(callArg.filePath).toBe('new-file.ts');
       expect(callArg.toolName).toBe('write');
@@ -226,7 +226,7 @@ describe('ToolExecutor — file event auto-emission', () => {
 
       expect(result.outputs[0]?.result.type).toBe('tool_result');
       expect(ctx.recordFileEvent).toHaveBeenCalledTimes(1);
-      expect(ctx.recordFileEvent.mock.calls[0][0].operation).toBe('update');
+      expect(ctx.recordFileEvent.mock.calls[0]![0].operation).toBe('update');
       expect(fileEvents).toHaveLength(1);
       expect((fileEvents[0] as Record<string, unknown>).operation).toBe('update');
     } finally {
@@ -251,7 +251,7 @@ describe('ToolExecutor — file event auto-emission', () => {
     );
 
     expect(ctx.recordFileEvent).toHaveBeenCalledTimes(1);
-    const callArg = ctx.recordFileEvent.mock.calls[0][0];
+    const callArg = ctx.recordFileEvent.mock.calls[0]![0];
     // edit tool has fs.write but name !== 'write' → operation = 'update'
     expect(callArg.operation).toBe('update');
     expect(callArg.toolName).toBe('edit');

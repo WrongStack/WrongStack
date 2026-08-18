@@ -16,7 +16,10 @@ import {
 } from '../../src/observability/process-telemetry.js';
 
 const tempDirs: string[] = [];
-const scrubber = { scrub: (value: string) => value.replaceAll('SECRET', '[REDACTED]') };
+const scrubber = {
+  scrub: (value: string) => value.replaceAll('SECRET', '[REDACTED]'),
+  scrubObject: <T>(obj: T): T => obj,
+};
 
 afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));

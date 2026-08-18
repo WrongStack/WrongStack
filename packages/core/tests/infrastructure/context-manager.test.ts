@@ -178,13 +178,23 @@ describe('createContextManagerTool', () => {
   it('compact uses registered compactor', async () => {
     const tool = createContextManagerTool({
       compactor: {
-        compact: async (_ctx: any) => ({ after: 100, removed: 5 }),
+        compact: async (_ctx: any) => ({
+          before: 100,
+          after: 100,
+          fullRequestTokensBefore: 100,
+          fullRequestTokensAfter: 100,
+          reductions: [],
+        }),
       },
+      // Bypass the min-token threshold check so the compactor actually runs.
+      // Without this, runtimeThreshold = floor(128_000 × 0.4) = 51_200 while
+      // currentTokens (~250 for 'a'.repeat(1000)) skips compaction.
+      minCompactThreshold: 1,
     });
     const ctx = makeCtx([{ role: 'user', content: 'a'.repeat(1000) }]);
     const result = await tool.execute({ action: 'compact' }, ctx);
     expect(result.action).toBe('compact');
-    expect(result.afterTokens).toBeDefined();
+    expect(result.afterTokens).toBe(100);
   });
 
   it('compact repairs orphan protocol blocks produced by a compactor', async () => {
@@ -195,7 +205,13 @@ describe('createContextManagerTool', () => {
             role: 'assistant',
             content: [{ type: 'tool_use', id: 'cut', name: 'read', input: {} }],
           });
-          return { before: 1000, after: 100, reductions: [{ phase: 'summary', saved: 900 }] };
+          return {
+            before: 1000,
+            after: 100,
+            fullRequestTokensBefore: 1000,
+            fullRequestTokensAfter: 100,
+            reductions: [{ phase: 'summary', saved: 900 }],
+          };
         },
       },
       // Bypass the min-token threshold check so the compactor actually runs.

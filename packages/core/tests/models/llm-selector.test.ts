@@ -91,13 +91,13 @@ describe('LLMSelector', () => {
         .map((_, i) => makeMessage(i % 2 === 0 ? 'user' : 'assistant', `message ${i}`));
       const result = await selector.select(messages, 1000);
       expect(result.kept).toHaveLength(1);
-      expect(result.kept[0].from).toBe(0);
-      expect(result.kept[0].to).toBe(1);
-      expect(result.kept[0].importance).toBe('critical');
+      expect(result.kept[0]!.from).toBe(0);
+      expect(result.kept[0]!.to).toBe(1);
+      expect(result.kept[0]!.importance).toBe('critical');
       expect(result.collapsed).toHaveLength(1);
-      expect(result.collapsed[0].from).toBe(2);
-      expect(result.collapsed[0].to).toBe(5);
-      expect(result.collapsed[0].summary).toBe('old conversation');
+      expect(result.collapsed[0]!.from).toBe(2);
+      expect(result.collapsed[0]!.to).toBe(5);
+      expect(result.collapsed[0]!.summary).toBe('old conversation');
       expect(result.reasoning).toBe('reasoning here');
     });
 
@@ -156,8 +156,8 @@ describe('LLMSelector', () => {
       const selector = new LLMSelector({ provider });
       const messages = [makeMessage('user', 'msg1'), makeMessage('assistant', 'msg2')];
       const result = await selector.select(messages, 1000);
-      expect(result.kept[0].importance).toBe('high');
-      expect(result.kept[1].importance).toBe('medium');
+      expect(result.kept[0]!.importance).toBe('high');
+      expect(result.kept[1]!.importance).toBe('medium');
     });
 
     it('defaults importance to medium when missing', async () => {
@@ -165,7 +165,7 @@ describe('LLMSelector', () => {
       const selector = new LLMSelector({ provider });
       const messages = [makeMessage('user', 'msg1')];
       const result = await selector.select(messages, 1000);
-      expect(result.kept[0].importance).toBe('medium');
+      expect(result.kept[0]!.importance).toBe('medium');
     });
   });
 
@@ -309,7 +309,7 @@ describe('LLMSelector', () => {
       const selector = new LLMSelector({ provider });
       const messages = Array(5).fill(null).map((_, i) => makeMessage('user', `msg ${i}`));
       const result = await selector.select(messages, 1000);
-      expect(result.kept[0].importance).toBe('medium');
+      expect(result.kept[0]!.importance).toBe('medium');
     });
   });
 });
@@ -337,7 +337,7 @@ describe('LLMSelector with OneShotOrchestrator', () => {
     });
     const result = await selector.select(makeMessages(), 1000);
     expect(call).toHaveBeenCalledTimes(1);
-    const input = call.mock.calls[0][0];
+    const input = call.mock.calls[0]![0];
     expect(input).toHaveProperty('system');
     expect(input).toHaveProperty('userPrompt');
     expect(input).toHaveProperty('maxTokens');
@@ -386,8 +386,8 @@ describe('LLMSelector with OneShotOrchestrator', () => {
       oneShotOrchestrator: { call } as never,
     });
     const result = await selector.select(makeMessages(), 1000);
-    expect(result.kept[0].importance).toBe('high');
-    expect(result.collapsed[0].from).toBe(2);
+    expect(result.kept[0]!.importance).toBe('high');
+    expect(result.collapsed[0]!.from).toBe(2);
     expect(result.reasoning).toBe('compact older turns');
   });
 });

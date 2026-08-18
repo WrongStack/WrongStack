@@ -83,7 +83,7 @@ function createMockLlmProvider() {
   return {
     decide: vi.fn(async () => ({
       type: 'deny' as const,
-      optionId: undefined,
+      optionId: 'deny',
       text: 'No valid options',
       rationale: 'Test: always deny to exit loop quickly',
     })),
@@ -176,9 +176,7 @@ describe('AutonomousCoordinator', () => {
         category: 'bug',
         subject: 'Test bug',
         detail: 'Found in test',
-        key: 'test-bug-1',
         severity: 'high',
-        discoveredBy: 'test',
         tags: ['test'],
       });
 
@@ -232,12 +230,10 @@ describe('AutonomousCoordinator', () => {
 
       // Publish a fact first
       await coordinator.publishFact({
-        category: 'performance',
+        category: 'perf',
         subject: 'Slow query detected',
         detail: 'DB queries taking >1s',
-        key: 'perf-slow-query',
         severity: 'medium',
-        discoveredBy: 'test',
         tags: ['perf'],
       });
 
@@ -265,9 +261,7 @@ describe('AutonomousCoordinator', () => {
           category: 'test',
           subject: 'Test',
           detail: 'Test',
-          key: 'test-key',
           severity: 'low',
-          discoveredBy: 'test',
           tags: [],
         }),
       ).resolves.not.toThrow();
@@ -633,9 +627,9 @@ describe('AutonomousCoordinator', () => {
         category: 'architecture',
         subject: 'Service layer needed',
         detail: 'Controllers are doing too much',
-        key: 'arch-service-layer',
+        key: 'arch-service-layer' as never,
         severity: 'medium',
-        discoveredBy: 'architect',
+        discoveredBy: 'architect' as never,
         tags: ['architecture', 'refactor'],
       });
 
@@ -647,7 +641,7 @@ describe('AutonomousCoordinator', () => {
     it('accepts all valid fact categories', async () => {
       const { coordinator } = createCoordinator();
 
-      const categories = ['bug', 'performance', 'security', 'refactor', 'test', 'documentation', 'dependency', 'quality'] as const;
+      const categories = ['bug', 'perf', 'security', 'refactor', 'test', 'architecture', 'deps', 'quality'] as const;
 
       for (const category of categories) {
         await expect(
@@ -657,7 +651,6 @@ describe('AutonomousCoordinator', () => {
             detail: 'Detail',
             key: `fact-${category}`,
             severity: 'low',
-            discoveredBy: 'test',
             tags: [],
           }),
         ).resolves.not.toThrow();
@@ -749,7 +742,6 @@ describe('AutonomousCoordinator', () => {
         detail: 'Module X has no tests',
         key: 'test-coverage-gap',
         severity: 'medium',
-        discoveredBy: 'test',
         tags: ['test'],
       });
 

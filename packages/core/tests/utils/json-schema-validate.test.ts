@@ -13,8 +13,8 @@ describe('json-schema-validate / validateAgainstSchema', () => {
     it('rejects wrong primitive type', () => {
       const r = validateAgainstSchema(42, { type: 'string' });
       expect(r.ok).toBe(false);
-      expect(r.errors[0].message).toMatch(/expected string, got number/);
-      expect(r.errors[0].path).toBe('<root>');
+      expect(r.errors[0]!.message).toMatch(/expected string, got number/);
+      expect(r.errors[0]!.path).toBe('<root>');
     });
 
     it('accepts number', () => {
@@ -52,9 +52,9 @@ describe('json-schema-validate / validateAgainstSchema', () => {
 
     it('reports describeType correctly for null and arrays', () => {
       const r1 = validateAgainstSchema(null, { type: 'string' });
-      expect(r1.errors[0].message).toMatch(/got null/);
+      expect(r1.errors[0]!.message).toMatch(/got null/);
       const r2 = validateAgainstSchema([], { type: 'string' });
-      expect(r2.errors[0].message).toMatch(/got array/);
+      expect(r2.errors[0]!.message).toMatch(/got array/);
     });
   });
 
@@ -68,8 +68,8 @@ describe('json-schema-validate / validateAgainstSchema', () => {
       const r = validateAgainstSchema({ name: 'a' }, schema);
       expect(r.ok).toBe(false);
       expect(r.errors).toHaveLength(1);
-      expect(r.errors[0].path).toBe('age');
-      expect(r.errors[0].message).toMatch(/required/);
+      expect(r.errors[0]!.path).toBe('age');
+      expect(r.errors[0]!.message).toMatch(/required/);
     });
 
     it('validates each declared property', () => {
@@ -104,7 +104,7 @@ describe('json-schema-validate / validateAgainstSchema', () => {
       };
       const r = validateAgainstSchema({ inner: { x: 'no' } }, schema);
       expect(r.ok).toBe(false);
-      expect(r.errors[0].path).toBe('inner.x');
+      expect(r.errors[0]!.path).toBe('inner.x');
     });
 
     it('does not walk properties when value is not an object', () => {
@@ -126,7 +126,7 @@ describe('json-schema-validate / validateAgainstSchema', () => {
       const r = validateAgainstSchema([1, 'two', 3], schema);
       expect(r.ok).toBe(false);
       expect(r.errors).toHaveLength(1);
-      expect(r.errors[0].path).toBe('[1]');
+      expect(r.errors[0]!.path).toBe('[1]');
     });
 
     it('accepts empty array', () => {
@@ -152,7 +152,7 @@ describe('json-schema-validate / validateAgainstSchema', () => {
     it('rejects a value not in the list', () => {
       const r = validateAgainstSchema('yellow', { enum: ['red', 'green', 'blue'] });
       expect(r.ok).toBe(false);
-      expect(r.errors[0].message).toMatch(/expected one of/);
+      expect(r.errors[0]!.message).toMatch(/expected one of/);
     });
 
     it('uses deep equality for objects', () => {
@@ -171,7 +171,7 @@ describe('json-schema-validate / validateAgainstSchema', () => {
       const r = validateAgainstSchema(42, { enum: [1, 2], type: 'string' });
       expect(r.ok).toBe(false);
       expect(r.errors).toHaveLength(1);
-      expect(r.errors[0].message).toMatch(/expected one of/);
+      expect(r.errors[0]!.message).toMatch(/expected one of/);
     });
   });
 

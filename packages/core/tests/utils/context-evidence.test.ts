@@ -164,8 +164,8 @@ describe('recordToolOutputEvidence', () => {
     const ctx = makeCtx();
     recordToolOutputEvidence(ctx, { toolUseId: 't1', toolName: 'edit', input: { path: 'a.ts' }, content: '', ok: true });
     const fg = (ctx as never as { contextEvidence: { fileGraph: Record<string, { writes: number; reads: number }> } }).contextEvidence.fileGraph;
-    expect(fg['a.ts'].writes).toBe(1);
-    expect(fg['a.ts'].reads).toBe(0);
+    expect(fg['a.ts']!.writes).toBe(1);
+    expect(fg['a.ts']!.reads).toBe(0);
   });
 
   it('summarises read/grep/edit/write outputs', () => {

@@ -205,7 +205,11 @@ describe('catalog spawnability (real Director + spawn tool)', () => {
     const spawnedIds: string[] = [];
 
     for (const role of Object.keys(FLEET_ROSTER)) {
-      const result = (await spawn.execute({ role })) as { subagentId?: string; error?: string };
+      const result = (await spawn.execute(
+        { role },
+        {} as never,
+        { signal: new AbortController().signal },
+      )) as { subagentId?: string; error?: string };
       expect(result.error, `spawn error for role "${role}"`).toBeUndefined();
       expect(result.subagentId, `no subagentId for role "${role}"`).toBeTruthy();
       spawnedIds.push(result.subagentId!);

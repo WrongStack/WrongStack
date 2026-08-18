@@ -54,8 +54,8 @@ describe('techstack-mailbox-consumer', () => {
     });
 
     await vi.waitFor(() => expect(onSpawn).toHaveBeenCalledTimes(1));
-    expect(spawnedTasks[0].name).toBe('tech-stack-package.json');
-    expect(spawnedTasks[0].task).toContain('package.json');
+    expect(spawnedTasks[0]!.name).toBe('tech-stack-package.json');
+    expect(spawnedTasks[0]!.task).toContain('package.json');
   });
 
   it('does not spawn for non-assign messages', async () => {
@@ -128,7 +128,7 @@ describe('techstack-mailbox-consumer', () => {
     });
 
     await vi.waitFor(() => expect(onSpawn).toHaveBeenCalledTimes(1));
-    expect(spawnedTasks[0].task).toContain('go.mod');
+    expect(spawnedTasks[0]!.task).toContain('go.mod');
   });
 
   it('calls onError when spawn fails', async () => {

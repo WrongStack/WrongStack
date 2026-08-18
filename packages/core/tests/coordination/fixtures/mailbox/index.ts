@@ -54,8 +54,8 @@ export interface FixtureMessageOverrides extends Partial<Omit<MailboxMessage, 'i
 export function buildV1Message(overrides: FixtureMessageOverrides = {}): MailboxMessage {
   return {
     id: overrides.id ?? randomUUID(),
-    from: overrides.from ?? 'sender@example',
-    to: overrides.to ?? 'recipient@example',
+    from: overrides.from ?? ('sender@example' as never),
+    to: overrides.to ?? ('recipient@example' as never),
     type: overrides.type ?? 'note',
     subject: overrides.subject ?? 'Test subject',
     body: overrides.body ?? 'Test body',
@@ -185,8 +185,8 @@ export interface FixtureAckOverrides extends Partial<Omit<AckRecord, '__ack' | '
 export function buildReadAck(overrides: FixtureAckOverrides = {}): AckRecord {
   return {
     __ack: true,
-    messageId: overrides.messageId ?? 'msg-1',
-    readerId: overrides.readerId ?? 'agent-a',
+    messageId: overrides.messageId ?? ('msg-1' as never),
+    readerId: overrides.readerId ?? ('agent-a' as never),
     timestamp: overrides.timestamp ?? FIXTURE_TIME_PLUS_1S,
     read: overrides.read ?? true,
     ...overrides,

@@ -131,7 +131,7 @@ describe('NotifierImpl', () => {
 
       const chs = await notifier.channels();
       expect(chs).toHaveLength(1);
-      expect(chs[0].type).toBe('slack'); // last-write-wins
+      expect(chs[0]!.type).toBe('slack'); // last-write-wins
     });
 
     it('unregisterChannel removes the channel but keeps counters', async () => {
@@ -149,7 +149,7 @@ describe('NotifierImpl', () => {
 
       const counters = notifier.perChannelCounters();
       expect(counters['tmp']).toBeDefined(); // counters survive unregister
-      expect(counters['tmp'].attempted).toBe(1);
+      expect(counters['tmp']!.attempted).toBe(1);
     });
 
     it('unregisterChannel is idempotent for unknown names', () => {
@@ -172,8 +172,8 @@ describe('NotifierImpl', () => {
 
       const results = await notifier.notify('slack', SAMPLE_MSG);
       expect(results).toHaveLength(1);
-      expect(results[0].ok).toBe(true);
-      expect(results[0].channel).toBe('slack');
+      expect(results[0]!.ok).toBe(true);
+      expect(results[0]!.channel).toBe('slack');
       expect(ch.deliver).toHaveBeenCalledTimes(1);
       expect(ch.deliver).toHaveBeenCalledWith(SAMPLE_MSG);
     });
@@ -214,7 +214,7 @@ describe('NotifierImpl', () => {
 
       const results = await notifier.notify(['slack', 'unknown', 'also-unknown'], SAMPLE_MSG);
       expect(results).toHaveLength(1); // only 'slack' result returned
-      expect(results[0].channel).toBe('slack');
+      expect(results[0]!.channel).toBe('slack');
       expect(ch.deliver).toHaveBeenCalledTimes(1);
     });
 
@@ -229,8 +229,8 @@ describe('NotifierImpl', () => {
 
       const results = await notifier.notify('flaky', SAMPLE_MSG);
       expect(results).toHaveLength(1);
-      expect(results[0].ok).toBe(false);
-      expect(results[0].error).toBe('HTTP 500');
+      expect(results[0]!.ok).toBe(false);
+      expect(results[0]!.error).toBe('HTTP 500');
     });
 
     it('catches a channel whose deliver() throws (unexpected crash)', async () => {
@@ -242,16 +242,16 @@ describe('NotifierImpl', () => {
       // does not tear down every parallel delivery in the same notify() call.
       const results = await notifier.notify('crashy', SAMPLE_MSG);
       expect(results).toHaveLength(1);
-      expect(results[0].ok).toBe(false);
-      expect(results[0].error).toMatch(/^threw: /);
-      expect(results[0].channel).toBe('crashy');
+      expect(results[0]!.ok).toBe(false);
+      expect(results[0]!.error).toMatch(/^threw: /);
+      expect(results[0]!.channel).toBe('crashy');
 
       // Counter should reflect the failure.
       const counters = notifier.perChannelCounters();
       expect(counters['crashy']).toBeDefined();
-      expect(counters['crashy'].attempted).toBe(1);
-      expect(counters['crashy'].delivered).toBe(0);
-      expect(counters['crashy'].failed).toBe(1);
+      expect(counters['crashy']!.attempted).toBe(1);
+      expect(counters['crashy']!.delivered).toBe(0);
+      expect(counters['crashy']!.failed).toBe(1);
     });
   });
 

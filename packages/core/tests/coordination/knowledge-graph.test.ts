@@ -90,7 +90,7 @@ describe('KnowledgeGraph', () => {
       const _received: string[] = [];
 
       graph.subscribe('agent-1', { type: 'fact' });
-      graph.subscribe('agent-2', { type: 'bug' });
+      graph.subscribe('agent-2', { type: 'fact' });
 
       // The subscription callback should be called when add is called
       // Note: actual subscription delivery happens via event loop
@@ -261,7 +261,7 @@ describe('KnowledgeGraph', () => {
 
       const agent1Goals = graph.getGoals({ assignee: 'agent-1' });
       expect(agent1Goals).toHaveLength(1);
-      expect(agent1Goals[0].title).toBe('G1');
+      expect(agent1Goals[0]!.title).toBe('G1');
     });
 
     it('getGoals accepts priority filter parameter', async () => {
@@ -297,7 +297,7 @@ describe('KnowledgeGraph', () => {
 
       const blocked = graph.getBlockedGoals();
       expect(blocked).toHaveLength(1);
-      expect(blocked[0].title).toBe('G1');
+      expect(blocked[0]!.title).toBe('G1');
     });
   });
 
@@ -320,7 +320,7 @@ describe('KnowledgeGraph', () => {
 
       const proposed = graph.getChanges({ status: 'proposed' });
       expect(proposed).toHaveLength(1);
-      expect(proposed[0].title).toBe('C1');
+      expect(proposed[0]!.title).toBe('C1');
     });
   });
 
@@ -357,7 +357,7 @@ describe('KnowledgeGraph', () => {
 
       const topLevel = graph.getTopLevelGoals();
       expect(topLevel).toHaveLength(1);
-      expect(topLevel[0].title).toBe('Parent');
+      expect(topLevel[0]!.title).toBe('Parent');
     });
   });
 

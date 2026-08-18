@@ -322,7 +322,7 @@ describe('TaskAuctioneer', () => {
       const tasks = auctioneer.getTasksForAgent('agent-1');
 
       expect(tasks.length).toBe(1);
-      expect(tasks[0].title).toBe('Task');
+      expect(tasks[0]!.title).toBe('Task');
     });
   });
 

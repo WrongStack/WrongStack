@@ -74,9 +74,9 @@ describe('SessionEventBridge', () => {
       await bridge.append({ type: 'error', ts: 't', message: 'boom', phase: 'agent' });
 
       expect(append).toHaveBeenCalledTimes(3);
-      expect(append.mock.calls[0][0].type).toBe('user_input');
-      expect(append.mock.calls[1][0].type).toBe('file_observation');
-      expect(append.mock.calls[2][0].type).toBe('context_snapshot');
+      expect(append.mock.calls[0]![0].type).toBe('user_input');
+      expect(append.mock.calls[1]![0].type).toBe('file_observation');
+      expect(append.mock.calls[2]![0].type).toBe('context_snapshot');
     });
 
     it('standard: writes core + standard audit events', async () => {

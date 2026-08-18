@@ -66,7 +66,7 @@ export interface MockProviderOptions {
 export function createMockProvider(opts: MockProviderOptions = {}): Provider {
   const id = opts.id ?? 'mock';
   const defaultStream: StreamEvent[] = [
-    { type: 'text', text: 'Hello from mock provider.' },
+    { type: 'text_delta', text: 'Hello from mock provider.' },
     { type: 'message_stop', stopReason: 'end_turn', usage: { input: 10, output: 5 } as unknown as Usage },
   ];
   const streamEvents = opts.streamEvents ?? defaultStream;
@@ -92,7 +92,7 @@ export function createMockProvider(opts: MockProviderOptions = {}): Provider {
       let usage: Usage = { input: 0, output: 0 } as unknown as Usage;
       let stopReason: StopReason = 'end_turn';
       for (const e of streamEvents) {
-        if (e.type === 'text') text += e.text;
+        if (e.type === 'text_delta') text += e.text;
         if (e.type === 'message_stop') {
           usage = e.usage;
           stopReason = e.stopReason;

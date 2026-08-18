@@ -29,7 +29,7 @@ function mockContext(signal?: AbortSignal): Context {
   return {
     signal: signal ?? new AbortController().signal,
     messages: [],
-    systemPrompt: '',
+    systemPrompt: [],
     model: 'test-model',
     provider: null as any,
     config: null as any,

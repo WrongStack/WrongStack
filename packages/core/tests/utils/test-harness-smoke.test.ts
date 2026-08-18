@@ -72,7 +72,7 @@ describe('test-harness', () => {
     it('supports custom stream events', async () => {
       const provider = createMockProvider({
         streamEvents: [
-          { type: 'text', text: 'custom' },
+          { type: 'text_delta', text: 'custom' },
           { type: 'message_stop', stopReason: 'end_turn', usage: { input: 1, output: 1 } as any },
         ],
       });

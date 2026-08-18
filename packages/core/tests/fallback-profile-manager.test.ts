@@ -331,15 +331,7 @@ describe('FallbackProfileManager', () => {
     it('handles provider with env var key', () => {
       process.env['FALLBACK_TEST_KEY'] = 'sk-test';
       try {
-        const cfg = makeConfig({
-          providers: {
-            envProvider: {
-              envVars: ['FALLBACK_TEST_KEY'],
-              models: ['test-model'],
-            },
-          } as Record<string, unknown>,
-        });
-        // Re-craft to avoid TS strictness
+        const cfg = makeConfig({});
         cfg.providers = {
           openai: { type: 'openai', apiKey: 'sk-test', models: ['gpt-4o'] },
           envProvider: { envVars: ['FALLBACK_TEST_KEY'], models: ['test-model'] } as any,

@@ -396,7 +396,7 @@ const liveAgents: MailboxAgentStatus[] = [
     name: 'Newton (Research)',
     role: 'research',
     sessionId: 'sess_rs_006',
-    status: 'completed',
+    status: 'idle',
     currentTool: 'search',
     currentTask: 'Completed: WebSocket best practices',
     iterations: 15,
@@ -601,30 +601,30 @@ describe('HQ mailbox mapper', () => {
   // =========================================================================
 
   it('handles empty body correctly', () => {
-    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[0], { previewLength: 80 });
+    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[0]!, { previewLength: 80 });
     expect(summary.hasBody).toBe(false);
     // bodyPreview is undefined when body is empty
     expect(summary.bodyPreview).toBeUndefined();
   });
 
   it('handles missing taskContext', () => {
-    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[1], { previewLength: 80 });
+    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[1]!, { previewLength: 80 });
     expect(summary.task).toBeUndefined();
   });
 
   it('handles message with no readers (fully unread)', () => {
-    const snapshot = createMailboxSnapshotPayload([edgeCaseMessages[2]], [], { mailboxId: 'test:no_readers' });
+    const snapshot = createMailboxSnapshotPayload([edgeCaseMessages[2]!], [], { mailboxId: 'test:no_readers' });
     expect(snapshot.totals.unread).toBe(1);
-    expect(snapshot.messages[0].readCount).toBe(0);
+    expect(snapshot.messages[0]!.readCount).toBe(0);
   });
 
   it('handles message read by many recipients', () => {
-    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[3], { previewLength: 80 });
+    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[3]!, { previewLength: 80 });
     expect(summary.readCount).toBe(5);
   });
 
   it('redacts secrets in body and outcome', () => {
-    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[4], { previewLength: 200 });
+    const summary = mapMailboxMessageToHqSummary(edgeCaseMessages[4]!, { previewLength: 200 });
     expect(summary.bodyPreview).toContain('[REDACTED:');
     expect(summary.bodyPreview).not.toContain('sk_live_');
   });
@@ -647,14 +647,12 @@ describe('HQ mailbox mapper', () => {
     expect(snapshot.totals.onlineAgents).toBe(liveAgents.length);
   });
 
-  it('handles various agent statuses (running, idle, completed)', () => {
+  it('handles various agent statuses (running, idle)', () => {
     const running = liveAgents.filter((a) => a.status === 'running');
     const idle = liveAgents.filter((a) => a.status === 'idle');
-    const completed = liveAgents.filter((a) => a.status === 'completed');
 
     expect(running.length).toBeGreaterThan(0);
     expect(idle.length).toBeGreaterThan(0);
-    expect(completed.length).toBeGreaterThan(0);
   });
 
   it('handles agents with no currentTool/task (idle)', () => {

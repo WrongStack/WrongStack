@@ -145,8 +145,8 @@ describe('loadProjectModes', () => {
     await fs.writeFile(modeFile, 'My custom mode description\n第二行', 'utf8');
     const modes = await loadProjectModes(tmpDir);
     expect(modes).toHaveLength(1);
-    expect(modes[0].id).toBe('my-mode');
-    expect(modes[0].name).toBe('My Mode');
+    expect(modes[0]!.id).toBe('my-mode');
+    expect(modes[0]!.name).toBe('My Mode');
   });
 
   it('skips non-markdown files', async () => {
@@ -169,6 +169,6 @@ describe('loadUserModes', () => {
     await fs.writeFile(path.join(tmpDir, 'modes.json'), JSON.stringify(manifest), 'utf8');
     const modes = await loadUserModes(tmpDir);
     expect(modes).toHaveLength(1);
-    expect(modes[0].id).toBe('user1');
+    expect(modes[0]!.id).toBe('user1');
   });
 });

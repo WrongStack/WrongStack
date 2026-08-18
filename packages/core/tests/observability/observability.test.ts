@@ -57,7 +57,7 @@ describe('InMemoryMetricsSink', () => {
     const snap = sink.snapshot();
     const series = snap.series.filter((s) => s.name === 'hit');
     expect(series.length).toBe(1);
-    expect(series[0].values.value).toBe(2);
+    expect(series[0]!.values.value).toBe(2);
   });
 
   it('does not cap series when maxSeriesPerMetric is unset (default behavior)', () => {
@@ -248,7 +248,7 @@ describe('DefaultHealthRegistry', () => {
 
     const result = await reg.run();
     expect(result.status).toBe('unhealthy');
-    expect(result.checks[0].detail).toBe('explosion');
+    expect(result.checks[0]!.detail).toBe('explosion');
   });
 
   it('timeouts become unhealthy', async () => {
@@ -263,7 +263,7 @@ describe('DefaultHealthRegistry', () => {
 
     const result = await reg.run();
     expect(result.status).toBe('unhealthy');
-    expect(result.checks[0].detail).toMatch(/timeout/);
+    expect(result.checks[0]!.detail).toMatch(/timeout/);
   });
 
   it('unregister removes a check', async () => {

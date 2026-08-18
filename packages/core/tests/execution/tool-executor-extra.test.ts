@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { classifyToolError } from '../../src/execution/tool-executor.js';
-import { FetchError, ToolValidationError, WrongStackError } from '../../src/types/errors.js';
+import { FetchError, ToolValidationError, WrongStackError, ERROR_CODES } from '../../src/types/errors.js';
+import type { ErrorCode, ErrorSubsystem } from '../../src/types/errors.js';
 import { ToolErrorCategory } from '../../src/types/tool.js';
 import type { ConfirmAwaiter } from '../../src/types/tool-executor.js';
 
@@ -116,13 +117,13 @@ describe('classifyToolError', () => {
   function makeWSE(overrides: {
     severity?: string;
     recoverable?: boolean;
-    code?: string;
-    subsystem?: string;
+    code?: ErrorCode;
+    subsystem?: ErrorSubsystem;
   }): WrongStackError {
     const err = new WrongStackError({
       message: 'wse',
-      code: overrides.code ?? 'SOME_ERROR',
-      subsystem: overrides.subsystem ?? 'test',
+      code: overrides.code ?? ERROR_CODES.UNKNOWN,
+      subsystem: overrides.subsystem ?? 'general',
       severity: (overrides.severity ?? 'error') as 'fatal' | 'error' | 'warning',
       recoverable: overrides.recoverable ?? false,
     });
@@ -134,7 +135,7 @@ describe('classifyToolError', () => {
     expect(classifyToolError(err)).toEqual({
       category: ToolErrorCategory.TRANSIENT,
       retryable: true,
-      detail: 'SOME_ERROR [test]',
+      detail: `${ERROR_CODES.UNKNOWN} [general]`,
     });
   });
 
@@ -143,7 +144,7 @@ describe('classifyToolError', () => {
     expect(classifyToolError(err)).toEqual({
       category: ToolErrorCategory.FATAL,
       retryable: false,
-      detail: 'SOME_ERROR [test]',
+      detail: `${ERROR_CODES.UNKNOWN} [general]`,
     });
   });
 
@@ -152,18 +153,18 @@ describe('classifyToolError', () => {
     expect(classifyToolError(err)).toEqual({
       category: ToolErrorCategory.FATAL,
       retryable: false,
-      detail: 'SOME_ERROR [test]',
+      detail: `${ERROR_CODES.UNKNOWN} [general]`,
     });
   });
 
   it('includes code and subsystem in detail for WrongStackError', () => {
     const err = makeWSE({
-      code: 'FS_ERROR',
+      code: ERROR_CODES.FS_WRITE_FAILED,
       subsystem: 'fs',
       recoverable: true,
       severity: 'warning',
     });
-    expect(classifyToolError(err)).toMatchObject({ detail: 'FS_ERROR [fs]' });
+    expect(classifyToolError(err)).toMatchObject({ detail: 'FS_WRITE_FAILED [fs]' });
   });
 
   // --- Default / unclassified ---

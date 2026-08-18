@@ -58,7 +58,7 @@ type LayerName = (typeof LAYERS)[number];
 
 function layerOf(filePath: string): LayerName | null {
   const rel = path.relative(CORE_SRC, filePath);
-  const seg = rel.split(path.sep)[0];
+  const seg = rel.split(path.sep)[0]!;
   return (LAYERS as readonly string[]).includes(seg) ? (seg as LayerName) : null;
 }
 
@@ -662,10 +662,10 @@ describe('workspace DAG (PR-11)', () => {
     const nodeSet = new Set<string>();
     for (const edge of edges) {
       const [from, to] = edge.split(' → ');
-      nodeSet.add(from);
-      nodeSet.add(to);
-      if (!adj.has(from)) adj.set(from, new Set());
-      adj.get(from)!.add(to);
+      nodeSet.add(from!);
+      nodeSet.add(to!);
+      if (!adj.has(from!)) adj.set(from!, new Set());
+      adj.get(from!)!.add(to!);
     }
 
     // DFS cycle detection (white-gray-black).
