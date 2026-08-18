@@ -1148,17 +1148,16 @@ kbd {
 }
 
 /* ===========================================================================
-   Vector memory panel — inline panel mounted beside SageTabs on the SAGE
-   Memory view. Tokens follow the WebUI HSL system (see :root / .dark above);
-   the simpleui version uses its own --surface/--line tokens, so its rules
-   cannot be reused as-is. Layout is in-flow (NOT position:fixed) because the
-   WebUI mounts the panel alongside SageTabs rather than as an overlay.
+   Vector memory panel — third SAGE lens inside SageTabs on the SAGE Memory
+   view. Tokens follow the WebUI HSL system (see :root / .dark above); the
+   simpleui version uses its own --surface/--line tokens, so its rules cannot
+   be reused as-is. Layout is in-flow (NOT position:fixed) — the tab content
+   area provides the padding and owns the vertical scrolling.
    =========================================================================== */
 .vector-memory-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 16px;
   padding: 14px 16px;
   border: 1px solid hsl(var(--border));
   border-radius: 0;

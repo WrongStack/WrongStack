@@ -1,25 +1,32 @@
 /**
- * SageTabs — tabbed shell that hosts the two SAGE lenses under a single set of
- * tab triggers.
+ * SageTabs — tabbed shell that hosts the three SAGE lenses under a single set
+ * of tab triggers.
  *
  * Previously the SAGE memory area rendered `MemoryManager` (full store) and
  * `AudienceMemoryPanel` (audience-scoped subset) as two side-by-side panes
  * inside `App.tsx`. That layout forced both panes to share one column of
  * vertical space and gave users no signal that the left pane showed a *strict
- * subset* of the store. Splitting the same data into two lenses behind a top
+ * subset* of the store. Splitting the same data into lenses behind a top
  * tab bar:
  *   - reclaims the full viewport width for whichever lens is active,
  *   - removes the duplicated chrome (each panel still owns its own header
- *     and stat strip — they are not lifted here, to keep this change a pure
+ *     and stat strip — they are not lifted here, to keep this a pure
  *     layout migration),
  *   - makes the subset relationship explicit (Audience-scoped is a curated
  *     slice of All memories).
  *
- * Both panels keep their own data fetching, list state, and modal flows.
+ * The third lens, `VectorMemoryPanel`, used to render as a separate in-flow
+ * panel below the tab shell. Hosting it as a tab gives the embedding store
+ * the same full-viewport treatment and stops it from competing with the
+ * SAGE lenses for vertical space. It stays strictly opt-in: when the
+ * webui-server host wires no vector store the panel renders its own
+ * "disabled" placeholder inside the tab.
+ *
+ * All three panels keep their own data fetching, list state, and modal flows.
  * Nothing in this file reaches into their internals.
  */
 import { useAppTranslation } from '@/i18n';
-import { type BrainCircuit, ListFilter, Users2 } from 'lucide-react';
+import { type BrainCircuit, ListFilter, Network, Users2 } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -30,6 +37,11 @@ const MemoryManager = lazy(() =>
 const AudienceMemoryPanel = lazy(() =>
   import('../AudienceMemoryPanel.js').then((module) => ({
     default: module.AudienceMemoryPanel,
+  })),
+);
+const VectorMemoryPanel = lazy(() =>
+  import('../vector-memory-panel/index.js').then((module) => ({
+    default: module.VectorMemoryPanel,
   })),
 );
 
@@ -44,7 +56,7 @@ function TabFallback({ label }: { label: string }) {
   );
 }
 
-export type SageTabValue = 'all' | 'audience';
+export type SageTabValue = 'all' | 'audience' | 'vector';
 
 const SAGE_TABS: ReadonlyArray<{
   value: SageTabValue;
@@ -54,6 +66,7 @@ const SAGE_TABS: ReadonlyArray<{
 }> = [
   { value: 'all', label: 'activity:memoryManager.tabAllMemories', hint: 'activity:memoryManager.tabAllMemoriesHint', Icon: ListFilter },
   { value: 'audience', label: 'activity:memoryManager.tabAudience', hint: 'activity:memoryManager.tabAudienceHint', Icon: Users2 },
+  { value: 'vector', label: 'activity:memoryManager.tabVectorMemory', hint: 'activity:memoryManager.tabVectorMemoryHint', Icon: Network },
 ];
 
 export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue } = {}) {
@@ -106,6 +119,17 @@ export function SageTabs({ defaultValue = 'all' }: { defaultValue?: SageTabValue
       >
         <Suspense fallback={<TabFallback label={t('activity:memoryManager.loadingAudience')} />}>
           <AudienceMemoryPanel />
+        </Suspense>
+      </TabsContent>
+
+      {/* The vector lens is a plain in-flow column (no internal scrolling),
+          so this content area owns the scroll instead of hiding it. */}
+      <TabsContent
+        value="vector"
+        className="mt-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 ring-offset-0 focus-visible:ring-0 sm:px-5"
+      >
+        <Suspense fallback={<TabFallback label={t('activity:memoryManager.loadingVectorMemory')} />}>
+          <VectorMemoryPanel />
         </Suspense>
       </TabsContent>
     </Tabs>

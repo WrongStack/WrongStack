@@ -5,7 +5,8 @@ import { expect, test } from '@playwright/test';
  * surface against the embedded WebUI host started by global-setup.
  *
  * Covers the panel contract end-to-end through real UI:
- *   1. navigation to the Memory view (overflow menu — see note below),
+ *   1. navigation to the Memory view (overflow menu — see note below) and
+ *      activation of the "Vector memory" SAGE tab that hosts the panel,
  *   2. the enabled contract (status strip with live store data, no
  *      disabled/error placeholder),
  *   3. search → inline expand (master-detail) → accordion collapse,
@@ -73,7 +74,12 @@ test.describe('Vector Memory panel', () => {
     await page.getByRole('button', { name: /^more/i }).first().click();
     await page.getByRole('menuitem', { name: 'Memory', exact: true }).click();
 
-    // ── Enabled panel renders under the SAGE tabs with live store data.
+    // ── Activate the Vector memory lens — the panel is the third SAGE tab,
+    //    not a panel below the tab bar. The trigger's accessible name also
+    //    carries the hint span ("Semantic embedding store"), so match loosely.
+    await page.getByRole('tab', { name: /vector memory/i }).click();
+
+    // ── Enabled panel renders inside the tab with live store data.
     const panel = page.locator('.vector-memory-panel');
     await expect(panel).toBeVisible({ timeout: 20_000 });
     await expect(
