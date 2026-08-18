@@ -64,6 +64,10 @@ export default defineConfig({
     // NOTE: the old `poolOptions.forks.singleFork` knob was removed in
     // Vitest 4 and had been silently ignored — do not reintroduce it.
     pool: 'forks',
+    // Workers themselves must also get the 4 GB heap. `test.env.NODE_OPTIONS`
+    // is only inherited by child processes spawned *inside* tests; fork
+    // workers are already running by the time that env is read.
+    execArgv: ['--max-old-space-size=4096'],
     // Cap fork workers explicitly. At Vitest's default (= all 32 logical cores
     // on the main development machine), spawn-heavy tests
     // (bash/git/biome/mock servers) starve:
