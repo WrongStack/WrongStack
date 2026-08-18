@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.308.6] — 2026-08-18
 
 ### Changed
 
 - **All 24 bundled skills now follow the v2 structure.** Each skill in `packages/core/skills/` carries an explicit `## Out of scope` section (in-lane guardrail) and a `## Before returning` checklist (in-lane enforcement). The two sections answer "what is this skill NOT for" and "did the model stay in scope," addressing the failure mode where models drift past a skill's stated rules. Versions bumped accordingly: `1.0.0` → `1.1.0`, `1.1.0` → `1.2.0`, `1.2.0` → `1.3.0`, `2.0.0` → `2.1.0`. The four unversioned skills (`design-system`, `multi-agent`, `wrongstack-kanban`, `wrongstack-mailbox-mcp`) now carry a `version` field, and `docs/SKILL-TEMPLATE.md` codifies the standard structure for future skill authoring.
+- **All release surfaces are aligned to `0.308.6`.** The root and workspace manifests, both apps, the README highlights, and the website metadata, JSON-LD, and release changelog now match the published manifests.
 
 ## [0.308.0] — 2026-08-15
 

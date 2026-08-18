@@ -52,25 +52,18 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.308.0
+### What's new in 0.308.6
 
-- **Vector Memory adds local semantic recall alongside SAGE.** Local ONNX
-  embeddings, a dedicated SQLite store, lifecycle wiring, runtime tools, and
-  WebUI/SimpleUI panels form one integrated path without replacing lexical memory.
-- **Prompt journal evidence is inspectable and recoverable.** Captures can be
-  exported through the WebUI, while bounded persistence keeps useful prompt
-  history available across session failures.
-- **Vibe Protocol orchestration is wired end to end.** SDD, CLI, tool-registry,
-  instruction, code-proof, and targeted-test surfaces now share the same runtime
-  implementation path.
-- **Plugin boundaries are harder to abuse.** Runtime sandboxing, ReDoS guards,
-  path targeting, prompt-firewall handling, and security-focused regression tests
-  cover more hostile inputs and failure paths.
-- **Release and supply-chain metadata are aligned.** Every workspace manifest,
-  website metadata surface, and the reviewed `sharp` install-script rationale now
-  report or support the `0.308.0` release line.
+- **All 24 bundled skills now follow the v2 structure.** Each skill carries an
+  explicit `## Out of scope` section (in-lane guardrail) and a `## Before returning`
+  checklist (in-lane enforcement), answering "what is this skill NOT for" and
+  "did the model stay in scope," with versions bumped and
+  `docs/SKILL-TEMPLATE.md` codifying the standard for future skill authoring.
+- **All release surfaces align to `0.308.6`.** The root and workspace manifests,
+  both apps, the README highlights, and the website metadata, JSON-LD, and
+  release changelog now match the published manifests.
 
-See the complete [0.308.0 release notes](CHANGELOG.md).
+See the complete [0.308.6 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -79,7 +72,7 @@ See the complete [0.308.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.308.0](#whats-new-in-03080)
+- [What's new in 0.308.6](#whats-new-in-03086)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

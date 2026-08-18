@@ -339,9 +339,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.308.6',
+    date: '2026-08-18',
+    latest: true,
+    tagline: 'All bundled skills follow the v2 structure with explicit in-lane guardrails',
+    highlights: [
+      'All 24 bundled skills now carry an explicit "Out of scope" section and a "Before returning" checklist, with versions bumped and docs/SKILL-TEMPLATE.md codifying the standard structure for future skill authoring',
+      'All root, package, app, and website release surfaces are aligned to 0.308.6, matching the published workspace manifests',
+    ],
+  },
+  {
     version: '0.308.0',
     date: '2026-08-15',
-    latest: true,
     tagline: 'Local vector recall, inspectable prompt evidence, and hardened plugin boundaries',
     highlights: [
       'Vector Memory adds local ONNX embeddings, dedicated SQLite storage, lifecycle wiring, runtime tools, and WebUI/SimpleUI panels alongside SAGE lexical recall',
