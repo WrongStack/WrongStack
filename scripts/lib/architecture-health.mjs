@@ -1138,6 +1138,18 @@ function newestReportCommitMs(repoRoot) {
 }
 
 /**
+ * True when git reports a shallow clone (e.g. actions/checkout with
+ * fetch-depth: 1, the default for CI PR runs). Path-filtered history is
+ * unreliable there: the depth-1 boundary commit has no parent, so `git log
+ * -- <path>` treats every path in the tree as newly added at HEAD, and the
+ * report pair always appears to be "regenerated" by whatever commit is
+ * checked out. Freshness cannot be decided — callers must skip, not guess.
+ */
+function isShallowRepository(repoRoot) {
+  return gitLogTimestamp(repoRoot, ['rev-parse', '--is-shallow-repository']) === 'true';
+}
+
+/**
  * Compare committed report evidence against the newest watched-source commit.
  *
  * Returns a single discriminated shape:
@@ -1151,6 +1163,16 @@ function newestReportCommitMs(repoRoot) {
  *                     callers warn rather than fail.
  */
 export function evaluateReportFreshness(repoRoot) {
+  if (isShallowRepository(repoRoot)) {
+    return {
+      status: 'skipped',
+      reason: 'shallow-repository',
+      detail:
+        'shallow clone detected (e.g. actions/checkout fetch-depth: 1): path-filtered ' +
+        'history is unreliable at the shallow boundary, so evidence freshness cannot ' +
+        'be decided here. Evaluate with full history (fetch-depth: 0) or on a local clone.',
+    };
+  }
   const watchedMs = newestWatchedCommitMs(repoRoot);
   const reportMs = newestReportCommitMs(repoRoot);
   if (watchedMs === undefined || reportMs === undefined) {

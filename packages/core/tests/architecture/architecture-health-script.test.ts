@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   __architectureHealthTestInternals,
@@ -848,5 +849,25 @@ describe('report freshness gate', () => {
     const verdict = evaluateReportFreshness(dir);
     expect(verdict.status).toBe('skipped');
     expect(verdict.reason).toBe('git-history-unavailable');
+  });
+
+  it('skips on a shallow clone instead of reporting a false fresh (actions/checkout fetch-depth: 1 shape)', async () => {
+    const dir = await initScratchRepo('shallow-src');
+    await commitReportPair(dir, 'first');
+    await writeFile(path.join(dir, 'packages/x/a.ts'), 'export const a = 9;\n');
+    git(dir, 'add', 'packages');
+    commitAt(dir, '2026-01-01T00:00:02Z', 'source-only');
+    // The full clone of this tree is stale — proving the shallow verdict
+    // below is a deliberate skip for this scenario, not an accident.
+    expect(evaluateReportFreshness(dir).status).toBe('stale');
+
+    const dst = await mkdtemp(path.join(tmpdir(), 'freshness-shallow-'));
+    temporaryRoots.push(dst);
+    git(dir, 'clone', '--quiet', '--depth', '1', '--no-local', pathToFileURL(dir).href, dst);
+    // At the shallow boundary the tip commit has no parent, so path-filtered
+    // log treats every path as newly added at HEAD — undecidable, not fresh.
+    const verdict = evaluateReportFreshness(dst);
+    expect(verdict.status).toBe('skipped');
+    expect(verdict.reason).toBe('shallow-repository');
   });
 });
