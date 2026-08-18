@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-18T15:33:25.357Z",
+  "generatedAt": "2026-08-18T16:06:59.845Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -19,7 +19,7 @@
     "moduleEdges": 10115,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
-    "typeModuleCycles": 17,
+    "typeModuleCycles": 16,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 803
@@ -1020,13 +1020,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/sdd/src/graph-split.ts",
-          "packages/sdd/src/sdd-parallel-run.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/techstack/src/adapters/interface.ts",
           "packages/techstack/src/adapters/paths.ts"
         ]
@@ -1068,7 +1061,6 @@
       "ARCH-CYCLE-TYPE-22",
       "ARCH-CYCLE-TYPE-23",
       "ARCH-CYCLE-TYPE-24",
-      "ARCH-CYCLE-TYPE-25",
       "ARCH-CYCLE-TYPE-26",
       "ARCH-CYCLE-TYPE-28",
       "ARCH-CYCLE-TYPE-29"

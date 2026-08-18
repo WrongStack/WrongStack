@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-18T15:33:25.357Z
+**Generated:** 2026-08-18T16:06:59.845Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -15,7 +15,7 @@
 | Relative module edges | 10115 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
-| Type-inclusive module cycles | 17 |
+| Type-inclusive module cycles | 16 |
 | Tests without TypeScript test-project coverage | 0 |
 | Tests in multiple TypeScript projects | 0 |
 
@@ -80,7 +80,6 @@ None.
 - packages/kanban/src/types-operations.ts ↔ packages/kanban/src/types.ts
 - packages/mcp/src/client.ts ↔ packages/mcp/src/tool-schema.ts ↔ packages/mcp/src/transport-base.ts ↔ packages/mcp/src/transport-sse.ts ↔ packages/mcp/src/transport-streamable.ts ↔ packages/mcp/src/transport.ts
 - packages/plug-lsp/src/document-tracker.ts ↔ packages/plug-lsp/src/registry.ts
-- packages/sdd/src/graph-split.ts ↔ packages/sdd/src/sdd-parallel-run.ts
 - packages/techstack/src/adapters/interface.ts ↔ packages/techstack/src/adapters/paths.ts
 - packages/tools/src/codebase-index/index-service.ts ↔ packages/tools/src/codebase-index/worker-protocol.ts
 - packages/tui/src/components/status-bar-chips.tsx ↔ packages/tui/src/components/status-bar-rails.tsx ↔ packages/tui/src/components/status-bar.tsx

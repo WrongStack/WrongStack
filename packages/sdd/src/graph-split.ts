@@ -13,7 +13,7 @@
  */
 
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import type { SddSubtaskSpec } from './sdd-parallel-run.js';
+import type { SddSubtaskSpec } from './sdd-parallel-run-types.js';
 
 export interface SplitGraphNodeOptions {
   /** Extra refusal predicate, e.g. "task currently has a live subagent". */

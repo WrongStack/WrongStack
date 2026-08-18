@@ -9,9 +9,9 @@
         "packages/acp/src/registry/ensemble-registry.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "ACP canonical entrypoints and registry contracts no longer import their consumers.",
       "canonicalTask": "M4"
     },
@@ -56,9 +56,9 @@
         "packages/cli/src/subcommands/index.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-07-24 to include routes/system-handlers.ts (routes.ts grew a routes/system-handlers.ts submodule). Membership updated 2026-08-14 to include the hq-server split files (mailbox-gateway-manager.ts, server-lifecycle.ts, upgrade-handler.ts) and the modeldiag extraction files (modeldiag-bench.ts, modeldiag-eval.ts, modeldiag-test.ts). No further new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-07-24 to include routes/system-handlers.ts (routes.ts grew a routes/system-handlers.ts submodule). Membership updated 2026-08-14 to include the hq-server split files (mailbox-gateway-manager.ts, server-lifecycle.ts, upgrade-handler.ts) and the modeldiag extraction files (modeldiag-bench.ts, modeldiag-eval.ts, modeldiag-test.ts). No further new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "CLI phase and subcommand contracts are leaf modules with one-way dependencies.",
       "canonicalTask": "C3"
     },
@@ -67,9 +67,9 @@
       "kind": "type-module-cycle",
       "members": ["packages/cli/src/fleet/host.ts", "packages/cli/src/fleet/routing.ts"],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "CLI phase and subcommand contracts are leaf modules with one-way dependencies.",
       "canonicalTask": "C3"
     },
@@ -84,9 +84,9 @@
         "packages/core/src/kernel/events/session-events.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "Director and coordination contracts are independent of implementations and views.",
       "canonicalTask": "D2"
     },
@@ -108,9 +108,9 @@
         "packages/core/src/types/plugin.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include agent-loop-context.ts and agent-loop-detector.ts (agent-loop decomposition). No further new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include agent-loop-context.ts and agent-loop-detector.ts (agent-loop decomposition). No further new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",
       "canonicalTask": "R1"
     },
@@ -133,9 +133,9 @@
         "packages/core/src/utils/tool-wire-compact.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",
       "canonicalTask": "R1"
     },
@@ -149,9 +149,9 @@
         "packages/core/src/hq/protocol/session.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. On 2026-07-31 a fifth member (resume.ts) was removed from the SCC by extracting the shared envelope primitives (HqEventEnvelope, HqEventType, HqProtocolVersion, HQ_PROTOCOL_VERSION) into the dependency-leaf hq/protocol/envelope.ts; resume.ts now imports from that leaf, restoring this exception's exact 4-member scope.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. On 2026-07-31 a fifth member (resume.ts) was removed from the SCC by extracting the shared envelope primitives (HqEventEnvelope, HqEventType, HqProtocolVersion, HQ_PROTOCOL_VERSION) into the dependency-leaf hq/protocol/envelope.ts; resume.ts now imports from that leaf, restoring this exception's exact 4-member scope. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "HQ protocol DTO modules are dependency-leaf contracts.",
       "canonicalTask": "P1"
     },
@@ -167,9 +167,9 @@
         "packages/core/src/tools/mcp-use.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",
       "canonicalTask": "R1"
     },
@@ -185,9 +185,9 @@
         "packages/mcp/src/transport.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "The owning package has one-way module dependencies and the SCC is removed.",
       "canonicalTask": "G1"
     },
@@ -196,9 +196,9 @@
       "kind": "type-module-cycle",
       "members": ["packages/plug-lsp/src/document-tracker.ts", "packages/plug-lsp/src/registry.ts"],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "The owning package has one-way module dependencies and the SCC is removed.",
       "canonicalTask": "G1"
     },
@@ -211,9 +211,9 @@
         "packages/tui/src/components/status-bar.tsx"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include status-bar-rails.tsx (status-bar decomposition). No further new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include status-bar-rails.tsx (status-bar decomposition). No further new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "TUI feature models and reducers no longer import views or the root shell.",
       "canonicalTask": "T3"
     },
@@ -225,9 +225,9 @@
         "packages/webui/src/components/SettingsPanel/official-servers.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "WebUI projections and leaf metadata modules no longer import their consumers.",
       "canonicalTask": "P2"
     },
@@ -239,25 +239,11 @@
         "packages/techstack/src/adapters/paths.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Type-only adapter path contracts currently import each other; no new members are allowed.",
+      "reason": "Type-only adapter path contracts currently import each other; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "Tech-stack adapter contracts and path helpers have one-way type dependencies.",
       "canonicalTask": "G1"
-    },
-    {
-      "id": "ARCH-CYCLE-TYPE-25",
-      "kind": "type-module-cycle",
-      "members": [
-        "packages/sdd/src/graph-split.ts",
-        "packages/sdd/src/sdd-parallel-run.ts"
-      ],
-      "owner": "architecture-refactor",
-      "reason": "Type-level SCC: graph-split.ts imports SddSubtaskSpec (type-only) from sdd-parallel-run.ts; sdd-parallel-run.ts imports splitGraphNode (runtime) from graph-split.ts. Runtime direction is one-way; the type edge creates the cycle.",
-      "introduced": "2026-07-24",
-      "reviewBy": "2026-09-15",
-      "removeWhen": "SddSubtaskSpec is moved to a shared types module so both files import from a common contract.",
-      "canonicalTask": "S1"
     },
     {
       "id": "ARCH-CYCLE-TYPE-26",
@@ -267,9 +253,9 @@
         "packages/kanban/src/types.ts"
       ],
       "owner": "kanban-refactor",
-      "reason": "Type-only compatibility facade: types.ts re-exports operation contracts while those contracts reference the persisted Kanban domain model. Runtime dependencies remain one-way and no additional members are allowed.",
+      "reason": "Type-only compatibility facade: types.ts re-exports operation contracts while those contracts reference the persisted Kanban domain model. Runtime dependencies remain one-way and no additional members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-27",
-      "reviewBy": "2026-09-15",
+      "reviewBy": "2026-10-01",
       "removeWhen": "Persisted Kanban domain contracts move to a dependency-leaf module consumed by both facade files.",
       "canonicalTask": "K1"
     },
