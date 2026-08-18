@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/webui",
-  "version": "0.308.5",
+  "version": "0.308.6",
   "license": "MIT",
   "description": "Browser-based WebUI for WrongStack — React + Vite frontend. The WebSocket backend lives in the separate @wrongstack/webui-server package (extracted in PR #018b to remove the CLI -> @wrongstack/webui/server cross-package edge).",
   "keywords": [

@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/codebase-index-mcp",
-  "version": "0.308.5",
+  "version": "0.308.6",
   "license": "MIT",
   "description": "WrongStack Codebase Index as an MCP server, backed by the existing project-scoped IPC daemon.",
   "repository": {
