@@ -196,9 +196,28 @@ describe('updateCmd subcommand', () => {
       latest: '1.2.3',
     });
     updateMocks.spawn.mockReturnValue(makeFakeChild(0));
-    const code = await updateCmd(['--pm', pm], deps);
-    expect(code).toBe(0);
-    expectSpawned(pm, [...argv]);
+    // On win32 the handler resolves the manager against the real PATH unless
+    // the environment seam is set, which would require yarn and bun to be
+    // installed on the host. Stub both executables instead.
+    const stubBin =
+      process.platform === 'win32'
+        ? mkdtempSync(path.join(tmpdir(), 'wrongstack-update-pm-'))
+        : undefined;
+    try {
+      if (stubBin) {
+        writeFileSync(path.join(stubBin, 'yarn.CMD'), '@echo yarn');
+        writeFileSync(path.join(stubBin, 'bun.EXE'), 'stub');
+        (deps as unknown as { environment: NodeJS.ProcessEnv }).environment = {
+          Path: stubBin,
+          PATHEXT: '.COM;.EXE;.BAT;.CMD',
+        };
+      }
+      const code = await updateCmd(['--pm', pm], deps);
+      expect(code).toBe(0);
+      expectSpawned(pm, [...argv]);
+    } finally {
+      if (stubBin) rmSync(stubBin, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+    }
   });
 
   it('prints help without checking or installing', async () => {

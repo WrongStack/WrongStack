@@ -39,7 +39,7 @@
       "relativeImports": 14
     },
     "packages/core/src/coordination/collab-debug.ts": {
-      "lines": 915,
+      "lines": 918,
       "relativeImports": 10
     },
     "packages/core/src/coordination/delegate-tool.ts": {
