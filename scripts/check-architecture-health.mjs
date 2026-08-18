@@ -5,6 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {
   buildArchitectureHealth,
+  evaluateReportFreshness,
   loadArchitectureInputs,
   renderArchitectureHealthMarkdown,
 } from './lib/architecture-health.mjs';
@@ -98,6 +99,36 @@ if (args.has('--print-hotspot-baseline')) {
   console.log(JSON.stringify(report, null, 2));
 } else {
   console.log(renderArchitectureHealthMarkdown(report));
+}
+
+// ── Committed-evidence freshness gate ────────────────────────────────────
+// The report pair under docs/reports/ is committed evidence; when a watched
+// source root got a newer commit than the evidence, the run fails in bare
+// check mode (the mode `pnpm check:architecture` and `release:check` use).
+// Maintenance flags skip it: --write regenerates the evidence (and would
+// embed the staleness it is fixing), --write-hotspot-baseline and
+// --print-hotspot-baseline refresh unrelated ratchets, --report-only is the
+// advisory rendering mode.
+const maintenanceMode =
+  args.has('--write') ||
+  args.has('--report-only') ||
+  args.has('--print-hotspot-baseline') ||
+  args.has('--write-hotspot-baseline');
+if (!maintenanceMode) {
+  const freshness = evaluateReportFreshness(repoRoot);
+  if (freshness.status === 'stale') {
+    console.error(
+      `❌ Stale architecture evidence: ${freshness.reason} — ${freshness.detail ?? ''}`,
+    );
+    console.error(
+      'Regenerate and commit the evidence in the same change: `pnpm report:architecture`.',
+    );
+    process.exitCode = 1;
+  } else if (freshness.status === 'skipped') {
+    console.warn(
+      `⚠️ Report freshness check skipped: ${freshness.detail ?? 'no git history'}`,
+    );
+  }
 }
 
 if (

@@ -63,7 +63,7 @@
   - *How:* `payload.bundle`
   - *How:* `packages/cli/src/execution-chimera-review.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera; applied=13; wins=13 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera; applied=17; wins=17 -->
 - **When reviewing a generated ratchet baseline such as `architecture/hotspots.json`, do not judge a metric field by a naive grep — read the generator first (`collectModuleSpecifiers` in `scripts/lib/architecture-health.mjs`) to learn every form it counts. `relativeImports` includes static `from './x'`, bare side-effect `import './x.css'`, dynamic `import('./x')`, `require()`, and `import x = require()`, so a file whose static imports number 6 can legitimately record 20.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `architecture/hotspots.json`
@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-08-18T08:46:43.540Z · 8 entries*
+*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*

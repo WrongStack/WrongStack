@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -1036,6 +1037,128 @@ export const __architectureHealthTestInternals = {
   stripJsonComments,
   validateExceptions,
 };
+
+// ── Committed-evidence freshness gate ────────────────────────────────────
+//
+// docs/reports/architecture-health-current.{json,md} is committed evidence.
+// architecture/README.md requires it to be regenerated "in the same PR that
+// intentionally changes the architecture baseline", but nothing enforced that:
+// the report went 12 days stale in July 2026 and 3 days stale in August 2026
+// without any gate noticing. This check closes that loop.
+//
+// Semantics:
+//   - Timestamps are COMMIT timestamps from git, never file mtimes — mtimes
+//     reset on every fresh clone, which would false-fail CI forever.
+//   - A commit that touches both a watched source root and the report files
+//     counts as fresh: that is the mandated same-PR regeneration flow. Stale
+//     means a source-only commit landed strictly AFTER the last report commit.
+//   - Report freshness is the OLDER of the .json/.md pair — regenerating only
+//     one file still leaves stale evidence on disk.
+//   - Non-git contexts (no HEAD, or a git failure) degrade to a written
+//     warning, never a hard failure: this is an evidence-hygiene gate, not a
+//     correctness gate, and release:check must not die on environment quirks.
+
+/** Roots whose newest commit marks the "sources changed" timestamp. */
+const FRESHNESS_WATCHED_ROOTS = ['architecture', 'packages', 'apps'];
+
+const FRESHNESS_REPORT_FILES = [
+  'docs/reports/architecture-health-current.json',
+  'docs/reports/architecture-health-current.md',
+];
+
+function gitLogTimestamp(repoRoot, args) {
+  try {
+    return execFileSync('git', args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 4 * 1024 * 1024,
+      windowsHide: true,
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Parse `git log -1 --format=%cI` output to epoch ms; undefined on failure. */
+function parseCommitIso(value) {
+  if (!value) return undefined;
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? undefined : ms;
+}
+
+/**
+ * Newest commit timestamp (epoch ms) that touched any watched root.
+ * `git log -1` with multiple pathspecs needs the `--` separator before the
+ * paths on every git version this repo supports.
+ */
+function newestWatchedCommitMs(repoRoot) {
+  const iso = gitLogTimestamp(repoRoot, [
+    'log',
+    '-1',
+    '--format=%cI',
+    '--',
+    ...FRESHNESS_WATCHED_ROOTS,
+  ]);
+  return parseCommitIso(iso);
+}
+
+/**
+ * Freshness anchor for the report pair: the OLDER of the two files' newest
+ * commit timestamps. Each file is queried independently — a single git log
+ * across both paths would return the newest commit touching either file, so
+ * regenerating only the .json after a source change would read as fresh while
+ * its stale .md companion ships as evidence. Either file lacking history
+ * returns undefined → the caller treats the whole comparison as skipped.
+ */
+function newestReportCommitMs(repoRoot) {
+  let oldestMs;
+  for (const file of FRESHNESS_REPORT_FILES) {
+    const iso = gitLogTimestamp(repoRoot, ['log', '-1', '--format=%cI', '--', file]);
+    const ms = parseCommitIso(iso);
+    if (ms === undefined) return undefined;
+    oldestMs = oldestMs === undefined ? ms : Math.min(oldestMs, ms);
+  }
+  return oldestMs;
+}
+
+/**
+ * Compare committed report evidence against the newest watched-source commit.
+ *
+ * Returns a single discriminated shape:
+ *   status:'fresh'  — the report pair is at least as new as the newest
+ *                     watched-source commit (same-PR regeneration counts).
+ *   status:'stale'  — a watched-source commit landed strictly after the last
+ *                     report commit; `detail` explains, `reason` is stable.
+ *   status:'skipped'— git history unavailable (no HEAD / no matching commits);
+ *                     callers warn rather than fail.
+ */
+export function evaluateReportFreshness(repoRoot) {
+  const watchedMs = newestWatchedCommitMs(repoRoot);
+  const reportMs = newestReportCommitMs(repoRoot);
+  if (watchedMs === undefined || reportMs === undefined) {
+    return {
+      status: 'skipped',
+      reason: 'git-history-unavailable',
+      detail:
+        'git history unavailable for the freshness comparison (missing HEAD or no commits touching watched paths)',
+    };
+  }
+  if (watchedMs <= reportMs) {
+    return { status: 'fresh', watchedCommitMs: watchedMs, reportCommitMs: reportMs };
+  }
+  const watchedIso = new Date(watchedMs).toISOString();
+  const reportIso = new Date(reportMs).toISOString();
+  return {
+    status: 'stale',
+    reason: 'stale-committed-evidence',
+    watchedCommitMs: watchedMs,
+    reportCommitMs: reportMs,
+    detail:
+      `Newest commit touching watched roots (${FRESHNESS_WATCHED_ROOTS.join(', ')}): ` +
+      `${watchedIso}; newest commit touching the report pair: ${reportIso}. ` +
+      'A source-only change landed after the committed evidence was regenerated.',
+  };
+}
 
 export async function loadArchitectureInputs(repoRoot) {
   const registry = await readJson(path.join(repoRoot, 'architecture/registry.json'));

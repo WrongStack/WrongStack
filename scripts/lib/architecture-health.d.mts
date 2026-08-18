@@ -65,6 +65,14 @@ export function buildArchitectureHealth(options: {
   now?: Date;
 }): Promise<ArchitectureHealthReport>;
 export function renderArchitectureHealthMarkdown(report: ArchitectureHealthReport): string;
+export interface ReportFreshnessResult {
+  status: 'fresh' | 'stale' | 'skipped';
+  reason?: string;
+  detail?: string;
+  watchedCommitMs?: number;
+  reportCommitMs?: number;
+}
+export function evaluateReportFreshness(repoRoot: string): ReportFreshnessResult;
 export function loadArchitectureInputs(repoRoot: string): Promise<{
   registry: unknown;
   exceptions: unknown;
