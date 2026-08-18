@@ -25,7 +25,13 @@ const paletteTokens = [
 
 function paletteBlock(css: string, selector: string): string {
   const lines = css.split(/\r?\n/);
-  const selectorLine = lines.findIndex((line) => line.trim() === `${selector} {`);
+  // Quote-agnostic match: biome's CSS formatter canonicalizes attribute
+  // selectors to double quotes while this selector is built with single
+  // quotes — normalize the line before comparing so formatting churn can
+  // never break palette extraction.
+  const selectorLine = lines.findIndex(
+    (line) => line.trim().replaceAll('"', "'") === `${selector} {`,
+  );
   if (selectorLine === -1) return '';
 
   const declarations: string[] = [];
