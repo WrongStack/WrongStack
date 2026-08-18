@@ -74,7 +74,10 @@ export interface ReportFreshnessResult {
 }
 export function evaluateReportFreshness(repoRoot: string): ReportFreshnessResult;
 export const FRESHNESS_WATCHED_ROOTS: string[];
-export const FRESHNESS_REPORT_FILES: string[];
+// Tuple, not string[]: consumers index [0]/[1] in TypeScript tests, where a
+// string[] element reads as `string | undefined` under noUncheckedIndexedAccess
+// and fails core's test-type ratchet with TS2345.
+export const FRESHNESS_REPORT_FILES: [string, string];
 export function loadArchitectureInputs(repoRoot: string): Promise<{
   registry: unknown;
   exceptions: unknown;
