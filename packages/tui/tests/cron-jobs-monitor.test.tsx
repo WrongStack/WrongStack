@@ -21,11 +21,15 @@ async function waitForFrame(
   predicate: (frame: string) => boolean,
   timeoutMs = 2000,
 ): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
+  // performance.now(), NOT Date.now(): the first test freezes Date.now to a
+  // constant, which would make a Date.now()-derived deadline unreachable and
+  // convert a genuine regression into a 60s testTimeout hang instead of a
+  // crisp assertion failure. performance.now() is monotonic and mock-free.
+  const deadline = performance.now() + timeoutMs;
   for (;;) {
     const frame = view.lastFrame() ?? '';
     if (predicate(frame)) return frame;
-    if (Date.now() > deadline) return frame;
+    if (performance.now() > deadline) return frame;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }
@@ -72,6 +76,10 @@ function snapshot(): CronListResult {
 
 afterEach(() => {
   vi.useRealTimers();
+  // Restored here rather than at the end of the first test so a thrown
+  // assertion there cannot leak the frozen Date.now into the remaining
+  // tests (whose waitForFrame bounds would then be dead too).
+  vi.restoreAllMocks();
 });
 
 describe('CronJobsMonitor', () => {
