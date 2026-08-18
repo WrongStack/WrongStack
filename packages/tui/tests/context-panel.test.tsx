@@ -4,6 +4,7 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { ContextPanel, type ContextPanelData } from '../src/components/context-panel.js';
 import { emptyMemoryContextMonitor } from '../src/memory-context-monitor.js';
+import { waitForFrame } from './helpers/frame-wait.js';
 
 const ESC = String.fromCharCode(27);
 const RIGHT = `${ESC}[C`;
@@ -88,8 +89,7 @@ describe('ContextPanel tabs', () => {
       React.createElement(ContextPanel, { data: baseData(), onClose: () => {} }),
     );
     stdin.write('2');
-    await flush();
-    const frame = lastFrame() ?? '';
+    const frame = await waitForFrame({ lastFrame }, (f) => f.includes('CONTEXT COMPOSITION'));
     expect(frame).toContain('CONTEXT COMPOSITION');
     expect(frame).toContain('Measured breakdown');
     expect(frame).toContain('System');
@@ -106,14 +106,17 @@ describe('ContextPanel tabs', () => {
       React.createElement(ContextPanel, { data: baseData(), onClose: () => {} }),
     );
     stdin.write(RIGHT); // overview -> composition
-    await flush();
-    expect(lastFrame() ?? '').toContain('CONTEXT COMPOSITION');
+    expect(await waitForFrame({ lastFrame }, (f) => f.includes('CONTEXT COMPOSITION'))).toContain(
+      'CONTEXT COMPOSITION',
+    );
     stdin.write(RIGHT); // composition -> thresholds
-    await flush();
-    expect(lastFrame() ?? '').toContain('THRESHOLD MAP');
+    expect(await waitForFrame({ lastFrame }, (f) => f.includes('THRESHOLD MAP'))).toContain(
+      'THRESHOLD MAP',
+    );
     stdin.write(LEFT); // thresholds -> composition
-    await flush();
-    expect(lastFrame() ?? '').toContain('CONTEXT COMPOSITION');
+    expect(await waitForFrame({ lastFrame }, (f) => f.includes('CONTEXT COMPOSITION'))).toContain(
+      'CONTEXT COMPOSITION',
+    );
     unmount();
   });
 
@@ -125,8 +128,7 @@ describe('ContextPanel tabs', () => {
       }),
     );
     stdin.write('2');
-    await flush();
-    const frame = lastFrame() ?? '';
+    const frame = await waitForFrame({ lastFrame }, (f) => f.includes('No request assembled yet'));
     expect(frame).toContain('CONTEXT COMPOSITION');
     expect(frame).toContain('No request assembled yet');
     unmount();

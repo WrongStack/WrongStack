@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GoalSummary } from '../src/app-state.js';
 import { GoalKanbanPanel } from '../src/components/goal-kanban-panel.js';
+import { waitForFrame } from './helpers/frame-wait.js';
 
 const mocks = vi.hoisted(() => ({
   getBoard: vi.fn(),
@@ -94,7 +95,10 @@ describe('GoalKanbanPanel', () => {
         onClose: vi.fn(),
       }),
     );
-    await flush();
+    // 'GOAL KANBAN' + '50%' are NOT sufficient as the settled marker — the
+    // loading frame renders the header and progress section too. Wait for a
+    // column title that only exists once the fetched board has committed.
+    await waitForFrame(view, (f) => f.includes('Backlog'));
 
     const frame = view.lastFrame() ?? '';
     expect(mocks.getBoard).toHaveBeenCalledWith('D:/repo', 'goal-board');
@@ -124,7 +128,7 @@ describe('GoalKanbanPanel', () => {
         onClose,
       }),
     );
-    await flush();
+    await waitForFrame(view, (f) => f.includes('Backlog'));
     view.stdin.write('q');
     await flush();
 
@@ -142,8 +146,9 @@ describe('GoalKanbanPanel', () => {
         onClose: vi.fn(),
       }),
     );
-    await flush();
-    expect(empty.lastFrame() ?? '').toContain('Goal kanban board not yet created');
+    expect(await waitForFrame(empty, (f) => f.includes('Goal kanban board not yet created'))).toContain(
+      'Goal kanban board not yet created',
+    );
     empty.unmount();
 
     mocks.listBoards.mockRejectedValueOnce('storage unavailable');
@@ -154,8 +159,9 @@ describe('GoalKanbanPanel', () => {
         onClose: vi.fn(),
       }),
     );
-    await flush();
-    expect(failed.lastFrame() ?? '').toContain('Error: storage unavailable');
+    expect(await waitForFrame(failed, (f) => f.includes('Error: storage unavailable'))).toContain(
+      'Error: storage unavailable',
+    );
     failed.unmount();
   });
 });

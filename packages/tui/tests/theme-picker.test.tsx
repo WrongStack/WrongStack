@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ThemePicker } from '../src/components/theme-picker.js';
 import { useInput } from '../src/ink.js';
 import { THEME_OPTIONS } from '../src/theme.js';
+import { waitForFrame } from './helpers/frame-wait.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 describe('ThemePicker', () => {
@@ -187,10 +188,9 @@ describe('ThemePicker', () => {
       }),
     );
 
-    // Ink delivers stdin asynchronously — flush before reading each frame so
-    // the assertions observe the committed selection update, never a stale
-    // render (same pattern as ctrl-letter-shortcut.test.ts).
-    const flush = () => new Promise((resolve) => setImmediate(resolve));
+    // Ink delivers stdin asynchronously — wait for the committed selection
+    // update before reading each frame so the assertions never observe a
+    // stale pre-commit render (see helpers/frame-wait.ts).
 
     // Initial focus: preset 0 → preview header shows `catppuccin`.
     expect(view.lastFrame() ?? '').toContain('catppuccin');
@@ -198,18 +198,15 @@ describe('ThemePicker', () => {
 
     // ↓ → preset 1 → the preview header follows to `tokyo-night`.
     view.stdin.write('\u001b[B');
-    await flush();
-    expect(view.lastFrame() ?? '').toContain('tokyo-night');
+    expect(await waitForFrame(view, (f) => f.includes('tokyo-night'))).toContain('tokyo-night');
 
     // ↓ → preset 2 → `nord`.
     view.stdin.write('\u001b[B');
-    await flush();
-    expect(view.lastFrame() ?? '').toContain('nord');
+    expect(await waitForFrame(view, (f) => f.includes('nord'))).toContain('nord');
 
     // ↑ back to preset 1.
     view.stdin.write('\u001b[A');
-    await flush();
-    expect(view.lastFrame() ?? '').toContain('tokyo-night');
+    expect(await waitForFrame(view, (f) => f.includes('tokyo-night'))).toContain('tokyo-night');
     view.unmount();
   });
 });
