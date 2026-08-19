@@ -62,6 +62,13 @@ export class PhaseOrchestrator {
   private events: EventBus;
   private stopped = false;
   private paused = false;
+  /**
+   * Run-wide abort source. stop() aborts it; every in-flight
+   * ctx.executeTask call observes the abort through its per-task signal
+   * (composed from this controller and the task's own timeout controller).
+   * Recreated by start() so a stopped orchestrator can be reused.
+   */
+  private stopController = new AbortController();
   private runningPhases = new Set<string>();
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private trackerCache = new Map<string, TaskTracker>();
@@ -108,6 +115,9 @@ export class PhaseOrchestrator {
   async start(): Promise<void> {
     this.stopped = false;
     this.paused = false;
+    // Fresh run-wide abort source: a previous stop() aborted the old one, and
+    // reusing it would instantly abort every task of this new run.
+    this.stopController = new AbortController();
     this.normalizeForResume();
     this.graph.startedAt = Date.now();
     this.graph.updatedAt = Date.now();
@@ -185,6 +195,11 @@ export class PhaseOrchestrator {
   /** Stop completely, including active phases. */
   stop(): void {
     this.stopped = true;
+    // Cancel every in-flight task execution BEFORE releasing worktrees: the
+    // abort propagates through ctx.executeTask's signal so agent runs reject
+    // promptly instead of continuing to write into worktrees that are about
+    // to be released underneath them.
+    this.stopController.abort();
     if (this.tickInterval) {
       clearInterval(this.tickInterval);
       this.tickInterval = null;
@@ -282,6 +297,11 @@ export class PhaseOrchestrator {
         return;
       }
       await this.executePhaseTasks(phase);
+
+      // stop() marks running phases 'paused' before the aborted batch
+      // settles; continuing to the completion gate would overwrite that with
+      // 'completed' and merge a phase whose tasks were aborted mid-flight.
+      if (this.stopped) return;
 
       const failedTasks = this.getFailedTaskCount(phase);
       const completedTasks = this.getCompletedTaskCount(phase);
@@ -476,36 +496,66 @@ export class PhaseOrchestrator {
       agentName: task.assignee,
     });
     const handle = this.phaseWorktrees.get(phase.id);
-    const taskPromise = this.ctx.executeTask(task, phase.id, {
-      cwd: handle?.dir,
-      branch: handle?.branch,
+    // Per-task abort source, fired by this task's own timeout below. Composed
+    // with the run-wide stopController so either stop() or the timeout
+    // actually cancels the execution — previously a timed-out task kept
+    // running (and kept writing to the phase worktree) after its retry had
+    // already been queued.
+    const timeoutController =
+      this.opts.taskTimeoutMs > 0 ? new AbortController() : undefined;
+    const signal = timeoutController
+      ? AbortSignal.any([this.stopController.signal, timeoutController.signal])
+      : this.stopController.signal;
+    const taskPromise = this.ctx.executeTask(
+      task,
+      phase.id,
+      { cwd: handle?.dir, branch: handle?.branch },
+      signal,
+    );
+    if (!timeoutController) return taskPromise;
+
+    const timeoutMs = this.opts.taskTimeoutMs;
+    const timedOut = Symbol('timed_out');
+    const result = await Promise.race([
+      taskPromise,
+      new Promise<typeof timedOut>((resolve) => {
+        const timer = setTimeout(() => {
+          timeoutController.abort();
+          resolve(timedOut);
+        }, timeoutMs);
+        // Let the timer be freed if the task finishes first.
+        taskPromise.then(() => clearTimeout(timer)).catch(() => clearTimeout(timer));
+      }),
+    ]);
+    if (result !== timedOut) return result;
+
+    this.emit('phase.taskTimedOut', {
+      phaseId: phase.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      timeoutMs,
     });
-    // Apply per-task timeout when configured (taskTimeoutMs > 0).
-    if (this.opts.taskTimeoutMs > 0) {
-      const timeoutMs = this.opts.taskTimeoutMs;
-      const timedOut = Symbol('timed_out');
-      const result = await Promise.race([
-        taskPromise,
-        new Promise<typeof timedOut>((resolve) => {
-          const timer = setTimeout(() => resolve(timedOut), timeoutMs);
-          // Let the timer be freed if the task finishes first.
-          taskPromise.then(() => clearTimeout(timer)).catch(() => clearTimeout(timer));
-        }),
-      ]);
-      if (result === timedOut) {
-        this.emit('phase.taskTimedOut', {
-          phaseId: phase.id,
-          taskId: task.id,
-          taskTitle: task.title,
-          timeoutMs,
-        });
-        throw new Error(
-          `Task "${task.title}" (${task.id}) exceeded timeout of ${timeoutMs} ms`,
-        );
-      }
-      return result;
-    }
-    return taskPromise;
+    // Wait (bounded) for the aborted execution to settle before throwing:
+    // the throw requeues this task via markTaskFailed, and starting the retry
+    // while the timed-out instance is still writing to the same worktree is
+    // exactly the duplicate-concurrent-instance race. Signal-honoring
+    // implementors settle in milliseconds; the bound keeps an implementor
+    // that ignores the signal from hanging the phase forever.
+    const settled = taskPromise.then(
+      () => undefined,
+      () => undefined,
+    );
+    // Clear the grace timer when the task settles first, and unref it so a
+    // pending timer cannot hold the event loop open during shutdown.
+    const grace = new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 5_000);
+      timer.unref?.();
+      void settled.then(() => clearTimeout(timer));
+    });
+    await Promise.race([settled, grace]);
+    throw new Error(
+      `Task "${task.title}" (${task.id}) exceeded timeout of ${timeoutMs} ms`,
+    );
   }
 
   private markTaskCompleted(phase: PhaseNode, task: TaskNode): void {
@@ -522,6 +572,13 @@ export class PhaseOrchestrator {
     const tracker = this.getTrackerForPhase(phase);
     const taskKey = `${phase.id}:${task.id}`;
     const currentRetries = this.taskRetryCounts.get(taskKey) ?? 0;
+
+    if (this.stopped) {
+      // A stop()-initiated abort is a user action, not a task failure: leave
+      // the node resumable-pending without burning a retry attempt.
+      tracker.updateNodeStatus(task.id, 'pending', 'Stopped before completion');
+      return;
+    }
 
     if (currentRetries < this.opts.maxRetries) {
       this.taskRetryCounts.set(taskKey, currentRetries + 1);

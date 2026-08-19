@@ -483,9 +483,9 @@ export class GoalWebSocketHandler {
     this.orchestrator = new PhaseOrchestrator({
       graph,
       ctx: {
-        executeTask: async (task, phaseId, env) => {
+        executeTask: async (task, phaseId, env, signal) => {
           this.logger.info(`[Goal] [${phaseId}] Executing: ${task.title}`);
-          const result = await this.executeTaskWithAgent(task, phaseId, env);
+          const result = await this.executeTaskWithAgent(task, phaseId, env, signal);
           this.logger.info(`[Goal] [${phaseId}] Completed: ${task.title}`);
 
           // Chimera auto-review: when enabled, run a lightweight review
@@ -684,6 +684,7 @@ export class GoalWebSocketHandler {
     task: import('@wrongstack/core/types').TaskNode,
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
+    signal?: AbortSignal | undefined,
   ): Promise<unknown> {
     // Give the task a human worker identity (reuse a manual assignment if one
     // exists) so the board shows who is running it; reflect it on the node and
@@ -698,14 +699,19 @@ export class GoalWebSocketHandler {
 
     // Execute task with agent
     const prompt = `Execute task: ${task.title}\n\nDescription: ${task.description}\nPhase: ${phaseId}\nPriority: ${task.priority}\nType: ${task.type}`;
-    const signal = this.abort?.signal ?? new AbortController().signal;
+    // Combine the orchestrator's per-task signal (fired by stop() or the
+    // task timeout) with the run-wide abort so either cancels the agent run.
+    const runSignal =
+      signal && this.abort?.signal
+        ? AbortSignal.any([this.abort.signal, signal])
+        : (signal ?? this.abort?.signal ?? new AbortController().signal);
     // Redirect the shared context's cwd at the phase worktree for the duration
     // of this task. Safe because phases/tasks run strictly sequentially here;
     // tools read `ctx.cwd` live, so the agent operates inside the worktree.
     const prevCwd = this.context.cwd;
     if (env?.cwd) this.context.cwd = env.cwd;
     try {
-      return await this.agent.run(prompt, { signal });
+      return await this.agent.run(prompt, { signal: runSignal });
     } finally {
       this.context.cwd = prevCwd;
     }

@@ -411,7 +411,7 @@
       "relativeImports": 3
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {
-      "lines": 1013,
+      "lines": 1019,
       "relativeImports": 2
     },
     "packages/webui-server/src/server/kanban-routes.ts": {

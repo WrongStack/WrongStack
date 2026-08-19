@@ -852,4 +852,151 @@ describe('PhaseOrchestrator — interactive board mutations', () => {
     await orch.start();
     expect(started).toEqual(expect.arrayContaining(['A1', 'A2', 'B1']));
   });
+
+  // ─── stop()/timeout abort plumbing (signal regression tests) ──────────────
+
+  /** Self-contained single-phase/one-task graph (this describe has no buildGraph). */
+  async function buildSignalGraph(): Promise<PhaseGraph> {
+    const builder = new PhaseGraphBuilder({
+      title: 'Signal Regression',
+      phases: [
+        {
+          name: 'Only',
+          description: 'Only phase',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+          taskTemplates: [
+            {
+              title: 'S1',
+              description: 'first',
+              type: 'chore',
+              priority: 'high',
+              estimateHours: 0.5,
+            },
+          ],
+        },
+      ],
+    });
+    return builder.build();
+  }
+
+  it('stop() aborts in-flight task executions and leaves the phase resumable', async () => {
+    const graph = await buildSignalGraph();
+    let taskStarted = false;
+    let abortObserved = false;
+
+    // Signal-honoring implementor: the execution hangs forever on its own and
+    // only settles when the orchestrator aborts it — the worst case stop()
+    // must handle. Before the signal existed, this run never settled and
+    // start() hung with the phase stuck between running and worktree release.
+    const ctx: PhaseExecutionContext = {
+      executeTask: (_task, _phaseId, _env, signal) =>
+        new Promise((_resolve, reject) => {
+          taskStarted = true;
+          signal?.addEventListener(
+            'abort',
+            () => {
+              abortObserved = true;
+              reject(new Error('aborted by stop()'));
+            },
+            { once: true },
+          );
+        }),
+    };
+
+    const orch = new PhaseOrchestrator({ graph, ctx, autonomous: false });
+    const runPromise = orch.start();
+    for (let i = 0; i < 100 && !taskStarted; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(taskStarted).toBe(true);
+
+    orch.stop();
+    await runPromise; // must settle instead of hanging on the aborted batch
+
+    expect(abortObserved).toBe(true);
+    const phases = Array.from(graph.phases.values());
+    // Stopped mid-flight: not completed (no merge of aborted work), still
+    // 'paused' so a resume can re-run the interrupted tasks.
+    expect(phases[0]!.status).toBe('paused');
+    expect(phases[0]!.status).not.toBe('completed');
+  });
+
+  it('a timed-out task settles before its retry starts (no duplicate concurrent instance)', async () => {
+    const graph = await buildSignalGraph();
+    let calls = 0;
+    let aborts = 0;
+    let live = 0;
+    let maxLive = 0;
+    /** Ordered lifecycle events: 'call-N:start' | 'call-N:aborted' | 'call-N:settled'. */
+    const events: string[] = [];
+
+    // Signal-honoring implementor that would run 400ms on its own — far past
+    // the 50ms timeout — and, critically, does NOT settle synchronously on
+    // abort: it acknowledges the abort but takes another 60ms to actually
+    // settle. A double that settles instantly on abort cannot distinguish
+    // "retry waited for settlement" from "retry raced and got lucky", so the
+    // delayed settle is what makes the ordering assertion below meaningful.
+    // Pre-fix behavior: the timeout neither aborted the run nor waited, so
+    // the retry started while instance 1 was still executing (maxLive 2 and
+    // 'call-2:start' before 'call-1:settled').
+    const ctx: PhaseExecutionContext = {
+      executeTask: async (_task, _phaseId, _env, signal) => {
+        const n = ++calls;
+        const tag = `call-${n}`;
+        events.push(`${tag}:start`);
+        live++;
+        maxLive = Math.max(maxLive, live);
+        try {
+          return await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+              events.push(`${tag}:settled`);
+              resolve('slow-done');
+            }, 400);
+            const onAbort = () => {
+              clearTimeout(timer);
+              aborts++;
+              events.push(`${tag}:aborted`);
+              // Delayed settlement: the abort is observed now, but the
+              // execution only actually finishes 60ms later.
+              setTimeout(() => {
+                events.push(`${tag}:settled`);
+                reject(new Error('aborted by timeout'));
+              }, 60);
+            };
+            if (signal?.aborted) onAbort();
+            else signal?.addEventListener('abort', onAbort, { once: true });
+          });
+        } finally {
+          live--;
+        }
+      },
+    };
+
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx,
+      autonomous: false,
+      maxConcurrentTasks: 1,
+      taskTimeoutMs: 50,
+      // Single-task graph: initial attempt + 2 retries exhaust the budget and
+      // fail the phase (stopOnFailure), keeping every call attributable to
+      // the same task.
+      maxRetries: 2,
+    });
+    await orch.start();
+
+    // Initial attempt + 2 retries, each aborted by its own timeout.
+    expect(calls).toBe(3);
+    expect(aborts).toBe(3);
+    // The core regression assertion: never two instances of the same task.
+    expect(maxLive).toBe(1);
+    // Ordering: each attempt fully settled before the next one started —
+    // this is the duplicate-concurrent-instance race in event form.
+    expect(events.indexOf('call-1:settled')).toBeLessThan(events.indexOf('call-2:start'));
+    expect(events.indexOf('call-2:settled')).toBeLessThan(events.indexOf('call-3:start'));
+    const phases = Array.from(graph.phases.values());
+    expect(phases[0]!.status).toBe('failed');
+  });
 });

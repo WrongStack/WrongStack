@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T08:48:17.465Z",
+  "generatedAt": "2026-08-19T10:17:10.695Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 32,
     "sourceFiles": 3265,
     "testFiles": 2823,
-    "sourceLines": 778712,
+    "sourceLines": 778776,
     "workspaceEdges": 103,
     "moduleEdges": 10119,
     "nonCommandSlashImports": 0,
@@ -18626,7 +18626,7 @@
     },
     {
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
-      "lines": 1013,
+      "lines": 1019,
       "relativeImports": 2
     },
     {
@@ -18712,6 +18712,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/webui-server/src/server/goal-ws-handler.ts",
+      "lines": 1019,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/cli/src/slash-commands/sdd.ts",
       "lines": 1015,
       "relativeImports": 14
@@ -18720,11 +18725,6 @@
       "file": "packages/core/src/core/context.ts",
       "lines": 1013,
       "relativeImports": 13
-    },
-    {
-      "file": "packages/webui-server/src/server/goal-ws-handler.ts",
-      "lines": 1013,
-      "relativeImports": 2
     },
     {
       "file": "packages/simpleui/src/simple-ui-session.tsx",

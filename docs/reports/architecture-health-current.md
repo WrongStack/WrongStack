@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-19T08:48:17.465Z
+**Generated:** 2026-08-19T10:17:10.695Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 32 |
 | Production source files | 3265 |
-| Production source lines | 778712 |
+| Production source lines | 778776 |
 | Test files | 2823 |
 | Workspace dependency edges | 103 |
 | Relative module edges | 10119 |
@@ -98,9 +98,9 @@ None.
 | 1020 | `packages/core/src/index.ts` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
 | 1019 | `packages/tui/src/theme-presets.ts` |
+| 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1015 | `packages/cli/src/slash-commands/sdd.ts` |
 | 1013 | `packages/core/src/core/context.ts` |
-| 1013 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1007 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1006 | `packages/core/src/coordination/delegate-tool.ts` |
 | 1002 | `packages/tui/src/components/kanban-panel.tsx` |

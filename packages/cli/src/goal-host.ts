@@ -561,7 +561,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
       const orchestrator = new PhaseOrchestrator({
         graph,
         ctx: {
-          executeTask: async (task, phaseId, env) => {
+          executeTask: async (task, phaseId, env, signal) => {
             const phase = graph.phases.get(phaseId);
             const phaseName = phase?.name ?? phaseId;
             // Give the task a human worker identity (reuse a manual assignment if
@@ -577,7 +577,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
             return runOnce(
               buildTaskPrompt(task, phaseName, goal),
               `goal-${agentName}`.slice(0, 48),
-              abort.signal,
+              signal ? AbortSignal.any([abort.signal, signal]) : abort.signal,
               env?.cwd,
             );
           },
@@ -720,7 +720,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
       const orchestrator = new PhaseOrchestrator({
         graph,
         ctx: {
-          executeTask: async (task, phaseId, env) => {
+          executeTask: async (task, phaseId, env, signal) => {
             const phase = graph.phases.get(phaseId);
             const phaseName = phase?.name ?? phaseId;
             let agentName = task.assignee;
@@ -733,7 +733,7 @@ export function createGoalHost(deps: GoalHostDeps): GoalHostHooks {
             return runOnce(
               buildTaskPrompt(task, phaseName, title),
               'goal-' + agentName.slice(0, 48),
-              abort.signal,
+              signal ? AbortSignal.any([abort.signal, signal]) : abort.signal,
               env?.cwd,
             );
           },

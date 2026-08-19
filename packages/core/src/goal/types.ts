@@ -204,6 +204,7 @@ export interface PhaseExecutionContext {
     task: TaskNode,
     phaseId: string,
     env?: { cwd?: string | undefined; branch?: string | undefined },
+    signal?: AbortSignal | undefined,
   ) => Promise<unknown>;
   /**
    * Optional verification gate. Called after all tasks in a phase finish,
