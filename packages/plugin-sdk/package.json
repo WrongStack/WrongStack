@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plugin-sdk",
-  "version": "0.308.6",
+  "version": "0.308.7",
   "description": "Authoring SDK for WrongStack plugins — the plugin contract types, definePlugin, and shared runtime helpers. Third-party plugins should depend on this package only.",
   "license": "MIT",
   "author": "ECOSTACK TECHNOLOGY OÜ",

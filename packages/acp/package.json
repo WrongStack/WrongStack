@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/acp",
-  "version": "0.308.6",
+  "version": "0.308.7",
   "license": "MIT",
   "description": "ACP (Agent Client Protocol) integration for WrongStack — client + agent support",
   "keywords": [
