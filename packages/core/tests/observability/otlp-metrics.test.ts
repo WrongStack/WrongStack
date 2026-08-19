@@ -29,9 +29,9 @@ describe('buildOtlpMetricsRequest', () => {
     expect(m.name).toBe('agent_runs_total');
     expect(m.sum?.isMonotonic).toBe(true);
     expect(m.sum?.aggregationTemporality).toBe(2);
-    expect(m.sum?.dataPoints[0]!.asDouble).toBe(4);
+    expect(m.sum?.dataPoints![0]!.asDouble).toBe(4);
     // label attributes are encoded as stringValue per OTLP/JSON spec
-    expect(m.sum?.dataPoints[0]!.attributes[0]).toEqual({
+    expect(m.sum?.dataPoints![0]!.attributes[0]).toEqual({
       key: 'mode',
       value: { stringValue: 'plan' },
     });
@@ -44,7 +44,7 @@ describe('buildOtlpMetricsRequest', () => {
     const req = buildOtlpMetricsRequest(sink);
     const m = req.resourceMetrics[0]!.scopeMetrics[0]!.metrics[0]!;
     expect(m.name).toBe('active_subagents');
-    expect(m.gauge?.dataPoints[0]!.asDouble).toBe(3);
+    expect(m.gauge?.dataPoints![0]!.asDouble).toBe(3);
     expect(m.sum).toBeUndefined();
     expect(m.summary).toBeUndefined();
   });
@@ -58,7 +58,7 @@ describe('buildOtlpMetricsRequest', () => {
     expect(m.name).toBe('tool_duration_ms');
     const summary = m.summary;
     if (!summary) throw new Error('summary should be defined');
-    const dp = summary.dataPoints[0];
+    const dp = summary.dataPoints![0];
     if (!dp) throw new Error('dataPoint should be defined');
     expect(dp.count).toBe('100');
     expect(dp.quantileValues).toHaveLength(3);

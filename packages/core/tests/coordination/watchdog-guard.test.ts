@@ -20,6 +20,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
+import type {
+  BudgetKind,
+  BudgetLimits,
+  BudgetThresholdDecision,
+} from '../../src/coordination/subagent-budget.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
@@ -118,10 +123,11 @@ describe('watchdogActive guard', () => {
       requestDecision: () => Promise<BudgetThresholdDecision>;
       extend?: (extra: Partial<BudgetLimits>) => void;
       deny?: () => void;
-    }): void => {
+    }): 'continue' => {
       if (e.kind === 'timeout') wallClockEvents.push(e.kind);
       if (e.kind === 'idle_timeout') idleEvents.push(e.kind);
       e.deny?.();
+      return 'continue';
     };
 
     const budget = new SubagentBudget(
@@ -161,9 +167,10 @@ describe('watchdogActive guard', () => {
       requestDecision: () => Promise<BudgetThresholdDecision>;
       extend?: (extra: Partial<BudgetLimits>) => void;
       deny?: () => void;
-    }): void => {
+    }): 'continue' => {
       if (e.kind === 'timeout') wallClockEvents.push(e.kind);
       e.deny?.();
+      return 'continue';
     };
 
     const budget = new SubagentBudget({ timeoutMs: 50 }, 'auto');

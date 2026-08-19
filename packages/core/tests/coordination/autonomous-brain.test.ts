@@ -96,6 +96,7 @@ describe('AutonomousBrain', () => {
         ],
         context: '',
         risk: 'low',
+        fallback: 'deny',
       });
 
       expect(result.type).toBe('answer');
@@ -118,6 +119,7 @@ describe('AutonomousBrain', () => {
         ],
         context: '',
         risk: 'medium',
+        fallback: 'deny',
       });
 
       expect(result.type).toBe('deny');
@@ -138,6 +140,7 @@ describe('AutonomousBrain', () => {
         ],
         context: '',
         risk: 'low',
+        fallback: 'deny',
       });
 
       expect(result.type).toBe('answer');
@@ -155,6 +158,7 @@ describe('AutonomousBrain', () => {
         options: [{ id: 'yes', label: 'Yes', risk: 'low', recommended: true }],
         context: '',
         risk: 'low',
+        fallback: 'deny',
       });
 
       expect(fleet.emit).toHaveBeenCalledWith(

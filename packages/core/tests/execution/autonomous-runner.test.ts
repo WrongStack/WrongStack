@@ -32,14 +32,12 @@ function mockContext(signal?: AbortSignal): Context {
     systemPrompt: [],
     model: 'test-model',
     provider: null as any,
-    config: null as any,
     tools: [],
     session: { append: vi.fn(), flush: vi.fn(), getMessages: () => [], clear: vi.fn() } as any,
     tokenCounter: { account: vi.fn(), estimate: vi.fn(), reset: vi.fn() } as any,
     registerAbortHook: vi.fn(),
     drainAbortHooks: vi.fn(),
-    clone: vi.fn(),
-  };
+  } as never as Context;
 }
 
 function makeResult(status: RunResult['status'], finalText = 'output', iterations = 1): RunResult {

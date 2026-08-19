@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { updateTask } from '@wrongstack/kanban';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { BrainArbiter } from '../../src/coordination/brain.js';
+import type { BrainArbiter, BrainDecisionRequest } from '../../src/coordination/brain.js';
 import {
   applyGoalDeliverableCompletions,
   coordinateGoalIteration,
@@ -84,7 +84,7 @@ describe('goal coordination', () => {
     goal.kanbanBoardId = boardId ?? undefined;
     await saveGoal(goalPath, goal);
 
-    const decide = vi.fn(async () => ({
+    const decide = vi.fn(async (_req: BrainDecisionRequest) => ({
       type: 'answer' as const,
       optionId: 'goal_reached',
       text: 'All deliverables are complete and verified.',
@@ -113,7 +113,7 @@ describe('goal coordination', () => {
     expect(persisted?.progressNote).toBe('goal reached');
     expect(persisted?.reachedNote).toBe('goal reached');
     expect(persisted?.reachedAt).toBe('2026-07-17T12:00:00.000Z');
-    expect(persisted?.deliverables.every((item) => item.startsWith('✅'))).toBe(true);
+    expect(persisted?.deliverables?.every((item) => item.startsWith('✅'))).toBe(true);
 
     const board = await findGoalKanbanBoard(projectRoot, boardId ?? '');
     expect(board?.tasks).toHaveLength(2);
@@ -132,7 +132,7 @@ describe('goal coordination', () => {
     await createGoalKanbanBoard(projectRoot, goal);
     await saveGoal(goalPath, goal);
     const brain: BrainArbiter = {
-      decide: vi.fn(async () => ({ type: 'answer', optionId: 'keep_working', text: 'Not yet.' })),
+      decide: vi.fn(async () => ({ type: 'answer' as const, optionId: 'keep_working', text: 'Not yet.' })),
     };
 
     const result = await coordinateGoalIteration({
@@ -153,7 +153,7 @@ describe('goal coordination', () => {
     const goalPath = goalFilePath(projectRoot);
     await fs.mkdir(path.dirname(goalPath), { recursive: true });
     await saveGoal(goalPath, emptyGoal('Empty mission'));
-    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'answer', optionId: 'goal_reached', text: 'ok' })) };
+    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'answer' as const, optionId: 'goal_reached', text: 'ok' })) };
 
     const result = await coordinateGoalIteration({
       projectRoot,
@@ -173,7 +173,7 @@ describe('goal coordination', () => {
     const goal = { ...emptyGoal('Deny'), deliverables: ['Only deliverable'] };
     await createGoalKanbanBoard(projectRoot, goal);
     await saveGoal(goalPath, goal);
-    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'deny', reason: 'still risky' })) };
+    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'deny' as const, reason: 'still risky' })) };
 
     const result = await coordinateGoalIteration({
       projectRoot,
@@ -195,7 +195,7 @@ describe('goal coordination', () => {
     const goal = { ...emptyGoal('Duplicates'), deliverables: ['Touch one'] };
     await createGoalKanbanBoard(projectRoot, goal);
     await saveGoal(goalPath, goal);
-    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'deny', reason: 'never' })) };
+    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'deny' as const, reason: 'never' })) };
 
     const result = await coordinateGoalIteration({
       projectRoot,

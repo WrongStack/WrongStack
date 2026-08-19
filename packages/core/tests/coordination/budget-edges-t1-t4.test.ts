@@ -21,6 +21,11 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import { TIMEOUT_PREEMPT_FRACTION } from '../../src/coordination/subagent-budget.js';
+import type {
+  BudgetKind,
+  BudgetLimits,
+  BudgetThresholdDecision,
+} from '../../src/coordination/subagent-budget.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
@@ -223,9 +228,10 @@ describe('T4: concurrent multi-kind exceeded reports correct kind to handler', (
       requestDecision: () => Promise<BudgetThresholdDecision>;
       extend?: (extra: Partial<BudgetLimits>) => void;
       deny?: () => void;
-    }): void => {
+    }): 'continue' => {
       negotiations.push({ kind: e.kind, used: e.used, limit: e.limit });
       e.deny?.();
+      return 'continue';
     };
 
     const budget = new SubagentBudget(
