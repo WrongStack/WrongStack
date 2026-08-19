@@ -1,3 +1,4 @@
+import type { Dirent } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   discoverExternalPlugins,
@@ -23,7 +24,7 @@ function io(files: Record<string, string>, dirs: string[] = []): DiscoveryIo {
         name,
         isDirectory: () => dirSet.has(`${path(root)}/${name}`),
         isFile: () => files[`${path(root)}/${name}`] !== undefined,
-      }));
+      })) as unknown as Dirent[];
     },
     async stat(p) {
       const key = path(p);

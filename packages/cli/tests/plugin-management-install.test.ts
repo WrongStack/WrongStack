@@ -64,7 +64,7 @@ describe('wstack plugin add --install', () => {
 
     // The fake install: pretend npm laid the package down.
     await writePluginPackage('wstack-plugin-x');
-    const runPackageManager = vi.fn(async (_pm: string, args: readonly string[]) => {
+    const runPackageManager = vi.fn(async (_pm: string, args: readonly string[], _cwd: string) => {
       expect(args).toContain('wstack-plugin-x');
       expect(args).toContain('--ignore-scripts');
       return { code: 0, stdout: 'added 1 package', stderr: '' };
@@ -102,7 +102,7 @@ describe('wstack plugin add --install', () => {
 
   it('honours --pm=pnpm and --run-scripts', async () => {
     await writePluginPackage('wstack-plugin-y');
-    const runPackageManager = vi.fn(async () => ({ code: 0, stdout: '', stderr: '' }));
+    const runPackageManager = vi.fn(async (_pm: string, _args: readonly string[], _cwd: string) => ({ code: 0, stdout: '', stderr: '' }));
 
     const result = await runPluginManagementCommand(
       ['add', 'wstack-plugin-y', '--install', '--pm=pnpm', '--run-scripts'],
