@@ -1,5 +1,6 @@
 import { Activity, Cpu, Zap } from 'lucide-react';
 import { useState } from 'react';
+import type { ReasoningEffort } from '@wrongstack/core/types';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useSessionStore } from '@/stores/session-store';
@@ -7,7 +8,12 @@ import { ModelSelectDialog } from '../ModelSelectDialog';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
 
-/** Canonical effort levels — shared shape with core's ReasoningEffort. */
+/**
+ * Canonical effort levels. `satisfies` pins this copy to core's
+ * `ReasoningEffort` union — adding a level in core without updating this list
+ * (or vice versa) becomes a compile error instead of silently dropping the
+ * model's newest level from the dropdown.
+ */
 const ALL_EFFORTS = [
   'none',
   'minimal',
@@ -16,7 +22,7 @@ const ALL_EFFORTS = [
   'high',
   'xhigh',
   'max',
-] as const;
+] as const satisfies readonly ReasoningEffort[];
 type Effort = (typeof ALL_EFFORTS)[number];
 const EFFORT_SET: ReadonlySet<string> = new Set(ALL_EFFORTS);
 /** Guard for server-supplied lists — anything outside the canonical enum
@@ -40,7 +46,12 @@ export function AgentSettingsTab({
   // Undefined until the server reports them — the full canonical set then
   // applies, matching the runtime resolver's conservative gate (unsupported
   // values are dropped with a warning, never rejected).
-  const EFFORT_LABEL_KEYS: Record<Effort, string> = {
+  // Typed against core's full union (not the local `Effort` alias) so the
+  // drift guard works in BOTH directions: `satisfies` above rejects a value
+  // core doesn't know, and this Record requires a label for every value core
+  // DOES know — adding a level in core without a label here is a compile
+  // error, never a silently-missing dropdown entry.
+  const EFFORT_LABEL_KEYS: Record<ReasoningEffort, string> = {
     none: 'settings:agent.reasoningEffortNone',
     minimal: 'settings:agent.reasoningEffortMinimal',
     low: 'settings:agent.reasoningEffortLow',

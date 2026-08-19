@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 968,
-      "typeOnly": 896,
+      "files": 969,
+      "typeOnly": 897,
       "runtimeOrMixed": 239
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -14927,6 +14927,12 @@
       "file": "packages/webui-server/tests/start-webui-vector-memory.integration.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui/src/components/SettingsPanel/AgentSettingsTab.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
