@@ -19,9 +19,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/coordination": {
-      "files": 182,
+      "files": 183,
       "typeOnly": 78,
-      "runtimeOrMixed": 154
+      "runtimeOrMixed": 155
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 235,
-      "typeOnly": 123,
+      "files": 236,
+      "typeOnly": 124,
       "runtimeOrMixed": 123
     },
     "@wrongstack/core/kernel/events.js": {
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 961,
-      "typeOnly": 884,
+      "files": 962,
+      "typeOnly": 885,
       "runtimeOrMixed": 239
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -2247,6 +2247,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/fleet/host-director-services.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/fleet/host-explore-companion.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4989,6 +4995,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/fleet/host-event-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/fleet/host-explore-companion.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9543,6 +9555,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/fleet/host-event-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/fleet/host-explore-companion.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

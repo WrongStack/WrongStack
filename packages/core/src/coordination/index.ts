@@ -195,6 +195,22 @@ export {
   createDelegateTool,
   type DelegateHost,
 } from './delegate-tool.js';
+// ── Explore Companion — state-triggered background codebase explorer ──────
+export {
+  buildProbeTaskText,
+  DEFAULT_EXPLORE_COMPANION_AGENT_ID,
+  DEFAULT_EXPLORE_EDIT_TOOLS,
+  DEFAULT_EXPLORE_SEARCH_TOOLS,
+  DEFAULT_MAILBOX_POLL_INTERVAL_MS,
+  DEFAULT_MAX_PENDING_PROBES,
+  DEFAULT_PROBE_COOLDOWN_MS,
+  ExploreCompanion,
+  type ExploreCompanionOptions,
+  type ExploreCompanionSignalToggles,
+  type ExploreCompanionTunables,
+  type ExploreProbe,
+  type ExploreProbeSource,
+} from './explore-companion.js';
 // ── Dependency watcher — file-change → mailbox bridge ────────────────────
 export {
   DEPENDENCY_FILE_PATTERNS,

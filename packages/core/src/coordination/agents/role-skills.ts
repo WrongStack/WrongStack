@@ -50,6 +50,7 @@ const skillSet = (...names: BundledAgentSkill[]): BundledAgentSkill[] => names;
  */
 export const ROLE_SKILL_SETS = {
   explore: skillSet('research-web', 'node-modern', 'typescript-strict'),
+  'explore-companion': skillSet('node-modern', 'typescript-strict'),
   search: skillSet('bug-hunter', 'typescript-strict', 'research-web'),
   research: skillSet('research-web', 'tech-stack', 'security-scanner', 'api-design'),
 

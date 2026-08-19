@@ -140,6 +140,13 @@ export interface FleetConfig {
     | undefined;
   /** Brain-gated fleet supervisor (rebalance/steer/spawn-helper). */
   supervisor?: FleetSupervisorConfig | undefined;
+  /**
+   * Explore Companion — state-triggered background codebase explorer behind
+   * the leader. Watches the leader's in-progress work state and assigns
+   * read-only exploration probes to a resident `explore-companion`
+   * subagent; findings return via mailbox. Default enabled.
+   */
+  exploreCompanion?: ExploreCompanionConfig | undefined;
   /** Roster-agent self-learning: capture → optimize → per-skill addenda. */
   learning?: AgentLearningConfig | undefined;
 }
@@ -203,6 +210,18 @@ export interface FleetSupervisorConfig {
   allowSpawn?: boolean | undefined;
   /** Allow the supervisor to terminate subagents (highest risk). Default false. */
   allowTerminate?: boolean | undefined;
+}
+
+/** Config surface for the ExploreCompanion host wiring. */
+export interface ExploreCompanionConfig {
+  /** Kill switch. Default true. */
+  enabled?: boolean | undefined;
+  /** Min gap between probes on the same subject (ms). Default 120000. */
+  cooldownMs?: number | undefined;
+  /** Pending probe queue cap (drop oldest when full). Default 8. */
+  maxPending?: number | undefined;
+  /** Mailbox poll interval for explicit asks (ms). Default 5000. */
+  pollIntervalMs?: number | undefined;
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   type DefaultMultiAgentCoordinator,
   Director,
   type DirectorSessionFactory,
+  type ExploreCompanion,
   FLEET_ROSTER,
   type FleetSupervisor,
   HARD_MAX_SPAWN_DEPTH,
@@ -48,6 +49,7 @@ import {
   createHostStatusBroadcaster,
   startDirectorAgentMonitor,
 } from './host-director-services.js';
+import { createHostExploreCompanion } from './host-explore-companion.js';
 import { makeFleetWorktreeConflictResolver, selectSubagentTools } from './host-helpers.js';
 import { HostLearningScheduler } from './host-learning-scheduler.js';
 import { HostLearningRoleTracker } from './host-learning-tracker.js';
@@ -117,6 +119,11 @@ export class MultiAgentHost {
    *  buildDirector() (when a BrainArbiter is available), stopped in
    *  dispose(). Also published to the supervisor registry for /supervisor. */
   private fleetSupervisor: FleetSupervisor | null = null;
+  /** ExploreCompanion — state-triggered background codebase explorer behind
+   *  the leader. Built in buildDirector() (unless disabled via
+   *  fleet.exploreCompanion.enabled=false), stopped in dispose(). Probes are
+   *  assigned to a lazily-spawned resident `explore-companion` subagent. */
+  private exploreCompanion: ExploreCompanion | null = null;
   /** Built-ins plus lazily-resolved project-created roles. */
   private readonly roster: Record<string, SubagentConfig>;
 
@@ -263,6 +270,15 @@ export class MultiAgentHost {
     this.statusBroadcaster.start();
 
     this.buildFleetSupervisor(config);
+
+    this.exploreCompanion = createHostExploreCompanion({
+      director: this.director,
+      events: this.deps.events,
+      sessionId: this.deps.session.id,
+      mailboxProjectDir: this.mailboxProjectDir(),
+      roster: this.roster,
+      config: config.fleet?.exploreCompanion,
+    });
 
     this.directorOffHandles.push(
       ...registerDirectorBudgetAndContextBridges({
@@ -679,6 +695,8 @@ export class MultiAgentHost {
     this.fleetSupervisor?.stop();
     if (this.fleetSupervisor) setActiveFleetSupervisor(null);
     this.fleetSupervisor = null;
+    this.exploreCompanion?.stop();
+    this.exploreCompanion = null;
     this.adaptiveConcurrencyController?.dispose();
     this.adaptiveConcurrencyController = undefined;
     if (this.director) {

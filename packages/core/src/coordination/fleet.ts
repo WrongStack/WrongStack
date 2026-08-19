@@ -5,7 +5,12 @@
  */
 import type { SubagentConfig } from '../types/multi-agent.js';
 import { agentPrompt } from './agents/agent-prompts.js';
-import { ALL_AGENT_DEFINITIONS, SHADOW_AGENT_SKILLS } from './agents/index.js';
+import {
+  ALL_AGENT_DEFINITIONS,
+  ROLE_SKILL_SETS,
+  SHADOW_AGENT_SKILLS,
+  TOOLS,
+} from './agents/index.js';
 
 function defineAgent(
   id: string,
@@ -53,6 +58,42 @@ export const SECURITY_SCANNER_AGENT = defineAgent('security-scanner', 'Security 
 const SHADOW_AGENT: SubagentConfig = {
   ...defineAgent('shadow-agent', 'Shadow'),
   skillNames: [...SHADOW_AGENT_SKILLS],
+};
+
+/**
+ * Explore Companion — state-triggered background codebase explorer.
+ * Runs behind a leader agent: triggered by the in-progress state of the
+ * work (unread-file edits, zero-hit searches, todo flips, explicit asks),
+ * scans the codebase read-only, and feeds findings back via mailbox
+ * `result`/`btw` + `submit_result`. See
+ * docs/architecture/explore-companion-subagent.md.
+ *
+ * Operational role — deliberately NOT in ALL_AGENT_DEFINITIONS (like
+ * `shadow-agent`), so the free-form dispatcher never routes to it and the
+ * 75-definition catalog count stays intact. Probes are assigned, never
+ * awaited; idle reaping comes from the FLEET_ROSTER_BUDGETS entry.
+ */
+export const EXPLORE_COMPANION_AGENT: SubagentConfig = {
+  ...defineAgent('explore-companion', 'Explore Companion'),
+  tools: [...TOOLS.read, ...TOOLS.index],
+  // Read-only, triple-enforced: allowlist has no write/bash, and the
+  // disabled list blocks the escape hatches explicitly.
+  disabledTools: [
+    'write',
+    'edit',
+    'replace',
+    'patch',
+    'bash',
+    'exec',
+    'delegate',
+    'spawn_subagent',
+    'assign_task',
+  ],
+  skillNames: [...ROLE_SKILL_SETS['explore-companion']],
+  spawnBudgetExempt: true,
+  // Findings travel via mailbox + submit_result, not the leader's stream.
+  textStream: 'silent',
+  toolStream: 'silent',
 };
 
 /**
@@ -105,6 +146,7 @@ export const FLEET_ROSTER: Record<string, SubagentConfig> = {
   critic: CRITIC_AGENT,
   generic: GENERIC_AGENT,
   'shadow-agent': SHADOW_AGENT,
+  'explore-companion': EXPLORE_COMPANION_AGENT,
   ...Object.fromEntries(
     ALL_AGENT_DEFINITIONS.map((d) => [d.config.role as string, withDispatchMetadata(d)] as const),
   ),
@@ -155,6 +197,13 @@ export const FLEET_ROSTER_BUDGETS: Record<string, FleetRosterBudget> = {
     // context. 30k was below observed single-pass usage and therefore triggered
     // a post-response negotiation every run; 96k leaves headroom while the cost
     // and tool/iteration caps still bound runaway work.
+    maxTokens: 96_000,
+    maxCostUsd: 0.5,
+  },
+  'explore-companion': {
+    idleTimeoutMs: DEFAULT_IDLE_TIMEOUT_MS,
+    maxIterations: 3000,
+    maxToolCalls: 8000,
     maxTokens: 96_000,
     maxCostUsd: 0.5,
   },
