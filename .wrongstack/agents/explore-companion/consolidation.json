@@ -1,0 +1,13 @@
+{
+  "consolidatedAt": "2026-08-19T19:01:56.324Z",
+  "sourceEntryCount": 0,
+  "sourceBytes": 405,
+  "consolidatedBytes": 1322,
+  "trigger": "automatic",
+  "model": "glm-5.3",
+  "pruned": true,
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\explore-companion\\archive\\learned-2026-08-19T19-01-56-324Z.md",
+  "skills": [
+    "node-modern"
+  ]
+}
