@@ -388,8 +388,10 @@ export {
   effectiveInputTokens,
   isContextOverflowShaped,
   isFallbackWorthy,
+  isReasoningEffort,
   isRetryableKind,
   ProviderError,
+  REASONING_EFFORT_LEVELS,
   StreamHangError,
 } from './provider.js';
 // ── provider-runner (2 symbols) ──

@@ -155,8 +155,8 @@
     },
     "@wrongstack/core/types": {
       "files": 971,
-      "typeOnly": 899,
-      "runtimeOrMixed": 239
+      "typeOnly": 897,
+      "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -9969,8 +9969,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/effort.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10227,8 +10227,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/settings-mutations.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

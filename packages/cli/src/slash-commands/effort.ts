@@ -1,31 +1,23 @@
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
-import { type ReasoningEffort, type SlashCommand } from '@wrongstack/core/types';
+import {
+  isReasoningEffort,
+  REASONING_EFFORT_LEVELS,
+  type ReasoningEffort,
+  type SlashCommand,
+} from '@wrongstack/core/types';
 import { atomicWrite, color } from '@wrongstack/core/utils';
 import { catalogProviderIdFor } from '@wrongstack/providers';
 import type { SlashCommandContext } from './command-context.js';
 import * as fs from 'node:fs/promises';
 import type { WstackPaths } from '@wrongstack/core/utils';
 
-/**
- * All canonical effort levels. The model-aware path narrows this list to what
- * the ACTIVE model advertises (`reasoningConfig.effortLevels`); the full list
- * is only used when capabilities are unknown, matching the conservative
- * resolver gate in `resolveReasoningForRequest` (unknown → the setting is
- * dropped before it reaches the wire, never rejected).
- */
-export const EFFORT_LEVELS: readonly ReasoningEffort[] = [
-  'none',
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-];
-
-function isEffort(value: string | undefined): value is ReasoningEffort {
-  return !!value && (EFFORT_LEVELS as readonly string[]).includes(value);
-}
+// REASONING_EFFORT_LEVELS / isReasoningEffort come from
+// @wrongstack/core/types — the canonical single source of truth. The
+// model-aware path narrows the list to what the ACTIVE model advertises
+// (`reasoningConfig.effortLevels`); the full list is only used when
+// capabilities are unknown, matching the conservative resolver gate in
+// `resolveReasoningForRequest` (unknown → the setting is dropped before it
+// reaches the wire, never rejected).
 
 /**
  * `/effort` — view or set the SESSION-WIDE reasoning effort applied to the
@@ -49,10 +41,11 @@ function isEffort(value: string | undefined): value is ReasoningEffort {
  *   matrix        Show per-key (role/phase/*) effort overrides, if any.
  */
 export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
+  const levelsHint = REASONING_EFFORT_LEVELS.join('|');
   const help = [
     'Usage:',
     '  /effort                       Show current session effort + supported levels',
-    '  /effort <level>               Set session effort (none|minimal|low|medium|high|xhigh|max)',
+    `  /effort <level>               Set session effort (${levelsHint})`,
     '  /effort clear                 Remove the setting — provider default applies',
     '  /effort matrix                Show per-role/phase effort overrides (/setmodel)',
     '',
@@ -90,7 +83,7 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
     name: 'effort',
     category: 'Config',
     description: 'View or set the session-wide reasoning effort for the active model.',
-    argsHint: '[none|minimal|low|medium|high|xhigh|max|clear|matrix]',
+    argsHint: `[${levelsHint}|clear|matrix]`,
     help,
     async run(args) {
       const parts = args.trim().split(/\s+/).filter(Boolean);
@@ -161,7 +154,7 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
           lines.push(`  ${color.bold('effort')}  ${color.dim('(not set — provider default)')}`);
         }
         if (levels) {
-          const rendered = EFFORT_LEVELS.filter((l) => levels.includes(l)).map((l) =>
+          const rendered = REASONING_EFFORT_LEVELS.filter((l) => levels.includes(l)).map((l) =>
             l === current ? color.bold(l) : l,
           );
           lines.push(`  ${color.bold('levels')}  ${rendered.join(' · ')}`);
@@ -199,9 +192,9 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
       }
 
       // ---- set ----
-      if (!isEffort(sub)) {
+      if (!isReasoningEffort(sub)) {
         return {
-          message: `${color.amber('Usage:')} /effort ${EFFORT_LEVELS.join('|')} | clear | matrix`,
+          message: `${color.amber('Usage:')} /effort ${REASONING_EFFORT_LEVELS.join('|')} | clear | matrix`,
         };
       }
       if (levels && !levels.includes(sub)) {

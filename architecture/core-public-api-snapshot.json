@@ -298,7 +298,7 @@
         "export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';",
         "export { MALFORMED_ARG_MARKERS } from './tool-markers.js';",
         "export { ToolErrorCategory } from './tool.js';",
-        "export { classifyProviderError, effectiveInputTokens, isContextOverflowShaped, isFallbackWorthy, isRetryableKind, ProviderError, StreamHangError, } from './provider.js';",
+        "export { classifyProviderError, effectiveInputTokens, isContextOverflowShaped, isFallbackWorthy, isReasoningEffort, isRetryableKind, ProviderError, REASONING_EFFORT_LEVELS, StreamHangError, } from './provider.js';",
         "export { defineMemoryCapability, MEMORY_TYPE_LABELS } from './memory.js';",
         "export { diffRegistry, validateRegistryManifest } from './prompt-registry.js';",
         "export { flattenSystemPromptRegions } from './system-prompt.js';",
@@ -1343,7 +1343,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10996
+      "sourceLines": 11029
     },
     {
       "directory": "utils",

@@ -1,5 +1,9 @@
 import { noOpVault } from '@wrongstack/core/security';
-import type { FleetChatVerbosity } from '@wrongstack/core/types';
+import {
+  type FleetChatVerbosity,
+  isReasoningEffort,
+  REASONING_EFFORT_LEVELS,
+} from '@wrongstack/core/types';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
 import {
@@ -562,10 +566,9 @@ export async function executeSettingsSubcommand(
 
     if (sub === 'reasoning-effort') {
       const raw = (rest[0] ?? '').toLowerCase();
-      const efforts = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
-      if (!efforts.includes(raw)) {
+      if (!isReasoningEffort(raw)) {
         return {
-          message: `${color.amber('Usage:')} /settings reasoning-effort none|minimal|low|medium|high|xhigh|max`,
+          message: `${color.amber('Usage:')} /settings reasoning-effort ${REASONING_EFFORT_LEVELS.join('|')}`,
         };
       }
       await persistConfigSetting(persistDeps, (cfg) => {

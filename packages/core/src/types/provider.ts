@@ -27,6 +27,37 @@ import type { Tool } from './tool.js';
  * cached tokens twice and skew cache-hit-ratio reporting.
  */
 export type ReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+/**
+ * The canonical runtime list of {@link ReasoningEffort} values, in
+ * menu/display order. Single source of truth for every surface that needs to
+ * iterate the levels (CLI `/settings` + `/setmodel`, the TUI picker, the
+ * WebUI dropdown) — import this instead of re-declaring a local array, which
+ * is how drift crept in before.
+ *
+ * `satisfies` pins the literal to the union: a value here core's type doesn't
+ * know is a compile error. Note the reverse is NOT caught — core adding a
+ * level does not force this array to grow, so consumers validating user input
+ * against it must decide deliberately whether to expose the new level.
+ */
+export const REASONING_EFFORT_LEVELS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const satisfies readonly ReasoningEffort[];
+
+/** Type guard for untrusted strings (CLI args, WS payloads, config files). */
+export function isReasoningEffort(value: unknown): value is ReasoningEffort {
+  return (
+    typeof value === 'string' &&
+    (REASONING_EFFORT_LEVELS as readonly string[]).includes(value)
+  );
+}
+
 export type CacheTtl = '5m' | '1h';
 
 /**

@@ -13,7 +13,9 @@ import {
   ConfigError,
   type ModelMatrixEntry,
   type ProviderConfig,
+  REASONING_EFFORT_LEVELS,
   type ReasoningEffort,
+  isReasoningEffort,
   type SlashCommand,
 } from '@wrongstack/core/types';
 import { atomicWrite, color, expectDefined, toErrorMessage } from '@wrongstack/core/utils';
@@ -103,19 +105,8 @@ function parseTarget(
   return { model: only };
 }
 
-const REASONING_EFFORTS: readonly ReasoningEffort[] = [
-  'none',
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-];
-
-function isReasoningEffort(value: string | undefined): value is ReasoningEffort {
-  return !!value && (REASONING_EFFORTS as readonly string[]).includes(value);
-}
+// REASONING_EFFORT_LEVELS / isReasoningEffort are imported from
+// @wrongstack/core/types — the canonical single source of truth.
 
 function isReasoningMode(value: string | undefined): value is 'auto' | 'on' | 'off' {
   return value === 'auto' || value === 'on' || value === 'off';
@@ -592,7 +583,7 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
                 sub === 'reasoning'
                   ? 'auto|on|off [effort]'
                   : sub === 'reasoning-effort'
-                    ? REASONING_EFFORTS.join('|')
+                    ? REASONING_EFFORT_LEVELS.join('|')
                     : 'on|off'
               }`,
             };
@@ -617,7 +608,7 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
             if (parts[3] !== undefined) {
               if (!isReasoningEffort(parts[3])) {
                 return {
-                  message: `${color.red('Invalid effort')}: "${parts[3]}". Expected ${REASONING_EFFORTS.join(', ')}.`,
+                  message: `${color.red('Invalid effort')}: "${parts[3]}". Expected ${REASONING_EFFORT_LEVELS.join(', ')}.`,
                 };
               }
               nextEffort = parts[3];
@@ -625,7 +616,7 @@ export function buildSetModelCommand(opts: SlashCommandContext): SlashCommand {
           } else if (sub === 'reasoning-effort') {
             if (!isReasoningEffort(parts[2])) {
               return {
-                message: `${color.amber('Usage:')} /setmodel reasoning-effort ${key} ${REASONING_EFFORTS.join('|')}`,
+                message: `${color.amber('Usage:')} /setmodel reasoning-effort ${key} ${REASONING_EFFORT_LEVELS.join('|')}`,
               };
             }
             nextEffort = parts[2];
