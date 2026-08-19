@@ -1,4 +1,9 @@
 {
   "schemaVersion": 1,
-  "files": []
+  "files": [
+    "packages/plugin-sdk/src/runtime/h1-state.ts",
+    "packages/plugin-sdk/src/runtime/handles.ts",
+    "packages/plugin-sdk/src/runtime/llm.ts",
+    "packages/plugin-sdk/src/runtime/redos-guard.ts"
+  ]
 }
