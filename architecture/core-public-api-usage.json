@@ -74,9 +74,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/infrastructure": {
-      "files": 40,
+      "files": 41,
       "typeOnly": 5,
-      "runtimeOrMixed": 39
+      "runtimeOrMixed": 40
     },
     "@wrongstack/core/kernel": {
       "files": 237,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 134,
+      "files": 135,
       "typeOnly": 26,
-      "runtimeOrMixed": 111
+      "runtimeOrMixed": 112
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 966,
-      "typeOnly": 894,
+      "files": 968,
+      "typeOnly": 896,
       "runtimeOrMixed": 239
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 535,
-      "typeOnly": 59,
-      "runtimeOrMixed": 502
+      "files": 536,
+      "typeOnly": 60,
+      "runtimeOrMixed": 503
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -4772,6 +4772,12 @@
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
+      "file": "packages/cli/tests/slash-commands/effort.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/infrastructure",
       "file": "packages/cli/tests/slash-commands/working-dir.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7640,6 +7646,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/cli/src/slash-commands/effort.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/cli/src/slash-commands/enhance.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9956,6 +9968,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/effort.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/enhance.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11145,6 +11163,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/slash-commands.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/slash-commands/effort.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15862,6 +15886,12 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/doctor.ts",
       "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/effort.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {

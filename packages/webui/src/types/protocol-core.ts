@@ -31,6 +31,10 @@ export interface WSSessionStart {
     needsSetup?: boolean | undefined;
     /** Feature negotiation prevents a newer WebUI from sending messages to an older backend. */
     protocolCapabilities?: string[] | undefined;
+    /** Effort levels the ACTIVE model advertises (models.dev reasoningConfig).
+     *  Absent when the model has no explicit effort list — the UI then shows
+     *  the full canonical set, matching the resolver's conservative gate. */
+    reasoningEffortLevels?: string[] | undefined;
   };
 }
 

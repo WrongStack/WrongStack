@@ -400,7 +400,8 @@
     "autonomyDelayMsLabel": "Auto-proceed delay",
     "autonomyDelayMsHint": "Milliseconds before the agent auto-proceeds in Auto mode. 0 = immediate.",
     "refineCountdownLabel": "Refine countdown",
-    "refineCountdownHint": "Grace period before the refined prompt auto-sends (milliseconds)."
+    "refineCountdownHint": "Grace period before the refined prompt auto-sends (milliseconds).",
+    "reasoningEffortModelSet": "levels offered by the active model"
   },
   "execution": {
     "heading": "Execution",

@@ -400,7 +400,8 @@
     "autonomyDelayMsLabel": "Atraso de continuação automática",
     "autonomyDelayMsHint": "Milissegundos antes de o agente continuar automaticamente no modo Auto. 0 = imediato.",
     "refineCountdownLabel": "Contagem regressiva de refinamento",
-    "refineCountdownHint": "Período de carência antes do envio automático do prompt refinado (milissegundos)."
+    "refineCountdownHint": "Período de carência antes do envio automático do prompt refinado (milissegundos).",
+    "reasoningEffortModelSet": "níveis do modelo ativo"
   },
   "execution": {
     "heading": "Execução",

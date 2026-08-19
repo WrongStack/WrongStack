@@ -400,7 +400,8 @@
     "autonomyDelayMsLabel": "Ritardo di avanzamento automatico",
     "autonomyDelayMsHint": "Millisecondi prima che l'agente proceda automaticamente in modalità Auto. 0 = immediato.",
     "refineCountdownLabel": "Conto alla rovescia affinamento",
-    "refineCountdownHint": "Periodo di grazia prima dell'invio automatico del prompt affinato (millisecondi)."
+    "refineCountdownHint": "Periodo di grazia prima dell'invio automatico del prompt affinato (millisecondi).",
+    "reasoningEffortModelSet": "livelli del modello attivo"
   },
   "execution": {
     "heading": "Esecuzione",

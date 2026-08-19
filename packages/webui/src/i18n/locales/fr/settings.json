@@ -400,7 +400,8 @@
     "autonomyDelayMsLabel": "Délai de reprise automatique",
     "autonomyDelayMsHint": "Millisecondes avant que l'agent reprenne automatiquement en mode Auto. 0 = immédiat.",
     "refineCountdownLabel": "Compte à rebours d'affinage",
-    "refineCountdownHint": "Délai de grâce avant l'envoi automatique du prompt affiné (millisecondes)."
+    "refineCountdownHint": "Délai de grâce avant l'envoi automatique du prompt affiné (millisecondes).",
+    "reasoningEffortModelSet": "niveaux du modèle actif"
   },
   "execution": {
     "heading": "Exécution",

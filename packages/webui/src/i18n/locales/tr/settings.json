@@ -400,7 +400,8 @@
     "autonomyDelayMsLabel": "Otomatik devam gecikmesi",
     "autonomyDelayMsHint": "Auto modunda ajanın otomatik devam etmeden önce bekleme süresi (milisaniye). 0 = anında.",
     "refineCountdownLabel": "İyileştirme geri sayımı",
-    "refineCountdownHint": "İyileştirilmiş istemin otomatik gönderilmeden önceki bekleme süresi (milisaniye)."
+    "refineCountdownHint": "İyileştirilmiş istemin otomatik gönderilmeden önceki bekleme süresi (milisaniye).",
+    "reasoningEffortModelSet": "aktif modelin desteklediği seviyeler"
   },
   "execution": {
     "heading": "Yürütme",

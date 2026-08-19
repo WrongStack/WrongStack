@@ -400,7 +400,8 @@
     "autonomyDelayMsLabel": "Verzögerung der automatischen Fortsetzung",
     "autonomyDelayMsHint": "Millisekunden, bevor der Agent im Auto-Modus automatisch fortfährt. 0 = sofort.",
     "refineCountdownLabel": "Verfeinerungs-Countdown",
-    "refineCountdownHint": "Gnadenfrist, bevor der verfeinerte Prompt automatisch gesendet wird (Millisekunden)."
+    "refineCountdownHint": "Gnadenfrist, bevor der verfeinerte Prompt automatisch gesendet wird (Millisekunden).",
+    "reasoningEffortModelSet": "Stufen des aktiven Modells"
   },
   "execution": {
     "heading": "Ausführung",

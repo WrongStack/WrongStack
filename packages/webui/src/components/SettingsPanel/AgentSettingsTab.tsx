@@ -2,9 +2,28 @@ import { Activity, Cpu, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
+import { useSessionStore } from '@/stores/session-store';
 import { ModelSelectDialog } from '../ModelSelectDialog';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
+
+/** Canonical effort levels — shared shape with core's ReasoningEffort. */
+const ALL_EFFORTS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const;
+type Effort = (typeof ALL_EFFORTS)[number];
+const EFFORT_SET: ReadonlySet<string> = new Set(ALL_EFFORTS);
+/** Guard for server-supplied lists — anything outside the canonical enum
+ *  would render a raw key as its label; filter it instead. */
+function isEffort(value: string): value is Effort {
+  return EFFORT_SET.has(value);
+}
 
 export function AgentSettingsTab({
   syncPref,
@@ -16,6 +35,34 @@ export function AgentSettingsTab({
   const { t } = useAppTranslation();
   const localPrefs = useLocalPrefs();
   const [refinerPickerOpen, setRefinerPickerOpen] = useState(false);
+
+  // Effort levels advertised by the ACTIVE model (session.start payload).
+  // Undefined until the server reports them — the full canonical set then
+  // applies, matching the runtime resolver's conservative gate (unsupported
+  // values are dropped with a warning, never rejected).
+  const EFFORT_LABEL_KEYS: Record<Effort, string> = {
+    none: 'settings:agent.reasoningEffortNone',
+    minimal: 'settings:agent.reasoningEffortMinimal',
+    low: 'settings:agent.reasoningEffortLow',
+    medium: 'settings:agent.reasoningEffortMedium',
+    high: 'settings:agent.reasoningEffortHigh',
+    xhigh: 'settings:agent.reasoningEffortXhigh',
+    max: 'settings:agent.reasoningEffortMax',
+  };
+  const effortLevels = useSessionStore((s) => s.reasoningEffortLevels);
+  const narrowed = effortLevels?.length
+    ? (effortLevels.filter(isEffort) as Effort[])
+    : [...ALL_EFFORTS];
+  // Desync guard: a persisted effort the model no longer advertises (set on
+  // another model) would render an empty <select> — append it so the user
+  // sees what is actually configured and can change it deliberately. The
+  // runtime resolver independently drops unsupported values with a warning.
+  const current = localPrefs.reasoningEffort;
+  if (isEffort(current) && !narrowed.includes(current)) narrowed.push(current);
+  const effortOptions = narrowed.map((level) => ({
+    value: level,
+    label: t(EFFORT_LABEL_KEYS[level]),
+  }));
 
   return (
     <div className="space-y-6">
@@ -213,23 +260,13 @@ export function AgentSettingsTab({
         />
         <PreferenceSelect
           label={t('settings:agent.reasoningEffortLabel')}
-          hint={t('settings:agent.reasoningEffortHint')}
+          hint={
+            effortLevels
+              ? `${t('settings:agent.reasoningEffortHint')} (${t('settings:agent.reasoningEffortModelSet')})`
+              : t('settings:agent.reasoningEffortHint')
+          }
           value={localPrefs.reasoningEffort}
-          options={[
-            { value: 'none' as const, label: t('settings:agent.reasoningEffortNone') },
-            {
-              value: 'minimal' as const,
-              label: t('settings:agent.reasoningEffortMinimal'),
-            },
-            { value: 'low' as const, label: t('settings:agent.reasoningEffortLow') },
-            {
-              value: 'medium' as const,
-              label: t('settings:agent.reasoningEffortMedium'),
-            },
-            { value: 'high' as const, label: t('settings:agent.reasoningEffortHigh') },
-            { value: 'xhigh' as const, label: t('settings:agent.reasoningEffortXhigh') },
-            { value: 'max' as const, label: t('settings:agent.reasoningEffortMax') },
-          ]}
+          options={effortOptions}
           onChange={(v) => syncPref('reasoningEffort', v)}
         />
         <PreferenceToggle

@@ -124,6 +124,7 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
   protocolVersion: number;
   protocolCapabilities: string[];
   needsSetup?: boolean | undefined;
+  reasoningEffortLevels?: string[] | undefined;
 }> {
   return async () => {
     const config = g.getConfig();
@@ -131,6 +132,7 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
     let inputCost = 0;
     let outputCost = 0;
     let cacheReadCost = 0;
+    let reasoningEffortLevels: string[] | undefined;
     try {
       const m = await resolveProviderModelMetadata(
         g.modelsRegistry,
@@ -139,6 +141,10 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
         config.providers?.[config.provider],
       );
       maxContext = m?.capabilities?.maxContext ?? 0;
+      const rc = m?.capabilities.reasoningConfig;
+      if (rc?.effortSupported && rc.effortLevels?.length) {
+        reasoningEffortLevels = rc.effortLevels;
+      }
       if (!maxContext) {
         try {
           const provider = await (
@@ -180,6 +186,7 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
       protocolVersion: number;
       protocolCapabilities: string[];
       needsSetup?: boolean | undefined;
+      reasoningEffortLevels?: string[] | undefined;
     } = {
       sessionId: g.getSessionId(),
       model: config.model,
@@ -195,6 +202,7 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
       contextMode: g.getContextMode(),
       ...protocolAdvertisement(),
     };
+    if (reasoningEffortLevels) result.reasoningEffortLevels = reasoningEffortLevels;
     if (g.getNeedsSetup()) result.needsSetup = true;
     return result;
   };

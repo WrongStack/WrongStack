@@ -288,6 +288,10 @@ export function handleSessionStart(msg: WSServerMessage) {
     inputCost: payload.inputCost,
     outputCost: payload.outputCost,
     cacheReadCost: payload.cacheReadCost,
+    // Always pass the key (even undefined) so the store's key-presence
+    // semantics replace a previous model's list on switch.
+    reasoningEffortLevels: (payload as { reasoningEffortLevels?: string[] })
+      .reasoningEffortLevels,
   });
   useConfigStore.getState().setConfig({ provider, model });
   if (isReset) {

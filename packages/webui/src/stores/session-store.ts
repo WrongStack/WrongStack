@@ -47,6 +47,12 @@ interface SessionState {
   inputCost: number;
   outputCost: number;
   cacheReadCost: number;
+  /** Effort levels the ACTIVE model advertises (session.start payload).
+   *  Undefined when the model has no explicit list — the settings effort
+   *  dropdown then shows the full canonical set. Same lifecycle as
+   *  `cacheStats`: refreshed on every session.start (which fires on model
+   *  switch), so a stale list from the previous model never leaks. */
+  reasoningEffortLevels?: string[] | undefined;
   /** basename(projectRoot) for the topbar. */
   projectName: string;
   /** Full project root path — used for richer tooltips / hover context. */
@@ -113,6 +119,7 @@ interface SessionState {
     inputCost?: number | undefined;
     outputCost?: number | undefined;
     cacheReadCost?: number | undefined;
+    reasoningEffortLevels?: string[] | undefined;
   }) => void;
   setIteration: (it: { index: number; max: number } | null) => void;
   setContextUsage: (tokens: number, maxContext?: number | undefined) => void;
@@ -181,7 +188,15 @@ export const useSessionStore = create<SessionState>()(
             // Clear cache snapshot on provider/model switch — a stale
             // reading from the previous provider can never apply to the
             // new prompt cache. Same lifecycle as `contextLimitWarning`.
-            ...(sessionOrRouteChanged ? { contextLimitWarning: null, cacheStats: null } : {}),
+            // `reasoningEffortLevels` follows: a new model's effort set is
+            // unknown until the next session.start repopulates it.
+            ...(sessionOrRouteChanged
+              ? {
+                  contextLimitWarning: null,
+                  cacheStats: null,
+                  reasoningEffortLevels: undefined,
+                }
+              : {}),
           };
         }),
 
@@ -215,6 +230,7 @@ export const useSessionStore = create<SessionState>()(
           droppedTools: 0,
           contextLimitWarning: null,
           cacheStats: null,
+          reasoningEffortLevels: undefined,
         }),
 
       endSession: () =>
@@ -225,6 +241,7 @@ export const useSessionStore = create<SessionState>()(
           droppedTools: 0,
           contextLimitWarning: null,
           cacheStats: null,
+          reasoningEffortLevels: undefined,
           // Note: we intentionally do NOT clear lastVisitedAt here. The
           // verifier view uses it to show "previous activity at …" even
           // when the user explicitly ended a session.
@@ -241,6 +258,13 @@ export const useSessionStore = create<SessionState>()(
           inputCost: env.inputCost ?? state.inputCost,
           outputCost: env.outputCost ?? state.outputCost,
           cacheReadCost: env.cacheReadCost ?? state.cacheReadCost,
+          // Key-presence, not `??`: the server OMITS the field when the new
+          // model advertises no effort list, and a `??` fallback would keep
+          // the previous model's list alive across the switch (the same
+          // stale-leak pattern cacheStats guards against). Present-but-
+          // undefined means "no list" and must overwrite.
+          reasoningEffortLevels:
+            'reasoningEffortLevels' in env ? env.reasoningEffortLevels : state.reasoningEffortLevels,
         })),
 
       setIteration: (iteration) => set({ iteration }),
