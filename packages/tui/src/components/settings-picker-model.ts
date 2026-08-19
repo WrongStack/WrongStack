@@ -1,3 +1,4 @@
+import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/core/types';
 import type { SettingsPickerPatch } from '../settings-contracts.js';
 import { MAX_TUI_THINKING_WORD_LENGTH } from '../thinking-word.js';
 import {
@@ -50,6 +51,12 @@ export const DEFAULT_STATUSLINE_MODE: StatuslineMode = 'minimum';
 export const REASONING_MODES = ['auto', 'on', 'off'] as const;
 export type ReasoningMode = (typeof REASONING_MODES)[number];
 
+/**
+ * Effort levels cycled by the /settings picker. Pinned to core's canonical
+ * union via `satisfies` (subset-typed, not equal-typed, so a future core level
+ * shows up here as a compile error reminding us to add it to the cycle) and
+ * the exported type re-exports core's union directly.
+ */
 export const REASONING_EFFORTS = [
   'none',
   'minimal',
@@ -58,8 +65,8 @@ export const REASONING_EFFORTS = [
   'high',
   'xhigh',
   'max',
-] as const;
-export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+] as const satisfies readonly CoreReasoningEffort[];
+export type ReasoningEffort = CoreReasoningEffort;
 
 export const CACHE_TTLS = ['default', '5m', '1h'] as const;
 export type CacheTtl = (typeof CACHE_TTLS)[number];

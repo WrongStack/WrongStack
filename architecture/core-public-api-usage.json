@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 969,
-      "typeOnly": 897,
+      "files": 971,
+      "typeOnly": 899,
       "runtimeOrMixed": 239
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -13838,6 +13838,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/components/settings-picker-model.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/components/sidebar-content.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14091,6 +14097,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/run-tui.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/settings-contracts.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

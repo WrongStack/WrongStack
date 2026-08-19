@@ -1,3 +1,5 @@
+import type { ReasoningEffort as CoreReasoningEffort } from '@wrongstack/core/types';
+
 export type SettingsMode = 'off' | 'suggest' | 'auto';
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';
 export type AuditLevel = 'minimal' | 'standard' | 'full';
@@ -5,7 +7,14 @@ export type CompactorStrategy = 'hybrid' | 'intelligent' | 'selective';
 export type ContextMode = 'balanced' | 'frugal' | 'deep';
 export type StatuslineMode = 'minimum' | 'detailed' | 'no-color';
 export type ReasoningMode = 'auto' | 'on' | 'off';
-export type ReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+/**
+ * Reasoning effort levels. Re-exported from core's canonical union instead of
+ * re-declared here: this file is a sync point consumed by app-state,
+ * app-action-type, and app-settings-type, so a hand-maintained copy could
+ * silently drift from what the runtime resolver accepts. Adding a level in
+ * core flows through automatically; nothing in the TUI needs updating.
+ */
+export type ReasoningEffort = CoreReasoningEffort;
 export type CacheTtl = 'default' | '5m' | '1h';
 export type EnhanceLanguage = 'original' | 'english';
 export type TokenSavingTierTui = 'auto' | 'off' | 'minimal' | 'light' | 'medium' | 'aggressive';
