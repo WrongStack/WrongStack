@@ -1,18 +1,18 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-19T11:33:20.470Z
+**Generated:** 2026-08-19T13:09:30.293Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
 
 | Measure | Value |
 |---|---:|
-| Workspace packages | 32 |
-| Production source files | 3265 |
-| Production source lines | 778762 |
-| Test files | 2823 |
-| Workspace dependency edges | 103 |
-| Relative module edges | 10119 |
+| Workspace packages | 33 |
+| Production source files | 3279 |
+| Production source lines | 780062 |
+| Test files | 2829 |
+| Workspace dependency edges | 106 |
+| Relative module edges | 10125 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 16 |
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/cli/src/plugin-management.ts: hotspot shrunk from 1035 to 1034 lines; review and update the ratchet in the same change
 
 ## Workspace packages
 
@@ -29,9 +29,9 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 41 | 35 | @wrongstack/core |
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
-| @wrongstack/cli | 454 | 419 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
+| @wrongstack/cli | 455 | 421 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 750 | 623 | @wrongstack/kanban, @wrongstack/persistence |
+| @wrongstack/core | 752 | 626 | @wrongstack/kanban, @wrongstack/persistence |
 | @wrongstack/desktop | 37 | 17 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 26 | — |
 | @wrongstack/kanban | 86 | 63 | @wrongstack/persistence |
@@ -40,7 +40,8 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/mcp | 36 | 32 | @wrongstack/core |
 | @wrongstack/persistence | 5 | 4 | — |
 | @wrongstack/plug-lsp | 41 | 28 | @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 86 | 121 | @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plugin-sdk | 11 | 1 | @wrongstack/core, @wrongstack/tools |
+| @wrongstack/plugins | 86 | 121 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/tools |
 | @wrongstack/providers | 58 | 52 | @wrongstack/core |
 | @wrongstack/requirement-intake | 16 | 9 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
@@ -94,6 +95,7 @@ None.
 | 1050 | `packages/sage/src/sqlite-store.ts` |
 | 1038 | `packages/webui/src/lib/ws-client.ts` |
 | 1036 | `packages/plugins/src/path-guard/shell-targets.ts` |
+| 1034 | `packages/cli/src/plugin-management.ts` |
 | 1021 | `packages/mcp/src/client.ts` |
 | 1020 | `packages/core/src/index.ts` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
@@ -138,11 +140,10 @@ None.
 | 938 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 | 938 | `packages/webui/src/types/server-message.ts` |
 | 936 | `packages/tui/src/components/context-panel.tsx` |
-| 936 | `packages/webui/src/components/CodeMap.tsx` |
 
 ## Exports only tests reference
 
-- 803 runtime exports are referenced by tests and by no other production file.
+- 804 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

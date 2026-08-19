@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T11:33:20.470Z",
+  "generatedAt": "2026-08-19T13:09:30.293Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,20 +11,22 @@
     ]
   },
   "summary": {
-    "packages": 32,
-    "sourceFiles": 3265,
-    "testFiles": 2823,
-    "sourceLines": 778762,
-    "workspaceEdges": 103,
-    "moduleEdges": 10119,
+    "packages": 33,
+    "sourceFiles": 3279,
+    "testFiles": 2829,
+    "sourceLines": 780062,
+    "workspaceEdges": 106,
+    "moduleEdges": 10125,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 16,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 803
+    "testOnlyExports": 804
   },
-  "errors": [],
+  "errors": [
+    "packages/cli/src/plugin-management.ts: hotspot shrunk from 1035 to 1034 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -140,8 +142,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 454,
-      "testFiles": 419,
+      "sourceFiles": 455,
+      "testFiles": 421,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -177,7 +179,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 419
+          "testFiles": 421
         }
       ]
     },
@@ -207,8 +209,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 750,
-      "testFiles": 623,
+      "sourceFiles": 752,
+      "testFiles": 626,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence"
@@ -222,7 +224,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 623
+          "testFiles": 626
         }
       ]
     },
@@ -398,12 +400,35 @@
       ]
     },
     {
+      "name": "@wrongstack/plugin-sdk",
+      "dir": "packages/plugin-sdk",
+      "sourceFiles": 11,
+      "testFiles": 1,
+      "workspaceDependencies": [
+        "@wrongstack/core",
+        "@wrongstack/tools"
+      ],
+      "tsconfigs": [
+        {
+          "path": "packages/plugin-sdk/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "packages/plugin-sdk/tsconfig.test.json",
+          "error": null,
+          "testFiles": 1
+        }
+      ]
+    },
+    {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 86,
       "testFiles": 121,
       "workspaceDependencies": [
         "@wrongstack/core",
+        "@wrongstack/plugin-sdk",
         "@wrongstack/tools"
       ],
       "tsconfigs": [
@@ -2192,6 +2217,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/external-plugins.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/fallback-gate-e2e.test.ts",
         "projects": [
           "root-node"
@@ -2937,6 +2968,12 @@
       },
       {
         "file": "packages/cli/tests/plugin-api-factory.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/plugin-management-install.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6494,7 +6531,19 @@
         ]
       },
       {
+        "file": "packages/core/tests/plugin/discovery.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/plugin/hooks-capability.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/plugin/loader-enforce-predicate.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6519,6 +6568,12 @@
       },
       {
         "file": "packages/core/tests/plugin/teardown-capability.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/plugin/trust.test.ts",
         "projects": [
           "root-node"
         ]
@@ -8913,6 +8968,12 @@
       },
       {
         "file": "packages/plug-lsp/tests/unit/workspace-edit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugin-sdk/tests/sdk.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18135,6 +18196,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/cli/src/plugin-management.ts",
+      "lines": 1034,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/cli/src/slash-commands/sdd.ts",
       "lines": 1015,
       "relativeImports": 14
@@ -18692,6 +18758,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/cli/src/plugin-management.ts",
+      "lines": 1034,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/mcp/src/client.ts",
       "lines": 1021,
       "relativeImports": 10
@@ -18910,11 +18981,6 @@
       "file": "packages/tui/src/components/context-panel.tsx",
       "lines": 936,
       "relativeImports": 6
-    },
-    {
-      "file": "packages/webui/src/components/CodeMap.tsx",
-      "lines": 936,
-      "relativeImports": 12
     }
   ],
   "testOnlyExports": [
@@ -19313,6 +19379,14 @@
     {
       "file": "packages/cli/src/picker.ts",
       "name": "renderLiveProviderList"
+    },
+    {
+      "file": "packages/cli/src/plugin-management.ts",
+      "name": "renderConfiguredPlugins"
+    },
+    {
+      "file": "packages/cli/src/plugin-management.ts",
+      "name": "renderPluginAuditReport"
     },
     {
       "file": "packages/cli/src/project-picker.ts",
@@ -20319,6 +20393,18 @@
       "name": "timeoutCoverage"
     },
     {
+      "file": "packages/plugin-sdk/src/runtime/index.ts",
+      "name": "collectSourceFiles"
+    },
+    {
+      "file": "packages/plugin-sdk/src/runtime/index.ts",
+      "name": "locateRunnerEntry"
+    },
+    {
+      "file": "packages/plugin-sdk/src/runtime/index.ts",
+      "name": "probeRunner"
+    },
+    {
       "file": "packages/plugins/src/catalog.ts",
       "name": "PLUGIN_CATALOG_ENTRIES"
     },
@@ -20445,22 +20531,6 @@
     {
       "file": "packages/plugins/src/prompt-firewall/index.ts",
       "name": "SCAN_WINDOW_LIMIT"
-    },
-    {
-      "file": "packages/plugins/src/runtime/credential-patterns.ts",
-      "name": "CREDENTIAL_PATTERNS"
-    },
-    {
-      "file": "packages/plugins/src/runtime/index.ts",
-      "name": "collectSourceFiles"
-    },
-    {
-      "file": "packages/plugins/src/runtime/index.ts",
-      "name": "locateRunnerEntry"
-    },
-    {
-      "file": "packages/plugins/src/runtime/index.ts",
-      "name": "probeRunner"
     },
     {
       "file": "packages/plugins/src/semver-bump/index.ts",

@@ -47,6 +47,10 @@ export default defineConfig({
       // it from source so a concurrent/stale package build cannot make the
       // root suite test an older dist bundle.
       '@wrongstack/webui-server': path.resolve(__dirname, './packages/webui-server/src'),
+      // The plugins package's runtime shims re-export from the extracted SDK
+      // (`@wrongstack/plugin-sdk/runtime`); resolve it from source the same
+      // way so plugin tests exercise current SDK code, not a stale dist.
+      '@wrongstack/plugin-sdk': path.resolve(__dirname, './packages/plugin-sdk/src'),
     },
   },
   // Exclude typescript from SSR transform to prevent "invalid JS syntax" errors
