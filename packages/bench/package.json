@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/bench",
-  "version": "0.308.7",
+  "version": "0.309.0",
   "license": "MIT",
   "description": "Model-independent agentic benchmark harness for WrongStack (Aider polyglot + SWE-bench Verified) with deterministic graders and harness fingerprinting.",
   "repository": {
