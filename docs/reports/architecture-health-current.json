@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T08:45:19.593Z",
+  "generatedAt": "2026-08-19T08:48:17.465Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -24,9 +24,7 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 803
   },
-  "errors": [
-    "packages/kanban/src/types.ts: hotspot grew from 960 to 970 lines; review and update the ratchet in the same change"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [

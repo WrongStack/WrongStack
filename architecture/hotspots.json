@@ -151,7 +151,7 @@
       "relativeImports": 10
     },
     "packages/kanban/src/types.ts": {
-      "lines": 960,
+      "lines": 970,
       "relativeImports": 2
     },
     "packages/mcp/src/authorization.ts": {

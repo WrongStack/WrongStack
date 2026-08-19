@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-19T08:45:19.593Z
+**Generated:** 2026-08-19T08:48:17.465Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-- packages/kanban/src/types.ts: hotspot grew from 960 to 970 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
