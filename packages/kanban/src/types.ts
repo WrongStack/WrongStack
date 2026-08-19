@@ -161,6 +161,15 @@ export type KanbanAgentRunStatus =
 
 export type KanbanGoalMetricStatus = 'pending' | 'met' | 'missed' | 'waived';
 
+/**
+ * Which way a goal metric counts as "met".
+ * - `at_least` (default): met when `current >= target` — coverage, feature count.
+ * - `at_most`: met when `current <= target` — error rate, cost ceiling, latency,
+ *   open-bug count. Omitting `direction` means `at_least`, so existing boards
+ *   are unaffected.
+ */
+export type KanbanGoalMetricDirection = 'at_least' | 'at_most';
+
 export type KanbanRetryPolicy = 'off' | 'incremental' | 'exponential';
 
 export type KanbanManualActivityKind =
@@ -412,6 +421,7 @@ export interface KanbanGoalMetric {
   status: KanbanGoalMetricStatus;
   target?: string | number | undefined;
   current?: string | number | undefined;
+  direction?: KanbanGoalMetricDirection | undefined;
   unit?: string | undefined;
   notes?: string | undefined;
   updatedAt?: string | undefined;

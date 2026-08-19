@@ -155,9 +155,104 @@ describe('MetricPlugin comprehensive', () => {
     ];
     const result = await plugin.verify(
       makeCheck({ type: 'metric' }),
-      makeContext({ task: { goalMetrics: metrics } as KanbanTask }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
     );
     expect(metricEvidence(result)[0]?.unit).toBe('%');
+  });
+
+  // ─── direction: at_most / at_least ────────────────────────────────────────
+
+  it('at_most metric passes when current is below target (lower is better)', async () => {
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'error rate', status: 'pending', target: 5, current: 2, direction: 'at_most' },
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
+    );
+    expect(result.status).toBe('passed');
+    expect(result.evidence.allMet).toBe(true);
+    expect(metricEvidence(result)[0]?.met).toBe(true);
+    expect(metricEvidence(result)[0]?.direction).toBe('at_most');
+  });
+
+  it('at_most metric passes when current equals target (boundary)', async () => {
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'cost ceiling', status: 'pending', target: 100, current: 100, direction: 'at_most' },
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
+    );
+    expect(result.status).toBe('passed');
+    expect(metricEvidence(result)[0]?.met).toBe(true);
+  });
+
+  it('at_most metric fails when current exceeds target — the bug the old >= comparator had inverted', async () => {
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'open bugs', status: 'pending', target: 5, current: 50, direction: 'at_most' },
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
+    );
+    expect(result.status).toBe('failed');
+    expect(result.evidence.missed).toBe(1);
+    expect(metricEvidence(result)[0]?.met).toBe(false);
+  });
+
+  it('explicit at_least keeps the current >= target semantics', async () => {
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'coverage', status: 'pending', target: 80, current: 95, direction: 'at_least' },
+      { id: 'm2', name: 'features', status: 'pending', target: 10, current: 3, direction: 'at_least' },
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
+    );
+    expect(result.status).toBe('failed');
+    expect(result.evidence.met).toBe(1);
+    expect(result.evidence.missed).toBe(1);
+  });
+
+  it('omitting direction defaults to at_least (back-compat with existing boards)', async () => {
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'coverage', status: 'pending', target: 80, current: 90 },
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
+    );
+    expect(result.status).toBe('passed');
+    expect(metricEvidence(result)[0]?.direction).toBe('at_least');
+  });
+
+  it('mixed-direction metrics each use their own comparator', async () => {
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'coverage', status: 'pending', target: 80, current: 90 }, // at_least: met
+      { id: 'm2', name: 'latency p95', status: 'pending', target: 200, current: 350, direction: 'at_most' }, // not met
+      { id: 'm3', name: 'flaky tests', status: 'pending', target: 3, current: 1, direction: 'at_most' }, // met
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
+    );
+    expect(result.status).toBe('failed');
+    expect(result.evidence.met).toBe(2);
+    expect(result.evidence.missed).toBe(1);
+    expect(result.error).toBe('1 metric(s) not met.');
+  });
+
+  it('at_most works with string-coerced numeric values', async () => {
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'cost', status: 'pending', target: '20', current: '15.5', direction: 'at_most' },
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as unknown as KanbanTask }),
+    );
+    expect(result.status).toBe('passed');
+    expect(metricEvidence(result)[0]?.met).toBe(true);
   });
 });
 

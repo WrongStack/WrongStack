@@ -126,6 +126,8 @@ export interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   metricName?: string | undefined;
   metricTarget?: string | number | undefined;
   metricCurrent?: string | number | undefined;
+  /** Comparison direction for the goal metric: `at_least` (default) or `at_most`. */
+  metricDirection?: 'at_least' | 'at_most' | undefined;
   metricUnit?: string | undefined;
   metricStatus?: 'pending' | 'met' | 'missed' | 'waived' | undefined;
   metricNotes?: string | undefined;

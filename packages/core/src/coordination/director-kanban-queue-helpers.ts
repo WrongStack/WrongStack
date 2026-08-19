@@ -124,7 +124,7 @@ export function buildKanbanFleetTaskPrompt(
   const metrics = task.goalMetrics
     ?.map(
       (metric) =>
-        `- ${metric.name}: ${metric.current ?? 'n/a'}${metric.target !== undefined ? ` / ${metric.target}` : ''}${metric.unit ? ` ${metric.unit}` : ''} [${metric.status}]`,
+        `- ${metric.name}: ${metric.current ?? 'n/a'}${metric.target !== undefined ? ` / ${metric.direction === 'at_most' ? '≤' : '≥'} ${metric.target}` : ''}${metric.unit ? ` ${metric.unit}` : ''} [${metric.status}]`,
     )
     .join('\n');
   const chain = task.chain

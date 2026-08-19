@@ -324,6 +324,7 @@ export interface AddKanbanGoalMetricInput {
   status?: KanbanGoalMetricStatus | undefined;
   target?: string | number | undefined;
   current?: string | number | undefined;
+  direction?: KanbanGoalMetric['direction'];
   unit?: string | undefined;
   notes?: string | undefined;
 }

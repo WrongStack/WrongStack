@@ -442,6 +442,7 @@ export async function addGoalMetricToTask(
       updatedAt: now,
       ...(metric.target !== undefined ? { target: metric.target } : {}),
       ...(metric.current !== undefined ? { current: metric.current } : {}),
+      ...(metric.direction !== undefined ? { direction: metric.direction } : {}),
       ...(metric.unit !== undefined ? { unit: metric.unit } : {}),
       ...(metric.notes !== undefined ? { notes: metric.notes } : {}),
     };
@@ -477,6 +478,7 @@ export async function updateGoalMetricOnTask(
     if (patch.status !== undefined) metric.status = patch.status;
     if (patch.target !== undefined) metric.target = patch.target;
     if (patch.current !== undefined) metric.current = patch.current;
+    if (patch.direction !== undefined) metric.direction = patch.direction;
     if (patch.unit !== undefined) metric.unit = patch.unit;
     if (patch.notes !== undefined) metric.notes = patch.notes;
     const now = nowIso();

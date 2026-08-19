@@ -37,8 +37,14 @@ export class MetricPlugin implements VerifierPlugin {
       }
       const target = typeof m.target === 'number' ? m.target : Number(m.target);
       const current = typeof m.current === 'number' ? m.current : Number(m.current);
-      const met = !Number.isNaN(target) && !Number.isNaN(current) && current >= target;
-      return { ...m, target, current, met };
+      // direction: 'at_least' (default) means met when current >= target;
+      // 'at_most' means met when current <= target (error rate, cost ceiling,
+      // latency, open-bug count — anything where lower is better).
+      const direction = m.direction ?? 'at_least';
+      const numeric = !Number.isNaN(target) && !Number.isNaN(current);
+      const met =
+        numeric && (direction === 'at_most' ? current <= target : current >= target);
+      return { ...m, target, current, direction, met };
     });
 
     const allMet = results.every((r) => r.met);
@@ -52,6 +58,7 @@ export class MetricPlugin implements VerifierPlugin {
           name: r.name,
           target: r.target,
           current: r.current,
+          direction: r.direction,
           unit: r.unit,
           met: r.met,
           reason: 'reason' in r ? (r as { reason: string }).reason : undefined,
