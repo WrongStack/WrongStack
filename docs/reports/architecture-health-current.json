@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T00:06:11.539Z",
+  "generatedAt": "2026-08-19T07:29:59.534Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 32,
-    "sourceFiles": 3263,
-    "testFiles": 2822,
-    "sourceLines": 777889,
+    "sourceFiles": 3265,
+    "testFiles": 2823,
+    "sourceLines": 778680,
     "workspaceEdges": 103,
-    "moduleEdges": 10115,
+    "moduleEdges": 10119,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 16,
@@ -140,7 +140,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 453,
+      "sourceFiles": 454,
       "testFiles": 419,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -207,8 +207,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 749,
-      "testFiles": 622,
+      "sourceFiles": 750,
+      "testFiles": 623,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence"
@@ -222,7 +222,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 622
+          "testFiles": 623
         }
       ]
     },
@@ -4845,6 +4845,12 @@
       },
       {
         "file": "packages/core/tests/coordination/dispatcher.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/explore-companion.test.ts",
         "projects": [
           "root-node"
         ]

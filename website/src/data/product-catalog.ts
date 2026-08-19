@@ -802,6 +802,12 @@ export const specialRosterAgents = [
     name: 'Generic Project Agent',
     summary: 'Template agent used directly or cloned into project-specific roles.',
   },
+  {
+    role: 'explore-companion',
+    name: 'Explore Companion',
+    summary:
+      'State-triggered background codebase explorer that runs behind the leader and reports findings by mail.',
+  },
 ] as const;
 
 export const externalAcpAgents = [
