@@ -154,9 +154,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 971,
+      "files": 972,
       "typeOnly": 897,
-      "runtimeOrMixed": 241
+      "runtimeOrMixed": 242
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -12371,6 +12371,12 @@
       "file": "packages/providers/tests/capabilities.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/effort-vocabulary.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

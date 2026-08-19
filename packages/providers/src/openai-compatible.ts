@@ -160,18 +160,21 @@ function applyThinkingParams(
 function mapZaiReasoningEffort(
   effort: NonNullable<Request['reasoning']>['effort'],
 ): string | undefined {
-  switch (effort) {
-    case 'none':
-    case 'minimal':
-      return 'none';
-    case 'low':
-    case 'medium':
-      return 'high';
-    case 'xhigh':
-      return 'max';
-    default:
-      return effort;
-  }
+  if (effort === undefined) return undefined;
+  // EXHAUSTIVE over ReasoningEffort: every level classified, no silent
+  // default fallthrough. Adding a core level without a row here is a compile
+  // error — this is the ZAI GLM-5.2 vocabulary (accepts 'high'/'max' only,
+  // everything else maps to the documented off/low buckets).
+  const ZAI_EFFORT_MAP: Readonly<Record<ReasoningEffort, string | undefined>> = {
+    none: 'none',
+    minimal: 'none',
+    low: 'high',
+    medium: 'high',
+    high: 'high',
+    xhigh: 'max',
+    max: 'max',
+  };
+  return ZAI_EFFORT_MAP[effort];
 }
 
 /**
@@ -203,26 +206,18 @@ function applyGenericReasoningEffort(
   if (!effort) return;
   if (req.reasoning?.enabled === false) return;
   if (body['reasoning_effort'] !== undefined) return;
-  const mapped = mapGenericReasoningEffort(effort);
+  // Table-driven: the fallback table is exhaustively classified per level and
+  // its coupling with the base builder's acceptance table is pinned by
+  // `tests/effort-vocabulary.test.ts`. No silent default branch.
+  const mapped = GENERIC_EFFORT_FALLBACK[effort];
   if (mapped) body['reasoning_effort'] = mapped;
 }
 
-/**
- * Collapse the internal levels the base builder rejects onto the values OpenAI's
- * `reasoning_effort` accepts. none/low/medium/high are already handled upstream,
- * so they return undefined here (no double-write).
- */
-function mapGenericReasoningEffort(effort: ReasoningEffort): 'low' | 'high' | undefined {
-  switch (effort) {
-    case 'minimal':
-      return 'low';
-    case 'xhigh':
-    case 'max':
-      return 'high';
-    default:
-      return undefined;
-  }
-}
+// Re-exported for the drift-guard tests; the coupling invariant is documented
+// on the table itself in openai-shared.ts. The import binds the name for
+// local use — `export … from` alone does not (the TUI typecheck taught us).
+import { GENERIC_EFFORT_FALLBACK } from './openai-shared.js';
+export { GENERIC_EFFORT_FALLBACK } from './openai-shared.js';
 
 /**
  * Conservative gateway guard for GENERIC openai-compatible endpoints only.

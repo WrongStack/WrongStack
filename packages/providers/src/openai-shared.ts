@@ -1,20 +1,60 @@
 import type { ReasoningEffort, Request } from '@wrongstack/core/types';
 
 /**
- * OpenAI's Chat Completions API accepts `reasoning_effort` only for these
- * values. `minimal`, `xhigh`, and `max` are broader WrongStack-internal
- * effort levels that get mapped down or filtered out here — sending an
- * unrecognized value would cause a 400.
+ * EXHAUSTIVE acceptance table for the Chat Completions `reasoning_effort`
+ * field. Every canonical {@link ReasoningEffort} must be classified here — a
+ * new core level without a row is a COMPILE ERROR, not a silent drop.
  *
- * Single source of truth for the Chat Completions allowlist: import this
- * instead of redefining it locally (the OpenAI preset used to carry a private
- * copy that drifted from this one).
+ * Single source of truth for the Chat Completions vocabulary: `openai.ts`
+ * (first-party, via {@link shouldEmitReasoningEffort}) and `presets/openai.ts`
+ * (Copilot, via {@link isOpenAIEffort}) both gate through this table. The
+ * previous shape — a hand-listed `Set` whose `.has()` returned `false` for
+ * anything unlisted — is precisely how the A2/A3 divergence happened: a new
+ * level quietly fell through every allowlist at once.
  */
-export const OPENAI_EFFORT_VALUES = new Set<ReasoningEffort>(['none', 'low', 'medium', 'high']);
+export const OPENAI_EFFORT_ACCEPT: Readonly<Record<ReasoningEffort, boolean>> = {
+  none: true,
+  minimal: false,
+  low: true,
+  medium: true,
+  high: true,
+  xhigh: false,
+  max: false,
+};
 
 export function isOpenAIEffort(effort: ReasoningEffort): boolean {
-  return OPENAI_EFFORT_VALUES.has(effort);
+  return OPENAI_EFFORT_ACCEPT[effort];
 }
+
+/**
+ * Fallback mapping for GENERIC OpenAI-compatible gateways: what to send when
+ * the base builder drops a value — i.e. for every level where
+ * {@link OPENAI_EFFORT_ACCEPT} is `false`.
+ *
+ * INVARIANT (pinned by `tests/effort-vocabulary.test.ts`):
+ *   GENERIC_EFFORT_FALLBACK[e] === undefined  ⟺  OPENAI_EFFORT_ACCEPT[e] === true
+ * and every defined fallback is itself an accepted value (`low`/`high`).
+ *
+ * The old implementation encoded the left half of that invariant in a
+ * `switch` whose `default:` branch silently swallowed any unclassified level
+ * — the A3 half of the divergence (low/medium/high dropped while
+ * minimal/xhigh/max survived as mapped extremes). The exhaustive table makes
+ * the coupling explicit and compile-checked: adding a level to the union
+ * without classifying it in BOTH tables fails the build.
+ */
+export const GENERIC_EFFORT_FALLBACK: Readonly<
+  Record<ReasoningEffort, 'low' | 'high' | undefined>
+> = {
+  // Base builder emits these verbatim — no fallback, no double-write.
+  none: undefined,
+  low: undefined,
+  medium: undefined,
+  high: undefined,
+  // Base builder drops these — collapse onto the nearest accepted extreme.
+  minimal: 'low',
+  xhigh: 'high',
+  max: 'high',
+};
 
 /**
  * Decide whether the wire body should carry `reasoning_effort` for this request.

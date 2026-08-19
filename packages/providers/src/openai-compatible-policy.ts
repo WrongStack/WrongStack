@@ -234,16 +234,26 @@ function outputCapFrom(body: Record<string, unknown>, req: Request): number | un
     : undefined;
 }
 
+/**
+ * EXHAUSTIVE effort → budget-fraction table for the Alibaba
+ * `thinking_budget` derivation. Every canonical {@link ReasoningEffort} has a
+ * row; a new core level without one is a compile error, not a silent 0.95.
+ */
+const ALIBABA_EFFORT_BUDGET_FRACTION: Readonly<Record<ReasoningEffort, number>> = {
+  // Exhaustiveness sentinel only: applyAlibaba filters `effort !== 'none'`
+  // before calling deriveBudget, so this row never executes at runtime. It
+  // exists so the Record type forces a deliberate classification if the
+  // union grows.
+  none: 0,
+  minimal: 0.1,
+  low: 0.2,
+  medium: 0.5,
+  high: 0.8,
+  xhigh: 0.95,
+  max: 0.95,
+};
+
 function deriveBudget(maxTokens: number, effort: ReasoningEffort, cap: number): number {
-  const ratio =
-    effort === 'minimal'
-      ? 0.1
-      : effort === 'low'
-        ? 0.2
-        : effort === 'medium'
-          ? 0.5
-          : effort === 'high'
-            ? 0.8
-            : 0.95;
+  const ratio = ALIBABA_EFFORT_BUDGET_FRACTION[effort];
   return Math.max(1, Math.min(Math.floor(maxTokens * ratio), cap, Math.max(1, maxTokens - 1)));
 }

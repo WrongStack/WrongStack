@@ -232,6 +232,34 @@ describe('DefaultModelsRegistry', () => {
     expect(model?.capabilities.reasoningConfig?.disableSupported).toBe(true);
   });
 
+  it('marks an explicitly EMPTY reasoning_options array as documented absence', async () => {
+    // The discriminator is `raw === undefined`, NOT `options.length === 0`:
+    // `reasoning_options: []` is an explicit statement that this model has no
+    // reasoning controls, so effortSupported must be `false` (reject+warn) —
+    // distinct from a MISSING field, which leaves it `undefined` (forward).
+    const reg = new DefaultModelsRegistry({
+      cacheFile,
+      seed: {
+        gateway: {
+          id: 'gateway',
+          name: 'Gateway',
+          npm: '@ai-sdk/openai-compatible',
+          models: {
+            emptyopts: {
+              id: 'emptyopts',
+              name: 'Empty Opts',
+              reasoning: true,
+              reasoning_options: [],
+            },
+          },
+        },
+      },
+    });
+
+    const model = await reg.getModel('gateway', 'emptyopts');
+    expect(model?.capabilities.reasoningConfig?.effortSupported).toBe(false);
+  });
+
   it('suggestModel returns the newest', async () => {
     const reg = new DefaultModelsRegistry({ cacheFile, seed: SAMPLE });
     expect(await reg.suggestModel('anthropic')).toBe('claude-opus-4-7');
