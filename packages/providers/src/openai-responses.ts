@@ -114,17 +114,15 @@ export class OpenAIResponsesProvider extends WireAdapter {
 
 function supportedResponsesEffort(
   effort: ReasoningEffort | undefined,
-): 'none' | 'low' | 'medium' | 'high' | 'xhigh' | undefined {
-  if (
-    effort === 'none' ||
-    effort === 'low' ||
-    effort === 'medium' ||
-    effort === 'high' ||
-    effort === 'xhigh'
-  ) {
-    return effort;
-  }
-  return undefined;
+): ReasoningEffort | undefined {
+  if (effort === undefined) return undefined;
+  // The Responses API's documented effort set is model-dependent and spans
+  // the full ReasoningEffort union (none|minimal|low|medium|high|xhigh|max per
+  // the 2026-08 reasoning guide). Accept every canonical value verbatim: the
+  // model rejects an unsupported one with an actionable 400, whereas silently
+  // dropping it here (the old behavior for minimal/max) made the user's
+  // setting a quiet no-op.
+  return effort;
 }
 
 function mapToolChoice(

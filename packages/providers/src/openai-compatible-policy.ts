@@ -111,6 +111,15 @@ function applyKimi(body: Record<string, unknown>, req: Request): void {
 
 function applyZai(body: Record<string, unknown>, req: Request): void {
   const r = req.reasoning;
+  // Invariant: `reasoning_effort` may reach here from two sources — the base
+  // builder (openai-shared.ts, value-gated only) or the `zai-glm` quirk
+  // (applyThinkingParams → mapZaiReasoningEffort, Z.AI's documented contract
+  // for the whole GLM line). The quirk early-returns when `enabled === false`,
+  // so on THAT path any present value came from the base builder and is a
+  // leak: it would ship alongside `thinking: {type:'disabled'}` as a
+  // contradictory payload. Delete it; keep the quirk's deliberate mappings
+  // everywhere else.
+  if (r?.enabled === false) delete body['reasoning_effort'];
   if (r?.enabled !== undefined) {
     body['thinking'] = { type: r.enabled ? 'enabled' : 'disabled' };
   }
@@ -161,8 +170,13 @@ function applyGroq(body: Record<string, unknown>, req: Request): void {
   const effort = req.reasoning?.effort;
   if (model.includes('qwen3.6')) {
     if (req.reasoning?.enabled === false || effort === 'none') body['reasoning_effort'] = 'none';
-    else if (req.reasoning?.enabled === true || effort !== undefined) {
-      body['reasoning_effort'] = 'default';
+    else if (isOneOf(effort, ['low', 'medium', 'high'])) {
+      // Groq's documented reasoning_effort enum for qwen3 is
+      // none|low|medium|high — 'default' (previously sent here) is not in it.
+      body['reasoning_effort'] = effort;
+    } else if (req.reasoning?.enabled === true || effort !== undefined) {
+      // Enabled without a representable level: omit the field and let the
+      // model's dynamic default apply rather than invent a value.
     }
     if (
       (req.tools?.length ?? 0) > 0 ||

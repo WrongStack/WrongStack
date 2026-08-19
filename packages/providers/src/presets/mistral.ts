@@ -66,9 +66,12 @@ export const mistralWireFormat = defineWireFormat<MistralStreamState>({
     if (req.seed !== undefined) body['random_seed'] = req.seed;
     if (req.reasoning?.effort !== undefined) {
       body['reasoning_effort'] = req.reasoning.effort;
-    } else if (req.reasoning?.enabled === false) {
-      body['reasoning_effort'] = 'none';
     }
+    // `enabled: false` no longer fabricates `reasoning_effort: 'none'`:
+    // 'none' is not in Mistral's documented effort enum, and sending an
+    // unknown value risks a 400 on models that validate the field. Disabling
+    // is expressed by simply omitting reasoning controls — Mistral's
+    // non-reasoning models don't think by default.
     if (req.stopSequences) body['stop'] = req.stopSequences;
     return body;
   },

@@ -334,16 +334,128 @@ describe('GoogleProvider', () => {
     expect(cfg['logprobs']).toBe(true);
   });
 
-  it('sends thinkingConfig when reasoning is enabled', async () => {
+  it('maps reasoning to real thinkingConfig fields (never a bogus type field)', async () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
       captured = JSON.parse(init.body ?? '{}');
       return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { role: 'model', parts: [{ text: 'k' }] }, finishReason: 'stop' }], usageMetadata: {} }), text: async () => '' };
     }) as never as typeof fetch;
     const p = new GoogleProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, reasoning: { enabled: true } }, { signal: new AbortController().signal });
-    const cfg = captured?.['generationConfig'] as Record<string, unknown>;
-    expect(cfg['thinkingConfig']).toEqual({ type: 'enabled' });
+
+    // Gemini 3 + effort → thinkingLevel (the API's real field).
+    await p.complete(
+      {
+        model: 'gemini-3-pro',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { effort: 'high' },
+      },
+      { signal: new AbortController().signal },
+    );
+    let cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
+      string,
+      unknown
+    >;
+    expect(cfg['thinkingConfig']).toEqual({ thinkingLevel: 'high' });
+
+    // Gemini 3 + explicit off → minimal (no off value in the level enum).
+    await p.complete(
+      {
+        model: 'gemini-3-flash',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { enabled: false },
+      },
+      { signal: new AbortController().signal },
+    );
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
+      string,
+      unknown
+    >;
+    expect(cfg['thinkingConfig']).toEqual({ thinkingLevel: 'minimal' });
+
+    // Gemini 2.5 + effort → thinkingBudget derived from the output cap.
+    await p.complete(
+      {
+        model: 'gemini-2.5-flash',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { effort: 'medium' },
+      },
+      { signal: new AbortController().signal },
+    );
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
+      string,
+      unknown
+    >;
+    const thinking = cfg['thinkingConfig'] as { thinkingBudget?: number };
+    expect(typeof thinking?.thinkingBudget).toBe('number');
+    expect(thinking.thinkingBudget).toBeGreaterThanOrEqual(1024);
+
+    // Gemini 2.5 Flash + explicit off → budget 0 (documented off switch).
+    await p.complete(
+      {
+        model: 'gemini-2.5-flash',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { enabled: false },
+      },
+      { signal: new AbortController().signal },
+    );
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
+      string,
+      unknown
+    >;
+    expect(cfg['thinkingConfig']).toEqual({ thinkingBudget: 0 });
+
+    // Gemini 2.5 Pro + explicit off → omit: Pro-tier rejects budget 0 with a
+    // 400; leaving thinking on is better than failing the request.
+    await p.complete(
+      {
+        model: 'gemini-2.5-pro',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { enabled: false },
+      },
+      { signal: new AbortController().signal },
+    );
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
+      string,
+      unknown
+    >;
+    expect(cfg).not.toHaveProperty('thinkingConfig');
+
+    // enabled:true with no effort → dynamic is the API default; send nothing.
+    await p.complete(
+      {
+        model: 'gemini-3-pro',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { enabled: true },
+      },
+      { signal: new AbortController().signal },
+    );
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
+      string,
+      unknown
+    >;
+    expect(cfg).not.toHaveProperty('thinkingConfig');
+
+    // Unknown generation → nothing (never guess a knob).
+    await p.complete(
+      {
+        model: 'gemma-2-2b-it',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 4096,
+        reasoning: { effort: 'high' },
+      },
+      { signal: new AbortController().signal },
+    );
+    cfg = (captured as Record<string, unknown>)?.['generationConfig'] as Record<
+      string,
+      unknown
+    >;
+    expect(cfg).not.toHaveProperty('thinkingConfig');
   });
 
   it('sends responseMimeType when responseFormat is json_schema', async () => {

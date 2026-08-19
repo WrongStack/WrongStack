@@ -274,6 +274,30 @@ describe('OpenAIProvider', () => {
     expect(captured?.['reasoning_effort']).toBe('high');
   });
 
+  it('sends reasoning_effort alongside tools (first-party endpoint supports both)', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [{ message: { role: 'assistant', content: 'k' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new OpenAIProvider({ apiKey: 'k', fetchImpl });
+    await p.complete(
+      {
+        model: 'o4',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 100,
+        reasoning: { effort: 'medium' },
+        tools: [{ name: 'read', description: 'Read a file', inputSchema: { type: 'object', properties: {} } }],
+      },
+      { signal: new AbortController().signal },
+    );
+    // The tools suppression was a third-party-gateway workaround misapplied to
+    // the first-party endpoint — it dropped effort from virtually every
+    // agentic request.
+    expect(captured?.['reasoning_effort']).toBe('medium');
+    expect(Array.isArray(captured?.['tools'])).toBe(true);
+  });
+
   it('does not send reasoning_effort for non-OpenAI effort values (minimal, xhigh, max)', async () => {
     let captured: Record<string, unknown> | undefined;
     const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {

@@ -446,6 +446,84 @@ describe('OpenAICompatibleProvider', () => {
     expect(captured?.['reasoning_effort']).toBeUndefined();
   });
 
+  it('suppresses reasoning_effort under tools uniformly on policy-less gateways', async () => {
+    // The old chain was inverted: with tools present the base builder dropped
+    // low/medium/high/none while the generic fill re-added minimal/xhigh/max
+    // as mapped extremes. Now EVERY effort level is dropped under tools for a
+    // generic (policy-less) endpoint, including the mapped ones.
+    let captured: Record<string, unknown> | undefined;
+    const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+    const p = new OpenAICompatibleProvider({
+      id: 'some-generic-gateway', // no requestPolicy, no thinkingParam quirk
+      apiKey: 'k',
+      baseUrl: 'https://gateway.example.com/v1',
+      fetchImpl: spy,
+    });
+    const tools = [{ name: 'read', description: 'Read', inputSchema: {} }];
+
+    // Verbatim-level effort: dropped under tools.
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'medium' }, tools },
+      { signal: new AbortController().signal },
+    );
+    expect(captured).not.toHaveProperty('reasoning_effort');
+
+    // Mapped-level effort (max → high via the generic fill): ALSO dropped.
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'max' }, tools },
+      { signal: new AbortController().signal },
+    );
+    expect(captured).not.toHaveProperty('reasoning_effort');
+
+    // Without tools the mapped fill still reaches the wire.
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'max' } },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['reasoning_effort']).toBe('high');
+  });
+
+  it('keeps reasoning_effort under tools for zai-glm quirk providers', async () => {
+    // The zai-glm quirk writes a deliberate Z.AI-contract mapping; the gateway
+    // suppression must not undo it.
+    let captured: Record<string, unknown> | undefined;
+    const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ model: 'm', choices: [], usage: {} }),
+        text: async () => '',
+      };
+    }) as never as typeof fetch;
+    const p = new OpenAICompatibleProvider({
+      id: 'zai',
+      apiKey: 'k',
+      baseUrl: 'https://api.z.ai/api/paas/v4',
+      quirks: { thinkingParam: 'zai-glm' },
+      fetchImpl: spy,
+    });
+    await p.complete(
+      {
+        model: 'glm-5.2',
+        messages: [{ role: 'user', content: 'hi' }],
+        maxTokens: 1,
+        reasoning: { enabled: true, effort: 'medium' },
+        tools: [{ name: 'read', description: 'Read', inputSchema: {} }],
+      },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['reasoning_effort']).toBe('high');
+  });
+
   it('works without custom headers', async () => {
     const spy = mockFetchSpy();
     const p = new OpenAICompatibleProvider({

@@ -3,12 +3,13 @@
  * as `OpenAIProvider`; the per-message body is the loop body of
  * `parseOpenAIStream` split into a stateful step.
  */
-import type { ReasoningEffort, Request, ResponseFormat, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
+import type { Request, ResponseFormat, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
 import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
 import { applyPromptCacheKey } from '../prompt-cache-key.js';
+import { isOpenAIEffort } from '../openai-shared.js';
 import { normalizeOpenAI } from '../stop-reason.js';
 import { messagesToOpenAI, toolsToOpenAI } from '../tool-format/to-openai.js';
 import { defineWireFormat } from '../wire-format.js';
@@ -302,16 +303,6 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
   // OpenAI SSE contract this reliably means truncation.
   isTruncated: (state) => state.started && !state.sawTerminal,
 });
-
-/**
- * OpenAI's Chat Completions API accepts `reasoning_effort` only for these
- * values. Mirrors the same-named guard in ../openai.ts.
- */
-const OPENAI_EFFORT_VALUES = new Set<ReasoningEffort>(['none', 'low', 'medium', 'high']);
-
-function isOpenAIEffort(effort: ReasoningEffort): boolean {
-  return OPENAI_EFFORT_VALUES.has(effort);
-}
 
 /**
  * Translate a canonical `ResponseFormat` to OpenAI's `response_format` body field.

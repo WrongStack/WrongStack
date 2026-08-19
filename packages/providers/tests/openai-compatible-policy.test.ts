@@ -82,6 +82,21 @@ describe('OpenAI-compatible provider policy', () => {
     expect(body).toEqual({ thinking: { type: 'enabled' }, reasoning_effort: 'high' });
   });
 
+  it('drops a leaked reasoning_effort when zai thinking is explicitly disabled', () => {
+    // The base builder emits effort on value alone (shouldEmitReasoningEffort
+    // ignores `enabled`), and the zai-glm quirk early-returns on
+    // enabled === false — so on this path any present effort is a base-builder
+    // leak that would ship alongside thinking:{type:'disabled'} as a
+    // contradictory payload. applyZai must delete it.
+    const body: Record<string, unknown> = { reasoning_effort: 'high' };
+    applyOpenAICompatiblePolicy(
+      body,
+      request('glm-5.2', { reasoning: { enabled: false, effort: 'high' } }),
+      'zai',
+    );
+    expect(body).toEqual({ thinking: { type: 'disabled' } });
+  });
+
   it('maps Alibaba thinking to enable_thinking and a bounded budget', () => {
     const body: Record<string, unknown> = { reasoning_effort: 'high', tool_choice: 'required' };
     const req = request('qwen3.7-plus', {
@@ -123,7 +138,27 @@ describe('OpenAI-compatible provider policy', () => {
       }),
       'groq',
     );
-    expect(body).toEqual({ reasoning_effort: 'default', reasoning_format: 'parsed' });
+    // Enabled without a representable level → omit rather than invent
+    // 'default', which is not in Groq's documented enum.
+    expect(body).toEqual({ reasoning_format: 'parsed' });
+  });
+
+  it('maps representable Groq efforts onto the documented enum', () => {
+    const body: Record<string, unknown> = { reasoning_effort: 'high' };
+    applyOpenAICompatiblePolicy(
+      body,
+      request('qwen/qwen3.6-27b', { reasoning: { effort: 'medium' } }),
+      'groq',
+    );
+    expect(body['reasoning_effort']).toBe('medium');
+
+    const off: Record<string, unknown> = {};
+    applyOpenAICompatiblePolicy(
+      off,
+      request('qwen/qwen3.6-27b', { reasoning: { enabled: false } }),
+      'groq',
+    );
+    expect(off['reasoning_effort']).toBe('none');
   });
 
   it('limits Perplexity reasoning effort to reasoning and research models', () => {

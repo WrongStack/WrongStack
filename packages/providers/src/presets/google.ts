@@ -5,7 +5,15 @@ import { randomUUID } from 'node:crypto';
  * of `thoughtSignature` and forced `tool_use` stop reason on functionCall
  * turns.
  */
-import type { Message, Request, StopReason, StreamEvent, Tool, Usage } from '@wrongstack/core/types';
+import type {
+  Message,
+  ReasoningEffort,
+  Request,
+  StopReason,
+  StreamEvent,
+  Tool,
+  Usage,
+} from '@wrongstack/core/types';
 import { compactToolDefinitionForWire, safeParse } from '@wrongstack/core/utils';
 import { capabilitiesForFamily } from '../family-capabilities.js';
 import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
@@ -173,12 +181,9 @@ function buildGenConfig(req: Request, ctx: BuildBodyContext): Record<string, unk
   if (req.candidateCount !== undefined) cfg['candidateCount'] = req.candidateCount;
   if (req.logprobs === true) cfg['logprobs'] = true;
   if (req.stopSequences) cfg['stopSequences'] = req.stopSequences;
-  // Gemini thinkingConfig maps from canonical reasoning request.
-  if (req.reasoning?.enabled === true) {
-    cfg['thinkingConfig'] = { type: 'enabled' };
-  } else if (req.reasoning?.enabled === false) {
-    cfg['thinkingConfig'] = { type: 'disabled' };
-  }
+  // Gemini thinkingConfig — see thinkingConfigFor().
+  const thinkingConfig = thinkingConfigFor(req, maxOutput);
+  if (thinkingConfig) cfg['thinkingConfig'] = thinkingConfig;
   if (req.responseFormat && req.responseFormat.type !== 'text') {
     cfg['responseMimeType'] = 'application/json';
     if (req.responseFormat.type === 'json_schema' && req.responseFormat.jsonSchema.schema) {
@@ -186,6 +191,147 @@ function buildGenConfig(req: Request, ctx: BuildBodyContext): Record<string, unk
     }
   }
   return cfg;
+}
+
+/**
+ * Map the canonical reasoning request onto Gemini's real `ThinkingConfig`
+ * fields. The API has exactly three knobs — `includeThoughts`,
+ * `thinkingBudget`, `thinkingLevel` — and no `type` field, so the previous
+ * `{ type: 'enabled' | 'disabled' }` shape was an unknown-name 400 risk and
+ * never carried the caller's effort at all.
+ *
+ * Per the live Gemini docs (checked 2026-08):
+ *   - Gemini 3 models use `thinkingLevel` (`minimal|low|medium|high`).
+ *   - Gemini 2.5 models use `thinkingBudget` (token count; `0` disables
+ *     thinking on Flash/Lite, `-1` = dynamic).
+ *   - Sending BOTH level and budget in one request is a 400.
+ *   - Dynamic thinking is the API default — no field needed to get it.
+ *
+ * Model-family detection is by id prefix. For unknown generations we send
+ * nothing: guessing a knob the model doesn't support is how the old bug
+ * happened. `maxOutput` is the cap buildGenConfig already resolved.
+ */
+function thinkingConfigFor(
+  req: Request,
+  maxOutput: number | undefined,
+): Record<string, unknown> | undefined {
+  const model = req.model.toLowerCase();
+  const isGemini3 = /^gemini-3/.test(model);
+  const isGemini25 = /^gemini-(2\.5|2\.6)/.test(model);
+  const reasoning = req.reasoning;
+  if (!reasoning) return undefined;
+
+  if (reasoning.enabled === false || reasoning.effort === 'none') {
+    // Explicit off — best-effort per tier:
+    //   - Gemini 3 Flash-tier: `minimal` is the documented floor.
+    //   - Gemini 3 Pro-tier: thinking cannot be disabled, so `low` — the
+    //     minimum the tier accepts — is the closest achievable state to "off".
+    //     Omitting the field (as 2.5 Pro does below) would fall back to
+    //     DYNAMIC thinking, which thinks more than `low` and is therefore
+    //     further from the caller's intent.
+    //   - 2.5/2.6 Flash/Lite: `thinkingBudget: 0` is the documented off switch.
+    //   - 2.5/2.6 Pro: cannot disable (rejects 0) and has no level enum, so
+    //     omit — guessing a budget risks a 400.
+    if (isGemini3) {
+      return { thinkingLevel: gemini3ProTier(model) ? 'low' : 'minimal' };
+    }
+    if (isGemini25 && /(?:flash|lite)/.test(model)) return { thinkingBudget: 0 };
+    return undefined;
+  }
+
+  const effort = reasoning.effort;
+  // `effort === 'none'` was consumed by the early return above, so any effort
+  // reaching here is a real level.
+  if (effort !== undefined) {
+    if (isGemini3) {
+      const level = geminiThinkingLevel(effort, gemini3ProTier(model));
+      return level ? { thinkingLevel: level } : undefined;
+    }
+    if (isGemini25) {
+      // 2.5 has no level enum — approximate the effort with a budget
+      // fraction of the response cap, mirroring the Anthropic adapter.
+      // 1025 is the smallest cap that can hold a legal budget (>=1024 and
+      // strictly under the cap). Below it the request is too small to think.
+      if (maxOutput !== undefined && maxOutput >= 1025) {
+        return { thinkingBudget: deriveGeminiThinkingBudget(maxOutput, effort) };
+      }
+      return { thinkingBudget: -1 }; // dynamic — let the model size it
+    }
+    return undefined;
+  }
+
+  // `enabled: true` with no effort → dynamic thinking, which is already the
+  // API default. Sending anything (the old code sent an invalid `type`) only
+  // risks a 400; the thinking channel still streams thought summaries.
+  return undefined;
+}
+
+/**
+ * Effort → Gemini 3 `thinkingLevel` value, narrowed to the tier's enum.
+ *
+ * Per the 2026-08 Gemini docs the level sets are tier-specific:
+ *   - Pro-tier (`gemini-3-pro`, Deep Think): `low | high`
+ *   - Flash-tier (`gemini-3-flash`, Flash-Lite): `minimal | low | medium | high`
+ * `xhigh`/`max` have no Gemini equivalent and collapse onto `high`.
+ * Returns undefined when nothing is representable.
+ */
+function geminiThinkingLevel(
+  effort: NonNullable<Request['reasoning']>['effort'],
+  proTier: boolean,
+): 'minimal' | 'low' | 'medium' | 'high' | undefined {
+  switch (effort) {
+    case 'minimal':
+      return proTier ? 'low' : 'minimal';
+    case 'low':
+      return 'low';
+    case 'medium':
+      return proTier ? 'high' : 'medium';
+    case 'high':
+    case 'xhigh':
+    case 'max':
+      return 'high';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Gemini 3 Pro-tier detection. Live 2026-08 model names: `gemini-3-pro`,
+ * `gemini-3-deep-think`, plus `gemini-3.7-*` / `gemini-3.5-*` refreshes whose
+ * Pro variants follow the same `*-pro` / `*-deep-think` suffix convention.
+ * Pro-tier accepts only `low | high`; Flash and Flash-Lite tiers accept the
+ * full `minimal | low | medium | high` enum.
+ */
+function gemini3ProTier(lowerModel: string): boolean {
+  return /(?:^|-)(?:pro|deep-think)(?:-|$)/.test(lowerModel);
+}
+
+/**
+ * Thinking budget for Gemini 2.5 from the resolved output cap. Same fraction
+ * ladder as the Anthropic adapter's `deriveThinkingBudget`, with both API
+ * bounds applied to the final value: budget >= 1024 and budget < maxOutput.
+ *
+ * When the fraction-derived ceiling falls below the 1024 floor (small cap ×
+ * low effort), returns `-1` (dynamic) rather than inflating to 1024: the 1024
+ * floor would exceed both the requested effort fraction and the 80% headroom
+ * cap, so letting the model size its own thinking is the honest mapping.
+ * Caller guarantees `maxOutput >= 1025`, so the returned fixed budget is
+ * always in the legal [1024, maxOutput) range.
+ */
+function deriveGeminiThinkingBudget(maxOutput: number, effort: ReasoningEffort): number {
+  const fraction =
+    effort === 'minimal'
+      ? 0.25
+      : effort === 'low'
+        ? 0.35
+        : effort === 'medium' || effort === undefined
+          ? 0.5
+          : effort === 'high'
+            ? 0.65
+            : /* 'xhigh' | 'max' */ 0.75;
+  const ceiling = Math.min(Math.floor(maxOutput * fraction), Math.floor(maxOutput * 0.8));
+  if (ceiling < 1024) return -1; // requested budget below the API floor → dynamic
+  return Math.min(ceiling, maxOutput - 1);
 }
 
 export function toolsToGemini(tools: Tool[]): Array<Record<string, unknown>> {

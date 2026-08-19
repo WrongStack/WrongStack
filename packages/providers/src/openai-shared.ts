@@ -5,6 +5,10 @@ import type { ReasoningEffort, Request } from '@wrongstack/core/types';
  * values. `minimal`, `xhigh`, and `max` are broader WrongStack-internal
  * effort levels that get mapped down or filtered out here — sending an
  * unrecognized value would cause a 400.
+ *
+ * Single source of truth for the Chat Completions allowlist: import this
+ * instead of redefining it locally (the OpenAI preset used to carry a private
+ * copy that drifted from this one).
  */
 export const OPENAI_EFFORT_VALUES = new Set<ReasoningEffort>(['none', 'low', 'medium', 'high']);
 
@@ -15,22 +19,21 @@ export function isOpenAIEffort(effort: ReasoningEffort): boolean {
 /**
  * Decide whether the wire body should carry `reasoning_effort` for this request.
  *
- * Some Chat Completions gateways reject the field whenever function tools are
- * present, regardless of value — so we omit it in that case to keep the
- * request valid. This includes literal `none`: compatibility gateways often
- * validate the mere presence of `reasoning_effort` before inspecting its
- * value, so `none` must not be treated as a safe exception.
+ * Value gate only. The former tools suppression — "some Chat Completions
+ * gateways reject the field whenever function tools are present" — was
+ * observed on third-party gateways (some LiteLLM / omniroute deployments),
+ * never on OpenAI's first-party endpoint, whose docs confirm effort works
+ * alongside tool use. Applying it here silently dropped `reasoning_effort`
+ * from virtually every agentic request the agent loop sends.
  *
- * NOTE: the gateway-rejection claim is based on observed behavior of a
- * subset of OpenAI-compatible Chat Completions gateways (e.g. some LiteLLM
- * / omniroute deployments). OpenAI's first-party Chat Completions endpoint
- * does not document this behavior. Provider-specific adapters that have an
- * explicit model allowlist (for example OpenCode Go) may restore supported
- * effort values after this conservative shared gate runs.
+ * The tools-based suppression lives on only where the observation came from:
+ * `applyGenericReasoningEffort` in the OpenAI-compatible adapter (generic
+ * gateways with no provider-specific policy). Provider-specific adapters with
+ * an explicit model allowlist (for example OpenCode Go) keep restoring
+ * supported values after that conservative gate runs.
  */
 export function shouldEmitReasoningEffort(req: Request): boolean {
   const effort = req.reasoning?.effort;
   if (effort === undefined) return false;
-  if (!isOpenAIEffort(effort)) return false;
-  return !(req.tools && req.tools.length > 0);
+  return isOpenAIEffort(effort);
 }

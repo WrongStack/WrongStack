@@ -460,9 +460,42 @@ describe('AnthropicProvider', () => {
       return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
     }) as never as typeof fetch;
     const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
-    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, reasoning: { enabled: true, effort: 'high' } }, { signal: new AbortController().signal });
+    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 8192, reasoning: { enabled: true, effort: 'high' } }, { signal: new AbortController().signal });
     expect(captured?.['thinking']).toMatchObject({ type: 'enabled' });
     expect((captured!['thinking'] as { budget_tokens: number }).budget_tokens).toBeGreaterThan(0);
+  });
+
+  it('treats an effort-only request as enable-with-budget (effort reaches the wire)', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+    // No `enabled` — the common case from the runtime effort dropdown. The
+    // Anthropic wire has no effort enum, only budget_tokens, so effort-only
+    // must map to enable + sized budget or it is a silent no-op.
+    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 8192, reasoning: { effort: 'high' } }, { signal: new AbortController().signal });
+    expect(captured?.['thinking']).toMatchObject({ type: 'enabled' });
+    const budget = (captured!['thinking'] as { budget_tokens: number }).budget_tokens;
+    expect(budget).toBeGreaterThanOrEqual(1024);
+    // medium ⇒ 50% of 8192, high ⇒ 65% — effort actually changes the budget.
+    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 8192, reasoning: { effort: 'medium' } }, { signal: new AbortController().signal });
+    const medium = (captured!['thinking'] as { budget_tokens: number }).budget_tokens;
+    expect(medium).toBeLessThan(budget);
+  });
+
+  it('omits thinking when the output cap cannot hold a legal budget', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new AnthropicProvider({ apiKey: 'k', fetchImpl });
+    // budget_tokens must be >= 1024 and < max_tokens — 100 satisfies neither.
+    // Sending a fabricated budget would 400; omitting keeps the request valid.
+    await p.complete({ model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100, reasoning: { enabled: true, effort: 'high' } }, { signal: new AbortController().signal });
+    expect(captured).not.toHaveProperty('thinking');
   });
 
   it('sends thinking.disabled when reasoning is off', async () => {

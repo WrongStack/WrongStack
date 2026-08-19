@@ -19,6 +19,7 @@ import { AnthropicOAuthProvider } from './anthropic-oauth.js';
 import { GitHubCopilotProvider } from './github-copilot.js';
 import { GoogleProvider } from './google.js';
 import { OpenAICodexProvider } from './openai-codex.js';
+import { MiniMaxProvider } from './minimax.js';
 import { OpenCodeZenProvider } from './opencode.js';
 import { OpenCodeGoProvider } from './opencode-go.js';
 import {
@@ -446,6 +447,19 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
           baseUrl,
           headers: cfg.headers,
           models: p.models,
+        });
+      }
+      // MiniMax routes M-series models to its Anthropic-compatible surface
+      // (interleaved thinking/tool blocks, prompt-cache usage) and keeps the
+      // OpenAI fallback for everything else. Without this special-case the
+      // trusted preset fell through to the generic OpenAICompatibleProvider,
+      // so the routing existed only under unit tests.
+      if (p.id === 'minimax' || p.id === 'minimax-coding-plan') {
+        return new MiniMaxProvider({
+          id: p.id,
+          apiKey: expectDefined(apiKey),
+          baseUrl,
+          headers: cfg.headers,
         });
       }
       // Use a tuned preset when available (Mistral, Ollama, vLLM, LM Studio, …).

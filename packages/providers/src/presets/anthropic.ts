@@ -91,13 +91,24 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
     if (req.toolChoice) body['tool_choice'] = req.toolChoice;
     if (req.user) body['metadata'] = { user_id: req.user };
     if (req.reasoning) {
-      if (req.reasoning.enabled === false) {
+      if (req.reasoning.enabled === false || req.reasoning.effort === 'none') {
         body['thinking'] = { type: 'disabled' };
-      } else if (req.reasoning.enabled === true) {
-        body['thinking'] = {
-          type: 'enabled',
-          budget_tokens: deriveThinkingBudget(maxOutput, req.reasoning.effort),
-        };
+      } else if (req.reasoning.enabled === true || req.reasoning.effort !== undefined) {
+        // An effort-only request (no explicit `enabled`) means the caller
+        // wants thinking at that level — the Anthropic wire has no effort
+        // enum, only a budget, so treating effort as "enable + size" is the
+        // only way the setting can take effect. Previously such requests
+        // sent no thinking field at all and the user's effort was a no-op
+        // (only OpenCode Go's Qwen path worked around it, locally).
+        // `effort: 'none'` is handled above: it canonically means OFF, not
+        // "enable with the smallest budget".
+        const budget = deriveThinkingBudget(maxOutput, req.reasoning.effort);
+        if (budget !== undefined) {
+          body['thinking'] = {
+            type: 'enabled',
+            budget_tokens: budget,
+          };
+        }
       }
     }
     // Enforce Anthropic's global 4-breakpoint ceiling across tools+system+
@@ -250,11 +261,19 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
 /**
  * Derive a thinking budget_tokens value for Anthropic's extended thinking.
  * Mirrors the same-named helper in ../anthropic.ts.
+ *
+ * Returns `undefined` when `maxTokens` cannot hold a legal budget: the API
+ * requires `budget_tokens >= 1024` AND `budget_tokens < max_tokens`. The
+ * smallest workable cap is therefore 1025 (budget exactly 1024). For anything
+ * smaller there is no value satisfying both, and emitting one anyway would 400
+ * every such request. Callers must omit the `thinking` field in that case.
  */
 function deriveThinkingBudget(
   maxTokens: number,
   effort: ReasoningEffort | undefined,
-): number {
+): number | undefined {
+  if (maxTokens < 1025) return undefined; // budget must be >=1024 AND < max_tokens
+
   const fraction =
     effort === 'none' || effort === 'minimal'
       ? 0.25

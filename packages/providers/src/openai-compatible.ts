@@ -4,6 +4,7 @@ import { capabilitiesForFamily } from './family-capabilities.js';
 import type { BuildBodyContext } from './model-output-limits.js';
 import { OpenAIProvider } from './openai.js';
 import { applyOpenAICompatiblePolicy } from './openai-compatible-policy.js';
+import { resolveProviderDefinition } from './provider-definitions.js';
 import type { WireAdapterStreamOptions } from './wire-adapter.js';
 
 export type { CompatibilityQuirks } from './compatibility-quirks.js';
@@ -109,6 +110,11 @@ export class OpenAICompatibleProvider extends OpenAIProvider {
     // accept the `top_k` parameter even though real OpenAI rejects it.
     if (req.topK !== undefined) body['top_k'] = req.topK;
     applyOpenAICompatiblePolicy(body, req, this.id);
+    // Conservative gateway guard, applied AFTER the generic fill so it
+    // suppresses uniformly (see suppressEffortForGatewayTools). Providers with
+    // a requestPolicy own their effort contract, and the zai-glm quirk writes
+    // a deliberate mapping — both are exempt.
+    suppressEffortForGatewayTools(body, req, this.id, this.opts.quirks?.thinkingParam);
     return body;
   }
 
@@ -175,6 +181,17 @@ function mapZaiReasoningEffort(
  * `low | high` extremes and set them — but never override a value the base or a
  * more specific quirk (`zai-glm`) already wrote, and never when reasoning was
  * explicitly disabled.
+ *
+ * No policy-ownership skip: request policies run AFTER this fill and each
+ * begins by deleting the field, so a provider whose policy handles effort only
+ * for SOME models (DeepSeek: v4 only; everything else keeps the generic
+ * contract) still gets the generic fill for the rest.
+ *
+ * No tools gate: the base builder no longer suppresses effort when tools are
+ * present, so the mapping is uniform for tool-carrying and tool-free requests
+ * alike. The old behavior was inverted under tools — low/medium/high/none were
+ * dropped while minimal/xhigh/max survived as mapped extremes — exactly
+ * backwards from user intent.
  */
 function applyGenericReasoningEffort(
   body: Record<string, unknown>,
@@ -205,4 +222,36 @@ function mapGenericReasoningEffort(effort: ReasoningEffort): 'low' | 'high' | un
     default:
       return undefined;
   }
+}
+
+/**
+ * Conservative gateway guard for GENERIC openai-compatible endpoints only.
+ *
+ * Observed behavior of a subset of Chat Completions gateways (some LiteLLM /
+ * omniroute deployments): they reject `reasoning_effort` whenever function
+ * tools are present, regardless of value — presence itself is validated
+ * before the value. OpenAI's first-party endpoint has no such restriction
+ * (effort works with tool use per its docs), which is why this guard lives
+ * here and not in the shared base builder.
+ *
+ * Runs AFTER `applyGenericReasoningEffort` and AFTER the request policy so
+ * suppression is uniform: with tools present, EVERY effort level is dropped —
+ * not just the ones the base builder emits (the old behavior was inverted:
+ * low/medium/high/none were dropped while minimal/xhigh/max survived as
+ * mapped `low`/`high` extremes). Providers with a `requestPolicy` own their
+ * effort contract and are exempt; the policy either deleted the field
+ * already or wrote a value their public API accepts. The `zai-glm` quirk is
+ * exempt too: `applyThinkingParams` wrote a deliberate Z.AI-contract mapping
+ * that this guard must not undo.
+ */
+function suppressEffortForGatewayTools(
+  body: Record<string, unknown>,
+  req: Request,
+  providerId: string,
+  thinkingParam: CompatibilityQuirks['thinkingParam'],
+): void {
+  if (!req.tools || req.tools.length === 0) return;
+  if (thinkingParam === 'zai-glm') return;
+  if (resolveProviderDefinition(providerId)?.requestPolicy) return;
+  delete body['reasoning_effort'];
 }
