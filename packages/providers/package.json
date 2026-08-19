@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
-    "ai": "7.0.64"
+    "ai": "7.0.66"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
