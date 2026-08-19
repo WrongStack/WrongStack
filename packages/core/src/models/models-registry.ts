@@ -416,6 +416,14 @@ export class DefaultModelsRegistry implements ModelsRegistry {
     if (!provider) return undefined;
     const model = provider.models.find((m) => m.id === modelId);
     if (!model) return undefined;
+    // NOTE (invariant): the raw-entry lookup above is a PLAIN id-find over
+    // `resolveProvider(p).models`. `capabilities.reasoning` below coerces
+    // `model.reasoning ?? false`, collapsing "documented non-reasoning" and
+    // "metadata missing" — so consumers needing the raw fact (e.g. the CLI
+    // /effort `loadModelLevels` raw-catalog lookup) must perform their own
+    // find rather than trust the coerced boolean. If this lookup ever grows
+    // aliasing, case-normalization, or provider filtering, those consumers
+    // must follow or they will silently disagree with getModel.
     return {
       providerId,
       modelId,
@@ -515,7 +523,17 @@ function normalizeModelsDevModel(model: ModelsDevModel): ModelsDevModel {
   const reasoningConfig: ReasoningConfig = {
     default: disableSupported ? 'enabled' : 'always_on',
     disableSupported,
-    effortSupported: effortLevels.length > 0,
+    // Tri-state (see ReasoningConfig.effortSupported):
+    //   options present  → documented answer (true when effort values exist;
+    //                      an explicitly EMPTY array is a documented "no
+    //                      effort control", not an absent field).
+    //   field ABSENT     → the model is known to reason but its vocabulary is
+    //                      undocumented → `undefined`, so the resolver forwards
+    //                      the request and each wire adapter applies its own
+    //                      transport gating. Sending `false` here would make
+    //                      the resolver claim "does not support effort" — an
+    //                      assertion the catalog never made.
+    ...(raw === undefined ? {} : { effortSupported: effortLevels.length > 0 }),
     effortLevels,
     preserveThinking: model.interleaved ? 'always_on' : 'unsupported',
   };

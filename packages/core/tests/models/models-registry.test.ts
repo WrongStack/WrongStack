@@ -167,6 +167,71 @@ describe('DefaultModelsRegistry', () => {
     });
   });
 
+  it('marks reasoning:true with no options as effort-undocumented (B6 tri-state)', async () => {
+    const reg = new DefaultModelsRegistry({
+      cacheFile,
+      seed: {
+        gateway: {
+          id: 'gateway',
+          name: 'Gateway',
+          npm: '@ai-sdk/openai-compatible',
+          models: {
+            silentthinker: {
+              id: 'silentthinker',
+              name: 'Silent Thinker',
+              // reasoning: true, but the catalog publishes no reasoning_options
+              // — effort vocabulary undocumented.
+              reasoning: true,
+            },
+          },
+        },
+      },
+    });
+
+    const model = await reg.getModel('gateway', 'silentthinker');
+
+    // `effortSupported` is ABSENT (not false): the catalog never said this
+    // model lacks effort control, only that it didn't enumerate it. The
+    // resolver forwards requested effort and the wire adapter gates it.
+    expect(model?.capabilities.reasoningConfig).toEqual({
+      default: 'always_on',
+      disableSupported: false,
+      effortLevels: [],
+      preserveThinking: 'unsupported',
+    });
+    expect(
+      model?.capabilities.reasoningConfig?.effortSupported,
+    ).toBeUndefined();
+  });
+
+  it('marks toggle-only reasoning as effort-unsupported (documented absence)', async () => {
+    const reg = new DefaultModelsRegistry({
+      cacheFile,
+      seed: {
+        gateway: {
+          id: 'gateway',
+          name: 'Gateway',
+          npm: '@ai-sdk/openai-compatible',
+          models: {
+            toggler: {
+              id: 'toggler',
+              name: 'Toggler',
+              reasoning: true,
+              reasoning_options: [{ type: 'toggle' }],
+            },
+          },
+        },
+      },
+    });
+
+    const model = await reg.getModel('gateway', 'toggler');
+
+    // Options PRESENT and document that effort control does not exist —
+    // explicit `false`, so the resolver drops effort with a warning.
+    expect(model?.capabilities.reasoningConfig?.effortSupported).toBe(false);
+    expect(model?.capabilities.reasoningConfig?.disableSupported).toBe(true);
+  });
+
   it('suggestModel returns the newest', async () => {
     const reg = new DefaultModelsRegistry({ cacheFile, seed: SAMPLE });
     expect(await reg.suggestModel('anthropic')).toBe('claude-opus-4-7');

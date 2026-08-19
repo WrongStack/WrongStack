@@ -581,7 +581,13 @@ async function modelsCaps(args: string[], deps: Parameters<SubcommandHandler>[1]
       '    disable:    ' + (rc.disableSupported ? 'supported' : 'unsupported') + '\n',
     );
     deps.renderer.write(
-      '    effort:     ' + (rc.effortSupported ? rc.effortLevels.join(', ') : 'unsupported') + '\n',
+      '    effort:     ' +
+      (rc.effortSupported === undefined
+        ? 'not enumerated (model reasons; any level forwarded)'
+        : rc.effortSupported
+          ? rc.effortLevels.join(', ')
+          : 'unsupported') +
+      '\n',
     );
     deps.renderer.write('    preserve:   ' + rc.preserveThinking + '\n');
   } else if (caps.reasoning) {

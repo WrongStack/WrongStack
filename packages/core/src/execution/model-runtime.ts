@@ -108,7 +108,7 @@ export function resolveReasoningForRequest(
   // actionable response, and the resolver already omits the value to avoid
   // provider errors. Surfacing a warning every request would be pure noise.
   const capKnown = rc !== undefined;
-  const supportsReasoning = rc ? rc.default !== 'disabled' || rc.disableSupported || rc.effortSupported : false;
+  const supportsReasoning = rc ? rc.default !== 'disabled' || rc.disableSupported || rc.effortSupported !== false : false;
 
   const out: ReasoningRequest = {};
 
@@ -136,17 +136,29 @@ export function resolveReasoningForRequest(
 
   const effort = cfg.effort;
   if (effort !== undefined) {
-    if (capKnown && rc?.effortSupported && rc.effortLevels.includes(effort)) {
-      out.effort = effort;
-    } else if (capKnown && rc?.effortSupported) {
+    if (!capKnown) {
+      // Capability-unknown: silently omit. The resolver cannot tell whether
+      // the model accepts the field, so it drops the value rather than guess.
+    } else if (rc?.effortSupported === false) {
+      warnings.push(
+        `reasoning effort "${effort}" requested, but this model does not support effort control; the setting was omitted.`,
+      );
+    } else if (
+      rc?.effortSupported === true &&
+      rc.effortLevels.length > 0 &&
+      !rc.effortLevels.includes(effort)
+    ) {
       warnings.push(
         `reasoning effort "${effort}" not supported by this model (supported: ${rc.effortLevels.join(', ')}); the setting was omitted.`,
       );
-    } else if (capKnown) {
-      warnings.push(`reasoning effort "${effort}" requested, but this model does not support effort; the setting was omitted.`);
+    } else {
+      // Either the documented levels include this effort, or the model's
+      // effort vocabulary is undocumented (`effortSupported === undefined`).
+      // Forward it: every wire adapter applies its own transport-level gating
+      // (allowlist, mapping, or omit), so an undocumented model can only
+      // match-or-omit — never receive a field shape it did not advertise.
+      out.effort = effort;
     }
-    // capKnown === false: silently omit; the resolver cannot tell whether
-    // the model supports effort, so it drops the field rather than guess.
   }
 
   if (cfg.preserve !== undefined) {

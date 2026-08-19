@@ -30,6 +30,21 @@ const capsWithoutPreserve: ReasoningConfig = {
   preserveThinking: 'unsupported',
 };
 
+/**
+ * B6 tri-state: a model that reasons but whose effort vocabulary the catalog
+ * does not document (`reasoning: true` with no `reasoning_options`).
+ * Normalization leaves `effortSupported` unset; the resolver must FORWARD the
+ * requested effort (transport adapters apply their own gating) instead of
+ * claiming "does not support effort" — an assertion the catalog never made.
+ */
+const capsUndocumentedEffort: ReasoningConfig = {
+  default: 'always_on',
+  disableSupported: false,
+  effortSupported: undefined,
+  effortLevels: [],
+  preserveThinking: 'unsupported',
+};
+
 describe('resolveModelRuntime', () => {
   it('returns undefined fields when settings are absent', () => {
     const r = resolveModelRuntime(undefined, capsOn);
@@ -70,6 +85,26 @@ describe('resolveModelRuntime', () => {
     const r = resolveModelRuntime(settings, capsOn);
     expect(r.reasoning).toBeUndefined();
     expect(r.warnings[0]).toMatch(/not supported/);
+  });
+
+  it('forwards effort when the model reasons but levels are undocumented (B6)', () => {
+    const settings: ModelRuntimeConfig = { reasoning: { effort: 'high' } };
+    const r = resolveModelRuntime(settings, capsUndocumentedEffort);
+    expect(r.reasoning).toEqual({ effort: 'high' });
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('mode "on" is representable when effortSupported is undocumented (B6)', () => {
+    const settings: ModelRuntimeConfig = { reasoning: { mode: 'on', effort: 'medium' } };
+    const r = resolveModelRuntime(settings, capsUndocumentedEffort);
+    expect(r.reasoning).toEqual({ enabled: true, effort: 'medium' });
+  });
+
+  it('still drops effort with a warning when effort is documented absent', () => {
+    const settings: ModelRuntimeConfig = { reasoning: { effort: 'high' } };
+    const r = resolveModelRuntime(settings, capsAlwaysOn);
+    expect(r.reasoning).toBeUndefined();
+    expect(r.warnings[0]).toMatch(/does not support effort control/);
   });
 
   it('maps preserve when preserveThinking !== unsupported', () => {

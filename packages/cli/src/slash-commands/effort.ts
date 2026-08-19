@@ -56,10 +56,11 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
 
   async function loadModelLevels(): Promise<{
     levels: ReasoningEffort[] | undefined;
-    supported: boolean;
+    /** Tri-state: true = documented levels, false = no effort control, undefined = undocumented vocabulary. */
+    supported: boolean | undefined;
   }> {
     const registry = opts.modelsRegistry;
-    if (!registry) return { levels: undefined, supported: false };
+    if (!registry) return { levels: undefined, supported: undefined };
     const config = opts.configStore.get();
     try {
       const catalogId = catalogProviderIdFor(
@@ -68,14 +69,29 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
       );
       const resolved = await registry.getModel(catalogId, config.model);
       const rc = resolved?.capabilities.reasoningConfig;
-      if (!rc) return { levels: undefined, supported: false };
+      // No reasoningConfig. `ResolvedModel.capabilities.reasoning` cannot be
+      // trusted here: getModel derives it as `model.reasoning ?? false`, which
+      // collapses "catalog says reasoning:false" (a documented absence) and
+      // "model unknown to the catalog / metadata missing" (genuinely unknown)
+      // into the same false. Consult the RAW catalog entry instead — only an
+      // explicit `reasoning: false` is a documented non-reasoning model.
+      if (!rc) {
+        const provider = await registry.getProvider(catalogId).catch(() => undefined);
+        const raw = provider?.models.find((m) => m.id === config.model);
+        return { levels: undefined, supported: raw?.reasoning === false ? false : undefined };
+      }
       return {
         levels: rc.effortLevels?.length ? rc.effortLevels : undefined,
-        supported: !!rc.effortSupported,
+        // rc present ⇒ the model is known to reason. Only a DOCUMENTED
+        // absence (`effortSupported === false`) marks it unsupported; an
+        // undocumented vocabulary (`undefined`) is "supported, not
+        // enumerated" — accept any canonical level and let the wire adapter
+        // gate. `undefined` here is reserved for capabilities-unknown above.
+        supported: rc.effortSupported !== false,
       };
     } catch {
       // Catalog unavailable — capabilities unknown; do not block the command.
-      return { levels: undefined, supported: false };
+      return { levels: undefined, supported: undefined };
     }
   }
 
@@ -158,9 +174,13 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
             l === current ? color.bold(l) : l,
           );
           lines.push(`  ${color.bold('levels')}  ${rendered.join(' · ')}`);
-        } else if (supported) {
+        } else if (supported === true) {
           lines.push(
-            `  ${color.bold('levels')}  ${color.dim('(model supports effort; no explicit level list)')}`,
+            `  ${color.bold('levels')}  ${color.dim('(not enumerated — any level is accepted; the transport applies its own gating)')}`,
+          );
+        } else if (supported === false) {
+          lines.push(
+            `  ${color.bold('levels')}  ${color.red('no effort control')}${color.dim(' — documented as unsupported for this model')}`,
           );
         } else {
           lines.push(
@@ -195,6 +215,14 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
       if (!isReasoningEffort(sub)) {
         return {
           message: `${color.amber('Usage:')} /effort ${REASONING_EFFORT_LEVELS.join('|')} | clear | matrix`,
+        };
+      }
+      if (supported === false) {
+        return {
+          message: [
+            `${color.red('No effort control')} for ${config.provider}/${config.model}: the catalog documents this model's reasoning options without effort levels.`,
+            `  ${color.dim('/effort clear removes the setting')}`,
+          ].join('\n'),
         };
       }
       if (levels && !levels.includes(sub)) {

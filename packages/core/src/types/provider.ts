@@ -160,7 +160,20 @@ export interface RequestCacheControl {
 export interface ReasoningConfig {
   default: 'enabled' | 'disabled' | 'adaptive' | 'always_on';
   disableSupported: boolean;
-  effortSupported: boolean;
+  /**
+   * Tri-state effort support:
+   *   `true`      — the catalog documents this model's effort levels
+   *                 (`effortLevels` is authoritative).
+   *   `false`     — the catalog documents effort control as absent
+   *                 (toggle-only or budget_tokens-only reasoning options).
+   *   `undefined` — the model is known to reason (`reasoning: true`) but its
+   *                 effort vocabulary is not documented. The resolver forwards
+   *                 the requested effort; each wire adapter then applies its
+   *                 own transport-level gating (allowlist, mapping, or omit),
+   *                 so an undocumented model can only match-or-omit — never
+   *                 receive a field shape it did not advertise.
+   */
+  effortSupported?: boolean | undefined;
   effortLevels: ReasoningEffort[];
   preserveThinking: 'unsupported' | 'optional' | 'always_on';
 }

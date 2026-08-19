@@ -26,12 +26,16 @@ function mkConfigStore(initial: Partial<Config>) {
   };
 }
 
-/** Registry stub whose getModel returns a fixed reasoningConfig. */
+/** Registry stub whose getModel returns a fixed reasoningConfig, with an
+ * optional raw provider entry list backing getProvider (see the raw-catalog
+ * lookup in loadModelLevels). */
 function mkRegistry(
   resolved?: { capabilities: { reasoningConfig?: object } },
+  rawModels?: Array<{ id: string; reasoning?: boolean }>,
 ): ModelsRegistry {
   return {
     getModel: async () => resolved,
+    getProvider: async () => (rawModels ? { models: rawModels } : undefined),
   } as never as ModelsRegistry;
 }
 
@@ -78,6 +82,24 @@ const GPT52_RC = {
   disableSupported: true,
   effortSupported: true,
   effortLevels: ['low', 'medium', 'high'] as ReasoningEffort[],
+  preserveThinking: 'unsupported' as const,
+};
+
+/** B6 tri-state: reasons, vocabulary undocumented → effortSupported absent. */
+const UNDOCUMENTED_RC = {
+  default: 'always_on' as const,
+  disableSupported: false,
+  effortSupported: undefined,
+  effortLevels: [] as ReasoningEffort[],
+  preserveThinking: 'unsupported' as const,
+};
+
+/** Documented absence: toggle-only reasoning → effortSupported false. */
+const NO_EFFORT_RC = {
+  default: 'enabled' as const,
+  disableSupported: true,
+  effortSupported: false,
+  effortLevels: [] as ReasoningEffort[],
   preserveThinking: 'unsupported' as const,
 };
 
@@ -135,6 +157,78 @@ describe('/effort', () => {
     const res = await cmd.run('');
     expect(res?.message).toContain('not set');
     expect(res?.message).toContain('unknown');
+  });
+
+  it('B6: accepts any level and notes transport gating when vocabulary is undocumented', async () => {
+    const cmd = buildEffortCommand(
+      mkDeps({
+        profileDir,
+        registry: mkRegistry({ capabilities: { reasoningConfig: UNDOCUMENTED_RC } }),
+        config: { provider: 'gateway', model: 'silentthinker' } as never as Partial<Config>,
+      }),
+    );
+    // View: "not enumerated" note, no advertised levels.
+    const view = await cmd.run('');
+    expect(view?.message).toContain('not enumerated');
+    expect(view?.message).toContain('transport applies its own gating');
+    // Set: succeeds (resolver forwards; transport gates).
+    const set = await cmd.run('high');
+    expect(set?.message).toContain('✓');
+    await expect(readPersisted()).resolves.toMatchObject({
+      modelRuntime: { reasoning: { effort: 'high' } },
+    });
+  });
+
+  it('B6: rejects effort when the catalog documents no effort control', async () => {
+    const cmd = buildEffortCommand(
+      mkDeps({
+        profileDir,
+        registry: mkRegistry({ capabilities: { reasoningConfig: NO_EFFORT_RC } }),
+        config: { provider: 'gateway', model: 'toggler' } as never as Partial<Config>,
+      }),
+    );
+    const view = await cmd.run('');
+    expect(view?.message).toContain('no effort control');
+    const set = await cmd.run('high');
+    expect(set?.message).toContain('No effort control');
+    // Nothing persisted on rejection.
+    await expect(
+      fs.readFile(path.join(profileDir, 'default', 'config.json'), 'utf8'),
+    ).rejects.toThrow();
+  });
+
+  it('B6: rejects effort for a model known not to reason (resolved, no reasoningConfig)', async () => {
+    // Model resolves in the catalog and its RAW entry explicitly says
+    // reasoning: false — a documented non-reasoning model. Must reject.
+    const cmd = buildEffortCommand(
+      mkDeps({
+        profileDir,
+        registry: mkRegistry(
+          { capabilities: { reasoning: false } as never },
+          [{ id: 'plain-llm', reasoning: false }],
+        ),
+        config: { provider: 'gateway', model: 'plain-llm' } as never as Partial<Config>,
+      }),
+    );
+    const set = await cmd.run('high');
+    expect(set?.message).toContain('No effort control');
+  });
+
+  it('B6: stays permissive when the model is absent from the catalog entirely', async () => {
+    // getModel returns a resolved shape whose derived capabilities.reasoning
+    // is false ONLY because getModel coerces missing metadata (`?? false`) —
+    // the raw catalog entry does not exist, so nothing was actually
+    // documented. This is the ResolvedModel-collapse regression: rejecting
+    // here would claim a fact the catalog never stated.
+    const cmd = buildEffortCommand(
+      mkDeps({
+        profileDir,
+        registry: mkRegistry({ capabilities: { reasoning: false } as never }),
+        config: { provider: 'gateway', model: 'ghost-model' } as never as Partial<Config>,
+      }),
+    );
+    const set = await cmd.run('high');
+    expect(set?.message).toContain('✓');
   });
 
   it('persists a supported effort and mirrors it into the config store', async () => {
