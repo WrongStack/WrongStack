@@ -323,7 +323,13 @@ jobs:
     name: E2E (Playwright)
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 25 (was 15): the browser-install step can stall against the apt
+    # mirror (observed 2026-08-19: 3 of 4 runs hung ~13 min in apt-get
+    # fetch with zero progress until the 15m job timeout killed them,
+    # reported misleadingly as "cancelled"). The extra headroom plus the
+    # per-attempt cap on the install step makes one transient stall
+    # survivable instead of fatal to the whole job.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -370,7 +376,30 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        run: |
+          # Retry with a per-attempt cap. The observed failure mode is a
+          # hang: apt-get stalls against the mirror and never returns
+          # non-zero on its own, so a plain re-run would never fire — the
+          # job timeout killed it (reported misleadingly as "cancelled").
+          # `timeout 7m` turns a stall into exit 124, giving three
+          # attempts inside the 25-minute job budget. Shell loop instead
+          # of a retry action keeps the pinned-actions policy (WS-041).
+          for attempt in 1 2 3; do
+            echo "::group::Browser install attempt $attempt/3"
+            if timeout 7m pnpm exec playwright install --with-deps chromium; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            code=$?
+            echo "::endgroup::"
+            echo "Attempt $attempt/3 failed (exit $code)." >&2
+            if [ "$attempt" -lt 3 ]; then
+              echo "Retrying in 20s…" >&2
+              sleep 20
+            fi
+          done
+          echo "All 3 browser-install attempts failed." >&2
+          exit 1
 
       - name: Run E2E tests
         run: pnpm test:e2e
