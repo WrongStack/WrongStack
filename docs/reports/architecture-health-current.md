@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-19T07:29:59.534Z
+**Generated:** 2026-08-19T08:45:19.593Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 32 |
 | Production source files | 3265 |
-| Production source lines | 778680 |
+| Production source lines | 778712 |
 | Test files | 2823 |
 | Workspace dependency edges | 103 |
 | Relative module edges | 10119 |
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/kanban/src/types.ts: hotspot grew from 960 to 970 lines; review and update the ratchet in the same change
 
 ## Workspace packages
 
@@ -123,11 +123,11 @@ None.
 | 974 | `packages/webui/src/stores/viz-store.ts` |
 | 972 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 971 | `packages/sage/src/tools/memory-tools.ts` |
+| 970 | `packages/kanban/src/types.ts` |
 | 970 | `packages/webui-server/src/server/collaboration-ws-handler.ts` |
 | 965 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 965 | `packages/webui/src/components/ChatInput.tsx` |
 | 964 | `packages/core/src/coordination/provider-status-tracker.ts` |
-| 960 | `packages/kanban/src/types.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 953 | `packages/tui/src/app-key-handler.ts` |
 | 950 | `packages/tui/src/components/history/utils.tsx` |

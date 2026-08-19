@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T07:29:59.534Z",
+  "generatedAt": "2026-08-19T08:45:19.593Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 32,
     "sourceFiles": 3265,
     "testFiles": 2823,
-    "sourceLines": 778680,
+    "sourceLines": 778712,
     "workspaceEdges": 103,
     "moduleEdges": 10119,
     "nonCommandSlashImports": 0,
@@ -24,7 +24,9 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 803
   },
-  "errors": [],
+  "errors": [
+    "packages/kanban/src/types.ts: hotspot grew from 960 to 970 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -18301,7 +18303,7 @@
     },
     {
       "file": "packages/kanban/src/types.ts",
-      "lines": 960,
+      "lines": 970,
       "relativeImports": 2
     },
     {
@@ -18837,6 +18839,11 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/kanban/src/types.ts",
+      "lines": 970,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
       "lines": 970,
       "relativeImports": 2
@@ -18855,11 +18862,6 @@
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
       "lines": 964,
       "relativeImports": 3
-    },
-    {
-      "file": "packages/kanban/src/types.ts",
-      "lines": 960,
-      "relativeImports": 2
     },
     {
       "file": "packages/core/src/execution/eternal-autonomy.ts",
