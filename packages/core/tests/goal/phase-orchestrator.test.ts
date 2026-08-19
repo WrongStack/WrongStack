@@ -885,14 +885,18 @@ describe('PhaseOrchestrator — interactive board mutations', () => {
     const graph = await buildSignalGraph();
     let taskStarted = false;
     let abortObserved = false;
+    let capturedTask: TaskNode | undefined;
 
     // Signal-honoring implementor: the execution hangs forever on its own and
     // only settles when the orchestrator aborts it — the worst case stop()
     // must handle. Before the signal existed, this run never settled and
     // start() hung with the phase stuck between running and worktree release.
     const ctx: PhaseExecutionContext = {
-      executeTask: (_task, _phaseId, _env, signal) =>
+      executeTask: (task, _phaseId, _env, signal) =>
         new Promise((_resolve, reject) => {
+          // executeSingleTask hands us the live graph node; capturing it lets
+          // the test assert the node-level reset below.
+          capturedTask = task;
           taskStarted = true;
           signal?.addEventListener(
             'abort',
@@ -921,6 +925,12 @@ describe('PhaseOrchestrator — interactive board mutations', () => {
     // 'paused' so a resume can re-run the interrupted tasks.
     expect(phases[0]!.status).toBe('paused');
     expect(phases[0]!.status).not.toBe('completed');
+    // The actual resumability mechanism: markTaskFailed's stop path resets the
+    // aborted node itself to 'pending' (without burning a retry), so a later
+    // start() re-runs it via getExecutableTasks instead of skipping it as
+    // 'in_progress' forever.
+    expect(capturedTask).toBeDefined();
+    expect(capturedTask!.status).toBe('pending');
   });
 
   it('a timed-out task settles before its retry starts (no duplicate concurrent instance)', async () => {
