@@ -4,6 +4,11 @@ How to write a WrongStack plugin: register tools, providers, slash
 commands, pipeline middleware, and MCP servers. Tested end-to-end with
 real plugin fixtures in `packages/core/tests/plugin/`.
 
+> **Third-party authors:** depend on [`@wrongstack/plugin-sdk`](../packages/plugin-sdk/README.md)
+> instead of `@wrongstack/core` — it exports the same contract types plus
+> `definePlugin` and the shared runtime helpers. Packaging, publishing, and
+> the trust model are covered in [plugin-third-party.md](./plugin-third-party.md).
+
 ---
 
 ## What a plugin is
@@ -13,7 +18,7 @@ A plugin is a default-exported `Plugin` object. The host calls
 
 ```ts
 // my-plugin/index.ts
-import type { Plugin } from '@wrongstack/core';
+import type { Plugin } from '@wrongstack/plugin-sdk';
 
 const plugin: Plugin = {
   name: 'my-plugin',
@@ -44,11 +49,30 @@ const plugin: Plugin = {
 export default plugin;
 ```
 
-The host loads this from one of:
+The host loads external plugins from (in precedence order — a `config.plugins`
+entry always wins over a discovered plugin with the same name):
 
-- `~/.wrongstack/plugins/<name>/` — user-global
-- `<projectRoot>/.wrongstack/plugins/<name>/` — project-local
-- A path listed in `Config.plugins[<name>].path`
+1. **`config.plugins` specifier entries** — `"my-plugin"` or
+   `"@scope/wstack-plugin-x"` are dynamically imported through normal Node
+   module resolution.
+2. **`config.plugins` path entries** — `{ "name": "my-plugin", "path": "./my-plugin" }`
+   resolves the target (relative paths anchor to the project root; absolute
+   paths and `file:` URLs also work) to an entry file or a directory with
+   `package.json` / `index.js`.
+3. **Directory discovery** —
+   - `~/.wrongstack/plugins/<name>/` — user-global, **active by default**
+   - `<projectRoot>/.wrongstack/plugins/<name>/` — project-local, **inactive
+     by default** (a cloned repo must not auto-execute plugin code; enable
+     with a `plugins` entry or `extensions.<name>.enabled: true`)
+
+   Each directory's entry is resolved from `package.json` (`main` or
+   `exports["."]`) with `index.js` / `index.mjs` / `index.cjs` fallbacks.
+
+`wstack plugin add <specifier>` registers a config entry;
+`wstack plugin add <specifier> --install` additionally installs the package
+into `~/.wrongstack/plugins/` via your package manager (npm/pnpm/yarn/bun;
+`--pm` overrides detection) with lifecycle scripts **disabled by default**
+(`--run-scripts` opts in) and records the explicit install path in config.
 
 ---
 
@@ -78,6 +102,21 @@ work (subprocesses, network requests), manage its lifecycle in `teardown`.
 There is no sandbox between a plugin and the host. If you need to run
 untrusted code, that would require a future out-of-process plugin architecture
 (which does not exist yet).
+
+What the host *does* enforce for external (non-built-in) plugins:
+
+- **Capability honesty is strict.** An external plugin calling an API surface
+  it declared `capabilities.<surface>: false` (or omitted while using
+  `false`-declared surfaces) is rejected at setup time. First-party plugins
+  keep warn-only behaviour.
+- **Trust-on-first-use pinning.** The first load of an external plugin hashes
+  its resolved entry file (`sha256-…`) into `~/.wrongstack/plugin-trust.json`
+  *before any module code executes*. A later load with a changed hash is
+  refused until you confirm the change with `wstack plugin trust <name>`
+  (or disable pinning globally with `features.pluginsTrust: false`).
+- **Name spoofing is blocked.** External plugins may not declare a name owned
+  by a built-in plugin, and their slash commands are namespaced
+  (`owner:name`) instead of claiming bare names.
 
 This tradeoff is the same model used by Webpack, Rollup, Babel, ESLint, and
 Fastify — the dominant pattern in the JS/TS ecosystem. VS Code is the notable

@@ -455,6 +455,7 @@ export async function setupLifecycleAndPlugins(
       syncConfig: wpaths.syncConfig,
       projectDir: wpaths.projectDir,
       projectGoal: wpaths.projectGoal,
+      projectRoot: wpaths.projectRoot,
     },
     hookRegistry,
     mailbox: brainMailbox,

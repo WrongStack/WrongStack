@@ -49,8 +49,8 @@
       "runtimeOrMixed": 59
     },
     "@wrongstack/core/extension": {
-      "files": 6,
-      "typeOnly": 5,
+      "files": 7,
+      "typeOnly": 6,
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/goal": {
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 39
     },
     "@wrongstack/core/kernel": {
-      "files": 236,
-      "typeOnly": 124,
+      "files": 237,
+      "typeOnly": 125,
       "runtimeOrMixed": 123
     },
     "@wrongstack/core/kernel/events.js": {
@@ -104,9 +104,9 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/plugin": {
-      "files": 25,
+      "files": 27,
       "typeOnly": 16,
-      "runtimeOrMixed": 21
+      "runtimeOrMixed": 23
     },
     "@wrongstack/core/prompts": {
       "files": 7,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 962,
-      "typeOnly": 885,
+      "files": 966,
+      "typeOnly": 894,
       "runtimeOrMixed": 239
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -3674,6 +3674,12 @@
     },
     {
       "specifier": "@wrongstack/core/extension",
+      "file": "packages/plugin-sdk/src/index.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/extension",
       "file": "packages/runtime/src/host.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5690,6 +5696,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/plugin-sdk/src/index.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/runtime/src/container.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6632,6 +6644,12 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/cli/src/wiring/external-plugins.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6665,6 +6683,12 @@
       "file": "packages/plug-lsp/tests/integration/plugin-entry.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
+      "file": "packages/plugin-sdk/src/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/plugin",
@@ -10490,6 +10514,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/external-plugins.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/fleet-command-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -10796,6 +10826,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/external-plugins.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/fake-memory-store.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10989,6 +11025,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/plugin-api-factory.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/plugin-management-install.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11582,6 +11624,18 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/plugin-sdk/src/index.ts",
+      "typeOnly": 6,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/plugin-sdk/src/runtime/llm.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/plugins/src/accessibility-auditor/index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11865,12 +11919,6 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/plugins/src/release-notes-generator/index.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
-      "file": "packages/plugins/src/runtime/llm.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

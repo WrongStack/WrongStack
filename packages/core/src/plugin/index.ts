@@ -1,5 +1,15 @@
 export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './api.js';
 export {
+  DEFAULT_PLUGIN_DISCOVERY_IO,
+  discoverExternalPlugins,
+  type DiscoveryIo,
+  type ExternalPluginCandidate,
+  type PluginDiscoveryResult,
+  resolvePluginEntryPath,
+  resolvePluginTarget,
+  type SkippedPluginCandidate,
+} from './discovery.js';
+export {
   diffPluginConfig,
   type PluginConfigChange,
   type PluginConfigSource,
@@ -23,6 +33,19 @@ export {
   type PluginLoadFailure,
   unloadPlugins,
 } from './loader.js';
+export {
+  defaultPluginTrustPath,
+  hashFileContents,
+  normalizeTrustKey,
+  type PluginTrustEntry,
+  type PluginTrustStore,
+  pinPluginTrust,
+  readPluginTrustStore,
+  unpinPluginTrust,
+  verifyPluginTrust,
+  type PluginTrustVerification,
+  writePluginTrustStore,
+} from './trust.js';
 export type { PluginAPI } from '../types/plugin.js';
 export {
   buildReviewerModelPool,

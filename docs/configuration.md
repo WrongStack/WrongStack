@@ -883,6 +883,10 @@ All flags are independent. `--no-features` sets all to `false`.
       "options": {
         "port": 9090
       }
+    },
+    {
+      "name": "wstack-plugin-x",
+      "path": "~/.wrongstack/plugins/node_modules/wstack-plugin-x"
     }
   ]
 }
@@ -895,6 +899,17 @@ Each entry is either a string (package name, always enabled) or an object:
 | `name` | `string` | *(required)* | npm package name or local path. |
 | `enabled` | `boolean` | `true` | Whether to load the plugin. |
 | `options` | `Record<string, unknown>` | — | Plugin-specific configuration. Validated against `configSchema` if declared. |
+| `path` | `string` | — | Load from an explicit location instead of npm resolution: a relative path (anchored to the project root), an absolute path, or a `file:` URL. The target may be an entry file or a directory with `package.json` / `index.js`. `wstack plugin add <spec> --install` writes this field for you. |
+
+External (third-party) plugins are additionally subject to trust-on-first-use
+pinning: the first load records a SHA-256 of the entry file in
+`~/.wrongstack/plugin-trust.json`, and a later load with a changed hash is
+refused until `wstack plugin trust <name>` re-pins it. Disable the whole
+mechanism with `features.pluginsTrust: false`. Plugins discovered under
+`~/.wrongstack/plugins/<name>/` run by default; plugins under
+`<projectRoot>/.wrongstack/plugins/<name>/` stay inactive until enabled
+(a cloned repo never auto-executes local plugin code). See
+[plugin-third-party.md](./plugin-third-party.md) for the full model.
 
 ---
 

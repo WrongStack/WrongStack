@@ -311,6 +311,7 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/plugin-sdk": "workspace:*",
     "@wrongstack/tools": "workspace:*"
   }
 }

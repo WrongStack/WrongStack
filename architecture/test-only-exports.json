@@ -198,6 +198,10 @@
       "filterProviders",
       "renderLiveProviderList"
     ],
+    "packages/cli/src/plugin-management.ts": [
+      "renderConfiguredPlugins",
+      "renderPluginAuditReport"
+    ],
     "packages/cli/src/project-picker.ts": [
       "effectiveVisibleHeight",
       "filterItems"
@@ -691,6 +695,11 @@
     "packages/plug-lsp/src/utils/timeout.ts": [
       "timeoutCoverage"
     ],
+    "packages/plugin-sdk/src/runtime/index.ts": [
+      "collectSourceFiles",
+      "locateRunnerEntry",
+      "probeRunner"
+    ],
     "packages/plugins/src/catalog.ts": [
       "PLUGIN_CATALOG_ENTRIES"
     ],
@@ -758,14 +767,6 @@
       "detectSecretsGuarded",
       "KIND_ALIASES",
       "SCAN_WINDOW_LIMIT"
-    ],
-    "packages/plugins/src/runtime/credential-patterns.ts": [
-      "CREDENTIAL_PATTERNS"
-    ],
-    "packages/plugins/src/runtime/index.ts": [
-      "collectSourceFiles",
-      "locateRunnerEntry",
-      "probeRunner"
     ],
     "packages/plugins/src/semver-bump/index.ts": [
       "determineBump",

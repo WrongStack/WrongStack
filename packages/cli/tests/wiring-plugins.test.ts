@@ -24,9 +24,11 @@ vi.mock('virtual:broken-plugin', () => {
   throw new Error('boom');
 });
 
-// A virtual ESM module that setupPlugins can dynamically import.
+// A virtual ESM module that setupPlugins can dynamically import. The shape
+// must satisfy the external-plugin module contract (name + apiVersion + setup
+// on the default export) or the pre-import validation rejects it.
 vi.mock('virtual:test-plugin', () => ({
-  default: { name: 'virtual:test-plugin', register: vi.fn() },
+  default: { name: 'virtual:test-plugin', apiVersion: '^0.1', setup: vi.fn() },
 }));
 
 // ── Mock all @wrongstack/plugins/* imports ───────────────────────────────────

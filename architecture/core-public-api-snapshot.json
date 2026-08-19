@@ -719,6 +719,7 @@
       "source": "packages/core/src/plugin/index.ts",
       "declarations": [
         "export type { PluginAPI } from '../types/plugin.js';",
+        "export { DEFAULT_PLUGIN_DISCOVERY_IO, discoverExternalPlugins, type DiscoveryIo, type ExternalPluginCandidate, type PluginDiscoveryResult, resolvePluginEntryPath, resolvePluginTarget, type SkippedPluginCandidate, } from './discovery.js';",
         "export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './api.js';",
         "export { KERNEL_API_VERSION, loadPlugins, type LoadPluginsOptions, type PluginHostHandle, type PluginLoadFailure, unloadPlugins, } from './loader.js';",
         "export { buildReviewerModelPool, createAutoReviewPlugin, parseReviewSeverity, type ReviewerModelAssignment, selectRoundRobinReviewerAssignment, } from '../plugins/auto-review-plugin.js';",
@@ -726,6 +727,7 @@
         "export { createPromptsPlugin } from '../plugins/prompts-plugin.js';",
         "export { createSkillsPlugin } from '../plugins/skills-plugin.js';",
         "export { createSyncPlugin } from '../plugins/sync-plugin.js';",
+        "export { defaultPluginTrustPath, hashFileContents, normalizeTrustKey, type PluginTrustEntry, type PluginTrustStore, pinPluginTrust, readPluginTrustStore, unpinPluginTrust, verifyPluginTrust, type PluginTrustVerification, writePluginTrustStore, } from './trust.js';",
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type PluginEnablementSource, pluginEntryMatchesName, type ResolvePluginConfigInput, type ResolvePluginEnablementInput, type ResolvedPluginConfig, type ResolvedPluginEnablement, redactPluginConfig, resolvePluginConfig, resolvePluginEnablement, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';",
         "export { emitReviewIfChanged, recordCompletedReview, recordStartedReview, } from '../plugins/review-claim-registry.js';",
         "export { maybeCompactReviewStores, type ReviewStoreMaintenanceResult, } from '../plugins/review-store-maintenance.js';",
@@ -1263,8 +1265,8 @@
       "directory": "plugin",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
-      "sourceFiles": 4,
-      "sourceLines": 1772
+      "sourceFiles": 6,
+      "sourceLines": 2233
     },
     {
       "directory": "plugins",
@@ -1341,7 +1343,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 10975
+      "sourceLines": 10996
     },
     {
       "directory": "utils",

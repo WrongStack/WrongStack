@@ -1,11 +1,27 @@
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
-import { type PluginEnablementSource, resolvePluginEnablement } from '@wrongstack/core/plugin';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import {
+  type PluginEnablementSource,
+  defaultPluginTrustPath,
+  discoverExternalPlugins,
+  hashFileContents,
+  normalizeTrustKey,
+  pinPluginTrust,
+  readPluginTrustStore,
+  resolvePluginEnablement,
+  resolvePluginTarget,
+  unpinPluginTrust,
+} from '@wrongstack/core/plugin';
 import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import {
   PLUGIN_AUDIT_ENTRIES,
   type PluginAuditEntry,
 } from '@wrongstack/plugins/plugin-audit-catalog';
+import { resolveExecInvocation } from '@wrongstack/plugins/runtime';
+import { normalizeConfigPath, resolveSpecifierEntry } from './wiring/external-plugins.js';
 
 export type { PluginAuditEntry };
 // The plugin audit catalog now lives in @wrongstack/plugins/plugin-audit-catalog
@@ -30,6 +46,16 @@ export const OFFICIAL_PLUGINS = [
 export interface PluginManagementDeps {
   config: Config;
   configPath: string;
+  /** Override `~/.wrongstack` for tests. Defaults to the real home dir. */
+  globalRoot?: string | undefined;
+  /** Injectable package-manager runner for tests. */
+  runPackageManager?: ((pm: string, args: readonly string[], cwd: string) => Promise<PackageManagerRunResult>) | undefined;
+}
+
+export interface PackageManagerRunResult {
+  code: number | null;
+  stdout: string;
+  stderr: string;
 }
 
 export interface PluginManagementResult {
@@ -85,7 +111,13 @@ export async function runPluginManagementCommand(
   if (sub === 'add' || sub === 'install') {
     const spec = args[1];
     if (!spec) {
-      return errorResult('Usage: wstack plugin add <specifier|official-alias> [--disabled]');
+      return errorResult(
+        'Usage: wstack plugin add <specifier|official-alias> [--disabled] [--install [--pm npm|pnpm|yarn|bun] [--run-scripts]]',
+      );
+    }
+    // Official plugins ship with the CLI — installing from npm is a no-op.
+    if (args.includes('--install') && !OFFICIAL_ALIASES.has(resolvePluginSpecifier(spec))) {
+      return installPluginPackage(spec, args, deps);
     }
     return upsertPlugin(
       resolvePluginSpecifier(spec),
@@ -120,6 +152,9 @@ export async function runPluginManagementCommand(
     }
     return togglePlugin(resolvePluginToggleSpecifier(spec), deps);
   }
+  if (sub === 'trust') {
+    return runPluginTrustCommand(args.slice(1), deps);
+  }
   if (sub === 'manager') {
     return runPluginManagerPolicyCommand(args.slice(1), deps);
   }
@@ -127,7 +162,7 @@ export async function runPluginManagementCommand(
     return runPluginLlmCommand(args.slice(1), deps);
   }
   return errorResult(
-    `Unknown plugin subcommand: ${sub}\nUsage: wstack plugin [list|status|report|menu|official|add|install|remove|enable|disable|toggle|manager|llm]`,
+    `Unknown plugin subcommand: ${sub}\nUsage: wstack plugin [list|status|report|menu|official|add|install|remove|enable|disable|toggle|trust|manager|llm]`,
   );
 }
 
@@ -421,7 +456,8 @@ export function renderConfiguredPlugins(config: Config): string {
       const name = pluginName(p);
       const enabled = typeof p === 'object' && p.enabled === false ? 'disabled' : 'enabled';
       const official = OFFICIAL_PLUGINS.find((entry) => entry.specifier === name);
-      const suffix = official ? ` (${official.alias})` : '';
+      const isExternalPath = typeof p === 'object' && p.path !== undefined;
+      const suffix = official ? ` (${official.alias})` : isExternalPath ? ' (external)' : '';
       return `  ${`${name}${suffix}`.padEnd(44)} ${enabled}`;
     })
     .join('\n');
@@ -454,9 +490,10 @@ export function renderPluginAuditReport(config: Config): string {
     for (const plugin of extra) {
       const name = pluginName(plugin);
       const state = typeof plugin === 'object' && plugin.enabled === false ? 'disabled' : 'enabled';
-      lines.push(
-        `  ${name.padEnd(24)} ${state.padEnd(8)} config   risk=custom user-configured plugin`,
-      );
+      const path = typeof plugin === 'object' && plugin.path !== undefined ? plugin.path : '';
+      const risk = path ? 'external' : 'custom';
+      const note = path ? `user-configured external plugin (${path})` : 'user-configured plugin';
+      lines.push(`  ${name.padEnd(24)} ${state.padEnd(8)} config   risk=${risk.padEnd(6)} ${note}`);
     }
   }
 
@@ -479,7 +516,8 @@ function pluginName(p: string | PluginConfig): string {
   return typeof p === 'string' ? p : p.name;
 }
 
-function pluginEntry(spec: string, enabled: boolean): string | PluginConfig {
+function pluginEntry(spec: string, enabled: boolean, path?: string): string | PluginConfig {
+  if (path !== undefined) return { name: spec, path, enabled };
   return enabled ? spec : { name: spec, enabled: false };
 }
 
@@ -633,7 +671,7 @@ async function togglePlugin(
 
 async function upsertPlugin(
   spec: string,
-  opts: { enabled: boolean },
+  opts: { enabled: boolean; path?: string },
   deps: PluginManagementDeps,
   verb: string,
 ): Promise<PluginManagementResult> {
@@ -642,7 +680,7 @@ async function upsertPlugin(
     ? (existing.plugins as Array<string | PluginConfig>)
     : [];
   const idx = plugins.findIndex((p) => pluginName(p) === spec);
-  const nextEntry = pluginEntry(spec, opts.enabled);
+  const nextEntry = pluginEntry(spec, opts.enabled, opts.path);
   if (idx >= 0) plugins[idx] = nextEntry;
   else plugins.push(nextEntry);
   const features = {
@@ -692,6 +730,302 @@ async function removePlugin(
 
 function errorResult(message: string): PluginManagementResult {
   return { code: 1, level: 'error', message };
+}
+
+// ---------------------------------------------------------------------------
+// External plugin trust (TOFU re-pin / listing)
+// ---------------------------------------------------------------------------
+
+function globalPluginsRoot(deps: PluginManagementDeps): string {
+  return join(deps.globalRoot ?? join(homedir(), '.wrongstack'), 'plugins');
+}
+
+/**
+ * Resolve the entry file an external plugin name refers to, so the trust
+ * command can hash and pin exactly what the loader would import. Order:
+ * explicit `path` config entries, then directory discovery roots, then npm
+ * specifiers via module resolution.
+ */
+async function resolveExternalPluginEntry(
+  name: string,
+  deps: PluginManagementDeps,
+): Promise<string | undefined> {
+  const projectRoot = process.cwd();
+  for (const p of deps.config.plugins ?? []) {
+    if (typeof p === 'object' && p.name === name && p.path !== undefined) {
+      const target = normalizeConfigPath(p.path, projectRoot);
+      const entry = await resolvePluginTarget(target);
+      if (entry) return entry;
+    }
+  }
+  const { candidates } = await discoverExternalPlugins([
+    globalPluginsRoot(deps),
+    join(projectRoot, '.wrongstack', 'plugins'),
+  ]);
+  const discovered = candidates.find((c) => c.name === name);
+  if (discovered) return discovered.entryPath;
+  for (const p of deps.config.plugins ?? []) {
+    const spec = typeof p === 'string' ? p : p.name;
+    if (spec === name) {
+      const resolved = resolveSpecifierEntry(spec);
+      if (resolved) return resolved;
+    }
+  }
+  return undefined;
+}
+
+const PLUGIN_TRUST_USAGE = [
+  'Usage:',
+  '  wstack plugin trust                       List pinned external plugins.',
+  '  wstack plugin trust <name>                Re-pin an external plugin whose code changed.',
+  '  wstack plugin trust <name> --remove       Drop the pin (plugin re-trusts on next load).',
+].join('\n');
+
+async function runPluginTrustCommand(
+  args: string[],
+  deps: PluginManagementDeps,
+): Promise<PluginManagementResult> {
+  const storePath = defaultPluginTrustPath(join(deps.globalRoot ?? join(homedir(), '.wrongstack')));
+  const positional = args.filter((a) => !a.startsWith('--'));
+  const name = positional[0];
+  const remove = args.includes('--remove') || args.includes('--unpin');
+
+  if (args.includes('--list') || (name === undefined && !remove && args.length === 0)) {
+    const store = await readPluginTrustStore(storePath);
+    const entries = Object.entries(store.pinned);
+    if (entries.length === 0) {
+      return { code: 0, level: 'output', message: 'No external plugins pinned yet.' };
+    }
+    return {
+      code: 0,
+      level: 'output',
+      message: [
+        `Pinned external plugins (${entries.length}):`,
+        ...entries.map(
+          ([entry, pin]) => `  ${entry}\n      pinned ${pin.pinnedAt}${pin.spec ? ` from ${pin.spec}` : ''}`,
+        ),
+      ].join('\n'),
+    };
+  }
+  if (!name) return errorResult(PLUGIN_TRUST_USAGE);
+
+  // Pins are keyed by entry file path; accept either a plugin name (resolved
+  // through config/discovery) or a raw entry path for cleanup of stale pins.
+  const store = await readPluginTrustStore(storePath);
+  let entry: string | undefined;
+  if (store.pinned[name] !== undefined) {
+    entry = name;
+  } else if (store.pinned[normalizeTrustKey(name)] !== undefined) {
+    entry = normalizeTrustKey(name);
+  } else {
+    entry = await resolveExternalPluginEntry(name, deps);
+  }
+
+  if (remove) {
+    if (!entry) return errorResult(`No trust pin found for "${name}".`);
+    await unpinPluginTrust(storePath, normalizeTrustKey(entry));
+    return { code: 0, level: 'info', message: `Removed trust pin for "${entry}".` };
+  }
+  if (!entry) {
+    return errorResult(
+      `Could not resolve an external plugin named "${name}" — check config.plugins entries and the plugins directories.`,
+    );
+  }
+  const canonical = normalizeTrustKey(entry);
+  let integrity: string;
+  try {
+    integrity = await hashFileContents(canonical);
+  } catch (err) {
+    return errorResult(
+      `Could not read "${canonical}" (${err instanceof Error ? err.message : String(err)}).`,
+    );
+  }
+  await pinPluginTrust(storePath, canonical, canonical, integrity, name);
+  return {
+    code: 0,
+    level: 'info',
+    message: `Re-pinned "${name}" → ${integrity.slice(0, 19)}… (${canonical}).`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// `wstack plugin add --install` — fetch a third-party plugin via a package
+// manager into ~/.wrongstack/plugins and register it with an explicit path.
+// ---------------------------------------------------------------------------
+
+type PackageManagerId = 'npm' | 'pnpm' | 'yarn' | 'bun';
+
+function detectPackageManager(args: string[]): PackageManagerId {
+  const override = args.find((a) => a.startsWith('--pm='));
+  if (override) {
+    const pm = override.slice(5) as PackageManagerId;
+    if (pm === 'npm' || pm === 'pnpm' || pm === 'yarn' || pm === 'bun') return pm;
+  }
+  const idx = args.indexOf('--pm');
+  if (idx >= 0 && args[idx + 1]) {
+    const pm = args[idx + 1] as PackageManagerId;
+    if (pm === 'npm' || pm === 'pnpm' || pm === 'yarn' || pm === 'bun') return pm;
+  }
+  const ua = process.env.npm_config_user_agent ?? '';
+  if (ua.startsWith('pnpm')) return 'pnpm';
+  if (ua.startsWith('yarn')) return 'yarn';
+  if (ua.startsWith('bun')) return 'bun';
+  return 'npm';
+}
+
+/**
+ * Extract the package name from an npm specifier. Handles scoped packages
+ * and `name@range` / `name@tag` suffixes (`@scope/pkg@1.2.3`, `pkg@next`).
+ */
+function packageNameFromSpec(spec: string): string {
+  const stripped = spec.trim();
+  if (stripped.startsWith('@')) {
+    const scopedEnd = stripped.indexOf('/', 1);
+    if (scopedEnd === -1) return stripped.split('@')[0] ?? stripped;
+    const rest = stripped.slice(scopedEnd + 1);
+    const at = rest.lastIndexOf('@');
+    return at === -1 ? stripped : stripped.slice(0, scopedEnd + 1 + at);
+  }
+  const at = stripped.indexOf('@');
+  return at === -1 ? stripped : stripped.slice(0, at);
+}
+
+function buildInstallArgs(
+  pm: PackageManagerId,
+  targetDir: string,
+  runScripts: boolean,
+  spec: string,
+): string[] {
+  const ignoreScripts = runScripts ? [] : ['--ignore-scripts'];
+  switch (pm) {
+    case 'pnpm':
+      return ['add', '--dir', targetDir, ...ignoreScripts, spec];
+    case 'yarn':
+      // Yarn classic honours --ignore-scripts; Berry users relying on
+      // build scripts must pass --run-scripts and configure scripts policy.
+      return ['add', '--cwd', targetDir, ...ignoreScripts, spec];
+    case 'bun':
+      return ['add', '--cwd', targetDir, ...ignoreScripts, spec];
+    default:
+      return [
+        'install',
+        '--prefix',
+        targetDir,
+        '--no-audit',
+        '--no-fund',
+        ...ignoreScripts,
+        spec,
+      ];
+  }
+}
+
+function runPackageManagerInstall(
+  pm: string,
+  args: readonly string[],
+  cwd: string,
+): Promise<PackageManagerRunResult> {
+  return new Promise((resolvePromise) => {
+    let invocation: { cmd: string; args: string[]; windowsVerbatimArguments: boolean };
+    try {
+      invocation = resolveExecInvocation(pm, args);
+    } catch (err) {
+      resolvePromise({
+        code: 127,
+        stdout: '',
+        stderr: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+    execFile(
+      invocation.cmd,
+      invocation.args,
+      {
+        cwd,
+        timeout: 300_000,
+        maxBuffer: 16 * 1024 * 1024,
+        windowsHide: true,
+        ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+      },
+      (err, stdout, stderr) => {
+        const code = err ? ((err as NodeJS.ErrnoException).code ?? 1) : 0;
+        resolvePromise({
+          code: typeof code === 'number' ? code : 1,
+          stdout: typeof stdout === 'string' ? stdout : '',
+          stderr: typeof stderr === 'string' ? stderr : '',
+        });
+      },
+    );
+  });
+}
+
+async function installPluginPackage(
+  spec: string,
+  args: string[],
+  deps: PluginManagementDeps,
+): Promise<PluginManagementResult> {
+  const pm = detectPackageManager(args);
+  const runScripts = args.includes('--run-scripts');
+  const targetDir = globalPluginsRoot(deps);
+  try {
+    await fs.mkdir(targetDir, { recursive: true });
+    // Bootstrap a minimal manifest so --prefix installs have a root to
+    // record dependencies against.
+    const pkgJsonPath = join(targetDir, 'package.json');
+    try {
+      await fs.access(pkgJsonPath);
+    } catch {
+      await fs.writeFile(
+        pkgJsonPath,
+        `${JSON.stringify({ name: 'wrongstack-user-plugins', private: true, version: '0.0.0' }, null, 2)}\n`,
+        'utf8',
+      );
+    }
+  } catch (err) {
+    return errorResult(
+      `Could not prepare plugin directory ${targetDir}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  const run = deps.runPackageManager ?? runPackageManagerInstall;
+  const pmArgs = buildInstallArgs(pm, targetDir, runScripts, spec);
+  let result: PackageManagerRunResult;
+  try {
+    result = await run(pm, pmArgs, targetDir);
+  } catch (err) {
+    return errorResult(
+      `${pm} failed to start: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  if (result.code !== 0) {
+    const tail = (result.stderr || result.stdout).trim().split('\n').slice(-8).join('\n');
+    return errorResult(`${pm} ${pmArgs.join(' ')} failed (exit ${result.code}):\n${tail}`);
+  }
+
+  const pkgName = packageNameFromSpec(spec);
+  const installPath = join(targetDir, 'node_modules', ...pkgName.split('/'));
+  try {
+    await fs.access(installPath);
+  } catch {
+    return errorResult(
+      `${pm} reported success but "${installPath}" does not exist — check the package name "${pkgName}".`,
+    );
+  }
+
+  const upsert = await upsertPlugin(
+    pkgName,
+    { enabled: !args.includes('--disabled'), path: installPath },
+    deps,
+    'Installed',
+  );
+  if (upsert.code !== 0) return upsert;
+  return {
+    ...upsert,
+    message:
+      `${upsert.message} Loaded from ${installPath}. It will be trusted (pinned) on first load.` +
+      (runScripts
+        ? ''
+        : ' Install scripts were skipped (default --ignore-scripts; pass --run-scripts if the package needs build steps).'),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

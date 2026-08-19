@@ -231,9 +231,13 @@ const profiles = {
     entries: entryMap(['src/index.ts', 'src/setup.ts']),
     external: ['@wrongstack/core', '@wrongstack/tools'],
   },
+  '@wrongstack/plugin-sdk': {
+    entries: { index: 'src/index.ts', runtime: 'src/runtime/index.ts' },
+    external: ['@wrongstack/core'],
+  },
   '@wrongstack/plugins': {
     entries: pluginEntries,
-    external: ['@wrongstack/core'],
+    external: ['@wrongstack/core', '@wrongstack/plugin-sdk'],
     sourcemap: false,
   },
   '@wrongstack/providers': {

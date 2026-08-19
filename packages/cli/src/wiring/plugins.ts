@@ -27,6 +27,7 @@ import { OFFICIAL_PLUGIN_FACTORIES } from '@wrongstack/plugins/factories';
 import createApi from '../plugin-api-factory.js';
 import { PLUGIN_AUDIT_ENTRIES } from '../plugin-management.js';
 import { patchConfig } from '../utils.js';
+import { loadExternalPlugins } from './external-plugins.js';
 
 // ---------------------------------------------------------------------------
 // Deprecated plugin names — built-ins that have been merged into core
@@ -184,6 +185,14 @@ export interface PluginsWiringDeps {
     projectDir?: string;
     /** Per-project goal.json path. Useful as a sibling anchor. */
     projectGoal?: string;
+    /**
+     * The actual code project root (the directory containing
+     * `<projectRoot>/.wrongstack/`). Anchors relative `path` entries in
+     * `config.plugins` and the project-local plugin discovery root.
+     * Optional — minimal hosts may omit it, in which case only
+     * config-specifier user plugins load.
+     */
+    projectRoot?: string;
   };
 }
 
@@ -304,46 +313,32 @@ export async function setupPlugins(
     }
   }
 
-  // ── 2. Load user plugins from config.plugins ───────────────────────────
-  const userPlugins: Plugin[] = [];
-  if (config.features?.plugins !== false) {
-    for (const p of config.plugins ?? []) {
-      const spec = typeof p === 'string' ? p : p.name;
-      // Same resolver the built-in path 30 lines above uses. The bare
-      // `p.enabled === false` here was a fourth answer to "does this plugin
-      // run?": it ignored `extensions.<name>.enabled`, so a user plugin
-      // disabled through `extensions` still loaded while every report called
-      // it disabled.
-      const { enabled } = resolvePluginEnablement({
-        name: pluginNameFromSpec(spec) ?? spec,
-        aliases: [spec],
-        defaultState: 'active',
-        config,
-        // The resolver already extracts an entry's name before calling this.
-        matches: (configuredName) => configuredName === spec,
-      });
-      if (!enabled) continue;
-      // Deprecation policy: if the spec resolves to a deprecated plugin
-      // name (either as `'web-search'` or `'@wrongstack/plugins/web-search'`),
-      // warn once and skip the dynamic import. Today this means
-      // web-search/json-path stub plugins silently load — after the
-      // source files are deleted (phase 2), this branch becomes the
-      // only line of defense.
-      const bareName = pluginNameFromSpec(spec);
-      if (bareName && warnIfDeprecatedPluginName(bareName, log)) {
-        continue;
-      }
-      if (builtinPluginNameFromSpec(spec)) {
-        continue;
-      }
-      try {
-        const mod = (await import(spec)) as { default?: Plugin | undefined };
-        if (mod.default) userPlugins.push(mod.default);
-      } catch (err) {
-        log.warn(`Plugin "${spec}" failed to load`, err);
-      }
-    }
-  }
+  // ── 2. Load external (third-party) plugins ─────────────────────────────
+  // config.plugins specifiers AND explicit `path` entries, plus directory
+  // discovery under `<globalRoot>/plugins` and `<projectRoot>/.wrongstack/
+  // plugins`. Every external plugin passes a pre-import TOFU trust gate and
+  // a shape/spoof check — see wiring/external-plugins.ts for the pipeline.
+  const userPlugins: Plugin[] =
+    config.features?.plugins === false
+      ? []
+      : await loadExternalPlugins(
+          {
+            config,
+            log,
+            globalRoot: paths?.globalRoot,
+            projectRoot: paths?.projectRoot ?? process.cwd(),
+            reservedNames: new Set<string>([
+              ...BUILTIN_PLUGIN_CONFIG_NAMES,
+              ...builtinPlugins.map((p) => p.name),
+            ]),
+          },
+          {
+            nameFromSpec: pluginNameFromSpec,
+            isBuiltinSpec: (spec) => builtinPluginNameFromSpec(spec) !== null,
+            warnIfDeprecated: (name) =>
+              name !== '' && warnIfDeprecatedPluginName(name, log),
+          },
+        );
 
   // ── 3. Merge: builtins first (they set up infrastructure), then user plugins
   const allPlugins = [...builtinPlugins, ...userPlugins];
@@ -396,6 +391,10 @@ export async function setupPlugins(
   const pluginHost = await loadPlugins(allPlugins, {
     log,
     pluginOptions,
+    // First-party plugins keep the historical warn-only capability checks;
+    // external (third-party) plugins are held to their declared
+    // capabilities strictly — an undeclared API call rejects the plugin.
+    enforceCapabilities: (plugin) => !builtinPlugins.includes(plugin),
     apiFactory: (plugin) =>
       createApi(plugin.name, {
         // First-party plugins come from BUILTIN_PLUGIN_FACTORIES — trust them

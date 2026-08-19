@@ -36,7 +36,19 @@ and `lsp` -> `@wrongstack/plug-lsp`. `add`, `install`, and `enable` also set
 Changes are written to the active profile config.
 Official plugins are bundled with the CLI package and published as regular
 public packages, so `install telegram` means "add the official plugin to config
-and enable plugin loading"; it does not shell out to npm.
+and enable plugin loading" — no npm involved.
+
+For **third-party** packages, `add <spec> --install` DOES shell out to a
+package manager (npm by default; `--pm pnpm|yarn|bun` overrides) and installs
+into `~/.wrongstack/plugins/`, registering the explicit install path in
+config. Lifecycle scripts are disabled by default (`--ignore-scripts`);
+pass `--run-scripts` only for packages you have reason to trust. Plain
+`add <spec>` (without `--install`) still only writes the config entry.
+
+`trust <name>` manages the external-plugin TOFU pin store:
+`wstack plugin trust` lists pins, `trust <name>` re-pins a plugin whose code
+changed (required after every external plugin update), and
+`trust <name> --remove` drops the pin so the plugin re-trusts on next load.
 
 ## Toggle policy — the plugin audit table
 

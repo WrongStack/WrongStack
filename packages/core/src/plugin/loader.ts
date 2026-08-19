@@ -84,8 +84,12 @@ export interface LoadPluginsOptions {
    * method that contradicts its declared `capabilities` — instead of
    * just logging a warning. Use in CI/strict deployments to enforce
    * manifest honesty. Default: false (log-only, backward-compatible).
+   *
+   * A predicate form is also accepted so hosts can enforce selectively —
+   * e.g. strictly for external (third-party) plugins while keeping
+   * first-party plugins warn-only.
    */
-  enforceCapabilities?: boolean | undefined;
+  enforceCapabilities?: boolean | ((plugin: Plugin) => boolean) | undefined;
   /**
    * Timeout in milliseconds for each plugin's `setup()` call. If the
    * plugin's setup exceeds this deadline it is treated as a failure
@@ -394,8 +398,12 @@ export async function loadPlugins(
         plugin,
         resolution.options,
       ) as PluginRegistration['cleanupApi'];
+      const enforceForPlugin =
+        typeof opts.enforceCapabilities === 'function'
+          ? opts.enforceCapabilities(plugin)
+          : (opts.enforceCapabilities ?? false);
       const api = plugin.capabilities
-        ? wrapApiForCapabilityCheck(plugin, rawApi, opts.log, opts.enforceCapabilities)
+        ? wrapApiForCapabilityCheck(plugin, rawApi, opts.log, enforceForPlugin)
         : rawApi;
       registration = {
         plugin,

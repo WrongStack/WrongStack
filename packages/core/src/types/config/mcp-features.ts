@@ -84,6 +84,17 @@ export interface PluginConfig {
   name: string;
   enabled?: boolean | undefined;
   options?: Record<string, unknown>;
+  /**
+   * Load this plugin from an explicit location instead of resolving the
+   * npm specifier through the host's own module resolution. Accepts:
+   *   - a relative path (resolved against the project root),
+   *   - an absolute path,
+   *   - a `file:` URL.
+   * The target may be an entry file (`plugin.js`) or a directory that
+   * contains `package.json` / `index.js`. External plugins loaded through
+   * `path` are subject to the TOFU trust pin (`~/.wrongstack/plugin-trust.json`).
+   */
+  path?: string | undefined;
 }
 
 /**
@@ -112,6 +123,16 @@ export interface FeaturesConfig {
   mcp: boolean;
   /** Load + initialise npm plugins declared in `plugins`. */
   plugins: boolean;
+  /**
+   * Trust-on-first-use pinning for external (third-party) plugins.
+   * The first load of an external plugin records a SHA-256 of its entry
+   * file in `~/.wrongstack/plugin-trust.json`; subsequent loads refuse to
+   * run the plugin when the hash changes until the user re-pins it via
+   * `wstack plugin trust <name>`. Set to false to disable pinning
+   * (not recommended — this is the only supply-chain signal for in-process
+   * plugins). Default: true.
+   */
+  pluginsTrust?: boolean | undefined;
   /** Register `remember` / `forget` tools backed by memory store. */
   memory: boolean;
   /**

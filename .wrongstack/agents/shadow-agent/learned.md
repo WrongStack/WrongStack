@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-17T07:53:48.076Z; applied=1; wins=1 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-17T07:53:48.076Z; applied=5; wins=5 -->
 - **When running shadow-agent check passes in this environment, never claim the mailbox was inspected if `mail_inbox` or `mailbox action=check/query` return a capability denial — the session may lack `coordination.mail`; state that the mailbox scan was unavailable (UNKNOWN, not empty) in the result report, and do not retry or work around the denial with other tools.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `mail_inbox`
