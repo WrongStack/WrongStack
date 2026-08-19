@@ -1187,7 +1187,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17801
+      "sourceLines": 17787
     },
     {
       "directory": "extension",

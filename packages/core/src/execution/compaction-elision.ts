@@ -31,7 +31,7 @@ export interface CompactionMetrics {
   changed: boolean;
 }
 
-export function compactionDebugEnabled(): boolean {
+function compactionDebugEnabled(): boolean {
   return process.env['NODE_ENV'] === 'development' || process.env['WRONGSTACK_DEBUG'] === '1';
 }
 
@@ -41,7 +41,7 @@ export function setCompactionDebugLogger(logger: Logger | undefined): void {
   _debugLogger = logger;
 }
 
-export function emitCompactionMetrics(event: string, metrics: CompactionMetrics): void {
+function emitCompactionMetrics(event: string, metrics: CompactionMetrics): void {
   if (!compactionDebugEnabled()) return;
   const ctx = {
     event,
@@ -91,22 +91,22 @@ export interface FileToolLifecycle {
   staleReadPaths: Map<string, string>;
 }
 
-export function isReadToolName(name: string): boolean {
+function isReadToolName(name: string): boolean {
   return /^(read|read_file|open_file|view)$/.test(name.toLowerCase());
 }
 
-export function isFileMutationToolName(name: string): boolean {
+function isFileMutationToolName(name: string): boolean {
   return /^(edit|write|replace|patch|apply_patch)$/.test(name.toLowerCase());
 }
 
-export function didFileMutationRun(use: ToolUseBlock): boolean {
+function didFileMutationRun(use: ToolUseBlock): boolean {
   const name = use.name.toLowerCase();
   if (name === 'replace') return use.input?.['dry_run'] === false;
   if (name === 'patch') return use.input?.['dry_run'] !== true;
   return true;
 }
 
-export function sameFilePath(a: string, b: string): boolean {
+function sameFilePath(a: string, b: string): boolean {
   if (a === b) return true;
   const aAbsolute = /^(?:[a-z]:\/|\/)/.test(a);
   const bAbsolute = /^(?:[a-z]:\/|\/)/.test(b);
@@ -158,7 +158,7 @@ function mutationPathKeys(use: ToolUseBlock, result: ToolResultBlock): string[] 
   return [...paths];
 }
 
-export function analyzeFileToolLifecycle(
+function analyzeFileToolLifecycle(
   messages: readonly Message[],
   acknowledgedBefore: number,
 ): FileToolLifecycle {
@@ -759,7 +759,7 @@ function semanticToolResultExcerpt(content: unknown, maxChars = 480): string | u
   return `${text.slice(0, headChars)}${separator}${text.slice(-tailChars)}`;
 }
 
-export function safeToolResultString(content: unknown): string {
+function safeToolResultString(content: unknown): string {
   if (typeof content === 'string') return content;
   try {
     return JSON.stringify(content);
@@ -768,7 +768,7 @@ export function safeToolResultString(content: unknown): string {
   }
 }
 
-export function extractPathHints(content: unknown): string[] {
+function extractPathHints(content: unknown): string[] {
   const text = safeToolResultString(content);
   const out = new Set<string>();
   for (const match of text.matchAll(PATH_HINT_PATTERN)) {
@@ -779,7 +779,7 @@ export function extractPathHints(content: unknown): string[] {
   return [...out];
 }
 
-export function firstErrorLine(content: unknown): string | undefined {
+function firstErrorLine(content: unknown): string | undefined {
   const text = safeToolResultString(content);
   const lines = text.split(NEWLINE_SPLIT_PATTERN);
   for (const pattern of [STRONG_ERROR_LINE_PATTERN, ERROR_LINE_PATTERN]) {
