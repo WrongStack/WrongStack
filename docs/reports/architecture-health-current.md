@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-19T13:09:30.293Z
+**Generated:** 2026-08-19T13:13:46.972Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-- packages/cli/src/plugin-management.ts: hotspot shrunk from 1035 to 1034 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

@@ -19,7 +19,7 @@
       "relativeImports": 11
     },
     "packages/cli/src/plugin-management.ts": {
-      "lines": 1035,
+      "lines": 1034,
       "relativeImports": 1
     },
     "packages/cli/src/slash-commands/sdd.ts": {
