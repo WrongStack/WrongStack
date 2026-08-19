@@ -36,6 +36,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "@wrongstack/core": "workspace:*"
+    "@wrongstack/core": "workspace:*",
+    "@wrongstack/tools": "workspace:*"
   }
 }

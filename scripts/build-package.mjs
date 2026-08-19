@@ -233,7 +233,10 @@ const profiles = {
   },
   '@wrongstack/plugin-sdk': {
     entries: { index: 'src/index.ts', runtime: 'src/runtime/index.ts' },
-    external: ['@wrongstack/core'],
+    // local-bin.ts imports + re-exports @wrongstack/tools/win32 — it must
+    // stay external (like core) or the win32 helpers get silently bundled
+    // while the emitted .d.ts still references the package.
+    external: ['@wrongstack/core', '@wrongstack/tools'],
   },
   '@wrongstack/plugins': {
     entries: pluginEntries,

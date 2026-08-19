@@ -390,6 +390,9 @@ importers:
       '@wrongstack/core':
         specifier: workspace:*
         version: link:../core
+      '@wrongstack/tools':
+        specifier: workspace:*
+        version: link:../tools
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
