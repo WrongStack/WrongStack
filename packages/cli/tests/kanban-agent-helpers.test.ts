@@ -86,6 +86,7 @@ describe('kanban agent helpers', () => {
       successCriteria: [{ description: 'Tests pass' }],
       goalMetrics: [
         { name: 'coverage', current: 80, target: 100, unit: '%', status: 'behind' },
+        { name: 'flaky', current: 1, target: 3, direction: 'at_most', status: 'met' },
         { name: 'unknown', status: 'unknown' },
       ],
       chain: {
@@ -130,7 +131,8 @@ describe('kanban agent helpers', () => {
     expect(prompt).toContain('- Dependency [completed] (dep-1)');
     expect(prompt).not.toContain('missing)');
     expect(prompt).toContain('- Tests pass');
-    expect(prompt).toContain('- coverage: 80 / 100 % [behind]');
+    expect(prompt).toContain('- coverage: 80 / ≥ 100 % [behind]');
+    expect(prompt).toContain('- flaky: 1 / ≤ 3 [met]');
     expect(prompt).toContain('- unknown: n/a [unknown]');
     expect(prompt).toContain('Labels: testing, coverage');
     expect(prompt).toContain('board allow read path:packages');
