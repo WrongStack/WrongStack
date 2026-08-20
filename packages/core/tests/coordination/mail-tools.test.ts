@@ -202,6 +202,33 @@ describe('makeMailSendTool', () => {
     expect(await mailbox.query({ to: '*' })).toHaveLength(0);
   });
 
+  it('re-derives the default type from the FINAL recipient when the policy retargets it', async () => {
+    // Regression pin: for a chimera sender with to="*" and NO explicit type,
+    // the codec resolves the default ("broadcast") against the REQUESTED
+    // recipient ("*"), but the send policy then retargets to the single
+    // recipient "leader". Freezing the codec-defaulted type sent "broadcast"
+    // to one agent; the canonical default for a directed send is "note".
+    // Re-derivation must therefore start from the RAW input type, not the
+    // codec-resolved one.
+    const result = await tool.execute(
+      { to: '*', subject: 'no explicit type', body: 'finding' },
+      mockContext({
+        agentId: 'chimera-review',
+        agentName: 'chimera-review',
+        meta: {
+          agentId: 'chimera-review',
+          agentName: 'chimera-review',
+          sessionId: SESSION_ID,
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({ ok: true, to: 'leader' });
+    const msgs = await mailbox.query({ to: 'leader' });
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]?.type).toBe('note');
+  });
+
   it('includes replyTo when provided', async () => {
     await tool.execute(
       { to: 'bob', subject: 'first', body: 'msg1', replyTo: 'abc-123' },
@@ -209,6 +236,40 @@ describe('makeMailSendTool', () => {
     );
     const msgs = await mailbox.query({ to: 'bob' });
     expect(msgs[0]?.replyTo).toBe('abc-123');
+  });
+
+  it('surfaces stripped clutter fields in the result summary', async () => {
+    // Pin both branches of the clutter-filter contract: junk fields are
+    // removed from the persisted envelope AND reported to the sender.
+    const result = (await tool.execute(
+      {
+        to: 'bob',
+        subject: 's',
+        body: 'b',
+        clientMeta: { theme: 'dark' },
+        debugFlag: true,
+      },
+      mockContext(),
+    )) as { ok: boolean; strippedFields?: string[]; summary?: string };
+
+    expect(result.ok).toBe(true);
+    expect(result.strippedFields).toEqual(['clientMeta', 'debugFlag']);
+    expect(result.summary).toContain('Ignored 2 unrecognized field(s)');
+    expect(result.summary).toContain('clientMeta, debugFlag');
+    // The clutter must NOT reach the persisted envelope.
+    const msgs = await mailbox.query({ to: 'bob' });
+    expect(msgs).toHaveLength(1);
+    expect(JSON.stringify(msgs[0])).not.toContain('clientMeta');
+    expect(JSON.stringify(msgs[0])).not.toContain('debugFlag');
+  });
+
+  it('omits the stripped-fields suffix when the payload was clean', async () => {
+    const result = (await tool.execute(
+      { to: 'bob', subject: 's', body: 'b' },
+      mockContext(),
+    )) as { strippedFields?: string[]; summary?: string };
+    expect(result.strippedFields).toBeUndefined();
+    expect(result.summary).not.toContain('Ignored');
   });
 
   it('rejects missing required fields', async () => {

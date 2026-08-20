@@ -69,7 +69,7 @@ export class MailboxValidationError extends Error {
 // ── Allowed-field sets ───────────────────────────────────────────────
 
 /** Fields allowed in a send mutation payload from untrusted callers. */
-const SEND_ALLOWED_FIELDS = new Set<string>([
+export const SEND_ALLOWED_FIELDS: ReadonlySet<string> = new Set<string>([
   'to', 'subject', 'body', 'type', 'priority', 'audience', 'replyTo',
   'senderSessionId', 'ttlMs', 'taskContext',
   // 'sessionAffinity' is NOT in the allow-list. The trust-line contract:
@@ -81,6 +81,69 @@ const SEND_ALLOWED_FIELDS = new Set<string>([
   // receiver trusts the sender-asserted `sessionId`; the boundary must
   // refuse the field entirely.
 ]);
+
+/**
+ * Send-payload fields whose presence is a trust violation, not clutter.
+ *
+ * `filterMailboxSendPayload` never strips these — it passes them through
+ * so `parseMailboxSendInput` rejects them loudly at `rejectUnknownFields`
+ * with `unknown field "…"`. Silently dropping them would convert a
+ * forgery attempt into a successful, differently-scoped send:
+ *   - `from` — sender identity; derived from MailboxActorContext, never
+ *     the body
+ *   - `sessionAffinity` — session-scoping token reserved for trusted
+ *     internal callers (see the note in SEND_ALLOWED_FIELDS)
+ */
+const SEND_FORBIDDEN_FIELDS: ReadonlySet<string> = new Set<string>([
+  'from',
+  'sessionAffinity',
+]);
+
+// ── Send payload filter ─────────────────────────────────────────────
+
+/** Result of {@link filterMailboxSendPayload}. */
+export interface FilteredSendPayload {
+  /** Copy of the input containing only allow-listed and trust-relevant keys. */
+  payload: Record<string, unknown>;
+  /** Keys that were removed, in input order. Empty when nothing was stripped. */
+  stripped: string[];
+}
+
+/**
+ * Strip fields that do not belong in a send payload before it reaches the
+ * boundary codec or the mailbox store.
+ *
+ * Senders (hosts, adapters, models) attach fields the mailbox never asked
+ * for — debug knobs, client metadata, accidental whole-context dumps. Two
+ * failure modes follow without a filter: the strict codec rejects the whole
+ * send because of one irrelevant key, or a lenient surface persists the
+ * clutter into every recipient's inbox. This function prevents both:
+ * irrelevant keys are removed from the payload and reported in `stripped`.
+ *
+ * It is pure (never mutates the input) and keyed off the same
+ * {@link SEND_ALLOWED_FIELDS} set that governs `parseMailboxSendInput`, so
+ * the filter and the validator cannot drift apart.
+ *
+ * Trust-relevant fields (`from`, `sessionAffinity`, see
+ * {@link SEND_FORBIDDEN_FIELDS}) are deliberately PASSED THROUGH, never
+ * stripped: the codec must reject them loudly as unknown fields. Dropping
+ * them here would convert a forgery attempt into a successful,
+ * differently-scoped send.
+ */
+export function filterMailboxSendPayload(
+  input: Record<string, unknown>,
+): FilteredSendPayload {
+  const payload: Record<string, unknown> = {};
+  const stripped: string[] = [];
+  for (const key of Object.keys(input)) {
+    if (SEND_ALLOWED_FIELDS.has(key) || SEND_FORBIDDEN_FIELDS.has(key)) {
+      payload[key] = input[key];
+    } else {
+      stripped.push(key);
+    }
+  }
+  return { payload, stripped };
+}
 
 /** Fields allowed in an ack mutation payload. */
 const ACK_ALLOWED_FIELDS = new Set<string>([
@@ -459,7 +522,7 @@ export function parseMailboxHeartbeatInput(
 /** Reject unknown fields on mutation inputs. */
 function rejectUnknownFields(
   payload: Record<string, unknown>,
-  allowed: Set<string>,
+  allowed: ReadonlySet<string>,
   op: string,
 ): void {
   for (const key of Object.keys(payload)) {

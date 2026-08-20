@@ -13,6 +13,8 @@ import {
   parseMailboxAckInput,
   parseMailboxRegistrationInput,
   parseMailboxHeartbeatInput,
+  filterMailboxSendPayload,
+  SEND_ALLOWED_FIELDS,
 } from '../../src/coordination/mailbox-codecs.js';
 import type { MailboxActorContext } from '../../src/coordination/mailbox-types.js';
 
@@ -275,7 +277,97 @@ describe('parseMailboxSendInput', () => {
   });
 });
 
-// ── Query codec ──────────────────────────────────────────────────────
+// ── Send payload filter ──────────────────────────────────────────────
+
+describe('filterMailboxSendPayload', () => {
+  it('keeps every allow-listed field and reports an empty strip list', () => {
+    const result = filterMailboxSendPayload({
+      to: 'worker',
+      subject: 's',
+      body: 'b',
+      type: 'note',
+      priority: 'high',
+      audience: 'leaders',
+      replyTo: 'msg-001',
+      senderSessionId: 'sess-1',
+      ttlMs: 60_000,
+      taskContext: { taskId: 't-1' },
+    });
+    expect(result.stripped).toEqual([]);
+    expect(Object.keys(result.payload).sort()).toEqual([...SEND_ALLOWED_FIELDS].sort());
+  });
+
+  it('strips irrelevant fields and does not mutate the input', () => {
+    const input = {
+      to: 'worker',
+      subject: 's',
+      body: 'b',
+      debug: true,
+      clientMeta: { theme: 'dark' },
+      wholeContextDump: 'x'.repeat(5000),
+    };
+    const result = filterMailboxSendPayload(input);
+    expect(result.stripped).toEqual(['debug', 'clientMeta', 'wholeContextDump']);
+    expect(result.payload).toEqual({ to: 'worker', subject: 's', body: 'b' });
+    // Input is untouched — the filter is pure.
+    expect(input).toHaveProperty('debug', true);
+    expect(input).toHaveProperty('clientMeta');
+  });
+
+  it('preserves trust-relevant fields so the codec rejects them loudly', () => {
+    // Stripping `from` or `sessionAffinity` here would silently convert a
+    // forgery attempt into a successful, differently-scoped send.
+    const result = filterMailboxSendPayload({
+      to: 'worker',
+      subject: 's',
+      body: 'b',
+      from: 'attacker@zzzz',
+      sessionAffinity: { sessionId: 'sess-42', reportId: 'rep-1' },
+    });
+    expect(result.stripped).toEqual([]);
+    expect(result.payload).toHaveProperty('from', 'attacker@zzzz');
+    expect(result.payload).toHaveProperty('sessionAffinity');
+  });
+
+  it('filtered payloads with clutter now pass the strict codec', () => {
+    // The composition contract: filter → parse. One irrelevant key must not
+    // fail an otherwise valid send.
+    const { payload } = filterMailboxSendPayload({
+      to: 'worker',
+      subject: 'hello',
+      body: 'do thing',
+      futureClientField: 'noise',
+    });
+    const result = parseMailboxSendInput(payload, actor());
+    expect(result.type).toBe('note');
+    expect(result.subject).toBe('hello');
+  });
+
+  it('filtered payloads still throw on sessionAffinity (fail-closed)', () => {
+    const { payload } = filterMailboxSendPayload({
+      to: 'worker',
+      subject: 's',
+      body: 'b',
+      sessionAffinity: { sessionId: 'sess-42' },
+      junk: true,
+    });
+    expect(() => parseMailboxSendInput(payload, actor())).toThrow(MailboxValidationError);
+    try {
+      parseMailboxSendInput(payload, actor());
+      expect.unreachable('should have thrown');
+    } catch (e) {
+      expect((e as MailboxValidationError).field).toBe('sessionAffinity');
+      expect((e as MailboxValidationError).message).toContain('unknown field "sessionAffinity"');
+    }
+  });
+
+  it('SEND_ALLOWED_FIELDS never admits sessionAffinity or from (trust invariant)', () => {
+    expect(SEND_ALLOWED_FIELDS.has('sessionAffinity')).toBe(false);
+    expect(SEND_ALLOWED_FIELDS.has('from')).toBe(false);
+  });
+});
+
+
 
 describe('parseMailboxQueryInput', () => {
   it('parses an empty query', () => {

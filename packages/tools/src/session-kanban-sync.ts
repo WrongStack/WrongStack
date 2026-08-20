@@ -138,19 +138,22 @@ export function broadcastTodoUpdate(context: Context, todos: readonly TodoItem[]
   // fan-out let one session's board projection land in every other session's
   // mailbox (cross-session todo bleed). `status` is a valid type for the
   // multi-recipient `@session:` form (only assign/steer require one recipient).
+  //
+  // Human-readable summary only. The body used to be
+  // `JSON.stringify({kind: "kanban.todos.updated", ...})` — machine-shaped
+  // clutter that rendered as opaque braces in every recipient's context.
+  // Nothing parses it (WebUI kanban events go over a separate WS channel),
+  // and the identity data it carried is already elsewhere: the session is
+  // the `@session:` recipient, the count is in the subject.
   void mailbox
     .send({
       from: context.agentId,
       to: `@session:${sessionId}`,
       type: 'status',
       subject: `Kanban todo list updated (${todos.length} item${todos.length === 1 ? '' : 's'})`,
-      body: JSON.stringify({
-        kind: 'kanban.todos.updated',
-        sessionId,
-        revision: context.state.revision,
-        todoCount: todos.length,
-        statusCounts,
-      }),
+      body:
+        `Shared Kanban board synced this session's todo list: ${todos.length} item${todos.length === 1 ? '' : 's'} — ` +
+        `${statusCounts.completed} completed, ${statusCounts.inProgress} in progress, ${statusCounts.pending} pending.`,
       priority: 'normal',
       senderSessionId: sessionId,
     })

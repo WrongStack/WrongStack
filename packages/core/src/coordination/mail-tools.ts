@@ -24,12 +24,11 @@ import type { Context } from '../core/context.js';
 import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import { getSharedProjectMailbox } from './remote-mailbox.js';
-import { parseMailboxSendInput } from './mailbox-codecs.js';
+import { filterMailboxSendPayload, parseMailboxSendInput, type ParsedSendInput } from './mailbox-codecs.js';
 import { isMailboxMessageVisibleTo, normalizeRecipient } from './mailbox-types.js';
 import type {
   Mailbox,
   MailboxActorContext,
-  MailboxAudience,
   MailboxCapability,
   MailboxMessage,
   MailboxMessageType,
@@ -147,15 +146,25 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
       required: ['to', 'subject', 'body'],
     },
     async execute(input: unknown, ctx: Context) {
-      const i = (input ?? {}) as Record<string, unknown>;
+      // Clutter gate: hosts, adapters, and models attach fields the mailbox
+      // never asked for (debug knobs, client metadata, accidental context
+      // dumps). Strip them BEFORE validation so one irrelevant key cannot
+      // fail an otherwise valid send, and so nothing outside
+      // SEND_ALLOWED_FIELDS can structurally reach another agent's inbox.
+      // Trust-relevant fields (`from`, `sessionAffinity`) survive the filter
+      // on purpose — the codec below must reject them loudly.
+      const { payload: i, stripped } = filterMailboxSendPayload(
+        (input ?? {}) as Record<string, unknown>,
+      );
       const rawTo = i.to as string | undefined;
       const subject = i.subject as string | undefined;
       const body = i.body as string | undefined;
       if (!rawTo || !subject || body === undefined || body === null) {
         return { ok: false, error: '"to", "subject" and "body" are required.' };
       }
-      // GM-P0.8: Early validation through the shared boundary codec.
-      // Rejects unknown fields and malformed type/priority before any I/O.
+      // GM-P0.8: Early validation through the shared boundary codec, fed the
+      // pre-filtered payload. Rejects trust-relevant fields (from,
+      // sessionAffinity) and malformed type/priority/audience before any I/O.
       const codecIdentity = resolveMailboxIdentity(ctx);
       const sendCapabilities: ReadonlySet<MailboxCapability> = new Set([
         'mail.send.directive',
@@ -172,25 +181,28 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
         recipientAliases: new Set([codecIdentity.baseId]),
         sessionId: codecIdentity.sessionId,
       };
+      let parsed: ParsedSendInput;
       try {
-        parseMailboxSendInput(i, codecActor);
+        parsed = parseMailboxSendInput(i, codecActor);
       } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
-      const audience = i.audience as MailboxAudience | undefined;
-      if (audience !== undefined && audience !== 'all' && audience !== 'leaders') {
-        return { ok: false, error: '"audience" must be "all" or "leaders".' };
-      }
+      const audience = parsed.audience;
       const mb = resolveMailbox(ctx);
       const identity = await register(mb, ctx);
       // Normalize after identity resolution because "@session" needs the
       // sender's full session id to produce a canonical recipient.
       const requestedTo = normalizeRecipient(rawTo, identity.sessionId);
       const delivery = applyMailboxSendPolicy(ctx, identity, requestedTo, audience);
-      // Use the canonical resolveSendType helper for type selection +
-      // cross-field validation. This enforces:
-      //   - default: broadcast when to is "*" or "@session", otherwise note
-      //   - rejection: control (runtime-reserved), assign/steer to "*" (ambiguous)
+      // Use the codec-validated envelope fields. Type re-derivation must use
+      // the RAW input type, not the codec-resolved `parsed.type`: the codec
+      // resolved defaults against the REQUESTED recipient, but the send
+      // policy may retarget the recipient (chimera → leader). Re-resolving
+      // the already-defaulted type froze `broadcast` (chosen for `*`) onto
+      // the single retargeted recipient; re-deriving from the raw type lets
+      // the canonical default follow the FINAL recipient (`note`). Explicit
+      // types are unchanged by default logic and re-validate against the
+      // final recipient here.
       const resolvedType = resolveSendType(
         i.type as MailboxMessageType | undefined,
         delivery.to,
@@ -200,10 +212,10 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
         to: delivery.to,
         type: resolvedType,
         audience: delivery.audience,
-        subject,
-        body,
-        priority: (i.priority as 'low' | 'normal' | 'high' | undefined) ?? 'normal',
-        replyTo: i.replyTo as string | undefined,
+        subject: parsed.subject,
+        body: parsed.body,
+        priority: parsed.priority,
+        replyTo: parsed.replyTo,
         senderSessionId: identity.sessionId,
       });
       return {
@@ -211,7 +223,11 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
         messageId: msg.id,
         from: identity.callerId,
         to: msg.to,
-        summary: `Mail sent to ${msg.to === '*' ? 'all agents' : msg.to} as ${identity.callerId}.`,
+        // Surfacing what was stripped keeps the send auditable without
+        // re-introducing the clutter into the payload itself.
+        ...(stripped.length > 0
+          ? { strippedFields: stripped, summary: `Mail sent to ${msg.to === '*' ? 'all agents' : msg.to} as ${identity.callerId}. Ignored ${stripped.length} unrecognized field(s): ${stripped.join(', ')}.` }
+          : { summary: `Mail sent to ${msg.to === '*' ? 'all agents' : msg.to} as ${identity.callerId}.` }),
       };
     },
   } satisfies Tool;

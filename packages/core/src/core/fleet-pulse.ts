@@ -44,9 +44,30 @@ export function fleetPulseSignature(statuses: MailboxAgentStatus[]): string {
     .join('\n');
 }
 
-function peerLine(s: MailboxAgentStatus): string {
+/**
+ * Normalized snapshot of exactly the fields a peer line RENDERS. One key
+ * drives both the sort and the duplicate-run grouping, so peers that render
+ * byte-identical lines always coalesce: the task is truncated to the same
+ * TASK_SNIPPET_CHARS the line shows, a role equal to the name (or absent)
+ * is suppressed the way `peerLine` suppresses it, and zero tool calls
+ * render as nothing. Comparing raw fields instead let visually identical
+ * lines escape grouping — the duplicate wall this exists to remove.
+ */
+function visibleLineKey(s: MailboxAgentStatus): string {
+  const role = s.role && s.role !== s.name ? s.role : '';
+  const task =
+    s.currentTask && s.currentTask.length > TASK_SNIPPET_CHARS
+      ? `${s.currentTask.slice(0, TASK_SNIPPET_CHARS)}…`
+      : (s.currentTask ?? '');
+  const tool = s.currentTool || '';
+  const toolCalls = s.toolCalls > 0 ? String(s.toolCalls) : '';
+  return [s.name, role, s.status, task, tool, toolCalls].join('\u0000');
+}
+
+function peerLine(s: MailboxAgentStatus, count = 1): string {
   const role = s.role && s.role !== s.name ? ` (${s.role})` : '';
-  const parts = [`• ${s.name}${role} — ${s.status}`];
+  const grouped = count > 1 ? ` ×${count}` : '';
+  const parts = [`• ${s.name}${role}${grouped} — ${s.status}`];
   if (s.currentTask) {
     const task =
       s.currentTask.length > TASK_SNIPPET_CHARS
@@ -75,14 +96,30 @@ export function buildFleetPulseBlock(
   // Running peers first — they are what a reader coordinates around.
   const order: Record<string, number> = { running: 0, streaming: 0, waiting_user: 1, idle: 2, error: 3, offline: 4 };
   const sorted = [...peers].sort(
-    (x, y) => (order[x.status] ?? 5) - (order[y.status] ?? 5) || x.name.localeCompare(y.name),
+    (x, y) =>
+      (order[x.status] ?? 5) - (order[y.status] ?? 5) ||
+      visibleLineKey(x).localeCompare(visibleLineKey(y)),
   );
   const shown = sorted.slice(0, maxAgents);
   const hidden = sorted.length - shown.length;
 
   const parts: string[] = [];
   parts.push(`[FLEET PULSE] ${peers.length} peer${peers.length === 1 ? '' : 's'} online:`);
-  for (const s of shown) parts.push(peerLine(s));
+  // Coalesce runs of identical visible lines. The sort above keys on
+  // (status order, full rendered-line key), so peers that render
+  // identically are adjacent; grouping turns `• chimera-review — idle` ×3
+  // into one `×3` line.
+  for (let i = 0; i < shown.length; ) {
+    let run = 1;
+    while (
+      i + run < shown.length &&
+      visibleLineKey(shown[i]!) === visibleLineKey(shown[i + run]!)
+    ) {
+      run++;
+    }
+    parts.push(peerLine(shown[i]!, run));
+    i += run;
+  }
   if (hidden > 0) parts.push(`… +${hidden} more`);
   parts.push(
     '[END FLEET PULSE] (FYI — coordinate via mail_send; avoid duplicating peers\' work)',

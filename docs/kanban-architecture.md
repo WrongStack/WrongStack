@@ -678,7 +678,8 @@ Kanban agents are instructed with the **reassessment contract**:
    change.
 4. Every successful board mutation updates shared pending work, notifies the
    owning session via `[KANBAN TODO UPDATE]` in the conversation, and
-   broadcasts a `kanban.todos.updated` status message to the project mailbox.
+   broadcasts a human-readable status summary (item counts, no JSON) to the
+   session mailbox.
 
 ### Session-Kanban Bridge
 
@@ -717,7 +718,8 @@ event subscription in `attachSessionKanbanMirror()` triggers
 4. Calls `context.state.replaceTodos()`, which fires `todos_replaced` to every
    consumer (TUI via `useLiveTodos`, WebUI via `todos.updated` WS broadcast).
 5. Fires a `[KANBAN TODO UPDATE]` block into the leader's conversation.
-6. Broadcasts a `kanban.todos.updated` status message to the project mailbox.
+6. Broadcasts a human-readable status summary (item counts, no JSON) to the
+   session mailbox.
 
 **Idempotency:** Duplicate mirroring of the same snapshot is suppressed via
 `sameTodos()` structural comparison. A board-created card with no `origin` is

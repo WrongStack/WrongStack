@@ -30,7 +30,7 @@ describe('session Kanban mailbox awareness', () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  it('broadcasts a compact invalidation instead of retaining the complete todo list', async () => {
+  it('broadcasts a human-readable summary instead of the complete todo list or a JSON envelope', async () => {
     const todos: TodoItem[] = [
       { id: 'pending', content: 'A'.repeat(32_000), status: 'pending' },
       { id: 'active', content: 'B'.repeat(32_000), status: 'in_progress' },
@@ -66,13 +66,15 @@ describe('session Kanban mailbox awareness', () => {
     // cross-session todo bleed). `status` is legal for the `@session:` form.
     expect(sent.to).toBe('@session:session-id');
     expect(sent.type).toBe('status');
-    expect(JSON.parse(sent.body)).toEqual({
-      kind: 'kanban.todos.updated',
-      sessionId: 'session-id',
-      revision: 17,
-      todoCount: 3,
-      statusCounts: { pending: 1, inProgress: 1, completed: 1 },
-    });
+    // Human-readable summary only: the body is prose an agent reads in
+    // context, never a JSON envelope it must mentally deserialize. The
+    // identity data the old JSON carried is redundant here — the session is
+    // the `@session:` recipient, the count is in the subject line.
+    expect(sent.body.startsWith('{')).toBe(false);
+    expect(sent.body).toContain('3 items');
+    expect(sent.body).toContain('1 completed');
+    expect(sent.body).toContain('1 in progress');
+    expect(sent.body).toContain('1 pending');
     expect(sent.body.length).toBeLessThan(256);
     expect(sent).not.toHaveProperty('ttlMs');
   });
