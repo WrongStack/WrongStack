@@ -410,7 +410,14 @@ const KEYWORDS_BEFORE_REGEX = new Set([
  * (`if (ok) /re/.test(s)`), unlike `f(x) / 2` which is division.
  * `return` is deliberately absent: `return (x) / 2` is division.
  */
-const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'with']);
+// `await` is here for `for await (` headers: at the `(`, lastToken is
+// the identifier `await`, and without this entry the header pushes an
+// EXPRESSION paren — its `)` then ends an operand, so a brace-less
+// loop body starting with a regex literal misclassifies that `/` as
+// division and the regex body leaks into the plan. `await(expr)` as a
+// plain call is vanishingly rare, and the failure mode when it does
+// occur is safe over-masking, never a false code read.
+const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'await']);
 
 /**
  * Whether `token` can END an operand — if it can, a following `/` is

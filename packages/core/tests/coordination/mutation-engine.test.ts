@@ -990,3 +990,74 @@ describe('planMutations — dogfood pinning: comment resume, regex classes, resy
     expect(parsed?.summary).toBe('ok');
   });
 });
+
+// ── for-await header classification ────────────────────────────────
+// `for await (` pushes an EXPRESSION paren because lastToken at the
+// `(` is the identifier `await`, not a control keyword. The header's
+// `)` then reads as operand-ending — so on a BRACE-LESS loop body the
+// leading `/` of a regex literal misclassifies as division, the regex
+// body is scanned as code, and its content is planned as mutants (the
+// UNSAFE direction: applying them corrupts regex source). Braced bodies
+// are safe by accident — `{` never ends an operand — which is why the
+// fixtures here are brace-less.
+
+describe('planMutations — for-await headers classify as control parens', () => {
+  it('does not plan mutants from a regex at the start of a brace-less for-await body', () => {
+    const source = [
+      'export async function drain(chunks: string[]): Promise<number> {',
+      '  let hits = 0;',
+      '  for await (const chunk of chunks)',
+      '    /a > b/.test(chunk) && (hits += 1);',
+      '  return hits > 0;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/fa1.ts', source);
+    // The regex body stays masked: nothing plannable on its line —
+    // pre-fix, the `a > b` INSIDE the regex leaked in as relax-boundary.
+    expect(plan.filter((m) => m.line === 4)).toEqual([]);
+    const relax = plan.filter((m) => m.kind === 'relax-boundary' && m.line === 5);
+    expect(relax).toHaveLength(1); // `hits > 0` — the real boundary
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 5)).toBe(true);
+  });
+
+  it('still treats a plain for-of header as control — division in body stays planned', () => {
+    // No-regression direction: control classification must not
+    // over-mask. A plain `for (` body with division keeps planning
+    // its real arithmetic.
+    const source = [
+      'export function sum(list: number[]): number {',
+      '  let acc = 0;',
+      '  for (const v of list) {',
+      '    acc = v / 2 + acc;',
+      '  }',
+      '  return acc;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/fa2.ts', source);
+    expect(plan.some((m) => m.kind === 'arith-plus-to-minus' && m.line === 4)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 6)).toBe(true);
+  });
+
+  it('keeps a multi-line for-await header classified as control for a brace-less body', () => {
+    // The `)` sits on its own line; cross-line token tracking must
+    // still see control-paren-close, so the regex on the next line
+    // stays a regex and its body — including the brace quantifier —
+    // stays masked. The body is a single statement (brace-less), so
+    // the regex line contains ONLY the regex: nothing plannable.
+    const source = [
+      'export async function pull(rows: string[]): Promise<boolean> {',
+      '  let ok = false;',
+      '  for await (',
+      '    const row of rows,',
+      '  )',
+      '    /a > b{2,}/.test(row);',
+      '  ok = rows.length > 0;',
+      '  return ok;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/fa3.ts', source);
+    expect(plan.filter((m) => m.line === 6)).toEqual([]); // regex masked incl. `>` and `{2,}`
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 7)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 8)).toBe(true);
+  });
+});
