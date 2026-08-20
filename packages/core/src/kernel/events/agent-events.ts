@@ -177,7 +177,13 @@ export interface AgentEventMap {
   'subagent.finish_requested': {
     /** Parent/host session id. */
     sessionId?: string | undefined;
-    subagentId: string;
+    /**
+     * Owning subagent id when the budget knows it; omitted when the budget
+     * was constructed without one. An empty string would look like an
+     * address that matches nothing — the runner treats an omitted id as
+     * deliverable (`if (e.subagentId && …)`), so omission is safe.
+     */
+    subagentId?: string | undefined;
     /** Why the finish was requested (deadline crossed / leader finished). */
     reason: string;
     /** Epoch ms by which the subagent should have produced its final output. */

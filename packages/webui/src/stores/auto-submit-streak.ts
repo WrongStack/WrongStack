@@ -107,14 +107,38 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
     }
   }, [sessionId]);
 
-  // When autonomy switches TO 'auto' from something else, reset the cap warning
-  // so the user gets a fresh cap window. The streak itself is preserved since
-  // a mode switch is not a manual input — the user just changed a setting.
+  // When autonomy changes, evaluate BOTH transition branches BEFORE updating
+  // `prevAutonomyRef.current`. React runs each `useEffect` independently, so
+  // a separate "leaving auto" effect would observe `prevAutonomyRef.current`
+  // already set to the current mode — making the leave branch unreachable.
+  // Capturing the previous value here keeps both checks correct.
   useEffect(() => {
-    if (prevAutonomyRef.current !== 'auto' && autonomy === 'auto') {
+    const wasAuto = prevAutonomyRef.current === 'auto';
+    const isAuto = autonomy === 'auto';
+
+    // Entering 'auto' from another mode → reset the cap warning so the user
+    // gets a fresh cap window. Streak is preserved (a mode switch is not a
+    // manual input — the user just changed a setting).
+    if (!wasAuto && isAuto) {
       _capWarned = false;
       capWarnedRef.current = false;
     }
+
+    // Leaving 'auto' to any other mode (off, suggest, eternal, eternal-parallel)
+    // → release the loop guard entirely. Without this, a halt triggered while
+    // in 'auto' persists after the user turns 'auto' off, and any later return
+    // to 'auto' is silently stuck — `canAutoSubmit()` keeps returning false
+    // even though the new mode wants auto-submits. Streak is also cleared:
+    // the user is stepping out of the auto-submit loop, so it is no longer
+    // meaningful. Cap warning is preserved so a quick off/on doesn't lose state.
+    if (wasAuto && !isAuto) {
+      _streak = 0;
+      streakRef.current = 0;
+      _loopHalted = false;
+      _loopGuard.reset();
+      _continuationTracker.reset();
+    }
+
     prevAutonomyRef.current = autonomy;
   }, [autonomy]);
 

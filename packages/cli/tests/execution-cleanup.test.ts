@@ -40,7 +40,10 @@ describe('finalizeExecutionCleanup', () => {
   it('runs the full cleanup sequence and finalizes the current resumed session', async () => {
     const active = session('resumed', { pendingToolUses: [{ id: 'tool-1' }] });
     const chimeraWork = { drainAndClose: vi.fn().mockResolvedValue(undefined) };
-    const director = { terminateAll: vi.fn().mockResolvedValue(undefined) };
+    const director = {
+      requestFinish: vi.fn().mockReturnValue(0),
+      terminateAll: vi.fn().mockResolvedValue(undefined),
+    };
     const { result, startupSession } = cleanupInput({
       agent: { ctx: { session: active } },
       chimeraWork,
@@ -67,6 +70,9 @@ describe('finalizeExecutionCleanup', () => {
       expect.objectContaining({ id: 'resumed' }),
     );
     expect(chimeraWork.drainAndClose).toHaveBeenCalledOnce();
+    expect(director.requestFinish).toHaveBeenCalledWith(
+      'leader session ended — finish your review now',
+    );
     expect(director.terminateAll).toHaveBeenCalledOnce();
     expect(active.close).toHaveBeenCalledOnce();
     expect(result.reader.close).toHaveBeenCalledOnce();
@@ -174,7 +180,10 @@ describe('finalizeExecutionCleanup', () => {
       mcpRegistry: { stopAll: vi.fn().mockRejectedValue('mcp failed') },
       agent: { ctx: { session: active } },
       chimeraWork: { drainAndClose: vi.fn().mockRejectedValue('chimera failed') },
-      director: { terminateAll: vi.fn().mockRejectedValue('terminate failed') },
+      director: {
+        requestFinish: vi.fn().mockReturnValue(0),
+        terminateAll: vi.fn().mockRejectedValue('terminate failed'),
+      },
       reader: { close: vi.fn().mockRejectedValue('reader failed') },
     });
 

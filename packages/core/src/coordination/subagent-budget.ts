@@ -272,17 +272,23 @@ export class SubagentBudget {
 
     if (shouldEmit) {
       this._finishNotified = true;
-      // For the notice text, report the real remaining working time: the
+      // For the notice text, report the REAL remaining working time: the
       // grace deadline when granted, otherwise the still-standing budget
       // ceiling (a notify-only request must not imply a shorter window).
+      // No minimum floor — a window that is nearly spent (or already spent)
+      // must not be inflated to "5 seconds left"; the notice builder renders
+      // a spent window as "finish now" instead.
       const effectiveDeadlineMs =
         graceDeadlineMs ??
         (this.limits.timeoutMs !== undefined
           ? this.startTime + this.limits.timeoutMs
           : now() + DEFAULT_SUBAGENT_FINISH_GRACE_MS);
-      const effectiveGraceMs = Math.max(5_000, effectiveDeadlineMs - now());
+      const effectiveGraceMs = Math.max(0, effectiveDeadlineMs - now());
+      const subagentId = this._subagentId;
       this._events.emit(SUBAGENT_FINISH_REQUESTED_EVENT, {
-        subagentId: this._subagentId ?? '',
+        // Omitted entirely when the budget was built without an id — an
+        // empty string is an address that matches nothing.
+        ...(subagentId !== undefined ? { subagentId } : {}),
         reason,
         deadlineMs: effectiveDeadlineMs,
         graceMs: effectiveGraceMs,

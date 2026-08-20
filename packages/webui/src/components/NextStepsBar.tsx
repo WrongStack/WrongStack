@@ -185,19 +185,54 @@ export function NextStepsBar({
     return () => document.removeEventListener('chat:next-step-countdown', handler);
   }, [steps.length, autoFillActive, isLatest, sessionEndAutoFill]);
 
+  // Cancel any in-flight session-end auto-fill when the autonomy gate CLOSES
+  // mid-countdown. The trigger for arming the countdown is the `chat:next-step-
+  // countdown` document event, which is dispatched unconditionally on every
+  // done run — it does not consult the gate. So once `autoFillActive` is true
+  // the countdown always starts; whether it should *finish* and fire
+  // `onAutoSubmit` is what we gate here.
+  //
+  // We track the previous gate value in a ref so we only cancel on a true
+  // CLOSING transition (open → closed). Checking the current gate alone is
+  // wrong: a bar instance mounted while the gate is already closed (e.g. the
+  // user toggled autonomy off before the assistant reply even finished) would
+  // see `autoFillActive=true` and immediately cancel — silently killing the
+  // `fillInput` path (the only escape hatch when the gate is closed). The
+  // transition check makes the cancel a true response to a mid-run change.
+  //
+  // `autoFillFired` is NOT reset here so we don't re-arm the listener for
+  // the same bar instance after a toggle-off-then-on; the next assistant
+  // reply gets a fresh bar instance.
+  const prevGateRef = useRef(yoloMode && autoMode && canAutoSubmitProp);
+  useEffect(() => {
+    const gateOpen = yoloMode && autoMode && canAutoSubmitProp;
+    const wasOpen = prevGateRef.current;
+    prevGateRef.current = gateOpen;
+    if (!autoFillActive) return;
+    if (wasOpen && !gateOpen) {
+      setAutoFillActive(false);
+    }
+  }, [autoFillActive, yoloMode, autoMode, canAutoSubmitProp]);
+
+  // The arming event `chat:next-step-countdown` is dispatched unconditionally on
+  // every done run — it does NOT consult the autonomy gate. So when the
+  // countdown completes we must re-check the gate here, not at arm time:
+  // if the user flipped autonomy off between the run finishing and the
+  // countdown elapsing, we fall through to `fillInput` instead of sending a
+  // prompt the user explicitly disabled. Same gate as the YOLO countdown path
+  // (showAutoCountdown) so a closed gate at the fire site never auto-submits.
+  const gateOpen = yoloMode && autoMode && canAutoSubmitProp;
   const handleAutoFill = useCallback(() => {
     if (steps.length > 0) {
       const step = steps[0]!;
-      // Only auto-submit when the first step carries the auto="true" marker.
-      // Without the marker, fall back to filling the input even in auto mode.
-      if (step.auto && onAutoSubmit) {
+      if (step.auto && onAutoSubmit && gateOpen) {
         onAutoSubmit(step.text);
       } else {
         fillInput(step.text);
       }
     }
     setAutoFillActive(false);
-  }, [steps, onAutoSubmit]);
+  }, [steps, onAutoSubmit, gateOpen]);
 
   // Clear multi-selection when steps structurally change (new response, new indices).
   // Use a structural key to avoid Zalgo — step objects are new refs on every render

@@ -121,6 +121,50 @@ describe('SubagentBudget.notifyFinish', () => {
     expect(budget.limits.timeoutMs).toBe(600_000);
   });
 
+  it('omits subagentId instead of emitting an empty string when the budget has none', () => {
+    const events = new EventBus();
+    // No `subagentId` in the options — the constructor leaves it undefined.
+    const budget = new SubagentBudget({ timeoutMs: 600_000 }, 'auto');
+    budget._events = events;
+    budget.start();
+
+    let payload: Record<string, unknown> | undefined;
+    events.on(SUBAGENT_FINISH_REQUESTED_EVENT, (e) => {
+      payload = e as unknown as Record<string, unknown>;
+    });
+
+    expect(budget.notifyFinish('leader session ended')).toBe(true);
+    // `subagentId: ''` is an address that matches nothing; omission is the
+    // honest shape, and the runner's filter already treats it as deliverable.
+    // The conditional spread omits the key ENTIRELY (not present-as-undefined)
+    // — that absence is what downstream `in` checks would observe.
+    expect(payload).toBeDefined();
+    expect('subagentId' in payload!).toBe(false);
+    expect(payload!.subagentId).toBeUndefined();
+  });
+
+  it('reports true remaining time with no 5s floor — a spent window reads "finish now"', () => {
+    const events = new EventBus();
+    const budget = new SubagentBudget({ timeoutMs: 600_000 }, 'auto', { subagentId: 'rev-3' });
+    budget._events = events;
+    budget.start();
+
+    const seen: Array<{ notice: string; graceMs: number }> = [];
+    events.on(SUBAGENT_FINISH_REQUESTED_EVENT, (e) => {
+      seen.push({ notice: e.notice, graceMs: e.graceMs });
+    });
+
+    // Notify-only with the budget already past its ceiling: notifyFinish
+    // accepts a clock, so hand it one beyond the 600s deadline. The old
+    // Math.max(5_000, …) floor inflated a spent window to "5 seconds left".
+    const pastDeadline = () => Date.now() + 700_000;
+    expect(budget.notifyFinish('leader session ended', undefined, pastDeadline)).toBe(true);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.graceMs).toBe(0);
+    expect(seen[0]!.notice).toContain('already spent');
+    expect(seen[0]!.notice).not.toContain('5 seconds');
+  });
+
   it('refuses to notify before start() or without a bus', () => {
     const unstarted = new SubagentBudget({ timeoutMs: 1_000 }, 'auto', { subagentId: 'x' });
     expect(unstarted.notifyFinish('reason', { graceMs: 1_000 })).toBe(false);

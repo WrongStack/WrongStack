@@ -1161,7 +1161,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 164,
-      "sourceLines": 47020
+      "sourceLines": 47032
     },
     {
       "directory": "core",
@@ -1231,7 +1231,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3639
+      "sourceLines": 3645
     },
     {
       "directory": "middleware",

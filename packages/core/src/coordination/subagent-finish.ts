@@ -88,12 +88,18 @@ export function buildSubagentFinishNotice(input: {
   /** Granted working-time window in milliseconds. */
   graceMs: number;
 }): string {
-  const seconds = Math.max(1, Math.round(input.graceMs / 1000));
   const localTime = new Date(input.deadlineMs).toISOString();
+  const seconds = Math.max(1, Math.round(input.graceMs / 1000));
+  // A window that is already spent must not be rounded up into phantom
+  // working time — the budget clamps at 0, and 0 renders as "finish now".
+  const timeLeft =
+    input.graceMs > 0
+      ? `You have roughly ${seconds} seconds (until ${localTime}) of legitimate working time left.`
+      : `Your working-time window is already spent (deadline was ${localTime}) — finish now.`;
   return [
     '[SUBAGENT FINISH] The leader agent has finished its work.',
     `Reason: ${input.reason}`,
-    `You have roughly ${seconds} seconds (until ${localTime}) of legitimate working time left.`,
+    timeLeft,
     'Finish your task now, in this turn: complete the thought you are working on, stop',
     'starting new tool calls unless one is strictly required to finish, and write your',
     'final answer or report as your final output, then end your turn.',

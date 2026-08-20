@@ -28,5 +28,16 @@
   - *How:* `packages/providers/src/github-copilot.ts`
   - *How:* `super(openaiWireFormat, ...)`
 
+## What to do
+
+<!-- learned-stamp: category=convention; capturedAt=2026-08-20T06:48:15.609Z; skill=audit-log; applied=1; wins=1 -->
+- **Always resolve `parseNextSteps`/`stripNextStepsBlock` to their canonical home `@wrongstack/tools/next-steps` before editing — `packages/webui/src/components/NextStepsBar.tsx` only re-exports them for back-compat, so a UI-component import path does not mean the parser logic lives (or should be edited) there. Check the tools package first when the parser itself needs changing.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `parseNextSteps`
+  - *How:* `stripNextStepsBlock`
+  - *How:* `@wrongstack/tools/next-steps`
+  - *How:* `packages/webui/src/components/NextStepsBar.tsx`
+  - *How:* `@wrongstack/tools`
+
 ---
-*Last capture: 2026-08-19T17:01:23.576Z · 2 entries*
+*Last capture: 2026-08-20T06:48:15.609Z · 3 entries*
