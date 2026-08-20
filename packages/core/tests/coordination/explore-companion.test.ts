@@ -263,7 +263,7 @@ describe('ExploreCompanion session filtering', () => {
     expect(h.probes).toHaveLength(0);
   });
 
-  it('events without a sessionId pass through (backward compatibility)', async () => {
+  it('events without a sessionId are dropped (strict fail-closed filter)', async () => {
     const h = makeHarness();
     h.events.emit('tool.executed', {
       name: 'edit',
@@ -272,7 +272,36 @@ describe('ExploreCompanion session filtering', () => {
       input: { path: 'src/legacy.ts' },
     } as never);
     await flush();
+    expect(h.probes).toHaveLength(0);
+  });
+
+  it('unstamped error and agents_updated events are dropped too', async () => {
+    const h = makeHarness();
+    h.events.emit('error', {
+      phase: 'tool',
+      err: new Error("Cannot find module 'src/missing.ts'"),
+    } as never);
+    h.events.emit('session.agents_updated', {
+      agents: [
+        agentSnapshot('leader', [{ id: 't1', content: 'Map src/x.ts', status: 'in_progress' }]),
+      ],
+    } as never);
+    await flush();
+    expect(h.probes).toHaveLength(0);
+  });
+
+  it('unresolved lazy leaderSessionId getter drops events until it resolves', async () => {
+    let sid: string | undefined;
+    const h = makeHarness({ leaderSessionId: () => sid });
+    sid = LEADER_SESSION;
+    toolExecuted(h.events, { name: 'edit', input: { path: 'src/a.ts' } });
+    await flush();
     expect(h.probes).toHaveLength(1);
+    h.probes.length = 0;
+    sid = undefined;
+    toolExecuted(h.events, { name: 'edit', input: { path: 'src/b.ts' } });
+    await flush();
+    expect(h.probes).toHaveLength(0);
   });
 });
 

@@ -70,6 +70,14 @@ export {
 export type { DirectorOptions, TaskResultNotification } from './director-options.js';
 export type { ModelMatrixSource } from './model-matrix.js';
 
+/**
+ * Minimum delay for re-arming an idle-retirement check that fired while the
+ * subagent was still busy. Re-arms reuse the caller's window; this floor only
+ * prevents a retire-on-complete (0ms) check from spinning sub-millisecond
+ * while the subagent keeps working.
+ */
+const BUSY_REARM_FLOOR_MS = 1_000;
+
 export class Director implements DirectorFleetHost, ICoordinator {
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars — just a cast helper */
   private static _asManifestEntry(v: unknown): ManifestEntry {
@@ -153,6 +161,13 @@ export class Director implements DirectorFleetHost, ICoordinator {
   private readonly subagentIdleTimeoutMs: number | undefined;
   private readonly retireSubagentOnTaskComplete: boolean;
   private readonly subagentIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /**
+   * Effective idle window per subagent (spawn-time `idleTimeoutMs` override
+   * or the Director-wide default; undefined = no window). Internal-task
+   * completion re-arms with THIS value, not the Director-wide default, so
+   * a subagent-configured window survives its first internal probe.
+   */
+  private readonly subagentIdleDelayMs = new Map<string, number | undefined>();
   readonly sharedScratchpadPath: string | null;
   readonly maxSpawns: number;
   readonly maxSpawnDepth: number;
@@ -330,7 +345,21 @@ export class Director implements DirectorFleetHost, ICoordinator {
   private handleTaskCompleted(payload: { task: TaskSpec; result: TaskResult }): void {
     const r = payload.result;
     const settled = this.tasks.settle(r);
-    if (settled.internal) return;
+    if (settled.internal) {
+      // Internal tasks (background probes, shadow passes) are exempt from
+      // retire-on-complete — that policy is for the leader-visible one-shot
+      // surface. But exemption must not mean "no bound": arm the subagent's
+      // OWN idle window (spawn-time override or Director-wide default) so an
+      // internal-only resident (e.g. the resident `explore-companion`) is
+      // reaped after that window instead of living forever. Never retire-0
+      // here — that would kill the resident mid-session, the opposite of
+      // the exemption's intent.
+      this.armSubagentIdleRetirement(
+        r.subagentId,
+        this.subagentIdleDelayMs.get(r.subagentId) ?? this.subagentIdleTimeoutMs,
+      );
+      return;
+    }
     const title = this.tasks.descriptionFor(r.taskId, payload.task.description ?? r.taskId);
     if (!settled.consumedInBand && this.taskResultNotifier) {
       const resultText =
@@ -521,6 +550,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
       config.idleTimeoutMs >= 0
         ? config.idleTimeoutMs
         : this.subagentIdleTimeoutMs;
+    this.subagentIdleDelayMs.set(subagentId, perSubagentIdleMs);
     this.armSubagentIdleRetirement(subagentId, perSubagentIdleMs);
     return subagentId;
   }
@@ -582,6 +612,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
     this.budgetPolicy.dispose();
     for (const timer of this.subagentIdleTimers.values()) clearTimeout(timer);
     this.subagentIdleTimers.clear();
+    this.subagentIdleDelayMs.clear();
     await this.coordinator.stopAll();
     this.tasks.resolveWaitersOnShutdown();
     for (const b of this.subagentBridges.values()) {
@@ -656,6 +687,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
 
   async remove(subagentId: string): Promise<void> {
     this.clearSubagentIdleRetirement(subagentId);
+    this.subagentIdleDelayMs.delete(subagentId);
     void this.appendSessionEvent({
       type: 'agent_stopped',
       ts: new Date().toISOString(),
@@ -736,9 +768,23 @@ export class Director implements DirectorFleetHost, ICoordinator {
     const timer = setTimeout(() => {
       this.subagentIdleTimers.delete(subagentId);
       const entry = this.coordinator.getStatus().subagents.find((a) => a.id === subagentId);
-      if (entry?.status !== 'idle') return;
+      // Already gone: nothing to retire. (The normal removal path clears the
+      // armed timer itself; re-arming here would chain 1s timers on a dead id.)
+      if (entry === undefined) return;
+      // Busy at the tick: re-arm, never drop. Dropping stranded a resident
+      // mid-flight on its only armed timer — it stayed in the fleet forever
+      // with nothing left to retire it. Re-arm reuses the SAME window the
+      // caller chose; the floor keeps a retire-on-complete (0ms) check from
+      // becoming a sub-millisecond spin while the subagent keeps working. A
+      // task completing on the subagent re-arms retirement itself
+      // (handleTaskCompleted), so this re-arm is only the safety net between
+      // status flips.
+      if (entry.status !== 'idle') {
+        this.armSubagentIdleRetirement(subagentId, Math.max(delayMs, BUSY_REARM_FLOOR_MS));
+        return;
+      }
       if (this.coordinator.listPendingTasks().some((task) => task.subagentId === subagentId)) {
-        this.armSubagentIdleRetirement(subagentId, this.subagentIdleTimeoutMs);
+        this.armSubagentIdleRetirement(subagentId, Math.max(delayMs, BUSY_REARM_FLOOR_MS));
         return;
       }
       void this.remove(subagentId).catch((err) =>

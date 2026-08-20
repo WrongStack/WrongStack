@@ -1,8 +1,9 @@
 # Explore Companion — a state-triggered background codebase explorer
 
-Status: **Implemented** (role + observer + host wiring + unit tests; verified 2026-08-19)
+Status: **Implemented** (role + observer + host wiring + unit tests; verified 2026-08-19;
+mailbox ask gating + strict session filter + director idle re-arm hardened 2026-08-20)
 Owner: leader agent / fleet
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## 1. Problem
 
@@ -36,7 +37,7 @@ This design introduces a **companion** explore agent that:
 | Invocation | Manual `delegate({role:'explore'})` | State-triggered; auto-spawned behind the leader |
 | Blocking | Yes — leader awaits `TaskResult` | No — fire-and-forget; findings arrive by mail |
 | Scope | Whole-codebase map on demand | Narrow probes scoped to the leader's current work |
-| Lifecycle | One subagent run per call | Long-lived resident, idle-reaped, auto-respawned |
+| Lifecycle | One subagent run per call | Resident reused across probes; lazily spawned, idle-reaped, auto-respawned |
 | Feedback | Final text result | Mailbox `result`/`btw` + `submit_result` structured report |
 | Dispatcher | Phase-1 catalog role, routable | Operational role, **not** in the phase catalog |
 
@@ -73,9 +74,14 @@ Three new pieces:
   `packages/core/instructions/agents/explore-companion.md`, skills in
   `ROLE_SKILL_SETS` (`role-skills.ts`).
 - **B. Trigger layer** — `ExploreCompanion` observer class (shape mirrors
-  `brain-monitor.ts`): subscribes to EventBus events filtered to the
-  leader session, maps in-progress state → probe tasks, dedupes and
-  rate-limits, then assigns probes to the resident (or spawns it).
+  `brain-monitor.ts`): subscribes to EventBus events filtered strictly to
+  the leader session (an event passes only when its `sessionId` equals the
+  leader's — unstamped events are dropped, fail-closed), maps in-progress
+  state → probe tasks, dedupes and rate-limits, then assigns probes to the
+  resident (or spawns it). Mailbox asks additionally require the recipient
+  to be the companion (tagged id, base alias, session/global broadcast)
+  and the sender to be stamped with this leader's session (unstamped sends
+  fall back to a leader-name check).
 - **C. Feedback channel** — mailbox `result`/`btw` messages addressed to
   the leader (subject-prefixed `[explore]`), plus `submit_result` with a
   `SubagentStructuredReport`.
@@ -94,13 +100,17 @@ export const EXPLORE_COMPANION_AGENT: SubagentConfig = {
     'delegate', 'spawn_subagent', 'assign_task',    // no nesting, no delegation
   ],
   skillNames: [...ROLE_SKILL_SETS['explore-companion']],
-  idleTimeoutMs: DEFAULT_IDLE_TIMEOUT_MS,           // 10 min idle reap (fleet.ts:141)
   spawnBudgetExempt: true,                          // background traffic must not consume
                                                     // the leader's deliberate-delegation budget
   textStream: 'silent',                             // findings go via mailbox + submit_result,
   toolStream: 'silent',                             // not the stream the leader watches
 };
 ```
+
+No inline `idleTimeoutMs` here — the idle window lives in
+`FLEET_ROSTER_BUDGETS` (§4.2) and feeds the coordinator budget path; the
+Director's spawn-armed retirement uses the per-subagent override or the
+host idle default (see §7).
 
 `TOOLS.read` already includes `mailbox` (`types.ts:129`), so the resident
 can always report back — the same guarantee the git/release roles got.
@@ -111,13 +121,17 @@ Bounded, in the spirit of `shadow-agent` ("bounded, quiet, one-shot"):
 
 ```ts
 'explore-companion': {
-  timeoutMs: 3 * 60 * 60 * 1000,
+  idleTimeoutMs: DEFAULT_IDLE_TIMEOUT_MS,           // 10 min idle reap (budget path)
   maxIterations: 3000,
   maxToolCalls: 8000,
   maxTokens: 96_000,
   maxCostUsd: 0.5,
 },
 ```
+
+No wall-clock `timeoutMs` — `applyRosterBudget` forwards one only when the
+config sets it explicitly, and reaping is deliberately idle-based (a
+multi-hour default killed agents that were still working).
 
 ### 4.3 Skills (`role-skills.ts`)
 
@@ -252,10 +266,15 @@ programmatically instead of parsing prose.
 
 ## 7. Lifecycle and guardrails
 
-- Spawned with the session's director; terminates with the session
-  (parent-abort propagates, `aborted_by_parent`).
-- Idle-reaped after 10 min with no activity; auto-respawned on the next
-  probe.
+- Spawned **lazily on the first probe** (an idle session pays nothing);
+  terminates with the session (parent-abort propagates, `aborted_by_parent`).
+- Idle-reaped after the idle window — per-subagent override or the host
+  `fleet.lifecycle.idleTimeoutMs` (CLI host default 5 min); the 10-min
+  window in `FLEET_ROSTER_BUDGETS` governs the coordinator budget path.
+  Auto-respawned on the next probe. Internal tasks (probes) are exempt
+  from retire-on-complete and arm the subagent's own idle window on
+  completion; a retirement tick that fires while the subagent is busy
+  re-arms instead of dropping (no immortal residents).
 - **Never blocks the leader** — probes are `spawn`+`assign`, never
   `delegate`.
 - **Read-only, triple-enforced**: tool allowlist has no write/bash;
@@ -281,7 +300,7 @@ All items shipped and verified (coordination test directory: 126 files /
 3. [x] `packages/core/src/coordination/fleet.ts` — `EXPLORE_COMPANION_AGENT`
    const + `FLEET_ROSTER` entry + `FLEET_ROSTER_BUDGETS` entry. (Also bumped
    the roster-count assertion in `tests/coordination/agent-catalog.test.ts`
-   77 → 78.)
+   77 → 78; it is 79 since `chaos-monkey` joined the roster 2026-08-20.)
 4. [x] `packages/core/src/coordination/explore-companion.ts` — new observer
    (trigger layer; §5).
 5. [x] `packages/core/src/coordination/index.ts` — export the new module.
@@ -295,8 +314,12 @@ All items shipped and verified (coordination test directory: 126 files /
    lazily spawned resident subagent (stable id
    `explore-companion-<sessionTag>`, respawned when reaped).
 7. [x] Tests (see §9) — `packages/core/tests/coordination/explore-companion.test.ts`
-   (27 tests: trigger mapping, session filtering, cooldown/dedupe,
-   non-blocking onProbe, mailbox-ask gating, roster integration).
+   (36 tests: trigger mapping, session filtering, cooldown/dedupe,
+   non-blocking onProbe, mailbox-ask gating incl. recipient + sender-session
+   checks, roster integration). Director lifecycle regressions live in
+   `packages/core/tests/coordination/director-idle-lifecycle.test.ts`
+   (internal-task retire exemption, busy-tick re-arm, spawn-override
+   window).
 
 No changes to `packages/core/src/coordination/agents/phase1-discovery.ts`,
 `phase9-meta.ts`, or any phase file — catalog count stays 75.

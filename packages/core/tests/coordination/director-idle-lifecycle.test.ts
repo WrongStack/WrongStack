@@ -91,4 +91,76 @@ describe('Director subagent idle lifecycle', () => {
     expect(director.status().subagents.some((a) => a.id === 'reused-worker')).toBe(false);
     await director.shutdown();
   });
+
+  it('internal tasks are exempt from retire-on-complete but still bounded by the idle window', async () => {
+    vi.useFakeTimers();
+    const director = makeDirector({ idleMs: 50, retireOnComplete: true });
+    await director.spawn({ id: 'resident', name: 'Resident' });
+    await director.assignInternal({ id: 'probe-1', description: 'probe', subagentId: 'resident' });
+
+    const [result] = await director.awaitTasks(['probe-1']);
+    expect(result?.result).toBe('final answer');
+
+    await vi.advanceTimersByTimeAsync(0);
+    // Retire-on-complete fires for leader-visible tasks only — an internal
+    // probe completing must NOT retire the resident.
+    expect(director.status().subagents.some((a) => a.id === 'resident')).toBe(true);
+
+    // Exemption is not immortality: internal completion arms the regular
+    // idle window, so the resident is reaped once idle.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(director.status().subagents.some((a) => a.id === 'resident')).toBe(false);
+    await director.shutdown();
+  });
+
+  it('re-arms retirement when the idle tick fires while the subagent is busy (no immortal residents)', async () => {
+    vi.useFakeTimers();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const director = makeDirector({
+      idleMs: 50,
+      retireOnComplete: true,
+      runner: async () => {
+        await gate;
+        return { result: 'done', iterations: 1, toolCalls: 0 };
+      },
+    });
+    await director.spawn({ id: 'resident', name: 'Resident' });
+    await director.assignInternal({ id: 'probe-1', description: 'probe', subagentId: 'resident' });
+
+    // The spawn-armed idle tick fires while the internal task is still
+    // running. Old behavior dropped retirement there, and the internal
+    // completion armed nothing — the resident was stranded in the fleet
+    // forever. Re-arming must keep a timer armed.
+    await vi.advanceTimersByTimeAsync(50);
+    release();
+    await director.awaitTasks(['probe-1']);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(director.status().subagents.some((a) => a.id === 'resident')).toBe(false);
+    await director.shutdown();
+  });
+
+  it('internal completion re-arms with the spawn-time idleTimeoutMs override, not the Director default', async () => {
+    vi.useFakeTimers();
+    // No Director-wide idle window — the ONLY bound is the per-subagent
+    // override. Pins that the internal-completion re-arm reads the spawn-
+    // time map entry; arming with the Director default (undefined here)
+    // would leave the resident immortal.
+    const director = makeDirector({ retireOnComplete: true });
+    await director.spawn({ id: 'resident', name: 'Resident', idleTimeoutMs: 30 });
+    await director.assignInternal({ id: 'probe-1', description: 'probe', subagentId: 'resident' });
+
+    const [result] = await director.awaitTasks(['probe-1']);
+    expect(result?.result).toBe('final answer');
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(director.status().subagents.some((a) => a.id === 'resident')).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(30);
+    expect(director.status().subagents.some((a) => a.id === 'resident')).toBe(false);
+    await director.shutdown();
+  });
 });

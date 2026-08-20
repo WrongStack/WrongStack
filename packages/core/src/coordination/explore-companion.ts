@@ -90,12 +90,15 @@ export interface ExploreCompanionOptions {
   /** Project mailbox the companion polls for explicit asks and acks them. */
   mailbox: Mailbox;
   /**
-   * Leader session id used to filter out subagent events. The companion
-   * subscribes to global events (tool.executed, error, session.agents_updated)
-   * which fire for BOTH the leader and subagents. When set, any event whose
-   * `sessionId` differs from this value is skipped. Events without a
-   * `sessionId` field always pass through (backward compatibility). Pass a
-   * lazy getter when the session id may change at runtime.
+   * Leader session id used to filter events down to this leader only. The
+   * companion subscribes to global events (tool.executed, error,
+   * session.agents_updated) which fire for BOTH the leader and subagents.
+   * Strict, fail-closed: an event passes only when its `sessionId` equals
+   * this value — unstamped events are dropped (production emitters always
+   * stamp; an unstamped event is assumed to be a subagent's), and a
+   * transiently unresolved getter drops everything rather than probing on
+   * unattributed activity. Pass a lazy getter when the session id may
+   * change at runtime.
    */
   leaderSessionId: string | (() => string | undefined);
   /**
@@ -352,8 +355,7 @@ export class ExploreCompanion {
 
     this.unsubscribers.push(
       this.opts.events.on('tool.executed', (e) => {
-        const lsid = this.resolveLeaderSessionId();
-        if (lsid && e.sessionId && e.sessionId !== lsid) return;
+        if (e.sessionId !== this.resolveLeaderSessionId()) return;
         this.trackToolExecuted(e);
       }),
     );
@@ -361,8 +363,7 @@ export class ExploreCompanion {
     if (this.cfg.signals.todoInProgress && this.resolveLeaderAgentId()) {
       this.unsubscribers.push(
         this.opts.events.on('session.agents_updated', (e) => {
-          const lsid = this.resolveLeaderSessionId();
-          if (lsid && e.sessionId && e.sessionId !== lsid) return;
+          if (e.sessionId !== this.resolveLeaderSessionId()) return;
           this.trackAgentTodos(e.agents);
         }),
       );
@@ -371,8 +372,7 @@ export class ExploreCompanion {
     if (this.cfg.signals.errorSymbol) {
       this.unsubscribers.push(
         this.opts.events.on('error', (e) => {
-          const lsid = this.resolveLeaderSessionId();
-          if (lsid && e.sessionId && e.sessionId !== lsid) return;
+          if (e.sessionId !== this.resolveLeaderSessionId()) return;
           this.trackError(e.err);
         }),
       );
