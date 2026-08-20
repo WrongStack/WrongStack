@@ -1111,6 +1111,36 @@ See [`/chimera`](slash/chimera.md) for full usage. The Chimera plugin runs a rea
 | `fallbackModels` | string[] | `[]` | Chimera-specific fallback chain (`provider/model` refs), tried before the session-level chain. |
 | `fallbackProfile` | string | — | Named profile from `fallbackProfiles`; its chain is merged into the reviewer ladder ahead of the session-level profile. |
 
+#### Graceful-finish lifecycle (built-in, not configurable)
+
+Chimera reviewers and cascade agents are never killed by a timeout. They run
+under a **graceful-finish** lifecycle that replaces the watchdog's deadline
+kill with a notification, so a mid-review agent always completes its own turn:
+
+1. **Deadline crossing → notification, not kill.** When the review subagent's
+   wall-clock budget is exhausted, the coordinator emits an in-band
+   `subagent.finish_requested` note that the agent reads *between tool calls*
+   (folded in like a `/btw` note, never as an interrupt) and grants a grace
+   window — 120 s by default — of legitimate working time.
+2. **The agent finishes its report in its own turn**, and that report is what
+   is parsed, persisted, and mailed.
+3. **Terminal stop only after the grace window.** A run that ignored the
+   notification is stopped once its maximum lifetime is spent, so shutdown can
+   never hang on a stalled reviewer. Ladder retries are unaffected: a rung
+   that exhausts its grace window counts as a timeout and the next model on
+   the ladder takes over.
+
+At session end, before waiting on review work, shutdown notifies every
+running review subagent that the leader has finished (`requestFinish`), so a
+review already in flight accelerates to deliver its report instead of being
+reaped. Only agents that have actually started working are notified — a
+freshly spawned reviewer is never told to skip its review.
+
+The same lifecycle is available to any custom subagent spawn via the
+`gracefulFinish` option (`true`, or `{ "graceMs": 60000 }` for a custom grace
+window). Omitting it keeps the default watchdog behavior (preemptive budget
+extension, then a hard stop at the deadline).
+
 ---
 
 ## `brain` — Decision layer (autonomy, rules, council, trace)
