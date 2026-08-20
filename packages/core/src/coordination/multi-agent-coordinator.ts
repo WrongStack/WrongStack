@@ -20,6 +20,7 @@ import {
   BudgetExceededError,
   SubagentBudget,
 } from './subagent-budget.js';
+import { resolveGracefulFinish, type GracefulFinish } from './subagent-finish.js';
 import { classifySubagentError } from './coordinator/error-classifier.js';
 import { applyRosterBudget } from './fleet.js';
 import { assignNickname } from './subagent-nicknames.js';
@@ -468,6 +469,45 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     this.recordCompletion(result);
   }
 
+  /**
+   * Ask every RUNNING subagent that opted into `gracefulFinish` to finish its
+   * task in its own turn (see coordination/subagent-finish.ts). This is the
+   * leader-side entry point for "the leader agent has finished": it delivers
+   * an in-band notification between tool batches — never an interrupt, never
+   * an abort. Each notified subagent keeps its existing time budget and
+   * accelerates; the watchdog still bounds the maximum lifetime.
+   *
+   * Subagents without the policy opted in are deliberately untouched — their
+   * lifecycle remains the legacy watchdog contract.
+   *
+   * Returns the number of subagents actually notified.
+   */
+  requestFinish(reason: string): number {
+    let notified = 0;
+    for (const subagent of this.subagents.values()) {
+      if (subagent.status !== 'running') continue;
+      if (!resolveGracefulFinish(subagent.config)) continue;
+      const budget = subagent.activeBudget;
+      if (!budget) continue;
+      // "Wrap up," never "skip your work": only subagents that have actually
+      // started (an iteration or tool call on record) are asked to accelerate.
+      // A just-spawned subagent — typically a post-session reviewer whose
+      // runner has only just wired its bus — would otherwise read the finish
+      // notice at its FIRST iteration, before it has examined anything, and a
+      // compliant model would emit a truncated report. Subagents that have
+      // not started yet stay on their normal lifecycle; the watchdog
+      // deadline crossing delivers the in-band notice with a grace window,
+      // which is the mandatory path for stalled runs.
+      const usage = budget.usage();
+      if (usage.iterations === 0 && usage.toolCalls === 0) continue;
+      // Notify only — no grace grant. A subagent still well inside its
+      // wall-clock budget keeps its full legitimate working time; one already
+      // past its deadline has (or will) get grace from the watchdog.
+      if (budget.notifyFinish(reason)) notified++;
+    }
+    return notified;
+  }
+
   // --- internal dispatching ---------------------------------------------
 
   private tryDispatchNext(): void {
@@ -705,7 +745,14 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
           configWithRosterDefaults.idleTimeoutMs,
       },
       'auto',
-      { sessionId: () => this.currentSessionId() },
+      {
+        sessionId: () => this.currentSessionId(),
+        subagentId,
+        // Graceful-finish runs own wall-clock enforcement to the watchdog so
+        // the notify-then-bound lifecycle cannot be raced by tool.progress
+        // heartbeats calling checkTimeout() (see subagent-budget.ts).
+        ...(resolveGracefulFinish(subagent.config) ? { wallClockWatchdogOwned: true } : {}),
+      },
     );
     subagent.activeBudget = budget;
 
@@ -751,6 +798,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
         runCtx,
         budget,
         subagent.config.preemptFraction,
+        resolveGracefulFinish(subagent.config),
       );
       result = {
         subagentId,
@@ -796,6 +844,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     ctx: SubagentRunContext,
     budget: SubagentBudget,
     preemptFraction?: number | undefined,
+    gracefulFinish?: GracefulFinish | undefined,
   ) {
     return executeSubagentWithTimeout({
       runner,
@@ -803,6 +852,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       ctx,
       budget,
       preemptFraction,
+      gracefulFinish,
       abortSubagent: (subagentId) => this.subagents.get(subagentId)?.abortController.abort(),
       currentSessionId: () => this.currentSessionId(),
     });

@@ -1,5 +1,10 @@
 import type { Usage } from '../types/provider.js';
 import type { EventBus } from '../kernel/events.js';
+import {
+  buildSubagentFinishNotice,
+  DEFAULT_SUBAGENT_FINISH_GRACE_MS,
+  SUBAGENT_FINISH_REQUESTED_EVENT,
+} from './subagent-finish.js';
 
 export type BudgetKind = 'tool_calls' | 'iterations' | 'tokens' | 'timeout' | 'idle_timeout' | 'cost';
 
@@ -78,6 +83,19 @@ export type BudgetSessionIdSource = string | (() => string | undefined);
 
 interface SubagentBudgetOptions {
   sessionId?: BudgetSessionIdSource | undefined;
+  /** Owning subagent id — used to address the graceful-finish event. */
+  subagentId?: string | undefined;
+  /**
+   * Wall-clock enforcement is owned EXCLUSIVELY by the coordinator watchdog
+   * (`executeSubagentWithTimeout`). Set for `gracefulFinish` runs: their
+   * notify-then-bound lifecycle must not be raced by `checkTimeout()` calls
+   * from `tool.progress` heartbeats, which can fire in the window between a
+   * deadline crossing and the watchdog's own tick — starting legacy
+   * negotiation that either aborts before `subagent.finish_requested` is
+   * delivered or grants an extension past the grace deadline (violating the
+   * bounded maximum lifetime). Idle-timeout checks still run.
+   */
+  wallClockWatchdogOwned?: boolean | undefined;
 }
 
 export interface BudgetUsage {
@@ -193,6 +211,97 @@ export class SubagentBudget {
       (this.limits as Record<string, unknown>).idleTimeoutMs = ext.idleTimeoutMs;
     }
   }
+  /**
+   * Graceful-finish state (see coordination/subagent-finish.ts).
+   * `_finishNotified` guards the single in-band emission; `_grace` records a
+   * granted working-time extension past the original wall-clock deadline.
+   * They are separate because the two callers want different semantics:
+   * the watchdog grants grace at the deadline crossing (notify + extend),
+   * while an explicit leader-finished request only notifies — a subagent
+   * well inside its budget keeps its full legitimate working time and simply
+   * accelerates.
+   */
+  private _finishNotified = false;
+  private _grace: { deadlineMs: number; graceMs: number } | null = null;
+
+  /** True once the in-band finish notification has been emitted. */
+  get finishNotified(): boolean {
+    return this._finishNotified;
+  }
+
+  /** True once a grace window has been granted past the original deadline. */
+  get graceGranted(): boolean {
+    return this._grace !== null;
+  }
+
+  /**
+   * Notify the subagent in-band to finish its task in its own turn:
+   * `subagent.finish_requested` is emitted on the wired EventBus and the
+   * agent loop folds the notice into the conversation between tool batches.
+   * Nothing aborts — this is a notification, never an interrupt.
+   *
+   * `opts.graceMs` additionally extends the wall-clock ceiling by that window
+   * (used by the watchdog at a deadline crossing, so the model gets working
+   * time instead of a kill). Omit it to notify without touching the budget —
+   * the subagent keeps its existing time budget and just accelerates.
+   *
+   * Returns `true` when this call did something (emitted the notification
+   * and/or granted grace); `false` when there was nothing to do (already
+   * notified, grace already granted, no EventBus wired, budget not started).
+   */
+  notifyFinish(reason: string, opts?: { graceMs?: number | undefined }, now: () => number = Date.now): boolean {
+    if (!this._events) return false;
+    if (this.startTime === null) return false;
+    const shouldEmit = !this._finishNotified;
+    const rawGrace = opts?.graceMs;
+    const shouldGrant = rawGrace !== undefined && this._grace === null;
+    if (!shouldEmit && !shouldGrant) return false;
+
+    let grantedGraceMs = 0;
+    let graceDeadlineMs: number | undefined;
+    if (shouldGrant && rawGrace !== undefined) {
+      grantedGraceMs =
+        Number.isFinite(rawGrace) && rawGrace > 0 ? Math.floor(rawGrace) : DEFAULT_SUBAGENT_FINISH_GRACE_MS;
+      graceDeadlineMs = now() + grantedGraceMs;
+      this._grace = { deadlineMs: graceDeadlineMs, graceMs: grantedGraceMs };
+      // Single write path for limit mutations: extend the wall-clock ceiling
+      // to cover the grace window so the watchdog re-arms for the finish
+      // deadline instead of firing the terminal stop immediately.
+      this.patchLimits({ timeoutMs: graceDeadlineMs - this.startTime });
+    }
+
+    if (shouldEmit) {
+      this._finishNotified = true;
+      // For the notice text, report the real remaining working time: the
+      // grace deadline when granted, otherwise the still-standing budget
+      // ceiling (a notify-only request must not imply a shorter window).
+      const effectiveDeadlineMs =
+        graceDeadlineMs ??
+        (this.limits.timeoutMs !== undefined
+          ? this.startTime + this.limits.timeoutMs
+          : now() + DEFAULT_SUBAGENT_FINISH_GRACE_MS);
+      const effectiveGraceMs = Math.max(5_000, effectiveDeadlineMs - now());
+      this._events.emit(SUBAGENT_FINISH_REQUESTED_EVENT, {
+        subagentId: this._subagentId ?? '',
+        reason,
+        deadlineMs: effectiveDeadlineMs,
+        graceMs: effectiveGraceMs,
+        notice: buildSubagentFinishNotice({
+          reason,
+          deadlineMs: effectiveDeadlineMs,
+          graceMs: effectiveGraceMs,
+        }),
+      });
+    }
+    return true;
+  }
+
+  /** Epoch ms by which the subagent should have produced its final output,
+   *  once a grace window was granted. Undefined before that. */
+  get finishDeadlineMs(): number | undefined {
+    return this._grace?.deadlineMs;
+  }
+
   private iterations = 0;
   private toolCalls = 0;
   private tokenInput = 0;
@@ -208,6 +317,10 @@ export class SubagentBudget {
   private lastActivityTime: number | null = null;
   private _onThreshold: BudgetThresholdHandler | undefined;
   private readonly _sessionId: BudgetSessionIdSource | undefined;
+  /** Owning subagent id — used to address the graceful-finish event. */
+  private readonly _subagentId: string | undefined;
+  /** True when only the coordinator watchdog may enforce wall-clock limits. */
+  private readonly _wallClockWatchdogOwned: boolean;
   /**
    * Hard cap on how long `_negotiateExtension` waits for the coordinator to
    * respond before defaulting to 'stop'. Without this fallback an absent
@@ -285,6 +398,8 @@ export class SubagentBudget {
   ) {
     this._mode = mode;
     this._sessionId = options.sessionId;
+    this._subagentId = options.subagentId;
+    this._wallClockWatchdogOwned = options.wallClockWatchdogOwned === true;
     // NOT frozen: `negotiateExtension` patches these limits in place when the
     // coordinator grants an auto-extension. Freezing made every granted
     // extension throw `TypeError: Cannot assign to read only property` in
@@ -389,8 +504,17 @@ export class SubagentBudget {
       // the guard in checkTimeout, which previously was NOT applied here — so
       // an idle trip that called checkLimits re-added 'timeout' and defeated the
       // watchdog dedup.)
+      //
+      // `wallClockWatchdogOwned` (gracefulFinish runs) mirrors checkTimeout's
+      // guard: wall-clock ownership is PERMANENT for those runs, not just
+      // mid-negotiation. Without this mirror, a tool.progress heartbeat
+      // landing in the sub-millisecond window between a deadline crossing and
+      // the watchdog's own tick trips idle here, and checkLimits re-added
+      // 'timeout' — starting a legacy wall-clock negotiation that raced the
+      // watchdog's notify-then-grace path.
       const wallOwnedByWatchdog =
-        this._onThreshold !== undefined && this._watchdogActive === this.limits.timeoutMs;
+        this._wallClockWatchdogOwned ||
+        (this._onThreshold !== undefined && this._watchdogActive === this.limits.timeoutMs);
       if (
         this.limits.timeoutMs !== undefined &&
         elapsedMs > this.limits.timeoutMs &&
@@ -651,12 +775,22 @@ export class SubagentBudget {
     // of negotiating this exact ceiling — tool.progress is too frequent and creates
     // a race where both paths emit budget.threshold_reached for the same kind.
     // The watchdog owns wall-clock; checkTimeout focuses exclusively on idle.
+    //
+    // `wallClockWatchdogOwned` (gracefulFinish runs) makes that ownership
+    // PERMANENT for the whole run, not just mid-negotiation: a tool.progress
+    // heartbeat landing between a deadline crossing and the watchdog's own
+    // tick must never start its own wall-clock negotiation — that would abort
+    // before `subagent.finish_requested` is delivered, or extend past the
+    // grace deadline and break the bounded maximum lifetime.
     const wallSkipped =
       this._onThreshold !== undefined &&
       this._watchdogActive !== undefined &&
       timeoutMs !== undefined &&
       this._watchdogActive === timeoutMs;
-    const wallTripped = wallSkipped ? false : timeoutMs !== undefined && elapsed > timeoutMs;
+    const wallTripped =
+      this._wallClockWatchdogOwned || wallSkipped
+        ? false
+        : timeoutMs !== undefined && elapsed > timeoutMs;
     const idleTripped = idleTimeoutMs !== undefined && this.idleMs() > idleTimeoutMs;
     if (!wallTripped && !idleTripped) return;
     void this.checkLimits(elapsed);

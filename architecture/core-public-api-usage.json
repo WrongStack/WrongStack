@@ -19,9 +19,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/coordination": {
-      "files": 183,
+      "files": 184,
       "typeOnly": 78,
-      "runtimeOrMixed": 155
+      "runtimeOrMixed": 156
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 40
     },
     "@wrongstack/core/kernel": {
-      "files": 237,
+      "files": 238,
       "typeOnly": 125,
-      "runtimeOrMixed": 123
+      "runtimeOrMixed": 124
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 972,
-      "typeOnly": 897,
+      "files": 973,
+      "typeOnly": 898,
       "runtimeOrMixed": 242
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -2595,6 +2595,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/chimera-cascade-graceful-finish.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5313,6 +5319,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/cascade-e2e.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/chimera-cascade-graceful-finish.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -10797,6 +10809,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/boot/vector-memory-tools.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/chimera-cascade-graceful-finish.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

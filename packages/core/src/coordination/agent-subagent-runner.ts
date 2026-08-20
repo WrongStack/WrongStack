@@ -1,5 +1,6 @@
 import type { Agent, AgentInput, RunResult } from '../core/agent.js';
 import type { EventBus } from '../kernel/events.js';
+import { setBtwNote } from '../core/btw.js';
 import type {
   SubagentConfig,
   SubagentRunContext,
@@ -12,6 +13,7 @@ import {
   BudgetExceededError,
   BudgetThresholdSignal,
 } from './subagent-budget.js';
+import { resolveGracefulFinish } from './subagent-finish.js';
 import type { FleetBus } from './fleet-bus.js';
 import { readSubagentStructuredReport } from './subagent-result-tool.js';
 
@@ -365,6 +367,23 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
     // Forward the coordinator signal so stop() from outside also aborts.
     const onParentAbort = () => aborter.abort();
     ctx.signal.addEventListener('abort', onParentAbort);
+
+    // In-band graceful finish (see coordination/subagent-finish.ts). When the
+    // watchdog's deadline crossing or an explicit leader request fires
+    // `subagent.finish_requested` on this subagent's bus, stash the notice as
+    // a `/btw` note on the agent's live Context. The agent loop folds it into
+    // the conversation at the TOP of its next iteration — between tool
+    // batches, no abort, no restart — and the model completes its task in its
+    // own turn. Legacy spawns (no `gracefulFinish`) never receive the event,
+    // so this listener is dead weight only for opted-in subagents.
+    if (resolveGracefulFinish(ctx.config)) {
+      unsub.push(
+        events.on('subagent.finish_requested', (e) => {
+          if (e.subagentId && e.subagentId !== ctx.subagentId) return;
+          setBtwNote(agent.ctx, e.notice);
+        }),
+      );
+    }
 
     let result: RunResult;
     try {

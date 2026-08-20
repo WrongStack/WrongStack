@@ -153,8 +153,8 @@ export interface AgentEventMap {
   /**
    * A spawn resolved fewer skills than it selected. Emitted so a skill that
    * silently failed to load — missing from the loader, gated by a capability
-   * the subagent lacks, or cut by the prompt budget — is observable instead of
-   * leaving the agent believing it received guidance it never got.
+   * the subagent lacks, or cut by the prompt budget — is observable instead
+   * of leaving the agent believing it received guidance it never got.
    */
   'subagent.skills.dropped': {
     sessionId?: string | undefined;
@@ -163,6 +163,29 @@ export interface AgentEventMap {
     selected: string[];
     /** skill → reason it was dropped. */
     dropped: Record<string, string>;
+  };
+  /**
+   * In-band graceful-finish request for a background subagent (see
+   * coordination/subagent-finish.ts). Emitted on the subagent's OWN EventBus
+   * when its wall-clock deadline is crossed — or the leader explicitly asked
+   * it to finish (session shutdown) — and the subagent's config opted into
+   * `gracefulFinish`. The runner folds the notice into the conversation as a
+   * `/btw` note at the next iteration boundary; the model then completes its
+   * task in its own turn within the granted grace window. This event is a
+   * notification, never an interrupt: nothing aborts when it fires.
+   */
+  'subagent.finish_requested': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
+    subagentId: string;
+    /** Why the finish was requested (deadline crossed / leader finished). */
+    reason: string;
+    /** Epoch ms by which the subagent should have produced its final output. */
+    deadlineMs: number;
+    /** Granted working-time window in ms. */
+    graceMs: number;
+    /** Ready-to-read notice text; the loop folds it in as a `/btw` note. */
+    notice: string;
   };
   /**
    * A background learning-distillation pass finished for a roster role.

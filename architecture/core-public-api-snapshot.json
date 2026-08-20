@@ -1160,8 +1160,8 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 161,
-      "sourceLines": 45873
+      "sourceFiles": 162,
+      "sourceLines": 46273
     },
     {
       "directory": "core",
@@ -1231,7 +1231,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3616
+      "sourceLines": 3639
     },
     {
       "directory": "middleware",
@@ -1343,7 +1343,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 11042
+      "sourceLines": 11056
     },
     {
       "directory": "utils",

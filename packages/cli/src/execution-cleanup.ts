@@ -118,6 +118,28 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
       sessionEndProducers.add(tracked);
     },
   });
+  // "The leader agent has finished": notify every still-running
+  // graceful-finish subagent (the Chimera reviewer opts in) BEFORE waiting on
+  // their work. This is the in-band notification delivered between the
+  // subagent's tool calls — never an interrupt, never an abort. A notified
+  // reviewer keeps its existing time budget, accelerates to complete its own
+  // turn, and the drain below grants exactly that legitimate working time.
+  // Delivery is idempotent per budget, so the safety-net sweep below may call
+  // it again harmlessly for stragglers spawned while draining.
+  if (director) {
+    try {
+      director.requestFinish('leader session ended — finish your review now');
+    } catch (finishErr) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'shutdown.subagent_finish_notify_failed',
+          message: finishErr instanceof Error ? finishErr.message : String(finishErr),
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+  }
   // session.ended listeners are invoked synchronously but may start asynchronous
   // Git/filesystem work before emitting review_needed. Join those producers
   // first, then drain every review/cascade promise to a fixed point. This keeps
@@ -126,6 +148,19 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
   try {
     while (sessionEndProducers.size > 0) {
       await Promise.allSettled([...sessionEndProducers]);
+    }
+    // Post-session reviewers are spawned ASYNCHRONOUSLY by the producers
+    // above, so the early requestFinish() fired before they existed. Now
+    // that every producer has settled, a reviewer that started is running —
+    // notify it here, before the drain grants it working time. This is the
+    // deterministic "leader has finished → accelerate" moment for the
+    // post-session review path; the watchdog deadline remains the backstop.
+    if (director) {
+      try {
+        director.requestFinish('leader session ended — finish your review now');
+      } catch {
+        /* best-effort — the safety net below fires again */
+      }
     }
     await chimeraWork?.drainAndClose();
   } catch (err) {
@@ -143,6 +178,27 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
   // inside each handler, but this catches stragglers if an error path or
   // unexpected state left a subagent alive.
   if (director) {
+    // Before the hard sweep: notify every still-running graceful-finish
+    // subagent (the Chimera reviewer opted in) that the leader has finished.
+    // This is the in-band "leader agent has finished" notification — delivered
+    // between the subagent's tool calls, never as an interrupt. The notified
+    // reviewer keeps its time budget, accelerates to complete its own turn,
+    // and the `chimeraWork.drainAndClose()` above already waited for exactly
+    // that completion. Anything STILL alive past this point ignored the
+    // notification and its grace window — the bounded maximum lifetime is
+    // spent, so the terminal sweep below applies.
+    try {
+      director.requestFinish('leader session ended — finish your review now');
+    } catch (finishErr) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'shutdown.subagent_finish_notify_failed',
+          message: finishErr instanceof Error ? finishErr.message : String(finishErr),
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
     try {
       await director.terminateAll();
     } catch (termErr) {

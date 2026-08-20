@@ -296,5 +296,13 @@ export function applyChimeraReviewerReadOnlyPolicy(config: SubagentConfig): Suba
     tools: [...CHIMERA_REVIEW_READ_ONLY_TOOLS],
     allowedCapabilities: ['fs.read'],
     worktree: 'off',
+    // Mandatory model-driven completion: a reviewer must never be killed by
+    // the wall-clock watchdog. At its deadline (or when the leader's session
+    // ends and `Director.requestFinish()` fires) it receives an in-band
+    // `subagent.finish_requested` notification between tool batches and
+    // finishes its report in its own turn within the granted grace window.
+    // Only if that window also elapses does the terminal stop apply — the
+    // reviewer's bounded maximum lifetime.
+    gracefulFinish: true,
   };
 }

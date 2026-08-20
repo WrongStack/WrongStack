@@ -155,6 +155,20 @@ export interface SubagentConfig {
     | undefined;
 
   /**
+   * Model-driven completion policy. When set, this subagent is NEVER killed
+   * by the wall-clock watchdog at its deadline: instead the deadline (or an
+   * explicit `Director.requestFinish()`) triggers an in-band
+   * `subagent.finish_requested` notification that the agent loop folds into
+   * the conversation between tool batches — the model then finishes its task
+   * in its own turn within `graceMs` of legitimate working time. Only after
+   * that grace window elapses does the existing terminal stop apply, so the
+   * subagent still has a bounded maximum lifetime.
+   *
+   * `undefined` (default) keeps the legacy watchdog behavior unchanged.
+   */
+  gracefulFinish?: boolean | { graceMs?: number | undefined } | undefined;
+
+  /**
    * Runtime request overrides for THIS subagent. When present, these are merged
    * over the leader's `Config.modelRuntime` before the subagent request pipeline
    * maps reasoning/cache/parameters onto provider requests. Used by the model

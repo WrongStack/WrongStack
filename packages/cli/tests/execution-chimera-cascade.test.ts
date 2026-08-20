@@ -86,6 +86,18 @@ describe('installChimeraCascadeHandler', () => {
       1,
       expect.objectContaining({ role: 'security-scanner' }),
     );
+    // Cascade agents are opted into the graceful-finish lifecycle: a rung
+    // crossing its wall-clock budget is notified in-band (never killed) and
+    // finishes its own turn within the grace window. Ladder retry still
+    // applies — a grace-exhausted rung lands as `timeout` and advances.
+    expect(director.spawn).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ gracefulFinish: true }),
+    );
+    expect(director.spawn).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ gracefulFinish: true }),
+    );
     expect(director.terminate).toHaveBeenCalledTimes(2);
     const writes = h.session.append.mock.calls.map(([entry]) => entry);
     expect(writes.some((entry) => entry.type === 'llm_response')).toBe(true);

@@ -117,6 +117,15 @@ export function installChimeraCascadeHandler({
               // Cascade agents are ephemeral infrastructure: like reviewers,
               // they must not consume the leader's lifetime maxSpawns budget.
               spawnBudgetExempt: true,
+              // Model-driven completion (see core coordination/subagent-finish.ts):
+              // a rung crossing its wall-clock budget is notified in-band
+              // between tool batches and finishes its own turn within the
+              // grace window instead of being killed. Ladder-retry semantics
+              // are intact: a rung that still exhausts the grace window lands
+              // as a `timeout` task result, which advances the ladder, and
+              // `buildRetryPreamble` below already warns the successor that
+              // the tree may hold the dead rung's partial edits.
+              gracefulFinish: true,
               // Rung 0 stays unpinned so the role model matrix still decides;
               // later rungs pin a model precisely because it just failed.
               ...(attempt.tier === 'inherit'

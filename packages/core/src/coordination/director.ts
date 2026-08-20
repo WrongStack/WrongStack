@@ -422,6 +422,18 @@ export class Director implements DirectorFleetHost, ICoordinator {
     return this.workCompleteFlag;
   }
 
+  /**
+   * Ask every running background subagent that opted into `gracefulFinish`
+   * to finish its task in its own turn. In-band notification between tool
+   * batches — no interrupt, no abort; each subagent keeps its time budget and
+   * accelerates. Session shutdown calls this before draining Chimera work so
+   * the post-session reviewer is nudged to complete rather than killed.
+   * Returns the number of subagents notified.
+   */
+  requestFinish(reason: string): number {
+    return this.coordinator.requestFinish(reason);
+  }
+
   setLeaderBtwNote(note: string): number {
     return this.btwNotes.add(note);
   }
