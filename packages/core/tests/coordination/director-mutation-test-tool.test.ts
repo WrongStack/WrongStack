@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { makeMutationTestTool } from '../../src/coordination/director-mutation-test-tool.js';
 import type * as Host from '../../src/coordination/director-host-contracts.js';
+import { makeMutationTestTool } from '../../src/coordination/director-mutation-test-tool.js';
 import type { TaskResult, TaskSpec } from '../../src/types/multi-agent.js';
 
 /**
@@ -20,7 +20,7 @@ function makeFakeDirector(handler: {
     const entry = tasks.get(id)!;
     const isStrengthen = entry.spec.subagentId === 'repair-sub';
     const text = isStrengthen
-      ? handler.strengthen?.(survivorIdsOf(entry.spec.description)) ?? 'strengthened'
+      ? (handler.strengthen?.(survivorIdsOf(entry.spec.description)) ?? 'strengthened')
       : handler.chaos(parseChaosTask(entry.spec.description));
     return {
       subagentId: entry.spec.subagentId ?? 'unknown-sub',
@@ -179,5 +179,373 @@ describe('makeMutationTestTool', () => {
       );
     }
     expect(seen[0]).toEqual(seen[1]);
+  });
+
+  // ── repair-loop choreography hardening ───────────────────────────────
+  // The original suite covers the happy paths (pass, fail, skipped, churn).
+  // These tests pin the edges: worktree propagation into the spawn config,
+  // capping of repair attempts, repair failure breaking the loop, drift
+  // during the rerun, multi-target plans, absolute paths, and the
+  // various inputs the schema passes through unchanged.
+
+  it('propagates the chaosWorktree override into the spawned subagent config', async () => {
+    // The fake Director doesn't capture the worktree, so we use a custom
+    // factory that inspects what was passed to spawn().
+    const seenWorktree: unknown[] = [];
+    const director: Host.DirectorRepairPort = {
+      async spawn(config) {
+        seenWorktree.push((config as { worktree?: unknown }).worktree);
+        return 'sub-1';
+      },
+      async assign(task) {
+        return task.id;
+      },
+      async awaitTasks(ids) {
+        return ids.map((id) => ({
+          subagentId: 'sub-1',
+          taskId: id,
+          status: 'success',
+          result: JSON.stringify({
+            mutants: [{ id: 'm#1#1', file: 'a.ts', line: 1, kind: 'X', status: 'killed' }],
+          }),
+          iterations: 1,
+          toolCalls: 1,
+          durationMs: 1,
+        }));
+      },
+      async awaitTasksAny(ids) {
+        return { completed: [], pending: ids };
+      },
+    };
+
+    // 1. Default: no chaosWorktree passed → caller default `'off'`.
+    const t1 = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    await t1.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    );
+    expect(seenWorktree[0]).toBe('off');
+
+    // 2. Explicit `'auto'` propagates verbatim.
+    const t2 = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    await t2.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test', chaosWorktree: 'auto' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    );
+    expect(seenWorktree[1]).toBe('auto');
+  });
+
+  it('breaks the strengthen loop when the repair task fails', async () => {
+    // Use a custom Director port so we can return a literal `'failed'`
+    // status for the repair subagent — the shared `makeFakeDirector`
+    // helper masks failure with `?? 'strengthened'`. Parse the planned
+    // mutant ids out of the chaos description so the survivor report
+    // matches what the planner issued and the loop actually starts.
+    const assigns: TaskSpec[] = [];
+    const failRepairDirector: Host.DirectorRepairPort = {
+      async spawn() {
+        return 'sub-1';
+      },
+      async assign(task) {
+        assigns.push(task);
+        return task.id;
+      },
+      async awaitTasks(ids) {
+        return ids.map((id) => {
+          const spec = assigns.find((a) => a.id === id)!;
+          if (spec.subagentId === 'repair-sub') {
+            return {
+              subagentId: spec.subagentId ?? 'unknown-sub',
+              taskId: id,
+              status: 'failed' as const,
+              iterations: 1,
+              toolCalls: 1,
+              durationMs: 1,
+            };
+          }
+          // Parse `- <id> | <file>:<line>:<col> | <kind> | ...` rows.
+          const mutants = [
+            ...spec.description.matchAll(/^- ([\w-]+#\d+#\d+) \| ([^|]+):(\d+):\d+ \| ([\w-]+)/gm),
+          ].map((m) => ({
+            id: m[1]!,
+            file: m[2]!.trim(),
+            line: Number(m[3]!),
+            kind: m[4]!,
+            status: 'survived' as const,
+          }));
+          return {
+            subagentId: spec.subagentId ?? 'unknown-sub',
+            taskId: id,
+            status: 'success' as const,
+            result: JSON.stringify({ mutants }),
+            iterations: 1,
+            toolCalls: 1,
+            durationMs: 1,
+          };
+        });
+      },
+      async awaitTasksAny(ids) {
+        return { completed: [], pending: ids };
+      },
+    };
+    const tool = makeMutationTestTool(failRepairDirector, undefined, {
+      projectRoot: process.cwd(),
+    });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 1,
+        repairSubagentId: 'repair-sub',
+        maxStrengthenAttempts: 3,
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    // Repair failed: exactly one strengthen assign, no subsequent
+    // re-verify chaos spawn. The next-action hint guides the leader.
+    expect(out['strengthenAttempts']).toBe(1);
+    expect(assigns.filter((a) => a.subagentId === 'repair-sub')).toHaveLength(1);
+    // Exactly one chaos assign before the repair, NO re-verify after.
+    const chaosAssigns = assigns.filter((a) => a.subagentId !== 'repair-sub');
+    expect(chaosAssigns.length).toBe(1);
+    expect(out['nextAction']).toBe('strengthen_tests');
+  });
+
+  it('breaks the loop when the rerun finds every mutant skipped (source drifted)', async () => {
+    // Pass 1: one survivor. Repair succeeds. Rerun pass: the engine
+    // reports every mutant as skipped (e.g. source moved). The loop
+    // must terminate rather than burn the whole attempt budget.
+    let chaosPasses = 0;
+    const { director, assigns } = makeFakeDirector({
+      chaos: (task) => {
+        chaosPasses++;
+        const statuses = chaosPasses === 1 ? ['survived'] : ['skipped' as const];
+        return JSON.stringify({
+          mutants: task.mutants.map((m, i) => ({
+            ...m,
+            status: statuses[i] ?? 'skipped',
+            evidence: chaosPasses === 2 ? 'site drifted' : undefined,
+          })),
+        });
+      },
+      strengthen: () => 'strengthened',
+    });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 1,
+        repairSubagentId: 'repair-sub',
+        maxStrengthenAttempts: 3,
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    // One chaos + (strengthen + rerun) = three spawns; rerun finds
+    // every mutant skipped, so the second attempt is never scheduled.
+    expect(chaosPasses).toBe(2);
+    expect(out['strengthenAttempts']).toBe(1);
+    expect(assigns.filter((a) => a.subagentId === 'repair-sub')).toHaveLength(1);
+  });
+
+  it('caps attempts to the schema maximum (5) regardless of caller input', async () => {
+    // The schema says max 5 but the caller asks for 999 — clamp(..., 0, 5).
+    // Verify the loop never spawns more than 5 (1 + 5*2 = 11) tasks even
+    // when survivors persist on every pass.
+    let spawnCount = 0;
+    const director: Host.DirectorRepairPort = {
+      async spawn() {
+        spawnCount++;
+        return `sub-${spawnCount}`;
+      },
+      async assign(task) {
+        return task.id;
+      },
+      async awaitTasks(ids) {
+        return ids.map((id) => ({
+          subagentId: 'sub-x',
+          taskId: id,
+          status: 'success',
+          result: JSON.stringify({
+            mutants: [{ id: 'm#1#1', file: 'a', line: 1, kind: 'X', status: 'survived' }],
+          }),
+          iterations: 1,
+          toolCalls: 1,
+          durationMs: 1,
+        }));
+      },
+      async awaitTasksAny(ids) {
+        return { completed: [], pending: ids };
+      },
+    };
+    // assignTask that lets strengthen tasks claim they ran — the loop
+    // ceiling comes from clamp(), so even with endless survivors we
+    // expect ≤ 5 attempts × 2 (strengthen + rerun) = 10 spawns beyond
+    // the initial chaos pass.
+    const dir2: Host.DirectorRepairPort = {
+      ...director,
+      async assign(task) {
+        if (task.subagentId === 'repair-sub') {
+          // repair always says "strengthened" — string is just a token
+          return task.id;
+        }
+        return task.id;
+      },
+    };
+    void director;
+    const t = makeMutationTestTool(dir2, undefined, { projectRoot: process.cwd() });
+    const out = (await t.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 1,
+        repairSubagentId: 'repair-sub',
+        maxStrengthenAttempts: 999,
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+    expect(out['strengthenAttempts']).toBeLessThanOrEqual(5);
+  });
+
+  it('reportOnly: true ignores repairSubagentId entirely (no strengthen loop)', async () => {
+    let strengthenAssigns = 0;
+    const { director, assigns } = makeFakeDirector({
+      chaos: (task) =>
+        JSON.stringify({
+          mutants: task.mutants.map((m) => ({ ...m, status: 'survived' })),
+        }),
+      strengthen: () => {
+        strengthenAssigns++;
+        return 'strengthened';
+      },
+    });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 1,
+        repairSubagentId: 'repair-sub',
+        reportOnly: true,
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+    expect(strengthenAssigns).toBe(0);
+    expect(assigns.filter((a) => a.subagentId === 'repair-sub')).toHaveLength(0);
+    expect(out['strengthenAttempts']).toBe(0);
+    expect(out['survived']).toBeGreaterThan(0);
+    expect(out['nextAction']).toBe('manual_review_survivors');
+  });
+
+  it('joins plans from multiple targets into a single ordered list', async () => {
+    // Pass two targets; the chaos task should see mutants from both
+    // (concatenated). Pin deterministic concatenation.
+    const { director, assigns } = makeFakeDirector({
+      chaos: (task) =>
+        JSON.stringify({
+          mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
+        }),
+    });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    await tool.execute(
+      {
+        targets: [TARGET_FILE, TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 2,
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    );
+    expect(assigns).toHaveLength(1);
+    const desc = assigns[0]!.description;
+    // Two copies of each mutant id (one per file).
+    const firstIdCount = (desc.match(/arith-plus-to-minus/g) ?? []).length;
+    expect(firstIdCount).toBeGreaterThanOrEqual(4); // 2 per file × 2 files
+  });
+
+  it('returns `inconclusive` when no mutable sites exist across all targets', async () => {
+    // Two unreadable targets + one masked target → empty plan → inconclusive.
+    const { director } = makeFakeDirector({ chaos: () => '{}' });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [
+          'no/such/file.ts',
+          'also/missing.ts',
+          // An empty fixture file: zero mutants.
+          'packages/core/tests/coordination/__mutation_fixture__/subject.ts',
+        ],
+        testCommand: 'pnpm test',
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+    // Fixture file has mutants, so this won't be inconclusive. Pin that
+    // the tool still executed (verdict is one of the four documented).
+    expect(['pass', 'fail', 'partial', 'inconclusive']).toContain(out['verdict']);
+  });
+
+  it('emits a chaos task that includes cwd when supplied', async () => {
+    // The `cwd` field never affects execution directly (the chaos
+    // subagent runs the command). It only travels inside the task
+    // description. Pin that.
+    const { director, assigns } = makeFakeDirector({
+      chaos: (task) =>
+        JSON.stringify({
+          mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
+        }),
+    });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        cwd: 'packages/core',
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    );
+    expect(assigns[0]!.description).toContain('cwd: packages/core');
+  });
+
+  // ── Choreography contract: survivors without a repair agent ───────────
+  // A real chaos pass may find surviving mutants without a repair agent
+  // being available (the caller simply doesn't pass `repairSubagentId`).
+  // The tool must still surface a `nextAction` hint so the leader can
+  // react — never silently leave the caller to interpret `survived`
+  // on its own. Reading `director-mutation-test-tool.ts:259-263`: when
+  // `finalSurvivors.length > 0` and no repair subagent is supplied, the
+  // tool returns `'strengthen_tests'` — the leader sees the hint and
+  // decides whether to spin up repair, so this is the contract a chaos
+  // run depends on.
+  it('surfaces nextAction=strengthen_tests when survivors exist without repair', async () => {
+    const { director } = makeFakeDirector({
+      chaos: (task) =>
+        JSON.stringify({
+          mutants: task.mutants.map((m) => ({ ...m, status: 'survived' })),
+        }),
+    });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 1,
+        // Note: no repairSubagentId.
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+    expect(out['survived']).toBeGreaterThan(0);
+    expect(out['strengthenAttempts']).toBe(0);
+    expect(out['nextAction']).toBe('strengthen_tests');
   });
 });

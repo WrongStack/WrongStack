@@ -283,12 +283,13 @@ export const slashCommands = [
   '/yolo',
 ] as const;
 
-/** Published workspace inventory: 29 packages and 2 apps. */
+/** Published workspace inventory: 31 packages and 2 apps. */
 export const packages = [
   'wrongstack',
   '@wrongstack/core',
   '@wrongstack/cli',
   '@wrongstack/providers',
+  '@wrongstack/plugin-sdk',
   '@wrongstack/tools',
   '@wrongstack/mcp',
   '@wrongstack/plug-lsp',
@@ -312,6 +313,7 @@ export const packages = [
   '@wrongstack/webui-server',
   '@wrongstack/webui-hq',
   '@wrongstack/telegram',
+  '@wrongstack/vector-memory',
   '@wrongstack/plugins',
   '@wrongstack/bench',
   '@wrongstack/acp',
@@ -339,9 +341,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.309.0',
+    date: '2026-08-20',
+    latest: true,
+    tagline: 'Plugin SDK, background exploration, explicit effort, and mutation testing',
+    highlights: [
+      'The new @wrongstack/plugin-sdk package and trust-aware external-plugin lifecycle expose hardened extension primitives without weakening the first-party sandbox',
+      'Explore Companion performs read-only background codebase probes and returns findings through the mailbox without blocking the leader',
+      '/effort and the WebUI model-aware selector share a canonical reasoning vocabulary that provider adapters preserve across model families',
+      'The deterministic mutation_test workflow delegates bounded mutants to a dedicated Chaos Monkey role to prove tests catch behavior changes',
+      'Background subagents receive a bounded graceful-finish window, while mailbox prose filtering and fleet-pulse coalescing reduce coordination noise',
+      'Kanban metrics verify both higher-is-better and lower-is-better goals, and all public release surfaces align to 0.309.0',
+    ],
+  },
+  {
     version: '0.308.6',
     date: '2026-08-18',
-    latest: true,
     tagline: 'All bundled skills follow the v2 structure with explicit in-lane guardrails',
     highlights: [
       'All 24 bundled skills now carry an explicit "Out of scope" section and a "Before returning" checklist, with versions bumped and docs/SKILL-TEMPLATE.md codifying the standard structure for future skill authoring',

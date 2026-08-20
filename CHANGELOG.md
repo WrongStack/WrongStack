@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.309.0] — 2026-08-20
+
+### Added
+
+- **Third-party plugins now have a supported SDK and end-to-end lifecycle.** The new `@wrongstack/plugin-sdk` package publishes the bounded runtime, safe JSON handling, credential-pattern checks, ReDoS guards, local binary controls, LLM helpers, and sandbox primitives previously internal to the official plugin bundle. Trust-aware discovery, installation, validation, loading, and external-plugin wiring make those extensions usable without bypassing WrongStack's existing plugin boundary. (`276cceca5`)
+- **Explore Companion performs read-only background investigation for the leader.** State-triggered probes can inspect unread files, recover from zero-hit searches, follow todo changes, and return findings through the mailbox without blocking the main agent or consuming its spawn budget. (`968f825e2`)
+- **Reasoning effort is controllable from both CLI and WebUI.** The new `/effort` command and model-aware settings selector share the core `ReasoningEffort` vocabulary, persist the chosen level, and expose only the options supported by the active model. (`336377631`, `4930f962b`, `4f4e137a9`)
+- **Director workflows can run deterministic mutation testing.** `mutation_test` creates bounded mutation plans and assigns them to the dedicated Chaos Monkey role, with test execution, restoration, and reporting covered by unit and integration tests. (`691642c0d`)
+
+### Changed
+
+- **Background subagents receive a graceful-finish lifecycle.** Cleanup now asks eligible workers to finish and waits within a bounded window so Chimera and coordination results are not discarded at the session boundary. (`2ac39c555`, `19cf48a04`, `07e6de24e`)
+- **Effort and thinking levels propagate consistently across provider families.** OpenAI, Google, Anthropic, compatible endpoints, and policy adapters use exhaustive mappings and preserve documented as well as explicitly unknown capability states instead of silently dropping effort. (`9ee04dd27`, `40a1a474b`, `1448c279b`)
+- **All current public release surfaces are aligned to `0.309.0`.** The root, 31 packages, 2 apps, README highlights, website metadata, JSON-LD, and both changelog surfaces now report the same release line.
+
+### Fixed
+
+- **Mailbox and fleet status traffic is lower-noise and safer to render.** Send payloads are projected to prose, status mail is gated accordingly, and duplicate fleet pulses are coalesced before publication. (`1f80752ab`)
+- **Kanban goal metrics respect direction.** Verification now distinguishes higher-is-better from lower-is-better targets, and the direction is preserved through task types, tool schemas, prompts, and WebUI dispatch. (`d66f424d3`, `772900287`)
+- **Stopping a goal cancels its in-flight task.** The task executor now receives the goal's abort signal and returns an interrupted node to `pending` rather than letting work continue after stop or timeout. (`9c431fe50`, `a618cb805`)
+
 ## [0.308.6] — 2026-08-18
 
 ### Changed

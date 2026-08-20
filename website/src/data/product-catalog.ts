@@ -808,6 +808,12 @@ export const specialRosterAgents = [
     summary:
       'State-triggered background codebase explorer that runs behind the leader and reports findings by mail.',
   },
+  {
+    role: 'chaos-monkey',
+    name: 'Chaos Monkey',
+    summary:
+      'One-shot mutation-testing agent that applies deterministic mutants and proves whether the targeted tests catch them.',
+  },
 ] as const;
 
 export const externalAcpAgents = [
