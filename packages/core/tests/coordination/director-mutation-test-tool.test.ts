@@ -446,36 +446,96 @@ describe('makeMutationTestTool', () => {
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
-    expect(chaosPasses).toBe(2); // pass 1 + one re-verify
-    expect(out['strengthenAttempts']).toBe(1);
+    expect(chaosPasses).toBe(3); // pass 1 + two re-verifies (skipped mutant retries)
+    expect(out['strengthenAttempts']).toBe(2); // retry round until the attempt cap
     const equivalent = out['suspectedEquivalent'] as string[];
     expect(equivalent).toHaveLength(0); // the pre-peer-fix bug: ['…#1#…'] here
 
-    // Verdict honesty (regression): this exact scenario — survivors in
-    // pass 1, all-skipped re-verify — used to yield verdict 'pass' and
-    // nextAction 'accept', because the rerun's skipped outcomes dropped
-    // out of `current` and the gate counted only first-pass skips. The
-    // unverified mutant must block a clean pass.
+    // Verdict honesty (regression): survivors in pass 1, re-verify that
+    // never reports the survivor (empty report → skipped). The skipped
+    // mutant retries on the next round but stays unknown at the attempt
+    // cap — it must block a clean pass.
     expect(out['verdict']).toBe('partial');
     expect(out['passed']).toBe(false);
-    expect(out['nextAction']).not.toBe('accept');
+    expect(out['nextAction']).toBe('manual_review_survivors');
     const unverified = out['unverifiedFromRerun'] as Array<{ id: string; kind: string }>;
     expect(unverified).toHaveLength(1);
     expect(unverified[0]!.kind).toBe(survivorKind);
   });
 
+  it('clears a rerun-skipped mutant from the ledger when a later re-verify kills it — verdict pass', async () => {
+    // The stale-ledger regression: pass 1 survivor → re-verify 1 skips it
+    // (empty report, e.g. transient drift) → round 2 re-verifies and
+    // kills it. The mutant HAS kill evidence, so the ledger must clear
+    // and the final verdict must be an honest 'pass' with accept.
+    let chaosPasses = 0;
+    let survivorId = '';
+    const { director } = makeFakeDirector({
+      chaos: (task) => {
+        chaosPasses++;
+        if (chaosPasses === 1) {
+          survivorId = task.mutants[0]!.id;
+          return JSON.stringify({
+            summary: 'one survivor',
+            mutants: task.mutants.map((m) => ({ ...m, status: 'survived' as const })),
+          });
+        }
+        if (chaosPasses === 2) {
+          // Rerun 1: empty report — everything unreported → skipped.
+          return JSON.stringify({ summary: 'transient drift', mutants: [] });
+        }
+        // Rerun 2: the previously-skipped mutant is now killed.
+        return JSON.stringify({
+          summary: 'resolved',
+          mutants: task.mutants.map((m) => ({
+            ...m,
+            status: 'killed' as const,
+            evidence: 'assert failed after strengthening',
+          })),
+        });
+      },
+      strengthen: () => 'strengthened',
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 1,
+        repairSubagentId: 'repair-sub',
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    expect(chaosPasses).toBe(3); // pass 1 + skipped rerun + killed rerun
+    expect(out['strengthenAttempts']).toBe(2);
+    // The stale-ledger bug: verdict 'partial' with the zombie unknown.
+    expect(out['verdict']).toBe('pass');
+    expect(out['passed']).toBe(true);
+    expect(out['nextAction']).toBe('accept');
+    expect(out['unverifiedFromRerun']).toEqual([]);
+    expect((out['finalSurvivors'] as unknown[]).length).toBe(0);
+    expect(survivorId).not.toBe(''); // self-check: scenario actually ran
+  });
+
   it('yields partial (never pass/accept) when a re-verify pass is partial — some killed, one unverified', async () => {
-    // Pass 1: both mutants survive. Strengthen succeeds. Rerun reports
-    // the first mutant killed but never reports the second → skipped
-    // unknown. One legitimate kill among survivors must NOT launder the
-    // unverified one into a clean pass.
+    // Pass 1: both mutants survive. Strengthen succeeds. Every rerun
+    // reports the FIRST mutant killed but never reports the second →
+    // skipped unknown. (The reruns are stateless fakes; under the retry
+    // semantics the skipped mutant is re-verified each round, so the
+    // handler must keep skipping the SAME mutant — matched by the
+    // pass-1 first id, not by position.) One legitimate kill among
+    // survivors must NOT launder the unverified one into a clean pass.
     let chaosPasses = 0;
     let firstKind = '';
+    let firstId = '';
     const { director } = makeFakeDirector({
       chaos: (task) => {
         chaosPasses++;
         if (chaosPasses === 1) {
           firstKind = task.mutants[0]!.kind;
+          firstId = task.mutants[0]!.id;
           return JSON.stringify({
             summary: 'both survive',
             mutants: task.mutants.map((m) => ({ ...m, status: 'survived' as const })),
@@ -486,7 +546,7 @@ describe('makeMutationTestTool', () => {
         return JSON.stringify({
           summary: 'partial rerun',
           mutants: task.mutants
-            .slice(0, 1)
+            .filter((m) => m.id === firstId)
             .map((m) => ({ ...m, status: 'killed' as const, evidence: 'assert failed' })),
         });
       },
@@ -504,11 +564,13 @@ describe('makeMutationTestTool', () => {
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
-    expect(chaosPasses).toBe(2);
-    expect(out['strengthenAttempts']).toBe(1);
+    // Default attempt cap (2): the skipped mutant is retried once more
+    // and stays unreported, then the cap ends the loop.
+    expect(chaosPasses).toBe(3);
+    expect(out['strengthenAttempts']).toBe(2);
     expect(out['verdict']).toBe('partial');
     expect(out['passed']).toBe(false);
-    expect(out['nextAction']).not.toBe('accept');
+    expect(out['nextAction']).toBe('manual_review_survivors');
     const unverified = out['unverifiedFromRerun'] as Array<{ id: string; kind: string }>;
     expect(unverified).toHaveLength(1);
     expect(unverified[0]!.kind).not.toBe(firstKind); // the OTHER mutant is the unverified one
@@ -593,10 +655,12 @@ describe('makeMutationTestTool', () => {
     expect(out['nextAction']).toBe('strengthen_tests');
   });
 
-  it('breaks the loop when the rerun finds every mutant skipped (source drifted)', async () => {
-    // Pass 1: one survivor. Repair succeeds. Rerun pass: the engine
-    // reports every mutant as skipped (e.g. source moved). The loop
-    // must terminate rather than burn the whole attempt budget.
+  it('retries skipped rerun outcomes until the attempt cap when the source drifts', async () => {
+    // Pass 1: one survivor. Repair succeeds. EVERY rerun pass reports
+    // the mutant as skipped (persistent source drift). The loop retries
+    // the unresolved mutant each round rather than breaking early, and
+    // the attempt cap terminates it — the mutant ends unverified, never
+    // silently accepted.
     let chaosPasses = 0;
     const { director, assigns } = makeFakeDirector({
       chaos: (task) => {
@@ -606,7 +670,7 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m, i) => ({
             ...m,
             status: statuses[i] ?? 'skipped',
-            evidence: chaosPasses === 2 ? 'site drifted' : undefined,
+            evidence: chaosPasses === 1 ? undefined : 'site drifted',
           })),
         });
       },
@@ -625,11 +689,14 @@ describe('makeMutationTestTool', () => {
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
-    // One chaos + (strengthen + rerun) = three spawns; rerun finds
-    // every mutant skipped, so the second attempt is never scheduled.
-    expect(chaosPasses).toBe(2);
-    expect(out['strengthenAttempts']).toBe(1);
-    expect(assigns.filter((a) => a.subagentId === 'repair-sub')).toHaveLength(1);
+    // Pass 1 + 3 strengthen→re-verify rounds; the cap ends the loop.
+    expect(chaosPasses).toBe(4);
+    expect(out['strengthenAttempts']).toBe(3);
+    expect(assigns.filter((a) => a.subagentId === 'repair-sub')).toHaveLength(3);
+    // Still unverified at the cap: honest partial, never accept.
+    expect(out['verdict']).toBe('partial');
+    expect(out['nextAction']).toBe('manual_review_survivors');
+    expect((out['unverifiedFromRerun'] as unknown[]).length).toBe(1);
   });
 
   it('caps attempts to the schema maximum (5) regardless of caller input', async () => {

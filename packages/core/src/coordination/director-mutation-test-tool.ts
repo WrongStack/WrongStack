@@ -177,12 +177,11 @@ export function makeMutationTestTool(
       );
       const attempts: StrengthenAttempt[] = [];
       let current = survivors;
-      // Mutants skipped/unreported in ANY re-verify pass — unverified
-      // leftovers that must count against a clean 'pass' verdict. They
-      // drop out of `current` (only 'survived' continues the loop), so
-      // without this ledger the final gate would never see them and
-      // could claim 'pass' with no evidence those mutants were killed.
-      const rerunUnknowns: MutantOutcome[] = [];
+      // Outcomes still lacking a verdict from the LAST completed
+      // re-verify round — recomputed each round from that round's
+      // skipped rows. Unresolved occurrences never leave the worklist,
+      // so the latest round's skips are exactly the unverified set.
+      let rerunUnknowns: MutantOutcome[] = [];
 
       // ── Strengthen loop: repair → re-verify SURVIVORS ONLY ────────────
       while (current.length > 0 && attempts.length < maxAttempts && i.repairSubagentId) {
@@ -222,13 +221,20 @@ export function makeMutationTestTool(
         });
         const [rerunResult] = await director.awaitTasks([rerunTaskId]);
         const passN = collectOutcomes(rerunResult, survivorPlan);
-        const stillSurviving = passN.filter((m) => m.status === 'survived' || m.status === 'skipped');
-        // Rerun-skipped mutants are UNVERIFIED, not dead: the final
-        // verdict must not treat a vacuously-empty `current` as success.
-        const rerunSkipped = passN.filter((m) => m.status === 'skipped');
-        for (const m of rerunSkipped) {
-          if (!rerunUnknowns.some((u) => u.id === m.id)) rerunUnknowns.push(m);
-        }
+        // Killed mutants leave the worklist; skipped/unreported ones STAY
+        // in it so a later attempt can re-verify them (bounded by
+        // maxAttempts) — a skip is an unknown, not a verdict.
+        const stillSurviving = passN.filter((m) => m.status !== 'killed');
+        // Ledger = THIS round's skipped outcomes, recomputed per round.
+        // Occurrence-correct by construction: every unresolved occurrence
+        // stays in the worklist and is re-presented in each later round's
+        // re-verify, so a skip in an earlier round is forgiven the moment
+        // a later round reports that occurrence killed — and a kill of
+        // one twin occurrence never forgives the other (ids are only
+        // unique per file; report rows reconcile to OCCURRENCES inside
+        // collectOutcomes, and this list mirrors those rows exactly —
+        // never an id-keyed findIndex/splice, which would merge twins).
+        rerunUnknowns = passN.filter((m) => m.status === 'skipped');
 
         attempts.push({
           attempt: attemptNo,
@@ -240,13 +246,13 @@ export function makeMutationTestTool(
             .filter((m) => m.status === 'survived' && current.some((c) => c.id === m.id))
             .map((m) => m.id),
         });
-        current = stillSurviving.filter((m) => m.status === 'survived');
-        // Guard: if the re-verify pass skipped everything (source drifted),
-        // stop rather than demanding impossible kills.
-        if (passN.every((m) => m.status === 'skipped')) break;
+        current = stillSurviving;
       }
 
-      const finalSurvivors = current;
+      // Skipped leftovers are unverified, not survivors — they live in
+      // rerunUnknowns; only mutants still actively surviving block the
+      // verdict as survivors.
+      const finalSurvivors = current.filter((m) => m.status === 'survived');
       const verifiedCount = pass1.filter((m) => m.status !== 'skipped').length;
       const skippedCount = pass1.filter((m) => m.status === 'skipped').length;
       // Unknowns from re-verify passes count against a clean pass exactly
@@ -289,7 +295,7 @@ export function makeMutationTestTool(
         // the verdict gate above.
         unverifiedFromRerun: rerunUnknowns.map((m) => ({ id: m.id, file: m.file, kind: m.kind })),
         nextAction:
-          finalSurvivors.length === 0 && rerunUnknownCount === 0
+          finalSurvivors.length === 0 && rerunUnknownCount === 0 && skippedCount === 0
             ? 'accept'
             : attempts.length >= maxAttempts && i.repairSubagentId
               ? 'manual_review_survivors'
