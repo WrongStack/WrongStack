@@ -1,101 +1,120 @@
 import { FLEET_ROSTER } from '@wrongstack/core/coordination';
 import { gatedEnhancerReasoning } from '@wrongstack/core/execution';
+import type { Container } from '@wrongstack/core/kernel';
 import { TOKENS } from '@wrongstack/core/kernel';
+import type { Logger } from '@wrongstack/core/types';
 import { createAuthPanelHost } from '../auth-menu/panel-service.js';
+import type { CliGovernanceRuntimeHandle } from '../cli-main-helpers.js';
 import { createPickableProvidersLoader } from '../cli-main-helpers.js';
+import type { MultiAgentHost } from '../fleet/host.js';
 import { createRuntimeControllerDeps } from './runtime-controller-deps.js';
 import { createRuntimeLifecycleDeps } from './runtime-lifecycle-deps.js';
 import { createRuntimePickerDeps } from './runtime-picker-deps.js';
 import { toExecuteDeps } from './to-execute-deps.js';
 
+// Bag params are typed by their CONSUMER: every field flows into toExecuteDeps
+// — directly or via one of the runtime deps factories — so each type is an
+// indexed access of that destination. The aliases track the factories
+// automatically when their params change.
+type X = Parameters<typeof toExecuteDeps>[0];
+type RC = Parameters<typeof createRuntimeControllerDeps>[0];
+type RP = Parameters<typeof createRuntimePickerDeps>[0];
+type RL = Parameters<typeof createRuntimeLifecycleDeps>[0];
+type AUP = Parameters<typeof createAuthPanelHost>[0];
+
 export async function runCliExecution(params: {
-  agent: any;
-  events: any;
-  slashRegistry: any;
-  tokenCounter: any;
-  sessionRef: any;
-  activateSession: any;
-  config: any;
-  configStore: any;
-  wpaths: any;
+  agent: X['core']['agent'];
+  events: X['core']['events'];
+  slashRegistry: X['core']['slashRegistry'];
+  tokenCounter: X['core']['tokenCounter'];
+  sessionRef: NonNullable<X['core']['sessionRef']>;
+  activateSession: X['core']['activateSessionIdentity'];
+  config: X['core']['config'];
+  configStore: X['core']['configStore'];
+  wpaths: X['core']['wpaths'];
   projectRoot: string;
-  flags: any;
-  positional: any;
-  webuiSessionChild: any;
-  updateInfo: any;
-  attachments: any;
-  brainMailbox: any;
-  session: any;
-  mcpRegistry: any;
-  queueStore: any;
-  context: any;
-  detachTodosCheckpoint: any;
-  sessResult: any;
-  sessionStore: any;
-  memoryStore: any;
-  vectorMemoryStore: any;
-  vectorMemoryModelCacheDir: any;
-  modeStore: any;
-  needsSetup: any;
-  statusTracker: any;
-  multiAgentHost: any;
-  modelsRegistry: any;
-  savedProviderCfg: any;
-  resolvedProvider: any;
-  logger: any;
-  switchProviderAndModel: any;
-  applyMaxContext: any;
-  renderer: any;
-  reader: any;
-  secretInputController: any;
-  effectiveMaxContextRef: any;
-  stats: any;
-  skillLoader: any;
-  promptLoader: any;
-  modeId: any;
-  director: any;
-  coordinatorController: any;
-  fleetStreamController: any;
-  agentTranscripts?: any;
-  agentMonitor?: any;
-  vault: any;
+  flags: X['core']['flags'];
+  positional: X['core']['positional'];
+  webuiSessionChild: X['core']['webuiSessionChild'];
+  updateInfo: X['core']['updateInfo'];
+  attachments: X['session']['attachments'];
+  brainMailbox: X['session']['mailbox'];
+  session: X['session']['session'];
+  mcpRegistry: X['session']['mcpRegistry'];
+  queueStore: X['session']['queueStore'];
+  context: X['session']['context'];
+  detachTodosCheckpoint: X['session']['detachTodosCheckpoint'];
+  sessResult: {
+    rebindTodosCheckpoint: X['session']['rebindTodosCheckpoint'];
+    restoredMessages: X['session']['restoredMessages'];
+    restoredToolCalls: X['session']['restoredToolCalls'];
+    restoredEvents: X['session']['restoredEvents'];
+  };
+  sessionStore: X['session']['sessionStore'];
+  memoryStore: NonNullable<X['session']['memoryStore']>;
+  vectorMemoryStore: X['session']['vectorMemoryStore'];
+  vectorMemoryModelCacheDir: X['session']['vectorMemoryModelCacheDir'];
+  modeStore: X['session']['modeStore'];
+  needsSetup: X['session']['needsSetup'];
+  statusTracker: X['provider']['statusTracker'];
+  multiAgentHost: MultiAgentHost;
+  modelsRegistry: X['provider']['modelsRegistry'];
+  savedProviderCfg: X['provider']['savedProviderCfg'];
+  resolvedProvider: X['provider']['resolvedProvider'];
+  logger: Logger;
+  switchProviderAndModel: X['provider']['switchProviderAndModel'];
+  applyMaxContext: NonNullable<X['provider']['onModelContextResolved']>;
+  renderer: X['ui']['renderer'];
+  reader: X['ui']['reader'];
+  secretInputController: X['ui']['secretInputController'];
+  effectiveMaxContextRef: { readonly current: X['ui']['effectiveMaxContext'] };
+  stats: X['ui']['stats'];
+  skillLoader: X['ui']['skillLoader'];
+  promptLoader: X['ui']['promptLoader'];
+  modeId: X['ui']['modeId'];
+  director: X['fleet']['director'];
+  coordinatorController: X['fleet']['coordinatorController'];
+  fleetStreamController: X['fleet']['fleetStreamController'];
+  agentTranscripts?: X['fleet']['agentTranscripts'];
+  agentMonitor?: X['fleet']['agentTranscripts'];
+  vault: AUP['vault'];
   profileConfigPath: string;
-  onPanelOpen: any;
-  interruptController: any;
-  enhanceController: any;
-  activeReasoningConfig: any;
-  configRef: any;
-  buildProviderForModel: any;
-  statuslineHiddenItems: any;
-  setStatuslineHiddenItems: any;
-  saveStatuslineHiddenItems: any;
-  setYoloMode: any;
-  autonomyMode: any;
-  setAutonomyMode: any;
-  nextPredictEnabled: any;
-  setNextPredict: any;
-  container: any;
-  sessionBridge: any;
-  autoCompactor: any;
-  getPluginPickerItems: any;
-  togglePluginFromPicker: any;
-  getToolPickerItems: any;
-  brain: any;
-  brainSettings: any;
-  brainRuntime: any;
-  brainLog: any;
-  currentSuggestions: any;
-  setCurrentSuggestions: any;
-  eternalEngine: any;
-  parallelEngine: any;
-  sddRunRegistry: any;
-  eternalListeners: any;
-  stageListeners: any;
-  runSageSessionHygiene: any;
-  pluginHost: any;
-  teardownHandlers: any;
-  governanceHandle: any;
-  setConfig: (cfg: any) => void;
+  onPanelOpen: X['fleet']['onPanelOpen'];
+  interruptController: RC['interruptController'];
+  enhanceController: RC['enhanceController'];
+  activeReasoningConfig: Parameters<typeof gatedEnhancerReasoning>[0];
+  configRef: { current: X['core']['config'] };
+  buildProviderForModel: RC['buildProviderForModel'];
+  statuslineHiddenItems: RC['statuslineHiddenItems'];
+  setStatuslineHiddenItems: NonNullable<RC['setStatuslineHiddenItems']>;
+  saveStatuslineHiddenItems: NonNullable<RC['saveStatuslineHiddenItems']>;
+  setYoloMode: NonNullable<RC['getYolo']>;
+  autonomyMode: ReturnType<RC['getAutonomy']>;
+  setAutonomyMode: NonNullable<RC['setAutonomy']>;
+  nextPredictEnabled: ReturnType<RC['getNextPredict']>;
+  setNextPredict: NonNullable<RC['setNextPredict']>;
+  container: Container;
+  sessionBridge: RC['sessionBridge'];
+  autoCompactor: RC['autoCompactor'];
+  getPluginPickerItems: RP['getPluginItems'];
+  togglePluginFromPicker: RP['togglePlugin'];
+  getToolPickerItems: RP['getToolItems'];
+  brain: RP['brain'];
+  brainSettings: RP['brainSettings'];
+  brainRuntime: RP['brainRuntime'];
+  brainLog: ReturnType<NonNullable<RP['getBrainLog']>>;
+  currentSuggestions: ReturnType<RL['getCurrentSuggestions']>;
+  setCurrentSuggestions: RL['setCurrentSuggestions'];
+  eternalEngine: ReturnType<RL['getEternalEngine']>;
+  parallelEngine: ReturnType<RL['getParallelEngine']>;
+  sddRunRegistry: RL['sddRunRegistry'];
+  eternalListeners: RL['eternalListeners'];
+  stageListeners: RL['stageListeners'];
+  runSageSessionHygiene: RL['runSageSessionHygiene'];
+  pluginHost: RL['pluginHost'];
+  teardownHandlers: RL['teardownHandlers'];
+  governanceHandle: CliGovernanceRuntimeHandle | undefined;
+  setConfig: RC['setConfig'];
 }): Promise<number> {
   const {
     agent,
@@ -327,7 +346,12 @@ export async function runCliExecution(params: {
         setConfig,
         profileConfigPath,
         mcpRegistry,
-        toolRegistry: params.context.toolRegistry ?? params.agent.ctx.tools,
+        // cli-main attaches toolRegistry onto the Context object dynamically
+        // (core Context does not declare it). The previous `?? agent.ctx.tools`
+        // fallback was a latent crash: ctx.tools is a Tool[], which cannot
+        // satisfy the ToolRegistry the picker calls into.
+        toolRegistry: (params.context as unknown as { toolRegistry: RP['toolRegistry'] })
+          .toolRegistry,
         configStore,
         getPluginItems: getPluginPickerItems,
         togglePlugin: togglePluginFromPicker,

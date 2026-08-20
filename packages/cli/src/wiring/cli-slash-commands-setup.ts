@@ -1,96 +1,122 @@
+import type { Container } from '@wrongstack/core/kernel';
 import { TOKENS } from '@wrongstack/core/kernel';
+import { getSddRuntimeStateForCli } from '../cli-main-helpers.js';
 import { createCommandHostAdapters } from './command-host-adapters.js';
 import { createEternalCommandHandlers } from './eternal-command-handlers.js';
 import { createFleetCommandHandlers } from './fleet-command-handlers.js';
 import { createSddHandlers } from './sdd-handlers.js';
 import { createSessionCommandHandlers } from './session-command-handlers.js';
 import { buildCommandHostSlashCommands } from './slash-commands.js';
-import { getSddRuntimeStateForCli } from '../cli-main-helpers.js';
+
+// Bag params are typed by their CONSUMERS: every field below flows into
+// buildCommandHostSlashCommands — directly or via one of the handler
+// factories — so each type is an indexed access of that destination. The
+// aliases track the factories automatically when their params change.
+type B = Parameters<typeof buildCommandHostSlashCommands>[0];
+type A = Parameters<typeof createCommandHostAdapters>[0];
+type F = Parameters<typeof createFleetCommandHandlers>[0];
+type SE = Parameters<typeof createSessionCommandHandlers>[0];
+type E = Parameters<typeof createEternalCommandHandlers>[0];
+type SD = Parameters<typeof createSddHandlers>[0];
 
 export function setupCliSlashCommands(params: {
-  slashRegistry: any;
-  toolRegistry: any;
-  agent: any;
-  interruptController: any;
-  reader: any;
-  wpaths: any;
-  container: any;
-  sessionStore: any;
-  skillLoader: any;
-  tokenCounter: any;
-  renderer: any;
-  events: any;
-  memoryStore: any;
+  slashRegistry: B['registry'];
+  toolRegistry: B['toolRegistry'];
+  agent: A['agent'];
+  interruptController: NonNullable<B['interruptController']>;
+  reader: A['reader'];
+  wpaths: B['paths'];
+  container: Container;
+  sessionStore: B['sessionStore'];
+  skillLoader: B['skillLoader'];
+  tokenCounter: B['tokenCounter'];
+  renderer: B['renderer'];
+  events: B['events'];
+  memoryStore: B['memoryStore'];
   /**
    * Vector memory store (semantic recall channel). When supplied, the
    * `/memory diagnostics` and `/memory race` slash commands can
    * surface cross-system health and the lexical vs semantic channel
    * comparison.
    */
-  vectorMemoryStore?: any;
-  context: any;
+  vectorMemoryStore?: B['vectorMemoryStore'];
+  context: NonNullable<B['context']>;
   cwd: string;
   projectRoot: string;
-  metricsSink: any;
-  healthRegistry: any;
-  metricsStatus: any;
+  metricsSink: B['metricsSink'];
+  healthRegistry: B['healthRegistry'];
+  metricsStatus: B['metricsStatus'];
   planPath: string;
-  modeStore: any;
-  fleetStreamController: any;
-  enhanceController: any;
-  provider: any;
-  config: any;
-  buildProviderForId: (pid: string) => any;
-  statuslineConfigDeps: any;
-  getCurrentHiddenItems: () => any[];
-  setStatuslineHiddenItems: any;
-  saveStatuslineHiddenItems: any;
-  agentsMonitorController: any;
-  agentMonitor: any;
-  onPanelOpen: any;
-  configStore: any;
-  secretInputController: any;
-  vault: any;
-  brain: any;
-  brainSettings: any;
-  brainRuntime: any;
-  brainLog: any;
-  coordinatorController: any;
-  statusTracker: any;
-  shadowController: any;
-  multiAgentHost: any;
-  director: any;
-  sessionRef: any;
-  session: any;
+  modeStore: B['modeStore'];
+  fleetStreamController: B['fleetStreamController'];
+  enhanceController: B['enhanceController'];
+  provider: B['llmProvider'];
+  config: SD['config'];
+  buildProviderForId: NonNullable<B['createProvider']>;
+  statuslineConfigDeps: B['statuslineConfig'];
+  getCurrentHiddenItems: () => NonNullable<B['statuslineHiddenItems']>;
+  setStatuslineHiddenItems: NonNullable<B['setStatuslineHiddenItems']>;
+  saveStatuslineHiddenItems: NonNullable<B['saveStatuslineHiddenItems']>;
+  agentsMonitorController: B['agentsMonitorController'];
+  agentMonitor: B['agentMonitor'];
+  onPanelOpen: B['onPanelOpen'];
+  configStore: B['configStore'];
+  secretInputController: {
+    readSecret: NonNullable<B['readSecret']>;
+    readText: NonNullable<B['readText']>;
+  };
+  vault: B['vault'];
+  brain: B['brain'];
+  brainSettings: B['brainSettings'];
+  brainRuntime: B['brainRuntime'];
+  initialBrainLog: ReturnType<NonNullable<B['getBrainLog']>>;
+  coordinatorController: B['coordinatorController'];
+  statusTracker: B['statusTracker'];
+  shadowController: B['shadowController'];
+  multiAgentHost: F['multiAgentHost'];
+  director: ReturnType<F['getDirector']>;
+  sessionRef: SD['sessionRef'];
+  session: SD['session'];
   fleetRootForPromotion: string;
   profileConfigPath: string;
-  effectiveMaxContextRef: any;
-  autoCompactor: any;
-  eventWiring: any;
-  mcpRegistry: any;
-  setYoloMode: (setTo?: boolean) => boolean;
-  getNextPredict: () => boolean;
-  setNextPredict: (enabled: boolean) => void;
-  getCurrentSuggestions: () => any;
-  setCurrentSuggestions: (s: any) => void;
-  teardownHandlers: Array<() => void>;
-  pluginHost: any;
-  logger: any;
-  flags: any;
-  errorRing: any;
-  stats: any;
-  broadcastEternalIteration: any;
-  broadcastAutonomyStage: any;
-  getAutonomyMode: () => any;
-  setAutonomyMode: (m: any) => void;
-  autonomyModeRef: any;
-  getEternalEngine: () => any;
-  setEternalEngine: (e: any) => void;
-  getParallelEngine: () => any;
-  setParallelEngine: (e: any) => void;
-  sddRunRegistry: any;
-  goalHost: any;
-  setConfig: (cfg: any) => void;
+  effectiveMaxContextRef: SE['effectiveMaxContext'];
+  autoCompactor: SE['autoCompactor'];
+  eventWiring: { setEffectiveMaxContext: SE['setEventMaxContext'] };
+  mcpRegistry: SE['mcpRegistry'];
+  setYoloMode: SE['onYolo'];
+  getNextPredict: SE['getNextPredict'];
+  setNextPredict: SE['setNextPredict'];
+  getCurrentSuggestions: SE['getCurrentSuggestions'];
+  setCurrentSuggestions: SE['setCurrentSuggestions'];
+  teardownHandlers: SE['teardownHandlers'];
+  pluginHost: SE['pluginHost'];
+  logger: SD['logger'];
+  flags: SE['flags'];
+  errorRing: SE['errorRing'];
+  stats: SE['stats'];
+  broadcastEternalIteration: E['onIteration'];
+  broadcastAutonomyStage: E['onStage'];
+  getAutonomyMode: E['getAutonomyMode'];
+  setAutonomyMode: E['setAutonomyMode'];
+  autonomyModeRef: E['autonomyModeRef'];
+  getEternalEngine: E['getEternalEngine'];
+  setEternalEngine: E['setEternalEngine'];
+  getParallelEngine: E['getParallelEngine'];
+  setParallelEngine: E['setParallelEngine'];
+  sddRunRegistry: SD['sddRunRegistry'];
+  goalHost?: {
+    onGoalStart: NonNullable<B['onGoalStart']>;
+    onGoalPause: NonNullable<B['onGoalPause']>;
+    onGoalResume: NonNullable<B['onGoalResume']>;
+    onGoalStop: NonNullable<B['onGoalStop']>;
+    getGoalRunner: NonNullable<B['getGoalRunner']>;
+    onGoalMoveTask: NonNullable<B['onGoalMoveTask']>;
+    onGoalAssignTask: NonNullable<B['onGoalAssignTask']>;
+    onGoalAddTask: NonNullable<B['onGoalAddTask']>;
+    onGoalRetryTask: NonNullable<B['onGoalRetryTask']>;
+    onWorktree: NonNullable<B['onWorktree']>;
+  };
+  setConfig: SE['setConfig'];
 }) {
   const {
     slashRegistry,
@@ -133,7 +159,7 @@ export function setupCliSlashCommands(params: {
     brain,
     brainSettings,
     brainRuntime,
-    brainLog,
+    initialBrainLog,
     coordinatorController,
     statusTracker,
     shadowController,
@@ -195,7 +221,7 @@ export function setupCliSlashCommands(params: {
     modeStore,
     fleetStreamController,
     interruptController,
-    enhanceController,
+    ...(enhanceController ? { enhanceController } : {}),
     llmProvider: provider,
     llmModel: config.model,
     createProvider: (pid: string) => {
@@ -205,23 +231,23 @@ export function setupCliSlashCommands(params: {
         return undefined;
       }
     },
-    statuslineConfig: statuslineConfigDeps,
+    ...(statuslineConfigDeps ? { statuslineConfig: statuslineConfigDeps } : {}),
     statuslineHiddenItems: [...getCurrentHiddenItems()],
     setStatuslineHiddenItems,
     saveStatuslineHiddenItems,
-    agentsMonitorController,
-    agentMonitor,
+    ...(agentsMonitorController ? { agentsMonitorController } : {}),
+    ...(agentMonitor ? { agentMonitor } : {}),
     onPanelOpen,
     configStore,
     reader,
-    readSecret: (prompt) => secretInputController.readSecret(prompt),
-    readText: (prompt) => secretInputController.readText(prompt),
+    readSecret: secretInputController.readSecret,
+    readText: secretInputController.readText,
     vault,
     brain,
     brainSettings,
     brainRuntime,
-    getBrainLog: () => brainLog,
-    coordinatorController,
+    getBrainLog: () => initialBrainLog,
+    ...(coordinatorController ? { coordinatorController } : {}),
     statusTracker,
     shadowController,
     ...createFleetCommandHandlers({
@@ -293,16 +319,20 @@ export function setupCliSlashCommands(params: {
       sddRunRegistry,
       getSddRuntimeState: getSddRuntimeStateForCli,
     }),
-    onGoalStart: goalHost.onGoalStart,
-    onGoalPause: goalHost.onGoalPause,
-    onGoalResume: goalHost.onGoalResume,
-    onGoalStop: goalHost.onGoalStop,
-    getGoalRunner: goalHost.getGoalRunner,
-    onGoalMoveTask: goalHost.onGoalMoveTask,
-    onGoalAssignTask: goalHost.onGoalAssignTask,
-    onGoalAddTask: goalHost.onGoalAddTask,
-    onGoalRetryTask: goalHost.onGoalRetryTask,
-    onWorktree: goalHost.onWorktree,
+    ...(goalHost
+      ? {
+          onGoalStart: goalHost.onGoalStart,
+          onGoalPause: goalHost.onGoalPause,
+          onGoalResume: goalHost.onGoalResume,
+          onGoalStop: goalHost.onGoalStop,
+          getGoalRunner: goalHost.getGoalRunner,
+          onGoalMoveTask: goalHost.onGoalMoveTask,
+          onGoalAssignTask: goalHost.onGoalAssignTask,
+          onGoalAddTask: goalHost.onGoalAddTask,
+          onGoalRetryTask: goalHost.onGoalRetryTask,
+          onWorktree: goalHost.onWorktree,
+        }
+      : {}),
   });
 
   for (const cmd of slashCmds) {

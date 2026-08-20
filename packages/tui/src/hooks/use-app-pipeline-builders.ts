@@ -1,103 +1,115 @@
 import type { AppProps } from '../app-props.js';
-import type { State } from '../app-reducer.js';
-import type { AppExecutionPipelineArgs } from './use-app-execution-pipeline.js';
+import type {
+  AppExecutionPipelineArgs,
+  KeyHandlerParams,
+  RunBlocksParams,
+  SubmitParams,
+} from './use-app-execution-pipeline.js';
+
+// Bag params are typed by their CONSUMER: every field below is forwarded into
+// exactly one of the three controller param objects assembled in the body, so
+// each type is an indexed access of that destination. The aliases track the
+// controllers automatically when their param interfaces change.
+type K = KeyHandlerParams;
+type R = RunBlocksParams;
+type S = SubmitParams;
 
 export function buildAppPipelineArgs(params: {
   props: AppProps;
-  state: State;
-  dispatch: any;
-  historyScrollRef: any;
-  runInterruptLadder: any;
-  enhanceCancelledRef: any;
-  enhanceAbortRef: any;
-  enhanceOriginalRef: any;
-  enhanceEnabledRef: any;
-  inputGateRef: any;
-  lastEscAtRef: any;
-  dismissedEscAtRef: any;
-  streamingTextRef: any;
-  streamSegmentsRef: any;
-  pendingDeltaRef: any;
-  flushTimerRef: any;
-  sessionGenerationRef: any;
-  activeRunGenerationRef: any;
-  activeRunSettledRef: any;
-  assistantCommittedThisRunRef: any;
-  confirmExitRef: any;
-  chimeRef: any;
-  activeCtrlRef: any;
-  clearPendingConfirms: any;
-  liveDirector: any;
-  openProjectPicker: any;
-  loadLiveSessions: any;
-  openStatuslinePicker: any;
-  statuslineHiddenItems: any;
-  lastEnterAtRef: any;
-  draftRef: any;
-  setDraft: any;
-  clearDraft: any;
-  mouseMode: any;
-  nativeMouse: any;
-  termRows: any;
-  terminalColumns: any;
-  terminalRows: any;
-  mainColumnWidth: any;
-  overlayOpen: any;
-  effectiveSwarmOnSidebar: any;
-  sidebarTwinRowCount: any;
-  statusBarWrapRef: any;
-  belowStatusBarRef: any;
-  statusBarClickMapRef: any;
-  openModelPicker: any;
-  nextStepsAutoSubmitTimerRef: any;
-  nextStepsAutoSubmitSuggestionRef: any;
-  nextStepsAutoSubmitLabel: any;
-  setNextStepsAutoSubmitCountdown: any;
-  setNextStepsAutoSubmitLabel: any;
-  cancelNextStepsCountdown: any;
-  pasteClipboardText: any;
-  pasteClipboardImage: any;
-  onHistoryCopy: any;
-  tryPickerKey: any;
-  pasteAccumRef: any;
-  pasteFlushTimerRef: any;
-  commitPaste: any;
-  builderRef: any;
-  tokenPreviewsRef: any;
-  interruptsSyncRef: any;
-  stateRef: any;
-  runBlocksRef: any;
-  submitRef: any;
-  liveModel: any;
-  liveProvider: any;
-  activeMaxContext: any;
-  yoloLive: any;
-  autonomyLive: any;
-  liveModeLabel: any;
-  setMouseMode: any;
-  setNativeMouse: any;
-  setLiveModel: any;
-  setLiveProvider: any;
-  setActiveMaxContext: any;
-  setYoloLive: any;
-  setAutonomyLive: any;
-  setLiveModeLabel: any;
-  setLiveToolCount: any;
-  autoSubmitStreakRef: any;
-  autoSubmitCapWarnedRef: any;
-  autoSubmitLoopGuardRef: any;
-  runEternalLoopRef: any;
-  runParallelLoopRef: any;
-  midRunSendPickerRef: any;
-  openPromptPicker: any;
-  refreshGoalSummary: any;
-  exit: any;
-  setMemoryContextMonitor: any;
-  runSteerSequence: any;
-  setEnhanceStartedAt: any;
-  setEnhanceDurationMs: any;
-  setRefineProviderId: any;
-  setRefineModel: any;
+  state: K['state'];
+  dispatch: K['dispatch'];
+  historyScrollRef: K['historyScrollRef'];
+  runInterruptLadder: K['runInterruptLadder'];
+  enhanceCancelledRef: K['enhanceCancelledRef'];
+  enhanceAbortRef: K['enhanceAbortRef'];
+  enhanceOriginalRef: S['refs']['enhanceOriginal'];
+  enhanceEnabledRef: S['refs']['enhanceEnabled'];
+  inputGateRef: K['inputGateRef'];
+  lastEscAtRef: K['lastEscAtRef'];
+  dismissedEscAtRef: K['dismissedEscAtRef'];
+  streamingTextRef: K['streamingTextRef'];
+  streamSegmentsRef: R['refs']['streamSegments'];
+  pendingDeltaRef: R['refs']['pendingDelta'];
+  flushTimerRef: R['refs']['flushTimer'];
+  sessionGenerationRef: R['refs']['sessionGeneration'];
+  activeRunGenerationRef: R['refs']['activeRunGeneration'];
+  activeRunSettledRef: R['refs']['activeRunSettled'];
+  assistantCommittedThisRunRef: R['refs']['assistantCommitted'];
+  confirmExitRef: K['confirmExitRef'];
+  chimeRef: R['refs']['chime'];
+  activeCtrlRef: K['activeCtrlRef'];
+  clearPendingConfirms: K['clearPendingConfirms'];
+  liveDirector: K['liveDirector'];
+  openProjectPicker: K['openProjectPicker'];
+  loadLiveSessions: K['loadLiveSessions'];
+  openStatuslinePicker: K['openStatuslinePicker'];
+  statuslineHiddenItems: K['statuslineHiddenItems'];
+  lastEnterAtRef: K['lastEnterAtRef'];
+  draftRef: K['draftRef'];
+  setDraft: K['setDraft'];
+  clearDraft: S['actions']['clearDraft'];
+  mouseMode: K['mouseMode'];
+  nativeMouse: S['live']['nativeMouse'];
+  termRows: K['termRows'];
+  terminalColumns: K['terminalColumns'];
+  terminalRows: K['terminalRows'];
+  mainColumnWidth: K['mainColumnWidth'];
+  overlayOpen: K['overlayOpen'];
+  effectiveSwarmOnSidebar: K['effectiveSwarmOnSidebar'];
+  sidebarTwinRowCount: K['sidebarTwinRowCount'];
+  statusBarWrapRef: K['statusBarWrapRef'];
+  belowStatusBarRef: K['belowStatusBarRef'];
+  statusBarClickMapRef: K['statusBarClickMapRef'];
+  openModelPicker: K['openModelPicker'];
+  nextStepsAutoSubmitTimerRef: K['nextStepsAutoSubmitTimerRef'];
+  nextStepsAutoSubmitSuggestionRef: K['nextStepsAutoSubmitSuggestionRef'];
+  nextStepsAutoSubmitLabel: K['nextStepsAutoSubmitLabel'];
+  setNextStepsAutoSubmitCountdown: K['setNextStepsAutoSubmitCountdown'];
+  setNextStepsAutoSubmitLabel: K['setNextStepsAutoSubmitLabel'];
+  cancelNextStepsCountdown: K['cancelNextStepsCountdown'];
+  pasteClipboardText: K['pasteClipboardText'];
+  pasteClipboardImage: K['pasteClipboardImage'];
+  onHistoryCopy: K['onHistoryCopy'];
+  tryPickerKey: K['tryPickerKey'];
+  pasteAccumRef: K['pasteAccumRef'];
+  pasteFlushTimerRef: K['pasteFlushTimerRef'];
+  commitPaste: K['commitPaste'];
+  builderRef: S['refs']['builder'];
+  tokenPreviewsRef: S['refs']['tokenPreviews'];
+  interruptsSyncRef: R['refs']['interrupts'];
+  stateRef: R['refs']['state'];
+  runBlocksRef: AppExecutionPipelineArgs['runBlocksRef'];
+  submitRef: AppExecutionPipelineArgs['submitRef'];
+  liveModel: S['live']['model'];
+  liveProvider: S['live']['provider'];
+  activeMaxContext: S['live']['maxContext'];
+  yoloLive: S['live']['yolo'];
+  autonomyLive: S['live']['autonomy'];
+  liveModeLabel: S['live']['modeLabel'];
+  setMouseMode: S['live']['setMouseMode'];
+  setNativeMouse: S['live']['setNativeMouse'];
+  setLiveModel: S['live']['setModel'];
+  setLiveProvider: S['live']['setProvider'];
+  setActiveMaxContext: S['live']['setMaxContext'];
+  setYoloLive: S['live']['setYolo'];
+  setAutonomyLive: S['live']['setAutonomy'];
+  setLiveModeLabel: S['live']['setModeLabel'];
+  setLiveToolCount: S['live']['setToolCount'];
+  autoSubmitStreakRef: S['refs']['autoSubmitStreak'];
+  autoSubmitCapWarnedRef: S['refs']['autoSubmitCapWarned'];
+  autoSubmitLoopGuardRef: S['refs']['autoSubmitLoopGuard'];
+  runEternalLoopRef: S['refs']['eternalLoop'];
+  runParallelLoopRef: S['refs']['parallelLoop'];
+  midRunSendPickerRef: S['refs']['midRunSendPicker'];
+  openPromptPicker: S['actions']['openPromptPicker'];
+  refreshGoalSummary: S['actions']['refreshGoalSummary'];
+  exit: S['actions']['exit'];
+  setMemoryContextMonitor: S['actions']['setMemoryContextMonitor'];
+  runSteerSequence: S['actions']['runSteerSequence'];
+  setEnhanceStartedAt: S['actions']['setEnhanceStartedAt'];
+  setEnhanceDurationMs: S['actions']['setEnhanceDuration'];
+  setRefineProviderId: S['actions']['setRefineProvider'];
+  setRefineModel: S['actions']['setRefineModel'];
 }): AppExecutionPipelineArgs {
   const {
     props,
@@ -252,7 +264,7 @@ export function buildAppPipelineArgs(params: {
       slashRegistry: props.slashRegistry,
       agent: props.agent,
       onHistoryCopy,
-    } as any,
+    },
     runBlocksParams: {
       capabilities: {
         agent: props.agent,
@@ -278,7 +290,7 @@ export function buildAppPipelineArgs(params: {
         state: stateRef,
       },
       dispatch,
-    } as any,
+    },
     submitParams: {
       capabilities: {
         agent: props.agent,
@@ -353,7 +365,8 @@ export function buildAppPipelineArgs(params: {
         openPromptPicker,
         refreshGoalSummary,
         exit,
-        runBlocks: (blocks: any) => runBlocksRef.current(blocks),
+        runBlocks: (blocks: Parameters<S['actions']['runBlocks']>[0]) =>
+          runBlocksRef.current(blocks),
         liveDirector,
         setMemoryContextMonitor,
         runSteerSequence,
@@ -377,7 +390,7 @@ export function buildAppPipelineArgs(params: {
           }
         },
       },
-    } as any,
+    },
     runBlocksRef,
     submitRef,
   };

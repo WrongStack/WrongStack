@@ -726,7 +726,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     brain,
     brainSettings,
     brainRuntime,
-    brainLog,
+    initialBrainLog: brainLog,
     coordinatorController,
     statusTracker,
     shadowController,

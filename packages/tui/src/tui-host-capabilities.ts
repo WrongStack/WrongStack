@@ -31,7 +31,10 @@ export interface RunBlocksCapabilities {
   agent: Agent;
   tokenCounter?: TokenCounter | undefined;
   supportsVision?: (() => boolean | Promise<boolean>) | undefined;
-  visionAdapters: VisionAdapters;
+  // Optional to match consumption: the only use site feeds it to
+  // routeImagesForModel's `adapters?: VisionAdapters | undefined`, which
+  // resolves absent adapters to an empty list (runtime/vision resolveAdapters).
+  visionAdapters?: VisionAdapters | undefined;
   onSDDOutput?: ((output: string) => Promise<string[]>) | undefined;
   onSuggestionsParsed?: ((finalText: string) => void) | undefined;
   predictNext?:
