@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-20T19:35:08.787Z",
+  "generatedAt": "2026-08-20T22:20:23.934Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,24 @@
   },
   "summary": {
     "packages": 33,
-    "sourceFiles": 3283,
-    "testFiles": 2840,
-    "sourceLines": 782537,
+    "sourceFiles": 3284,
+    "testFiles": 2850,
+    "sourceLines": 783598,
     "workspaceEdges": 106,
-    "moduleEdges": 10145,
+    "moduleEdges": 10148,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 16,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 806
+    "testOnlyExports": 807
   },
-  "errors": [],
+  "errors": [
+    "packages/core/src/plugin/api.ts: new 887-line hotspot is not in architecture/hotspots.json",
+    "packages/core/src/security/secret-vault.ts: hotspot grew from 828 to 853 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/path-guard/shell-targets.ts: hotspot grew from 1036 to 1048 lines; review and update the ratchet in the same change",
+    "packages/core/src/security/permission-policy.ts: \"mergeTrustEntries\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -141,7 +146,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 456,
-      "testFiles": 423,
+      "testFiles": 424,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -177,7 +182,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 423
+          "testFiles": 424
         }
       ]
     },
@@ -207,8 +212,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 755,
-      "testFiles": 631,
+      "sourceFiles": 756,
+      "testFiles": 637,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence"
@@ -222,7 +227,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 631
+          "testFiles": 637
         }
       ]
     },
@@ -423,7 +428,7 @@
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
       "sourceFiles": 86,
-      "testFiles": 121,
+      "testFiles": 122,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/plugin-sdk",
@@ -438,7 +443,7 @@
         {
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
-          "testFiles": 121
+          "testFiles": 122
         }
       ]
     },
@@ -696,7 +701,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 187,
-      "testFiles": 191,
+      "testFiles": 192,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -711,7 +716,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 191
+          "testFiles": 192
         }
       ]
     },
@@ -826,7 +831,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 190,
-      "testFiles": 151,
+      "testFiles": 152,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -849,7 +854,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 151
+          "testFiles": 152
         }
       ]
     },
@@ -2948,6 +2953,12 @@
       },
       {
         "file": "packages/cli/tests/per-subcommand-help.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/permission-prompt-spoofing.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6559,6 +6570,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/plugin/api-mutation-boundary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/plugin/api.test.ts",
         "projects": [
           "root-node"
@@ -6823,6 +6840,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/config-secret-headers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/config-secrets.test.ts",
         "projects": [
           "root-node"
@@ -6866,6 +6889,12 @@
       },
       {
         "file": "packages/core/tests/security/permission-policy-extra.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/permission-policy-guardrail-regressions.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6925,6 +6954,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/sensitive-path-ads.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/totp.test.ts",
         "projects": [
           "root-node"
@@ -6938,6 +6973,12 @@
       },
       {
         "file": "packages/core/tests/security/trust-command-wildcard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/yolo-credential-binding.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7988,6 +8029,12 @@
       },
       {
         "file": "packages/core/tests/utils/tool-result-render-mode.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/utils/tool-subject-fields.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9404,6 +9451,12 @@
       },
       {
         "file": "packages/plugins/tests/notify-hub.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/plugins/tests/path-guard-redos.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12961,6 +13014,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/wasm-provenance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/win32-resolve.test.ts",
         "projects": [
           "root-node"
@@ -15650,6 +15709,12 @@
       },
       {
         "file": "packages/webui-server/tests/network-info.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/open-browser-guard.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18395,8 +18460,13 @@
       "relativeImports": 154
     },
     {
+      "file": "packages/core/src/plugin/api.ts",
+      "lines": 887,
+      "relativeImports": 21
+    },
+    {
       "file": "packages/core/src/security/secret-vault.ts",
-      "lines": 828,
+      "lines": 853,
       "relativeImports": 9
     },
     {
@@ -18461,7 +18531,7 @@
     },
     {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
-      "lines": 1036,
+      "lines": 1048,
       "relativeImports": 1
     },
     {
@@ -18827,14 +18897,14 @@
       "relativeImports": 43
     },
     {
+      "file": "packages/plugins/src/path-guard/shell-targets.ts",
+      "lines": 1048,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/webui/src/lib/ws-client.ts",
       "lines": 1038,
       "relativeImports": 10
-    },
-    {
-      "file": "packages/plugins/src/path-guard/shell-targets.ts",
-      "lines": 1036,
-      "relativeImports": 1
     },
     {
       "file": "packages/cli/src/plugin-management.ts",
@@ -20074,6 +20144,10 @@
     {
       "file": "packages/core/src/plugins/skills-plugin.ts",
       "name": "resolveImportSourceDir"
+    },
+    {
+      "file": "packages/core/src/security/permission-policy.ts",
+      "name": "mergeTrustEntries"
     },
     {
       "file": "packages/core/src/security/totp.ts",
