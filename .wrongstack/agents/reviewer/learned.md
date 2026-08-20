@@ -36,14 +36,14 @@
   - *How:* `read`
   - *How:* `grep`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=26; wins=25 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-09T21:57:57.955Z; applied=27; wins=26 -->
 - **When a refactor extracts a SQL CTE body into a `(seedSource: string) => string` template builder and delegates execution to a named helper (e.g. `runCteWithSeeds`), grep for the helper's *definition* — not just its call sites — before accepting the change. A diff can introduce a call to a helper that was planned but never written (whole-tree definition count = 0), which typecheck catches as "Cannot find name" and runtime catches as `ReferenceError`.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `(seedSource: string) => string`
   - *How:* `runCteWithSeeds`
   - *How:* `ReferenceError`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=82; wins=81 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=83; wins=82 -->
 - **When a test-file diff adds a new import block but the test bodies it accompanies never reference those symbols, immediately grep the changed file for every imported name before trusting the diff — `noUnusedLocals: true` (set in `tsconfig.base.json`, inherited by every package's `tsconfig.json` and `tsconfig.test.json`) turns each unused import into `error TS6133` and fails the package's test typecheck. Unused `type`-qualified inline imports are flagged too; do not assume type-only imports are exempt.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `noUnusedLocals: true`
@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-08-20T17:47:20.769Z · 8 entries*
+*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*

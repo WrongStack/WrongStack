@@ -399,6 +399,76 @@ describe('ExploreCompanion mailbox-ask gating', () => {
     expect(h.probes).toHaveLength(0);
     expect(h.acks).toHaveLength(0);
   });
+
+  it('leader ask addressed to ANOTHER agent → no probe, no ack', async () => {
+    const h = makeHarness(
+      {},
+      [makeMessage({ to: 'reviewer', senderSessionId: LEADER_SESSION })],
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.probes).toHaveLength(0);
+    expect(h.acks).toHaveLength(0);
+  });
+
+  it('leader-named sender from a DIFFERENT session is rejected', async () => {
+    const h = makeHarness(
+      {},
+      [makeMessage({ from: 'leader@sess-other', senderSessionId: 'sess-other' })],
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    // `isMailboxLeader('leader@sess-other')` is true by name — the stamped
+    // session id must win so one session's leader cannot steer another
+    // session's companion.
+    expect(h.probes).toHaveLength(0);
+    expect(h.acks).toHaveLength(0);
+  });
+
+  it('global broadcast ask from the leader → probe', async () => {
+    const h = makeHarness(
+      {},
+      [makeMessage({ to: '*', senderSessionId: LEADER_SESSION })],
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.probes).toHaveLength(1);
+    expect(h.probes[0]?.source).toBe('mailbox_ask');
+  });
+
+  it('session-scoped broadcast ask from the leader → probe', async () => {
+    const h = makeHarness(
+      {},
+      [makeMessage({ to: `@session:${LEADER_SESSION}`, senderSessionId: LEADER_SESSION })],
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.probes).toHaveLength(1);
+  });
+
+  it('session broadcast from another session → no probe', async () => {
+    const h = makeHarness(
+      {},
+      [makeMessage({ to: '@session:sess-other', senderSessionId: 'sess-other' })],
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.probes).toHaveLength(0);
+  });
+
+  it('tagged companionAgentId accepts the exact tagged recipient', async () => {
+    const tagged = 'explore-companion@sess-leader';
+    const h = makeHarness(
+      { companionAgentId: tagged },
+      [makeMessage({ to: tagged, senderSessionId: LEADER_SESSION })],
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.probes).toHaveLength(1);
+  });
+
+  it('legacy unstamped send from a bare leader name still works', async () => {
+    const h = makeHarness(
+      {},
+      [makeMessage({ from: 'leader', senderSessionId: undefined })],
+    );
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.probes).toHaveLength(1);
+  });
 });
 
 describe('explore-companion roster integration', () => {

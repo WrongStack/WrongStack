@@ -1,0 +1,14 @@
+{
+  "consolidatedAt": "2026-08-20T18:09:32.432Z",
+  "sourceEntryCount": 0,
+  "sourceBytes": 385,
+  "consolidatedBytes": 2129,
+  "trigger": "automatic",
+  "model": "glm-5.3",
+  "pruned": true,
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\context\\archive\\learned-2026-08-20T18-09-32-432Z.md",
+  "skills": [
+    "output-standards",
+    "audit-log"
+  ]
+}

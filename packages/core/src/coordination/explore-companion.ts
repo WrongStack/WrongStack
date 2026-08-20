@@ -39,7 +39,12 @@
 
 import { randomUUID } from 'node:crypto';
 import type { EventBus, TrackedAgentSnapshot } from '../kernel/events.js';
-import { type Mailbox, isMailboxLeader } from './mailbox-types.js';
+import {
+  type Mailbox,
+  isMailboxLeader,
+  mailboxIdentityBase,
+  sessionRecipient,
+} from './mailbox-types.js';
 
 /** Which observed work-state signal produced a probe. */
 export type ExploreProbeSource =
@@ -505,12 +510,32 @@ export class ExploreCompanion {
         limit: 20,
       });
       const lsid = this.resolveLeaderSessionId();
+      // Recipient gate. The store matches `to` exactly-or-`*`, so an
+      // `unreadBy`-only query returns every project message unread by the
+      // companion — including asks addressed to OTHER agents, which the
+      // companion must neither probe on nor ack. Accept only the tagged
+      // resident id, the bare base alias (family-wide by convention), this
+      // session's broadcast, or a global broadcast.
+      const selfRecipients = new Set<string>(
+        [
+          this.cfg.companionAgentId,
+          mailboxIdentityBase(this.cfg.companionAgentId),
+          ...(lsid != null ? [sessionRecipient(lsid)] : []),
+        ].map((r) => r.toLowerCase()),
+      );
       for (const msg of messages) {
         if (msg.type !== 'ask' && msg.type !== 'assign') continue;
+        const to = msg.to.trim().toLowerCase();
+        if (to !== '*' && !selfRecipients.has(to)) continue;
         // Only the leader may send explicit probes. The mailbox is a shared
         // bus; without this gate a peer (or an external HTTP credential)
         // could paste arbitrary text into a spawned subagent's task.
-        const fromLeader = isMailboxLeader(msg.from) || (lsid != null && msg.senderSessionId === lsid);
+        // A stamped `senderSessionId` is authoritative and must be THIS
+        // leader's session; the name check only covers unstamped legacy
+        // sends, where a name like `leader@other-session` must NOT pass.
+        const fromLeader =
+          (msg.senderSessionId === undefined && isMailboxLeader(msg.from)) ||
+          (lsid != null && msg.senderSessionId === lsid);
         if (!fromLeader) continue;
         this.engage({
           id: randomUUID(),
